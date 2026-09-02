@@ -1,0 +1,21 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+base_name       = "aifnd"
+environment     = "dev"
+location        = "eastus2"
+
+model_deployment = {
+  deployment_name = "gpt-4.1"
+  format           = "OpenAI"
+  name             = "gpt-4.1"
+  version          = "2025-04-14"
+  sku_name         = "GlobalStandard"
+  capacity         = 10
+}
+
+enable_agent_service = true
+
+tags = {
+  cost-center = "replace-me"
+  owner       = "replace-me"
+}
+

@@ -1,0 +1,10 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform/backend.azurerm.tf
+.env
+__pycache__/
+*.py[cod]
+.venv/
+

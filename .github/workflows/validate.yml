@@ -1,0 +1,49 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: hosted-agents/basic-responses-agent/requirements*.txt
+      - name: Install deployment dependencies
+        run: pip install -r hosted-agents/basic-responses-agent/requirements-deploy.txt
+      - name: Install hosted runtime dependencies
+        run: pip install -r hosted-agents/basic-responses-agent/requirements.txt
+      - name: Compile Python sources
+        run: python -m compileall -q cost-comparison hosted-agents
+      - name: Test cost calculator
+        run: python cost-comparison/test_calculator.py
+      - name: Validate deployment CLI
+        run: python hosted-agents/basic-responses-agent/deploy.py --help
+      - name: Validate hosted runtime imports
+        run: >-
+          python -c "from agent_framework import Agent;
+          from agent_framework.foundry import FoundryChatClient;
+          from agent_framework_foundry_hosting import ResponsesHostServer"
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
+      - name: Check formatting
+        run: terraform -chdir=terraform fmt -check -recursive
+      - name: Initialize without a backend
+        run: terraform -chdir=terraform init -backend=false
+      - name: Validate configuration
+        run: terraform -chdir=terraform validate

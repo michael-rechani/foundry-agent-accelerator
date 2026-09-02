@@ -1,0 +1,35 @@
+{
+  "currency": "USD",
+  "rates_last_reviewed": "2026-09-02",
+  "vm": {
+    "instance_count": 2,
+    "running_hours_per_instance": 730,
+    "hourly_rate": 0.25,
+    "managed_disks_monthly": 40.0,
+    "monitoring_monthly": 25.0,
+    "egress_gb": 100.0,
+    "egress_rate_per_gb": 0.087,
+    "operations_hours": 8.0,
+    "operations_rate_per_hour": 100.0
+  },
+  "hosted_agent": {
+    "aggregate_sandbox_hours": 400.0,
+    "vcpu_per_sandbox": 0.5,
+    "gib_per_sandbox": 1.0,
+    "vcpu_rate_per_hour": 0.1,
+    "gib_rate_per_hour": 0.01,
+    "session_storage_gb_months": 20.0,
+    "storage_rate_per_gb_month": 0.15,
+    "monitoring_monthly": 25.0,
+    "egress_gb": 100.0,
+    "egress_rate_per_gb": 0.087
+  },
+  "shared_ai": {
+    "input_tokens": 100000000,
+    "input_rate_per_million": 2.0,
+    "output_tokens": 20000000,
+    "output_rate_per_million": 8.0,
+    "tool_usage_monthly": 50.0
+  }
+}
+
