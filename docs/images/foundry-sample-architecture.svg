@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title description">
+  <title id="title">Microsoft Foundry sample architecture</title>
+  <desc id="description">Terraform deploys a Microsoft Foundry project, model, agent services, and observability. A Python deployer publishes an immutable hosted agent version and routes endpoint traffic to it.</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#172b4d" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#50657a"/>
+    </marker>
+    <style>
+      .heading { font: 600 28px 'Segoe UI', sans-serif; fill: #172b4d; }
+      .subheading { font: 400 15px 'Segoe UI', sans-serif; fill: #50657a; }
+      .label { font: 600 17px 'Segoe UI', sans-serif; fill: #172b4d; }
+      .detail { font: 400 14px 'Segoe UI', sans-serif; fill: #50657a; }
+      .eyebrow { font: 600 12px 'Segoe UI', sans-serif; letter-spacing: 1px; fill: #0067b8; }
+      .flow { fill: none; stroke: #50657a; stroke-width: 2; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1200" height="675" fill="#f7f9fc"/>
+  <path d="M0 0h1200v8H0z" fill="#0078d4"/>
+
+  <text x="56" y="64" class="heading">Microsoft Foundry hosted-agent baseline</text>
+  <text x="56" y="92" class="subheading">Infrastructure, immutable agent delivery, and transparent cost modeling in one sample.</text>
+
+  <g filter="url(#shadow)">
+    <rect x="56" y="146" width="240" height="168" rx="6" fill="#ffffff" stroke="#c7d4e0"/>
+    <rect x="56" y="146" width="8" height="168" rx="4" fill="#7fba00"/>
+  </g>
+  <text x="88" y="181" class="eyebrow">01  CONFIGURE</text>
+  <text x="88" y="216" class="label">Terraform</text>
+  <text x="88" y="244" class="detail">Subscription and region</text>
+  <text x="88" y="267" class="detail">Model and capacity</text>
+  <text x="88" y="290" class="detail">Environment and tags</text>
+
+  <g filter="url(#shadow)">
+    <rect x="368" y="128" width="464" height="378" rx="6" fill="#ffffff" stroke="#8ebee5" stroke-width="2"/>
+  </g>
+  <text x="400" y="166" class="eyebrow">02  DEPLOY TO AZURE</text>
+  <text x="400" y="202" class="label">Microsoft Foundry project</text>
+  <text x="400" y="227" class="detail">Managed identity and local authentication disabled</text>
+
+  <rect x="400" y="261" width="184" height="84" rx="6" fill="#e8f3fb" stroke="#0078d4"/>
+  <circle cx="430" cy="291" r="11" fill="#0078d4"/>
+  <path d="M425 291h10M430 286v10" stroke="#ffffff" stroke-width="2"/>
+  <text x="451" y="293" class="label">Model</text>
+  <text x="420" y="323" class="detail">Versioned deployment</text>
+
+  <rect x="616" y="261" width="184" height="84" rx="6" fill="#e6f5f2" stroke="#008272"/>
+  <circle cx="646" cy="291" r="11" fill="#008272"/>
+  <path d="M641 291h10M646 286v10" stroke="#ffffff" stroke-width="2"/>
+  <text x="667" y="293" class="label">Agent Service</text>
+  <text x="636" y="323" class="detail">Sessions and hosting</text>
+
+  <rect x="400" y="373" width="400" height="101" rx="6" fill="#f4f0fa" stroke="#744da9"/>
+  <text x="420" y="405" class="label">Standard setup dependencies</text>
+  <text x="420" y="434" class="detail">AI Search  |  Cosmos DB  |  Storage  |  Key Vault</text>
+  <text x="420" y="457" class="detail">Diagnostics flow to Log Analytics</text>
+
+  <g filter="url(#shadow)">
+    <rect x="904" y="146" width="240" height="168" rx="6" fill="#ffffff" stroke="#c7d4e0"/>
+    <rect x="1136" y="146" width="8" height="168" rx="4" fill="#ffb900"/>
+  </g>
+  <text x="936" y="181" class="eyebrow">03  PUBLISH</text>
+  <text x="936" y="216" class="label">Python deployer</text>
+  <text x="936" y="244" class="detail">Package and remote build</text>
+  <text x="936" y="267" class="detail">Smoke test candidate</text>
+  <text x="936" y="290" class="detail">Promote or roll back</text>
+
+  <path d="M296 230H358" class="flow"/>
+  <path d="M904 230H842" class="flow"/>
+
+  <rect x="56" y="558" width="1088" height="65" rx="6" fill="#172b4d"/>
+  <text x="84" y="587" style="font: 600 15px 'Segoe UI', sans-serif; fill: #ffffff;">COST LENS</text>
+  <text x="84" y="609" style="font: 400 14px 'Segoe UI', sans-serif; fill: #dce6ef;">Compare VM infrastructure with aggregate hosted sandbox time using explicit, replaceable rates.</text>
+  <text x="936" y="598" style="font: 600 14px 'Segoe UI', sans-serif; fill: #50e6ff;">cost-comparison/</text>
+</svg>
