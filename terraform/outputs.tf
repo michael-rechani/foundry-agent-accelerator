@@ -37,3 +37,18 @@ output "log_analytics_workspace_id" {
   description = "Resource ID of the workspace receiving Foundry diagnostics."
   value       = azurerm_log_analytics_workspace.this.id
 }
+
+output "virtual_network_id" {
+  description = "Resource ID of the private workload virtual network."
+  value       = azurerm_virtual_network.this.id
+}
+
+output "private_endpoint_subnet_id" {
+  description = "Resource ID of the subnet containing workload private endpoints."
+  value       = azurerm_subnet.private_endpoints.id
+}
+
+output "agent_subnet_id" {
+  description = "Resource ID of the delegated hosted Agent Service subnet."
+  value       = azurerm_subnet.agent_services.id
+}

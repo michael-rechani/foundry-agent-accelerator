@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title description">
   <title id="title">Microsoft Foundry sample architecture</title>
-  <desc id="description">Terraform deploys a Microsoft Foundry project, model, agent services, and observability. A Python deployer publishes an immutable hosted agent version and routes endpoint traffic to it.</desc>
+  <desc id="description">Terraform deploys a Microsoft Foundry project, model, agent services, and observability. Python deployers publish basic, case-review, and application-review hosted agents. A cost model compares Foundry with self-hosted GPU inference.</desc>
   <defs>
     <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
       <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#172b4d" flood-opacity="0.10"/>
@@ -63,16 +63,16 @@
     <rect x="1136" y="146" width="8" height="168" rx="4" fill="#ffb900"/>
   </g>
   <text x="936" y="181" class="eyebrow">03  PUBLISH</text>
-  <text x="936" y="216" class="label">Python deployer</text>
-  <text x="936" y="244" class="detail">Package and remote build</text>
-  <text x="936" y="267" class="detail">Smoke test candidate</text>
-  <text x="936" y="290" class="detail">Promote or roll back</text>
+  <text x="936" y="216" class="label">Hosted agents</text>
+  <text x="936" y="244" class="detail">Basic Responses sample</text>
+  <text x="936" y="267" class="detail">Case + application review</text>
+  <text x="936" y="290" class="detail">Test, promote, or roll back</text>
 
   <path d="M296 230H358" class="flow"/>
   <path d="M904 230H842" class="flow"/>
 
   <rect x="56" y="558" width="1088" height="65" rx="6" fill="#172b4d"/>
-  <text x="84" y="587" style="font: 600 15px 'Segoe UI', sans-serif; fill: #ffffff;">COST LENS</text>
-  <text x="84" y="609" style="font: 400 14px 'Segoe UI', sans-serif; fill: #dce6ef;">Compare VM infrastructure with aggregate hosted sandbox time using explicit, replaceable rates.</text>
+  <text x="84" y="587" style="font: 600 15px 'Segoe UI', sans-serif; fill: #ffffff;">GPU COST LENS</text>
+  <text x="84" y="609" style="font: 400 14px 'Segoe UI', sans-serif; fill: #dce6ef;">Compare self-hosted T4, A10, and A100 inference with Foundry using explicit, replaceable rates.</text>
   <text x="936" y="598" style="font: 600 14px 'Segoe UI', sans-serif; fill: #50e6ff;">cost-comparison/</text>
 </svg>

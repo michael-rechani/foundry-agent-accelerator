@@ -22,12 +22,15 @@ resource "azurerm_resource_group" "this" {
 }
 
 resource "azurerm_log_analytics_workspace" "this" {
-  location            = azurerm_resource_group.this.location
-  name                = module.naming.log_analytics_workspace.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  retention_in_days   = 30
-  sku                 = "PerGB2018"
-  tags                = local.tags
+  internet_ingestion_enabled   = false
+  internet_query_enabled       = false
+  local_authentication_enabled = false
+  location                     = azurerm_resource_group.this.location
+  name                         = module.naming.log_analytics_workspace.name_unique
+  resource_group_name          = azurerm_resource_group.this.name
+  retention_in_days            = 30
+  sku                          = "PerGB2018"
+  tags                         = local.tags
 }
 
 module "ai_foundry" {
@@ -42,6 +45,21 @@ module "ai_foundry" {
     name                    = module.naming.cognitive_account.name_unique
     create_ai_agent_service = var.enable_agent_service
     disable_local_auth      = true
+    private_dns_zone_resource_ids = [
+      azurerm_private_dns_zone.this["ai_services"].id,
+      azurerm_private_dns_zone.this["cognitive_services"].id,
+      azurerm_private_dns_zone.this["openai"].id,
+    ]
+    public_network_access_enabled = false
+    network_acls = {
+      bypass         = null
+      default_action = "Deny"
+    }
+    network_injections = var.enable_agent_service ? [{
+      scenario                   = "agent"
+      subnetArmId                = azurerm_subnet.agent_services.id
+      useMicrosoftManagedNetwork = false
+    }] : null
     managed_identities = {
       system_assigned            = true
       user_assigned_resource_ids = []
@@ -83,23 +101,52 @@ module "ai_foundry" {
 
   create_byor = var.enable_agent_service
   ai_search_definition = var.enable_agent_service ? {
-    agent = {}
+    agent = {
+      local_authentication_enabled  = false
+      private_dns_zone_resource_id  = azurerm_private_dns_zone.this["search"].id
+      public_network_access_enabled = false
+    }
   } : {}
   cosmosdb_definition = var.enable_agent_service ? {
     agent = {
-      local_authentication_disabled = true
+      ip_range_filter                       = []
+      local_authentication_disabled         = true
+      network_acl_bypass_for_azure_services = false
+      private_dns_zone_resource_id          = azurerm_private_dns_zone.this["cosmosdb"].id
+      public_network_access_enabled         = false
     }
   } : {}
   key_vault_definition = var.enable_agent_service ? {
-    agent = {}
+    agent = {
+      network_acls = {
+        bypass         = "None"
+        default_action = "Deny"
+      }
+      private_dns_zone_resource_id  = azurerm_private_dns_zone.this["key_vault"].id
+      public_network_access_enabled = false
+    }
   } : {}
   storage_account_definition = var.enable_agent_service ? {
-    agent = {}
+    agent = {
+      endpoints = {
+        blob = {
+          private_dns_zone_resource_id = azurerm_private_dns_zone.this["storage_blob"].id
+          type                         = "blob"
+        }
+      }
+      network_rules = {
+        bypass         = ["None"]
+        default_action = "Deny"
+      }
+      public_network_access_enabled = false
+      shared_access_key_enabled     = false
+    }
   } : {}
 
-  create_private_endpoints = false
-  enable_telemetry         = true
-  tags                     = local.tags
+  create_private_endpoints            = true
+  enable_telemetry                    = true
+  private_endpoint_subnet_resource_id = azurerm_subnet.private_endpoints.id
+  tags                                = local.tags
 
   diagnostic_settings = {
     log_analytics = {

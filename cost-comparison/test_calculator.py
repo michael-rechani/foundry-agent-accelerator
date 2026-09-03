@@ -1,6 +1,13 @@
 import unittest
 
-from calculator import hosted_agent_cost, non_negative, shared_ai_cost, vm_cost
+from calculator import (
+    architecture_ai_costs,
+    hosted_agent_cost,
+    non_negative,
+    shared_ai_cost,
+    vm_cost,
+    vm_sku_costs,
+)
 
 
 class CalculatorTests(unittest.TestCase):
@@ -38,6 +45,43 @@ class CalculatorTests(unittest.TestCase):
         self.assertAlmostEqual(hourly_rate, 0.15)
         self.assertAlmostEqual(result.total, 20)
 
+    def test_vm_sku_costs_merge_shared_assumptions(self) -> None:
+        results = vm_sku_costs(
+            {
+                "vm_assumptions": {
+                    "instance_count": 2,
+                    "running_hours_per_instance": 10,
+                    "managed_disks_monthly": 4,
+                    "monitoring_monthly": 5,
+                    "egress_gb": 2,
+                    "egress_rate_per_gb": 0.5,
+                    "operations_hours": 2,
+                    "operations_rate_per_hour": 10,
+                },
+                "vm_skus": [
+                    {
+                        "sku": "Standard_D2as_v5",
+                        "description": "general purpose",
+                        "hourly_rate": 3,
+                    },
+                    {
+                        "sku": "Standard_D4as_v5",
+                        "hourly_rate": 4,
+                        "managed_disks_monthly": 8,
+                    },
+                ],
+            }
+        )
+
+        self.assertEqual(results[0][0], "Standard_D2as_v5 - general purpose")
+        self.assertEqual(results[0][1].total, 90)
+        self.assertEqual(results[1][0], "Standard_D4as_v5")
+        self.assertEqual(results[1][1].total, 114)
+
+    def test_vm_skus_must_not_be_empty(self) -> None:
+        with self.assertRaisesRegex(ValueError, "non-empty list"):
+            vm_sku_costs({"vm_skus": []})
+
     def test_shared_ai_cost(self) -> None:
         result = shared_ai_cost(
             {
@@ -49,6 +93,37 @@ class CalculatorTests(unittest.TestCase):
             }
         )
         self.assertEqual(result, 20)
+
+    def test_architecture_specific_ai_costs(self) -> None:
+        config = {
+            "iaas_ai": {
+                "input_tokens": 0,
+                "input_rate_per_million": 0,
+                "output_tokens": 0,
+                "output_rate_per_million": 0,
+                "tool_usage_monthly": 5,
+            },
+            "foundry_ai": {
+                "input_tokens": 2_000_000,
+                "input_rate_per_million": 3,
+                "output_tokens": 1_000_000,
+                "output_rate_per_million": 9,
+                "tool_usage_monthly": 5,
+            },
+        }
+
+        self.assertEqual(architecture_ai_costs(config), (5, 20))
+
+    def test_shared_ai_cost_remains_compatible(self) -> None:
+        shared = {
+            "input_tokens": 2_000_000,
+            "input_rate_per_million": 3,
+            "output_tokens": 1_000_000,
+            "output_rate_per_million": 9,
+            "tool_usage_monthly": 5,
+        }
+
+        self.assertEqual(architecture_ai_costs({"shared_ai": shared}), (20, 20))
 
     def test_negative_values_are_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "finite non-negative"):

@@ -36,6 +36,24 @@ variable "location" {
   default     = "eastus2"
 }
 
+variable "virtual_network_address_space" {
+  type        = list(string)
+  description = "Address space for the workload virtual network."
+  default     = ["10.42.0.0/16"]
+}
+
+variable "private_endpoint_subnet_address_prefixes" {
+  type        = list(string)
+  description = "Address prefixes for the subnet containing workload private endpoints."
+  default     = ["10.42.0.0/24"]
+}
+
+variable "agent_subnet_address_prefixes" {
+  type        = list(string)
+  description = "Address prefixes for the delegated hosted Agent Service subnet."
+  default     = ["10.42.1.0/24"]
+}
+
 variable "model_deployment" {
   type = object({
     deployment_name = string

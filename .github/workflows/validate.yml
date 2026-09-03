@@ -12,22 +12,33 @@ jobs:
   python:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
           cache: pip
-          cache-dependency-path: hosted-agents/basic-responses-agent/requirements*.txt
+          cache-dependency-path: hosted-agents/*/requirements*.txt
+      - name: Upgrade pip
+        run: python -m pip install "pip>=26.2,<27"
       - name: Install deployment dependencies
-        run: pip install -r hosted-agents/basic-responses-agent/requirements-deploy.txt
+        run: python -m pip install -r hosted-agents/basic-responses-agent/requirements-deploy.txt
       - name: Install hosted runtime dependencies
-        run: pip install -r hosted-agents/basic-responses-agent/requirements.txt
+        run: python -m pip install -r hosted-agents/basic-responses-agent/requirements.txt
+      - name: Audit Python dependencies
+        run: |
+          python -m pip install pip-audit==2.10.1
+          python -m pip_audit --progress-spinner off
       - name: Compile Python sources
         run: python -m compileall -q cost-comparison hosted-agents
       - name: Test cost calculator
         run: python cost-comparison/test_calculator.py
-      - name: Validate deployment CLI
-        run: python hosted-agents/basic-responses-agent/deploy.py --help
+      - name: Test deployment packaging
+        run: python hosted-agents/test_deployment.py
+      - name: Validate deployment CLIs
+        run: |
+          python hosted-agents/basic-responses-agent/deploy.py --help
+          python hosted-agents/case-review-agent/deploy.py --help
+          python hosted-agents/application-review-agent/deploy.py --help
       - name: Validate hosted runtime imports
         run: >-
           python -c "from agent_framework import Agent;
@@ -37,10 +48,10 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
-          terraform_version: "1.15.8"
+          terraform_version: "1.16.1"
       - name: Check formatting
         run: terraform -chdir=terraform fmt -check -recursive
       - name: Initialize without a backend

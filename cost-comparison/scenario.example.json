@@ -1,17 +1,38 @@
 {
   "currency": "USD",
-  "rates_last_reviewed": "2026-09-02",
-  "vm": {
-    "instance_count": 2,
+  "rates_last_reviewed": "2026-09-03",
+  "region": "eastus2",
+  "vm_rate_basis": "Azure Retail Prices API, Linux consumption, pay as you go",
+  "vm_assumptions": {
+    "instance_count": 1,
     "running_hours_per_instance": 730,
-    "hourly_rate": 0.25,
-    "managed_disks_monthly": 40.0,
+    "managed_disks_monthly": 100.0,
     "monitoring_monthly": 25.0,
     "egress_gb": 100.0,
     "egress_rate_per_gb": 0.087,
-    "operations_hours": 8.0,
+    "operations_hours": 12.0,
     "operations_rate_per_hour": 100.0
   },
+  "vm_skus": [
+    {
+      "sku": "Standard_NC4as_T4_v3",
+      "description": "NVIDIA T4 inference GPU",
+      "hourly_rate": 0.526,
+      "rate_effective_start": "2020-11-01"
+    },
+    {
+      "sku": "Standard_NV36ads_A10_v5",
+      "description": "NVIDIA A10 inference and visualization GPU",
+      "hourly_rate": 3.2,
+      "rate_effective_start": "2022-09-01"
+    },
+    {
+      "sku": "Standard_NC24ads_A100_v4",
+      "description": "NVIDIA A100 inference and training GPU",
+      "hourly_rate": 3.673,
+      "rate_effective_start": "2022-06-01"
+    }
+  ],
   "hosted_agent": {
     "aggregate_sandbox_hours": 400.0,
     "vcpu_per_sandbox": 0.5,
@@ -24,7 +45,14 @@
     "egress_gb": 100.0,
     "egress_rate_per_gb": 0.087
   },
-  "shared_ai": {
+  "iaas_ai": {
+    "input_tokens": 0,
+    "input_rate_per_million": 0.0,
+    "output_tokens": 0,
+    "output_rate_per_million": 0.0,
+    "tool_usage_monthly": 50.0
+  },
+  "foundry_ai": {
     "input_tokens": 100000000,
     "input_rate_per_million": 2.0,
     "output_tokens": 20000000,

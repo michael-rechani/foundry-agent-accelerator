@@ -4,12 +4,18 @@ Hosted agents run custom containerized code in per-session, VM-isolated
 sandboxes managed by Foundry Agent Service. Foundry manages the endpoint,
 agent identity, scaling, session storage, observability, and version lifecycle.
 
-## Included sample
+## Included samples
 
-[`basic-responses-agent/`](basic-responses-agent/) is a minimal Microsoft Agent
-Framework agent using the OpenAI-compatible Responses protocol. It uses
-`DefaultAzureCredential`; no credentials are embedded in the image or passed
-as environment variables.
+| Sample | Purpose | Decision boundary |
+| --- | --- | --- |
+| [`basic-responses-agent/`](basic-responses-agent/) | Minimal Microsoft Agent Framework and Responses protocol baseline | General-purpose demonstration only |
+| [`case-review-agent/`](case-review-agent/) | Build cited case timelines and surface missing or conflicting evidence | Does not determine eligibility, liability, enforcement, or clinical status |
+| [`application-review-agent/`](application-review-agent/) | Compare submitted material with supplied criteria | Does not score, rank, approve, deny, or recommend an outcome |
+
+All samples use `DefaultAzureCredential`; no credentials are embedded in the
+image or passed as environment variables. The two review samples operate only
+on context supplied in the conversation. Connect organizational data sources
+through separately reviewed, least-privilege tools before production use.
 
 After deploying the Terraform baseline:
 
@@ -20,11 +26,11 @@ After deploying the Terraform baseline:
   $env:FOUNDRY_MODEL_NAME = terraform -chdir=terraform output -raw model_deployment_name
   ```
 
-2. Create an isolated deployment environment and install its locked
-  dependencies:
+2. Choose a sample, create an isolated deployment environment, and install its
+  locked dependencies. For example:
 
   ```powershell
-  Set-Location hosted-agents/basic-responses-agent
+  Set-Location hosted-agents/case-review-agent
   python -m venv .venv
   .\.venv\Scripts\Activate.ps1
   python -m pip install --upgrade pip
@@ -34,13 +40,13 @@ After deploying the Terraform baseline:
 3. Confirm `az account show` identifies the intended tenant and subscription.
 4. Run `python deploy.py`.
 
-The deployer packages only `main.py` and `requirements.txt`, uploads an
-immutable hosted-agent version, waits for it to become active, and routes the
-agent endpoint to that version. It then invokes the endpoint as a smoke test.
+The deployer packages `main.py`, `requirements.txt`, and the sample's reviewed
+instructions when present. It uploads an immutable hosted-agent version, waits
+for activation, routes the endpoint, and invokes a sample-specific smoke test.
 If provisioning or the smoke test fails, it deletes the failed version and
-restores the previous endpoint route when one existed. Run
-`python deploy.py --help` to override the agent name, supported runtime
-allocation, instructions, smoke-test prompt, or polling timeout.
+restores the previous route when one existed. Run `python deploy.py --help` to
+override the agent name, supported runtime allocation, instructions,
+smoke-test prompt, or polling timeout.
 
 Hosted-agent code deployment currently uses the documented `python_3_14`
 remote-build runtime. This is independent of the local Python version used to
@@ -70,18 +76,36 @@ equivalent permissions) to create versions and update endpoint routing.
 | Version provisioning fails | Review the reported version details and confirm hosted-agent and model availability in the selected region. |
 | Smoke test fails | Inspect Foundry/Application Insights logs; the deployer removes the candidate and restores the previous route when possible. |
 
-## Candidate agents
+## Candidate patterns
 
 | Sample idea | Protocol | Useful integrations | Why hosted |
 | --- | --- | --- | --- |
-| Incident triage assistant | Responses | Azure Monitor, ServiceNow, Teams | Durable conversations, managed identity, and per-session files |
-| Document due-diligence agent | Responses | Blob Storage, AI Search, Document Intelligence | Stateful multi-turn review and isolated working files |
-| Repository event processor | Invocations | GitHub webhooks, Azure DevOps, Key Vault | Accepts arbitrary webhook payloads and scales by session |
-| Real-time support voice agent | Invocations WebSocket | Voice Live, Dynamics 365 | Bidirectional streaming and custom protocol control |
-| Scheduled compliance reviewer | Responses background mode | Microsoft Graph, Azure Policy | Long-running work with polling, cancellation, and recovery |
+| Policy knowledge assistant | Responses | SharePoint, Microsoft Graph, AI Search | Grounded answers across durable conversations and changing policy sets |
+| Document analysis assistant | Responses | Blob Storage, AI Search, Document Intelligence | Stateful multi-document review with structured, cited findings |
+| Service navigation assistant | Responses | CRM, service catalogs, knowledge bases | Personalized guidance with managed access to organizational data |
+| Workflow intake processor | Invocations | Webhooks, case management, Key Vault | Structured intake through a custom payload contract that scales by session |
+| Customer onboarding planner | Responses | CRM, work tracking, SharePoint | Cross-system planning with tenant-scoped identity and session state |
+
+The included review agents demonstrate the same capability-first approach:
+tailor instructions, schemas, and synthetic fixtures for the target sector
+without coupling the implementation to one organization.
+
+| Capability | Public sector | Health and education | ISV |
+| --- | --- | --- | --- |
+| Case review | Revenue, property, or constituent case | Benefits or student-services case | Customer escalation or account review |
+| Application review | Grant, permit, or procurement package | Provider enrollment, admissions, or research grant | Partner or marketplace application |
+| Policy knowledge | Agency rules and procedures | Program, clinical-administrative, or institutional policy | Product, support, or partner policy |
+| Service navigation | Constituent programs and agency services | Benefits, care navigation, or student services | Product plans, support paths, or partner services |
+| Workflow intake | Records request, appeal, or service request | Referral, enrollment, or accessibility request | Support, integration, or provisioning request |
+| Customer onboarding | Vendor or grantee implementation | Provider or research partner onboarding | SaaS tenant implementation |
 
 Start with Responses for conversational agents. Use Invocations for webhooks,
 batch payloads, or custom streaming contracts.
+
+These samples intentionally avoid incident investigation, telemetry
+correlation, root-cause analysis, mitigation, scheduled health checks, and
+operational compliance sweeps. Those scenarios are covered by
+[Azure SRE Agent](https://learn.microsoft.com/azure/sre-agent/overview).
 
 ## Operational checklist
 

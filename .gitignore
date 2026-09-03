@@ -2,10 +2,21 @@
 *.tfstate
 *.tfstate.*
 *.tfplan
-terraform/backend.azurerm.tf
-terraform/backend.azurerm.hcl
+*.tfvars
+*.tfvars.json
+.terraform.tfstate.lock.info
+crash.log
+crash.*.log
+terraform/backend.tf
 .env
 __pycache__/
 *.py[cod]
 .venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
 
