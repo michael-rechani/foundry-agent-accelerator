@@ -45,22 +45,32 @@ inputs.
 Local state is the default so the sample quick start works without pre-existing
 infrastructure. Local state is unsuitable for a team or production deployment.
 
-For a team environment, copy the opt-in backend declaration and initialize
-against a secured, pre-created state account:
+For a team environment, copy the opt-in backend declaration and configuration,
+then replace the placeholders with a secured, pre-created state account:
 
 ```powershell
 Copy-Item backend.azurerm.tf.example backend.azurerm.tf
-terraform init `
-  -backend-config="resource_group_name=<state-rg>" `
-  -backend-config="storage_account_name=<state-account>" `
-  -backend-config="container_name=tfstate" `
-  -backend-config="key=ai-foundry/dev.tfstate" `
-  -backend-config="use_azuread_auth=true"
+Copy-Item backend.azurerm.hcl.example backend.azurerm.hcl
+terraform init -backend-config=backend.azurerm.hcl
 ```
 
-Do not commit `backend.azurerm.tf` if it contains environment-specific backend
-details. The dependency lock file should be committed and updated deliberately
-with `terraform init -upgrade` after reviewing provider and module changes.
+If local state already contains resources, migrate it instead of initializing
+an empty remote state:
+
+```powershell
+terraform init -migrate-state -backend-config=backend.azurerm.hcl
+```
+
+Terraform prompts before copying local state. Confirm the destination account,
+container, and key before accepting. The generated `backend.azurerm.tf` and
+`backend.azurerm.hcl` files are ignored because backend settings vary by
+environment. The example contains no credentials; `use_cli` and
+`use_azuread_auth` make Terraform use the authenticated Azure CLI session and
+authorize directly against the Blob Storage data plane. The user needs the
+Storage Blob Data Contributor role on the state container.
+
+The dependency lock file should be committed and updated deliberately with
+`terraform init -upgrade` after reviewing provider and module changes.
 
 ## Outputs
 

@@ -3,6 +3,7 @@
 *.tfstate.*
 *.tfplan
 terraform/backend.azurerm.tf
+terraform/backend.azurerm.hcl
 .env
 __pycache__/
 *.py[cod]
