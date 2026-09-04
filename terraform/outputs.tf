@@ -52,3 +52,38 @@ output "agent_subnet_id" {
   description = "Resource ID of the delegated hosted Agent Service subnet."
   value       = azurerm_subnet.agent_services.id
 }
+
+output "api_management_name" {
+  description = "Name of the API Management service, or null when disabled."
+  value       = try(module.api_management[0].name, null)
+}
+
+output "api_management_id" {
+  description = "Resource ID of the API Management service, or null when disabled."
+  value       = try(module.api_management[0].resource_id, null)
+}
+
+output "api_management_gateway_url" {
+  description = "Gateway URL of the API Management service, or null when disabled."
+  value       = try(module.api_management[0].apim_gateway_url, null)
+}
+
+output "jumpbox_name" {
+  description = "Name of the private Windows jumpbox, or null when disabled."
+  value       = try(azurerm_windows_virtual_machine.jumpbox[0].name, null)
+}
+
+output "jumpbox_admin_username" {
+  description = "Local administrator username for the private Windows jumpbox, or null when disabled."
+  value       = var.enable_jumpbox ? var.jumpbox_admin_username : null
+}
+
+output "jumpbox_key_vault_name" {
+  description = "Name of the private Key Vault containing the jumpbox credential, or null when disabled."
+  value       = var.enable_jumpbox && var.enable_agent_service ? module.ai_foundry.key_vault_name["agent"] : null
+}
+
+output "jumpbox_admin_password_secret_name" {
+  description = "Name of the Key Vault secret containing the jumpbox administrator password, or null when disabled."
+  value       = try(azapi_resource.jumpbox_admin_password[0].name, null)
+}

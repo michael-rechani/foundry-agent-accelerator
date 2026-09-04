@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import os
 import tempfile
@@ -20,6 +21,7 @@ class AgentProfile:
     description: str
     instructions: str
     smoke_test_prompt: str
+    delegation_checks: tuple[tuple[str, str], ...] = ()
 
 
 def positive_number(value: str) -> str:
@@ -113,17 +115,79 @@ def wait_until_active(
     raise TimeoutError(f"Agent version {version} did not become active")
 
 
-def smoke_test(client: AIProjectClient, agent_name: str, prompt: str) -> None:
+def verify_delegation(response, expected_tool: str) -> None:
+    items = response.model_dump().get("output", [])
+    calls = [item for item in items if item.get("type") == "function_call"]
+    if len(calls) != 1 or calls[0].get("name") != expected_tool or not calls[0].get("call_id"):
+        raise RuntimeError(f"Expected exactly one {expected_tool} tool call")
+    results = [
+        item for item in items
+        if item.get("type") == "function_call_output"
+        and item.get("call_id") == calls[0]["call_id"]
+    ]
+    if len(results) != 1:
+        raise RuntimeError("Missing matching specialist result")
+    try:
+        result = json.loads(results[0].get("output", ""))
+    except (ValueError, TypeError) as error:
+        raise RuntimeError("Specialist result is not a success receipt") from error
+    if (
+        not isinstance(result, dict)
+        or result.get("status") != "succeeded"
+        or not isinstance(result.get("agent"), str)
+        or not result["agent"].strip()
+        or not isinstance(result.get("output"), str)
+        or not result["output"].strip()
+    ):
+        raise RuntimeError("Specialist result is not a success receipt")
+
+
+def smoke_test(
+    client: AIProjectClient, agent_name: str, prompt: str, expected_tool: str | None = None
+) -> None:
     if not prompt:
         print("Skipped hosted-agent smoke test")
         return
 
-    with client.get_openai_client(agent_name=agent_name) as openai_client:
-        response = openai_client.responses.create(input=prompt)
+    with client.get_openai_client(agent_name=agent_name, timeout=180, max_retries=0) as openai_client:
+        response = openai_client.responses.create(input=prompt, store=False)
 
-    if not response.output_text.strip():
-        raise RuntimeError("Hosted-agent smoke test returned an empty response")
-    print(f"Smoke test passed: {response.output_text.strip()}")
+    if response.status != "completed" or not response.output_text.strip():
+        raise RuntimeError("Hosted-agent smoke test did not return a completed, nonempty response")
+    if expected_tool:
+        verify_delegation(response, expected_tool)
+    print(f"Smoke test passed: {expected_tool or agent_name}")
+
+
+def cleanup_failed_version(
+    client, agent_name: str, version: str, original_endpoint, promotion_attempted: bool
+) -> None:
+    if promotion_attempted and original_endpoint is not None:
+        try:
+            client.agents.update_details(
+                agent_name=agent_name, agent_endpoint=original_endpoint
+            )
+        except Exception:
+            print(f"Warning: rollback failed; retained version {version}")
+            return
+
+    try:
+        endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+        selector = getattr(endpoint, "version_selector", None)
+        rules = getattr(selector, "version_selection_rules", None)
+        if not rules or any(
+            not getattr(rule, "agent_version", None)
+            or str(rule.agent_version) == str(version)
+            for rule in rules
+        ):
+            print(f"Warning: route not confirmed safe; retained version {version}")
+            return
+        client.agents.delete_version(
+            agent_name=agent_name, agent_version=version, force=True
+        )
+        print(f"Deleted failed version {version}")
+    except Exception:
+        print(f"Warning: cleanup incomplete; retained version {version} if present")
 
 
 def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
@@ -139,7 +203,6 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
         ResponsesProtocolConfiguration,
         VersionSelector,
     )
-    from azure.core.exceptions import AzureError
     from azure.identity import DefaultAzureCredential
 
     with tempfile.TemporaryDirectory(prefix="foundry-agent-") as temporary:
@@ -149,7 +212,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
         with (
             package_path.open("rb") as package,
             DefaultAzureCredential() as credential,
-            AIProjectClient(endpoint=args.endpoint, credential=credential) as client,
+            AIProjectClient(endpoint=args.endpoint, credential=credential, allow_preview=True) as client,
         ):
             created = client.agents.create_version_from_code(
                 agent_name=args.agent_name,
@@ -178,7 +241,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
             print(f"Created {args.agent_name} version {created.version}")
 
             original_endpoint = None
-            promoted = False
+            promotion_attempted = False
             try:
                 wait_until_active(
                     client,
@@ -203,32 +266,19 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                         responses=ResponsesProtocolConfiguration()
                     ),
                 )
+                promotion_attempted = True
                 client.agents.update_details(
                     agent_name=args.agent_name,
                     agent_endpoint=endpoint_config,
                 )
-                promoted = True
                 smoke_test(client, args.agent_name, args.smoke_test_prompt)
+                for prompt, expected_tool in profile.delegation_checks:
+                    smoke_test(client, args.agent_name, prompt, expected_tool)
             except Exception:
-                if promoted and original_endpoint is not None:
-                    try:
-                        client.agents.update_details(
-                            agent_name=args.agent_name,
-                            agent_endpoint=original_endpoint,
-                        )
-                        print("Restored the previous agent endpoint configuration")
-                    except AzureError as cleanup_error:
-                        print(f"Warning: failed to restore endpoint: {cleanup_error}")
-
-                try:
-                    client.agents.delete_version(
-                        agent_name=args.agent_name,
-                        agent_version=created.version,
-                        force=True,
-                    )
-                    print(f"Deleted failed version {created.version}")
-                except AzureError as cleanup_error:
-                    print(f"Warning: failed to delete version: {cleanup_error}")
+                cleanup_failed_version(
+                    client, args.agent_name, created.version,
+                    original_endpoint, promotion_attempted,
+                )
                 raise
 
             print(

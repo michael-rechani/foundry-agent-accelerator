@@ -16,7 +16,7 @@ locals {
 
 resource "azurerm_virtual_network" "this" {
   address_space       = var.virtual_network_address_space
-  location            = azurerm_resource_group.this.location
+  location            = local.deployment_location
   name                = module.naming.virtual_network.name_unique
   resource_group_name = azurerm_resource_group.this.name
   tags                = local.tags
@@ -80,7 +80,7 @@ resource "azurerm_monitor_private_link_scoped_service" "log_analytics" {
 }
 
 resource "azurerm_private_endpoint" "azure_monitor" {
-  location            = azurerm_resource_group.this.location
+  location            = local.deployment_location
   name                = "pe-monitor-${local.name_suffix}"
   resource_group_name = azurerm_resource_group.this.name
   subnet_id           = azurerm_subnet.private_endpoints.id

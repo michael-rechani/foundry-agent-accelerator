@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" style="max-width:100%;height:auto" role="img" aria-labelledby="title desc">
+  <title id="title">Microsoft Foundry review architecture</title>
+  <desc id="desc">Clients reach a planned API on Azure API Management. Outbound VNet integration connects APIM to private Foundry endpoints over peered virtual networks. The Foundry project hosts a coordinator and two specialist agents. A private virtual machine deploys agent versions. Dashed lines mark the unpublished client API path. Microsoft service icons are unmodified official Azure architecture assets.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0078d4"/></marker>
+    <marker id="pending" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8a6200"/></marker>
+    <style>
+      text { font-family: 'Segoe UI', sans-serif; letter-spacing: 0; fill: #242424; }
+      .title { font-size: 30px; font-weight: 600; }
+      .heading { font-size: 18px; font-weight: 600; }
+      .body { font-size: 15px; }
+      .small { font-size: 13px; }
+      .muted { fill: #515151; }
+      .planned { fill: #795600; }
+      .flow { fill: none; stroke: #0078d4; stroke-width: 2; marker-end: url(#arrow); }
+      .pending { fill: none; stroke: #8a6200; stroke-width: 2; stroke-dasharray: 7 5; marker-end: url(#pending); }
+      .boundary { fill: #fafafa; stroke: #a0a0a0; stroke-width: 1.5; }
+      .network { fill: #f2f8fd; stroke: #0078d4; stroke-width: 1.5; }
+      .subnet { fill: #fff; stroke: #80b9e5; stroke-dasharray: 5 4; }
+      .agent { fill: #fff; stroke: #008575; stroke-width: 1.5; }
+    </style>
+  </defs>
+  <rect width="1400" height="900" fill="#fff"/>
+  <text x="40" y="55" class="title">Microsoft Foundry review architecture</text>
+  <text x="40" y="85" class="body muted">Private agent execution with an Azure API Management client entry point</text>
+  <path d="M985 42H1025" class="flow"/><text x="1040" y="47" class="small">Implemented connection</text>
+  <path d="M985 72H1025" class="pending"/><text x="1040" y="77" class="small">API route pending publication</text>
+
+  <rect x="230" y="125" width="1130" height="690" class="boundary"/>
+  <text x="250" y="153" class="heading">Azure resource group</text>
+
+  <image href="azure-icons/users.svg" x="92" y="260" width="56" height="56"/>
+  <text x="120" y="345" text-anchor="middle" class="heading">Client</text>
+  <text x="120" y="370" text-anchor="middle" class="body muted">Entra bearer token</text>
+  <path d="M165 290H330" class="pending"/>
+  <text x="192" y="270" class="small muted">HTTPS</text>
+
+  <image href="azure-icons/api-management.svg" x="350" y="245" width="64" height="64"/>
+  <text x="445" y="330" text-anchor="middle" class="heading">Azure API Management</text>
+  <text x="445" y="355" text-anchor="middle" class="body muted">Standard v2 / public gateway</text>
+  <text x="445" y="382" text-anchor="middle" class="body planned">Coordinator API + policies pending</text>
+  <image href="azure-icons/managed-identity.svg" x="460" y="255" width="38" height="38"/>
+  <text x="512" y="273" class="small muted">Managed</text>
+  <text x="512" y="292" class="small muted">identity</text>
+
+  <rect x="260" y="450" width="350" height="335" class="network"/>
+  <image href="azure-icons/virtual-network.svg" x="278" y="465" width="32" height="32"/>
+  <text x="325" y="487" class="heading">Management virtual network</text>
+  <rect x="280" y="515" width="310" height="85" class="subnet"/>
+  <text x="300" y="545" class="body">APIM integration subnet</text>
+  <text x="300" y="573" class="small muted">Delegated outbound VNet integration</text>
+  <path d="M435 395V415H600V530H580" class="pending"/>
+  <rect x="280" y="625" width="310" height="140" class="subnet"/>
+  <image href="azure-icons/virtual-machine.svg" x="300" y="665" width="48" height="48"/>
+  <text x="365" y="657" class="body">Jumpbox subnet</text>
+  <text x="365" y="687" class="heading">Private virtual machine</text>
+  <text x="365" y="714" class="small muted">Managed-identity deployment</text>
+  <text x="365" y="737" class="small muted">No public IP</text>
+
+  <rect x="670" y="450" width="170" height="225" class="network"/>
+  <image href="azure-icons/virtual-network.svg" x="685" y="465" width="30" height="30"/>
+  <text x="725" y="480" class="body">Workload</text>
+  <text x="725" y="500" class="body">VNet</text>
+  <rect x="688" y="523" width="134" height="132" class="subnet"/>
+  <image href="azure-icons/private-link.svg" x="734" y="538" width="42" height="42"/>
+  <text x="755" y="604" text-anchor="middle" class="body">Private endpoints</text>
+  <text x="755" y="632" text-anchor="middle" class="small muted">Private DNS</text>
+  <path d="M590 560H725" class="pending"/>
+  <text x="613" y="426" class="small muted">Global VNet peering</text>
+
+  <rect x="880" y="190" width="450" height="405" fill="#eff8f6" stroke="#008575" stroke-width="1.5"/>
+  <image href="azure-icons/foundry-project.svg" x="900" y="210" width="42" height="42"/>
+  <text x="958" y="231" class="heading">Microsoft Foundry project</text>
+  <text x="958" y="254" class="small muted">Public data-plane access disabled</text>
+  <image href="azure-icons/agent-service.svg" x="902" y="275" width="30" height="30"/>
+  <text x="946" y="296" class="body">Foundry Agent Service</text>
+  <rect x="900" y="350" width="175" height="105" rx="4" class="agent"/>
+  <text x="987" y="383" text-anchor="middle" class="heading">Review coordinator</text>
+  <text x="987" y="410" text-anchor="middle" class="small muted">Selects specialist tools</text>
+  <text x="987" y="434" text-anchor="middle" class="small muted">Preserves source evidence</text>
+  <rect x="1140" y="330" width="170" height="75" rx="4" class="agent"/>
+  <text x="1225" y="361" text-anchor="middle" class="heading">Application review</text>
+  <text x="1225" y="386" text-anchor="middle" class="small muted">Criteria + evidence gaps</text>
+  <rect x="1140" y="440" width="170" height="75" rx="4" class="agent"/>
+  <text x="1225" y="471" text-anchor="middle" class="heading">Case review</text>
+  <text x="1225" y="496" text-anchor="middle" class="small muted">Timeline + conflicts</text>
+  <path d="M1075 383H1104V367H1130" class="flow"/>
+  <path d="M1075 424H1104V477H1130" class="flow"/>
+  <image href="azure-icons/managed-identity.svg" x="1060" y="535" width="26" height="26"/>
+  <text x="1098" y="554" class="small muted">Agent-to-agent identity</text>
+  <path d="M805 523V402H890" class="pending"/>
+  <text x="770" y="383" class="small muted">Foundry endpoint</text>
+  <path d="M590 705H755V655" class="flow"/>
+  <path d="M822 635H857V440H890" class="flow"/>
+  <text x="615" y="735" class="small muted">Private code deployment</text>
+
+  <text x="885" y="642" class="body">Platform services</text>
+  <image href="azure-icons/foundry-models.svg" x="899" y="662" width="38" height="38"/>
+  <text x="918" y="724" text-anchor="middle" class="small">Foundry Models</text>
+  <image href="azure-icons/cosmos-db.svg" x="1024" y="662" width="38" height="38"/>
+  <text x="1043" y="724" text-anchor="middle" class="small">Cosmos DB</text>
+  <image href="azure-icons/storage.svg" x="1149" y="662" width="38" height="38"/>
+  <text x="1168" y="724" text-anchor="middle" class="small">Storage</text>
+  <image href="azure-icons/key-vault.svg" x="1274" y="662" width="38" height="38"/>
+  <text x="1293" y="724" text-anchor="middle" class="small">Key Vault</text>
+  <text x="885" y="765" class="small muted">AI Search and Log Analytics also support the platform.</text>
+
+  <path d="M40 843H1360" stroke="#d1d1d1"/>
+  <text x="40" y="875" class="body muted">Terraform provisions resources. CI validates code. The private runner publishes agent versions.</text>
+</svg>

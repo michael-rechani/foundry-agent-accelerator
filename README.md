@@ -6,22 +6,29 @@
 [![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-hosted_agents-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
 
 Deploy a practical Microsoft Foundry baseline, publish a Responses-protocol
-hosted agent, and compare its hosting costs with self-managed agents on Azure
-virtual machines.
+review coordinator and specialist agents, and compare hosted-runtime costs
+with self-managed agents on Azure virtual machines. Private networking and
+managed identities form the baseline; an optional APIM gateway provides the
+infrastructure for a governed client entry point.
 
-[Architecture](#architecture) · [Deploy](#quick-start) · [Agent guide](hosted-agents/README.md) · [Cost model](cost-comparison/README.md) · [Production notes](#production-considerations)
+[Architecture](#architecture) · [Status](docs/status.md) · [Deploy](#quick-start) · [Review walkthrough](hosted-agents/review-coordinator-agent/README.md) · [Cost model](cost-comparison/README.md)
 
 | Build | Ship | Measure |
 | --- | --- | --- |
-| Foundry project, model, Agent Service, and diagnostics through Terraform and AVM | Immutable Python agent versions with smoke testing and automatic rollback | Hosted sandbox break-even against self-managed Azure VMs |
+| Private Foundry, management network, and optional APIM through Terraform and AVM | Immutable agent versions with delegation checks and conservative rollback cleanup | Hosted sandbox break-even against self-managed Azure VMs |
 
 ## Architecture
 
-![Architecture showing the Terraform baseline, Microsoft Foundry resources, Python agent deployment, and cost model](docs/images/foundry-sample-architecture.svg)
+![Microsoft Azure architecture: APIM outbound integration, peered virtual networks, private Foundry endpoints, and review agents](docs/images/foundry-runtime-architecture.svg)
 
-Terraform establishes the Foundry project, model, Agent Service dependencies,
-identity, and observability. The deployer promotes a tested agent version; the
-cost model and CI workflow support delivery but are not runtime dependencies.
+Solid arrows show the implemented direct-agent and private deployment paths.
+Dashed amber arrows show the proposed client API: APIM infrastructure exists,
+but the coordinator API and policies are not yet published. The hardened
+coordinator code is locally tested and awaits deployment.
+
+See [request flow and trust boundaries](docs/architecture.md) for the target
+authentication and failure paths, and the dated [delivery status](docs/status.md)
+for verified results and remaining gates. This README is not a live health check.
 
 > [!IMPORTANT]
 > This sample creates billable Azure resources. Review the saved Terraform
@@ -33,9 +40,12 @@ cost model and CI workflow support delivery but are not runtime dependencies.
   a Foundry account, project, model, Agent Service dependencies, and
   diagnostics.
 - **Safer agent delivery:** a Python deployer that packages an immutable
-  version, waits for activation, runs a smoke test, and rolls back on failure.
+  version, waits for activation, routes the candidate, and runs smoke tests.
+  On failure it attempts route restoration and retains candidates when safe
+  deletion cannot be confirmed. Promotion is not a zero-exposure canary.
 - **Business workflow samples:** deployable case-review and application-review
-  agents with synthetic requests and explicit human decision boundaries.
+  agents, plus a coordinator that delegates to them, with synthetic requests
+  and explicit human decision boundaries.
 - **Explicit cost assumptions:** a calculator that keeps region-specific rates
   outside the code, ranks Azure GPU VM scenarios, and reports each
   hosted-runtime break-even point.
@@ -48,26 +58,44 @@ cost model and CI workflow support delivery but are not runtime dependencies.
 | --- | --- |
 | [`terraform/`](terraform/) | Deploy a Foundry project, model, Agent Service dependencies, and observability with the official AVM pattern. |
 | [`hosted-agents/`](hosted-agents/) | Deploy the basic Responses agent plus case-review and application-review business samples. |
+| [`hosted-agents/review-coordinator-agent/`](hosted-agents/review-coordinator-agent/) | Route reviews to specialists; test cancellation, concurrency, and delegation. |
+| [`docs/`](docs/) | Architecture, delivery status, and the private deployment runbook. |
 | [`cost-comparison/`](cost-comparison/) | Compare self-hosted models on Azure GPU VMs with Foundry hosted-agent costs using replaceable rates. |
 
 ## Quick start
 
 ### 1. Deploy the baseline
 
+Use Terraform 1.16.1, Azure CLI, and a reviewed state backend. Credentials are
+present in Terraform state and saved plans; follow the
+[state and credential guidance](terraform/README.md) before applying.
+The commands below do not overwrite an existing variables file.
+
 ```powershell
 az login
-Set-Content terraform/terraform.tfvars 'subscription_id = "<subscription-id>"'
+$env:TF_VAR_subscription_id = "<subscription-id>"
+az account set --subscription $env:TF_VAR_subscription_id
 # Review the defaults in terraform/variables.tf, including region, model, quota, and pricing.
 terraform -chdir=terraform init
-terraform -chdir=terraform plan -out main.tfplan
+terraform -chdir=terraform plan -var="subscription_id=$env:TF_VAR_subscription_id" -out main.tfplan
 terraform -chdir=terraform apply main.tfplan
 ```
 
+Review existing variable files before planning; the explicit subscription
+argument takes precedence over an old subscription value in those files.
+Review the saved plan before applying. Do not share it as a build artifact.
+
 ### 2. Publish a sample agent
 
-Choose the basic, case-review, or application-review sample in the
-[hosted-agent guide](hosted-agents/README.md), then load the Terraform outputs,
-test locally, and publish an immutable hosted version.
+Foundry data-plane endpoints are private. Run deployment from the jumpbox or
+another machine with private DNS and network access, not an unconnected local
+shell. Use the [private deployment runbook](docs/private-deployment.md) and
+[hosted-agent guide](hosted-agents/README.md).
+
+For the coordinated review scenario, inventory existing versions first, deploy
+missing specialists, then deploy the coordinator. Start with the
+[synthetic review walkthrough](hosted-agents/review-coordinator-agent/README.md).
+There is no published APIM review URL yet.
 
 ### 3. Compare hosting costs
 
@@ -98,7 +126,9 @@ production use:
 ## Validation
 
 Pull requests and pushes to `main` run Python compilation and tests, validate
-the deployment CLI, check Terraform formatting, and run `terraform validate`.
+all four deployment CLIs, exercise coordinator real-SDK contracts using an
+offline HTTP transport, check publisher-variable cases, check Terraform
+formatting, and run `terraform validate`.
 These checks do not create Azure resources. A real plan and hosted-agent smoke
 test still require an authenticated Azure subscription, regional model quota,
 and the documented RBAC roles.
