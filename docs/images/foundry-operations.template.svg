@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="700" viewBox="0 0 960 700" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">AI Foundry Lab operations and security</title>
+  <desc id="desc">The internal Lab sends metadata to Log Analytics and performs bounded dependency probes. Alerts are portal-only. The jumpbox Terraform runner reaches separate platform and Lab state keys through a Blob private endpoint. State storage is private and uses Entra and locking. Necessary secrets belong in Key Vault, but platform credential copies still need migration. ACR and Log Analytics have authenticated public endpoints.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0078d4"/></marker>
+    <style>
+      text { font-family: 'Segoe UI', sans-serif; fill: #242424; letter-spacing: 0; }
+      .title { font-size: 28px; font-weight: 600; } .heading { font-size: 21px; font-weight: 600; }
+      .body { font-size: 18px; } .small { font-size: 16px; fill: #515151; }
+      .flow { fill: none; stroke: #0078d4; stroke-width: 2; marker-end: url(#arrow); }
+      .box { fill: #f2f8fd; stroke: #0078d4; stroke-width: 1.5; }
+      .service { fill: #eff8f6; stroke: #008575; stroke-width: 1.5; }
+    </style>
+  </defs>
+  <rect width="960" height="700" fill="#fff"/>
+  <text x="24" y="42" class="title">Operations and security</text>
+  <text x="24" y="74" class="body">Current Lab controls and remaining platform boundaries</text>
+
+  <rect x="24" y="112" width="302" height="174" class="box"/>
+  <text x="44" y="148" class="heading">Internal Lab application</text>
+  <text x="44" y="184" class="body">Bounded requests + deadlines</text>
+  <text x="44" y="216" class="body">Cached dependency probes</text>
+  <text x="44" y="251" class="small">One worker / one replica</text>
+  <path d="M326 175H510" class="flow"/>
+  <text x="348" y="152" class="small">Metadata only</text>
+  <rect x="520" y="112" width="416" height="174" class="service"/>
+  <text x="542" y="148" class="heading">Log Analytics + Azure Monitor</text>
+  <text x="542" y="184" class="body">30 days / 0.1 GB daily cap</text>
+  <text x="542" y="216" class="body">Failures, dependencies, heartbeat</text>
+  <text x="542" y="251" class="small">Portal alerts; notification recipient pending</text>
+
+  <rect x="24" y="338" width="302" height="153" class="box"/>
+  <image href="azure-icons/virtual-machine.svg" x="44" y="354" width="34" height="34"/>
+  <text x="92" y="378" class="heading">Jumpbox Terraform</text>
+  <text x="44" y="417" class="body">Managed identity</text>
+  <text x="44" y="452" class="small">Private DNS + peered VNets</text>
+  <path d="M326 409H510" class="flow"/>
+  <text x="345" y="382" class="small">Blob private endpoint</text>
+  <rect x="520" y="338" width="416" height="153" class="service"/>
+  <image href="azure-icons/storage.svg" x="542" y="354" width="34" height="34"/>
+  <text x="590" y="378" class="heading">Remote Terraform state</text>
+  <text x="542" y="417" class="body">Separate platform and Lab keys</text>
+  <text x="542" y="452" class="small">Entra / locking / versioning / private-only</text>
+
+  <path d="M24 526H936" stroke="#b4b4b4"/>
+  <image href="azure-icons/key-vault.svg" x="28" y="548" width="40" height="40"/>
+  <text x="88" y="570" class="heading">Key Vault for necessary secrets; prefer managed identity</text>
+  <text x="88" y="603" class="body">Open: platform password/key state copies and credential rotation.</text>
+  <text x="24" y="650" class="small">ACR and Log Analytics retain public endpoints; admin/local key authentication is disabled.</text>
+  <text x="24" y="679" class="small">Lab resource reads are keyless. Preserve historical state and backups under retention policy.</text>
+</svg>

@@ -2,18 +2,10 @@
 
 [Overview](../README.md) / Credential migration
 
-Status: inventory updated 2026-09-05; platform migration not applied.
-No password rotation, resource ownership transfer, or state deletion has been
-performed. The current VM login and recovery resources remain unchanged.
-
-2026-09-05 hardening follow-up: current source still has all four persistent
-credential consumers below. No live rotation or ownership transfer was attempted
-while the operator was unavailable for the final login check. This finding is
-**open**, not fixed by plan cleanup or by migrating the separate Lab state.
-The existing platform backend was verified to use Entra authentication with
-shared-key access disabled, HTTPS/TLS 1.2, encryption, versioning and 90-day blob
-soft-delete. These protect storage but retain historical credential copies.
-Do not purge them or weaken recovery controls to claim the migration complete.
+The Lab uses managed identity and keyless Cosmos/Log Analytics resource reads.
+Its Log Analytics ownership transfer is complete, with no Azure resource changes
+and an empty follow-up Terraform plan. Platform credential migration remains
+open: VM login and recovery credentials have not been rotated by this migration.
 
 ## Required ownership
 
@@ -32,8 +24,6 @@ data source or resource argument and assume its value stays out of state.
 
 ## Verified inventory
 
-Inspection printed resource addresses and field names only, never values.
-
 | Path | Current finding | Required action |
 | --- | --- | --- |
 | Lab Foundry, Cosmos and ACR clients | Managed identity; no runtime API keys or connection-string secrets | Keep keyless access |
@@ -42,30 +32,46 @@ Inspection printed resource addresses and field names only, never values.
 | Platform Storage AVM resource | AzureRM exports account keys/connection strings even with shared-key access disabled | Coordinate AVM BYOR/ownership migration; do not edit vendored modules or delete the account |
 | Platform Log Analytics | AzureRM exports shared keys | Verify existing ingestion consumers before disabling local auth and transferring ownership |
 | Lab Cosmos account lookup | Key-returning data source removed from current state with a zero-resource-change apply | Preserve historical state under retention policy |
-| Lab Log Analytics | Local auth disabled, but AzureRM-generated shared keys remain in current state | Keyless AzAPI ownership transfer staged and locally validated; not applied |
+| Lab Log Analytics | Local auth disabled; AzAPI ownership imported without Azure mutations; old key-returning resource absent from current state | Keep keyless ARM reads; preserve historical state under retention policy |
 | Historical state, backups and prior plans | May retain old values independently of live configuration | Invalidate old credentials through rotation; handle copies under approved retention, never broad deletion |
 
-The shared state account now has public network access disabled. The workstation
-receives HTTP 403 on state blob access; this blocks further migrations. Preserve
-that security setting and resume from a runner with approved private DNS/routing
-and Blob Data Contributor access to the relevant state container.
+The shared state account has public network access disabled. The workstation
+receives HTTP 403 on state blob access. Private execution now works through the
+existing jumpbox: `pe-foundry-tfstate` resolves the Blob endpoint to `10.42.0.23`,
+and the VM managed identity can access both state blobs and initialize Terraform.
+Public access and shared-key authentication remain disabled.
 
-## Staged Lab workspace transfer
+The local-only `terraform/state-access/` bootstrap owns this private endpoint,
+the state-container Blob Data Contributor assignment, and workload resource-group
+Reader assignment. Its local state and backups must be preserved independently
+of the remote backend it makes reachable. The bootstrap and the two private
+Terraform runner scripts are Git-ignored; existing platform source stays tracked.
+The runner restores the jumpbox's prior power state and removes temporary plans.
 
-The Lab configuration uses `azapi_resource.logs` to read only workspace
-configuration and export `properties.customerId`, never the shared-key API.
+AzureRM refresh also requires `Microsoft.App/containerApps/listSecrets/action`.
+A custom role grants only that action, assigned only on `foundry-workbench` to
+the jumpbox identity. This permits reading that app's secrets, not updating the
+app, and is not a general Contributor grant. Reassess this permission if the app
+later stores credentials or its Terraform provider changes.
+
+## Lab workspace transfer
+
+The Lab configuration uses `azapi_resource.logs` to read workspace
+configuration, never the shared-key API. No explicit response exports are needed.
 `monitoring-migration.tf` forgets the old AzureRM owner without destroying Azure
 resources and has an explicit import opt-in for the existing workspace.
 
-From an approved backend-connected runner, plan with
+For other existing installations, from an approved backend-connected runner, plan with
 `-var=import_existing_log_workspace=true` and the normal Lab variables. Require
 exactly an import of the same workspace ID and non-destructive forgetting of
 the old owner; reject all Azure creates, updates, replacements or deletions.
 Apply only that saved plan, delete it in `finally`, then verify unchanged
 workspace ID/settings and absence of the old key-bearing resource in current
 state. A subsequent ordinary plan must be empty. Fresh installations leave the
-import flag false. Do not apply the existing-workspace transfer without its
-import flag. No successful plan/apply evidence exists for this transfer yet.
+import flag false. The import ID pins `api-version=2023-09-01` to match the resource
+type. Preserve existing workspace settings during import; a version mismatch or
+changed response exports can produce an update instead of an import-only plan.
+The deployed Lab has completed this transfer and uses ordinary plans now.
 
 ## Why this requires a migration
 

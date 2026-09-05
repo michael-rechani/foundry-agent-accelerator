@@ -2,28 +2,21 @@
 
 [Overview](../README.md) / Architecture
 
-![Private review-agent architecture and planned APIM entry point](images/foundry-runtime-architecture.svg)
+![Deployed Lab and review-agent request flow](images/foundry-overview.svg)
 
 The diagram uses [official Microsoft Azure architecture icons](images/README.md)
-with separate resource-group, virtual-network, subnet, and managed-service
-boundaries. Custom review agents are labeled components, not Microsoft products.
+in logical runtime and operations views. Boxes identify components, not physical
+VNet placement. Foundry and Cosmos are managed services reached through private
+endpoints. Custom review agents are not Microsoft products.
 
-The image shows the platform, deployed Lab, and proposed APIM path. The Lab uses
-its own remote state key and the following private runtime path:
+The overview shows the deployed Lab and the unpublished APIM boundary. The Lab
+uses its own remote state key and the following runtime and administration paths:
 
-```mermaid
-flowchart LR
-    Browser[Jumpbox browser] -->|Private HTTPS| UI[Internal Container App: React and FastAPI]
-    UI -->|Managed identity / bounded context| Agent[Curated Foundry agent]
-    UI -->|Explicit save / managed identity| History[Cosmos workbench conversations]
-    Agent --> Specialist[Named specialist endpoints]
-    UI -->|Metadata only| Logs[Log Analytics: 30 days / daily cap]
-    Logs --> Alerts[Azure Monitor alerts: portal only until action group configured]
-    UI -->|Cached non-generating probes| Dependencies[Foundry agent access and Cosmos query]
-    Terraform[Terraform runner on approved network] -->|Entra / blob lease| State[Encrypted remote state: separate platform and Lab keys]
-    Operator[Authorized secret operator] -->|Private access / Entra| Vault[Key Vault: password retrieval]
-    State -.->|Migration still required: legacy credential and provider-key copies| Vault
-```
+## Operations
+
+![Lab monitoring, private state access, and remaining credential boundaries](images/foundry-operations.svg)
+
+[Full-size operations diagram](images/foundry-operations.svg)
 
 The workbench accepts only the configured agent catalog, uses no browser Azure
 credentials, and does not publish APIs through APIM. Cosmos permissions are
@@ -36,6 +29,12 @@ four and 60/minute. Review uploads expire after five seconds, model calls after
 are process-local and require one worker/replica. Dependency probes are cached,
 bounded, and separate from process liveness. Logs contain request metadata, not
 prompts or transcripts; action groups are needed for delivered notifications.
+
+Private application access does not imply every supporting service is private.
+The Lab's ACR Basic registry and Log Analytics ingestion/query endpoints remain
+public and authenticated. Registry admin access and Log Analytics local key
+authentication are disabled. A private-endpoint-only design for those services
+requires a separate networking and SKU review.
 
 ## Secret ownership
 
@@ -52,9 +51,9 @@ retention policies. Network identifiers and managed-identity client IDs are
 configuration, not credentials.
 
 **Current exception:** platform state retains jumpbox credentials and
-provider-returned Cosmos/Storage/Log Analytics keys. Current Lab state no longer
-fetches Cosmos account keys; its AzureRM Log Analytics ownership transfer is
-staged but blocked by backend network access. Historical state remains protected
+provider-returned Cosmos/Storage/Log Analytics keys. Current Lab state uses
+keyless Cosmos and AzAPI Log Analytics reads. Private Terraform execution uses
+the existing jumpbox and Blob private endpoint. Historical state remains protected
 and must not be purged indiscriminately. See the [migration inventory](credential-migration.md).
 
 ## Trust boundaries

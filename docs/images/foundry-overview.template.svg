@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="610" viewBox="0 0 960 610" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">AI Foundry Lab and review agents</title>
+  <desc id="desc">Deployed: a jumpbox browser reaches the private Lab, which calls a Foundry coordinator and saves shared conversations in Cosmos using managed identity. The coordinator delegates to application and case specialists. Optional APIM infrastructure exists, but its review API is unpublished. This logical view does not imply that managed services run inside a virtual network.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0078d4"/></marker>
+    <style>
+      text { font-family: 'Segoe UI', sans-serif; fill: #242424; letter-spacing: 0; }
+      .title { font-size: 28px; font-weight: 600; } .heading { font-size: 21px; font-weight: 600; }
+      .body { font-size: 18px; } .small { font-size: 16px; fill: #515151; }
+      .flow { fill: none; stroke: #0078d4; stroke-width: 2; marker-end: url(#arrow); }
+      .box { fill: #f2f8fd; stroke: #0078d4; stroke-width: 1.5; }
+      .agent { fill: #eff8f6; stroke: #008575; stroke-width: 1.5; }
+    </style>
+  </defs>
+  <rect width="960" height="610" fill="#fff"/>
+  <text x="24" y="42" class="title">AI Foundry Lab and review agents</text>
+  <text x="24" y="73" class="body">Deployed runtime / private application access / managed identity</text>
+
+  <rect x="24" y="123" width="205" height="157" class="box"/>
+  <image href="azure-icons/virtual-machine.svg" x="42" y="140" width="38" height="38"/>
+  <text x="42" y="209" class="heading">Jumpbox browser</text>
+  <text x="42" y="240" class="small">No public VM IP</text>
+  <text x="42" y="264" class="small">Shared Lab access</text>
+  <path d="M229 192H319" class="flow"/>
+  <text x="240" y="161" class="small">Private</text>
+  <text x="240" y="181" class="small">HTTPS</text>
+
+  <rect x="329" y="123" width="238" height="157" class="box"/>
+  <text x="349" y="161" class="heading">AI Foundry Lab</text>
+  <text x="349" y="196" class="body">React + FastAPI</text>
+  <text x="349" y="228" class="small">Internal Container App</text>
+  <text x="349" y="253" class="small">Curated agent catalog</text>
+  <path d="M567 192H673" class="flow"/>
+  <text x="581" y="164" class="small">Identity</text>
+
+  <rect x="683" y="123" width="253" height="157" class="agent"/>
+  <image href="azure-icons/agent-service.svg" x="704" y="140" width="36" height="36"/>
+  <text x="704" y="209" class="heading">Foundry coordinator</text>
+  <text x="704" y="240" class="small">Private endpoint</text>
+  <text x="704" y="264" class="small">Named specialist tools</text>
+
+  <path d="M449 280V339" class="flow"/>
+  <text x="280" y="318" class="small">Explicit save / identity</text>
+  <rect x="329" y="349" width="238" height="103" class="agent"/>
+  <image href="azure-icons/cosmos-db.svg" x="348" y="365" width="30" height="30"/>
+  <text x="390" y="388" class="heading">Cosmos history</text>
+  <text x="349" y="426" class="small">Shared / 30-day TTL</text>
+
+  <path d="M810 280V339" class="flow"/>
+  <rect x="683" y="349" width="253" height="103" class="agent"/>
+  <text x="704" y="385" class="heading">Review specialists</text>
+  <text x="704" y="419" class="body">Application + case</text>
+
+  <path d="M24 486H936" stroke="#b4b4b4"/>
+  <image href="azure-icons/api-management.svg" x="28" y="508" width="42" height="42"/>
+  <text x="90" y="529" class="heading">Optional gateway: APIM Standard v2</text>
+  <text x="90" y="558" class="body">Infrastructure deployed; review API and policies unpublished.</text>
+  <text x="24" y="592" class="small">Synthetic data only. No end-user sign-in or per-user history authorization.</text>
+</svg>

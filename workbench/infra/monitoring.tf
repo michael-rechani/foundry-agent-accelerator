@@ -12,13 +12,19 @@ resource "azapi_resource" "logs" {
   tags      = local.tags
   body = {
     properties = {
-      sku              = { name = "PerGB2018" }
-      retentionInDays  = 30
-      workspaceCapping = { dailyQuotaGb = 0.1 }
-      features         = { disableLocalAuth = true }
+      sku                             = { name = "PerGB2018" }
+      retentionInDays                 = 30
+      workspaceCapping                = { dailyQuotaGb = 0.1 }
+      publicNetworkAccessForIngestion = "Enabled"
+      publicNetworkAccessForQuery     = "Enabled"
+      features = {
+        disableLocalAuth                            = true
+        enableLogAccessUsingOnlyResourcePermissions = true
+        legacy                                      = 0
+        searchVersion                               = 1
+      }
     }
   }
-  response_export_values = ["properties.customerId"]
   lifecycle {
     prevent_destroy = true
   }

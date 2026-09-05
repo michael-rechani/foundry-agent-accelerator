@@ -14,5 +14,5 @@ removed {
 import {
   for_each = var.import_existing_log_workspace ? toset(["existing"]) : toset([])
   to       = azapi_resource.logs
-  id       = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.OperationalInsights/workspaces/log-${var.name}"
+  id       = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.OperationalInsights/workspaces/log-${var.name}?api-version=2023-09-01"
 }

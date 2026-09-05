@@ -98,11 +98,12 @@ For an existing local deployment use `init -migrate-state -backend-config=backen
 
 The deployed Lab state migration preserved its lineage and all 15 then-managed
 resource IDs. The unused key-returning Cosmos account data source was removed
-with no Azure resource changes. The source now stages a keyless AzAPI Log
-Analytics ownership transfer, **not yet applied** because the private backend is
-unreachable from the workstation. Follow the [exact transfer gates](../docs/credential-migration.md#staged-lab-workspace-transfer)
-and use `-var=import_existing_log_workspace=true` for this existing environment;
-do not run an ordinary apply until the transfer is complete.
+with no Azure resource changes. The keyless AzAPI Log Analytics ownership transfer
+is also complete, with an empty follow-up plan. Execute Terraform through the
+existing jumpbox's approved private path. Other existing installations must follow
+the [transfer gates](../docs/credential-migration.md#lab-workspace-transfer) and use
+`-var=import_existing_log_workspace=true` once; this deployed environment no longer
+needs that opt-in.
 
 Necessary secrets belong in Key Vault and must not enter normal Terraform
 attributes. Lab runtime access is keyless managed identity. Cosmos transcripts

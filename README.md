@@ -31,16 +31,17 @@ remaining provider-held state copies; Key-Vault-only storage is not yet achieved
 
 ## Architecture
 
-![Microsoft Azure architecture: APIM outbound integration, peered virtual networks, private Foundry endpoints, and review agents](docs/images/foundry-runtime-architecture.svg)
+![Deployed AI Foundry Lab: private browser access, managed-identity review agents, and shared Cosmos history](docs/images/foundry-overview.svg)
 
-Solid arrows show the implemented direct-agent, Lab and private deployment paths.
-Dashed amber arrows show the proposed client API: APIM infrastructure exists,
+[Full-size overview](docs/images/foundry-overview.svg) · [Operations and security](docs/images/foundry-operations.svg)
+
+Arrows show the deployed Lab request and history paths. APIM infrastructure exists,
 but the coordinator API and policies are not yet published. Hardened coordinator
 v2 passed both live delegation checks; a separate profile-configured coordinator
 also passed both target-specific checks. The [APIM API configuration](docs/apim-review-api.md)
 is locally validated but awaits approved caller settings and live publication.
 
-See [request flow and trust boundaries](docs/architecture.md) for the target
+See [operations, request flow and trust boundaries](docs/architecture.md) for the target
 authentication and failure paths, and the dated [delivery status](docs/status.md)
 for verified results and remaining gates. This README is not a live health check.
 
@@ -144,15 +145,21 @@ python cost-comparison/calculator.py cost-comparison/scenario.example.json
 
 ## Production considerations
 
-The included infrastructure disables public data-plane access and deploys
-private endpoints, private DNS, and a delegated hosted-agent subnet. Before
-production use:
+Foundry data-plane endpoints, Lab ingress, and the state backend use private
+network access. This is not an entirely private-endpoint-only deployment: the
+Lab's ACR Basic registry and Log Analytics ingestion/query endpoints remain
+public and authenticated, with registry admin and Log Analytics local key
+authentication disabled. APIM has a public gateway but no published review API.
+See [current readiness and open gates](docs/status.md). Before production use:
 
 - Use the AVM pattern's BYOR path so platform-owned Key Vault, Storage,
   Cosmos DB, and AI Search resources have independent lifecycles.
 - Integrate the workload VNet and private DNS zones with the landing-zone hub,
   firewall, DNS resolver, and on-premises routing design.
 - Send diagnostics to a centrally managed Log Analytics workspace.
+- Configure and test alert notification delivery and backup/restore procedures.
+- Add user authorization and owner-scoped history before using confidential data.
+- Replace process-local limits with shared admission control before scaling out.
 - Assign least-privilege data-plane roles to each hosted agent's dedicated
   Microsoft Entra identity.
 - Pin model versions and test Responsible AI policies before promotion.

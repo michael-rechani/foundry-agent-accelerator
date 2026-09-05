@@ -11,27 +11,24 @@ rotate, or repurpose product icons to represent custom applications. Product
 names accompany their icons; custom review agents use plain labeled shapes
 inside the Foundry Agent Service boundary.
 
-Edit [the diagram template](foundry-runtime-architecture.template.svg), then run:
+Edit the [runtime overview](foundry-overview.template.svg) or
+[operations diagram](foundry-operations.template.svg), then run:
 
 ```powershell
 ./docs/images/build-architecture.ps1
 ```
 
-The build embeds the original SVG bytes as image data in
-[the rendered diagram](foundry-runtime-architecture.svg). It remains
-self-contained when GitHub displays it as an image, with no external asset or
-network dependency. Keep the source icons, template, and generated image together.
+The build embeds the original SVG bytes as image data in the
+[rendered overview](foundry-overview.svg) and
+[rendered operations diagram](foundry-operations.svg). Both remain self-contained
+when GitHub displays them, with no external asset or network dependency. Keep
+source icons, templates, and generated images together.
 
-Azure resource groups, VNets, integration subnets, private endpoints, and PaaS
-services are distinct concepts. APIM's public gateway is not drawn inside its
-outbound integration subnet; Foundry is a managed service accessed through
-private endpoints, not a VM inside the workload VNet. This is a logical diagram,
-not an exhaustive subnet or resource inventory. Dashed connectors identify the
-API route that has not been published; operational status belongs in the
-[delivery notes](../status.md), not a snapshot banner on the artwork.
+These are logical diagrams, not an exhaustive subnet or resource inventory.
+Component boxes do not place managed services inside VNets. The overview focuses
+on runtime calls; the operations view covers monitoring, private state access,
+and security boundaries. APIM publication and platform credential migration remain
+explicitly incomplete. Detailed evidence belongs in [delivery status](../status.md).
 
-The lower section expands the deployed AI Foundry Lab runtime: private browser
-access, managed-identity agent calls and explicit shared Cosmos saves, bounded
-requests, metadata-only monitoring, separate remote state, and Key Vault secret
-ownership. It deliberately labels the incomplete credential/state migration;
-do not draw Key Vault as the only existing credential copy until verified.
+Check both images at README width and on mobile after editing. Keep labels short,
+avoid crossing text with connectors, and do not reduce type to fit more detail.
