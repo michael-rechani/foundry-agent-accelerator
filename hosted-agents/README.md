@@ -23,6 +23,11 @@ the Foundry project using its managed identity. It selects one specialist by
 default, forwards the complete request, and returns the specialist's findings.
 Deploy both specialist agents before deploying the coordinator.
 
+To swap use cases, use an operator-managed [coordinator profile](../docs/agent-profiles.md).
+It supplies instructions, named specialist bindings, and mandatory per-tool smoke
+checks without changing Terraform. Deploy its specialists first; profiles are
+not customer isolation boundaries.
+
 The coordinator uses cancellable async requests with a 90-second deadline
 (including time waiting for a concurrency slot), no automatic specialist retries,
 and at most four specialist calls in flight per process. Set
@@ -54,7 +59,7 @@ After deploying the Terraform baseline:
 4. Run `python deploy.py`.
 
 The deployer packages `main.py`, `requirements.txt`, and the sample's reviewed
-instructions when present. It uploads an immutable hosted-agent version, waits
+instructions and `configuration.py` when present. It uploads an immutable hosted-agent version, waits
 for activation, routes the endpoint, and invokes a sample-specific smoke test.
 If provisioning or a smoke test fails, it attempts to restore the previous route
 when promotion was attempted. It deletes the failed version only after a fresh

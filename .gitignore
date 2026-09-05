@@ -19,4 +19,9 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+node_modules/
+workbench/static/
+workbench/frontend/dist/
+workbench/frontend/test-results/
+workbench/frontend/playwright-report/
 

@@ -1,0 +1,49 @@
+<policies>
+  <inbound>
+    <base />
+    <validate-azure-ad-token tenant-id="${tenant_id}" header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized" output-token-variable-name="caller" id="caller-auth">
+      <client-application-ids>
+%{ for client_id in allowed_client_app_ids ~}
+        <application-id>${client_id}</application-id>
+%{ endfor ~}
+      </client-application-ids>
+      <audiences><audience>${audience}</audience></audiences>
+      <required-claims><claim name="oid" match="any">${caller_values}</claim></required-claims>
+    </validate-azure-ad-token>
+    <rate-limit-by-key calls="10" renewal-period="60" counter-key="@(&quot;reviews:&quot; + ((Jwt)context.Variables[&quot;caller&quot;]).Claims.GetValueOrDefault(&quot;oid&quot;, &quot;&quot;))" id="caller-rate" />
+    <validate-content unspecified-content-type-action="prevent" max-size="65536" size-exceeded-action="prevent" id="request-validation">
+      <content type="application/json" validate-as="json" action="prevent" allow-additional-properties="false" />
+    </validate-content>
+    <set-body>@{
+        var request = context.Request.Body.As&lt;JObject&gt;();
+        return new JObject(new JProperty("input", (string)request["input"]), new JProperty("store", false), new JProperty("stream", false)).ToString();
+    }</set-body>
+    <set-header name="Content-Type" exists-action="override"><value>application/json</value></set-header>
+    <set-header name="api-key" exists-action="delete" />
+    <set-header name="Ocp-Apim-Subscription-Key" exists-action="delete" />
+    <set-header name="x-ms-client-request-id" exists-action="override"><value>@(context.RequestId.ToString())</value></set-header>
+    <set-backend-service base-url="${backend_url}" />
+    <rewrite-uri template="/responses?api-version=v1" copy-unmatched-params="false" />
+    <authentication-managed-identity resource="https://ai.azure.com" ignore-error="false" />
+  </inbound>
+  <backend>
+    <forward-request timeout="180" follow-redirects="false" fail-on-error-status-code="true" />
+  </backend>
+  <outbound>
+    <base />
+    <set-header name="x-correlation-id" exists-action="override"><value>@(context.RequestId.ToString())</value></set-header>
+    <set-header name="Cache-Control" exists-action="override"><value>no-store</value></set-header>
+  </outbound>
+  <on-error>
+    <return-response>
+      <set-status code="@(context.LastError.PolicyId == &quot;caller-auth&quot; ? 401 : context.LastError.PolicyId == &quot;caller-rate&quot; ? 429 : context.LastError.PolicyId == &quot;request-validation&quot; ? 400 : 502)" reason="Request failed" />
+      <set-header name="Content-Type" exists-action="override"><value>application/json</value></set-header>
+      <set-header name="Cache-Control" exists-action="override"><value>no-store</value></set-header>
+      <set-header name="x-correlation-id" exists-action="override"><value>@(context.RequestId.ToString())</value></set-header>
+      <set-body>@{
+          var category = context.LastError.PolicyId == "caller-auth" ? "unauthorized" : context.LastError.PolicyId == "caller-rate" ? "rate_limited" : context.LastError.PolicyId == "request-validation" ? "invalid_request" : "backend_unavailable";
+          return new JObject(new JProperty("error", category), new JProperty("correlation_id", context.RequestId.ToString())).ToString();
+      }</set-body>
+    </return-response>
+  </on-error>
+</policies>

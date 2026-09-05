@@ -17,25 +17,33 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-          cache-dependency-path: hosted-agents/*/requirements*.txt
+          cache-dependency-path: |
+            hosted-agents/*/requirements*.txt
+            workbench/requirements.txt
       - name: Upgrade pip
         run: python -m pip install "pip>=26.2,<27"
       - name: Install deployment dependencies
         run: python -m pip install -r hosted-agents/basic-responses-agent/requirements-deploy.txt
       - name: Install hosted runtime dependencies
         run: python -m pip install -r hosted-agents/basic-responses-agent/requirements.txt -r hosted-agents/review-coordinator-agent/requirements.txt
+      - name: Install workbench dependencies
+        run: python -m pip install -r workbench/requirements.txt
+      - name: Test chat and Cosmos history API
+        run: python -m unittest discover -s workbench -p 'test_*.py' -v
       - name: Audit Python dependencies
         run: |
           python -m pip install pip-audit==2.10.1
           python -m pip_audit --progress-spinner off
       - name: Compile Python sources
-        run: python -m compileall -q cost-comparison hosted-agents
+        run: python -m compileall -q cost-comparison hosted-agents workbench/app.py workbench/history.py
       - name: Test cost calculator
         run: python cost-comparison/test_calculator.py
       - name: Test deployment packaging
         run: python hosted-agents/test_deployment.py
       - name: Test coordinator and real SDK contracts
         run: python -m unittest discover -s hosted-agents/review-coordinator-agent -p 'test_*.py' -v
+      - name: Validate example agent profile without Azure
+        run: python hosted-agents/review-coordinator-agent/deploy.py --profile hosted-agents/review-coordinator-agent/profiles/evidence-review.example.json --validate-profile
       - name: Validate deployment CLIs
         run: |
           python hosted-agents/basic-responses-agent/deploy.py --help
@@ -59,9 +67,32 @@ jobs:
       - name: Test publisher validation without Azure resources
         shell: pwsh
         run: ./terraform/test-publisher-validation.ps1
+      - name: Test review API authorization and policy rendering
+        shell: pwsh
+        run: ./terraform/test-review-api-validation.ps1
       - name: Check formatting
         run: terraform -chdir=terraform fmt -check -recursive
       - name: Initialize without a backend
         run: terraform -chdir=terraform init -backend=false
       - name: Validate configuration
         run: terraform -chdir=terraform validate
+      - name: Validate isolated workbench infrastructure
+        run: |
+          terraform -chdir=workbench/infra fmt -check
+          terraform -chdir=workbench/infra init -backend=false
+          terraform -chdir=workbench/infra validate
+      - name: Test workbench deployment safeguards
+        shell: pwsh
+        run: ./workbench/test-deployment-inputs.ps1
+
+  workbench-frontend:
+    runs-on: ubuntu-latest
+    container: node:24.20.0-bookworm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: npm --prefix workbench/frontend ci
+      - run: npm --prefix workbench/frontend run lint
+      - name: Install browser and system dependencies
+        run: npm --prefix workbench/frontend exec -- playwright install --with-deps chromium
+      - name: Build and test desktop and mobile workflows
+        run: npm --prefix workbench/frontend test

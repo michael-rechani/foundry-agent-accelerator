@@ -6,7 +6,10 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 from zipfile import ZipFile
 
-from deployment import cleanup_failed_version, create_package, smoke_test, verify_delegation
+from deployment import (
+    AgentProfile, cleanup_failed_version, create_package, smoke_test,
+    verify_delegation, verify_specialist_endpoints,
+)
 
 
 class DeploymentPackageTests(unittest.TestCase):
@@ -45,7 +48,7 @@ class DeploymentPackageTests(unittest.TestCase):
             with ZipFile(destination) as archive:
                 self.assertEqual(
                     set(archive.namelist()),
-                    {"main.py", "requirements.txt", "instructions.md"},
+                    {"main.py", "requirements.txt", "instructions.md", "configuration.py"},
                 )
 
 
@@ -82,6 +85,74 @@ class DelegationTests(unittest.TestCase):
         client.get_openai_client.return_value.__enter__.return_value.responses.create.return_value = response
         with self.assertRaisesRegex(RuntimeError, "completed"):
             smoke_test(client, "agent", "review")
+
+    def test_checks_expected_agent_when_configured(self):
+        response = self.response(self.items())
+        verify_delegation(response, "review_application", "application-review-agent")
+        with self.assertRaisesRegex(RuntimeError, "unexpected agent"):
+            verify_delegation(response, "review_application", "different-agent")
+
+
+class SpecialistPreflightTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.client = MagicMock()
+        self.profile = AgentProfile(Path("."), "coordinator", "description", "instructions", "", (
+            ("review", "inspect", "specialist"),
+            ("review again", "inspect", "specialist"),
+        ))
+        self.rule = SimpleNamespace(agent_version="1", traffic_percentage=100)
+        self.endpoint = SimpleNamespace(
+            protocol_configuration=SimpleNamespace(responses=SimpleNamespace()),
+            version_selector=SimpleNamespace(version_selection_rules=[self.rule]),
+        )
+        self.client.agents.get.return_value.agent_endpoint = self.endpoint
+        self.client.agents.get_version.return_value = {"status": "active"}
+
+    def test_checks_each_dependency_once_without_mutations(self) -> None:
+        verify_specialist_endpoints(self.client, self.profile, "coordinator")
+        self.assertEqual([call[0] for call in self.client.agents.mock_calls], ["get", "get_version"])
+        self.client.agents.get.assert_called_once_with(agent_name="specialist")
+        self.client.agents.get_version.assert_called_once_with(agent_name="specialist", agent_version="1")
+
+    def test_rejects_missing_or_unrouted_responses_endpoint(self) -> None:
+        for endpoint in (None, SimpleNamespace(), SimpleNamespace(
+            protocol_configuration=SimpleNamespace(responses=None),
+            version_selector=self.endpoint.version_selector,
+        )):
+            with self.subTest(endpoint=endpoint), self.assertRaisesRegex(RuntimeError, "Responses endpoint"):
+                self.client.agents.get.return_value.agent_endpoint = endpoint
+                verify_specialist_endpoints(self.client, self.profile, "coordinator")
+
+    def test_rejects_invalid_traffic_rules(self) -> None:
+        for percentage in (None, True, -1, 0, 50, 101, float("nan")):
+            with self.subTest(percentage=percentage), self.assertRaises(RuntimeError):
+                self.rule.traffic_percentage = percentage
+                verify_specialist_endpoints(self.client, self.profile, "coordinator")
+
+    def test_rejects_inactive_or_missing_versions(self) -> None:
+        self.client.agents.get_version.return_value = {"status": "creating"}
+        with self.assertRaisesRegex(RuntimeError, "not active"):
+            verify_specialist_endpoints(self.client, self.profile, "coordinator")
+        self.rule.agent_version = None
+        with self.assertRaisesRegex(RuntimeError, "unversioned"):
+            verify_specialist_endpoints(self.client, self.profile, "coordinator")
+
+    def test_checks_all_routed_versions_but_not_unrouted_versions(self) -> None:
+        self.rule.traffic_percentage = 60
+        self.endpoint.version_selector.version_selection_rules.extend([
+            SimpleNamespace(agent_version="2", traffic_percentage=40),
+            SimpleNamespace(agent_version="3", traffic_percentage=0),
+        ])
+        verify_specialist_endpoints(self.client, self.profile, "coordinator")
+        self.assertEqual(self.client.agents.get_version.call_count, 2)
+
+    def test_rejects_self_delegation_and_propagates_read_failure(self) -> None:
+        with self.assertRaisesRegex(ValueError, "own endpoint"):
+            verify_specialist_endpoints(self.client, self.profile, "specialist")
+        self.client.agents.get.assert_not_called()
+        self.client.agents.get.side_effect = RuntimeError("access denied")
+        with self.assertRaisesRegex(RuntimeError, "access denied"):
+            verify_specialist_endpoints(self.client, self.profile, "coordinator")
 
 
 class DeploymentRollbackTests(unittest.TestCase):

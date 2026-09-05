@@ -68,6 +68,11 @@ output "api_management_gateway_url" {
   value       = try(module.api_management[0].apim_gateway_url, null)
 }
 
+output "review_api_url" {
+  description = "Review POST endpoint, or null when no review API is configured."
+  value       = var.review_api == null ? null : "${module.api_management[0].apim_gateway_url}/reviews/responses"
+}
+
 output "jumpbox_name" {
   description = "Name of the private Windows jumpbox, or null when disabled."
   value       = try(azurerm_windows_virtual_machine.jumpbox[0].name, null)

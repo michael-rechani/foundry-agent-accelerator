@@ -167,6 +167,31 @@ def money(value: float, currency: str) -> str:
     return f"{currency} {value:,.2f}"
 
 
+def platform_costs(config: Any, name: str) -> list[tuple[str, float | None]]:
+    if not isinstance(config, list):
+        raise ValueError(f"{name} must be a list")
+    items: list[tuple[str, float | None]] = []
+    names: set[str] = set()
+    for index, item in enumerate(config):
+        field = f"{name}[{index}]"
+        if not isinstance(item, dict):
+            raise ValueError(f"{field} must be an object")
+        label = item.get("name")
+        if not isinstance(label, str) or not label.strip() or label.strip() in names:
+            raise ValueError(f"{field}.name must be a unique non-empty string")
+        names.add(label.strip())
+        value = item["monthly_cost"]
+        items.append((label.strip(), None if value is None else non_negative(value, field)))
+    return items
+
+
+def completed_reviews(config: dict[str, Any]) -> int | None:
+    value = config.get("completed_reviews")
+    if "completed_reviews" in config and (type(value) is not int or value < 0):
+        raise ValueError("completed_reviews must be a non-negative integer")
+    return value
+
+
 def architecture_ai_costs(config: dict[str, Any]) -> tuple[float, float]:
     if "shared_ai" in config:
         shared = shared_ai_cost(config["shared_ai"])
@@ -185,20 +210,41 @@ def main(path: Path) -> None:
     vm_skus = vm_sku_costs(config)
     hosted, hourly_sandbox_rate = hosted_agent_cost(config["hosted_agent"])
     iaas_ai, foundry_ai = architecture_ai_costs(config)
-    hosted_total = hosted.total + foundry_ai
+    foundry_platform = platform_costs(config.get("foundry_platform", []), "foundry_platform")
+    iaas_platform = platform_costs(config.get("iaas_platform", []), "iaas_platform")
+    foundry_complete = all(value is not None for _, value in foundry_platform)
+    iaas_complete = all(value is not None for _, value in iaas_platform)
+    foundry_platform_total = sum(value for _, value in foundry_platform if value is not None)
+    iaas_platform_total = sum(value for _, value in iaas_platform if value is not None)
+    reviews = completed_reviews(config)
+    hosted_total = hosted.total + foundry_ai + foundry_platform_total
 
-    print("Monthly cost comparison")
+    for label, items in (("Foundry", foundry_platform), ("IaaS", iaas_platform)):
+        print(f"{label} additional platform costs")
+        if not items:
+            print("  None supplied; excluded from this estimate.")
+        for name, value in items:
+            print(f"  {name}: {money(value, currency) if value is not None else 'UNPRICED'}")
+
+    print("\nMonthly cost comparison")
     print(f"  Hosted infrastructure:   {money(hosted.total, currency)}")
     print(f"    compute:               {money(hosted.compute, currency)}")
     print(f"    storage:               {money(hosted.storage, currency)}")
     print(f"    monitoring:            {money(hosted.monitoring, currency)}")
     print(f"    egress:                {money(hosted.egress, currency)}")
     print(f"  Foundry AI consumption:  {money(foundry_ai, currency)}")
-    print(f"  Hosted-agent total:      {money(hosted_total, currency)}")
+    print(f"  Additional platform:    {money(foundry_platform_total, currency)}")
+    qualifier = "total" if foundry_complete else "known subtotal (INCOMPLETE)"
+    print(f"  Hosted-agent {qualifier}: {money(hosted_total, currency)}")
+    if reviews is not None:
+        if reviews > 0 and foundry_complete:
+            print(f"  Allocated cost per completed review: {money(hosted_total / reviews, currency)}")
+        else:
+            print("  Allocated cost per completed review: unavailable (zero completions or unpriced items)")
 
     print("\nIaaS GPU SKU comparison")
     for sku, vm in sorted(vm_skus, key=lambda item: item[1].total):
-        iaas_total = vm.total + iaas_ai
+        iaas_total = vm.total + iaas_ai + iaas_platform_total
         print(f"  {sku}")
         print(f"    infrastructure:        {money(vm.total, currency)}")
         print(f"    compute:               {money(vm.compute, currency)}")
@@ -207,10 +253,20 @@ def main(path: Path) -> None:
         print(f"    egress:                {money(vm.egress, currency)}")
         print(f"    operations labor:      {money(vm.operations, currency)}")
         print(f"    external AI services:  {money(iaas_ai, currency)}")
-        print(f"    architecture total:    {money(iaas_total, currency)}")
+        print(f"    additional platform:   {money(iaas_platform_total, currency)}")
+        qualifier = "total" if iaas_complete else "known subtotal (INCOMPLETE)"
+        print(f"    architecture {qualifier}: {money(iaas_total, currency)}")
+        if reviews is not None:
+            if reviews > 0 and iaas_complete:
+                print(f"    allocated cost per completed review: {money(iaas_total / reviews, currency)}")
+            else:
+                print("    allocated cost per completed review: unavailable (zero completions or unpriced items)")
+        if not foundry_complete or not iaas_complete:
+            print("    savings and break-even: unavailable (unpriced platform items)")
+            continue
         print(f"    Foundry savings:       {money(iaas_total - hosted_total, currency)}")
 
-        hosted_fixed = hosted.total - hosted.compute
+        hosted_fixed = hosted.total - hosted.compute + foundry_platform_total
         break_even_budget = iaas_total - foundry_ai - hosted_fixed
         if hourly_sandbox_rate > 0 and break_even_budget >= 0:
             break_even = break_even_budget / hourly_sandbox_rate

@@ -1,9 +1,17 @@
+import contextlib
+import io
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from calculator import (
     architecture_ai_costs,
+    completed_reviews,
     hosted_agent_cost,
+    main,
     non_negative,
+    platform_costs,
     shared_ai_cost,
     vm_cost,
     vm_sku_costs,
@@ -11,6 +19,89 @@ from calculator import (
 
 
 class CalculatorTests(unittest.TestCase):
+    def render_example(self, **overrides) -> str:
+        config = json.loads(Path(__file__).with_name("scenario.example.json").read_text())
+        config.pop("foundry_platform", None)
+        config.pop("iaas_platform", None)
+        config.pop("completed_reviews", None)
+        config.update(overrides)
+        with tempfile.TemporaryDirectory() as directory:
+            scenario = Path(directory) / "scenario.json"
+            scenario.write_text(json.dumps(config), encoding="utf-8")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                main(scenario)
+            return output.getvalue()
+
+    def test_platform_costs_preserve_unpriced_items(self) -> None:
+        self.assertEqual(platform_costs([
+            {"name": "APIM", "monthly_cost": 100},
+            {"name": "NAT", "monthly_cost": None},
+        ], "platform"), [("APIM", 100), ("NAT", None)])
+
+    def test_legacy_scenario_still_compares_hosting_layers(self) -> None:
+        output = self.render_example()
+        self.assertIn("Hosted-agent total: USD 470.70", output)
+        self.assertIn("Foundry savings:", output)
+        self.assertIn("None supplied; excluded", output)
+        self.assertNotIn("cost per completed review:", output)
+
+    def test_checked_in_example_does_not_claim_complete_costs(self) -> None:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            main(Path(__file__).with_name("scenario.example.json"))
+        self.assertIn("APIM Standard v2 capacity: USD 700.00", output.getvalue())
+        self.assertIn("APIM calls beyond included allowance: UNPRICED", output.getvalue())
+        self.assertIn("Windows jumpbox compute: USD 42.05", output.getvalue())
+        self.assertIn("known subtotal (INCOMPLETE)", output.getvalue())
+        self.assertNotIn("Foundry savings:", output.getvalue())
+
+    def test_sourced_capacity_estimates_match_hours_and_rates(self) -> None:
+        config = json.loads(Path(__file__).with_name("scenario.example.json").read_text())
+        for item in config["foundry_platform"]:
+            if "hourly_rate" in item:
+                self.assertAlmostEqual(item["monthly_cost"], item["hourly_rate"] * config["platform_monthly_hours"])
+
+    def test_invalid_platform_costs(self) -> None:
+        for value in ({}, [None], [{"name": " ", "monthly_cost": 0}],
+                      [{"name": "APIM", "monthly_cost": -1}],
+                      [{"name": "APIM", "monthly_cost": True}],
+                      [{"name": "APIM", "monthly_cost": float("inf")}],
+                      [{"name": "APIM", "monthly_cost": 0}] * 2):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                platform_costs(value, "platform")
+
+    def test_completed_review_counts(self) -> None:
+        self.assertIsNone(completed_reviews({}))
+        self.assertEqual(completed_reviews({"completed_reviews": 0}), 0)
+        for value in (True, -1, 1.5, "10", None):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                completed_reviews({"completed_reviews": value})
+
+    def test_platform_costs_affect_totals_and_break_even(self) -> None:
+        output = self.render_example(
+            foundry_platform=[{"name": "APIM", "monthly_cost": 100}],
+            iaas_platform=[{"name": "Network", "monthly_cost": 20}],
+            completed_reviews=100,
+        )
+        self.assertIn("Hosted-agent total: USD 570.70", output)
+        self.assertIn("Allocated cost per completed review: USD 5.71", output)
+        self.assertIn("architecture total: USD 1,787.68", output)
+        self.assertIn("Foundry savings:       USD 1,216.98", output)
+        self.assertIn("break-even hours:      20,683.0", output)
+
+    def test_unpriced_platform_suppresses_comparison(self) -> None:
+        for architecture in ("foundry_platform", "iaas_platform"):
+            output = self.render_example(**{
+                architecture: [{"name": "APIM", "monthly_cost": None}],
+                "completed_reviews": 0,
+            })
+            self.assertIn("APIM: UNPRICED", output)
+            self.assertIn("known subtotal (INCOMPLETE)", output)
+            self.assertNotIn("Foundry savings:", output)
+            self.assertNotIn("break-even hours:", output)
+            self.assertIn("zero completions or unpriced items", output)
+
     def test_vm_cost(self) -> None:
         result = vm_cost(
             {

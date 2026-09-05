@@ -10,6 +10,8 @@ from agent_framework_foundry_hosting import ResponsesHostServer
 from azure.ai.projects.aio import AIProjectClient
 from azure.identity.aio import DefaultAzureCredential
 
+from configuration import validate_specialists
+
 
 DEFAULT_INSTRUCTIONS = (Path(__file__).parent / "instructions.md").read_text(
     encoding="utf-8"
@@ -67,15 +69,25 @@ def create_specialist_tools(
                 )
                 return json.dumps({"status": "succeeded", "agent": agent_name, "output": result})
 
-    async def review_application(request: str) -> str:
-        """Review an application against supplied criteria and source evidence."""
-        return await review(application_agent_name, request)
+    configured = os.getenv("SPECIALIST_CONFIG")
+    specialists = validate_specialists(json.loads(configured) if configured is not None else [
+        {"tool": "review_application", "agent": application_agent_name,
+         "description": "Review an application against supplied criteria and source evidence."},
+        {"tool": "review_case", "agent": case_agent_name,
+         "description": "Review a case record and return evidence-grounded findings."},
+    ])
+    if any(item["agent"] == os.getenv("AGENT_NAME", "review-coordinator-agent") for item in specialists):
+        raise ValueError("Coordinator cannot delegate to itself")
 
-    async def review_case(request: str) -> str:
-        """Review a case record and return evidence-grounded findings."""
-        return await review(case_agent_name, request)
+    def create_tool(specialist):
+        async def invoke(request: str) -> str:
+            return await review(specialist["agent"], request)
 
-    return [review_application, review_case]
+        invoke.__name__ = specialist["tool"]
+        invoke.__doc__ = specialist["description"]
+        return invoke
+
+    return [create_tool(specialist) for specialist in specialists]
 
 
 async def main() -> None:

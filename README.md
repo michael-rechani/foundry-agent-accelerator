@@ -11,6 +11,11 @@ with self-managed agents on Azure virtual machines. Private networking and
 managed identities form the baseline; an optional APIM gateway provides the
 infrastructure for a governed client entry point.
 
+The [private Foundry Workbench](workbench/README.md) provides a chat-first
+React UI, curated agent catalog, session performance metrics, and explicitly
+saved shared Cosmos conversations. It is deployed separately in an internal
+Container Apps environment and does not require APIM publication.
+
 [Architecture](#architecture) · [Status](docs/status.md) · [Deploy](#quick-start) · [Review walkthrough](hosted-agents/review-coordinator-agent/README.md) · [Cost model](cost-comparison/README.md)
 
 | Build | Ship | Measure |
@@ -23,8 +28,10 @@ infrastructure for a governed client entry point.
 
 Solid arrows show the implemented direct-agent and private deployment paths.
 Dashed amber arrows show the proposed client API: APIM infrastructure exists,
-but the coordinator API and policies are not yet published. The hardened
-coordinator code is locally tested and awaits deployment.
+but the coordinator API and policies are not yet published. Hardened coordinator
+v2 passed both live delegation checks; a separate profile-configured coordinator
+also passed both target-specific checks. The [APIM API configuration](docs/apim-review-api.md)
+is locally validated but awaits approved caller settings and live publication.
 
 See [request flow and trust boundaries](docs/architecture.md) for the target
 authentication and failure paths, and the dated [delivery status](docs/status.md)
@@ -46,6 +53,9 @@ for verified results and remaining gates. This README is not a live health check
 - **Business workflow samples:** deployable case-review and application-review
   agents, plus a coordinator that delegates to them, with synthetic requests
   and explicit human decision boundaries.
+- **Swappable specialist bindings:** [customer profiles](docs/agent-profiles.md)
+  configure coordinator instructions, named specialists, and mandatory deployment
+  checks without changing the platform or coordinator runtime code.
 - **Explicit cost assumptions:** a calculator that keeps region-specific rates
   outside the code, ranks Azure GPU VM scenarios, and reports each
   hosted-runtime break-even point.
@@ -56,6 +66,7 @@ for verified results and remaining gates. This README is not a live health check
 
 | Path | Purpose |
 | --- | --- |
+| [workbench/](workbench/) | Private chat UI, FastAPI gateway, shared Cosmos history, browser tests, and isolated deployment infrastructure. |
 | [`terraform/`](terraform/) | Deploy a Foundry project, model, Agent Service dependencies, and observability with the official AVM pattern. |
 | [`hosted-agents/`](hosted-agents/) | Deploy the basic Responses agent plus case-review and application-review business samples. |
 | [`hosted-agents/review-coordinator-agent/`](hosted-agents/review-coordinator-agent/) | Route reviews to specialists; test cancellation, concurrency, and delegation. |
@@ -97,6 +108,10 @@ missing specialists, then deploy the coordinator. Start with the
 [synthetic review walkthrough](hosted-agents/review-coordinator-agent/README.md).
 There is no published APIM review URL yet.
 
+For browser interaction with the deployed agents, use the
+[workbench access and deployment guide](workbench/README.md). Its history is
+shared with workspace users; per-user Entra authorization is not implemented.
+
 ### 3. Compare hosting costs
 
 Update the illustrative rates in `cost-comparison/scenario.example.json`, then
@@ -129,6 +144,9 @@ Pull requests and pushes to `main` run Python compilation and tests, validate
 all four deployment CLIs, exercise coordinator real-SDK contracts using an
 offline HTTP transport, check publisher-variable cases, check Terraform
 formatting, and run `terraform validate`.
+Workbench checks also cover API validation, saved-receipt handling, deployment
+input guards, and Playwright workflows at desktop and mobile sizes. Browser
+tests use synthetic mocked APIs, not Azure credentials or live agent calls.
 These checks do not create Azure resources. A real plan and hosted-agent smoke
 test still require an authenticated Azure subscription, regional model quota,
 and the documented RBAC roles.

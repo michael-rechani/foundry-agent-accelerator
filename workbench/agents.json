@@ -1,0 +1,34 @@
+[
+  {
+    "id": "customer-review",
+    "label": "Customer review",
+    "category": "Coordinator",
+    "description": "Profile-driven application and case review",
+    "agent": "customer-review-coordinator",
+    "tools": {"inspect_application": "application-review-agent", "inspect_case": "case-review-agent"}
+  },
+  {
+    "id": "review-coordinator",
+    "label": "Review coordinator",
+    "category": "Coordinator",
+    "description": "Default application and case routing",
+    "agent": "review-coordinator-agent",
+    "tools": {"review_application": "application-review-agent", "review_case": "case-review-agent"}
+  },
+  {
+    "id": "application-review",
+    "label": "Application specialist",
+    "category": "Specialist",
+    "description": "Criteria, evidence, and missing information",
+    "agent": "application-review-agent",
+    "tools": {}
+  },
+  {
+    "id": "case-review",
+    "label": "Case specialist",
+    "category": "Specialist",
+    "description": "Timelines, source conflicts, and record gaps",
+    "agent": "case-review-agent",
+    "tools": {}
+  }
+]

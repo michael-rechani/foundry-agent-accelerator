@@ -92,6 +92,9 @@ to Key Vault alone does not remove existing copies. Rotate the credential after
 migration and handle old state/plan copies under the environment's retention
 policy; do not delete active state to remove a secret.
 
+See the [staged credential migration](../docs/credential-migration.md) for verified
+provider capabilities, ownership-transfer prerequisites, and acceptance gates.
+
 ```powershell
 terraform output -raw jumpbox_name
 terraform output -raw jumpbox_admin_username
@@ -124,8 +127,8 @@ published there. It provides a stable endpoint for authentication, quotas,
 rate limits, policy, versioning, and observability. Trusted internal agents can
 continue calling other agents directly with managed identity when gateway
 policy is not required. The configuration creates the service but does not
-publish a placeholder API; add the coordinator API and its policy when that
-backend contract exists.
+publish a placeholder API. The opt-in coordinator API and policy are implemented;
+enable them only after the backend and caller authorization are verified.
 
 Standard v2 is used because it supports outbound virtual network integration
 to the private backends. The gateway remains publicly reachable for clients;
@@ -147,6 +150,16 @@ terraform output -raw api_management_id
 terraform output -raw api_management_gateway_url
 ```
 
+### Optional review API
+
+After deploying and testing a coordinator, configure `review_api` to select its
+named endpoint and explicit Entra audience, caller object IDs, and client app
+IDs. The default is null: no API is published. See the
+[publication runbook and acceptance gates](../docs/apim-review-api.md).
+
+Run `./test-review-api-validation.ps1` for isolated input validation and rendered
+policy checks. These tests do not contact Azure or validate the live gateway.
+
 ## Deploy
 
 ```powershell
@@ -156,9 +169,10 @@ terraform plan -out main.tfplan
 terraform apply main.tfplan
 ```
 
-The configuration deliberately has no local-exec provisioners, credentials,
-or access keys. Terraform authenticates through the AzureRM provider's normal
-credential chain; for local use, that is typically Azure CLI authentication.
+The configuration has no local-exec provisioners or hard-coded credentials.
+It does generate and persist the jumpbox password as described above. Terraform
+authenticates through the AzureRM provider's normal credential chain; for local
+use, that is typically Azure CLI authentication.
 
 The workload is private by default. Foundry, AI Search, Cosmos DB, Key Vault,
 the workload storage account, and Log Analytics disable public data-plane
@@ -175,8 +189,9 @@ existing landing zone.
 
 ## State
 
-Local state is the default so the sample quick start works without pre-existing
-infrastructure. Local state is unsuitable for a team or production deployment.
+Without a backend configuration Terraform defaults to local state. Configure a
+secured remote backend before deploying the credential-bearing jumpbox, including
+for development. Local state is unsuitable for a team or production deployment.
 
 For a team environment, create an ignored `backend.tf` file with the secured,
 pre-created state account settings:

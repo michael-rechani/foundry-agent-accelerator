@@ -38,6 +38,17 @@ receipt only after a completed, nonempty specialist response. Both application
 and case paths are mandatory deployment checks; an empty general smoke prompt
 does not skip them.
 
+## Customer profiles
+
+Use `deploy.py --profile PATH --validate-profile` to validate an operator-managed
+profile offline, then omit `--validate-profile` to deploy it from the private
+runner. Profiles replace the default tools and instructions and require a smoke
+test for every tool, including verification of the expected target agent.
+
+See [platform boundaries and swap lifecycle](../../docs/agent-profiles.md) and the
+[example profile](profiles/evidence-review.example.json). A profile does not
+deploy its specialists, grant permissions, or isolate customer data.
+
 ## Runtime controls
 
 | Environment variable | Default | Meaning |
@@ -46,12 +57,13 @@ does not skip them.
 | `FOUNDRY_MODEL_NAME` | Required | Model deployment name |
 | `APPLICATION_REVIEW_AGENT_NAME` | `application-review-agent` | Named application specialist |
 | `CASE_REVIEW_AGENT_NAME` | `case-review-agent` | Named case specialist |
+| `SPECIALIST_CONFIG` | Default two review tools | Validated JSON specialist registry; set by profile deployment, overrides legacy name settings |
 | `SPECIALIST_TIMEOUT_SECONDS` | `90` | Deadline includes waiting for a slot |
 | `SPECIALIST_MAX_CONCURRENCY` | `4` | Shared in-flight limit per process |
 
 The shared deployer sets project/model values and the default runtime behavior.
-It does not currently expose CLI flags for custom specialist names or limits;
-those require a reviewed deployment-definition change. Cancellation releases
+Profiles configure specialist names, descriptions, and tool names; runtime limits
+still require a reviewed deployment-definition change. Cancellation releases
 local resources but cannot guarantee remote execution stops.
 
 Read [instructions.md](instructions.md) for routing and evidence boundaries.

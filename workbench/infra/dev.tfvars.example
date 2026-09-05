@@ -1,0 +1,8 @@
+subscription_id      = "00000000-0000-0000-0000-000000000000"
+resource_group_name  = "existing-resource-group"
+workload_vnet_name   = "existing-workload-vnet"
+management_vnet_name = "existing-management-vnet"
+foundry_account_name = "existing-foundry-account"
+foundry_project_name = "existing-foundry-project"
+cosmos_account_name  = "existing-cosmos-account"
+registry_name        = "globallyuniqueregistryname"

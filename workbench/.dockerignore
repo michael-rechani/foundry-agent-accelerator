@@ -1,0 +1,13 @@
+*
+!Dockerfile
+!requirements.txt
+!app.py
+!history.py
+!agents.json
+!frontend/
+!frontend/**
+frontend/node_modules/
+frontend/dist/
+frontend/.git/
+frontend/.env*
+frontend/*.log

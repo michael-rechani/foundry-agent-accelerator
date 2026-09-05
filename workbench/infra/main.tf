@@ -1,0 +1,218 @@
+terraform {
+  required_version = "~> 1.16.1"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.81"
+    }
+  }
+}
+
+provider "azurerm" {
+  features {}
+  subscription_id = var.subscription_id
+}
+
+variable "subscription_id" { type = string }
+variable "resource_group_name" { type = string }
+variable "workload_vnet_name" { type = string }
+variable "management_vnet_name" { type = string }
+variable "foundry_account_name" { type = string }
+variable "foundry_project_name" { type = string }
+variable "registry_name" { type = string }
+variable "visible_agents" {
+  type    = list(string)
+  default = ["customer-review"]
+  validation {
+    condition     = length(var.visible_agents) > 0 && alltrue([for agent in var.visible_agents : contains(["customer-review", "review-coordinator", "application-review", "case-review"], agent)])
+    error_message = "Select at least one configured workbench agent ID."
+  }
+}
+variable "name" {
+  type    = string
+  default = "foundry-workbench"
+}
+variable "subnet_prefix" {
+  type    = string
+  default = "10.42.2.0/24"
+}
+data "azurerm_virtual_network" "workload" {
+  name                = var.workload_vnet_name
+  resource_group_name = var.resource_group_name
+}
+data "azurerm_virtual_network" "management" {
+  name                = var.management_vnet_name
+  resource_group_name = var.resource_group_name
+}
+data "azurerm_subnet" "management" {
+  name                 = "snet-jumpbox"
+  virtual_network_name = var.management_vnet_name
+  resource_group_name  = var.resource_group_name
+}
+
+locals {
+  project_id = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.CognitiveServices/accounts/${var.foundry_account_name}/projects/${var.foundry_project_name}"
+  hostname   = "${var.name}.${azurerm_container_app_environment.this.default_domain}"
+  tags       = { workload = "foundry-workbench", managed-by = "terraform" }
+}
+
+resource "azurerm_subnet" "this" {
+  name                 = "snet-${var.name}"
+  address_prefixes     = [var.subnet_prefix]
+  virtual_network_name = data.azurerm_virtual_network.workload.name
+  resource_group_name  = var.resource_group_name
+  delegation {
+    name = "container-apps"
+    service_delegation {
+      name    = "Microsoft.App/environments"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+    }
+  }
+}
+
+resource "azurerm_container_registry" "this" {
+  name                = var.registry_name
+  location            = data.azurerm_virtual_network.workload.location
+  resource_group_name = var.resource_group_name
+  sku                 = "Basic"
+  admin_enabled       = false
+  tags                = local.tags
+}
+
+resource "azurerm_user_assigned_identity" "this" {
+  name                = "id-${var.name}"
+  location            = data.azurerm_virtual_network.workload.location
+  resource_group_name = var.resource_group_name
+  tags                = local.tags
+}
+
+resource "azurerm_role_assignment" "pull" {
+  scope                = azurerm_container_registry.this.id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.this.principal_id
+}
+resource "azurerm_role_assignment" "foundry" {
+  scope              = local.project_id
+  role_definition_id = "/subscriptions/${var.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/53ca6127-db72-4b80-b1b0-d745d6d5456d"
+  principal_id       = azurerm_user_assigned_identity.this.principal_id
+}
+
+resource "azurerm_container_app_environment" "this" {
+  name                           = "cae-${var.name}"
+  location                       = data.azurerm_virtual_network.workload.location
+  resource_group_name            = var.resource_group_name
+  infrastructure_subnet_id       = azurerm_subnet.this.id
+  internal_load_balancer_enabled = true
+  public_network_access          = "Disabled"
+  logs_destination               = ""
+  workload_profile {
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
+  }
+  tags = local.tags
+}
+
+resource "azurerm_private_dns_zone" "this" {
+  name                = azurerm_container_app_environment.this.default_domain
+  resource_group_name = var.resource_group_name
+  tags                = local.tags
+}
+resource "azurerm_private_dns_a_record" "this" {
+  for_each            = toset(["*", "@"])
+  name                = each.value
+  zone_name           = azurerm_private_dns_zone.this.name
+  resource_group_name = var.resource_group_name
+  ttl                 = 60
+  records             = [azurerm_container_app_environment.this.static_ip_address]
+}
+resource "azurerm_private_dns_zone_virtual_network_link" "this" {
+  for_each              = { workload = data.azurerm_virtual_network.workload.id, management = data.azurerm_virtual_network.management.id }
+  name                  = "${var.name}-${each.key}"
+  private_dns_zone_name = azurerm_private_dns_zone.this.name
+  resource_group_name   = var.resource_group_name
+  virtual_network_id    = each.value
+}
+
+resource "azurerm_container_app" "this" {
+  count                        = var.bootstrap_only ? 0 : 1
+  name                         = var.name
+  resource_group_name          = var.resource_group_name
+  container_app_environment_id = azurerm_container_app_environment.this.id
+  revision_mode                = "Single"
+  workload_profile_name        = "Consumption"
+  tags                         = local.tags
+  lifecycle {
+    prevent_destroy = true
+  }
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.this.id]
+  }
+  registry {
+    server   = azurerm_container_registry.this.login_server
+    identity = azurerm_user_assigned_identity.this.id
+  }
+  ingress {
+    external_enabled           = true
+    allow_insecure_connections = false
+    target_port                = 8080
+    transport                  = "http"
+    ip_security_restriction {
+      name             = "jumpbox-only"
+      action           = "Allow"
+      ip_address_range = data.azurerm_subnet.management.address_prefixes[0]
+    }
+    traffic_weight {
+      latest_revision = true
+      percentage      = 100
+    }
+  }
+  template {
+    min_replicas = 1
+    max_replicas = 1
+    container {
+      name   = "workbench"
+      image  = "${azurerm_container_registry.this.login_server}/workbench@${var.image_digest}"
+      cpu    = 0.5
+      memory = "1Gi"
+      dynamic "env" {
+        for_each = {
+          WORKBENCH_MODE            = "private"
+          WORKBENCH_COSMOS_ENDPOINT = data.azurerm_cosmosdb_account.history.endpoint
+          WORKBENCH_VISIBLE_AGENTS  = join(",", var.visible_agents)
+          WORKBENCH_ALLOWED_HOSTS   = local.hostname
+          WORKBENCH_ORIGINS         = "https://${local.hostname}"
+          FOUNDRY_PROJECT_ENDPOINT  = "https://${var.foundry_account_name}.services.ai.azure.com/api/projects/${var.foundry_project_name}"
+          AZURE_CLIENT_ID           = azurerm_user_assigned_identity.this.client_id
+        }
+        content {
+          name  = env.key
+          value = env.value
+        }
+      }
+      readiness_probe {
+        transport = "HTTP"
+        port      = 8080
+        path      = "/healthz"
+        header {
+          name  = "Host"
+          value = local.hostname
+        }
+      }
+      liveness_probe {
+        transport = "HTTP"
+        port      = 8080
+        path      = "/healthz"
+        header {
+          name  = "Host"
+          value = local.hostname
+        }
+      }
+    }
+  }
+  depends_on = [azurerm_role_assignment.pull, azurerm_role_assignment.foundry, azurerm_cosmosdb_sql_role_assignment.history]
+}
+
+output "registry_name" { value = azurerm_container_registry.this.name }
+output "private_url" { value = var.bootstrap_only ? null : "https://${local.hostname}" }
+output "internal_ip" { value = azurerm_container_app_environment.this.static_ip_address }

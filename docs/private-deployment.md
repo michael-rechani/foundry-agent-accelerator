@@ -26,6 +26,7 @@ hosted-agents/
   review-coordinator-agent/
     deploy.py
     main.py
+    configuration.py
     instructions.md
     requirements.txt
     requirements-deploy.txt
@@ -37,6 +38,10 @@ using Azure CLI `--scripts @path-to-script.ps1` rather than nested inline
 here-strings. Check both stdout and stderr and verify the extracted archive's
 SHA-256 against the local artifact. Never put credential values in the script.
 Run Command uses a privileged VM context; restrict access to operators.
+
+For a profile-based deployment, also stage the selected non-secret profile and
+follow the [swap lifecycle](agent-profiles.md). Profile validation is offline;
+successful validation does not establish that its specialists exist or are healthy.
 
 A remote scheduled task can outlive the Run Command invocation. Record its name,
 exit code, and restricted log location; a successful task-start message is not

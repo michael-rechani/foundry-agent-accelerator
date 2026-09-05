@@ -138,6 +138,31 @@ class CoordinatorTests(unittest.TestCase):
 
         asyncio.run(run_check())
 
+    def test_registry_replaces_default_specialists(self) -> None:
+        specialists = [
+            {"tool": "check_inventory", "agent": "customer-inventory", "description": "Check supplied stock records."},
+            {"tool": "check_shipping", "agent": "customer-shipping", "description": "Check supplied shipment records."},
+        ]
+        with patch.dict(self.module.os.environ, {"SPECIALIST_CONFIG": json.dumps(specialists)}), patch.object(
+            self.module, "invoke_specialist", return_value="finding"
+        ) as invoke:
+            tools = self.module.create_specialist_tools("endpoint", object())
+            self.assertEqual([tool.__name__ for tool in tools], [item["tool"] for item in specialists])
+            for tool, specialist in zip(tools, specialists):
+                self.assertEqual(tool.__doc__, specialist["description"])
+                self.assertEqual(json.loads(asyncio.run(tool("source")))["agent"], specialist["agent"])
+            self.assertEqual([call.args[2] for call in invoke.call_args_list], [item["agent"] for item in specialists])
+
+    def test_invalid_registry_fails_before_serving(self) -> None:
+        entry = {"tool": "review", "agent": "specialist", "description": "Review evidence."}
+        for registry in ([], {}, [entry, entry], [{**entry, "agent": "https://unapproved.example"}],
+                         [{**entry, "agent": "review-coordinator-agent"}],
+                         [{**entry, "tool": "bad tool"}], [{**entry, "description": " "}],
+                         [{**entry, "endpoint": "override"}]):
+            with self.subTest(registry=registry), patch.dict(self.module.os.environ, {"SPECIALIST_CONFIG": json.dumps(registry)}):
+                with self.assertRaises(ValueError):
+                    self.module.create_specialist_tools("endpoint", object())
+
     def test_concurrency_is_shared_between_specialists(self) -> None:
         async def run_check():
             active = 0

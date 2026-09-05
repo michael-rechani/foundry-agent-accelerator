@@ -11,7 +11,7 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 SOURCE_FILES = ("main.py", "requirements.txt")
-OPTIONAL_SOURCE_FILES = ("instructions.md",)
+OPTIONAL_SOURCE_FILES = ("instructions.md", "configuration.py")
 
 
 @dataclass(frozen=True)
@@ -21,7 +21,8 @@ class AgentProfile:
     description: str
     instructions: str
     smoke_test_prompt: str
-    delegation_checks: tuple[tuple[str, str], ...] = ()
+    delegation_checks: tuple[tuple[str, str] | tuple[str, str, str], ...] = ()
+    environment_variables: tuple[tuple[str, str], ...] = ()
 
 
 def positive_number(value: str) -> str:
@@ -31,9 +32,10 @@ def positive_number(value: str) -> str:
     return value
 
 
-def parse_args(profile: AgentProfile) -> argparse.Namespace:
+def parse_args(profile: AgentProfile, argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Package and deploy a Foundry hosted-agent version.",
+        allow_abbrev=False,
     )
     parser.add_argument(
         "--endpoint",
@@ -62,7 +64,7 @@ def parse_args(profile: AgentProfile) -> argparse.Namespace:
     )
     parser.add_argument("--poll-seconds", type=int, default=10)
     parser.add_argument("--max-polls", type=int, default=60)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.poll_seconds <= 0 or args.max_polls <= 0:
         parser.error("--poll-seconds and --max-polls must be greater than zero")
@@ -115,7 +117,7 @@ def wait_until_active(
     raise TimeoutError(f"Agent version {version} did not become active")
 
 
-def verify_delegation(response, expected_tool: str) -> None:
+def verify_delegation(response, expected_tool: str, expected_agent: str | None = None) -> None:
     items = response.model_dump().get("output", [])
     calls = [item for item in items if item.get("type") == "function_call"]
     if len(calls) != 1 or calls[0].get("name") != expected_tool or not calls[0].get("call_id"):
@@ -141,9 +143,13 @@ def verify_delegation(response, expected_tool: str) -> None:
     ):
         raise RuntimeError("Specialist result is not a success receipt")
 
+    if expected_agent is not None and result["agent"] != expected_agent:
+        raise RuntimeError("Specialist result came from an unexpected agent")
+
 
 def smoke_test(
-    client: AIProjectClient, agent_name: str, prompt: str, expected_tool: str | None = None
+    client: AIProjectClient, agent_name: str, prompt: str, expected_tool: str | None = None,
+    expected_agent: str | None = None,
 ) -> None:
     if not prompt:
         print("Skipped hosted-agent smoke test")
@@ -155,7 +161,7 @@ def smoke_test(
     if response.status != "completed" or not response.output_text.strip():
         raise RuntimeError("Hosted-agent smoke test did not return a completed, nonempty response")
     if expected_tool:
-        verify_delegation(response, expected_tool)
+        verify_delegation(response, expected_tool, expected_agent)
     print(f"Smoke test passed: {expected_tool or agent_name}")
 
 
@@ -190,6 +196,32 @@ def cleanup_failed_version(
         print(f"Warning: cleanup incomplete; retained version {version} if present")
 
 
+def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name: str) -> None:
+    agent_names = sorted({check[2] for check in profile.delegation_checks if len(check) == 3})
+    for agent_name in agent_names:
+        if agent_name == coordinator_name:
+            raise ValueError("A coordinator cannot delegate to its own endpoint")
+        endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+        protocols = getattr(endpoint, "protocol_configuration", None)
+        selector = getattr(endpoint, "version_selector", None)
+        rules = getattr(selector, "version_selection_rules", None)
+        if getattr(protocols, "responses", None) is None or not rules:
+            raise RuntimeError(f"Specialist {agent_name} has no routed Responses endpoint")
+        percentages = [getattr(rule, "traffic_percentage", None) for rule in rules]
+        if any(type(value) not in (int, float) or not 0 <= value <= 100 for value in percentages):
+            raise RuntimeError(f"Specialist {agent_name} has unsupported traffic rules")
+        if not math.isclose(sum(percentages), 100):
+            raise RuntimeError(f"Specialist {agent_name} traffic must total 100 percent")
+        versions = {str(rule.agent_version) for rule in rules if rule.traffic_percentage > 0 and rule.agent_version}
+        if any(not rule.agent_version for rule in rules if rule.traffic_percentage > 0):
+            raise RuntimeError(f"Specialist {agent_name} has an unversioned traffic rule")
+        for version in sorted(versions):
+            details = client.agents.get_version(agent_name=agent_name, agent_version=version)
+            if details["status"] != "active":
+                raise RuntimeError(f"Specialist {agent_name} version {version} is not active")
+        print(f"Specialist preflight passed: {agent_name}")
+
+
 def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
     from azure.ai.projects import AIProjectClient
     from azure.ai.projects.models import (
@@ -214,6 +246,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
             DefaultAzureCredential() as credential,
             AIProjectClient(endpoint=args.endpoint, credential=credential, allow_preview=True) as client,
         ):
+            verify_specialist_endpoints(client, profile, args.agent_name)
             created = client.agents.create_version_from_code(
                 agent_name=args.agent_name,
                 description=profile.description,
@@ -226,6 +259,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                         dependency_resolution=CodeDependencyResolution.REMOTE_BUILD,
                     ),
                     environment_variables={
+                        **dict(profile.environment_variables),
                         "FOUNDRY_PROJECT_ENDPOINT": args.endpoint,
                         "FOUNDRY_MODEL_NAME": args.model,
                         "AGENT_NAME": args.agent_name,
@@ -272,9 +306,9 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                     agent_endpoint=endpoint_config,
                 )
                 smoke_test(client, args.agent_name, args.smoke_test_prompt)
-                for prompt, expected_tool in profile.delegation_checks:
-                    smoke_test(client, args.agent_name, prompt, expected_tool)
-            except Exception:
+                for check in profile.delegation_checks:
+                    smoke_test(client, args.agent_name, *check)
+            except (Exception, KeyboardInterrupt):
                 cleanup_failed_version(
                     client, args.agent_name, created.version,
                     original_endpoint, promotion_attempted,
@@ -287,5 +321,5 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
             )
 
 
-def run(profile: AgentProfile) -> None:
-    deploy(profile, parse_args(profile))
+def run(profile: AgentProfile, argv=None) -> None:
+    deploy(profile, parse_args(profile, argv))

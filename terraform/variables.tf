@@ -165,6 +165,37 @@ check "api_management_management_network" {
   }
 }
 
+variable "review_api" {
+  type = object({
+    audience                  = string
+    allowed_caller_object_ids = set(string)
+    allowed_client_app_ids    = set(string)
+    agent_name                = optional(string, "review-coordinator-agent")
+  })
+  description = "Opt-in coordinator API authorization. Use a dedicated Entra API audience and explicit principal and client application allowlists. Null leaves the API unpublished."
+  default     = null
+
+  validation {
+    condition     = var.review_api == null ? true : var.enable_api_management
+    error_message = "review_api requires enable_api_management = true."
+  }
+
+  validation {
+    condition     = var.review_api == null ? true : can(regex("^[A-Za-z_][A-Za-z0-9_-]{0,63}$", var.review_api.agent_name))
+    error_message = "review_api requires a valid named agent, not a URL or path."
+  }
+
+  validation {
+    condition = var.review_api == null ? true : (
+      can(regex("^(api://)?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", var.review_api.audience)) &&
+      length(var.review_api.allowed_caller_object_ids) > 0 &&
+      length(var.review_api.allowed_client_app_ids) > 0 &&
+      alltrue([for id in setunion(var.review_api.allowed_caller_object_ids, var.review_api.allowed_client_app_ids) : can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", id))])
+    )
+    error_message = "review_api requires a GUID or api://GUID audience and nonempty GUID-only caller object ID and client application ID allowlists."
+  }
+}
+
 variable "model_deployment" {
   type = object({
     deployment_name = string
