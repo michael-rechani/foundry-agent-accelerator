@@ -1,10 +1,71 @@
-# Jumpbox credential migration
+# Secret ownership and credential migration
 
 [Overview](../README.md) / Credential migration
 
-Status: design and installed-provider capability check only, 2026-09-04.
+Status: inventory updated 2026-09-05; platform migration not applied.
 No password rotation, resource ownership transfer, or state deletion has been
 performed. The current VM login and recovery resources remain unchanged.
+
+2026-09-05 hardening follow-up: current source still has all four persistent
+credential consumers below. No live rotation or ownership transfer was attempted
+while the operator was unavailable for the final login check. This finding is
+**open**, not fixed by plan cleanup or by migrating the separate Lab state.
+The existing platform backend was verified to use Entra authentication with
+shared-key access disabled, HTTPS/TLS 1.2, encryption, versioning and 90-day blob
+soft-delete. These protect storage but retain historical credential copies.
+Do not purge them or weaken recovery controls to claim the migration complete.
+
+## Required ownership
+
+Necessary passwords, API keys, tokens, and certificates must be provisioned
+directly into Key Vault and read only by authorized identities. Prefer managed
+identity and disable local/shared-key authentication where supported. Do not
+create a redundant vault copy of an unused, disabled key just to populate a vault.
+Azure-managed key material can still exist inside the service; the requirement
+is to avoid application-managed plaintext copies outside the vault and transient
+process memory needed to use them.
+
+Transcripts, operational metadata, state files, resource IDs, and identity client
+IDs are not Key Vault secrets. Store the first three in their dedicated protected
+stores. Never retrieve a vault secret into an ordinary Terraform variable,
+data source or resource argument and assume its value stays out of state.
+
+## Verified inventory
+
+Inspection printed resource addresses and field names only, never values.
+
+| Path | Current finding | Required action |
+| --- | --- | --- |
+| Lab Foundry, Cosmos and ACR clients | Managed identity; no runtime API keys or connection-string secrets | Keep keyless access |
+| Platform jumpbox | Random result, VM password, VMAccess protected settings and ordinary ARM Key Vault secret body persist in state | Tested ownership/provisioning migration, then rotation and login verification |
+| Platform Cosmos account | AzureRM returns account keys and key-bearing connection strings | Move to a keyless ARM ownership/read path; verify account auth settings and consumers before key rotation |
+| Platform Storage AVM resource | AzureRM exports account keys/connection strings even with shared-key access disabled | Coordinate AVM BYOR/ownership migration; do not edit vendored modules or delete the account |
+| Platform Log Analytics | AzureRM exports shared keys | Verify existing ingestion consumers before disabling local auth and transferring ownership |
+| Lab Cosmos account lookup | Key-returning data source removed from current state with a zero-resource-change apply | Preserve historical state under retention policy |
+| Lab Log Analytics | Local auth disabled, but AzureRM-generated shared keys remain in current state | Keyless AzAPI ownership transfer staged and locally validated; not applied |
+| Historical state, backups and prior plans | May retain old values independently of live configuration | Invalidate old credentials through rotation; handle copies under approved retention, never broad deletion |
+
+The shared state account now has public network access disabled. The workstation
+receives HTTP 403 on state blob access; this blocks further migrations. Preserve
+that security setting and resume from a runner with approved private DNS/routing
+and Blob Data Contributor access to the relevant state container.
+
+## Staged Lab workspace transfer
+
+The Lab configuration uses `azapi_resource.logs` to read only workspace
+configuration and export `properties.customerId`, never the shared-key API.
+`monitoring-migration.tf` forgets the old AzureRM owner without destroying Azure
+resources and has an explicit import opt-in for the existing workspace.
+
+From an approved backend-connected runner, plan with
+`-var=import_existing_log_workspace=true` and the normal Lab variables. Require
+exactly an import of the same workspace ID and non-destructive forgetting of
+the old owner; reject all Azure creates, updates, replacements or deletions.
+Apply only that saved plan, delete it in `finally`, then verify unchanged
+workspace ID/settings and absence of the old key-bearing resource in current
+state. A subsequent ordinary plan must be empty. Fresh installations leave the
+import flag false. Do not apply the existing-workspace transfer without its
+import flag. No successful plan/apply evidence exists for this transfer yet.
 
 ## Why this requires a migration
 

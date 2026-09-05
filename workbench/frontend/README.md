@@ -1,4 +1,4 @@
-# Workbench Frontend
+# AI Foundry Lab Frontend
 
 React, TypeScript and Vite. See the [workbench runbook](../README.md) for backend,
 private access, Cosmos retention and deployment instructions.
@@ -23,6 +23,9 @@ system dependencies with `npx playwright install --with-deps chromium`.
 in `ConversationTurn.tsx`; `WaitingIndicator.tsx` owns the elapsed timer so it
 does not rerender the transcript. `history-client.ts` handles bounded history
 requests, and `request.ts` handles transport-independent cancellation.
+`workspace-config.ts` validates public configuration and handles bootstrap
+timeouts/retry. `ContinueDialog.tsx` previews carry-over context before resetting
+the conversation; it never invokes an agent.
 
 Fonts and Markdown rendering are local. Do not add browser Azure credentials,
 remote image rendering, or persistent transcript storage. Preserve the explicit

@@ -1,6 +1,9 @@
+import asyncio
 import os
+from collections import deque
 from copy import deepcopy
 from datetime import datetime, timezone
+from time import monotonic
 from typing import Literal
 from uuid import uuid4
 
@@ -54,6 +57,9 @@ class CosmosHistory:
         await self.client.close()
         await self.credential.close()
 
+    async def check(self):
+        await self.list([], None)
+
     async def list(self, agents, cursor):
         query = self.container.query_items(
             query="SELECT c.id, c.title, c.agent_id, c.updated_at FROM c WHERE ARRAY_CONTAINS(@agents, c.agent_id) ORDER BY c.updated_at DESC",
@@ -86,10 +92,29 @@ def unverified_turns(turns):
 
 def history_router(settings, registry, store):
     router = APIRouter()
+    semaphore = asyncio.Semaphore(4)
+    recent = deque()
 
     @router.api_route("/api/conversations", methods=["GET", "POST"])
     @router.api_route("/api/conversations/{identifier}", methods=["GET", "PUT", "DELETE"])
     async def conversations(request: Request, identifier: str | None = None):
+        now = monotonic()
+        while recent and now - recent[0] >= 60:
+            recent.popleft()
+        if semaphore.locked() or len(recent) >= 60:
+            request.state.error_code = "history_busy"
+            return JSONResponse({"error": "history_busy", "request_id": request.state.request_id},
+                                status_code=429, headers={"Retry-After": "60"})
+        recent.append(now)
+        async with semaphore:
+            try:
+                async with asyncio.timeout(35):
+                    return await execute(request, identifier)
+            except TimeoutError:
+                request.state.error_code = "history_timeout"
+                return JSONResponse({"error": "history_timeout", "request_id": request.state.request_id}, status_code=504)
+
+    async def execute(request: Request, identifier: str | None):
         def error(status, code):
             request.state.error_code = code
             return JSONResponse({"error": code, "request_id": request.state.request_id}, status_code=status)

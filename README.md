@@ -11,10 +11,17 @@ with self-managed agents on Azure virtual machines. Private networking and
 managed identities form the baseline; an optional APIM gateway provides the
 infrastructure for a governed client entry point.
 
-The [private Foundry Workbench](workbench/README.md) provides a chat-first
+The [AI Foundry Lab](workbench/README.md) provides a chat-first
 React UI, curated agent catalog, session performance metrics, and explicitly
 saved shared Cosmos conversations. It is deployed separately in an internal
 Container Apps environment and does not require APIM publication.
+
+The Lab has bounded API admission and deadlines, periodic dependency checks,
+retained operational logs, and an isolated Entra-authenticated remote state key.
+It remains a synthetic-data workspace with shared history and no end-user login.
+Secrets must use Key Vault or be eliminated through managed identity. The
+[secret inventory and migration gates](docs/credential-migration.md) identify
+remaining provider-held state copies; Key-Vault-only storage is not yet achieved.
 
 [Architecture](#architecture) · [Status](docs/status.md) · [Deploy](#quick-start) · [Review walkthrough](hosted-agents/review-coordinator-agent/README.md) · [Cost model](cost-comparison/README.md)
 
@@ -26,7 +33,7 @@ Container Apps environment and does not require APIM publication.
 
 ![Microsoft Azure architecture: APIM outbound integration, peered virtual networks, private Foundry endpoints, and review agents](docs/images/foundry-runtime-architecture.svg)
 
-Solid arrows show the implemented direct-agent and private deployment paths.
+Solid arrows show the implemented direct-agent, Lab and private deployment paths.
 Dashed amber arrows show the proposed client API: APIM infrastructure exists,
 but the coordinator API and policies are not yet published. Hardened coordinator
 v2 passed both live delegation checks; a separate profile-configured coordinator
@@ -88,13 +95,27 @@ $env:TF_VAR_subscription_id = "<subscription-id>"
 az account set --subscription $env:TF_VAR_subscription_id
 # Review the defaults in terraform/variables.tf, including region, model, quota, and pricing.
 terraform -chdir=terraform init
-terraform -chdir=terraform plan -var="subscription_id=$env:TF_VAR_subscription_id" -out main.tfplan
-terraform -chdir=terraform apply main.tfplan
+$plan = Join-Path $env:TEMP ("foundry-" + [guid]::NewGuid().ToString("N") + ".tfplan")
+terraform -chdir=terraform plan "-var=subscription_id=$env:TF_VAR_subscription_id" "-out=$plan"
+if ($LASTEXITCODE -ne 0) {
+  Remove-Item $plan -Force -ErrorAction SilentlyContinue
+  throw "Plan failed"
+}
+# Review the plan before running the apply block.
+try {
+  terraform -chdir=terraform apply $plan
+  if ($LASTEXITCODE -ne 0) { throw "Apply failed" }
+} finally {
+  Remove-Item $plan -Force -ErrorAction SilentlyContinue
+}
 ```
 
 Review existing variable files before planning; the explicit subscription
 argument takes precedence over an old subscription value in those files.
 Review the saved plan before applying. Do not share it as a build artifact.
+Delete abandoned plans too; preserve state and protected backups. Run Terraform
+from a network path allowed by the backend storage account. Do not reopen a
+private state endpoint to make a workstation deployment succeed.
 
 ### 2. Publish a sample agent
 

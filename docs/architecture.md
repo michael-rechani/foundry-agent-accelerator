@@ -8,8 +8,8 @@ The diagram uses [official Microsoft Azure architecture icons](images/README.md)
 with separate resource-group, virtual-network, subnet, and managed-service
 boundaries. Custom review agents are labeled components, not Microsoft products.
 
-The image shows the platform and proposed APIM path. The deployed workbench
-adds the following private path, managed by its own Terraform state:
+The image shows the platform, deployed Lab, and proposed APIM path. The Lab uses
+its own remote state key and the following private runtime path:
 
 ```mermaid
 flowchart LR
@@ -17,6 +17,12 @@ flowchart LR
     UI -->|Managed identity / bounded context| Agent[Curated Foundry agent]
     UI -->|Explicit save / managed identity| History[Cosmos workbench conversations]
     Agent --> Specialist[Named specialist endpoints]
+    UI -->|Metadata only| Logs[Log Analytics: 30 days / daily cap]
+    Logs --> Alerts[Azure Monitor alerts: portal only until action group configured]
+    UI -->|Cached non-generating probes| Dependencies[Foundry agent access and Cosmos query]
+    Terraform[Terraform runner on approved network] -->|Entra / blob lease| State[Encrypted remote state: separate platform and Lab keys]
+    Operator[Authorized secret operator] -->|Private access / Entra| Vault[Key Vault: password retrieval]
+    State -.->|Migration still required: legacy credential and provider-key copies| Vault
 ```
 
 The workbench accepts only the configured agent catalog, uses no browser Azure
@@ -24,17 +30,44 @@ credentials, and does not publish APIs through APIM. Cosmos permissions are
 container-scoped. Saved history is shared, not per-user private, and is not an
 audit trail. See the [workbench runbook](../workbench/README.md).
 
+Reviews admit four concurrent requests and 20/minute; history separately admits
+four and 60/minute. Review uploads expire after five seconds, model calls after
+180 seconds, and complete history operations after 35 seconds. These controls
+are process-local and require one worker/replica. Dependency probes are cached,
+bounded, and separate from process liveness. Logs contain request metadata, not
+prompts or transcripts; action groups are needed for delivered notifications.
+
+## Secret ownership
+
+Managed identity is preferred to storing service keys. Key Vault is the required
+home for necessary passwords, API keys, tokens, and certificates. Do not add
+secret values to environment files, Terraform variables, source, diagrams,
+browser storage, or deployment arguments. A Key Vault reference is non-secret;
+fetching its value into a normal Terraform attribute still persists a copy.
+
+Transcripts belong in access-controlled Cosmos, operational metadata in Log
+Analytics, and Terraform state in its encrypted/locked backend, not in Key Vault.
+These stores can contain sensitive data and require their own access and
+retention policies. Network identifiers and managed-identity client IDs are
+configuration, not credentials.
+
+**Current exception:** platform state retains jumpbox credentials and
+provider-returned Cosmos/Storage/Log Analytics keys. Current Lab state no longer
+fetches Cosmos account keys; its AzureRM Log Analytics ownership transfer is
+staged but blocked by backend network access. Historical state remains protected
+and must not be purged indiscriminately. See the [migration inventory](credential-migration.md).
+
 ## Trust boundaries
 
 | Boundary | Current implementation | Publication requirement |
 | --- | --- | --- |
 | Browser to workbench | Internal environment, jumpbox subnet allowlist, same-origin request checks | Entra identity and owner-scoped history authorization before real user data |
-| Workbench to Foundry/Cosmos | Managed identity, curated agents, container-scoped Cosmos role | Private dependency monitoring and approved retention policy |
+| Workbench to Foundry/Cosmos | Managed identity, curated agents, container-scoped Cosmos role, periodic dependency checks | Approve data/backup retention before real data |
 | Client to APIM | Public Standard v2 gateway; no review API | Validate Entra issuer, audience, and authorized caller claims; do not equate authentication with permission |
 | APIM to Foundry | VNet integration, peering, private DNS, managed identity role | Exact backend path, managed-identity policy, request limits, and correlation IDs |
 | Coordinator to specialists | Named Foundry endpoints with managed identity; v2 passed both live delegation checks | Profile-based bindings require a new deployment and per-tool target checks |
 | Administration to private data plane | Private jumpbox and project-scoped deployment identity | Inventory before mutation; serialize deployment per agent |
-| Terraform to Azure | ARM resource provisioning | Protect backend state, saved plans, and credential history |
+| Terraform to Azure | ARM provisioning; distinct remote state keys with Entra authentication and locking | Use approved private backend connectivity; migrate remaining secret-bearing resource ownership |
 
 The workload and management networks may be in different regions. APIM's
 integration subnet is in the management network and must be in APIM's region.

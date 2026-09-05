@@ -21,6 +21,10 @@ from history import CosmosHistory, history_router
 ROOT = Path(__file__).resolve().parent
 NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_-]{0,63}\Z")
 LOGGER = logging.getLogger("uvicorn.error")
+MAX_CHARACTERS = 60000
+MAX_REQUEST_BYTES = 65536
+MAX_HISTORY_TURNS = 10
+HISTORY_TIMEOUT_MS = 45000
 
 
 def cache_policy(path, status):
@@ -40,6 +44,8 @@ class Settings:
     agents_path: Path = ROOT / "agents.json"
     timeout: float = 180
     visible_agents: tuple[str, ...] = ("customer-review",)
+    default_agent: str | None = None
+    title: str = "AI Foundry Lab"
 
     @classmethod
     def from_env(cls):
@@ -49,9 +55,14 @@ class Settings:
         origins = tuple(filter(None, os.getenv("WORKBENCH_ORIGINS", "http://127.0.0.1:8080,http://localhost:8080").split(",")))
         visible_agents = tuple(filter(None, os.getenv("WORKBENCH_VISIBLE_AGENTS", "customer-review").split(",")))
         return cls(mode, endpoint, hosts, origins, Path(os.getenv("WORKBENCH_AGENTS_FILE", ROOT / "agents.json")),
-               visible_agents=visible_agents)
+               visible_agents=visible_agents, default_agent=os.getenv("WORKBENCH_DEFAULT_AGENT") or None,
+               title=os.getenv("WORKBENCH_TITLE", "AI Foundry Lab"))
 
     def validate(self):
+        if not isinstance(self.title, str) or not self.title.strip() or len(self.title) > 80 or any(ord(char) < 32 for char in self.title):
+            raise ValueError("Workspace title must contain one to 80 printable characters")
+        if not isinstance(self.timeout, (int, float)) or isinstance(self.timeout, bool) or not 1 <= self.timeout <= 180:
+            raise ValueError("Review timeout must be between one and 180 seconds")
         if self.mode not in {"preview", "private"}:
             raise ValueError("WORKBENCH_MODE must be preview or private")
         if not self.hosts or any("*" in host or "/" in host for host in self.hosts):
@@ -80,7 +91,8 @@ def load_agents(path):
         raise ValueError("Configure between one and sixteen agents")
     identifiers = set()
     for agent in agents:
-        if not isinstance(agent, dict) or set(agent) != {"id", "label", "category", "description", "agent", "tools"}:
+        required = {"id", "label", "category", "description", "agent", "tools"}
+        if not isinstance(agent, dict) or not required <= set(agent) or set(agent) - required - {"prompts"}:
             raise ValueError("Invalid agent configuration")
         for key in ("id", "agent"):
             if not isinstance(agent[key], str) or not NAME.fullmatch(agent[key]):
@@ -96,6 +108,14 @@ def load_agents(path):
             for tool, target in agent["tools"].items()
         ):
             raise ValueError("Invalid specialist bindings")
+        prompts = agent.setdefault("prompts", [])
+        if not isinstance(prompts, list) or len(prompts) > 6:
+            raise ValueError("Configure up to six starter prompts per agent")
+        for prompt in prompts:
+            if (not isinstance(prompt, dict) or set(prompt) != {"label", "text"}
+                    or not isinstance(prompt["label"], str) or not 1 <= len(prompt["label"].strip()) <= 80
+                    or not isinstance(prompt["text"], str) or not 1 <= len(prompt["text"].strip()) <= 4000):
+                raise ValueError("Invalid starter prompt")
     return agents
 
 
@@ -124,6 +144,17 @@ class FoundryGateway:
     def __init__(self, settings):
         self.settings = settings
 
+    async def check(self, agents):
+        from azure.ai.projects.aio import AIProjectClient
+        from azure.identity.aio import ManagedIdentityCredential
+
+        async with ManagedIdentityCredential(client_id=os.getenv("AZURE_CLIENT_ID")) as credential, AIProjectClient(
+            endpoint=self.settings.endpoint, credential=credential, allow_preview=True,
+            connection_timeout=5, read_timeout=5, retry_total=0,
+        ) as project:
+            for agent in agents:
+                await project.agents.get(agent["agent"])
+
     async def review(self, agent, prompt):
         from azure.ai.projects.aio import AIProjectClient
         from azure.identity.aio import ManagedIdentityCredential
@@ -145,6 +176,9 @@ def create_app(settings=None, gateway=None, history_store=None):
         raise ValueError("WORKBENCH_VISIBLE_AGENTS must name configured agents")
     agents = [agent for agent in agents if agent["id"] in settings.visible_agents]
     registry = {agent["id"]: agent for agent in agents}
+    default_agent = settings.default_agent or settings.visible_agents[0]
+    if default_agent not in registry:
+        raise ValueError("WORKBENCH_DEFAULT_AGENT must name a visible agent")
     gateway = gateway or FoundryGateway(settings)
     slots = asyncio.Semaphore(4)
     recent = deque()
@@ -152,11 +186,48 @@ def create_app(settings=None, gateway=None, history_store=None):
     if settings.mode == "private" and cosmos_endpoint and history_store is None:
         history_store = CosmosHistory(cosmos_endpoint)
 
+    dependency_status = {"status": "disabled" if settings.mode == "preview" else "starting"}
+
+    async def probe_dependencies():
+        async def check(operation):
+            try:
+                async with asyncio.timeout(15):
+                    await operation()
+                return "ready"
+            except Exception:
+                return "unavailable"
+
+        foundry, cosmos = await asyncio.gather(
+            check(lambda: gateway.check(agents)),
+            check(history_store.check) if history_store is not None else asyncio.sleep(0, result="disabled"),
+        )
+        dependency_status.update(status="ready" if foundry == "ready" and cosmos in {"ready", "disabled"} else "degraded",
+                                 foundry=foundry, cosmos=cosmos)
+        LOGGER.info(json.dumps({"event": "workbench_dependencies", **dependency_status}))
+
+    async def monitor_dependencies(stopped):
+        while not stopped.is_set():
+            try:
+                await asyncio.wait_for(stopped.wait(), timeout=60)
+            except TimeoutError:
+                await probe_dependencies()
+
     @asynccontextmanager
     async def lifespan(application):
-        yield
-        if history_store is not None:
-            await history_store.close()
+        stopped = asyncio.Event()
+        monitor = None
+        try:
+            if settings.mode == "private":
+                await probe_dependencies()
+                monitor = asyncio.create_task(monitor_dependencies(stopped))
+            yield
+        finally:
+            stopped.set()
+            if monitor is not None:
+                monitor.cancel()
+                await asyncio.gather(monitor, return_exceptions=True)
+            if history_store is not None:
+                await history_store.close()
 
     application = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     application.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.hosts))
@@ -171,6 +242,8 @@ def create_app(settings=None, gateway=None, history_store=None):
             "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
             "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
         })
+        if settings.mode == "private":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
         if request.url.path.startswith("/api/"):
             response.headers["X-Correlation-ID"] = request.state.request_id
             route = getattr(request.scope.get("route"), "path", "unmatched")
@@ -184,13 +257,33 @@ def create_app(settings=None, gateway=None, history_store=None):
     async def health():
         return {"status": "ready", "mode": settings.mode}
 
+    @application.get("/api/health/dependencies")
+    async def dependencies():
+        return JSONResponse(dependency_status, status_code=200 if dependency_status["status"] == "ready" else 503)
+
     @application.get("/api/config")
     async def configuration():
-        return {"mode": settings.mode, "agents": agents, "max_characters": 60000,
+        return {"mode": settings.mode, "title": settings.title, "agents": agents, "default_agent": default_agent,
+            "max_characters": MAX_CHARACTERS, "max_request_bytes": MAX_REQUEST_BYTES,
+            "max_history_turns": MAX_HISTORY_TURNS,
+            "review_timeout_ms": round(settings.timeout * 1000) + 10000,
+            "history_timeout_ms": HISTORY_TIMEOUT_MS,
             "history_enabled": history_store is not None, "history_scope": "shared", "retention_days": 30}
 
     @application.post("/api/reviews")
     async def review(request: Request):
+        now = time.monotonic()
+        while recent and recent[0] <= now - 60:
+            recent.popleft()
+        if slots.locked() or len(recent) >= 20:
+            request.state.error_code = "busy"
+            return JSONResponse({"error": "busy", "request_id": request.state.request_id},
+                                status_code=429, headers={"Retry-After": "60"})
+        recent.append(now)
+        async with slots:
+            return await execute_review(request)
+
+    async def execute_review(request: Request):
         request_id = request.state.request_id
 
         def error(status, code):
@@ -206,45 +299,47 @@ def create_app(settings=None, gateway=None, history_store=None):
         if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
             return error(415, "json_required")
         body = bytearray()
-        async for chunk in request.stream():
-            body.extend(chunk)
-            if len(body) > 65536:
-                return error(413, "request_too_large")
+        try:
+            async with asyncio.timeout(5):
+                async for chunk in request.stream():
+                    body.extend(chunk)
+                    if len(body) > MAX_REQUEST_BYTES:
+                        return error(413, "request_too_large")
+        except TimeoutError:
+            return error(408, "request_timeout")
         try:
             data = json.loads(body)
         except (ValueError, UnicodeError):
             return error(400, "invalid_request")
         if (not isinstance(data, dict) or set(data) not in ({"agent_id", "input"}, {"agent_id", "input", "history"}) or
                 not isinstance(data["agent_id"], str) or data["agent_id"] not in registry or
-                not isinstance(data["input"], str) or not data["input"].strip() or len(data["input"]) > 60000):
+                not isinstance(data["input"], str) or not data["input"].strip() or len(data["input"]) > MAX_CHARACTERS):
             return error(400, "invalid_request")
         history = data.get("history", [])
-        if not isinstance(history, list) or len(history) > 20 or len(history) % 2:
+        if not isinstance(history, list) or len(history) > MAX_HISTORY_TURNS * 2 or len(history) % 2:
             return error(400, "invalid_request")
         for index, message in enumerate(history):
             if (not isinstance(message, dict) or set(message) != {"role", "content"} or
                     message["role"] != ("user" if index % 2 == 0 else "assistant") or
                     not isinstance(message["content"], str) or not message["content"].strip()):
                 return error(400, "invalid_request")
-        if sum(len(message["content"]) for message in history) + len(data["input"]) > 60000:
+        if sum(len(message["content"]) for message in history) + len(data["input"]) > MAX_CHARACTERS:
             return error(400, "invalid_request")
         prompt = history + [{"role": "user", "content": data["input"]}] if history else data["input"]
         if settings.mode == "preview":
             return error(503, "preview_only")
-        now = time.monotonic()
-        while recent and recent[0] < now - 60:
-            recent.popleft()
-        if slots.locked() or len(recent) >= 20:
-            return error(429, "busy")
-        recent.append(now)
         agent = registry[data["agent_id"]]
         started = time.monotonic()
         try:
-            async with slots, asyncio.timeout(settings.timeout):
+            async with asyncio.timeout(settings.timeout):
                 status, text, output = await gateway.review(agent, prompt)
             if status != "completed" or not isinstance(text, str) or not text.strip():
                 return error(502, "incomplete_response")
+            if len(text) > 100000 or len(json.dumps(output).encode("utf-8")) > 524288:
+                return error(502, "response_too_large")
             receipts = execution_receipts(output, agent["tools"])
+            if len(receipts) > 32 or any(len(receipt["output"] or "") > 100000 for receipt in receipts):
+                return error(502, "response_too_large")
             return JSONResponse({"request_id": request_id, "status": status, "agent": agent["agent"],
                                  "text": text, "receipts": receipts, "elapsed_ms": round((time.monotonic() - started) * 1000)},
                                 headers={"X-Correlation-ID": request_id})

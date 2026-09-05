@@ -1,11 +1,14 @@
+import asyncio
 import json
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from dataclasses import replace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
-from app import Settings, cache_policy, create_app, execution_receipts
+from app import Settings, cache_policy, create_app, execution_receipts, load_agents
 
 
 class WorkbenchTests(unittest.TestCase):
@@ -26,6 +29,50 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertIn("frame-ancestors 'none'", response.headers["content-security-policy"])
 
+    def test_public_configuration_matches_request_limits(self):
+        config = self.client.get("/api/config").json()
+        self.assertEqual(config["default_agent"], "customer-review")
+        self.assertEqual(config["title"], "AI Foundry Lab")
+        self.assertEqual(config["agents"][0]["prompts"][0]["label"], "Review an application")
+        self.assertEqual(config["max_history_turns"], 10)
+        self.assertEqual(config["review_timeout_ms"], 190000)
+        self.assertEqual(config["history_timeout_ms"], 45000)
+        self.assertEqual(config["max_request_bytes"], 65536)
+        response = self.client.post("/api/reviews", json={**self.body, "input": "a" * config["max_characters"]}, headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        response = self.client.post("/api/reviews", json={**self.body, "input": "a" * (config["max_characters"] + 1)}, headers=self.headers)
+        self.assertEqual(response.status_code, 400)
+
+    def test_default_agent_and_deadline_are_validated(self):
+        settings = replace(self.settings, visible_agents=("customer-review", "case-review"), default_agent="case-review", timeout=60)
+        config = TestClient(create_app(settings, self.gateway)).get("/api/config").json()
+        self.assertEqual(config["default_agent"], "case-review")
+        self.assertEqual(config["review_timeout_ms"], 70000)
+        reordered = replace(self.settings, visible_agents=("case-review", "customer-review"))
+        self.assertEqual(TestClient(create_app(reordered, self.gateway)).get("/api/config").json()["default_agent"], "case-review")
+        with self.assertRaises(ValueError):
+            create_app(replace(self.settings, default_agent="case-review"), self.gateway)
+        for timeout in (0, 181, float("nan"), True):
+            with self.assertRaises(ValueError):
+                replace(self.settings, timeout=timeout).validate()
+        for title in ("", " " * 3, "a" * 81, "bad\ntitle", " " * 80 + "a"):
+            with self.assertRaises(ValueError):
+                replace(self.settings, title=title).validate()
+
+    def test_starter_prompts_are_optional_and_validated(self):
+        agent = self.client.get("/api/config").json()["agents"][0]
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "agents.json"
+            for prompts in (None, {}, [{}], [{"label": "", "text": "text"}],
+                            [{"label": "label", "text": "a" * 4001}],
+                            [{"label": "label", "text": "text"}] * 7):
+                path.write_text(json.dumps([{**agent, "prompts": prompts}]), encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    load_agents(path)
+            agent.pop("prompts")
+            path.write_text(json.dumps([agent]), encoding="utf-8")
+            self.assertEqual(load_agents(path)[0]["prompts"], [])
+
     def test_only_fingerprinted_assets_are_cached(self):
         for path in ("/assets/index-abcdefgh.js", "/assets/index-abcdefgh.css", "/assets/font-abcdefgh.woff2"):
             self.assertIn("immutable", cache_policy(path, 200))
@@ -45,6 +92,27 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(event["route"], "/api/reviews")
         self.assertNotIn("private", captured.output[0])
         self.assertNotIn("input", event)
+
+    def test_dependency_probe_is_cached_and_does_not_generate(self):
+        store = AsyncMock()
+        with TestClient(create_app(self.settings, self.gateway, store)) as client:
+            for _ in range(3):
+                response = client.get("/api/health/dependencies")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), {"status": "ready", "foundry": "ready", "cosmos": "ready"})
+            self.gateway.check.assert_awaited_once()
+            store.check.assert_awaited_once()
+            self.gateway.review.assert_not_called()
+
+    def test_dependency_failure_does_not_fail_liveness_or_leak_details(self):
+        self.gateway.check.side_effect = RuntimeError("secret dependency details")
+        with self.assertLogs("uvicorn.error", level="INFO") as logs:
+            with TestClient(create_app(self.settings, self.gateway, AsyncMock())) as client:
+                response = client.get("/api/health/dependencies")
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.json()["foundry"], "unavailable")
+                self.assertEqual(client.get("/healthz").status_code, 200)
+        self.assertNotIn("secret", " ".join(logs.output))
 
     def test_rejects_unapproved_browser_requests(self):
         for headers in ({}, {**self.headers, "Origin": "https://evil.example"},
@@ -79,6 +147,33 @@ class WorkbenchTests(unittest.TestCase):
         self.gateway.review.side_effect = None
         self.gateway.review.return_value = ("failed", "text", [])
         self.assertEqual(self.client.post("/api/reviews", json=self.body, headers=self.headers).status_code, 502)
+
+    def test_review_rate_limit_precedes_body_validation(self):
+        with patch("app.time.monotonic", return_value=100):
+            for _ in range(20):
+                self.assertEqual(self.client.post("/api/reviews", json={}, headers=self.headers).status_code, 400)
+            response = self.client.post("/api/reviews", json={}, headers=self.headers)
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.headers["Retry-After"], "60")
+        self.gateway.review.assert_not_called()
+
+    def test_body_deadline_prevents_agent_execution(self):
+        async def stalled(request):
+            await asyncio.Event().wait()
+            yield b""
+
+        timeout = asyncio.timeout
+        with patch("starlette.requests.Request.stream", stalled), patch("app.asyncio.timeout", side_effect=lambda seconds: timeout(0.01)):
+            response = self.client.post("/api/reviews", json=self.body, headers=self.headers)
+        self.assertEqual(response.status_code, 408)
+        self.gateway.review.assert_not_called()
+
+    def test_oversized_agent_response_is_rejected(self):
+        self.gateway.review.return_value = ("completed", "a" * 100001, [])
+        response = self.client.post("/api/reviews", json=self.body, headers=self.headers)
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.json()["error"], "response_too_large")
+        self.assertEqual(response.headers["Strict-Transport-Security"], "max-age=31536000")
 
     def test_settings_fail_closed(self):
         for settings in (Settings("other", "", ("localhost",), ("http://localhost",)),

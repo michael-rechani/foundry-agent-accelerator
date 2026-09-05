@@ -1,7 +1,9 @@
+import asyncio
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
 
 from app import Settings, create_app
@@ -68,6 +70,66 @@ class HistoryTests(unittest.TestCase):
         self.assertNotIn("secret", response.text)
         self.store.get.side_effect = RuntimeError("secret")
         self.assertEqual(self.client.get(f"/api/conversations/{self.identifier}", headers=self.headers).status_code, 503)
+
+    def test_history_rate_limit_blocks_store_and_expires(self):
+        self.store.list.return_value = {"items": [], "cursor": None}
+        with patch("history.monotonic", return_value=100):
+            for _ in range(60):
+                self.assertEqual(self.client.get("/api/conversations", headers=self.headers).status_code, 200)
+            response = self.client.get("/api/conversations", headers=self.headers)
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.headers["Retry-After"], "60")
+        self.assertEqual(self.store.list.await_count, 60)
+        with patch("history.monotonic", return_value=161):
+            self.assertEqual(self.client.get("/api/conversations", headers=self.headers).status_code, 200)
+
+    def test_history_deadline_cancels_store_and_releases_capacity(self):
+        cancelled = []
+
+        async def stalled(*args):
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.append(True)
+
+        timeout = asyncio.timeout
+        self.store.list.side_effect = stalled
+        with patch("history.asyncio.timeout", side_effect=lambda seconds: timeout(0.01)):
+            for _ in range(5):
+                response = self.client.get("/api/conversations", headers=self.headers)
+                self.assertEqual(response.status_code, 504)
+                self.assertEqual(response.json()["error"], "history_timeout")
+        self.assertEqual(len(cancelled), 5)
+
+    def test_fifth_concurrent_history_request_is_rejected(self):
+        async def scenario():
+            release = asyncio.Event()
+            full = asyncio.Event()
+            active = 0
+
+            async def stalled(*args):
+                nonlocal active
+                active += 1
+                if active == 4:
+                    full.set()
+                await release.wait()
+                return {"items": [], "cursor": None}
+
+            self.store.list.side_effect = stalled
+            async with AsyncClient(transport=ASGITransport(app=create_app(self.settings, AsyncMock(), self.store)),
+                                   base_url="https://testserver") as client:
+                tasks = [asyncio.create_task(client.get("/api/conversations", headers=self.headers)) for _ in range(4)]
+                try:
+                    await asyncio.wait_for(full.wait(), timeout=2)
+                    response = await client.get("/api/conversations", headers=self.headers)
+                    self.assertEqual(response.status_code, 429)
+                    self.assertEqual(self.store.list.await_count, 4)
+                finally:
+                    release.set()
+                    await asyncio.gather(*tasks)
+                self.assertEqual((await client.get("/api/conversations", headers=self.headers)).status_code, 200)
+
+        asyncio.run(scenario())
 
 
 if __name__ == "__main__":

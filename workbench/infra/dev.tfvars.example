@@ -6,3 +6,6 @@ foundry_account_name = "existing-foundry-account"
 foundry_project_name = "existing-foundry-project"
 cosmos_account_name  = "existing-cosmos-account"
 registry_name        = "globallyuniqueregistryname"
+workspace_title      = "AI Foundry Lab"
+visible_agents       = ["customer-review"]
+default_agent        = "customer-review"

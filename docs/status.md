@@ -8,7 +8,12 @@ local test results. It is not an automated Azure health report.
 | Component | Evidence | Next gate |
 | --- | --- | --- |
 | Private Foundry Workbench | Internal Container Apps deployment; live agent and Cosmos CRUD smoke passed; curated customer-review catalog | Preserve private ingress and synthetic-data boundary; add Entra ownership before real user data |
-| Workbench cleanup | Deployed as healthy revision `foundry-workbench--0000002`; private HTTPS, live agent response and Cosmos CRUD passed; 76 Python tests, 16 desktop/mobile browser tests and four deployment-input cases passed locally | Run the updated CI workflow after publishing source; retain the separate state and immutable image digest |
+| Workbench cleanup | Deployed as healthy revision `foundry-workbench--0000002`; private HTTPS, live agent response and Cosmos CRUD passed; GitHub Actions passed for `33233cf`, including Python, Terraform and frontend jobs | Retain the separate state and immutable image digest |
+| AI Foundry Lab configuration and composer | Deployed `lab-v1`; private configuration/title, live agent and Cosmos CRUD smoke passed; 23 workbench API and 30 desktop/mobile browser tests passed locally | Publish and run CI for this follow-up separately; retain private access and shared-history boundaries |
+| Lab security hardening | Deployed `security-v1`, healthy revision `foundry-workbench--0000004`; 31 API and 30 browser tests passed locally; live HSTS, cached dependency checks, agent response and Cosmos CRUD passed; synthetic test deleted and jumpbox returned to deallocated state | Preserve shared synthetic-only access; concurrency limits remain process-local |
+| Lab monitoring | 30-day Log Analytics retention, 0.1-GB daily cap, local auth disabled; three portal alert rules deployed; dependency heartbeats observed in retained logs | Configure an operator action group for notification delivery; cap is not a hard billing limit |
+| Lab remote state | Migrated with Entra and locking; lineage and all 15 original managed IDs preserved; Cosmos key-returning lookup removed with no Azure mutations | Backend public access is now disabled; resume from an approved private runner |
+| Secret ownership | Expanded field-name-only inventory found platform Cosmos/Storage/Log Analytics keys as well as jumpbox password state copies; keyless Lab Log Analytics transfer is staged and validates locally | Backend HTTP 403 blocks transfer plan/apply; platform rotation and ownership migrations still pending; not Key-Vault-only |
 | Private Foundry and management jumpbox | Previously deployed; jumpbox managed identity and project RBAC verified | Recheck before the next deployment |
 | Application and case specialists v1 | Fresh private inventory confirmed active at 100% traffic | Preserve existing versions unless an update is needed |
 | Coordinator v1 | Retained, not routed | Preserve for recovery until deliberately retired |
@@ -22,6 +27,12 @@ local test results. It is not an automated Azure health report.
 | Platform-aware costs | Itemized allocation tested; [APIM and Windows jumpbox capacity rates](../cost-comparison/platform-rates.md) sourced; other dependencies unpriced | ActualCost query returned HTTP 429; reconcile spend and remaining rates; not a current bill |
 
 ## Release gates
+
+Lab hardened image: `acrworkbenchdi2mw.azurecr.io/workbench@sha256:c22b3d8fde9c5c1c1cec84cb334d8c16b50fa177dafd2a022677c1a79f473b21`,
+ACR run `cp6`. Its Docker base stages and frontend CI container are digest-pinned.
+The later staged Log Analytics ownership migration does not change this runtime
+image and has not been applied. Source validation is not evidence of a successful
+credential migration or of notification delivery.
 
 Profile deployment completed at **2026-09-04 22:54:37 UTC** using the jumpbox's
 managed identity. Selective source archive SHA-256:
@@ -54,8 +65,9 @@ review coordinator v2 and both specialist v1 routes were preserved.
    save/read and the UI labels reopened receipts as not reverified. Live receipts
    remain correlated against expected tool targets.
 - Workbench emits request metadata without bodies, credentials or exception
-   details. Persistent log collection is still disabled; process health is not a
-   Foundry/Cosmos dependency-health check.
+   details. Persistent console/system log collection is enabled with retention
+   and a daily cap. Cached Foundry/Cosmos dependency checks run each minute;
+   process liveness stays independent of dependency outages.
 - Review agents use supplied context, not a connected system of record.
 - Review results support human review; they do not approve, deny, or rank people.
 - APIM, the jumpbox, NAT, and project dependencies have costs beyond sandbox

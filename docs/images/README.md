@@ -29,3 +29,9 @@ private endpoints, not a VM inside the workload VNet. This is a logical diagram,
 not an exhaustive subnet or resource inventory. Dashed connectors identify the
 API route that has not been published; operational status belongs in the
 [delivery notes](../status.md), not a snapshot banner on the artwork.
+
+The lower section expands the deployed AI Foundry Lab runtime: private browser
+access, managed-identity agent calls and explicit shared Cosmos saves, bounded
+requests, metadata-only monitoring, separate remote state, and Key Vault secret
+ownership. It deliberately labels the incomplete credential/state migration;
+do not draw Key Vault as the only existing credential copy until verified.

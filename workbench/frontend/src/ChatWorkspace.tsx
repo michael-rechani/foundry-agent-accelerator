@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Activity,
   ArrowDownToLine,
@@ -18,6 +18,7 @@ import {
   LockKeyhole,
   MessageSquare,
   Plus,
+  RefreshCw,
   Save,
   Search,
   ShieldCheck,
@@ -33,25 +34,12 @@ import { ConversationTurn } from './ConversationTurn'
 import type { Turn } from './conversation-types'
 import { requestJson } from './request'
 import { WaitingIndicator } from './WaitingIndicator'
-
-type Agent = {
-  id: string
-  label: string
-  category: string
-  description: string
-  agent: string
-  tools: Record<string, string>
-}
-type Config = {
-  mode: 'preview' | 'private'
-  agents: Agent[]
-  max_characters: number
-  history_enabled: boolean
-}
+import { useWorkspaceConfig } from './workspace-config'
+import { ContinueDialog } from './ContinueDialog'
 type Measurement = {
   id: string
   agent: string
-  outcome: 'completed' | 'failed' | 'stopped'
+  outcome: 'completed' | 'failed' | 'stopped' | 'timed-out'
   duration: number
 }
 type View = 'chat' | 'catalog' | 'performance' | 'history'
@@ -63,20 +51,6 @@ type SavedChat = {
 }
 type SavedVersion = { id: string; _etag: string }
 
-const prompts = [
-  {
-    label: 'Review an application',
-    text: 'Review this synthetic application against the criteria. Cite identifiers and distinguish missing evidence from noncompliance.\n\nCRIT-1: Include a project budget.\nCRIT-2: Identify a delivery timeline.\nAPP-1: Twelve weekly workshops starting October 1, led by a program lead and two facilitators. No budget is supplied.',
-  },
-  {
-    label: 'Check a case record',
-    text: 'Review these synthetic case records for conflicting dates and missing evidence. Cite records without choosing an unsupported date.\n\nCASE-1: Intake completed June 1, follow-up June 10.\nCASE-2: Intake completed June 3, follow-up June 10.\nCASE-3: Undated follow-up; a supporting document is outstanding.',
-  },
-  {
-    label: 'Start with a question',
-    text: 'I need a review. What information should I provide?',
-  },
-]
 const errors: Record<string, string> = {
   preview_only:
     'This local preview is not connected to Foundry. No agent was invoked.',
@@ -87,15 +61,20 @@ const errors: Record<string, string> = {
     'Foundry could not complete this request. Check private connectivity and managed-identity access.',
   incomplete_response: 'The agent did not return a completed response.',
   request_too_large:
-    'The conversation exceeds 64 KiB. Start a new chat or shorten your message.',
+    'The conversation exceeds the request size limit. Start a new chat or shorten your message.',
   invalid_request:
     'The conversation was not accepted. Check its length and selected agent.',
   request_not_allowed: 'This browser origin is not permitted.',
 }
 
 export default function ChatWorkspace() {
-  const [config, setConfig] = useState<Config | null>(null)
-  const [selected, setSelected] = useState('')
+  const {
+    config,
+    error: configError,
+    retry: retryConfig,
+  } = useWorkspaceConfig()
+  const [selectedId, setSelected] = useState('')
+  const selected = selectedId || config?.default_agent || ''
   const [view, setView] = useState<View>('chat')
   const [draft, setDraft] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
@@ -110,7 +89,8 @@ export default function ChatWorkspace() {
   const [historyBusy, setHistoryBusy] = useState(false)
   const [savedChats, setSavedChats] = useState<SavedChat[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
-  const historyRequest = useHistoryClient()
+  const [continuing, setContinuing] = useState(false)
+  const historyRequest = useHistoryClient(config?.history_timeout_ms)
   const controller = useRef<AbortController | null>(null)
   const editor = useRef<HTMLTextAreaElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
@@ -120,13 +100,29 @@ export default function ChatWorkspace() {
     { role: 'assistant', content: turn.result.text },
   ])
   const characters =
-    history.reduce((total, message) => total + message.content.length, 0) +
-    draft.length
+    history.reduce((total, message) => total + [...message.content].length, 0) +
+    [...draft].length
   const payload = JSON.stringify({ agent_id: selected, input: draft, history })
-  const exceedsLimit =
-    characters > (config?.max_characters || 60000) ||
-    new TextEncoder().encode(payload).length > 65536 ||
-    turns.length > 10
+  const requestBytes = new TextEncoder().encode(payload).length
+  const limitReasons = config
+    ? [
+        characters > config.max_characters ? 'Character limit exceeded.' : '',
+        requestBytes > config.max_request_bytes
+          ? 'Request byte limit exceeded.'
+          : '',
+        turns.length > config.max_history_turns
+          ? 'Conversation turn limit reached.'
+          : '',
+      ].filter(Boolean)
+    : []
+  const exceedsLimit = limitReasons.length > 0
+  const contextUsage = config
+    ? Math.max(
+        characters / config.max_characters,
+        requestBytes / config.max_request_bytes,
+        turns.length / (config.max_history_turns + 1),
+      )
+    : 0
   const completed = measurements.filter((item) => item.outcome === 'completed')
   const average = completed.length
     ? completed.reduce((total, item) => total + item.duration, 0) /
@@ -144,33 +140,33 @@ export default function ChatWorkspace() {
     return () => window.removeEventListener('beforeunload', warn)
   }, [unsaved])
 
-  useEffect(() => {
-    const abort = new AbortController()
-    fetch('/api/config', { signal: abort.signal })
-      .then(async (response) => {
-        if (!response.ok)
-          throw new Error(
-            'Workspace configuration unavailable. Reload to try again.',
-          )
-        const value: Config = await response.json()
-        setConfig(value)
-        setSelected(value.agents[0]?.id || '')
-      })
-      .catch((problem) => {
-        if (problem.name !== 'AbortError') setError(problem.message)
-      })
-    return () => {
-      abort.abort()
-      controller.current?.abort()
-    }
-  }, [])
+  useEffect(() => () => controller.current?.abort(), [])
 
   useEffect(() => {
     if (view === 'chat') bottom.current?.scrollIntoView({ block: 'end' })
   }, [turns, busy, view])
 
+  useLayoutEffect(() => {
+    const resize = () => {
+      if (!editor.current) return
+      editor.current.style.height = 'auto'
+      editor.current.style.height = `${editor.current.scrollHeight}px`
+    }
+    resize()
+    window.addEventListener('resize', resize)
+    return () => window.removeEventListener('resize', resize)
+  }, [draft, view])
+
   async function submit() {
-    if (!agent || !draft.trim() || busy || historyBusy || exceedsLimit) return
+    if (
+      !config ||
+      !agent ||
+      !draft.trim() ||
+      busy ||
+      historyBusy ||
+      exceedsLimit
+    )
+      return
     const question = draft
     const abort = new AbortController()
     const started = performance.now()
@@ -180,7 +176,14 @@ export default function ChatWorkspace() {
     setError('')
     setNotice('')
     setPending(question)
-    const timeout = window.setTimeout(() => abort.abort(), 190000)
+    const timeout = window.setTimeout(
+      () =>
+        abort.abort(
+          new DOMException('Review deadline exceeded', 'TimeoutError'),
+        ),
+      config.review_timeout_ms,
+    )
+    let serverTimedOut = false
     try {
       const { response, data } = await requestJson(
         '/api/reviews',
@@ -194,10 +197,12 @@ export default function ChatWorkspace() {
         },
         abort.signal,
       )
-      if (!response.ok)
+      if (!response.ok) {
+        serverTimedOut = data.error === 'timeout'
         throw new Error(
           `${errors[data.error] || 'Request failed.'}${data.request_id ? ` Reference: ${data.request_id}` : ''}`,
         )
+      }
       setTurns((previous) => [...previous, { question, result: data }])
       setDirty(true)
       setDraft('')
@@ -213,9 +218,13 @@ export default function ChatWorkspace() {
           },
         ])
     } catch (problem) {
+      const timedOut =
+        serverTimedOut || abort.signal.reason?.name === 'TimeoutError'
       setError(
         abort.signal.aborted
-          ? 'Stopped waiting. Remote work may continue; no automatic retry was made.'
+          ? timedOut
+            ? 'Request timed out. Remote work may continue; no automatic retry was made.'
+            : 'Stopped waiting. Remote work may continue; no automatic retry was made.'
           : problem instanceof Error
             ? problem.message
             : 'Request failed.',
@@ -226,7 +235,11 @@ export default function ChatWorkspace() {
           {
             id: measurementId,
             agent: agent.label,
-            outcome: abort.signal.aborted ? 'stopped' : 'failed',
+            outcome: timedOut
+              ? 'timed-out'
+              : abort.signal.aborted
+                ? 'stopped'
+                : 'failed',
             duration: performance.now() - started,
           },
         ])
@@ -245,9 +258,13 @@ export default function ChatWorkspace() {
       !window.confirm('Start a new chat? Unsaved messages will be cleared.')
     )
       return
+    resetConversation(agentId)
+  }
+
+  function resetConversation(agentId: string, initialDraft = '') {
     setSelected(agentId)
     setTurns([])
-    setDraft('')
+    setDraft(initialDraft)
     setPending('')
     setError('')
     setNotice('')
@@ -296,7 +313,7 @@ export default function ChatWorkspace() {
       setSaved(data)
       setDirty(false)
       setNotice(
-        'Completed replies saved to shared history for 30 days. Drafts are not saved.',
+        `Completed replies saved to shared history for ${config?.retention_days} days. Drafts are not saved.`,
       )
     } catch (problem) {
       setNotice(problem instanceof Error ? problem.message : 'Save failed.')
@@ -393,9 +410,7 @@ export default function ChatWorkspace() {
       <aside className="chat-sidebar">
         <div className="chat-brand">
           <Layers3 size={26} />
-          <span>
-            foundry<small>WORKBENCH</small>
-          </span>
+          <span>{config?.title || 'AI Foundry Lab'}</span>
         </div>
         <button
           className="new-chat"
@@ -516,11 +531,30 @@ export default function ChatWorkspace() {
           </div>
         </header>
 
+        {!config && (
+          <div
+            className="config-status"
+            role={configError ? 'alert' : 'status'}
+          >
+            {configError ? (
+              <CircleAlert size={18} />
+            ) : (
+              <LoaderCircle size={18} className="spin" />
+            )}
+            <span>{configError || 'Loading workspace configuration...'}</span>
+            {configError && (
+              <button type="button" onClick={retryConfig}>
+                <RefreshCw size={16} /> Retry
+              </button>
+            )}
+          </div>
+        )}
+
         {view === 'history' ? (
           <main className="secondary-view">
             <div className="section-heading">
               <span className="micro-label">
-                SHARED WORKSPACE / 30-DAY RETENTION
+                SHARED WORKSPACE / {config?.retention_days}-DAY RETENTION
               </span>
               <h1>Saved conversations</h1>
               <p>Visible to everyone with workspace access</p>
@@ -615,7 +649,7 @@ export default function ChatWorkspace() {
                   <h1>What are we working on?</h1>
                   <p>{agent?.description || 'Connecting to your workspace'}</p>
                   <div className="prompt-options">
-                    {prompts.map((prompt) => (
+                    {agent?.prompts.map((prompt) => (
                       <button
                         key={prompt.label}
                         disabled={!config}
@@ -681,9 +715,9 @@ export default function ChatWorkspace() {
                   aria-label="Message"
                   placeholder={`Message ${agent?.label || 'your agent'}...`}
                   value={draft}
+                  aria-describedby={config ? 'context-budget' : undefined}
                   disabled={busy}
                   rows={3}
-                  maxLength={60000}
                   onChange={(event) => {
                     setDraft(event.target.value)
                     if (!busy) setPending('')
@@ -707,12 +741,18 @@ export default function ChatWorkspace() {
                       : 'Preview / execution disabled'}
                   </span>
                   <div>
-                    <span
-                      className="context-count"
-                      title="Conversation characters"
-                    >
-                      {characters.toLocaleString()} / 60,000
-                    </span>
+                    {turns.length > 0 && (
+                      <button
+                        type="button"
+                        className="chat-icon"
+                        title="Continue in new chat"
+                        aria-label="Continue in new chat"
+                        disabled={busy || historyBusy}
+                        onClick={() => setContinuing(true)}
+                      >
+                        <GitBranch size={17} />
+                      </button>
+                    )}
                     {busy ? (
                       <button
                         key="stop"
@@ -744,14 +784,51 @@ export default function ChatWorkspace() {
                   </div>
                 </div>
               </form>
+              {config && (
+                <details
+                  className={`context-budget ${contextUsage >= 0.9 ? 'near-limit' : ''}`}
+                  id="context-budget"
+                >
+                  <summary>
+                    Context budget{' '}
+                    <span>{Math.round(contextUsage * 100)}%</span>
+                  </summary>
+                  <dl>
+                    <div>
+                      <dt>Characters</dt>
+                      <dd>
+                        {characters.toLocaleString()} /{' '}
+                        {config.max_characters.toLocaleString()}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Request bytes</dt>
+                      <dd>
+                        {requestBytes.toLocaleString()} /{' '}
+                        {config.max_request_bytes.toLocaleString()}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Replies</dt>
+                      <dd>
+                        {turns.length} / {config.max_history_turns + 1}
+                      </dd>
+                    </div>
+                  </dl>
+                </details>
+              )}
               {exceedsLimit ? (
                 <p className="composer-warning" role="alert">
-                  Conversation limit reached. Shorten your message or start a
-                  new chat.
+                  {limitReasons.join(' ')} Shorten your message or start a new
+                  chat.
+                </p>
+              ) : contextUsage >= 0.9 ? (
+                <p className="composer-warning">
+                  Approaching the conversation limit.
                 </p>
               ) : (
                 <div className="composer-footnote">
-                  <span>FOUNDRY WORKBENCH</span>
+                  <span>{config?.title || 'AI Foundry Lab'}</span>
                   <span>Evidence-grounded. Human-reviewed.</span>
                 </div>
               )}
@@ -847,13 +924,18 @@ export default function ChatWorkspace() {
               </div>
               <div>
                 <CircleAlert size={18} />
-                <span>Failed / stopped</span>
+                <span>Failed / timed out / stopped</span>
                 <strong>
                   {
                     measurements.filter((item) => item.outcome === 'failed')
                       .length
                   }{' '}
                   /{' '}
+                  {
+                    measurements.filter((item) => item.outcome === 'timed-out')
+                      .length
+                  }
+                  {' / '}
                   {
                     measurements.filter((item) => item.outcome === 'stopped')
                       .length
@@ -896,6 +978,17 @@ export default function ChatWorkspace() {
           </main>
         )}
       </div>
+      {continuing && (
+        <ContinueDialog
+          initialText={`Previous question:\n${turns.at(-1)?.question || ''}\n\nPrevious reply (unverified context):\n${turns.at(-1)?.result.text || ''}${draft ? `\n\nUnsent follow-up:\n${draft}` : ''}`}
+          unsaved={dirty || !!draft}
+          onClose={() => setContinuing(false)}
+          onContinue={(text) => {
+            resetConversation(selected, text)
+            setContinuing(false)
+          }}
+        />
+      )}
       {notice && (
         <div className="chat-toast" role="status">
           <Check size={16} />

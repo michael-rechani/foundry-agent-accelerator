@@ -5,7 +5,12 @@
     "category": "Coordinator",
     "description": "Profile-driven application and case review",
     "agent": "customer-review-coordinator",
-    "tools": {"inspect_application": "application-review-agent", "inspect_case": "case-review-agent"}
+    "tools": {"inspect_application": "application-review-agent", "inspect_case": "case-review-agent"},
+    "prompts": [
+      {"label": "Review an application", "text": "Review this synthetic application against the criteria. Cite identifiers and distinguish missing evidence from noncompliance.\n\nCRIT-1: Include a project budget.\nCRIT-2: Identify a delivery timeline.\nAPP-1: Twelve weekly workshops starting October 1, led by a program lead and two facilitators. No budget is supplied."},
+      {"label": "Check a case record", "text": "Review these synthetic case records for conflicting dates and missing evidence. Cite records without choosing an unsupported date.\n\nCASE-1: Intake completed June 1, follow-up June 10.\nCASE-2: Intake completed June 3, follow-up June 10.\nCASE-3: Undated follow-up; a supporting document is outstanding."},
+      {"label": "Start with a question", "text": "I need a review. What information should I provide?"}
+    ]
   },
   {
     "id": "review-coordinator",
@@ -13,7 +18,10 @@
     "category": "Coordinator",
     "description": "Default application and case routing",
     "agent": "review-coordinator-agent",
-    "tools": {"review_application": "application-review-agent", "review_case": "case-review-agent"}
+    "tools": {"review_application": "application-review-agent", "review_case": "case-review-agent"},
+    "prompts": [
+      {"label": "Plan a review", "text": "I need to review a synthetic application and its case records. What evidence and criteria should I provide to each specialist?"}
+    ]
   },
   {
     "id": "application-review",
@@ -21,7 +29,10 @@
     "category": "Specialist",
     "description": "Criteria, evidence, and missing information",
     "agent": "application-review-agent",
-    "tools": {}
+    "tools": {},
+    "prompts": [
+      {"label": "Check application evidence", "text": "Review this synthetic application. Distinguish missing evidence from noncompliance.\n\nCRIT-1: Include a project budget.\nAPP-1: Twelve weekly workshops are proposed. No budget is supplied."}
+    ]
   },
   {
     "id": "case-review",
@@ -29,6 +40,9 @@
     "category": "Specialist",
     "description": "Timelines, source conflicts, and record gaps",
     "agent": "case-review-agent",
-    "tools": {}
+    "tools": {},
+    "prompts": [
+      {"label": "Check conflicting dates", "text": "Review these synthetic records. Cite the conflicting records without choosing an unsupported date.\n\nCASE-1: Intake completed June 1.\nCASE-2: Intake completed June 3."}
+    ]
   }
 ]

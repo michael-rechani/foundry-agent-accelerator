@@ -95,6 +95,16 @@ policy; do not delete active state to remove a secret.
 See the [staged credential migration](../docs/credential-migration.md) for verified
 provider capabilities, ownership-transfer prerequisites, and acceptance gates.
 
+Key Vault is the required store for necessary passwords, API keys, tokens and
+certificates; prefer managed identity so keys are not needed. The requirement is
+not yet fully met: the latest field-name-only state inventory also found
+provider-returned Cosmos, Storage and Log Analytics keys/connection strings.
+Disabled key authentication does not stop every provider from recording those
+values. These require coordinated resource ownership/read-path migrations, not
+extra Terraform-managed Key Vault copies. No platform credential rotation or
+ownership transfer has been applied. The state backend is now private; further
+applies require an approved private-network runner.
+
 ```powershell
 terraform output -raw jumpbox_name
 terraform output -raw jumpbox_admin_username

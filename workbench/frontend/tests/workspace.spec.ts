@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import type { Turn } from '../src/conversation-types'
+import type { Config } from '../src/workspace-config'
 
 const agent = {
   id: 'customer-review',
@@ -9,6 +10,9 @@ const agent = {
   description: 'Profile-driven application and case review',
   agent: 'customer-review-coordinator',
   tools: { inspect_application: 'application-review-agent' },
+  prompts: [
+    { label: 'Review an application', text: 'Synthetic configured starter' },
+  ],
 }
 type Document = {
   id: string
@@ -26,9 +30,26 @@ async function workspace(
     stalledHistory?: boolean
     stalledReview?: boolean
     preview?: boolean
+    startup?: 'stalled' | 'invalid' | 'failed'
+    config?: Partial<Config>
   } = {},
 ) {
+  const config: Config = {
+    title: 'AI Foundry Lab',
+    mode: options.preview ? 'preview' : 'private',
+    agents: [agent],
+    default_agent: agent.id,
+    max_characters: 60000,
+    max_request_bytes: 65536,
+    max_history_turns: 10,
+    review_timeout_ms: 190000,
+    history_timeout_ms: 45000,
+    retention_days: 30,
+    history_enabled: !options.preview,
+    ...options.config,
+  }
   const state = {
+    configRequests: 0,
     document: null as Document | null,
     requests: [] as { history: { role: string; content: string }[] }[],
     saves: [] as { turns: Turn[] }[],
@@ -40,13 +61,17 @@ async function workspace(
     const path = new URL(request.url()).pathname
     const respond = (json: unknown, status = 200) =>
       route.fulfill({ json, status })
-    if (path === '/api/config')
-      return respond({
-        mode: options.preview ? 'preview' : 'private',
-        agents: [agent],
-        max_characters: 60000,
-        history_enabled: !options.preview,
-      })
+    if (path === '/api/config') {
+      state.configRequests++
+      if (state.configRequests === 1) {
+        if (options.startup === 'stalled') return
+        if (options.startup === 'invalid')
+          return respond({ ...config, max_request_bytes: null })
+        if (options.startup === 'failed')
+          return respond({ error: 'unavailable' }, 503)
+      }
+      return respond(config)
+    }
     if (path === '/api/reviews') {
       state.requests.push(request.postDataJSON())
       if (options.stalledReview) return
@@ -106,9 +131,11 @@ async function workspace(
     return respond({ error: 'unexpected_test_request' }, 404)
   })
   await page.goto('/')
-  await expect(
-    page.getByRole('button', { name: 'Customer review Coordinator' }),
-  ).toBeVisible()
+  if (options.startup) await expect.poll(() => state.configRequests).toBe(1)
+  else
+    await expect(page.locator('.agent-picker')).toContainText(
+      config.agents.find((item) => item.id === config.default_agent)!.label,
+    )
   return state
 }
 
@@ -239,7 +266,7 @@ test('UTF-8 byte limit prevents an oversized request', async ({ page }) => {
     page.getByRole('button', { name: 'Send message' }),
   ).toBeDisabled()
   await expect(page.getByRole('alert')).toContainText(
-    'Conversation limit reached',
+    'Request byte limit exceeded',
   )
   expect(state.requests).toHaveLength(0)
 })
@@ -301,4 +328,166 @@ test('layout, text contrast and reduced motion', async ({ page }, testInfo) => {
   expect(contrast).toBeGreaterThanOrEqual(4.5)
   expect(errors).toEqual([])
   await page.screenshot({ path: testInfo.outputPath('workspace.png') })
+})
+
+test('startup timeout preserves a draft and supports explicit retry', async ({
+  page,
+}, testInfo) => {
+  await page.clock.install()
+  const state = await workspace(page, { startup: 'stalled' })
+  await page
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Keep my synthetic draft')
+  await expect(
+    page.getByRole('button', { name: 'Send message' }),
+  ).toBeDisabled()
+  await page.clock.runFor(15001)
+  await expect(page.getByRole('alert')).toContainText('configuration timed out')
+  await page.screenshot({ path: testInfo.outputPath('startup-recovery.png') })
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Send message' })).toBeEnabled()
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toHaveValue('Keep my synthetic draft')
+  expect(state.configRequests).toBe(2)
+  expect(state.requests).toHaveLength(0)
+})
+
+for (const startup of ['invalid', 'failed'] as const) {
+  test(`${startup} startup configuration fails closed and recovers`, async ({
+    page,
+  }) => {
+    const state = await workspace(page, { startup })
+    await expect(page.getByRole('alert')).toContainText(
+      'configuration unavailable or invalid',
+    )
+    await expect(
+      page.getByRole('button', { name: 'Send message' }),
+    ).toBeDisabled()
+    await page.getByRole('button', { name: 'Retry', exact: true }).click()
+    await expect(
+      page.getByRole('button', { name: 'Review an application' }),
+    ).toBeVisible()
+    expect(state.configRequests).toBe(2)
+  })
+}
+
+test('configured title, default agent, prompts and character limits drive the UI', async ({
+  page,
+}) => {
+  const specialist = {
+    ...agent,
+    id: 'case-review',
+    label: 'Case specialist',
+    prompts: [{ label: 'Check a date', text: 'CASE-1' }],
+  }
+  const state = await workspace(page, {
+    config: {
+      title: 'AI Foundry Test Lab',
+      agents: [agent, specialist],
+      default_agent: specialist.id,
+      max_characters: 6,
+    },
+  })
+  await expect(page).toHaveTitle('AI Foundry Test Lab')
+  await page.getByRole('button', { name: 'Check a date' }).click()
+  const editor = page.getByRole('textbox', { name: 'Message', exact: true })
+  await expect(editor).toHaveValue('CASE-1')
+  await expect(page.getByRole('button', { name: 'Send message' })).toBeEnabled()
+  await editor.fill('\u{1F600}'.repeat(6))
+  await expect(page.getByRole('button', { name: 'Send message' })).toBeEnabled()
+  await editor.fill('CASE-12')
+  await expect(page.getByRole('alert')).toContainText(
+    'Character limit exceeded',
+  )
+  await expect(
+    page.getByRole('button', { name: 'Send message' }),
+  ).toBeDisabled()
+  expect(state.requests).toHaveLength(0)
+})
+
+test('review deadline is distinct from Stop and does not retry', async ({
+  page,
+}) => {
+  await page.clock.install()
+  const state = await workspace(page, {
+    stalledReview: true,
+    config: { review_timeout_ms: 5000 },
+  })
+  await page
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Synthetic review')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect.poll(() => state.requests.length).toBe(1)
+  await page.clock.runFor(5001)
+  await expect(page.getByRole('alert')).toContainText('Request timed out')
+  await expect(page.getByRole('button', { name: 'Send message' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Performance', exact: true }).click()
+  await expect(
+    page.getByRole('cell', { name: 'timed-out', exact: true }),
+  ).toBeVisible()
+  expect(state.requests).toHaveLength(1)
+})
+
+test('continuation previews context and leaves saved source unchanged', async ({
+  page,
+}, testInfo) => {
+  const state = await workspace(page, { config: { max_history_turns: 0 } })
+  await send(page)
+  await page.getByRole('button', { name: 'Save to shared history' }).click()
+  await expect(page.getByText('Saved / shared', { exact: true })).toBeVisible()
+  const source = JSON.stringify(state.document)
+  await page
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Next synthetic question')
+  await expect(page.getByRole('alert')).toContainText(
+    'Conversation turn limit reached',
+  )
+  await page.getByRole('button', { name: 'Continue in new chat' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Continue in new chat' })
+  await expect(dialog).toBeVisible()
+  await expect(
+    dialog.getByRole('textbox', { name: 'Carry-over draft' }),
+  ).toContainText('Previous reply (unverified context)')
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toHaveValue('Next synthetic question')
+  await page.getByRole('button', { name: 'Continue in new chat' }).click()
+  await dialog
+    .getByRole('textbox', { name: 'Carry-over draft' })
+    .fill('Reviewed carry-over context')
+  await page.screenshot({ path: testInfo.outputPath('continuation.png') })
+  await dialog
+    .getByRole('button', { name: 'Start new chat', exact: true })
+    .click()
+  await expect(dialog).not.toBeVisible()
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toHaveValue('Reviewed carry-over context')
+  await expect(page.getByRole('button', { name: 'Send message' })).toBeEnabled()
+  expect(state.requests).toHaveLength(1)
+  expect(JSON.stringify(state.document)).toBe(source)
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect.poll(() => state.requests.length).toBe(2)
+  expect(state.requests[1].history).toEqual([])
+})
+
+test('composer grows within viewport bounds and shrinks again', async ({
+  page,
+}, testInfo) => {
+  await workspace(page)
+  const editor = page.getByRole('textbox', { name: 'Message', exact: true })
+  const initial = (await editor.boundingBox())!
+  await editor.fill('Synthetic evidence line\n'.repeat(25))
+  const grown = (await editor.boundingBox())!
+  expect(grown.height).toBeGreaterThan(initial.height)
+  expect(grown.height).toBeLessThanOrEqual(240)
+  expect(grown.y + grown.height).toBeLessThan(page.viewportSize()!.height)
+  await expect(
+    page.getByRole('button', { name: 'Send message' }),
+  ).toBeInViewport()
+  await page.screenshot({ path: testInfo.outputPath('expanded-composer.png') })
+  await editor.fill('Short draft')
+  expect((await editor.boundingBox())!.height).toBeLessThan(grown.height)
 })

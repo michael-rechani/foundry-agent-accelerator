@@ -10,7 +10,7 @@ const historyErrors: Record<string, string> = {
     'This shared conversation was deleted or expired. Your local messages are unchanged.',
 }
 
-export function useHistoryClient() {
+export function useHistoryClient(timeoutMs: number | undefined) {
   const controller = useRef<AbortController | null>(null)
   useEffect(() => () => controller.current?.abort(), [])
 
@@ -18,9 +18,10 @@ export function useHistoryClient() {
     path: string,
     options: RequestInit = {},
   ) {
+    if (!timeoutMs) throw new Error('Workspace configuration is unavailable.')
     const abort = new AbortController()
     controller.current = abort
-    const timeout = window.setTimeout(() => abort.abort(), 45000)
+    const timeout = window.setTimeout(() => abort.abort(), timeoutMs)
     try {
       const headers = new Headers(options.headers)
       headers.set('X-Workbench-Request', '1')

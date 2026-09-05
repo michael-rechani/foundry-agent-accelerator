@@ -1,11 +1,19 @@
 terraform {
   required_version = "~> 1.16.1"
   required_providers {
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.12.0"
+    }
     azurerm = {
       source  = "hashicorp/azurerm"
       version = "~> 4.81"
     }
   }
+}
+
+provider "azapi" {
+  subscription_id = var.subscription_id
 }
 
 provider "azurerm" {
@@ -24,8 +32,24 @@ variable "visible_agents" {
   type    = list(string)
   default = ["customer-review"]
   validation {
-    condition     = length(var.visible_agents) > 0 && alltrue([for agent in var.visible_agents : contains(["customer-review", "review-coordinator", "application-review", "case-review"], agent)])
+    condition     = length(var.visible_agents) > 0 && alltrue([for agent in var.visible_agents : contains([for configured in jsondecode(file("${path.module}/../agents.json")) : configured.id], agent)])
     error_message = "Select at least one configured workbench agent ID."
+  }
+}
+variable "default_agent" {
+  type    = string
+  default = null
+  validation {
+    condition     = var.default_agent == null ? true : contains(var.visible_agents, var.default_agent)
+    error_message = "The default agent must be visible in the workbench."
+  }
+}
+variable "workspace_title" {
+  type    = string
+  default = "AI Foundry Lab"
+  validation {
+    condition     = length(trimspace(var.workspace_title)) > 0 && length(var.workspace_title) <= 80 && !can(regex("[[:cntrl:]]", var.workspace_title))
+    error_message = "Use a workspace title of one to 80 printable characters."
   }
 }
 variable "name" {
@@ -104,7 +128,7 @@ resource "azurerm_container_app_environment" "this" {
   infrastructure_subnet_id       = azurerm_subnet.this.id
   internal_load_balancer_enabled = true
   public_network_access          = "Disabled"
-  logs_destination               = ""
+  logs_destination               = "azure-monitor"
   workload_profile {
     name                  = "Consumption"
     workload_profile_type = "Consumption"
@@ -178,8 +202,10 @@ resource "azurerm_container_app" "this" {
       dynamic "env" {
         for_each = {
           WORKBENCH_MODE            = "private"
-          WORKBENCH_COSMOS_ENDPOINT = data.azurerm_cosmosdb_account.history.endpoint
+          WORKBENCH_TITLE           = var.workspace_title
+          WORKBENCH_COSMOS_ENDPOINT = local.cosmos_endpoint
           WORKBENCH_VISIBLE_AGENTS  = join(",", var.visible_agents)
+          WORKBENCH_DEFAULT_AGENT   = coalesce(var.default_agent, var.visible_agents[0])
           WORKBENCH_ALLOWED_HOSTS   = local.hostname
           WORKBENCH_ORIGINS         = "https://${local.hostname}"
           FOUNDRY_PROJECT_ENDPOINT  = "https://${var.foundry_account_name}.services.ai.azure.com/api/projects/${var.foundry_project_name}"

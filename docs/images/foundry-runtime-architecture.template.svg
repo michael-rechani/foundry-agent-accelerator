@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" style="max-width:100%;height:auto" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1280" viewBox="0 0 1400 1280" style="max-width:100%;height:auto" role="img" aria-labelledby="title desc">
   <title id="title">Microsoft Foundry review architecture</title>
-  <desc id="desc">Clients reach a planned API on Azure API Management. Outbound VNet integration connects APIM to private Foundry endpoints over peered virtual networks. The Foundry project hosts a coordinator and two specialist agents. A private virtual machine deploys agent versions. Dashed lines mark the unpublished client API path. Microsoft service icons are unmodified official Azure architecture assets.</desc>
+  <desc id="desc">Private Foundry agents, a deployed AI Foundry Lab and an unpublished APIM API. The jumpbox browser reaches the internal Lab, which uses managed identity for Foundry and shared Cosmos history. Operational metadata goes to Log Analytics and Azure Monitor. Separate encrypted remote-state keys use Entra authentication. Key Vault is the required secret store, but legacy credential and provider-key state copies still require migration. Dashed lines mark the unpublished API. Official Azure service icons are unmodified.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0078d4"/></marker>
     <marker id="pending" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8a6200"/></marker>
@@ -20,9 +20,9 @@
       .agent { fill: #fff; stroke: #008575; stroke-width: 1.5; }
     </style>
   </defs>
-  <rect width="1400" height="900" fill="#fff"/>
+  <rect width="1400" height="1280" fill="#fff"/>
   <text x="40" y="55" class="title">Microsoft Foundry review architecture</text>
-  <text x="40" y="85" class="body muted">Private agent execution with an Azure API Management client entry point</text>
+  <text x="40" y="85" class="body muted">Private agent execution and AI Foundry Lab; APIM API remains unpublished</text>
   <path d="M985 42H1025" class="flow"/><text x="1040" y="47" class="small">Implemented connection</text>
   <path d="M985 72H1025" class="pending"/><text x="1040" y="77" class="small">API route pending publication</text>
 
@@ -106,5 +106,44 @@
   <text x="885" y="765" class="small muted">AI Search and Log Analytics also support the platform.</text>
 
   <path d="M40 843H1360" stroke="#d1d1d1"/>
-  <text x="40" y="875" class="body muted">Terraform provisions resources. CI validates code. The private runner publishes agent versions.</text>
+  <text x="40" y="875" class="heading">AI Foundry Lab: deployed private runtime and operations</text>
+  <text x="40" y="901" class="small muted">Logical runtime detail. The Lab uses a dedicated subnet in the workload VNet; the browser runs on the management jumpbox.</text>
+
+  <rect x="40" y="925" width="210" height="95" class="subnet"/>
+  <text x="58" y="955" class="heading">Jumpbox browser</text>
+  <text x="58" y="982" class="small muted">Private HTTPS / subnet allowlist</text>
+  <text x="58" y="1003" class="small muted">No end-user sign-in</text>
+  <path d="M250 973H325" class="flow"/>
+  <rect x="335" y="925" width="300" height="115" class="network"/>
+  <text x="355" y="955" class="heading">AI Foundry Lab</text>
+  <text x="355" y="982" class="body">Internal Container App</text>
+  <text x="355" y="1004" class="small muted">React + FastAPI / managed identity</text>
+  <text x="355" y="1025" class="small muted">Bounded requests / cached dependency checks</text>
+  <path d="M635 951H742" class="flow"/>
+  <text x="656" y="940" class="small muted">Identity</text>
+  <rect x="752" y="925" width="268" height="67" class="agent"/>
+  <text x="772" y="952" class="heading">Foundry customer review</text>
+  <text x="772" y="976" class="small muted">Named coordinator and specialists</text>
+  <path d="M635 1016H709V1049H1050V982H1085" class="flow"/>
+  <text x="760" y="1038" class="small muted">Explicit save / container-scoped identity</text>
+  <rect x="1095" y="925" width="265" height="95" class="agent"/>
+  <image href="azure-icons/cosmos-db.svg" x="1110" y="942" width="30" height="30"/>
+  <text x="1150" y="960" class="heading">Cosmos history</text>
+  <text x="1110" y="986" class="small muted">Shared, editable / 30-day TTL</text>
+  <text x="1110" y="1006" class="small muted">Synthetic data only / backups separate</text>
+
+  <path d="M485 1040V1080H740" class="flow"/>
+  <text x="503" y="1070" class="small muted">Metadata only</text>
+  <rect x="752" y="1065" width="608" height="90" class="boundary"/>
+  <text x="772" y="1095" class="heading">Log Analytics + Azure Monitor</text>
+  <text x="772" y="1120" class="body">30-day retention / 0.1 GB daily cap / local key auth disabled</text>
+  <text x="772" y="1142" class="small muted">Failure, throttle, dependency and heartbeat alerts; notification recipient pending</text>
+
+  <image href="azure-icons/storage.svg" x="50" y="1110" width="36" height="36"/>
+  <text x="102" y="1124" class="heading">Remote Terraform state</text>
+  <text x="102" y="1148" class="small muted">Separate platform and Lab keys / Entra / locking / private access</text>
+  <path d="M40 1180H1360" stroke="#d1d1d1"/>
+  <image href="azure-icons/key-vault.svg" x="50" y="1200" width="38" height="38"/>
+  <text x="106" y="1216" class="heading">Key Vault: required home for necessary secrets; prefer managed identity to keys</text>
+  <text x="106" y="1243" class="body planned">Open migration: jumpbox password and provider-returned keys still have Terraform state/history copies.</text>
 </svg>
