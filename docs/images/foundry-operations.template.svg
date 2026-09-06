@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="700" viewBox="0 0 960 700" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
   <title id="title">AI Foundry Lab operations and security</title>
-  <desc id="desc">The internal Lab sends metadata to Log Analytics and performs bounded dependency probes. Alerts are portal-only. The jumpbox Terraform runner reaches separate platform and Lab state keys through a Blob private endpoint. State storage is private and uses Entra and locking. Necessary secrets belong in Key Vault, but platform credential copies still need migration. ACR and Log Analytics have authenticated public endpoints.</desc>
+  <desc id="desc">The internal Lab sends metadata to private Log Analytics and performs bounded dependency probes. Alerts are portal-only. The jumpbox Terraform runner reaches separate platform and Lab state keys through a Blob private endpoint. State storage is private and uses Entra and locking. Necessary secrets belong in Key Vault; Terraform uses keyless owners and obsolete credentials were rotated. ACR and Log Analytics public access is disabled.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0078d4"/></marker>
     <style>
@@ -45,7 +45,7 @@
   <path d="M24 526H936" stroke="#b4b4b4"/>
   <image href="azure-icons/key-vault.svg" x="28" y="548" width="40" height="40"/>
   <text x="88" y="570" class="heading">Key Vault for necessary secrets; prefer managed identity</text>
-  <text x="88" y="603" class="body">Open: platform password/key state copies and credential rotation.</text>
-  <text x="24" y="650" class="small">ACR and Log Analytics retain public endpoints; admin/local key authentication is disabled.</text>
+  <text x="88" y="603" class="body">Keyless Terraform owners; obsolete passwords and keys rotated.</text>
+  <text x="24" y="650" class="small">Premium ACR and Log Analytics use private access; admin/local key authentication is disabled.</text>
   <text x="24" y="679" class="small">Lab resource reads are keyless. Preserve historical state and backups under retention policy.</text>
 </svg>

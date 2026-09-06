@@ -27,8 +27,8 @@ source icons, templates, and generated images together.
 These are logical diagrams, not an exhaustive subnet or resource inventory.
 Component boxes do not place managed services inside VNets. The overview focuses
 on runtime calls; the operations view covers monitoring, private state access,
-and security boundaries. APIM publication and platform credential migration remain
-explicitly incomplete. Detailed evidence belongs in [delivery status](../status.md).
+and security boundaries. APIM is optional and not deployed; platform credential
+ownership and rotation are complete. Detailed evidence belongs in [delivery status](../status.md).
 
 Check both images at README width and on mobile after editing. Keep labels short,
 avoid crossing text with connectors, and do not reduce type to fit more detail.

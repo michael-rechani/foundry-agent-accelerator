@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="610" viewBox="0 0 960 610" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
   <title id="title">AI Foundry Lab and review agents</title>
-  <desc id="desc">Deployed: a jumpbox browser reaches the private Lab, which calls a Foundry coordinator and saves shared conversations in Cosmos using managed identity. The coordinator delegates to application and case specialists. Optional APIM infrastructure exists, but its review API is unpublished. This logical view does not imply that managed services run inside a virtual network.</desc>
+  <desc id="desc">Deployed: a jumpbox browser reaches the private Lab, which calls a Foundry coordinator and saves shared conversations in Cosmos using managed identity. The coordinator delegates to application and case specialists. Optional APIM is disabled and not deployed. This logical view does not imply that managed services run inside a virtual network.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0078d4"/></marker>
     <style>
@@ -54,6 +54,6 @@
   <path d="M24 486H936" stroke="#b4b4b4"/>
   <image href="azure-icons/api-management.svg" x="28" y="508" width="42" height="42"/>
   <text x="90" y="529" class="heading">Optional gateway: APIM Standard v2</text>
-  <text x="90" y="558" class="body">Infrastructure deployed; review API and policies unpublished.</text>
+  <text x="90" y="558" class="body">Not deployed; configuration retained for future use.</text>
   <text x="24" y="592" class="small">Synthetic data only. No end-user sign-in or per-user history authorization.</text>
 </svg>

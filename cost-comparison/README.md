@@ -18,6 +18,21 @@ and allocation per completed review. It is still an estimate, not an Azure bill.
 The example explicitly marks private-platform dependencies as unpriced. It will
 not report savings or break-even until all supplied line items are priced.
 
+For the deployed platform, use [scenario.deployed.json](scenario.deployed.json):
+
+```powershell
+python calculator.py scenario.deployed.json
+```
+
+This separate budget lists capacity quantities, usage assumptions, and explicit
+allowances. It is not measured spend. It includes two hours of platform labor and
+a separate Container Apps environment-feature contingency whose applicability
+has not been verified. Cosmos autoscale is budgeted at its minimum; sustained
+maximum throughput on all six Foundry containers adds USD 473.04/month. Registry
+and endpoint quantities must match the deployed networking configuration.
+No savings claim is made against IaaS because equivalent IaaS dependencies have
+not been sized. ActualCost reconciliation remains blocked by HTTP 429.
+
 ## What the comparison includes
 
 | Dimension | Self-hosted GPU VM | Foundry hosted agent |
@@ -37,11 +52,13 @@ autoscaling, zone redundancy, quota, patching, drivers, model serving,
 session isolation, startup behavior, and support requirements separately.
 
 The private Foundry deployment uses North Central US for the primary workload
-and West US for management/APIM. These are separate from the example's GPU
+and West US for management. APIM is disabled; the deployed budget assigns it
+zero capacity hours. These are separate from the example's GPU
 comparison region. The region metadata does not select or refresh prices.
-The [platform rate snapshot](platform-rates.md) records verified APIM and Windows
-jumpbox capacity rates retrieved on 2026-09-04. Other platform items remain
-unpriced. The ActualCost query was throttled, so actual spend is not reconciled.
+The [platform budget](platform-rates.md) records verified capacity rates and
+explicit usage allowances. The original comparison example remains incomplete;
+the deployed scenario has itemized budget coverage. The ActualCost query was
+throttled, so actual spend is not reconciled.
 The original `rates_last_reviewed` date describes the GPU/model/runtime snapshot;
 `platform_rates_last_reviewed` describes only the sourced platform entries.
 
@@ -59,7 +76,7 @@ The original `rates_last_reviewed` date describes the GPU/model/runtime snapshot
 5. Fill `foundry_platform` and `iaas_platform` with unique names and monthly
   costs in the scenario currency. Replace every `null` with a verified estimate,
   or use zero only when an item is demonstrably not incurred. Add any missing
-  resources. Include the deployed but unpublished APIM service and retained
+  resources. Include APIM only when deployed, and account for retained
   agents' billable runtime. Check replica counts, standby time, and regional
   replication instead of assuming one invocation equals one billable sandbox.
 6. Set `completed_reviews` to successful business reviews over the same month.
@@ -74,6 +91,10 @@ python calculator.py scenario.example.json
 
 Platform items are additive. Do not count the same storage, monitoring, egress,
 or operations expense in both a platform item and existing runtime/VM fields.
+Each item accepts either `monthly_cost` or `quantity` and `unit_rate`. Do not
+supply both forms. Quantities and rates must be finite, non-negative numbers;
+the calculator multiplies them without rounding intermediate values. Budget
+metadata and assumptions are printed before totals when provided.
 The IaaS placeholder must be replaced with its own equivalent dependency budget;
 do not assume infrastructure is free on that side of the comparison. Older
 scenarios without platform lists still work, but explicitly report those costs

@@ -7,6 +7,13 @@ coordinator in the private Foundry project. Changing the selected agent does
 not require a different client URL. The Terraform resources and policy have
 passed local validation; the API is not yet published or live-tested.
 
+APIM is currently disabled to avoid idle capacity charges. Its Terraform module
+and policy are retained. To redeploy, set `enable_api_management = true` in local
+configuration, review the plan and current networking/cost requirements, and
+apply from the private runner. Basic and Basic v2 do not support this private
+backend connection. If Azure retains the deleted service name, review soft-delete
+recovery before reusing it; do not purge recovery data automatically.
+
 ## Publication prerequisites
 
 - Deploy APIM and verify private DNS, VNet integration, and project RBAC.

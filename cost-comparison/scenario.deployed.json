@@ -1,0 +1,74 @@
+{
+  "currency": "USD",
+  "estimate_kind": "Monthly budget, not invoiced or measured spend",
+  "platform_rates_last_reviewed": "2026-09-05",
+  "platform_monthly_hours": 730,
+  "foundry_region": "northcentralus",
+  "management_region": "westus",
+  "rate_source": "https://prices.azure.com/api/retail/prices?api-version=2023-01-01-preview",
+  "assumptions": [
+    "APIM is disabled and its capacity budget is zero. Prior accrued APIM charges remain payable; this is the steady-state budget after removal.",
+    "Current deployment: private-only Premium registry, eight private endpoints and thirteen private DNS zones. Builds use disposable private Linux VMs.",
+    "Jumpbox runs 20 hours/month; its disk, NAT gateway and public IP remain allocated all month.",
+    "Six Foundry Cosmos autoscale containers stay at their 100 RU/s minimum. Sustained 1000 RU/s on all six adds USD 473.04/month.",
+    "Container Apps is charged at active rates for the full month, 0.5 vCPU and 1 GiB. No subscription-shared free grants assumed.",
+    "100 GB NAT processing, 100 GB endpoint processing, one million DNS queries and 20 GB inter-region traffic in each direction are budget assumptions.",
+    "Cosmos combined storage and continuous backup each assume 10 GB; Log Analytics assumes 10 billable GB beyond any shared free allowance.",
+    "Storage, security, build, alert and optional-feature allowances are budget placeholders, not measured usage or sourced unit prices.",
+    "Model tokens, hosted runtime and tools retain illustrative workload assumptions. No completed-review count is supplied because measured completions are unavailable.",
+    "No taxes, contract discounts, reservations or support plan allocation. Shared state storage is included in the storage allowance. ActualCost reconciliation remains unavailable after HTTP 429."
+  ],
+  "foundry_platform": [
+    {"name": "APIM Standard v2 capacity (disabled)", "quantity": 0, "unit_rate": 0.9589, "unit": "instance-hour", "basis": "retail; retained for optional redeployment"},
+    {"name": "Jumpbox Windows B2s compute", "quantity": 20, "unit_rate": 0.0576, "unit": "instance-hour", "basis": "retail"},
+    {"name": "Jumpbox 127 GiB Standard HDD S10", "quantity": 1, "unit_rate": 5.888, "unit": "disk-month", "basis": "retail"},
+    {"name": "NAT gateway capacity", "quantity": 730, "unit_rate": 0.045, "unit": "gateway-hour", "basis": "retail"},
+    {"name": "NAT data processing", "quantity": 100, "unit_rate": 0.045, "unit": "GB", "basis": "retail"},
+    {"name": "NAT Standard IPv4 public IP", "quantity": 730, "unit_rate": 0.005, "unit": "IP-hour", "basis": "retail"},
+    {"name": "Eight private endpoints", "quantity": 5840, "unit_rate": 0.01, "unit": "endpoint-hour", "basis": "retail"},
+    {"name": "Private endpoint data processing", "quantity": 100, "unit_rate": 0.01, "unit": "GB total across ingress and egress", "basis": "retail"},
+    {"name": "Thirteen private DNS zones", "quantity": 13, "unit_rate": 0.5, "unit": "zone-month", "basis": "retail"},
+    {"name": "Private DNS queries", "quantity": 1, "unit_rate": 0.4, "unit": "million queries", "basis": "retail"},
+    {"name": "Global VNet peering transfer allowance", "monthly_cost": 3, "basis": "budget allowance; reconcile both regional meters"},
+    {"name": "Search S1, two replicas and one partition", "quantity": 1460, "unit_rate": 0.336, "unit": "search-unit-hour", "basis": "retail"},
+    {"name": "Six Foundry Cosmos autoscale minimums", "quantity": 4380, "unit_rate": 0.012, "unit": "100-RU/s-hour", "basis": "retail, AP1 100 RUs"},
+    {"name": "Lab Cosmos dedicated 400 RU/s", "quantity": 2920, "unit_rate": 0.008, "unit": "100-RU/s-hour", "basis": "retail"},
+    {"name": "Combined Cosmos data storage", "quantity": 10, "unit_rate": 0.25, "unit": "GB-month", "basis": "retail"},
+    {"name": "Combined Cosmos continuous 30-day backup", "quantity": 10, "unit_rate": 0.2, "unit": "GB-month", "basis": "retail"},
+    {"name": "Lab Container Apps active CPU", "quantity": 1314000, "unit_rate": 0.000024, "unit": "vCPU-second", "basis": "retail"},
+    {"name": "Lab Container Apps memory", "quantity": 2628000, "unit_rate": 0.000003, "unit": "GiB-second", "basis": "retail"},
+    {"name": "Lab Container Apps requests", "quantity": 1, "unit_rate": 0.4, "unit": "million requests", "basis": "retail"},
+    {"name": "Premium registry capacity", "quantity": 30.416666666666668, "unit_rate": 1.6666, "unit": "day", "basis": "retail"},
+    {"name": "Temporary private build VM and excess registry storage allowance", "monthly_cost": 5, "basis": "budget allowance; VM and disk deleted after each completed build"},
+    {"name": "Storage and disk operations allowance", "monthly_cost": 10, "basis": "budget allowance, includes shared state; excludes hosted session storage below"},
+    {"name": "Key Vault operations", "quantity": 1, "unit_rate": 0.03, "unit": "10000 operations", "basis": "retail"},
+    {"name": "Combined platform and Lab log ingestion", "quantity": 10, "unit_rate": 2.76, "unit": "billable GB", "basis": "retail"},
+    {"name": "Alerts, Defender and optional metered features allowance", "monthly_cost": 30, "basis": "budget allowance; includes Search optional features"},
+    {"name": "Container Apps environment feature contingency", "monthly_cost": 87.6, "basis": "contingency at USD 0.12/hour; applicability of September 2026 meter unverified, not a confirmed charge"},
+    {"name": "Platform operations labor", "quantity": 2, "unit_rate": 100, "unit": "hour", "basis": "planning assumption, not Azure charge"}
+  ],
+  "iaas_platform": [
+    {"name": "Equivalent IaaS dependencies require separate sizing", "monthly_cost": null}
+  ],
+  "vm_assumptions": {
+    "instance_count": 1, "running_hours_per_instance": 730,
+    "managed_disks_monthly": 100, "monitoring_monthly": 25,
+    "egress_gb": 100, "egress_rate_per_gb": 0.087,
+    "operations_hours": 12, "operations_rate_per_hour": 100
+  },
+  "vm_skus": [{"sku": "Standard_NC4as_T4_v3", "hourly_rate": 0.526}],
+  "hosted_agent": {
+    "aggregate_sandbox_hours": 400, "vcpu_per_sandbox": 0.5, "gib_per_sandbox": 1,
+    "vcpu_rate_per_hour": 0.1, "gib_rate_per_hour": 0.01,
+    "session_storage_gb_months": 20, "storage_rate_per_gb_month": 0.15,
+    "monitoring_monthly": 0, "egress_gb": 100, "egress_rate_per_gb": 0.087
+  },
+  "iaas_ai": {
+    "input_tokens": 0, "input_rate_per_million": 0,
+    "output_tokens": 0, "output_rate_per_million": 0, "tool_usage_monthly": 50
+  },
+  "foundry_ai": {
+    "input_tokens": 100000000, "input_rate_per_million": 2,
+    "output_tokens": 20000000, "output_rate_per_million": 8, "tool_usage_monthly": 50
+  }
+}

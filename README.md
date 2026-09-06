@@ -35,11 +35,15 @@ remaining provider-held state copies; Key-Vault-only storage is not yet achieved
 
 [Full-size overview](docs/images/foundry-overview.svg) · [Operations and security](docs/images/foundry-operations.svg)
 
-Arrows show the deployed Lab request and history paths. APIM infrastructure exists,
-but the coordinator API and policies are not yet published. Hardened coordinator
+Arrows show the deployed Lab request and history paths. APIM is disabled to avoid
+idle gateway charges; its optional configuration is retained. Hardened coordinator
 v2 passed both live delegation checks; a separate profile-configured coordinator
 also passed both target-specific checks. The [APIM API configuration](docs/apim-review-api.md)
 is locally validated but awaits approved caller settings and live publication.
+
+See [optional integrations](docs/optional-integrations.md) for restoring APIM or
+adding Search-backed retrieval. Both Terraform implementations are retained;
+Search remains a connected Foundry platform dependency, not a current agent tool.
 
 See [operations, request flow and trust boundaries](docs/architecture.md) for the target
 authentication and failure paths, and the dated [delivery status](docs/status.md)
@@ -146,10 +150,10 @@ python cost-comparison/calculator.py cost-comparison/scenario.example.json
 ## Production considerations
 
 Foundry data-plane endpoints, Lab ingress, and the state backend use private
-network access. This is not an entirely private-endpoint-only deployment: the
-Lab's ACR Basic registry and Log Analytics ingestion/query endpoints remain
-public and authenticated, with registry admin and Log Analytics local key
-authentication disabled. APIM has a public gateway but no published review API.
+network access. The Lab's Premium registry uses a private endpoint with public
+access disabled. Log Analytics ingestion/query is private-only through Azure
+Monitor Private Link. Registry admin and Log Analytics local key authentication
+are disabled. APIM is not deployed; its review API remains optional.
 See [current readiness and open gates](docs/status.md). Before production use:
 
 - Use the AVM pattern's BYOR path so platform-owned Key Vault, Storage,

@@ -4,8 +4,12 @@
 
 The Lab uses managed identity and keyless Cosmos/Log Analytics resource reads.
 Its Log Analytics ownership transfer is complete, with no Azure resource changes
-and an empty follow-up Terraform plan. Platform credential migration remains
-open: VM login and recovery credentials have not been rotated by this migration.
+and an empty follow-up Terraform plan. The jumpbox password ownership migration,
+rotation and Windows logon verification are complete. Cosmos and platform Log
+Analytics and Storage ownership transfers are complete. All four Cosmos keys,
+both Storage keys and both keys for each Log Analytics workspace were rotated
+and verified through in-memory comparisons. The full refreshed platform plan
+and the Lab registry reconciliation plan were empty after their transfers.
 
 ## Required ownership
 
@@ -27,12 +31,12 @@ data source or resource argument and assume its value stays out of state.
 | Path | Current finding | Required action |
 | --- | --- | --- |
 | Lab Foundry, Cosmos and ACR clients | Managed identity; no runtime API keys or connection-string secrets | Keep keyless access |
-| Platform jumpbox | Random result, VM password, VMAccess protected settings and ordinary ARM Key Vault secret body persist in state | Tested ownership/provisioning migration, then rotation and login verification |
-| Platform Cosmos account | AzureRM returns account keys and key-bearing connection strings | Move to a keyless ARM ownership/read path; verify account auth settings and consumers before key rotation |
-| Platform Storage AVM resource | AzureRM exports account keys/connection strings even with shared-key access disabled | Coordinate AVM BYOR/ownership migration; do not edit vendored modules or delete the account |
-| Platform Log Analytics | AzureRM exports shared keys | Verify existing ingestion consumers before disabling local auth and transferring ownership |
+| Platform jumpbox | Credential-free AzAPI VM/extension owners; password rotated outside Terraform through private Key Vault | Preserve tested recovery and rotation workflow; historical password copies are invalidated |
+| Platform Cosmos account | Keyless AzAPI owner; local auth disabled; four obsolete keys rotated | Keep managed-identity consumers and keyless reads |
+| Platform Storage | Keyless AzAPI owner and separately managed Blob endpoint; old AVM owner retired; both keys rotated | Keep shared-key auth disabled; preserve endpoint ownership |
+| Platform Log Analytics | Keyless AzAPI owner; local auth and public ingestion/query disabled; both keys rotated | Keep private identity-based telemetry |
 | Lab Cosmos account lookup | Key-returning data source removed from current state with a zero-resource-change apply | Preserve historical state under retention policy |
-| Lab Log Analytics | Local auth disabled; AzAPI ownership imported without Azure mutations; old key-returning resource absent from current state | Keep keyless ARM reads; preserve historical state under retention policy |
+| Lab Log Analytics | Local auth disabled; AzAPI owner; both keys rotated; private telemetry verified | Keep keyless ARM reads; preserve historical state under retention policy |
 | Historical state, backups and prior plans | May retain old values independently of live configuration | Invalidate old credentials through rotation; handle copies under approved retention, never broad deletion |
 
 The shared state account has public network access disabled. The workstation
@@ -73,9 +77,9 @@ type. Preserve existing workspace settings during import; a version mismatch or
 changed response exports can produce an update instead of an import-only plan.
 The deployed Lab has completed this transfer and uses ordinary plans now.
 
-## Why this requires a migration
+## State exposure
 
-The same password currently reaches four Terraform-managed locations:
+Before migration, the same password reached four Terraform-managed locations:
 
 - `random_password.jumpbox_admin`: generated result.
 - `azurerm_windows_virtual_machine.jumpbox`: `admin_password`.
@@ -99,10 +103,28 @@ Inspection of the installed provider schemas confirms:
 This is evidence of provider capability, not evidence that importing and updating
 the existing Azure resources will preserve their configuration or scrub state.
 
-## Proposed target
+## Jumpbox rotation
 
-Prototype AzAPI management of the existing VM, VMAccess extension, and Key Vault
-secret using explicitly selected ARM API versions and write-only
+The existing VM and VMAccess extension are managed through credential-free ARM
+bodies. Terraform no longer generates or owns the administrator password or its
+Key Vault secret. A private rotation process writes a candidate secret version,
+changes the Windows account password, verifies `LogonUser`, then publishes and
+reads back the primary secret. A non-secret rotation ID allows retrying with the
+same candidate after interruption instead of generating another password.
+
+Recovery was tested with a disposable local account at three failure points:
+before changing the password, after changing it, and after publishing the primary
+secret. Production rotation verified the new `azureadmin` credential using the
+Windows interactive-logon API. This was credential verification, not a human RDP
+session. Only temporary, exact-secret Key Vault permissions were used for rotation.
+
+The local imported VM configuration describes this existing deployment. It is
+not a generic new-VM provisioning template. A fresh VM needs a separate tested
+write-only provisioning path.
+
+## Write-only provisioning requirements
+
+For new provisioning, use explicitly selected ARM API versions and write-only
 `sensitive_body` for secret fields. Keep ordinary `body` free of credentials.
 Use the existing ARM secret-management path if private Key Vault data-plane
 connectivity is unavailable to the Terraform runner.

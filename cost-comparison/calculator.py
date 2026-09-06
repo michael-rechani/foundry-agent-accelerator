@@ -180,7 +180,16 @@ def platform_costs(config: Any, name: str) -> list[tuple[str, float | None]]:
         if not isinstance(label, str) or not label.strip() or label.strip() in names:
             raise ValueError(f"{field}.name must be a unique non-empty string")
         names.add(label.strip())
-        value = item["monthly_cost"]
+        if "quantity" in item or "unit_rate" in item:
+            if "monthly_cost" in item:
+                raise ValueError(f"{field} must use monthly_cost or quantity and unit_rate, not both")
+            if "quantity" not in item or "unit_rate" not in item:
+                raise ValueError(f"{field} requires both quantity and unit_rate")
+            value = non_negative(item["quantity"], f"{field}.quantity") * non_negative(
+                item["unit_rate"], f"{field}.unit_rate"
+            )
+        else:
+            value = item["monthly_cost"]
         items.append((label.strip(), None if value is None else non_negative(value, field)))
     return items
 
@@ -206,6 +215,10 @@ def architecture_ai_costs(config: dict[str, Any]) -> tuple[float, float]:
 def main(path: Path) -> None:
     config = json.loads(path.read_text(encoding="utf-8"))
     currency = str(config.get("currency", "USD"))
+    if "estimate_kind" in config:
+        print(config["estimate_kind"])
+    for assumption in config.get("assumptions", []):
+        print(f"  Assumption: {assumption}")
 
     vm_skus = vm_sku_costs(config)
     hosted, hourly_sandbox_rate = hosted_agent_cost(config["hosted_agent"])

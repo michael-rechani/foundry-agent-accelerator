@@ -4,6 +4,18 @@ variable "alert_action_group_ids" {
   description = "Existing Azure Monitor action groups for notification delivery. Empty means portal alerts only."
 }
 
+variable "monitor_private_link_scope_name" {
+  type        = string
+  description = "Existing AMPLS linked to the workload and management networks."
+  default     = "ampls-aifnd-dev"
+}
+
+variable "private_monitoring_enabled" {
+  type        = bool
+  description = "Enable after the workspace association and private query path are verified."
+  default     = true
+}
+
 resource "azapi_resource" "logs" {
   type      = "Microsoft.OperationalInsights/workspaces@2023-09-01"
   name      = "log-${var.name}"
@@ -15,8 +27,8 @@ resource "azapi_resource" "logs" {
       sku                             = { name = "PerGB2018" }
       retentionInDays                 = 30
       workspaceCapping                = { dailyQuotaGb = 0.1 }
-      publicNetworkAccessForIngestion = "Enabled"
-      publicNetworkAccessForQuery     = "Enabled"
+      publicNetworkAccessForIngestion = var.private_monitoring_enabled ? "Disabled" : "Enabled"
+      publicNetworkAccessForQuery     = var.private_monitoring_enabled ? "Disabled" : "Enabled"
       features = {
         disableLocalAuth                            = true
         enableLogAccessUsingOnlyResourcePermissions = true
@@ -28,6 +40,13 @@ resource "azapi_resource" "logs" {
   lifecycle {
     prevent_destroy = true
   }
+}
+
+resource "azurerm_monitor_private_link_scoped_service" "logs" {
+  linked_resource_id  = azapi_resource.logs.id
+  name                = "law-${var.name}"
+  resource_group_name = var.resource_group_name
+  scope_name          = var.monitor_private_link_scope_name
 }
 
 resource "azurerm_monitor_diagnostic_setting" "this" {

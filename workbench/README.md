@@ -107,11 +107,22 @@ needs that opt-in.
 
 Necessary secrets belong in Key Vault and must not enter normal Terraform
 attributes. Lab runtime access is keyless managed identity. Cosmos transcripts
-remain sensitive operational data, not vault secrets. Platform credentials and
-provider-generated key copies still require the documented migration; historical
-backups are preserved rather than silently purged.
+remain sensitive operational data, not vault secrets. Platform credential owners
+have been migrated to keyless ARM resources and obsolete credentials rotated;
+historical backups are preserved rather than silently purged.
 
-`build.ps1` stages only allowlisted source files for ACR Tasks, excluding local dependencies, state, plans and environment files. The Basic registry has an authenticated public endpoint and admin credentials disabled; this does not make the app public.
+`build.ps1 -Private` stages only allowlisted source files, excluding local
+dependencies, state, plans and environment files. The Premium registry has public
+access and admin credentials disabled. The private build uses a temporary Linux
+VM in the management subnet, with no public IP and registry-scoped managed-identity
+push access. It validates the image as its non-root user before pushing, then
+verifies a pull. Completed builds remove the temporary resource group and grant.
+An uncertain execution retains its tagged group for inspection; use
+`-ResumeResourceGroup rg-foundry-build-...` only after its durable command has
+stopped. Do not abandon retained build resources. The operator needs VM/group
+creation, subnet join and registry role-assignment permission, plus SSH keygen.
+The legacy ACR Tasks path requires an explicitly public registry and is not used
+by this deployment.
 
 Both Docker stages and the frontend CI container use immutable base-image digests. Refresh these deliberately and rebuild for security updates; pinning prevents silent changes but does not patch vulnerabilities. Python transitive dependencies still resolve during builds, so this is not a byte-for-byte reproducible build guarantee.
 
@@ -124,7 +135,7 @@ The app's `prevent_destroy` lifecycle guard also blocks accidental destruction;
 deliberate decommissioning requires a separate reviewed configuration change.
 
 ```powershell
-./workbench/build.ps1 -Tag lab-v1
+./workbench/build.ps1 -Private -Tag lab-v1
 # Set image_digest in infra/image.auto.tfvars to the successful build digest.
 $plan = Join-Path $env:TEMP ("ai-foundry-lab-" + [guid]::NewGuid().ToString("N") + ".tfplan")
 terraform -chdir=workbench/infra plan -var-file=dev.tfvars "-out=$plan"
@@ -162,6 +173,8 @@ elapsed milliseconds. It does not log prompts, transcripts, bodies, raw URLs,
 headers, credentials or exception details. API responses carry the correlation
 ID, including history failures. ACA console/system logs go to a dedicated Log
 Analytics workspace with 30-day retention and a 0.1-GB daily ingestion cap.
+Workspace ingestion/query uses Azure Monitor Private Link with public access
+disabled. Diagnostics use Azure identity, not workspace shared keys.
 The cap can delay stopping ingestion and is not a hard billing limit; retained
 logs and scheduled-query alerts incur Azure charges.
 

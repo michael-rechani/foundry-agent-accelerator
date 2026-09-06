@@ -46,6 +46,35 @@ class CalculatorTests(unittest.TestCase):
         self.assertIn("None supplied; excluded", output)
         self.assertNotIn("cost per completed review:", output)
 
+    def test_platform_quantities_calculate_costs(self) -> None:
+        self.assertEqual(platform_costs([
+            {"name": "Endpoint hours", "quantity": 5840, "unit_rate": 0.01},
+        ], "platform"), [("Endpoint hours", 58.4)])
+
+    def test_deployed_budget_is_explicit_and_does_not_claim_savings(self) -> None:
+        path = Path(__file__).with_name("scenario.deployed.json")
+        config = json.loads(path.read_text())
+        self.assertTrue(all(value is not None for _, value in platform_costs(config["foundry_platform"], "platform")))
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            main(path)
+        self.assertIn("not invoiced or measured spend", output.getvalue())
+        self.assertIn("contingency", output.getvalue())
+        self.assertIn("APIM Standard v2 capacity (disabled): USD 0.00", output.getvalue())
+        self.assertIn("Hosted-agent total: USD 1,584.76", output.getvalue())
+        self.assertNotIn("Foundry savings:", output.getvalue())
+
+    def test_platform_quantities_reject_ambiguous_or_invalid_inputs(self) -> None:
+        for fields in (
+            {"quantity": 1}, {"unit_rate": 1},
+            {"quantity": 1, "unit_rate": 1, "monthly_cost": 1},
+            {"quantity": -1, "unit_rate": 1},
+            {"quantity": True, "unit_rate": 1},
+            {"quantity": 1e308, "unit_rate": 1e308},
+        ):
+            with self.subTest(fields=fields), self.assertRaises(ValueError):
+                platform_costs([{"name": "Meter", **fields}], "platform")
+
     def test_checked_in_example_does_not_claim_complete_costs(self) -> None:
         output = io.StringIO()
         with contextlib.redirect_stdout(output):

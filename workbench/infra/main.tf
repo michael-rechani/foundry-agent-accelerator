@@ -28,6 +28,14 @@ variable "management_vnet_name" { type = string }
 variable "foundry_account_name" { type = string }
 variable "foundry_project_name" { type = string }
 variable "registry_name" { type = string }
+variable "private_registry_enabled" {
+  type    = bool
+  default = true
+}
+variable "registry_public_network_access_enabled" {
+  type    = bool
+  default = false
+}
 variable "visible_agents" {
   type    = list(string)
   default = ["customer-review"]
@@ -95,12 +103,13 @@ resource "azurerm_subnet" "this" {
 }
 
 resource "azurerm_container_registry" "this" {
-  name                = var.registry_name
-  location            = data.azurerm_virtual_network.workload.location
-  resource_group_name = var.resource_group_name
-  sku                 = "Basic"
-  admin_enabled       = false
-  tags                = local.tags
+  name                          = var.registry_name
+  location                      = data.azurerm_virtual_network.workload.location
+  resource_group_name           = var.resource_group_name
+  sku                           = var.private_registry_enabled ? "Premium" : "Basic"
+  public_network_access_enabled = var.registry_public_network_access_enabled
+  admin_enabled                 = false
+  tags                          = local.tags
 }
 
 resource "azurerm_user_assigned_identity" "this" {

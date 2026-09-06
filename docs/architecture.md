@@ -9,7 +9,7 @@ in logical runtime and operations views. Boxes identify components, not physical
 VNet placement. Foundry and Cosmos are managed services reached through private
 endpoints. Custom review agents are not Microsoft products.
 
-The overview shows the deployed Lab and the unpublished APIM boundary. The Lab
+The overview shows the deployed Lab and the optional, disabled APIM boundary. The Lab
 uses its own remote state key and the following runtime and administration paths:
 
 ## Operations
@@ -30,11 +30,13 @@ are process-local and require one worker/replica. Dependency probes are cached,
 bounded, and separate from process liveness. Logs contain request metadata, not
 prompts or transcripts; action groups are needed for delivered notifications.
 
-Private application access does not imply every supporting service is private.
-The Lab's ACR Basic registry and Log Analytics ingestion/query endpoints remain
-public and authenticated. Registry admin access and Log Analytics local key
-authentication are disabled. A private-endpoint-only design for those services
-requires a separate networking and SKU review.
+The Lab's Premium ACR registry has a private endpoint and public access disabled.
+Private DNS links cover both workload and management networks. Builds use a
+temporary Linux VM without a public IP, with managed-identity push access scoped
+to the registry; completed builds delete the VM resources and temporary grant.
+Log Analytics ingestion/query is private-only through the existing Azure Monitor
+Private Link scope. Registry admin and Log Analytics local key authentication
+remain disabled. APIM is disabled; there is no deployed APIM gateway.
 
 ## Secret ownership
 
@@ -50,11 +52,13 @@ These stores can contain sensitive data and require their own access and
 retention policies. Network identifiers and managed-identity client IDs are
 configuration, not credentials.
 
-**Current exception:** platform state retains jumpbox credentials and
-provider-returned Cosmos/Storage/Log Analytics keys. Current Lab state uses
-keyless Cosmos and AzAPI Log Analytics reads. Private Terraform execution uses
-the existing jumpbox and Blob private endpoint. Historical state remains protected
-and must not be purged indiscriminately. See the [migration inventory](credential-migration.md).
+Platform VM, Cosmos, Storage and Log Analytics ownership now uses credential-free
+ARM resources. The jumpbox password and obsolete service keys were rotated;
+the password is maintained through private Key Vault outside Terraform. Current
+Lab state uses keyless Cosmos and AzAPI Log Analytics reads. Private Terraform
+execution uses the existing jumpbox and Blob private endpoint. Historical state
+remains protected and must not be purged indiscriminately. See the
+[migration inventory](credential-migration.md).
 
 ## Trust boundaries
 
@@ -62,14 +66,15 @@ and must not be purged indiscriminately. See the [migration inventory](credentia
 | --- | --- | --- |
 | Browser to workbench | Internal environment, jumpbox subnet allowlist, same-origin request checks | Entra identity and owner-scoped history authorization before real user data |
 | Workbench to Foundry/Cosmos | Managed identity, curated agents, container-scoped Cosmos role, periodic dependency checks | Approve data/backup retention before real data |
-| Client to APIM | Public Standard v2 gateway; no review API | Validate Entra issuer, audience, and authorized caller claims; do not equate authentication with permission |
-| APIM to Foundry | VNet integration, peering, private DNS, managed identity role | Exact backend path, managed-identity policy, request limits, and correlation IDs |
+| Client to APIM (optional) | Not deployed; configuration retained | Redeploy gateway and validate Entra issuer, audience, and authorized caller claims |
+| APIM to Foundry (optional) | Not deployed; target uses VNet integration and managed identity | Verify private DNS, backend path, managed-identity policy, request limits, and correlation IDs |
 | Coordinator to specialists | Named Foundry endpoints with managed identity; v2 passed both live delegation checks | Profile-based bindings require a new deployment and per-tool target checks |
 | Administration to private data plane | Private jumpbox and project-scoped deployment identity | Inventory before mutation; serialize deployment per agent |
-| Terraform to Azure | ARM provisioning; distinct remote state keys with Entra authentication and locking | Use approved private backend connectivity; migrate remaining secret-bearing resource ownership |
+| Terraform to Azure | Keyless ARM ownership; distinct remote state keys with Entra authentication and locking | Preserve private backend connectivity and historical state retention |
 
-The workload and management networks may be in different regions. APIM's
-integration subnet is in the management network and must be in APIM's region.
+The workload and management networks may be in different regions. If APIM is
+redeployed, its integration subnet must be in APIM's region. The management VNet
+and peering remain in use by the private Lab and jumpbox without APIM.
 Outbound VNet integration does not make the public gateway private.
 
 ## Review request
@@ -83,7 +88,7 @@ selection from the shared platform and have passed a separate live deployment.
 sequenceDiagram
     autonumber
     actor Client
-    participant Gateway as APIM (API pending)
+    participant Gateway as APIM (optional, not deployed)
     participant Coordinator as Review coordinator
     participant Specialist as Application or case specialist
     Client->>Gateway: Review request + Entra bearer token
