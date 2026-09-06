@@ -51,6 +51,10 @@ For extension decisions and new customer examples, use the
 [Foundry extension guide](docs/architecture-assessment.md): ownership boundaries,
 native capabilities, and a checklist for adding agents.
 
+For initial public sector and healthcare concepts, see the
+[agent drafts](docs/agent-drafts/README.md). These documentation-only definitions
+and shared safeguards are not implemented, registered, or deployed agents.
+
 Arrows show the Lab request and history paths. APIM is optional and disabled by
 default. Use the [APIM API guide](docs/apim-review-api.md) when a governed gateway
 is required, including caller authorization and private backend verification.
