@@ -114,17 +114,76 @@ token accounting or invoiced cost. Neither is fabricated from the existing budge
 
 ## Delivery checks
 
-1. Run the workbench Python suite and frontend build, lint, and Playwright tests.
-   Browser tests use controlled API responses; backend tests use an in-memory
-   store and gateway doubles. They do not prove live Cosmos or model behavior.
-2. Review a private Lab Terraform plan for the additive Cosmos index and intended
-   image rollout. Keep platform state separate; do not publish root Terraform.
-3. Build the immutable image using the existing private build process. The Docker
-   and source-staging lists include both review backend modules.
-4. Verify the index is ready and deploy the image. From authorized private access,
-   create a synthetic review, check live specialist receipts and structured JSON,
-   add evidence, resume, reopen, and inspect the prior snapshot. Reject malformed
-   output without claiming successful findings. Record the result and recovery image.
+### 1. Validate the source locally
+
+Run the workbench Python suite and frontend build, lint, and Playwright tests
+from the repository root using the [local validation commands](../workbench/README.md#local-development).
+Browser tests use controlled API responses; backend tests use an in-memory
+store and gateway doubles. They do not prove live Cosmos or model behavior.
+
+### 2. Review and deploy the intended image
+
+Follow the [Lab deployment steps](../workbench/README.md#deployment): configure
+the correct state, build an immutable image, review a saved Terraform plan, then
+apply and clean up that plan. Keep platform state separate; do not publish root
+Terraform. For initial review support, verify the additive Cosmos index is ready
+before promoting the image. Record both the intended image and recovery digest.
+
+### 3. Start one synthetic review
+
+Run from the repository root on authorized private-network access. Replace the
+URL with the verified Lab output. This is a live model call that can incur charges;
+it is not an offline test. The script expects the sample customer-review catalog.
+
+```powershell
+$baseUrl = '<verified-private-url>'
+./workbench/test-review-private.ps1 -Mode Start -BaseUrl $baseUrl
+```
+
+Record `SYNTHETIC_REVIEW_ID` from the output. Start also verifies that a competing
+start with the old ETag is rejected. Do not run Start again because a status read
+fails or the first response is delayed.
+
+### 4. Inspect the first result
+
+Set the ID reported by step 3, then inspect after the execution reaches an outcome:
+
+```powershell
+$reviewId = '<synthetic-review-id-from-step-3>'
+./workbench/test-review-private.ps1 -Mode Inspect -ReviewId $reviewId -BaseUrl $baseUrl
+```
+
+Require verified specialist receipts, exact citations, and `waiting_input` for
+this fixture's missing budget. If still running, the script reports that it has
+not reached a result: inspect again later, without starting another execution.
+For failed/interrupted output, stop and investigate. An unexpected completed
+first run does not establish that clarification/resume was tested.
+
+### 5. Append evidence and resume explicitly
+
+Only after step 4 confirms the first-run clarification:
+
+```powershell
+./workbench/test-review-private.ps1 -Mode Resume -ReviewId $reviewId -BaseUrl $baseUrl
+```
+
+This appends synthetic budget evidence and starts the second model call. The
+script checks that the first run's evidence snapshot remains unchanged. If the
+response is uncertain, inspect the record before repeating a mutating action.
+
+### 6. Verify the final record
+
+After the second run reaches an outcome:
+
+```powershell
+./workbench/test-review-private.ps1 -Mode Verify -ReviewId $reviewId -BaseUrl $baseUrl
+```
+
+Require a completed two-run review with preserved snapshots, verified receipts,
+and exact citations. Reopen it in the UI and inspect both run versions. Record
+the test outcome and deployed image; a successful Terraform apply alone is not
+live acceptance. The synthetic review remains under normal 30-day TTL: this
+release has no review deletion API. Do not delete shared storage to clean up a test.
 
 Next extensions are authenticated ownership, durable worker recovery, evaluated
 retrieval over approved sources, and approval-gated external actions. They are not

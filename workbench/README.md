@@ -100,13 +100,25 @@ npm --prefix workbench/frontend run lint
 npm --prefix workbench/frontend exec -- playwright install chromium
 npm --prefix workbench/frontend test
 ./workbench/test-deployment-inputs.ps1
-terraform -chdir=workbench/infra init
-terraform -chdir=workbench/infra validate
 ```
+
+Infrastructure initialization and validation are separate deployment steps below;
+the local application checks do not require access to the remote state backend.
 
 ## Deployment
 
-Infrastructure uses a separate Azure Storage backend key, `ai-foundry/workbench-dev.tfstate`, never the platform's `ai-foundry/dev.tfstate`. Initialize with `terraform -chdir=workbench/infra init -backend-config=backend.hcl.example`. The backend uses Entra/CLI authentication and blob-lease locking; shared-key access is disabled. The existing account enforces HTTPS/TLS 1.2, encryption, versioning, 90-day blob soft-delete and seven-day container soft-delete. Public network access is now disabled. Run Terraform from an approved private-network path; do not reopen the shared account's firewall.
+Run the following steps from the repository root in one PowerShell session.
+Stop if any command fails. Terraform deploys the Lab infrastructure and selects
+its image; image building and runtime smoke tests are separate, explicit steps.
+
+### 1. Confirm prerequisites and state ownership
+
+Require an existing Foundry project and tested agent, authenticated Azure access,
+Terraform 1.16.1, and an approved private-network path to the backend and workload.
+The state account and blob container must already exist. Ensure the executing
+identity has the necessary resource, role-assignment, and state-container access.
+
+Infrastructure uses a separate Azure Storage backend key, `ai-foundry/workbench-dev.tfstate`, never the platform's `ai-foundry/dev.tfstate`. The backend uses Entra/CLI authentication and blob-lease locking; shared-key access is disabled. The existing account enforces HTTPS/TLS 1.2, encryption, versioning, 90-day blob soft-delete and seven-day container soft-delete. Public network access is now disabled. Do not reopen the shared account's firewall.
 
 For an existing local deployment use `init -migrate-state -backend-config=backend.hcl.example` only after checking the target key is unused. Confirm copying existing state, never start empty. Compare lineage and managed resource IDs before/after. Preserve protected local backups; state and plans must never be committed. Restrict state access and review inherited Azure RBAC separately.
 
@@ -125,6 +137,43 @@ remain sensitive operational data, not vault secrets. Platform credential owners
 have been migrated to keyless ARM resources and obsolete credentials rotated;
 historical backups are preserved rather than silently purged.
 
+### 2. Configure and initialize
+
+Create or review the local `workbench/infra/dev.tfvars` using
+[dev.tfvars.example](infra/dev.tfvars.example). Replace example identifiers with
+your actual deployment settings; never overwrite a working environment blindly.
+Review [backend.hcl.example](infra/backend.hcl.example) before using it: it
+contains this Lab's backend identifiers, not universally valid defaults. Configure
+the intended account, subscription, container, and separate Lab state key.
+
+```powershell
+terraform -chdir=workbench/infra init -backend-config=backend.hcl.example
+terraform -chdir=workbench/infra validate
+```
+
+For a deliberate existing-state migration, use
+`terraform -chdir=workbench/infra init -migrate-state -backend-config=backend.hcl.example`
+instead of plain init, following the preservation checks above.
+
+### 3. Bootstrap only a new Lab
+
+Skip this step if the Lab already exists. If its registry does not exist yet,
+create a foundation-only plan:
+
+```powershell
+$plan = Join-Path $env:TEMP ("ai-foundry-lab-bootstrap-" + [guid]::NewGuid().ToString("N") + ".tfplan")
+terraform -chdir=workbench/infra plan -var-file=dev.tfvars -var=bootstrap_only=true "-out=$plan"
+terraform -chdir=workbench/infra show "$plan"
+```
+
+Review the foundation resources and costs. Only after approval, use the apply
+and cleanup block in step 6 on this plan, then continue to step 4. Bootstrap
+omits the app; it does not deploy a usable UI. **Never use bootstrap mode against
+an existing app.** The `prevent_destroy` guard blocks accidental app destruction.
+Do not persist `bootstrap_only=true` into the normal deployment configuration.
+
+### 4. Build and select an immutable image
+
 `build.ps1 -Private` stages only allowlisted source files, excluding local
 dependencies, state, plans and environment files. The Premium registry has public
 access and admin credentials disabled. The private build uses a temporary Linux
@@ -140,40 +189,71 @@ by this deployment.
 
 Both Docker stages and the frontend CI container use immutable base-image digests. Refresh these deliberately and rebuild for security updates; pinning prevents silent changes but does not patch vulnerabilities. Python transitive dependencies still resolve during builds, so this is not a byte-for-byte reproducible build guarantee.
 
-For a new environment, populate `infra/dev.tfvars` using `infra/dev.tfvars.example`.
-An initial foundation-only deployment must explicitly set `bootstrap_only=true`.
-After the registry exists, build the image and set `image_digest` using the shape
-in `infra/image.auto.tfvars.example`. Normal deployments require a valid digest;
-missing input fails validation. Never use bootstrap mode against an existing app.
-The app's `prevent_destroy` lifecycle guard also blocks accidental destruction;
-deliberate decommissioning requires a separate reviewed configuration change.
-
 ```powershell
-./workbench/build.ps1 -Private -Tag lab-v1
-# Set image_digest in infra/image.auto.tfvars to the successful build digest.
-$plan = Join-Path $env:TEMP ("ai-foundry-lab-" + [guid]::NewGuid().ToString("N") + ".tfplan")
-terraform -chdir=workbench/infra plan -var-file=dev.tfvars "-out=$plan"
-if ($LASTEXITCODE -ne 0) {
-	Remove-Item $plan -Force -ErrorAction SilentlyContinue
-	throw "Plan failed"
-}
+./workbench/build.ps1 -Private -Subscription '<workload-subscription-id>' -Registry '<registry-name>' -Tag '<unique-release-tag>'
 ```
 
-Review all proposed actions before applying. Then apply the reviewed plan and
-delete it after the attempt, whether the apply succeeds or fails:
+Replace every placeholder. This build helper defaults to the sample's private
+build network; other environments must review/configure that network before
+invoking it. Require a successful build, push, and verified pull, not merely a
+remote task-start message. Record the returned digest and the prior recovery
+image. Set `image_digest` in local `workbench/infra/image.auto.tfvars` using
+[image.auto.tfvars.example](infra/image.auto.tfvars.example). Mutable tags are
+not accepted as deployment inputs.
+
+### 5. Plan and review the image rollout
+
+```powershell
+$plan = Join-Path $env:TEMP ("ai-foundry-lab-" + [guid]::NewGuid().ToString("N") + ".tfplan")
+terraform -chdir=workbench/infra plan -var-file=dev.tfvars "-out=$plan"
+terraform -chdir=workbench/infra show "$plan"
+```
+
+Stop on failure. Verify the exact image digest and review every infrastructure
+action. A normal image-only update should not recreate shared resources. For
+first-time review support, verify the additive Cosmos index is ready before
+promoting the review-enabled image. Reject unrelated changes.
+
+### 6. Apply the approved plan and clean up
+
+Applying a saved plan has no additional Terraform approval prompt. Run this
+block only after approving the plan from step 3 or step 5:
 
 ```powershell
 try {
-	terraform -chdir=workbench/infra apply $plan
+	terraform -chdir=workbench/infra apply "$plan"
 	if ($LASTEXITCODE -ne 0) { throw "Apply failed; inspect state before replanning" }
 } finally {
-	Remove-Item $plan -Force -ErrorAction SilentlyContinue
+	Remove-Item -LiteralPath $plan -Force -ErrorAction SilentlyContinue
 }
 ```
 
-Delete abandoned plans as well. Plans may contain sensitive values; do not keep
+For a failed or abandoned plan, run
+`Remove-Item -LiteralPath $plan -Force -ErrorAction SilentlyContinue` as well.
+Plans may contain sensitive values; do not keep
 them as deployment history. Preserve Terraform state, state backups and source
 configuration. Generate a fresh reviewed plan for a retry.
+
+### 7. Verify the deployed application
+
+```powershell
+terraform -chdir=workbench/infra output -raw private_url
+```
+
+Confirm the intended revision and immutable image are ready before using this
+URL. From authorized private-network access, run the synthetic runtime check:
+
+```powershell
+./workbench/test-private.ps1 -BaseUrl '<verified-private-url>'
+```
+
+Replace the URL placeholder with the Terraform output. This script expects the
+sample's catalog, title, and limits; review those assertions for a different
+configuration rather than pointing an unreviewed test at another environment.
+Require successful private HTTPS, agent execution, and Cosmos CRUD verification;
+an infrastructure apply alone is not an application acceptance test. For the
+new workflow, also complete [review delivery checks](../docs/review-workflow.md#delivery-checks),
+including explicit clarification, resume, and prior-snapshot verification.
 
 Private runtime settings are managed by Terraform: `WORKBENCH_MODE`, `WORKBENCH_VISIBLE_AGENTS`, `WORKBENCH_DEFAULT_AGENT`, `WORKBENCH_TITLE`, exact host/origin allowlists, Foundry project endpoint, Cosmos endpoint and managed-identity client ID. Cosmos data-plane resources are provisioned by Terraform, never created by the runtime.
 

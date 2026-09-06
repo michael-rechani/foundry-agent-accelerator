@@ -6,7 +6,11 @@ Use this runbook for a reviewed hosted-agent update. It does not deploy APIM or
 rotate credentials. Use an approved execution environment with Foundry private
 DNS and routing. Azure CLI connectivity to ARM alone is insufficient.
 
-## Preconditions
+Run each numbered step to completion before continuing. This guide publishes
+Python agent code, not Terraform infrastructure. No deployment continues
+automatically after reading these instructions.
+
+## 1. Confirm prerequisites
 
 - Confirm the subscription, tenant, project endpoint, intended agent, and change.
 - The deploying identity needs Foundry Project Manager at project scope.
@@ -16,7 +20,7 @@ DNS and routing. Azure CLI connectivity to ARM alone is insufficient.
 - Run one deployment per agent at a time. Confirm any earlier scheduled
   deployment task has completed before starting another.
 
-## Stage the reviewed sources
+## 2. Stage the reviewed sources
 
 Retain this layout on the private runner:
 
@@ -45,7 +49,7 @@ exit code, and restricted log location; a successful task-start message is not
 a successful agent deployment. Do not start a second task merely because a
 status-read request failed.
 
-## Prepare the private runner
+## 3. Prepare the private runner
 
 From the staged `hosted-agents` directory, using a working Python 3.13 executable:
 
@@ -64,7 +68,7 @@ and `model_deployment_name` outputs on the administrative machine. The runner
 does not need a copy of Terraform state. Use Python's full executable path if
 the current process has a stale PATH after installation.
 
-## Inventory before mutation
+## 4. Inventory before mutation
 
 Run this Python snippet on the private runner using its deployment environment.
 It prints only agent names and version states, not credentials or review data.
@@ -95,7 +99,10 @@ specialists merely to update the coordinator. If a specialist is missing, stage
 its equivalent five source files and deploy it first using its own requirements.
 An inventory error other than not-found is a blocker, not permission to recreate.
 
-## Deploy the coordinator
+## 5. Deploy the coordinator
+
+Remain in the staged `hosted-agents` directory and use the `$python` executable
+from step 3. This is a mutating operation, not a Terraform plan or dry run.
 
 ```powershell
 & $python -u review-coordinator-agent/deploy.py --poll-seconds 10 --max-polls 120
@@ -106,7 +113,9 @@ The deployer creates an immutable version, waits for activation, captures the
 previous endpoint, promotes the candidate, and runs the general smoke test plus
 both mandatory delegation checks. Clients may reach the candidate during testing.
 
-Require all of the following evidence:
+## 6. Verify deployment and routing
+
+Require all of the following evidence before considering the update complete:
 
 - New version becomes active.
 - Application and case delegation checks each report success.
@@ -117,7 +126,7 @@ Record timestamps, agent/version, test outcomes, and operator identity. Avoid
 logging review bodies. Do not label a coordinator-generated sentence as proof
 of a specialist call; the verifier checks correlated structured tool results.
 
-## Failure handling
+## 7. Handle failure and cleanup
 
 On failure, the deployer attempts previous-route restoration when promotion was
 attempted. It deletes the candidate only when a fresh route read confirms the

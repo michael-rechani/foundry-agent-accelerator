@@ -35,28 +35,75 @@ and at most four specialist calls in flight per process. Set
 environment to tune these limits. Cancelling the HTTP request releases local
 resources but does not guarantee the remote service stops already-started work.
 
-After deploying the Terraform baseline:
+## Deployment walkthrough
 
-1. From the repository root, populate the deployment settings from Terraform:
+Terraform creates the baseline; these steps publish agent code through the Python
+deployer. Run from the repository root on an authorized private-network execution
+environment. Stop on any error. For source staging onto a separate runner, use
+the [private deployment runbook](../docs/private-deployment.md) instead; it gives
+the working directory for that staged layout.
 
-  ```powershell
-  $env:FOUNDRY_PROJECT_ENDPOINT = terraform -chdir=terraform output -raw foundry_project_endpoint
-  $env:FOUNDRY_MODEL_NAME = terraform -chdir=terraform output -raw model_deployment_name
-  ```
+### 1. Confirm prerequisites
 
-2. Choose a sample, create an isolated deployment environment, and install its
-  locked dependencies. For example:
+Require a successfully applied baseline, local Python 3.13, a verified Azure
+identity with Foundry Project Manager at project scope, and private DNS/routing
+to the project. Confirm tenant and subscription before mutation. Do not start
+another deployment of the same agent while one is active.
 
-  ```powershell
-  Set-Location hosted-agents/case-review-agent
-  python -m venv .venv
-  .\.venv\Scripts\Activate.ps1
-  python -m pip install --upgrade pip
-  python -m pip install -r requirements-deploy.txt
-  ```
+### 2. Set verified deployment inputs
 
-3. Confirm `az account show` identifies the intended tenant and subscription.
-4. Run `python deploy.py`.
+From a private backend-connected administrative environment, read:
+
+```powershell
+terraform -chdir=terraform output -raw foundry_project_endpoint
+terraform -chdir=terraform output -raw model_deployment_name
+```
+
+Set these non-secret output values in the deployment session. The deployment
+runner does not need a copy of Terraform state:
+
+```powershell
+$env:FOUNDRY_PROJECT_ENDPOINT = '<verified-project-endpoint>'
+$env:FOUNDRY_MODEL_NAME = '<verified-model-deployment-name>'
+```
+
+### 3. Prepare the selected sample
+
+The following example selects the case specialist. Change `$sample` deliberately
+for another sample; do not reuse another environment's installed dependencies.
+
+```powershell
+$sample = 'hosted-agents/case-review-agent'
+python -m venv "$sample/.venv"
+$python = Join-Path $PWD "$sample/.venv/Scripts/python.exe"
+& $python -m pip install -r "$sample/requirements-deploy.txt"
+```
+
+Stop if environment creation or dependency installation fails. Use `$python`
+for the subsequent command rather than relying on shell activation or PATH.
+
+### 4. Inventory and review before deployment
+
+Use the [inventory procedure](../docs/private-deployment.md#4-inventory-before-mutation)
+with the chosen agent name. Record the routed version and recovery target.
+Review source, instructions, dependency pins, and deployment options. For a
+coordinator, both specialists must already be deployed and independently tested.
+
+### 5. Deploy explicitly
+
+```powershell
+& $python "$sample/deploy.py"
+if ($LASTEXITCODE -ne 0) { throw 'Agent deployment or smoke verification failed' }
+```
+
+This command creates a billable version and changes routing. It is not a
+Terraform plan or a dry run. Require successful activation and all smoke checks.
+
+### 6. Verify the route and handle failures
+
+Repeat inventory and confirm the intended version receives traffic. On failure,
+inspect the actual route before retrying, retain recovery versions, and follow
+the [failure procedure](../docs/private-deployment.md#7-handle-failure-and-cleanup).
 
 The deployer packages `main.py`, `requirements.txt`, and the sample's reviewed
 instructions and `configuration.py` when present. It uploads an immutable hosted-agent version, waits

@@ -27,12 +27,21 @@ recovery before reusing it; do not purge recovery data automatically.
   consent for token acquisition. Terraform does not create registrations, grant
   consent, or broaden tenant access.
 
+## Publication steps
+
+Run commands from the repository root, using an approved private backend-connected
+environment. Stop on errors. These steps are optional; do not enable APIM just
+to use the internal Lab.
+
+### 1. Configure the approved gateway and callers
+
 Supply the following object in reviewed local Terraform configuration, replacing
 all placeholders with non-secret approved identifiers. Leave `review_api = null`
 to keep the route unpublished.
 
 ```hcl
 enable_api_management = true
+api_management_publisher_email = "<approved-publisher-email>"
 review_api = {
   audience                  = "<dedicated-api-audience>"
   allowed_caller_object_ids = ["<approved-principal-object-id>"]
@@ -41,10 +50,27 @@ review_api = {
 }
 ```
 
-Review a full Terraform plan before applying it; do not apply unrelated
-infrastructure changes merely to publish this API. State and plan files must
-remain restricted because other infrastructure resources contain credentials.
-After applying, retrieve `review_api_url` from Terraform outputs.
+### 2. Validate, plan, review, and apply
+
+Follow the [baseline Terraform procedure](../README.md#3-initialize-and-validate)
+with the existing environment's variables and state, starting at initialization.
+Run the local [acceptance checks](#acceptance-gates) before planning. Review the
+full saved plan; do not apply unrelated infrastructure changes merely to publish
+this API. Apply only the reviewed plan and delete it after the attempt or when
+abandoned. State and plan files can contain sensitive data and must remain restricted.
+
+### 3. Retrieve the URL and verify live behavior
+
+After a successful apply:
+
+```powershell
+terraform -chdir=terraform output -raw review_api_url
+```
+
+An output URL is not proof of authorization or backend connectivity. Complete
+every live [acceptance gate](#acceptance-gates) with synthetic inputs before
+calling the route usable. On failure, inspect the policy and backend; do not
+broaden caller permissions or weaken receipt checks to make the test pass.
 
 ## Request contract
 

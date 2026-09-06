@@ -99,65 +99,134 @@ for verified results and remaining gates. This README is not a live health check
 
 ## Quick start
 
-### 1. Deploy the baseline
+This walkthrough deploys the **Foundry infrastructure baseline with Terraform**.
+It does not publish Python agents or deploy the separately managed Lab UI.
+Run commands from the repository root in the same PowerShell session. Complete
+each step successfully before continuing; do not run the apply step until you
+have reviewed the saved plan.
 
-Use Terraform 1.16.1, Azure CLI, and a reviewed state backend. Credentials are
-present in Terraform state and saved plans; follow the
-[state and credential guidance](terraform/README.md) before applying.
-The commands below do not overwrite an existing variables file.
+**Before you begin:** install Terraform 1.16.1, authenticate Azure CLI to the
+intended tenant, and confirm deployment and role-assignment permissions, regional
+model quota, and private network access. A secured Azure Storage account and blob
+container for Terraform state must already exist; this configuration does not
+bootstrap its own backend. Your identity needs Storage Blob Data Contributor on
+that container. See [Terraform prerequisites and state guidance](terraform/README.md).
+
+### 1. Configure the deployment
+
+Create or review the ignored [terraform/terraform.tfvars](terraform/terraform.tfvars)
+file. For a new environment, the following is a minimal starting point; replace
+the subscription placeholder and choose names and a supported region for your
+environment:
+
+```hcl
+subscription_id       = "<workload-subscription-id>"
+base_name             = "aifnd"
+environment           = "dev"
+location              = "northcentralus"
+enable_api_management = false
+```
+
+Review [all input defaults](terraform/variables.tf) before proceeding, especially
+model deployment, network address ranges, and optional resources. This is not a
+minimal-cost configuration. Do not overwrite an existing environment's values or
+reuse another deployment's names and state. Check other automatically loaded
+variable files and remove unintended command-line overrides.
+
+### 2. Configure remote state
+
+Create or review the ignored [terraform/backend.tf](terraform/backend.tf) file
+using your pre-created backend. Replace every placeholder:
+
+```hcl
+terraform {
+  backend "azurerm" {
+    subscription_id      = "<state-subscription-id>"
+    resource_group_name  = "<state-resource-group>"
+    storage_account_name = "<state-storage-account>"
+    container_name       = "<state-container>"
+    key                  = "ai-foundry/<environment>.tfstate"
+    use_azuread_auth     = true
+    use_cli              = true
+  }
+}
+```
+
+The backend subscription can differ from the workload subscription. Use a unique
+state key for each independent deployment, and retain the original key when
+updating an existing deployment. Keep these environment-specific files local;
+never put access keys or passwords in them. Run from a network path permitted by
+the state account, without reopening a private endpoint to public access.
+
+### 3. Initialize and validate
+
+For a new deployment, or an existing deployment with an unchanged backend:
 
 ```powershell
-az login
-$env:TF_VAR_subscription_id = "<subscription-id>"
-az account set --subscription $env:TF_VAR_subscription_id
-# Review the defaults in terraform/variables.tf, including region, model, quota, and pricing.
 terraform -chdir=terraform init
-$plan = Join-Path $env:TEMP ("foundry-" + [guid]::NewGuid().ToString("N") + ".tfplan")
-terraform -chdir=terraform plan "-var=subscription_id=$env:TF_VAR_subscription_id" "-out=$plan"
-if ($LASTEXITCODE -ne 0) {
-  Remove-Item $plan -Force -ErrorAction SilentlyContinue
-  throw "Plan failed"
-}
-# Review the plan before running the apply block.
-try {
-  terraform -chdir=terraform apply $plan
-  if ($LASTEXITCODE -ne 0) { throw "Apply failed" }
-} finally {
-  Remove-Item $plan -Force -ErrorAction SilentlyContinue
-}
+terraform -chdir=terraform validate
 ```
 
-Review existing variable files before planning; the explicit subscription
-argument takes precedence over an old subscription value in those files.
-Review the saved plan before applying. Do not share it as a build artifact.
-Delete abandoned plans too; preserve state and protected backups. Run Terraform
-from a network path allowed by the backend storage account. Do not reopen a
-private state endpoint to make a workstation deployment succeed.
+If resources already exist in local state and you are moving that state to the
+remote backend, use `terraform -chdir=terraform init -migrate-state` **instead of
+the plain init command**. Verify the destination and preserve a protected backup
+before accepting the migration. Never initialize an empty state to manage
+resources that already belong to another state.
 
-### 2. Publish a sample agent
+### 4. Create and review a plan
 
-Foundry data-plane endpoints are private. Run deployment from an authorized
-execution environment with private DNS and network access, not an unconnected local
-shell. Use the [private deployment runbook](docs/private-deployment.md) and
-[hosted-agent guide](hosted-agents/README.md).
-
-For the coordinated review scenario, inventory existing versions first, deploy
-missing specialists, then deploy the coordinator. Start with the
-[synthetic review walkthrough](hosted-agents/review-coordinator-agent/README.md).
-There is no published APIM review URL yet.
-
-For browser interaction with the deployed agents, use the
-[workbench access and deployment guide](workbench/README.md). Its history is
-shared with workspace users; per-user Entra authorization is not implemented.
-
-### 3. Compare hosting costs
-
-Update the illustrative rates in `cost-comparison/scenario.example.json`, then
-run:
+The first line below only chooses a unique temporary plan filename; Terraform
+creates and displays the plan. Keep this PowerShell session open for step 5.
 
 ```powershell
-python cost-comparison/calculator.py cost-comparison/scenario.example.json
+$plan = Join-Path $env:TEMP ("foundry-" + [guid]::NewGuid().ToString("N") + ".tfplan")
+terraform -chdir=terraform plan -var-file=terraform.tfvars "-out=$plan"
+terraform -chdir=terraform show "$plan"
 ```
+
+Stop if planning fails. Before applying, confirm the subscription, names, regions,
+network ranges, model capacity, expected charges, and every create/update/delete
+action. Investigate unexpected replacements or deletions. Plans and state can
+contain sensitive data: do not commit them or upload them as build artifacts.
+
+### 5. Apply the reviewed plan
+
+Run this block **only after approving step 4**. Applying a saved plan executes
+that plan without another Terraform approval prompt. The PowerShell wrapper
+checks the exit code and removes the disposable plan after the apply attempt:
+
+```powershell
+try {
+  terraform -chdir=terraform apply "$plan"
+  if ($LASTEXITCODE -ne 0) { throw "Apply failed. Inspect the deployment before making a new plan." }
+} finally {
+  Remove-Item -LiteralPath $plan -Force -ErrorAction SilentlyContinue
+}
+```
+
+If you abandon the plan or planning fails, remove its artifact with
+`Remove-Item -LiteralPath $plan -Force -ErrorAction SilentlyContinue` as well.
+Preserve state and protected backups. After configuration changes, generate and
+review a new plan rather than reusing an earlier one.
+
+### 6. Inspect the outputs
+
+After a successful apply, retrieve the values needed for agent deployment:
+
+```powershell
+terraform -chdir=terraform output -raw resource_group_name
+terraform -chdir=terraform output -raw foundry_project_endpoint
+terraform -chdir=terraform output -raw model_deployment_name
+```
+
+These outputs identify the infrastructure; they do not prove an agent or the Lab
+application is deployed or healthy.
+
+### After deployment
+
+- [Publish and test hosted agents](hosted-agents/README.md) from authorized private-network access.
+- [Deploy or access the Lab UI](workbench/README.md) using its separate Terraform state and image rollout.
+- [Compare hosting costs](cost-comparison/README.md) using explicit, environment-specific assumptions.
 
 ## Production considerations
 

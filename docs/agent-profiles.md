@@ -52,23 +52,42 @@ permissions. Do not assume the default review prompts are suitable for a new dom
 
 ## Select a use case
 
+This is Python agent publication, not a Terraform deployment. Complete each
+step before continuing; offline validation does not authorize a live mutation.
+
+### 1. Choose and review the profile
+
 The [example profile](../hosted-agents/review-coordinator-agent/profiles/evidence-review.example.json)
 binds differently named tools to the two existing review specialists. It uses a
 separate coordinator name so trying the example does not overwrite the default
 coordinator's route. It creates another billable agent only when deployed.
 
-Validate from the repository root without Azure access or runtime SDK packages:
+### 2. Validate offline
+
+Run from the repository root without Azure access or runtime SDK packages:
 
 ```powershell
 python hosted-agents/review-coordinator-agent/deploy.py --profile hosted-agents/review-coordinator-agent/profiles/evidence-review.example.json --validate-profile
 ```
 
-On the private runner, install the coordinator deployment requirements and set
-the verified `FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_MODEL_NAME`. Deploy with:
+### 3. Prepare and inventory the private deployment
+
+Follow steps 1 through 4 of the [private deployment runbook](private-deployment.md).
+Stage the selected profile with the coordinator, install its requirements, and
+set the verified project/model inputs. Confirm every bound specialist is active
+and independently tested; record the current coordinator route before mutation.
+
+### 4. Deploy the reviewed profile
+
+From the staged `hosted-agents` directory, use the runbook's `$python` executable:
 
 ```powershell
-python hosted-agents/review-coordinator-agent/deploy.py --profile hosted-agents/review-coordinator-agent/profiles/evidence-review.example.json
+& $python review-coordinator-agent/deploy.py --profile review-coordinator-agent/profiles/evidence-review.example.json
+if ($LASTEXITCODE -ne 0) { throw 'Profile deployment or specialist verification failed' }
 ```
+
+This creates a version and changes routing. Require all mandatory checks and
+verify the new route using runbook steps 6 and 7; inspect failures before retrying.
 
 Without `--profile`, the existing review coordinator behavior is preserved.
 With a profile, name and instructions belong in the profile; CLI overrides and
