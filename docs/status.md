@@ -14,10 +14,11 @@ production multi-user application or a fully private-endpoint-only deployment.
 | Review agents | Application/case specialists v1, review coordinator v2, customer-review coordinator v1 | Both specialist delegation paths passed; previous coordinator v1 retained for recovery |
 | Monitoring | Private ingestion/query, 30-day retention, 0.1-GB daily cap, local auth disabled; three portal alerts | Private query and retained heartbeats verified after key rotation; notification delivery not configured |
 | Lab state | Separate Entra-authenticated backend key, Blob private endpoint, keyless Cosmos/Log Analytics reads | Ownership transfer applied without Azure mutations; full follow-up plan empty |
-| Platform credentials | Credential-free VM, Cosmos, Storage and Log Analytics state owners | Ownership changes applied without Azure mutations; full plan empty; jumpbox password and all affected account/workspace keys rotated; Windows logon verified |
+| Platform credentials | Credential-free Cosmos, Storage and Log Analytics state owners | Ownership changes applied without Azure mutations; full plan empty; all affected account/workspace keys rotated |
 | Registry and builds | Premium ACR, public access and admin account disabled; private endpoint and DNS | Disposable private Linux builder built/pushed/pulled the final image with public access disabled; non-root import check passed |
-| Private execution | Existing jumpbox with managed identity; private DNS and peered VNets | State access verified; jumpbox returned to deallocated state |
+| Private execution | Authorized managed identity, private DNS and routing | Private state access verified |
 | APIM | Removed to avoid idle capacity charges; optional configuration and soft-delete recovery retained | APIM-only removal verified; shared resource IDs/state lineage preserved; full plan empty; private Lab agent/CRUD smoke passed afterward |
+| AI Search | Required secured standard/BYO backing service; S1, two replicas, one partition; public access and local authentication disabled | Private managed-identity inventory returned zero indexes, documents, indexers, data sources, skillsets, and stored vectors; no resources or data changed |
 
 ## Open gates
 
@@ -28,6 +29,25 @@ production multi-user application or a fully private-endpoint-only deployment.
 | Notifications | Configure an action group and verify delivered alerts; daily ingestion cap is not a hard billing limit |
 | Gateway (optional) | Redeploy APIM only when needed; approve caller settings and test authorization and failure paths before publication |
 | Costs | Reconcile actual spend after Cost Management HTTP 429 and replace usage allowances; the itemized [budget](../cost-comparison/platform-rates.md) is not a current Azure bill |
+
+## Next tasks
+
+- [x] Implement the local [review workspace](review-workflow.md): structured
+  evidence/findings, persisted run records, checked citations, and clarification/resume.
+- [ ] Deploy the additive Lab Cosmos index and new immutable image, then verify
+  a private live review/resume round trip. Local tests do not establish live readiness.
+
+- [x] Verify the required Search connection and the deployed S1 capacity.
+- [x] Inspect Search inventory through authorized private access without keys or
+  new permissions.
+- [x] Correct the distinction between optional retrieval tools and required
+  platform resources in the [integration guide](optional-integrations.md).
+- [x] Retain two Search replicas per the owner's decision. No capacity reduction
+  is planned; the planning budget remains $1,584.76/month.
+- [ ] Reconcile actual Azure spend when Cost Management becomes available. The
+  latest month-to-date resource-group query again returned HTTP 429; this is not
+  evidence of zero charges. Seven-day Search metric queries returned no samples,
+  so the empty inventory is not a historical utilization measurement.
 
 ## Release reference
 

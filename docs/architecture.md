@@ -12,6 +12,87 @@ endpoints. Custom review agents are not Microsoft products.
 The overview shows the deployed Lab and the optional, disabled APIM boundary. The Lab
 uses its own remote state key and the following runtime and administration paths:
 
+| View | Question it answers | Scope |
+| --- | --- | --- |
+| [Component interactions](#component-interactions) | What runs where, and which component owns each interaction? | Deployed foundation plus explicitly marked local review additions |
+| [Chat and delegation](#chat-and-delegation) | How does a browser request reach a specialist, and when is chat saved? | Existing Lab chat path |
+| [Review persistence and recovery](review-workflow.md#execution-and-persistence) | What is saved before execution, and how do clarification and interruptions behave? | Locally implemented; live rollout acceptance pending |
+| [Operations](#operations) | How are builds, monitoring, private access, and state separated? | Recorded platform configuration |
+| [Optional APIM request](#review-request) | What would an authorized gateway request look like? | Target only; gateway not deployed |
+
+## Component interactions
+
+![Editable draw.io component map showing the React browser, internal FastAPI app, Foundry coordinator and specialists, and Cosmos persistence](images/lab-components.svg)
+
+[Open full-size SVG](images/lab-components.svg) · [Editable draw.io source](images/lab-components.drawio)
+
+Blue connectors carry application requests; green connectors are application
+record operations. The dashed dependency connector is not a per-request retrieval
+call. The platform's Storage, Cosmos, and Search backing services are distinct
+from the Lab's application-owned conversation and review records. The Lab uses a
+dedicated container in the existing Cosmos account; Foundry-owned data is not
+managed through the Lab's history endpoints.
+
+The model deployment is used by configured agents. The workbench calls a named
+agent endpoint, not a browser-selected model endpoint. Coordinator and specialist
+boxes represent custom Python applications, not additional Microsoft products.
+Key Vault is the home for necessary secrets, not a transcript store or a service
+that the browser reads. Search is a required platform dependency here, but no
+Search retrieval tool is connected to the reference review workflow.
+
+### Code ownership
+
+| Component | Implementation | Responsibility |
+| --- | --- | --- |
+| Browser shell and chat | [ChatWorkspace.tsx](../workbench/frontend/src/ChatWorkspace.tsx) | Catalog selection, draft input, chat, explicit save/export, and view navigation |
+| Structured review UI | [ReviewWorkspace.tsx](../workbench/frontend/src/ReviewWorkspace.tsx) | Inbox, status polling, evidence, findings, and explicit resume |
+| HTTP boundary and Foundry client | [app.py](../workbench/app.py) | Origin/host checks, configured catalog, admission, bounded Responses calls, receipt correlation |
+| Review record controller | [review_runs.py](../workbench/review_runs.py) | Server-owned records, conditional starts, input snapshots, local tasks, and effective status |
+| Input/result contract | [reviews.py](../workbench/reviews.py) | Structured schemas, criterion coverage, and exact-quote validation |
+| Cosmos adapter and chat history | [history.py](../workbench/history.py) | Shared partition, paging, conditional writes, and clearing client-supplied receipt flags |
+| Coordinator tools | [coordinator main.py](../hosted-agents/review-coordinator-agent/main.py) | Profile-defined target selection, specialist timeout/concurrency, and structured tool results |
+
+## Chat and delegation
+
+![Draw.io sequence showing chat requests, managed-identity specialist delegation, response receipts, and explicit Cosmos history saves](images/lab-request-flow.svg)
+
+[Open full-size SVG](images/lab-request-flow.svg) · [Editable draw.io source](images/lab-request-flow.drawio)
+
+The browser sends the selected catalog ID, new message, and bounded prior turns
+to `POST /api/reviews`. FastAPI rejects disallowed origins, unknown agents, or
+invalid/oversized input before invoking Foundry. The backend uses managed identity
+with a named agent Responses client, `store=false`, and no automatic model retry.
+The coordinator may select a configured specialist or ask for clarification
+without invoking one. Each specialist call is separately bounded and returns a
+named success result only after a completed, nonempty response.
+
+The Lab correlates tool call IDs, configured tool names, and expected target
+agents. **Chat reports verification flags; it does not require every answer to
+have a specialist call.** The structured review workflow adds the stricter
+receipt, JSON, coverage, and citation gates described in its lifecycle guide.
+Neither path guarantees the factual truth of supplied evidence or model findings.
+
+Saving chat is separate from inference: `POST /api/conversations` creates a
+record; `PUT /api/conversations/{id}` updates it with `If-Match`. Saved and reopened
+chat receipts are marked unverified because clients can submit transcript data.
+Structured review results, by contrast, are written by the server and record
+historical checks made at execution time. Neither is an immutable audit ledger.
+
+### Failure and capacity boundaries
+
+| Operation | Admission / deadline | Failure behavior |
+| --- | --- | --- |
+| Chat agent request | Four shared agent slots, 20 starts/minute, five-second upload, up to 180-second agent call | Invalid requests fail before invocation; deadline returns timeout, not success |
+| Structured review execution | Shares chat's agent slots and start budget; at most four runs per record | Conditional start prevents competing execution; no automatic retry |
+| Review record API | Four requests, 120/minute, 35-second operation deadline and five-second upload | ETag conflicts return 409; failed polling can be resumed with Refresh |
+| Chat history API | Four requests, 60/minute, 35-second operation deadline | Conditional writes prevent silent overwrite; uncertain saves require checking history |
+| Specialist tools | Default four slots and 90-second deadline, including slot wait | Local timeout releases resources; remote work may still finish |
+
+All of these admission controls are process-local, not subscription-wide quotas
+or distributed locks. The Lab remains a one-worker/one-replica sample. Browser
+request deadlines, server deadlines, and remote execution are different boundaries;
+stopping one does not guarantee cancellation of the others.
+
 ## Operations
 
 ![Lab monitoring, private state access, and remaining credential boundaries](images/foundry-operations.svg)
@@ -52,11 +133,10 @@ These stores can contain sensitive data and require their own access and
 retention policies. Network identifiers and managed-identity client IDs are
 configuration, not credentials.
 
-Platform VM, Cosmos, Storage and Log Analytics ownership now uses credential-free
-ARM resources. The jumpbox password and obsolete service keys were rotated;
-the password is maintained through private Key Vault outside Terraform. Current
+Platform Cosmos, Storage and Log Analytics ownership now uses credential-free
+ARM resources. Obsolete service keys were rotated. Current
 Lab state uses keyless Cosmos and AzAPI Log Analytics reads. Private Terraform
-execution uses the existing jumpbox and Blob private endpoint. Historical state
+execution requires authorized connectivity to the Blob private endpoint. Historical state
 remains protected and must not be purged indiscriminately. See the
 [migration inventory](credential-migration.md).
 
@@ -64,17 +144,17 @@ remains protected and must not be purged indiscriminately. See the
 
 | Boundary | Current implementation | Publication requirement |
 | --- | --- | --- |
-| Browser to workbench | Internal environment, jumpbox subnet allowlist, same-origin request checks | Entra identity and owner-scoped history authorization before real user data |
+| Browser to workbench | Internal environment, approved source subnet allowlist, same-origin request checks | Entra identity and owner-scoped history authorization before real user data |
 | Workbench to Foundry/Cosmos | Managed identity, curated agents, container-scoped Cosmos role, periodic dependency checks | Approve data/backup retention before real data |
 | Client to APIM (optional) | Not deployed; configuration retained | Redeploy gateway and validate Entra issuer, audience, and authorized caller claims |
 | APIM to Foundry (optional) | Not deployed; target uses VNet integration and managed identity | Verify private DNS, backend path, managed-identity policy, request limits, and correlation IDs |
 | Coordinator to specialists | Named Foundry endpoints with managed identity; v2 passed both live delegation checks | Profile-based bindings require a new deployment and per-tool target checks |
-| Administration to private data plane | Private jumpbox and project-scoped deployment identity | Inventory before mutation; serialize deployment per agent |
+| Administration to private data plane | Authorized private connectivity and project-scoped deployment identity | Inventory before mutation; serialize deployment per agent |
 | Terraform to Azure | Keyless ARM ownership; distinct remote state keys with Entra authentication and locking | Preserve private backend connectivity and historical state retention |
 
 The workload and management networks may be in different regions. If APIM is
 redeployed, its integration subnet must be in APIM's region. The management VNet
-and peering remain in use by the private Lab and jumpbox without APIM.
+and peering remain in use for private access and builds without APIM.
 Outbound VNet integration does not make the public gateway private.
 
 ## Review request

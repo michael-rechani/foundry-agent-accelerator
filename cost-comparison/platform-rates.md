@@ -10,9 +10,8 @@ or measured bill. Both selected records identify a primary meter region.
 | Resource | Exact product / meter | USD/hour | Assumed hours | Estimated month | Rate effective |
 | --- | --- | ---: | ---: | ---: | --- |
 | One APIM Standard v2 unit | API Management / Standard v2 Unit | 0.9589 | 730 | $700.00 | 2024-03-01 |
-| One Windows B2s jumpbox | Virtual Machines BS Series Windows / B2s | 0.0576 | 730 | $42.05 | 2025-10-01 |
 
-The original example's combined capacity estimate is **$742.05/month**, before OS disk, NAT, public IP,
+The original example's APIM capacity estimate is **$700.00/month**, before operational compute, disk, NAT, public IP,
 private endpoints/DNS, transfer, project dependencies, hosted runtime, model
 tokens, tools, monitoring, operations labor, and applicable additional API calls.
 This is a partial planning baseline, not a minimum invoice or total platform cost.
@@ -28,9 +27,9 @@ entry excludes this workbench allocation to avoid double counting.
 The [deployed scenario](scenario.deployed.json) adds itemized coverage for the
 current private platform. It accepts quantities and rates, calculates their
 products, and prints its assumptions. Metadata does not perform live price lookups.
-Use actual calendar hours when evaluating a specific billing month. The VM
-estimate assumes no deallocation schedule, reservation, savings plan, or Azure
-Hybrid Benefit. Confirm its deployed SKU before using it as an actual forecast.
+Use actual calendar hours when evaluating a specific billing month. Operational
+allowances remain in the calculator for accounting completeness, not as required
+architecture components.
 
 ## Reproduce the selection
 
@@ -71,8 +70,7 @@ for comparison and is not the current deployment budget.
 | Key Vault operations | $0.03/10,000 | 10,000 operations |
 | Log Analytics ingestion | $2.76/billable GB | 10 GB beyond shared free allowance |
 
-Unlike the original example, the deployed budget assumes only 20 jumpbox running
-hours. Cosmos sustained maximum throughput on all six autoscale containers adds
+Cosmos sustained maximum throughput on all six autoscale containers adds
 $473.04/month. Cosmos storage and monitoring are each counted once across the
 platform and Lab; the separate hosted monitoring field is zero.
 
@@ -104,10 +102,7 @@ environment is not yet a stable representative month.
 
 - APIM is disabled; redeploy only when gateway testing is needed. Review its
   network requirements and current pricing before enabling it again.
-- Deallocating the jumpbox reduces VM compute charges but retains disk, NAT,
-  public IP, and other infrastructure costs. Schedule it only after accounting
-  for deployment tasks and management access.
 - Retained agent versions and the separate profile coordinator need an explicit
   retirement decision. No recovery versions were deleted in this cleanup pass.
-- The management VNet currently depends on `enable_jumpbox` and remains needed
-  for private administration and builds. Do not remove it as part of APIM cleanup.
+- Existing private networking remains needed for administration and builds.
+  Do not remove it as part of APIM cleanup.

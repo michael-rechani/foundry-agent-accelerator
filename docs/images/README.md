@@ -1,6 +1,6 @@
 # Architecture artwork
 
-The diagram uses unmodified Microsoft Azure service icons from the official
+The diagrams use unmodified Microsoft Azure service icons from the official
 [Azure Architecture Center icon set](https://learn.microsoft.com/azure/architecture/icons/),
 release V24. The selected SVGs in `azure-icons/` are copied unchanged from
 [Microsoft's distribution](https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip).
@@ -10,6 +10,44 @@ and documentation, and reserves other rights. Do not crop, recolor, distort,
 rotate, or repurpose product icons to represent custom applications. Product
 names accompany their icons; custom review agents use plain labeled shapes
 inside the Foundry Agent Service boundary.
+
+## Detailed draw.io diagrams
+
+The deeper architecture views are native, editable draw.io documents. Shapes,
+labels, boundaries, and connectors remain editable; these are not flattened
+screenshots imported into draw.io. Official icon bytes are embedded unchanged.
+
+| View | Editable source | GitHub-readable export |
+| --- | --- | --- |
+| Lab components and dependencies | [lab-components.drawio](lab-components.drawio) | [lab-components.svg](lab-components.svg) |
+| Chat request, delegation, and save | [lab-request-flow.drawio](lab-request-flow.drawio) | [lab-request-flow.svg](lab-request-flow.svg) |
+| Review persistence and recovery | [review-lifecycle.drawio](review-lifecycle.drawio) | [review-lifecycle.svg](review-lifecycle.svg) |
+
+Open a source in draw.io Desktop, or choose **File > Open from > Device** in
+[diagrams.net](https://app.diagrams.net/). Edit the source, then export with
+draw.io Desktop (verified with version 31.4.4):
+
+```powershell
+./docs/images/build-flow-diagrams.ps1 -DrawioPath "C:\Program Files\draw.io\draw.io.exe"
+```
+
+The script checks native XML references, embeds any `azure-icons/...` image
+references, and exports SVGs containing both the artwork and an editable diagram
+copy. It rejects external image dependencies. The standalone `.drawio` file is
+the source of truth; do not maintain a separate edited copy inside the SVG.
+Use `-PreviewDirectory <temporary-directory>` for PNG inspection copies, and
+`-Names lab-components` to rebuild one view. Commit sources and SVG exports
+together, not temporary previews or downloaded tools.
+
+The root README retains the compact platform overview. Detailed diagrams belong
+in the [architecture guide](../architecture.md) and
+[review workflow](../review-workflow.md), with full-size links for zooming on
+small screens. Blue denotes requests, green application persistence, and amber
+pending rollout or clarification. Product icons identify Microsoft services;
+plain shapes identify custom code. Keep deployed, local-only, and optional paths
+explicit rather than relying on color alone.
+
+## High-level overview artwork
 
 Edit the [runtime overview](foundry-overview.template.svg) or
 [operations diagram](foundry-operations.template.svg), then run:

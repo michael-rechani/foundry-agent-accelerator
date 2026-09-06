@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from history import CosmosHistory, history_router
+from review_runs import ReviewRuns
 
 
 ROOT = Path(__file__).resolve().parent
@@ -186,6 +187,7 @@ def create_app(settings=None, gateway=None, history_store=None):
     if settings.mode == "private" and cosmos_endpoint and history_store is None:
         history_store = CosmosHistory(cosmos_endpoint)
 
+    review_runs = ReviewRuns(settings, registry, history_store, gateway, execution_receipts, slots, recent)
     dependency_status = {"status": "disabled" if settings.mode == "preview" else "starting"}
 
     async def probe_dependencies():
@@ -226,6 +228,7 @@ def create_app(settings=None, gateway=None, history_store=None):
             if monitor is not None:
                 monitor.cancel()
                 await asyncio.gather(monitor, return_exceptions=True)
+            await review_runs.close()
             if history_store is not None:
                 await history_store.close()
 
@@ -268,7 +271,8 @@ def create_app(settings=None, gateway=None, history_store=None):
             "max_history_turns": MAX_HISTORY_TURNS,
             "review_timeout_ms": round(settings.timeout * 1000) + 10000,
             "history_timeout_ms": HISTORY_TIMEOUT_MS,
-            "history_enabled": history_store is not None, "history_scope": "shared", "retention_days": 30}
+            "history_enabled": history_store is not None, "history_scope": "shared", "retention_days": 30,
+            "reviews_enabled": settings.mode == "private" and history_store is not None}
 
     @application.post("/api/reviews")
     async def review(request: Request):
@@ -349,5 +353,6 @@ def create_app(settings=None, gateway=None, history_store=None):
             return error(502, "backend_unavailable")
 
     application.include_router(history_router(settings, registry, history_store))
+    application.include_router(review_runs.router)
     application.mount("/", StaticFiles(directory=ROOT / "static", html=True, check_dir=False), name="static")
     return application

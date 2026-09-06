@@ -13,11 +13,15 @@ These integrations can be added without replacing the Lab or its agent delegatio
 | APIM | Removed from Azure; active publisher settings removed. `enable_api_management` defaults to `false`; `review_api` defaults to `null`. | [Gateway Terraform](../terraform/apim.tf), [input definitions](../terraform/variables.tf), and [publication runbook](apim-review-api.md) |
 | AI Search | Still deployed and connected to the Foundry project through the Agent Service BYOR configuration. Not attached as a retrieval tool to the current review agents. | [Foundry Terraform](../terraform/main.tf): `ai_search_definition` and `ai_projects.primary.ai_search_connection` |
 
-Search is not independently optional in the current platform configuration:
+The Search retrieval tool is optional; the backing Search service is not optional
+for this secured standard/BYO Foundry setup. Microsoft's
+[private networking requirements](https://learn.microsoft.com/azure/foundry/agents/how-to/virtual-networks)
+require Search, Storage, and Cosmos connections. Terraform supplies Search through
+the project's capability host `vectorStoreConnections`.
 `enable_agent_service` controls its creation alongside other Agent Service
 dependencies. Do not disable Agent Service or remove its Search definition just
-to stop retrieval usage. That can plan deletion of platform resources. No Search
-service, indexes, connections, or data were removed by this configuration cleanup.
+because an agent does not query it. No Search service, indexes, connections, or
+data were removed by the APIM cleanup.
 
 ## Add an APIM gateway
 
@@ -56,10 +60,14 @@ service, indexes, connections, or data were removed by this configuration cleanu
    and prompt injection in retrieved content. Benchmark capacity before changing
    replicas or tier; update the [deployed budget](../cost-comparison/scenario.deployed.json).
 
-Removing or independently toggling the platform Search service is a separate
-change: verify managed-service requirements, preserve any index data, decouple its
-Terraform ownership and project connection, and review the destruction plan before
-applying. The current budget continues to include Search capacity.
+Cost optimization should size the existing Search service, not remove a required
+connection. The AVM default is S1 with two replicas and one partition, not evidence
+of measured workload demand. Validate usage, feature limits and regional tier-change
+eligibility before reducing capacity. One replica loses the query availability SLA;
+two support query availability, while three are needed for query/indexing SLA
+coverage. See [Search capacity planning](https://learn.microsoft.com/azure/search/search-capacity-planning).
+Changing the Foundry backing-resource architecture is a separate migration, not a
+routine Search deletion. The deployed budget continues to include Search capacity.
 
 Use [Microsoft's APIM tier comparison](https://learn.microsoft.com/azure/api-management/api-management-features)
 and [Azure AI Search documentation](https://learn.microsoft.com/azure/search/)

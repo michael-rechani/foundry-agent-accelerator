@@ -22,6 +22,7 @@ export type Config = {
   review_timeout_ms: number
   history_timeout_ms: number
   history_enabled: boolean
+  reviews_enabled?: boolean
   retention_days: number
 }
 
@@ -35,6 +36,8 @@ function parseConfig(value: unknown): Config {
     !config.title.trim() ||
     !['preview', 'private'].includes(config.mode) ||
     typeof config.history_enabled !== 'boolean' ||
+    (config.reviews_enabled !== undefined &&
+      typeof config.reviews_enabled !== 'boolean') ||
     ![
       config.max_characters,
       config.max_request_bytes,

@@ -63,7 +63,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Inspect durable build command in $group before cleanup" }
     $finished = $result.executionState -in @('Succeeded', 'Failed', 'TimedOut', 'Canceled')
     if (-not $finished) { throw "Build still active or unknown; inspect durable command in $group" }
-    if ($result.exitCode -ne 0 -or $result.output -notmatch 'PRIVATE_BUILD_PUSH_AND_PULL_VERIFIED=True') { throw "Private build failed in $group; $($result.error)" }
+    if ($result.exitCode -ne 0 -or $result.output -notmatch 'PRIVATE_BUILD_PUSH_AND_PULL_VERIFIED=True') { throw "Private build failed in $group; exit=$($result.exitCode); $($result.output); $($result.error)" }
     $result.output
 } finally {
     if (-not $commandSubmitted -or $finished) {

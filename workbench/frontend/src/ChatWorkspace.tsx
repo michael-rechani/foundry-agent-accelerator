@@ -36,13 +36,14 @@ import { requestJson } from './request'
 import { WaitingIndicator } from './WaitingIndicator'
 import { useWorkspaceConfig } from './workspace-config'
 import { ContinueDialog } from './ContinueDialog'
+import { ReviewWorkspace } from './ReviewWorkspace'
 type Measurement = {
   id: string
   agent: string
   outcome: 'completed' | 'failed' | 'stopped' | 'timed-out'
   duration: number
 }
-type View = 'chat' | 'catalog' | 'performance' | 'history'
+type View = 'chat' | 'catalog' | 'performance' | 'history' | 'reviews'
 type SavedChat = {
   id: string
   title: string
@@ -75,7 +76,8 @@ export default function ChatWorkspace() {
   } = useWorkspaceConfig()
   const [selectedId, setSelected] = useState('')
   const selected = selectedId || config?.default_agent || ''
-  const [view, setView] = useState<View>('chat')
+  const [selectedView, setView] = useState<View | null>(null)
+  const view = selectedView ?? (config?.reviews_enabled !== undefined ? 'reviews' : 'chat')
   const [draft, setDraft] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
   const [pending, setPending] = useState('')
@@ -409,7 +411,7 @@ export default function ChatWorkspace() {
     <div className="chat-app">
       <aside className="chat-sidebar">
         <div className="chat-brand">
-          <Layers3 size={26} />
+          <span className="brand-mark" aria-hidden="true"><Layers3 size={23} /></span>
           <span>{config?.title || 'AI Foundry Lab'}</span>
         </div>
         <button
@@ -422,6 +424,14 @@ export default function ChatWorkspace() {
           <span>New chat</span>
         </button>
         <nav aria-label="Workspace">
+          <button
+            aria-current={view === 'reviews' ? 'page' : undefined}
+            onClick={() => setView('reviews')}
+            title="Reviews"
+          >
+            <FileCheck2 size={18} />
+            <span>Reviews</span>
+          </button>
           <button
             disabled={!config?.history_enabled || historyBusy}
             aria-current={view === 'history' ? 'page' : undefined}
@@ -483,13 +493,15 @@ export default function ChatWorkspace() {
       <div className="chat-workspace">
         <header className="chat-topbar">
           <div className="view-title">
-            {view === 'chat'
-              ? 'Conversation'
-              : view === 'catalog'
-                ? 'Agent catalog'
-                : view === 'history'
-                  ? 'Shared history'
-                  : 'Performance'}
+            {view === 'reviews'
+              ? 'Reviews'
+              : view === 'chat'
+                ? 'Conversation'
+                : view === 'catalog'
+                  ? 'Agent catalog'
+                  : view === 'history'
+                    ? 'Shared history'
+                    : 'Performance'}
             <span>/</span>
             <span>Workspace</span>
           </div>
@@ -505,6 +517,7 @@ export default function ChatWorkspace() {
               title="Save to shared history"
               aria-label="Save to shared history"
               disabled={
+                view === 'reviews' ||
                 !config?.history_enabled ||
                 !turns.length ||
                 busy ||
@@ -523,7 +536,7 @@ export default function ChatWorkspace() {
               className="chat-icon"
               title="Export conversation"
               aria-label="Export conversation"
-              disabled={!turns.length && !draft}
+              disabled={view === 'reviews' || (!turns.length && !draft)}
               onClick={download}
             >
               <ArrowDownToLine size={17} />
@@ -550,7 +563,10 @@ export default function ChatWorkspace() {
           </div>
         )}
 
-        {view === 'history' ? (
+        {config && (
+          <ReviewWorkspace config={config} active={view === 'reviews'} />
+        )}
+        {view === 'reviews' ? null : view === 'history' ? (
           <main className="secondary-view">
             <div className="section-heading">
               <span className="micro-label">

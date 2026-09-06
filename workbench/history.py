@@ -62,7 +62,16 @@ class CosmosHistory:
 
     async def list(self, agents, cursor):
         query = self.container.query_items(
-            query="SELECT c.id, c.title, c.agent_id, c.updated_at FROM c WHERE ARRAY_CONTAINS(@agents, c.agent_id) ORDER BY c.updated_at DESC",
+            query="SELECT c.id, c.title, c.agent_id, c.updated_at FROM c WHERE NOT IS_DEFINED(c.kind) AND ARRAY_CONTAINS(@agents, c.agent_id) ORDER BY c.updated_at DESC",
+            parameters=[{"name": "@agents", "value": list(agents)}], partition_key="shared", max_item_count=20)
+        pages = query.by_page(continuation_token=cursor)
+        page = await anext(pages, None)
+        items = [item async for item in page] if page is not None else []
+        return {"items": items, "cursor": pages.continuation_token}
+
+    async def list_reviews(self, agents, cursor):
+        query = self.container.query_items(
+            query="SELECT c.id, c.title, c.agent_id, c.updated_at, c.status FROM c WHERE c.kind = 'review' AND ARRAY_CONTAINS(@agents, c.agent_id) ORDER BY c.updated_at DESC",
             parameters=[{"name": "@agents", "value": list(agents)}], partition_key="shared", max_item_count=20)
         pages = query.by_page(continuation_token=cursor)
         page = await anext(pages, None)

@@ -5,11 +5,18 @@
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](hosted-agents/README.md)
 [![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-hosted_agents-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
 
-Deploy a practical Microsoft Foundry baseline, publish a Responses-protocol
-review coordinator and specialist agents, and compare hosted-runtime costs
-with self-managed agents on Azure virtual machines. Private networking and
-managed identities form the baseline; an optional APIM gateway provides the
-infrastructure for a governed client entry point.
+Deploy a practical Microsoft Foundry foundation, publish an agent or agentic
+solution, and try it through a usable application before deciding what to build
+next. Private networking, managed identities, deployment scripts, and a sample UI
+provide reusable starting points. Review coordinators and specialists are reference
+implementations, not a requirement for every solution.
+
+Use Foundry's native agent development, evaluation, and tracing capabilities rather
+than rebuilding its portal here. The Lab supplies application access and example
+workflows; it is not a general-purpose evaluation engine or agent designer. The
+separate cost calculator compares hosted-runtime assumptions with self-managed
+agents on Azure virtual machines. Optional APIM configuration is retained for
+future governed entry points.
 
 The [AI Foundry Lab](workbench/README.md) provides a chat-first
 React UI, curated agent catalog, session performance metrics, and explicitly
@@ -34,6 +41,11 @@ remaining provider-held state copies; Key-Vault-only storage is not yet achieved
 ![Deployed AI Foundry Lab: private browser access, managed-identity review agents, and shared Cosmos history](docs/images/foundry-overview.svg)
 
 [Full-size overview](docs/images/foundry-overview.svg) · [Operations and security](docs/images/foundry-operations.svg)
+
+For a deeper view, see the [component map and request sequence](docs/architecture.md#component-interactions)
+and [persisted review lifecycle](docs/review-workflow.md#execution-and-persistence).
+These include editable draw.io sources with official Microsoft Azure icons;
+the overview here stays focused on the platform as a whole.
 
 Arrows show the deployed Lab request and history paths. APIM is disabled to avoid
 idle gateway charges; its optional configuration is retained. Hardened coordinator
@@ -124,8 +136,8 @@ private state endpoint to make a workstation deployment succeed.
 
 ### 2. Publish a sample agent
 
-Foundry data-plane endpoints are private. Run deployment from the jumpbox or
-another machine with private DNS and network access, not an unconnected local
+Foundry data-plane endpoints are private. Run deployment from an authorized
+execution environment with private DNS and network access, not an unconnected local
 shell. Use the [private deployment runbook](docs/private-deployment.md) and
 [hosted-agent guide](hosted-agents/README.md).
 

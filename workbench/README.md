@@ -1,21 +1,32 @@
 # AI Foundry Lab
 
-Private React/TypeScript chat UI with a FastAPI backend and Cosmos saved conversations.
+Private React/TypeScript review workspace and chat UI with a FastAPI backend and
+Cosmos persistence.
+
+The frontend uses React 19, TypeScript, Vite, Lucide icons, and custom
+Fluent-inspired CSS, not the Fluent UI component library. Neutral surfaces and
+blue actions are shared across Reviews, Chat, history, catalog, and performance.
+Playwright covers desktop and mobile workflows. The Python backend uses FastAPI,
+Pydantic validation, and async Azure SDKs for Foundry and Cosmos DB.
 
 The visible name is **AI Foundry Lab**. The `workbench/` source directory, Azure
 resource names and private hostname are unchanged.
 
 ## Access
 
-Live URL, from the jumpbox browser only:
+Live URL, from an authorized private-network browser:
 
 https://foundry-workbench.icyplant-54a7139a.northcentralus.azurecontainerapps.io
 
 Local visual preview: http://127.0.0.1:8080. Preview disables agent calls and Cosmos access.
 
-The Container Apps environment has an internal load balancer and public network access disabled. App-level external ingress means access from outside the *environment*, within the private network; ingress is further restricted to the jumpbox subnet. APIM is not involved and no agent APIs are published by this application.
+The Container Apps environment has an internal load balancer and public network access disabled. App-level external ingress means access from outside the *environment*, within the private network; ingress is further restricted to an approved source subnet. APIM is not involved and no agent APIs are published by this application.
 
 ## Conversations
+
+The review workspace is implemented locally; Azure rollout is still pending.
+See [review workflow](../docs/review-workflow.md) for the implementation boundaries
+and deployment checks. Existing chat remains available independently.
 
 - Customer review is the only directly available agent by default. Its specialist bindings still work. Configure `visible_agents` in Terraform or `WORKBENCH_VISIBLE_AGENTS` locally to change the catalog; hidden agents cannot be invoked directly through the workbench API.
 - Send a message, then use the Save icon to save completed exchanges. Saving is explicit, not automatic. Unsaved drafts remain only in browser memory. Export includes completed exchanges and the current draft. Browser navigation warns about unsaved work where supported; it cannot prevent data loss from a browser crash or forced close.
@@ -59,7 +70,10 @@ because configuration is not available yet.
 
 The existing provisioned-throughput account `aifnd-agent-foundry-cosmosdb-7omvd` contains a dedicated `workbench/conversations` container. Foundry's `enterprise_memory` database is unchanged. The workbench identity has Cosmos Data Contributor scoped to this container only. It uses the existing private Cosmos endpoint and no account keys.
 
-The container has 400 RU/s dedicated throughput, 30-day TTL, and indexes only agent ID and update time. Transcript bodies are not indexed. Lists are paged in batches of 20 and point reads load a selected transcript.
+The container has 400 RU/s dedicated throughput and 30-day TTL. Review support
+adds a record-type index alongside agent ID and update time; apply this additive
+index before deploying the review-enabled image. Transcript and evidence bodies
+are not indexed. Lists are paged in batches of 20 and point reads load a selected record.
 
 Public retail rate retrieved 2026-09-05 UTC from the Azure Retail Prices API: North Central US, Azure Cosmos DB, RUs, `100 RU/s`, USD 0.008/hour. At 730 hours, `4 * 0.008 * 730 = USD 23.36/month` for this container's throughput. This is incremental baseline capacity, not usage-based serverless pricing. It excludes storage, backups, discounts, taxes, model tokens, Container Apps, registry/builds, and existing network resources. It is not the total workbench bill.
 
@@ -100,7 +114,7 @@ The deployed Lab state migration preserved its lineage and all 15 then-managed
 resource IDs. The unused key-returning Cosmos account data source was removed
 with no Azure resource changes. The keyless AzAPI Log Analytics ownership transfer
 is also complete, with an empty follow-up plan. Execute Terraform through the
-existing jumpbox's approved private path. Other existing installations must follow
+approved private-network path. Other existing installations must follow
 the [transfer gates](../docs/credential-migration.md#lab-workspace-transfer) and use
 `-var=import_existing_log_workspace=true` once; this deployed environment no longer
 needs that opt-in.
@@ -163,7 +177,7 @@ configuration. Generate a fresh reviewed plan for a retry.
 
 Private runtime settings are managed by Terraform: `WORKBENCH_MODE`, `WORKBENCH_VISIBLE_AGENTS`, `WORKBENCH_DEFAULT_AGENT`, `WORKBENCH_TITLE`, exact host/origin allowlists, Foundry project endpoint, Cosmos endpoint and managed-identity client ID. Cosmos data-plane resources are provisioned by Terraform, never created by the runtime.
 
-Run `test-private.ps1` on the jumpbox to verify real agent invocation and Cosmos create/read/conditional-update/delete. It creates only a synthetic test conversation and deletes it afterward. The deployed private API and Cosmos round trip passed this test on 2026-09-05 UTC. Browser save/reopen/follow-up behavior was separately checked with test responses at desktop/mobile sizes.
+Run `test-private.ps1` from an approved private-network execution environment to verify real agent invocation and Cosmos create/read/conditional-update/delete. It creates only a synthetic test conversation and deletes it afterward. The deployed private API and Cosmos round trip passed this test on 2026-09-05 UTC. Browser save/reopen/follow-up behavior was separately checked with test responses at desktop/mobile sizes.
 
 ## Diagnostics and Caching
 

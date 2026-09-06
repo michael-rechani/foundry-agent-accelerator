@@ -33,6 +33,7 @@ resource "azurerm_cosmosdb_sql_container" "history" {
     indexing_mode = "consistent"
     included_path { path = "/agent_id/?" }
     included_path { path = "/updated_at/?" }
+    included_path { path = "/kind/?" }
     excluded_path { path = "/*" }
   }
 }

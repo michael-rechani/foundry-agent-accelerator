@@ -3,6 +3,8 @@
 !requirements.txt
 !app.py
 !history.py
+!reviews.py
+!review_runs.py
 !agents.json
 !frontend/
 !frontend/**

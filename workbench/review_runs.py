@@ -1,0 +1,191 @@
+import asyncio
+import json
+import logging
+import re
+import time
+from collections import deque
+from copy import deepcopy
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from azure.cosmos.exceptions import CosmosHttpResponseError
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
+
+from reviews import Evidence, ReviewInput, review_prompt, validate_result
+
+LOGGER = logging.getLogger("uvicorn.error")
+
+def timestamp():
+    return datetime.now(timezone.utc).isoformat()
+
+
+class ReviewRuns:
+    def __init__(self, settings, registry, store, gateway, receipts, slots, recent):
+        self.settings, self.registry, self.store = settings, registry, store
+        self.gateway, self.receipts, self.slots, self.recent = gateway, receipts, slots, recent
+        self.tasks = {}
+        self.router = APIRouter()
+        self.router.add_api_route("/api/review-runs", self.handle, methods=["GET", "POST"])
+        self.router.add_api_route("/api/review-runs/{identifier}", self.handle, methods=["GET"])
+        self.router.add_api_route("/api/review-runs/{identifier}/{action}", self.handle, methods=["POST"])
+        self.requests = deque()
+        self.read_slots = asyncio.Semaphore(4)
+
+    async def close(self):
+        tasks = list(self.tasks.values())
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def storage(self, operation):
+        async with asyncio.timeout(25):
+            return await operation
+
+    def public_status(self, document):
+        if document["status"] == "running" and document["id"] not in self.tasks:
+            return "interrupted"
+        return document["status"]
+
+    def public(self, document):
+        result = {key: deepcopy(document[key]) for key in (
+            "id", "title", "agent_id", "criteria", "evidence", "status", "runs", "updated_at", "_etag")}
+        result["status"] = self.public_status(document)
+        return result
+
+    async def handle(self, request: Request, identifier: str | None = None, action: str | None = None):
+        def error(status, code):
+            request.state.error_code = code
+            return JSONResponse({"error": code}, status_code=status,
+                                headers={"Retry-After": "60"} if status == 429 else None)
+
+        if (request.headers.get("x-workbench-request") != "1"
+                or request.headers.get("sec-fetch-site") == "cross-site"
+                or request.headers.get("origin") not in (None, *self.settings.origins)):
+            return error(403, "request_not_allowed")
+        if self.settings.mode == "preview" or self.store is None:
+            return error(503, "reviews_disabled")
+        if identifier and not re.fullmatch(r"review-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", identifier):
+            return error(400, "invalid_review")
+        if action not in {None, "execute", "evidence"}:
+            return error(404, "not_found")
+        now = time.monotonic()
+        while self.requests and self.requests[0] <= now - 60:
+            self.requests.popleft()
+        if len(self.requests) >= 120 or self.read_slots.locked():
+            return error(429, "reviews_busy")
+        self.requests.append(now)
+        try:
+            async with self.read_slots, asyncio.timeout(35):
+                if request.method == "GET" and not identifier:
+                    cursor = request.query_params.get("cursor")
+                    if cursor and len(cursor) > 8192:
+                        return error(400, "invalid_cursor")
+                    page = await self.store.list_reviews(self.registry, cursor)
+                    return {**page, "items": [{**item, "status": self.public_status(item)} for item in page["items"]]}
+                document = await self.store.get(identifier) if identifier else None
+                if document and (document.get("kind") != "review" or document["agent_id"] not in self.registry):
+                    return error(404, "not_found")
+                if request.method == "GET":
+                    return self.public(document)
+                if document and request.headers.get("if-match") != document["_etag"]:
+                    return error(409, "review_changed")
+                if action == "execute":
+                    if document["status"] != "draft" or len(document["runs"]) >= 4:
+                        return error(409, "review_not_runnable")
+                    while self.recent and self.recent[0] <= now - 60:
+                        self.recent.popleft()
+                    if self.slots.locked() or len(self.recent) >= 20:
+                        return error(429, "busy")
+                    self.recent.append(now)
+                    await self.slots.acquire()
+                    try:
+                        document["status"] = "running"
+                        document["updated_at"] = timestamp()
+                        document["runs"].append({"id": str(uuid4()), "started_at": timestamp(),
+                                                 "events": [{"name": "review_started", "at": timestamp()}],
+                                                 "input": {key: document[key] for key in ("title", "agent_id", "criteria", "evidence")}})
+                        saved = await self.store.replace(document, document["_etag"])
+                        task = asyncio.create_task(self.execute(saved))
+                        self.tasks[identifier] = task
+                    except BaseException:
+                        self.slots.release()
+                        raise
+                    return JSONResponse(self.public(saved), status_code=202)
+                if request.headers.get("content-type", "").split(";")[0] != "application/json":
+                    return error(415, "json_required")
+                body = bytearray()
+                async with asyncio.timeout(5):
+                    async for chunk in request.stream():
+                        body.extend(chunk)
+                        if len(body) > 65536:
+                            return error(413, "request_too_large")
+                if action == "evidence":
+                    if document["status"] != "waiting_input" or len(document["runs"]) >= 4:
+                        return error(409, "review_not_waiting")
+                    source = Evidence.model_validate_json(body)
+                    review = ReviewInput.model_validate({key: document[key] for key in ("title", "agent_id", "criteria", "evidence")})
+                    review = ReviewInput.model_validate({**review.model_dump(), "evidence": [*review.model_dump()["evidence"], source.model_dump()]})
+                    document.update(evidence=review.model_dump()["evidence"], status="draft", updated_at=timestamp())
+                    return self.public(await self.store.replace(document, document["_etag"]))
+                review = ReviewInput.model_validate_json(body)
+                if review.agent_id not in self.registry:
+                    return error(400, "invalid_agent")
+                document = {**review.model_dump(), "id": "review-" + str(uuid4()), "kind": "review",
+                            "workspace": "shared", "status": "draft", "runs": [], "updated_at": timestamp(), "ttl": 2592000}
+                return JSONResponse(self.public(await self.store.create(document)), status_code=201)
+        except (ValidationError, ValueError):
+            return error(400, "invalid_review")
+        except CosmosHttpResponseError as problem:
+            return error(404 if problem.status_code == 404 else 409 if problem.status_code == 412 else 503,
+                         "not_found" if problem.status_code == 404 else "review_changed" if problem.status_code == 412 else "reviews_unavailable")
+        except TimeoutError:
+            return error(504, "reviews_timeout")
+        except Exception:
+            return error(503, "reviews_unavailable")
+
+    async def execute(self, document):
+        started = time.monotonic()
+        run = document["runs"][-1]
+        agent = self.registry[document["agent_id"]]
+        try:
+            review = ReviewInput.model_validate(run["input"])
+            async with asyncio.timeout(self.settings.timeout):
+                status, text, output = await self.gateway.review(agent, review_prompt(review))
+            if status != "completed" or not isinstance(text, str) or len(text.encode("utf-8")) > 100000 or len(json.dumps(output).encode()) > 524288:
+                raise ValueError("Invalid response")
+            receipts = self.receipts(output, agent["tools"])
+            if len(receipts) > 32 or (agent["tools"] and (not receipts or any(not receipt["verified"] for receipt in receipts))):
+                raise ValueError("Missing verified specialist execution")
+            run["receipts"] = [{key: receipt[key] for key in ("tool", "call_id", "agent", "verified")} for receipt in receipts]
+            if receipts:
+                run["events"].append({"name": "specialist_receipts_checked", "at": timestamp()})
+            run["result"] = validate_result(text, review)
+            run["events"].append({"name": "citations_checked", "at": timestamp()})
+            document["status"] = "waiting_input" if run["result"]["questions"] else "completed"
+        except asyncio.CancelledError:
+            document["status"] = "interrupted"
+            run["error"] = "execution_interrupted"
+        except TimeoutError:
+            document["status"] = "failed"
+            run["error"] = "agent_timeout"
+        except (ValueError, ValidationError):
+            document["status"] = "failed"
+            run["error"] = "invalid_agent_result"
+        except Exception:
+            document["status"] = "failed"
+            run["error"] = "agent_unavailable"
+        finally:
+            run["elapsed_ms"] = round((time.monotonic() - started) * 1000)
+            run["events"].append({"name": document["status"], "at": timestamp()})
+            document["updated_at"] = timestamp()
+            try:
+                await self.storage(self.store.replace(document, document["_etag"]))
+            except Exception:
+                LOGGER.warning(json.dumps({"event": "review_persistence_failed", "review_id": document["id"]}))
+            finally:
+                LOGGER.info(json.dumps({"event": "review_execution", "review_id": document["id"],
+                                        "status": document["status"], "elapsed_ms": run["elapsed_ms"]}))
+                self.tasks.pop(document["id"], None)
+                self.slots.release()

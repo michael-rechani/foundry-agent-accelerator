@@ -3,14 +3,14 @@
 [Overview](../README.md) / Private deployment
 
 Use this runbook for a reviewed hosted-agent update. It does not deploy APIM or
-rotate credentials. Start from a machine with Foundry private DNS and routing,
-such as the Windows jumpbox. Azure CLI connectivity to ARM alone is insufficient.
+rotate credentials. Use an approved execution environment with Foundry private
+DNS and routing. Azure CLI connectivity to ARM alone is insufficient.
 
 ## Preconditions
 
 - Confirm the subscription, tenant, project endpoint, intended agent, and change.
 - The deploying identity needs Foundry Project Manager at project scope.
-- Use managed identity on the jumpbox; never transfer passwords or bearer tokens.
+- Use an authorized managed identity; never transfer passwords or bearer tokens.
 - Transfer only reviewed source files, not Terraform state, plans, variable
   files, environment files, caches, or the complete working directory.
 - Run one deployment per agent at a time. Confirm any earlier scheduled
@@ -32,18 +32,15 @@ hosted-agents/
     requirements-deploy.txt
 ```
 
-Use an approved private runner artifact channel. For manual administration,
-Azure VM Run Command can stage a small encoded archive; pass PowerShell scripts
-using Azure CLI `--scripts @path-to-script.ps1` rather than nested inline
-here-strings. Check both stdout and stderr and verify the extracted archive's
-SHA-256 against the local artifact. Never put credential values in the script.
-Run Command uses a privileged VM context; restrict access to operators.
+Use an approved private runner artifact channel. Verify the extracted archive's
+SHA-256 against the local artifact and restrict execution access to operators.
+Never put credential values in scripts or transferred artifacts.
 
 For a profile-based deployment, also stage the selected non-secret profile and
 follow the [swap lifecycle](agent-profiles.md). Profile validation is offline;
 successful validation does not establish that its specialists exist or are healthy.
 
-A remote scheduled task can outlive the Run Command invocation. Record its name,
+Remote execution can outlive the initiating client connection. Record its task name,
 exit code, and restricted log location; a successful task-start message is not
 a successful agent deployment. Do not start a second task merely because a
 status-read request failed.
@@ -64,8 +61,8 @@ $env:FOUNDRY_MODEL_NAME = '<verified-model-deployment-name>'
 
 Retrieve the two non-secret values with Terraform's `foundry_project_endpoint`
 and `model_deployment_name` outputs on the administrative machine. The runner
-does not need a copy of Terraform state. For a newly installed Python on the
-jumpbox, use its full executable path if the current process has a stale PATH.
+does not need a copy of Terraform state. Use Python's full executable path if
+the current process has a stale PATH after installation.
 
 ## Inventory before mutation
 

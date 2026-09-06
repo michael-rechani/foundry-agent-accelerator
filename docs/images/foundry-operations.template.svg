@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="700" viewBox="0 0 960 700" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
   <title id="title">AI Foundry Lab operations and security</title>
-  <desc id="desc">The internal Lab sends metadata to private Log Analytics and performs bounded dependency probes. Alerts are portal-only. The jumpbox Terraform runner reaches separate platform and Lab state keys through a Blob private endpoint. State storage is private and uses Entra and locking. Necessary secrets belong in Key Vault; Terraform uses keyless owners and obsolete credentials were rotated. ACR and Log Analytics public access is disabled.</desc>
+  <desc id="desc">The internal Lab sends metadata to private Log Analytics and performs bounded dependency probes. Alerts are portal-only. Terraform accesses separate platform and Lab state keys through a Blob private endpoint. State storage is private and uses Entra and locking. Necessary secrets belong in Key Vault; Terraform uses keyless owners and obsolete service keys were rotated. ACR and Log Analytics public access is disabled.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0078d4"/></marker>
     <style>
@@ -30,10 +30,9 @@
   <text x="542" y="251" class="small">Portal alerts; notification recipient pending</text>
 
   <rect x="24" y="338" width="302" height="153" class="box"/>
-  <image href="azure-icons/virtual-machine.svg" x="44" y="354" width="34" height="34"/>
-  <text x="92" y="378" class="heading">Jumpbox Terraform</text>
+  <text x="44" y="378" class="heading">Terraform deployment</text>
   <text x="44" y="417" class="body">Managed identity</text>
-  <text x="44" y="452" class="small">Private DNS + peered VNets</text>
+  <text x="44" y="452" class="small">Authorized private access</text>
   <path d="M326 409H510" class="flow"/>
   <text x="345" y="382" class="small">Blob private endpoint</text>
   <rect x="520" y="338" width="416" height="153" class="service"/>
@@ -45,7 +44,7 @@
   <path d="M24 526H936" stroke="#b4b4b4"/>
   <image href="azure-icons/key-vault.svg" x="28" y="548" width="40" height="40"/>
   <text x="88" y="570" class="heading">Key Vault for necessary secrets; prefer managed identity</text>
-  <text x="88" y="603" class="body">Keyless Terraform owners; obsolete passwords and keys rotated.</text>
+  <text x="88" y="603" class="body">Keyless Terraform owners; obsolete service keys rotated.</text>
   <text x="24" y="650" class="small">Premium ACR and Log Analytics use private access; admin/local key authentication is disabled.</text>
   <text x="24" y="679" class="small">Lab resource reads are keyless. Preserve historical state and backups under retention policy.</text>
 </svg>

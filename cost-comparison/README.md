@@ -41,7 +41,7 @@ not been sized. ActualCost reconciliation remains blocked by HTTP 429.
 | Storage | Managed disks | Persistent session storage |
 | Operations | Configurable labor estimate for patching and platform care | Managed runtime; no labor value is assumed by the calculator |
 | AI consumption | Included in GPU compute; optional external AI charges | Foundry model tokens and optional external AI charges |
-| Additional platform | Architecture-specific dependencies beyond VM assumptions | APIM, jumpbox, networking, project dependencies, and platform operations |
+| Additional platform | Architecture-specific dependencies beyond VM assumptions | APIM, networking, project dependencies, and platform operations |
 
 The example retains Linux pay-as-you-go retail rates for East US 2 GPU classes:
 NVIDIA T4, A10, and A100. Rates are snapshots, not quotes. These GPU classes

@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 $stage = Join-Path ([IO.Path]::GetTempPath()) ("workbench-build-" + [guid]::NewGuid().ToString("N"))
 try {
     New-Item -ItemType Directory -Path (Join-Path $stage "frontend") -Force | Out-Null
-    foreach ($name in @("Dockerfile", ".dockerignore", "requirements.txt", "app.py", "history.py", "agents.json")) {
+    foreach ($name in @("Dockerfile", ".dockerignore", "requirements.txt", "app.py", "history.py", "reviews.py", "review_runs.py", "agents.json")) {
         Copy-Item (Join-Path $PSScriptRoot $name) $stage
     }
     foreach ($pattern in @("package.json", "package-lock.json", "index.html", "tsconfig*.json", "vite.config.ts")) {
