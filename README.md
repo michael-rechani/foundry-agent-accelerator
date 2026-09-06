@@ -25,12 +25,12 @@ Container Apps environment and does not require APIM publication.
 
 The Lab has bounded API admission and deadlines, periodic dependency checks,
 retained operational logs, and an isolated Entra-authenticated remote state key.
-It remains a synthetic-data workspace with shared history and no end-user login.
+It is intended for example data, with shared history and no end-user login.
 Secrets must use Key Vault or be eliminated through managed identity. The
-[secret inventory and migration gates](docs/credential-migration.md) identify
-remaining provider-held state copies; Key-Vault-only storage is not yet achieved.
+[credential handling guide](docs/credential-migration.md) explains secret ownership,
+keyless resource reads, and protection of Terraform state and backups.
 
-[Architecture](#architecture) · [Status](docs/status.md) · [Deploy](#quick-start) · [Review walkthrough](hosted-agents/review-coordinator-agent/README.md) · [Cost model](cost-comparison/README.md)
+[Architecture](#architecture) · [Deploy](#quick-start) · [Review walkthrough](hosted-agents/review-coordinator-agent/README.md) · [Cost model](cost-comparison/README.md)
 
 | Build | Ship | Measure |
 | --- | --- | --- |
@@ -47,19 +47,20 @@ and [persisted review lifecycle](docs/review-workflow.md#execution-and-persisten
 These include editable draw.io sources with official Microsoft Azure icons;
 the overview here stays focused on the platform as a whole.
 
-Arrows show the deployed Lab request and history paths. APIM is disabled to avoid
-idle gateway charges; its optional configuration is retained. Hardened coordinator
-v2 passed both live delegation checks; a separate profile-configured coordinator
-also passed both target-specific checks. The [APIM API configuration](docs/apim-review-api.md)
-is locally validated but awaits approved caller settings and live publication.
+For extension decisions and new customer examples, use the
+[Foundry extension guide](docs/architecture-assessment.md): ownership boundaries,
+native capabilities, and a checklist for adding agents.
+
+Arrows show the Lab request and history paths. APIM is optional and disabled by
+default. Use the [APIM API guide](docs/apim-review-api.md) when a governed gateway
+is required, including caller authorization and private backend verification.
 
 See [optional integrations](docs/optional-integrations.md) for restoring APIM or
 adding Search-backed retrieval. Both Terraform implementations are retained;
 Search remains a connected Foundry platform dependency, not a current agent tool.
 
-See [operations, request flow and trust boundaries](docs/architecture.md) for the target
-authentication and failure paths, and the dated [delivery status](docs/status.md)
-for verified results and remaining gates. This README is not a live health check.
+See [operations, request flow and trust boundaries](docs/architecture.md) for
+authentication, data ownership, and failure behavior.
 
 > [!IMPORTANT]
 > This sample creates billable Azure resources. Review the saved Terraform
@@ -114,8 +115,9 @@ that container. See [Terraform prerequisites and state guidance](terraform/READM
 
 ### 1. Configure the deployment
 
-Create or review the ignored [terraform/terraform.tfvars](terraform/terraform.tfvars)
-file. For a new environment, the following is a minimal starting point; replace
+Create or review a local variable file named `terraform.tfvars` in the
+[Terraform directory](terraform/README.md). This file is ignored by Git.
+For a new environment, the following is a minimal starting point; replace
 the subscription placeholder and choose names and a supported region for your
 environment:
 
@@ -135,8 +137,9 @@ variable files and remove unintended command-line overrides.
 
 ### 2. Configure remote state
 
-Create or review the ignored [terraform/backend.tf](terraform/backend.tf) file
-using your pre-created backend. Replace every placeholder:
+Create or review a local backend file named `backend.tf` in the
+[Terraform directory](terraform/README.md), using your pre-created backend.
+This file is ignored by Git. Replace every placeholder:
 
 ```hcl
 terraform {
@@ -235,7 +238,7 @@ network access. The Lab's Premium registry uses a private endpoint with public
 access disabled. Log Analytics ingestion/query is private-only through Azure
 Monitor Private Link. Registry admin and Log Analytics local key authentication
 are disabled. APIM is not deployed; its review API remains optional.
-See [current readiness and open gates](docs/status.md). Before production use:
+Before production use:
 
 - Use the AVM pattern's BYOR path so platform-owned Key Vault, Storage,
   Cosmos DB, and AI Search resources have independent lifecycles.

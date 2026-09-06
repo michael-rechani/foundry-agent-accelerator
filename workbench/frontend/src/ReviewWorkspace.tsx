@@ -293,9 +293,9 @@ export function ReviewWorkspace({
         <div className="review-title">
           <span className="review-title-icon" aria-hidden="true"><ClipboardList size={24} /></span>
           <div>
-            <span className="micro-label">SHARED WORKSPACE / SYNTHETIC DATA</span>
+            <span className="micro-label">Example data only</span>
             <h1>
-              {creating ? 'New review' : selected ? selected.title : 'Reviews'}
+              {creating ? 'New review' : selected ? selected.title : 'Evidence reviews'}
             </h1>
           </div>
         </div>
@@ -355,7 +355,7 @@ export function ReviewWorkspace({
       {!enabled && (
         <div className="review-notice">
           <CircleAlert size={17} />
-          Local preview &middot; Execution and persistence unavailable
+          Reviews are not connected. Execution and saving are unavailable.
         </div>
       )}
       {creating ? (
@@ -747,7 +747,7 @@ export function ReviewWorkspace({
         </>
       ) : (
         <>
-          <dl className="review-overview" aria-label="Loaded review counts">
+          {enabled && <dl className="review-overview" aria-label="Loaded review counts">
             {[
               { label: 'Loaded reviews', status: 'all' },
               { label: 'Needs evidence', status: 'waiting_input' },
@@ -759,12 +759,13 @@ export function ReviewWorkspace({
                 <dd>{enabled && loaded ? items.filter((item) => status === 'all' || item.status === status).length : '--'}</dd>
               </div>
             ))}
-          </dl>
+          </dl>}
           <div className="review-filters">
             <label>
               <Search size={17} />
               <input
                 aria-label="Search reviews"
+                disabled={!enabled}
                 placeholder="Search loaded reviews"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -772,6 +773,7 @@ export function ReviewWorkspace({
             </label>
             <select
               aria-label="Review status"
+              disabled={!enabled}
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
             >
@@ -813,7 +815,9 @@ export function ReviewWorkspace({
             <div className="review-empty-state">
               <ClipboardList size={38} />
               <h2>
-                {query || filter !== 'all'
+                {!enabled
+                  ? 'Review storage unavailable'
+                  : query || filter !== 'all'
                   ? 'No matching reviews'
                   : !loaded && enabled
                     ? 'Loading reviews'

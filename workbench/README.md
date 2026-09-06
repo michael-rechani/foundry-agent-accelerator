@@ -1,32 +1,26 @@
 # AI Foundry Lab
 
-Private React/TypeScript review workspace and chat UI with a FastAPI backend and
-Cosmos persistence.
+Private, chat-first React/TypeScript UI with a FastAPI backend, Cosmos persistence,
+and an optional evidence-review workflow.
 
 The frontend uses React 19, TypeScript, Vite, Lucide icons, and custom
 Fluent-inspired CSS, not the Fluent UI component library. Neutral surfaces and
-blue actions are shared across Reviews, Chat, history, catalog, and performance.
+blue actions are shared across Chat, evidence reviews, history, catalog, and performance.
 Playwright covers desktop and mobile workflows. The Python backend uses FastAPI,
 Pydantic validation, and async Azure SDKs for Foundry and Cosmos DB.
 
-The visible name is **AI Foundry Lab**. The `workbench/` source directory, Azure
-resource names and private hostname are unchanged.
-
 ## Access
 
-Live URL, from an authorized private-network browser:
-
-https://foundry-workbench.icyplant-54a7139a.northcentralus.azurecontainerapps.io
-
-Local visual preview: http://127.0.0.1:8080. Preview disables agent calls and Cosmos access.
+Use the `private_url` Terraform output from an authorized private-network browser.
+For local development, use http://127.0.0.1:8080 after starting the server below.
+Local disconnected mode disables agent calls and Cosmos access.
 
 The Container Apps environment has an internal load balancer and public network access disabled. App-level external ingress means access from outside the *environment*, within the private network; ingress is further restricted to an approved source subnet. APIM is not involved and no agent APIs are published by this application.
 
 ## Conversations
 
-The review workspace is implemented locally; Azure rollout is still pending.
-See [review workflow](../docs/review-workflow.md) for the implementation boundaries
-and deployment checks. Existing chat remains available independently.
+Chat is the default view. The optional [evidence-review workflow](../docs/review-workflow.md)
+has its own data contract and deployment checks; it is not required to use Chat.
 
 - Customer review is the only directly available agent by default. Its specialist bindings still work. Configure `visible_agents` in Terraform or `WORKBENCH_VISIBLE_AGENTS` locally to change the catalog; hidden agents cannot be invoked directly through the workbench API.
 - Send a message, then use the Save icon to save completed exchanges. Saving is explicit, not automatic. Unsaved drafts remain only in browser memory. Export includes completed exchanges and the current draft. Browser navigation warns about unsaved work where supported; it cannot prevent data loss from a browser crash or forced close.
@@ -83,7 +77,7 @@ Review body uploads have a five-second server deadline. History operations, incl
 
 ## Local Development
 
-Requires Node 24 and Python 3.13 (local tests also passed on Python 3.12).
+Requires Node 24 and Python 3.13.
 
 ```powershell
 npm --prefix workbench/frontend ci
@@ -122,20 +116,16 @@ Infrastructure uses a separate Azure Storage backend key, `ai-foundry/workbench-
 
 For an existing local deployment use `init -migrate-state -backend-config=backend.hcl.example` only after checking the target key is unused. Confirm copying existing state, never start empty. Compare lineage and managed resource IDs before/after. Preserve protected local backups; state and plans must never be committed. Restrict state access and review inherited Azure RBAC separately.
 
-The deployed Lab state migration preserved its lineage and all 15 then-managed
-resource IDs. The unused key-returning Cosmos account data source was removed
-with no Azure resource changes. The keyless AzAPI Log Analytics ownership transfer
-is also complete, with an empty follow-up plan. Execute Terraform through the
-approved private-network path. Other existing installations must follow
-the [transfer gates](../docs/credential-migration.md#lab-workspace-transfer) and use
-`-var=import_existing_log_workspace=true` once; this deployed environment no longer
-needs that opt-in.
+Execute Terraform through the approved private-network path. Existing installations
+that still use the AzureRM Log Analytics owner must follow the
+[workspace transfer procedure](../docs/credential-migration.md#lab-workspace-transfer)
+and use `-var=import_existing_log_workspace=true` for that transfer only. Fresh
+installations and already-transferred state use ordinary plans without the flag.
 
 Necessary secrets belong in Key Vault and must not enter normal Terraform
 attributes. Lab runtime access is keyless managed identity. Cosmos transcripts
-remain sensitive operational data, not vault secrets. Platform credential owners
-have been migrated to keyless ARM resources and obsolete credentials rotated;
-historical backups are preserved rather than silently purged.
+remain sensitive operational data, not vault secrets. Use keyless ARM resource
+reads and preserve historical backups under their retention policy.
 
 ### 2. Configure and initialize
 
@@ -257,7 +247,10 @@ including explicit clarification, resume, and prior-snapshot verification.
 
 Private runtime settings are managed by Terraform: `WORKBENCH_MODE`, `WORKBENCH_VISIBLE_AGENTS`, `WORKBENCH_DEFAULT_AGENT`, `WORKBENCH_TITLE`, exact host/origin allowlists, Foundry project endpoint, Cosmos endpoint and managed-identity client ID. Cosmos data-plane resources are provisioned by Terraform, never created by the runtime.
 
-Run `test-private.ps1` from an approved private-network execution environment to verify real agent invocation and Cosmos create/read/conditional-update/delete. It creates only a synthetic test conversation and deletes it afterward. The deployed private API and Cosmos round trip passed this test on 2026-09-05 UTC. Browser save/reopen/follow-up behavior was separately checked with test responses at desktop/mobile sizes.
+The private smoke test creates a fictional test conversation, verifies agent
+invocation and Cosmos create/read/update/delete, and deletes the test conversation
+afterward. Browser tests use controlled API responses and do not replace this
+deployment check.
 
 ## Diagnostics and Caching
 

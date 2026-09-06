@@ -2,6 +2,10 @@
 
 [Overview](../README.md) / Architecture
 
+For the native Foundry capability comparison and new-agent onboarding checklist,
+see the [extension guide](architecture-assessment.md).
+The diagrams below describe the implementation, not a proposed platform expansion.
+
 ![Deployed Lab and review-agent request flow](images/foundry-overview.svg)
 
 The diagram uses [official Microsoft Azure architecture icons](images/README.md)
@@ -14,10 +18,10 @@ uses its own remote state key and the following runtime and administration paths
 
 | View | Question it answers | Scope |
 | --- | --- | --- |
-| [Component interactions](#component-interactions) | What runs where, and which component owns each interaction? | Deployed foundation plus explicitly marked local review additions |
+| [Component interactions](#component-interactions) | What runs where, and which component owns each interaction? | Platform and application components |
 | [Chat and delegation](#chat-and-delegation) | How does a browser request reach a specialist, and when is chat saved? | Existing Lab chat path |
-| [Review persistence and recovery](review-workflow.md#execution-and-persistence) | What is saved before execution, and how do clarification and interruptions behave? | Locally implemented; live rollout acceptance pending |
-| [Operations](#operations) | How are builds, monitoring, private access, and state separated? | Recorded platform configuration |
+| [Review persistence and recovery](review-workflow.md#execution-and-persistence) | What is saved before execution, and how do clarification and interruptions behave? | Optional evidence-review workflow |
+| [Operations](#operations) | How are builds, monitoring, private access, and state separated? | Platform configuration |
 | [Optional APIM request](#review-request) | What would an authorized gateway request look like? | Target only; gateway not deployed |
 
 ## Component interactions
@@ -133,12 +137,10 @@ These stores can contain sensitive data and require their own access and
 retention policies. Network identifiers and managed-identity client IDs are
 configuration, not credentials.
 
-Platform Cosmos, Storage and Log Analytics ownership now uses credential-free
-ARM resources. Obsolete service keys were rotated. Current
-Lab state uses keyless Cosmos and AzAPI Log Analytics reads. Private Terraform
-execution requires authorized connectivity to the Blob private endpoint. Historical state
-remains protected and must not be purged indiscriminately. See the
-[migration inventory](credential-migration.md).
+Use credential-free ARM reads for Cosmos, Storage, and Log Analytics. Private
+Terraform execution requires authorized connectivity to the Blob private endpoint.
+Historical state remains protected and must not be purged indiscriminately.
+See the [credential handling guide](credential-migration.md).
 
 ## Trust boundaries
 
@@ -148,7 +150,7 @@ remains protected and must not be purged indiscriminately. See the
 | Workbench to Foundry/Cosmos | Managed identity, curated agents, container-scoped Cosmos role, periodic dependency checks | Approve data/backup retention before real data |
 | Client to APIM (optional) | Not deployed; configuration retained | Redeploy gateway and validate Entra issuer, audience, and authorized caller claims |
 | APIM to Foundry (optional) | Not deployed; target uses VNet integration and managed identity | Verify private DNS, backend path, managed-identity policy, request limits, and correlation IDs |
-| Coordinator to specialists | Named Foundry endpoints with managed identity; v2 passed both live delegation checks | Profile-based bindings require a new deployment and per-tool target checks |
+| Coordinator to specialists | Named Foundry endpoints with managed identity | Profile-based bindings require a new deployment and per-tool target checks |
 | Administration to private data plane | Authorized private connectivity and project-scoped deployment identity | Inventory before mutation; serialize deployment per agent |
 | Terraform to Azure | Keyless ARM ownership; distinct remote state keys with Entra authentication and locking | Preserve private backend connectivity and historical state retention |
 
@@ -159,10 +161,9 @@ Outbound VNet integration does not make the public gateway private.
 
 ## Review request
 
-This is the **target** request flow. The APIM API and policy steps remain
-unpublished. The timeout and success-receipt behavior passed live checks in
-coordinator v2. [Customer profiles](agent-profiles.md) separate specialist
-selection from the shared platform and have passed a separate live deployment.
+This is the **optional APIM** request flow. Enable and verify the gateway before
+using it. [Customer profiles](agent-profiles.md) separate specialist selection
+from the shared platform.
 
 ```mermaid
 sequenceDiagram
@@ -192,8 +193,8 @@ sequenceDiagram
     end
 ```
 
-The [APIM request and error contract](apim-review-api.md) is defined in code but
-still requires live gateway acceptance tests. A tool timeout must not be
+Verify the [APIM request and error contract](apim-review-api.md) with live gateway
+acceptance tests before publication. A tool timeout must not be
 presented as a completed review, even if the agent returns explanatory text.
 Ambiguous requests can result in a clarifying question without a specialist call.
 
@@ -204,5 +205,6 @@ code and manages version routing. CI uses local tests and mocked HTTP, without
 creating Azure resources. The cost calculator is an analysis tool, not an agent
 dependency. Redis and semantic caching are intentionally absent.
 
-See [delivery status](status.md) for remaining gates and
-[private deployment](private-deployment.md) for the operational sequence.
+See [private deployment](private-deployment.md) for the operational sequence
+and [production considerations](../README.md#production-considerations) before
+using confidential data or scaling beyond the sample configuration.

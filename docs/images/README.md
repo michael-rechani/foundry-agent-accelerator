@@ -43,9 +43,9 @@ The root README retains the compact platform overview. Detailed diagrams belong
 in the [architecture guide](../architecture.md) and
 [review workflow](../review-workflow.md), with full-size links for zooming on
 small screens. Blue denotes requests, green application persistence, and amber
-pending rollout or clarification. Product icons identify Microsoft services;
-plain shapes identify custom code. Keep deployed, local-only, and optional paths
-explicit rather than relying on color alone.
+attention or clarification. Product icons identify Microsoft services;
+plain shapes identify custom code. Label optional paths and execution boundaries
+explicitly rather than relying on color alone.
 
 ## High-level overview artwork
 
@@ -65,8 +65,8 @@ source icons, templates, and generated images together.
 These are logical diagrams, not an exhaustive subnet or resource inventory.
 Component boxes do not place managed services inside VNets. The overview focuses
 on runtime calls; the operations view covers monitoring, private state access,
-and security boundaries. APIM is optional and not deployed; platform credential
-ownership and rotation are complete. Detailed evidence belongs in [delivery status](../status.md).
+and security boundaries. APIM is optional. Keep secret ownership and private
+connectivity boundaries visible without adding deployment-history notes.
 
 Check both images at README width and on mobile after editing. Keep labels short,
 avoid crossing text with connectors, and do not reduce type to fit more detail.

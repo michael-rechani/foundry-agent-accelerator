@@ -2,9 +2,9 @@
 
 [Overview](../README.md) / Review workspace
 
-Status: implemented and locally tested; not yet deployed to Azure. Existing
-private Lab deployment and Search capacity are unchanged. Local preview accepts
-draft input but does not invoke agents or persist records.
+An optional workflow for checking supplied evidence against explicit criteria.
+It requires a deployed Lab with Cosmos persistence and a compatible agent.
+Local disconnected mode accepts draft input without invoking agents or saving records.
 
 ## Workflow
 
@@ -24,9 +24,8 @@ draft input but does not invoke agents or persist records.
 
 ## Execution and persistence
 
-**Scope: locally implemented review workflow; Azure rollout and live acceptance
-are still pending.** This is distinct from the deployed chat request path in
-the [architecture guide](architecture.md). The background task below lives inside
+This workflow is distinct from the chat request path in the
+[architecture guide](architecture.md). The background task below lives inside
 the FastAPI process; it is not a queue, separate worker service, or durable job.
 
 ![Draw.io review lifecycle showing conditional start, persistence before HTTP 202, agent result validation, effective outcomes, and clarification resume](images/review-lifecycle.svg)

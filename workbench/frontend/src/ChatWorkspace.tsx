@@ -54,7 +54,7 @@ type SavedVersion = { id: string; _etag: string }
 
 const errors: Record<string, string> = {
   preview_only:
-    'This local preview is not connected to Foundry. No agent was invoked.',
+    'Foundry is not connected. No agent was invoked.',
   busy: 'The workbench is at capacity. Try again shortly.',
   timeout:
     'The request timed out. Remote work may still finish; check before retrying.',
@@ -77,7 +77,7 @@ export default function ChatWorkspace() {
   const [selectedId, setSelected] = useState('')
   const selected = selectedId || config?.default_agent || ''
   const [selectedView, setView] = useState<View | null>(null)
-  const view = selectedView ?? (config?.reviews_enabled !== undefined ? 'reviews' : 'chat')
+  const view = selectedView ?? 'chat'
   const [draft, setDraft] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
   const [pending, setPending] = useState('')
@@ -414,7 +414,7 @@ export default function ChatWorkspace() {
           <span className="brand-mark" aria-hidden="true"><Layers3 size={23} /></span>
           <span>{config?.title || 'AI Foundry Lab'}</span>
         </div>
-        <button
+        {view === 'chat' && <button
           className="new-chat"
           disabled={busy || historyBusy}
           onClick={() => newChat()}
@@ -422,15 +422,23 @@ export default function ChatWorkspace() {
         >
           <Plus size={18} />
           <span>New chat</span>
-        </button>
+        </button>}
         <nav aria-label="Workspace">
+          <button
+            aria-current={view === 'chat' ? 'page' : undefined}
+            onClick={() => setView('chat')}
+            title="Chat"
+          >
+            <MessageSquare size={18} />
+            <span>Chat</span>
+          </button>
           <button
             aria-current={view === 'reviews' ? 'page' : undefined}
             onClick={() => setView('reviews')}
-            title="Reviews"
+            title="Evidence reviews"
           >
             <FileCheck2 size={18} />
-            <span>Reviews</span>
+            <span>Evidence reviews</span>
           </button>
           <button
             disabled={!config?.history_enabled || historyBusy}
@@ -440,14 +448,6 @@ export default function ChatWorkspace() {
           >
             <History size={18} />
             <span>Shared history</span>
-          </button>
-          <button
-            aria-current={view === 'chat' ? 'page' : undefined}
-            onClick={() => setView('chat')}
-            title="Chat"
-          >
-            <MessageSquare size={18} />
-            <span>Chat</span>
           </button>
           <button
             aria-current={view === 'catalog' ? 'page' : undefined}
@@ -467,7 +467,7 @@ export default function ChatWorkspace() {
             <span>Performance</span>
           </button>
         </nav>
-        <div className="sidebar-session">
+        {view === 'chat' && <div className="sidebar-session">
           <span className="micro-label">CURRENT CONVERSATION</span>
           <div>
             <span className="status-dot" />
@@ -476,48 +476,42 @@ export default function ChatWorkspace() {
           <small>
             {turns.length ? `${turns.length} replies` : 'New conversation'}
           </small>
-        </div>
-        <div className="chat-private">
+        </div>}
+        {config?.mode === 'private' && <div className="chat-private">
           <LockKeyhole size={16} />
           <span>
-            {config?.mode === 'private' ? 'Private workspace' : 'Local preview'}
-            <small>
-              {config?.mode === 'private'
-                ? 'No user sign-in'
-                : 'No Azure calls'}
-            </small>
+            Shared workspace
+            <small>No user sign-in</small>
           </span>
-        </div>
+        </div>}
       </aside>
 
       <div className="chat-workspace">
         <header className="chat-topbar">
           <div className="view-title">
             {view === 'reviews'
-              ? 'Reviews'
+              ? 'Evidence reviews'
               : view === 'chat'
-                ? 'Conversation'
+                ? 'Chat'
                 : view === 'catalog'
                   ? 'Agent catalog'
                   : view === 'history'
                     ? 'Shared history'
                     : 'Performance'}
-            <span>/</span>
-            <span>Workspace</span>
           </div>
           <div className="topbar-actions">
             <span
               className={`environment-badge ${config?.mode === 'private' ? 'private' : ''}`}
             >
               <span className="status-dot" />
-              {config?.mode === 'private' ? 'PRIVATE' : 'PREVIEW'}
+              {config ? config.mode === 'private' ? 'Private' : 'Not connected' : 'Connecting'}
             </span>
+            {view === 'chat' && <>
             <button
               className="chat-icon"
               title="Save to shared history"
               aria-label="Save to shared history"
               disabled={
-                view === 'reviews' ||
                 !config?.history_enabled ||
                 !turns.length ||
                 busy ||
@@ -536,11 +530,12 @@ export default function ChatWorkspace() {
               className="chat-icon"
               title="Export conversation"
               aria-label="Export conversation"
-              disabled={view === 'reviews' || (!turns.length && !draft)}
+              disabled={!turns.length && !draft}
               onClick={download}
             >
               <ArrowDownToLine size={17} />
             </button>
+            </>}
           </div>
         </header>
 
@@ -753,8 +748,8 @@ export default function ChatWorkspace() {
                   <span>
                     <LockKeyhole size={12} />
                     {config?.mode === 'private'
-                      ? 'Synthetic data only'
-                      : 'Preview / execution disabled'}
+                      ? 'Example data only'
+                      : 'Execution unavailable'}
                   </span>
                   <div>
                     {turns.length > 0 && (
@@ -988,7 +983,6 @@ export default function ChatWorkspace() {
               <div className="metrics-empty">
                 <Activity size={30} strokeWidth={1.2} />
                 <h2>No live requests yet</h2>
-                <span>Preview requests excluded</span>
               </div>
             )}
           </main>

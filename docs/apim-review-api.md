@@ -4,8 +4,8 @@
 
 The optional API exposes `POST /reviews/responses` and forwards to a named
 coordinator in the private Foundry project. Changing the selected agent does
-not require a different client URL. The Terraform resources and policy have
-passed local validation; the API is not yet published or live-tested.
+not require a different client URL. Configure the Terraform resources and policy,
+then verify authorization and private connectivity before publishing the API.
 
 APIM is currently disabled to avoid idle capacity charges. Its Terraform module
 and policy are retained. To redeploy, set `enable_api_management = true` in local
@@ -142,5 +142,5 @@ Before calling the route usable, verify it in Azure with synthetic input:
 
 Offline tests check Terraform inputs and rendered XML, not Azure's policy
 compiler, token validation, DNS, schema enforcement, or the live error contract.
-Do not use live customer records for acceptance tests. The source profile smoke
-tests already passed privately but do not establish APIM-to-Foundry connectivity.
+Do not use live customer records for acceptance tests. Agent-profile smoke tests
+do not establish APIM-to-Foundry connectivity; test the gateway path separately.

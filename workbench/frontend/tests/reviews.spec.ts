@@ -136,11 +136,38 @@ async function setup(page: Page, preview = false) {
     return route.fulfill({ json: document })
   })
   await page.goto('/')
+  await expect(page.locator('.agent-picker')).toContainText('Customer review')
+  const navigation = page.getByRole('navigation', { name: 'Workspace' })
+  await expect(navigation.getByRole('button').first()).toHaveText('Chat')
+  await expect(navigation.getByRole('button', { name: 'Chat', exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible()
+  await navigation.getByRole('button', { name: 'Evidence reviews', exact: true }).click()
   await expect(
-    page.getByRole('heading', { name: 'Reviews', exact: true }),
+    page.getByRole('heading', { name: 'Evidence reviews', exact: true }),
   ).toBeVisible()
   return state
 }
+
+test('navigation is labelled and conversation actions stay in Chat', async ({ page }, testInfo) => {
+  await setup(page, true)
+  await expect(page.locator('body')).not.toContainText(/preview/i)
+  await expect(page.getByRole('heading', { name: 'Review storage unavailable' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save to shared history' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Export conversation' })).toHaveCount(0)
+  await expect(page.locator('.sidebar-session')).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('reviews-navigation.png') })
+  const navigation = page.getByRole('navigation', { name: 'Workspace' })
+  for (const label of ['Chat', 'Evidence reviews', 'Shared history', 'Agent catalog', 'Performance']) {
+    await expect(navigation.locator('span').filter({ hasText: new RegExp(`^${label}$`) })).toBeVisible()
+  }
+  for (const label of ['Chat', 'Agent catalog', 'Performance']) {
+    await navigation.getByRole('button', { name: label, exact: label !== 'Agent catalog' }).click()
+    await expect(page.locator('body')).not.toContainText(/preview/i)
+    await expect(page.getByRole('button', { name: 'Export conversation' })).toHaveCount(label === 'Chat' ? 1 : 0)
+    await page.screenshot({ path: testInfo.outputPath(`${label.toLowerCase().replaceAll(' ', '-')}.png`) })
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
 
 async function create(page: Page) {
   await page.getByRole('button', { name: 'New review', exact: true }).click()

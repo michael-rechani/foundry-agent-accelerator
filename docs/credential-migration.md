@@ -2,13 +2,10 @@
 
 [Overview](../README.md) / Credential migration
 
-The Lab uses managed identity and keyless Cosmos/Log Analytics resource reads.
-Its Log Analytics ownership transfer is complete, with no Azure resource changes
-and an empty follow-up Terraform plan. Cosmos and platform Log
-Analytics and Storage ownership transfers are complete. All four Cosmos keys,
-both Storage keys and both keys for each Log Analytics workspace were rotated
-and verified through in-memory comparisons. The full refreshed platform plan
-and the Lab registry reconciliation plan were empty after their transfers.
+Use managed identity for runtime access and keyless resource reads for Terraform.
+This guide covers secret ownership, safe migration of existing resource owners,
+and protection of historical state. Check the actual configuration and state of
+each installation before deciding whether a migration is needed.
 
 ## Required ownership
 
@@ -25,23 +22,21 @@ IDs are not Key Vault secrets. Store the first three in their dedicated protecte
 stores. Never retrieve a vault secret into an ordinary Terraform variable,
 data source or resource argument and assume its value stays out of state.
 
-## Verified inventory
+## Credential boundaries
 
-| Path | Current finding | Required action |
+| Path | Required configuration | Handling |
 | --- | --- | --- |
 | Lab Foundry, Cosmos and ACR clients | Managed identity; no runtime API keys or connection-string secrets | Keep keyless access |
-| Platform Cosmos account | Keyless AzAPI owner; local auth disabled; four obsolete keys rotated | Keep managed-identity consumers and keyless reads |
-| Platform Storage | Keyless AzAPI owner and separately managed Blob endpoint; old AVM owner retired; both keys rotated | Keep shared-key auth disabled; preserve endpoint ownership |
-| Platform Log Analytics | Keyless AzAPI owner; local auth and public ingestion/query disabled; both keys rotated | Keep private identity-based telemetry |
-| Lab Cosmos account lookup | Key-returning data source removed from current state with a zero-resource-change apply | Preserve historical state under retention policy |
-| Lab Log Analytics | Local auth disabled; AzAPI owner; both keys rotated; private telemetry verified | Keep keyless ARM reads; preserve historical state under retention policy |
+| Platform Cosmos account | Keyless ARM owner; local auth disabled | Rotate obsolete keys after migrating consumers and state ownership |
+| Platform Storage | Keyless ARM owner and explicit Blob endpoint ownership | Keep shared-key auth disabled; preserve endpoint ownership |
+| Platform Log Analytics | Keyless ARM owner; local auth and public ingestion/query disabled | Keep private identity-based telemetry |
+| Lab Cosmos account lookup | Avoid key-returning data sources | Preserve historical state under retention policy |
+| Lab Log Analytics | Local auth disabled; AzAPI owner | Use keyless ARM reads and protect historical state |
 | Historical state, backups and prior plans | May retain old values independently of live configuration | Invalidate old credentials through rotation; handle copies under approved retention, never broad deletion |
 
-The shared state account has public network access disabled. The workstation
-receives HTTP 403 on state blob access. Authorized private execution can reach
-both state blobs through the Blob private endpoint and initialize Terraform
-using managed identity.
-Public access and shared-key authentication remain disabled.
+Access the state backend through its Blob private endpoint with an authorized
+identity. A workstation outside the approved network cannot initialize or refresh
+that backend. Do not enable public or shared-key access to bypass the restriction.
 
 The local-only `terraform/state-access/` bootstrap owns this private endpoint,
 the state-container Blob Data Contributor assignment, and workload resource-group
@@ -50,11 +45,11 @@ of the remote backend it makes reachable. The bootstrap and the two private
 Terraform runner scripts are Git-ignored; existing platform source stays tracked.
 Temporary plans are removed after execution; historical state is retained.
 
-AzureRM refresh also requires `Microsoft.App/containerApps/listSecrets/action`.
-A custom role grants only that action, assigned only on `foundry-workbench` to
-the deployment identity. This permits reading that app's secrets, not updating the
-app, and is not a general Contributor grant. Reassess this permission if the app
-later stores credentials or its Terraform provider changes.
+AzureRM Container App refresh also requires
+`Microsoft.App/containerApps/listSecrets/action`. Scope this permission to the
+specific app and deployment identity; do not substitute a broad Contributor grant.
+This permits reading app secrets. Reassess the permission if the app stores
+credentials or its Terraform provider changes.
 
 ## Lab workspace transfer
 
@@ -73,7 +68,7 @@ state. A subsequent ordinary plan must be empty. Fresh installations leave the
 import flag false. The import ID pins `api-version=2023-09-01` to match the resource
 type. Preserve existing workspace settings during import; a version mismatch or
 changed response exports can produce an update instead of an import-only plan.
-The deployed Lab has completed this transfer and uses ordinary plans now.
+After a successful transfer, return to ordinary plans without the import flag.
 
 ## State exposure
 
@@ -82,7 +77,8 @@ persist in state and saved plans. Redaction, Key Vault retrieval, and
 `ignore_changes` do not remove stored values. All secret-bearing owners and
 read paths must be addressed together.
 
-Inspection of the installed provider schemas confirms:
+The pinned providers support the following write-only mechanisms. Check the
+installed schema before changing provider versions:
 
 | Capability | Result |
 | --- | --- |

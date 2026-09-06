@@ -68,5 +68,4 @@ local resources but cannot guarantee remote execution stops.
 
 Read [instructions.md](instructions.md) for routing and evidence boundaries.
 For tests, rollback behavior, and pinned dependencies, use the
-[shared guide](../README.md). Current code and deployed status are tracked
-separately in [delivery status](../../docs/status.md).
+[shared guide](../README.md).

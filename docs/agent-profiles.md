@@ -140,7 +140,6 @@ profile, agent name, or record they are not authorized to access.
 Keep APIM publication gated on a reviewed audience and caller authorization.
 The [opt-in APIM API](apim-review-api.md) can select the coordinator by name;
 no public review API is published by this work. The
-[platform-aware cost calculator](../cost-comparison/README.md) now lists missing
-platform prices explicitly; a verified full-cost estimate and
-credential migration remain separate infrastructure tasks. See the
-[delivery status](status.md) and [private deployment runbook](private-deployment.md).
+[platform-aware cost calculator](../cost-comparison/README.md) lists missing
+platform prices explicitly. Review [credential handling](credential-migration.md)
+and follow the [private deployment runbook](private-deployment.md).
