@@ -76,7 +76,12 @@ def review_prompt(review):
         "Return only a JSON object matching the schema, without markdown fences. "
         "Include exactly one finding for every criterion. Use exact source quotes for citations. "
         "A gap may have no citations; supported and conflict findings require citations. "
-        "Ask specific questions only where additional evidence is needed. "
+        "Evaluate only the supplied criteria; do not add documentation, verification, or approval requirements. "
+        "Ask a clarification question only to resolve a gap or conflict in a supplied criterion. "
+        "Use all supplied evidence, including later clarifications, before deciding what is missing. "
+        "Do not ask again for information already explicitly supplied. "
+        "If every finding is supported, return an empty questions array. "
+        "A human review notice is not a request for additional evidence. "
         "Do not fabricate sources, quotes, or specialist execution.\nSchema:\n"
         + json.dumps(schema) + "\nSupplied material:\n" + json.dumps(material)
     )

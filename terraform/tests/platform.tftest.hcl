@@ -8,7 +8,13 @@ mock_provider "azurerm" {
   }
 }
 
-mock_provider "azapi" {}
+mock_provider "azapi" {
+  mock_data "azapi_resource" {
+    defaults = {
+      output = { identity = { principalId = "00000000-0000-0000-0000-000000000004" } }
+    }
+  }
+}
 
 override_module {
   target = module.naming
@@ -117,10 +123,11 @@ run "existing_vm_disk" {
   assert {
     condition = (
       var.enable_jumpbox &&
-      var.jumpbox_existing_os_disk.name == "existing-os" &&
-      var.jumpbox_admin_secret == null
+      azapi_resource.jumpbox[0].body.properties.storageProfile.osDisk.name == "existing-os" &&
+      var.jumpbox_admin_secret == null &&
+      length(azapi_resource.jumpbox_vm_access) == 0
     )
-    error_message = "Adopting an existing VM must preserve its disk and leave credentials unchanged."
+    error_message = "Adopting an existing VM without a credential reference must preserve its disk and omit the access extension."
   }
 }
 
@@ -136,8 +143,14 @@ run "attach_existing_vm_disk" {
     }
   }
   assert {
-    condition     = var.jumpbox_existing_os_disk.create_option == "Attach" && var.jumpbox_admin_secret == null
-    error_message = "Attaching a retained disk must not require a new credential."
+    condition = (
+      azapi_resource.jumpbox[0].body.properties.storageProfile.osDisk.createOption == "Attach" &&
+      azapi_resource.jumpbox[0].body.properties.storageProfile.osDisk.deleteOption == "Detach" &&
+      !contains(keys(azapi_resource.jumpbox[0].body.properties), "osProfile") &&
+      !contains(keys(azapi_resource.jumpbox[0].body.properties.storageProfile), "imageReference") &&
+      length(azapi_resource.jumpbox_vm_access) == 0
+    )
+    error_message = "Attaching a retained disk must omit image provisioning, credentials, and the access extension while retaining the disk."
   }
 }
 
@@ -155,7 +168,8 @@ run "new_vm_pinned_secret" {
     condition = (
       var.enable_jumpbox &&
       var.jumpbox_existing_os_disk == null &&
-      var.jumpbox_admin_secret.version == "0123456789abcdef0123456789abcdef"
+      var.jumpbox_admin_secret.version == "0123456789abcdef0123456789abcdef" &&
+      length(azapi_resource.jumpbox_vm_access) == 1
     )
     error_message = "New VM inputs must accept a pinned secret reference without an existing disk."
   }

@@ -169,6 +169,16 @@ test('navigation is labelled and conversation actions stay in Chat', async ({ pa
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
+test('invalid review links keep the chat-first default', async ({ page }) => {
+  await setup(page)
+  await page.goto('/#review-not-a-valid-id')
+  await page.reload()
+  await expect(
+    page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Chat', exact: true }),
+  ).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible()
+})
+
 async function create(page: Page) {
   await page.getByRole('button', { name: 'New review', exact: true }).click()
   await page.getByRole('button', { name: 'Use synthetic example' }).click()

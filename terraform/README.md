@@ -99,7 +99,9 @@ The default `create_option = "FromImage"` preserves an image-provisioned VM's
 configuration. Use `create_option = "Attach"` for a VM booting a retained specialized
 Windows disk; this omits the image and OS provisioning profile and retains the
 disk's existing login. Leave `jumpbox_admin_secret` null to leave credentials under
-external Key Vault administration. Recreating a VM changes its system identity;
+external Key Vault administration and omit the VMAccessAgent extension. If an
+extension is already tracked, reconcile its ownership before changing this input;
+do not bypass its destruction guard. Recreating a VM changes its system identity;
 reconcile role assignments and Terraform state before the next apply.
 
 ## Existing deployments
@@ -173,11 +175,13 @@ After initializing the providers and modules, run from the repository root:
 ```
 
 Use `-TerraformCommand <path-to-terraform>` when the required version is not on PATH.
-The platform suite copies only the account, naming, network, and input configuration
+The platform suite copies the account, naming, network, VM, and input configuration
 into an isolated directory, uses provider mocks, and excludes deployment state,
 backend settings, and tfvars. It checks region profiles, existing-name overrides,
-credential input requirements, and management networking. It does not test live VM
-creation or rotation: Terraform provider mocks do not support ephemeral resources.
+credential input requirements, management networking, retained-disk bodies, and
+credential-gated extension creation. A synthetic credential fixture replaces the
+ephemeral Key Vault boundary, which Terraform provider mocks do not support.
+These checks do not test live secret retrieval, VM creation, or rotation.
 Run full `terraform validate` as well, and use the credential guide's disposable
 resource checks before relying on a new credential path.
 

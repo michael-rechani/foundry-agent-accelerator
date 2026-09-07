@@ -95,7 +95,7 @@ authentication, data ownership, and failure behavior.
 | [`terraform/`](terraform/) | Deploy a Foundry project, model, Agent Service dependencies, and observability with the official AVM pattern. |
 | [`hosted-agents/`](hosted-agents/) | Deploy the basic Responses agent plus case-review and application-review business samples. |
 | [`hosted-agents/review-coordinator-agent/`](hosted-agents/review-coordinator-agent/) | Route reviews to specialists; test cancellation, concurrency, and delegation. |
-| [`docs/`](docs/) | Architecture, delivery status, and the private deployment runbook. |
+| [`docs/`](docs/) | Architecture, operational guidance, and the private deployment runbook. |
 | [`cost-comparison/`](cost-comparison/) | Compare self-hosted models on Azure GPU VMs with Foundry hosted-agent costs using replaceable rates. |
 
 ## Quick start

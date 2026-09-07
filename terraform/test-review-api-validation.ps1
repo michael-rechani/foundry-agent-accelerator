@@ -30,9 +30,18 @@ try {
             '-var=api_management_publisher_email=owner@example.com',
             "-var=enable_api_management=$($case.Enabled)"
         )
-        if ($null -ne $case.Config) { $arguments += "-var=review_api=$($case.Config | ConvertTo-Json -Compress)" }
-        $result = & $TerraformCommand @arguments 2>&1
-        $succeeded = $LASTEXITCODE -eq 0
+        $variablesPath = Join-Path $temporary 'review-api.tfvars.json'
+        $variablesJson = @{ review_api = $case.Config } | ConvertTo-Json -Depth 10 -Compress
+        [IO.File]::WriteAllText($variablesPath, $variablesJson, [Text.UTF8Encoding]::new($false))
+        $arguments += "-var-file=$variablesPath"
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $result = & $TerraformCommand @arguments 2>&1
+            $succeeded = $LASTEXITCODE -eq 0
+        } finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
         if ($succeeded -ne $case.Valid) { throw "Unexpected result for $($case.Name): $result" }
         if (!$case.Valid -and ($result -join "`n") -notmatch 'review_api requires') {
             throw "Unexpected validation failure for $($case.Name): $result"

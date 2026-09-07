@@ -57,13 +57,6 @@ resource "azurerm_network_interface" "jumpbox" {
   }
 }
 
-ephemeral "azurerm_key_vault_secret" "jumpbox_admin" {
-  count        = var.enable_jumpbox && var.jumpbox_admin_secret != null ? 1 : 0
-  key_vault_id = var.jumpbox_admin_secret.key_vault_id
-  name         = var.jumpbox_admin_secret.name
-  version      = var.jumpbox_admin_secret.version
-}
-
 resource "azapi_resource" "jumpbox" {
   count     = var.enable_jumpbox ? 1 : 0
   type      = "Microsoft.Compute/virtualMachines@2024-03-01"
@@ -136,7 +129,7 @@ resource "azapi_resource" "jumpbox" {
     }
   }
   sensitive_body = var.jumpbox_admin_secret == null || local.jumpbox_attach_os_disk ? null : {
-    properties = { osProfile = { adminPassword = ephemeral.azurerm_key_vault_secret.jumpbox_admin[0].value } }
+    properties = { osProfile = { adminPassword = local.jumpbox_admin_password } }
   }
   sensitive_body_version = var.jumpbox_admin_secret == null || local.jumpbox_attach_os_disk ? {} : {
     "properties.osProfile.adminPassword" = var.jumpbox_admin_secret.version
@@ -149,7 +142,7 @@ resource "azapi_resource" "jumpbox" {
 }
 
 resource "azapi_resource" "jumpbox_vm_access" {
-  count     = var.enable_jumpbox ? 1 : 0
+  count     = var.enable_jumpbox && var.jumpbox_admin_secret != null ? 1 : 0
   type      = "Microsoft.Compute/virtualMachines/extensions@2024-03-01"
   name      = "VMAccessAgent"
   parent_id = azapi_resource.jumpbox[0].id
@@ -168,7 +161,7 @@ resource "azapi_resource" "jumpbox_vm_access" {
     properties = {
       protectedSettings = {
         username = var.jumpbox_admin_username
-        password = ephemeral.azurerm_key_vault_secret.jumpbox_admin[0].value
+        password = local.jumpbox_admin_password
       }
     }
   }

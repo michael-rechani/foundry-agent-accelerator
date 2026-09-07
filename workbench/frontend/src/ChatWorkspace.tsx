@@ -76,7 +76,11 @@ export default function ChatWorkspace() {
   } = useWorkspaceConfig()
   const [selectedId, setSelected] = useState('')
   const selected = selectedId || config?.default_agent || ''
-  const [selectedView, setView] = useState<View | null>(null)
+  const [selectedView, setView] = useState<View | null>(() =>
+    /^#review-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(window.location.hash)
+      ? 'reviews'
+      : null,
+  )
   const view = selectedView ?? 'chat'
   const [draft, setDraft] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])

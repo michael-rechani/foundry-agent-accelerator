@@ -22,6 +22,13 @@ Local disconnected mode accepts draft input without invoking agents or saving re
 5. Reopen a review from the inbox or its URL fragment. Inspect earlier run snapshots
    and export the record as JSON. Chat remains a separate workspace view.
 
+The structured-review prompt limits clarification to gaps or conflicts in the
+supplied criteria and asks for no questions when every finding is supported.
+Later evidence must be considered before asking again; a human review notice does
+not add documentation or verification requirements. Model compliance still needs
+live acceptance testing. The server does not discard returned questions to force
+a completed status.
+
 ## Execution and persistence
 
 This workflow is distinct from the chat request path in the
@@ -124,8 +131,10 @@ store and gateway doubles. They do not prove live Cosmos or model behavior.
 
 Follow the [Lab deployment steps](../workbench/README.md#deployment): configure
 the correct state, build an immutable image, review a saved Terraform plan, then
-apply and clean up that plan. Keep platform state separate; do not publish root
-Terraform. For initial review support, verify the additive Cosmos index is ready
+apply and clean up that plan. Keep platform and Lab state separate. Normal root
+Terraform source is publishable; state, backups, secrets, backend configuration,
+environment tfvars, saved plans, and private workaround scripts are not.
+For initial review support, verify the additive Cosmos index is ready
 before promoting the image. Record both the intended image and recovery digest.
 
 ### 3. Start one synthetic review

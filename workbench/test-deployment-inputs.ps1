@@ -14,8 +14,15 @@ try {
     )
     foreach ($case in $cases) {
         $arguments = @("-chdir=$temporary", 'plan', '-input=false', '-refresh=false', '-no-color') + $case.Arguments
-        $result = & $TerraformCommand @arguments 2>&1
-        if (($LASTEXITCODE -eq 0) -ne ($null -eq $case.Error)) { throw "Unexpected result for $($case.Name): $result" }
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $result = & $TerraformCommand @arguments 2>&1
+            $planExitCode = $LASTEXITCODE
+        } finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
+        if (($planExitCode -eq 0) -ne ($null -eq $case.Error)) { throw "Unexpected result for $($case.Name): $result" }
         if ($case.Error -and ($result -join "`n") -notmatch $case.Error) { throw "Unexpected error: $result" }
         Write-Output "PASS: $($case.Name)"
     }

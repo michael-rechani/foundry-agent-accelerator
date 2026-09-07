@@ -19,7 +19,8 @@ The Container Apps environment has an internal load balancer and public network 
 
 ## Conversations
 
-Chat is the default view. The optional [evidence-review workflow](../docs/review-workflow.md)
+Chat is the default view; a valid saved-review URL opens its review directly,
+including after a reload. The optional [evidence-review workflow](../docs/review-workflow.md)
 has its own data contract and deployment checks; it is not required to use Chat.
 
 - Customer review is the only directly available agent by default. Its specialist bindings still work. Configure `visible_agents` in Terraform or `WORKBENCH_VISIBLE_AGENTS` locally to change the catalog; hidden agents cannot be invoked directly through the workbench API.
@@ -114,7 +115,7 @@ identity has the necessary resource, role-assignment, and state-container access
 
 Infrastructure uses a separate Azure Storage backend key, `ai-foundry/workbench-dev.tfstate`, never the platform's `ai-foundry/dev.tfstate`. The backend uses Entra/CLI authentication and blob-lease locking; shared-key access is disabled. The existing account enforces HTTPS/TLS 1.2, encryption, versioning, 90-day blob soft-delete and seven-day container soft-delete. Public network access is now disabled. Do not reopen the shared account's firewall.
 
-For an existing local deployment use `init -migrate-state -backend-config=backend.hcl.example` only after checking the target key is unused. Confirm copying existing state, never start empty. Compare lineage and managed resource IDs before/after. Preserve protected local backups; state and plans must never be committed. Restrict state access and review inherited Azure RBAC separately.
+For an existing local deployment use `init -migrate-state -backend-config=backend.hcl` only after checking the target key is unused. Confirm copying existing state, never start empty. Compare lineage and managed resource IDs before/after. Preserve protected local backups; state and plans must never be committed. Restrict state access and review inherited Azure RBAC separately.
 
 Execute Terraform through the approved private-network path. Existing installations
 must use the resource addresses declared in the configuration. One-time ownership
@@ -131,17 +132,19 @@ reads and preserve historical backups under their retention policy.
 Create or review the local `workbench/infra/dev.tfvars` using
 [dev.tfvars.example](infra/dev.tfvars.example). Replace example identifiers with
 your actual deployment settings; never overwrite a working environment blindly.
-Review [backend.hcl.example](infra/backend.hcl.example) before using it: it
-contains this Lab's backend identifiers, not universally valid defaults. Configure
-the intended account, subscription, container, and separate Lab state key.
+Create or review the ignored local `workbench/infra/backend.hcl` using
+[backend.hcl.example](infra/backend.hcl.example). Replace the placeholders with
+the intended account, subscription, container, and separate Lab state key. Keep
+the existing state key for an established deployment; do not edit the tracked
+example to store environment configuration.
 
 ```powershell
-terraform -chdir=workbench/infra init -backend-config=backend.hcl.example
+terraform -chdir=workbench/infra init -backend-config=backend.hcl
 terraform -chdir=workbench/infra validate
 ```
 
 For a deliberate existing-state migration, use
-`terraform -chdir=workbench/infra init -migrate-state -backend-config=backend.hcl.example`
+`terraform -chdir=workbench/infra init -migrate-state -backend-config=backend.hcl`
 instead of plain init, following the preservation checks above.
 
 ### 3. Bootstrap only a new Lab
@@ -172,10 +175,18 @@ with an authorized identity (prefer managed identity), and provide registry-scop
 push/pull permission. Both the runner and Docker engine need private DNS and routing
 to ACR, plus access to the base-image and package sources. The helper logs Docker
 into ACR using Azure CLI; use the runner's approved Docker credential storage.
-It validates the image as its non-root user before pushing, then verifies a pull
-by immutable digest. It does not create VMs, grant roles, or upload remote commands.
+It validates the image as its non-root user before pushing, checks the registry's
+tag digest against the local build, then verifies a pull by immutable digest.
+Subscription, registry, and release tag must be supplied explicitly; use a unique
+tag and do not overwrite it during verification. The helper does not create VMs,
+grant roles, or upload remote commands.
 The legacy ACR Tasks path requires an explicitly public registry and is not used
 by this deployment.
+
+Run `./workbench/test-build.ps1` from the repository root to check staging and
+success/failure handling with mocked Azure CLI and Docker commands. It does not
+contact Azure or build an image; a real build still requires the private runner
+and the push/pull verification below.
 
 Both Docker stages and the frontend CI container use immutable base-image digests. Refresh these deliberately and rebuild for security updates; pinning prevents silent changes but does not patch vulnerabilities. Python transitive dependencies still resolve during builds, so this is not a byte-for-byte reproducible build guarantee.
 

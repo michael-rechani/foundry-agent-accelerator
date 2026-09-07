@@ -24,8 +24,14 @@ try {
             "-var=enable_api_management=$($case.Enabled)"
         )
         if ($null -ne $case.Email) { $arguments += "-var=api_management_publisher_email=$($case.Email)" }
-        $result = & $TerraformCommand @arguments 2>&1
-        $succeeded = $LASTEXITCODE -eq 0
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $result = & $TerraformCommand @arguments 2>&1
+            $succeeded = $LASTEXITCODE -eq 0
+        } finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
         if ($succeeded -ne $case.Valid) { throw "Unexpected result for $($case.Name): $result" }
         if (!$case.Valid -and ($result -join "`n") -notmatch 'api_management_publisher_email must be a valid email') {
             throw "Unexpected validation failure for $($case.Name): $result"
