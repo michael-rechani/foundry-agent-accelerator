@@ -1,22 +1,25 @@
 locals {
-  # Verified against the Lab subscription on 2026-09-03.
   region_preferences = {
     northcentralus = {
+      display_name             = "North Central US"
       priority                 = 1
       cosmos_secondary_regions = []
       storage_replication_type = "LRS"
     }
     westus3 = {
+      display_name             = "West US 3"
       priority                 = 2
       cosmos_secondary_regions = []
       storage_replication_type = "ZRS"
     }
     southcentralus = {
+      display_name             = "South Central US"
       priority                 = 3
       cosmos_secondary_regions = ["northcentralus"]
       storage_replication_type = "ZRS"
     }
     westus = {
+      display_name             = "West US"
       priority                 = 4
       cosmos_secondary_regions = []
       storage_replication_type = "ZRS"

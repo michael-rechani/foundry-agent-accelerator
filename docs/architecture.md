@@ -140,7 +140,7 @@ configuration, not credentials.
 Use credential-free ARM reads for Cosmos, Storage, and Log Analytics. Private
 Terraform execution requires authorized connectivity to the Blob private endpoint.
 Historical state remains protected and must not be purged indiscriminately.
-See the [credential handling guide](credential-migration.md).
+See the [credential handling guide](credentials.md).
 
 ## Trust boundaries
 

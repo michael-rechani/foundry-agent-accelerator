@@ -27,7 +27,7 @@ The Lab has bounded API admission and deadlines, periodic dependency checks,
 retained operational logs, and an isolated Entra-authenticated remote state key.
 It is intended for example data, with shared history and no end-user login.
 Secrets must use Key Vault or be eliminated through managed identity. The
-[credential handling guide](docs/credential-migration.md) explains secret ownership,
+[credential handling guide](docs/credentials.md) explains secret ownership,
 keyless resource reads, and protection of Terraform state and backups.
 
 [Architecture](#architecture) · [Deploy](#quick-start) · [Review walkthrough](hosted-agents/review-coordinator-agent/README.md) · [Cost model](cost-comparison/README.md)

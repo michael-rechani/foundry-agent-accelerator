@@ -11,6 +11,8 @@ terraform/backend.tf
 /terraform/state-access/
 /workbench/private-terraform.ps1
 /workbench/run-private-terraform.ps1
+/workbench/build-private.ps1
+/workbench/build-private.sh
 .env
 __pycache__/
 *.py[cod]

@@ -6,5 +6,9 @@ provider "azurerm" {
   subscription_id     = var.subscription_id
   storage_use_azuread = true
 
-  features {}
+  features {
+    api_management {
+      purge_soft_delete_on_destroy = false
+    }
+  }
 }

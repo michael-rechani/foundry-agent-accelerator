@@ -141,5 +141,5 @@ Keep APIM publication gated on a reviewed audience and caller authorization.
 The [opt-in APIM API](apim-review-api.md) can select the coordinator by name;
 no public review API is published by this work. The
 [platform-aware cost calculator](../cost-comparison/README.md) lists missing
-platform prices explicitly. Review [credential handling](credential-migration.md)
+platform prices explicitly. Review [credential handling](credentials.md)
 and follow the [private deployment runbook](private-deployment.md).

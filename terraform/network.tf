@@ -73,7 +73,7 @@ resource "azurerm_monitor_private_link_scope" "this" {
 }
 
 resource "azurerm_monitor_private_link_scoped_service" "log_analytics" {
-  linked_resource_id  = azurerm_log_analytics_workspace.this.id
+  linked_resource_id  = azapi_resource.platform_logs.id
   name                = "law-${local.name_suffix}"
   resource_group_name = azurerm_resource_group.this.name
   scope_name          = azurerm_monitor_private_link_scope.this.name

@@ -117,10 +117,9 @@ Infrastructure uses a separate Azure Storage backend key, `ai-foundry/workbench-
 For an existing local deployment use `init -migrate-state -backend-config=backend.hcl.example` only after checking the target key is unused. Confirm copying existing state, never start empty. Compare lineage and managed resource IDs before/after. Preserve protected local backups; state and plans must never be committed. Restrict state access and review inherited Azure RBAC separately.
 
 Execute Terraform through the approved private-network path. Existing installations
-that still use the AzureRM Log Analytics owner must follow the
-[workspace transfer procedure](../docs/credential-migration.md#lab-workspace-transfer)
-and use `-var=import_existing_log_workspace=true` for that transfer only. Fresh
-installations and already-transferred state use ordinary plans without the flag.
+must use the resource addresses declared in the configuration. One-time ownership
+scripts are not part of the sample. Stop if a plan tries to recreate existing
+resources or destroy an older owner; resolve that installation's state separately.
 
 Necessary secrets belong in Key Vault and must not enter normal Terraform
 attributes. Lab runtime access is keyless managed identity. Cosmos transcripts
@@ -166,14 +165,15 @@ Do not persist `bootstrap_only=true` into the normal deployment configuration.
 
 `build.ps1 -Private` stages only allowlisted source files, excluding local
 dependencies, state, plans and environment files. The Premium registry has public
-access and admin credentials disabled. The private build uses a temporary Linux
-VM in the management subnet, with no public IP and registry-scoped managed-identity
-push access. It validates the image as its non-root user before pushing, then
-verifies a pull. Completed builds remove the temporary resource group and grant.
-An uncertain execution retains its tagged group for inspection; use
-`-ResumeResourceGroup rg-foundry-build-...` only after its durable command has
-stopped. Do not abandon retained build resources. The operator needs VM/group
-creation, subnet join and registry role-assignment permission, plus SSH keygen.
+access and admin credentials disabled. The private build uses the local Linux
+Docker engine on the current authorized private-network runner, such as a jumpbox
+or CI agent. Install Docker with Linux-container support and Azure CLI, authenticate
+with an authorized identity (prefer managed identity), and provide registry-scoped
+push/pull permission. Both the runner and Docker engine need private DNS and routing
+to ACR, plus access to the base-image and package sources. The helper logs Docker
+into ACR using Azure CLI; use the runner's approved Docker credential storage.
+It validates the image as its non-root user before pushing, then verifies a pull
+by immutable digest. It does not create VMs, grant roles, or upload remote commands.
 The legacy ACR Tasks path requires an explicitly public registry and is not used
 by this deployment.
 
@@ -183,10 +183,8 @@ Both Docker stages and the frontend CI container use immutable base-image digest
 ./workbench/build.ps1 -Private -Subscription '<workload-subscription-id>' -Registry '<registry-name>' -Tag '<unique-release-tag>'
 ```
 
-Replace every placeholder. This build helper defaults to the sample's private
-build network; other environments must review/configure that network before
-invoking it. Require a successful build, push, and verified pull, not merely a
-remote task-start message. Record the returned digest and the prior recovery
+Replace every placeholder and run from the approved private-network environment.
+Require a successful build, push, and verified pull. Record the returned digest and the prior recovery
 image. Set `image_digest` in local `workbench/infra/image.auto.tfvars` using
 [image.auto.tfvars.example](infra/image.auto.tfvars.example). Mutable tags are
 not accepted as deployment inputs.

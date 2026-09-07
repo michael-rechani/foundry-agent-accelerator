@@ -1,26 +1,3 @@
-variable "import_existing_registry_network" {
-  type    = bool
-  default = false
-}
-
-import {
-  for_each = var.import_existing_registry_network ? toset(["existing"]) : toset([])
-  to       = azurerm_private_dns_zone.registry[0]
-  id       = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io"
-}
-
-import {
-  for_each = var.import_existing_registry_network ? toset(["workload", "management"]) : toset([])
-  to       = azurerm_private_dns_zone_virtual_network_link.registry[each.key]
-  id       = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io/virtualNetworkLinks/registry-${each.key}"
-}
-
-import {
-  for_each = var.import_existing_registry_network ? toset(["existing"]) : toset([])
-  to       = azurerm_private_endpoint.registry[0]
-  id       = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.Network/privateEndpoints/pe-${var.registry_name}"
-}
-
 data "azurerm_subnet" "private_endpoints" {
   name                 = "snet-private-endpoints"
   virtual_network_name = var.workload_vnet_name

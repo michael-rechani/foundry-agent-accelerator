@@ -59,7 +59,7 @@ module "api_management" {
   diagnostic_settings = {
     log_analytics = {
       name                  = "diag-api-management"
-      workspace_resource_id = azurerm_log_analytics_workspace.this.id
+      workspace_resource_id = azapi_resource.platform_logs.id
     }
   }
   enable_telemetry = true

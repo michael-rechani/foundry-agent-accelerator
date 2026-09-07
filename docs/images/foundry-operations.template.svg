@@ -44,7 +44,7 @@
   <path d="M24 526H936" stroke="#b4b4b4"/>
   <image href="azure-icons/key-vault.svg" x="28" y="548" width="40" height="40"/>
   <text x="88" y="570" class="heading">Key Vault for necessary secrets; prefer managed identity</text>
-  <text x="88" y="603" class="body">Keyless resource reads; rotate credentials during migration.</text>
+  <text x="88" y="603" class="body">Keyless resource reads; credentials stay in Key Vault.</text>
   <text x="24" y="650" class="small">Premium ACR and Log Analytics use private access; admin/local key authentication is disabled.</text>
   <text x="24" y="679" class="small">Lab resource reads are keyless. Preserve historical state and backups under retention policy.</text>
 </svg>

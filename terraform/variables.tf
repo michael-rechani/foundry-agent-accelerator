@@ -8,6 +8,12 @@ variable "subscription_id" {
   }
 }
 
+variable "deployment_principal_id" {
+  type        = string
+  default     = null
+  description = "Stable deployment operator identity when Terraform runs under a private managed identity."
+}
+
 variable "base_name" {
   type        = string
   description = "Short lowercase name used as a resource-name suffix."
@@ -38,7 +44,7 @@ variable "location" {
 
   validation {
     condition     = var.location == null || contains(["northcentralus", "westus3", "southcentralus", "westus"], var.location)
-    error_message = "location must be null or one of the verified regions in region-preferences.tf."
+    error_message = "location must be null or one of the configured regions in region-preferences.tf."
   }
 }
 
@@ -51,6 +57,17 @@ variable "cosmosdb_account_name" {
   validation {
     condition     = var.cosmosdb_account_name == null || can(regex("^[a-z0-9][a-z0-9-]{1,42}[a-z0-9]$", var.cosmosdb_account_name))
     error_message = "cosmosdb_account_name must be null or a 3-44 character lowercase alphanumeric and hyphen name."
+  }
+}
+
+variable "agent_storage_account_name" {
+  type        = string
+  description = "Optional storage account name override for preserving an existing deployment."
+  default     = null
+
+  validation {
+    condition     = var.agent_storage_account_name == null || can(regex("^[a-z0-9]{3,24}$", var.agent_storage_account_name))
+    error_message = "agent_storage_account_name must be null or 3-24 lowercase letters and numbers."
   }
 }
 
@@ -72,10 +89,63 @@ variable "agent_subnet_address_prefixes" {
   default     = ["10.42.1.0/24"]
 }
 
+variable "enable_management_network" {
+  type        = bool
+  description = "Creates the shared private management network used by the Lab, even when the optional VM and APIM are disabled."
+  default     = true
+}
+
 variable "enable_jumpbox" {
   type        = bool
   description = "Creates a private Windows jumpbox for administering private Foundry resources."
-  default     = true
+  default     = false
+
+  validation {
+    condition     = !var.enable_jumpbox || var.jumpbox_existing_os_disk != null || var.jumpbox_admin_secret != null
+    error_message = "A new jumpbox requires a pinned jumpbox_admin_secret. Supply jumpbox_existing_os_disk only when adopting an existing VM."
+  }
+}
+
+variable "jumpbox_existing_os_disk" {
+  type = object({
+    id                   = string
+    name                 = string
+    storage_account_type = string
+    size_gb              = optional(number, 127)
+    create_option        = optional(string, "FromImage")
+  })
+  description = "Existing managed OS disk settings to preserve when adopting an existing VM; null for a new VM."
+  default     = null
+
+  validation {
+    condition = var.jumpbox_existing_os_disk == null ? true : (
+      can(regex("(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft.Compute/disks/[^/]+$", var.jumpbox_existing_os_disk.id)) &&
+      endswith(lower(var.jumpbox_existing_os_disk.id), "/${lower(var.jumpbox_existing_os_disk.name)}") &&
+      contains(["Standard_LRS", "StandardSSD_LRS", "Premium_LRS", "StandardSSD_ZRS", "Premium_ZRS"], var.jumpbox_existing_os_disk.storage_account_type) &&
+      contains(["FromImage", "Attach"], var.jumpbox_existing_os_disk.create_option) &&
+      var.jumpbox_existing_os_disk.size_gb > 0
+    )
+    error_message = "jumpbox_existing_os_disk must specify a managed disk ID matching its name, a supported storage type, and a positive size."
+  }
+}
+
+variable "jumpbox_admin_secret" {
+  type = object({
+    key_vault_id = string
+    name         = string
+    version      = string
+  })
+  description = "Pre-provisioned Key Vault password reference with a pinned version. Required for a new VM; null preserves an adopted VM's credentials. No secret values belong here."
+  default     = null
+
+  validation {
+    condition = var.jumpbox_admin_secret == null ? true : (
+      can(regex("(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft.KeyVault/vaults/[^/]+$", var.jumpbox_admin_secret.key_vault_id)) &&
+      can(regex("^[A-Za-z0-9-]{1,127}$", var.jumpbox_admin_secret.name)) &&
+      can(regex("^[a-fA-F0-9]{32}$", var.jumpbox_admin_secret.version))
+    )
+    error_message = "jumpbox_admin_secret requires a vault resource ID, valid secret name, and pinned 32-character version."
+  }
 }
 
 variable "jumpbox_subnet_address_prefixes" {
@@ -91,7 +161,7 @@ variable "jumpbox_location" {
 
   validation {
     condition     = contains(["westus", "westus3", "southcentralus", "northcentralus"], var.jumpbox_location)
-    error_message = "jumpbox_location must be one of the verified non-East-US regions."
+    error_message = "jumpbox_location must be one of the configured management regions."
   }
 }
 
@@ -131,7 +201,7 @@ variable "api_management_location" {
 
   validation {
     condition     = contains(["westus", "westus3", "southcentralus", "northcentralus"], var.api_management_location)
-    error_message = "api_management_location must be one of the verified non-East-US regions."
+    error_message = "api_management_location must be one of the configured management regions."
   }
 }
 
@@ -160,8 +230,8 @@ variable "api_management_publisher_name" {
 
 check "api_management_management_network" {
   assert {
-    condition     = !var.enable_api_management || (var.enable_jumpbox && var.api_management_location == var.jumpbox_location)
-    error_message = "API Management requires the management VNet; enable_jumpbox must be true and api_management_location must equal jumpbox_location."
+    condition     = !var.enable_api_management || var.api_management_location == var.jumpbox_location
+    error_message = "api_management_location must equal jumpbox_location, which selects the shared management VNet region. The admin VM can remain disabled."
   }
 }
 

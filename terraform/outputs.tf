@@ -35,7 +35,7 @@ output "model_deployment_name" {
 
 output "log_analytics_workspace_id" {
   description = "Resource ID of the workspace receiving Foundry diagnostics."
-  value       = azurerm_log_analytics_workspace.this.id
+  value       = azapi_resource.platform_logs.id
 }
 
 output "virtual_network_id" {
@@ -75,7 +75,7 @@ output "review_api_url" {
 
 output "jumpbox_name" {
   description = "Name of the private Windows jumpbox, or null when disabled."
-  value       = try(azurerm_windows_virtual_machine.jumpbox[0].name, null)
+  value       = try(azapi_resource.jumpbox[0].name, null)
 }
 
 output "jumpbox_admin_username" {
@@ -85,10 +85,10 @@ output "jumpbox_admin_username" {
 
 output "jumpbox_key_vault_name" {
   description = "Name of the private Key Vault containing the jumpbox credential, or null when disabled."
-  value       = var.enable_jumpbox && var.enable_agent_service ? module.ai_foundry.key_vault_name["agent"] : null
+  value       = !var.enable_jumpbox ? null : var.jumpbox_admin_secret != null ? basename(var.jumpbox_admin_secret.key_vault_id) : var.enable_agent_service ? module.ai_foundry.key_vault_name["agent"] : null
 }
 
 output "jumpbox_admin_password_secret_name" {
   description = "Name of the Key Vault secret containing the jumpbox administrator password, or null when disabled."
-  value       = try(azapi_resource.jumpbox_admin_password[0].name, null)
+  value       = !var.enable_jumpbox ? null : var.jumpbox_admin_secret != null ? var.jumpbox_admin_secret.name : var.enable_agent_service ? "jumpbox-admin-password" : null
 }

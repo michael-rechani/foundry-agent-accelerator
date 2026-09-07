@@ -1,48 +1,5 @@
-resource "azurerm_virtual_network" "jumpbox" {
-  count = var.enable_jumpbox ? 1 : 0
-
-  address_space       = var.jumpbox_virtual_network_address_space
-  location            = var.jumpbox_location
-  name                = "vnet-jumpbox-${local.name_suffix}"
-  resource_group_name = azurerm_resource_group.this.name
-  tags                = local.tags
-}
-
-resource "azurerm_subnet" "jumpbox" {
-  count = var.enable_jumpbox ? 1 : 0
-
-  address_prefixes     = var.jumpbox_subnet_address_prefixes
-  name                 = "snet-jumpbox"
-  resource_group_name  = azurerm_resource_group.this.name
-  virtual_network_name = azurerm_virtual_network.jumpbox[0].name
-}
-
-resource "azurerm_virtual_network_peering" "workload_to_jumpbox" {
-  count = var.enable_jumpbox ? 1 : 0
-
-  name                      = "peer-workload-to-jumpbox"
-  remote_virtual_network_id = azurerm_virtual_network.jumpbox[0].id
-  resource_group_name       = azurerm_resource_group.this.name
-  virtual_network_name      = azurerm_virtual_network.this.name
-}
-
-resource "azurerm_virtual_network_peering" "jumpbox_to_workload" {
-  count = var.enable_jumpbox ? 1 : 0
-
-  name                      = "peer-jumpbox-to-workload"
-  remote_virtual_network_id = azurerm_virtual_network.this.id
-  resource_group_name       = azurerm_resource_group.this.name
-  virtual_network_name      = azurerm_virtual_network.jumpbox[0].name
-}
-
-resource "azurerm_private_dns_zone_virtual_network_link" "jumpbox" {
-  for_each = var.enable_jumpbox ? local.private_dns_zones : {}
-
-  name                  = "link-jumpbox-${replace(each.key, "_", "-")}"
-  private_dns_zone_name = azurerm_private_dns_zone.this[each.key].name
-  resource_group_name   = azurerm_resource_group.this.name
-  virtual_network_id    = azurerm_virtual_network.jumpbox[0].id
-  tags                  = local.tags
+locals {
+  jumpbox_attach_os_disk = try(var.jumpbox_existing_os_disk.create_option == "Attach", false)
 }
 
 resource "azurerm_public_ip" "jumpbox_egress" {
@@ -85,34 +42,6 @@ resource "azurerm_subnet_nat_gateway_association" "jumpbox" {
   subnet_id      = azurerm_subnet.jumpbox[0].id
 }
 
-resource "random_password" "jumpbox_admin" {
-  count = var.enable_jumpbox ? 1 : 0
-
-  length      = 24
-  min_lower   = 1
-  min_numeric = 1
-  min_special = 1
-  min_upper   = 1
-  special     = true
-}
-
-resource "azapi_resource" "jumpbox_admin_password" {
-  count = var.enable_jumpbox && var.enable_agent_service ? 1 : 0
-
-  name      = "jumpbox-admin-password"
-  parent_id = module.ai_foundry.key_vault_id["agent"]
-  type      = "Microsoft.KeyVault/vaults/secrets@2023-07-01"
-  body = {
-    properties = {
-      attributes = {
-        enabled = true
-      }
-      contentType = "Password for ${azurerm_windows_virtual_machine.jumpbox[0].name} local administrator ${var.jumpbox_admin_username}"
-      value       = random_password.jumpbox_admin[0].result
-    }
-  }
-}
-
 resource "azurerm_network_interface" "jumpbox" {
   count = var.enable_jumpbox ? 1 : 0
 
@@ -128,64 +57,139 @@ resource "azurerm_network_interface" "jumpbox" {
   }
 }
 
-resource "azurerm_windows_virtual_machine" "jumpbox" {
-  count = var.enable_jumpbox ? 1 : 0
+ephemeral "azurerm_key_vault_secret" "jumpbox_admin" {
+  count        = var.enable_jumpbox && var.jumpbox_admin_secret != null ? 1 : 0
+  key_vault_id = var.jumpbox_admin_secret.key_vault_id
+  name         = var.jumpbox_admin_secret.name
+  version      = var.jumpbox_admin_secret.version
+}
 
-  admin_password        = random_password.jumpbox_admin[0].result
-  admin_username        = var.jumpbox_admin_username
-  computer_name         = "jump-${var.environment}"
-  location              = var.jumpbox_location
-  name                  = "vm-jumpbox-${local.name_suffix}"
-  network_interface_ids = [azurerm_network_interface.jumpbox[0].id]
-  patch_assessment_mode = "AutomaticByPlatform"
-  patch_mode            = "AutomaticByPlatform"
-  resource_group_name   = azurerm_resource_group.this.name
-  secure_boot_enabled   = true
-  size                  = var.jumpbox_vm_size
-  tags                  = local.tags
-  vtpm_enabled          = true
-
-  boot_diagnostics {}
-
+resource "azapi_resource" "jumpbox" {
+  count     = var.enable_jumpbox ? 1 : 0
+  type      = "Microsoft.Compute/virtualMachines@2024-03-01"
+  name      = "vm-jumpbox-${local.name_suffix}"
+  parent_id = azurerm_resource_group.this.id
+  location  = var.jumpbox_location
+  tags      = local.tags
   identity {
-    type = "SystemAssigned"
+    type         = "SystemAssigned"
+    identity_ids = []
   }
-
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "StandardSSD_LRS"
+  body = {
+    properties = {
+      for property, value in {
+        hardwareProfile      = { vmSize = var.jumpbox_vm_size }
+        extensionsTimeBudget = "PT1H30M"
+        priority             = "Regular"
+        networkProfile = {
+          networkInterfaces = [{ id = azurerm_network_interface.jumpbox[0].id, properties = { primary = true } }]
+        }
+        diagnosticsProfile = { bootDiagnostics = { enabled = true } }
+        securityProfile = {
+          securityType = "TrustedLaunch"
+          uefiSettings = { secureBootEnabled = true, vTpmEnabled = true }
+        }
+        osProfile = {
+          adminUsername               = var.jumpbox_admin_username
+          computerName                = "jump-${var.environment}"
+          allowExtensionOperations    = true
+          requireGuestProvisionSignal = true
+          windowsConfiguration = {
+            provisionVMAgent             = true
+            enableAutomaticUpdates       = true
+            enableVMAgentPlatformUpdates = true
+            winRM                        = { listeners = [] }
+            patchSettings = {
+              assessmentMode              = "AutomaticByPlatform"
+              patchMode                   = "AutomaticByPlatform"
+              enableHotpatching           = false
+              automaticByPlatformSettings = { bypassPlatformSafetyChecksOnUserSchedule = true }
+            }
+          }
+        }
+        storageProfile = {
+          for property, value in {
+            diskControllerType = "SCSI"
+            dataDisks          = []
+            imageReference = {
+              offer = "WindowsServer", publisher = "MicrosoftWindowsServer"
+              sku   = "2025-datacenter-azure-edition", version = "latest"
+            }
+            osDisk = {
+              name       = var.jumpbox_existing_os_disk == null ? "vm-jumpbox-${local.name_suffix}-os" : var.jumpbox_existing_os_disk.name
+              diskSizeGB = var.jumpbox_existing_os_disk == null ? 127 : var.jumpbox_existing_os_disk.size_gb
+              managedDisk = var.jumpbox_existing_os_disk == null ? {
+                storageAccountType = "StandardSSD_LRS"
+                } : {
+                id                 = var.jumpbox_existing_os_disk.id
+                storageAccountType = var.jumpbox_existing_os_disk.storage_account_type
+              }
+              caching                 = "ReadWrite"
+              createOption            = local.jumpbox_attach_os_disk ? "Attach" : "FromImage"
+              deleteOption            = "Detach"
+              osType                  = "Windows"
+              writeAcceleratorEnabled = false
+            }
+          } : property => value if property != "imageReference" || !local.jumpbox_attach_os_disk
+        }
+      } : property => value if property != "osProfile" || !local.jumpbox_attach_os_disk
+    }
   }
+  sensitive_body = var.jumpbox_admin_secret == null || local.jumpbox_attach_os_disk ? null : {
+    properties = { osProfile = { adminPassword = ephemeral.azurerm_key_vault_secret.jumpbox_admin[0].value } }
+  }
+  sensitive_body_version = var.jumpbox_admin_secret == null || local.jumpbox_attach_os_disk ? {} : {
+    "properties.osProfile.adminPassword" = var.jumpbox_admin_secret.version
+  }
+  response_export_values = []
 
-  source_image_reference {
-    offer     = "WindowsServer"
-    publisher = "MicrosoftWindowsServer"
-    sku       = "2025-datacenter-azure-edition"
-    version   = "latest"
+  lifecycle {
+    prevent_destroy = true
   }
 }
 
-resource "azurerm_virtual_machine_extension" "jumpbox_vm_access" {
-  count = var.enable_jumpbox ? 1 : 0
+resource "azapi_resource" "jumpbox_vm_access" {
+  count     = var.enable_jumpbox ? 1 : 0
+  type      = "Microsoft.Compute/virtualMachines/extensions@2024-03-01"
+  name      = "VMAccessAgent"
+  parent_id = azapi_resource.jumpbox[0].id
+  location  = var.jumpbox_location
+  tags      = local.tags
+  body = {
+    properties = {
+      publisher               = "Microsoft.Compute"
+      type                    = "VMAccessAgent"
+      typeHandlerVersion      = "2.0"
+      autoUpgradeMinorVersion = true
+      enableAutomaticUpgrade  = false
+    }
+  }
+  sensitive_body = var.jumpbox_admin_secret == null ? null : {
+    properties = {
+      protectedSettings = {
+        username = var.jumpbox_admin_username
+        password = ephemeral.azurerm_key_vault_secret.jumpbox_admin[0].value
+      }
+    }
+  }
+  sensitive_body_version = var.jumpbox_admin_secret == null ? {} : {
+    "properties.protectedSettings" = var.jumpbox_admin_secret.version
+  }
+  response_export_values = []
+  lifecycle { prevent_destroy = true }
+}
 
-  auto_upgrade_minor_version = true
-  name                       = "VMAccessAgent"
-  publisher                  = "Microsoft.Compute"
-  type                       = "VMAccessAgent"
-  type_handler_version       = "2.0"
-  virtual_machine_id         = azurerm_windows_virtual_machine.jumpbox[0].id
-
-  protected_settings = jsonencode({
-    password = random_password.jumpbox_admin[0].result
-    username = var.jumpbox_admin_username
-  })
-
-  tags = local.tags
+data "azapi_resource" "jumpbox_identity" {
+  count                  = var.enable_jumpbox ? 1 : 0
+  type                   = "Microsoft.Compute/virtualMachines@2024-03-01"
+  resource_id            = azapi_resource.jumpbox[0].id
+  response_export_values = ["identity.principalId"]
 }
 
 resource "azurerm_role_assignment" "jumpbox_foundry_project_manager" {
   count = var.enable_jumpbox ? 1 : 0
 
-  principal_id       = azurerm_windows_virtual_machine.jumpbox[0].identity[0].principal_id
+  principal_id       = data.azapi_resource.jumpbox_identity[0].output.identity.principalId
   role_definition_id = "/subscriptions/${var.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/eadc314b-1a2d-4efa-be10-5d325db5065e"
   scope              = module.ai_foundry.ai_foundry_project_id["primary"]
 }

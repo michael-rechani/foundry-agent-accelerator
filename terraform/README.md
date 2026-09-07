@@ -34,11 +34,10 @@ so a changed Azure CLI default cannot redirect a deployment.
 
 ## Region preference
 
-The tracked `region-preferences.tf` file defines the verified deployment order.
-North Central US is the current default. The listed regions were checked for
-GPT-4.1 `2025-04-14` Global Standard, Agent Service `agentsV2`, Azure AI Search
-Standard quota, Microsoft.App support, and the absence of location-restricting
-Azure Policy in the Lab subscription on 2026-09-03.
+The tracked `region-preferences.tf` file defines the default deployment order.
+North Central US is the default. Check model availability, Agent Service support,
+Search capacity, provider registration, and Azure Policy in the target subscription
+before choosing a region. This list is configuration, not a capacity guarantee.
 
 | Preference | Region | Cosmos DB paired region |
 | --- | --- | --- |
@@ -51,76 +50,69 @@ Azure AI Search physical capacity is dynamic and cannot be guaranteed by its
 quota API. Override the default for a specific deployment with
 `-var="location=westus3"`; subscription-specific tfvars remain ignored.
 The preference profile also selects region-compatible storage replication and
-Cosmos DB topology. North Central US uses LRS storage and a single non-zonal
-Cosmos region because this subscription currently lacks capacity for the
-paired South Central US addition.
-Existing resource groups retain their original location metadata during a
-region change, while regional workload resources are replaced in the selected
-region. This avoids cascading deletion of unchanged global resources.
+Cosmos DB topology. Cosmos uses the selected workload region as its primary region.
+Changing regions is not an automatic migration: review account topology changes
+and resource replacements separately. Deletion protection blocks replacement of
+protected accounts; do not remove it merely to make a plan succeed. Resource groups
+retain their original location metadata to avoid cascading deletion.
 
-## Private jumpbox access
+## Private access
 
-The configuration creates a Windows Server jumpbox in a small West US
-management virtual network. North Central US currently has no VM SKU capacity
-for this subscription, so global virtual network peering connects the jumpbox
-to the North Central US workload network. The Foundry private DNS zones are
-linked to both networks. The VM has no public IP address. A NAT Gateway attached
-only to the jumpbox subnet provides explicit outbound access so the VM can load
-the Foundry portal while Foundry data-plane endpoints stay private.
+Use an authorized execution environment with private DNS resolution and routing
+to the Foundry data plane and remote state backend. ARM connectivity alone is
+insufficient. Keep public access disabled and use scoped managed identities.
 
-Use Azure Bastion Developer to connect. North Central US supports this free
-development tier, and its single-VM, portal-only connection model fits this
-sample. A paid dedicated Bastion host and `AzureBastionSubnet` are unnecessary
-unless the environment needs concurrent sessions, peered-VNet access, native
-RDP, file transfer, or production support.
+Necessary secrets belong in Key Vault, not ordinary Terraform attributes.
+See the [credential guidance](../docs/credentials.md) for runtime access,
+protected state, and credential recovery requirements.
 
-Terraform stores the generated local administrator password in the existing
-private Foundry Key Vault and grants the deploying principal the Key Vault
-Secrets Officer role. Terraform outputs only the non-secret lookup values:
+## Optional administration resources
 
-Key Vault is the retrieval location, not the only copy of this password.
-The `random_password` resource, VM configuration, and VMAccess protected settings
-also persist the value in Terraform state; saved plans and historical state
-versions can contain it too. Sensitive-value redaction does not remove it.
-Use an encrypted remote backend with narrowly scoped access, protect state
-history and saved plans as credentials, and never commit or publish them.
-Do not use local state for this credential-bearing deployment.
+The Windows admin VM and its NAT egress are disabled by default. Enabling
+`enable_jumpbox` adds them; they are not required by Foundry itself. The shared
+management VNet, subnet, peering, and DNS links are defined separately in
+`management-network.tf` and remain enabled for the Lab. Set
+`enable_management_network = false` only when that network is not needed; enabling
+the VM or APIM also enables the network.
+APIM can use the shared management network without enabling the VM. Its region
+must match `jumpbox_location`, which selects that network's region. Existing
+Terraform addresses and network names are retained for compatibility.
 
-A strict Key-Vault-only requirement needs a separate credential-provisioning
-migration that avoids Terraform-managed secret values. Moving the current value
-to Key Vault alone does not remove existing copies. Rotate the credential after
-migration and handle old state/plan copies under the environment's retention
-policy; do not delete active state to remove a secret.
+For a new VM, pre-provision a strong Windows administrator password in an accessible
+Key Vault and set `jumpbox_admin_secret` to its vault resource ID, secret name, and
+explicit secret version. Do not supply the password in tfvars, CLI arguments, or
+ordinary Terraform data sources. The deployment identity needs private DNS/routing
+to the vault and permission to read that secret. Terraform reads it ephemerally and
+passes it only through AzAPI write-only fields, without exporting secret responses.
 
-See the [staged credential migration](../docs/credential-migration.md) for verified
-provider capabilities, ownership-transfer prerequisites, and acceptance gates.
+Keep the pinned version unchanged during normal applies. A version change requests
+a credential update in both the VM and access extension. This is not atomic:
+retain an independent recovery channel and the prior vault version until login is
+verified. After a partial failure, inspect each consumer before retrying; use the
+same pinned version to avoid generating a different password during recovery.
+Verify create, unchanged apply, rotation, and failure recovery on disposable
+resources before using this path for a real deployment.
 
-Key Vault is the required store for necessary passwords, API keys, tokens and
-certificates; prefer managed identity so keys are not needed. The requirement is
-not yet fully met: the latest field-name-only state inventory also found
-provider-returned Cosmos, Storage and Log Analytics keys/connection strings.
-Disabled key authentication does not stop every provider from recording those
-values. These require coordinated resource ownership/read-path migrations, not
-extra Terraform-managed Key Vault copies. No platform credential rotation or
-ownership transfer has been applied. The state backend is now private; further
-applies require an approved private-network runner.
+For an existing VM, set `enable_jumpbox = true` and preserve its disk ID, name, size,
+and storage type in `jumpbox_existing_os_disk` in ignored deployment inputs.
+The default `create_option = "FromImage"` preserves an image-provisioned VM's
+configuration. Use `create_option = "Attach"` for a VM booting a retained specialized
+Windows disk; this omits the image and OS provisioning profile and retains the
+disk's existing login. Leave `jumpbox_admin_secret` null to leave credentials under
+external Key Vault administration. Recreating a VM changes its system identity;
+reconcile role assignments and Terraform state before the next apply.
 
-```powershell
-terraform output -raw jumpbox_name
-terraform output -raw jumpbox_admin_username
-terraform output -raw jumpbox_key_vault_name
-terraform output -raw jumpbox_admin_password_secret_name
-```
+## Existing deployments
 
-Retrieve the secret value through Key Vault only from a network-connected
-administrative workstation. In the Azure portal, open the VM, select
-**Connect** > **Bastion**, choose password authentication, and connect. The
-first connection activates Bastion Developer on the virtual network. From the
-remote desktop, open Microsoft Edge and browse to `https://ai.azure.com`.
+Before adopting this configuration, preserve existing names with
+`cosmosdb_account_name` and `agent_storage_account_name`. The storage override also
+determines the Blob endpoint and connection names. Verify these match the existing
+resources before applying; the naming defaults are for fresh installations.
 
-The jumpbox, OS disk, NAT Gateway, and NAT public IP incur charges even when no
-RDP session is active. Deallocate the VM when it is idle. Set
-`enable_jumpbox = false` to omit all jumpbox and NAT resources.
+This is steady-state configuration, without one-time resource ownership scripts.
+An existing state must already use the resource addresses declared here. Stop if
+a plan attempts to recreate an existing service or destroy an older owner; resolve
+that installation's state separately. Preserve state and protected backups.
 
 ## API Management gateway
 
@@ -155,9 +147,9 @@ for agent-to-agent communication.
 After apply, inspect the deployed gateway with:
 
 ```powershell
-terraform output -raw api_management_name
-terraform output -raw api_management_id
-terraform output -raw api_management_gateway_url
+terraform -chdir=terraform output -raw api_management_name
+terraform -chdir=terraform output -raw api_management_id
+terraform -chdir=terraform output -raw api_management_gateway_url
 ```
 
 ### Optional review API
@@ -167,21 +159,88 @@ named endpoint and explicit Entra audience, caller object IDs, and client app
 IDs. The default is null: no API is published. See the
 [publication runbook and acceptance gates](../docs/apim-review-api.md).
 
-Run `./test-review-api-validation.ps1` for isolated input validation and rendered
+Run `./terraform/test-review-api-validation.ps1` for isolated input validation and rendered
 policy checks. These tests do not contact Azure or validate the live gateway.
+
+## Local validation
+
+After initializing the providers and modules, run from the repository root:
+
+```powershell
+./terraform/test-platform-validation.ps1
+./terraform/test-publisher-validation.ps1
+./terraform/test-review-api-validation.ps1
+```
+
+Use `-TerraformCommand <path-to-terraform>` when the required version is not on PATH.
+The platform suite copies only the account, naming, network, and input configuration
+into an isolated directory, uses provider mocks, and excludes deployment state,
+backend settings, and tfvars. It checks region profiles, existing-name overrides,
+credential input requirements, and management networking. It does not test live VM
+creation or rotation: Terraform provider mocks do not support ephemeral resources.
+Run full `terraform validate` as well, and use the credential guide's disposable
+resource checks before relying on a new credential path.
 
 ## Deploy
 
+Run commands from the repository root in one PowerShell session. The
+[baseline quick start](../README.md#quick-start) covers initial setup. Each
+command must succeed before you continue. Terraform provisions infrastructure;
+publishing agent code and building the Lab image are separate operations.
+
+### 1. Configure inputs and state
+
+Review your local `terraform.tfvars`: explicit workload subscription, names,
+region, model capacity, and network ranges. Configure a pre-created backend as
+described in [State](#state). Authenticate before running Terraform; keep
+credentials out of configuration. Preserve existing values and state ownership.
+
+### 2. Initialize and validate
+
 ```powershell
-$env:TF_VAR_subscription_id = "<subscription-id>"
-terraform init
-terraform plan -out main.tfplan
-terraform apply main.tfplan
+terraform -chdir=terraform init
+terraform -chdir=terraform validate
 ```
 
+For a deliberate state migration, follow [State](#state) instead of plain init.
+Never initialize empty state for resources already managed in another state.
+
+### 3. Plan and review
+
+```powershell
+$plan = Join-Path $env:TEMP ("foundry-" + [guid]::NewGuid().ToString("N") + ".tfplan")
+terraform -chdir=terraform plan -var-file=terraform.tfvars "-out=$plan"
+terraform -chdir=terraform show "$plan"
+```
+
+Stop on any error. Confirm the target subscription, expected costs, and every
+resource action. Investigate unexpected replacements or deletions before applying.
+
+### 4. Apply the approved plan
+
+A saved plan applies without another Terraform confirmation prompt. Run this
+block only after review; cleanup removes the disposable plan even if apply fails.
+
+```powershell
+try {
+	terraform -chdir=terraform apply "$plan"
+	if ($LASTEXITCODE -ne 0) { throw "Apply failed; inspect state before replanning" }
+} finally {
+	Remove-Item -LiteralPath $plan -Force -ErrorAction SilentlyContinue
+}
+```
+
+If planning fails or the plan is abandoned, run
+`Remove-Item -LiteralPath $plan -Force -ErrorAction SilentlyContinue` as well.
+Preserve state and protected backups; never keep plans as deployment history.
+
+### 5. Verify outputs
+
+Use the [Outputs](#outputs) commands after a successful apply. Resource outputs
+are not proof of agent health; follow the private deployment runbook for live tests.
+
 The configuration has no local-exec provisioners or hard-coded credentials.
-It does generate and persist the jumpbox password as described above. Terraform
-authenticates through the AzureRM provider's normal credential chain; for local
+Terraform authenticates through the AzureRM provider's normal credential chain; for local
 use, that is typically Azure CLI authentication.
 
 The workload is private by default. Foundry, AI Search, Cosmos DB, Key Vault,
@@ -200,7 +259,7 @@ existing landing zone.
 ## State
 
 Without a backend configuration Terraform defaults to local state. Configure a
-secured remote backend before deploying the credential-bearing jumpbox, including
+secured remote backend before deploying infrastructure, including
 for development. Local state is unsuitable for a team or production deployment.
 
 For a team environment, create an ignored `backend.tf` file with the secured,
@@ -220,14 +279,14 @@ terraform {
 ```
 
 ```powershell
-terraform init
+terraform -chdir=terraform init
 ```
 
 If local state already contains resources, migrate it instead of initializing
 an empty remote state:
 
 ```powershell
-terraform init -migrate-state
+terraform -chdir=terraform init -migrate-state
 ```
 
 Terraform prompts before copying local state. Confirm the destination account,
@@ -245,7 +304,7 @@ The dependency lock file should be committed and updated deliberately with
 After apply, retrieve the exact values consumed by the hosted-agent deployer:
 
 ```powershell
-terraform output -raw foundry_project_endpoint
-terraform output -raw model_deployment_name
+terraform -chdir=terraform output -raw foundry_project_endpoint
+terraform -chdir=terraform output -raw model_deployment_name
 ```
 
