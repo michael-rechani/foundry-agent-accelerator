@@ -22,6 +22,14 @@ The default names identify their purpose directly: the account uses
 - Model availability and quota in the target region
 - Network connectivity to the deployed virtual network, such as VPN or
 	ExpressRoute, for SDK access after public endpoints are disabled
+- A pre-created, secured Azure Storage account and blob container for remote
+	state, with private access and Storage Blob Data Contributor for the operator
+	on that container; this configuration does not bootstrap its own backend
+
+> [!IMPORTANT]
+> This is not a minimal-cost configuration. Applying it creates billable Azure
+> resources. Review regional pricing, quota, and a saved plan before approving
+> deployment. Agent publication and live model calls need separate approval.
 
 Confirm the selected subscription before deployment:
 
@@ -183,17 +191,33 @@ resource checks before relying on a new credential path.
 
 ## Deploy
 
-Run commands from the repository root in one PowerShell session. The
-[baseline quick start](../README.md#quick-start) covers initial setup. Each
-command must succeed before you continue. Terraform provisions infrastructure;
-publishing agent code and building the Lab image are separate operations.
+Run commands from the repository root in one PowerShell session, after checking
+the [prerequisites](#prerequisites). Each command must succeed before you continue.
+Terraform provisions infrastructure; publishing agent code and building the Lab
+image are separate operations. This operator walkthrough is not part of the
+[short demonstration](../docs/demos.md).
 
 ### 1. Configure inputs and state
 
-Review your local `terraform.tfvars`: explicit workload subscription, names,
-region, model capacity, and network ranges. Configure a pre-created backend as
-described in [State](#state). Authenticate before running Terraform; keep
-credentials out of configuration. Preserve existing values and state ownership.
+Create or review the ignored `terraform.tfvars` file in this directory. For a
+new environment, replace the placeholder and choose names and a supported region:
+
+```hcl
+subscription_id       = "<workload-subscription-id>"
+base_name             = "aifnd"
+environment           = "dev"
+location              = "northcentralus"
+enable_api_management = false
+```
+
+Review [all input defaults](variables.tf), especially model capacity, network
+ranges, and optional resources. Do not overwrite an existing environment's
+values or reuse another deployment's names and state. Check other automatically
+loaded variable files and remove unintended command-line overrides.
+
+Configure a pre-created backend as described in [State](#state). Authenticate
+before running Terraform; keep credentials out of configuration. Preserve
+existing values and state ownership.
 
 ### 2. Initialize and validate
 
@@ -213,8 +237,11 @@ terraform -chdir=terraform plan -var-file=terraform.tfvars "-out=$plan"
 terraform -chdir=terraform show "$plan"
 ```
 
-Stop on any error. Confirm the target subscription, expected costs, and every
-resource action. Investigate unexpected replacements or deletions before applying.
+Stop on any error. Confirm the subscription, names, regions, network ranges,
+model capacity, expected costs, and every create/update/delete action.
+Investigate unexpected replacements or deletions before applying. Plans and state
+can contain sensitive data: do not commit them or upload them as build artifacts.
+Keep this PowerShell session open for the apply step.
 
 ### 4. Apply the approved plan
 
@@ -233,11 +260,16 @@ try {
 If planning fails or the plan is abandoned, run
 `Remove-Item -LiteralPath $plan -Force -ErrorAction SilentlyContinue` as well.
 Preserve state and protected backups; never keep plans as deployment history.
+After configuration changes, generate and review a new plan rather than reusing
+an earlier one.
 
 ### 5. Verify outputs
 
 Use the [Outputs](#outputs) commands after a successful apply. Resource outputs
-are not proof of agent health; follow the private deployment runbook for live tests.
+are not proof of agent or Lab health. Continue with
+[hosted-agent publication](../hosted-agents/README.md) and the
+[private deployment runbook](../docs/private-deployment.md), then the separately
+managed [Lab deployment](../workbench/README.md).
 
 The configuration has no local-exec provisioners or hard-coded credentials.
 Terraform authenticates through the AzureRM provider's normal credential chain; for local
@@ -268,15 +300,22 @@ pre-created state account settings:
 ```hcl
 terraform {
 	backend "azurerm" {
+		subscription_id      = "<state-subscription-id>"
 		resource_group_name  = "<state-resource-group>"
 		storage_account_name = "<state-storage-account>"
-		container_name       = "tfstate"
-		key                  = "ai-foundry/dev.tfstate"
+		container_name       = "<state-container>"
+		key                  = "ai-foundry/<environment>.tfstate"
 		use_azuread_auth     = true
 		use_cli              = true
 	}
 }
 ```
+
+Replace every placeholder. The backend subscription can differ from the workload
+subscription. Use a unique state key for each independent deployment, and retain
+the original key when updating an existing environment. Never put access keys or
+passwords in these local settings. Use an authorized network path to the state
+account; do not reopen a private endpoint to public access.
 
 ```powershell
 terraform -chdir=terraform init
@@ -290,7 +329,9 @@ terraform -chdir=terraform init -migrate-state
 ```
 
 Terraform prompts before copying local state. Confirm the destination account,
-container, and key before accepting. `backend.tf` is ignored because backend
+container, and key, and retain a protected backup before accepting. Never use
+empty state for resources that already belong to another state.
+`backend.tf` is ignored because backend
 settings vary by environment. `use_cli` and `use_azuread_auth` make Terraform
 use the authenticated Azure CLI session and authorize directly against the
 Blob Storage data plane. The user needs the Storage Blob Data Contributor role
@@ -304,7 +345,31 @@ The dependency lock file should be committed and updated deliberately with
 After apply, retrieve the exact values consumed by the hosted-agent deployer:
 
 ```powershell
+terraform -chdir=terraform output -raw resource_group_name
 terraform -chdir=terraform output -raw foundry_project_endpoint
 terraform -chdir=terraform output -raw model_deployment_name
 ```
 
+## Separately scoped production considerations
+
+These are future design considerations, not delivered production readiness.
+Engagements focus on demonstration and technical validation. Integration with customer systems and production deployment require separate scoping and agreement.
+
+The sample's private data-plane design, managed identities, and disabled local
+key authentication are foundations, not proof of production suitability. See
+the [architecture and trust boundaries](../docs/architecture.md) for the existing
+controls. Before production use:
+
+- Use the AVM pattern's BYOR path so platform-owned Key Vault, Storage,
+  Cosmos DB, and AI Search resources have independent lifecycles.
+- Integrate the workload VNet and private DNS zones with the landing-zone hub,
+  firewall, DNS resolver, and on-premises routing design.
+- Send diagnostics to a centrally managed Log Analytics workspace.
+- Configure and test alert notification delivery and backup/restore procedures.
+- Add user authorization and owner-scoped history before using confidential data.
+- Replace process-local limits with shared admission control before scaling out.
+- Assign least-privilege data-plane roles to each hosted agent's dedicated
+  Microsoft Entra identity.
+- Pin model versions and test Responsible AI policies before promotion.
+- Store Terraform state in an Azure Storage backend with Entra ID
+  authentication, locking, versioning, and restricted network access.

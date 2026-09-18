@@ -72,7 +72,7 @@ def create_specialist_tools(
     configured = os.getenv("SPECIALIST_CONFIG")
     specialists = validate_specialists(json.loads(configured) if configured is not None else [
         {"tool": "review_application", "agent": application_agent_name,
-         "description": "Review an application against supplied criteria and source evidence."},
+         "description": "Review application completeness or RFP/proposal coverage against supplied criteria and source evidence."},
         {"tool": "review_case", "agent": case_agent_name,
          "description": "Review a case record and return evidence-grounded findings."},
     ])

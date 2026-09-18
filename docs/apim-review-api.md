@@ -52,7 +52,7 @@ review_api = {
 
 ### 2. Validate, plan, review, and apply
 
-Follow the [baseline Terraform procedure](../README.md#3-initialize-and-validate)
+Follow the [baseline Terraform procedure](../terraform/README.md#2-initialize-and-validate)
 with the existing environment's variables and state, starting at initialization.
 Run the local [acceptance checks](#acceptance-gates) before planning. Review the
 full saved plan; do not apply unrelated infrastructure changes merely to publish

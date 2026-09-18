@@ -6,6 +6,16 @@ An optional workflow for checking supplied evidence against explicit criteria.
 It requires a deployed Lab with Cosmos persistence and a compatible agent.
 Local disconnected mode accepts draft input without invoking agents or saving records.
 
+For a customer-facing walkthrough, choose [one demonstration](demos.md).
+Application completeness is available in source; requirements and proposal
+coverage is experimental and reuses this criteria-and-evidence contract. The
+[synthetic RFP input](demo-inputs/requirements-review.json) can be pasted into the
+existing fields; there is no file-import feature or new agent requirement.
+Ordinary Chat remains separate and does not require this JSON schema or review
+receipts.
+
+Engagements focus on demonstration and technical validation. Integration with customer systems and production deployment require separate scoping and agreement.
+
 ## Workflow
 
 1. Create a review with a title, up to 12 criteria and up to 12 source texts.
@@ -16,6 +26,9 @@ Local disconnected mode accepts draft input without invoking agents or saving re
 3. Inspect structured findings alongside the evidence. Each criterion has exactly
    one assessment: supported, gap, or conflict. Non-gap findings require citations;
    every cited quote must match its named submitted source exactly.
+   A gap means evidence is not demonstrated, not automatic noncompliance.
+   Product claims are not independently verified capabilities; conflicts require
+   clarification, not an invented resolution or an approval decision.
 4. Answer clarification questions with additional evidence. Saving evidence creates
    a runnable revision; Resume review makes a new bounded call over the criteria
    and accumulated evidence. It is not a continuation of a persisted model session.

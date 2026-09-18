@@ -1,0 +1,10 @@
+Review these synthetic case notes for authorized staff. Summarize supported
+facts, identify missing or conflicting information, and draft follow-up
+questions. Cite the supplied identifiers. Do not choose an unsupported date,
+invent policy, make an eligibility decision, or modify a system.
+
+CASE-1: Intake completed on 2026-08-15. Follow-up scheduled for 2026-08-22.
+CASE-2: Intake completed on 2026-08-17. Follow-up scheduled for 2026-08-22.
+CASE-3: Proof of address remains outstanding. No supporting document is supplied.
+
+No policy text is supplied. State what needs authorized human review.

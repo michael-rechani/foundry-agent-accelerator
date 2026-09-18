@@ -12,16 +12,15 @@ import {
   FlaskConical,
   GitBranch,
   History,
+  Info,
   Layers3,
   LayoutGrid,
   LoaderCircle,
-  LockKeyhole,
   MessageSquare,
   Plus,
   RefreshCw,
   Save,
   Search,
-  ShieldCheck,
   Square,
   Trash2,
   X,
@@ -97,6 +96,7 @@ export default function ChatWorkspace() {
   const editor = useRef<HTMLTextAreaElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
   const agent = config?.agents.find((item) => item.id === selected)
+  const hasConversation = !!draft || turns.length > 0 || !!pending
   const history = turns.flatMap((turn) => [
     { role: 'user', content: turn.question },
     { role: 'assistant', content: turn.result.text },
@@ -467,45 +467,48 @@ export default function ChatWorkspace() {
             <span>Performance</span>
           </button>
         </nav>
-        {view === 'chat' && <div className="sidebar-session">
-          <span className="micro-label">CURRENT CONVERSATION</span>
-          <div>
-            <span className="status-dot" />
-            {agent?.label || 'Connecting'}
-          </div>
-          <small>
-            {turns.length ? `${turns.length} replies` : 'New conversation'}
-          </small>
-        </div>}
-        {config?.mode === 'private' && <div className="chat-private">
-          <LockKeyhole size={16} />
-          <span>
-            Shared workspace
-            <small>No user sign-in</small>
-          </span>
-        </div>}
       </aside>
 
       <div className="chat-workspace">
         <header className="chat-topbar">
-          <div className="view-title">
-            {view === 'reviews'
-              ? 'Evidence reviews'
-              : view === 'chat'
-                ? 'Chat'
-                : view === 'catalog'
-                  ? 'Agent catalog'
-                  : view === 'history'
-                    ? 'Shared history'
-                    : 'Performance'}
-          </div>
-          <div className="topbar-actions">
-            <span
-              className={`environment-badge ${config?.mode === 'private' ? 'private' : ''}`}
+          {view === 'chat' && (
+            <button
+              className="agent-picker"
+              title="Choose an agent"
+              disabled={!config}
+              onClick={() => setView('catalog')}
             >
-              <span className="status-dot" />
-              {config ? config.mode === 'private' ? 'Private' : 'Not connected' : 'Connecting'}
-            </span>
+              <span className="agent-name">{agent?.label || 'Connecting'}</span>
+              <ChevronDown size={14} aria-hidden="true" />
+            </button>
+          )}
+          <div className="topbar-actions">
+            {config?.mode === 'private' ? (
+              <details
+                className="lab-info"
+                key={view}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') event.currentTarget.open = false
+                }}
+              >
+                <summary className="environment-badge private" title="About this shared lab">
+                  <span className="status-dot" />
+                  Shared lab
+                  <Info size={13} aria-hidden="true" />
+                </summary>
+                <aside className="lab-info-panel" aria-label="Shared lab details">
+                  <strong>Private shared lab</strong>
+                  <p>No user sign-in. Saved records are shared.</p>
+                  <p>Use synthetic data only.</p>
+                  <p>Everyone with workspace access can read, modify and delete saved records. There is no per-user authorization; private networking does not isolate users.</p>
+                </aside>
+              </details>
+            ) : (
+              <span className="environment-badge">
+                <span className="status-dot" />
+                {config ? 'Not connected' : 'Connecting'}
+              </span>
+            )}
             {view === 'chat' && <>
             <button
               className="chat-icon"
@@ -539,6 +542,14 @@ export default function ChatWorkspace() {
           </div>
         </header>
 
+        <aside className="lab-boundary" aria-label="Lab data boundary">
+          <strong>Synthetic data only.</strong>{' '}
+          {config?.mode === 'private'
+            ? 'Shared history has no per-user authorization.'
+            : 'When connected, history is shared with no per-user authorization.'}{' '}
+          Private networking does not isolate users.
+        </aside>
+
         {!config && (
           <div
             className="config-status"
@@ -564,11 +575,8 @@ export default function ChatWorkspace() {
         {view === 'reviews' ? null : view === 'history' ? (
           <main className="secondary-view">
             <div className="section-heading">
-              <span className="micro-label">
-                SHARED WORKSPACE / {config?.retention_days}-DAY RETENTION
-              </span>
               <h1>Saved conversations</h1>
-              <p>Visible to everyone with workspace access</p>
+              <p>Everyone with workspace access can read, modify and delete saved conversations. Expires {config?.retention_days} days after the last update.</p>
             </div>
             <div className="saved-list">
               {savedChats.map((item) => (
@@ -620,45 +628,13 @@ export default function ChatWorkspace() {
           </main>
         ) : view === 'chat' ? (
           <main className="conversation-view">
-            <div className="conversation-heading">
-              <button
-                className="agent-picker"
-                onClick={() => setView('catalog')}
-              >
-                <span className="agent-avatar">
-                  <GitBranch size={18} />
-                </span>
-                <span>
-                  {agent?.label || 'Connecting'}
-                  <small>{agent?.category || 'Agent'}</small>
-                </span>
-                <ChevronDown size={14} />
-              </button>
-              <span className="memory-label">
-                <ShieldCheck size={13} />
-                {saved
-                  ? dirty
-                    ? 'Unsaved changes'
-                    : draft
-                      ? 'Draft not saved'
-                      : 'Saved / shared'
-                  : 'Not saved'}
-              </span>
-            </div>
             <div className="conversation-scroll" aria-label="Conversation">
               {!turns.length && !pending ? (
                 <div className="chat-welcome">
-                  <div className="welcome-art">
-                    <MessageSquare size={38} strokeWidth={1.25} />
-                    <span>
-                      <Check size={14} />
-                    </span>
-                  </div>
-                  <span className="micro-label">
-                    A LITTLE CONTEXT. A CLEARER NEXT STEP.
-                  </span>
-                  <h1>What are we working on?</h1>
+                  <h1>Choose one demo</h1>
                   <p>{agent?.description || 'Connecting to your workspace'}</p>
+                  <p>One scenario at a time, using supplied inputs only. No live actions; people make decisions.</p>
+                  <p>Select a starter to edit, or ask a clarification question. Nothing is sent until you choose Send.</p>
                   <div className="prompt-options">
                     {agent?.prompts.map((prompt) => (
                       <button
@@ -726,7 +702,7 @@ export default function ChatWorkspace() {
                   aria-label="Message"
                   placeholder={`Message ${agent?.label || 'your agent'}...`}
                   value={draft}
-                  aria-describedby={config ? 'context-budget' : undefined}
+                  aria-describedby={config && hasConversation ? 'context-budget' : undefined}
                   disabled={busy}
                   rows={3}
                   onChange={(event) => {
@@ -746,9 +722,9 @@ export default function ChatWorkspace() {
                 />
                 <div className="composer-toolbar">
                   <span>
-                    <LockKeyhole size={12} />
+                    <FlaskConical size={12} aria-hidden="true" />
                     {config?.mode === 'private'
-                      ? 'Example data only'
+                      ? 'Synthetic data only'
                       : 'Execution unavailable'}
                   </span>
                   <div>
@@ -795,38 +771,51 @@ export default function ChatWorkspace() {
                   </div>
                 </div>
               </form>
-              {config && (
-                <details
-                  className={`context-budget ${contextUsage >= 0.9 ? 'near-limit' : ''}`}
-                  id="context-budget"
-                >
-                  <summary>
-                    Context budget{' '}
-                    <span>{Math.round(contextUsage * 100)}%</span>
-                  </summary>
-                  <dl>
-                    <div>
-                      <dt>Characters</dt>
-                      <dd>
-                        {characters.toLocaleString()} /{' '}
-                        {config.max_characters.toLocaleString()}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Request bytes</dt>
-                      <dd>
-                        {requestBytes.toLocaleString()} /{' '}
-                        {config.max_request_bytes.toLocaleString()}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Replies</dt>
-                      <dd>
-                        {turns.length} / {config.max_history_turns + 1}
-                      </dd>
-                    </div>
-                  </dl>
-                </details>
+              {hasConversation && (
+                <div className="composer-details">
+                  {config && (
+                    <details
+                      className={`context-budget ${contextUsage >= 0.9 ? 'near-limit' : ''}`}
+                      id="context-budget"
+                    >
+                      <summary>
+                        Conversation limits{' '}
+                        <span>{Math.round(contextUsage * 100)}%</span>
+                      </summary>
+                      <dl>
+                        <div>
+                          <dt>Characters</dt>
+                          <dd>
+                            {characters.toLocaleString()} /{' '}
+                            {config.max_characters.toLocaleString()}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Request bytes</dt>
+                          <dd>
+                            {requestBytes.toLocaleString()} /{' '}
+                            {config.max_request_bytes.toLocaleString()}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Replies</dt>
+                          <dd>
+                            {turns.length} / {config.max_history_turns + 1}
+                          </dd>
+                        </div>
+                      </dl>
+                    </details>
+                  )}
+                  <span className="save-state">
+                    {saved
+                      ? dirty
+                        ? 'Unsaved changes'
+                        : draft
+                          ? 'Draft not saved'
+                          : 'Saved / shared'
+                      : 'Not saved'}
+                  </span>
+                </div>
               )}
               {exceedsLimit ? (
                 <p className="composer-warning" role="alert">
@@ -837,23 +826,16 @@ export default function ChatWorkspace() {
                 <p className="composer-warning">
                   Approaching the conversation limit.
                 </p>
-              ) : (
-                <div className="composer-footnote">
-                  <span>{config?.title || 'AI Foundry Lab'}</span>
-                  <span>Evidence-grounded. Human-reviewed.</span>
-                </div>
-              )}
+              ) : null}
             </div>
           </main>
         ) : view === 'catalog' ? (
           <main className="secondary-view">
             <div className="section-heading">
-              <span className="micro-label">YOUR WORKSPACE</span>
               <h1>Agent catalog</h1>
-              <p>
-                {config?.agents.length || 0} available{' '}
-                {config?.agents.length === 1 ? 'agent' : 'agents'}
-              </p>
+              <p>Choose a review, then one scenario. Only entries enabled for this Lab are shown.</p>
+              <p>Casework assistance and application completeness are available in source, not a claim of live validation. Requirements and proposal review is EXPERIMENTAL and reuses application review.</p>
+              <p>Agent-assisted business request triage is PLANNED, not runnable. Review routing is not business-request triage.</p>
             </div>
             <label className="catalog-search">
               <Search size={17} />
@@ -875,7 +857,7 @@ export default function ChatWorkspace() {
                   <article className="catalog-agent" key={item.id}>
                     <div className="catalog-agent-top">
                       <span className="catalog-avatar">
-                        {item.category === 'Coordinator' ? (
+                        {Object.keys(item.tools).length > 0 ? (
                           <GitBranch size={25} />
                         ) : (
                           <FileCheck2 size={25} />
@@ -885,10 +867,20 @@ export default function ChatWorkspace() {
                     </div>
                     <h2>{item.label}</h2>
                     <p>{item.description}</p>
-                    <div className="catalog-capabilities">
-                      <GitBranch size={13} />
-                      {Object.keys(item.tools).length} specialist bindings
-                    </div>
+                    <details className="catalog-runtime">
+                      <summary>Runtime / developer details</summary>
+                      <dl>
+                        <div><dt>Catalog ID</dt><dd><code>{item.id}</code></dd></div>
+                        <div><dt>Runtime agent</dt><dd><code>{item.agent}</code></dd></div>
+                      </dl>
+                      <p>{Object.keys(item.tools).length} tool bindings</p>
+                      <ul>
+                        {Object.entries(item.tools).map(([tool, target]) => (
+                          <li key={tool}><code>{tool}</code> to <code>{target}</code></li>
+                        ))}
+                      </ul>
+                      <p>Configured targets, not execution proof. Check response execution details and receipts; stored receipts are not reverified.</p>
+                    </details>
                     <button
                       className="catalog-select"
                       disabled={busy || historyBusy}
@@ -914,9 +906,8 @@ export default function ChatWorkspace() {
         ) : (
           <main className="secondary-view">
             <div className="section-heading">
-              <span className="micro-label">THIS BROWSER SESSION</span>
               <h1>Performance</h1>
-              <p>Observed requests / end-to-end duration</p>
+              <p>Requests and response times from this browser session.</p>
             </div>
             <div className="metric-strip">
               <div>

@@ -3,6 +3,27 @@
 Private, chat-first React/TypeScript UI with a FastAPI backend, Cosmos persistence,
 and an optional evidence-review workflow.
 
+## Choose one demonstration
+
+Start with the [demo guide](../docs/demos.md) and record findings in the
+[demo handoff](../docs/demo-handoff.md). Choose one bounded scenario, not an
+all-scenarios demonstration:
+
+- [Casework assistance](../docs/demos.md#casework-assistance) and
+  [application completeness](../docs/demos.md#application-completeness) are
+  implemented and available in source; this is not a live-validation claim.
+- [Requirements and proposal review](../docs/demos.md#requirements-and-proposal-review)
+  is **EXPERIMENTAL**. It reuses the application agent and existing
+  criteria-and-evidence workflow, not another agent.
+- [Agent-assisted business request triage](../docs/demos.md#agent-assisted-request-triage)
+  is **PLANNED**, not runnable. Existing coordinator/specialist review routing
+  is not business-request triage.
+
+Use supplied synthetic inputs only. The demos do not perform live business
+actions or connect to customer systems. People verify evidence and make
+decisions; model output is not an approval, award, eligibility or permit decision.
+Live model execution still incurs charges; see [Storage and Cost](#storage-and-cost).
+
 The frontend uses React 19, TypeScript, Vite, Lucide icons, and custom
 Fluent-inspired CSS, not the Fluent UI component library. Neutral surfaces and
 blue actions are shared across Chat, evidence reviews, history, catalog, and performance.
@@ -17,12 +38,24 @@ Local disconnected mode disables agent calls and Cosmos access.
 
 The Container Apps environment has an internal load balancer and public network access disabled. App-level external ingress means access from outside the *environment*, within the private network; ingress is further restricted to an approved source subnet. APIM is not involved and no agent APIs are published by this application.
 
+End-user Entra sign-in is not a prerequisite for the current private lab. Azure
+resource access still uses managed identities. Restrict the lab to trusted
+operators and fictional inputs; it is not a user-isolated application.
+**Synthetic data only. Shared history has no per-user authorization. Private
+networking does not isolate users or records.** This warning stays visible
+across workspace views on desktop and mobile. The **Shared lab** control in the
+header opens further details: everyone with workspace access can read, modify
+and delete saved records. This is
+informational, not an access control or a check that submitted data is fictional.
+
 ## Conversations
 
 Chat is the default view. The optional [evidence-review workflow](../docs/review-workflow.md)
 has its own data contract and deployment checks; it is not required to use Chat.
 
-- Customer review is the only directly available agent by default. Its specialist bindings still work. Configure `visible_agents` in Terraform or `WORKBENCH_VISIBLE_AGENTS` locally to change the catalog; hidden agents cannot be invoked directly through the workbench API.
+- Guided review (`customer-review`, previously displayed as Customer review) is the only directly available agent by default. Its existing runtime agent and specialist bindings still work. Configure `visible_agents` in Terraform or `WORKBENCH_VISIBLE_AGENTS` locally to change the catalog; hidden agents cannot be invoked directly through the workbench API.
+- Guided review offers three scenario starters: **Review an application** (application completeness), **Casework assistance**, and **Requirements and proposal review (EXPERIMENTAL)**. **Start with a question** retains clarification without assuming a scenario. Select just one starter; it fills the composer without submitting.
+- The catalog uses customer-facing names: Guided review, Review planning, Application completeness and Casework assistance. Expand **Runtime / developer details** for unchanged catalog IDs, runtime agent names and tool bindings. These are configuration, not execution proof; response execution details and receipt checks remain available.
 - Send a message, then use the Save icon to save completed exchanges. Saving is explicit, not automatic. Unsaved drafts remain only in browser memory. Export includes completed exchanges and the current draft. Browser navigation warns about unsaved work where supported; it cannot prevent data loss from a browser crash or forced close.
 - Shared history lists, reopens and deletes saved conversations. **Everyone with workspace access can read, modify and delete these conversations.** There is no per-user authorization yet. Use synthetic data only.
 - Saves expire 30 days after their last update. Deletion and TTL remove active documents; the account's backup retention is separate and is not immediate secure erasure.
@@ -33,7 +66,8 @@ has its own data contract and deployment checks; it is not required to use Chat.
 - Performance shows browser-session request counts and observed end-to-end latency. It excludes local preview calls, is cleared on refresh, and is not a fleet-wide metric or model-quality score.
 - Stop waiting cancels the browser wait, not guaranteed remote agent execution. Requests are not automatically retried.
 - History requests stop waiting after 45 seconds without clearing local work. An interrupted save may have completed remotely; check shared history before repeating it.
-- The composer grows up to 240 pixels or 25% of viewport height. Its context budget shows Unicode characters, UTF-8 JSON bytes and completed replies; warnings identify the exhausted limit.
+- Choose the agent from the chat header. Starter prompts fill the composer without submitting. Save state and expandable **Conversation limits** appear once there is a draft or conversation, rather than adding status rows to an empty chat.
+- The composer grows up to 240 pixels or 25% of viewport height. Conversation limits show Unicode characters, UTF-8 JSON bytes and completed replies; warnings identify the exhausted limit.
 - Continue in new chat previews an editable draft from the last exchange and any unsent follow-up. Earlier exchanges are not carried over. Previous output is labeled unverified context, not a verified receipt. Confirming starts an empty conversation with that draft, without submitting it or altering saved history. Cancel preserves the original conversation. Save or export unsaved source messages first.
 - Configuration loads with a 15-second bootstrap deadline and explicit Retry. Invalid configuration disables execution; retry preserves any typed draft. Review deadline expiry and user cancellation have distinct messages and performance outcomes. Neither automatically retries a model request.
 

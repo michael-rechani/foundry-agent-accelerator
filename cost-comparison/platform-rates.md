@@ -1,11 +1,29 @@
-# Deployed platform budget and rates
+# Reference-environment budget and rates
 
 [Cost model](README.md) / Platform rates
+
+## Snapshot scope
+
+These are recorded assumptions and operational notes for one reference
+environment, not a live inventory or requirements for every deployment.
+**Documentation reviewed: 2026-09-17. Platform rate retrieval recorded:
+2026-09-05.** The documentation review did not query Azure resources, refresh
+prices, or reconcile spend. Original timestamps for the deployment changes and
+failed cost query below were not recorded here; do not treat the rate date as
+their event date.
+
+The filename [scenario.deployed.json](scenario.deployed.json) and its recorded
+assumptions are retained for compatibility. References to "current deployment"
+inside that snapshot describe its original context, not a current service check.
+Copy it and verify quantities, prices, topology, and cost applicability for the
+environment being evaluated.
+
+## Recorded retail rates
 
 Retrieved from the [Azure Retail Prices API](https://prices.azure.com/api/retail/prices)
 on **2026-09-05**, using API version `2023-01-01-preview`, USD consumption prices,
 and the resource's region or Global meter region. These are public rates, not an agreement quote
-or measured bill. Both selected records identify a primary meter region.
+or measured bill.
 
 | Resource | Exact product / meter | USD/hour | Assumed hours | Estimated month | Rate effective |
 | --- | --- | ---: | ---: | ---: | --- |
@@ -16,17 +34,18 @@ private endpoints/DNS, transfer, project dependencies, hosted runtime, model
 tokens, tools, monitoring, operations labor, and applicable additional API calls.
 This is a partial planning baseline, not a minimum invoice or total platform cost.
 
-The separately deployed workbench adds 400 RU/s of dedicated Cosmos container
-throughput. The North Central US public retail `100 RU/s` meter was USD 0.008/hour
+The reference environment's separately deployed workbench adds 400 RU/s of
+dedicated Cosmos container throughput. The North Central US public retail
+`100 RU/s` meter was USD 0.008/hour
 when retrieved on 2026-09-05 UTC: `4 * 0.008 * 730 = USD 23.36/month`.
 The original comparison example includes this amount and unpriced workbench storage,
 backup, Container Apps, and registry/build entries. Its known platform subtotal
-is now USD 765.41/month, still incomplete and not an invoice. The Foundry Cosmos
-entry excludes this workbench allocation to avoid double counting.
+is USD 765.41/month under these assumptions, still incomplete and not an invoice.
+The Foundry Cosmos entry excludes this workbench allocation to avoid double counting.
 
-The [deployed scenario](scenario.deployed.json) adds itemized coverage for the
-current private platform. It accepts quantities and rates, calculates their
-products, and prints its assumptions. Metadata does not perform live price lookups.
+The [reference scenario](scenario.deployed.json) adds itemized coverage for the
+recorded private-platform assumptions. It accepts quantities and rates, calculates
+their products, and prints its assumptions. Metadata does not perform live price lookups.
 Use actual calendar hours when evaluating a specific billing month. Operational
 allowances remain in the calculator for accounting completeness, not as required
 architecture components.
@@ -48,12 +67,13 @@ capacity using the applicable included allowance and billing rules.
 
 ## Deployed budget
 
-APIM is disabled. The deployed scenario assigns it zero capacity hours, reducing
-the steady-state monthly budget by $700.00 to **$1,584.76**. Earlier accrued charges
-are not erased. The original comparison example above retains APIM assumptions
-for comparison and is not the current deployment budget.
+This historical reference budget records APIM as disabled and assigns it zero
+capacity hours, reducing its steady-state monthly estimate by $700.00 to
+**$1,584.76**. That does not erase earlier accrued charges or establish present
+spend. The original comparison example above retains APIM assumptions for
+comparison; neither file automatically follows live deployment changes.
 
-| Item | Verified unit rate | Budget quantity |
+| Item | Recorded unit rate | Budget quantity |
 | --- | ---: | --- |
 | Standard HDD S10 | $5.888/month | One 127-GiB disk |
 | NAT gateway, Global | $0.045/hour plus $0.045/GB | 730 hours, 100 GB |
@@ -91,18 +111,26 @@ python cost-comparison/calculator.py cost-comparison/scenario.deployed.json
 
 ## Actual cost reconciliation
 
-A resource-group MonthToDate ActualCost query grouped by day, service, and
-location returned **HTTP 429**. No actual-spend result was obtained.
-Retry through Cost Management after the service's throttling window. Do not
+A past resource-group MonthToDate ActualCost query for the reference environment,
+grouped by day, service, and location, returned **HTTP 429**. No actual-spend
+result was obtained or subsequently recorded here. This is a historical
+observation, not a statement that Cost Management is currently unavailable.
+
+For a new reconciliation, use an approved Cost Management query for the intended
+scope and period, respecting any returned throttling guidance. Do not
 interpret the failed query as zero spend or extrapolate these capacity estimates
 into an actual monthly bill. Actual usage can arrive late and a newly deployed
 environment is not yet a stable representative month.
 
 ## Cleanup candidates
 
-- APIM is disabled; redeploy only when gateway testing is needed. Review its
-  network requirements and current pricing before enabling it again.
-- Retained agent versions and the separate profile coordinator need an explicit
-  retirement decision. No recovery versions were deleted in this cleanup pass.
-- Existing private networking remains needed for administration and builds.
-  Do not remove it as part of APIM cleanup.
+These are retained operator notes, not a cleanup instruction or a current
+resource inventory. Obtain a fresh inventory and explicit approval before acting.
+
+- The reference budget records APIM as disabled. Enable it only for a scoped
+  gateway requirement after reviewing networking and current pricing.
+- Inventory retained agent versions and the separate profile coordinator before
+  deciding what to retire. Preserve recovery targets; this documentation edit
+  deleted no resources or versions.
+- Preserve private networking required for administration and builds; removing
+  an optional gateway does not establish that shared networking is unused.

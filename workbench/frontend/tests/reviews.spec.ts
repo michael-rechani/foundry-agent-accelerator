@@ -29,8 +29,8 @@ async function setup(page: Page, preview = false) {
           agents: [
             {
               id: 'customer-review',
-              label: 'Customer review',
-              category: 'Coordinator',
+              label: 'Guided review',
+              category: 'Guided demos',
               description: 'Evidence review',
               agent: 'customer-review-coordinator',
               tools: {},
@@ -136,7 +136,7 @@ async function setup(page: Page, preview = false) {
     return route.fulfill({ json: document })
   })
   await page.goto('/')
-  await expect(page.locator('.agent-picker')).toContainText('Customer review')
+  await expect(page.locator('.agent-picker')).toContainText('Guided review')
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
   await expect(navigation.getByRole('button').first()).toHaveText('Chat')
   await expect(navigation.getByRole('button', { name: 'Chat', exact: true })).toHaveAttribute('aria-current', 'page')
@@ -152,9 +152,13 @@ test('navigation is labelled and conversation actions stay in Chat', async ({ pa
   await setup(page, true)
   await expect(page.locator('body')).not.toContainText(/preview/i)
   await expect(page.getByRole('heading', { name: 'Review storage unavailable' })).toBeVisible()
+  await expect(page.locator('.review-scope')).toContainText('separate from Chat')
+  await expect(page.locator('.review-scope')).toContainText('Requirements and proposal review is EXPERIMENTAL')
+  await expect(page.locator('.review-scope')).toContainText('reuses application review, not a new agent')
+  await expect(page.locator('.review-scope')).toContainText('no live actions. People make decisions.')
+  await expect(page.getByRole('complementary', { name: 'Lab data boundary' })).toBeInViewport({ ratio: 1 })
   await expect(page.getByRole('button', { name: 'Save to shared history' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Export conversation' })).toHaveCount(0)
-  await expect(page.locator('.sidebar-session')).toHaveCount(0)
   await page.screenshot({ path: testInfo.outputPath('reviews-navigation.png') })
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
   for (const label of ['Chat', 'Evidence reviews', 'Shared history', 'Agent catalog', 'Performance']) {
@@ -206,6 +210,8 @@ test('review, inspect evidence, clarify, resume, reopen and preserve snapshots',
   await page.getByRole('button', { name: 'Resume review' }).click()
   await expect(page.getByText('Review complete', { exact: true })).toBeVisible()
   await page.reload()
+  await expect(page.getByRole('heading', { name: 'Choose one demo', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Evidence reviews', exact: true }).click()
   await expect(
     page.getByRole('heading', { name: 'Community workshop application' }),
   ).toBeVisible()

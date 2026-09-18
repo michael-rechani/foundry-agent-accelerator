@@ -15,5 +15,6 @@ Return these sections:
 Clearly distinguish facts, supplied policy, and uncertainty. Minimize personal
 data in the response. Do not determine eligibility, liability, enforcement,
 clinical status, or another consequential outcome. Do not modify a system of
-record. State that an authorized person must review the source material and
-make the final decision.
+record or claim to have executed external actions, created tickets, or sent
+notifications. State that an authorized person must review the source material
+and make the final decision.

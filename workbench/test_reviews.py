@@ -2,6 +2,7 @@ import json
 import asyncio
 from collections import deque
 from copy import deepcopy
+from pathlib import Path
 import unittest
 from unittest.mock import AsyncMock
 
@@ -52,6 +53,34 @@ class ReviewContractTests(unittest.TestCase):
     def test_model_cannot_set_execution_or_workflow_flags(self):
         with self.assertRaises(ValueError):
             validate_result(json.dumps({**self.result, "verified": True}), self.review)
+
+    def test_proposal_demo_reuses_review_contract_and_exact_citations(self):
+        path = Path(__file__).resolve().parent.parent / "docs" / "demo-inputs" / "requirements-review.json"
+        review = ReviewInput.model_validate_json(path.read_text(encoding="utf-8"))
+        result = {
+            "summary": "CSV export is described; retention conflicts and SSO evidence needs human review.",
+            "findings": [
+                {"criterion_id": "CRIT-1", "assessment": "supported",
+                 "explanation": "The supplied product statement describes CSV export, not a live test.",
+                 "citations": [{"source_id": "SRC-1", "quote": "exports service-request records as CSV"}]},
+                {"criterion_id": "CRIT-2", "assessment": "conflict",
+                 "explanation": "The supplied retention statements conflict.",
+                 "citations": [{"source_id": "SRC-1", "quote": "retains audit records for seven years"},
+                               {"source_id": "SRC-2", "quote": "audit records are deleted after thirty days"}]},
+                {"criterion_id": "CRIT-3", "assessment": "gap",
+                 "explanation": "Enterprise-ready is not protocol evidence; absence is not noncompliance.",
+                 "citations": []},
+            ],
+            "questions": ["Which retention statement is authoritative?", "What SSO protocols are documented?"],
+        }
+        self.assertEqual(validate_result(json.dumps(result), review), result)
+        self.assertEqual(review.agent_id, "customer-review")
+        prompt = review_prompt(review)
+        self.assertIn("CRIT-3", prompt)
+        self.assertIn("PROD-3", prompt)
+        result["findings"][2]["citations"] = [{"source_id": "SRC-3", "quote": "Supports SAML and OIDC."}]
+        with self.assertRaisesRegex(ValueError, "Citation does not match evidence"):
+            validate_result(json.dumps(result), review)
 
 
 class ReviewStore:

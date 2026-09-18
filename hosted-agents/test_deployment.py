@@ -51,6 +51,18 @@ class DeploymentPackageTests(unittest.TestCase):
                     {"main.py", "requirements.txt", "instructions.md", "configuration.py"},
                 )
 
+    def test_demo_agents_package_the_reviewed_scenario_instructions(self) -> None:
+        for name in ("case-review-agent", "application-review-agent"):
+            with self.subTest(agent=name), tempfile.TemporaryDirectory() as temporary:
+                source = Path(__file__).parent / name
+                destination = Path(temporary) / "agent.zip"
+                create_package(source, destination)
+                with ZipFile(destination) as archive:
+                    self.assertEqual(
+                        archive.read("instructions.md"),
+                        (source / "instructions.md").read_bytes(),
+                    )
+
 
 class DelegationTests(unittest.TestCase):
     def response(self, items):

@@ -1,6 +1,25 @@
-# Architecture artwork
+# Demo and architecture artwork
 
-The diagrams use unmodified Microsoft Azure service icons from the official
+## Synthetic input/result illustration
+
+The root README opens with
+[demo-evidence-result.svg](demo-evidence-result.svg), an **illustrative result,
+not a screenshot or captured model response**. The editable SVG is also the
+published asset; edit it directly. It has no draw.io source, generation script,
+or Azure product icons, and neither build script below generates it.
+
+Keep the criteria, source identifiers, dates, and findings aligned with the
+[synthetic application input](../demo-inputs/application.txt) and
+[expected findings](../demos.md#application-completeness). Preserve its accessible
+`title` and `desc`, human-review notice, synthetic-data warning, and explicit
+illustrative status. Never imply that it proves a live evaluation passed.
+
+Preview the SVG at README width and on a narrow screen after changes. Commit
+the SVG source, not a temporary screenshot export.
+
+## Azure icons in architecture diagrams
+
+The architecture diagrams use unmodified Microsoft Azure service icons from the official
 [Azure Architecture Center icon set](https://learn.microsoft.com/azure/architecture/icons/),
 release V24. The selected SVGs in `azure-icons/` are copied unchanged from
 [Microsoft's distribution](https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip).
@@ -39,7 +58,8 @@ Use `-PreviewDirectory <temporary-directory>` for PNG inspection copies, and
 `-Names lab-components` to rebuild one view. Commit sources and SVG exports
 together, not temporary previews or downloaded tools.
 
-The root README retains the compact platform overview. Detailed diagrams belong
+The root README also retains the compact platform overview below the demo story.
+Detailed diagrams belong
 in the [architecture guide](../architecture.md) and
 [review workflow](../review-workflow.md), with full-size links for zooming on
 small screens. Blue denotes requests, green application persistence, and amber

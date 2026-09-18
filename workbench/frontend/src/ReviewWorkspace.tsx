@@ -290,15 +290,9 @@ export function ReviewWorkspace({
   return (
     <main className="review-workspace" hidden={!active}>
       <header className="review-heading">
-        <div className="review-title">
-          <span className="review-title-icon" aria-hidden="true"><ClipboardList size={24} /></span>
-          <div>
-            <span className="micro-label">Example data only</span>
-            <h1>
-              {creating ? 'New review' : selected ? selected.title : 'Evidence reviews'}
-            </h1>
-          </div>
-        </div>
+        <h1>
+          {creating ? 'New review' : selected ? selected.title : 'Evidence reviews'}
+        </h1>
         <div className="review-actions">
           {(creating || selected) && (
             <button
@@ -346,6 +340,11 @@ export function ReviewWorkspace({
           )}
         </div>
       </header>
+      <p className="review-scope">
+        Optional criteria-and-evidence workflow, separate from Chat. Requirements
+        and proposal review is EXPERIMENTAL and reuses application review, not a
+        new agent. Supplied inputs only; no live actions. People make decisions.
+      </p>
       {error && (
         <div className="review-notice" role="alert">
           <CircleAlert size={18} />

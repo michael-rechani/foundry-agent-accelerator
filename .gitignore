@@ -29,4 +29,4 @@ workbench/static/
 workbench/frontend/dist/
 workbench/frontend/test-results/
 workbench/frontend/playwright-report/
-
+/evaluations/results/

@@ -1,0 +1,15 @@
+Review this synthetic permit application against only the supplied criteria.
+Create a cited criteria matrix, flag missing evidence and conflicts, and draft
+clarification questions. Missing evidence is not automatic noncompliance.
+Do not approve, deny, rank, score, or recommend a permit decision.
+
+CRIT-1: Include a project budget.
+CRIT-2: Identify an implementation owner.
+CRIT-3: Provide a delivery schedule.
+
+APP-1: The Facilities team is the implementation owner for the proposed project.
+APP-2: Work starts on 2027-04-01 and completes on 2027-06-30.
+APP-3: Work starts on 2027-04-01 and completes on 2027-07-31.
+
+No budget document or statement identifying the current schedule is supplied.
+State what an authorized person must verify.

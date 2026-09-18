@@ -1,5 +1,25 @@
 # Azure GPU VMs versus Foundry hosted-agent costs
 
+**Advanced, optional architecture analysis.** Start with
+[one Foundry demonstration](../docs/demos.md) and its quality findings, not a
+savings claim. This calculator does not measure model quality or demonstrate a
+customer implementation; cost recommendations are scope-dependent.
+
+Keep three different quantities separate:
+
+- **Measured usage:** actual reported tokens and observed response time, with
+  their measurement scope. Missing telemetry stays unavailable, not zero.
+- **Estimated cost:** usage or assumptions multiplied by dated, sourced rates;
+  not invoiced spend.
+- **Allocated platform cost:** shared capacity/runtime/dependency costs divided
+  by an explicitly chosen denominator and time period; not marginal token cost.
+
+Use the [Foundry evaluation guide](../evaluations/README.md) for optional model
+and prompt comparison on the same dataset. Browser-session latency is not a
+quality score, and this calculator cannot recover missing multi-agent telemetry.
+
+Engagements focus on demonstration and technical validation. Integration with customer systems and production deployment require separate scoping and agreement.
+
 This calculator ranks Azure IaaS GPU VM scenarios for self-hosted model
 inference and agent orchestration against a Foundry hosted-agent architecture:
 
@@ -18,20 +38,24 @@ and allocation per completed review. It is still an estimate, not an Azure bill.
 The example explicitly marks private-platform dependencies as unpriced. It will
 not report savings or break-even until all supplied line items are priced.
 
-For the deployed platform, use [scenario.deployed.json](scenario.deployed.json):
+For an itemized **reference-environment budget**, use
+[scenario.deployed.json](scenario.deployed.json):
 
 ```powershell
 python calculator.py scenario.deployed.json
 ```
 
-This separate budget lists capacity quantities, usage assumptions, and explicit
-allowances. It is not measured spend. It includes two hours of platform labor and
-a separate Container Apps environment-feature contingency whose applicability
-has not been verified. Cosmos autoscale is budgeted at its minimum; sustained
-maximum throughput on all six Foundry containers adds USD 473.04/month. Registry
-and endpoint quantities must match the deployed networking configuration.
-No savings claim is made against IaaS because equivalent IaaS dependencies have
-not been sized. ActualCost reconciliation remains blocked by HTTP 429.
+The filename is retained for compatibility; it does not identify your deployment
+or track a live environment. Its platform rates were recorded on **2026-09-05**.
+The [reference snapshot and reconciliation notes](platform-rates.md) separate
+recorded topology, assumptions, and a past failed cost query from reusable
+calculator guidance. No rates, resource inventory, or spend were refreshed in
+the **2026-09-17 documentation review**.
+
+Copy and adapt the budget before use. It includes explicit labor and unverified
+feature allowances, not measured spend. Registry, endpoint, capacity, and regional
+assumptions must match the environment being evaluated. No savings claim is made
+against IaaS because equivalent IaaS dependencies have not been sized.
 
 ## What the comparison includes
 
@@ -51,14 +75,13 @@ uses one VM, which does not provide production high availability. Evaluate
 autoscaling, zone redundancy, quota, patching, drivers, model serving,
 session isolation, startup behavior, and support requirements separately.
 
-The private Foundry deployment uses North Central US for the primary workload
-and West US for management. APIM is disabled; the deployed budget assigns it
-zero capacity hours. These are separate from the example's GPU
-comparison region. The region metadata does not select or refresh prices.
-The [platform budget](platform-rates.md) records verified capacity rates and
-explicit usage allowances. The original comparison example remains incomplete;
-the deployed scenario has itemized budget coverage. The ActualCost query was
-throttled, so actual spend is not reconciled.
+The reference budget assumes North Central US for the primary workload and
+West US for management, with zero APIM capacity hours. These are not universal
+deployment requirements and differ from the GPU example's region. Region metadata
+does not select or refresh prices. The [platform budget](platform-rates.md)
+documents recorded rates and explicit usage allowances. The original comparison
+example remains incomplete; itemized reference-budget coverage is not proof of
+actual spend or a complete bill.
 The original `rates_last_reviewed` date describes the GPU/model/runtime snapshot;
 `platform_rates_last_reviewed` describes only the sourced platform entries.
 
@@ -158,4 +181,3 @@ runtime, and metered dependency usage.
 
 This is a cost comparison, not a claim that the
 self-hosted and managed models have equivalent quality, safety, or throughput.
-

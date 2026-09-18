@@ -5,10 +5,16 @@
 Routes supplied material to the application or case specialist, preserves
 source identifiers and uncertainty, and returns findings for human review.
 It does not approve, deny, rank, or replace a specialist with a fabricated result.
+Customer-facing [demos](../../docs/demos.md) call this guided review; the runtime
+name and tool bindings remain unchanged. Select one scenario, not every review
+type. Routing to review specialists is **not** business-request triage. There are
+no ticket, notification, external-action, or simulated human-approval tools here;
+agent-assisted request triage remains planned.
 
 | Request | Tool | Default hosted agent |
 | --- | --- | --- |
 | Application against supplied criteria | `review_application` | `application-review-agent` |
+| RFP requirements against supplied product evidence (experimental) | `review_application` | `application-review-agent` |
 | Case timeline or conflicting records | `review_case` | `case-review-agent` |
 | Ambiguous review type | Clarifying question | No call yet |
 

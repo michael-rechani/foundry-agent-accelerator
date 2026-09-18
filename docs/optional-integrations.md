@@ -2,6 +2,12 @@
 
 [Overview](../README.md) / Optional integrations
 
+These are outside the [primary synthetic-data demonstration](demos.md); they
+are not promised engagement deliverables. No live customer-system or
+M365/Copilot/SharePoint integration is part of the core experience.
+
+Engagements focus on demonstration and technical validation. Integration with customer systems and production deployment require separate scoping and agreement.
+
 The Lab calls Foundry directly. Its review agents use supplied request material;
 they do not currently expose an APIM route or call an AI Search retrieval tool.
 These integrations can be added without replacing the Lab or its agent delegation.

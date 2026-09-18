@@ -1,5 +1,11 @@
 # Hosted-agent samples
 
+Implementation guide for the [scenario-led demonstrations](../docs/demos.md) on
+Microsoft Foundry on Azure. Choose one scenario per engagement; preparing or
+publishing agents is separate from running a short demo on a prepared environment.
+
+Engagements focus on demonstration and technical validation. Integration with customer systems and production deployment require separate scoping and agreement.
+
 Hosted agents run custom containerized code in per-session, VM-isolated
 sandboxes managed by Foundry Agent Service. Foundry manages the endpoint,
 agent identity, scaling, session storage, observability, and version lifecycle.
@@ -9,14 +15,21 @@ agent identity, scaling, session storage, observability, and version lifecycle.
 | Sample | Purpose | Decision boundary |
 | --- | --- | --- |
 | [`basic-responses-agent/`](basic-responses-agent/) | Minimal Microsoft Agent Framework and Responses protocol baseline | General-purpose demonstration only |
-| [`case-review-agent/`](case-review-agent/) | Build cited case timelines and surface missing or conflicting evidence | Does not determine eligibility, liability, enforcement, or clinical status |
-| [`application-review-agent/`](application-review-agent/) | Compare submitted material with supplied criteria | Does not score, rank, approve, deny, or recommend an outcome |
+| [`case-review-agent/`](case-review-agent/) | **Casework assistance - available:** cited summaries, missing/conflicting evidence, staff questions | Does not determine eligibility, liability, enforcement, or clinical status |
+| [`application-review-agent/`](application-review-agent/) | **Application completeness - available; requirements and proposal review - experimental:** compare supplied material with explicit criteria | Missing evidence is not automatic noncompliance; does not score, rank, approve, deny, or recommend an outcome |
 | [`review-coordinator-agent/`](review-coordinator-agent/) | Route review requests to the application or case specialist | Does not replace specialist review or make consequential decisions |
+
+Available describes source implementation, not live validation of an environment.
+Business-request triage is **planned**, not implemented by the review coordinator.
+No additional agent or infrastructure stack is needed for the experimental
+proposal workflow. The coordinator is an optional review-delegation pattern, not
+a generic agent framework or a simulated business-approval system.
 
 All samples use `DefaultAzureCredential`; no credentials are embedded in the
 image or passed as environment variables. The two review samples operate only
-on context supplied in the conversation. Connect organizational data sources
-through separately reviewed, least-privilege tools before production use.
+on context supplied in the conversation. The primary demo uses synthetic data
+only, with no customer-system, M365/Copilot/SharePoint connections or external
+business actions. Optional integrations require separate review and agreement.
 
 The review coordinator calls the two specialist hosted-agent endpoints through
 the Foundry project using its managed identity. It selects one specialist by
@@ -144,6 +157,12 @@ run the deployment client. The hosting package is still a beta dependency, so
 versions are pinned and should be upgraded only after local and remote smoke
 tests pass.
 
+For answer quality beyond smoke checks, use the
+[synthetic review evaluation runner](../evaluations/README.md). It evaluates an
+already routed staging version without publishing or promoting agents. Its SDK
+dependencies are isolated from these runtime/deployment environments. Passing
+offline contract tests is not evidence that the live agent passed evaluation.
+
 To test the agent locally before deployment, install `requirements.txt` in a
 separate virtual environment, set the same two environment variables, run
 `python main.py`, and send a Responses request to
@@ -166,31 +185,23 @@ equivalent permissions) to create versions and update endpoint routing.
 | Version provisioning fails | Review the reported version details and confirm hosted-agent and model availability in the selected region. |
 | Smoke test fails | Inspect Foundry/Application Insights logs and endpoint routing; candidates are retained when cleanup cannot confirm they are unrouted. |
 
-## Candidate patterns
+## Scenario selection and optional extensions
 
-| Sample idea | Protocol | Useful integrations | Why hosted |
-| --- | --- | --- | --- |
-| Policy knowledge assistant | Responses | SharePoint, Microsoft Graph, AI Search | Grounded answers across durable conversations and changing policy sets |
-| Document analysis assistant | Responses | Blob Storage, AI Search, Document Intelligence | Stateful multi-document review with structured, cited findings |
-| Service navigation assistant | Responses | CRM, service catalogs, knowledge bases | Personalized guidance with managed access to organizational data |
-| Workflow intake processor | Invocations | Webhooks, case management, Key Vault | Structured intake through a custom payload contract that scales by session |
-| Customer onboarding planner | Responses | CRM, work tracking, SharePoint | Cross-system planning with tenant-scoped identity and session state |
+Start with the [scenario/status matrix](../README.md#scenarios-and-status), not a
+catalog of promised integrations. Reuse the supplied casework and application
+examples; validate the experimental proposal adaptation before presenting it as
+proven. Business-request triage still needs a bounded simulation and explicit
+human-approval behavior; it is not provided by review delegation.
 
-The included review agents demonstrate the same capability-first approach:
-tailor instructions, schemas, and synthetic fixtures for the target sector
-without coupling the implementation to one organization.
+The [extension guide](../docs/architecture-assessment.md) and
+[optional integrations](../docs/optional-integrations.md) preserve the technical
+paths for separately scoped work. They are not part of the primary demo or a
+commitment to connect organizational data. Education knowledge assistants and
+M365/Copilot/SharePoint integrations are excluded from the primary path.
 
-| Capability | Public sector | Health and education | ISV |
-| --- | --- | --- | --- |
-| Case review | Revenue, property, or constituent case | Benefits or student-services case | Customer escalation or account review |
-| Application review | Grant, permit, or procurement package | Provider enrollment, admissions, or research grant | Partner or marketplace application |
-| Policy knowledge | Agency rules and procedures | Program, clinical-administrative, or institutional policy | Product, support, or partner policy |
-| Service navigation | Constituent programs and agency services | Benefits, care navigation, or student services | Product plans, support paths, or partner services |
-| Workflow intake | Records request, appeal, or service request | Referral, enrollment, or accessibility request | Support, integration, or provisioning request |
-| Customer onboarding | Vendor or grantee implementation | Provider or research partner onboarding | SaaS tenant implementation |
-
-Start with Responses for conversational agents. Use Invocations for webhooks,
-batch payloads, or custom streaming contracts.
+Responses remains the Lab contract. Invocations for webhooks, batch payloads,
+or custom streaming would need a separately justified adapter and validation,
+not a change to every existing chat or review agent.
 
 These samples intentionally avoid incident investigation, telemetry
 correlation, root-cause analysis, mitigation, scheduled health checks, and

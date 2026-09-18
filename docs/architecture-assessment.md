@@ -6,6 +6,23 @@ Use this guide to add independent agent examples without rebuilding the platform
 Check each selected Foundry capability against the project's SDK, networking, and
 data-handling requirements before adopting it.
 
+## Demonstration first
+
+Start with [one scenario](demos.md), synthetic inputs, expected findings, and a
+clear human-decision boundary. Casework and application completeness reuse the
+existing agents; experimental proposal coverage reuses application review and
+the criteria-and-evidence workspace. Business-request triage remains planned;
+review-specialist routing is not a substitute for simulated request routing and
+human approval. Four scenarios do not require four independent agents.
+
+Engagements focus on demonstration and technical validation. Integration with customer systems and production deployment require separate scoping and agreement.
+
+The primary path excludes live customer-system connections, M365/Copilot/SharePoint
+integration, education knowledge assistants, and production deployment. The
+extensions below are optional engineering guidance, not engagement deliverables
+or an approved or funded service offering. Finish with the
+[evidence-based handoff](demo-handoff.md), not a production-readiness claim.
+
 ## Design principles
 
 Keep the existing foundation. Make it easy to add, deploy, evaluate, and demonstrate
@@ -26,7 +43,7 @@ a use case requires it.
 | Tools and knowledge | Custom specialist function tools; connected backing Search, but no retrieval tool | Managed tools, versioned toolboxes, MCP/OpenAPI integrations, Search retrieval | Prefer a supported native integration when permissions and private connectivity fit; keep domain-specific code in the agent. |
 | Conversation state | Explicitly saved shared Cosmos transcripts; bounded history resubmitted with `store=False` | Managed conversations and sessions | Preserve current behavior until retention and authorization are decided. Avoid silently enabling a second transcript store. |
 | Long-running work | Optional review records with local background tasks and interruption reporting | Background Responses and separately configured resilient execution | Evaluate native recovery first when an example needs it. Background acceptance alone is not durable recovery or exactly-once side effects. |
-| Quality and diagnostics | Unit/browser tests, deployment smoke checks, metadata logs, session timings | Agent tracing, Application Insights integration, evaluations | Keep test cases and acceptance thresholds in source; use Foundry for evaluation and diagnostic analysis, not a new Lab dashboard. |
+| Quality and diagnostics | Unit/browser tests, deployment smoke checks, opt-in synthetic Foundry evaluations, metadata logs, session timings | Agent tracing, Application Insights integration, evaluations | Keep test cases and acceptance thresholds in source; use Foundry for evaluation and diagnostic analysis, not a new Lab dashboard. |
 | Customer access | Private Lab with shared records and no end-user sign-in | Agent Entra identities, RBAC, supported publishing/channel integrations | Agent identity does not authorize individual Lab users. Add user authorization before confidential multi-user use. |
 
 The existing [component map](architecture.md#component-interactions) remains the
@@ -67,6 +84,57 @@ Reuse it for examples that actually need that delegation pattern, not by default
 | Workflow compatibility | Plain chat agents must not require review-specific JSON or specialist receipts. Offer evidence-review actions only for compatible agents. |
 
 Generalize behavior only when another example demonstrates a real shared need.
+
+The [synthetic review evaluation suite](../evaluations/README.md) implements the
+first quality-gate slice: versioned fictional inputs, deterministic delegation
+checks, a hand-authored Foundry rubric, and metadata-only local receipts. Live
+evaluation is opt-in on a staging stack; it does not change production routes.
+
+## Capability and compatibility baseline
+
+### Repository configuration and validation boundary
+
+These are repository pins and implementation choices, not a claim that every
+live combination has been validated in every region. Offline tests exercise
+fixtures, API contracts, and mocked transports. They do not prove model quality,
+live routing, permissions, trace collection, or production suitability.
+The **2026-09-17 documentation review performed no live Foundry validation**.
+
+| Surface | Repository baseline | Evidence and remaining validation |
+| --- | --- | --- |
+| Hosted agents | Responses 2.0.0, `python_3_14` remote build | Packaging and deployment safeguards have offline tests. Verify private ingress, agent outbound access, deployment access, and live delegation on the selected staging environment. |
+| Agent runtime | `agent-framework-foundry==1.11.0`; `agent-framework-foundry-hosting==1.0.0b260821` | The pinned hosting package is beta. Offline SDK contracts are covered; upgrades still require runtime, delegation, and private deployment checks. |
+| Deployment and Lab clients | `azure-ai-projects==2.3.0`; `openai==2.54.0` | Preserve the pinned pair and its offline transport tests. A newer public release is not an instruction to upgrade without coordinated validation. |
+| Evaluation client | Separate `azure-ai-projects==2.4.0`; `openai==2.54.0` environment | Hand-authored rubric creation uses `.beta.evaluators`. Offline contracts are tested; live evaluation needs explicit approval and private-project, permissions, region, and judge-model verification. |
+| Tracing | Operational metadata logs and private Azure Monitor connectivity | Verify project-linked Application Insights server-side traces before claiming end-to-end trace coverage or adding client instrumentation. Content capture requires explicit review. |
+| Tools and retrieval | Custom specialist tools; Search connected but not used for retrieval | A Search connection alone is not retrieval or document authorization. Native toolboxes and new integrations need their own identity/network validation. |
+| Default model | GPT-4.1 `2025-04-14`, configurable through Terraform | A configured model is not a quality result. Compare alternatives against the same evaluation set before an approved change. |
+
+### Public service and SDK guidance
+
+The following Microsoft sources were rechecked on **2026-09-17**. These are
+dated public-documentation statements, **not results from testing this
+repository**. Service maturity does not imply that every SDK operation,
+integration, region, or deployment path has the same status. Recheck the linked
+sources before publication, migration, or a new engagement.
+
+| Topic | Public guidance at the review date | Source |
+| --- | --- | --- |
+| Hosted agents and toolboxes | Both are described as generally available. This does not change the repository's beta hosting-package pin. | [July-August Foundry release roundup](https://devblogs.microsoft.com/foundry/whats-new-in-microsoft-foundry-july-august-2026/) |
+| Tracing | Prompt/hosted-agent tracing is GA; workflow/external-agent tracing is preview. Project-linked Application Insights is required for server-side tracing. | [Tracing setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup) |
+| Python Projects SDK | The 2.5.0 release changes its dependency to OpenAI 3.x, which uses `httpx2`. The changelog also lists newer releases; this repository has not adopted them. | [Projects SDK changelog](https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/ai/azure-ai-projects/CHANGELOG.md) |
+| GPT-4.1 `2025-04-14` | Listed as Legacy, with retirement on April 14, 2027. Treat the schedule as changeable, not a guarantee of availability. | [Model retirement schedule](https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirement-schedule) |
+
+Private-network guidance also distinguishes project creation dates for private
+ACR support and requires hosted-agent network injection at account creation.
+Do not infer hosted image-pull compatibility from the Lab's ACR configuration or
+replace the existing remote-build path without a separate connectivity check.
+Do not remove `allow_preview=True` wholesale: the pinned named-agent client and
+selected beta operations still need preview-aware handling.
+
+Consult the [private networking limitations](https://learn.microsoft.com/azure/foundry/agents/how-to/virtual-networks#limitations)
+for the intended project and deployment method. Reading public guidance does not
+verify the existing environment's connectivity or authorize changes to it.
 
 ## Checklist for each customer example
 
@@ -138,8 +206,8 @@ Microsoft documentation:
   managed endpoints and identities, sessions/conversations, protocols, hosting,
   tracing, and private-network considerations.
 - [Agent development lifecycle](https://learn.microsoft.com/azure/foundry/agents/concepts/development-lifecycle):
-  versioning, tracing, evaluations, and publication identity checks. The document
-  marks tracing/evaluation sections as preview; verify the selected feature's terms.
+  versioning, tracing, evaluations, and publication identity checks. Use the
+  feature-specific status above rather than treating all tracing/evaluation as preview.
 - [Long-running agent resilience](https://learn.microsoft.com/azure/foundry/agents/concepts/long-running-agent-resilience):
   preview status, stored-background prerequisites, handler reentry, and application
   responsibility for durable progress and side effects.

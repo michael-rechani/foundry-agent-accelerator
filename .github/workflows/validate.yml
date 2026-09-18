@@ -56,6 +56,24 @@ jobs:
           from agent_framework.foundry import FoundryChatClient;
           from agent_framework_foundry_hosting import ResponsesHostServer"
 
+  evaluations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: evaluations/requirements.txt
+      - name: Install isolated evaluation dependencies
+        run: python -m pip install -r evaluations/requirements.txt
+      - name: Check evaluation dependency compatibility
+        run: python -m pip check
+      - name: Test evaluation gates and offline SDK contracts
+        run: python -m unittest discover -s evaluations -p 'test_*.py' -v
+      - name: Validate synthetic cases without Azure
+        run: python evaluations/run.py
+
   terraform:
     runs-on: ubuntu-latest
     steps:
