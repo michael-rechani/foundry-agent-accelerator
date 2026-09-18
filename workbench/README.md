@@ -38,6 +38,11 @@ Local disconnected mode disables agent calls and Cosmos access.
 
 The Container Apps environment has an internal load balancer and public network access disabled. App-level external ingress means access from outside the *environment*, within the private network; ingress is further restricted to an approved source subnet. APIM is not involved and no agent APIs are published by this application.
 
+For broader internal access or a controlled internet-facing entry point, see the
+[Application Gateway and Front Door guide](../docs/ingress-access.md). It covers
+private origins, DNS/TLS, authentication prerequisites, host/origin configuration,
+and agent-request behavior. Neither gateway is deployed by this sample.
+
 End-user Entra sign-in is not a prerequisite for the current private lab. Azure
 resource access still uses managed identities. Restrict the lab to trusted
 operators and fictional inputs; it is not a user-isolated application.

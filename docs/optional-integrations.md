@@ -12,6 +12,10 @@ The Lab calls Foundry directly. Its review agents use supplied request material;
 they do not currently expose an APIM route or call an AI Search retrieval tool.
 These integrations can be added without replacing the Lab or its agent delegation.
 
+For website ingress rather than API publication, see the
+[Application Gateway and Front Door guide](ingress-access.md). Those gateways are
+optional design guidance, not deployed resources or replacements for APIM policy.
+
 ## Current configuration
 
 | Component | Current state | Retained implementation |

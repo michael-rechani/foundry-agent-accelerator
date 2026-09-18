@@ -193,6 +193,34 @@ These checks do not test live secret retrieval, VM creation, or rotation.
 Run full `terraform validate` as well, and use the credential guide's disposable
 resource checks before relying on a new credential path.
 
+The [platform dependency fixture](tests/fixtures/platform-dependencies.tf.tftpl)
+is a configuration fragment, not a standalone module. The test runner copies it
+to `dependencies.tf` alongside `region-preferences.tf` and the other root sources;
+that is where `local.deployment_location` is declared. The `.tf.tftpl` suffix
+prevents editors from validating the fixture directory as an independent module.
+The runner checks the copied fixture's Terraform formatting before running the
+mocked tests, and CI runs the same platform suite after initialization.
+
+### Downloaded-module deprecation notices
+
+Do not edit files under `.terraform/modules` to remove editor warnings. They are
+downloaded dependencies, not repository source; edits would be lost on a fresh
+initialization and would make local validation differ from CI.
+
+The pinned Foundry pattern module `0.11.3` includes storage module `0.6.9`, whose
+customer-managed-key resource uses deprecated `key_name`, `key_vault_id`, and
+`key_version` arguments. These can appear in the editor even though this
+configuration passes an existing storage account ID and does not instantiate
+that module's storage creation path. Terraform validation can also report the
+upstream Cosmos module's deprecated `local_authentication_disabled` output.
+
+As checked on September 15, 2026, `0.11.3` is the latest published
+[Foundry pattern module](https://registry.terraform.io/modules/Azure/avm-ptn-aiml-ai-foundry/azurerm/latest).
+These warnings require an upstream dependency update, not changes to the test
+fixture or a provider downgrade. Keep validation enabled and review a future
+module/provider upgrade with the offline tests and a deployment plan. Do not
+change encryption, authentication, or resource ownership just to silence them.
+
 ## Deploy
 
 Run commands from the repository root in one PowerShell session, after checking

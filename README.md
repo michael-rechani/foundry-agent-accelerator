@@ -7,17 +7,26 @@
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](hosted-agents/README.md)
 [![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-hosted_agents-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
 
-Explore one bounded use case on **Microsoft Foundry on Azure (formerly Azure AI
-Foundry)** using synthetic data and supplied sample content. See what the agent
-can explain, where evidence is missing, and what needs human review before
-choosing a next step. These reusable demonstrations and technical-validation
-assets support customer conversations, including with state, local government,
-and education (SLED) ISVs; they are not customer implementations.
+This repository provides sample AI agents, a chat interface, and deployment
+guidance for **Microsoft Foundry on Azure (formerly Azure AI Foundry)**. Use the
+included fictional case notes and application materials to try document-review
+tasks: summarize information, identify missing details, and flag conflicting
+evidence.
 
-![Illustrative application completeness demo: supplied evidence becomes a coverage matrix with a missing budget, supported owner, and conflicting dates, for human review](docs/images/demo-evidence-result.svg)
+Choose a scenario below, run its sample prompt, and compare the agent's response
+with the expected findings in the [demo guide](docs/demos.md). These samples are
+for demonstrations and technical testing, not finished customer solutions.
+People must verify the findings and make any approval or denial decisions.
 
-*Synthetic illustration, not a captured model response. Wording and findings
-must be checked during each demonstration.*
+**Example: reviewing a permit application.** In the illustration below, the sample
+application names a project owner but omits a budget and gives two different
+completion dates. The review highlights what is present, what is missing, and
+what needs clarification; it does not decide whether to approve the permit.
+
+![Illustrative permit review: a named project owner, a missing budget, and conflicting completion dates are highlighted for a person to verify](docs/images/demo-evidence-result.svg)
+
+*Synthetic example of the intended review format, not output captured from a live
+agent. Actual responses must be checked against the supplied material.*
 
 ## Scenarios and status
 
@@ -129,6 +138,11 @@ is required, including caller authorization and private backend verification.
 See [optional integrations](docs/optional-integrations.md) for restoring APIM or
 adding Search-backed retrieval. Both Terraform implementations are retained;
 Search remains a connected Foundry platform dependency, not a current agent tool.
+
+For optional regional or global browser access, see the
+[Application Gateway and Front Door ingress guide](docs/ingress-access.md).
+Both patterns keep the application origin and Foundry private; neither gateway
+is part of the default deployment.
 
 See [operations, request flow and trust boundaries](docs/architecture.md) for
 authentication, data ownership, and failure behavior.

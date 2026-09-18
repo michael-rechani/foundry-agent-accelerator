@@ -14,10 +14,12 @@ try {
     foreach ($source in @('versions.tf', 'variables.tf', 'region-preferences.tf', 'naming.tf', 'management-network.tf', 'keyless-accounts.tf', 'keyless-storage.tf', 'jumpbox.tf')) {
         Copy-Item (Join-Path $PSScriptRoot $source) $temporary
     }
-    Copy-Item (Join-Path $PSScriptRoot 'tests/fixtures/platform-dependencies.tf') (Join-Path $temporary 'dependencies.tf')
+    Copy-Item (Join-Path $PSScriptRoot 'tests/fixtures/platform-dependencies.tf.tftpl') (Join-Path $temporary 'dependencies.tf')
     Copy-Item (Join-Path $PSScriptRoot '.terraform.lock.hcl') $temporary
     Copy-Item $moduleDirectory (Join-Path $temporary '.terraform/modules') -Recurse
     Copy-Item (Join-Path $PSScriptRoot 'tests') $temporary -Recurse
+    $formatting = & $TerraformCommand "-chdir=$temporary" fmt -check -no-color dependencies.tf 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "Platform fixture formatting failed: $formatting" }
     $initialization = & $TerraformCommand "-chdir=$temporary" init -backend=false -input=false -no-color "-plugin-dir=$providerDirectory" 2>&1
     if ($LASTEXITCODE -ne 0) { throw "Isolated initialization failed: $initialization" }
     $previousErrorActionPreference = $ErrorActionPreference

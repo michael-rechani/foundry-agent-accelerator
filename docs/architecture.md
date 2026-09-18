@@ -6,6 +6,10 @@ For the native Foundry capability comparison and new-agent onboarding checklist,
 see the [extension guide](architecture-assessment.md).
 The diagrams below describe the implementation, not a proposed platform expansion.
 
+For optional browser access through Application Gateway WAF v2 or Front Door
+Premium with Private Link, see the [application ingress guide](ingress-access.md).
+Those patterns are guidance, not deployed components in the diagrams below.
+
 ![Deployed Lab and review-agent request flow](images/foundry-overview.svg)
 
 The diagram uses [official Microsoft Azure architecture icons](images/README.md)
