@@ -58,7 +58,10 @@ is verified. Inspect individual consumers after a partial failure before retryin
 with the same pinned version.
 
 For an existing VM whose credentials are administered separately, leave the secret
-reference null. Explicit disk inputs preserve its disk configuration. Set
+reference null; Terraform then omits the VMAccessAgent extension. If an extension
+is already tracked, reconcile its ownership before changing the reference; the
+destruction guard must not be bypassed to remove a live extension. Explicit disk
+inputs preserve the disk configuration. Set
 `jumpbox_existing_os_disk.create_option = "Attach"` when booting a retained
 specialized Windows disk; its existing credentials remain in effect. Restore
 the replacement system identity's required roles and reconcile Terraform state

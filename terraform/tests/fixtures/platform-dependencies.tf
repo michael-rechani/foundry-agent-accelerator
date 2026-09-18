@@ -1,8 +1,13 @@
 locals {
-  private_dns_zones = { storage_blob = "privatelink.blob.core.windows.net" }
+  private_dns_zones      = { storage_blob = "privatelink.blob.core.windows.net" }
+  jumpbox_admin_password = "synthetic-offline-fixture-only"
 }
 
 data "azurerm_client_config" "current" {}
+
+module "ai_foundry" {
+  source = "./tests/fixtures/foundry"
+}
 
 resource "azurerm_resource_group" "this" {
   name     = "rg-platform-test-12345"

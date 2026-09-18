@@ -173,6 +173,16 @@ test('navigation is labelled and conversation actions stay in Chat', async ({ pa
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
+test('invalid review links keep the chat-first default', async ({ page }) => {
+  await setup(page)
+  await page.goto('/#review-not-a-valid-id')
+  await page.reload()
+  await expect(
+    page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Chat', exact: true }),
+  ).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible()
+})
+
 async function create(page: Page) {
   await page.getByRole('button', { name: 'New review', exact: true }).click()
   await page.getByRole('button', { name: 'Use synthetic example' }).click()
@@ -210,8 +220,9 @@ test('review, inspect evidence, clarify, resume, reopen and preserve snapshots',
   await page.getByRole('button', { name: 'Resume review' }).click()
   await expect(page.getByText('Review complete', { exact: true })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Choose one demo', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Evidence reviews', exact: true }).click()
+  await expect(
+    page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Evidence reviews', exact: true }),
+  ).toHaveAttribute('aria-current', 'page')
   await expect(
     page.getByRole('heading', { name: 'Community workshop application' }),
   ).toBeVisible()

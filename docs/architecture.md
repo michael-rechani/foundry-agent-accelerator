@@ -117,8 +117,10 @@ prompts or transcripts; action groups are needed for delivered notifications.
 
 The Lab's Premium ACR registry has a private endpoint and public access disabled.
 Private DNS links cover both workload and management networks. Builds use a
-temporary Linux VM without a public IP, with managed-identity push access scoped
-to the registry; completed builds delete the VM resources and temporary grant.
+Linux Docker engine on an existing authorized private-network runner, with
+registry-scoped push/pull access and managed identity preferred. The helper
+validates the non-root image, checks the pushed registry digest against the local
+build, and verifies a pull by digest. It does not provision runners or grant roles.
 Log Analytics ingestion/query is private-only through the existing Azure Monitor
 Private Link scope. Registry admin and Log Analytics local key authentication
 remain disabled. APIM is disabled; there is no deployed APIM gateway.

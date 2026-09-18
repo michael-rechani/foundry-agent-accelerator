@@ -28,14 +28,14 @@ jobs:
         run: python -m pip install -r hosted-agents/basic-responses-agent/requirements.txt -r hosted-agents/review-coordinator-agent/requirements.txt
       - name: Install workbench dependencies
         run: python -m pip install -r workbench/requirements.txt
-      - name: Test chat and Cosmos history API
+      - name: Test chat, history, and review APIs
         run: python -m unittest discover -s workbench -p 'test_*.py' -v
       - name: Audit Python dependencies
         run: |
           python -m pip install pip-audit==2.10.1
           python -m pip_audit --progress-spinner off
       - name: Compile Python sources
-        run: python -m compileall -q cost-comparison hosted-agents workbench/app.py workbench/history.py
+        run: python -m compileall -q cost-comparison hosted-agents workbench/app.py workbench/history.py workbench/reviews.py workbench/review_runs.py
       - name: Test cost calculator
         run: python cost-comparison/test_calculator.py
       - name: Test deployment packaging
@@ -94,6 +94,9 @@ jobs:
         run: terraform -chdir=terraform init -backend=false
       - name: Validate configuration
         run: terraform -chdir=terraform validate
+      - name: Test platform inputs and retained-disk safeguards without Azure
+        shell: pwsh
+        run: ./terraform/test-platform-validation.ps1
       - name: Validate isolated workbench infrastructure
         run: |
           terraform -chdir=workbench/infra fmt -check
@@ -102,6 +105,9 @@ jobs:
       - name: Test workbench deployment safeguards
         shell: pwsh
         run: ./workbench/test-deployment-inputs.ps1
+      - name: Test private build orchestration without Azure or Docker
+        shell: pwsh
+        run: ./workbench/test-build.ps1
 
   workbench-frontend:
     runs-on: ubuntu-latest

@@ -1,7 +1,7 @@
 param(
-    [string]$Subscription = "da04ef2d-3411-465a-96d1-67c75356720a",
-    [string]$Registry = "acrworkbenchdi2mw",
-    [string]$Tag = "cosmos-v1",
+    [Parameter(Mandatory)][ValidatePattern('^[0-9a-fA-F-]{36}$')][string]$Subscription,
+    [Parameter(Mandatory)][ValidatePattern('^[a-z0-9]{5,50}$')][string]$Registry,
+    [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$')][string]$Tag,
     [switch]$Private
 )
 $ErrorActionPreference = "Stop"
@@ -24,17 +24,24 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Registry login failed" }
         & docker build --pull --platform linux/amd64 --tag $image --file (Join-Path $stage "Dockerfile") $stage
         if ($LASTEXITCODE -ne 0) { throw "Local image build failed" }
-        & docker run --rm --platform linux/amd64 --entrypoint python $image -c 'import os, app, history, reviews, review_runs; from pathlib import Path; assert os.getuid() != 0; assert Path("agents.json").read_text(); assert Path("static/index.html").read_text()'
+        & docker run --rm --platform linux/amd64 --entrypoint python $image -c "import os, app, history, reviews, review_runs; from pathlib import Path; assert os.getuid() != 0; assert Path('agents.json').read_text(); assert Path('static/index.html').read_text()"
         if ($LASTEXITCODE -ne 0) { throw "Image validation failed" }
         & docker push $image
         if ($LASTEXITCODE -ne 0) { throw "Image push failed" }
-        $digest = & docker image inspect $image --format '{{index .RepoDigests 0}}'
-        if ($LASTEXITCODE -ne 0 -or $digest -notmatch '^.+/workbench@sha256:[a-f0-9]{64}$') { throw "Image digest lookup failed" }
+        $imageDigest = & az acr repository show --subscription $Subscription --name $Registry --image "workbench:$Tag" --query digest --output tsv --only-show-errors
+        if ($LASTEXITCODE -ne 0 -or $imageDigest -notmatch '^sha256:[a-f0-9]{64}$') { throw "Image digest lookup failed" }
+        $digest = "${loginServer}/workbench@$imageDigest"
+        $localDigests = & docker image inspect $image --format '{{json .RepoDigests}}'
+        if ($LASTEXITCODE -ne 0) { throw "Pushed image digest does not match the local build" }
+        $parsedDigests = $localDigests | ConvertFrom-Json
+        if ($parsedDigests -notcontains $digest) { throw "Pushed image digest does not match the local build" }
         & docker pull --platform linux/amd64 $digest
         if ($LASTEXITCODE -ne 0) { throw "Image pull verification failed" }
         Write-Output $digest
         Write-Output 'PRIVATE_BUILD_PUSH_AND_PULL_VERIFIED=True'
     } else {
+        $publicAccess = & az acr show --subscription $Subscription --name $Registry --query publicNetworkAccess --output tsv --only-show-errors
+        if ($LASTEXITCODE -ne 0 -or $publicAccess -ne 'Enabled') { throw "ACR Tasks requires an explicitly public registry; use -Private for private builds" }
         & az acr build --subscription $Subscription --registry $Registry --image "workbench:$Tag" --file (Join-Path $stage "Dockerfile") $stage --no-logs
         if ($LASTEXITCODE -ne 0) { throw "Registry build failed" }
     }

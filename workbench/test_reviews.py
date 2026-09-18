@@ -26,6 +26,29 @@ class ReviewContractTests(unittest.TestCase):
         self.assertEqual(validate_result(json.dumps(self.result), self.review), self.result)
         self.assertIn("appropriate configured specialist", review_prompt(self.review))
 
+    def test_resume_prompt_bounds_questions_to_unresolved_criteria(self):
+        review = ReviewInput(
+            title="Synthetic rollout verification", agent_id="customer-review",
+            criteria=["The workshop must last twelve weeks.", "An explicit total budget in USD must be supplied."],
+            evidence=[
+                {"id": "SRC-1", "text": "The proposed workshop lasts twelve weeks. No total budget has been supplied."},
+                {"id": "SRC-2", "text": "The total workshop budget is USD 12000."},
+            ],
+        )
+        prompt = review_prompt(review)
+        instructions, material = prompt.split("\nSupplied material:\n", 1)
+        self.assertIn("only to resolve a gap or conflict in a supplied criterion", instructions)
+        self.assertIn("do not add documentation, verification, or approval requirements", instructions)
+        self.assertIn("including later clarifications", instructions)
+        self.assertIn("If every finding is supported, return an empty questions array", instructions)
+        self.assertIn("A human review notice is not a request for additional evidence", instructions)
+        self.assertEqual(json.loads(material)["evidence"], review.model_dump()["evidence"])
+        self.assertEqual([criterion["text"] for criterion in json.loads(material)["criteria"]], review.criteria)
+
+    def test_validation_does_not_discard_agent_questions(self):
+        self.result["questions"] = ["Can the supplied budget be verified?"]
+        self.assertEqual(validate_result(json.dumps(self.result), self.review), self.result)
+
     def test_fabricated_source_or_quote_rejected(self):
         for citation in [{"source_id": "SRC-2", "quote": "Budget: $100."}, {"source_id": "SRC-1", "quote": "$500"}]:
             self.result["findings"][0]["citations"] = [citation]
