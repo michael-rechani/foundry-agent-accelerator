@@ -141,6 +141,7 @@ npm --prefix workbench/frontend run lint
 npm --prefix workbench/frontend exec -- playwright install chromium
 npm --prefix workbench/frontend test
 ./workbench/test-deployment-inputs.ps1
+./workbench/test-private-checks.ps1
 ```
 
 Infrastructure initialization and validation are separate deployment steps below;
@@ -292,9 +293,28 @@ URL. From authorized private-network access, run the synthetic runtime check:
 ./workbench/test-private.ps1 -BaseUrl '<verified-private-url>'
 ```
 
-Replace the URL placeholder with the Terraform output. This script expects the
-sample's catalog, title, and limits; review those assertions for a different
-configuration rather than pointing an unreviewed test at another environment.
+Replace the URL placeholder with the Terraform output. The check uses the
+deployed default agent and its configured specialist bindings. Review the
+fictional application prompt before using it against a different agent profile.
+It makes one billable synthetic request and requires a verified specialist
+receipt when that agent has specialist tools, not just a nonempty answer.
+
+The same check verifies Cosmos create, read, conditional update, stale-ETag
+rejection, and deletion of its own synthetic conversation. Use `-SkipAgentCall`
+for storage checks without model generation. For read-only configuration and
+cached dependency checks:
+
+```powershell
+python workbench/verify_private.py --base-url '<verified-private-url>'
+```
+
+The verifier also supports `--loopback` inside the existing Lab container. This
+can check the runtime through approved container-console access without starting
+a VM or changing ingress. Transfer only the reviewed helper through the approved
+administration path and remove that temporary artifact afterward; verification
+scripts are not bundled in the runtime image. Loopback results explicitly say
+that browser ingress was **not** verified. Neither path establishes model quality.
+
 Require successful private HTTPS, agent execution, and Cosmos CRUD verification;
 an infrastructure apply alone is not an application acceptance test. For the
 new workflow, also complete [review delivery checks](../docs/review-workflow.md#delivery-checks),

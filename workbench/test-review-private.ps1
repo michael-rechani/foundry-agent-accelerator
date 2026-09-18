@@ -1,14 +1,23 @@
 param(
     [ValidateSet('Start', 'Inspect', 'Resume', 'Verify')][string]$Mode = 'Start',
     [ValidatePattern('^review-[0-9a-f-]{36}$')][string]$ReviewId,
-    [string]$BaseUrl = 'https://foundry-workbench.icyplant-54a7139a.northcentralus.azurecontainerapps.io'
+    [Parameter(Mandatory)][string]$BaseUrl
 )
 $ErrorActionPreference = 'Stop'
+$origin = $null
+if (-not [Uri]::TryCreate($BaseUrl, [UriKind]::Absolute, [ref]$origin) -or
+    $origin.Scheme -ne 'https' -or $origin.UserInfo -or $origin.AbsolutePath -ne '/' -or
+    $origin.Query -or $origin.Fragment) {
+    throw 'Supply the exact private HTTPS origin, not a path or credentials.'
+}
+$BaseUrl = $origin.GetLeftPart([UriPartial]::Authority)
+$config = Invoke-RestMethod "$BaseUrl/api/config" -MaximumRedirection 0 -TimeoutSec 40
+if (-not $config.reviews_enabled -or $config.mode -ne 'private') { throw 'Private review workflow is not enabled' }
 $headers = @{ 'X-Workbench-Request' = '1'; Origin = $BaseUrl }
 function Invoke-ReviewApi($Path, $Body, $ETag) {
     $requestHeaders = $headers.Clone()
     if ($ETag) { $requestHeaders['If-Match'] = $ETag }
-    $parameters = @{ Uri = "$BaseUrl/api/review-runs$Path"; Headers = $requestHeaders; TimeoutSec = 40 }
+    $parameters = @{ Uri = "$BaseUrl/api/review-runs$Path"; Headers = $requestHeaders; TimeoutSec = 40; MaximumRedirection = 0 }
     if ($null -ne $Body) {
         $parameters.Method = 'Post'
         $parameters.ContentType = 'application/json'
@@ -17,9 +26,7 @@ function Invoke-ReviewApi($Path, $Body, $ETag) {
     Invoke-RestMethod @parameters
 }
 if ($Mode -eq 'Start') {
-    $config = Invoke-RestMethod "$BaseUrl/api/config" -TimeoutSec 40
-    if (-not $config.reviews_enabled -or $config.mode -ne 'private') { throw 'Private review workflow is not enabled' }
-    $health = Invoke-RestMethod "$BaseUrl/api/health/dependencies" -TimeoutSec 40
+    $health = Invoke-RestMethod "$BaseUrl/api/health/dependencies" -Headers $headers -MaximumRedirection 0 -TimeoutSec 40
     if ($health.status -ne 'ready') { throw 'Dependencies are not ready' }
     $draft = Invoke-ReviewApi '' @{
         title = 'Synthetic rollout verification'
@@ -68,5 +75,6 @@ if ($Mode -eq 'Resume') {
 if ($Mode -eq 'Verify') {
     if ($review.status -ne 'completed' -or $review.runs.Count -ne 2 -or $review.runs[0].input.evidence.Count -ne 1 -or $review.runs[1].input.evidence.Count -ne 2) { throw 'Expected completed two-run review with preserved evidence snapshots' }
     $listing = Invoke-ReviewApi '' $null $null
+    if (-not @($listing.items | Where-Object id -eq $ReviewId).Count) { throw 'Completed review is missing from the recent-review list' }
     Write-Output 'SYNTHETIC_REVIEW_RESUME_AND_REOPEN_VERIFIED=True'
 }

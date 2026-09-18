@@ -35,7 +35,7 @@ jobs:
           python -m pip install pip-audit==2.10.1
           python -m pip_audit --progress-spinner off
       - name: Compile Python sources
-        run: python -m compileall -q cost-comparison hosted-agents workbench/app.py workbench/history.py workbench/reviews.py workbench/review_runs.py
+        run: python -m compileall -q cost-comparison hosted-agents workbench/app.py workbench/history.py workbench/reviews.py workbench/review_runs.py workbench/verify_private.py
       - name: Test cost calculator
         run: python cost-comparison/test_calculator.py
       - name: Test deployment packaging
@@ -108,9 +108,11 @@ jobs:
       - name: Test monitoring and notification wiring without Azure
         shell: pwsh
         run: ./workbench/test-monitoring.ps1
-      - name: Test private build orchestration without Azure or Docker
+      - name: Test private build and verification helpers without Azure or Docker
         shell: pwsh
-        run: ./workbench/test-build.ps1
+        run: |
+          ./workbench/test-build.ps1
+          ./workbench/test-private-checks.ps1
 
   workbench-frontend:
     runs-on: ubuntu-latest
