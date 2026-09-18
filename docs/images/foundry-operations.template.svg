@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="1060" viewBox="0 0 760 1060" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
   <title id="title">Operate and protect the Lab</title>
-  <desc id="desc">Three separate operational paths, not a sequential workflow or network map. The bounded Lab runtime sends request metadata, not prompts, to private Log Analytics through Azure Monitor. Delivered notifications require an action group. An approved private runner uses Linux Docker to publish the Lab image to a private Azure Container Registry; the Lab is deployed by image digest. Registry admin authentication is disabled. Terraform uses authorized private access and Entra authentication for separate platform and Lab state keys in an existing Azure Blob backend. State requires locking, protected versions, and backups. Necessary secrets belong in Azure Key Vault; prefer managed identity for service access. These are default configuration and operating requirements, not proof of a live deployment.</desc>
+  <desc id="desc">Three separate operational paths, not a sequential workflow or network map. The bounded Lab runtime sends request metadata, not prompts, to private Log Analytics through Azure Monitor. Delivered notifications require an existing action group or an opt-in Terraform-owned email group; there are no recipients by default. An approved private runner uses Linux Docker to publish the Lab image to a private Azure Container Registry; the Lab is deployed by image digest. Registry admin authentication is disabled. Terraform uses authorized private access and Entra authentication for separate platform and Lab state keys in an existing Azure Blob backend. State requires locking, protected versions, and backups. Necessary secrets belong in Azure Key Vault; prefer managed identity for service access. These are default configuration and operating requirements, not proof of a live deployment.</desc>
   <defs>
     <marker id="operation-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0 0L10 5L0 10z" fill="#0078d4"/>
@@ -43,7 +43,7 @@
     </g>
     <path d="M296 240H400" class="operation"/>
     <text x="348" y="220" text-anchor="middle" class="label">Metadata</text>
-    <text x="48" y="341" class="detail">No prompt logging. Notifications need an action group.</text>
+    <text x="48" y="341" class="detail">No prompt logging. Action groups: existing or Terraform-owned.</text>
   </g>
 
   <g id="image-path">

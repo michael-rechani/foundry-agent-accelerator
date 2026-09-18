@@ -36,6 +36,7 @@ want to understand:
 | [Chat and delegation](#chat-and-delegation) | How does a browser request reach a specialist, and when is chat saved? | Existing Lab chat path |
 | [Review persistence and recovery](review-workflow.md#execution-and-persistence) | What is saved before execution, and how do clarification and interruptions behave? | Optional evidence-review workflow |
 | [Operations](#operations) | How are builds, monitoring, private access, and state separated? | Platform configuration |
+| [Terraform deployment](architecture-assessment.md#terraform-first-deployment) | What does each stack own, and which Microsoft patterns fit? | Infrastructure and release ownership |
 | [Optional APIM request](#review-request) | What would an authorized gateway request look like? | Target only; gateway not deployed |
 
 ## Agent collaboration
@@ -60,8 +61,9 @@ Routing is model-selected from configured tools, not a deterministic workflow
 engine. An unclear request should produce one clarifying question before any
 specialist call. A failed or timed-out call must be reported as incomplete, not
 replaced with an invented review. There are no direct specialist-to-specialist
-calls, scheduled audit agents, email notifications, or external business writes
-in this sample.
+calls, scheduled audit agents, agent-triggered email, or external business writes
+in this sample. Optional infrastructure health notifications are separate from
+agent behavior.
 
 The two coordinator boxes in the diagram show request and response stages of
 the **same agent**. The blue service boundary is logical hosting, not a VNet.
@@ -194,7 +196,10 @@ four and 60/minute. Review uploads expire after five seconds, model calls after
 180 seconds, and complete history operations after 35 seconds. These controls
 are process-local and require one worker/replica. Dependency probes are cached,
 bounded, and separate from process liveness. Logs contain request metadata, not
-prompts or transcripts; action groups are needed for delivered notifications.
+prompts or transcripts. Action groups are needed for delivered notifications:
+the Lab can reuse existing groups or
+[create an opt-in email group with Terraform](../workbench/README.md#terraform-managed-alert-delivery).
+No recipients are configured by default.
 
 The Lab's Premium ACR registry has a private endpoint and public access disabled.
 Private DNS links cover both workload and management networks. Builds use a

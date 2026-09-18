@@ -105,6 +105,9 @@ jobs:
       - name: Test workbench deployment safeguards
         shell: pwsh
         run: ./workbench/test-deployment-inputs.ps1
+      - name: Test monitoring and notification wiring without Azure
+        shell: pwsh
+        run: ./workbench/test-monitoring.ps1
       - name: Test private build orchestration without Azure or Docker
         shell: pwsh
         run: ./workbench/test-build.ps1

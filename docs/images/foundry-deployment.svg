@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="1130" viewBox="0 0 760 1130" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">Deploy with Terraform</title>
+  <desc id="desc">Deployment ownership, not a runtime or network diagram. Protected Blob state and approved private deployment access are supplied separately. The platform Terraform stack owns Foundry, model deployments, networking, identities, backing services, and private diagnostics. The separate Lab Terraform stack references platform resources by reviewed IDs and names and owns internal Container Apps hosting, its registry and runtime identity, application Cosmos schema, monitoring, and optional alert email delivery. Image builds, agent publication, route verification, recovery, and approved quality checks remain separate release steps. No additional gateway, enterprise landing zone, or production readiness is implied.</desc>
+  <defs>
+    <marker id="deployment-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#0078d4"/>
+    </marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #242424; }
+      .title { font-size: 30px; font-weight: 600; }
+      .heading { font-size: 25px; font-weight: 600; }
+      .body { font-size: 22px; }
+      .detail { font-size: 20px; }
+      .label { font-size: 20px; fill: #4d5b69; }
+      .dependency { fill: none; stroke: #0078d4; stroke-width: 2.5; marker-end: url(#deployment-arrow); }
+    </style>
+  </defs>
+
+  <rect width="760" height="1130" fill="#fff"/>
+  <text x="24" y="42" class="title">Deploy with Terraform</text>
+  <text x="24" y="74" class="detail">Separate infrastructure ownership from code releases</text>
+
+  <g id="existing-environment">
+    <rect x="24" y="106" width="712" height="170" rx="16" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
+    <text x="48" y="143" class="heading">Provide before deployment</text>
+    <text x="48" y="180" class="body">Protected Blob state + approved private deployment access</text>
+    <text x="48" y="212" class="detail">Separate platform and Lab state keys; Entra authentication.</text>
+    <text x="48" y="244" class="detail">Supplied separately, not created by the stacks below.</text>
+  </g>
+
+  <g id="platform-stack">
+    <rect x="24" y="298" width="712" height="220" rx="16" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+    <text x="48" y="349" class="heading">Platform Terraform</text>
+    <text x="48" y="384" class="label">terraform/</text>
+    <text x="48" y="424" class="body">Foundry account, project, and model deployment</text>
+    <text x="48" y="457" class="body">Private network, identities, and backing services</text>
+    <text x="48" y="490" class="detail">Private monitoring; APIM and the admin VM are optional.</text>
+  </g>
+
+  <path d="M380 518V592" class="dependency"/>
+  <text x="402" y="563" class="label">Reviewed IDs + names</text>
+
+  <g id="lab-stack">
+    <rect x="24" y="592" width="712" height="220" rx="16" fill="#edf7f4" stroke="#00786a" stroke-width="1.5"/>
+    <text x="48" y="633" class="heading">Lab Terraform</text>
+    <text x="48" y="668" class="label">workbench/infra/</text>
+    <text x="48" y="708" class="body">Private Container Apps, registry, and runtime identity</text>
+    <text x="48" y="741" class="body">Application database and operational monitoring</text>
+    <text x="48" y="774" class="detail">Optional email action group; no recipients by default.</text>
+  </g>
+
+  <g id="release-workflows">
+    <rect x="24" y="838" width="712" height="224" rx="16" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5"/>
+    <text x="48" y="878" class="heading">Release workflows, not Terraform hooks</text>
+    <text x="48" y="918" class="body">Build images and pin the Lab digest.</text>
+    <text x="48" y="951" class="body">Publish agent versions; verify and recover routes.</text>
+    <text x="48" y="984" class="body">Run smoke checks and approved quality evaluations.</text>
+    <text x="48" y="1031" class="detail">A successful deployment does not prove answer quality.</text>
+  </g>
+
+  <text x="24" y="1101" class="detail">Each stack keeps its own state. Review plans before applying.</text>
+</svg>

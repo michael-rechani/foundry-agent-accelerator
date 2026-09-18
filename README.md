@@ -152,6 +152,7 @@ Choose the view that answers your question:
 | [Agent collaboration](docs/images/agent-collaboration.svg) | How the coordinator delegates work and returns findings for human review. |
 | [Infrastructure](docs/images/foundry-overview.svg) | How the Lab reaches agents and stores records through separate paths. |
 | [Operations and security](docs/images/foundry-operations.svg) | How telemetry, image publishing, state, and credentials are handled. |
+| [Terraform deployment](docs/images/foundry-deployment.svg) | What the platform and Lab stacks own, and what stays in release workflows. |
 
 For the actual message shape, see the [request and result example](docs/agent-profiles.md#example-handoff).
 
@@ -163,6 +164,8 @@ Deeper guides:
   [credential handling](docs/credentials.md).
 - **Customize the agents:** [extension guide](docs/architecture-assessment.md),
   [coordinator profiles](docs/agent-profiles.md).
+- **Terraform and Microsoft reference architectures:** [what to reuse and who owns it](docs/architecture-assessment.md#terraform-first-deployment).
+  Keep the existing AVM foundation; add infrastructure only for a specific need.
 - **Optional APIs and search:** [API Management guide](docs/apim-review-api.md),
   [integration options](docs/optional-integrations.md). Azure API Management
   (APIM) is disabled by default and is not needed by the Lab. Azure AI Search is

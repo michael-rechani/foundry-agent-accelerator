@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-foreach ($name in @('agent-collaboration', 'foundry-overview', 'foundry-operations')) {
+foreach ($name in @('agent-collaboration', 'foundry-overview', 'foundry-operations', 'foundry-deployment')) {
     $template = Join-Path $PSScriptRoot "$name.template.svg"
     $output = Join-Path $PSScriptRoot "$name.svg"
     $content = Get-Content $template -Raw

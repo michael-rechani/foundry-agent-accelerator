@@ -52,7 +52,7 @@ paths and execution boundaries explicitly rather than relying on color alone.
 
 ## High-level overview artwork
 
-Use the three views for different questions rather than putting every component
+Use the four views for different questions rather than putting every component
 in one diagram:
 
 | View | Purpose | Editable source |
@@ -60,19 +60,22 @@ in one diagram:
 | [Agent collaboration](agent-collaboration.svg) | Coordinator requests, specialist results, and human review. | [SVG template](agent-collaboration.template.svg) |
 | [Lab infrastructure](foundry-overview.svg) | Default request paths and application-owned records; optional APIM stays outside the flow. | [SVG template](foundry-overview.template.svg) |
 | [Operations and security](foundry-operations.svg) | Independent telemetry, image-publishing, and state paths, plus secret ownership. | [SVG template](foundry-operations.template.svg) |
+| [Terraform deployment](foundry-deployment.svg) | Platform and Lab resource ownership, existing prerequisites, and separate release workflows. | [SVG template](foundry-deployment.template.svg) |
 
 Edit the [agent-collaboration view](agent-collaboration.template.svg),
-[runtime overview](foundry-overview.template.svg), or
-[operations diagram](foundry-operations.template.svg), then run:
+[runtime overview](foundry-overview.template.svg),
+[operations diagram](foundry-operations.template.svg), or
+[deployment view](foundry-deployment.template.svg), then run:
 
 ```powershell
 ./docs/images/build-architecture.ps1
 ```
 
-The build embeds the original SVG bytes as image data in the
-[rendered agent flow](agent-collaboration.svg),
-[rendered overview](foundry-overview.svg), and
-[rendered operations diagram](foundry-operations.svg). All remain self-contained
+The build embeds any referenced icons as their original SVG bytes.
+The [rendered agent flow](agent-collaboration.svg),
+[rendered overview](foundry-overview.svg),
+[rendered operations diagram](foundry-operations.svg), and
+[rendered deployment view](foundry-deployment.svg) remain self-contained
 when GitHub displays them, with no external asset or network dependency. Keep
 source icons, templates, and generated images together.
 
@@ -89,6 +92,12 @@ chat saves distinct from server-persisted review drafts and results. The
 operations rows are independent paths, not sequential tasks or network
 boundaries. Preserve the existing-backend requirement and the distinction
 between Entra authentication and a specific managed identity.
+
+The deployment view shows ownership, not another runtime flow. The Lab references
+platform resources; it does not take ownership of the whole platform state. Build
+artifacts and agent versions remain release-workflow outputs. Keep optional alert
+delivery distinct from agent-triggered email, and do not depict an enterprise
+landing zone or gateway as deployed by default.
 
 These are logical diagrams, not an exhaustive subnet or resource inventory.
 Component boxes do not place managed services inside VNets. The overview focuses

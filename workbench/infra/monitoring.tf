@@ -1,7 +1,7 @@
 variable "alert_action_group_ids" {
   type        = set(string)
   default     = []
-  description = "Existing Azure Monitor action groups for notification delivery. Empty means portal alerts only."
+  description = "Existing Azure Monitor action groups for notification delivery, combined with any Terraform-owned email action group. No groups or managed receivers means portal alerts only."
 }
 
 variable "monitor_private_link_scope_name" {
@@ -97,9 +97,9 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "operational" {
     operator                = "GreaterThanOrEqual"
   }
   dynamic "action" {
-    for_each = length(var.alert_action_group_ids) == 0 ? [] : [1]
+    for_each = local.alert_notifications_enabled ? [1] : []
     content {
-      action_groups = var.alert_action_group_ids
+      action_groups = local.effective_alert_action_group_ids
     }
   }
   tags = local.tags
@@ -123,9 +123,9 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "heartbeat" {
     operator                = "LessThan"
   }
   dynamic "action" {
-    for_each = length(var.alert_action_group_ids) == 0 ? [] : [1]
+    for_each = local.alert_notifications_enabled ? [1] : []
     content {
-      action_groups = var.alert_action_group_ids
+      action_groups = local.effective_alert_action_group_ids
     }
   }
   tags = local.tags

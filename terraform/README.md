@@ -14,6 +14,13 @@ The default names identify their purpose directly: the account uses
 `foundry-hosted-agents-<base>-<environment>-<unique>` and the project uses
 `hosted-agents-<environment>`.
 
+For how this setup relates to Microsoft's baseline and landing-zone designs, see
+the [Terraform-first architecture guide](../docs/architecture-assessment.md#terraform-first-deployment).
+It separates this platform's resources from the Lab stack, existing shared
+services, and application/agent releases. The official baseline chat sample uses
+Bicep; this repository keeps its existing Terraform implementation rather than
+deploying a second foundation.
+
 ## Prerequisites
 
 - Terraform 1.16.1 or a later 1.16 patch release
@@ -392,12 +399,16 @@ key authentication are foundations, not proof of production suitability. See
 the [architecture and trust boundaries](../docs/architecture.md) for the existing
 controls. Before production use:
 
-- Use the AVM pattern's BYOR path so platform-owned Key Vault, Storage,
-  Cosmos DB, and AI Search resources have independent lifecycles.
+- Decide which backing services should have a separate platform owner. The AVM
+  BYOR path is already enabled with Agent Service: this root owns Cosmos and agent
+  storage, while the AVM creates Search and Key Vault. Moving resources to another
+  state requires an explicit ownership migration, not another copy of the module.
 - Integrate the workload VNet and private DNS zones with the landing-zone hub,
   firewall, DNS resolver, and on-premises routing design.
 - Send diagnostics to a centrally managed Log Analytics workspace.
 - Configure and test alert notification delivery and backup/restore procedures.
+  The Lab can [reuse notification groups or create an optional email group](../workbench/README.md#terraform-managed-alert-delivery)
+  through its own Terraform stack.
 - Add user authorization and owner-scoped history before using confidential data.
 - Replace process-local limits with shared admission control before scaling out.
 - Assign least-privilege data-plane roles to each hosted agent's dedicated

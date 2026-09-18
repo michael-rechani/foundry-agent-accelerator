@@ -33,6 +33,82 @@ Let concrete agent requirements drive extensions. Avoid a generic agent designer
 orchestration framework, evaluation dashboard, or distributed worker system until
 a use case requires it.
 
+## Terraform-first deployment
+
+Use the Microsoft references as design guidance, not as a replacement for the
+working foundation. This repository already uses the Foundry Azure Verified
+Module (AVM), with AzureRM and AzAPI for the surrounding resources. Keep
+infrastructure declarative; keep image builds, agent releases, and quality checks
+as explicit delivery steps.
+
+![Deployment ownership: existing state and private access, separate platform and Lab Terraform stacks, and separate image and agent release workflows](images/foundry-deployment.svg)
+
+[Open full-size deployment view](images/foundry-deployment.svg) · [Editable SVG template](images/foundry-deployment.template.svg)
+
+### What to take from the Microsoft references
+
+| Reference | Useful guidance | Fit for this repository |
+| --- | --- | --- |
+| [Microsoft Foundry baseline sample](https://github.com/Azure-Samples/microsoft-foundry-baseline) | Separate private infrastructure, application publishing, and agent deployment. | Its infrastructure implementation is Bicep, not Terraform. Reuse the design decisions, not a second competing deployment. |
+| [Foundry architecture](https://learn.microsoft.com/azure/foundry/concepts/architecture) | Accounts, projects, and connected Azure services have distinct responsibilities and access boundaries. | Keep resource ownership clear. A project connection does not transfer ownership of the connected service. |
+| [Baseline chat architecture](https://learn.microsoft.com/azure/architecture/ai-ml/architecture/baseline-microsoft-foundry-chat) | Private endpoints and DNS, scoped identities, controlled egress, monitoring, and recovery planning. | Use it as a hardening checklist. This Lab does not implement its full gateway, firewall, or availability design. |
+| [Basic chat architecture](https://learn.microsoft.com/azure/architecture/ai-ml/architecture/basic-microsoft-foundry-chat) | A simpler learning application with a clear browser-to-backend-to-model path. | Borrow the clarity, not its public-network defaults. Its linked sample is also Bicep; it is not a production baseline. |
+| [Build and deploy custom models](https://learn.microsoft.com/azure/architecture/ai-ml/architecture/build-deploy-custom-models) | A document-processing design that separates ingestion, storage, model training, and inference. | Relevant if a later scenario needs extraction or a trained model. It supplies no Terraform implementation and is not a reason to add training infrastructure to this review demo. |
+| [AI Landing Zones](https://azure.github.io/AI-Landing-Zones/#extensible-implementations) | Reusable Foundry and AI gateway foundations, with separate platform and workload responsibilities. | The strongest Terraform starting point. It links to the Foundry AVM already used here, a broader landing-zone module, and a separate gateway implementation. |
+
+The [Foundry AVM](https://registry.terraform.io/modules/Azure/avm-ptn-aiml-ai-foundry/azurerm/latest)
+is the closest fit for this sample. For a separately scoped enterprise deployment,
+also consider the
+[AI landing-zone Terraform module](https://github.com/Azure/terraform-azurerm-avm-ptn-aiml-landing-zone)
+and [AI Gateway Terraform implementation](https://github.com/Azure/terraform-ai-gateway-landing-zone).
+They are alternatives to assess, not dependencies to add automatically.
+
+The landing-zone project is marked preview and does not claim complete
+[Bicep/Terraform runtime parity](https://github.com/Azure/AI-Landing-Zones/blob/main/docs/terraform-parity.md).
+Module and provider constraints differ across the implementations. Keep this
+repository's pins until a coordinated upgrade is tested; do not merge example
+roots or point a new module at existing resources without an ownership and state
+migration plan. Review deletion and purge behavior as well as creation.
+
+### What Terraform owns here
+
+| Owner | Resources or work | Boundary |
+| --- | --- | --- |
+| [Platform Terraform](../terraform/) | Foundry account, project, model deployment, agent backing services, workload and management networks, private endpoints/DNS, identities/RBAC, and private diagnostics. APIM and the admin VM are optional. | Keep existing resource names, protected resources, and the platform state key. Search is a backing service, not an implemented review-agent retrieval tool. |
+| [Lab Terraform](../workbench/infra/) | Internal Container Apps hosting, private registry, runtime identity, application Cosmos database/containers, private logs, and operational alert rules. Optional email action group. | Separate state. Reference platform resources without managing them a second time. Application records stay separate from Agent Service's internal data structures. |
+| Existing environment owners | Protected Terraform backend, approved deployment access, any organization-owned hub, central DNS, policy, and existing notification groups. | The sample does not deploy an enterprise landing zone or automatically integrate with one. Reuse shared services only through a reviewed integration. |
+| [Application and agent release workflows](../hosted-agents/README.md) | Build and publish images, select an immutable Lab digest, publish agent versions, verify routing, and recover failed releases. | Terraform sets the Lab's image reference; release scripts produce and verify the artifact. Do not hide these steps in Terraform `local-exec` hooks. |
+| [Quality checks](../evaluations/README.md) | Offline tests, approved private smoke checks, and optional paid model evaluations. | Successful resource deployment does not establish agent quality or trace coverage. |
+
+The AVM bring-your-own-resources (BYOR) path is already enabled with Agent Service:
+the platform root owns Cosmos and agent storage; the AVM creates Search and Key
+Vault. BYOR does not mean these resources already have separate Terraform state.
+Moving them to a central owner would need an explicit migration.
+
+### A small implemented improvement: alert delivery
+
+The Lab can now
+[create an optional email action group with Terraform](../workbench/README.md#terraform-managed-alert-delivery)
+instead of requiring every notification group to be created elsewhere. It can
+also continue to reference existing groups, or use both. Defaults stay unchanged:
+no recipients, no extra action group, and no public ingress. These are operational
+alerts, not a new email tool for agents.
+
+### Extensions to scope separately
+
+- **Private tracing:** verify project-linked Application Insights, agent support,
+  retention, and content-capture policy before adding resources or instrumentation.
+  Log Analytics diagnostics alone do not prove end-to-end agent tracing.
+- **Enterprise networking:** agree who owns the hub, egress firewall, DNS, routes,
+  and deployment runners before connecting this workload. Do not duplicate central
+  services or enable a costly firewall just to match a reference diagram.
+- **Broader application access:** use the
+  [ingress guide](ingress-access.md) for a separately reviewed gateway. User
+  authentication and record authorization remain separate application work.
+- **Resilience or custom-model processing:** choose these for an actual
+  availability, recovery, or document-processing requirement. They add resources,
+  operating costs, and validation work; they are not prerequisites for this demo.
+
 ## Ownership and fit
 
 | Concern | What this repository has | What Foundry provides | Recommended boundary |

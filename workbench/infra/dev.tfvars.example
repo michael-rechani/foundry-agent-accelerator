@@ -9,3 +9,9 @@ registry_name        = "globallyuniqueregistryname"
 workspace_title      = "AI Foundry Lab"
 visible_agents       = ["customer-review"]
 default_agent        = "customer-review"
+
+# Optional: create a Terraform-owned email action group for operational alerts.
+# Keep real recipients in ignored deployment inputs, not this example.
+# managed_alert_email_receivers = {
+#   operations = "operations@example.invalid"
+# }

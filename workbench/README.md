@@ -329,9 +329,50 @@ These checks verify access, not model-generation quality or full Cosmos CRUD.
 Azure Monitor raises alerts for five failures/throttles in five minutes, three
 degraded dependency samples in five minutes, and no heartbeat in 15 minutes.
 Alerts are visible in Azure Monitor. Set `alert_action_group_ids` to existing
-action groups to deliver notifications; no recipient is configured by default.
+action groups to deliver notifications, or let Terraform create an email action
+group as shown below. No group or recipient is added by default.
 Missing-heartbeat alerts also cover stalled ingestion or quota exhaustion but
 cannot distinguish these from an application outage.
+
+### Terraform-managed alert delivery
+
+Set `managed_alert_email_receivers` in your ignored Lab deployment inputs to
+create one action group and attach it to all three operational alerts:
+
+```hcl
+managed_alert_email_receivers = {
+  operations = "operations@example.invalid"
+}
+```
+
+Replace the example address with an approved recipient before planning. Receiver
+names and addresses must be nonempty and unique, ignoring letter case. The group
+uses the Azure Monitor common alert schema and inherits the Lab's resource group
+and tags. `managed_alert_action_group_id` returns its ID after apply.
+
+You can also supply `alert_action_group_ids` for centrally managed groups; the
+configuration combines both sets without duplicate group IDs. Existing groups
+remain owned outside this state. Do not configure the same group for creation
+here unless you deliberately transfer its Terraform ownership. Removing all
+managed receivers plans deletion of the Lab-owned group, so review that change
+before applying.
+
+Recipient addresses are stored in Terraform plans and state; protect those as
+well as the local inputs. Alert messages can include resource identifiers and
+operational log metadata and are delivered outside the private application path.
+Approve recipients, delivery costs, and the rollout before enabling them, and
+verify delivery from the approved Azure environment. Terraform validation does
+not prove that mail reaches an inbox. These are infrastructure health alerts,
+not agent tools for sending email or performing business actions.
+
+Run `./workbench/test-monitoring.ps1` after provider initialization to check the
+default, existing-group, managed-group, combined-group, opt-out, and invalid-input paths.
+The runner copies only the monitoring configuration into an isolated directory,
+without the deployment backend or tfvars. Both Terraform providers are mocked,
+including test runs named `apply`; no Azure resources are created and no mail is
+sent. CI runs the same checks.
+
+### Browser caching
 
 API responses remain `no-store`. HTML revalidates and fingerprinted static assets
 use immutable caching. No transcript data is written to browser persistent storage.

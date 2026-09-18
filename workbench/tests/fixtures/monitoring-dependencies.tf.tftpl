@@ -1,0 +1,47 @@
+# Copied alongside the monitoring sources by test-monitoring.ps1.
+terraform {
+  required_version = "~> 1.16.1"
+  required_providers {
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.12.0"
+    }
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.81"
+    }
+  }
+}
+
+provider "azurerm" {
+  features {}
+}
+
+provider "azapi" {}
+
+variable "subscription_id" {
+  default = "00000000-0000-0000-0000-000000000003"
+}
+
+variable "resource_group_name" {
+  default = "rg-monitoring-test"
+}
+
+variable "name" {
+  default = "monitoring-test"
+}
+
+locals {
+  tags = { workload = "foundry-workbench", managed-by = "terraform" }
+}
+
+data "azurerm_virtual_network" "workload" {
+  name                = "vnet-monitoring-test"
+  resource_group_name = var.resource_group_name
+}
+
+resource "azurerm_container_app_environment" "this" {
+  name                = "cae-monitoring-test"
+  location            = data.azurerm_virtual_network.workload.location
+  resource_group_name = var.resource_group_name
+}
