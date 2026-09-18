@@ -35,6 +35,9 @@ deterministic routing, sequential workflows, and background jobs remain separate
 future features. Arbitrary endpoints and caller-supplied tool registrations are
 not supported.
 
+See the [agent-collaboration view](architecture.md#agent-collaboration) for the
+default roles and the distinction between agent output and human review.
+
 ## Specialist contract
 
 - A deployed named agent in the same Foundry project exposes the Responses protocol.
@@ -49,6 +52,57 @@ not supported.
 This is an invocation contract, not a structured findings schema or evidence
 accuracy guarantee. New specialists need their own evaluations and reviewed
 permissions. Do not assume the default review prompts are suitable for a new domain.
+
+### Example handoff
+
+This illustrates the existing default `review_application` tool, not a captured
+model response or a new message schema. Its `request` argument is one text
+string. A clear request carries the task, all supplied evidence, source IDs, and
+the decision boundary together:
+
+```text
+Task: Check application completeness against the supplied criterion.
+Criterion: CRIT-1 requires a project budget.
+Evidence: APP-1 describes three workshops with two facilitators.
+          No budget or costs are supplied.
+Return: Findings tied to the source IDs, gaps, and a follow-up question.
+Boundary: Do not approve or deny the application.
+```
+
+The specialist returns text. Only after its response completes successfully and
+contains nonempty output does the coordinator's tool wrapper produce this shape:
+
+```json
+{
+  "status": "succeeded",
+  "agent": "application-review-agent",
+  "output": "CRIT-1 is not demonstrated by APP-1. Ask for the project budget."
+}
+```
+
+`call_id` belongs to the surrounding Responses `function_call` and
+`function_call_output`, not to this JSON object. The Lab matches that ID, the
+configured tool name, and the expected agent. The example profile below uses
+`inspect_application` instead; verification must follow the configured binding,
+not assume every profile uses the default tool name.
+
+**Completed execution is not verified truth.** The `output` field is text, not a
+strict findings schema. Source references and factual claims still need review.
+The optional structured-review workflow adds its own
+[schema, coverage, and quote checks](review-workflow.md#execution-and-trust).
+
+| Situation | Expected handling |
+| --- | --- |
+| The request type is unclear | Ask one concise question before delegating. |
+| Evidence is missing or contradictory | Preserve the gap or conflict and ask for clarification; do not invent a source or choose an unsupported fact. |
+| A specialist fails, times out, or returns empty output | No successful tool receipt is produced. The coordinator is instructed to report an incomplete review, not replace the specialist with its own answer. |
+| A response names a specialist but has no matching tool record | Do not present that name alone as proof of delegation. |
+
+The [tool implementation](../hosted-agents/review-coordinator-agent/main.py)
+defines the invocation and result wrapper. Each call uses the configured
+deadline and shared process-local concurrency limit, with no automatic transport
+retries. Specialists do not inherit shared conversation memory: the coordinator
+must pass the context they need in each request.
 
 ## Select a use case
 

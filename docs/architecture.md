@@ -22,11 +22,72 @@ uses its own remote state key and the following runtime and administration paths
 
 | View | Question it answers | Scope |
 | --- | --- | --- |
+| [Agent collaboration](#agent-collaboration) | Who asks whom, what information is passed, and who checks the result? | Default coordinator and review specialists |
 | [Component interactions](#component-interactions) | What runs where, and which component owns each interaction? | Platform and application components |
 | [Chat and delegation](#chat-and-delegation) | How does a browser request reach a specialist, and when is chat saved? | Existing Lab chat path |
 | [Review persistence and recovery](review-workflow.md#execution-and-persistence) | What is saved before execution, and how do clarification and interruptions behave? | Optional evidence-review workflow |
 | [Operations](#operations) | How are builds, monitoring, private access, and state separated? | Platform configuration |
 | [Optional APIM request](#review-request) | What would an authorized gateway request look like? | Target only; gateway not deployed |
+
+## Agent collaboration
+
+The default review pattern has one coordinator and two specialist tools, not a
+network of agents freely messaging each other. The coordinator owns the
+conversation. Specialists receive a complete request and return their findings
+to that same coordinator.
+
+![Default review-agent collaboration, from the Lab through one selected specialist and back to a person for review](images/agent-collaboration.svg)
+
+[Open full-size SVG](images/agent-collaboration.svg) · [Editable SVG template](images/agent-collaboration.template.svg) · [Request and result example](agent-profiles.md#example-handoff)
+
+| Step | Responsibility | What crosses the boundary |
+| --- | --- | --- |
+| Ask | A person supplies the question and evidence in the Lab. The backend calls the configured named agent using managed identity. | The new message and bounded conversation context. |
+| Delegate | The coordinator selects `review_application` or `review_case`. Its instructions allow both only when the user explicitly requests both review types. | A text request containing the full task, supplied evidence, and source identifiers. |
+| Return | The specialist responds to the coordinator's tool call. The tool wrapper accepts only a completed, nonempty response. | A tool result containing `status`, `agent`, and `output`; the Responses protocol carries the matching `call_id`. |
+| Review | The Lab checks the tool record and displays the answer. A person verifies sources and decides what to do next. | Findings, source references, questions, and verification flags; not an approval or a guarantee of truth. |
+
+Routing is model-selected from configured tools, not a deterministic workflow
+engine. An unclear request should produce one clarifying question before any
+specialist call. A failed or timed-out call must be reported as incomplete, not
+replaced with an invented review. There are no direct specialist-to-specialist
+calls, scheduled audit agents, email notifications, or external business writes
+in this sample.
+
+The two coordinator boxes in the diagram show request and response stages of
+the **same agent**. The blue service boundary is logical hosting, not a VNet.
+The specialist boxes represent custom code, not separate Microsoft products.
+Profiles can change tool names and targets; see the
+[profile contract](agent-profiles.md#specialist-contract) before changing them.
+
+This design keeps roles and handoffs explicit without claiming production
+readiness. Tool verification establishes which configured call returned a
+result, not whether every statement is true. The Lab still has shared history
+and no per-user authorization. Structured reviews add
+[coverage, citation, and saved-result checks](review-workflow.md#execution-and-trust);
+ordinary chat can also return clarification without a specialist receipt.
+
+### Applying the pattern to larger workflows
+
+Keep the useful parts of a multi-agent design: distinct responsibilities,
+traceable inputs, and clear outputs. Avoid adding an agent just to move files,
+check whether a job ran, or relay another agent's answer.
+
+- **Separate analysis from routine processing.** Agents can interpret evidence;
+  ordinary code should own ingestion, validation, storage, and status tracking.
+- **Pass explicit work.** Each handoff needs the task, source identifiers,
+  relevant evidence, expected result, and limits on what the agent may do.
+  Do not assume another agent can see the same chat or working directory.
+- **Use workflow controls for multistep jobs.** Dependency order, persisted job
+  state, retries, and recovery need an explicit design. They are not provided by
+  this coordinator's tool routing or by adding a supervisor agent.
+- **Keep actions separate from findings.** Sending email, creating tickets, or
+  changing business records requires separately scoped connectors, permissions,
+  approval rules, and duplicate-action protection.
+
+These are extension guidelines, not implemented integrations. Use the
+[Foundry extension guide](architecture-assessment.md) to choose supported native
+capabilities before adding a custom orchestration layer.
 
 ## Component interactions
 

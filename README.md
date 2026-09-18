@@ -139,9 +139,13 @@ The Lab runs in an internal Azure Container Apps environment and uses managed
 identities to access Azure services. It is a chat app, not an agent designer or
 evaluation dashboard.
 
-![Lab architecture: private browser access, managed-identity review agents, and shared Cosmos history](docs/images/foundry-overview.svg)
+The coordinator owns the conversation. It calls a specialist through a configured
+tool, then returns the findings to the Lab. Specialists do not message each other,
+and a completed tool call is not proof that its findings are correct.
 
-[Full-size overview](docs/images/foundry-overview.svg) · [Operations and security](docs/images/foundry-operations.svg)
+![Default agent collaboration: the coordinator selects a review specialist, receives its result, and returns findings to the Lab for human review](docs/images/agent-collaboration.svg)
+
+[Full-size agent flow](docs/images/agent-collaboration.svg) · [Message contracts](docs/agent-profiles.md#example-handoff) · [Infrastructure overview](docs/images/foundry-overview.svg)
 
 Deeper guides:
 

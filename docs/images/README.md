@@ -41,17 +41,19 @@ Use `-PreviewDirectory <temporary-directory>` for PNG inspection copies, and
 `-Names lab-components` to rebuild one view. Commit sources and SVG exports
 together, not temporary previews or downloaded tools.
 
-The root README keeps a compact platform overview. Detailed diagrams belong
+The root README leads with the agent-collaboration view and links to the platform
+overview. Detailed diagrams belong
 in the [architecture guide](../architecture.md) and
 [review workflow](../review-workflow.md), with full-size links for zooming on
-small screens. Blue denotes requests, green application persistence, and amber
-attention or clarification. Product icons identify Microsoft services;
-plain shapes identify custom code. Label optional paths and execution boundaries
-explicitly rather than relying on color alone.
+small screens. Each view labels its requests, results, and persistence paths;
+color alone does not identify a trust boundary or prove success. Product icons
+identify Microsoft services; plain shapes identify custom code. Label optional
+paths and execution boundaries explicitly rather than relying on color alone.
 
 ## High-level overview artwork
 
-Edit the [runtime overview](foundry-overview.template.svg) or
+Edit the [agent-collaboration view](agent-collaboration.template.svg),
+[runtime overview](foundry-overview.template.svg), or
 [operations diagram](foundry-operations.template.svg), then run:
 
 ```powershell
@@ -59,10 +61,18 @@ Edit the [runtime overview](foundry-overview.template.svg) or
 ```
 
 The build embeds the original SVG bytes as image data in the
-[rendered overview](foundry-overview.svg) and
-[rendered operations diagram](foundry-operations.svg). Both remain self-contained
+[rendered agent flow](agent-collaboration.svg),
+[rendered overview](foundry-overview.svg), and
+[rendered operations diagram](foundry-operations.svg). All remain self-contained
 when GitHub displays them, with no external asset or network dependency. Keep
 source icons, templates, and generated images together.
+
+The collaboration view shows the default review profile. Its two coordinator
+boxes are stages of one agent, not separate agents. Blue arrows carry requests;
+green arrows return results. Arrow labels and text explain the distinction
+without relying on color. Keep the one-specialist default, clarification/failure
+behavior, and human-review boundary aligned with the implementation. The official
+Foundry icon labels the service boundary; the custom agents use plain cards.
 
 These are logical diagrams, not an exhaustive subnet or resource inventory.
 Component boxes do not place managed services inside VNets. The overview focuses
@@ -70,5 +80,5 @@ on runtime calls; the operations view covers monitoring, private state access,
 and security boundaries. APIM is optional. Keep secret ownership and private
 connectivity boundaries visible without adding deployment-history notes.
 
-Check both images at README width and on mobile after editing. Keep labels short,
+Check the images at README width and on mobile after editing. Keep labels short,
 avoid crossing text with connectors, and do not reduce type to fit more detail.
