@@ -2,7 +2,7 @@
 
 ## Synthetic input/result illustration
 
-The root README opens with
+The [demo guide](../demos.md) links to
 [demo-evidence-result.svg](demo-evidence-result.svg), an **illustrative result,
 not a screenshot or captured model response**. The editable SVG is also the
 published asset; edit it directly. It has no draw.io source, generation script,
@@ -14,7 +14,7 @@ Keep the criteria, source identifiers, dates, and findings aligned with the
 `title` and `desc`, human-review notice, synthetic-data warning, and explicit
 illustrative status. Never imply that it proves a live evaluation passed.
 
-Preview the SVG at README width and on a narrow screen after changes. Commit
+Preview the SVG at desktop and narrow-screen widths after changes. Commit
 the SVG source, not a temporary screenshot export.
 
 ## Azure icons in architecture diagrams

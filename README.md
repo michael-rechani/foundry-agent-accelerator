@@ -18,16 +18,6 @@ with the expected findings in the [demo guide](docs/demos.md). These samples are
 for demonstrations and technical testing, not finished customer solutions.
 People must verify the findings and make any approval or denial decisions.
 
-**Example: reviewing a permit application.** In the illustration below, the sample
-application names a project owner but omits a budget and gives two different
-completion dates. The review highlights what is present, what is missing, and
-what needs clarification; it does not decide whether to approve the permit.
-
-![Illustrative permit review: a named project owner, a missing budget, and conflicting completion dates are highlighted for a person to verify](docs/images/demo-evidence-result.svg)
-
-*Synthetic example of the intended review format, not output captured from a live
-agent. Actual responses must be checked against the supplied material.*
-
 ## Scenarios and status
 
 Select **one scenario per engagement**, not a promise to deliver every scenario.
@@ -83,10 +73,10 @@ demonstration; this is a presentation outline, not an execution-time guarantee.
 4. Close with [What worked / What needs further validation / Recommended next
    step](docs/demo-handoff.md). Reset without deleting someone else's records.
 
-For a disconnected walkthrough, use the supplied illustration and expected
-findings explicitly as examples, not live results. The local Lab preview does
-not invoke a model. Preparing Azure, deploying agents, and deploying the Lab
-are **separate operator activities**, not part of the short demonstration.
+For a disconnected walkthrough, use the sample inputs and expected findings in
+the [demo guide](docs/demos.md) as examples, not live results. The local Lab
+preview does not invoke a model. Preparing Azure, deploying agents, and deploying
+the Lab are **separate operator activities**, not part of the short demonstration.
 
 ## Validate and compare
 
