@@ -52,6 +52,15 @@ paths and execution boundaries explicitly rather than relying on color alone.
 
 ## High-level overview artwork
 
+Use the three views for different questions rather than putting every component
+in one diagram:
+
+| View | Purpose | Editable source |
+| --- | --- | --- |
+| [Agent collaboration](agent-collaboration.svg) | Coordinator requests, specialist results, and human review. | [SVG template](agent-collaboration.template.svg) |
+| [Lab infrastructure](foundry-overview.svg) | Default request paths and application-owned records; optional APIM stays outside the flow. | [SVG template](foundry-overview.template.svg) |
+| [Operations and security](foundry-operations.svg) | Independent telemetry, image-publishing, and state paths, plus secret ownership. | [SVG template](foundry-operations.template.svg) |
+
 Edit the [agent-collaboration view](agent-collaboration.template.svg),
 [runtime overview](foundry-overview.template.svg), or
 [operations diagram](foundry-operations.template.svg), then run:
@@ -73,6 +82,13 @@ green arrows return results. Arrow labels and text explain the distinction
 without relying on color. Keep the one-specialist default, clarification/failure
 behavior, and human-review boundary aligned with the implementation. The official
 Foundry icon labels the service boundary; the custom agents use plain cards.
+
+The infrastructure view separates agent calls from record reads and writes.
+Its dashed record path is not an automatic transcript-save step. Keep explicit
+chat saves distinct from server-persisted review drafts and results. The
+operations rows are independent paths, not sequential tasks or network
+boundaries. Preserve the existing-backend requirement and the distinction
+between Entra authentication and a specific managed identity.
 
 These are logical diagrams, not an exhaustive subnet or resource inventory.
 Component boxes do not place managed services inside VNets. The overview focuses

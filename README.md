@@ -145,7 +145,15 @@ and a completed tool call is not proof that its findings are correct.
 
 ![Default agent collaboration: the coordinator selects a review specialist, receives its result, and returns findings to the Lab for human review](docs/images/agent-collaboration.svg)
 
-[Full-size agent flow](docs/images/agent-collaboration.svg) · [Message contracts](docs/agent-profiles.md#example-handoff) · [Infrastructure overview](docs/images/foundry-overview.svg)
+Choose the view that answers your question:
+
+| View | What it explains |
+| --- | --- |
+| [Agent collaboration](docs/images/agent-collaboration.svg) | How the coordinator delegates work and returns findings for human review. |
+| [Infrastructure](docs/images/foundry-overview.svg) | How the Lab reaches agents and stores records through separate paths. |
+| [Operations and security](docs/images/foundry-operations.svg) | How telemetry, image publishing, state, and credentials are handled. |
+
+For the actual message shape, see the [request and result example](docs/agent-profiles.md#example-handoff).
 
 Deeper guides:
 

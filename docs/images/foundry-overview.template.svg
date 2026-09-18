@@ -1,58 +1,84 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="610" viewBox="0 0 960 610" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
-  <title id="title">AI Foundry Lab and review agents</title>
-  <desc id="desc">A browser with authorized private-network access reaches the Lab, which calls a Foundry coordinator and saves shared conversations in Cosmos using managed identity. The coordinator delegates to application and case specialists. Optional APIM is disabled and not deployed. This logical view does not imply that managed services run inside a virtual network.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="1040" viewBox="0 0 760 1040" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">Lab infrastructure at a glance</title>
+  <desc id="desc">Default logical runtime paths. A browser on an approved private network reaches the Lab's React and FastAPI application in an internal Azure Container Apps environment. The backend uses managed identity to call named agents in Foundry Agent Service and, separately, to read and write application records in Cosmos DB. Both managed services are reached through private endpoints; they are not placed inside the Container Apps environment. Chat saves are explicit. Structured review drafts and results are persisted by the server. API Management is optional, disabled by default, and outside these paths. The Lab has shared records and no end-user sign-in or per-user authorization. This is not a live resource inventory.</desc>
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0078d4"/></marker>
+    <marker id="request-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#0078d4"/>
+    </marker>
+    <marker id="record-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#00786a"/>
+    </marker>
     <style>
-      text { font-family: 'Segoe UI', sans-serif; fill: #242424; letter-spacing: 0; }
-      .title { font-size: 28px; font-weight: 600; } .heading { font-size: 21px; font-weight: 600; }
-      .body { font-size: 18px; } .small { font-size: 16px; fill: #515151; }
-      .flow { fill: none; stroke: #0078d4; stroke-width: 2; marker-end: url(#arrow); }
-      .box { fill: #f2f8fd; stroke: #0078d4; stroke-width: 1.5; }
-      .agent { fill: #eff8f6; stroke: #008575; stroke-width: 1.5; }
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #242424; }
+      .title { font-size: 30px; font-weight: 600; }
+      .heading { font-size: 25px; font-weight: 600; }
+      .body { font-size: 22px; }
+      .detail { font-size: 20px; }
+      .label { font-size: 20px; fill: #4d5b69; }
+      .request { fill: none; stroke: #0078d4; stroke-width: 2.5; marker-end: url(#request-arrow); }
+      .record { fill: none; stroke: #00786a; stroke-width: 2.5; stroke-dasharray: 7 5; marker-end: url(#record-arrow); }
     </style>
   </defs>
-  <rect width="960" height="610" fill="#fff"/>
-  <text x="24" y="42" class="title">AI Foundry Lab and review agents</text>
-  <text x="24" y="73" class="body">Deployed runtime / private application access / managed identity</text>
 
-  <rect x="24" y="123" width="205" height="157" class="box"/>
-  <text x="42" y="181" class="heading">Browser client</text>
-  <text x="42" y="240" class="small">Authorized network</text>
-  <text x="42" y="264" class="small">Shared Lab access</text>
-  <path d="M229 192H319" class="flow"/>
-  <text x="240" y="161" class="small">Private</text>
-  <text x="240" y="181" class="small">HTTPS</text>
+  <rect width="760" height="1040" fill="#fff"/>
+  <text x="24" y="42" class="title">Lab infrastructure at a glance</text>
+  <text x="24" y="74" class="detail">Default request paths and application-owned data</text>
 
-  <rect x="329" y="123" width="238" height="157" class="box"/>
-  <text x="349" y="161" class="heading">AI Foundry Lab</text>
-  <text x="349" y="196" class="body">React + FastAPI</text>
-  <text x="349" y="228" class="small">Internal Container App</text>
-  <text x="349" y="253" class="small">Curated agent catalog</text>
-  <path d="M567 192H673" class="flow"/>
-  <text x="581" y="164" class="small">Identity</text>
+  <g id="private-browser">
+    <rect x="120" y="104" width="520" height="96" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
+    <text x="146" y="141" class="heading">Browser on an approved network</text>
+    <text x="146" y="175" class="detail">Private HTTPS; no Azure keys in the browser</text>
+  </g>
+  <path d="M380 200V252" class="request"/>
+  <text x="402" y="234" class="label">Private app access</text>
 
-  <rect x="683" y="123" width="253" height="157" class="agent"/>
-  <image href="azure-icons/agent-service.svg" x="704" y="140" width="36" height="36"/>
-  <text x="704" y="209" class="heading">Foundry coordinator</text>
-  <text x="704" y="240" class="small">Private endpoint</text>
-  <text x="704" y="264" class="small">Named specialist tools</text>
+  <g id="lab-backend">
+    <rect x="120" y="252" width="520" height="152" rx="12" fill="#fff" stroke="#0078d4" stroke-width="2"/>
+    <text x="146" y="290" class="heading">The Lab</text>
+    <text x="146" y="323" class="body">React + FastAPI in Azure Container Apps</text>
+    <text x="146" y="354" class="detail">Internal environment; controlled private access</text>
+    <text x="146" y="383" class="detail">Managed identity for Azure service calls</text>
+  </g>
+  <path d="M204 404V492" class="request"/>
+  <path d="M556 404V492" class="record"/>
+  <text x="236" y="463" class="label">Agent calls</text>
+  <text x="428" y="463" class="label">Records</text>
 
-  <path d="M449 280V339" class="flow"/>
-  <text x="280" y="318" class="small">Explicit save / identity</text>
-  <rect x="329" y="349" width="238" height="103" class="agent"/>
-  <image href="azure-icons/cosmos-db.svg" x="348" y="365" width="30" height="30"/>
-  <text x="390" y="388" class="heading">Cosmos history</text>
-  <text x="349" y="426" class="small">Shared / 30-day TTL</text>
+  <g id="foundry-service">
+    <rect x="48" y="492" width="312" height="182" rx="12" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+    <image href="azure-icons/agent-service.svg" x="70" y="510" width="36" height="36"/>
+    <text x="120" y="531" class="heading">Foundry</text>
+    <text x="120" y="561" class="body">Agent Service</text>
+    <text x="70" y="594" class="detail">Coordinator + specialists</text>
+    <text x="70" y="624" class="detail">Uses the configured model</text>
+    <text x="70" y="654" class="detail">Private endpoint</text>
+  </g>
+  <g id="application-records">
+    <rect x="400" y="492" width="312" height="182" rx="12" fill="#edf7f4" stroke="#00786a" stroke-width="1.5"/>
+    <image href="azure-icons/cosmos-db.svg" x="422" y="510" width="36" height="36"/>
+    <text x="470" y="531" class="heading">Azure Cosmos DB</text>
+    <text x="470" y="561" class="body">Application data</text>
+    <text x="422" y="594" class="detail">Shared conversations</text>
+    <text x="422" y="624" class="detail">and review records</text>
+    <text x="422" y="654" class="detail">Private endpoint</text>
+  </g>
 
-  <path d="M810 280V339" class="flow"/>
-  <rect x="683" y="349" width="253" height="103" class="agent"/>
-  <text x="704" y="385" class="heading">Review specialists</text>
-  <text x="704" y="419" class="body">Application + case</text>
+  <g id="persistence-note">
+    <rect x="48" y="702" width="664" height="88" rx="12" fill="#f5f7fa" stroke="#cdd9e2"/>
+    <text x="70" y="735" class="detail">Chat is saved only when requested.</text>
+    <text x="70" y="766" class="detail">Structured review drafts and results are saved by the server.</text>
+  </g>
 
-  <path d="M24 486H936" stroke="#b4b4b4"/>
-  <image href="azure-icons/api-management.svg" x="28" y="508" width="42" height="42"/>
-  <text x="90" y="529" class="heading">Optional gateway: APIM Standard v2</text>
-  <text x="90" y="558" class="body">Not deployed; configuration retained for future use.</text>
-  <text x="24" y="592" class="small">Synthetic data only. No end-user sign-in or per-user history authorization.</text>
+  <g id="optional-apim">
+    <rect x="24" y="814" width="712" height="100" rx="12" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5" stroke-dasharray="7 5"/>
+    <image href="azure-icons/api-management.svg" x="48" y="834" width="40" height="40"/>
+    <text x="108" y="852" class="heading">Optional: Azure API Management</text>
+    <text x="108" y="887" class="detail">Not deployed by default; the Lab does not need it.</text>
+  </g>
+
+  <g id="shared-data-warning">
+    <rect x="24" y="938" width="712" height="74" rx="8" fill="#fff4ce"/>
+    <text x="48" y="968" class="detail">Fictional data only. There is no end-user sign-in.</text>
+    <text x="48" y="998" class="detail">Saved records are shared, without per-user authorization.</text>
+  </g>
 </svg>

@@ -10,15 +10,24 @@ For optional browser access through Application Gateway WAF v2 or Front Door
 Premium with Private Link, see the [application ingress guide](ingress-access.md).
 Those patterns are guidance, not deployed components in the diagrams below.
 
-![Deployed Lab and review-agent request flow](images/foundry-overview.svg)
+![Default Lab infrastructure: private browser access, separate agent and record paths, and optional API Management outside the default flow](images/foundry-overview.svg)
+
+[Open full-size infrastructure view](images/foundry-overview.svg) · [Editable SVG template](images/foundry-overview.template.svg)
 
 The diagram uses [official Microsoft Azure architecture icons](images/README.md)
 in logical runtime and operations views. Boxes identify components, not physical
 VNet placement. Foundry and Cosmos are managed services reached through private
 endpoints. Custom review agents are not Microsoft products.
 
-The overview shows the deployed Lab and the optional, disabled APIM boundary. The Lab
-uses its own remote state key and the following runtime and administration paths:
+The overview shows the default request and data paths, not a live resource
+inventory. The solid blue path calls agents. The dashed green path represents
+separate record operations: chat saves are explicit, while structured review
+drafts and results are persisted by the server. It does not mean every agent
+response is saved. API Management is outside the default flow and is disabled
+unless separately enabled.
+
+The Lab uses its own remote state key. Choose a view for the interaction you
+want to understand:
 
 | View | Question it answers | Scope |
 | --- | --- | --- |
@@ -164,9 +173,16 @@ stopping one does not guarantee cancellation of the others.
 
 ## Operations
 
-![Lab monitoring, private state access, and remaining credential boundaries](images/foundry-operations.svg)
+![Separate operational paths for Lab metadata, private image publishing, and protected Terraform state, with Key Vault for necessary secrets](images/foundry-operations.svg)
 
-[Full-size operations diagram](images/foundry-operations.svg)
+[Full-size operations diagram](images/foundry-operations.svg) · [Editable SVG template](images/foundry-operations.template.svg)
+
+Each row is a separate operational path, not a sequence of deployment steps.
+The image path includes the approved private runner and registry; the Lab uses
+the resulting image digest. Terraform state uses an existing protected backend,
+not a store that this sample bootstraps. Entra authentication can use the
+approved CLI or managed identity path; the diagram does not require every
+operator to use managed identity.
 
 The workbench accepts only the configured agent catalog, uses no browser Azure
 credentials, and does not publish APIs through APIM. Cosmos permissions are
