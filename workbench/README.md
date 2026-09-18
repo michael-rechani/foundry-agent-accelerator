@@ -46,12 +46,11 @@ and agent-request behavior. Neither gateway is deployed by this sample.
 End-user Entra sign-in is not a prerequisite for the current private lab. Azure
 resource access still uses managed identities. Restrict the lab to trusted
 operators and fictional inputs; it is not a user-isolated application.
-**Synthetic data only. Shared history has no per-user authorization. Private
-networking does not isolate users or records.** This warning stays visible
-across workspace views on desktop and mobile. The **Shared lab** control in the
-header opens further details: everyone with workspace access can read, modify
-and delete saved records. This is
-informational, not an access control or a check that submitted data is fictional.
+The **Shared lab** control in the header explains these limits on demand:
+everyone with workspace access can read, modify and delete saved records.
+There is no permanent warning banner. The details are available on desktop and
+mobile; they are informational, not an access control or a check that submitted
+data is fictional.
 
 ## Conversations
 

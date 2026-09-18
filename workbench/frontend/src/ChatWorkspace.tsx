@@ -546,14 +546,6 @@ export default function ChatWorkspace() {
           </div>
         </header>
 
-        <aside className="lab-boundary" aria-label="Lab data boundary">
-          <strong>Synthetic data only.</strong>{' '}
-          {config?.mode === 'private'
-            ? 'Shared history has no per-user authorization.'
-            : 'When connected, history is shared with no per-user authorization.'}{' '}
-          Private networking does not isolate users.
-        </aside>
-
         {!config && (
           <div
             className="config-status"
