@@ -9,7 +9,7 @@
 ## Submitted material
 
 - `APP-1`: The proposal identifies Jordan Lee as implementation owner.
-- `APP-2`: Delivery is planned for the second quarter of 2027.
+- `APP-2`: Planning takes two weeks, followed by four weeks of delivery.
 - No budget document was included.
 
 Build a criteria matrix, identify gaps, and ask clarification questions. Do not

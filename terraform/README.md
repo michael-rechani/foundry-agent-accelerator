@@ -214,12 +214,12 @@ configuration passes an existing storage account ID and does not instantiate
 that module's storage creation path. Terraform validation can also report the
 upstream Cosmos module's deprecated `local_authentication_disabled` output.
 
-As checked on September 15, 2026, `0.11.3` is the latest published
-[Foundry pattern module](https://registry.terraform.io/modules/Azure/avm-ptn-aiml-ai-foundry/azurerm/latest).
-These warnings require an upstream dependency update, not changes to the test
-fixture or a provider downgrade. Keep validation enabled and review a future
-module/provider upgrade with the offline tests and a deployment plan. Do not
-change encryption, authentication, or resource ownership just to silence them.
+Check the [Foundry module registry](https://registry.terraform.io/modules/Azure/avm-ptn-aiml-ai-foundry/azurerm/latest)
+for releases that address these warnings. The fix belongs in the upstream
+dependency, not the test fixture or a provider downgrade. Keep validation enabled
+and review any module/provider upgrade with the offline tests and a deployment
+plan. Do not change encryption, authentication, or resource ownership just to
+silence warnings.
 
 ## Deploy
 

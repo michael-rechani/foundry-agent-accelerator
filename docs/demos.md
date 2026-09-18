@@ -2,12 +2,13 @@
 
 [Overview](../README.md) / Demo guide / [Handoff](demo-handoff.md)
 
-Validate one bounded use case, then decide what needs further validation.
-These are synthetic examples for customer-facing demonstration and technical
-validation, not customer implementations, production solutions, or an approved
-or funded Microsoft service offering.
+Choose one task to demonstrate, then compare the response with the supplied
+evidence and expected findings. These are fictional examples for technical
+testing, not customer implementations or production solutions.
 
-Engagements focus on demonstration and technical validation. Integration with customer systems and production deployment require separate scoping and agreement.
+Customer-system connections and production deployment require separate planning
+and agreement. This repository is not an officially approved or funded Microsoft
+service offering.
 
 ## Prepare once, demonstrate separately
 
@@ -33,8 +34,8 @@ Before inviting participants:
 - Verify the selected prompt behavior in an approved staging environment first.
   A deployer smoke pass verifies invocation/delegation, not answer quality.
   Use the [Foundry evaluation suite](../evaluations/README.md) for quality gates.
-- Without live access, walk through the [illustration](images/demo-evidence-result.svg)
-  and expected findings as illustrative material. Local disconnected mode cannot
+- Without live access, walk through the sample inputs and expected findings
+  below as examples, not live results. Local disconnected mode cannot
   demonstrate model execution, Cosmos persistence, or live approval tools.
 
 The primary path uses no customer-system connection, M365/Copilot/SharePoint
@@ -76,8 +77,8 @@ visible, it uses the same case agent. Do not request an application review too.
 
 | Supplied evidence | Good result |
 | --- | --- |
-| CASE-1 records intake August 15; CASE-2 records August 17 | Cite both identifiers and flag the intake-date conflict; do not choose a date or invent a sequence. |
-| Both records give follow-up August 22 | Identify that agreement separately from the conflicting intake date. |
+| CASE-1 and CASE-2 disagree about when intake occurred | Cite both identifiers and flag the conflict; do not choose a value or invent a sequence. |
+| Both records give the same follow-up appointment | Identify that agreement separately from the intake conflict. |
 | CASE-3 says proof of address remains outstanding | Identify missing evidence without inventing a document, expiry rule, or eligibility consequence. |
 | No policy is supplied | State the limitation; request any policy needed for a policy-based review. |
 
@@ -114,7 +115,7 @@ application entry uses the same specialist.
 | --- | --- | --- |
 | CRIT-1: supply a project budget | **Not demonstrated.** Ask for the missing budget; absence is not automatic noncompliance. Do not invent a budget citation. | CRIT-1; no supporting budget source supplied |
 | CRIT-2: identify the implementation owner | **Met**, limited to what the text states, not verified organizational authority. | APP-1 names the Facilities team |
-| CRIT-3: provide a delivery schedule | **Unclear.** Preserve the conflicting completion dates and ask which schedule is current. | APP-2: June 30; APP-3: July 31 |
+| CRIT-3: provide a delivery schedule | **Unclear.** Preserve the conflicting schedules and ask which is current. | APP-2 and APP-3 give different completion dates |
 
 An authorized person must verify the evidence and make any permit decision.
 Do not score, rank, approve, deny, or recommend an outcome.

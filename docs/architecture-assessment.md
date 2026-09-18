@@ -98,7 +98,6 @@ These are repository pins and implementation choices, not a claim that every
 live combination has been validated in every region. Offline tests exercise
 fixtures, API contracts, and mocked transports. They do not prove model quality,
 live routing, permissions, trace collection, or production suitability.
-The **2026-09-17 documentation review performed no live Foundry validation**.
 
 | Surface | Repository baseline | Evidence and remaining validation |
 | --- | --- | --- |
@@ -108,25 +107,25 @@ The **2026-09-17 documentation review performed no live Foundry validation**.
 | Evaluation client | Separate `azure-ai-projects==2.4.0`; `openai==2.54.0` environment | Hand-authored rubric creation uses `.beta.evaluators`. Offline contracts are tested; live evaluation needs explicit approval and private-project, permissions, region, and judge-model verification. |
 | Tracing | Operational metadata logs and private Azure Monitor connectivity | Verify project-linked Application Insights server-side traces before claiming end-to-end trace coverage or adding client instrumentation. Content capture requires explicit review. |
 | Tools and retrieval | Custom specialist tools; Search connected but not used for retrieval | A Search connection alone is not retrieval or document authorization. Native toolboxes and new integrations need their own identity/network validation. |
-| Default model | GPT-4.1 `2025-04-14`, configurable through Terraform | A configured model is not a quality result. Compare alternatives against the same evaluation set before an approved change. |
+| Default model | GPT-4.1, with its version set in the [Terraform inputs](../terraform/variables.tf) | A configured model is not a quality result. Compare alternatives against the same evaluation set before an approved change. |
 
 ### Public service and SDK guidance
 
-The following Microsoft sources were rechecked on **2026-09-17**. These are
-dated public-documentation statements, **not results from testing this
-repository**. Service maturity does not imply that every SDK operation,
-integration, region, or deployment path has the same status. Recheck the linked
-sources before publication, migration, or a new engagement.
+Use the following sources to check service availability and compatibility.
+Public documentation is **not evidence that this repository has been tested
+against every feature**. Support can differ by SDK operation, integration,
+region, and deployment path. Check the relevant source before changing a
+deployment or presenting a capability as supported.
 
-| Topic | Public guidance at the review date | Source |
+| Topic | What to check | Source |
 | --- | --- | --- |
-| Hosted agents and toolboxes | Both are described as generally available. This does not change the repository's beta hosting-package pin. | [July-August Foundry release roundup](https://devblogs.microsoft.com/foundry/whats-new-in-microsoft-foundry-july-august-2026/) |
-| Tracing | Prompt/hosted-agent tracing is GA; workflow/external-agent tracing is preview. Project-linked Application Insights is required for server-side tracing. | [Tracing setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup) |
+| Hosted agents and tools | Verify support for the chosen hosting and tool features. A generally available service does not change the repository's beta hosting-package pin. | [Hosted-agent concepts](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents) |
+| Tracing | Check the support level and setup for your agent type. Project-linked Application Insights is required for server-side tracing. | [Tracing setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup) |
 | Python Projects SDK | The 2.5.0 release changes its dependency to OpenAI 3.x, which uses `httpx2`. The changelog also lists newer releases; this repository has not adopted them. | [Projects SDK changelog](https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/ai/azure-ai-projects/CHANGELOG.md) |
-| GPT-4.1 `2025-04-14` | Listed as Legacy, with retirement on April 14, 2027. Treat the schedule as changeable, not a guarantee of availability. | [Model retirement schedule](https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirement-schedule) |
+| Configured model | Confirm availability, support status, and retirement policy for the configured model version and deployment region. | [Model lifecycle guidance](https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirement-schedule) |
 
-Private-network guidance also distinguishes project creation dates for private
-ACR support and requires hosted-agent network injection at account creation.
+Private-registry support has project-eligibility requirements, and hosted-agent
+network injection must be configured when creating the account.
 Do not infer hosted image-pull compatibility from the Lab's ACR configuration or
 replace the existing remote-build path without a separate connectivity check.
 Do not remove `allow_preview=True` wholesale: the pinned named-agent client and

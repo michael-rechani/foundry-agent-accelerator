@@ -6,7 +6,8 @@ This is **design and deployment guidance**, not an implemented gateway module.
 Neither Application Gateway nor Front Door is deployed by this repository.
 Adopting either requires separately reviewed infrastructure and application
 configuration changes; following this guide does not change the private baseline.
-Microsoft guidance was checked on **September 11, 2026**.
+Check the linked Microsoft guidance and regional feature availability before
+planning a deployment.
 
 Expose the **Lab application**, not every Foundry endpoint. The browser loads
 React and calls the same application's FastAPI routes. FastAPI uses managed

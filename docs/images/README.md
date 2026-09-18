@@ -1,21 +1,4 @@
-# Demo and architecture artwork
-
-## Synthetic input/result illustration
-
-The [demo guide](../demos.md) links to
-[demo-evidence-result.svg](demo-evidence-result.svg), an **illustrative result,
-not a screenshot or captured model response**. The editable SVG is also the
-published asset; edit it directly. It has no draw.io source, generation script,
-or Azure product icons, and neither build script below generates it.
-
-Keep the criteria, source identifiers, dates, and findings aligned with the
-[synthetic application input](../demo-inputs/application.txt) and
-[expected findings](../demos.md#application-completeness). Preserve its accessible
-`title` and `desc`, human-review notice, synthetic-data warning, and explicit
-illustrative status. Never imply that it proves a live evaluation passed.
-
-Preview the SVG at desktop and narrow-screen widths after changes. Commit
-the SVG source, not a temporary screenshot export.
+# Architecture artwork
 
 ## Azure icons in architecture diagrams
 
@@ -58,8 +41,7 @@ Use `-PreviewDirectory <temporary-directory>` for PNG inspection copies, and
 `-Names lab-components` to rebuild one view. Commit sources and SVG exports
 together, not temporary previews or downloaded tools.
 
-The root README also retains the compact platform overview below the demo story.
-Detailed diagrams belong
+The root README keeps a compact platform overview. Detailed diagrams belong
 in the [architecture guide](../architecture.md) and
 [review workflow](../review-workflow.md), with full-size links for zooming on
 small screens. Blue denotes requests, green application persistence, and amber

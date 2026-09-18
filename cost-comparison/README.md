@@ -9,8 +9,8 @@ Keep three different quantities separate:
 
 - **Measured usage:** actual reported tokens and observed response time, with
   their measurement scope. Missing telemetry stays unavailable, not zero.
-- **Estimated cost:** usage or assumptions multiplied by dated, sourced rates;
-  not invoiced spend.
+- **Estimated cost:** measured or estimated usage multiplied by rates with a
+  named source; not invoiced spend.
 - **Allocated platform cost:** shared capacity/runtime/dependency costs divided
   by an explicitly chosen denominator and time period; not marginal token cost.
 
@@ -46,11 +46,10 @@ python calculator.py scenario.deployed.json
 ```
 
 The filename is retained for compatibility; it does not identify your deployment
-or track a live environment. Its platform rates were recorded on **2026-09-05**.
-The [reference snapshot and reconciliation notes](platform-rates.md) separate
-recorded topology, assumptions, and a past failed cost query from reusable
-calculator guidance. No rates, resource inventory, or spend were refreshed in
-the **2026-09-17 documentation review**.
+or track a live environment. The [reference budget and rate notes](platform-rates.md)
+describe saved assumptions, not current quotes or actual spend. These files do
+not query Azure resources, refresh prices, or reconcile a bill. Verify those
+inputs for the environment you want to evaluate.
 
 Copy and adapt the budget before use. It includes explicit labor and unverified
 feature allowances, not measured spend. Registry, endpoint, capacity, and regional
@@ -82,8 +81,8 @@ does not select or refresh prices. The [platform budget](platform-rates.md)
 documents recorded rates and explicit usage allowances. The original comparison
 example remains incomplete; itemized reference-budget coverage is not proof of
 actual spend or a complete bill.
-The original `rates_last_reviewed` date describes the GPU/model/runtime snapshot;
-`platform_rates_last_reviewed` describes only the sourced platform entries.
+The `rates_last_reviewed` field applies to GPU, model, and runtime rates;
+`platform_rates_last_reviewed` applies only to platform rates.
 
 ## Use
 

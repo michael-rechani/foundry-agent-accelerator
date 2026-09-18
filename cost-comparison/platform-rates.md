@@ -4,13 +4,10 @@
 
 ## Snapshot scope
 
-These are recorded assumptions and operational notes for one reference
-environment, not a live inventory or requirements for every deployment.
-**Documentation reviewed: 2026-09-17. Platform rate retrieval recorded:
-2026-09-05.** The documentation review did not query Azure resources, refresh
-prices, or reconcile spend. Original timestamps for the deployment changes and
-failed cost query below were not recorded here; do not treat the rate date as
-their event date.
+These are saved assumptions and operational notes for one reference environment,
+not a live inventory or requirements for every deployment. They do not establish
+current prices or actual spend. Verify quantities, rates, and resource usage
+before using this budget.
 
 The filename [scenario.deployed.json](scenario.deployed.json) and its recorded
 assumptions are retained for compatibility. References to "current deployment"
@@ -20,14 +17,14 @@ environment being evaluated.
 
 ## Recorded retail rates
 
-Retrieved from the [Azure Retail Prices API](https://prices.azure.com/api/retail/prices)
-on **2026-09-05**, using API version `2023-01-01-preview`, USD consumption prices,
-and the resource's region or Global meter region. These are public rates, not an agreement quote
-or measured bill.
+The saved rates came from the [Azure Retail Prices API](https://prices.azure.com/api/retail/prices),
+using USD consumption prices and the resource's region or Global meter region.
+They are planning assumptions, not current quotes or a measured bill. Refresh
+them for your agreement and region before making a cost decision.
 
-| Resource | Exact product / meter | USD/hour | Assumed hours | Estimated month | Rate effective |
-| --- | --- | ---: | ---: | ---: | --- |
-| One APIM Standard v2 unit | API Management / Standard v2 Unit | 0.9589 | 730 | $700.00 | 2024-03-01 |
+| Resource | Exact product / meter | USD/hour | Assumed hours | Estimated month |
+| --- | --- | ---: | ---: | ---: |
+| One APIM Standard v2 unit | API Management / Standard v2 Unit | 0.9589 | 730 | $700.00 |
 
 The original example's APIM capacity estimate is **$700.00/month**, before operational compute, disk, NAT, public IP,
 private endpoints/DNS, transfer, project dependencies, hosted runtime, model
@@ -36,8 +33,8 @@ This is a partial planning baseline, not a minimum invoice or total platform cos
 
 The reference environment's separately deployed workbench adds 400 RU/s of
 dedicated Cosmos container throughput. The North Central US public retail
-`100 RU/s` meter was USD 0.008/hour
-when retrieved on 2026-09-05 UTC: `4 * 0.008 * 730 = USD 23.36/month`.
+`100 RU/s` meter uses the saved assumption of USD 0.008/hour:
+`4 * 0.008 * 730 = USD 23.36/month`.
 The original comparison example includes this amount and unpriced workbench storage,
 backup, Container Apps, and registry/build entries. Its known platform subtotal
 is USD 765.41/month under these assumptions, still incomplete and not an invoice.

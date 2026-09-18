@@ -1,9 +1,9 @@
 # Synthetic case
 
-- `CASE-1`: Application received on 2026-08-15.
-- `DOC-1`: Proof of address dated 2025-01-10.
-- `NOTE-1`: Reviewer notes that current proof of address is required.
-- `POLICY-1`: Proof of address must be dated within 90 days of submission.
+- `CASE-1`: The application lists the home address as 12 Example Lane.
+- `DOC-1`: The submitted proof of address lists 18 Example Lane.
+- `NOTE-1`: The reviewer asks which address is correct.
+- `POLICY-1`: Proof of address must match the home address on the application.
 
 Review the case for an authorized staff member. Identify supported facts,
 missing or conflicting information, applicable supplied policy, and follow-up

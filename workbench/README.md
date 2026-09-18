@@ -109,7 +109,14 @@ adds a record-type index alongside agent ID and update time; apply this additive
 index before deploying the review-enabled image. Transcript and evidence bodies
 are not indexed. Lists are paged in batches of 20 and point reads load a selected record.
 
-Public retail rate retrieved 2026-09-05 UTC from the Azure Retail Prices API: North Central US, Azure Cosmos DB, RUs, `100 RU/s`, USD 0.008/hour. At 730 hours, `4 * 0.008 * 730 = USD 23.36/month` for this container's throughput. This is incremental baseline capacity, not usage-based serverless pricing. It excludes storage, backups, discounts, taxes, model tokens, Container Apps, registry/builds, and existing network resources. It is not the total workbench bill.
+The saved North Central US retail-rate assumption from the
+[Azure Retail Prices API](https://prices.azure.com/api/retail/prices) is
+USD 0.008/hour per `100 RU/s`. At 730 hours,
+`4 * 0.008 * 730 = USD 23.36/month` for this container's throughput alone.
+Confirm the applicable rate before budgeting; this is not a current quote.
+The estimate covers provisioned capacity, not usage-based serverless pricing.
+It excludes storage, backups, discounts, taxes, model tokens, Container Apps,
+registry/builds, and existing network resources, so it is not the total Lab bill.
 
 The app runs one warm 0.5-vCPU/1-GiB replica for responsiveness. Reviews admit at most four concurrent requests and 20 requests/minute, including rejected input. History separately admits four concurrent requests and 60 requests/minute. Admission occurs before reading bodies or calling dependencies. These limits are process-local; do not increase workers or replicas without distributed controls. Uvicorn limits connection/task concurrency to 32.
 
