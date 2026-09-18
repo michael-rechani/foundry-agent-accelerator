@@ -1,236 +1,223 @@
 # Validate your AI use case in Foundry
 
-**Build confidence before committing to production.**
+**Sample agents for reviewing case notes, applications, and proposals.**
 
 [![Validate](https://github.com/michael-rechani/ai-foundry-samples/actions/workflows/validate.yml/badge.svg)](https://github.com/michael-rechani/ai-foundry-samples/actions/workflows/validate.yml)
 [![Terraform 1.16.1](https://img.shields.io/badge/Terraform-1.16.1-844FBA?logo=terraform&logoColor=white)](terraform/README.md)
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](hosted-agents/README.md)
 [![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-hosted_agents-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
 
-This repository provides sample AI agents, a chat interface, and deployment
-guidance for **Microsoft Foundry on Azure (formerly Azure AI Foundry)**. Use the
-included fictional case notes and application materials to try document-review
-tasks: summarize information, identify missing details, and flag conflicting
-evidence.
+Try AI-assisted document review on **Microsoft Foundry on Azure (formerly Azure
+AI Foundry)**. This repository includes sample agents, a chat application called
+the Lab, and deployment guides. Use the fictional case notes and application
+materials to see how an agent summarizes information, finds missing details,
+and flags conflicting evidence.
 
-Choose a scenario below, run its sample prompt, and compare the agent's response
-with the expected findings in the [demo guide](docs/demos.md). These samples are
-for demonstrations and technical testing, not finished customer solutions.
-People must verify the findings and make any approval or denial decisions.
+Each demo includes sample inputs and expected findings so you can check the
+agent's response. People verify the findings and make any approval or denial
+decisions.
+
+## Start here
+
+- **Have a prepared environment?** [Try a demo](#choose-a-demo).
+- **Need to set one up?** [Prepare the environment](#quick-start). Setup creates
+  billable Azure resources and requires private network access.
+
+Without Azure access, you can still read the
+[sample inputs and expected findings](docs/demos.md).
+
+> [!WARNING]
+> **Use fictional data only.** The Lab has shared history and no per-user
+> authorization. Everyone with workspace access can read shared records.
+> Private networking and managed identities do not keep users' records separate.
 
 ## Scenarios and status
 
-Select **one scenario per engagement**, not a promise to deliver every scenario.
-Status describes source implementation, not a deployed environment or a passed
-live Foundry evaluation.
+Choose one demo to start.
 
-| Scenario | Status | Demonstration | Reused implementation |
-| --- | --- | --- | --- |
-| [Casework assistance](docs/demos.md#casework-assistance) | **Available** | Summarize synthetic case notes, expose gaps/conflicts, and draft follow-up questions. | Existing case-review agent |
-| [Application completeness](docs/demos.md#application-completeness) | **Available** | Compare a sample grant or permit application with supplied criteria. Missing evidence is not automatic noncompliance; people decide. | Existing application-review agent |
-| [Requirements and proposal review](docs/demos.md#requirements-and-proposal-review) | **Experimental** | Compare sample RFP requirements with product evidence; produce coverage, gaps, and unsupported-claim findings. | Application-review agent and optional criteria-and-evidence workspace; no new agent |
-| [Agent-assisted request triage](docs/demos.md#agent-assisted-request-triage) | **Planned** | Intended: classify synthetic service requests, recommend a destination, and demonstrate human approval with simulated tools only. | Not implemented; coordinator-to-specialist routing is not business-request triage |
+| Scenario | What you'll try | Status |
+| --- | --- | --- |
+| [Casework assistance](docs/demos.md#casework-assistance) | Summarize fictional case notes, flag missing or conflicting details, and draft follow-up questions. | **Available** |
+| [Application completeness](docs/demos.md#application-completeness) | Check a sample grant or permit application against a supplied checklist. Missing information is a reason to ask questions, not automatically reject it. | **Available** |
+| [Requirements and proposal review](docs/demos.md#requirements-and-proposal-review) | Compare proposal requirements with supplied product information and flag claims that lack supporting evidence. | **Experimental** |
 
-**Available** means the agent and supplied-input walkthrough exist; deployment
-and live quality checks are still required. **Experimental** means a packaged
-adaptation requires scenario-specific live validation. **Planned** means there
-is no runnable demo or approval simulation to advertise.
+**Available** samples include agent code and a walkthrough. They still need
+deployment and live quality checks. **Experimental** samples adapt an existing
+agent to a different task and need additional testing for that task. The
+[demo guide](docs/demos.md) explains which agents each demo uses.
 
-## Engagement scope
-
-> Engagements focus on demonstration and technical validation. Integration with customer systems and production deployment require separate scoping and agreement.
-
-- Use synthetic inputs, supplied criteria, and sample evidence. Any future
-  business-action tools in the demo must be simulated; current review tools
-  only invoke review agents and do not update business systems.
-- No live customer-system connections, M365/Copilot/SharePoint integration,
-  education knowledge assistants, or production deployment in the primary path.
-- People verify sources and make approval or other consequential decisions.
-  A citation check establishes a source match, not factual truth.
-- This repository is a sample accelerator, not an officially approved or funded
-  Microsoft service offering. Scope-dependent code, setup guidance, or
-  architecture/cost recommendations are not an integration commitment.
-- Do not add customer names, opportunity records, commercial engagement details,
-  or claims of customer implementations to inputs, traces, or handoff examples.
-
-> [!WARNING]
-> **Synthetic data only.** The Lab has shared history and no per-user
-> authorization. Everyone with workspace access can read shared records.
-> Private networking and managed identities do not provide user isolation.
+**Planned, not available:** [agent-assisted request triage](docs/demos.md#agent-assisted-request-triage)
+would classify service requests and suggest where to send them, with a person
+approving simulated actions. That workflow is not implemented; the current
+coordinator only sends review work to specialist agents.
 
 ## Choose a demo
 
-**On a prepared environment, allow approximately 10-15 minutes** for one guided
-demonstration; this is a presentation outline, not an execution-time guarantee.
+Plan for a **10-15 minute walkthrough once setup is complete**. Actual response
+times vary.
 
 1. Open the [Lab](workbench/README.md) through approved private access and start
-   a fresh chat. Use one scenario starter prompt or the complete
-   [demo inputs and facilitator guide](docs/demos.md).
-2. Compare the result with the expected findings. Try the supplied missing or
-   conflicting evidence and a failure case; do not script a guaranteed success.
-3. Inspect source references and, where applicable, verified review-tool
-   receipts. Record what actually happened.
-4. Close with [What worked / What needs further validation / Recommended next
-   step](docs/demo-handoff.md). Reset without deleting someone else's records.
+   a new chat. Choose a starter prompt or use the full
+   [demo inputs and instructions](docs/demos.md).
+2. Compare the response with the source material and expected findings. Try the
+   supplied examples with missing information, conflicting details, and
+   instructions the agent should refuse.
+3. Check the cited sources and, when available, the verified records showing
+   which review tools ran. Record failures as well as successful results.
+4. Use the [demo handoff](docs/demo-handoff.md) to note what worked, what needs
+   more testing, and the next step. Start fresh without deleting someone else's
+   records.
 
 For a disconnected walkthrough, use the sample inputs and expected findings in
 the [demo guide](docs/demos.md) as examples, not live results. The local Lab
-preview does not invoke a model. Preparing Azure, deploying agents, and deploying
-the Lab are **separate operator activities**, not part of the short demonstration.
-
-## Validate and compare
-
-Use [Foundry-native evaluations and tracing](evaluations/README.md) with
-source-controlled synthetic cases, expected outcomes, and acceptance criteria.
-Offline fixture, protocol, and browser checks are not live model-quality proof.
-Live grading is opt-in, billable, and requires explicit approval and private
-staging access. Keep evaluation and trace analysis in Foundry, not a new Lab
-dashboard.
-
-Optional model/prompt comparison uses the **same evaluation set** with recorded
-candidate versions and quality outcomes. Response time is not a quality score;
-token usage is recorded only when available. Keep measured usage separate from
-estimated token cost and allocated platform cost. The
-[GPU VM versus hosted-runtime calculator](cost-comparison/README.md) remains
-advanced, scope-dependent architecture analysis, not the primary value story.
-
-[Demo guide](docs/demos.md) · [Prepare the environment](#quick-start) · [Architecture](#architecture) · [Evaluations](evaluations/README.md)
-
-## Architecture
-
-The [AI Foundry Lab](workbench/README.md) is a thin, chat-first React UI with a
-curated catalog, session timings, and explicitly saved shared Cosmos records.
-It is not an agent designer or evaluation engine. Private networking, managed
-identities, deployment safeguards, and bounded API admission remain reusable
-foundations; no four-agent requirement is introduced for four scenarios.
-
-The Lab is deployed separately in an internal Container Apps environment and
-does not require APIM publication. The [credential handling guide](docs/credentials.md)
-covers secret ownership, keyless reads, and protection of state and backups.
-
-![Deployed AI Foundry Lab: private browser access, managed-identity review agents, and shared Cosmos history](docs/images/foundry-overview.svg)
-
-[Full-size overview](docs/images/foundry-overview.svg) · [Operations and security](docs/images/foundry-operations.svg)
-
-For a deeper view, see the [component map and request sequence](docs/architecture.md#component-interactions)
-and [persisted review lifecycle](docs/review-workflow.md#execution-and-persistence).
-These include editable draw.io sources with official Microsoft Azure icons;
-the overview here stays focused on the platform as a whole.
-
-For extension decisions and new customer examples, use the
-[Foundry extension guide](docs/architecture-assessment.md): ownership boundaries,
-native capabilities, and a checklist for adding agents.
-
-Arrows show the Lab request and history paths. APIM is optional and disabled by
-default. Use the [APIM API guide](docs/apim-review-api.md) when a governed gateway
-is required, including caller authorization and private backend verification.
-
-See [optional integrations](docs/optional-integrations.md) for restoring APIM or
-adding Search-backed retrieval. Both Terraform implementations are retained;
-Search remains a connected Foundry platform dependency, not a current agent tool.
-
-For optional regional or global browser access, see the
-[Application Gateway and Front Door ingress guide](docs/ingress-access.md).
-Both patterns keep the application origin and Foundry private; neither gateway
-is part of the default deployment.
-
-See [operations, request flow and trust boundaries](docs/architecture.md) for
-authentication, data ownership, and failure behavior.
-
-> [!IMPORTANT]
-> This sample creates billable Azure resources. Review the saved Terraform
-> plan, regional model pricing, and quota before applying it.
-
-## Reusable technical foundations
-
-- **Repeatable infrastructure:** an Azure Verified Module (AVM) deployment of
-  a Foundry account, project, model, Agent Service dependencies, and
-  diagnostics.
-- **Safer agent delivery:** a Python deployer that packages an immutable
-  version, waits for activation, routes the candidate, and runs smoke tests.
-  On failure it attempts route restoration and retains candidates when safe
-  deletion cannot be confirmed. Promotion is not a zero-exposure canary.
-- **Business workflow samples:** deployable case-review and application-review
-  agents, plus a coordinator that delegates to them, with synthetic requests
-  and explicit human decision boundaries.
-- **Swappable specialist bindings:** [customer profiles](docs/agent-profiles.md)
-  configure coordinator instructions, named specialists, and mandatory deployment
-  checks without changing the platform or coordinator runtime code.
-- **Explicit cost assumptions:** a calculator that keeps region-specific rates
-  outside the code, ranks Azure GPU VM scenarios, and reports each
-  hosted-runtime break-even point.
-- **Automated validation:** GitHub Actions checks Python sources, dependencies,
-  calculator behavior, Terraform formatting, and Terraform configuration.
-- **Opt-in quality checks:** [synthetic review evaluations](evaluations/README.md)
-  combine deterministic delegation checks with a hand-authored Foundry rubric.
-  CI validates fixtures and SDK contracts offline; live grading is an explicit,
-  billable staging operation with retained results, not automatic promotion.
-
-## Repository layout
-
-| Path | Purpose |
-| --- | --- |
-| [workbench/](workbench/) | Private chat UI, FastAPI gateway, shared Cosmos history, browser tests, and isolated deployment infrastructure. |
-| [`terraform/`](terraform/) | Deploy a Foundry project, model, Agent Service dependencies, and observability with the official AVM pattern. |
-| [`hosted-agents/`](hosted-agents/) | Deploy the basic Responses agent plus case-review and application-review business samples. |
-| [`hosted-agents/review-coordinator-agent/`](hosted-agents/review-coordinator-agent/) | Route reviews to specialists; test cancellation, concurrency, and delegation. |
-| [`docs/`](docs/) | Repeatable demos, synthetic inputs, handoff, architecture, operational guidance, and the private deployment runbook. |
-| [`evaluations/`](evaluations/) | Synthetic review cases, offline contract tests, and an opt-in Foundry quality gate in an isolated SDK environment. |
-| [`cost-comparison/`](cost-comparison/) | Compare self-hosted models on Azure GPU VMs with Foundry hosted-agent costs using replaceable rates. |
+preview does not call a model.
 
 <a id="quick-start"></a>
 
 ## Prepare the environment
 
-Environment preparation is an operator activity, separate from the short demo.
-Terraform creates the infrastructure baseline; agent publication and Lab
-deployment are separate steps.
+Setup is separate from the short demo. You deploy the Azure resources, publish
+the agents, and deploy the Lab in separate steps.
 
-**Before you begin:** install Terraform 1.16.1, authenticate Azure CLI to the
-intended tenant, and confirm deployment and role-assignment permissions, regional
-model quota, and private network access. A secured Azure Storage account and blob
-container for Terraform state must already exist; this configuration does not
-bootstrap its own backend. Your identity needs Storage Blob Data Contributor on
-that container. See [Terraform prerequisites and state guidance](terraform/README.md).
+Before you begin, you need:
+
+- Terraform 1.16.1 and Azure CLI signed in to the intended tenant.
+- Permission to deploy resources and assign roles, enough regional model quota,
+  and approved private network access.
+- An existing, secured Azure Storage account and blob container for Terraform
+  state. Your identity needs **Storage Blob Data Contributor** on that container.
+  This sample does not create its own state backend.
+
+See the [Terraform prerequisites and state guide](terraform/README.md) for details.
 
 > [!IMPORTANT]
-> This is not a minimal-cost configuration. Deployment creates billable resources;
-> model calls and retained runtime can also incur charges. Require explicit
-> approval, review the saved plan, and preserve existing names, state, permissions,
-> and private access. Never apply an unexpected replacement or deletion.
+> **This is not a minimal-cost setup.** Azure resources, model calls, and running
+> agents can incur charges. Get approval and review the saved Terraform plan,
+> regional pricing, and quota before deploying. Preserve existing resource names,
+> state, permissions, and private access. Never apply an unexpected replacement
+> or deletion.
 
-Follow the operator guides in order:
+Follow these guides in order:
 
-1. [Configure, validate, plan, and deploy the baseline](terraform/README.md#deploy),
-   including [remote state and migration safeguards](terraform/README.md#state).
-2. [Publish and test the selected hosted agents](hosted-agents/README.md), using
-   the [private deployment runbook](docs/private-deployment.md) for a separate runner.
-3. [Deploy or access the Lab](workbench/README.md) using its separate state and
-   reviewed image rollout.
-4. Verify the selected scenario and approved [live evaluation](evaluations/README.md)
-   before the engagement. Infrastructure outputs alone do not establish agent
-   health or quality.
+1. [Configure, validate, plan, and deploy the Azure resources](terraform/README.md#deploy).
+   Follow the [state and migration safeguards](terraform/README.md#state).
+2. [Publish and test the selected agents](hosted-agents/README.md). Use the
+   [private deployment runbook](docs/private-deployment.md) if you need a separate
+   deployment machine.
+3. [Deploy or access the Lab](workbench/README.md). It uses separate Terraform
+   state and has its own application deployment steps.
+4. Test the chosen scenario and complete its approved
+   [live evaluation](evaluations/README.md) before presenting it. A successful
+   deployment does not prove that the agent's answers are good.
 
-## Beyond the demonstration: separately scoped production considerations
+A new agent version can receive traffic before its smoke tests finish. If a
+check fails, the deployer attempts to restore the previous route and keeps any
+version it cannot safely delete. See the
+[deployment and recovery steps](hosted-agents/README.md#6-verify-the-route-and-handle-failures).
 
-The [production considerations](terraform/README.md#separately-scoped-production-considerations)
-are a future design checklist, not delivered production readiness. In particular,
-private networking does not replace user authorization or owner-scoped history.
-Use the [handoff](docs/demo-handoff.md) to identify the next validation step.
-Engagements focus on demonstration and technical validation. Integration with customer systems and production deployment require separate scoping and agreement.
+## Validate and compare
 
-## Validation
+Use the [Foundry evaluation guide](evaluations/README.md) to test answers against
+the supplied fictional cases and expected outcomes. Automated checks with
+simulated responses do not establish live model quality.
 
-Pull requests and pushes to `main` run Python compilation and tests, validate
-all four deployment CLIs, exercise coordinator real-SDK contracts using an
-offline HTTP transport, check publisher-variable cases, check Terraform
-formatting, and run `terraform validate`.
-Workbench checks also cover API validation, saved-receipt handling, deployment
-input guards, and Playwright workflows at desktop and mobile sizes. Browser
-tests use synthetic mocked APIs, not Azure credentials or live agent calls.
-These checks do not create Azure resources. A real plan and hosted-agent smoke
-test still require an authenticated Azure subscription, regional model quota,
-and the documented RBAC roles.
+Live evaluations are optional, cost money, and require explicit approval and
+access to a private test environment. Review evaluation results and traces in
+Foundry; the Lab is not an evaluation dashboard.
+
+To compare models or prompts, use the **same test cases** and record each version
+and its results. Judge answer quality separately from response time. Record
+token usage when it is available, and distinguish measured usage from estimated
+token costs and infrastructure costs.
+
+For a separate infrastructure cost comparison, use the
+[GPU VM versus hosted-runtime calculator](cost-comparison/README.md).
+
+## Architecture
+
+The [Lab](workbench/README.md) is a private React chat application with a FastAPI
+backend. It calls hosted agents in Foundry and lets you choose which conversations
+and reviews to save in a shared Cosmos DB database.
+
+The Lab runs in its own internal Azure Container Apps environment and uses
+managed identities to access Azure services. It is not an agent designer and
+does not require Azure API Management (APIM).
+
+![Deployed AI Foundry Lab: private browser access, managed-identity review agents, and shared Cosmos history](docs/images/foundry-overview.svg)
+
+[Full-size overview](docs/images/foundry-overview.svg) · [Operations and security](docs/images/foundry-operations.svg)
+
+Deeper guides:
+
+- **Components and data flow:** [architecture](docs/architecture.md#component-interactions),
+  [review storage and recovery](docs/review-workflow.md#execution-and-persistence).
+- **Access and credentials:** [authentication and service boundaries](docs/architecture.md#trust-boundaries),
+  [credential handling](docs/credentials.md).
+- **Customize the agents:** [extension guide](docs/architecture-assessment.md),
+  [coordinator profiles](docs/agent-profiles.md).
+- **Optional APIs and search:** [APIM API guide](docs/apim-review-api.md),
+  [integration options](docs/optional-integrations.md). APIM is disabled by default.
+  Azure AI Search is provisioned as a Foundry dependency but is not used by the
+  current review agents.
+- **Optional browser access:** [Application Gateway and Front Door guide](docs/ingress-access.md).
+  These are design options that keep the app origin and Foundry private, not
+  gateways deployed by this sample.
+
+<a id="reusable-technical-foundations"></a>
+<a id="repository-layout"></a>
+
+## What's included
+
+| Path | Purpose |
+| --- | --- |
+| [workbench/](workbench/) | The Lab: chat UI, FastAPI backend, shared history and reviews, browser tests, and its own deployment setup. |
+| [terraform/](terraform/) | Azure infrastructure using the official Azure Verified Module (AVM) pattern for Foundry. |
+| [hosted-agents/](hosted-agents/) | Sample agents and Python scripts to publish versions, update routing, and test deployments. |
+| [hosted-agents/review-coordinator-agent/](hosted-agents/review-coordinator-agent/) | An agent that sends review tasks to the case-review and application-review specialists. Profiles let you change its instructions and specialists without changing runtime code. |
+| [docs/](docs/) | Demo instructions, fictional inputs, architecture, deployment, and operations guides. |
+| [evaluations/](evaluations/) | Review test cases, offline checks, and optional live answer-quality evaluations. |
+| [cost-comparison/](cost-comparison/) | A calculator for comparing Azure GPU VM and Foundry hosted-runtime costs, with rates you can update. |
+
+<a id="engagement-scope"></a>
+<a id="beyond-the-demonstration-separately-scoped-production-considerations"></a>
+<a id="production-considerations"></a>
+
+## Scope and limitations
+
+These samples are for demonstrations and technical testing, not finished customer
+applications. Connecting to customer systems or deploying to production requires
+separate planning and agreement.
+
+- Review agents analyze the supplied text; they do not update business systems.
+  Any future demo of business actions must use simulated tools.
+- The demo path does not include customer-system connections,
+  Microsoft 365/Copilot/SharePoint integrations, or education knowledge assistants.
+- A matching citation shows that text came from a supplied source, not that the
+  source's claims are true.
+- Do not put customer names, opportunity records, commercial details, or claims
+  of customer implementations into sample inputs, traces, or handoff examples.
+- This repository is not an officially approved or funded Microsoft service
+  offering. Sample code, setup help, and architecture or cost advice are not a
+  commitment to deliver a customer integration.
+
+Use the [production checklist](terraform/README.md#separately-scoped-production-considerations)
+to plan further work, including user authorization and keeping users' records
+separate. Capture agreed next steps in the [demo handoff](docs/demo-handoff.md).
+
+<a id="validation"></a>
+
+## Automated checks
+
+On pull requests and pushes to `main`, GitHub Actions compiles and tests the
+Python code, checks dependencies and all four agent deployment CLIs, tests SDK
+integrations, and checks Terraform formatting and configuration. It also tests
+deployment safeguards, saved-history and review behavior, and browser workflows
+at desktop and mobile sizes.
+
+These checks use test data and simulated service responses, not live agents.
+They do not create Azure resources. Testing a live deployment still requires an
+authenticated Azure subscription, model quota, the documented access roles, and
+private network access.
 
 ## References
 
