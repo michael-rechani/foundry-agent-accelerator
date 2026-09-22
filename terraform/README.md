@@ -93,6 +93,11 @@ APIM can use the shared management network without enabling the VM. Its region
 must match `jumpbox_location`, which selects that network's region. Existing
 Terraform addresses and network names are retained for compatibility.
 
+For dedicated browser-based access, the separate [Standard Bastion stack](bastion/README.md)
+can adopt an existing Developer host and upgrade it without changing the VM or
+platform resources. It uses its own protected state key and incurs continuous
+Bastion charges. It is not enabled by applying this parent configuration.
+
 For a new VM, pre-provision a strong Windows administrator password in an accessible
 Key Vault and set `jumpbox_admin_secret` to its vault resource ID, secret name, and
 explicit secret version. Do not supply the password in tfvars, CLI arguments, or
