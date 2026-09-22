@@ -83,6 +83,11 @@ protected state, and credential recovery requirements.
 
 ## Optional administration resources
 
+For agent activity in the Foundry portal, use the separate
+[private agent monitoring stack](monitoring/README.md). Account diagnostic
+settings alone do not supply project-linked Application Insights traces.
+Complete its metadata-only agent rollout before enabling the project connection.
+
 The Windows admin VM and its NAT egress are disabled by default. Enabling
 `enable_jumpbox` adds them; they are not required by Foundry itself. The shared
 management VNet, subnet, peering, and DNS links are defined separately in

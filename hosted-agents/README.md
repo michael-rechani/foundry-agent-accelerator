@@ -203,6 +203,12 @@ Responses remains the Lab contract. Invocations for webhooks, batch payloads,
 or custom streaming would need a separately justified adapter and validation,
 not a change to every existing chat or review agent.
 
+For metadata-only operational traces in the Foundry portal, see the
+[private monitoring runbook](../terraform/monitoring/README.md). The publisher
+disables prompt, response, and sensitive tool-content recording and uses Entra
+authentication for Application Insights. Existing versions need an explicit
+rollout; changing publisher defaults does not update running agents.
+
 These samples intentionally avoid incident investigation, telemetry
 correlation, root-cause analysis, mitigation, scheduled health checks, and
 operational compliance sweeps. Those scenarios are covered by

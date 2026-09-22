@@ -1,0 +1,11 @@
+subscription_id           = "00000000-0000-0000-0000-000000000001"
+resource_group_name       = "rg-example"
+foundry_account_name      = "foundry-example"
+project_name              = "hosted-agents-dev"
+workspace_name            = "log-example"
+private_link_scope_name   = "ampls-example"
+application_insights_name = "appi-example"
+enable_project_connection = false
+agent_principal_ids = {
+  example-agent = "00000000-0000-0000-0000-000000000002"
+}

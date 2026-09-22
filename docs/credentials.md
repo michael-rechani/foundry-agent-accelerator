@@ -28,7 +28,8 @@ encryption, and restricted access. Preserve state and protected backups under th
 retention policy. Delete disposable plan files after an apply attempt or when
 abandoned; never commit state, plans, backend credentials, or environment tfvars.
 
-The platform and Lab use separate state keys. Never initialize empty state for
+The platform, Lab, optional Bastion, and optional agent monitoring stacks use
+separate state keys. Never initialize empty state for
 resources that already have an owner. An ordinary plan must not recreate existing
 services or delete unexpected owners.
 
