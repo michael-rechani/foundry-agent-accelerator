@@ -20,22 +20,23 @@ jobs:
           cache-dependency-path: |
             hosted-agents/*/requirements*.txt
             workbench/requirements.txt
+            workbench/agent_runtime/requirements.txt
       - name: Upgrade pip
         run: python -m pip install "pip>=26.2,<27"
       - name: Install deployment dependencies
         run: python -m pip install -r hosted-agents/basic-responses-agent/requirements-deploy.txt
       - name: Install hosted runtime dependencies
-        run: python -m pip install -r hosted-agents/basic-responses-agent/requirements.txt -r hosted-agents/review-coordinator-agent/requirements.txt
+        run: python -m pip install -r hosted-agents/basic-responses-agent/requirements.txt -r hosted-agents/review-coordinator-agent/requirements.txt -r workbench/agent_runtime/requirements.txt
       - name: Install workbench dependencies
         run: python -m pip install -r workbench/requirements.txt
-      - name: Test chat, history, and review APIs
+      - name: Test agent creation, runtime, chat, history, and review APIs
         run: python -m unittest discover -s workbench -p 'test_*.py' -v
       - name: Audit Python dependencies
         run: |
           python -m pip install pip-audit==2.10.1
           python -m pip_audit --progress-spinner off
       - name: Compile Python sources
-        run: python -m compileall -q cost-comparison hosted-agents workbench/app.py workbench/history.py workbench/reviews.py workbench/review_runs.py workbench/verify_private.py
+        run: python -m compileall -q cost-comparison hosted-agents workbench/app.py workbench/history.py workbench/reviews.py workbench/review_runs.py workbench/agent_creation.py workbench/agent_publisher.py workbench/agent_templates.py workbench/agent_runtime workbench/verify_private.py
       - name: Test cost calculator
         run: python cost-comparison/test_calculator.py
       - name: Test deployment packaging

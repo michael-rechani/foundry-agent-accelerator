@@ -31,15 +31,21 @@ want to understand:
 
 | View | Question it answers | Scope |
 | --- | --- | --- |
+| [Agent creation](agent-creation.md) | How does a prepared task setup become a named, usable Foundry agent? | Opt-in publication, shared registry and recovery; no cloud creation in local preview |
 | [Agent collaboration](#agent-collaboration) | Who asks whom, what information is passed, and who checks the result? | Default coordinator and review specialists |
 | [Component interactions](#component-interactions) | What runs where, and which component owns each interaction? | Platform and application components |
 | [Chat and delegation](#chat-and-delegation) | How does a browser request reach a specialist, and when is chat saved? | Existing Lab chat path |
-| [Review persistence and recovery](review-workflow.md#execution-and-persistence) | What is saved before execution, and how do clarification and interruptions behave? | Optional evidence-review workflow |
+| [Review persistence and recovery](review-workflow.md#execution-and-persistence) | What is saved before execution, and how do clarification and interruptions behave? | Optional Document reviews workflow |
 | [Operations](#operations) | How are builds, monitoring, private access, and state separated? | Platform configuration |
 | [Terraform deployment](architecture-assessment.md#terraform-first-deployment) | What does each stack own, and which Microsoft patterns fit? | Infrastructure and release ownership |
 | [Optional APIM request](#review-request) | What would an authorized gateway request look like? | Target only; gateway not deployed |
 
 ## Agent collaboration
+
+The diagrams in this section describe the existing coordinator. Newly created
+agents use the [reviewed template runtime](agent-creation.md#configuration-ownership):
+four supplied-text jobs have no tools; the workflow job has only two simulated
+read-only lookups. They do not silently delegate to these review specialists.
 
 The default review pattern has one coordinator and two specialist tools, not a
 network of agents freely messaging each other. The coordinator owns the
@@ -68,7 +74,11 @@ agent behavior.
 The two coordinator boxes in the diagram show request and response stages of
 the **same agent**. The blue service boundary is logical hosting, not a VNet.
 The specialist boxes represent custom code, not separate Microsoft products.
-Profiles can change tool names and targets; see the
+The diagram and tool names show the base coordinator setup. The Lab's default
+Application and case helper uses the example profile's `inspect_application`
+and `inspect_case` tools with those same specialist targets. These are two
+configurations of the same review capabilities, not separate planning/review
+features. Profiles can change tool names and targets; see the
 [profile contract](agent-profiles.md#specialist-contract) before changing them.
 
 This design keeps roles and handoffs explicit without claiming production

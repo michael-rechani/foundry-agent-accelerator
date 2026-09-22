@@ -8,8 +8,12 @@ $ErrorActionPreference = "Stop"
 $stage = Join-Path ([IO.Path]::GetTempPath()) ("workbench-build-" + [guid]::NewGuid().ToString("N"))
 try {
     New-Item -ItemType Directory -Path (Join-Path $stage "frontend") -Force | Out-Null
-    foreach ($name in @("Dockerfile", ".dockerignore", "requirements.txt", "app.py", "history.py", "reviews.py", "review_runs.py", "agents.json")) {
+    foreach ($name in @("Dockerfile", ".dockerignore", "requirements.txt", "app.py", "history.py", "reviews.py", "review_runs.py", "agents.json", "agent_creation.py", "agent_publisher.py", "agent_templates.py")) {
         Copy-Item (Join-Path $PSScriptRoot $name) $stage
+    }
+    New-Item -ItemType Directory -Path (Join-Path $stage "agent_runtime") | Out-Null
+    foreach ($name in @("main.py", "demo_tools.py", "requirements.txt")) {
+        Copy-Item (Join-Path $PSScriptRoot "agent_runtime/$name") (Join-Path $stage "agent_runtime")
     }
     foreach ($pattern in @("package.json", "package-lock.json", "index.html", "tsconfig*.json", "vite.config.ts")) {
         Copy-Item (Join-Path $PSScriptRoot "frontend/$pattern") (Join-Path $stage "frontend")
@@ -24,7 +28,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Registry login failed" }
         & docker build --pull --platform linux/amd64 --tag $image --file (Join-Path $stage "Dockerfile") $stage
         if ($LASTEXITCODE -ne 0) { throw "Local image build failed" }
-        & docker run --rm --platform linux/amd64 --entrypoint python $image -c "import os, app, history, reviews, review_runs; from pathlib import Path; assert os.getuid() != 0; assert Path('agents.json').read_text(); assert Path('static/index.html').read_text()"
+        & docker run --rm --platform linux/amd64 --entrypoint python $image -c "import os, app, history, reviews, review_runs, agent_creation, agent_templates, agent_publisher; from pathlib import Path; assert os.getuid() != 0; assert agent_publisher.runtime_package()[0]; assert Path('agents.json').read_text(); assert Path('static/index.html').read_text()"
         if ($LASTEXITCODE -ne 0) { throw "Image validation failed" }
         & docker push $image
         if ($LASTEXITCODE -ne 0) { throw "Image push failed" }

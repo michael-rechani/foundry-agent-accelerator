@@ -1,16 +1,25 @@
 <a id="validate-your-ai-use-case-in-foundry"></a>
 
-# Document-review samples for Microsoft Foundry
+# Hosted-agent samples for Microsoft Foundry
 
 [![Validate](https://github.com/michael-rechani/ai-foundry-samples/actions/workflows/validate.yml/badge.svg)](https://github.com/michael-rechani/ai-foundry-samples/actions/workflows/validate.yml)
 [![Terraform 1.16.1](https://img.shields.io/badge/Terraform-1.16.1-844FBA?logo=terraform&logoColor=white)](terraform/README.md)
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](hosted-agents/README.md)
 [![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-hosted_agents-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
 
-Use these sample agents to summarize case notes, check applications for missing
-information, and compare requirements with supporting documents. They run on
-**Microsoft Foundry on Azure (formerly Azure AI Foundry)** through a browser app
-called the Lab.
+Describe a job, choose a prepared template, create a baseline agent in
+**Microsoft Foundry on Azure (formerly Azure AI Foundry)**, then try it in a
+browser app called the Lab. The five generic jobs suit public-sector,
+healthcare-operations and ISV demonstrations, without customer data or connected
+business systems.
+
+**Create agent** prepares an editable setup from a reviewed template and your
+task description; this step does not call a model or create a cloud resource.
+In an operator-enabled private Lab, an explicit creation confirmation publishes
+a real named Foundry hosted agent. **Created agents** shows its progress and
+opens it in Chat when its runtime and route are ready. Publication is opt-in,
+costs money, and needs the [operator setup](docs/agent-creation.md).
+Local preview can prepare setups, but cannot publish or produce live answers.
 
 The repository includes fictional inputs, expected findings, and Azure deployment
 guides. Agents help people review the supplied material; people verify the
@@ -21,6 +30,7 @@ findings and make any approval or denial decisions.
 | What you want to do | Where to start | What you need |
 | --- | --- | --- |
 | Read through an example | [Demo guide](docs/demos.md) | No Azure access required. |
+| Create and try a baseline agent | [Template creation guide](docs/agent-creation.md) | An operator-enabled private Lab, existing model deployment and approval for the cost. |
 | Try the agents | [Run a demo](#run-a-demo) | A prepared Lab and approved private network access. |
 | Deploy your own Lab | [Set up Azure](#set-up-azure) | Azure permissions, model quota, private access, and approval for the cost. |
 
@@ -33,7 +43,22 @@ findings and make any approval or denial decisions.
 
 ## What you can try
 
-Choose one demo to start.
+Choose one job template to start:
+
+| Template | Give it | Get back |
+| --- | --- | --- |
+| Document Analyst | Supplied policy, notice or product text | A sourced summary, changes and open questions |
+| Criteria Checker | Your checklist and a document | Supported items, missing information and conflicts; no approval decision |
+| Document Intake Assistant | Fictional administrative intake text and fields to extract | A field table with source references and unknown values called out |
+| Casework Assistant | Fictional case notes | A summary, unresolved inconsistencies and follow-up questions |
+| Workflow Coordinator | The supplied fictional request and service identifiers | Read-only **simulated** lookup results and proposed next steps; no executed business actions |
+
+The first four use supplied text without tools or specialist delegation. The
+workflow template has exactly two fixed local lookup tools, not live connectors
+or an approval engine. Healthcare examples concern administration, not clinical
+advice or patient data. See [the creation walkthrough](docs/demos.md#create-and-try-a-baseline-agent).
+
+The existing developer-published agents also support these longer walkthroughs:
 
 | Scenario | What you'll try | Status |
 | --- | --- | --- |
@@ -47,6 +72,30 @@ environment is already deployed or its answers have been validated.
 additional testing. The [demo guide](docs/demos.md) explains the expected results
 and which agents each sample uses.
 
+## Choose how to work
+
+**Creating an agent and talking to one are separate steps.** An agent has saved
+instructions and a fixed set of available tools. An example task or chat starter
+only fills your message; Chat does not reconfigure the runtime.
+
+| Choose | Give it | Get back |
+| --- | --- | --- |
+| **Create agent** | A job description, a prepared template and reviewed task instructions | An editable setup; with operator confirmation, a separately published Foundry agent |
+| **Chat** | A question plus the application, checklist or case notes you want help with | A conversational answer from the selected agent, with references and follow-up questions |
+| **Document reviews** | A checklist and pasted document text | Saved results for each checklist item, quotes you can inspect, and requests for missing information |
+
+The default **Application and case helper** asks an application-checking or
+case-notes specialist to handle the task. **About this agent** explains what it
+needs, how it works and what it cannot do. Document reviews use the Lab's default
+agent independently of the Chat selection. Neither view copies work into the
+other automatically.
+
+Use **Created agents** for publication status and operator-confirmed deletion.
+Existing catalog agents, hidden-agent access and specialist bindings stay
+unchanged. Editing tools, code, model selection, permissions or an existing
+deployed setup remains a developer/operator task, not a chat command. See
+[configuration ownership](workbench/README.md#workspace-configuration).
+
 <a id="choose-a-demo"></a>
 
 ## Run a demo
@@ -57,7 +106,7 @@ The local Lab preview does not call a model.
 
 1. Open the [Lab](workbench/README.md) through approved private access and start
    a new chat.
-2. Choose a starter prompt and send it, or paste the complete
+2. Inspect **About this agent**, then choose an example task and send it, or paste the complete
    [sample input](docs/demos.md) for your chosen scenario.
 3. Compare the answer with the source material and expected findings. Check
    citations and any verified records showing which review tools ran. Try the
@@ -132,8 +181,9 @@ version it cannot safely delete. See the
 ## How it works
 
 The Lab's React interface sends requests to a FastAPI backend, which calls the
-hosted agents in Foundry. Conversations and reviews you choose to save go into
-a shared Cosmos DB database.
+hosted agents in Foundry. Chat saves completed messages to shared Cosmos DB only
+when you choose Save. Creating a document review saves its checklist and
+document text; running it also saves results and a copy of that run's input.
 
 The Lab runs in an internal Azure Container Apps environment and uses managed
 identities to access Azure services. It is a chat app, not an agent designer or

@@ -33,16 +33,19 @@ import { ConversationTurn } from './ConversationTurn'
 import type { Turn } from './conversation-types'
 import { requestJson } from './request'
 import { WaitingIndicator } from './WaitingIndicator'
-import { useWorkspaceConfig } from './workspace-config'
+import { useWorkspaceConfig, type Agent } from './workspace-config'
 import { ContinueDialog } from './ContinueDialog'
 import { ReviewWorkspace } from './ReviewWorkspace'
+import { AgentGuide, AgentRuntime, ConfigurationGuide } from './AgentGuide'
+import { AgentCreationWorkspace } from './AgentCreationWorkspace'
+import { creationRequest, parseCreatedAgent, useCreatedAgents } from './agent-creation-client'
 type Measurement = {
   id: string
   agent: string
   outcome: 'completed' | 'failed' | 'stopped' | 'timed-out'
   duration: number
 }
-type View = 'chat' | 'catalog' | 'performance' | 'history' | 'reviews'
+type View = 'chat' | 'catalog' | 'performance' | 'history' | 'reviews' | 'create' | 'created'
 type SavedChat = {
   id: string
   title: string
@@ -80,7 +83,12 @@ export default function ChatWorkspace() {
       ? 'reviews'
       : null,
   )
-  const view = selectedView ?? 'chat'
+  const view = selectedView ?? (config?.agent_creation ? 'create' : 'chat')
+  const createdAgents = useCreatedAgents(config?.agent_creation)
+  const availableAgents: Agent[] = [
+    ...(config?.agents || []),
+    ...createdAgents.records.map((record) => record.agent).filter((item): item is Agent => item !== null),
+  ]
   const [draft, setDraft] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
   const [pending, setPending] = useState('')
@@ -99,7 +107,7 @@ export default function ChatWorkspace() {
   const controller = useRef<AbortController | null>(null)
   const editor = useRef<HTMLTextAreaElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
-  const agent = config?.agents.find((item) => item.id === selected)
+  const agent = availableAgents.find((item) => item.id === selected)
   const hasConversation = !!draft || turns.length > 0 || !!pending
   const history = turns.flatMap((turn) => [
     { role: 'user', content: turn.question },
@@ -341,6 +349,11 @@ export default function ChatWorkspace() {
     setHistoryBusy(true)
     try {
       const data = await historyRequest(`/${item.id}`)
+      if (!availableAgents.some((entry) => entry.id === data.agent_id) && data.agent_id.startsWith('created-')) {
+        const record = parseCreatedAgent(await creationRequest(`agents/${data.agent_id}`))
+        if (!record.agent) throw new Error('The saved conversation uses an agent that is no longer ready.')
+        createdAgents.update(record)
+      }
       setSaved({ id: data.id, _etag: data._etag })
       setSelected(data.agent_id)
       setTurns(data.turns.map((turn: Turn) => ({ ...turn, stored: true })))
@@ -412,7 +425,7 @@ export default function ChatWorkspace() {
   }
 
   return (
-    <div className="chat-app">
+    <div className={`chat-app${config?.agent_creation ? ' has-creation' : ''}`}>
       <aside className="chat-sidebar">
         <div className="chat-brand">
           <span className="brand-mark" aria-hidden="true"><Layers3 size={23} /></span>
@@ -428,6 +441,22 @@ export default function ChatWorkspace() {
           <span>New chat</span>
         </button>}
         <nav aria-label="Workspace">
+          {config?.agent_creation && <>
+            <button
+              aria-current={view === 'create' ? 'page' : undefined}
+              onClick={() => setView('create')}
+              title="Create agent"
+            >
+              <Plus size={18} /><span>Create agent</span>
+            </button>
+            <button
+              aria-current={view === 'created' ? 'page' : undefined}
+              onClick={() => { setView('created'); void createdAgents.refresh() }}
+              title="Created agents"
+            >
+              <Layers3 size={18} /><span>Created agents</span>
+            </button>
+          </>}
           <button
             aria-current={view === 'chat' ? 'page' : undefined}
             onClick={() => setView('chat')}
@@ -439,10 +468,10 @@ export default function ChatWorkspace() {
           <button
             aria-current={view === 'reviews' ? 'page' : undefined}
             onClick={() => setView('reviews')}
-            title="Evidence reviews"
+            title="Document reviews"
           >
             <FileCheck2 size={18} />
-            <span>Evidence reviews</span>
+            <span>Document reviews</span>
           </button>
           <button
             disabled={!config?.history_enabled || historyBusy}
@@ -456,11 +485,11 @@ export default function ChatWorkspace() {
           <button
             aria-current={view === 'catalog' ? 'page' : undefined}
             onClick={() => setView('catalog')}
-            title="Agent catalog"
+            title="Agents"
           >
             <LayoutGrid size={18} />
-            <span>Agent catalog</span>
-            <small>{config?.agents.length ?? 0}</small>
+            <span>Agents</span>
+            <small>{availableAgents.length}</small>
           </button>
           <button
             aria-current={view === 'performance' ? 'page' : undefined}
@@ -476,15 +505,41 @@ export default function ChatWorkspace() {
       <div className="chat-workspace">
         <header className="chat-topbar">
           {view === 'chat' && (
-            <button
-              className="agent-picker"
-              title="Choose an agent"
-              disabled={!config}
-              onClick={() => setView('catalog')}
-            >
-              <span className="agent-name">{agent?.label || 'Connecting'}</span>
-              <ChevronDown size={14} aria-hidden="true" />
-            </button>
+            <div className="agent-controls">
+              <button
+                className="agent-picker"
+                title="Choose an agent"
+                disabled={!config}
+                onClick={() => setView('catalog')}
+              >
+                <span className="agent-name">{agent?.label || (selected.startsWith('created-') ? 'Agent unavailable' : 'Connecting')}</span>
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+              {agent && (
+                <details
+                  className="agent-about"
+                  key={agent.id}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') event.currentTarget.open = false
+                  }}
+                >
+                  <summary>About this agent</summary>
+                  <aside className="agent-info-panel" aria-label="Selected agent guide">
+                    <h2>{agent.label}</h2>
+                    <p>{agent.description}</p>
+                    <AgentGuide agent={agent} />
+                    <p>
+                      This agent already has a published setup. Your message gives
+                      it a task; it does not change its tools or permanent instructions.
+                    </p>
+                    <AgentRuntime agent={agent} />
+                    <button className="inline-link" onClick={() => setView('catalog')}>
+                      Choosing or changing an agent
+                    </button>
+                  </aside>
+                </details>
+              )}
+            </div>
           )}
           <div className="topbar-actions">
             {config?.mode === 'private' ? (
@@ -504,13 +559,14 @@ export default function ChatWorkspace() {
                   <strong>Private shared lab</strong>
                   <p>No user sign-in. Saved records are shared.</p>
                   <p>Use synthetic data only.</p>
-                  <p>Everyone with workspace access can read, modify and delete saved records. There is no per-user authorization; private networking does not isolate users.</p>
+                  <p>Everyone with workspace access can read, modify and delete saved chats, and read reviews and add requested evidence. There is no per-user authorization; private networking does not isolate users.</p>
+                  {config.agent_creation && <p>Created-agent setups are shared too. Publishing or deleting a created agent requires an operator key, not an individual user account.</p>}
                 </aside>
               </details>
             ) : (
-              <span className="environment-badge">
+              <span className="environment-badge" title="No model calls or saving">
                 <span className="status-dot" />
-                {config ? 'Not connected' : 'Connecting'}
+                {config ? 'Local preview' : 'Connecting'}
               </span>
             )}
             {view === 'chat' && <>
@@ -568,7 +624,18 @@ export default function ChatWorkspace() {
         {config && (
           <ReviewWorkspace config={config} active={view === 'reviews'} />
         )}
-        {view === 'reviews' ? null : view === 'history' ? (
+        {config?.agent_creation && (
+          <AgentCreationWorkspace
+            capability={config.agent_creation}
+            state={createdAgents}
+            active={view === 'create' || view === 'created'}
+            view={view === 'create' ? 'create' : 'created'}
+            chatBusy={busy || historyBusy}
+            onView={setView}
+            onUse={(item) => newChat(item.id)}
+          />
+        )}
+        {view === 'reviews' || view === 'create' || view === 'created' ? null : view === 'history' ? (
           <main className="secondary-view">
             <div className="section-heading">
               <h1>Saved conversations</h1>
@@ -587,7 +654,7 @@ export default function ChatWorkspace() {
                       <strong>{item.title}</strong>
                       <small>
                         {
-                          config?.agents.find(
+                          availableAgents.find(
                             (entry) => entry.id === item.agent_id,
                           )?.label
                         }{' '}
@@ -624,13 +691,21 @@ export default function ChatWorkspace() {
           </main>
         ) : view === 'chat' ? (
           <main className="conversation-view">
+            {selected.startsWith('created-') && !agent && !createdAgents.loading && (
+              <p className="creation-error" role="alert">
+                {createdAgents.error || 'The selected created agent is unavailable or no longer ready. Choose another agent; your local messages are preserved.'}
+              </p>
+            )}
             <div className="conversation-scroll" aria-label="Conversation">
               {!turns.length && !pending ? (
                 <div className="chat-welcome">
-                  <h1>Choose one demo</h1>
+                  <h1>Use {agent?.label || 'an existing agent'}</h1>
                   <p>{agent?.description || 'Connecting to your workspace'}</p>
-                  <p>One scenario at a time, using supplied inputs only. No live actions; people make decisions.</p>
-                  <p>Select a starter to edit, or ask a clarification question. Nothing is sent until you choose Send.</p>
+                  {agent && <AgentGuide agent={agent} compact />}
+                  <p>
+                    You are using an existing agent, not creating one. Choose
+                    an example task below or write your own message, then Send.
+                  </p>
                   <div className="prompt-options">
                     {agent?.prompts.map((prompt) => (
                       <button
@@ -647,6 +722,19 @@ export default function ChatWorkspace() {
                       </button>
                     ))}
                   </div>
+                  <p className="chat-review-link">
+                    Want a saved check of each item on your checklist? Use{' '}
+                    <button className="inline-link" onClick={() => setView('reviews')}>
+                      Document reviews
+                    </button>
+                    . It starts separately; your Chat messages are not copied over.
+                  </p>
+                  {config?.mode === 'preview' && (
+                    <p className="preview-explanation">
+                      Local preview: try writing a message with made-up details.
+                      No model calls or saved records.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="message-list">
@@ -720,8 +808,8 @@ export default function ChatWorkspace() {
                   <span>
                     <FlaskConical size={12} aria-hidden="true" />
                     {config?.mode === 'private'
-                      ? 'Synthetic data only'
-                      : 'Execution unavailable'}
+                      ? 'Use made-up examples; you make decisions'
+                      : 'No model calls or saving'}
                   </span>
                   <div>
                     {turns.length > 0 && (
@@ -828,11 +916,16 @@ export default function ChatWorkspace() {
         ) : view === 'catalog' ? (
           <main className="secondary-view">
             <div className="section-heading">
-              <h1>Agent catalog</h1>
-              <p>Choose a review, then one scenario. Only entries enabled for this Lab are shown.</p>
+              <h1>Choose an agent</h1>
+              <p>Choose an enabled existing agent or a ready agent created in this shared Lab. Each has a saved job and fixed tools. Selecting one does not create a new agent.</p>
+            </div>
+            <ConfigurationGuide creation={config?.agent_creation} onCreate={() => setView('create')} />
+            <details className="catalog-status">
+              <summary>Sample scope and status</summary>
               <p>Casework assistance and application completeness are available in source, not a claim of live validation. Requirements and proposal review is EXPERIMENTAL and reuses application review.</p>
               <p>Agent-assisted business request triage is PLANNED, not runnable. Review routing is not business-request triage.</p>
-            </div>
+              <p>These samples target Microsoft Foundry. They are not an officially approved Microsoft offering.</p>
+            </details>
             <label className="catalog-search">
               <Search size={17} />
               <input
@@ -843,7 +936,7 @@ export default function ChatWorkspace() {
               />
             </label>
             <div className="agent-grid">
-              {config?.agents
+              {availableAgents
                 .filter((item) =>
                   `${item.label} ${item.description} ${item.category}`
                     .toLowerCase()
@@ -863,20 +956,8 @@ export default function ChatWorkspace() {
                     </div>
                     <h2>{item.label}</h2>
                     <p>{item.description}</p>
-                    <details className="catalog-runtime">
-                      <summary>Runtime / developer details</summary>
-                      <dl>
-                        <div><dt>Catalog ID</dt><dd><code>{item.id}</code></dd></div>
-                        <div><dt>Runtime agent</dt><dd><code>{item.agent}</code></dd></div>
-                      </dl>
-                      <p>{Object.keys(item.tools).length} tool bindings</p>
-                      <ul>
-                        {Object.entries(item.tools).map(([tool, target]) => (
-                          <li key={tool}><code>{tool}</code> to <code>{target}</code></li>
-                        ))}
-                      </ul>
-                      <p>Configured targets, not execution proof. Check response execution details and receipts; stored receipts are not reverified.</p>
-                    </details>
+                    <AgentGuide agent={item} />
+                    <AgentRuntime agent={item} />
                     <button
                       className="catalog-select"
                       disabled={busy || historyBusy}
@@ -893,7 +974,7 @@ export default function ChatWorkspace() {
                 ))}
             </div>
             {config &&
-              !config.agents.some((item) =>
+              !availableAgents.some((item) =>
                 `${item.label} ${item.description} ${item.category}`
                   .toLowerCase()
                   .includes(query.toLowerCase()),

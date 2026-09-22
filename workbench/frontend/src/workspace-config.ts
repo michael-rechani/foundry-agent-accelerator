@@ -6,6 +6,13 @@ export type Agent = {
   label: string
   category: string
   description: string
+  guidance?: {
+    input: string
+    output: string
+    limits: string
+    delegation: string
+    configuration: string
+  }
   agent: string
   tools: Record<string, string>
   prompts: { label: string; text: string }[]
@@ -24,6 +31,65 @@ export type Config = {
   history_enabled: boolean
   reviews_enabled?: boolean
   retention_days: number
+  agent_creation?: CreationCapability
+}
+
+export type CreationCapability = {
+  enabled: boolean
+  storage_enabled: boolean
+  management_enabled?: boolean
+  reason: string | null
+  requires_operator_key: true
+  max_agents: number
+  publication_timeout_seconds: number
+  model?: string | null
+}
+
+export function isObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+export function validAgent(value: unknown): value is Agent {
+  return isObject(value) &&
+    ['id', 'label', 'category', 'description', 'agent'].every(
+      (key) => typeof value[key] === 'string' && value[key].trim().length > 0,
+    ) &&
+    validGuidance(value.guidance) &&
+    isObject(value.tools) &&
+    Object.values(value.tools).every((target) => typeof target === 'string') &&
+    Array.isArray(value.prompts) && value.prompts.every(
+      (prompt) => isObject(prompt) && typeof prompt.label === 'string' && typeof prompt.text === 'string',
+    )
+}
+
+function validCreation(value: unknown): value is CreationCapability | undefined {
+  return value === undefined || (isObject(value) &&
+    typeof value.enabled === 'boolean' && typeof value.storage_enabled === 'boolean' &&
+    (value.management_enabled === undefined || typeof value.management_enabled === 'boolean') &&
+    value.requires_operator_key === true && (value.reason === null || typeof value.reason === 'string') &&
+    typeof value.max_agents === 'number' && Number.isInteger(value.max_agents) && value.max_agents >= 1 && value.max_agents <= 20 &&
+    typeof value.publication_timeout_seconds === 'number' && Number.isInteger(value.publication_timeout_seconds) &&
+    value.publication_timeout_seconds >= 30 && value.publication_timeout_seconds <= 900 &&
+    (value.model === undefined || value.model === null || typeof value.model === 'string') &&
+    (!value.enabled || value.storage_enabled))
+}
+
+function validGuidance(value: unknown): boolean {
+  const keys = ['input', 'output', 'limits', 'delegation', 'configuration']
+  return (
+    value === undefined ||
+    (!!value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      Object.keys(value).length === keys.length &&
+      keys.every((key) => key in value) &&
+      Object.values(value).every(
+        (text) =>
+          typeof text === 'string' &&
+          text.trim().length > 0 &&
+          [...text.trim()].length <= 1200,
+      ))
+  )
 }
 
 function parseConfig(value: unknown): Config {
@@ -38,6 +104,8 @@ function parseConfig(value: unknown): Config {
     typeof config.history_enabled !== 'boolean' ||
     (config.reviews_enabled !== undefined &&
       typeof config.reviews_enabled !== 'boolean') ||
+    !validCreation(config.agent_creation) ||
+    (config.mode === 'preview' && config.agent_creation?.enabled) ||
     ![
       config.max_characters,
       config.max_request_bytes,
@@ -49,28 +117,7 @@ function parseConfig(value: unknown): Config {
     config.max_history_turns < 0 ||
     !Array.isArray(config.agents) ||
     !config.agents.length ||
-    !config.agents.every(
-      (agent) =>
-        agent &&
-        ['id', 'label', 'category', 'description', 'agent'].every(
-          (key) =>
-            typeof agent[key as keyof Agent] === 'string' &&
-            String(agent[key as keyof Agent]).trim(),
-        ) &&
-        agent.tools &&
-        typeof agent.tools === 'object' &&
-        !Array.isArray(agent.tools) &&
-        Object.values(agent.tools).every(
-          (target) => typeof target === 'string',
-        ) &&
-        Array.isArray(agent.prompts) &&
-        agent.prompts.every(
-          (prompt) =>
-            prompt &&
-            typeof prompt.label === 'string' &&
-            typeof prompt.text === 'string',
-        ),
-    ) ||
+    !config.agents.every(validAgent) ||
     new Set(config.agents.map((agent) => agent.id)).size !==
       config.agents.length ||
     !config.agents.some((agent) => agent.id === config.default_agent)

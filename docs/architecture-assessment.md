@@ -11,7 +11,7 @@ data-handling requirements before adopting it.
 Start with [one scenario](demos.md), synthetic inputs, expected findings, and a
 clear human-decision boundary. Casework and application completeness reuse the
 existing agents; experimental proposal coverage reuses application review and
-the criteria-and-evidence workspace. Business-request triage remains planned;
+Document reviews. Business-request triage remains planned;
 review-specialist routing is not a substitute for simulated request routing and
 human approval. Four scenarios do not require four independent agents.
 
@@ -26,12 +26,18 @@ or an approved or funded service offering. Finish with the
 ## Design principles
 
 Keep the existing foundation. Make it easy to add, deploy, evaluate, and demonstrate
-independent agents on Microsoft Foundry. Keep the Lab a thin, chat-first client;
-the evidence-review workflow is one optional example, not the platform's purpose.
+independent agents on Microsoft Foundry. Keep the Lab a bounded create-and-try client;
+Document reviews is one optional workflow, not the platform's purpose.
 
-Let concrete agent requirements drive extensions. Avoid a generic agent designer,
-orchestration framework, evaluation dashboard, or distributed worker system until
-a use case requires it.
+Let concrete agent requirements drive extensions. The implemented, opt-in
+[creation flow](agent-creation.md) publishes prepared hosted-agent templates,
+then opens ready agents in Chat. It is not an unrestricted agent designer:
+fixed code/tools, strict inputs, a shared operator-key gate, explicit cost
+confirmation and persisted publication status limit its scope. Preparing a setup
+or choosing New chat is not resource creation. The source adds the publication
+API and optional configuration, but does not grant permissions or deploy
+resources. Operators must validate their private project, managed identity,
+model availability and quota before enabling it.
 
 ## Terraform-first deployment
 

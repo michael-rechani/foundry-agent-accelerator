@@ -6,6 +6,14 @@
 !reviews.py
 !review_runs.py
 !agents.json
+!agent_creation.py
+!agent_publisher.py
+!agent_templates.py
+!agent_runtime/
+agent_runtime/*
+!agent_runtime/main.py
+!agent_runtime/demo_tools.py
+!agent_runtime/requirements.txt
 !frontend/
 !frontend/**
 frontend/node_modules/

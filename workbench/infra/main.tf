@@ -60,6 +60,29 @@ variable "workspace_title" {
     error_message = "Use a workspace title of one to 80 printable characters."
   }
 }
+variable "agent_creation_enabled" {
+  type        = bool
+  default     = false
+  description = "Opt in to operator-confirmed Foundry hosted-agent publication from reviewed templates."
+}
+variable "agent_creation_model" {
+  type        = string
+  default     = ""
+  description = "Existing Foundry model deployment used by newly created agents; not a browser setting."
+  validation {
+    condition     = var.agent_creation_model == "" || can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", var.agent_creation_model))
+    error_message = "Use an existing model deployment name."
+  }
+}
+variable "agent_creation_key_secret_id" {
+  type        = string
+  default     = null
+  description = "Existing Key Vault secret URI containing the lowercase SHA-256 operator-key verifier, never the raw key. Its access must be provisioned separately."
+  validation {
+    condition     = var.agent_creation_key_secret_id == null ? true : can(regex("^https://[A-Za-z0-9-]+\\.vault\\.azure\\.net/secrets/[A-Za-z0-9-]+(/[A-Za-z0-9]+)?$", var.agent_creation_key_secret_id))
+    error_message = "Use an existing Key Vault secret URI."
+  }
+}
 variable "name" {
   type    = string
   default = "foundry-workbench"
@@ -176,6 +199,10 @@ resource "azurerm_container_app" "this" {
   tags                         = local.tags
   lifecycle {
     prevent_destroy = true
+    precondition {
+      condition     = !var.agent_creation_enabled || (var.agent_creation_model != "" && var.agent_creation_key_secret_id != null)
+      error_message = "Agent creation requires an existing model deployment and an operator-key verifier secret."
+    }
   }
   identity {
     type         = "UserAssigned"
@@ -184,6 +211,14 @@ resource "azurerm_container_app" "this" {
   registry {
     server   = azurerm_container_registry.this.login_server
     identity = azurerm_user_assigned_identity.this.id
+  }
+  dynamic "secret" {
+    for_each = var.agent_creation_key_secret_id == null ? [] : [var.agent_creation_key_secret_id]
+    content {
+      name                = "agent-creation-key-verifier"
+      identity            = azurerm_user_assigned_identity.this.id
+      key_vault_secret_id = secret.value
+    }
   }
   ingress {
     external_enabled           = true
@@ -210,19 +245,28 @@ resource "azurerm_container_app" "this" {
       memory = "1Gi"
       dynamic "env" {
         for_each = {
-          WORKBENCH_MODE            = "private"
-          WORKBENCH_TITLE           = var.workspace_title
-          WORKBENCH_COSMOS_ENDPOINT = local.cosmos_endpoint
-          WORKBENCH_VISIBLE_AGENTS  = join(",", var.visible_agents)
-          WORKBENCH_DEFAULT_AGENT   = coalesce(var.default_agent, var.visible_agents[0])
-          WORKBENCH_ALLOWED_HOSTS   = local.hostname
-          WORKBENCH_ORIGINS         = "https://${local.hostname}"
-          FOUNDRY_PROJECT_ENDPOINT  = "https://${var.foundry_account_name}.services.ai.azure.com/api/projects/${var.foundry_project_name}"
-          AZURE_CLIENT_ID           = azurerm_user_assigned_identity.this.client_id
+          WORKBENCH_MODE                   = "private"
+          WORKBENCH_TITLE                  = var.workspace_title
+          WORKBENCH_COSMOS_ENDPOINT        = local.cosmos_endpoint
+          WORKBENCH_VISIBLE_AGENTS         = join(",", var.visible_agents)
+          WORKBENCH_DEFAULT_AGENT          = coalesce(var.default_agent, var.visible_agents[0])
+          WORKBENCH_AGENT_CREATION_ENABLED = tostring(var.agent_creation_enabled)
+          WORKBENCH_AGENT_CREATION_MODEL   = var.agent_creation_model
+          WORKBENCH_ALLOWED_HOSTS          = local.hostname
+          WORKBENCH_ORIGINS                = "https://${local.hostname}"
+          FOUNDRY_PROJECT_ENDPOINT         = "https://${var.foundry_account_name}.services.ai.azure.com/api/projects/${var.foundry_project_name}"
+          AZURE_CLIENT_ID                  = azurerm_user_assigned_identity.this.client_id
         }
         content {
           name  = env.key
           value = env.value
+        }
+      }
+      dynamic "env" {
+        for_each = var.agent_creation_key_secret_id == null ? [] : [true]
+        content {
+          name        = "WORKBENCH_CREATION_KEY_SHA256"
+          secret_name = "agent-creation-key-verifier"
         }
       }
       readiness_probe {

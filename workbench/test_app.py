@@ -34,6 +34,8 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(config["default_agent"], "customer-review")
         self.assertEqual(config["title"], "AI Foundry Lab")
         self.assertEqual(config["agents"][0]["prompts"][0]["label"], "Review an application")
+        self.assertIn("application and your checklist", config["agents"][0]["guidance"]["input"])
+        self.assertIn("where each point came from", config["agents"][0]["guidance"]["output"])
         self.assertEqual(config["max_history_turns"], 10)
         self.assertEqual(config["review_timeout_ms"], 190000)
         self.assertEqual(config["history_timeout_ms"], 45000)
@@ -72,6 +74,53 @@ class WorkbenchTests(unittest.TestCase):
             agent.pop("prompts")
             path.write_text(json.dumps([agent]), encoding="utf-8")
             self.assertEqual(load_agents(path)[0]["prompts"], [])
+
+    def test_agent_guidance_is_optional_and_validated(self):
+        agent = self.client.get("/api/config").json()["agents"][0]
+        guidance = agent["guidance"]
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "agents.json"
+            invalid = [None, [], {}, "guide", {**guidance, "extra": "unused"},
+                       {key: value for key, value in guidance.items() if key != "configuration"}]
+            invalid.extend({**guidance, key: value} for key in guidance
+                           for value in ("", " ", None, 7, "a" * 1201))
+            for value in invalid:
+                with self.subTest(guidance=value):
+                    path.write_text(json.dumps([{**agent, "guidance": value}]), encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, "Invalid agent guidance"):
+                        load_agents(path)
+            path.write_text(json.dumps([agent]), encoding="utf-8")
+            self.assertEqual(load_agents(path)[0]["guidance"], guidance)
+            agent["guidance"] = {**guidance, "input": "\U0001f600" * 1200}
+            path.write_text(json.dumps([agent]), encoding="utf-8")
+            self.assertEqual(load_agents(path)[0]["guidance"]["input"], "\U0001f600" * 1200)
+            agent.pop("guidance")
+            path.write_text(json.dumps([agent]), encoding="utf-8")
+            self.assertNotIn("guidance", load_agents(path)[0])
+
+    def test_static_catalog_cannot_shadow_a_created_agent_identifier(self):
+        agent = self.client.get("/api/config").json()["agents"][0]
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "agents.json"
+            path.write_text(json.dumps([{
+                **agent, "id": "created-11111111-2222-4333-8444-555555555555",
+            }]), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "identifier namespace is reserved"):
+                load_agents(path)
+
+    def test_catalog_guidance_and_profile_targets_are_consistent(self):
+        root = Path(__file__).resolve().parent.parent
+        agents = load_agents(root / "workbench" / "agents.json")
+        self.assertTrue(all("guidance" in agent for agent in agents))
+        profile = json.loads((root / "hosted-agents" / "review-coordinator-agent" / "profiles"
+                              / "evidence-review.example.json").read_text(encoding="utf-8"))
+        guided = next(agent for agent in agents if agent["id"] == "customer-review")
+        self.assertEqual(guided["agent"], profile["name"])
+        self.assertEqual(guided["tools"], {item["tool"]: item["agent"] for item in profile["specialists"]})
+        base = next(agent for agent in agents if agent["id"] == "review-coordinator")
+        self.assertEqual(set(base["tools"].values()), set(guided["tools"].values()))
+        self.assertNotEqual(base["agent"], guided["agent"])
+        self.assertIn("not an extra planning capability", base["description"])
 
     def test_only_fingerprinted_assets_are_cached(self):
         for path in ("/assets/index-abcdefgh.js", "/assets/index-abcdefgh.css", "/assets/font-abcdefgh.woff2"):

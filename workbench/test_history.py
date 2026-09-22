@@ -12,6 +12,7 @@ from app import Settings, create_app
 class HistoryTests(unittest.TestCase):
     def setUp(self):
         self.store = AsyncMock()
+        self.store.list_created_agents.return_value = []
         self.settings = Settings("private", "https://example.services.ai.azure.com/api/projects/test", ("testserver",), ("https://testserver",))
         self.client = TestClient(create_app(self.settings, AsyncMock(), self.store))
         self.headers = {"X-Workbench-Request": "1", "Origin": "https://testserver"}

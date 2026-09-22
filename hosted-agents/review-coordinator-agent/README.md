@@ -5,11 +5,29 @@
 Routes supplied material to the application or case specialist, preserves
 source identifiers and uncertainty, and returns findings for human review.
 It does not approve, deny, rank, or replace a specialist with a fabricated result.
-Customer-facing [demos](../../docs/demos.md) call this guided review; the runtime
-name and tool bindings remain unchanged. Select one scenario, not every review
+In the Lab, the base runtime is **Application and case helper (base setup)**.
+The default visible **Application and case helper** instead uses the
+[example profile](profiles/evidence-review.example.json) and its
+`customer-review-coordinator` name. It binds `inspect_application` and
+`inspect_case` to the same specialists. Neither is a planning-only agent:
+both can ask what input is needed or run an application/case review. The names
+replace Guided review / Review planning without changing runtime IDs or bindings.
+Select one scenario, not every review
 type. Routing to review specialists is **not** business-request triage. There are
 no ticket, notification, external-action, or simulated human-approval tools here;
 agent-assisted request triage remains planned.
+
+Give it an application and checklist, or case notes with any relevant rules.
+It picks the matching specialist so that the application checker can build a
+checklist table or the case agent can summarize notes. It uses both only when
+requested and returns their findings, document references and follow-up
+questions. Chat uses these preconfigured agents; it cannot create or configure
+one.
+
+Ordinary Chat returns prose. For **Document reviews**, the caller supplies a
+structured JSON result schema; the coordinator forwards it with all checklist
+items and document text and returns that format. Saving and re-running reviews
+is the Lab's workflow, not extra coordinator memory or a business action.
 
 | Request | Tool | Default hosted agent |
 | --- | --- | --- |

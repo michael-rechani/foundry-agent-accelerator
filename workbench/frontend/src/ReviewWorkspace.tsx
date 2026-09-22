@@ -54,26 +54,26 @@ type Item = Pick<Review, 'id' | 'title' | 'status' | 'updated_at'>
 const statuses: Record<string, string> = {
   draft: 'Ready to run',
   running: 'Running',
-  waiting_input: 'Needs evidence',
-  completed: 'Review complete',
+  waiting_input: 'Needs information',
+  completed: 'Results saved',
   failed: 'Failed',
   interrupted: 'Interrupted',
 }
 const eventNames: Record<string, string> = {
   review_started: 'Review requested',
-  specialist_receipts_checked: 'Specialist execution receipts checked',
-  citations_checked: 'Source references and exact quotes checked',
-  waiting_input: 'Additional evidence requested',
-  completed: 'Findings recorded',
+  specialist_receipts_checked: 'Records of specialist calls checked',
+  citations_checked: 'Quotes matched to your documents',
+  waiting_input: 'Additional information requested',
+  completed: 'Results saved',
   failed: 'Review failed',
   interrupted: 'Execution interrupted',
 }
 const messages: Record<string, string> = {
   review_changed: 'This review changed. Refresh before continuing.',
   reviews_disabled: 'Review persistence is unavailable in this environment.',
-  invalid_review: 'Check the evidence, criteria, and content limits.',
+  invalid_review: 'Check your documents, checklist and length limits.',
   review_not_runnable: 'This revision cannot be run again.',
-  review_not_waiting: 'This review is not accepting more evidence.',
+  review_not_waiting: 'This review is not accepting more information.',
   busy: 'Agent capacity is busy. Try again later.',
   reviews_busy: 'Review requests are limited. Try again in a minute.',
 }
@@ -131,6 +131,9 @@ export function ReviewWorkspace({
   const [loaded, setLoaded] = useState(false)
   const [pollVersion, setPollVersion] = useState(0)
   const enabled = config.reviews_enabled === true
+  const reviewAgent = config.agents.find(
+    (agent) => agent.id === (selected?.agent_id || config.default_agent),
+  )
   const dirty =
     (creating &&
       !!(title || criteria || sources.some((source) => source.text))) ||
@@ -255,7 +258,7 @@ export function ReviewWorkspace({
   }
 
   function leave() {
-    if (dirty && !window.confirm('Discard unsaved review evidence?')) return
+    if (dirty && !window.confirm('Discard unsaved review information?')) return
     setCreating(false)
     setSelected(null)
     setAdditional('')
@@ -269,7 +272,7 @@ export function ReviewWorkspace({
     setSources([
       {
         id: 'SRC-1',
-        text: 'Synthetic application APP-1: Twelve weekly workshops beginning October 1. A program lead and two facilitators will deliver the sessions. No budget is supplied.',
+        text: 'Fictional application APP-1: Twelve weekly workshops beginning October 1. A program lead and two facilitators will deliver the sessions. No budget is supplied.',
       },
     ])
   }
@@ -291,7 +294,7 @@ export function ReviewWorkspace({
     <main className="review-workspace" hidden={!active}>
       <header className="review-heading">
         <h1>
-          {creating ? 'New review' : selected ? selected.title : 'Evidence reviews'}
+          {creating ? 'New document review' : selected ? selected.title : 'Document reviews'}
         </h1>
         <div className="review-actions">
           {(creating || selected) && (
@@ -340,11 +343,73 @@ export function ReviewWorkspace({
           )}
         </div>
       </header>
-      <p className="review-scope">
-        Optional criteria-and-evidence workflow, separate from Chat. Requirements
-        and proposal review is EXPERIMENTAL and reuses application review, not a
-        new agent. Supplied inputs only; no live actions. People make decisions.
-      </p>
+      {!selected && (
+        <section className="review-intro" aria-label="Document review workflow">
+          <p className="review-scope">
+            Check the text you paste against your own checklist. See what is
+            covered, what is missing and where documents disagree. Add more
+            information and check again.
+          </p>
+          <ol className="review-steps">
+            <li>Add a checklist and document text</li>
+            <li>Run a review</li>
+            <li>Read results beside the original text</li>
+            <li>Add missing information and review again</li>
+          </ol>
+          <p className="review-hint">
+            Chat is a conversation. A document review saves a separate check
+            of each checklist item. Your Chat messages are not copied here,
+            and review results are not sent back to Chat.
+          </p>
+        </section>
+      )}
+      <details className="review-guide">
+        <summary>How to read results and where your work is saved</summary>
+        <dl className="finding-key">
+          <div>
+            <dt>Supported</dt>
+            <dd>The text you supplied backs up this checklist item. That does not prove the text is true.</dd>
+          </div>
+          <div>
+            <dt>Gap</dt>
+            <dd>There is not enough information. This does not mean the application has failed.</dd>
+          </div>
+          <div>
+            <dt>Conflict</dt>
+            <dd>Statements disagree. Ask which one applies instead of guessing.</dd>
+          </div>
+        </dl>
+        <p>
+          A matching quote shows what a document says, not whether it is true.
+          These results do not approve applications or make business decisions
+          for you.
+        </p>
+        <p>
+          In a connected Lab, Create shared review saves your checklist and
+          document text. Each run also saves a copy of its input, results,
+          follow-up questions and records of tool calls. Unsubmitted drafts stay
+          in this browser until you leave or reload. Chat saves completed messages
+          only when you choose Save.
+        </p>
+        <p>
+          Anyone who can open this Lab can read saved reviews and add requested
+          information. Records are not private to you; there are no individual
+          user accounts. Use made-up examples only. Reviews expire
+          {' '}{config.retention_days} days after their last update; backup retention
+          is separate. You cannot delete a review or edit its saved checklist here.
+        </p>
+        <p>
+          You can run each review up to four times. Saving more information does
+          not start the agent. Choose Review again to check your checklist
+          against all the documents and information added so far. Each run is a
+          new check, not a continuation of Chat.
+        </p>
+        <p>
+          Requirements and proposal review is EXPERIMENTAL and uses the same
+          application-checking agent. It cannot fetch documents or change a
+          business system.
+        </p>
+      </details>
       {error && (
         <div className="review-notice" role="alert">
           <CircleAlert size={18} />
@@ -354,7 +419,8 @@ export function ReviewWorkspace({
       {!enabled && (
         <div className="review-notice">
           <CircleAlert size={17} />
-          Reviews are not connected. Execution and saving are unavailable.
+          Review execution and saving are unavailable in this environment. You
+          can try a fictional draft without calling a model.
         </div>
       )}
       {creating ? (
@@ -381,12 +447,10 @@ export function ReviewWorkspace({
           }}
         >
           <div className="review-form-bar">
-            <span>
-              {
-                config.agents.find((agent) => agent.id === config.default_agent)
-                  ?.label
-              }
-            </span>
+            <div>
+              <strong>Agent doing this check: {reviewAgent?.label || 'Agent unavailable in this catalog'}</strong>
+              <p className="review-hint">Uses the Lab&apos;s default agent, not your Chat selection. No new agent is created.</p>
+            </div>
             <button
               type="button"
               className="review-secondary"
@@ -394,9 +458,15 @@ export function ReviewWorkspace({
               disabled={busy}
             >
               <FileText size={16} />
-              Use synthetic example
+              Use fictional example
             </button>
           </div>
+          <p className="review-hint" id="review-input-guide">
+            Paste made-up text directly; file uploads and fetching links are
+            not available. Add up to 12 checklist items (1,000 characters each)
+            and 12 documents (12,000 characters each), within 30,000 content
+            characters in total.
+          </p>
           <label>
             Review title
             <input
@@ -407,24 +477,28 @@ export function ReviewWorkspace({
             />
           </label>
           <label>
-            Criteria, one per line
+            Checklist, one item per line
             <textarea
               required
               rows={4}
               maxLength={12000}
+              aria-describedby="review-input-guide"
+              placeholder="For example: Include a project budget."
               value={criteria}
               onChange={(event) => setCriteria(event.target.value)}
             />
           </label>
-          <h2>Evidence</h2>
+          <h2>Documents to check</h2>
           {sources.map((item, index) => (
             <div className="source-editor" key={item.id}>
               <label>
-                {item.id}
+                Document {item.id.slice(4)} ({item.id})
                 <textarea
                   required
                   rows={5}
                   maxLength={12000}
+                  aria-describedby="review-input-guide"
+                  placeholder="Paste a document or note here. Results will point back to this text."
                   value={item.text}
                   onChange={(event) =>
                     setSources((previous) =>
@@ -440,8 +514,8 @@ export function ReviewWorkspace({
               <button
                 type="button"
                 className="review-icon"
-                aria-label={`Remove ${item.id}`}
-                title={`Remove ${item.id}`}
+                aria-label={`Remove document ${item.id.slice(4)}`}
+                title={`Remove document ${item.id.slice(4)}`}
                 disabled={sources.length === 1 || busy}
                 onClick={() =>
                   setSources((previous) =>
@@ -453,6 +527,10 @@ export function ReviewWorkspace({
               </button>
             </div>
           ))}
+          <p className="review-hint">
+            Create shared review saves this checklist and text for everyone who
+            can open the Lab. It does not run the agent; choose Run review next.
+          </p>
           <footer>
             <button
               type="button"
@@ -469,11 +547,11 @@ export function ReviewWorkspace({
               }
             >
               <Plus size={16} />
-              Add source
+              Add document
             </button>
             <button className="review-primary" disabled={!enabled || busy}>
               <CheckCheck size={16} />
-              Create review
+              Create shared review
             </button>
           </footer>
         </form>
@@ -484,7 +562,8 @@ export function ReviewWorkspace({
               {statuses[selected.status] || selected.status}
             </span>
             <span>{selected.runs.length}/4 runs</span>
-            <span>30-day retention</span>
+            <span>Agent: {reviewAgent?.label || 'Agent unavailable in this catalog'}</span>
+            <span>{config.retention_days}-day retention after last update</span>
             {selected.status === 'draft' && (
               <button
                 className="review-primary"
@@ -503,14 +582,21 @@ export function ReviewWorkspace({
                 }
               >
                 <Play size={15} />
-                {selected.runs.length ? 'Resume review' : 'Run review'}
+                {selected.runs.length ? 'Review again' : 'Run review'}
               </button>
             )}
           </div>
+          {selected.status === 'draft' && (
+            <p className="review-next-step">
+              {selected.runs.length
+                ? 'Your added information is saved but not checked yet. The results below are from the previous run. Choose Review again to check all the information together.'
+                : 'Checklist and documents saved; no results yet. Check your input, then choose Run review.'}
+            </p>
+          )}
           {selected.status === 'running' && (
             <div className="review-progress" role="status">
               <LoaderCircle className="spin" size={18} />
-              Agent response pending
+              Waiting for the agent&apos;s reply
             </div>
           )}
           {['failed', 'interrupted'].includes(selected.status) && (
@@ -524,14 +610,14 @@ export function ReviewWorkspace({
             role="tablist"
             aria-label="Review detail"
           >
-            {['findings', 'evidence', 'activity'].map((name) => (
+            {(['findings', 'evidence', 'activity'] as const).map((name) => (
               <button
                 key={name}
                 role="tab"
                 aria-selected={tab === name}
                 onClick={() => setTab(name)}
               >
-                {name[0].toUpperCase() + name.slice(1)}
+                {{ findings: 'Results', evidence: 'Original text', activity: 'Run details' }[name]}
               </button>
             ))}
             {!!selected.runs.length && (
@@ -559,7 +645,7 @@ export function ReviewWorkspace({
             <section
               className="review-findings"
               aria-label={
-                tab === 'activity' ? 'Run activity' : 'Review findings'
+                tab === 'activity' ? 'Run activity' : 'Review results'
               }
             >
               {tab === 'activity' ? (
@@ -585,8 +671,8 @@ export function ReviewWorkspace({
                       <span>{receipt.agent}</span>
                       <small>
                         {receipt.verified
-                          ? 'Execution receipt checked at run time'
-                          : 'Unverified execution'}
+                          ? 'Call record checked when this run finished'
+                          : 'Call not verified'}
                       </small>
                     </div>
                   ))}
@@ -605,8 +691,9 @@ export function ReviewWorkspace({
                       </h2>
                       <p className="review-summary">{run.result.summary}</p>
                       <span className="review-disclaimer">
-                        Citations checked against submitted text &middot;
-                        Findings require human review
+                        Quotes point to your documents; they do not prove those
+                        documents are true. Check the results yourself. They do
+                        not approve applications or make business decisions.
                       </span>
                       {run.result.findings.map((finding) => (
                         <article
@@ -640,7 +727,7 @@ export function ReviewWorkspace({
                                 }}
                               >
                                 <FileText size={14} />
-                                {citation.source_id}
+                                Document {citation.source_id.slice(4)} ({citation.source_id})
                                 <ArrowRight size={14} />
                               </button>
                               <p>{citation.quote}</p>
@@ -651,7 +738,7 @@ export function ReviewWorkspace({
                     </>
                   ) : (
                     <>
-                      <h2>Review criteria</h2>
+                      <h2>Your checklist</h2>
                       <ol className="review-criteria">
                         {selected.criteria.map((criterion, index) => (
                           <li key={index}>
@@ -689,14 +776,18 @@ export function ReviewWorkspace({
                           })
                         }}
                       >
-                        <h2>Evidence requested</h2>
+                        <h2>More information needed</h2>
                         <ul>
                           {run?.result?.questions.map((question, index) => (
                             <li key={index}>{question}</li>
                           ))}
                         </ul>
+                        <p className="review-hint">
+                          Add the missing details or explain which statement
+                          is correct. Save them, then choose Review again.
+                        </p>
                         <label>
-                          Additional evidence
+                          More information
                           <textarea
                             required
                             rows={5}
@@ -716,7 +807,7 @@ export function ReviewWorkspace({
                           }
                         >
                           <Plus size={16} />
-                          Save evidence
+                          Save added information
                         </button>
                         {selected.runs.length >= 4 && <p>Run limit reached.</p>}
                       </form>
@@ -724,21 +815,21 @@ export function ReviewWorkspace({
                 </>
               )}
             </section>
-            <aside className="review-evidence" aria-label="Source evidence">
+            <aside className="review-evidence" aria-label="Original text">
               <div className="evidence-heading">
-                <h2>Source evidence</h2>
+                <h2>Original text</h2>
                 <select
-                  aria-label="Evidence source"
+                  aria-label="Document"
                   value={source?.id || ''}
                   onChange={(event) => setSourceId(event.target.value)}
                 >
                   {evidence.map((item) => (
-                    <option key={item.id}>{item.id}</option>
+                    <option key={item.id} value={item.id}>Document {item.id.slice(4)} ({item.id})</option>
                   ))}
                 </select>
               </div>
               <span className="micro-label">
-                {run && !currentDraft ? 'RUN SNAPSHOT' : 'SUBMITTED TEXT'}
+                {run && !currentDraft ? 'TEXT USED FOR THIS RUN' : 'YOUR SAVED TEXT'}
               </span>
               <pre>{source?.text}</pre>
             </aside>
@@ -749,9 +840,9 @@ export function ReviewWorkspace({
           {enabled && <dl className="review-overview" aria-label="Loaded review counts">
             {[
               { label: 'Loaded reviews', status: 'all' },
-              { label: 'Needs evidence', status: 'waiting_input' },
+              { label: 'Needs information', status: 'waiting_input' },
               { label: 'Running', status: 'running' },
-              { label: 'Complete', status: 'completed' },
+              { label: 'Results saved', status: 'completed' },
             ].map(({ label, status }) => (
               <div key={status} className={`overview-${status}`}>
                 <dt>{label}</dt>
@@ -822,6 +913,15 @@ export function ReviewWorkspace({
                     ? 'Loading reviews'
                     : 'No reviews yet'}
               </h2>
+              {!query && filter === 'all' && (loaded || !enabled) && (
+                <p>
+                  Try New review and its made-up example: your checklist asks
+                  for a budget, but the application only lists workshop dates.
+                  The expected result is &ldquo;budget missing&rdquo;, not
+                  &ldquo;application rejected&rdquo;. This is an illustration,
+                  not a model result.
+                </p>
+              )}
             </div>
           )}
           {cursor && (

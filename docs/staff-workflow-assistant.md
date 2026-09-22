@@ -4,7 +4,7 @@
 
 This is a proposed agent definition and acceptance baseline, not a description
 of implemented integrations or deployed capabilities. Keep this example separate
-from the reusable foundation and the existing evidence-review workflow.
+from the reusable foundation and the existing Document reviews workflow.
 
 ## Mission
 

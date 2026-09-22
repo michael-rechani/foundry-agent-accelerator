@@ -1,10 +1,26 @@
-# Review workspace
+# Document reviews
 
-[Overview](../README.md) / Review workspace
+[Overview](../README.md) / Document reviews
 
-An optional workflow for checking supplied evidence against explicit criteria.
-It requires a deployed Lab with Cosmos persistence and a compatible agent.
-Local disconnected mode accepts draft input without invoking agents or saving records.
+Check pasted document text against your own checklist. See what is covered,
+what is missing and where documents disagree, then add information and check
+again. The UI calls this **Document reviews**, formerly Evidence reviews.
+
+Use **Chat** when you want a conversation with the selected agent. Use
+**Document reviews** when you want saved results for each checklist item, the
+original text beside the results, and follow-up information recorded with the
+review. Neither view copies messages or results to the other automatically.
+
+This requires a deployed Lab with Cosmos persistence and a compatible agent.
+New reviews use the Lab's configured default agent, independently of the Chat
+selection; an existing record keeps its saved agent ID. Creating a review creates
+a shared **record**, not an agent. The local preview allows a draft only: no
+model calls and no saved records.
+
+In the API and the technical sections below, **criteria** means your checklist
+items, **evidence** means the document text and additional information you
+supplied, and a **finding** is the result for one checklist item. No external
+document search or fact-checking is implied.
 
 For a customer-facing walkthrough, choose [one demonstration](demos.md).
 Application completeness is available in source; requirements and proposal
@@ -18,22 +34,39 @@ Engagements focus on demonstration and technical validation. Integration with cu
 
 ## Workflow
 
-1. Create a review with a title, up to 12 criteria and up to 12 source texts.
-   The included example is synthetic. This release accepts pasted text, not file
-   uploads, external URLs, or Search retrieval.
-2. Create the shared record, then explicitly run it. The configured default
-   coordinator selects its existing specialist tools. No new agents are deployed.
-3. Inspect structured findings alongside the evidence. Each criterion has exactly
+1. Choose **New review**, enter a title and **Checklist, one item per line**,
+   then paste text into **Documents to check**. **Use fictional example** fills
+   a small workshop application without saving or running it. Supply up to 12
+   checklist items and 12 documents. This release accepts pasted text, not file
+   uploads, fetched URLs or Search retrieval.
+2. Choose **Create shared review** to save the record, then **Run review** to
+   call its agent. The form names the agent doing the check. The default
+   Application and case helper selects its existing specialist tools; no agent
+   is created, configured or deployed.
+3. Read **Results** beside **Original text**. Each checklist item has exactly
    one assessment: supported, gap, or conflict. Non-gap findings require citations;
    every cited quote must match its named submitted source exactly.
    A gap means evidence is not demonstrated, not automatic noncompliance.
    Product claims are not independently verified capabilities; conflicts require
    clarification, not an invented resolution or an approval decision.
-4. Answer clarification questions with additional evidence. Saving evidence creates
-   a runnable revision; Resume review makes a new bounded call over the criteria
-   and accumulated evidence. It is not a continuation of a persisted model session.
+4. If **More information needed** appears, enter the requested details and choose
+   **Save added information**. This saves a revision without invoking the agent.
+   **Review again** starts a new bounded call over the checklist and all
+   accumulated text, not a continuation of a persisted model session. Until
+   then, the UI labels the displayed results as belonging to the previous run.
 5. Reopen a review from the inbox or its URL fragment. Inspect earlier run snapshots
    and export the record as JSON. Chat remains a separate workspace view.
+
+| Result label | In plain language |
+| --- | --- |
+| **Supported** | Your text backs up this checklist item. It does not prove the text is true. |
+| **Gap** | There is not enough information. It does not mean the application has failed. |
+| **Conflict** | Statements disagree. A person needs to clarify which one applies. |
+
+A matching quote shows what a document says, not whether it is true. These
+results do not approve applications or make business decisions. The UI puts
+this explanation beside the results and keeps storage details in **How to read
+results and where your work is saved**, rather than repeating warning panels.
 
 The structured-review prompt limits clarification to gaps or conflicts in the
 supplied criteria and asks for no questions when every finding is supported.
@@ -72,10 +105,10 @@ Implementation: [review API and task lifecycle](../workbench/review_runs.py),
 
 | State | Meaning | Allowed next action |
 | --- | --- | --- |
-| `draft` | Validated input, either newly created or extended with evidence | Explicit Run/Resume with a matching ETag and remaining run budget |
+| `draft` | Validated input, either newly created or extended with evidence | Explicit Run review / Review again with a matching ETag and remaining run budget |
 | `running` | Input snapshot saved and a matching local task exists | Poll or reopen; do not submit another start |
-| `waiting_input` | A validated, saved result asks for more evidence | Append evidence with a matching ETag, fewer than four runs, and room within content limits; returns to `draft` |
-| `completed` | Validated findings with no questions and a confirmed final write | Read or export |
+| `waiting_input` ("Needs information") | A validated, saved result asks for more information | Append evidence with a matching ETag, fewer than four runs, and room within content limits; returns to `draft` |
+| `completed` ("Results saved") | Validated findings with no questions and a confirmed final write | Read or export |
 | `failed` | A saved failure such as timeout or invalid agent output | Read or export; no retry transition in this release |
 | `interrupted` | No matching local task, or a saved interruption; stored status may still be `running` | Inspect/export; no automatic retry or claim that remote work stopped |
 

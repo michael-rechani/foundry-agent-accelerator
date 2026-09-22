@@ -25,10 +25,15 @@ Before inviting participants:
 - Confirm approved private access, a visible compatible catalog entry, intended
   routed agent versions, and a known recovery target. Preserve existing IDs,
   bindings, and visibility controls; do not expose all agents just for a demo.
-- The default guided-review entry uses the existing coordinator profile and its
+- The default **Application and case helper** uses the existing coordinator profile and its
   two review specialists. Direct application/case chat is possible only if an
   operator has explicitly enabled that catalog entry. Proposal review reuses
   application review, not a third specialist.
+- **About this agent** explains what to paste, what the agent returns and how it
+  works. **Agents** selects an existing setup. The separate **Create agent** flow
+  prepares and, with explicit operator confirmation, publishes a new agent.
+  A starter is just an example task and message. Developer configuration and
+  deployment are explained separately in [Lab settings](../workbench/README.md#workspace-configuration).
 - Use only the supplied fictional content. **The Lab has shared history and no
   per-user authorization. Private networking does not isolate users or records.**
 - Verify the selected prompt behavior in an approved staging environment first.
@@ -41,6 +46,44 @@ Before inviting participants:
 The primary path uses no customer-system connection, M365/Copilot/SharePoint
 integration, education knowledge assistant, external business action, or
 production deployment. Existing optional integrations remain separately scoped.
+
+## Create and try a baseline agent
+
+Use this path to show how a recognizable job becomes a small Foundry agent.
+The [operator setup](agent-creation.md#enable-publication) must already be
+approved and complete. Publication time is service-dependent; have a previously
+created fictional agent available rather than promising instant deployment.
+
+1. Open **Create agent**. Describe one job or choose a prepared template.
+2. Prepare the setup. Explain that the template supplies the baseline and the
+   typed task is included in its instructions; no model has designed or tested
+   the configuration at this point.
+3. Review its input, output, limits and fixed tools. Edit its name and task
+   instructions if needed. Confirm costs and shared visibility, then enter the
+   operator key and explicitly create it.
+4. Follow the real upload, provisioning and routing stages in **Created agents**.
+   Ready means an active runtime and checked Responses route, not a quality pass.
+5. Open it in Chat, select its fictional sample and send it. Keep the source text
+   visible and ask a follow-up. Observe tool receipts only when tools actually run.
+6. Record findings and export anything needed before an operator deletes the
+   created agent. Closing a tab does not stop its cloud costs.
+
+| Audience / template | Example job description | What to demonstrate |
+| --- | --- | --- |
+| Public sector / Document Analyst | Summarize a fictional public-service notice, cite the supplied sections and identify questions a staff reviewer should ask. | Sourced analysis, not a legal interpretation or policy decision |
+| Public sector / Criteria Checker | Compare a fictional community-project application with the checklist I paste and flag missing or inconsistent information. | Criteria-by-criteria checking, not an award or eligibility decision |
+| Healthcare operations / Document Intake Assistant | Extract the request ID, requested supplies, stated dates and missing fields from fictional clinic supply-request text. | Administrative extraction with unknown fields preserved; no patient data, clinical advice or orders |
+| Community services / Casework Assistant | Summarize fictional service-intake notes and draft follow-up questions without deciding eligibility or changing records. | Facts, conflicting notes and questions kept separate |
+| ISV / Workflow Coordinator | Use the supplied fictional request and service examples to propose integration-review steps and identify what a person must verify. | Two clearly simulated, read-only lookups and an action plan; no connected SaaS apps, writes or approval workflow |
+
+Use the template's actual sample input and fixture identifiers. Job descriptions
+alone are not the source documents an agent needs to analyze. No customer name,
+account, real patient record or opportunity information is required.
+
+In local preview you can demonstrate steps 1-3 only, without the publication
+action. Any screenshots using controlled browser-test responses must remain
+visibly labeled **ILLUSTRATIVE UI TEST**; they are not live Foundry results.
+The existing walkthroughs below remain usable without creating another agent.
 
 ## A short demonstration
 
@@ -71,9 +114,9 @@ availability, not a live validation claim.
 **Question:** Can the assistant help a staff member see what is known and what
 needs clarification without making a case decision?
 
-**Run:** choose the casework starter in guided review, or paste the complete
+**Run:** choose **Summarize case notes** in Application and case helper, or paste the complete
 [casework input and prompt](demo-inputs/casework.txt). If direct casework chat is
-visible, it uses the same case agent. Do not request an application review too.
+visible as **Case notes summarizer**, it uses the same case agent. Do not request an application review too.
 
 | Supplied evidence | Good result |
 | --- | --- |
@@ -107,9 +150,9 @@ The sample is a fictional permit application, not a regulatory rules engine.
 **Question:** Can the assistant help a reviewer distinguish supplied evidence,
 gaps, and conflicts without approving or denying an application?
 
-**Run:** choose the application-completeness starter in guided review, or paste
+**Run:** choose **Review an application** in Application and case helper, or paste
 [application.txt](demo-inputs/application.txt). An explicitly enabled direct
-application entry uses the same specialist.
+**Application checker** entry uses the same specialist.
 
 | Criterion | Good result | Supporting identifiers |
 | --- | --- | --- |
@@ -150,7 +193,7 @@ scenario-specific evaluation remains required before calling this validated.
 **Question:** Can the assistant distinguish product evidence from a broad claim
 and help a person identify RFP coverage gaps without selecting a vendor?
 
-**Run in chat:** choose the experimental proposal starter in guided review, or
+**Run in chat:** choose **Compare a proposal (EXPERIMENTAL)** in Application and case helper, or
 paste [requirements.txt](demo-inputs/requirements.txt). The coordinator should use
 its application-review tool, not its case-review tool.
 
@@ -164,21 +207,23 @@ Preserve every requirement and source identifier. Product statements are supplie
 claims, not independently verified capabilities. No vendor ranking, compliance
 certification, award recommendation, or invented citation is acceptable.
 
-**Optional evidence workspace:** open the Lab's evidence-review view and enter
+**Optional Document reviews:** open **Document reviews** and enter
 the title, three criteria, and three source texts from
 [requirements-review.json](demo-inputs/requirements-review.json). This is an
 existing `ReviewInput` example for reference, **not a new upload feature**.
 Paste each criterion without its `CRIT-n` prefix; the workspace assigns these
 IDs by order. Paste each evidence text into its corresponding source field;
 the outer IDs are SRC-1 through SRC-3 and the inner PROD identifiers stay intact.
-Use the compatible default guided-review entry; a direct plain-chat entry is not
+Use the compatible default Application and case helper; a direct Chat entry is not
 automatically a supported structured-review endpoint.
 
-Create the shared draft, then explicitly Run. The same findings map to
+Choose **Create shared review**, then **Run review**. The same findings map to
 `supported`, `conflict`, and `gap`, respectively. Non-gap findings require exact
 quotes from the named SRC sources; these checks do not verify product truth.
 Questions should leave the review awaiting evidence, not trigger a business
-approval. See [review states and receipts](review-workflow.md).
+approval. See [review states and receipts](review-workflow.md). This creates a saved review
+record, not an agent. Chat and reviews do not transfer messages or results
+automatically, and the review uses the Lab default rather than the Chat selection.
 
 **Missing-information variation:** remove PROD-1 and PROD-2 in a fresh chat.
 CSV and retention become not demonstrated; no remaining source resolves them.
@@ -190,7 +235,7 @@ support, and declines vendor selection. In the structured workflow, invented
 quotes or source IDs must be rejected, not displayed as verified findings.
 
 **Reset:** use the [shared reset procedure](#reset-without-hiding-failures).
-The evidence workspace does not currently offer draft editing or review deletion.
+Document reviews does not currently offer saved-checklist editing or review deletion.
 
 ## Agent-assisted request triage
 
@@ -222,7 +267,7 @@ do not generalize coordinator profiles into a new framework.
 - **Shared saved conversations:** delete only the specific synthetic records
   created for this demo, and only if their removal is agreed. There is no
   owner authorization. Never bulk-delete other participants' records.
-- **Evidence reviews:** export if required, then create a new draft with the
+- **Document reviews:** export if required, then create a new draft with the
   original fixture. Do not overwrite earlier evidence or label a failed run as
   passed. Records allow at most four runs and expire 30 days after their last
   write; no review-delete endpoint exists. TTL is not immediate secure erasure

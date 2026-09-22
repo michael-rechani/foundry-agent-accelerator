@@ -6,7 +6,7 @@ import re
 import time
 from collections import deque
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from history import CosmosHistory, history_router
 from review_runs import ReviewRuns
+from agent_creation import CREATED_ID, AgentCreations, CreationSettings
 
 
 ROOT = Path(__file__).resolve().parent
@@ -47,6 +48,7 @@ class Settings:
     visible_agents: tuple[str, ...] = ("customer-review",)
     default_agent: str | None = None
     title: str = "AI Foundry Lab"
+    creation: CreationSettings = field(default_factory=CreationSettings)
 
     @classmethod
     def from_env(cls):
@@ -57,7 +59,7 @@ class Settings:
         visible_agents = tuple(filter(None, os.getenv("WORKBENCH_VISIBLE_AGENTS", "customer-review").split(",")))
         return cls(mode, endpoint, hosts, origins, Path(os.getenv("WORKBENCH_AGENTS_FILE", ROOT / "agents.json")),
                visible_agents=visible_agents, default_agent=os.getenv("WORKBENCH_DEFAULT_AGENT") or None,
-               title=os.getenv("WORKBENCH_TITLE", "AI Foundry Lab"))
+               title=os.getenv("WORKBENCH_TITLE", "AI Foundry Lab"), creation=CreationSettings.from_env())
 
     def validate(self):
         if not isinstance(self.title, str) or not self.title.strip() or len(self.title) > 80 or any(ord(char) < 32 for char in self.title):
@@ -66,6 +68,7 @@ class Settings:
             raise ValueError("Review timeout must be between one and 180 seconds")
         if self.mode not in {"preview", "private"}:
             raise ValueError("WORKBENCH_MODE must be preview or private")
+        self.creation.validate(self.mode)
         if not self.hosts or any("*" in host or "/" in host for host in self.hosts):
             raise ValueError("Explicit allowed hosts are required")
         if not self.origins:
@@ -93,14 +96,23 @@ def load_agents(path):
     identifiers = set()
     for agent in agents:
         required = {"id", "label", "category", "description", "agent", "tools"}
-        if not isinstance(agent, dict) or not required <= set(agent) or set(agent) - required - {"prompts"}:
+        if not isinstance(agent, dict) or not required <= set(agent) or set(agent) - required - {"prompts", "guidance"}:
             raise ValueError("Invalid agent configuration")
         for key in ("id", "agent"):
             if not isinstance(agent[key], str) or not NAME.fullmatch(agent[key]):
                 raise ValueError("Invalid agent name")
+        if CREATED_ID.fullmatch(agent["id"]):
+            raise ValueError("The created-agent identifier namespace is reserved")
         for key in ("label", "category", "description"):
             if not isinstance(agent[key], str) or not agent[key].strip():
                 raise ValueError("Agent display fields must be nonempty")
+        if "guidance" in agent:
+            guidance = agent["guidance"]
+            if (not isinstance(guidance, dict)
+                    or set(guidance) != {"input", "output", "limits", "delegation", "configuration"}
+                    or any(not isinstance(value, str) or not 1 <= len(value.strip()) <= 1200
+                           for value in guidance.values())):
+                raise ValueError("Invalid agent guidance")
         if agent["id"] in identifiers:
             raise ValueError("Duplicate agent identifier")
         identifiers.add(agent["id"])
@@ -168,7 +180,7 @@ class FoundryGateway:
                 return response.status, response.output_text, response.model_dump().get("output", [])
 
 
-def create_app(settings=None, gateway=None, history_store=None):
+def create_app(settings=None, gateway=None, history_store=None, publisher=None):
     settings = settings or Settings.from_env()
     settings.validate()
     agents = load_agents(settings.agents_path)
@@ -188,6 +200,7 @@ def create_app(settings=None, gateway=None, history_store=None):
         history_store = CosmosHistory(cosmos_endpoint)
 
     review_runs = ReviewRuns(settings, registry, history_store, gateway, execution_receipts, slots, recent)
+    created_agents = AgentCreations(settings, history_store, publisher)
     dependency_status = {"status": "disabled" if settings.mode == "preview" else "starting"}
 
     async def probe_dependencies():
@@ -229,6 +242,7 @@ def create_app(settings=None, gateway=None, history_store=None):
                 monitor.cancel()
                 await asyncio.gather(monitor, return_exceptions=True)
             await review_runs.close()
+            await created_agents.close()
             if history_store is not None:
                 await history_store.close()
 
@@ -272,7 +286,8 @@ def create_app(settings=None, gateway=None, history_store=None):
             "review_timeout_ms": round(settings.timeout * 1000) + 10000,
             "history_timeout_ms": HISTORY_TIMEOUT_MS,
             "history_enabled": history_store is not None, "history_scope": "shared", "retention_days": 30,
-            "reviews_enabled": settings.mode == "private" and history_store is not None}
+            "reviews_enabled": settings.mode == "private" and history_store is not None,
+            "agent_creation": created_agents.capabilities()}
 
     @application.post("/api/reviews")
     async def review(request: Request):
@@ -316,7 +331,8 @@ def create_app(settings=None, gateway=None, history_store=None):
         except (ValueError, UnicodeError):
             return error(400, "invalid_request")
         if (not isinstance(data, dict) or set(data) not in ({"agent_id", "input"}, {"agent_id", "input", "history"}) or
-                not isinstance(data["agent_id"], str) or data["agent_id"] not in registry or
+                not isinstance(data["agent_id"], str) or
+                (data["agent_id"] not in registry and not CREATED_ID.fullmatch(data["agent_id"])) or
                 not isinstance(data["input"], str) or not data["input"].strip() or len(data["input"]) > MAX_CHARACTERS):
             return error(400, "invalid_request")
         history = data.get("history", [])
@@ -332,7 +348,15 @@ def create_app(settings=None, gateway=None, history_store=None):
         prompt = history + [{"role": "user", "content": data["input"]}] if history else data["input"]
         if settings.mode == "preview":
             return error(503, "preview_only")
-        agent = registry[data["agent_id"]]
+        agent = registry.get(data["agent_id"])
+        if agent is None:
+            try:
+                agent = await created_agents.resolve_agent(data["agent_id"])
+            except Exception as problem:
+                LOGGER.error(json.dumps({"event": "created_agent_lookup_failed", "type": type(problem).__name__}))
+                return error(503, "agents_unavailable")
+            if agent is None:
+                return error(400, "invalid_request")
         started = time.monotonic()
         try:
             async with asyncio.timeout(settings.timeout):
@@ -352,7 +376,8 @@ def create_app(settings=None, gateway=None, history_store=None):
         except Exception:
             return error(502, "backend_unavailable")
 
-    application.include_router(history_router(settings, registry, history_store))
+    application.include_router(history_router(settings, registry, history_store, created_agents))
     application.include_router(review_runs.router)
+    application.include_router(created_agents.router)
     application.mount("/", StaticFiles(directory=ROOT / "static", html=True, check_dir=False), name="static")
     return application

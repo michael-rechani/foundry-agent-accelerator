@@ -16,10 +16,11 @@ trace exports or evaluation artifacts containing sensitive data.
 
 | Field | Record |
 | --- | --- |
-| Scenario and source status | Casework / application / experimental proposal; triage is planned, not a completed demo |
+| Scenario and source status | Selected creation template or existing casework / application / experimental proposal; business-request triage is still planned |
 | Validation mode | Offline illustration, offline automated tests, or approved live Foundry run |
 | Inputs and versions | Synthetic fixture path, dataset version/hash, source revision, prompt version/hash |
 | Runtime | Agent names and routed versions, model/deployment names and model versions; unknown fields explicitly unavailable |
+| Creation, if used | Template ID, saved setup and actual publication stages; distinguish a draft from a created runtime and a ready route from a quality-tested answer |
 | Conditions | Date, region, relevant settings, number of repeated runs, and approved configuration differences |
 | Evidence | Test output, native Foundry evaluation/run IDs, and approved trace references if actually collected |
 
@@ -35,6 +36,8 @@ Illustrative examples, **not measured results from this repository change**:
   follow-up question.
 - The proposal matrix distinguished a product claim from supplied protocol
   evidence, and did not recommend a vendor.
+- The workflow template returned visibly simulated lookup data and proposed
+  steps without claiming a ticket, approval or external integration ran.
 
 Report whether citations were checked manually, validated as exact source quotes
 by the structured review path, or not checked. A verified specialist receipt

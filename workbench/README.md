@@ -1,7 +1,22 @@
 # AI Foundry Lab
 
-Private, chat-first React/TypeScript UI with a FastAPI backend, Cosmos persistence,
-and an optional evidence-review workflow.
+Describe a job, prepare a setup from one of five reviewed templates, and create
+a baseline Microsoft Foundry agent to try in Chat. **Create agent** prepares
+instructions; an explicit, operator-protected action publishes the real hosted
+agent when creation is enabled. **Chat does not create or configure agents.**
+The existing developer-published agents remain available.
+
+**Document reviews** is the separate option for saving a check of each item on
+your checklist. Paste document text, run the review, read the results beside the
+original text, then add missing information and run again when requested.
+
+The five jobs are Document Analyst, Criteria Checker, Document Intake Assistant,
+Casework Assistant and Workflow Coordinator. They provide generic public-sector,
+healthcare-operations and ISV demonstrations. The first four use supplied text;
+the workflow job has only two **simulated read-only** lookups. None connects to
+customer systems or performs business writes. See [creation and operator setup](../docs/agent-creation.md).
+
+The private React/TypeScript UI uses a FastAPI backend and shared Cosmos storage.
 
 ## Choose one demonstration
 
@@ -26,7 +41,7 @@ Live model execution still incurs charges; see [Storage and Cost](#storage-and-c
 
 The frontend uses React 19, TypeScript, Vite, Lucide icons, and custom
 Fluent-inspired CSS, not the Fluent UI component library. Neutral surfaces and
-blue actions are shared across Chat, evidence reviews, history, catalog, and performance.
+blue actions are shared across creation, Chat, Document reviews, history, Agents, and performance.
 Playwright covers desktop and mobile workflows. The Python backend uses FastAPI,
 Pydantic validation, and async Azure SDKs for Foundry and Cosmos DB.
 
@@ -34,9 +49,10 @@ Pydantic validation, and async Azure SDKs for Foundry and Cosmos DB.
 
 Use the `private_url` Terraform output from an authorized private-network browser.
 For local development, use http://127.0.0.1:8080 after starting the server below.
-Local disconnected mode disables agent calls and Cosmos access.
+Local disconnected mode allows template preparation but disables publication,
+agent calls and Cosmos access.
 
-The Container Apps environment has an internal load balancer and public network access disabled. App-level external ingress means access from outside the *environment*, within the private network; ingress is further restricted to an approved source subnet. APIM is not involved and no agent APIs are published by this application.
+The Container Apps environment has an internal load balancer and public network access disabled. App-level external ingress means access from outside the *environment*, within the private network; ingress is further restricted to an approved source subnet. APIM is not involved and no public gateway API is exposed by this application. Opt-in creation publishes named agents inside the configured private Foundry project.
 
 For broader internal access or a controlled internet-facing entry point, see the
 [Application Gateway and Front Door guide](../docs/ingress-access.md). It covers
@@ -47,20 +63,26 @@ End-user Entra sign-in is not a prerequisite for the current private lab. Azure
 resource access still uses managed identities. Restrict the lab to trusted
 operators and fictional inputs; it is not a user-isolated application.
 The **Shared lab** control in the header explains these limits on demand:
-everyone with workspace access can read, modify and delete saved records.
+everyone with workspace access can read, modify and delete saved chats, read
+reviews and add requested information, and read created-agent setups. Reviews
+have no deletion control. Publication and deleting a created agent require the
+shared operator key; this is not per-user authorization.
 There is no permanent warning banner. The details are available on desktop and
 mobile; they are informational, not an access control or a check that submitted
 data is fictional.
 
 ## Conversations
 
-Chat is the default view; a valid saved-review URL opens its review directly,
-including after a reload. The optional [evidence-review workflow](../docs/review-workflow.md)
+Create agent is the initial view for the new capability. A valid saved-review URL
+still opens its review directly, including after a reload; older configuration
+responses without creation capability retain Chat-first behavior. The optional [Document reviews workflow](../docs/review-workflow.md)
 has its own data contract and deployment checks; it is not required to use Chat.
 
-- Guided review (`customer-review`, previously displayed as Customer review) is the only directly available agent by default. Its existing runtime agent and specialist bindings still work. Configure `visible_agents` in Terraform or `WORKBENCH_VISIBLE_AGENTS` locally to change the catalog; hidden agents cannot be invoked directly through the workbench API.
-- Guided review offers three scenario starters: **Review an application** (application completeness), **Casework assistance**, and **Requirements and proposal review (EXPERIMENTAL)**. **Start with a question** retains clarification without assuming a scenario. Select just one starter; it fills the composer without submitting.
-- The catalog uses customer-facing names: Guided review, Review planning, Application completeness and Casework assistance. Expand **Runtime / developer details** for unchanged catalog IDs, runtime agent names and tool bindings. These are configuration, not execution proof; response execution details and receipt checks remain available.
+- **Application and case helper** (`customer-review`, formerly Guided review) is the only static catalog agent directly available by default. It asks the application-checking or case-notes specialist to do the task, then returns their findings. Configure `visible_agents` in Terraform or `WORKBENCH_VISIBLE_AGENTS` locally to change the static catalog; hidden agents cannot be invoked directly through the workbench API. Ready agents created in this Lab are listed separately and can be selected in Chat.
+- Its example tasks are **Review an application**, **Summarize case notes**, and **Compare a proposal (EXPERIMENTAL)**. **Help me get started** asks what to supply, not how to create an agent. A starter only fills the message; the user must choose Send.
+- **About this agent** stays available in the Chat header, including during a conversation. It explains what to give the agent, what to expect, how it works and what it will not do.
+- **Agents** lists only enabled entries. **Application and case helper (base setup)** (`review-coordinator`, formerly Review planning) uses the same specialists through different tool names. It is an alternative developer setup, not a separate planning capability. **Application checker** and **Case notes summarizer** talk directly to the respective specialists when enabled.
+- **Developer setup details** shows unchanged catalog IDs, runtime names, expected tool bindings and configuration sources. These describe configured capabilities, not observed execution. Check response execution details and receipts; stored receipts are not reverified.
 - Send a message, then use the Save icon to save completed exchanges. Saving is explicit, not automatic. Unsaved drafts remain only in browser memory. Export includes completed exchanges and the current draft. Browser navigation warns about unsaved work where supported; it cannot prevent data loss from a browser crash or forced close.
 - Shared history lists, reopens and deletes saved conversations. **Everyone with workspace access can read, modify and delete these conversations.** There is no per-user authorization yet. Use synthetic data only.
 - Saves expire 30 days after their last update. Deletion and TTL remove active documents; the account's backup retention is separate and is not immediate secure erasure.
@@ -84,10 +106,37 @@ values; it cannot raise server limits. Credentials and private connection
 settings are not returned. The 15-second bootstrap deadline is browser-local
 because configuration is not available yet.
 
-- Edit `agents.json` to change display labels, descriptions, specialist bindings
-	and optional `prompts` arrays. Each prompt has `label` (up to 80 characters)
-	and `text` (up to 4,000 characters); up to six prompts are accepted per agent.
-	Prompts use synthetic data and are never submitted just by selecting one.
+The creation flow is bounded: select a prepared template, describe the job,
+review/edit its name and task instructions, then explicitly confirm publication.
+Preparation is deterministic template assembly, not an LLM-generated agent or a
+conversation that edits deployed agents. There is no arbitrary code/tool
+installer, live connector wizard or in-place editor for existing deployments.
+
+| Setting | Authoritative source | How a change takes effect |
+| --- | --- | --- |
+| Job templates, draft defaults, example inputs and fixed tool descriptions | [`agent_templates.py`](agent_templates.py) | Rebuild/redeploy the Lab; existing created agents do not change |
+| Created-agent name and task instructions | Reviewed creation request saved in Cosmos | Operator-confirmed publication captures instructions in a new named hosted agent; later chat prompts do not edit it |
+| Created-agent runtime policy and allowed tools | [`agent_runtime`](agent_runtime), packaged by [`agent_publisher.py`](agent_publisher.py) | Reviewed source change and Lab rollout; existing published versions remain unchanged |
+| Creation enablement, model and operator-key verifier | Optional Lab Terraform inputs / server environment | Operator-managed rollout; not editable in the browser |
+| Display name, description, getting-started guide and starters | [`agents.json`](agents.json) | Rebuild and redeploy the Lab; no agent publication needed |
+| Foundry endpoint name and expected specialist receipts | `agent` and `tools` in [`agents.json`](agents.json) | Rebuild/redeploy the Lab to point at a separately published, tested configuration |
+| Coordinator instructions and real tools | Selected [coordinator profile](../docs/agent-profiles.md), or the base coordinator's instructions and runtime defaults | Publish and test a new coordinator version; editing the Lab catalog does not change runtime tools |
+| Specialist instructions | [Application instructions](../hosted-agents/application-review-agent/instructions.md) or [case instructions](../hosted-agents/case-review-agent/instructions.md), plus deployment configuration | Publish and test a new specialist version |
+| Visible entries, default agent and title | Lab Terraform inputs below; local equivalents are `WORKBENCH_*` environment settings | Reviewed Lab rollout, or restart the local server |
+
+Deployed agent versions capture instructions and environment settings.
+`AGENT_INSTRUCTIONS` overrides the runtime's default instruction file;
+`SPECIALIST_CONFIG` overrides the coordinator's legacy specialist-name settings.
+The Lab does not inspect or edit these live settings. Keep its endpoint/receipt
+map aligned with the deployed profile; it is not a second runtime tool registry.
+
+- Each optional `guidance` object in `agents.json` has `input`, `output`, `limits`,
+  `delegation` and `configuration`, all nonempty strings up to 1,200 trimmed
+  characters. These are presentation text only. Older catalogs without guidance
+  still load, with an explicit getting-started-guide-unavailable message.
+- Optional `prompts` arrays accept up to six entries, each with `label` (up to
+  80 characters) and `text` (up to 4,000 characters). Starters use fictional
+  inputs and are never submitted just by selecting one.
 - `visible_agents` controls direct access. Terraform validates IDs against
 	`agents.json`, and the backend independently validates the deployed registry.
 - `default_agent` must be visible; when omitted, the first `visible_agents` entry
@@ -97,16 +146,20 @@ because configuration is not available yet.
 	browser title without renaming Azure resources.
 - Rebuild the image after registry changes. Terraform title/default/visibility
 	changes update container environment settings through the reviewed rollout.
-	There is no unauthenticated administrative editor.
+	There is no administrative editor in the UI.
 
 ## Storage and Cost
 
 The existing provisioned-throughput account `aifnd-agent-foundry-cosmosdb-7omvd` contains a dedicated `workbench/conversations` container. Foundry's `enterprise_memory` database is unchanged. The workbench identity has Cosmos Data Contributor scoped to this container only. It uses the existing private Cosmos endpoint and no account keys.
 
-The container has 400 RU/s dedicated throughput and 30-day TTL. Review support
+The container has 400 RU/s dedicated throughput and default 30-day TTL. Review support
 adds a record-type index alongside agent ID and update time; apply this additive
 index before deploying the review-enabled image. Transcript and evidence bodies
-are not indexed. Lists are paged in batches of 20 and point reads load a selected record.
+are not indexed. Chat/review lists are paged in batches of 20 and point reads
+load a selected record. Created-agent records use the existing record-type
+index and override TTL: a billable runtime must not lose its registry entry by
+expiry. Confirmed deletion removes the saved name and instructions and retains
+a minimal idempotency tombstone. See [creation persistence](../docs/agent-creation.md#publication-recovery-and-deletion).
 
 The saved North Central US retail-rate assumption from the
 [Azure Retail Prices API](https://prices.azure.com/api/retail/prices) is
@@ -118,6 +171,13 @@ It excludes storage, backups, discounts, taxes, model tokens, Container Apps,
 registry/builds, and existing network resources, so it is not the total Lab bill.
 
 The app runs one warm 0.5-vCPU/1-GiB replica for responsiveness. Reviews admit at most four concurrent requests and 20 requests/minute, including rejected input. History separately admits four concurrent requests and 60 requests/minute. Admission occurs before reading bodies or calling dependencies. These limits are process-local; do not increase workers or replicas without distributed controls. Uvicorn limits connection/task concurrency to 32.
+
+Creation adds at most five nondeleted hosted agents by default, including
+unconfirmed or failed attempts. Each uses 0.5 CPU / 1 GiB and can incur hosted
+runtime/build costs as well as model charges. New publication and deletion run
+one at a time; created-agent APIs admit four requests concurrently and 120 per
+minute. Closing the tab, disabling new creation or stopping the browser wait
+does not stop an existing hosted runtime. Retire it explicitly.
 
 Review body uploads have a five-second server deadline. History operations, including uploads and SDK retries, have a 35-second server deadline; the browser waits up to 45 seconds. Rejections return HTTP 429 with `Retry-After: 60`. Agent execution retains its 180-second deadline. Responses are size-bounded; cancellation does not guarantee an already accepted remote mutation or model call stops.
 
@@ -132,9 +192,10 @@ python -m pip install -r workbench/requirements.txt
 python -m uvicorn app:create_app --factory --app-dir workbench --host 127.0.0.1 --port 8080 --no-access-log
 ```
 
-Vite writes compiled assets to `workbench/static`, which FastAPI serves. Fonts are local; there are no CDN dependencies or browser credentials. Markdown does not render raw HTML, external images or clickable external links.
+Vite writes compiled assets to `workbench/static`, which FastAPI serves. Fonts are local; there are no CDN dependencies or Azure credentials in the browser. The optional operator key is held in memory only for creation/deletion requests. Markdown does not render raw HTML, external images or clickable external links.
 
 ```powershell
+python -m pip install -r workbench/requirements.txt -r workbench/agent_runtime/requirements.txt
 python -m unittest discover -s workbench -p 'test_*.py' -v
 npm --prefix workbench/frontend run lint
 npm --prefix workbench/frontend exec -- playwright install chromium

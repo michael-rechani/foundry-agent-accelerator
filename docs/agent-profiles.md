@@ -15,6 +15,57 @@ The existing review coordinator is the default sample, not a platform dependency
 No GUI, Teams channel, Redis, dynamic plugin installer, or tenant-wide identity
 changes are required by this profile mechanism.
 
+## How profiles appear in the Lab
+
+The Lab has two explicit paths: existing developer-published catalog agents,
+and [opt-in creation from prepared templates](agent-creation.md). A coordinator
+profile remains a developer configuration input, not proof that a runtime
+exists. Preparing a template draft also does not create a resource; the
+operator-confirmed publication action does that.
+
+**Chat uses the selected configured agent**; it does not create or configure one.
+A scenario starter is a task and sample message, not a new profile or runtime.
+Only explicitly enabled static entries and ready agents created in this Lab can
+be used in Chat. New creation does not expose hidden catalog entries.
+
+| Display name | Unchanged catalog ID | Runtime configuration source |
+| --- | --- | --- |
+| Application and case helper (formerly Guided review) | `customer-review` | [Example coordinator profile](../hosted-agents/review-coordinator-agent/profiles/evidence-review.example.json), published as `customer-review-coordinator` |
+| Application and case helper (base setup; formerly Review planning) | `review-coordinator` | [Base instructions](../hosted-agents/review-coordinator-agent/instructions.md) and [runtime defaults](../hosted-agents/review-coordinator-agent/main.py), published as `review-coordinator-agent` |
+| Application checker | `application-review` | [Application instructions](../hosted-agents/application-review-agent/instructions.md) and that specialist's deployment |
+| Case notes summarizer | `case-review` | [Case instructions](../hosted-agents/case-review-agent/instructions.md) and that specialist's deployment |
+
+The two coordinator entries offer the **same application and case review jobs**.
+The example uses `inspect_application` / `inspect_case`; the base setup uses
+`review_application` / `review_case`. Both call the same two specialists and can
+ask what input is needed. There was no separate planning-only capability behind
+the old Review planning label. Keeping both IDs preserves existing routes and
+visibility choices, not a claim that they are different scenarios.
+
+The deployed version's instructions and environment settings govern runtime
+behavior. Profile publication captures its instructions and `SPECIALIST_CONFIG`;
+without a profile the base files/defaults apply, unless explicitly overridden
+in the deployed environment. Changing source files alone does not update a
+running agent. Runtime-instruction changes require publication and live
+acceptance checks under the existing deployment process.
+
+[`workbench/agents.json`](../workbench/agents.json) owns display names,
+getting-started guidance and starters, plus the Lab's endpoint and expected
+receipt map. It does **not** register tools or change agent instructions.
+Rebuild/redeploy the Lab for those changes and keep its map aligned with the
+runtime. [Lab settings](../workbench/README.md#workspace-configuration) separately
+own the visible entries, default agent and title. Neither selection nor prompt
+editing is an administrative control.
+
+The new templates do not modify these profiles or specialist bindings.
+Document Analyst, Criteria Checker, Document Intake Assistant and Casework
+Assistant are single-agent supplied-text jobs without tools. Workflow
+Coordinator has two local fictional-data lookups, not specialist delegation or
+live integration. The saved creation setup owns its task instructions;
+[`agent_runtime`](../workbench/agent_runtime) owns the immutable policy and tool
+allowlist. Each is published as its own generated `lab-demo-...` runtime name.
+Created-agent display names are independent of that runtime name.
+
 ## Runtime flow
 
 ```mermaid
@@ -90,6 +141,10 @@ not assume every profile uses the default tool name.
 strict findings schema. Source references and factual claims still need review.
 The optional structured-review workflow adds its own
 [schema, coverage, and quote checks](review-workflow.md#execution-and-trust).
+In the Lab this is **Document reviews**. The backend supplies its JSON schema;
+coordinators pass the schema, checklist and text to the specialist. Specialist
+instructions use that requested format instead of ordinary Chat prose sections.
+Offline schema tests do not establish live model adherence to the instructions.
 
 | Situation | Expected handling |
 | --- | --- |

@@ -78,6 +78,12 @@ class CosmosHistory:
         items = [item async for item in page] if page is not None else []
         return {"items": items, "cursor": pages.continuation_token}
 
+    async def list_created_agents(self, project):
+        items = self.container.query_items(
+            query="SELECT * FROM c WHERE c.kind = 'created-agent' ORDER BY c.updated_at DESC",
+            partition_key="shared", max_item_count=20)
+        return [item async for item in items if item.get("project") == project]
+
     async def get(self, identifier):
         return await self.container.read_item(identifier, partition_key="shared")
 
@@ -99,10 +105,15 @@ def unverified_turns(turns):
     return result
 
 
-def history_router(settings, registry, store):
+def history_router(settings, registry, store, created_agents=None):
     router = APIRouter()
     semaphore = asyncio.Semaphore(4)
     recent = deque()
+
+    async def resolve(identifier):
+        if identifier in registry:
+            return registry[identifier]
+        return await created_agents.resolve_agent(identifier) if created_agents is not None else None
 
     @router.api_route("/api/conversations", methods=["GET", "POST"])
     @router.api_route("/api/conversations/{identifier}", methods=["GET", "PUT", "DELETE"])
@@ -141,9 +152,12 @@ def history_router(settings, registry, store):
                 cursor = request.query_params.get("cursor")
                 if cursor and len(cursor) > 8192:
                     return error(400, "invalid_cursor")
-                return await store.list(registry, cursor)
+                identifiers = list(registry)
+                if created_agents is not None:
+                    identifiers.extend(await created_agents.ready_ids())
+                return await store.list(identifiers, cursor)
             existing = await store.get(identifier) if identifier else None
-            if existing and existing["agent_id"] not in registry:
+            if existing and (existing.get("kind") is not None or not await resolve(existing["agent_id"])):
                 return error(404, "conversation_not_found")
             if request.method == "GET":
                 document = {key: existing[key] for key in ("id", "title", "agent_id", "turns", "updated_at", "_etag")}
@@ -162,7 +176,8 @@ def history_router(settings, registry, store):
                 if len(body) > 524288:
                     return error(413, "conversation_too_large")
             conversation = Conversation.model_validate_json(body)
-            if conversation.agent_id not in registry or any(turn.result.agent != registry[conversation.agent_id]["agent"] for turn in conversation.turns):
+            agent = await resolve(conversation.agent_id)
+            if agent is None or any(turn.result.agent != agent["agent"] for turn in conversation.turns):
                 return error(400, "invalid_conversation")
             if existing and existing["agent_id"] != conversation.agent_id:
                 return error(400, "invalid_conversation")
