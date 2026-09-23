@@ -160,6 +160,11 @@ management virtual network (VNet), subnet, peering, and DNS links are defined in
 `enable_management_network = false` only when that network is not needed.
 Enabling the VM or APIM also enables the network.
 
+An enabled VM shuts down and deallocates nightly at 03:00 UTC, without
+notifications. Set `jumpbox_auto_shutdown = { time = "1900", timezone =
+"Pacific Standard Time" }` to change the schedule, or `null` to remove it.
+Start the VM again before using it as a private runner.
+
 APIM can use the shared management network without enabling the VM. Its region
 must match `jumpbox_location`, which selects that network's region. Existing
 Terraform addresses and network names are retained for compatibility.

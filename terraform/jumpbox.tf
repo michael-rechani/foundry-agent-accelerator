@@ -172,6 +172,21 @@ resource "azapi_resource" "jumpbox_vm_access" {
   lifecycle { prevent_destroy = true }
 }
 
+resource "azurerm_dev_test_global_vm_shutdown_schedule" "jumpbox" {
+  count = var.enable_jumpbox && var.jumpbox_auto_shutdown != null ? 1 : 0
+
+  virtual_machine_id    = azapi_resource.jumpbox[0].id
+  location              = var.jumpbox_location
+  enabled               = true
+  daily_recurrence_time = var.jumpbox_auto_shutdown.time
+  timezone              = var.jumpbox_auto_shutdown.timezone
+  tags                  = local.tags
+
+  notification_settings {
+    enabled = false
+  }
+}
+
 data "azapi_resource" "jumpbox_identity" {
   count                  = var.enable_jumpbox ? 1 : 0
   type                   = "Microsoft.Compute/virtualMachines@2024-03-01"

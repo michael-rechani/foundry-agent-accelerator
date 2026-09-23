@@ -43,7 +43,7 @@ run "fresh_defaults" {
     error_message = "Default Cosmos topology must use the selected region."
   }
   assert {
-    condition     = !var.enable_jumpbox && !var.enable_api_management && length(azurerm_virtual_network.jumpbox) == 1 && length(azurerm_subnet.jumpbox) == 1
+    condition     = !var.enable_jumpbox && !var.enable_api_management && length(azurerm_virtual_network.jumpbox) == 1 && length(azurerm_subnet.jumpbox) == 1 && length(azurerm_dev_test_global_vm_shutdown_schedule.jumpbox) == 0
     error_message = "Default configuration must retain Lab management networking without enabling a VM or APIM."
   }
   assert {
@@ -140,6 +140,62 @@ run "existing_vm_disk" {
     )
     error_message = "Adopting an existing VM without a credential reference must preserve its disk and omit the access extension."
   }
+  assert {
+    condition = (
+      length(azurerm_dev_test_global_vm_shutdown_schedule.jumpbox) == 1 &&
+      azurerm_dev_test_global_vm_shutdown_schedule.jumpbox[0].enabled &&
+      azurerm_dev_test_global_vm_shutdown_schedule.jumpbox[0].daily_recurrence_time == "0300" &&
+      azurerm_dev_test_global_vm_shutdown_schedule.jumpbox[0].timezone == "UTC" &&
+      azurerm_dev_test_global_vm_shutdown_schedule.jumpbox[0].location == var.jumpbox_location &&
+      !azurerm_dev_test_global_vm_shutdown_schedule.jumpbox[0].notification_settings[0].enabled
+    )
+    error_message = "An enabled jumpbox must get the default nightly shutdown in its own region."
+  }
+}
+
+run "jumpbox_shutdown_settings" {
+  command = plan
+  variables {
+    enable_jumpbox = true
+    jumpbox_existing_os_disk = {
+      id                   = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-platform-test-12345/providers/Microsoft.Compute/disks/existing-os"
+      name                 = "existing-os"
+      storage_account_type = "Standard_LRS"
+    }
+    jumpbox_auto_shutdown = { time = "1930", timezone = "Pacific Standard Time" }
+  }
+  assert {
+    condition = (
+      azurerm_dev_test_global_vm_shutdown_schedule.jumpbox[0].daily_recurrence_time == "1930" &&
+      azurerm_dev_test_global_vm_shutdown_schedule.jumpbox[0].timezone == "Pacific Standard Time"
+    )
+    error_message = "Custom shutdown settings must reach the schedule."
+  }
+}
+
+run "jumpbox_shutdown_opt_out" {
+  command = plan
+  variables {
+    enable_jumpbox = true
+    jumpbox_existing_os_disk = {
+      id                   = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-platform-test-12345/providers/Microsoft.Compute/disks/existing-os"
+      name                 = "existing-os"
+      storage_account_type = "Standard_LRS"
+    }
+    jumpbox_auto_shutdown = null
+  }
+  assert {
+    condition     = length(azurerm_dev_test_global_vm_shutdown_schedule.jumpbox) == 0 && length(azapi_resource.jumpbox) == 1
+    error_message = "A null shutdown setting must keep the VM without a schedule."
+  }
+}
+
+run "reject_invalid_shutdown_time" {
+  command = plan
+  variables {
+    jumpbox_auto_shutdown = { time = "7pm" }
+  }
+  expect_failures = [var.jumpbox_auto_shutdown]
 }
 
 run "attach_existing_vm_disk" {

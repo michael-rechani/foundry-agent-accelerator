@@ -188,6 +188,20 @@ variable "jumpbox_vm_size" {
   default     = "Standard_B2s"
 }
 
+variable "jumpbox_auto_shutdown" {
+  type = object({
+    time     = optional(string, "0300")
+    timezone = optional(string, "UTC")
+  })
+  description = "Daily shutdown that deallocates a forgotten jumpbox to stop compute charges. time is 24-hour HHmm in the Windows time zone ID given by timezone. The default is 03:00 UTC, which is late evening across the United States. Set to null to disable."
+  default     = {}
+
+  validation {
+    condition     = var.jumpbox_auto_shutdown == null ? true : can(regex("^([01][0-9]|2[0-3])[0-5][0-9]$", var.jumpbox_auto_shutdown.time)) && length(trimspace(var.jumpbox_auto_shutdown.timezone)) > 0
+    error_message = "jumpbox_auto_shutdown.time must be 24-hour HHmm, such as 0300, and timezone must be a Windows time zone ID, such as UTC or Pacific Standard Time."
+  }
+}
+
 variable "enable_api_management" {
   type        = bool
   description = "Creates a Standard v2 API Management gateway for governed client access to agent APIs."
