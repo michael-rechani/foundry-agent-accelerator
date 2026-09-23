@@ -14,7 +14,7 @@ locals {
 
 module "naming" {
   source  = "Azure/naming/azurerm"
-  version = "0.4.3"
+  version = "0.4.4"
 
   suffix        = [local.name_suffix]
   unique-length = 5
