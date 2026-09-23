@@ -1,3 +1,16 @@
+// Proxies and gateways can return HTML or empty error bodies; callers then fall
+// back to their generic messages instead of surfacing a JSON parse error.
+async function readJson(response: Response) {
+  const text = await response.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    if (response.ok)
+      throw new Error('The server returned an unreadable response.')
+    return {}
+  }
+}
+
 export async function requestJson(
   url: string,
   options: RequestInit,
@@ -13,7 +26,7 @@ export async function requestJson(
     const result = await Promise.race([
       fetch(url, { ...options, signal }).then(async (response) => ({
         response,
-        data: await response.json(),
+        data: await readJson(response),
       })),
       cancelled,
     ])

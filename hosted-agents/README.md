@@ -183,7 +183,7 @@ equivalent permissions) to create versions and update endpoint routing.
 | Project or deployment not found | Re-read both values with `terraform output -raw`; the model value is the deployment name, not merely a catalog model name. |
 | Remote build fails | Confirm `main.py` and `requirements.txt` are present and that the pinned packages remain available. |
 | Version provisioning fails | Review the reported version details and confirm hosted-agent and model availability in the selected region. |
-| Smoke test fails | Inspect Foundry/Application Insights logs and endpoint routing; candidates are retained when cleanup cannot confirm they are unrouted. |
+| Smoke test fails | From the private network, open **Agents > Traces** in the Foundry project, or query `AppDependencies` and `AppExceptions` by response ID in the linked Application Insights resource ([runbook](../terraform/monitoring/README.md#verification-and-portal-use)). Traces are metadata-only, so check status, timings and exception types rather than prompts. Also check endpoint routing; candidates are retained when cleanup cannot confirm they are unrouted. |
 
 ## Scenario selection and optional extensions
 
@@ -202,6 +202,12 @@ M365/Copilot/SharePoint integrations are excluded from the primary path.
 Responses remains the Lab contract. Invocations for webhooks, batch payloads,
 or custom streaming would need a separately justified adapter and validation,
 not a change to every existing chat or review agent.
+
+For metadata-only operational traces in the Foundry portal, see the
+[private monitoring runbook](../terraform/monitoring/README.md). The publisher
+disables prompt, response, and sensitive tool-content recording and uses Entra
+authentication for Application Insights. Existing versions need an explicit
+rollout; changing publisher defaults does not update running agents.
 
 These samples intentionally avoid incident investigation, telemetry
 correlation, root-cause analysis, mitigation, scheduled health checks, and

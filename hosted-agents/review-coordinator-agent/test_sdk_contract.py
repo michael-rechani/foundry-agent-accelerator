@@ -29,7 +29,16 @@ class SDKContractTests(unittest.TestCase):
             from deployment import AgentProfile, deploy
         finally:
             sys.path.pop(0)
-        profile = AgentProfile(Path(__file__).parent, "coordinator", "description", "instructions", "review")
+        profile = AgentProfile(
+            Path(__file__).parent, "coordinator", "description", "instructions", "review",
+            environment_variables={
+                "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT": "true",
+                "ENABLE_SENSITIVE_DATA": "true",
+                "AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED": "true",
+                "APPLICATIONINSIGHTS_AUTH_MODE": "key",
+                "APPLICATIONINSIGHTS_STATSBEAT_DISABLED_ALL": "false",
+            },
+        )
         args = SimpleNamespace(endpoint="https://example.test", agent_name="coordinator",
                                cpu="0.5", memory="1Gi", runtime="python_3_14", model="test",
                                instructions="instructions", poll_seconds=1, max_polls=1,
@@ -45,6 +54,16 @@ class SDKContractTests(unittest.TestCase):
             with self.assertRaises(KeyboardInterrupt):
                 deploy(profile, args)
             cleanup.assert_called_once_with(client, "coordinator", "2", original_endpoint, True)
+            definition = client.agents.create_version_from_code.call_args.kwargs["definition"]
+            for key in (
+                "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT",
+                "ENABLE_SENSITIVE_DATA",
+                "AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED",
+            ):
+                self.assertEqual(definition.environment_variables[key], "false")
+            self.assertEqual(definition.environment_variables["APPLICATIONINSIGHTS_AUTH_MODE"], "entra")
+            self.assertEqual(
+                definition.environment_variables["APPLICATIONINSIGHTS_STATSBEAT_DISABLED_ALL"], "true")
 
     def test_specialist_preflight_with_real_endpoint_models(self):
         from azure.ai.projects.models import (

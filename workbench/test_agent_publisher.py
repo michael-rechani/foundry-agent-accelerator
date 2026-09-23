@@ -109,6 +109,14 @@ class PublisherTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(definition.code_configuration.entry_point, ["python", "main.py"])
         self.assertEqual(definition.code_configuration.dependency_resolution, "remote_build")
         self.assertEqual(definition.environment_variables["AGENT_STORE_RESPONSES"], "false")
+        for key in (
+            "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT",
+            "ENABLE_SENSITIVE_DATA",
+            "AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED",
+        ):
+            self.assertEqual(definition.environment_variables[key], "false")
+        self.assertEqual(definition.environment_variables["APPLICATIONINSIGHTS_AUTH_MODE"], "entra")
+        self.assertEqual(definition.environment_variables["APPLICATIONINSIGHTS_STATSBEAT_DISABLED_ALL"], "true")
         self.assertEqual(definition.environment_variables["AGENT_INSTRUCTIONS"], self.document["instructions"])
         self.assertEqual(definition.environment_variables["DEMO_TEMPLATE_ID"], "document-analyst")
         self.assertEqual(definition.environment_variables["FOUNDRY_MODEL_NAME"], "configured-model")

@@ -24,6 +24,7 @@ async function workspace(
     conflict?: boolean
     stalledHistory?: boolean
     stalledReview?: boolean
+    gatewayError?: boolean
     preview?: boolean
     startup?: 'stalled' | 'invalid' | 'invalid-guidance' | 'failed'
     config?: Partial<Config>
@@ -72,6 +73,12 @@ async function workspace(
     if (path === '/api/reviews') {
       state.requests.push(request.postDataJSON())
       if (options.stalledReview) return
+      if (options.gatewayError)
+        return route.fulfill({
+          status: 502,
+          contentType: 'text/html',
+          body: '<html><body>Bad Gateway</body></html>',
+        })
       if (options.preview) return respond({ error: 'preview_only' }, 503)
       return respond({
         request_id: `request-${state.requests.length}`,
@@ -485,6 +492,21 @@ test('stop waiting does not automatically retry', async ({ page }) => {
   await expect.poll(() => state.requests.length).toBe(1)
   await page.getByRole('button', { name: 'Stop waiting' }).click()
   await expect(page.getByRole('alert')).toContainText('Stopped waiting')
+  await expect(page.getByRole('textbox', { name: 'Message' })).toHaveValue(
+    'Synthetic request',
+  )
+  expect(state.requests).toHaveLength(1)
+})
+
+test('non-JSON gateway errors show the standard failure message', async ({
+  page,
+}) => {
+  const state = await workspace(page, { gatewayError: true })
+  await page.getByRole('textbox', { name: 'Message' }).fill('Synthetic request')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('Request failed.')
+  await expect(alert).not.toContainText(/JSON|token/i)
   await expect(page.getByRole('textbox', { name: 'Message' })).toHaveValue(
     'Synthetic request',
   )

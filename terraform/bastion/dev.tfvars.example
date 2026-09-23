@@ -1,0 +1,5 @@
+subscription_id       = "00000000-0000-0000-0000-000000000000"
+resource_group_name   = "rg-example"
+virtual_network_name  = "vnet-jumpbox-example"
+bastion_name          = "vnet-jumpbox-example-bastion"
+subnet_address_prefix = "10.43.1.0/26"

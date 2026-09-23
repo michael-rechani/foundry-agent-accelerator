@@ -98,6 +98,16 @@ jobs:
       - name: Test platform inputs and retained-disk safeguards without Azure
         shell: pwsh
         run: ./terraform/test-platform-validation.ps1
+      - name: Validate and test isolated Standard Bastion without Azure
+        run: |
+          terraform -chdir=terraform/bastion init -backend=false
+          terraform -chdir=terraform/bastion validate
+          terraform -chdir=terraform/bastion test
+      - name: Validate and test private Foundry monitoring without Azure
+        run: |
+          terraform -chdir=terraform/monitoring init -backend=false
+          terraform -chdir=terraform/monitoring validate
+          terraform -chdir=terraform/monitoring test
       - name: Validate isolated workbench infrastructure
         run: |
           terraform -chdir=workbench/infra fmt -check

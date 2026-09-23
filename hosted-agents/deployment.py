@@ -265,6 +265,11 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                         "AGENT_NAME": args.agent_name,
                         "AGENT_INSTRUCTIONS": args.instructions,
                         "AGENT_STORE_RESPONSES": "false",
+                        "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT": "false",
+                        "ENABLE_SENSITIVE_DATA": "false",
+                        "AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED": "false",
+                        "APPLICATIONINSIGHTS_AUTH_MODE": "entra",
+                        "APPLICATIONINSIGHTS_STATSBEAT_DISABLED_ALL": "true",
                     },
                     protocol_versions=[
                         ProtocolVersionRecord(protocol="responses", version="2.0.0")
