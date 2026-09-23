@@ -68,10 +68,22 @@ variable "agent_creation_enabled" {
 variable "agent_creation_model" {
   type        = string
   default     = ""
-  description = "Existing Foundry model deployment used by newly created agents; not a browser setting."
+  description = "Default existing Foundry model deployment for newly created agents, used for any kind of work without its own entry in agent_creation_models. Not a browser setting."
   validation {
     condition     = var.agent_creation_model == "" || can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", var.agent_creation_model))
     error_message = "Use an existing model deployment name."
+  }
+}
+variable "agent_creation_models" {
+  type        = map(string)
+  default     = {}
+  description = "Optional existing model deployment for each kind of work a template does: reasoning, extraction, or tool_calling. The Lab picks one from the template; unlisted kinds use agent_creation_model."
+  validation {
+    condition = alltrue([
+      for profile, deployment in var.agent_creation_models :
+      contains(["reasoning", "extraction", "tool_calling"], profile) && can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", deployment))
+    ])
+    error_message = "Use only the reasoning, extraction, and tool_calling keys, each set to an existing model deployment name."
   }
 }
 variable "agent_creation_key_secret_id" {
@@ -244,19 +256,24 @@ resource "azurerm_container_app" "this" {
       cpu    = 0.5
       memory = "1Gi"
       dynamic "env" {
-        for_each = {
-          WORKBENCH_MODE                   = "private"
-          WORKBENCH_TITLE                  = var.workspace_title
-          WORKBENCH_COSMOS_ENDPOINT        = local.cosmos_endpoint
-          WORKBENCH_VISIBLE_AGENTS         = join(",", var.visible_agents)
-          WORKBENCH_DEFAULT_AGENT          = coalesce(var.default_agent, var.visible_agents[0])
-          WORKBENCH_AGENT_CREATION_ENABLED = tostring(var.agent_creation_enabled)
-          WORKBENCH_AGENT_CREATION_MODEL   = var.agent_creation_model
-          WORKBENCH_ALLOWED_HOSTS          = local.hostname
-          WORKBENCH_ORIGINS                = "https://${local.hostname}"
-          FOUNDRY_PROJECT_ENDPOINT         = "https://${var.foundry_account_name}.services.ai.azure.com/api/projects/${var.foundry_project_name}"
-          AZURE_CLIENT_ID                  = azurerm_user_assigned_identity.this.client_id
-        }
+        for_each = merge(
+          {
+            WORKBENCH_MODE                   = "private"
+            WORKBENCH_TITLE                  = var.workspace_title
+            WORKBENCH_COSMOS_ENDPOINT        = local.cosmos_endpoint
+            WORKBENCH_VISIBLE_AGENTS         = join(",", var.visible_agents)
+            WORKBENCH_DEFAULT_AGENT          = coalesce(var.default_agent, var.visible_agents[0])
+            WORKBENCH_AGENT_CREATION_ENABLED = tostring(var.agent_creation_enabled)
+            WORKBENCH_AGENT_CREATION_MODEL   = var.agent_creation_model
+            WORKBENCH_ALLOWED_HOSTS          = local.hostname
+            WORKBENCH_ORIGINS                = "https://${local.hostname}"
+            FOUNDRY_PROJECT_ENDPOINT         = "https://${var.foundry_account_name}.services.ai.azure.com/api/projects/${var.foundry_project_name}"
+            AZURE_CLIENT_ID                  = azurerm_user_assigned_identity.this.client_id
+          },
+          length(var.agent_creation_models) == 0 ? {} : {
+            WORKBENCH_AGENT_CREATION_MODELS = jsonencode(var.agent_creation_models)
+          },
+        )
         content {
           name  = env.key
           value = env.value

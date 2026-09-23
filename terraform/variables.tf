@@ -291,6 +291,26 @@ variable "model_deployment" {
   }
 }
 
+variable "additional_model_deployments" {
+  type = map(object({
+    format   = optional(string, "OpenAI")
+    name     = string
+    version  = string
+    sku_name = optional(string, "GlobalStandard")
+    capacity = number
+  }))
+  description = "Extra Foundry model deployments, keyed by deployment name. Agents created in the Lab can use a different one for each kind of work. Confirm regional availability and quota before applying."
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for name, deployment in var.additional_model_deployments :
+      can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$", name)) && name != var.model_deployment.deployment_name && deployment.capacity > 0
+    ])
+    error_message = "Key each extra deployment by a unique deployment name other than the primary one, and give it capacity greater than zero."
+  }
+}
+
 variable "enable_agent_service" {
   type        = bool
   description = "Creates the Agent Service capability host and its development supporting resources."

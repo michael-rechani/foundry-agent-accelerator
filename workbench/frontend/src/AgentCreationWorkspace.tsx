@@ -88,6 +88,9 @@ export function AgentCreationWorkspace({
   const template = templates.find(
     (item) => item.id === (draft?.template_id || templateId),
   )
+  const templateModel = template
+    ? capability.models?.[template.model_profile.id] || capability.model
+    : undefined
   const operationRunning =
     selected?.status === 'creating' || selected?.status === 'deleting'
   const selectedId = selected?.id
@@ -558,6 +561,20 @@ export function AgentCreationWorkspace({
                     <dt>What it cannot do</dt>
                     <dd>{template.limits}</dd>
                   </div>
+                  <div>
+                    <dt>Model</dt>
+                    <dd>
+                      {templateModel ? (
+                        <code>{templateModel}</code>
+                      ) : (
+                        'Set by the Lab operator'
+                      )}
+                      {', chosen for '}
+                      <strong>{template.model_profile.label}</strong>
+                      {'. '}
+                      {template.model_profile.reason}
+                    </dd>
+                  </div>
                 </dl>
               )}
               <label>
@@ -582,9 +599,8 @@ export function AgentCreationWorkspace({
                 to 80 characters.
               </small>
               <p className="creation-help">
-                Tools and runtime rules are fixed by this template. Model:{' '}
-                {capability.model || 'set by the Lab operator'}; not changed by
-                a chat prompt.
+                The template fixes the tools, runtime rules and model. A chat
+                prompt can't change them.
               </p>
               {template?.tools.length ? (
                 <ul className="creation-tool-list">
@@ -753,7 +769,11 @@ export function AgentCreationWorkspace({
                 {selected.model && (
                   <div>
                     <dt>Model deployment</dt>
-                    <dd>{selected.model}</dd>
+                    <dd>
+                      <code>{selected.model}</code>
+                      {selected.model_profile &&
+                        `, chosen for ${selected.model_profile.label}`}
+                    </dd>
                   </div>
                 )}
               </dl>

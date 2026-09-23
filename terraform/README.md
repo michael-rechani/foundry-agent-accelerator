@@ -337,7 +337,22 @@ enable_api_management = false
 ```
 
 Review [all input defaults](variables.tf), especially model capacity, network
-ranges, and optional resources. Do not overwrite an existing environment's
+ranges, and optional resources.
+
+The platform deploys one model, `gpt-4.1`, by default. The prebuilt agents use
+it. To let [agents created in the Lab](../docs/agent-creation.md#how-the-lab-picks-a-model)
+use a different model for each kind of work, add deployments keyed by
+deployment name. Check regional availability and quota first:
+
+```hcl
+additional_model_deployments = {
+  "gpt-5.4"      = { name = "gpt-5.4", version = "2026-03-05", capacity = 10 }
+  "gpt-4.1-mini" = { name = "gpt-4.1-mini", version = "2025-04-14", capacity = 10 }
+}
+```
+
+Each entry defaults to the `OpenAI` format and the `GlobalStandard` SKU, which
+bills per token rather than for idle capacity. Do not overwrite an existing environment's
 values or reuse another deployment's names and state. Check other automatically
 loaded variable files and remove unintended command-line overrides.
 
@@ -473,7 +488,11 @@ After apply, retrieve the exact values consumed by the hosted agent deployer:
 terraform -chdir=terraform output -raw resource_group_name
 terraform -chdir=terraform output -raw foundry_project_endpoint
 terraform -chdir=terraform output -raw model_deployment_name
+terraform -chdir=terraform output -json model_deployment_names
 ```
+
+`model_deployment_name` is the primary deployment that the prebuilt agents use.
+`model_deployment_names` lists it first, followed by any extra deployments.
 
 ## Separately scoped production considerations
 

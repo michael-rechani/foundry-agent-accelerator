@@ -106,20 +106,36 @@ module "ai_foundry" {
     }
   }
 
-  ai_model_deployments = {
-    primary = {
-      name = var.model_deployment.deployment_name
-      model = {
-        format  = var.model_deployment.format
-        name    = var.model_deployment.name
-        version = var.model_deployment.version
+  ai_model_deployments = merge(
+    {
+      primary = {
+        name = var.model_deployment.deployment_name
+        model = {
+          format  = var.model_deployment.format
+          name    = var.model_deployment.name
+          version = var.model_deployment.version
+        }
+        scale = {
+          type     = var.model_deployment.sku_name
+          capacity = var.model_deployment.capacity
+        }
       }
-      scale = {
-        type     = var.model_deployment.sku_name
-        capacity = var.model_deployment.capacity
+    },
+    {
+      for name, deployment in var.additional_model_deployments : "extra-${name}" => {
+        name = name
+        model = {
+          format  = deployment.format
+          name    = deployment.name
+          version = deployment.version
+        }
+        scale = {
+          type     = deployment.sku_name
+          capacity = deployment.capacity
+        }
       }
-    }
-  }
+    },
+  )
 
   create_byor = var.enable_agent_service
   ai_search_definition = var.enable_agent_service ? {

@@ -9,9 +9,25 @@ _TEXT_LIMITS = (
 )
 _DIRECT = "Works directly on your supplied text. No other agents or external tools are called."
 
+MODEL_PROFILES = {
+    "reasoning": {
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible.",
+    },
+    "extraction": {
+        "label": "Fast extraction",
+        "reason": "Copies stated values into a fixed structure, where speed and cost matter more than deep reasoning.",
+    },
+    "tool_calling": {
+        "label": "Tool calling",
+        "reason": "Calls lookup tools in the right order and reports exactly what they return.",
+    },
+}
+
 TEMPLATES = {
     "document-analyst": {
         "id": "document-analyst",
+        "model_profile": "reasoning",
         "label": "Document Analyst",
         "description": "Explain a document, compare stated changes and identify questions for staff.",
         "input": "Paste labeled policy, notice or product text and say what you want to understand.",
@@ -39,6 +55,7 @@ TEMPLATES = {
     },
     "criteria-checker": {
         "id": "criteria-checker",
+        "model_profile": "reasoning",
         "label": "Criteria Checker",
         "description": "Compare a submission with your checklist and point out missing or conflicting information.",
         "input": "Paste explicit checklist items and labeled documents to compare with them.",
@@ -66,6 +83,7 @@ TEMPLATES = {
     },
     "document-intake": {
         "id": "document-intake",
+        "model_profile": "extraction",
         "label": "Document Intake Assistant",
         "description": "Extract stated fields from administrative forms or invoices without filling in guesses.",
         "input": "Paste fictional document text, label each document, and list the fields to capture.",
@@ -93,6 +111,7 @@ TEMPLATES = {
     },
     "casework-assistant": {
         "id": "casework-assistant",
+        "model_profile": "reasoning",
         "label": "Casework Assistant",
         "description": "Turn case notes into a clear summary and useful follow-up questions.",
         "input": "Paste labeled fictional notes, correspondence and any rules you want considered.",
@@ -120,6 +139,7 @@ TEMPLATES = {
     },
     "workflow-coordinator": {
         "id": "workflow-coordinator",
+        "model_profile": "tool_calling",
         "label": "Workflow Coordinator",
         "description": "Use simulated request and service lookups to prepare a next-step plan.",
         "input": "Use the supplied fictional request identifier and explain the task you want to plan.",
@@ -170,8 +190,13 @@ class TemplateRequiredError(ValueError):
         super().__init__("Choose the closest prepared template")
 
 
+def model_profile(profile_id):
+    return {"id": profile_id, **MODEL_PROFILES[profile_id]}
+
+
 def list_templates():
-    return deepcopy(list(TEMPLATES.values()))
+    return [{**deepcopy(template), "model_profile": model_profile(template["model_profile"])}
+            for template in TEMPLATES.values()]
 
 
 def prepare_draft(goal, template_id=None):

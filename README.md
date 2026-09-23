@@ -33,6 +33,7 @@ was published.* · [View full size](docs/images/screenshots/lab-create-agent.png
 | Foundry capability | Try it | Learn more |
 | --- | --- | --- |
 | **Hosted agents** | In **Create agent**, pick a template and publish it as a new agent. | [Agent creation](docs/agent-creation.md) |
+| **Model choice** | Each template runs on the model that suits its work: reasoning, fast extraction, or tool calling. | [How the Lab picks a model](docs/agent-creation.md#how-the-lab-picks-a-model) |
 | **Agents working together** | In **Chat**, the **Application and case helper** hands each task to a specialist agent. | [Hosted agents](hosted-agents/README.md) |
 | **Tool calling** | The **Workflow Coordinator** template calls simulated, read-only lookup tools. | [Templates](docs/agent-creation.md#what-a-participant-can-do) |
 | **Grounded answers** | In **Document reviews**, every result quotes your text, and quotes that don't match are rejected. | [Document reviews](docs/review-workflow.md) |
@@ -56,7 +57,7 @@ For all seven pages in the Lab, see the [Lab guide](workbench/README.md#pages).
 
 | I want to | Start here | What I need |
 | --- | --- | --- |
-| Create and deploy my own agent | [Create and try a baseline agent](docs/agent-creation.md) | An operator-enabled Lab, a model deployment, and cost approval |
+| Create and deploy my own agent | [Create and try a baseline agent](docs/agent-creation.md) | An operator-enabled Lab, one or more model deployments, and cost approval |
 | Demo the prebuilt agents | [Demo guide](docs/demos.md) | A deployed Lab. To read the walkthroughs and expected findings, nothing. |
 | Check answer quality | [Evaluations](evaluations/README.md) | Nothing for offline checks. Live runs need a test environment and approval. |
 | Deploy my own environment | [Deploy to Azure](#deploy-to-azure) | Azure permissions, model quota, private network access, and cost approval |
@@ -78,9 +79,10 @@ For all seven pages in the Lab, see the [Lab guide](workbench/README.md#pages).
 
 When you publish from **Create agent**, the Lab packages its reviewed agent code
 with your instructions and uploads it with the Foundry SDK. Foundry Agent
-Service builds it and starts a new hosted agent named `lab-demo-...`. The agent
-is ready once Foundry reports its version active and its route is confirmed.
-Then you try it in **Chat**.
+Service builds it and starts a new hosted agent named `lab-demo-...`, on the
+model that suits the template's kind of work. The agent is ready once Foundry
+reports its version active and its route is confirmed. Then you try it in
+**Chat**.
 
 For components, data flows, and trust boundaries, see the
 [architecture guide](docs/architecture.md). For each agent's name in the Lab

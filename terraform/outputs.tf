@@ -33,6 +33,11 @@ output "model_deployment_name" {
   value       = var.model_deployment.deployment_name
 }
 
+output "model_deployment_names" {
+  description = "All model deployment names in the project: the primary one first, then any extra deployments."
+  value       = concat([var.model_deployment.deployment_name], sort(keys(var.additional_model_deployments)))
+}
+
 output "log_analytics_workspace_id" {
   description = "Resource ID of the workspace receiving Foundry diagnostics."
   value       = azapi_resource.platform_logs.id

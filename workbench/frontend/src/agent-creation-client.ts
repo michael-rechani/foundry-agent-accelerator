@@ -7,6 +7,7 @@ import {
   type CreationCapability,
 } from './workspace-config'
 
+export type ModelProfile = { id: string; label: string; reason: string }
 export type AgentTemplate = {
   id: string
   label: string
@@ -19,6 +20,7 @@ export type AgentTemplate = {
   example_request: string
   sample_input: string
   tools: { name: string; description: string; simulated: boolean }[]
+  model_profile: ModelProfile
 }
 export type AgentDraft = {
   template_id: string
@@ -44,6 +46,7 @@ export type CreatedAgent = {
   runtime_name: string
   version: string | null
   model?: string
+  model_profile?: ModelProfile | null
   status:
     | 'creating'
     | 'ready'
@@ -68,6 +71,8 @@ const messages: Record<string, string> = {
     'Check the name, task instructions and input lengths. Tools, models and endpoints cannot be supplied here.',
   operator_access_required:
     'Enter a valid operator key. No new publication was authorized.',
+  model_unavailable:
+    'The model deployment chosen for this template does not exist in the Foundry project. Nothing was uploaded; ask an operator to check the model settings.',
   operator_permissions_required:
     'The Lab identity lacks the required Foundry permissions. An operator must review access; no roles are granted automatically.',
   creation_disabled:
@@ -164,6 +169,16 @@ function strings(value: Record<string, unknown>, keys: string[]) {
   return keys.every((key) => typeof value[key] === 'string')
 }
 
+function validProfile(value: unknown): value is ModelProfile {
+  return (
+    isObject(value) &&
+    strings(value, ['id', 'label', 'reason']) &&
+    [value.id, value.label, value.reason].every(
+      (text) => String(text).trim().length > 0,
+    )
+  )
+}
+
 export function parseTemplates(value: unknown): AgentTemplate[] {
   if (
     !isObject(value) ||
@@ -184,6 +199,7 @@ export function parseTemplates(value: unknown): AgentTemplate[] {
           'example_request',
           'sample_input',
         ]) &&
+        validProfile(item.model_profile) &&
         Array.isArray(item.tools) &&
         item.tools.every(
           (tool) =>
@@ -255,6 +271,11 @@ export function parseCreatedAgent(value: unknown): CreatedAgent {
       ['create', 'resume', 'delete'].includes(String(value.operation))
     ) ||
     !(value.model === undefined || typeof value.model === 'string') ||
+    !(
+      value.model_profile === undefined ||
+      value.model_profile === null ||
+      validProfile(value.model_profile)
+    ) ||
     !(
       value.template_label === undefined ||
       typeof value.template_label === 'string'

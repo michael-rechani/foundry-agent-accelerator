@@ -53,8 +53,8 @@ def ownership(document):
 
 
 class FoundryPublisher:
-    def __init__(self, endpoint, model, *, poll_seconds=5, client_factory=None):
-        self.endpoint, self.model = endpoint, model
+    def __init__(self, endpoint, *, poll_seconds=5, client_factory=None):
+        self.endpoint = endpoint
         self.poll_seconds, self.client_factory = poll_seconds, client_factory
 
     @asynccontextmanager
@@ -178,6 +178,10 @@ class FoundryPublisher:
                 pass
             else:
                 raise PublicationError("resource_changed")
+            try:
+                await client.deployments.get(name=document["model"])
+            except ResourceNotFoundError as problem:
+                raise PublicationError("model_unavailable") from problem
 
             await progress("uploading", publication_started=True)
             with CodeArchive(package) as code:

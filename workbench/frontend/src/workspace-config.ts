@@ -43,6 +43,7 @@ export type CreationCapability = {
   max_agents: number
   publication_timeout_seconds: number
   model?: string | null
+  models?: Record<string, string> | null
 }
 
 export function isObject(value: unknown): value is Record<string, unknown> {
@@ -71,6 +72,8 @@ function validCreation(value: unknown): value is CreationCapability | undefined 
     typeof value.publication_timeout_seconds === 'number' && Number.isInteger(value.publication_timeout_seconds) &&
     value.publication_timeout_seconds >= 30 && value.publication_timeout_seconds <= 900 &&
     (value.model === undefined || value.model === null || typeof value.model === 'string') &&
+    (value.models === undefined || value.models === null || (isObject(value.models) &&
+      Object.values(value.models).every((name) => typeof name === 'string' && name.trim().length > 0))) &&
     (!value.enabled || value.storage_enabled))
 }
 

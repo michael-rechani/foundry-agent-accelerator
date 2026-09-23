@@ -1,6 +1,6 @@
 import unittest
 
-from agent_templates import TEMPLATES, TemplateRequiredError, list_templates, prepare_draft
+from agent_templates import MODEL_PROFILES, TEMPLATES, TemplateRequiredError, list_templates, prepare_draft
 from agent_runtime.demo_tools import TEMPLATE_IDS, create_demo_tools
 
 
@@ -9,7 +9,7 @@ class TemplateTests(unittest.TestCase):
         self.assertEqual(set(TEMPLATES), TEMPLATE_IDS)
         self.assertEqual(len(TEMPLATES), 5)
         fields = {"id", "label", "description", "input", "output", "limits", "delegation",
-                  "instructions", "example_request", "sample_input", "tools"}
+                  "instructions", "example_request", "sample_input", "tools", "model_profile"}
         for identifier, template in TEMPLATES.items():
             with self.subTest(identifier=identifier):
                 self.assertEqual(set(template), fields)
@@ -24,6 +24,23 @@ class TemplateTests(unittest.TestCase):
                     [tool["name"] for tool in template["tools"]],
                     [tool.__name__ for tool in create_demo_tools(identifier, "test-demo-agent")],
                 )
+
+    def test_each_job_names_the_kind_of_model_it_needs(self):
+        expected = {
+            "document-analyst": "reasoning", "criteria-checker": "reasoning", "casework-assistant": "reasoning",
+            "document-intake": "extraction", "workflow-coordinator": "tool_calling",
+        }
+        self.assertEqual({key: template["model_profile"] for key, template in TEMPLATES.items()}, expected)
+        self.assertEqual(set(expected.values()), set(MODEL_PROFILES))
+        for profile in MODEL_PROFILES.values():
+            self.assertEqual(set(profile), {"label", "reason"})
+            self.assertTrue(all(isinstance(text, str) and text.strip() for text in profile.values()))
+        for template in list_templates():
+            with self.subTest(identifier=template["id"]):
+                profile = template["model_profile"]
+                self.assertEqual(profile, {"id": expected[template["id"]], **MODEL_PROFILES[profile["id"]]})
+        list_templates()[0]["model_profile"]["label"] = "Mutated"
+        self.assertEqual(MODEL_PROFILES["reasoning"]["label"], "Reasoning")
 
     def test_public_metadata_is_an_independent_copy(self):
         data = list_templates()

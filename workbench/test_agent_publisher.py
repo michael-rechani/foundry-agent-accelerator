@@ -68,6 +68,18 @@ class FakeAgents:
             self.exists = False
 
 
+class FakeDeployments:
+    def __init__(self, names):
+        self.names = set(names)
+        self.reads = []
+
+    async def get(self, *, name):
+        self.reads.append(name)
+        if name not in self.names:
+            raise ResourceNotFoundError()
+        return SimpleNamespace(name=name)
+
+
 class PublisherTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         _, digest = runtime_package()
@@ -79,15 +91,16 @@ class PublisherTests(unittest.IsolatedAsyncioTestCase):
             "publication_started": False, "version": None,
         }
         self.agents = FakeAgents(self.document)
+        self.deployments = FakeDeployments({"configured-model"})
         self.events = []
 
         @asynccontextmanager
         async def client():
-            yield SimpleNamespace(agents=self.agents)
+            yield SimpleNamespace(agents=self.agents, deployments=self.deployments)
 
         self.publisher = FoundryPublisher(
             "https://fictional.services.ai.azure.com/api/projects/lab",
-            "configured-model", poll_seconds=0, client_factory=client,
+            poll_seconds=0, client_factory=client,
         )
 
     async def progress(self, stage, **changes):
@@ -143,6 +156,18 @@ class PublisherTests(unittest.IsolatedAsyncioTestCase):
                 self.assertNotIn("\\", name)
                 self.assertNotIn("/", name)
                 self.assertNotIn(".env", name)
+
+    async def test_saved_model_deployment_is_used_and_must_exist_before_upload(self):
+        self.document["model"] = "extraction-model"
+        await self.assert_code("model_unavailable", self.publisher.create)
+        self.assertEqual(self.deployments.reads, ["extraction-model"])
+        self.assertEqual(self.agents.created, [])
+        self.assertEqual(self.events, [])
+        self.assertFalse(self.document["publication_started"])
+        self.deployments.names.add("extraction-model")
+        await self.publisher.create(self.document, self.progress)
+        variables = self.agents.created[0]["definition"].environment_variables
+        self.assertEqual(variables["FOUNDRY_MODEL_NAME"], "extraction-model")
 
     async def test_existing_name_is_never_given_a_new_version(self):
         self.agents.exists = True

@@ -12,6 +12,7 @@ agent-management service.
 ## In this guide
 
 - [What a participant can do](#what-a-participant-can-do)
+- [How the Lab picks a model](#how-the-lab-picks-a-model)
 - [Enable publication](#enable-publication)
 - [Configuration ownership](#configuration-ownership)
 - [Publication, recovery, and deletion](#publication-recovery-and-deletion)
@@ -67,14 +68,36 @@ The local disconnected preview supports draft preparation only. It cannot
 publish, persist a created agent, or produce a live model answer. Browser-test
 screenshots with mocked APIs must be visibly labeled as illustrative.
 
+## How the Lab picks a model
+
+Each template names the kind of work it does. The Lab runs the new agent on the
+model deployment that the operator set for that kind of work, so different
+agents can use different models. Participants don't choose a model, and a chat
+prompt can't change it.
+
+| Kind of work | Templates | What the model needs to do |
+| --- | --- | --- |
+| **Reasoning** | Document Analyst, Criteria Checker, Casework Assistant | Compare sources step by step and keep gaps and conflicts visible |
+| **Fast extraction** | Document Intake Assistant | Copy stated values into a fixed structure, where speed and cost matter more than deep reasoning |
+| **Tool calling** | Workflow Coordinator | Call lookup tools in the right order and report exactly what they return |
+
+The review step shows the chosen deployment and the reason for it. Any kind of
+work without its own deployment uses the default one, so a Lab with a single
+model still works. Each agent keeps the model it was created with; changing the
+settings later affects only new agents.
+
 ## Enable publication
 
 Creation is **disabled by default**. Keep the existing private access boundary
 and single worker/replica. Before enabling, complete these checks.
 
-1. Confirm an approved Foundry project, an existing model deployment with quota,
+1. Confirm an approved Foundry project, existing model deployments with quota,
    working private connectivity, and the Lab's shared Cosmos container. Check
    the pinned SDK/remote-build combination in an approved staging environment.
+   To add deployments for the other kinds of work, set
+   `additional_model_deployments` in the
+   [platform Terraform](../terraform/README.md#1-configure-inputs-and-state).
+   Use chat models that support the Responses API and tool calling.
 1. Review the Lab managed identity's ability to read, publish, route, and delete
    the new hosted agents. Invocation access alone may be insufficient. This
    feature does not grant roles or alter existing identities or permissions.
@@ -87,10 +110,18 @@ and single worker/replica. Before enabling, complete these checks.
    reviewed rollout:
 
    ```hcl
-   agent_creation_enabled       = true
-   agent_creation_model         = "your-existing-model-deployment"
+   agent_creation_enabled = true
+   agent_creation_model   = "gpt-4.1" # default for any kind of work not listed below
+   agent_creation_models = {
+     reasoning    = "gpt-5.4"
+     extraction   = "gpt-4.1-mini"
+     tool_calling = "gpt-4.1"
+   }
    agent_creation_key_secret_id = "https://your-vault.vault.azure.net/secrets/lab-creation-key-verifier"
    ```
+
+   Use deployment names that exist in your Foundry project; these are
+   examples. `agent_creation_models` is optional.
 
    The secret must contain the **verifier**, not the raw key. Key Vault access
    for the existing Lab identity must already be provisioned by the environment
@@ -102,14 +133,16 @@ and single worker/replica. Before enabling, complete these checks.
 1. In the private UI, prepare one fictional setup, verify its tools and limits,
    confirm costs/shared visibility, and provide the operator key. Check real
    publication, send its sample, then verify cleanup before inviting an
-   audience.
+   audience. Repeat once for each model deployment you use, because models
+   differ in how they follow instructions and call tools.
 
 For non-Terraform operators, the equivalent server configuration is:
 
 | Environment variable | Meaning |
 | --- | --- |
 | `WORKBENCH_AGENT_CREATION_ENABLED` | Exactly `true` to allow new publication/resume; defaults to `false` |
-| `WORKBENCH_AGENT_CREATION_MODEL` | Existing model deployment captured in each new setup; not editable in the browser |
+| `WORKBENCH_AGENT_CREATION_MODEL` | Default existing model deployment, used for any kind of work without its own entry; not editable in the browser |
+| `WORKBENCH_AGENT_CREATION_MODELS` | Optional JSON object that maps `reasoning`, `extraction`, and `tool_calling` to existing model deployments, for example `{"reasoning":"gpt-5.4","extraction":"gpt-4.1-mini"}` |
 | `WORKBENCH_CREATION_KEY_SHA256` | Lowercase, 64-character verifier from a secret reference; never the raw key |
 | `WORKBENCH_MAX_CREATED_AGENTS` | Defaults to 5; allowed range 1-20; failed/unconfirmed attempts still count |
 | `WORKBENCH_PUBLICATION_TIMEOUT_SECONDS` | Defaults to 600; allowed range 30-900 |
@@ -135,11 +168,11 @@ valid verifier configured to allow operator deletion while creation is disabled.
 
 | Source | Owns |
 | --- | --- |
-| [`agent_templates.py`](../workbench/agent_templates.py) | Job descriptions, prepared instructions, examples, conservative matching, and fixed public tool metadata |
+| [`agent_templates.py`](../workbench/agent_templates.py) | Job descriptions, prepared instructions, examples, conservative matching, fixed public tool metadata, and each template's kind of work |
 | [`agent_runtime`](../workbench/agent_runtime) | Reviewed runtime code, immutable policy, allowed tools, and pinned remote-build requirements |
-| Creation request and saved record | Chosen template metadata snapshot, edited name/instructions, configured model, generated resource identity, and setup/runtime hashes |
+| Creation request and saved record | Chosen template metadata snapshot, edited name/instructions, model deployment chosen for the template's kind of work, generated resource identity, and setup/runtime hashes |
 | [`agent_publisher.py`](../workbench/agent_publisher.py) | SDK publication, version/ownership checks, activation polling, route verification, and retirement |
-| Server environment / [Lab Terraform](../workbench/infra/main.tf) | Enablement, model, operator-key verifier, and operational limits |
+| Server environment / [Lab Terraform](../workbench/infra/main.tf) | Enablement, the default and per-kind model deployments, operator-key verifier, and operational limits |
 | Existing [`agents.json`](../workbench/agents.json) and coordinator profiles | Unchanged prebuilt agent catalog, visibility, and specialist bindings; not overwritten by creation |
 
 Only `main.py`, `demo_tools.py`, and `requirements.txt` enter the deterministic
@@ -159,10 +192,12 @@ agents; prebuilt catalog entries cannot reuse it.
 ## Publication, recovery, and deletion
 
 The API saves a typed Cosmos record **before** scheduling remote work. It then
-uploads the reviewed ZIP package, records the returned version, waits for
-activation, sets a 100% Responses route, and reads the route/version back before
-marking the agent ready. The API does not use browser-supplied endpoint names or
-change prebuilt agents.
+checks that the chosen model deployment exists, uploads the reviewed ZIP
+package, records the returned version, waits for activation, sets a 100%
+Responses route, and reads the route/version back before marking the agent
+ready. If the deployment doesn't exist, publication stops
+before anything is uploaded and the record shows as failed. The API does not use
+browser-supplied endpoint names or change prebuilt agents.
 
 | Situation | Required behavior |
 | --- | --- |
@@ -197,11 +232,11 @@ cleanup and investigate every uncertain outcome before declaring a demo over.
 
 ## Verification and honest status
 
-Offline tests cover drafts, strict inputs, operator/origin checks, idempotency,
-single-flight/quota behavior, persistence-before-mutation, restart recovery,
-owned routing/deletion, SDK model/ZIP contracts, created-agent chat/history, and
-desktop/mobile UI flows. Continuous integration (CI) includes the runtime and
-API checks.
+Offline tests cover drafts, model choice for each template, strict inputs,
+operator/origin checks, idempotency, single-flight/quota behavior,
+persistence-before-mutation, restart recovery, owned routing/deletion, SDK
+model/ZIP contracts, created-agent chat/history, and desktop/mobile UI flows.
+Continuous integration (CI) includes the runtime and API checks.
 
 Those tests do not establish live Azure permissions, private connectivity,
 remote-build support, model availability, answer quality, or actual charges.

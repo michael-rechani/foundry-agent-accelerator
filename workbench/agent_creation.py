@@ -8,7 +8,7 @@ import re
 import time
 from collections import deque
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -19,13 +19,14 @@ from fastapi.responses import JSONResponse
 from pydantic import Field, ValidationError, field_validator
 
 from agent_publisher import FoundryPublisher, PublicationError, resource_name, runtime_package
-from agent_templates import TEMPLATES, TemplateRequiredError, list_templates, prepare_draft
+from agent_templates import MODEL_PROFILES, TEMPLATES, TemplateRequiredError, list_templates, model_profile, prepare_draft
 from history import StrictModel
 
 
 LOGGER = logging.getLogger("uvicorn.error")
 UUID_PATTERN = r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}"
 CREATED_ID = re.compile(r"created-" + UUID_PATTERN + r"\Z")
+DEPLOYMENT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 
 
 def timestamp():
@@ -39,15 +40,21 @@ class CreationSettings:
     key_sha256: str = ""
     max_agents: int = 5
     timeout_seconds: int = 600
+    models: dict = field(default_factory=dict)
 
     @classmethod
     def from_env(cls):
         flag = os.getenv("WORKBENCH_AGENT_CREATION_ENABLED", "false")
         if flag not in {"true", "false"}:
             raise ValueError("WORKBENCH_AGENT_CREATION_ENABLED must be true or false")
+        try:
+            models = json.loads(os.getenv("WORKBENCH_AGENT_CREATION_MODELS") or "{}")
+        except json.JSONDecodeError as problem:
+            raise ValueError("WORKBENCH_AGENT_CREATION_MODELS must be a JSON object") from problem
         return cls(
             enabled=flag == "true",
             model=os.getenv("WORKBENCH_AGENT_CREATION_MODEL", ""),
+            models=models,
             key_sha256=os.getenv("WORKBENCH_CREATION_KEY_SHA256", ""),
             max_agents=int(os.getenv("WORKBENCH_MAX_CREATED_AGENTS", "5")),
             timeout_seconds=int(os.getenv("WORKBENCH_PUBLICATION_TIMEOUT_SECONDS", "600")),
@@ -62,12 +69,20 @@ class CreationSettings:
             raise ValueError("Publication timeout must be between 30 and 900 seconds")
         if self.key_sha256 and not re.fullmatch(r"[a-f0-9]{64}", self.key_sha256):
             raise ValueError("Configure a lowercase SHA-256 operator-key verifier")
+        if not isinstance(self.models, dict) or any(
+            profile not in MODEL_PROFILES or not isinstance(name, str) or not DEPLOYMENT_NAME.fullmatch(name)
+            for profile, name in self.models.items()
+        ):
+            raise ValueError("Map only known model profiles to model deployment names")
         if self.enabled and (
             mode != "private"
-            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", self.model)
+            or not isinstance(self.model, str) or not DEPLOYMENT_NAME.fullmatch(self.model)
             or not re.fullmatch(r"[a-f0-9]{64}", self.key_sha256)
         ):
             raise ValueError("Creation requires private mode, a model deployment, and an operator-key SHA-256 verifier")
+
+    def model_for(self, profile):
+        return self.models.get(profile) or self.model
 
 
 class DraftInput(StrictModel):
@@ -116,7 +131,7 @@ class AgentCreations:
         self.settings, self.store = settings, store
         self.config = settings.creation
         self.project = hashlib.sha256(settings.endpoint.encode("utf-8")).hexdigest()
-        self.publisher = publisher or FoundryPublisher(settings.endpoint, self.config.model)
+        self.publisher = publisher or FoundryPublisher(settings.endpoint)
         self.tasks = {}
         self.operation_slot = asyncio.Semaphore(1)
         self.mutation_lock = asyncio.Lock()
@@ -143,6 +158,8 @@ class AgentCreations:
             "requires_operator_key": True, "max_agents": self.config.max_agents,
             "publication_timeout_seconds": self.config.timeout_seconds,
             "model": self.config.model if self.config.enabled else None,
+            "models": {profile: self.config.model_for(profile) for profile in MODEL_PROFILES}
+            if self.config.enabled else None,
         }
 
     async def close(self):
@@ -257,6 +274,7 @@ class AgentCreations:
             "created_at", "updated_at", "_etag", "error", "events", "operation", "model",
         )}
         result["template_label"] = document["template"]["label"]
+        result["model_profile"] = deepcopy(document.get("model_profile"))
         result["status"] = self.effective_status(document)
         if result["status"] == "interrupted" and document["status"] != "interrupted":
             result.update(stage="interrupted", error="publication_unconfirmed")
@@ -380,6 +398,7 @@ class AgentCreations:
         if len(await self.records()) >= self.config.max_agents:
             return self.error(request, 409, "agent_limit_reached")
         _, bundle_hash = runtime_package()
+        profile = model_profile(TEMPLATES[data.template_id]["model_profile"])
         template = {key: deepcopy(TEMPLATES[data.template_id][key]) for key in (
             "id", "label", "description", "input", "output", "limits", "delegation", "sample_input", "tools",
         )}
@@ -387,7 +406,7 @@ class AgentCreations:
         document = {
             **setup, "id": identifier, "kind": "created-agent", "workspace": "shared", "project": self.project,
             "setup_hash": digest, "runtime_hash": bundle_hash, "runtime_name": resource_name(identifier),
-            "model": self.config.model, "template": template, "version": None, "publication_started": False,
+            "model": self.config.model_for(profile["id"]), "model_profile": profile, "template": template, "version": None, "publication_started": False,
             "status": "creating", "stage": "queued", "operation": "create", "created_at": now, "updated_at": now,
             "error": None, "events": [{"name": "queued", "at": now}], "ttl": -1,
         }

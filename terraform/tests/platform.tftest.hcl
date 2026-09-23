@@ -104,6 +104,17 @@ run "reject_invalid_storage_name" {
   expect_failures = [var.agent_storage_account_name]
 }
 
+run "reject_duplicate_or_empty_model_deployment" {
+  command = plan
+  variables {
+    additional_model_deployments = {
+      "gpt-4.1"      = { name = "gpt-4.1", version = "2025-04-14", capacity = 10 }
+      "gpt-4.1-mini" = { name = "gpt-4.1-mini", version = "2025-04-14", capacity = 0 }
+    }
+  }
+  expect_failures = [var.additional_model_deployments]
+}
+
 run "reject_missing_vm_credential" {
   command = plan
   variables { enable_jumpbox = true }

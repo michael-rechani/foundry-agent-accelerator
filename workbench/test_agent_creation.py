@@ -386,6 +386,38 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(loaded.status_code, 200)
             self.assertEqual(loaded.json()["agent"], record["agent"])
 
+    async def test_each_template_gets_the_model_for_its_kind_of_work(self):
+        settings = Settings(
+            "private", ENDPOINT, ("lab.test",), (ORIGIN,),
+            creation=CreationSettings(True, "test-model", KEY_HASH, max_agents=5,
+                                      models={"extraction": "fast-model", "tool_calling": "tool-model"}),
+        )
+        await self.client.aclose()
+        self.client = self.make_client(settings)
+        config = (await self.client.get("/api/config")).json()["agent_creation"]
+        self.assertEqual(config["model"], "test-model")
+        self.assertEqual(config["models"], {
+            "reasoning": "test-model", "extraction": "fast-model", "tool_calling": "tool-model",
+        })
+        templates = {item["id"]: item for item in (await self.client.get("/api/agent-templates")).json()["templates"]}
+        expected = {"document-intake": "fast-model", "workflow-coordinator": "tool-model", "criteria-checker": "test-model"}
+        for template_id, model in expected.items():
+            with self.subTest(template_id=template_id):
+                self.publisher.done.clear()
+                self.body.update(idempotency_key=str(uuid4()), template_id=template_id)
+                record = await self.ready()
+                self.assertEqual(record["model"], model)
+                self.assertEqual(record["model_profile"], templates[template_id]["model_profile"])
+                self.assertEqual(self.publisher.calls[-1][1]["model"], model)
+
+    async def test_disabled_creation_does_not_advertise_models(self):
+        disabled = Settings("private", ENDPOINT, ("lab.test",), (ORIGIN,),
+                            creation=CreationSettings(False, "test-model", KEY_HASH, models={"extraction": "fast-model"}))
+        async with self.make_client(disabled) as client:
+            config = (await client.get("/api/config")).json()["agent_creation"]
+        self.assertIsNone(config["model"])
+        self.assertIsNone(config["models"])
+
     async def test_api_query_cannot_turn_a_create_request_into_deletion(self):
         record = await self.ready()
         response = await self.client.post("/api/agents?identifier=" + record["id"],
@@ -414,9 +446,32 @@ class CreationSettingsTests(unittest.TestCase):
             (CreationSettings(False, max_agents=0), "private"),
             (CreationSettings(False, timeout_seconds=901), "private"),
             (CreationSettings(False, key_sha256="not-a-hash"), "private"),
+            (CreationSettings(True, "model", KEY_HASH, models={"creative": "model"}), "private"),
+            (CreationSettings(True, "model", KEY_HASH, models={"reasoning": "not a deployment"}), "private"),
+            (CreationSettings(True, "model", KEY_HASH, models={"reasoning": 7}), "private"),
+            (CreationSettings(True, "model", KEY_HASH, models=["reasoning"]), "private"),
+            (CreationSettings(True, "", KEY_HASH, models={"reasoning": "model"}), "private"),
         ):
             with self.subTest(settings=settings, mode=mode), self.assertRaises(ValueError):
                 settings.validate(mode)
+
+    def test_model_profiles_are_read_from_json_and_fall_back_to_the_default(self):
+        environment = {
+            "WORKBENCH_AGENT_CREATION_ENABLED": "true", "WORKBENCH_AGENT_CREATION_MODEL": "default-model",
+            "WORKBENCH_CREATION_KEY_SHA256": KEY_HASH,
+            "WORKBENCH_AGENT_CREATION_MODELS": '{"reasoning": "reasoning-model"}',
+        }
+        with patch.dict("os.environ", environment):
+            settings = CreationSettings.from_env()
+        settings.validate("private")
+        self.assertEqual(settings.model_for("reasoning"), "reasoning-model")
+        self.assertEqual(settings.model_for("extraction"), "default-model")
+        with patch.dict("os.environ", {**environment, "WORKBENCH_AGENT_CREATION_MODELS": ""}):
+            self.assertEqual(CreationSettings.from_env().models, {})
+        for value in ("not json", "[1"):
+            with patch.dict("os.environ", {**environment, "WORKBENCH_AGENT_CREATION_MODELS": value}):
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    CreationSettings.from_env()
 
     def test_default_is_disabled_and_environment_enablement_is_explicit(self):
         CreationSettings().validate("preview")

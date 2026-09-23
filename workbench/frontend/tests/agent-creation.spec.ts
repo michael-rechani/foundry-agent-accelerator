@@ -13,6 +13,31 @@ import { guidedReview, illustrativeScreenshot } from './fixtures'
 const operatorKey = 'fictional-test-key-not-a-real-secret-1234567890'
 const sample =
   'NOTICE-1: The fictional help desk opens at 09:00. NOTICE-2: A proposal says 08:00; no start date is supplied.'
+const profiles: Record<string, AgentTemplate['model_profile']> = {
+  reasoning: {
+    id: 'reasoning',
+    label: 'Reasoning',
+    reason:
+      'Compares sources step by step and keeps gaps and conflicts visible.',
+  },
+  extraction: {
+    id: 'extraction',
+    label: 'Fast extraction',
+    reason: 'Copies stated values into a fixed structure.',
+  },
+  tool_calling: {
+    id: 'tool_calling',
+    label: 'Tool calling',
+    reason: 'Calls lookup tools in the right order.',
+  },
+}
+const templateProfiles: Record<string, string> = {
+  'document-analyst': 'reasoning',
+  'criteria-checker': 'reasoning',
+  'document-intake': 'extraction',
+  'casework-assistant': 'reasoning',
+  'workflow-coordinator': 'tool_calling',
+}
 const templates: AgentTemplate[] = [
   [
     'document-analyst',
@@ -63,6 +88,7 @@ const templates: AgentTemplate[] = [
           simulated: true,
         }))
       : [],
+  model_profile: profiles[templateProfiles[id]],
 }))
 
 function recordFor(
@@ -86,7 +112,8 @@ function recordFor(
     instructions: status === 'deleted' ? '' : payload.instructions,
     runtime_name: runtime,
     version: status === 'creating' ? null : '1',
-    model: 'demo-model',
+    model: 'demo-reasoning-model',
+    model_profile: template.model_profile,
     status,
     stage: status === 'creating' ? 'queued' : status,
     operation: 'create',
@@ -178,7 +205,15 @@ async function setup(
       requires_operator_key: true,
       max_agents: 5,
       publication_timeout_seconds: 600,
-      model: 'demo-model',
+      model: options.preview || options.disabled ? null : 'demo-model',
+      models:
+        options.preview || options.disabled
+          ? null
+          : {
+              reasoning: 'demo-reasoning-model',
+              extraction: 'demo-fast-model',
+              tool_calling: 'demo-model',
+            },
     },
   }
   const state = {
@@ -497,6 +532,9 @@ test('publishes reviewed setup, uses its real ID in chat, saves and restores his
 }, testInfo) => {
   const state = await setup(page)
   await prepare(page)
+  await expect(page.locator('.creation-explanation')).toContainText(
+    'demo-reasoning-model, chosen for Reasoning.',
+  )
   await page
     .getByLabel('Agent name', { exact: true })
     .fill('Policy notice helper')
@@ -521,6 +559,9 @@ test('publishes reviewed setup, uses its real ID in chat, saves and restores his
   expect(state.posts).toHaveLength(1)
   expect(state.posts[0].name).toBe('Policy notice helper')
   expect(state.posts[0].instructions).toContain('missing implementation date')
+  await expect(page.locator('.creation-runtime')).toContainText(
+    'demo-reasoning-model, chosen for Reasoning',
+  )
   await page
     .getByRole('heading', { name: 'Policy notice helper', exact: true })
     .scrollIntoViewIfNeeded()
@@ -590,6 +631,9 @@ test('local preview prepares all five templates but cannot publish or load saved
       page.getByLabel('Operator key', { exact: true }),
     ).toBeDisabled()
     await expect(page.getByText('Local preview', { exact: true })).toBeVisible()
+    await expect(page.locator('.creation-explanation')).toContainText(
+      `Set by the Lab operator, chosen for ${template.model_profile.label}.`,
+    )
     if (template.id === 'workflow-coordinator') {
       await expect(page.locator('.creation-tool-list li')).toHaveCount(2)
       await expect(page.locator('.creation-tool-list')).toContainText(
@@ -904,5 +948,11 @@ test('created-record validation rejects mismatched identities and accepts cleare
     }),
   ).toThrow()
   expect(() => parseCreatedAgent({ ...record, status: 'creating' })).toThrow()
+  expect(() =>
+    parseCreatedAgent({ ...record, model_profile: { id: 'reasoning' } }),
+  ).toThrow()
+  expect(
+    parseCreatedAgent({ ...record, model_profile: undefined }).model_profile,
+  ).toBeUndefined()
   expect(() => parseCreatedAgent({ ...record, instructions: '' })).toThrow()
 })
