@@ -25,22 +25,39 @@ agent-management service.
 **Describe the job -> prepare a setup -> review and confirm -> create in Foundry
 -> try it in Chat.**
 
-Five templates cover document analysis, criteria checking, administrative
-intake, casework summaries, and workflow planning. Their fictional examples suit
-public-sector, healthcare-operations, and independent software vendor (ISV)
-conversations without reproducing any customer's work or implementation claims.
-Healthcare examples cover administration only, not clinical advice or patient
-data.
+Nine templates are shown in two groups. The **General** group covers
+everyday document jobs. The **Healthcare and public sector** group covers four
+common paperwork jobs: checking a hospital bill, preparing an insurance
+pre-approval request, sorting a benefits renewal, and checking a supplier
+invoice. Their fictional examples suit public-sector, healthcare-operations,
+and independent software vendor (ISV) conversations without reproducing any
+customer's work or implementation claims. Healthcare examples cover paperwork
+only, not clinical advice or real patient data.
+
+**General**
 
 | Template | You give it | You get back |
 | --- | --- | --- |
-| **Document Analyst** | Policy, notice, or product text | A sourced summary, changes, and open questions |
-| **Criteria Checker** | Your checklist and a document | Supported items, missing information, and conflicts. It doesn't make an approval decision. |
-| **Document Intake Assistant** | Fictional administrative intake text and the fields to extract | A field table with source references and unknown values called out |
-| **Casework Assistant** | Fictional case notes | A summary, unresolved inconsistencies, and follow-up questions |
-| **Workflow Coordinator** | A fictional request and service identifiers | Read-only **simulated** lookup results and proposed next steps. It doesn't carry out business actions. |
+| **Document explainer** | Policy, notice, or product text | A sourced summary, changes, and open questions |
+| **Checklist gap finder** | Your checklist and a document | Supported items, missing information, and conflicts. It doesn't make an approval decision. |
+| **Form and invoice extractor** | A fictional form or invoice and the fields to pull out | A field table with source references and unknown values called out |
+| **Case notes summarizer** | Fictional case notes | A summary, unresolved inconsistencies, and follow-up questions |
+| **Service request planner** | A fictional request and service identifiers | Read-only **simulated** lookup results and proposed next steps. It doesn't carry out business actions. |
 
-![Illustrative UI test of the Create agent page with mocked APIs: three numbered steps, five template cards, a job description box, and a Prepare setup button](images/screenshots/lab-create-agent.png)
+**Healthcare and public sector**
+
+| Template | You give it | You get back |
+| --- | --- | --- |
+| **Medical bill reviewer** | A fictional hospital bill and the insurer's statement for the same visit | Likely mistakes (math errors, duplicate charges, amounts above the plan's allowed price) with the math shown, an estimate of what the documents support owing, and an unsent dispute letter. It doesn't contact anyone or pay or refuse the bill. |
+| **Insurance pre-approval helper** | A fictional pre-approval request packet | Each required document marked present, missing, or out of date, plus a network check and a draft note to the ordering office. It doesn't approve or submit the request. |
+| **Benefits renewal helper** | A family's fictional renewal form and supporting paperwork | What's missing, too old, or doesn't match, what's already on file, and a friendly draft note to the family. It doesn't decide eligibility. |
+| **Supplier invoice reviewer** | A fictional supplier invoice and the purchase order number | A line-by-line comparison of what was ordered, delivered, and billed, and the amount the documents support. It doesn't approve payment. |
+
+Each healthcare and public-sector template uses two fixed, simulated,
+read-only lookups (for example, plan benefits and usual prices for the medical
+bill reviewer). The lookup data is made up for the demo.
+
+![Illustrative UI test of the Create agent page with mocked APIs: three numbered steps, template cards in two groups, a job description box, and a Prepare setup button](images/screenshots/lab-create-agent.png)
 
 *Illustrative UI test with mocked APIs; nothing was published.* ·
 [View full size](images/screenshots/lab-create-agent.png)
@@ -48,14 +65,25 @@ data.
 | Stage | What happens | What does not happen |
 | --- | --- | --- |
 | Prepare a draft | The Lab uses deterministic templates and the supplied description. | It does not ask a model to design an agent, save a resource, or spend model tokens. An ambiguous description asks for a template instead of guessing. |
-| Review setup | You can edit the display name and task instructions before creation. | Tools and runtime policy are fixed by the selected template and cannot be added by a prompt. The first four templates have no tools or specialist delegation. |
+| Review setup | You can edit the display name and task instructions before creation. | Tools and runtime policy are fixed by the selected template and cannot be added by a prompt. The first four General templates have no tools, and no template uses specialist delegation. |
 | Create in Foundry | Explicit creation publishes a new generated `lab-demo-...` named agent using the Foundry software development kit (SDK). Progress represents actual application stages. | Progress is not a timer pretending to be deployment progress. |
 | Try the agent | Ready means the hosted version is active and its Responses route was checked. Send the fictional sample in **Chat** to observe its first actual answer and check quality yourself. | No hidden billable model smoke test runs. |
 
-The Workflow Coordinator template has exactly `lookup_demo_request` and
-`lookup_demo_service`: fixed, local, **simulated read-only** lookups. It can
-propose next steps, but cannot open a ticket, approve a request, send a message,
-or connect to a customer application.
+Templates with tools have exactly two fixed, local, **simulated read-only**
+lookups each:
+
+| Template | Lookups |
+| --- | --- |
+| Service request planner | `lookup_demo_request`, `lookup_demo_service` |
+| Medical bill reviewer | `lookup_plan_benefits`, `lookup_usual_price` |
+| Insurance pre-approval helper | `lookup_preapproval_rules`, `lookup_facility` |
+| Benefits renewal helper | `lookup_renewal_rules`, `lookup_documents_on_file` |
+| Supplier invoice reviewer | `lookup_purchase_order`, `lookup_delivery_record` |
+
+They can propose next steps and draft letters or notes, but can't open a ticket,
+approve a request or payment, decide eligibility, send a message, or connect to
+a customer application. Letters and notes are unsent drafts for a person to
+review.
 
 **Chat** can use this ready agent or an enabled prebuilt agent. A chat prompt
 does not edit either setup. There is no in-place editor for deployed
@@ -78,9 +106,9 @@ prompt can't change it.
 
 | Kind of work | Templates | What the model needs to do |
 | --- | --- | --- |
-| **Reasoning** | Document Analyst, Criteria Checker, Casework Assistant | Compare sources step by step and keep gaps and conflicts visible |
-| **Fast extraction** | Document Intake Assistant | Copy stated values into a fixed structure, where speed and cost matter more than deep reasoning |
-| **Tool calling** | Workflow Coordinator | Call lookup tools in the right order and report exactly what they return |
+| **Reasoning** | Document explainer, Checklist gap finder, Case notes summarizer, Medical bill reviewer, Benefits renewal helper, Supplier invoice reviewer | Compare sources step by step and keep gaps and conflicts visible |
+| **Fast extraction** | Form and invoice extractor | Copy stated values into a fixed structure, where speed and cost matter more than deep reasoning |
+| **Tool calling** | Service request planner, Insurance pre-approval helper | Call lookup tools in the right order and report exactly what they return |
 
 The review step shows the chosen deployment and the reason for it. Any kind of
 work without its own deployment uses the default one, so a Lab with a single

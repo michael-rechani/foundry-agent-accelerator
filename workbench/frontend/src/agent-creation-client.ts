@@ -10,6 +10,7 @@ import {
 export type ModelProfile = { id: string; label: string; reason: string }
 export type AgentTemplate = {
   id: string
+  category: string
   label: string
   description: string
   input: string
@@ -48,12 +49,7 @@ export type CreatedAgent = {
   model?: string
   model_profile?: ModelProfile | null
   status:
-    | 'creating'
-    | 'ready'
-    | 'failed'
-    | 'interrupted'
-    | 'deleting'
-    | 'deleted'
+    'creating' | 'ready' | 'failed' | 'interrupted' | 'deleting' | 'deleted'
   stage: string
   operation?: 'create' | 'resume' | 'delete'
   created_at: string
@@ -189,6 +185,7 @@ export function parseTemplates(value: unknown): AgentTemplate[] {
         isObject(item) &&
         strings(item, [
           'id',
+          'category',
           'label',
           'description',
           'input',
@@ -219,6 +216,13 @@ export function parseTemplates(value: unknown): AgentTemplate[] {
   )
     throw new Error('The template list is empty or contains duplicate IDs.')
   return value.templates
+}
+
+export function groupTemplates(templates: AgentTemplate[]) {
+  const groups = new Map<string, AgentTemplate[]>()
+  for (const item of templates)
+    groups.set(item.category, [...(groups.get(item.category) ?? []), item])
+  return [...groups]
 }
 
 export function parseDraft(value: unknown): AgentDraft {

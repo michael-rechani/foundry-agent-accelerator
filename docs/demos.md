@@ -100,11 +100,15 @@ fictional agent available rather than promising instant deployment.
 
 | Audience / template | Example job description | What to demonstrate |
 | --- | --- | --- |
-| Public sector / Document Analyst | Summarize a fictional public-service notice, cite the supplied sections and identify questions a staff reviewer should ask. | Sourced analysis, not a legal interpretation or policy decision |
-| Public sector / Criteria Checker | Compare a fictional community-project application with the checklist I paste and flag missing or inconsistent information. | Criteria-by-criteria checking, not an award or eligibility decision |
-| Healthcare operations / Document Intake Assistant | Extract the request ID, requested supplies, stated dates and missing fields from fictional clinic supply-request text. | Administrative extraction with unknown fields preserved; no patient data, clinical advice or orders |
-| Community services / Casework Assistant | Summarize fictional service-intake notes and draft follow-up questions without deciding eligibility or changing records. | Facts, conflicting notes and questions kept separate |
-| ISV / Workflow Coordinator | Use the supplied fictional request and service examples to propose integration-review steps and identify what a person must verify. | Two clearly simulated, read-only lookups and an action plan; no connected SaaS apps, writes or approval workflow |
+| Public sector / Document explainer | Summarize a fictional public-service notice, cite the supplied sections and identify questions a staff reviewer should ask. | Sourced analysis, not a legal interpretation or policy decision |
+| Public sector / Checklist gap finder | Compare a fictional community-project application with the checklist I paste and flag missing or inconsistent information. | Criteria-by-criteria checking, not an award or eligibility decision |
+| Healthcare operations / Form and invoice extractor | Extract the request ID, requested supplies, stated dates and missing fields from fictional clinic supply-request text. | Administrative extraction with unknown fields preserved; no patient data, clinical advice or orders |
+| Community services / Case notes summarizer | Summarize fictional service-intake notes and draft follow-up questions without deciding eligibility or changing records. | Facts, conflicting notes and questions kept separate |
+| ISV / Service request planner | Use the supplied fictional request and service examples to propose integration-review steps and identify what a person must verify. | Two clearly simulated, read-only lookups and an action plan; no connected SaaS apps, writes or approval workflow |
+| Healthcare / Medical bill reviewer | Review a fictional hospital bill against the insurer's statement and draft a dispute letter. | A math error, a duplicate X-ray, extra lab charges and prices above the plan's allowed amount, with the math shown and an unsent letter |
+| Healthcare / Insurance pre-approval helper | Check a fictional MRI pre-approval request has every document the insurer asks for. | Out-of-date visit notes, two missing documents and an out-of-network facility caught before staff send it; no approval prediction |
+| Public sector / Benefits renewal helper | Sort a family's fictional food-assistance renewal paperwork and flag what's missing or doesn't match. | An old pay stub, a likely missing one, a household-size mismatch and a friendly draft note; the caseworker decides |
+| Public sector / Supplier invoice reviewer | Compare a fictional furniture invoice with the purchase order and delivery record. | 20 extra chairs, a price increase, an unexpected delivery fee and damaged items flagged for a person to decide; no payment approval |
 
 These examples include independent software vendor (ISV) and software as a
 service (SaaS) language so you can discuss product integration without

@@ -59,11 +59,21 @@
   color: var(--accent);
   font-weight: 700;
 }
+.creation-template-groups {
+  display: grid;
+  gap: 22px;
+  margin: 20px 0 28px;
+}
+.creation-workspace .creation-template-group h2 {
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #424242;
+}
 .creation-templates {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 12px;
-  margin: 20px 0 28px;
 }
 .creation-template {
   text-align: left;

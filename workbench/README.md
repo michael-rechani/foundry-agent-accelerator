@@ -76,12 +76,14 @@ all-scenarios demonstration.
 | [Requirements and proposal review](../docs/demos.md#requirements-and-proposal-review) | **Experimental** | This reuses the application agent and the existing criteria-and-evidence workflow. It doesn't add another agent. |
 | [Agent-assisted business request triage](../docs/demos.md#agent-assisted-request-triage) | **Planned** | This isn't runnable. Existing coordinator/specialist review routing isn't business-request triage. |
 
-The five creation jobs are Document Analyst, Criteria Checker, Document Intake
-Assistant, Casework Assistant, and Workflow Coordinator. They provide generic
-public-sector, healthcare-operations, and independent software vendor (ISV)
-demonstrations. The first four jobs use supplied text. The workflow job has
-only two **simulated read-only** lookups. None connects to customer systems or
-performs business writes. See [Create and try a baseline Microsoft Foundry agent](../docs/agent-creation.md).
+The nine creation jobs are grouped on the page. **General:** Document
+explainer, Checklist gap finder, Form and invoice extractor, Case notes
+summarizer, and Service request planner. **Healthcare and public sector:**
+Medical bill reviewer, Insurance pre-approval helper, Benefits renewal helper,
+and Supplier invoice reviewer. The first four General jobs use supplied text
+only. The Service request planner and the four healthcare and public-sector
+jobs each have two **simulated read-only** lookups. None connects to customer
+systems or performs business writes. See [Create and try a baseline Microsoft Foundry agent](../docs/agent-creation.md).
 
 > [!IMPORTANT]
 > Use supplied fictional inputs only. People verify evidence and make decisions.

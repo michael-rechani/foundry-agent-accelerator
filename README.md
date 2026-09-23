@@ -35,7 +35,7 @@ was published.* · [View full size](docs/images/screenshots/lab-create-agent.png
 | **Hosted agents** | In **Create agent**, pick a template and publish it as a new agent. | [Agent creation](docs/agent-creation.md) |
 | **Model choice** | Each template runs on the model that suits its work: reasoning, fast extraction, or tool calling. | [How the Lab picks a model](docs/agent-creation.md#how-the-lab-picks-a-model) |
 | **Agents working together** | In **Chat**, the **Application and case helper** hands each task to a specialist agent. | [Hosted agents](hosted-agents/README.md) |
-| **Tool calling** | The **Workflow Coordinator** template calls simulated, read-only lookup tools. | [Templates](docs/agent-creation.md#what-a-participant-can-do) |
+| **Tool calling** | The **Service request planner** and the healthcare and public-sector templates call simulated, read-only lookup tools. | [Templates](docs/agent-creation.md#what-a-participant-can-do) |
 | **Grounded answers** | In **Document reviews**, every result quotes your text, and quotes that don't match are rejected. | [Document reviews](docs/review-workflow.md) |
 | **Tracing** | **Performance** shows response times. Optional agent traces appear in the Foundry portal. | [Agent monitoring](terraform/monitoring/README.md) |
 | **Evaluation** | Test models or prompts against the same cases with optional live Foundry evaluations. | [Evaluations](evaluations/README.md) |
@@ -141,8 +141,8 @@ To deploy from a separate private machine, use the
 - **For demonstrations and technical testing.** This isn't a production
   application or an officially supported Microsoft offering.
 - **No business systems.** Agents work only with the text you supply. They don't
-  connect to customer systems or Microsoft 365, and the Workflow Coordinator's
-  tools are simulated.
+  connect to customer systems or Microsoft 365, and every template lookup tool
+  uses made-up, read-only data.
 - **People decide.** A matching quote shows where text came from, not that it's
   true. Missing evidence is a request for more information, not a rejection.
 - **No per-user access control.** The Lab has no sign-in or per-user

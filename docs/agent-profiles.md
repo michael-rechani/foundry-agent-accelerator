@@ -74,9 +74,11 @@ separately own the visible entries, default agent, and title. Neither selection
 nor prompt editing is an administrative control.
 
 The new templates do not modify these profiles or specialist bindings. Document
-Analyst, Criteria Checker, Document Intake Assistant, and Casework Assistant are
-single-agent supplied-text jobs without tools. Workflow Coordinator has two
-local fictional-data lookups, not specialist delegation or live integration. The
+explainer, Checklist gap finder, Form and invoice extractor, and Case notes
+summarizer are single-agent supplied-text jobs without tools. Service request
+planner, Medical bill reviewer, Insurance pre-approval helper, Benefits renewal
+helper, and Supplier invoice reviewer each have two local fictional-data
+lookups, not specialist delegation or live integration. The
 saved creation setup owns its task instructions; [`agent_runtime`](../workbench/agent_runtime)
 owns the immutable policy and tool allowlist. Each is published as its own
 generated `lab-demo-...` runtime name. Created-agent display names are

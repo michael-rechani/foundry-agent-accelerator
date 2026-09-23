@@ -37,57 +37,94 @@ const templateProfiles: Record<string, string> = {
   'document-intake': 'extraction',
   'casework-assistant': 'reasoning',
   'workflow-coordinator': 'tool_calling',
+  'medical-bill-reviewer': 'reasoning',
+  'insurance-preapproval-helper': 'tool_calling',
+  'benefits-renewal-helper': 'reasoning',
+  'supplier-invoice-reviewer': 'reasoning',
 }
+const lookups: Record<string, string[]> = {
+  'workflow-coordinator': ['lookup_demo_request', 'lookup_demo_service'],
+  'medical-bill-reviewer': ['lookup_plan_benefits', 'lookup_usual_price'],
+  'insurance-preapproval-helper': [
+    'lookup_preapproval_rules',
+    'lookup_facility',
+  ],
+  'benefits-renewal-helper': [
+    'lookup_renewal_rules',
+    'lookup_documents_on_file',
+  ],
+  'supplier-invoice-reviewer': [
+    'lookup_purchase_order',
+    'lookup_delivery_record',
+  ],
+}
+const categories = ['General', 'Healthcare and public sector']
 const templates: AgentTemplate[] = [
   [
     'document-analyst',
-    'Document Analyst',
+    'Document explainer',
     'Explain policy or product documents and identify questions for staff.',
   ],
   [
     'criteria-checker',
-    'Criteria Checker',
+    'Checklist gap finder',
     'Compare a supplied checklist with labeled documents, without approving a submission.',
   ],
   [
     'document-intake',
-    'Document Intake Assistant',
+    'Form and invoice extractor',
     'Extract stated fields from fictional administrative forms or invoices.',
   ],
   [
     'casework-assistant',
-    'Casework Assistant',
+    'Case notes summarizer',
     'Summarize fictional case notes and draft follow-up questions.',
   ],
   [
     'workflow-coordinator',
-    'Workflow Coordinator',
-    'Plan a fictional software integration using simulated, read-only tools.',
+    'Service request planner',
+    'Plan a fictional service request using simulated, read-only lookups.',
   ],
-].map(([id, label, description]) => ({
+  [
+    'medical-bill-reviewer',
+    'Medical bill reviewer',
+    'Check a fictional hospital bill against the insurer statement.',
+  ],
+  [
+    'insurance-preapproval-helper',
+    'Insurance pre-approval helper',
+    'Check a fictional pre-approval request has every required document.',
+  ],
+  [
+    'benefits-renewal-helper',
+    'Benefits renewal helper',
+    'Sort fictional renewal paperwork and flag what is missing.',
+  ],
+  [
+    'supplier-invoice-reviewer',
+    'Supplier invoice reviewer',
+    'Compare what was ordered, delivered and billed.',
+  ],
+].map(([id, label, description], index) => ({
   id,
+  category: categories[index < 5 ? 0 : 1],
   label,
   description,
   input: 'Supply labeled fictional text and a clear task.',
   output: 'A referenced response, missing information and follow-up questions.',
   limits:
     'No business, clinical, payment or eligibility decisions. No live writes. Human review required.',
-  delegation:
-    id === 'workflow-coordinator'
-      ? 'Uses two simulated read-only lookups, not specialist agents.'
-      : 'Works directly on supplied text; no tools or other agents.',
+  delegation: lookups[id]
+    ? 'Uses two simulated read-only lookups, not specialist agents.'
+    : 'Works directly on supplied text; no tools or other agents.',
   instructions: `Act as a ${label}. Use fictional supplied material, cite sources and ask for missing information.`,
   example_request: `Create a ${label} for a fictional demonstration.`,
   sample_input: sample,
-  tools:
-    id === 'workflow-coordinator'
-      ? ['lookup_demo_request', 'lookup_demo_service'].map((name) => ({
-          name,
-          description:
-            'Read-only local fixture; no external system is contacted.',
-          simulated: true,
-        }))
-      : [],
+  tools: (lookups[id] ?? []).map((name) => ({
+    name,
+    description: 'Read-only local fixture; no external system is contacted.',
+    simulated: true,
+  })),
   model_profile: profiles[templateProfiles[id]],
 }))
 
@@ -401,7 +438,7 @@ async function navigate(page: Page, name: string) {
     .click()
 }
 
-async function prepare(page: Page, label = 'Document Analyst') {
+async function prepare(page: Page, label = 'Document explainer') {
   await page
     .locator('.creation-template')
     .filter({ has: page.getByText(label, { exact: true }) })
@@ -428,7 +465,7 @@ async function openSaved(page: Page, name = 'Policy notice helper') {
   ).toBeVisible()
 }
 
-test('creation is the entry point with five honest jobs and usable navigation', async ({
+test('creation is the entry point with nine honest jobs in two groups and usable navigation', async ({
   page,
 }, testInfo) => {
   const state = await setup(page)
@@ -438,6 +475,19 @@ test('creation is the entry point with five honest jobs and usable navigation', 
   await expect(page.locator('.creation-template strong')).toHaveText(
     templates.map((item) => item.label),
   )
+  await expect(page.locator('.creation-template-group h2')).toHaveText(
+    categories,
+  )
+  await expect(
+    page
+      .getByRole('region', { name: 'Healthcare and public sector' })
+      .locator('.creation-template small'),
+  ).toHaveText(Array(4).fill('Simulated read-only lookups'))
+  await expect(
+    page
+      .getByRole('combobox', { name: 'Prepared template', exact: true })
+      .locator('optgroup'),
+  ).toHaveCount(2)
   await expect(page.locator('.creation-heading')).toContainText(
     'healthcare-administration',
   )
@@ -514,7 +564,7 @@ test('ambiguous descriptions require a template and preparation creates no agent
     page.getByRole('heading', { name: 'Review your agent setup' }),
   ).toBeVisible()
   await expect(page.getByLabel('Agent name', { exact: true })).toHaveValue(
-    'Casework Assistant',
+    'Case notes summarizer',
   )
   await expect(page.getByLabel('Task instructions')).toHaveValue(
     /Help our fictional team/,
@@ -618,7 +668,7 @@ test('publishes reviewed setup, uses its real ID in chat, saves and restores his
   expect(state.posts).toHaveLength(1)
 })
 
-test('local preview prepares all five templates but cannot publish or load saved agents', async ({
+test('local preview prepares all nine templates but cannot publish or load saved agents', async ({
   page,
 }, testInfo) => {
   const state = await setup(page, { preview: true })
@@ -634,12 +684,17 @@ test('local preview prepares all five templates but cannot publish or load saved
     await expect(page.locator('.creation-explanation')).toContainText(
       `Set by the Lab operator, chosen for ${template.model_profile.label}.`,
     )
-    if (template.id === 'workflow-coordinator') {
+    if (template.tools.length) {
       await expect(page.locator('.creation-tool-list li')).toHaveCount(2)
       await expect(page.locator('.creation-tool-list')).toContainText(
         'SIMULATED',
       )
-      await illustrativeScreenshot(page, testInfo, 'creation-preview-tools.png')
+      if (template.id === 'medical-bill-reviewer')
+        await illustrativeScreenshot(
+          page,
+          testInfo,
+          'creation-preview-tools.png',
+        )
     } else
       await expect(
         page.getByText('No tools or external integrations.', { exact: true }),
@@ -691,7 +746,7 @@ for (const rejection of [400, 413]) {
       .click()
     await expect(page.getByRole('alert')).toBeVisible()
     await expect(page.getByLabel('Agent name', { exact: true })).toHaveValue(
-      'Document Analyst',
+      'Document explainer',
     )
     await expect(page.getByLabel('Task instructions')).toBeEnabled()
     await expect(
@@ -810,7 +865,7 @@ test('leaving creation removes the password without losing the prepared task', a
   await expect(page.locator('input[type="password"]')).toHaveCount(0)
   await navigate(page, 'Create agent')
   await expect(page.getByLabel('Agent name', { exact: true })).toHaveValue(
-    'Document Analyst',
+    'Document explainer',
   )
   await expect(page.getByLabel('Operator key', { exact: true })).toHaveValue('')
   expect(
@@ -890,7 +945,7 @@ test('template and collection errors stay visible and can be refreshed', async (
   ).toBeVisible()
   state.templateFailure = false
   await page.getByRole('button', { name: 'Retry templates' }).click()
-  await expect(page.locator('.creation-template')).toHaveCount(5)
+  await expect(page.locator('.creation-template')).toHaveCount(9)
   await navigate(page, 'Created agents')
   await expect(page.getByRole('alert')).toContainText('storage is unavailable')
   state.listFailure = false

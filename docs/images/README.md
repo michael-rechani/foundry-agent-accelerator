@@ -143,7 +143,7 @@ and say "illustrative" in the caption and alt text wherever you use one.
 | --- | --- | --- | --- |
 | [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide and example tasks | `demo-starters.png` | [Demo guide](../demos.md#a-short-demonstration) |
 | [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [Review workflow](../review-workflow.md#workflow) |
-| [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page with its five templates and the full sidebar | `creation-start.png` | [Root README](../../README.md), [agent creation](../agent-creation.md#what-a-participant-can-do) |
+| [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page with its templates in two groups and the full sidebar | `creation-start.png` | [Root README](../../README.md), [agent creation](../agent-creation.md#what-a-participant-can-do) |
 
 To refresh them, run the desktop browser tests and copy the matching files:
 

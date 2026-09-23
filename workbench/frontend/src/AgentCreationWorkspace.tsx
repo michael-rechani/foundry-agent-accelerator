@@ -13,6 +13,7 @@ import {
   CreationError,
   creationMessage,
   creationRequest,
+  groupTemplates,
   parseCreatedAgent,
   parseDraft,
   parseTemplates,
@@ -430,36 +431,47 @@ export function AgentCreationWorkspace({
           {!draft ? (
             <>
               <div
-                className="creation-templates"
+                className="creation-template-groups"
                 aria-label="Prepared agent templates"
               >
-                {templates.map((item) => (
-                  <button
-                    key={item.id}
-                    className="creation-template"
-                    aria-pressed={templateId === item.id}
-                    disabled={busy}
-                    onClick={() => {
-                      setTemplateId(item.id)
-                      if (
-                        !goal.trim() ||
-                        templates.some(
-                          (entry) => entry.example_request === goal,
-                        )
-                      )
-                        setGoal(item.example_request)
-                      setError('')
-                      goalField.current?.focus()
-                    }}
+                {groupTemplates(templates).map(([category, items]) => (
+                  <section
+                    key={category}
+                    className="creation-template-group"
+                    aria-label={category}
                   >
-                    <strong>{item.label}</strong>
-                    <span>{item.description}</span>
-                    <small>
-                      {item.tools.length
-                        ? 'Simulated read-only tools'
-                        : 'Supplied text; no tools'}
-                    </small>
-                  </button>
+                    <h2>{category}</h2>
+                    <div className="creation-templates">
+                      {items.map((item) => (
+                        <button
+                          key={item.id}
+                          className="creation-template"
+                          aria-pressed={templateId === item.id}
+                          disabled={busy}
+                          onClick={() => {
+                            setTemplateId(item.id)
+                            if (
+                              !goal.trim() ||
+                              templates.some(
+                                (entry) => entry.example_request === goal,
+                              )
+                            )
+                              setGoal(item.example_request)
+                            setError('')
+                            goalField.current?.focus()
+                          }}
+                        >
+                          <strong>{item.label}</strong>
+                          <span>{item.description}</span>
+                          <small>
+                            {item.tools.length
+                              ? 'Simulated read-only lookups'
+                              : 'Supplied text; no tools'}
+                          </small>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
               <form
@@ -494,10 +506,14 @@ export function AgentCreationWorkspace({
                     <option value="">
                       Match my description, or ask me to choose
                     </option>
-                    {templates.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.label}
-                      </option>
+                    {groupTemplates(templates).map(([category, items]) => (
+                      <optgroup key={category} label={category}>
+                        {items.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.label}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </label>

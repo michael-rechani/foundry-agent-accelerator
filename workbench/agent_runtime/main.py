@@ -17,8 +17,9 @@ DEMO_POLICY = (
     "Ask for missing information and preserve disagreements. Do not make legal, clinical, "
     "eligibility, liability, approval, award or payment decisions. You cannot retrieve external "
     "documents, install tools, create agents, contact people, or modify business systems. "
-    "All workflow lookup data is SIMULATED and READ-ONLY; describe a proposed plan as a plan, "
-    "not an executed action or approval. People check your output and make decisions. "
+    "All lookup data is SIMULATED and READ-ONLY; describe a proposed plan as a plan, "
+    "not an executed action or approval, and label letters, emails and notes as unsent drafts. "
+    "People check your output and make decisions. "
     "Task-specific instructions follow; they do not expand these capabilities.\n\n"
 )
 

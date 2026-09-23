@@ -141,7 +141,7 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
         templates = await self.client.get("/api/agent-templates")
         self.assertEqual(templates.status_code, 200)
         self.assertEqual(templates.json()["draft_mode"], "template")
-        self.assertEqual(len(templates.json()["templates"]), 5)
+        self.assertEqual(len(templates.json()["templates"]), 9)
         response = await self.client.post("/api/agent-drafts", json={
             "goal": "Summarize a fictional policy document.", "template_id": "document-analyst",
         })
@@ -380,11 +380,18 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 503)
         self.assertEqual(self.publisher.calls, [])
 
-    async def test_workflow_catalog_reports_only_fixed_simulated_lookup_tools(self):
-        self.body["template_id"] = "workflow-coordinator"
-        record = await self.ready()
-        self.assertEqual(set(record["agent"]["tools"]), {"lookup_demo_request", "lookup_demo_service"})
-        self.assertEqual(set(record["agent"]["tools"].values()), {record["runtime_name"]})
+    async def test_lookup_catalogs_report_only_fixed_simulated_lookup_tools(self):
+        expected = {
+            "workflow-coordinator": {"lookup_demo_request", "lookup_demo_service"},
+            "medical-bill-reviewer": {"lookup_plan_benefits", "lookup_usual_price"},
+        }
+        for template_id, tools in expected.items():
+            with self.subTest(template_id=template_id):
+                self.publisher.done.clear()
+                self.body.update(idempotency_key=str(uuid4()), template_id=template_id)
+                record = await self.ready()
+                self.assertEqual(set(record["agent"]["tools"]), tools)
+                self.assertEqual(set(record["agent"]["tools"].values()), {record["runtime_name"]})
 
     async def test_published_guidance_and_model_do_not_drift_when_templates_change(self):
         record = await self.ready()
@@ -413,7 +420,10 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
             "reasoning": "test-model", "extraction": "fast-model", "tool_calling": "tool-model",
         })
         templates = {item["id"]: item for item in (await self.client.get("/api/agent-templates")).json()["templates"]}
-        expected = {"document-intake": "fast-model", "workflow-coordinator": "tool-model", "criteria-checker": "test-model"}
+        expected = {
+            "document-intake": "fast-model", "workflow-coordinator": "tool-model", "criteria-checker": "test-model",
+            "medical-bill-reviewer": "test-model", "insurance-preapproval-helper": "tool-model",
+        }
         for template_id, model in expected.items():
             with self.subTest(template_id=template_id):
                 self.publisher.done.clear()
