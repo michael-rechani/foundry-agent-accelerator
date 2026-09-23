@@ -122,6 +122,12 @@ correct. For repeatable testing, use the
 | **Create agent** | A job description and one of five [reviewed templates](docs/agent-creation.md#what-a-participant-can-do) | An editable setup. After operator confirmation, the Lab publishes it as a new Foundry agent. |
 | **Created agents** | Nothing. It lists agents published from **Create agent**. | Publication progress, operator-confirmed deletion, and a way to open a ready agent in **Chat** |
 
+![Illustrative UI test of the Document reviews page with mocked APIs: one checklist item is a Gap because the budget is missing, one is Supported with a quote from the source, and the Lab asks for the missing budget](docs/images/screenshots/lab-document-review.png)
+
+*Illustrative UI test with mocked APIs, not a live model result.* ·
+[View full size](docs/images/screenshots/lab-document-review.png) ·
+[More screenshots](docs/images/README.md#lab-screenshots)
+
 - **Creating an agent and chatting with one are separate steps.** An example
   task only fills in your message. **Chat** can't change an agent's instructions,
   tools, or model. That's a [developer or operator task](workbench/README.md#workspace-configuration).
@@ -135,7 +141,7 @@ correct. For repeatable testing, use the
 
 ## How it works
 
-![Default agent collaboration: the coordinator selects a review specialist, receives its result, and returns findings to the Lab for human review](docs/images/agent-collaboration.svg)
+![Default agent collaboration: you ask in the Lab, the Application and case helper calls one specialist, returns its findings, and you check the answer](docs/images/agent-collaboration.svg)
 
 1. **You send a request from the Lab.** The Lab's React front end calls a FastAPI
    backend. The backend runs in an internal Azure Container Apps environment and
@@ -143,8 +149,10 @@ correct. For repeatable testing, use the
 2. **The coordinator picks a specialist.** The backend calls the coordinator
    agent in Foundry, which calls one specialist through a configured tool.
    Specialists don't message each other.
-3. **The coordinator returns the findings.** You check them against the source.
-   A completed tool call doesn't prove the findings are correct.
+3. **The coordinator returns the findings.** The same coordinator adds a tool
+   record that shows which specialist answered.
+4. **You check the answer.** Compare the findings with the source. A completed
+   tool call doesn't prove the findings are correct.
 
 **What gets saved:** **Chat** saves completed messages to a shared Azure Cosmos DB
 database only when you choose to save. Creating a document review saves its

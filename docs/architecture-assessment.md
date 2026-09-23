@@ -77,9 +77,9 @@ Module (AVM), with AzureRM and AzAPI for the surrounding resources. Keep
 infrastructure declarative; keep image builds, agent releases, and quality
 checks as explicit delivery steps.
 
-![Deployment ownership: existing state and private access, separate platform and Lab Terraform stacks, and separate image and agent release workflows](images/foundry-deployment.svg)
+![Deployment ownership: existing state and private access, the platform Terraform root, separate Lab, Bastion, and agent monitoring roots that read platform resources, and separate image and agent release workflows](images/foundry-deployment.svg)
 
-[Open full-size deployment view](images/foundry-deployment.svg) · [Editable SVG template](images/foundry-deployment.template.svg)
+[View full size](images/foundry-deployment.svg) · [Edit the SVG template](images/foundry-deployment.template.svg)
 
 ### Microsoft references to reuse carefully
 

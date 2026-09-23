@@ -77,6 +77,11 @@ agreement.
    snapshots and export the record as JSON. **Chat** remains a separate
    workspace view.
 
+![Illustrative UI test of a Document reviews record with mocked APIs: Results list a Gap for the missing budget and a Supported delivery timeline with its quoted source, beside the Original text panel](images/screenshots/lab-document-review.png)
+
+*Illustrative UI test with mocked APIs, not a live model result.* ·
+[View full size](images/screenshots/lab-document-review.png)
+
 | Result label | In plain language |
 | --- | --- |
 | **Supported** | Your text backs up this checklist item. It does not prove the text is true. |
@@ -110,7 +115,7 @@ the FastAPI process; it is not a queue, separate worker service, or durable job.
 
 ![Draw.io review lifecycle showing conditional start, persistence before HTTP 202, agent result validation, effective outcomes, and clarification resume](images/review-lifecycle.svg)
 
-[Open full-size SVG](images/review-lifecycle.svg) · [Editable draw.io source](images/review-lifecycle.drawio)
+[View full size](images/review-lifecycle.svg) · [Edit the draw.io source](images/review-lifecycle.drawio)
 
 The numbered steps distinguish browser actions, server validation, Cosmos
 writes, and the process-local task. In the diagram, `/execute` abbreviates

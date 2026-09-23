@@ -2,10 +2,10 @@
 
 [Home](../../README.md) / [Docs](../README.md) / Architecture artwork
 
-Use this guide when you edit or rebuild the architecture diagrams. The source
-files, exported SVGs, and Azure icons are part of the documentation contract, so
-update them together and keep the diagrams readable at README width and on
-mobile.
+Use this guide when you edit or rebuild the architecture diagrams or Lab
+screenshots. The source files, exported SVGs, and Azure icons are part of the
+documentation contract, so update them together and keep the images readable at
+README width and on mobile.
 
 ## At a glance
 
@@ -14,6 +14,7 @@ mobile.
 | Detailed draw.io diagrams | `.drawio` files such as `lab-components.drawio` | `./docs/images/build-flow-diagrams.ps1 -DrawioPath "C:\Program Files\draw.io\draw.io.exe"` |
 | High-level overview diagrams | `.template.svg` files such as `foundry-overview.template.svg` | `./docs/images/build-architecture.ps1` |
 | Azure service icons | Unmodified SVG files in `azure-icons/` | Copied unchanged from the official Azure Architecture Center icon set. |
+| Lab screenshots | Playwright tests in `workbench/frontend/tests/` | `npm test -- --project=desktop` in `workbench/frontend/`, then copy from `test-results/` |
 
 ## Azure icons in architecture diagrams
 
@@ -50,8 +51,12 @@ draw.io Desktop (verified with version 31.4.4):
 
 The script checks native XML references, embeds any `azure-icons/...` image
 references, and exports SVGs containing both the artwork and an editable diagram
-copy. It rejects external image dependencies. The standalone `.drawio` file is
-the source of truth; do not maintain a separate edited copy inside the SVG. Use
+copy. It rejects external image dependencies. Exports use the light theme so
+they match the overview artwork in both GitHub themes. The script also removes
+the PNG copies of text labels that draw.io adds for viewers without HTML text
+support; browsers render the text directly, and the SVGs stay under 100 KB.
+The standalone `.drawio` file is the source of truth; do not maintain a separate
+edited copy inside the SVG. Use
 `-PreviewDirectory <temporary-directory>` for PNG inspection copies, and
 `-Names lab-components` to rebuild one view. Commit sources and SVG exports
 together, not temporary previews or downloaded tools.
@@ -75,7 +80,7 @@ in one diagram:
 | [Agent collaboration](agent-collaboration.svg) | Coordinator requests, specialist results, and human review. | [SVG template](agent-collaboration.template.svg) |
 | [Lab infrastructure](foundry-overview.svg) | Default request paths and application-owned records; optional Azure API Management (APIM) stays outside the flow. | [SVG template](foundry-overview.template.svg) |
 | [Operations and security](foundry-operations.svg) | Independent telemetry, image-publishing, and state paths, plus secret ownership. | [SVG template](foundry-operations.template.svg) |
-| [Terraform deployment](foundry-deployment.svg) | Platform and Lab resource ownership, existing prerequisites, and separate release workflows. | [SVG template](foundry-deployment.template.svg) |
+| [Terraform deployment](foundry-deployment.svg) | Platform, Lab, Bastion, and agent monitoring resource ownership, existing prerequisites, and separate release workflows. | [SVG template](foundry-deployment.template.svg) |
 
 Edit the [agent-collaboration view](agent-collaboration.template.svg),
 [runtime overview](foundry-overview.template.svg),
@@ -94,8 +99,10 @@ The build embeds any referenced icons as their original SVG bytes. The
 GitHub displays them, with no external asset or network dependency. Keep source
 icons, templates, and generated images together.
 
-The collaboration view shows the default review profile. Its two coordinator
-boxes are stages of one agent, not separate agents. Blue arrows carry requests;
+The collaboration view shows the Lab's default setup: **Application and case
+helper** with the **Application checker** and **Case notes summarizer**
+specialists. Its numbered steps match the root README. Steps 2 and 3 are stages
+of one coordinator agent, not separate agents. Blue arrows carry requests;
 green arrows return results. Arrow labels and text explain the distinction
 without relying on color. Keep the one-specialist default,
 clarification/failure behavior, and human-review boundary aligned with the
@@ -109,9 +116,10 @@ rows are independent paths, not sequential tasks or network boundaries. Preserve
 the existing-backend requirement and the distinction between Entra
 authentication and a specific managed identity.
 
-The deployment view shows ownership, not another runtime flow. The Lab
-references platform resources; it does not take ownership of the whole platform
-state. Build artifacts and agent versions remain release-workflow outputs. Keep
+The deployment view shows ownership, not another runtime flow. The Lab,
+Bastion, and agent monitoring roots reference platform resources; none of them
+takes ownership of the platform state. Build artifacts and agent versions remain
+release-workflow outputs. Keep
 optional alert delivery distinct from agent-triggered email, and do not depict
 an enterprise landing zone or gateway as deployed by default.
 
@@ -121,6 +129,32 @@ overview focuses on runtime calls; the operations view covers monitoring,
 private state access, and security boundaries. APIM is optional. Keep secret
 ownership and private connectivity boundaries visible without adding
 deployment-history notes.
+
+## Lab screenshots
+
+The screenshots in `screenshots/` come from the Lab's browser tests. The tests
+replace the backend with mocked API responses, so the images show real UI
+layout but not live model answers or saved records. Each image carries the
+**ILLUSTRATIVE UI TEST** watermark in its lower-right corner; keep it visible
+and say "illustrative" in the caption and alt text wherever you use one.
+
+| Screenshot | Shows | Test output | Used in |
+| --- | --- | --- | --- |
+| [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide and example tasks | `demo-starters.png` | [Demo guide](../demos.md#a-short-demonstration) |
+| [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [Root README](../../README.md#inside-the-lab), [review workflow](../review-workflow.md#workflow) |
+| [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page with its five templates | `creation-start.png` | [Agent creation](../agent-creation.md#what-a-participant-can-do) |
+
+To refresh them, run the desktop browser tests and copy the matching files:
+
+```powershell
+cd workbench/frontend
+npm ci
+npx playwright install chromium
+npm test -- --project=desktop
+```
+
+The tests write 1440 x 1000 PNGs under `test-results/`, which Git ignores.
+Rename each file as shown in the table, and do not crop out the watermark.
 
 ## Visual review checklist
 

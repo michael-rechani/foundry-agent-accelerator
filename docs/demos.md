@@ -135,6 +135,11 @@ promised.
 4. **Handoff (2 minutes):** record [what worked, what needs further validation,
    and the recommended next step](demo-handoff.md). Reset as described below.
 
+![Illustrative UI test of an empty Chat with mocked APIs: the Application and case helper explains what you give it and what you get, with example tasks to review an application, summarize case notes, or compare a proposal](images/screenshots/lab-chat-start.png)
+
+*Illustrative UI test with mocked APIs, not a live model result.* ·
+[View full size](images/screenshots/lab-chat-start.png)
+
 Expected findings describe meaning and evidence, **not identical model wording**.
 An eloquent or fast response can still fail. If an answer invents sources, chooses
 an unsupported fact, approves an outcome, or claims an external action, record a

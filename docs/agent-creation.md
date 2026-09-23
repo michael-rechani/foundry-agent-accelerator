@@ -38,6 +38,11 @@ data.
 | **Casework Assistant** | Fictional case notes | A summary, unresolved inconsistencies, and follow-up questions |
 | **Workflow Coordinator** | A fictional request and service identifiers | Read-only **simulated** lookup results and proposed next steps. It doesn't carry out business actions. |
 
+![Illustrative UI test of the Create agent page with mocked APIs: three numbered steps, five template cards, a job description box, and a Prepare setup button](images/screenshots/lab-create-agent.png)
+
+*Illustrative UI test with mocked APIs; nothing was published.* ·
+[View full size](images/screenshots/lab-create-agent.png)
+
 | Stage | What happens | What does not happen |
 | --- | --- | --- |
 | Prepare a draft | The Lab uses deterministic templates and the supplied description. | It does not ask a model to design an agent, save a resource, or spend model tokens. An ambiguous description asks for a template instead of guessing. |

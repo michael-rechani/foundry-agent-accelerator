@@ -42,12 +42,18 @@ foreach ($name in $Names) {
         [IO.File]::WriteAllText($source, $embedded, [Text.UTF8Encoding]::new($false))
     }
     $output = Join-Path $PSScriptRoot "$name.svg"
-    $arguments = @('--export', '--format', 'svg', '--embed-diagram', '--embed-svg-images',
-        '--border', '16', '--output', "`"$output`"", "`"$source`"")
+    $arguments = @('--export', '--format', 'svg', '--theme', 'light', '--embed-diagram',
+        '--embed-svg-images', '--border', '16', '--output', "`"$output`"", "`"$source`"")
     $process = Start-Process -FilePath $DrawioPath -ArgumentList $arguments -Wait -PassThru
     if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $output)) {
         throw "draw.io export failed: $name"
     }
+    # draw.io adds a PNG copy of every text label for viewers without HTML text
+    # support. Browsers render the HTML labels, so drop the copies to keep the SVG small.
+    $exported = [IO.File]::ReadAllText($output)
+    $compact = [regex]::Replace($exported,
+        '(?<=</foreignObject>)<image\b[^>]*\bxlink:href="data:image/png;base64,[^"]*"[^>]*/>(?=</switch>)', '')
+    [IO.File]::WriteAllText($output, $compact, [Text.UTF8Encoding]::new($false))
     [xml]$rendered = Get-Content -LiteralPath $output -Raw
     if ($rendered.DocumentElement.LocalName -ne 'svg') { throw "Invalid SVG export: $name" }
     foreach ($image in $rendered.SelectNodes('//*[local-name()="image"]')) {

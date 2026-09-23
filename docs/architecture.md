@@ -46,9 +46,9 @@ see the [extension guide](architecture-assessment.md).
 
 ## Implementation overview
 
-![Default Lab infrastructure: private browser access, separate agent and record paths, and optional API Management outside the default flow](images/foundry-overview.svg)
+![Default Lab infrastructure: private browser access such as the jumpbox through Azure Bastion, separate agent and record paths, and optional API Management outside the default flow](images/foundry-overview.svg)
 
-[Open full-size infrastructure view](images/foundry-overview.svg) · [Editable SVG template](images/foundry-overview.template.svg)
+[View full size](images/foundry-overview.svg) · [Edit the SVG template](images/foundry-overview.template.svg)
 
 The diagram uses [official Microsoft Azure architecture icons](images/README.md)
 in logical runtime and operations views. Boxes identify components, not physical
@@ -102,12 +102,12 @@ to that same coordinator.
 
 ![Default review-agent collaboration, from the Lab through one selected specialist and back to a person for review](images/agent-collaboration.svg)
 
-[Open full-size SVG](images/agent-collaboration.svg) · [Editable SVG template](images/agent-collaboration.template.svg) · [Request and result example](agent-profiles.md#example-handoff)
+[View full size](images/agent-collaboration.svg) · [Edit the SVG template](images/agent-collaboration.template.svg) · [Request and result example](agent-profiles.md#example-handoff)
 
 | Step | Responsibility | What crosses the boundary |
 | --- | --- | --- |
 | Ask | A person supplies the question and evidence in the Lab. The backend calls the configured named agent by using managed identity. | The new message and bounded conversation context. |
-| Delegate | The coordinator selects `review_application` or `review_case`. Its instructions allow both only when the user explicitly requests both review types. | A text request containing the full task, supplied evidence, and source identifiers. |
+| Delegate | The coordinator selects a specialist tool: `inspect_application` or `inspect_case` in the default setup. Its instructions allow both only when the user explicitly requests both review types. | A text request containing the full task, supplied evidence, and source identifiers. |
 | Return | The specialist responds to the coordinator's tool call. The tool wrapper accepts only a completed, nonempty response. | A tool result containing `status`, `agent`, and `output`; the Responses protocol carries the matching `call_id`. |
 | Review | The Lab checks the tool record and displays the answer. A person verifies sources and decides what to do next. | Findings, source references, questions, and verification flags; not an approval or a guarantee of truth. |
 
@@ -119,13 +119,14 @@ calls, scheduled audit agents, agent-triggered email, or external business
 writes. Optional infrastructure health notifications are separate from agent
 behavior.
 
-The two coordinator boxes in the diagram show request and response stages of
-the **same agent**. The blue service boundary is logical hosting, not a virtual
+Steps 2 and 3 in the diagram are the request and response stages of the
+**same agent**. The blue service boundary is logical hosting, not a virtual
 network. The specialist boxes represent custom code, not separate Microsoft
-products. The diagram and tool names show the base coordinator setup. The Lab's
-default **Application and case helper** uses the example profile's
-`inspect_application` and `inspect_case` tools with those same specialist
-targets. These are two configurations of the same review capabilities, not
+products. The diagram shows the Lab's default **Application and case helper**,
+which uses the example profile's `inspect_application` and `inspect_case`
+tools. **Application and case helper (base setup)** uses `review_application`
+and `review_case` with the same specialist targets. These are two
+configurations of the same review capabilities, not
 separate planning and review features. Profiles can change tool names and
 targets; see the [profile contract](agent-profiles.md#specialist-contract)
 before changing them.
@@ -163,7 +164,7 @@ capabilities before adding a custom orchestration layer.
 
 ![Editable draw.io component map showing the React browser, internal FastAPI app, Foundry coordinator and specialists, and Cosmos persistence](images/lab-components.svg)
 
-[Open full-size SVG](images/lab-components.svg) · [Editable draw.io source](images/lab-components.drawio)
+[View full size](images/lab-components.svg) · [Edit the draw.io source](images/lab-components.drawio)
 
 Blue connectors carry application requests; green connectors are application
 record operations. The dashed dependency connector is not a per-request
@@ -195,7 +196,7 @@ but no Search retrieval tool is connected to the reference review workflow.
 
 ![Draw.io sequence showing chat requests, managed-identity specialist delegation, response receipts, and explicit Cosmos history saves](images/lab-request-flow.svg)
 
-[Open full-size SVG](images/lab-request-flow.svg) · [Editable draw.io source](images/lab-request-flow.drawio)
+[View full size](images/lab-request-flow.svg) · [Edit the draw.io source](images/lab-request-flow.drawio)
 
 The browser sends the selected catalog ID, new message, and bounded prior turns
 to `POST /api/reviews`. FastAPI rejects disallowed origins, unknown agents, and
@@ -236,9 +237,9 @@ of the others.
 
 ## Operations
 
-![Separate operational paths for Lab metadata, private image publishing, and protected Terraform state, with Key Vault for necessary secrets](images/foundry-operations.svg)
+![Separate operational paths for Lab metadata and optional agent traces, private image publishing, and protected Terraform state, with Key Vault for necessary secrets](images/foundry-operations.svg)
 
-[Full-size operations diagram](images/foundry-operations.svg) · [Editable SVG template](images/foundry-operations.template.svg)
+[View full size](images/foundry-operations.svg) · [Edit the SVG template](images/foundry-operations.template.svg)
 
 Each row is a separate operational path, not a sequence of deployment steps.
 The image path includes the approved private runner and registry; the Lab uses
