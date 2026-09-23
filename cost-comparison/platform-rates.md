@@ -1,13 +1,28 @@
 # Reference-environment budget and rates
 
-[Cost model](README.md) / Platform rates
+[Home](../README.md) / [Cost comparison](README.md) / Platform rates
+
+Use this page to understand the saved rate assumptions behind
+`scenario.deployed.json`. It is for operators and architects who need to copy the
+reference budget, refresh prices, or reconcile it with an approved scope.
+
+> [!IMPORTANT]
+> These are saved assumptions and operational notes for one reference
+> environment, not a live inventory or requirements for every deployment. They
+> do not establish current prices or actual spend. Verify quantities, rates, and
+> resource usage before using this budget.
+
+## In this guide
+
+- [Snapshot scope](#snapshot-scope)
+- [Recorded retail rates](#recorded-retail-rates)
+- [Reproduce the selection](#reproduce-the-selection)
+- [Deployed budget](#deployed-budget)
+- [Actual cost reconciliation](#actual-cost-reconciliation)
+- [Cleanup candidates](#cleanup-candidates)
+- [Related content](#related-content)
 
 ## Snapshot scope
-
-These are saved assumptions and operational notes for one reference environment,
-not a live inventory or requirements for every deployment. They do not establish
-current prices or actual spend. Verify quantities, rates, and resource usage
-before using this budget.
 
 The filename [scenario.deployed.json](scenario.deployed.json) and its recorded
 assumptions are retained for compatibility. References to "current deployment"
@@ -26,19 +41,21 @@ them for your agreement and region before making a cost decision.
 | --- | --- | ---: | ---: | ---: |
 | One APIM Standard v2 unit | API Management / Standard v2 Unit | 0.9589 | 730 | $700.00 |
 
-The original example's APIM capacity estimate is **$700.00/month**, before operational compute, disk, NAT, public IP,
-private endpoints/DNS, transfer, project dependencies, hosted runtime, model
-tokens, tools, monitoring, operations labor, and applicable additional API calls.
-This is a partial planning baseline, not a minimum invoice or total platform cost.
+Azure API Management (APIM) capacity in the original example is
+**$700.00/month**, before operational compute, disk, network address translation
+(NAT), public IP, private endpoints/DNS, transfer, project dependencies, hosted
+runtime, model tokens, tools, monitoring, operations labor, and applicable
+additional API calls. This is a partial planning baseline, not a minimum invoice
+or total platform cost.
 
-The reference environment's separately deployed workbench adds 400 RU/s of
+The reference environment's separately deployed Lab adds 400 RU/s of
 dedicated Cosmos container throughput. The North Central US public retail
 `100 RU/s` meter uses the saved assumption of USD 0.008/hour:
 `4 * 0.008 * 730 = USD 23.36/month`.
-The original comparison example includes this amount and unpriced workbench storage,
+The original comparison example includes this amount and unpriced Lab storage,
 backup, Container Apps, and registry/build entries. Its known platform subtotal
 is USD 765.41/month under these assumptions, still incomplete and not an invoice.
-The Foundry Cosmos entry excludes this workbench allocation to avoid double counting.
+The Foundry Cosmos entry excludes this Lab allocation to avoid double counting.
 
 The [reference scenario](scenario.deployed.json) adds itemized coverage for the
 recorded private-platform assumptions. It accepts quantities and rates, calculates
@@ -58,8 +75,9 @@ serviceName eq 'Virtual Machines' and armRegionName eq 'westus' and armSkuName e
 ```
 
 Select the exact products/meters in the table. Do not substitute APIM secondary
-units, workspace packs, self-hosted gateways, Linux VMs, Spot, or Low Priority
-rates. APIM call meters have tiers; estimate their charges separately from
+units, workspace packs, self-hosted gateways, Linux virtual machines (VMs),
+Spot, or Low Priority rates. APIM call meters have tiers; estimate their
+charges separately from
 capacity using the applicable included allowance and billing rules.
 
 ## Deployed budget
@@ -69,6 +87,7 @@ capacity hours, reducing its steady-state monthly estimate by $700.00 to
 **$1,584.76**. That does not erase earlier accrued charges or establish present
 spend. The original comparison example above retains APIM assumptions for
 comparison; neither file automatically follows live deployment changes.
+Azure Container Registry (ACR) appears in the table as a retained budget item.
 
 | Item | Recorded unit rate | Budget quantity |
 | --- | ---: | --- |
@@ -114,9 +133,9 @@ result was obtained or subsequently recorded here. This is a historical
 observation, not a statement that Cost Management is currently unavailable.
 
 For a new reconciliation, use an approved Cost Management query for the intended
-scope and period, respecting any returned throttling guidance. Do not
-interpret the failed query as zero spend or extrapolate these capacity estimates
-into an actual monthly bill. Actual usage can arrive late and a newly deployed
+scope and period, respecting any returned throttling guidance. Do not interpret
+the failed query as zero spend or extrapolate these capacity estimates into an
+actual monthly bill. Actual usage can arrive late and a newly deployed
 environment is not yet a stable representative month.
 
 ## Cleanup candidates
@@ -131,3 +150,8 @@ resource inventory. Obtain a fresh inventory and explicit approval before acting
   deleted no resources or versions.
 - Preserve private networking required for administration and builds; removing
   an optional gateway does not establish that shared networking is unused.
+
+## Related content
+
+- [Cost comparison](README.md)
+- [Reference scenario](scenario.deployed.json)

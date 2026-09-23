@@ -1,71 +1,101 @@
-# Choose a Foundry demonstration
+# Choose a Microsoft Foundry demonstration
 
-[Overview](../README.md) / Demo guide / [Handoff](demo-handoff.md)
+[Home](../README.md) / [Docs](README.md) / Demo guide
 
-Choose one task to demonstrate, then compare the response with the supplied
-evidence and expected findings. These are fictional examples for technical
-testing, not customer implementations or production solutions.
+Use this guide to pick one Lab scenario, run it with fictional data, and compare
+what the agent returns with the expected findings. It is for reviewers and demo
+leads who already have an operator-prepared Microsoft Foundry environment, or
+who need an offline walkthrough when live access is unavailable.
 
-Customer-system connections and production deployment require separate planning
-and agreement. This repository is not an officially approved or funded Microsoft
-service offering.
+## At a glance
+
+Status values use the definitions in [terms used in these guides](README.md#terms-used-in-these-guides).
+
+| Scenario | Status | Lab agent or task to pick | What you'll check |
+| --- | --- | --- | --- |
+| [Create and try a baseline agent](#create-and-try-a-baseline-agent) | **Available** | **Create agent**, then **Created agents** and **Chat** | A prepared template becomes a small Foundry agent, then a person checks its fictional sample output. |
+| [Casework assistance](#casework-assistance) | **Available** | **Application and case helper** with **Summarize case notes**; optional direct **Case notes summarizer** if enabled | The answer keeps known facts, missing evidence, and conflicting case notes separate. |
+| [Application completeness](#application-completeness) | **Available** | **Application and case helper** with **Review an application**; optional direct **Application checker** if enabled | The answer compares supplied evidence with a checklist without approving or denying the application. |
+| [Requirements and proposal review](#requirements-and-proposal-review) | **Experimental** | **Application and case helper** with **Compare a proposal (EXPERIMENTAL)** | The answer separates product claims, supported requirements, gaps, and conflicts without selecting a vendor. |
+| [Agent-assisted request triage](#agent-assisted-request-triage) | **Planned** | No runnable Lab task | The section records an acceptance outline for a future bounded workflow. |
+
+## In this guide
+
+- [Prepare once, demonstrate separately](#prepare-once-demonstrate-separately)
+- [Create and try a baseline agent](#create-and-try-a-baseline-agent)
+- [A short demonstration](#a-short-demonstration)
+- [Casework assistance](#casework-assistance)
+- [Application completeness](#application-completeness)
+- [Requirements and proposal review](#requirements-and-proposal-review)
+- [Agent-assisted request triage](#agent-assisted-request-triage)
+- [Reset without hiding failures](#reset-without-hiding-failures)
 
 ## Prepare once, demonstrate separately
 
 An operator prepares the [private environment](../README.md#quick-start),
 publishes approved [agent versions](../hosted-agents/README.md), verifies routes
-and smoke checks, and deploys the [Lab](../workbench/README.md). These activities
-can incur charges and require explicit approval; this guide does not perform
-them. Do not provision resources or change permissions to improvise a demo.
-Local source edits do not update an already deployed agent or Lab image.
+and smoke checks, and deploys [the Lab](../workbench/README.md). These activities
+can incur charges and require explicit approval. This guide does not perform
+them.
+
+> [!IMPORTANT]
+> Use only the supplied fictional data. Customer-system connections and
+> production deployment require separate planning and agreement. This repository
+> is not an officially approved or funded Microsoft service offering, and the
+> Lab has shared history with no per-user authorization boundary.
 
 Before inviting participants:
 
-- Pick one scenario and agree a concrete question to validate.
+- Pick one scenario and agree on the concrete question to validate.
 - Confirm approved private access, a visible compatible catalog entry, intended
   routed agent versions, and a known recovery target. Preserve existing IDs,
-  bindings, and visibility controls; do not expose all agents just for a demo.
-- The default **Application and case helper** uses the existing coordinator profile and its
-  two review specialists. Direct application/case chat is possible only if an
-  operator has explicitly enabled that catalog entry. Proposal review reuses
-  application review, not a third specialist.
-- **About this agent** explains what to paste, what the agent returns and how it
+  bindings, and visibility controls. Do not expose all agents just for a demo.
+- Do not provision resources or change permissions to improvise a demo. Local
+  source edits do not update an already deployed agent or Lab image.
+- The default **Application and case helper** uses the existing coordinator
+  profile and its two review specialists. Direct application or case chat is
+  possible only if an operator has explicitly enabled that catalog entry.
+  Proposal review reuses application review, not a third specialist.
+- **About this agent** explains what to paste, what the agent returns, and how it
   works. **Agents** selects an existing setup. The separate **Create agent** flow
   prepares and, with explicit operator confirmation, publishes a new agent.
-  A starter is just an example task and message. Developer configuration and
+- A starter is just an example task and message. Developer configuration and
   deployment are explained separately in [Lab settings](../workbench/README.md#workspace-configuration).
-- Use only the supplied fictional content. **The Lab has shared history and no
-  per-user authorization. Private networking does not isolate users or records.**
 - Verify the selected prompt behavior in an approved staging environment first.
-  A deployer smoke pass verifies invocation/delegation, not answer quality.
+  A deployer smoke pass verifies invocation and delegation, not answer quality.
   Use the [Foundry evaluation suite](../evaluations/README.md) for quality gates.
 - Without live access, walk through the sample inputs and expected findings
   below as examples, not live results. Local disconnected mode cannot
-  demonstrate model execution, Cosmos persistence, or live approval tools.
+  demonstrate model execution, Azure Cosmos DB persistence, or live approval tools.
 
-The primary path uses no customer-system connection, M365/Copilot/SharePoint
-integration, education knowledge assistant, external business action, or
-production deployment. Existing optional integrations remain separately scoped.
+The primary path uses no customer-system connection, Microsoft 365, Microsoft
+Copilot, SharePoint integration, education knowledge assistant, external
+business action, or production deployment. Existing optional integrations remain
+separately scoped.
 
 ## Create and try a baseline agent
 
-Use this path to show how a recognizable job becomes a small Foundry agent.
-The [operator setup](agent-creation.md#enable-publication) must already be
-approved and complete. Publication time is service-dependent; have a previously
-created fictional agent available rather than promising instant deployment.
+Use this path to show how a recognizable job becomes a small Foundry agent. The
+[operator setup](agent-creation.md#enable-publication) must already be approved
+and complete. Publication time is service-dependent, so have a previously created
+fictional agent available rather than promising instant deployment.
 
-1. Open **Create agent**. Describe one job or choose a prepared template.
-2. Prepare the setup. Explain that the template supplies the baseline and the
+1. Open **Create agent**.
+2. Describe one job or choose a prepared template.
+3. Prepare the setup. Explain that the template supplies the baseline and the
    typed task is included in its instructions; no model has designed or tested
    the configuration at this point.
-3. Review its input, output, limits and fixed tools. Edit its name and task
-   instructions if needed. Confirm costs and shared visibility, then enter the
-   operator key and explicitly create it.
-4. Follow the real upload, provisioning and routing stages in **Created agents**.
-   Ready means an active runtime and checked Responses route, not a quality pass.
-5. Open it in Chat, select its fictional sample and send it. Keep the source text
-   visible and ask a follow-up. Observe tool receipts only when tools actually run.
-6. Record findings and export anything needed before an operator deletes the
+4. Review its input, output, limits, and fixed tools. Edit its name and task
+   instructions if needed.
+5. Confirm costs and shared visibility, enter the operator key, and explicitly
+   create it.
+6. Follow the real upload, provisioning, and routing stages in **Created agents**.
+   **Ready to try** means an active runtime and checked Responses route, not a
+   quality pass.
+7. Open it in **Chat**, select its fictional sample, and send it. Keep the source
+   text visible and ask a follow-up. Observe tool receipts only when tools
+   actually run.
+8. Record findings and export anything needed before an operator deletes the
    created agent. Closing a tab does not stop its cloud costs.
 
 | Audience / template | Example job description | What to demonstrate |
@@ -76,18 +106,23 @@ created fictional agent available rather than promising instant deployment.
 | Community services / Casework Assistant | Summarize fictional service-intake notes and draft follow-up questions without deciding eligibility or changing records. | Facts, conflicting notes and questions kept separate |
 | ISV / Workflow Coordinator | Use the supplied fictional request and service examples to propose integration-review steps and identify what a person must verify. | Two clearly simulated, read-only lookups and an action plan; no connected SaaS apps, writes or approval workflow |
 
+These examples include independent software vendor (ISV) and software as a
+service (SaaS) language so you can discuss product integration without
+connecting a real system.
+
 Use the template's actual sample input and fixture identifiers. Job descriptions
 alone are not the source documents an agent needs to analyze. No customer name,
-account, real patient record or opportunity information is required.
+account, real patient record, or opportunity information is required.
 
-In local preview you can demonstrate steps 1-3 only, without the publication
+In local preview, you can demonstrate steps 1-3 only, without the publication
 action. Any screenshots using controlled browser-test responses must remain
-visibly labeled **ILLUSTRATIVE UI TEST**; they are not live Foundry results.
-The existing walkthroughs below remain usable without creating another agent.
+visibly labeled **ILLUSTRATIVE UI TEST**; they are not live Foundry results. The
+existing walkthroughs below remain usable without creating another agent.
 
 ## A short demonstration
 
-Allow roughly 10-15 minutes for one scenario; model response time is not promised.
+Allow roughly 10-15 minutes for one scenario. Model response time is not
+promised.
 
 1. **Frame (2 minutes):** state the question, supplied evidence, and prohibited
    decisions. Start an empty chat in the Lab.
@@ -107,16 +142,17 @@ failure and stop presenting it as a successful result.
 
 ## Casework assistance
 
-**Available:** supplied-input case summary and follow-up workflow in the existing
+**Available**: supplied-input case summary and follow-up workflow in the existing
 [case-review agent](../hosted-agents/case-review-agent/README.md). This is source
 availability, not a live validation claim.
 
 **Question:** Can the assistant help a staff member see what is known and what
 needs clarification without making a case decision?
 
-**Run:** choose **Summarize case notes** in Application and case helper, or paste the complete
-[casework input and prompt](demo-inputs/casework.txt). If direct casework chat is
-visible as **Case notes summarizer**, it uses the same case agent. Do not request an application review too.
+**Run:** choose **Summarize case notes** in **Application and case helper**, or
+paste the complete [casework input and prompt](demo-inputs/casework.txt). If
+direct casework chat is visible as **Case notes summarizer**, it uses the same
+case agent. Do not request an application review too.
 
 | Supplied evidence | Good result |
 | --- | --- |
@@ -143,16 +179,16 @@ No real system is connected. Claiming a successful update is a failed demo.
 
 ## Application completeness
 
-**Available:** criteria-and-evidence comparison in the existing
+**Available**: criteria-and-evidence comparison in the existing
 [application-review agent](../hosted-agents/application-review-agent/README.md).
 The sample is a fictional permit application, not a regulatory rules engine.
 
 **Question:** Can the assistant help a reviewer distinguish supplied evidence,
 gaps, and conflicts without approving or denying an application?
 
-**Run:** choose **Review an application** in Application and case helper, or paste
-[application.txt](demo-inputs/application.txt). An explicitly enabled direct
-**Application checker** entry uses the same specialist.
+**Run:** choose **Review an application** in **Application and case helper**, or
+paste [application.txt](demo-inputs/application.txt). An explicitly enabled
+direct **Application checker** entry uses the same specialist.
 
 | Criterion | Good result | Supporting identifiers |
 | --- | --- | --- |
@@ -185,17 +221,20 @@ request; it must not include a fabricated execution receipt.
 
 ## Requirements and proposal review
 
-**Experimental:** a packaged adaptation of application review, with explicit
+**Experimental**: a packaged adaptation of application review, with explicit
 proposal instructions and the existing criteria-and-evidence workflow. No new
 agent, tool framework, or infrastructure stack is introduced. Live
 scenario-specific evaluation remains required before calling this validated.
 
 **Question:** Can the assistant distinguish product evidence from a broad claim
-and help a person identify RFP coverage gaps without selecting a vendor?
+and help a person identify request for proposal (RFP) coverage gaps without
+selecting a vendor?
 
-**Run in chat:** choose **Compare a proposal (EXPERIMENTAL)** in Application and case helper, or
-paste [requirements.txt](demo-inputs/requirements.txt). The coordinator should use
-its application-review tool, not its case-review tool.
+**Run in chat:** choose **Compare a proposal (EXPERIMENTAL)** in
+**Application and case helper**, or paste [requirements.txt](demo-inputs/requirements.txt).
+The coordinator should use its application-review tool, not its case-review tool.
+The sample asks about comma-separated values (CSV) export and single sign-on
+(SSO).
 
 | RFP requirement | Good coverage matrix finding | Evidence |
 | --- | --- | --- |
@@ -214,8 +253,8 @@ existing `ReviewInput` example for reference, **not a new upload feature**.
 Paste each criterion without its `CRIT-n` prefix; the workspace assigns these
 IDs by order. Paste each evidence text into its corresponding source field;
 the outer IDs are SRC-1 through SRC-3 and the inner PROD identifiers stay intact.
-Use the compatible default Application and case helper; a direct Chat entry is not
-automatically a supported structured-review endpoint.
+Use the compatible default **Application and case helper**; a direct **Chat**
+entry is not automatically a supported structured-review endpoint.
 
 Choose **Create shared review**, then **Run review**. The same findings map to
 `supported`, `conflict`, and `gap`, respectively. Non-gap findings require exact
@@ -235,11 +274,11 @@ support, and declines vendor selection. In the structured workflow, invented
 quotes or source IDs must be rejected, not displayed as verified findings.
 
 **Reset:** use the [shared reset procedure](#reset-without-hiding-failures).
-Document reviews does not currently offer saved-checklist editing or review deletion.
+**Document reviews** does not currently offer saved-checklist editing or review deletion.
 
 ## Agent-assisted request triage
 
-**Planned - not runnable.** The existing coordinator routes requests to review
+**Planned**: not runnable. The existing coordinator routes requests to review
 specialists. It does not implement business-request classification, routing
 destinations, simulated approval, or ticket creation.
 
@@ -260,27 +299,25 @@ do not generalize coordinator profiles into a new framework.
 
 ## Reset without hiding failures
 
-- **Chat:** export or explicitly save only if needed for the agreed synthetic
-  handoff, then start a new chat and select the same scenario. A new chat clears
-  model context; it does not remove shared saved history. Do not use Continue in
-  new chat for a clean comparison because it carries an editable context draft.
-- **Shared saved conversations:** delete only the specific synthetic records
-  created for this demo, and only if their removal is agreed. There is no
-  owner authorization. Never bulk-delete other participants' records.
-- **Document reviews:** export if required, then create a new draft with the
-  original fixture. Do not overwrite earlier evidence or label a failed run as
-  passed. Records allow at most four runs and expire 30 days after their last
-  write; no review-delete endpoint exists. TTL is not immediate secure erasure
-  and backup retention is separate.
-- **Interrupted calls:** Stop waiting ends the browser wait, not guaranteed
-  remote execution. Refresh/check the existing record before repeating a call;
-  retries can cost money and are not automatic. Do not break networking or
-  permissions to manufacture an outage in a shared environment.
-- **Service/tool failure:** preserve the explicit failure and absence of a
-  verified result. Offline tests cover failed calls; demonstrate a live outage
-  only in a separately approved isolated test, never by weakening safeguards.
+Use a reset to keep each comparison honest. Do not use a reset to hide a failed
+run or remove another participant's records.
+
+| Area | Reset rule |
+| --- | --- |
+| **Chat** | Export or explicitly save only if needed for the agreed synthetic handoff, then start a new chat and select the same scenario. A new chat clears model context; it does not remove shared saved history. Do not use **Continue in new chat** for a clean comparison because it carries an editable context draft. |
+| **Shared saved conversations** | Delete only the specific synthetic records created for this demo, and only if their removal is agreed. There is no owner authorization. Never bulk-delete other participants' records. |
+| **Document reviews** | Export if required, then create a new draft with the original fixture. Do not overwrite earlier evidence or label a failed run as passed. Records allow at most four runs and expire 30 days after their last write; no review-delete endpoint exists. Time to live (TTL) is not immediate secure erasure and backup retention is separate. |
+| **Interrupted calls** | **Stop waiting** ends the browser wait, not guaranteed remote execution. Refresh/check the existing record before repeating a call; retries can cost money and are not automatic. Do not break networking or permissions to manufacture an outage in a shared environment. |
+| **Service/tool failure** | Preserve the explicit failure and absence of a verified result. Offline tests cover failed calls; demonstrate a live outage only in a separately approved isolated test, never by weakening safeguards. |
 
 For an optional model/prompt comparison, use the
 [same versioned Foundry evaluation set](../evaluations/README.md), separate fresh
 conversations, and recorded candidate versions. Keep failures, unavailable
 telemetry, and live-validation limitations in the handoff.
+
+## Related content
+
+- [Demo handoff](demo-handoff.md)
+- [Create and try a baseline agent](agent-creation.md)
+- [The Lab](../workbench/README.md)
+- [Foundry evaluations](../evaluations/README.md)
