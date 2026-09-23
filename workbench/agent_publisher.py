@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import io
 import os
+import stat
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from pathlib import Path
@@ -33,7 +34,9 @@ def runtime_package():
                 raise PublicationError("runtime_unavailable")
             info = ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
             info.compress_type = ZIP_DEFLATED
-            info.external_attr = 0o644 << 16
+            # Foundry's remote build skips Unix entries that lack the regular-file type bit.
+            info.create_system = 3
+            info.external_attr = (stat.S_IFREG | 0o644) << 16
             archive.writestr(info, source)
     package = output.getvalue()
     return package, hashlib.sha256(package).hexdigest()
@@ -106,6 +109,16 @@ class FoundryPublisher:
             and rules[0].traffic_percentage == 100
         )
 
+    @staticmethod
+    def default_route(endpoint):
+        selector = getattr(endpoint, "version_selector", None)
+        rules = getattr(selector, "version_selection_rules", None)
+        return (
+            isinstance(rules, list) and len(rules) == 1
+            and getattr(rules[0], "agent_version", None) == "@latest"
+            and getattr(rules[0], "traffic_percentage", None) == 100
+        )
+
     async def finish(self, client, document, progress):
         from azure.ai.projects.models import (
             AgentEndpointConfig, FixedRatioVersionSelectionRule, ProtocolConfiguration,
@@ -133,6 +146,7 @@ class FoundryPublisher:
         selector = getattr(existing.agent_endpoint, "version_selector", None)
         rules = getattr(selector, "version_selection_rules", None)
         if (rules not in (None, [])
+                and not self.default_route(existing.agent_endpoint)
                 and not self.route_matches(existing.agent_endpoint, identifier)):
             raise PublicationError("resource_changed")
         await progress("routing")

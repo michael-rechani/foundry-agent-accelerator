@@ -1,5 +1,6 @@
 import hashlib
 import io
+import stat
 import unittest
 from contextlib import asynccontextmanager
 from copy import deepcopy
@@ -152,10 +153,36 @@ class PublisherTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(first, second)
         self.assertEqual(digest, other_digest)
         with ZipFile(io.BytesIO(first)) as archive:
-            for name in archive.namelist():
+            for info in archive.infolist():
+                name = info.filename
                 self.assertNotIn("\\", name)
                 self.assertNotIn("/", name)
                 self.assertNotIn(".env", name)
+                self.assertEqual(info.create_system, 3)
+                self.assertTrue(stat.S_ISREG(info.external_attr >> 16))
+                self.assertEqual(stat.S_IMODE(info.external_attr >> 16), 0o644)
+
+    async def test_new_agent_default_latest_route_is_pinned_to_the_owned_version(self):
+        original = self.agents.create_version_from_code
+
+        async def create_with_default_route(**kwargs):
+            created = await original(**kwargs)
+            self.agents.endpoint = endpoint(version="@latest")
+            self.agents.endpoint.authorization_schemes = [EntraAuthorizationScheme()]
+            return created
+
+        self.agents.create_version_from_code = create_with_default_route
+        await self.publisher.create(self.document, self.progress)
+        self.assertEqual(self.document["status"], "ready")
+        self.assertTrue(self.publisher.route_matches(self.agents.endpoint, "1"))
+        self.assertEqual(len(self.agents.endpoint.authorization_schemes), 1)
+
+    async def test_partial_latest_route_is_not_overwritten(self):
+        self.document["publication_started"] = True
+        self.agents.exists = True
+        self.agents.endpoint = endpoint(version="@latest", percentage=50)
+        await self.assert_code("resource_changed", self.publisher.resume)
+        self.assertEqual(self.agents.promotions, [])
 
     async def test_saved_model_deployment_is_used_and_must_exist_before_upload(self):
         self.document["model"] = "extraction-model"
