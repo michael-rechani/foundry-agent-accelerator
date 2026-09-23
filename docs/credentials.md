@@ -12,6 +12,7 @@ resource reads for Terraform, and Key Vault only for credentials that must exist
 | --- | --- |
 | Runtime services | Use managed identity for Microsoft Foundry, Cosmos, and registry access. |
 | Secrets | Store required passwords, API keys, tokens, and certificates in Key Vault. |
+| Source control | CI scans every commit for credentials. Never commit keys, certificates, state, or tfvars. |
 | Terraform state | Treat state and saved plans as sensitive, even when no credential is currently present. |
 | State ownership | Keep separate state keys for the platform, the Lab, optional Bastion, and optional monitoring. |
 | Recovery | Preserve protected backups and rotate exposed credentials through the approved recovery process. |
@@ -28,6 +29,22 @@ Transcripts and operational metadata are application data, not vault secrets.
 Keep them in their dedicated protected stores with appropriate access and
 retention. Avoid storing credentials in prompts, conversations, application
 logs, or exports.
+
+## Secret scanning
+
+Every push and pull request runs [gitleaks](https://github.com/gitleaks/gitleaks)
+across the full commit history. The build fails if it finds a credential. The
+only exception in [`.gitleaks.toml`](../.gitleaks.toml) is the synthetic Key
+Vault version ID that offline Terraform tests use. Run the same scan before you
+push:
+
+```bash
+gitleaks git . --redact
+```
+
+If a scan finds a real credential, rotate it first, because rewriting history
+doesn't revoke a value that was already pushed. Then store the replacement in
+Key Vault.
 
 ## Terraform access
 

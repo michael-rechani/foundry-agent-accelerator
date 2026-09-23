@@ -21,6 +21,11 @@ backend.tf.json
 .env.*
 !.env.example
 !.env.*.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.publishsettings
 __pycache__/
 *.py[cod]
 .venv/

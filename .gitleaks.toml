@@ -1,0 +1,9 @@
+# Secret scan for every commit. CI runs `gitleaks git` against the full history.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Synthetic Key Vault secret versions used by offline Terraform tests"
+condition = "AND"
+paths = ['''^terraform/tests/[^/]+\.tftest\.hcl$''']
+regexes = ['''^0123456789abcdef0123456789abcdef$''']
