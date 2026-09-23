@@ -267,7 +267,7 @@ separate virtual environment, set the same two environment variables, run
 
 ## Scenario selection and optional extensions
 
-Start with the [scenario/status matrix](../README.md#scenarios-and-status), not a
+Start with the [scenario/status matrix](../docs/demos.md#at-a-glance), not a
 catalog of promised integrations. Reuse the supplied casework and application
 examples. Validate the experimental proposal adaptation before presenting it as
 proven. Business-request triage still needs a bounded simulation and explicit

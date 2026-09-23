@@ -23,6 +23,7 @@ FastAPI backend and shared Azure Cosmos DB storage.
 
 ## In this guide
 
+- [Pages](#pages)
 - [Choose one demonstration](#choose-one-demonstration)
 - [Access](#access)
 - [Conversations](#conversations)
@@ -32,6 +33,35 @@ FastAPI backend and shared Azure Cosmos DB storage.
 - [Deployment](#deployment)
 - [Diagnostics and caching](#diagnostics-and-caching)
 - [Related content](#related-content)
+
+## Pages
+
+The Lab's pages, in the order they appear in its sidebar:
+
+| Page | What you do there |
+| --- | --- |
+| **Create agent** | Describe a job, pick one of five [reviewed templates](../docs/agent-creation.md#what-a-participant-can-do), edit the name and instructions, and publish a new Foundry hosted agent. Shown only when an operator turns on creation; the Lab then opens on this page. |
+| **Created agents** | Follow publication progress, open a ready agent in **Chat**, or delete an agent with the operator key. Shown only when creation is on. |
+| **Chat** | Talk with a prebuilt or created agent. An example task only fills in your message; you choose when to send it. |
+| **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. |
+| **Shared history** | Reopen chats that anyone saved. Saved chats are shared and kept for 30 days. |
+| **Agents** | Browse the agents you can chat with, read what each one needs and does, and start a chat. |
+| **Performance** | See completed, failed, and timed-out requests and the average response time for this browser session. |
+
+**Chat** can't change an agent's instructions, tools, or model; that's a
+[developer or operator task](#workspace-configuration). **Document reviews**
+always uses the Lab's default agent, whichever agent you select in **Chat**.
+Neither page copies work into the other.
+
+Preparing a setup in **Create agent** doesn't call a model or create Azure
+resources. Publishing is opt-in, costs money, and needs the
+[operator setup](../docs/agent-creation.md#enable-publication).
+
+**What gets saved:** **Chat** saves completed messages to the shared Azure
+Cosmos DB database only when you choose to save. Creating a document review
+saves its checklist and document text. Running a review also saves the results
+and a copy of that run's input. Each created agent's setup is saved as a shared
+record.
 
 ## Choose one demonstration
 
