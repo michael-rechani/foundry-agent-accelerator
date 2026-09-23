@@ -436,9 +436,12 @@ class AgentCreations:
             document.clear()
             document.update(saved)
 
-        async def fail(code, status="failed"):
-            LOGGER.warning(json.dumps({"event": "agent_publication_failed", "agent_id": identifier,
-                                       "operation": operation, "error": code}))
+        async def fail(code, status="failed", service_error=None):
+            entry = {"event": "agent_publication_failed", "agent_id": identifier,
+                     "operation": operation, "error": code}
+            if service_error:
+                entry["service_error"] = service_error
+            LOGGER.warning(json.dumps(entry))
             try:
                 await progress(status, status=status, error=code)
             except Exception as problem:
@@ -456,7 +459,7 @@ class AgentCreations:
         except PublicationError as problem:
             await fail(problem.code, "interrupted" if problem.code in {
                 "publication_unconfirmed", "deletion_unconfirmed",
-            } else "failed")
+            } else "failed", problem.service_error)
         except HttpResponseError as problem:
             await fail("operator_permissions_required" if problem.status_code in {401, 403}
                        else "publication_unconfirmed", "interrupted")

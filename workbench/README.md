@@ -282,8 +282,8 @@ There is no administrative editor in the UI.
 
 ## Storage and cost
 
-The existing provisioned-throughput account
-`aifnd-agent-foundry-cosmosdb-7omvd` contains a dedicated
+The platform's existing provisioned-throughput Cosmos DB account, named by
+`cosmos_account_name`, contains a dedicated
 `workbench/conversations` container. Foundry's `enterprise_memory` database is
 unchanged. The Lab identity has Cosmos Data Contributor scoped to this container
 only. It uses the existing private Cosmos endpoint and no account keys.

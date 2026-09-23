@@ -9,12 +9,12 @@ from unittest.mock import AsyncMock, patch
 from zipfile import ZipFile
 
 from azure.ai.projects.models import (
-    AgentEndpointConfig, EntraAuthorizationScheme, FixedRatioVersionSelectionRule, ProtocolConfiguration,
-    ResponsesProtocolConfiguration, VersionSelector,
+    AgentEndpointConfig, AgentVersionDetails, EntraAuthorizationScheme, FixedRatioVersionSelectionRule,
+    ProtocolConfiguration, ResponsesProtocolConfiguration, VersionSelector,
 )
 from azure.core.exceptions import ResourceNotFoundError
 
-from agent_publisher import FoundryPublisher, PublicationError, ownership, runtime_package
+from agent_publisher import FoundryPublisher, PublicationError, ownership, runtime_package, service_error_code
 
 
 def endpoint(version="1", percentage=100):
@@ -237,6 +237,18 @@ class PublisherTests(unittest.IsolatedAsyncioTestCase):
         self.agents.version.status = "failed"
         await self.assert_code("runtime_failed", self.publisher.create)
         self.assertEqual(self.agents.promotions, [])
+
+    async def test_failed_runtime_reports_only_a_safe_foundry_error_code(self):
+        self.agents.version.status = "failed"
+        self.agents.version.error = {"code": "CodeError", "message": "No Python dependency manifest found"}
+        with self.assertRaises(PublicationError) as raised:
+            await self.publisher.create(self.document, self.progress)
+        self.assertEqual(raised.exception.code, "runtime_failed")
+        self.assertEqual(raised.exception.service_error, "CodeError")
+        self.assertEqual(service_error_code(AgentVersionDetails({"error": {"code": "CodeError"}})), "CodeError")
+        for error in (None, {}, {"code": "free text with spaces"}, {"code": 7}, "CodeError"):
+            with self.subTest(error=error):
+                self.assertIsNone(service_error_code(SimpleNamespace(error=error)))
 
     async def test_activation_is_polled_before_routing(self):
         creating = deepcopy(self.agents.version)

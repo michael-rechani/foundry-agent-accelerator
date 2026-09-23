@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import io
 import os
+import re
 import stat
 from contextlib import asynccontextmanager
 from copy import deepcopy
@@ -16,9 +17,22 @@ RUNTIME_DIRECTORY = Path(__file__).with_name("agent_runtime")
 
 
 class PublicationError(Exception):
-    def __init__(self, code):
+    def __init__(self, code, service_error=None):
         self.code = code
+        self.service_error = service_error
         super().__init__(code)
+
+
+def service_error_code(details):
+    """Return Foundry's short error code for a failed version, never its free-text message."""
+    try:
+        error = details.get("error")
+    except AttributeError:
+        error = getattr(details, "error", None)
+    code = error.get("code") if isinstance(error, dict) else getattr(error, "code", None)
+    if isinstance(code, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]{0,63}", code):
+        return code
+    return None
 
 
 class CodeArchive(io.BytesIO):
@@ -138,7 +152,7 @@ class FoundryPublisher:
             if details.status == "active":
                 break
             if details.status not in (None, "creating"):
-                raise PublicationError("runtime_failed")
+                raise PublicationError("runtime_failed", service_error_code(details))
             await asyncio.sleep(self.poll_seconds)
 
         await self.only_owned_version(client, document)

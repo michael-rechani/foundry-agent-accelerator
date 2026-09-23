@@ -16,6 +16,7 @@ agent-management service.
 - [Enable publication](#enable-publication)
 - [Configuration ownership](#configuration-ownership)
 - [Publication, recovery, and deletion](#publication-recovery-and-deletion)
+- [Troubleshooting](#troubleshooting)
 - [Verification and honest status](#verification-and-honest-status)
 - [Related content](#related-content)
 
@@ -230,6 +231,31 @@ blanket deletion of other users' chat documents.
 A maximum record count and publication deadline are not a spending cap. Confirm
 cleanup and investigate every uncertain outcome before declaring a demo over.
 
+## Troubleshooting
+
+The browser shows a short message for each error code. The Lab log adds the
+agent ID, the operation, and, when Foundry reports one, a short `service_error`
+code. It never logs the Foundry error text, prompts, or instructions. To find
+failed publications in the Lab's Log Analytics workspace, run this query:
+
+```kusto
+ContainerAppConsoleLogs
+| where ContainerAppName == "<lab-container-app-name>"
+| extend payload = parse_json(extract(@"(\{.*\})", 1, Log))
+| where payload.event == "agent_publication_failed"
+| project TimeGenerated, payload.agent_id, payload.operation, payload.error, payload.service_error
+```
+
+| Code | What it means | What to do |
+| --- | --- | --- |
+| `model_unavailable` | The template's model deployment doesn't exist in the Foundry project. Nothing was uploaded. | Deploy the model or change `agent_creation_models`. Then delete the failed record and create the agent again. |
+| `operator_permissions_required` | Foundry returned 401 or 403 to the Lab's managed identity. | Review the identity's role on the Foundry project. The Lab never grants roles itself. |
+| `runtime_failed` | The hosted version was built but didn't become active. | Check `service_error` in the log and open the version in the Foundry portal. `CodeError` means the uploaded package was rejected. For example, Foundry reports "No Python dependency manifest found" when the ZIP entries have no regular-file mode bits. Delete the record, then create the agent again. |
+| `publication_timeout` or `publication_unconfirmed` | The Lab couldn't confirm the outcome. Foundry work may still be running. | Select **Refresh status**, then **Resume setup** on the same record. Don't start a new creation. |
+| `resource_changed` | The Foundry agent, its versions, or its route no longer match this record, often after a change made outside the Lab. | Inspect the agent in Foundry with an operator. The Lab stops making automatic changes. |
+| `runtime_changed` | The runtime bundle changed, usually after a new Lab image, before this setup was published. | Delete the unused record and prepare a new setup. |
+| `deletion_unconfirmed` | The Lab couldn't confirm that the hosted agent was removed. | Select **Delete created agent** again on the same record. If Foundry is still building or provisioning, it rejects deletion with 409 `agent_operation_running`, so wait a few minutes first. |
+
 ## Verification and honest status
 
 Offline tests cover drafts, model choice for each template, strict inputs,
@@ -244,6 +270,12 @@ Complete the approved staging checks above and record the difference between
 source availability, enabled configuration, and observed execution in the
 [demo handoff](demo-handoff.md). This is not an officially approved Microsoft
 offering or an implemented customer solution.
+
+On 2026-09-23, one private dev environment ran a live check with the pinned SDK.
+Three templates, each on a different model deployment (`gpt-5.4`,
+`gpt-5.4-mini`, and `gpt-4.1`), were published, answered a sample review, and
+were deleted. That shows the flow can work there; it doesn't prove it works in
+another environment, subscription, region, or SDK version.
 
 ## Related content
 

@@ -1,7 +1,4 @@
-variable "cosmos_account_name" {
-  type    = string
-  default = "aifnd-agent-foundry-cosmosdb-7omvd"
-}
+variable "cosmos_account_name" { type = string }
 
 locals {
   cosmos_account_id = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.DocumentDB/databaseAccounts/${var.cosmos_account_name}"

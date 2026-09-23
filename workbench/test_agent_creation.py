@@ -267,6 +267,19 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.create()).status_code, 200)
         self.assertEqual(len(self.publisher.calls), 1)
 
+    async def test_failed_runtime_logs_foundry_error_code_without_returning_it(self):
+        self.publisher.error = PublicationError("runtime_failed", "CodeError")
+        with self.assertLogs("uvicorn.error", level="WARNING") as logs:
+            first = await self.create()
+            await asyncio.wait_for(self.publisher.done.wait(), 1)
+            result = await self.client.get("/api/agents/" + first.json()["id"])
+        self.assertEqual(result.json()["status"], "failed")
+        self.assertEqual(result.json()["error"], "runtime_failed")
+        self.assertNotIn("CodeError", json.dumps(result.json()))
+        failures = [json.loads(record.getMessage()) for record in logs.records
+                    if "agent_publication_failed" in record.getMessage()]
+        self.assertEqual(failures[-1]["service_error"], "CodeError")
+
     async def test_lost_process_is_reported_interrupted_and_requires_explicit_resume(self):
         record = await self.ready()
         row = self.store.rows[record["id"]]
