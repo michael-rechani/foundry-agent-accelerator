@@ -171,6 +171,14 @@ TypeScript, and Terraform code, including browser tests at desktop and mobile
 sizes. The checks use simulated service responses. They don't call live agents
 or create Azure resources.
 
+Dependabot alerts flag known vulnerabilities in pinned packages. Each month,
+[Dependabot](.github/dependabot.yml) also opens one grouped update pull request
+per ecosystem for GitHub Actions, Python, frontend, Docker, and Terraform
+dependencies. Major versions and the preview agent hosting package are
+upgraded by hand. Merge an update only after its checks pass. For Docker and
+Terraform changes, also verify a deployment, because the checks don't build
+the image or plan against live resources.
+
 <a id="references"></a>
 
 ## Related content

@@ -1,0 +1,80 @@
+version: 2
+
+# Monthly, one grouped pull request per ecosystem. Major versions are upgraded
+# by hand everywhere except GitHub Actions.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directories:
+      - /evaluations
+      - /hosted-agents/application-review-agent
+      - /hosted-agents/basic-responses-agent
+      - /hosted-agents/case-review-agent
+      - /hosted-agents/review-coordinator-agent
+      - /workbench
+      - /workbench/agent_runtime
+    schedule:
+      interval: monthly
+    groups:
+      # These packages constrain each other (for example, agent-framework-foundry
+      # caps azure-ai-projects), so they move in their own pull request.
+      foundry-sdk:
+        patterns: ["agent-framework-*", "azure-ai-*", "openai"]
+      python:
+        patterns: ["*"]
+    ignore:
+      # Preview build; update by hand and verify with a live agent deployment.
+      - dependency-name: agent-framework-foundry-hosting
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    directory: /workbench/frontend
+    schedule:
+      interval: monthly
+    groups:
+      frontend:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: docker
+    directory: /workbench
+    schedule:
+      interval: monthly
+    groups:
+      docker:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+      # Stay on Python 3.13 and take refreshed image digests only.
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  - package-ecosystem: terraform
+    directories:
+      - /terraform
+      - /terraform/bastion
+      - /terraform/monitoring
+      - /workbench/infra
+    schedule:
+      interval: monthly
+    groups:
+      terraform:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # AzAPI is pinned to 2.12.x, and the 0.x Azure Verified Modules can break
+      # on minor releases, so only patch releases are proposed for them.
+      - dependency-name: "Azure/*"
+        update-types: ["version-update:semver-minor"]
