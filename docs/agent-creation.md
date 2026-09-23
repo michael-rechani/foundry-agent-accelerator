@@ -27,6 +27,16 @@ Five templates cover document analysis, criteria checking, administrative
 intake, casework summaries, and workflow planning. Their fictional examples suit
 public-sector, healthcare-operations, and independent software vendor (ISV)
 conversations without reproducing any customer's work or implementation claims.
+Healthcare examples cover administration only, not clinical advice or patient
+data.
+
+| Template | You give it | You get back |
+| --- | --- | --- |
+| **Document Analyst** | Policy, notice, or product text | A sourced summary, changes, and open questions |
+| **Criteria Checker** | Your checklist and a document | Supported items, missing information, and conflicts. It doesn't make an approval decision. |
+| **Document Intake Assistant** | Fictional administrative intake text and the fields to extract | A field table with source references and unknown values called out |
+| **Casework Assistant** | Fictional case notes | A summary, unresolved inconsistencies, and follow-up questions |
+| **Workflow Coordinator** | A fictional request and service identifiers | Read-only **simulated** lookup results and proposed next steps. It doesn't carry out business actions. |
 
 | Stage | What happens | What does not happen |
 | --- | --- | --- |
