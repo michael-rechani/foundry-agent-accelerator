@@ -116,6 +116,7 @@ class PublisherTests(unittest.IsolatedAsyncioTestCase):
         ):
             self.assertEqual(definition.environment_variables[key], "false")
         self.assertEqual(definition.environment_variables["APPLICATIONINSIGHTS_AUTH_MODE"], "entra")
+        self.assertEqual(definition.environment_variables["APPLICATIONINSIGHTS_STATSBEAT_DISABLED_ALL"], "true")
         self.assertEqual(definition.environment_variables["AGENT_INSTRUCTIONS"], self.document["instructions"])
         self.assertEqual(definition.environment_variables["DEMO_TEMPLATE_ID"], "document-analyst")
         self.assertEqual(definition.environment_variables["FOUNDRY_MODEL_NAME"], "configured-model")

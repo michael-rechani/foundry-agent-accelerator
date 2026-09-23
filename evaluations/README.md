@@ -9,8 +9,11 @@ Offline validation checks input structure and coverage, not agent quality.
 Live mode requires `--run --approve-billable-run --authorize-content-capture`
 and an explicitly approved, billable operation against an already deployed
 staging stack. It creates and retains a custom evaluator, an evaluation, and a
-run in your Foundry project. No live evaluation or tracing has been validated
-as part of these changes; there are no captured quality or cost results here.
+run in your Foundry project. No live evaluation has been run as part of these
+changes; there are no captured quality or cost results here. Project tracing is
+connected separately through the [private monitoring root](../terraform/monitoring/README.md)
+and has been verified with metadata-only synthetic requests, but no evaluation
+run has been correlated with its traces.
 
 ## What is tested
 
@@ -183,7 +186,8 @@ None of these steps has been performed by the offline evaluation work:
    active versions and isolated routes. Local instruction edits are not deployed.
 2. Verify private connectivity, caller identity, project permissions, supported
    judge deployment/region and quota, response-storage settings and evaluation
-   retention. Confirm project-linked Application Insights access separately.
+   retention. Confirm the project's Application Insights connection is still
+   enabled and that you have private query access ([monitoring runbook](../terraform/monitoring/README.md)).
 3. Obtain explicit live billing and synthetic-content-retention approval.
    Freeze staging versions and run the command below for each profile, using
    fresh receipt paths. Cover application completeness, experimental
@@ -368,12 +372,15 @@ procurement, case action, or production routing changes.
 
 ## Tracing and content authorization
 
-Use existing **Foundry tracing and project-linked Application Insights** for
-agent/model/tool diagnostics. This runner adds no exporter, dashboard, content
-logging, sampling changes, or Application Insights resource. Verify the project's
-existing tracing support, permissions and private connectivity separately before
-an approved live test. No trace delivery or end-to-end correlation is proven by
-these offline tests.
+Use **Foundry tracing and project-linked Application Insights** for
+agent/model/tool diagnostics. The [private monitoring root](../terraform/monitoring/README.md)
+provides that connection; this runner adds no exporter, dashboard, content
+logging, sampling changes, or Application Insights resource. The published
+agents disable prompt, response and tool-content recording, so traces show
+spans, timings, status and token counts, not the evaluated text; use the native
+evaluation results for rationales. Confirm the connection is enabled and that
+you have private query access before an approved live test. No trace delivery
+or end-to-end correlation is proven by these offline tests.
 
 Use the receipt's evaluation/run IDs to locate native evaluation results and
 returned response/request IDs, when available, to investigate agent requests.

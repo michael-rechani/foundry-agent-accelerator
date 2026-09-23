@@ -23,10 +23,15 @@ OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=false
 ENABLE_SENSITIVE_DATA=false
 AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED=false
 APPLICATIONINSIGHTS_AUTH_MODE=entra
+APPLICATIONINSIGHTS_STATSBEAT_DISABLED_ALL=true
 ```
 
 These disable SDK recording of prompts, responses, and sensitive tool data while
-retaining operation metadata. They do not sanitize arbitrary application log
+retaining operation metadata. Disabling statsbeat stops the exporter's own usage
+telemetry, including a virtual-machine metadata probe that otherwise fails in the
+hosted container and appears as `requests.exceptions.ConnectionError` rows in
+`AppExceptions`. Versions published before this setting keep emitting those
+harmless rows until they are republished. These settings do not sanitize arbitrary application log
 messages; keep those metadata-only too. `AGENT_STORE_RESPONSES=false` controls
 response persistence separately and is not a substitute for these tracing flags.
 

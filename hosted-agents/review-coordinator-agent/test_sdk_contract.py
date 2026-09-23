@@ -36,6 +36,7 @@ class SDKContractTests(unittest.TestCase):
                 "ENABLE_SENSITIVE_DATA": "true",
                 "AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED": "true",
                 "APPLICATIONINSIGHTS_AUTH_MODE": "key",
+                "APPLICATIONINSIGHTS_STATSBEAT_DISABLED_ALL": "false",
             },
         )
         args = SimpleNamespace(endpoint="https://example.test", agent_name="coordinator",
@@ -61,6 +62,8 @@ class SDKContractTests(unittest.TestCase):
             ):
                 self.assertEqual(definition.environment_variables[key], "false")
             self.assertEqual(definition.environment_variables["APPLICATIONINSIGHTS_AUTH_MODE"], "entra")
+            self.assertEqual(
+                definition.environment_variables["APPLICATIONINSIGHTS_STATSBEAT_DISABLED_ALL"], "true")
 
     def test_specialist_preflight_with_real_endpoint_models(self):
         from azure.ai.projects.models import (
