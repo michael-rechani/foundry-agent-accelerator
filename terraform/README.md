@@ -361,6 +361,11 @@ bills per token rather than for idle capacity. Do not overwrite an existing envi
 values or reuse another deployment's names and state. Check other automatically
 loaded variable files and remove unintended command-line overrides.
 
+The Agent Service's AI Search service is the largest fixed cost. It runs one
+replica by default (`ai_search_replica_count = 1`), which has no availability
+SLA. Each extra replica is billed as a full search unit. Set it to 2 for a read
+SLA or 3 for a read-write SLA. Changing it scales the service in place.
+
 Configure a pre-created backend as described in [State](#state). Authenticate
 before running Terraform; keep credentials out of configuration. Preserve
 existing values and state ownership.
@@ -527,6 +532,7 @@ controls. Before production use:
 - Assign least-privilege data-plane roles to each hosted agent's dedicated
   Microsoft Entra identity.
 - Pin model versions and test Responsible AI policies before promotion.
+- Raise `ai_search_replica_count` to at least 2 for an AI Search availability SLA.
 - Store Terraform state in an Azure Storage backend with Microsoft Entra ID
   authentication, locking, versioning, and restricted network access.
 

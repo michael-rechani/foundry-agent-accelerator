@@ -143,6 +143,7 @@ module "ai_foundry" {
       local_authentication_enabled  = false
       private_dns_zone_resource_id  = azurerm_private_dns_zone.this["search"].id
       public_network_access_enabled = false
+      replica_count                 = var.ai_search_replica_count
     }
   } : {}
   cosmosdb_definition = var.enable_agent_service ? {

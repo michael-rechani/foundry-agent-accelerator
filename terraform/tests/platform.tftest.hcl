@@ -115,6 +115,12 @@ run "reject_duplicate_or_empty_model_deployment" {
   expect_failures = [var.additional_model_deployments]
 }
 
+run "reject_invalid_ai_search_replica_count" {
+  command = plan
+  variables { ai_search_replica_count = 0 }
+  expect_failures = [var.ai_search_replica_count]
+}
+
 run "reject_missing_vm_credential" {
   command = plan
   variables { enable_jumpbox = true }

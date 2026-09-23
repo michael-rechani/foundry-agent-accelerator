@@ -331,6 +331,17 @@ variable "enable_agent_service" {
   default     = true
 }
 
+variable "ai_search_replica_count" {
+  type        = number
+  description = "Replicas for the Agent Service AI Search service. Each replica is billed as a full search unit. One replica has no availability SLA; use two for a read SLA or three for a read-write SLA."
+  default     = 1
+
+  validation {
+    condition     = var.ai_search_replica_count >= 1 && var.ai_search_replica_count <= 12 && floor(var.ai_search_replica_count) == var.ai_search_replica_count
+    error_message = "Use a whole number of AI Search replicas from 1 to 12."
+  }
+}
+
 variable "tags" {
   type        = map(string)
   description = "Additional tags to merge with the required workload tags."
