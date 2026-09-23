@@ -61,8 +61,9 @@ edited copy inside the SVG. Use
 `-Names lab-components` to rebuild one view. Commit sources and SVG exports
 together, not temporary previews or downloaded tools.
 
-The root README leads with the agent-collaboration view and links to the
-platform overview. Detailed diagrams belong in the
+The root README opens with the **Create agent** screenshot, shows the
+agent-collaboration view under "How it works", and links to the
+architecture guide for the platform overview. Detailed diagrams belong in the
 [architecture guide](../architecture.md) and
 [review workflow](../review-workflow.md), with full-size links for zooming on
 small screens. Each view labels its requests, results, and persistence paths;
@@ -141,8 +142,8 @@ and say "illustrative" in the caption and alt text wherever you use one.
 | Screenshot | Shows | Test output | Used in |
 | --- | --- | --- | --- |
 | [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide and example tasks | `demo-starters.png` | [Demo guide](../demos.md#a-short-demonstration) |
-| [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [Root README](../../README.md#inside-the-lab), [review workflow](../review-workflow.md#workflow) |
-| [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page with its five templates | `creation-start.png` | [Agent creation](../agent-creation.md#what-a-participant-can-do) |
+| [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [Review workflow](../review-workflow.md#workflow) |
+| [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page with its five templates and the full sidebar | `creation-start.png` | [Root README](../../README.md), [agent creation](../agent-creation.md#what-a-participant-can-do) |
 
 To refresh them, run the desktop browser tests and copy the matching files:
 

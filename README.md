@@ -1,21 +1,32 @@
 <a id="validate-your-ai-use-case-in-foundry"></a>
 
-# Hosted-agent samples for Microsoft Foundry
+# AI Foundry Lab
 
 [![Validate](https://github.com/michael-rechani/ai-foundry-samples/actions/workflows/validate.yml/badge.svg)](https://github.com/michael-rechani/ai-foundry-samples/actions/workflows/validate.yml)
 [![Terraform 1.16.1](https://img.shields.io/badge/Terraform-1.16.1-844FBA?logo=terraform&logoColor=white)](terraform/README.md)
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](hosted-agents/README.md)
 [![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-hosted_agents-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
 
-Try AI agents that check applications and summarize case notes in
-**Microsoft Foundry** (formerly Azure AI Foundry), using fictional data and a
-private Azure deployment.
+**Create, deploy, and try Microsoft Foundry agents from one private web app.**
 
-The repository includes prebuilt review agents, a browser app called **the Lab**,
-fictional sample inputs with expected findings, and Terraform that deploys
-everything privately. The samples suit public-sector, healthcare-operations, and
-independent software vendor (ISV) demonstrations. Agents help people review the
-supplied material. People check the findings and make every decision.
+**AI Foundry Lab**, or **the Lab**, shows what agents in **Microsoft Foundry**
+(formerly Azure AI Foundry) can do. Pick a reviewed template, publish it as a
+new hosted agent in Foundry Agent Service, and try it in **Chat**. The Lab also
+comes with prebuilt agents that work as a team: a coordinator hands each task to
+a specialist agent and shows which one answered.
+
+![Illustrative UI test of the Lab's Create agent page with mocked APIs: the sidebar lists all seven pages, and five template cards sit above a job description box and a Prepare setup button](docs/images/screenshots/lab-create-agent.png)
+
+*The Lab's **Create agent** page. Illustrative UI test with mocked APIs; nothing
+was published.* · [View full size](docs/images/screenshots/lab-create-agent.png) ·
+[More screenshots](docs/images/README.md#lab-screenshots)
+
+This repository has everything you need for the demonstration: the Lab, the
+prebuilt agents, fictional sample inputs with expected findings, evaluations,
+and Terraform that deploys it all privately in your Azure subscription. The
+examples suit public-sector, healthcare-operations, and independent software
+vendor (ISV) conversations. Agents help people review the material they supply.
+People check the results and make every decision.
 
 > [!WARNING]
 > **Use fictional data only.** The Lab keeps a shared history and has no
@@ -25,6 +36,7 @@ supplied material. People check the findings and make every decision.
 
 ## In this guide
 
+- [What you can show](#what-you-can-show)
 - [Get started](#get-started)
 - [What's included](#whats-included)
 - [How it works](#how-it-works)
@@ -33,15 +45,35 @@ supplied material. People check the findings and make every decision.
 - [Documentation](#documentation)
 - [Automated checks](#automated-checks)
 
+## What you can show
+
+Each row is a Foundry capability that you can demonstrate from the Lab or the
+repository.
+
+| Foundry capability | What you do | Where it lives |
+| --- | --- | --- |
+| **Hosted agents** | In **Create agent**, describe a job, review the setup, and publish. The Lab uploads reviewed agent code, and Foundry Agent Service builds and runs it as a new hosted agent. | [Create agent guide](docs/agent-creation.md) |
+| **Agents working together** | In **Chat**, ask **Application and case helper** for help. It hands the task to a specialist agent through a tool call and shows which specialist answered. | [`hosted-agents/`](hosted-agents/) |
+| **Tool calling** | Create a **Workflow Coordinator** agent. It looks up fictional requests and services with simulated, read-only tools. | [`workbench/agent_runtime/`](workbench/agent_runtime/) |
+| **Answers grounded in your documents** | In **Document reviews**, check pasted text against a checklist. Each result quotes your text, and the Lab rejects quotes that don't match it. | [Document reviews guide](docs/review-workflow.md) |
+| **Agent versions and safe rollout** | Publish a new version of a prebuilt agent, test its route, and roll back to the previous route if a check fails. | [Publishing guide](hosted-agents/README.md) |
+| **Evaluation** | Compare models or prompts on the same test cases, offline or with optional live Foundry evaluations. | [`evaluations/`](evaluations/) |
+| **Tracing and monitoring** | Watch response times in **Performance**, and optionally view metadata-only agent traces in the Foundry portal. | [Agent monitoring](terraform/monitoring/README.md) |
+| **Private, keyless access** | Deploy Foundry, storage, and the Lab on private networks. The Lab reaches Azure services with managed identities, not API keys. | [Platform Terraform](terraform/README.md) |
+
+**Create agent** stays off until an operator turns it on, because publishing
+creates Azure resources and costs money. Until then, the Lab opens on **Chat**
+with the prebuilt agents.
+
 <a id="start-here"></a>
 
 ## Get started
 
 | I want to | Start with | What I need |
 | --- | --- | --- |
+| Create and deploy my own agent from the Lab | [Create and try a baseline agent](docs/agent-creation.md) | An operator-enabled Lab, an existing model deployment, and cost approval |
+| Show the prebuilt agents in a deployed Lab | [Run a demo](#run-a-demo) | A deployed Lab and approved private network access |
 | See what the agents do, without Azure | [Demo guide](docs/demos.md) | Nothing |
-| Run a demo in a deployed Lab | [Run a demo](#run-a-demo) | A deployed Lab and approved private network access |
-| Create and try my own agent | [Create and try a baseline agent](docs/agent-creation.md) | An operator-enabled Lab, an existing model deployment, and cost approval |
 | Deploy my own environment | [Deploy to Azure](#deploy-to-azure) | Azure permissions, model quota, private network access, and cost approval |
 
 <a id="scenarios-and-status"></a>
@@ -51,10 +83,10 @@ supplied material. People check the findings and make every decision.
 
 | Scenario | What you'll do | Status |
 | --- | --- | --- |
+| [Create and try a baseline agent](docs/demos.md#create-and-try-a-baseline-agent) | Describe a job, pick one of five reviewed templates, and publish a small agent to try in **Chat**. | **Available** |
 | [Casework assistance](docs/demos.md#casework-assistance) | Summarize fictional case notes, flag missing or conflicting details, and draft follow-up questions. | **Available** |
 | [Application completeness](docs/demos.md#application-completeness) | Check a sample grant or permit application against a checklist and find missing or conflicting information. | **Available** |
 | [Requirements and proposal review](docs/demos.md#requirements-and-proposal-review) | Compare proposal requirements with supplied product information and flag claims that lack evidence. | **Experimental** |
-| [Create and try a baseline agent](docs/demos.md#create-and-try-a-baseline-agent) | Describe a job, pick one of five reviewed templates, and publish a small agent to try in **Chat**. | **Available** |
 
 **Available** means the code and walkthrough are included. It doesn't mean an
 environment is deployed or that its answers are validated. **Experimental** means
@@ -64,8 +96,9 @@ an existing agent is adapted for another task and needs more testing.
 
 ### Run a demo
 
-1. Open the [Lab](workbench/README.md) through approved private access, and then
-   select **New chat**. The local Lab preview doesn't call a model.
+1. Open the [Lab](workbench/README.md) through approved private access, select
+   **Chat**, and then select **New chat**. The local Lab preview doesn't call a
+   model.
 2. Open **About this agent** to see what the agent needs, how it works, and what
    it can't do.
 3. Select an example task and send it, or paste the complete
@@ -104,7 +137,7 @@ correct. For repeatable testing, use the
 
 | Component | Folder | What it does |
 | --- | --- | --- |
-| The Lab | [`workbench/`](workbench/) | Private browser app for chatting with agents, running document reviews, and creating agents. Includes a React front end, a FastAPI backend, browser tests, and its own Terraform. |
+| The Lab | [`workbench/`](workbench/) | Private browser app for creating and deploying agents, chatting with them, and running document reviews. Includes a React front end, a FastAPI backend, browser tests, and its own Terraform. |
 | Prebuilt agents | [`hosted-agents/`](hosted-agents/) | A review coordinator and two specialists, plus scripts to publish, test, and roll them back. |
 | Platform infrastructure | [`terraform/`](terraform/) | Private Foundry, networking, and a jumpbox, built on the official Azure Verified Modules (AVM) pattern for Foundry. Bastion and monitoring have separate roots. |
 | Guides and sample inputs | [`docs/`](docs/) | Demo walkthroughs, fictional inputs, and architecture, deployment, and operations guides |
@@ -115,22 +148,21 @@ correct. For repeatable testing, use the
 
 ### Inside the Lab
 
-| Page | You give it | You get back |
-| --- | --- | --- |
-| **Chat** | A question plus the application, checklist, or case notes you want help with | A conversational answer from the selected agent, with references and follow-up questions |
-| **Document reviews** | A checklist and pasted document text | Saved results for each checklist item, quotes you can inspect, and requests for missing information |
-| **Create agent** | A job description and one of five [reviewed templates](docs/agent-creation.md#what-a-participant-can-do) | An editable setup. After operator confirmation, the Lab publishes it as a new Foundry agent. |
-| **Created agents** | Nothing. It lists agents published from **Create agent**. | Publication progress, operator-confirmed deletion, and a way to open a ready agent in **Chat** |
+The Lab's pages, in the order they appear in its sidebar:
 
-![Illustrative UI test of the Document reviews page with mocked APIs: one checklist item is a Gap because the budget is missing, one is Supported with a quote from the source, and the Lab asks for the missing budget](docs/images/screenshots/lab-document-review.png)
+| Page | What you do there |
+| --- | --- |
+| **Create agent** | Describe a job, pick one of five [reviewed templates](docs/agent-creation.md#what-a-participant-can-do), edit the name and instructions, and publish a new Foundry hosted agent. Shown only when an operator turns on creation; the Lab then opens on this page. |
+| **Created agents** | Follow publication progress, open a ready agent in **Chat**, or delete an agent with the operator key. |
+| **Chat** | Talk with a prebuilt or created agent. An example task only fills in your message; you choose when to send it. |
+| **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. |
+| **Shared history** | Reopen chats that anyone saved. Saved chats are shared and kept for 30 days. |
+| **Agents** | Browse the agents you can chat with, read what each one needs and does, and start a chat. |
+| **Performance** | See completed, failed, and timed-out requests and the average response time for this browser session. |
 
-*Illustrative UI test with mocked APIs, not a live model result.* ·
-[View full size](docs/images/screenshots/lab-document-review.png) ·
-[More screenshots](docs/images/README.md#lab-screenshots)
-
-- **Creating an agent and chatting with one are separate steps.** An example
-  task only fills in your message. **Chat** can't change an agent's instructions,
-  tools, or model. That's a [developer or operator task](workbench/README.md#workspace-configuration).
+- **Creating an agent and chatting with one are separate steps.** **Chat** can't
+  change an agent's instructions, tools, or model. That's a
+  [developer or operator task](workbench/README.md#workspace-configuration).
 - **Document reviews** always use the Lab's default agent, whichever agent you
   select in **Chat**. Neither page copies work into the other.
 - Preparing a setup in **Create agent** doesn't call a model or create Azure
@@ -140,6 +172,8 @@ correct. For repeatable testing, use the
 <a id="architecture"></a>
 
 ## How it works
+
+### Prebuilt agents working together
 
 ![Default agent collaboration: you ask in the Lab, the Application and case helper calls one specialist, returns its findings, and you check the answer](docs/images/agent-collaboration.svg)
 
@@ -154,10 +188,25 @@ correct. For repeatable testing, use the
 4. **You check the answer.** Compare the findings with the source. A completed
    tool call doesn't prove the findings are correct.
 
+### Creating an agent
+
+1. **You describe the job.** The Lab matches your description to a reviewed
+   template, or asks you to pick one, and prepares a name and instructions. It
+   doesn't call a model or save anything yet.
+2. **You review and publish.** After you confirm the cost and enter the operator
+   key, the backend packages the Lab's reviewed agent code with your
+   instructions and publishes it with the Foundry SDK.
+3. **Foundry builds and starts the agent.** Foundry Agent Service builds the code
+   and starts a new hosted agent named `lab-demo-...` on the model deployment
+   that the operator chose. The Lab shows each real stage, and the agent is
+   ready once Foundry reports its version active and its route is confirmed.
+4. **You try it in Chat.** Send a fictional example and check the answer
+   yourself. The Lab doesn't run a hidden test call that you'd pay for.
+
 **What gets saved:** **Chat** saves completed messages to a shared Azure Cosmos DB
 database only when you choose to save. Creating a document review saves its
 checklist and document text. Running a review also saves the results and a copy
-of that run's input.
+of that run's input. Each created agent's setup is saved as a shared record.
 
 The Lab isn't an unrestricted agent designer or an evaluation dashboard. For
 components, data flows, and trust boundaries, see the
