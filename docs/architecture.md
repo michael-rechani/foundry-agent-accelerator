@@ -328,7 +328,7 @@ sequenceDiagram
         Gateway-->>Client: Reject before contacting Foundry
     else Authorized request within limits
         Gateway->>Coordinator: Responses request using gateway managed identity
-        Coordinator->>Coordinator: Select tool; acquire concurrency slot
+        Coordinator->>Coordinator: Select tool and acquire concurrency slot
         Coordinator->>Specialist: Full supplied request via managed identity
         alt Completed nonempty specialist response
             Specialist-->>Coordinator: Evidence-grounded findings
@@ -336,7 +336,7 @@ sequenceDiagram
             Coordinator-->>Gateway: Review response
             Gateway-->>Client: Result + correlation ID
         else Deadline or specialist failure
-            Coordinator->>Coordinator: Cancel local request; release slot
+            Coordinator->>Coordinator: Cancel local request and release slot
             Note over Coordinator,Specialist: Remote work may continue after local cancellation
             Coordinator-->>Gateway: Review could not be completed
             Gateway-->>Client: Failure response under published API contract
