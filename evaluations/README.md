@@ -174,8 +174,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Evaluation dependency check failed' }
 if ($LASTEXITCODE -ne 0) { throw 'Evaluation contract tests failed' }
 ```
 
-This environment pins Projects SDK **2.4.0** and OpenAI **2.54.0**; deployment
-and Lab environments remain on Projects SDK **2.3.0**. The hand-authored rubric
+This environment pins Projects SDK **2.6.1** and OpenAI **3.19.0**, the same
+versions as the deployment and Lab environments. OpenAI 3 sends requests through
+`httpx2`, which checks TLS certificates against the operating-system trust store
+instead of `certifi`. The hand-authored rubric
 uses `project.beta.evaluators`: that API is **preview**, even though Hosted
 Agents are generally available (GA). `allow_preview=True` is also needed for the
 pinned SDK's named-agent OpenAI client. No generated-rubric job or new model
@@ -337,7 +339,7 @@ Timeouts before a response cannot provide response usage or completion timing.
 ## SDK contract evidence, not service assumptions
 
 [The offline SDK transport tests](test_sdk_contract.py) exercise the pinned
-Projects 2.4.0 and OpenAI 2.54.0 clients with synthetic HTTP responses. They
+Projects 2.6.1 and OpenAI 3.19.0 clients with synthetic HTTP responses. They
 check native evaluator serialization, inline evaluation/run requests, paginated
 results, inventory deserialization, and receipt metadata. In particular:
 

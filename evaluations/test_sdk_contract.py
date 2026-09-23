@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import run
 
 try:
-    import httpx
+    import httpx2
     from azure.ai.projects import AIProjectClient
     from azure.core.credentials import AccessToken
     from azure.core.pipeline.transport import HttpResponse, HttpTransport
@@ -178,9 +178,9 @@ class SDKContractTests(unittest.TestCase):
             requests.append(request)
             path = request.url.path
             if request.method == "POST" and path.endswith("/evals"):
-                return httpx.Response(200, json={"id": "eval-test", "object": "eval"})
+                return httpx2.Response(200, json={"id": "eval-test", "object": "eval"})
             if request.method == "POST" and path.endswith("/runs"):
-                return httpx.Response(200, json={"id": "run-test", "object": "eval.run", "status": "queued"})
+                return httpx2.Response(200, json={"id": "run-test", "object": "eval.run", "status": "queued"})
             if path.endswith("/output_items"):
                 second_page = request.url.params.get("after") == "output-1"
                 indexes = (1, 2) if second_page else (0,)
@@ -195,12 +195,12 @@ class SDKContractTests(unittest.TestCase):
                     }],
                     "sample": {},
                 } for index in indexes]
-                return httpx.Response(200, json={
+                return httpx2.Response(200, json={
                     "object": "list", "data": items, "has_more": not second_page,
                     "first_id": items[0]["id"], "last_id": items[-1]["id"],
                 })
             if path.endswith("/runs/run-test"):
-                return httpx.Response(200, json={
+                return httpx2.Response(200, json={
                     "id": "run-test", "eval_id": "eval-test", "object": "eval.run", "status": "completed",
                     "result_counts": {"total": 3, "passed": 2 if fail_last else 3, "failed": int(fail_last), "errored": 0},
                     **({"per_model_usage": [{
@@ -216,7 +216,7 @@ class SDKContractTests(unittest.TestCase):
 
         with (
             AIProjectClient("https://example.services.ai.azure.com/api/projects/test", Credential()) as real_project,
-            real_project.get_openai_client(http_client=httpx.Client(transport=httpx.MockTransport(respond)), max_retries=0) as client,
+            real_project.get_openai_client(http_client=httpx2.Client(transport=httpx2.MockTransport(respond)), max_retries=0) as client,
             tempfile.TemporaryFile(mode="w+", encoding="utf-8") as receipt,
             patch.object(run, "snapshot", return_value={"stable": True}),
             patch.object(run, "collect_responses", return_value=rows),
@@ -262,7 +262,7 @@ class SDKContractTests(unittest.TestCase):
 
         def respond(request):
             requests.append(request)
-            return httpx.Response(200, headers={"x-request-id": "request-test"} if include_usage else {}, json={
+            return httpx2.Response(200, headers={"x-request-id": "request-test"} if include_usage else {}, json={
                 "id": "response-test", "object": "response", "created_at": 0,
                 "status": "completed", "model": "test", "output": [{
                     "id": "message-test", "type": "message", "role": "assistant",
@@ -276,7 +276,7 @@ class SDKContractTests(unittest.TestCase):
         original = AIProjectClient.get_openai_client
 
         def get_client(project, **kwargs):
-            return original(project, http_client=httpx.Client(transport=httpx.MockTransport(respond)), **kwargs)
+            return original(project, http_client=httpx2.Client(transport=httpx2.MockTransport(respond)), **kwargs)
 
         with (
             AIProjectClient("https://example.services.ai.azure.com/api/projects/test", Credential(), allow_preview=True) as project,
@@ -328,7 +328,7 @@ class SDKContractTests(unittest.TestCase):
 
             def fail(project, client, args, data, cases, receipt):
                 run.emit(receipt, "run_created", eval_id="eval-test", run_id="run-test")
-                raise APIConnectionError(message="sensitive-service-body", request=httpx.Request("POST", "https://example.test"))
+                raise APIConnectionError(message="sensitive-service-body", request=httpx2.Request("POST", "https://example.test"))
 
             with (
                 patch("azure.ai.projects.AIProjectClient"),

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 try:
-    import httpx
+    import httpx2
     from agent_framework import Agent
     from agent_framework.foundry import FoundryChatClient
     from azure.ai.projects.aio import AIProjectClient
@@ -120,7 +120,7 @@ class SDKContractTests(unittest.TestCase):
 
             def respond(request):
                 requests.append(request)
-                return httpx.Response(200, json={
+                return httpx2.Response(200, json={
                     "id": "resp-test", "object": "response", "created_at": 0,
                     "status": "completed", "model": "test", "output": [{
                         "id": "msg-test", "type": "message", "role": "assistant",
@@ -133,8 +133,8 @@ class SDKContractTests(unittest.TestCase):
             original = AIProjectClient.get_openai_client
 
             def get_client(project, **kwargs):
-                return original(project, http_client=httpx.AsyncClient(
-                    transport=httpx.MockTransport(respond)
+                return original(project, http_client=httpx2.AsyncClient(
+                    transport=httpx2.MockTransport(respond)
                 ), **kwargs)
 
             credential = Credential()
