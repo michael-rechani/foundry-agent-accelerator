@@ -352,7 +352,7 @@ deployment name. Check regional availability and quota first:
 ```hcl
 additional_model_deployments = {
   "gpt-5.4"      = { name = "gpt-5.4", version = "2026-03-05", capacity = 10 }
-  "gpt-4.1-mini" = { name = "gpt-4.1-mini", version = "2025-04-14", capacity = 10 }
+  "gpt-5.4-mini" = { name = "gpt-5.4-mini", version = "2026-03-17", capacity = 10 }
 }
 ```
 

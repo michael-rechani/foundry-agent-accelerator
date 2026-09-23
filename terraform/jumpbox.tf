@@ -73,7 +73,6 @@ resource "azapi_resource" "jumpbox" {
       for property, value in {
         hardwareProfile      = { vmSize = var.jumpbox_vm_size }
         extensionsTimeBudget = "PT1H30M"
-        priority             = "Regular"
         networkProfile = {
           networkInterfaces = [{ id = azurerm_network_interface.jumpbox[0].id, properties = { primary = true } }]
         }

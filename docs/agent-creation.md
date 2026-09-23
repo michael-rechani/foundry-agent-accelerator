@@ -114,7 +114,7 @@ and single worker/replica. Before enabling, complete these checks.
    agent_creation_model   = "gpt-4.1" # default for any kind of work not listed below
    agent_creation_models = {
      reasoning    = "gpt-5.4"
-     extraction   = "gpt-4.1-mini"
+     extraction   = "gpt-5.4-mini"
      tool_calling = "gpt-4.1"
    }
    agent_creation_key_secret_id = "https://your-vault.vault.azure.net/secrets/lab-creation-key-verifier"
@@ -142,7 +142,7 @@ For non-Terraform operators, the equivalent server configuration is:
 | --- | --- |
 | `WORKBENCH_AGENT_CREATION_ENABLED` | Exactly `true` to allow new publication/resume; defaults to `false` |
 | `WORKBENCH_AGENT_CREATION_MODEL` | Default existing model deployment, used for any kind of work without its own entry; not editable in the browser |
-| `WORKBENCH_AGENT_CREATION_MODELS` | Optional JSON object that maps `reasoning`, `extraction`, and `tool_calling` to existing model deployments, for example `{"reasoning":"gpt-5.4","extraction":"gpt-4.1-mini"}` |
+| `WORKBENCH_AGENT_CREATION_MODELS` | Optional JSON object that maps `reasoning`, `extraction`, and `tool_calling` to existing model deployments, for example `{"reasoning":"gpt-5.4","extraction":"gpt-5.4-mini"}` |
 | `WORKBENCH_CREATION_KEY_SHA256` | Lowercase, 64-character verifier from a secret reference; never the raw key |
 | `WORKBENCH_MAX_CREATED_AGENTS` | Defaults to 5; allowed range 1-20; failed/unconfirmed attempts still count |
 | `WORKBENCH_PUBLICATION_TIMEOUT_SECONDS` | Defaults to 600; allowed range 30-900 |
