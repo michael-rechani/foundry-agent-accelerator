@@ -367,6 +367,12 @@ workload. The state account and blob container must already exist. Ensure the
 executing identity has the necessary resource, role-assignment, and
 state-container access.
 
+If the runner is a virtual machine using its managed identity, grant any
+temporary roles before starting it. The instance metadata service caches tokens
+for up to 24 hours, and tokens issued before a new grant can keep failing with
+`AuthorizationFailed`. After a late grant, deallocate and start the runner
+before retrying. Remove temporary grants once the rollout is verified.
+
 Infrastructure uses a separate Azure Storage backend key,
 `ai-foundry/workbench-dev.tfstate`, never the platform infrastructure key
 `ai-foundry/dev.tfstate`. The backend uses Microsoft Entra ID and Azure CLI
@@ -450,8 +456,8 @@ pushing, checks the registry's tag digest against the local build, then verifies
 a pull by immutable digest. Subscription, registry, and release tag must be
 supplied explicitly. Use a unique tag and do not overwrite it during
 verification. The helper does not create virtual machines, grant roles, or
-upload remote commands. The legacy ACR Tasks path requires an explicitly public
-registry and is not used by this deployment.
+upload remote commands. Without `-Private`, the helper uses ACR Tasks, which
+requires an explicitly public registry; see the fallback below.
 
 Run `./workbench/test-build.ps1` from the repository root to check staging and
 success/failure handling with mocked Azure CLI and Docker commands. It does not
@@ -474,6 +480,23 @@ and the prior recovery image. Set `image_digest` in local
 `workbench/infra/image.auto.tfvars` using
 [image.auto.tfvars.example](infra/image.auto.tfvars.example). Mutable tags are
 not accepted as deployment inputs.
+
+**No private Docker engine?** ACR Tasks cannot reach the private registry,
+because Tasks is not an ACR trusted service, but registry import is. If briefly
+holding the sample source and image in an authenticated public-endpoint
+registry is acceptable, build there and import by digest:
+
+1. Create a temporary Basic registry with admin user and anonymous pull
+   disabled, and tag it as temporary.
+2. Run `./workbench/build.ps1` without `-Private` against the temporary
+   registry, then record the digest with `az acr repository show`.
+3. Validate the image as its non-root user with `az acr run`. Give the step
+   `entryPoint: python` and `workingDirectory: /app`; ACR Tasks defaults to
+   `/workspace`.
+4. Copy it into the private registry by digest:
+   `az acr import --name '<registry-name>' --registry '<temporary-registry-resource-id>' --source 'workbench@<digest>' --image 'workbench:<unique-release-tag>'`.
+5. Confirm the digest from the private-network runner, then delete the
+   temporary registry.
 
 ### 5. Plan and review the image rollout
 
