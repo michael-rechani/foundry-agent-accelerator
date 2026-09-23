@@ -1,187 +1,299 @@
-# AI Foundry Lab
+# The Lab
 
-Describe a job, prepare a setup from one of five reviewed templates, and create
-a baseline Microsoft Foundry agent to try in Chat. **Create agent** prepares
-instructions; an explicit, operator-protected action publishes the real hosted
-agent when creation is enabled. **Chat does not create or configure agents.**
-The existing developer-published agents remain available.
+[Home](../README.md) / The Lab
 
-**Document reviews** is the separate option for saving a check of each item on
-your checklist. Paste document text, run the review, read the results beside the
-original text, then add missing information and run again when requested.
+The Lab is the private browser app in `workbench/`. Use it to try the
+prebuilt agents, prepare reviewed agent setups, publish baseline Microsoft
+Foundry hosted agents when an operator enables creation, and save document
+reviews. When you finish this guide, you'll know how to run, configure, deploy,
+operate, and validate the Lab without changing the safety boundaries.
 
-The five jobs are Document Analyst, Criteria Checker, Document Intake Assistant,
-Casework Assistant and Workflow Coordinator. They provide generic public-sector,
-healthcare-operations and ISV demonstrations. The first four use supplied text;
-the workflow job has only two **simulated read-only** lookups. None connects to
-customer systems or performs business writes. See [creation and operator setup](../docs/agent-creation.md).
+The UI title is **AI Foundry Lab**. The private React/TypeScript UI uses a
+FastAPI backend and shared Azure Cosmos DB storage.
 
-The private React/TypeScript UI uses a FastAPI backend and shared Cosmos storage.
+## At a glance
+
+| Area | What to know |
+| --- | --- |
+| Agent creation | **Create agent** prepares instructions from reviewed templates. Publication is a separate operator-protected action. **Chat does not create or configure agents.** |
+| Prebuilt agents | The prebuilt agents remain available. **Application and case helper** is the default visible prebuilt agent. |
+| Document reviews | **Document reviews** saves one structured check per checklist item and keeps the original text beside the result. |
+| Data boundary | Use fictional data only. The Lab doesn't connect to customer systems or perform business writes. |
+| Access model | The current private Lab has no end-user Microsoft Entra ID sign-in or per-user authorization. |
+
+## In this guide
+
+- [Choose one demonstration](#choose-one-demonstration)
+- [Access](#access)
+- [Conversations](#conversations)
+- [Workspace configuration](#workspace-configuration)
+- [Storage and cost](#storage-and-cost)
+- [Local development](#local-development)
+- [Deployment](#deployment)
+- [Diagnostics and caching](#diagnostics-and-caching)
+- [Related content](#related-content)
 
 ## Choose one demonstration
 
 Start with the [demo guide](../docs/demos.md) and record findings in the
 [demo handoff](../docs/demo-handoff.md). Choose one bounded scenario, not an
-all-scenarios demonstration:
+all-scenarios demonstration.
 
-- [Casework assistance](../docs/demos.md#casework-assistance) and
-  [application completeness](../docs/demos.md#application-completeness) are
-  implemented and available in source; this is not a live-validation claim.
-- [Requirements and proposal review](../docs/demos.md#requirements-and-proposal-review)
-  is **EXPERIMENTAL**. It reuses the application agent and existing
-  criteria-and-evidence workflow, not another agent.
-- [Agent-assisted business request triage](../docs/demos.md#agent-assisted-request-triage)
-  is **PLANNED**, not runnable. Existing coordinator/specialist review routing
-  is not business-request triage.
+| Scenario | Status | What it means |
+| --- | --- | --- |
+| [Casework assistance](../docs/demos.md#casework-assistance) | **Available** | The source and walkthrough are included. This is not a live-validation claim. |
+| [Application completeness](../docs/demos.md#application-completeness) | **Available** | The source and walkthrough are included. This is not a live-validation claim. |
+| [Requirements and proposal review](../docs/demos.md#requirements-and-proposal-review) | **Experimental** | This reuses the application agent and the existing criteria-and-evidence workflow. It doesn't add another agent. |
+| [Agent-assisted business request triage](../docs/demos.md#agent-assisted-request-triage) | **Planned** | This isn't runnable. Existing coordinator/specialist review routing isn't business-request triage. |
 
-Use supplied synthetic inputs only. The demos do not perform live business
-actions or connect to customer systems. People verify evidence and make
-decisions; model output is not an approval, award, eligibility or permit decision.
-Live model execution still incurs charges; see [Storage and Cost](#storage-and-cost).
+The five creation jobs are Document Analyst, Criteria Checker, Document Intake
+Assistant, Casework Assistant, and Workflow Coordinator. They provide generic
+public-sector, healthcare-operations, and independent software vendor (ISV)
+demonstrations. The first four jobs use supplied text. The workflow job has
+only two **simulated read-only** lookups. None connects to customer systems or
+performs business writes. See [Create and try a baseline Microsoft Foundry agent](../docs/agent-creation.md).
+
+> [!IMPORTANT]
+> Use supplied fictional inputs only. People verify evidence and make decisions.
+> Model output is not an approval, award, eligibility, or permit decision.
+
+Live model execution still incurs charges. See [Storage and cost](#storage-and-cost).
 
 The frontend uses React 19, TypeScript, Vite, Lucide icons, and custom
 Fluent-inspired CSS, not the Fluent UI component library. Neutral surfaces and
-blue actions are shared across creation, Chat, Document reviews, history, Agents, and performance.
-Playwright covers desktop and mobile workflows. The Python backend uses FastAPI,
-Pydantic validation, and async Azure SDKs for Foundry and Cosmos DB.
+blue actions are shared across creation, **Chat**, **Document reviews**,
+history, **Agents**, and performance. Playwright covers desktop and mobile
+workflows. The Python backend uses FastAPI, Pydantic validation, and async Azure
+SDKs for Foundry and Cosmos DB.
 
 ## Access
 
-Use the `private_url` Terraform output from an authorized private-network browser.
-For local development, use http://127.0.0.1:8080 after starting the server below.
-Local disconnected mode allows template preparation but disables publication,
-agent calls and Cosmos access.
+Use the `private_url` Terraform output from an authorized private-network
+browser. For local development, use `http://127.0.0.1:8080` after starting the
+server. Local disconnected mode allows template preparation, but disables
+publication, agent calls, and Cosmos access.
 
-The Container Apps environment has an internal load balancer and public network access disabled. App-level external ingress means access from outside the *environment*, within the private network; ingress is further restricted to an approved source subnet. APIM is not involved and no public gateway API is exposed by this application. Opt-in creation publishes named agents inside the configured private Foundry project.
+The Azure Container Apps environment has an internal load balancer and public
+network access disabled. App-level external ingress means access from outside
+the environment, within the private network. Ingress is further restricted to an
+approved source subnet. Azure API Management (APIM) is not involved, and this
+application exposes no public gateway API. Opt-in creation publishes named
+agents inside the configured private Foundry project.
 
 For broader internal access or a controlled internet-facing entry point, see the
-[Application Gateway and Front Door guide](../docs/ingress-access.md). It covers
-private origins, DNS/TLS, authentication prerequisites, host/origin configuration,
-and agent-request behavior. Neither gateway is deployed by this sample.
+[Application ingress options](../docs/ingress-access.md) guide. It covers
+private origins, Domain Name System (DNS), Transport Layer Security (TLS),
+authentication prerequisites, host/origin configuration, and agent-request
+behavior. Neither gateway is deployed by this sample.
 
-End-user Entra sign-in is not a prerequisite for the current private lab. Azure
-resource access still uses managed identities. Restrict the lab to trusted
-operators and fictional inputs; it is not a user-isolated application.
+End-user Microsoft Entra ID sign-in is not a prerequisite for the current
+private Lab. Azure resource access still uses managed identities. Restrict the
+Lab to trusted operators and fictional inputs. The Lab is not a user-isolated
+application.
+
 The **Shared lab** control in the header explains these limits on demand:
-everyone with workspace access can read, modify and delete saved chats, read
-reviews and add requested information, and read created-agent setups. Reviews
-have no deletion control. Publication and deleting a created agent require the
-shared operator key; this is not per-user authorization.
-There is no permanent warning banner. The details are available on desktop and
-mobile; they are informational, not an access control or a check that submitted
-data is fictional.
+
+| Shared item | Who can act | Limits |
+| --- | --- | --- |
+| Saved chats | Everyone with workspace access can read, modify, and delete them. | There is no per-user authorization yet. |
+| Reviews | Everyone with workspace access can read reviews and add requested information. | Reviews have no deletion control. |
+| Created-agent setups | Everyone with workspace access can read the setups. | Publication and deletion require the shared operator key. This is not per-user authorization. |
+
+The Lab has no permanent warning banner. The **Shared lab** details are
+available on desktop and mobile. They are informational; they are not an access
+control and they do not check that submitted data is fictional.
 
 ## Conversations
 
-Create agent is the initial view for the new capability. A valid saved-review URL
-still opens its review directly, including after a reload; older configuration
-responses without creation capability retain Chat-first behavior. The optional [Document reviews workflow](../docs/review-workflow.md)
-has its own data contract and deployment checks; it is not required to use Chat.
+**Create agent** is the initial view when the configuration includes the agent
+creation capability. A valid saved-review URL still opens its review directly,
+including after a reload. Older configuration responses without creation
+capability keep the Chat-first behavior.
 
-- **Application and case helper** (`customer-review`, formerly Guided review) is the only static catalog agent directly available by default. It asks the application-checking or case-notes specialist to do the task, then returns their findings. Configure `visible_agents` in Terraform or `WORKBENCH_VISIBLE_AGENTS` locally to change the static catalog; hidden agents cannot be invoked directly through the workbench API. Ready agents created in this Lab are listed separately and can be selected in Chat.
-- Its example tasks are **Review an application**, **Summarize case notes**, and **Compare a proposal (EXPERIMENTAL)**. **Help me get started** asks what to supply, not how to create an agent. A starter only fills the message; the user must choose Send.
-- **About this agent** stays available in the Chat header, including during a conversation. It explains what to give the agent, what to expect, how it works and what it will not do.
-- **Agents** lists only enabled entries. **Application and case helper (base setup)** (`review-coordinator`, formerly Review planning) uses the same specialists through different tool names. It is an alternative developer setup, not a separate planning capability. **Application checker** and **Case notes summarizer** talk directly to the respective specialists when enabled.
-- **Developer setup details** shows unchanged catalog IDs, runtime names, expected tool bindings and configuration sources. These describe configured capabilities, not observed execution. Check response execution details and receipts; stored receipts are not reverified.
-- Send a message, then use the Save icon to save completed exchanges. Saving is explicit, not automatic. Unsaved drafts remain only in browser memory. Export includes completed exchanges and the current draft. Browser navigation warns about unsaved work where supported; it cannot prevent data loss from a browser crash or forced close.
-- Shared history lists, reopens and deletes saved conversations. **Everyone with workspace access can read, modify and delete these conversations.** There is no per-user authorization yet. Use synthetic data only.
-- Saves expire 30 days after their last update. Deletion and TTL remove active documents; the account's backup retention is separate and is not immediate secure erasure.
-- One conversation document holds up to 11 completed exchanges, with a 512 KiB save-request limit. Optimistic ETag checks reject conflicting updates. The shared partition is deliberately for a small prototype, not a multi-tenant design.
-- Model requests contain up to 10 prior exchanges plus the new question, bounded by 60,000 characters and a 64 KiB JSON request. No silent truncation or summarization occurs. Saving a transcript does not increase the model-context limit.
-- Foundry requests use `store=false`; Cosmos persistence is independently controlled by the explicit Save command. Stored transcripts and their receipts are editable workspace data, not an immutable audit trail.
-- Saved/read receipts have their client-supplied verification flags cleared. Reopened receipts display `Stored / not reverified`; live response receipts are separately checked against correlated tool calls and expected targets.
-- Performance shows browser-session request counts and observed end-to-end latency. It excludes local preview calls, is cleared on refresh, and is not a fleet-wide metric or model-quality score.
-- Stop waiting cancels the browser wait, not guaranteed remote agent execution. Requests are not automatically retried.
-- History requests stop waiting after 45 seconds without clearing local work. An interrupted save may have completed remotely; check shared history before repeating it.
-- Choose the agent from the chat header. Starter prompts fill the composer without submitting. Save state and expandable **Conversation limits** appear once there is a draft or conversation, rather than adding status rows to an empty chat.
-- The composer grows up to 240 pixels or 25% of viewport height. Conversation limits show Unicode characters, UTF-8 JSON bytes and completed replies; warnings identify the exhausted limit.
-- Continue in new chat previews an editable draft from the last exchange and any unsent follow-up. Earlier exchanges are not carried over. Previous output is labeled unverified context, not a verified receipt. Confirming starts an empty conversation with that draft, without submitting it or altering saved history. Cancel preserves the original conversation. Save or export unsaved source messages first.
-- Configuration loads with a 15-second bootstrap deadline and explicit Retry. Invalid configuration disables execution; retry preserves any typed draft. Review deadline expiry and user cancellation have distinct messages and performance outcomes. Neither automatically retries a model request.
+The optional [Document reviews](../docs/review-workflow.md) workflow has its own
+data contract and deployment checks. You don't need it to use **Chat**.
 
-## Workspace Configuration
+### Navigation and views
+
+| UI label | What it does | Important limits |
+| --- | --- | --- |
+| **New chat** | Starts a new Chat draft for the selected agent. | It doesn't create an agent or submit a starter prompt. |
+| **Create agent** | Prepares a setup from a reviewed template and, when enabled, lets an operator publish it. | Preparation is deterministic template assembly, not a model-designed agent. |
+| **Created agents** | Lists agents published from the Lab's creation flow. | Ready agents can be selected in **Chat**. |
+| **Chat** | Sends a message to the selected prebuilt or ready created agent. | A chat prompt doesn't edit tools, instructions, or runtime configuration. |
+| **Document reviews** | Saves and runs checklist-based reviews. | Chat messages and review results don't copy between views automatically. |
+| **Shared history** | Lists, reopens, and deletes saved conversations. | Everyone with workspace access can read, modify, and delete saved conversations. |
+| **Agents** | Lists only enabled entries. | Hidden agents can't be invoked directly through the Lab API. |
+| **Performance** | Shows browser-session request counts and observed end-to-end latency. | It excludes local preview calls, clears on refresh, and isn't a fleet-wide metric or model-quality score. |
+
+### Prebuilt and created agents
+
+| Agent or entry | Availability | Behavior |
+| --- | --- | --- |
+| **Application and case helper** (`customer-review`, formerly Guided review) | Default visible prebuilt agent. | The coordinator asks the application-checking or case-notes specialist to do the task, then returns the findings. |
+| **Application and case helper (base setup)** (`review-coordinator`, formerly Review planning) | Visible only when enabled. | Uses the same specialists through different tool names. This is an alternative developer setup, not a separate planning capability. |
+| **Application checker** | Visible only when enabled. | Talks directly to the application specialist. |
+| **Case notes summarizer** | Visible only when enabled. | Talks directly to the case-notes specialist. |
+| Ready created agents | Listed separately under **Created agents**. | They can be selected in **Chat** after publication is ready. |
+
+Configure `visible_agents` in Terraform or `WORKBENCH_VISIBLE_AGENTS` locally to
+change the prebuilt agent catalog that the Lab exposes. **Agents** lists only
+enabled entries.
+
+**Developer setup details** shows unchanged catalog IDs, runtime names, expected
+tool bindings, and configuration sources. These details describe configured
+capabilities, not observed execution. Check response execution details and
+receipts; stored receipts are not reverified.
+
+### Starters and guidance
+
+| UI label | What it does |
+| --- | --- |
+| **Review an application** | Fills the composer with a fictional application-checking task. |
+| **Summarize case notes** | Fills the composer with a fictional case-notes task. |
+| **Compare a proposal (EXPERIMENTAL)** | Fills the composer with a fictional requirements/proposal comparison. |
+| **Help me get started** | Asks what to supply and what the selected agent will do. It doesn't explain how to create an agent. |
+| **About this agent** | Stays available in the Chat header, including during a conversation. It explains what to give the agent, what to expect, how it works, and what it won't do. |
+
+Starter prompts fill the composer without submitting. The user must choose
+**Send**.
+
+### Saving, retention, and receipts
+
+| Item | Saved? | How long | Notes |
+| --- | --- | --- | --- |
+| Unsaved draft | No. | Browser memory only. | Browser navigation warns about unsaved work where supported. It can't prevent data loss from a browser crash or forced close. |
+| Saved conversation | Yes, after the user selects the Save icon. | Expires 30 days after its last update. | Saving is explicit, not automatic. |
+| Export | Download only. | User-controlled. | Export includes completed exchanges and the current draft. |
+| Saved/read receipt flags | Yes, with verification flags cleared. | Same as the conversation. | Reopened receipts display `Stored / not reverified`. Live response receipts are checked separately against correlated tool calls and expected targets. |
+
+Deletion and time to live (TTL) remove active documents. The account's backup
+retention is separate and isn't immediate secure erasure. Foundry requests use
+`store=false`; Cosmos persistence is independently controlled by the explicit
+Save command. Stored transcripts and receipts are editable workspace data, not
+an immutable audit trail.
+
+### Limits and request behavior
+
+| Limit | Value | Behavior |
+| --- | --- | --- |
+| Saved conversation size | Up to 11 completed exchanges and a 512 KiB save-request limit. | Optimistic ETag checks reject conflicting updates. The shared partition is for a small prototype, not a multi-tenant design. |
+| Model request context | Up to 10 prior exchanges plus the new question. | The request is bounded by 60,000 characters and a 64 KiB JSON request. Saving a transcript doesn't increase the model-context limit. |
+| Truncation | None. | The Lab doesn't silently truncate or summarize input. |
+| Composer height | Up to 240 pixels or 25% of viewport height. | **Conversation limits** shows Unicode characters, UTF-8 JSON bytes, and completed replies. Warnings identify the exhausted limit. |
+| History wait | Browser waits up to 45 seconds. | A timed-out history request doesn't clear local work. An interrupted save may have completed remotely; check **Shared history** before repeating it. |
+| Stop waiting | Browser wait only. | Cancellation doesn't guarantee remote agent execution stopped. Requests are not automatically retried. |
+
+Save state and expandable **Conversation limits** appear once there is a draft or
+conversation. They don't add status rows to an empty chat.
+
+### Continue in new chat
+
+**Continue in new chat** previews an editable draft from the last exchange and
+any unsent follow-up. Earlier exchanges are not carried over. Previous output is
+labeled unverified context, not a verified receipt.
+
+Confirming starts an empty conversation with that draft. It doesn't submit the
+draft or alter saved history. Cancel preserves the original conversation. Save
+or export unsaved source messages first.
+
+### Configuration loading
+
+Configuration loads with a 15-second bootstrap deadline and an explicit
+**Retry** action. Invalid configuration disables execution. Retrying preserves
+any typed draft. Review deadline expiry and user cancellation have distinct
+messages and performance outcomes. Neither automatically retries a model
+request.
+
+## Workspace configuration
 
 `GET /api/config` supplies the visible title, selected default agent, per-agent
-starter prompts, request limits and client deadlines. The browser uses these
-values; it cannot raise server limits. Credentials and private connection
+starter prompts, request limits, and client deadlines. The browser uses these
+values; it can't raise server limits. Credentials and private connection
 settings are not returned. The 15-second bootstrap deadline is browser-local
 because configuration is not available yet.
 
 The creation flow is bounded: select a prepared template, describe the job,
-review/edit its name and task instructions, then explicitly confirm publication.
-Preparation is deterministic template assembly, not an LLM-generated agent or a
-conversation that edits deployed agents. There is no arbitrary code/tool
-installer, live connector wizard or in-place editor for existing deployments.
+review and edit its name and task instructions, then explicitly confirm
+publication. Preparation is deterministic template assembly, not a model-generated
+agent or a conversation that edits deployed agents. There is no arbitrary
+code/tool installer, live connector wizard, or in-place editor for existing
+deployments.
 
 | Setting | Authoritative source | How a change takes effect |
 | --- | --- | --- |
-| Job templates, draft defaults, example inputs and fixed tool descriptions | [`agent_templates.py`](agent_templates.py) | Rebuild/redeploy the Lab; existing created agents do not change |
-| Created-agent name and task instructions | Reviewed creation request saved in Cosmos | Operator-confirmed publication captures instructions in a new named hosted agent; later chat prompts do not edit it |
-| Created-agent runtime policy and allowed tools | [`agent_runtime`](agent_runtime), packaged by [`agent_publisher.py`](agent_publisher.py) | Reviewed source change and Lab rollout; existing published versions remain unchanged |
-| Creation enablement, model and operator-key verifier | Optional Lab Terraform inputs / server environment | Operator-managed rollout; not editable in the browser |
-| Display name, description, getting-started guide and starters | [`agents.json`](agents.json) | Rebuild and redeploy the Lab; no agent publication needed |
-| Foundry endpoint name and expected specialist receipts | `agent` and `tools` in [`agents.json`](agents.json) | Rebuild/redeploy the Lab to point at a separately published, tested configuration |
-| Coordinator instructions and real tools | Selected [coordinator profile](../docs/agent-profiles.md), or the base coordinator's instructions and runtime defaults | Publish and test a new coordinator version; editing the Lab catalog does not change runtime tools |
-| Specialist instructions | [Application instructions](../hosted-agents/application-review-agent/instructions.md) or [case instructions](../hosted-agents/case-review-agent/instructions.md), plus deployment configuration | Publish and test a new specialist version |
-| Visible entries, default agent and title | Lab Terraform inputs below; local equivalents are `WORKBENCH_*` environment settings | Reviewed Lab rollout, or restart the local server |
+| Job templates, draft defaults, example inputs, and fixed tool descriptions | [`agent_templates.py`](agent_templates.py) | Rebuild and redeploy the Lab; existing created agents do not change. |
+| Created-agent name and task instructions | Reviewed creation request saved in Cosmos DB | Operator-confirmed publication captures instructions in a new named hosted agent. Later chat prompts do not edit it. |
+| Created-agent runtime policy and allowed tools | [`agent_runtime`](agent_runtime), packaged by [`agent_publisher.py`](agent_publisher.py) | Reviewed source change and Lab rollout; existing published versions remain unchanged. |
+| Creation enablement, model, and operator-key verifier | Optional Lab Terraform inputs or server environment | Operator-managed rollout; not editable in the browser. |
+| Display name, description, getting-started guide, and starters | [`agents.json`](agents.json) | Rebuild and redeploy the Lab; no agent publication needed. |
+| Foundry endpoint name and expected specialist receipts | `agent` and `tools` in [`agents.json`](agents.json) | Rebuild and redeploy the Lab to point at a separately published, tested configuration. |
+| Coordinator instructions and real tools | Selected [coordinator profile](../docs/agent-profiles.md), or the base coordinator's instructions and runtime defaults | Publish and test a new coordinator version; editing the Lab catalog does not change runtime tools. |
+| Specialist instructions | [Application instructions](../hosted-agents/application-review-agent/instructions.md) or [case instructions](../hosted-agents/case-review-agent/instructions.md), plus deployment configuration | Publish and test a new specialist version. |
+| Visible entries, default agent, and title | Lab Terraform inputs below; local equivalents are `WORKBENCH_*` environment settings | Reviewed Lab rollout, or restart the local server. |
 
 Deployed agent versions capture instructions and environment settings.
-`AGENT_INSTRUCTIONS` overrides the runtime's default instruction file;
+`AGENT_INSTRUCTIONS` overrides the runtime's default instruction file.
 `SPECIALIST_CONFIG` overrides the coordinator's legacy specialist-name settings.
-The Lab does not inspect or edit these live settings. Keep its endpoint/receipt
-map aligned with the deployed profile; it is not a second runtime tool registry.
+The Lab doesn't inspect or edit these live settings. Keep its endpoint/receipt
+map aligned with the deployed profile; it isn't a second runtime tool registry.
 
-- Each optional `guidance` object in `agents.json` has `input`, `output`, `limits`,
-  `delegation` and `configuration`, all nonempty strings up to 1,200 trimmed
-  characters. These are presentation text only. Older catalogs without guidance
-  still load, with an explicit getting-started-guide-unavailable message.
-- Optional `prompts` arrays accept up to six entries, each with `label` (up to
-  80 characters) and `text` (up to 4,000 characters). Starters use fictional
-  inputs and are never submitted just by selecting one.
-- `visible_agents` controls direct access. Terraform validates IDs against
-	`agents.json`, and the backend independently validates the deployed registry.
-- `default_agent` must be visible; when omitted, the first `visible_agents` entry
-	is selected. Locally, use `WORKBENCH_DEFAULT_AGENT`.
-- `workspace_title` defaults to `AI Foundry Lab`, with one to 80 printable
-	characters. Locally, use `WORKBENCH_TITLE`. It updates the visible name and
-	browser title without renaming Azure resources.
-- Rebuild the image after registry changes. Terraform title/default/visibility
-	changes update container environment settings through the reviewed rollout.
-	There is no administrative editor in the UI.
+| Configuration item | Limit or behavior |
+| --- | --- |
+| Optional `guidance` in `agents.json` | Contains `input`, `output`, `limits`, `delegation`, and `configuration`. Each value must be a nonempty string up to 1,200 trimmed characters. These are presentation text only. Older catalogs without guidance still load with an explicit getting-started-guide-unavailable message. |
+| Optional `prompts` arrays | Accept up to six entries. Each entry has `label` up to 80 characters and `text` up to 4,000 characters. Starters use fictional inputs and are never submitted just by selecting one. |
+| `visible_agents` | Controls direct access. Terraform validates IDs against `agents.json`, and the backend independently validates the deployed registry. |
+| `default_agent` | Must be visible. When omitted, the first `visible_agents` entry is selected. Locally, use `WORKBENCH_DEFAULT_AGENT`. |
+| `workspace_title` | Defaults to `AI Foundry Lab`, with one to 80 printable characters. Locally, use `WORKBENCH_TITLE`. It updates the visible name and browser title without renaming Azure resources. |
 
-## Storage and Cost
+Rebuild the image after registry changes. Terraform title/default/visibility
+changes update container environment settings through the reviewed rollout.
+There is no administrative editor in the UI.
 
-The existing provisioned-throughput account `aifnd-agent-foundry-cosmosdb-7omvd` contains a dedicated `workbench/conversations` container. Foundry's `enterprise_memory` database is unchanged. The workbench identity has Cosmos Data Contributor scoped to this container only. It uses the existing private Cosmos endpoint and no account keys.
+## Storage and cost
 
-The container has 400 RU/s dedicated throughput and default 30-day TTL. Review support
-adds a record-type index alongside agent ID and update time; apply this additive
-index before deploying the review-enabled image. Transcript and evidence bodies
-are not indexed. Chat/review lists are paged in batches of 20 and point reads
-load a selected record. Created-agent records use the existing record-type
-index and override TTL: a billable runtime must not lose its registry entry by
-expiry. Confirmed deletion removes the saved name and instructions and retains
-a minimal idempotency tombstone. See [creation persistence](../docs/agent-creation.md#publication-recovery-and-deletion).
+The existing provisioned-throughput account
+`aifnd-agent-foundry-cosmosdb-7omvd` contains a dedicated
+`workbench/conversations` container. Foundry's `enterprise_memory` database is
+unchanged. The Lab identity has Cosmos Data Contributor scoped to this container
+only. It uses the existing private Cosmos endpoint and no account keys.
+
+| Storage area | Configuration |
+| --- | --- |
+| Cosmos DB container | 400 RU/s dedicated throughput and default 30-day TTL. |
+| Indexing | Review support adds a record-type index alongside agent ID and update time. Apply this additive index before deploying the review-enabled image. Transcript and evidence bodies are not indexed. |
+| Lists and reads | Chat and review lists are paged in batches of 20. Point reads load a selected record. |
+| Created-agent records | Use the existing record-type index and override TTL, because a billable runtime must not lose its registry entry by expiry. Confirmed deletion removes the saved name and instructions and retains a minimal idempotency tombstone. See [Publication, recovery, and deletion](../docs/agent-creation.md#publication-recovery-and-deletion). |
+
+> [!WARNING]
+> Live Foundry, hosted runtime, build, storage, monitoring, and model-token usage
+> can incur Azure charges. A timeout, closed browser tab, or disabled creation
+> setting does not stop an accepted remote mutation or hosted runtime.
 
 The saved North Central US retail-rate assumption from the
 [Azure Retail Prices API](https://prices.azure.com/api/retail/prices) is
 USD 0.008/hour per `100 RU/s`. At 730 hours,
 `4 * 0.008 * 730 = USD 23.36/month` for this container's throughput alone.
-Confirm the applicable rate before budgeting; this is not a current quote.
-The estimate covers provisioned capacity, not usage-based serverless pricing.
-It excludes storage, backups, discounts, taxes, model tokens, Container Apps,
+Confirm the applicable rate before budgeting; this is not a current quote. The
+estimate covers provisioned capacity, not usage-based serverless pricing. It
+excludes storage, backups, discounts, taxes, model tokens, Container Apps,
 registry/builds, and existing network resources, so it is not the total Lab bill.
 
-The app runs one warm 0.5-vCPU/1-GiB replica for responsiveness. Reviews admit at most four concurrent requests and 20 requests/minute, including rejected input. History separately admits four concurrent requests and 60 requests/minute. Admission occurs before reading bodies or calling dependencies. These limits are process-local; do not increase workers or replicas without distributed controls. Uvicorn limits connection/task concurrency to 32.
+| Runtime area | Limit |
+| --- | --- |
+| Container Apps runtime | One warm 0.5-vCPU/1-GiB replica for responsiveness. Uvicorn limits connection/task concurrency to 32. |
+| Agent and review execution | At most four concurrent requests and 20 requests/minute, including rejected input. Admission occurs before reading bodies or calling dependencies. Agent execution retains its 180-second deadline. |
+| History operations | Four concurrent requests and 60 requests/minute. History operations, including uploads and SDK retries, have a 35-second server deadline. The browser waits up to 45 seconds. |
+| Created-agent APIs | Four concurrent requests and 120 requests/minute. New publication and deletion run one at a time. |
+| Created-agent count | At most five nondeleted hosted agents by default, including unconfirmed or failed attempts. Each uses 0.5 CPU / 1 GiB and can incur hosted runtime/build costs as well as model charges. |
+| Uploads and rejections | Review body uploads have a five-second server deadline. Rejections return HTTP 429 with `Retry-After: 60`. Responses are size-bounded. |
 
-Creation adds at most five nondeleted hosted agents by default, including
-unconfirmed or failed attempts. Each uses 0.5 CPU / 1 GiB and can incur hosted
-runtime/build costs as well as model charges. New publication and deletion run
-one at a time; created-agent APIs admit four requests concurrently and 120 per
-minute. Closing the tab, disabling new creation or stopping the browser wait
-does not stop an existing hosted runtime. Retire it explicitly.
+These admission limits are process-local. Do not increase workers or replicas
+without distributed controls. Closing the tab, disabling new creation, or
+stopping the browser wait doesn't stop an existing hosted runtime. Retire it
+explicitly.
 
-Review body uploads have a five-second server deadline. History operations, including uploads and SDK retries, have a 35-second server deadline; the browser waits up to 45 seconds. Rejections return HTTP 429 with `Retry-After: 60`. Agent execution retains its 180-second deadline. Responses are size-bounded; cancellation does not guarantee an already accepted remote mutation or model call stops.
-
-## Local Development
+## Local development
 
 Requires Node 24 and Python 3.13.
 
@@ -192,7 +304,11 @@ python -m pip install -r workbench/requirements.txt
 python -m uvicorn app:create_app --factory --app-dir workbench --host 127.0.0.1 --port 8080 --no-access-log
 ```
 
-Vite writes compiled assets to `workbench/static`, which FastAPI serves. Fonts are local; there are no CDN dependencies or Azure credentials in the browser. The optional operator key is held in memory only for creation/deletion requests. Markdown does not render raw HTML, external images or clickable external links.
+Vite writes compiled assets to `workbench/static`, which FastAPI serves. Fonts
+are local. The browser has no Content Delivery Network (CDN) dependencies or
+Azure credentials. The optional operator key is held in memory only for creation
+or deletion requests. Markdown doesn't render raw HTML, external images, or
+clickable external links.
 
 ```powershell
 python -m pip install -r workbench/requirements.txt -r workbench/agent_runtime/requirements.txt
@@ -204,35 +320,49 @@ npm --prefix workbench/frontend test
 ./workbench/test-private-checks.ps1
 ```
 
-Infrastructure initialization and validation are separate deployment steps below;
-the local application checks do not require access to the remote state backend.
+Infrastructure initialization and validation are separate deployment steps. The
+local application checks do not require access to the remote state backend.
 
 ## Deployment
 
-Run the following steps from the repository root in one PowerShell session.
-Stop if any command fails. Terraform deploys the Lab infrastructure and selects
-its image; image building and runtime smoke tests are separate, explicit steps.
+Run the following steps from the repository root in one PowerShell session. Stop
+if any command fails. Terraform deploys the Lab infrastructure and selects its
+image. Image building and runtime smoke tests are separate, explicit steps.
 
 ### 1. Confirm prerequisites and state ownership
 
 Require an existing Foundry project and tested agent, authenticated Azure access,
-Terraform 1.16.1, and an approved private-network path to the backend and workload.
-The state account and blob container must already exist. Ensure the executing
-identity has the necessary resource, role-assignment, and state-container access.
+Terraform 1.16.1, and an approved private-network path to the backend and
+workload. The state account and blob container must already exist. Ensure the
+executing identity has the necessary resource, role-assignment, and
+state-container access.
 
-Infrastructure uses a separate Azure Storage backend key, `ai-foundry/workbench-dev.tfstate`, never the platform's `ai-foundry/dev.tfstate`. The backend uses Entra/CLI authentication and blob-lease locking; shared-key access is disabled. The existing account enforces HTTPS/TLS 1.2, encryption, versioning, 90-day blob soft-delete and seven-day container soft-delete. Public network access is now disabled. Do not reopen the shared account's firewall.
+Infrastructure uses a separate Azure Storage backend key,
+`ai-foundry/workbench-dev.tfstate`, never the platform infrastructure key
+`ai-foundry/dev.tfstate`. The backend uses Microsoft Entra ID and Azure CLI
+authentication with blob-lease locking. Shared-key access is disabled. The
+existing account enforces HTTPS/TLS 1.2, encryption, versioning, 90-day blob
+soft-delete, and seven-day container soft-delete. Public network access is now
+disabled. Do not reopen the shared account's firewall.
 
-For an existing local deployment use `init -migrate-state -backend-config=backend.hcl` only after checking the target key is unused. Confirm copying existing state, never start empty. Compare lineage and managed resource IDs before/after. Preserve protected local backups; state and plans must never be committed. Restrict state access and review inherited Azure RBAC separately.
+For an existing local deployment, use `init -migrate-state -backend-config=backend.hcl`
+only after checking that the target key is unused. Confirm copying existing
+state; never start empty. Compare lineage and managed resource IDs before and
+after. Preserve protected local backups. State and plans must never be committed.
+Restrict state access and review inherited Azure role-based access control
+(RBAC) separately.
 
-Execute Terraform through the approved private-network path. Existing installations
-must use the resource addresses declared in the configuration. One-time ownership
-scripts are not part of the sample. Stop if a plan tries to recreate existing
-resources or destroy an older owner; resolve that installation's state separately.
+Execute Terraform through the approved private-network path. Existing
+installations must use the resource addresses declared in the configuration.
+One-time ownership scripts are not part of the sample. Stop if a plan tries to
+recreate existing resources or destroy an older owner; resolve that
+installation's state separately.
 
-Necessary secrets belong in Key Vault and must not enter normal Terraform
+Necessary secrets belong in Azure Key Vault and must not enter normal Terraform
 attributes. Lab runtime access is keyless managed identity. Cosmos transcripts
-remain sensitive operational data, not vault secrets. Use keyless ARM resource
-reads and preserve historical backups under their retention policy.
+remain sensitive operational data, not vault secrets. Use keyless Azure Resource
+Manager (ARM) resource reads and preserve historical backups under their
+retention policy.
 
 ### 2. Configure and initialize
 
@@ -267,43 +397,51 @@ terraform -chdir=workbench/infra show "$plan"
 
 Review the foundation resources and costs. Only after approval, use the apply
 and cleanup block in step 6 on this plan, then continue to step 4. Bootstrap
-omits the app; it does not deploy a usable UI. **Never use bootstrap mode against
-an existing app.** The `prevent_destroy` guard blocks accidental app destruction.
-Do not persist `bootstrap_only=true` into the normal deployment configuration.
+omits the app; it does not deploy a usable UI. **Never use bootstrap mode
+against an existing app.** The `prevent_destroy` guard blocks accidental app
+destruction. Do not persist `bootstrap_only=true` into the normal deployment
+configuration.
 
 ### 4. Build and select an immutable image
 
 `build.ps1 -Private` stages only allowlisted source files, excluding local
-dependencies, state, plans and environment files. The Premium registry has public
-access and admin credentials disabled. The private build uses the local Linux
-Docker engine on the current authorized private-network runner, such as a jumpbox
-or CI agent. Install Docker with Linux-container support and Azure CLI, authenticate
-with an authorized identity (prefer managed identity), and provide registry-scoped
-push/pull permission. Both the runner and Docker engine need private DNS and routing
-to ACR, plus access to the base-image and package sources. The helper logs Docker
-into ACR using Azure CLI; use the runner's approved Docker credential storage.
-It validates the image as its non-root user before pushing, checks the registry's
-tag digest against the local build, then verifies a pull by immutable digest.
-Subscription, registry, and release tag must be supplied explicitly; use a unique
-tag and do not overwrite it during verification. The helper does not create VMs,
-grant roles, or upload remote commands.
-The legacy ACR Tasks path requires an explicitly public registry and is not used
-by this deployment.
+dependencies, state, plans, and environment files. The Premium Azure Container
+Registry (ACR) has public access and admin credentials disabled. The private
+build uses the local Linux Docker engine on the current authorized
+private-network runner, such as a jumpbox or continuous integration (CI) agent.
+Install Docker with Linux-container support and Azure CLI. Authenticate with an
+authorized identity, preferably managed identity, and provide registry-scoped
+push/pull permission. Both the runner and Docker engine need private DNS and
+routing to ACR, plus access to the base-image and package sources.
+
+The helper logs Docker into ACR using Azure CLI; use the runner's approved
+Docker credential storage. It validates the image as its non-root user before
+pushing, checks the registry's tag digest against the local build, then verifies
+a pull by immutable digest. Subscription, registry, and release tag must be
+supplied explicitly. Use a unique tag and do not overwrite it during
+verification. The helper does not create virtual machines, grant roles, or
+upload remote commands. The legacy ACR Tasks path requires an explicitly public
+registry and is not used by this deployment.
 
 Run `./workbench/test-build.ps1` from the repository root to check staging and
 success/failure handling with mocked Azure CLI and Docker commands. It does not
-contact Azure or build an image; a real build still requires the private runner
+contact Azure or build an image. A real build still requires the private runner
 and the push/pull verification below.
 
-Both Docker stages and the frontend CI container use immutable base-image digests. Refresh these deliberately and rebuild for security updates; pinning prevents silent changes but does not patch vulnerabilities. Python transitive dependencies still resolve during builds, so this is not a byte-for-byte reproducible build guarantee.
+Both Docker stages and the frontend CI container use immutable base-image
+digests. Refresh these deliberately and rebuild for security updates. Pinning
+prevents silent changes, but does not patch vulnerabilities. Python transitive
+dependencies still resolve during builds, so this is not a byte-for-byte
+reproducible build guarantee.
 
 ```powershell
 ./workbench/build.ps1 -Private -Subscription '<workload-subscription-id>' -Registry '<registry-name>' -Tag '<unique-release-tag>'
 ```
 
 Replace every placeholder and run from the approved private-network environment.
-Require a successful build, push, and verified pull. Record the returned digest and the prior recovery
-image. Set `image_digest` in local `workbench/infra/image.auto.tfvars` using
+Require a successful build, push, and verified pull. Record the returned digest
+and the prior recovery image. Set `image_digest` in local
+`workbench/infra/image.auto.tfvars` using
 [image.auto.tfvars.example](infra/image.auto.tfvars.example). Mutable tags are
 not accepted as deployment inputs.
 
@@ -317,7 +455,7 @@ terraform -chdir=workbench/infra show "$plan"
 
 Stop on failure. Verify the exact image digest and review every infrastructure
 action. A normal image-only update should not recreate shared resources. For
-first-time review support, verify the additive Cosmos index is ready before
+first-time review support, verify the additive Cosmos DB index is ready before
 promoting the review-enabled image. Reject unrelated changes.
 
 ### 6. Apply the approved plan and clean up
@@ -336,9 +474,9 @@ try {
 
 For a failed or abandoned plan, run
 `Remove-Item -LiteralPath $plan -Force -ErrorAction SilentlyContinue` as well.
-Plans may contain sensitive values; do not keep
-them as deployment history. Preserve Terraform state, state backups and source
-configuration. Generate a fresh reviewed plan for a retry.
+Plans may contain sensitive values; do not keep them as deployment history.
+Preserve Terraform state, state backups, and source configuration. Generate a
+fresh reviewed plan for a retry.
 
 ### 7. Verify the deployed application
 
@@ -347,7 +485,7 @@ terraform -chdir=workbench/infra output -raw private_url
 ```
 
 Confirm the intended revision and immutable image are ready before using this
-URL. From authorized private-network access, run the synthetic runtime check:
+URL. From authorized private-network access, run the fictional runtime check:
 
 ```powershell
 ./workbench/test-private.ps1 -BaseUrl '<verified-private-url>'
@@ -356,11 +494,11 @@ URL. From authorized private-network access, run the synthetic runtime check:
 Replace the URL placeholder with the Terraform output. The check uses the
 deployed default agent and its configured specialist bindings. Review the
 fictional application prompt before using it against a different agent profile.
-It makes one billable synthetic request and requires a verified specialist
+It makes one billable fictional request and requires a verified specialist
 receipt when that agent has specialist tools, not just a nonempty answer.
 
 The same check verifies Cosmos create, read, conditional update, stale-ETag
-rejection, and deletion of its own synthetic conversation. Use `-SkipAgentCall`
+rejection, and deletion of its own fictional conversation. Use `-SkipAgentCall`
 for storage checks without model generation. For read-only configuration and
 cached dependency checks:
 
@@ -370,48 +508,54 @@ python workbench/verify_private.py --base-url '<verified-private-url>'
 
 The verifier also supports `--loopback` inside the existing Lab container. This
 can check the runtime through approved container-console access without starting
-a VM or changing ingress. Transfer only the reviewed helper through the approved
-administration path and remove that temporary artifact afterward; verification
-scripts are not bundled in the runtime image. Loopback results explicitly say
-that browser ingress was **not** verified. Neither path establishes model quality.
+a virtual machine or changing ingress. Transfer only the reviewed helper through
+the approved administration path and remove that temporary artifact afterward.
+Verification scripts are not bundled in the runtime image. Loopback results
+explicitly say that browser ingress was **not** verified. Neither path
+establishes model quality.
 
-Require successful private HTTPS, agent execution, and Cosmos CRUD verification;
-an infrastructure apply alone is not an application acceptance test. For the
+Require successful private HTTPS, agent execution, and Cosmos CRUD verification.
+An infrastructure apply alone is not an application acceptance test. For the
 new workflow, also complete [review delivery checks](../docs/review-workflow.md#delivery-checks),
 including explicit clarification, resume, and prior-snapshot verification.
 
-Private runtime settings are managed by Terraform: `WORKBENCH_MODE`, `WORKBENCH_VISIBLE_AGENTS`, `WORKBENCH_DEFAULT_AGENT`, `WORKBENCH_TITLE`, exact host/origin allowlists, Foundry project endpoint, Cosmos endpoint and managed-identity client ID. Cosmos data-plane resources are provisioned by Terraform, never created by the runtime.
+Private runtime settings are managed by Terraform: `WORKBENCH_MODE`,
+`WORKBENCH_VISIBLE_AGENTS`, `WORKBENCH_DEFAULT_AGENT`, `WORKBENCH_TITLE`, exact
+host/origin allowlists, Foundry project endpoint, Cosmos endpoint, and
+managed-identity client ID. Cosmos data-plane resources are provisioned by
+Terraform, never created by the runtime.
 
 The private smoke test creates a fictional test conversation, verifies agent
-invocation and Cosmos create/read/update/delete, and deletes the test conversation
-afterward. Browser tests use controlled API responses and do not replace this
-deployment check.
+invocation and Cosmos create/read/update/delete, and deletes the test
+conversation afterward. Browser tests use controlled API responses and do not
+replace this deployment check.
 
-## Diagnostics and Caching
+## Diagnostics and caching
 
 The backend emits JSON request metadata through the Uvicorn console logger:
-server-generated correlation ID, route template, outcome, HTTP status and
+server-generated correlation ID, route template, outcome, HTTP status, and
 elapsed milliseconds. It does not log prompts, transcripts, bodies, raw URLs,
-headers, credentials or exception details. API responses carry the correlation
-ID, including history failures. ACA console/system logs go to a dedicated Log
-Analytics workspace with 30-day retention and a 0.1-GB daily ingestion cap.
-Workspace ingestion/query uses Azure Monitor Private Link with public access
-disabled. Diagnostics use Azure identity, not workspace shared keys.
-The cap can delay stopping ingestion and is not a hard billing limit; retained
-logs and scheduled-query alerts incur Azure charges.
+headers, credentials, or exception details. API responses carry the correlation
+ID, including history failures. Azure Container Apps (ACA) console/system logs
+go to a dedicated Log Analytics workspace with 30-day retention and a 0.1-GB
+daily ingestion cap. Workspace ingestion/query uses Azure Monitor Private Link
+with public access disabled. Diagnostics use Azure identity, not workspace shared
+keys. The cap can delay stopping ingestion and is not a hard billing limit;
+retained logs and scheduled-query alerts incur Azure charges.
 
 Every minute the backend checks configured Foundry agents without generating
 responses and performs an empty-result Cosmos query. Results are cached at
 `/api/health/dependencies`; failures return 503 without exception details.
-`/healthz` remains process-only, so dependency outages do not cause restart loops.
-These checks verify access, not model-generation quality or full Cosmos CRUD.
+`/healthz` remains process-only, so dependency outages do not cause restart
+loops. These checks verify access, not model-generation quality or full Cosmos
+CRUD.
 
 Azure Monitor raises alerts for five failures/throttles in five minutes, three
 degraded dependency samples in five minutes, and no heartbeat in 15 minutes.
 Alerts are visible in Azure Monitor. Set `alert_action_group_ids` to existing
 action groups to deliver notifications, or let Terraform create an email action
 group as shown below. No group or recipient is added by default.
-Missing-heartbeat alerts also cover stalled ingestion or quota exhaustion but
+Missing-heartbeat alerts also cover stalled ingestion or quota exhaustion, but
 cannot distinguish these from an application outage.
 
 ### Terraform-managed alert delivery
@@ -430,7 +574,7 @@ names and addresses must be nonempty and unique, ignoring letter case. The group
 uses the Azure Monitor common alert schema and inherits the Lab's resource group
 and tags. `managed_alert_action_group_id` returns its ID after apply.
 
-You can also supply `alert_action_group_ids` for centrally managed groups; the
+You can also supply `alert_action_group_ids` for centrally managed groups. The
 configuration combines both sets without duplicate group IDs. Existing groups
 remain owned outside this state. Do not configure the same group for creation
 here unless you deliberately transfer its Terraform ownership. Removing all
@@ -439,23 +583,34 @@ before applying.
 
 Recipient addresses are stored in Terraform plans and state; protect those as
 well as the local inputs. Alert messages can include resource identifiers and
-operational log metadata and are delivered outside the private application path.
-Approve recipients, delivery costs, and the rollout before enabling them, and
-verify delivery from the approved Azure environment. Terraform validation does
-not prove that mail reaches an inbox. These are infrastructure health alerts,
-not agent tools for sending email or performing business actions.
+operational log metadata, and are delivered outside the private application
+path. Approve recipients, delivery costs, and the rollout before enabling them,
+and verify delivery from the approved Azure environment. Terraform validation
+does not prove that mail reaches an inbox. These are infrastructure health
+alerts, not agent tools for sending email or performing business actions.
 
 Run `./workbench/test-monitoring.ps1` after provider initialization to check the
-default, existing-group, managed-group, combined-group, opt-out, and invalid-input paths.
-The runner copies only the monitoring configuration into an isolated directory,
-without the deployment backend or tfvars. Both Terraform providers are mocked,
-including test runs named `apply`; no Azure resources are created and no mail is
-sent. CI runs the same checks.
+default, existing-group, managed-group, combined-group, opt-out, and
+invalid-input paths. The runner copies only the monitoring configuration into an
+isolated directory, without the deployment backend or tfvars. Both Terraform
+providers are mocked, including test runs named `apply`; no Azure resources are
+created and no mail is sent. CI runs the same checks.
 
 ### Browser caching
 
-API responses remain `no-store`. HTML revalidates and fingerprinted static assets
-use immutable caching. No transcript data is written to browser persistent storage.
-The elapsed timer renders independently of the conversation transcript.
+API responses remain `no-store`. HTML revalidates, and fingerprinted static
+assets use immutable caching. No transcript data is written to browser
+persistent storage. The elapsed timer renders independently of the conversation
+transcript.
 
-Before real user data: add validated user identity, owner-scoped authorization on every history operation, appropriate retention and backup policies, and operational monitoring. Network restriction alone is not user authentication.
+Before real user data, add validated user identity, owner-scoped authorization
+on every history operation, appropriate retention and backup policies, and
+operational monitoring. Network restriction alone is not user authentication.
+
+## Related content
+
+- [Documentation index](../docs/README.md)
+- [Create and try a baseline Microsoft Foundry agent](../docs/agent-creation.md)
+- [Document reviews](../docs/review-workflow.md)
+- [Private deployment runbook](../docs/private-deployment.md)
+- [Application ingress options](../docs/ingress-access.md)
