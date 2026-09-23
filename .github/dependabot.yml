@@ -32,6 +32,9 @@ updates:
     ignore:
       # Preview build; update by hand and verify with a live agent deployment.
       - dependency-name: agent-framework-foundry-hosting
+      # azure-ai-projects 2.5+ requires openai 3. Remove after migrating to it.
+      - dependency-name: azure-ai-projects
+        versions: [">=2.5.0"]
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
