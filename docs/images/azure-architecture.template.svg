@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1070" viewBox="0 0 1600 1070" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">Azure architecture at a glance</title>
+  <desc id="desc">High-level design. A presenter signs in through Azure Bastion to a jumpbox in an optional admin network that is peered with a private workload network. The Lab runs in an internal Azure Container Apps environment with a managed identity. It runs agents in Foundry Agent Service, which uses Foundry Models, and saves records in Azure Cosmos DB. Foundry agents keep conversations, files and search data in Cosmos DB, Storage and AI Search through an agent subnet. Foundry, data services, Key Vault, Container Registry and Monitor are reached through private endpoints with public access off. Key Vault, Container Registry, managed identities and Azure Monitor are shared services. GitHub holds the code and Terraform deploys from the jumpbox. Model deployments are configurable; GPT-4.1 is the default. Optional API Management is not shown. This is a logical view, not a live resource inventory.</desc>
+  <defs>
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#0078d4"/>
+    </marker>
+    <marker id="teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#00786a"/>
+    </marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #242424; }
+      .title { font-size: 34px; font-weight: 600; }
+      .sub { font-size: 21px; fill: #4d5b69; }
+      .heading { font-size: 24px; font-weight: 600; }
+      .name { font-size: 21px; font-weight: 600; }
+      .body { font-size: 21px; }
+      .detail { font-size: 19px; }
+      .small { font-size: 18px; fill: #4d5b69; }
+      .label { font-size: 18px; fill: #4d5b69; font-weight: 600; }
+      .boundary { font-size: 19px; font-weight: 600; fill: #4d5b69; letter-spacing: 0.4px; }
+      .num { font-size: 19px; font-weight: 700; fill: #fff; }
+      .banner { font-size: 27px; font-weight: 600; fill: #fff; }
+      .request { fill: none; stroke: #0078d4; stroke-width: 2.5; marker-end: url(#blue); }
+      .data { fill: none; stroke: #00786a; stroke-width: 2.5; stroke-dasharray: 7 5; marker-end: url(#teal); }
+      .flow { fill: none; stroke: #0078d4; stroke-width: 3; marker-end: url(#blue); }
+    </style>
+  </defs>
+  <rect width="1600" height="1070" fill="#fff"/>
+  <text x="24" y="50" class="title">Azure architecture at a glance</text>
+  <text x="24" y="86" class="sub">Services are reached through private endpoints with public access turned off, and they sign in with managed identities instead of keys.</text>
+  <rect x="24" y="156" width="220" height="170" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/users.svg" x="44" y="172" width="44" height="44"/>
+  <text x="100" y="204" class="heading">People</text>
+  <text x="44" y="252" class="detail">Presenter or admin</text>
+  <text x="44" y="278" class="detail">signs in to the</text>
+  <text x="44" y="304" class="detail">Azure portal</text>
+  <rect x="24" y="668" width="220" height="230" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="44" y="708" class="heading">GitHub</text>
+  <text x="44" y="746" class="detail">Code and tests</text>
+  <text x="44" y="772" class="detail">Dependabot updates</text>
+  <text x="44" y="798" class="detail"></text>
+  <text x="44" y="824" class="detail">Terraform deploys</text>
+  <text x="44" y="850" class="detail">from the jumpbox</text>
+  <rect x="268" y="112" width="1308" height="942" rx="16" fill="#fff" stroke="#8da6bb" stroke-width="1.5" stroke-dasharray="9 6"/>
+  <text x="290" y="142" class="boundary">AZURE SUBSCRIPTION</text>
+  <rect x="288" y="158" width="280" height="522" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/virtual-network.svg" x="304" y="172" width="36" height="36"/>
+  <text x="350" y="196" class="name">Admin network</text>
+  <text x="350" y="221" class="small">Optional virtual network</text>
+  <rect x="304" y="240" width="248" height="166" rx="12" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/bastion.svg" x="320" y="256" width="40" height="40"/>
+  <text x="372" y="284" class="name">Azure Bastion</text>
+  <text x="320" y="330" class="detail">Browser sign-in with</text>
+  <text x="320" y="356" class="detail">no remote desktop</text>
+  <text x="320" y="382" class="detail">ports open</text>
+  <path d="M428 406V438" class="request"/>
+  <rect x="304" y="440" width="248" height="222" rx="12" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/virtual-machine.svg" x="320" y="456" width="40" height="40"/>
+  <text x="372" y="484" class="name">Jumpbox</text>
+  <text x="372" y="508" class="small">Windows VM</text>
+  <text x="320" y="552" class="detail">Opens the Lab</text>
+  <text x="320" y="580" class="detail">Runs deployments</text>
+  <text x="320" y="608" class="detail">Shuts down nightly</text>
+  <text x="320" y="636" class="detail">Private IP only</text>
+  <rect x="620" y="158" width="370" height="722" rx="12" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+  <image href="azure-icons/virtual-network.svg" x="636" y="172" width="36" height="36"/>
+  <text x="682" y="196" class="name">Workload network</text>
+  <text x="682" y="221" class="small">Virtual network, private only</text>
+  <rect x="636" y="240" width="338" height="236" rx="12" fill="#fff" stroke="#0078d4" stroke-width="2"/>
+  <image href="azure-icons/container-apps.svg" x="652" y="256" width="40" height="40"/>
+  <text x="704" y="284" class="name">Azure Container Apps</text>
+  <text x="704" y="308" class="small">Internal environment</text>
+  <text x="652" y="352" class="body">The Lab: web app and API</text>
+  <text x="652" y="382" class="detail">Opens only from inside the</text>
+  <text x="652" y="408" class="detail">private network</text>
+  <image href="azure-icons/managed-identity.svg" x="652" y="428" width="30" height="30"/>
+  <text x="692" y="450" class="detail">Managed identity, no keys</text>
+  <rect x="636" y="494" width="338" height="124" rx="12" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/subnet.svg" x="652" y="510" width="36" height="36"/>
+  <text x="700" y="536" class="name">Agent subnet</text>
+  <text x="652" y="574" class="detail">Foundry agents reach their</text>
+  <text x="652" y="600" class="detail">data privately through here</text>
+  <rect x="636" y="636" width="338" height="228" rx="12" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/private-link.svg" x="652" y="652" width="36" height="36"/>
+  <text x="700" y="678" class="name">Private endpoints</text>
+  <text x="652" y="716" class="detail">One for each service:</text>
+  <text x="652" y="741" class="detail">Foundry, Cosmos DB, Storage,</text>
+  <text x="652" y="766" class="detail">AI Search, Key Vault, Container</text>
+  <text x="652" y="791" class="detail">Registry and Monitor</text>
+  <image href="azure-icons/dns-zones.svg" x="652" y="820" width="28" height="28"/>
+  <text x="690" y="841" class="detail">Private DNS zones</text>
+  <rect x="1062" y="158" width="494" height="470" rx="12" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+  <image href="azure-icons/foundry.svg" x="1078" y="172" width="38" height="38"/>
+  <text x="1126" y="196" class="name">Microsoft Foundry</text>
+  <text x="1126" y="221" class="small">One project</text>
+  <rect x="1078" y="240" width="462" height="222" rx="12" fill="#fff" stroke="#0078d4" stroke-width="2"/>
+  <image href="azure-icons/agent-service.svg" x="1094" y="256" width="40" height="40"/>
+  <text x="1146" y="284" class="name">Foundry Agent Service</text>
+  <circle cx="1100" cy="323" r="4" fill="#4d5b69"/>
+  <text x="1116" y="330" class="detail">Prebuilt review agents: one coordinator</text>
+  <text x="1116" y="356" class="detail">and two specialists</text>
+  <circle cx="1100" cy="387" r="4" fill="#4d5b69"/>
+  <text x="1116" y="394" class="detail">Optional: agents created from Lab</text>
+  <text x="1116" y="420" class="detail">templates, each with two lookups</text>
+  <path d="M1309 462V480" class="request"/>
+  <rect x="1078" y="482" width="462" height="128" rx="12" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/foundry-models.svg" x="1094" y="498" width="40" height="40"/>
+  <text x="1146" y="526" class="name">Foundry Models</text>
+  <text x="1094" y="568" class="detail">GPT-4.1 by default; add others, such as</text>
+  <text x="1094" y="594" class="detail">GPT-5.4 for reasoning or GPT-5.4 mini</text>
+  <rect x="1062" y="648" width="494" height="232" rx="12" fill="#edf7f4" stroke="#00786a" stroke-width="1.5"/>
+  <text x="1078" y="680" class="name">Agent and Lab data</text>
+  <image href="azure-icons/cosmos-db.svg" x="1080" y="698" width="36" height="36"/>
+  <text x="1128" y="714" class="name">Azure Cosmos DB</text>
+  <text x="1128" y="739" class="detail">Lab records and agent conversations</text>
+  <image href="azure-icons/storage.svg" x="1080" y="758" width="36" height="36"/>
+  <text x="1128" y="774" class="name">Azure Storage</text>
+  <text x="1128" y="799" class="detail">Agent files</text>
+  <image href="azure-icons/ai-search.svg" x="1080" y="818" width="36" height="36"/>
+  <text x="1128" y="834" class="name">Azure AI Search</text>
+  <text x="1128" y="859" class="detail">Agent search index</text>
+  <path d="M1309 628V646" class="data"/>
+  <rect x="288" y="900" width="1268" height="136" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="306" y="930" class="boundary">SHARED SERVICES</text>
+  <image href="azure-icons/managed-identity.svg" x="306" y="948" width="40" height="40"/>
+  <text x="358" y="966" class="name">Managed identities</text>
+  <text x="358" y="992" class="detail">Services sign in to each</text>
+  <text x="358" y="1016" class="detail">other without keys</text>
+  <image href="azure-icons/key-vault.svg" x="618" y="948" width="40" height="40"/>
+  <text x="670" y="966" class="name">Azure Key Vault</text>
+  <text x="670" y="992" class="detail">Admin password and the</text>
+  <text x="670" y="1016" class="detail">Lab&#x27;s creation key</text>
+  <image href="azure-icons/container-registry.svg" x="930" y="948" width="40" height="40"/>
+  <text x="982" y="966" class="name">Azure Container Registry</text>
+  <text x="982" y="992" class="detail">The Lab&#x27;s container</text>
+  <text x="982" y="1016" class="detail">image</text>
+  <image href="azure-icons/monitor.svg" x="1242" y="948" width="40" height="40"/>
+  <text x="1294" y="966" class="name">Azure Monitor</text>
+  <text x="1294" y="992" class="detail">Logs, agent traces and</text>
+  <text x="1294" y="1016" class="detail">email alerts</text>
+  <path d="M244 290H302" class="request"/>
+  <rect x="240.0" y="260" width="66" height="28" rx="4" fill="#fff" stroke="none" stroke-width="1.5"/>
+  <text x="273" y="280" class="label" text-anchor="middle">HTTPS</text>
+  <path d="M552 560H598V360H634" class="request"/>
+  <text x="592" y="470" class="label" text-anchor="middle" transform="rotate(-90 592 470)">Network peering</text>
+  <path d="M134 668V630H302" class="request"/>
+  <path d="M974 300H1076" class="request"/>
+  <text x="1026" y="264" class="label" text-anchor="middle">Runs</text>
+  <text x="1026" y="284" class="label" text-anchor="middle">agents</text>
+  <path d="M974 440H1026V716H1076" class="data"/>
+  <text x="1016" y="600" class="label" text-anchor="middle" style="fill:#00786a" transform="rotate(-90 1016 600)">Saves records</text>
+</svg>

@@ -28,6 +28,9 @@ monitoring design before you extend or operate the sample.
 | Optional APIM gateway | Publishes a governed `POST /reviews/responses` target when `enable_api_management` and `review_api` are configured. | APIM is disabled by default. Outbound virtual network integration does not make the gateway private. |
 | Monitoring | Platform and Lab logs use private Log Analytics paths; the monitoring root can connect a dedicated Application Insights resource for agent traces. | Logs contain request metadata, not prompts or transcripts. The project telemetry connection is opt-in. |
 
+For every Azure service on one page, see
+[Azure architecture at a glance](images/azure-architecture.svg).
+
 ## In this guide
 
 - [Implementation overview](#implementation-overview)

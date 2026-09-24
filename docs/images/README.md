@@ -62,8 +62,9 @@ edited copy inside the SVG. Use
 together, not temporary previews or downloaded tools.
 
 The root README opens with the **Create agent** screenshot, shows the
-agent-collaboration view under "How it works", and links to the
-architecture guide for the platform overview. Detailed diagrams belong in the
+agent-collaboration view and the Azure architecture view under "How it works",
+and links to the architecture guide for the platform overview. The Azure
+architecture view is wide, so the README pairs it with a full-size link. Detailed diagrams belong in the
 [architecture guide](../architecture.md) and
 [review workflow](../review-workflow.md), with full-size links for zooming on
 small screens. Each view labels its requests, results, and persistence paths;
@@ -73,17 +74,19 @@ paths and execution boundaries explicitly rather than relying on color alone.
 
 ## High-level overview artwork
 
-Use the four views for different questions rather than putting every component
+Use the five views for different questions rather than putting every component
 in one diagram:
 
 | View | Purpose | Editable source |
 | --- | --- | --- |
+| [Azure architecture](azure-architecture.svg) | One-page map of the Azure services: the optional admin network, the private workload network, Foundry, data services, and shared services. | [SVG template](azure-architecture.template.svg) |
 | [Agent collaboration](agent-collaboration.svg) | Coordinator requests, specialist results, and human review. | [SVG template](agent-collaboration.template.svg) |
 | [Lab infrastructure](foundry-overview.svg) | Default request paths and application-owned records; optional Azure API Management (APIM) stays outside the flow. | [SVG template](foundry-overview.template.svg) |
 | [Operations and security](foundry-operations.svg) | Independent telemetry, image-publishing, and state paths, plus secret ownership. | [SVG template](foundry-operations.template.svg) |
 | [Terraform deployment](foundry-deployment.svg) | Platform, Lab, Bastion, and agent monitoring resource ownership, existing prerequisites, and separate release workflows. | [SVG template](foundry-deployment.template.svg) |
 
-Edit the [agent-collaboration view](agent-collaboration.template.svg),
+Edit the [Azure architecture view](azure-architecture.template.svg),
+[agent-collaboration view](agent-collaboration.template.svg),
 [runtime overview](foundry-overview.template.svg),
 [operations diagram](foundry-operations.template.svg), or
 [deployment view](foundry-deployment.template.svg), then run:
@@ -93,12 +96,21 @@ Edit the [agent-collaboration view](agent-collaboration.template.svg),
 ```
 
 The build embeds any referenced icons as their original SVG bytes. The
+[rendered Azure architecture](azure-architecture.svg),
 [rendered agent flow](agent-collaboration.svg),
 [rendered overview](foundry-overview.svg),
 [rendered operations diagram](foundry-operations.svg), and
 [rendered deployment view](foundry-deployment.svg) remain self-contained when
 GitHub displays them, with no external asset or network dependency. Keep source
 icons, templates, and generated images together.
+
+The Azure architecture view is the one-picture map. Network boxes hold only
+what is deployed into a virtual network: the optional admin network with
+Bastion and the jumpbox, the internal Container Apps environment, the delegated
+agent subnet, and private endpoints. Foundry, data services, and shared services
+sit outside them and are reached through those private endpoints. Model names
+are examples; deployments are configurable. Keep optional API Management out of
+this view.
 
 The collaboration view shows the Lab's default setup: **Application and case
 helper** with the **Application checker** and **Case notes summarizer**

@@ -58,13 +58,15 @@ For all seven pages in the Lab, see the [Lab guide](workbench/README.md#pages).
 | I want to | Start here | What I need |
 | --- | --- | --- |
 | Create and deploy my own agent | [Create and try a baseline agent](docs/agent-creation.md) | An operator-enabled Lab, one or more model deployments, and cost approval |
-| Demo the prebuilt agents | [Demo guide](docs/demos.md) | A deployed Lab. To read the walkthroughs and expected findings, nothing. |
+| Demo the prebuilt agents | [Demo guide](docs/demos.md) | A deployed Lab. Reading the walkthroughs and expected findings needs nothing. |
 | Check answer quality | [Evaluations](evaluations/README.md) | Nothing for offline checks. Live runs need a test environment and approval. |
 | Deploy my own environment | [Deploy to Azure](#deploy-to-azure) | Azure permissions, model quota, private network access, and cost approval |
 
 <a id="architecture"></a>
 
 ## How it works
+
+### Agents working together
 
 ![Default agent collaboration: you ask in the Lab, the Application and case helper calls one specialist, returns its findings, and you check the answer](docs/images/agent-collaboration.svg)
 
@@ -77,12 +79,21 @@ For all seven pages in the Lab, see the [Lab guide](workbench/README.md#pages).
 4. **You check the answer** against the source. A completed tool call doesn't
    prove the findings are correct.
 
+### Creating your own agent
+
 When you publish from **Create agent**, the Lab packages its reviewed agent code
 with your instructions and uploads it with the Foundry SDK. Foundry Agent
-Service builds it and starts a new hosted agent named `lab-demo-...`, on the
-model that suits the template's kind of work. The agent is ready once Foundry
-reports its version active and its route is confirmed. Then you try it in
-**Chat**.
+Service builds it and starts a new hosted agent named `lab-demo-...` on the
+model that suits the template's work. When Foundry reports the new version
+active and its route is confirmed, try the agent in **Chat**.
+
+### What runs in Azure
+
+![Azure architecture at a glance: people sign in through Azure Bastion to a jumpbox in an optional admin network peered with a private workload network. The Lab runs in an internal Azure Container Apps environment and calls Foundry Agent Service, which uses Foundry Models. Records and agent data live in Azure Cosmos DB, Azure Storage, and Azure AI Search, reached through private endpoints. Managed identities, Key Vault, Container Registry, and Azure Monitor are shared services](docs/images/azure-architecture.svg)
+
+*Logical view, not a resource inventory. Optional API Management isn't shown.*
+· [View full size](docs/images/azure-architecture.svg) ·
+[Edit the SVG template](docs/images/azure-architecture.template.svg)
 
 For components, data flows, and trust boundaries, see the
 [architecture guide](docs/architecture.md). For each agent's name in the Lab
@@ -155,7 +166,7 @@ To deploy from a separate private machine, use the
 | --- | --- |
 | Try the samples | [Demo guide](docs/demos.md), [agent creation](docs/agent-creation.md), [document reviews](docs/review-workflow.md), [demo handoff](docs/demo-handoff.md) |
 | Deploy and operate | [Infrastructure](terraform/README.md), [the Lab](workbench/README.md), [hosted agents](hosted-agents/README.md), [private deployment runbook](docs/private-deployment.md), [credentials](docs/credentials.md) |
-| Architecture and security | [Architecture](docs/architecture.md), [trust boundaries](docs/architecture.md#trust-boundaries), [diagrams](docs/images/README.md) |
+| Architecture and security | [Architecture](docs/architecture.md), [Azure architecture diagram](docs/images/azure-architecture.svg), [trust boundaries](docs/architecture.md#trust-boundaries), [diagrams](docs/images/README.md) |
 | Customize and extend | [Extension guide](docs/architecture-assessment.md), [coordinator profiles](docs/agent-profiles.md), [evaluations](evaluations/README.md), [cost comparison](cost-comparison/README.md) |
 | Optional integrations | [Governed review API (APIM)](docs/apim-review-api.md), [Application Gateway and Front Door](docs/ingress-access.md), [other integration options](docs/optional-integrations.md) |
 
