@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { AgentGuide, AgentRuntime } from './AgentGuide'
 import type { View } from './ChatSidebar'
+import { ThemePicker } from './ThemePicker'
 import type { Agent, Config } from './workspace-config'
 
 export function ChatTopbar({
@@ -53,6 +54,7 @@ export function ChatTopbar({
           {agent && (
             <details
               className="agent-about"
+              name="topbar-panel"
               key={agent.id}
               onKeyDown={(event) => {
                 if (event.key === 'Escape') event.currentTarget.open = false
@@ -87,6 +89,7 @@ export function ChatTopbar({
         {config?.mode === 'private' ? (
           <details
             className="lab-info"
+            name="topbar-panel"
             key={view}
             onKeyDown={(event) => {
               if (event.key === 'Escape') event.currentTarget.open = false
@@ -151,6 +154,7 @@ export function ChatTopbar({
             </button>
           </>
         )}
+        <ThemePicker />
       </div>
     </header>
   )

@@ -50,10 +50,29 @@ and callbacks as props.
 | `workspace-config.ts`                                        | Validates public configuration and handles bootstrap timeouts and retry.                                                      |
 | `ContinueDialog.tsx`                                         | Previews carry-over context before resetting the conversation. It never invokes an agent.                                     |
 | `AgentGuide.tsx`                                             | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Agents** cards. |
+| `theme.ts`, `ThemePicker.tsx`                                | Load, validate, save, and apply the **Appearance** choice, and render its header menu.                                        |
 
 Keep purpose, input, output, how-it-works, and limits in the registry, not
 hard-coded by agent ID in React. **Developer setup details** distinguishes the
 Lab's display and receipt metadata from runtime instructions and tools.
+
+## Themes and colors
+
+Every color comes from a token in the `:root` block at the top of
+`src/chat.css`. Each token is a `light-dark()` pair, so **System** follows the
+device with no script. `main.tsx` applies the saved choice before the first
+render by setting `data-theme` (`system`, `light`, or `dark`) and `data-accent`
+(`foundry`, `orchid`, or `lagoon`) on `<html>`. **Light** and **Dark** pin
+`color-scheme`, and each accent overrides only the `--accent*` tokens. The
+choice is stored under `ai-foundry-lab-theme` in `localStorage`; unreadable
+values fall back to System and Foundry.
+
+Use the tokens in new styles rather than hex values, so every theme and accent
+keeps working. Text tokens meet WCAG AA (4.5:1) on their surfaces in all six
+combinations, and borders and dots meet 3:1. Check new color pairs in both
+modes. The content security policy blocks inline scripts, so a device in one
+mode briefly shows that mode's background before the script applies a pinned
+opposite theme.
 
 ## Agent creation UI
 
@@ -82,7 +101,8 @@ operator guide.
 `tests/agent-creation.spec.ts` covers template selection, preparation versus
 publication, operator confirmation, uncertain submissions and stable-ID retries,
 poll recovery, deletion, dynamic-agent chat/history, key lifetime, and mobile
-layout. Its publication and answer fixtures are explicitly mocked. For a focused
+layout. It also covers the **Appearance** menu, saved and unreadable theme
+choices, and dark-mode card contrast for each accent. Its publication and answer fixtures are explicitly mocked. For a focused
 check, run `npm test -- agent-creation.spec.ts`; this still builds the
 production assets first.
 

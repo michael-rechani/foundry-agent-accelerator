@@ -40,7 +40,7 @@ The Lab's pages, in the order they appear in its sidebar:
 
 | Page | What you do there |
 | --- | --- |
-| **Create agent** | Describe a job, pick one of five [reviewed templates](../docs/agent-creation.md#what-a-participant-can-do), edit the name and instructions, and publish a new Foundry hosted agent on the [model that suits the job](../docs/agent-creation.md#how-the-lab-picks-a-model). Shown only when an operator turns on creation; the Lab then opens on this page. |
+| **Create agent** | Describe a job, pick one of nine [reviewed templates](../docs/agent-creation.md#what-a-participant-can-do), edit the name and instructions, and publish a new Foundry hosted agent on the [model that suits the job](../docs/agent-creation.md#how-the-lab-picks-a-model). Shown only when an operator turns on creation; the Lab then opens on this page. |
 | **Created agents** | Follow publication progress, open a ready agent in **Chat**, or delete an agent with the operator key. Shown only when creation is on. |
 | **Chat** | Talk with a prebuilt or created agent. An example task only fills in your message; you choose when to send it. |
 | **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. |
@@ -56,6 +56,11 @@ Neither page copies work into the other.
 Preparing a setup in **Create agent** doesn't call a model or create Azure
 resources. Publishing is opt-in, costs money, and needs the
 [operator setup](../docs/agent-creation.md#enable-publication).
+
+**Appearance:** the palette button at the right of the header sets the theme to
+**System** (follows your device, the default), **Light**, or **Dark**, with a
+**Foundry**, **Orchid**, or **Lagoon** accent. The choice is saved in this
+browser only; it isn't shared with other users or saved with chats.
 
 **What gets saved:** **Chat** saves completed messages to the shared Azure
 Cosmos DB database only when you choose to save. Creating a document review

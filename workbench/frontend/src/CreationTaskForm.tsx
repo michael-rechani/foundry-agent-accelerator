@@ -1,6 +1,43 @@
 import { useRef } from 'react'
-import { ArrowRight, LoaderCircle } from 'lucide-react'
+import {
+  ArrowRight,
+  Bot,
+  Brain,
+  CalendarClock,
+  Check,
+  Cpu,
+  FileText,
+  ListChecks,
+  LoaderCircle,
+  NotebookPen,
+  PackageCheck,
+  Route,
+  ScanText,
+  ShieldCheck,
+  Stethoscope,
+  Wrench,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react'
 import { groupTemplates, type AgentTemplate } from './agent-creation-client'
+
+const templateIcons: Record<string, LucideIcon> = {
+  'document-analyst': FileText,
+  'criteria-checker': ListChecks,
+  'document-intake': ScanText,
+  'casework-assistant': NotebookPen,
+  'workflow-coordinator': Route,
+  'medical-bill-reviewer': Stethoscope,
+  'insurance-preapproval-helper': ShieldCheck,
+  'benefits-renewal-helper': CalendarClock,
+  'supplier-invoice-reviewer': PackageCheck,
+}
+
+const profileIcons: Record<string, LucideIcon> = {
+  reasoning: Brain,
+  extraction: Zap,
+  tool_calling: Wrench,
+}
 
 export function CreationTaskForm({
   templates,
@@ -36,26 +73,52 @@ export function CreationTaskForm({
           >
             <h2>{category}</h2>
             <div className="creation-templates">
-              {items.map((item) => (
-                <button
-                  key={item.id}
-                  className="creation-template"
-                  aria-pressed={templateId === item.id}
-                  disabled={busy}
-                  onClick={() => {
-                    onPick(item)
-                    goalField.current?.focus()
-                  }}
-                >
-                  <strong>{item.label}</strong>
-                  <span>{item.description}</span>
-                  <small>
-                    {item.tools.length
-                      ? 'Simulated read-only lookups'
-                      : 'Supplied text; no tools'}
-                  </small>
-                </button>
-              ))}
+              {items.map((item) => {
+                const Icon = templateIcons[item.id] ?? Bot
+                const ProfileIcon = profileIcons[item.model_profile.id] ?? Cpu
+                const selected = templateId === item.id
+                return (
+                  <button
+                    key={item.id}
+                    className="creation-template"
+                    aria-pressed={selected}
+                    data-profile={item.model_profile.id}
+                    disabled={busy}
+                    onClick={() => {
+                      onPick(item)
+                      goalField.current?.focus()
+                    }}
+                  >
+                    <span className="creation-template-icon" aria-hidden="true">
+                      <Icon size={20} strokeWidth={1.8} />
+                    </span>
+                    {selected && (
+                      <span
+                        className="creation-template-check"
+                        aria-hidden="true"
+                      >
+                        <Check size={14} strokeWidth={2.6} />
+                      </span>
+                    )}
+                    <strong>{item.label}</strong>
+                    <span className="creation-template-description">
+                      {item.description}
+                    </span>
+                    <span className="creation-template-meta">
+                      <span className="creation-chip creation-chip-model">
+                        <ProfileIcon size={12} aria-hidden="true" />
+                        <span className="visually-hidden">Model: </span>
+                        {item.model_profile.label}
+                      </span>
+                      <small className="creation-chip creation-chip-tools">
+                        {item.tools.length
+                          ? 'Simulated read-only lookups'
+                          : 'Supplied text; no tools'}
+                      </small>
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           </section>
         ))}

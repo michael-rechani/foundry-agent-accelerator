@@ -545,6 +545,235 @@ test('template selection preserves custom input and brings the next step into vi
   ).toBeInViewport()
 })
 
+const themeKey = 'ai-foundry-lab-theme'
+const lightSurface = 'rgb(255, 255, 255)'
+const darkSurface = 'rgb(22, 26, 32)'
+
+function computed(page: Page, selector: string, property: string) {
+  return page
+    .locator(selector)
+    .first()
+    .evaluate(
+      (element, name) => getComputedStyle(element).getPropertyValue(name),
+      property,
+    )
+}
+
+function contrastAgainstBackground(page: Page, selector: string) {
+  return page.locator(selector).evaluateAll((elements) => {
+    const luminance = (color: string) => {
+      const [r, g, b] = color
+        .match(/[\d.]+/g)!
+        .slice(0, 3)
+        .map(Number)
+      const linear = (value: number) => {
+        const normalized = value / 255
+        return normalized <= 0.04045
+          ? normalized / 12.92
+          : ((normalized + 0.055) / 1.055) ** 2.4
+      }
+      return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+    }
+    return Math.min(
+      ...elements.map((element) => {
+        let back: Element | null = element
+        while (
+          back &&
+          getComputedStyle(back).backgroundColor === 'rgba(0, 0, 0, 0)'
+        )
+          back = back.parentElement
+        const text = luminance(getComputedStyle(element).color)
+        const fill = luminance(getComputedStyle(back!).backgroundColor)
+        return (Math.max(text, fill) + 0.05) / (Math.min(text, fill) + 0.05)
+      }),
+    )
+  })
+}
+
+test('appearance follows the device by default and applies saved choices everywhere', async ({
+  page,
+}, testInfo) => {
+  await setup(page)
+  const root = page.locator('html')
+  await expect(root).toHaveAttribute('data-theme', 'system')
+  await expect(root).toHaveAttribute('data-accent', 'foundry')
+  expect(await computed(page, '.chat-topbar', 'background-color')).toBe(
+    lightSurface,
+  )
+  await page.emulateMedia({ colorScheme: 'dark' })
+  expect(await computed(page, '.chat-topbar', 'background-color')).toBe(
+    darkSurface,
+  )
+  await page.emulateMedia({ colorScheme: 'light' })
+
+  const control = page.getByTitle('Appearance', { exact: true })
+  const panel = page.getByRole('complementary', {
+    name: 'Appearance settings',
+  })
+  await control.click()
+  await expect(panel).toBeInViewport()
+  expect(
+    await panel.evaluate((element) => {
+      const { left, right } = element.getBoundingClientRect()
+      return left >= 0 && right <= innerWidth
+    }),
+  ).toBe(true)
+  await expect(page.getByRole('radio', { name: 'System' })).toBeChecked()
+  await expect(page.getByRole('radio', { name: 'Foundry' })).toBeChecked()
+
+  await page.getByRole('radio', { name: 'Dark' }).check()
+  await expect(root).toHaveAttribute('data-theme', 'dark')
+  expect(await computed(page, '.chat-topbar', 'background-color')).toBe(
+    darkSurface,
+  )
+  await page.getByRole('radio', { name: 'Orchid' }).check()
+  await expect(root).toHaveAttribute('data-accent', 'orchid')
+  await page.screenshot({ path: testInfo.outputPath('appearance.png') })
+  expect(await computed(page, '.creation-primary', 'background-color')).toBe(
+    'rgb(240, 123, 198)',
+  )
+  expect(
+    JSON.parse(
+      (await page.evaluate((key) => localStorage.getItem(key), themeKey))!,
+    ),
+  ).toEqual({ mode: 'dark', accent: 'orchid' })
+  await page.keyboard.press('Escape')
+  await expect(panel).toBeHidden()
+  await expect(control).toBeFocused()
+
+  await page.reload()
+  await expect(root).toHaveAttribute('data-theme', 'dark')
+  await expect(root).toHaveAttribute('data-accent', 'orchid')
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: 'Chat', exact: true })
+    .click()
+  expect(await computed(page, '.chat-topbar', 'background-color')).toBe(
+    darkSurface,
+  )
+  await control.click()
+  await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked()
+  await expect(page.getByRole('radio', { name: 'Orchid' })).toBeChecked()
+
+  await page.evaluate((key) => {
+    const value = JSON.stringify({ mode: 'light', accent: 'lagoon' })
+    localStorage.setItem(key, value)
+    dispatchEvent(new StorageEvent('storage', { key, newValue: value }))
+  }, themeKey)
+  await expect(root).toHaveAttribute('data-theme', 'light')
+  await expect(root).toHaveAttribute('data-accent', 'lagoon')
+  await expect(page.getByRole('radio', { name: 'Lagoon' })).toBeChecked()
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
+})
+
+test('header panels open one at a time so none is hidden behind another', async ({
+  page,
+}) => {
+  await setup(page)
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: 'Chat', exact: true })
+    .click()
+  const appearance = page.getByRole('complementary', {
+    name: 'Appearance settings',
+  })
+  const lab = page.getByRole('complementary', { name: 'Shared lab details' })
+  const guide = page.getByRole('complementary', {
+    name: 'Selected agent guide',
+  })
+  const onTop = (panel: typeof lab) =>
+    panel.evaluate((element) => {
+      const { left, top, width } = element.getBoundingClientRect()
+      return element.contains(
+        document.elementFromPoint(left + width / 2, top + 16),
+      )
+    })
+
+  await page.getByTitle('Appearance', { exact: true }).click()
+  await expect(appearance).toBeInViewport()
+  await page.getByTitle('About this shared lab', { exact: true }).click()
+  await expect(lab).toBeInViewport()
+  await expect(appearance).toBeHidden()
+  expect(await onTop(lab)).toBe(true)
+
+  await page.getByText('About this agent', { exact: true }).click()
+  await expect(guide).toBeInViewport()
+  await expect(lab).toBeHidden()
+  expect(await onTop(guide)).toBe(true)
+
+  await page.getByTitle('Appearance', { exact: true }).click()
+  await expect(appearance).toBeInViewport()
+  await expect(guide).toBeHidden()
+  expect(await onTop(appearance)).toBe(true)
+})
+
+test('unreadable saved appearance falls back to the defaults', async ({
+  page,
+}) => {
+  await page.addInitScript((key) => {
+    localStorage.setItem(key, '{"mode":"neon","accent":42}')
+  }, themeKey)
+  await setup(page)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'system')
+  await expect(page.locator('html')).toHaveAttribute('data-accent', 'foundry')
+  await page.evaluate((key) => localStorage.setItem(key, 'not json'), themeKey)
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'system')
+  await expect(page.locator('html')).toHaveAttribute('data-accent', 'foundry')
+})
+
+test('template cards stay legible in dark mode for every accent', async ({
+  page,
+}, testInfo) => {
+  await page.addInitScript((key) => {
+    if (!localStorage.getItem(key))
+      localStorage.setItem(
+        key,
+        JSON.stringify({ mode: 'dark', accent: 'foundry' }),
+      )
+  }, themeKey)
+  await setup(page)
+  const cards = page.locator('.creation-template')
+  await expect(cards).toHaveCount(templates.length)
+  await expect(
+    page.locator('.creation-template[data-profile] .creation-chip-model'),
+  ).toHaveText(templates.map((item) => `Model: ${item.model_profile.label}`))
+  await expect(page.locator('.creation-template-check')).toHaveCount(0)
+  for (const accent of ['foundry', 'orchid', 'lagoon']) {
+    await page.evaluate(
+      (value) => (document.documentElement.dataset.accent = value),
+      accent,
+    )
+    for (const selector of [
+      '.creation-template strong',
+      '.creation-template-description',
+      '.creation-chip',
+    ]) {
+      expect(
+        await contrastAgainstBackground(page, selector),
+        `${accent} ${selector}`,
+      ).toBeGreaterThanOrEqual(4.5)
+    }
+  }
+  await page.evaluate(
+    () => (document.documentElement.dataset.accent = 'foundry'),
+  )
+  await cards.nth(1).click()
+  await expect(cards.nth(1)).toHaveAttribute('aria-pressed', 'true')
+  await expect(cards.nth(1).locator('.creation-template-check')).toBeVisible()
+  await expect(page.locator('.creation-template-check')).toHaveCount(1)
+  await page.evaluate(() => {
+    document.querySelector('.creation-workspace')!.scrollTop = 0
+    ;(document.activeElement as HTMLElement | null)?.blur()
+  })
+  await page.mouse.move(0, 0)
+  await illustrativeScreenshot(page, testInfo, 'creation-start-dark.png')
+})
+
 test('ambiguous descriptions require a template and preparation creates no agent', async ({
   page,
 }) => {

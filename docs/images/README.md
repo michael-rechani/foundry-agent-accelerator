@@ -64,7 +64,8 @@ edited copy inside the SVG. Use
 `-Names lab-components` to rebuild one view. Commit sources and SVG exports
 together, not temporary previews or downloaded tools.
 
-The root README opens with the **Create agent** screenshot, shows the
+The root README opens with the **Create agent** screenshot, in light or dark to
+match the reader's GitHub theme, shows the
 agent-collaboration view and the Azure architecture view under "How it works",
 and links to the architecture guide for the platform overview. The Azure
 architecture view is wide, so the README pairs it with a full-size link. Detailed diagrams belong in the
@@ -224,6 +225,7 @@ and say "illustrative" in the caption and alt text wherever you use one.
 | [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide and example tasks | `demo-starters.png` | [Demo guide](../demos.md#a-short-demonstration) |
 | [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [Review workflow](../review-workflow.md#workflow) |
 | [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page with its templates in two groups and the full sidebar | `creation-start.png` | [Root README](../../README.md), [agent creation](../agent-creation.md#what-a-participant-can-do) |
+| [lab-create-agent-dark.png](screenshots/lab-create-agent-dark.png) | The same page in the **Dark** theme with the Foundry accent and one template selected | `creation-start-dark.png` | [Root README](../../README.md) for readers using GitHub's dark theme |
 
 To refresh them, run the desktop browser tests and copy the matching files:
 
@@ -243,6 +245,8 @@ Rename each file as shown in the table, and do not crop out the watermark.
 - Check the overview diagrams in both GitHub themes. Render the light and
   `-dark` SVGs and confirm that text, arrows, notes, icons, and card edges stay
   visible in each.
+- Refresh `lab-create-agent-dark.png` together with `lab-create-agent.png` so
+  the two README variants show the same UI.
 - Keep labels short and avoid crossing text with connectors.
 - Do not reduce type to fit more detail.
 - Use labels and callouts, not color alone, to explain requests, results,
