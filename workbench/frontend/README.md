@@ -40,16 +40,16 @@ State, effects, and request handlers stay in the three workspace components
 The view components split out of them are presentational and receive values
 and callbacks as props.
 
-| File | Role |
-| --- | --- |
-| `ChatSidebar.tsx`, `ChatTopbar.tsx` | Render the view navigation and the Chat header, agent picker, and save/export actions. |
-| `ChatWelcome.tsx`, `ChatComposer.tsx` | Render the new-chat prompts and the message composer with its conversation limits. |
-| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx` | Render the **Shared history**, **Agents**, and **Performance** views. |
-| `history-client.ts` | Handles bounded history requests. |
-| `request.ts` | Handles transport-independent cancellation. |
-| `workspace-config.ts` | Validates public configuration and handles bootstrap timeouts and retry. |
-| `ContinueDialog.tsx` | Previews carry-over context before resetting the conversation. It never invokes an agent. |
-| `AgentGuide.tsx` | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Agents** cards. |
+| File                                                         | Role                                                                                                                          |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `ChatSidebar.tsx`, `ChatTopbar.tsx`                          | Render the view navigation and the Chat header, agent picker, and save/export actions.                                        |
+| `ChatWelcome.tsx`, `ChatComposer.tsx`                        | Render the new-chat prompts and the message composer with its conversation limits.                                            |
+| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx` | Render the **Shared history**, **Agents**, and **Performance** views.                                                         |
+| `history-client.ts`                                          | Handles bounded history requests.                                                                                             |
+| `request.ts`                                                 | Handles transport-independent cancellation.                                                                                   |
+| `workspace-config.ts`                                        | Validates public configuration and handles bootstrap timeouts and retry.                                                      |
+| `ContinueDialog.tsx`                                         | Previews carry-over context before resetting the conversation. It never invokes an agent.                                     |
+| `AgentGuide.tsx`                                             | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Agents** cards. |
 
 Keep purpose, input, output, how-it-works, and limits in the registry, not
 hard-coded by agent ID in React. **Developer setup details** distinguishes the
