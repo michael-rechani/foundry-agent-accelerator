@@ -150,6 +150,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: npm --prefix workbench/frontend ci
       - run: npm --prefix workbench/frontend run lint
+      - run: npm --prefix workbench/frontend run format:check
       - name: Install browser and system dependencies
         run: npm --prefix workbench/frontend exec -- playwright install --with-deps chromium
       - name: Build and test desktop and mobile workflows

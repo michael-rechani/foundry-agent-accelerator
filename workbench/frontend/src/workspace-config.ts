@@ -51,30 +51,55 @@ export function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 export function validAgent(value: unknown): value is Agent {
-  return isObject(value) &&
+  return (
+    isObject(value) &&
     ['id', 'label', 'category', 'description', 'agent'].every(
       (key) => typeof value[key] === 'string' && value[key].trim().length > 0,
     ) &&
     validGuidance(value.guidance) &&
     isObject(value.tools) &&
     Object.values(value.tools).every((target) => typeof target === 'string') &&
-    Array.isArray(value.prompts) && value.prompts.every(
-      (prompt) => isObject(prompt) && typeof prompt.label === 'string' && typeof prompt.text === 'string',
+    Array.isArray(value.prompts) &&
+    value.prompts.every(
+      (prompt) =>
+        isObject(prompt) &&
+        typeof prompt.label === 'string' &&
+        typeof prompt.text === 'string',
     )
+  )
 }
 
-function validCreation(value: unknown): value is CreationCapability | undefined {
-  return value === undefined || (isObject(value) &&
-    typeof value.enabled === 'boolean' && typeof value.storage_enabled === 'boolean' &&
-    (value.management_enabled === undefined || typeof value.management_enabled === 'boolean') &&
-    value.requires_operator_key === true && (value.reason === null || typeof value.reason === 'string') &&
-    typeof value.max_agents === 'number' && Number.isInteger(value.max_agents) && value.max_agents >= 1 && value.max_agents <= 20 &&
-    typeof value.publication_timeout_seconds === 'number' && Number.isInteger(value.publication_timeout_seconds) &&
-    value.publication_timeout_seconds >= 30 && value.publication_timeout_seconds <= 900 &&
-    (value.model === undefined || value.model === null || typeof value.model === 'string') &&
-    (value.models === undefined || value.models === null || (isObject(value.models) &&
-      Object.values(value.models).every((name) => typeof name === 'string' && name.trim().length > 0))) &&
-    (!value.enabled || value.storage_enabled))
+function validCreation(
+  value: unknown,
+): value is CreationCapability | undefined {
+  return (
+    value === undefined ||
+    (isObject(value) &&
+      typeof value.enabled === 'boolean' &&
+      typeof value.storage_enabled === 'boolean' &&
+      (value.management_enabled === undefined ||
+        typeof value.management_enabled === 'boolean') &&
+      value.requires_operator_key === true &&
+      (value.reason === null || typeof value.reason === 'string') &&
+      typeof value.max_agents === 'number' &&
+      Number.isInteger(value.max_agents) &&
+      value.max_agents >= 1 &&
+      value.max_agents <= 20 &&
+      typeof value.publication_timeout_seconds === 'number' &&
+      Number.isInteger(value.publication_timeout_seconds) &&
+      value.publication_timeout_seconds >= 30 &&
+      value.publication_timeout_seconds <= 900 &&
+      (value.model === undefined ||
+        value.model === null ||
+        typeof value.model === 'string') &&
+      (value.models === undefined ||
+        value.models === null ||
+        (isObject(value.models) &&
+          Object.values(value.models).every(
+            (name) => typeof name === 'string' && name.trim().length > 0,
+          ))) &&
+      (!value.enabled || value.storage_enabled))
+  )
 }
 
 function validGuidance(value: unknown): boolean {

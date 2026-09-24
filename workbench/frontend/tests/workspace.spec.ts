@@ -64,7 +64,10 @@ async function workspace(
         if (options.startup === 'invalid')
           return respond({ ...config, max_request_bytes: null })
         if (options.startup === 'invalid-guidance')
-          return respond({ ...config, agents: [{ ...agent, guidance: { input: 'Incomplete guide' } }] })
+          return respond({
+            ...config,
+            agents: [{ ...agent, guidance: { input: 'Incomplete guide' } }],
+          })
         if (options.startup === 'failed')
           return respond({ error: 'unavailable' }, 503)
       }
@@ -153,27 +156,47 @@ async function send(page: Page, text = 'Review synthetic APP-1') {
   ).toBeEnabled()
 }
 
-test('chat starts with focused controls and preserves drafts when choosing an agent', async ({ page }) => {
+test('chat starts with focused controls and preserves drafts when choosing an agent', async ({
+  page,
+}) => {
   const state = await workspace(page)
-  await expect(page.getByRole('heading', { name: 'Use Application and case helper', exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('heading', {
+      name: 'Use Application and case helper',
+      exact: true,
+    }),
+  ).toBeVisible()
   await expect(page.getByText('AI Foundry Lab', { exact: true })).toHaveCount(1)
   await expect(page.locator('body')).not.toContainText(
     /A LITTLE CONTEXT|Evidence-grounded\. Human-reviewed\.|CURRENT CONVERSATION/,
   )
-  await expect(page.locator('.conversation-heading, .composer-footnote')).toHaveCount(0)
+  await expect(
+    page.locator('.conversation-heading, .composer-footnote'),
+  ).toHaveCount(0)
   await expect(page.locator('#context-budget')).toHaveCount(0)
   await expect(page.getByText('Not saved', { exact: true })).toHaveCount(0)
 
-  await page.getByRole('button', { name: 'Review an application', exact: true }).click()
+  await page
+    .getByRole('button', { name: 'Review an application', exact: true })
+    .click()
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   await expect(editor).toHaveValue('Synthetic configured starter')
   await expect(editor).toBeFocused()
   await expect(page.getByText('Not saved', { exact: true })).toBeVisible()
-  await expect(page.locator('#context-budget summary')).toContainText('Conversation limits')
+  await expect(page.locator('#context-budget summary')).toContainText(
+    'Conversation limits',
+  )
 
-  await page.getByRole('banner').getByTitle('Choose an agent', { exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Choose an agent', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Return to chat', exact: true }).click()
+  await page
+    .getByRole('banner')
+    .getByTitle('Choose an agent', { exact: true })
+    .click()
+  await expect(
+    page.getByRole('heading', { name: 'Choose an agent', exact: true }),
+  ).toBeVisible()
+  await page
+    .getByRole('button', { name: 'Return to chat', exact: true })
+    .click()
   await expect(editor).toHaveValue('Synthetic configured starter')
   await editor.fill('')
   await expect(page.locator('#context-budget')).toHaveCount(0)
@@ -181,12 +204,22 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
   expect(state.requests).toHaveLength(0)
 })
 
-test('default helper explains its job and offers example tasks without auto-sending', async ({ page }, testInfo) => {
+test('default helper explains its job and offers example tasks without auto-sending', async ({
+  page,
+}, testInfo) => {
   const state = await workspace(page, { config: { agents: [guidedReview] } })
-  await expect(page.locator('.agent-picker')).toHaveText('Application and case helper')
-  await expect(page.locator('.chat-welcome')).toContainText('You are using an existing agent, not creating one')
-  await expect(page.locator('.chat-welcome .agent-guide')).toContainText(guidedReview.guidance!.input)
-  await expect(page.locator('.chat-welcome .agent-guide')).toContainText(guidedReview.guidance!.output)
+  await expect(page.locator('.agent-picker')).toHaveText(
+    'Application and case helper',
+  )
+  await expect(page.locator('.chat-welcome')).toContainText(
+    'You are using an existing agent, not creating one',
+  )
+  await expect(page.locator('.chat-welcome .agent-guide')).toContainText(
+    guidedReview.guidance!.input,
+  )
+  await expect(page.locator('.chat-welcome .agent-guide')).toContainText(
+    guidedReview.guidance!.output,
+  )
   await expect(page.locator('.prompt-options button')).toHaveText([
     'Review an application',
     'Summarize case notes',
@@ -201,80 +234,168 @@ test('default helper explains its job and offers example tasks without auto-send
     await expect(editor).toBeFocused()
     expect(state.requests).toHaveLength(0)
   }
-  await page.getByRole('banner').getByTitle('Choose an agent', { exact: true }).click()
+  await page
+    .getByRole('banner')
+    .getByTitle('Choose an agent', { exact: true })
+    .click()
   await expect(page.locator('.catalog-agent')).toHaveCount(1)
-  await expect(page.getByRole('heading', { name: 'Application and case helper', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Return to chat', exact: true }).click()
+  await expect(
+    page.getByRole('heading', {
+      name: 'Application and case helper',
+      exact: true,
+    }),
+  ).toBeVisible()
+  await page
+    .getByRole('button', { name: 'Return to chat', exact: true })
+    .click()
   const proposal = guidedReview.prompts[2]
   await page.getByRole('button', { name: proposal.label, exact: true }).click()
   await page.getByRole('button', { name: 'Send message' }).click()
-  await expect(page.getByRole('button', { name: 'Save to shared history' })).toBeEnabled()
-  expect(state.requests).toEqual([{ agent_id: 'customer-review', input: proposal.text, history: [] }])
+  await expect(
+    page.getByRole('button', { name: 'Save to shared history' }),
+  ).toBeEnabled()
+  expect(state.requests).toEqual([
+    { agent_id: 'customer-review', input: proposal.text, history: [] },
+  ])
   await page.locator('.receipt-details > summary').click()
-  await expect(page.getByText('Verified receipt', { exact: true })).toBeVisible()
+  await expect(
+    page.getByText('Verified receipt', { exact: true }),
+  ).toBeVisible()
   await expect(page.locator('.receipt')).toContainText('inspect_application')
-  await expect(page.locator('.receipt')).toContainText('application-review-agent')
+  await expect(page.locator('.receipt')).toContainText(
+    'application-review-agent',
+  )
 })
 
-test('catalog uses customer names while retaining runtime targets and scenario status', async ({ page }) => {
+test('catalog uses customer names while retaining runtime targets and scenario status', async ({
+  page,
+}) => {
   const state = await workspace(page, { config: { agents: registry } })
-  expect(registry.map(({ id, agent, tools }) => ({ id, agent, tools }))).toEqual([
-    { id: 'customer-review', agent: 'customer-review-coordinator', tools: { inspect_application: 'application-review-agent', inspect_case: 'case-review-agent' } },
-    { id: 'review-coordinator', agent: 'review-coordinator-agent', tools: { review_application: 'application-review-agent', review_case: 'case-review-agent' } },
+  expect(
+    registry.map(({ id, agent, tools }) => ({ id, agent, tools })),
+  ).toEqual([
+    {
+      id: 'customer-review',
+      agent: 'customer-review-coordinator',
+      tools: {
+        inspect_application: 'application-review-agent',
+        inspect_case: 'case-review-agent',
+      },
+    },
+    {
+      id: 'review-coordinator',
+      agent: 'review-coordinator-agent',
+      tools: {
+        review_application: 'application-review-agent',
+        review_case: 'case-review-agent',
+      },
+    },
     { id: 'application-review', agent: 'application-review-agent', tools: {} },
     { id: 'case-review', agent: 'case-review-agent', tools: {} },
   ])
-  await page.getByRole('banner').getByTitle('Choose an agent', { exact: true }).click()
+  await page
+    .getByRole('banner')
+    .getByTitle('Choose an agent', { exact: true })
+    .click()
   await expect(page.locator('.catalog-agent h2')).toHaveText([
-    'Application and case helper', 'Application and case helper (base setup)', 'Application checker', 'Case notes summarizer',
+    'Application and case helper',
+    'Application and case helper (base setup)',
+    'Application checker',
+    'Case notes summarizer',
   ])
   await expect(page.locator('.category-label')).toHaveText([
-    'Uses specialist agents', 'Alternate setup', 'Single specialist', 'Single specialist',
+    'Uses specialist agents',
+    'Alternate setup',
+    'Single specialist',
+    'Single specialist',
   ])
   await page.locator('.catalog-status > summary').click()
-  await expect(page.locator('.catalog-status')).toContainText('available in source, not a claim of live validation')
-  await expect(page.locator('.catalog-status')).toContainText('Requirements and proposal review is EXPERIMENTAL')
-  await expect(page.locator('.catalog-status')).toContainText('Agent-assisted business request triage is PLANNED, not runnable.')
-  await expect(page.locator('.catalog-status')).toContainText('not an officially approved Microsoft offering')
-  await expect(page.locator('.catalog-agent').filter({ has: page.getByRole('heading', { name: 'Application and case helper (base setup)', exact: true }) }))
-    .toContainText('not an extra planning capability')
+  await expect(page.locator('.catalog-status')).toContainText(
+    'available in source, not a claim of live validation',
+  )
+  await expect(page.locator('.catalog-status')).toContainText(
+    'Requirements and proposal review is EXPERIMENTAL',
+  )
+  await expect(page.locator('.catalog-status')).toContainText(
+    'Agent-assisted business request triage is PLANNED, not runnable.',
+  )
+  await expect(page.locator('.catalog-status')).toContainText(
+    'not an officially approved Microsoft offering',
+  )
+  await expect(
+    page.locator('.catalog-agent').filter({
+      has: page.getByRole('heading', {
+        name: 'Application and case helper (base setup)',
+        exact: true,
+      }),
+    }),
+  ).toContainText('not an extra planning capability')
   for (const item of registry) {
-    const card = page.locator('.catalog-agent').filter({ has: page.getByRole('heading', { name: item.label, exact: true }) })
+    const card = page.locator('.catalog-agent').filter({
+      has: page.getByRole('heading', { name: item.label, exact: true }),
+    })
     for (const field of ['input', 'output', 'limits', 'delegation'] as const)
-      await expect(card.locator('.agent-guide')).toContainText(item.guidance![field])
+      await expect(card.locator('.agent-guide')).toContainText(
+        item.guidance![field],
+      )
     const details = card.locator('.catalog-runtime')
     await expect(details.locator('dl')).toBeHidden()
     await details.locator('summary').click()
     await expect(details.locator('dd')).toHaveText([item.id, item.agent])
-    await expect(details).toContainText(`${Object.keys(item.tools).length} tool bindings`)
+    await expect(details).toContainText(
+      `${Object.keys(item.tools).length} tool bindings`,
+    )
     for (const [tool, target] of Object.entries(item.tools)) {
-      await expect(details.locator('li').filter({ hasText: tool })).toHaveText(`${tool} to ${target}`)
+      await expect(details.locator('li').filter({ hasText: tool })).toHaveText(
+        `${tool} to ${target}`,
+      )
     }
-    await expect(details).toContainText('Configured targets, not execution proof.')
+    await expect(details).toContainText(
+      'Configured targets, not execution proof.',
+    )
     await expect(details).toContainText('stored receipts are not reverified.')
     await expect(details).toContainText(item.guidance!.configuration)
-    await expect(details).toContainText("Editing it does not change a deployed agent's instructions or tools.")
+    await expect(details).toContainText(
+      "Editing it does not change a deployed agent's instructions or tools.",
+    )
   }
   await page.getByRole('textbox', { name: 'Search agents' }).fill('case notes')
-  await expect(page.locator('.catalog-agent h2')).toHaveText(['Application and case helper', 'Case notes summarizer'])
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await expect(page.locator('.catalog-agent h2')).toHaveText([
+    'Application and case helper',
+    'Case notes summarizer',
+  ])
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
   expect(state.requests).toHaveLength(0)
 })
 
-test('agent guidance remains inspectable without reconfiguring the runtime', async ({ page }, testInfo) => {
+test('agent guidance remains inspectable without reconfiguring the runtime', async ({
+  page,
+}, testInfo) => {
   const state = await workspace(page)
   const summary = page.locator('.agent-about > summary')
-  const guide = page.getByRole('complementary', { name: 'Selected agent guide' })
+  const guide = page.getByRole('complementary', {
+    name: 'Selected agent guide',
+  })
   await expect(guide).toBeHidden()
   await summary.click()
   await expect(guide).toBeVisible()
-  await expect(guide).toContainText('Your message gives it a task; it does not change its tools or permanent instructions')
+  await expect(guide).toContainText(
+    'Your message gives it a task; it does not change its tools or permanent instructions',
+  )
   for (const field of ['input', 'output', 'limits', 'delegation'] as const)
     await expect(guide).toContainText(agent.guidance![field])
-  expect(await guide.evaluate((element) => {
-    const { left, right, top, bottom } = element.getBoundingClientRect()
-    return left >= 0 && right <= innerWidth && top >= 0 && bottom <= innerHeight
-  })).toBe(true)
+  expect(
+    await guide.evaluate((element) => {
+      const { left, right, top, bottom } = element.getBoundingClientRect()
+      return (
+        left >= 0 && right <= innerWidth && top >= 0 && bottom <= innerHeight
+      )
+    }),
+  ).toBe(true)
   expect(state.requests).toHaveLength(0)
   await illustrativeScreenshot(page, testInfo, 'agent-guide.png')
   await summary.focus()
@@ -286,36 +407,63 @@ test('agent guidance remains inspectable without reconfiguring the runtime', asy
   expect(state.requests).toHaveLength(1)
 })
 
-test('configuration guidance separates UI settings from deployed agent behavior', async ({ page }, testInfo) => {
+test('configuration guidance separates UI settings from deployed agent behavior', async ({
+  page,
+}, testInfo) => {
   const state = await workspace(page)
   await page.getByTitle('Choose an agent', { exact: true }).click()
   const guide = page.locator('.configuration-guide')
   await guide.locator(':scope > summary').click()
-  await expect(guide).toContainText('This server does not advertise agent creation')
-  await expect(guide).toContainText('A starter is just an example task and message, not a new agent')
+  await expect(guide).toContainText(
+    'This server does not advertise agent creation',
+  )
+  await expect(guide).toContainText(
+    'A starter is just an example task and message, not a new agent',
+  )
   await expect(guide.locator('.configuration-sources dl')).toBeHidden()
   await guide.locator('.configuration-sources > summary').click()
   await expect(guide).toContainText('workbench\\agents.json')
   await expect(guide).toContainText('rebuild and redeploy the Lab')
   await expect(guide).toContainText('publish and test a new agent version')
   await expect(guide).toContainText('they do not register runtime tools')
-  for (const setting of ['visible_agents', 'default_agent', 'workspace_title', 'WORKBENCH_VISIBLE_AGENTS', 'WORKBENCH_DEFAULT_AGENT', 'WORKBENCH_TITLE'])
-    await expect(guide.locator('code').filter({ hasText: new RegExp(`^${setting}$`) })).toBeVisible()
+  for (const setting of [
+    'visible_agents',
+    'default_agent',
+    'workspace_title',
+    'WORKBENCH_VISIBLE_AGENTS',
+    'WORKBENCH_DEFAULT_AGENT',
+    'WORKBENCH_TITLE',
+  ])
+    await expect(
+      guide.locator('code').filter({ hasText: new RegExp(`^${setting}$`) }),
+    ).toBeVisible()
   await expect(page.getByRole('textbox')).toHaveCount(1)
   await expect(page.locator('.catalog-agent')).toHaveCount(1)
   if (testInfo.project.name === 'desktop')
-    expect((await page.locator('.catalog-agent').boundingBox())!.width).toBeGreaterThanOrEqual(500)
+    expect(
+      (await page.locator('.catalog-agent').boundingBox())!.width,
+    ).toBeGreaterThanOrEqual(500)
   await illustrativeScreenshot(page, testInfo, 'configuration-guide.png')
   expect(state.requests).toHaveLength(0)
 })
 
-test('legacy catalogs without guidance remain usable without invented capabilities', async ({ page }) => {
-  await workspace(page, { config: { agents: [{ ...agent, guidance: undefined }] } })
-  await expect(page.locator('.chat-welcome')).toContainText('This agent has no getting-started guide')
-  await expect(page.getByRole('button', { name: 'Review an application', exact: true })).toBeEnabled()
+test('legacy catalogs without guidance remain usable without invented capabilities', async ({
+  page,
+}) => {
+  await workspace(page, {
+    config: { agents: [{ ...agent, guidance: undefined }] },
+  })
+  await expect(page.locator('.chat-welcome')).toContainText(
+    'This agent has no getting-started guide',
+  )
+  await expect(
+    page.getByRole('button', { name: 'Review an application', exact: true }),
+  ).toBeEnabled()
 })
 
-test('guidance accepts the server limit of 1200 Unicode characters', async ({ page }) => {
+test('guidance accepts the server limit of 1200 Unicode characters', async ({
+  page,
+}) => {
   const input = '\u{1F600}'.repeat(1200)
   await workspace(page, {
     config: { agents: [{ ...agent, guidance: { ...agent.guidance!, input } }] },
@@ -324,29 +472,51 @@ test('guidance accepts the server limit of 1200 Unicode characters', async ({ pa
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
-test('shared lab details are available on demand across workspace views', async ({ page }, testInfo) => {
+test('shared lab details are available on demand across workspace views', async ({
+  page,
+}, testInfo) => {
   await workspace(page, { config: { reviews_enabled: true } })
   const control = page.getByTitle('About this shared lab', { exact: true })
   const notice = page.getByRole('complementary', { name: 'Shared lab details' })
-  for (const name of ['Chat', 'Document reviews', 'Shared history', 'Agents', 'Performance']) {
-    await page.getByRole('navigation', { name: 'Workspace' })
-      .getByTitle(name, { exact: true }).click()
-    await expect(page.getByRole('banner').getByText(name, { exact: true })).toHaveCount(0)
+  for (const name of [
+    'Chat',
+    'Document reviews',
+    'Shared history',
+    'Agents',
+    'Performance',
+  ]) {
+    await page
+      .getByRole('navigation', { name: 'Workspace' })
+      .getByTitle(name, { exact: true })
+      .click()
+    await expect(
+      page.getByRole('banner').getByText(name, { exact: true }),
+    ).toHaveCount(0)
     await expect(control).toBeInViewport()
     await expect(notice).toBeHidden()
-    await expect(page.getByRole('complementary', { name: 'Lab data boundary' })).toHaveCount(0)
+    await expect(
+      page.getByRole('complementary', { name: 'Lab data boundary' }),
+    ).toHaveCount(0)
     await control.click()
     await expect(notice).toBeInViewport()
-    await expect(notice).toContainText('No user sign-in. Saved records are shared.')
+    await expect(notice).toContainText(
+      'No user sign-in. Saved records are shared.',
+    )
     await expect(notice).toContainText('Use synthetic data only.')
-    await expect(notice).toContainText('read, modify and delete saved chats, and read reviews and add requested evidence')
-    expect(await notice.evaluate((element) => {
-      const { left, right } = element.getBoundingClientRect()
-      return left >= 0 && right <= innerWidth
-    })).toBe(true)
+    await expect(notice).toContainText(
+      'read, modify and delete saved chats, and read reviews and add requested evidence',
+    )
+    expect(
+      await notice.evaluate((element) => {
+        const { left, right } = element.getBoundingClientRect()
+        return left >= 0 && right <= innerWidth
+      }),
+    ).toBe(true)
     if (name === 'Chat') {
       await page.evaluate(() => document.fonts.ready)
-      await page.screenshot({ path: testInfo.outputPath('shared-lab-details.png') })
+      await page.screenshot({
+        path: testInfo.outputPath('shared-lab-details.png'),
+      })
       await control.press('Enter')
       await expect(notice).toBeHidden()
       await control.press('Space')
@@ -355,37 +525,66 @@ test('shared lab details are available on demand across workspace views', async 
   }
 })
 
-test('shared lab details fit narrow screens and close with Escape', async ({ page }) => {
+test('shared lab details fit narrow screens and close with Escape', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 320, height: 720 })
   await workspace(page, {
     config: {
-      agents: [{ ...agent, label: 'Customer application and supporting evidence review' }],
+      agents: [
+        {
+          ...agent,
+          label: 'Customer application and supporting evidence review',
+        },
+      ],
     },
   })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  await expect(page.getByRole('complementary', { name: 'Lab data boundary' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Customer application and supporting evidence review' })).toBeInViewport()
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
+  await expect(
+    page.getByRole('complementary', { name: 'Lab data boundary' }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole('button', {
+      name: 'Customer application and supporting evidence review',
+    }),
+  ).toBeInViewport()
   const control = page.getByTitle('About this shared lab', { exact: true })
   const notice = page.getByRole('complementary', { name: 'Shared lab details' })
   await control.focus()
   await control.press('Enter')
   await expect(notice).toBeInViewport()
-  expect(await notice.evaluate((element) => {
-    const { left, right } = element.getBoundingClientRect()
-    return left >= 0 && right <= innerWidth
-  })).toBe(true)
+  expect(
+    await notice.evaluate((element) => {
+      const { left, right } = element.getBoundingClientRect()
+      return left >= 0 && right <= innerWidth
+    }),
+  ).toBe(true)
   await control.press('Escape')
   await expect(notice).toBeHidden()
   await expect(control).toBeFocused()
 })
 
-test('disconnected preview does not claim connected shared storage', async ({ page }) => {
+test('disconnected preview does not claim connected shared storage', async ({
+  page,
+}) => {
   await workspace(page, { preview: true })
-  await expect(page.getByTitle('About this shared lab', { exact: true })).toHaveCount(0)
-  await expect(page.getByRole('complementary', { name: 'Shared lab details' })).toHaveCount(0)
+  await expect(
+    page.getByTitle('About this shared lab', { exact: true }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole('complementary', { name: 'Shared lab details' }),
+  ).toHaveCount(0)
   await expect(page.getByText('Local preview', { exact: true })).toBeVisible()
-  await expect(page.locator('.preview-explanation')).toContainText('No model calls or saved records')
-  await expect(page.getByRole('complementary', { name: 'Lab data boundary' })).toHaveCount(0)
+  await expect(page.locator('.preview-explanation')).toContainText(
+    'No model calls or saved records',
+  )
+  await expect(
+    page.getByRole('complementary', { name: 'Lab data boundary' }),
+  ).toHaveCount(0)
 })
 
 test('save, reopen, follow up, update and delete shared history', async ({

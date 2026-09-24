@@ -346,6 +346,7 @@ clickable external links.
 python -m pip install -r workbench/requirements.txt -r workbench/agent_runtime/requirements.txt
 python -m unittest discover -s workbench -p 'test_*.py' -v
 npm --prefix workbench/frontend run lint
+npm --prefix workbench/frontend run format:check
 npm --prefix workbench/frontend exec -- playwright install chromium
 npm --prefix workbench/frontend test
 ./workbench/test-deployment-inputs.ps1
