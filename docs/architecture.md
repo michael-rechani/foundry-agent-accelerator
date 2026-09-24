@@ -49,7 +49,10 @@ see the [extension guide](architecture-assessment.md).
 
 ## Implementation overview
 
-![Default Lab infrastructure: private browser access such as the jumpbox through Azure Bastion, separate agent and record paths, and optional API Management outside the default flow](images/foundry-overview.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/foundry-overview-dark.svg">
+  <img alt="Default Lab infrastructure: private browser access such as the jumpbox through Azure Bastion, separate agent and record paths, and optional API Management outside the default flow" src="images/foundry-overview.svg">
+</picture>
 
 [View full size](images/foundry-overview.svg) · [Edit the SVG template](images/foundry-overview.template.svg)
 
@@ -103,7 +106,10 @@ network of agents freely messaging each other. The coordinator owns the
 conversation. Specialists receive a complete request and return their findings
 to that same coordinator.
 
-![Default review-agent collaboration, from the Lab through one selected specialist and back to a person for review](images/agent-collaboration.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/agent-collaboration-dark.svg">
+  <img alt="Default review-agent collaboration, from the Lab through one selected specialist and back to a person for review" src="images/agent-collaboration.svg">
+</picture>
 
 [View full size](images/agent-collaboration.svg) · [Edit the SVG template](images/agent-collaboration.template.svg) · [Request and result example](agent-profiles.md#example-handoff)
 
@@ -241,7 +247,10 @@ of the others.
 
 ## Operations
 
-![Separate operational paths for Lab metadata and optional agent traces, private image publishing, and protected Terraform state, with Key Vault for necessary secrets](images/foundry-operations.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/foundry-operations-dark.svg">
+  <img alt="Separate operational paths for Lab metadata and optional agent traces, private image publishing, and protected Terraform state, with Key Vault for necessary secrets" src="images/foundry-operations.svg">
+</picture>
 
 [View full size](images/foundry-operations.svg) · [Edit the SVG template](images/foundry-operations.template.svg)
 

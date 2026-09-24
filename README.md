@@ -68,7 +68,10 @@ For all seven pages in the Lab, see the [Lab guide](workbench/README.md#pages).
 
 ### Agents working together
 
-![Default agent collaboration: you ask in the Lab, the Application and case helper calls one specialist, returns its findings, and you check the answer](docs/images/agent-collaboration.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-collaboration-dark.svg">
+  <img alt="Default agent collaboration: you ask in the Lab, the Application and case helper calls one specialist, returns its findings, and you check the answer" src="docs/images/agent-collaboration.svg">
+</picture>
 
 1. **You ask in the Lab.** Its backend calls the coordinator agent in Foundry by
    using a managed identity.
@@ -89,7 +92,10 @@ active and its route is confirmed, try the agent in **Chat**.
 
 ### What runs in Azure
 
-![Azure architecture at a glance: people sign in through Azure Bastion to a jumpbox in an optional admin network peered with a private workload network. The Lab runs in an internal Azure Container Apps environment and calls Foundry Agent Service, which uses Foundry Models. Records and agent data live in Azure Cosmos DB, Azure Storage, and Azure AI Search, reached through private endpoints. Managed identities, Key Vault, Container Registry, and Azure Monitor are shared services](docs/images/azure-architecture.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/azure-architecture-dark.svg">
+  <img alt="Azure architecture at a glance: people sign in through Azure Bastion to a jumpbox in an optional admin network peered with a private workload network. The Lab runs in an internal Azure Container Apps environment and calls Foundry Agent Service, which uses Foundry Models. Records and agent data live in Azure Cosmos DB, Azure Storage, and Azure AI Search, reached through private endpoints. Managed identities, Key Vault, Container Registry, and Azure Monitor are shared services" src="docs/images/azure-architecture.svg">
+</picture>
 
 *Logical view, not a resource inventory. Optional API Management isn't shown.*
 · [View full size](docs/images/azure-architecture.svg) ·

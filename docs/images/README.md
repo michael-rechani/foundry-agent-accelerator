@@ -51,8 +51,11 @@ draw.io Desktop (verified with version 31.4.4):
 
 The script checks native XML references, embeds any `azure-icons/...` image
 references, and exports SVGs containing both the artwork and an editable diagram
-copy. It rejects external image dependencies. Exports use the light theme so
-they match the overview artwork in both GitHub themes. The script also removes
+copy. It rejects external image dependencies. Exports use the light theme only,
+so GitHub shows the light artwork in both themes. These diagrams have no dark
+variant yet: their SVGs come from draw.io Desktop, not the template build, so
+the overview color map does not apply, and a dark export would need its own
+draw.io Desktop pass and visual review. The script also removes
 the PNG copies of text labels that draw.io adds for viewers without HTML text
 support; browsers render the text directly, and the SVGs stay under 100 KB.
 The standalone `.drawio` file is the source of truth; do not maintain a separate
@@ -95,14 +98,16 @@ Edit the [Azure architecture view](azure-architecture.template.svg),
 ./docs/images/build-architecture.ps1
 ```
 
-The build embeds any referenced icons as their original SVG bytes. The
+The build embeds any referenced icons as their original SVG bytes. It writes a
+light `<name>.svg` and a dark `<name>-dark.svg` from each template; see
+[Dark variants](#dark-variants). The
 [rendered Azure architecture](azure-architecture.svg),
 [rendered agent flow](agent-collaboration.svg),
 [rendered overview](foundry-overview.svg),
 [rendered operations diagram](foundry-operations.svg), and
 [rendered deployment view](foundry-deployment.svg) remain self-contained when
-GitHub displays them, with no external asset or network dependency. Keep source
-icons, templates, and generated images together.
+GitHub displays them, as do their dark variants, with no external asset or
+network dependency. Keep source icons, templates, and generated images together.
 
 The Azure architecture view is the one-picture map. Network boxes hold only
 what is deployed into a virtual network: the optional admin network with
@@ -143,6 +148,69 @@ private state access, and security boundaries. APIM is optional. Keep secret
 ownership and private connectivity boundaries visible without adding
 deployment-history notes.
 
+## Dark variants
+
+GitHub shows the `-dark` overview diagrams to readers who use a dark theme.
+Both variants come from the same template, so do not edit either SVG by hand.
+Edit the template, rebuild, and commit the template and both outputs together.
+
+The build swaps colors in the template markup before it embeds the icons, so
+the icon bytes are identical in both variants. The `<title>` and `<desc>` text
+is never changed. `$darkPalette` in `build-architecture.ps1` is the single
+light-to-dark color map. The build fails if a template uses a hex color that
+the map does not cover, so add each new color to the map before you use it.
+Colors match as whole tokens, ignoring case; `#fff` and `#ffffff` are separate
+entries.
+
+White has two roles. A white rectangle with no border, `stroke="none"`, or a
+dashed border is part of the canvas: the background, label masks, and grouping
+boundaries such as the Azure subscription. Other white fills are cards, which
+use a raised surface so they stand out from the dark canvas.
+
+| Role | Light | Dark |
+| --- | --- | --- |
+| Canvas, label masks, dashed boundaries | `#fff` | `#0d1117` |
+| Cards | `#fff` | `#1f252e` |
+| Subtle panels | `#f5f7fa` | `#161b22` |
+| Blue-tinted panels | `#f3f8fc` | `#0f2438` |
+| Green-tinted panels | `#edf7f4` | `#0e2723` |
+| Warm-tinted panels | `#fffaf0` | `#2a2313` |
+| Yellow notes | `#fff4ce` | `#3b300d` |
+| Primary text | `#242424` | `#e6edf3` |
+| Secondary text and bullets | `#4d5b69` | `#a9b4c0` |
+| Tool names | `#334e68` | `#b8c9da` |
+| Request arrows and accent borders | `#0078d4` | `#4aa8ff` |
+| Result arrows and green borders | `#00786a` | `#3cc3ae` |
+| Blue panel borders | `#8abce0` | `#4278a6` |
+| Card and boundary borders | `#8da6bb` | `#6b7c8e` |
+| Panel borders | `#aebdcb` | `#637484` |
+| Subtle panel borders | `#cdd9e2` | `#5d6d7e` |
+| Warm panel borders | `#b59e59` | `#a08845` |
+
+Keep text at a WCAG contrast ratio of at least 4.5:1, and arrows and borders at
+least 3:1, against every background they sit on. Update this table when you
+change the map.
+
+Icons stay unmodified in both variants. The current icons remain visible on the
+dark surfaces, so the dark variants add no backing tiles. If a new icon becomes
+hard to see, add a neutral light rounded tile behind every icon in that dark
+diagram through the build; do not recolor the icon.
+
+Embed both variants with a `<picture>` element. Paths are relative to the
+Markdown file. Keep the alt text on the `<img>`, and leave a blank line before
+and after the block so the surrounding Markdown still renders:
+
+```html
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-collaboration-dark.svg">
+  <img alt="Default agent collaboration: ..." src="docs/images/agent-collaboration.svg">
+</picture>
+```
+
+Full-size and template links keep pointing to the light SVG and the template.
+The draw.io diagrams stay light-only for now; see
+[Detailed draw.io diagrams](#detailed-drawio-diagrams).
+
 ## Lab screenshots
 
 The screenshots in `screenshots/` come from the Lab's browser tests. The tests
@@ -172,6 +240,9 @@ Rename each file as shown in the table, and do not crop out the watermark.
 ## Visual review checklist
 
 - Check each image at README width and on mobile.
+- Check the overview diagrams in both GitHub themes. Render the light and
+  `-dark` SVGs and confirm that text, arrows, notes, icons, and card edges stay
+  visible in each.
 - Keep labels short and avoid crossing text with connectors.
 - Do not reduce type to fit more detail.
 - Use labels and callouts, not color alone, to explain requests, results,

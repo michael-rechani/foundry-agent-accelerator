@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="1070" viewBox="0 0 760 1070" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">Lab infrastructure at a glance</title>
+  <desc id="desc">Default logical runtime paths. A browser on an approved private network, such as the jumpbox reached through Azure Bastion, reaches the Lab's React and FastAPI application in an internal Azure Container Apps environment. The backend uses managed identity to call named agents in Foundry Agent Service and, separately, to read and write application records, including saved chats, reviews, and created agents, in Cosmos DB. Both managed services are reached through private endpoints; they are not placed inside the Container Apps environment. Chat saves are explicit. Document review drafts and results are persisted by the server. API Management is optional, disabled by default, and outside these paths. The Lab has shared records and no end-user sign-in or per-user authorization. This is not a live resource inventory.</desc>
+  <defs>
+    <marker id="request-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#4aa8ff"/>
+    </marker>
+    <marker id="record-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#3cc3ae"/>
+    </marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #e6edf3; }
+      .title { font-size: 30px; font-weight: 600; }
+      .heading { font-size: 25px; font-weight: 600; }
+      .body { font-size: 22px; }
+      .detail { font-size: 20px; }
+      .label { font-size: 20px; fill: #a9b4c0; }
+      .request { fill: none; stroke: #4aa8ff; stroke-width: 2.5; marker-end: url(#request-arrow); }
+      .record { fill: none; stroke: #3cc3ae; stroke-width: 2.5; stroke-dasharray: 7 5; marker-end: url(#record-arrow); }
+    </style>
+  </defs>
+
+  <rect width="760" height="1070" fill="#0d1117"/>
+  <text x="24" y="42" class="title">Lab infrastructure at a glance</text>
+  <text x="24" y="74" class="detail">Default request paths and application-owned data</text>
+
+  <g id="private-browser">
+    <rect x="120" y="104" width="520" height="126" rx="12" fill="#161b22" stroke="#637484" stroke-width="1.5"/>
+    <text x="146" y="141" class="heading">Browser on an approved network</text>
+    <text x="146" y="175" class="detail">Private HTTPS; no Azure keys in the browser</text>
+    <text x="146" y="205" class="detail">For example, the jumpbox via Azure Bastion</text>
+  </g>
+  <path d="M380 230V282" class="request"/>
+  <text x="402" y="264" class="label">Private app access</text>
+
+  <g id="lab-backend">
+    <rect x="120" y="282" width="520" height="152" rx="12" fill="#1f252e" stroke="#4aa8ff" stroke-width="2"/>
+    <text x="146" y="320" class="heading">The Lab</text>
+    <text x="146" y="353" class="body">React + FastAPI in Azure Container Apps</text>
+    <text x="146" y="384" class="detail">Internal environment; controlled private access</text>
+    <text x="146" y="413" class="detail">Managed identity for Azure service calls</text>
+  </g>
+  <path d="M204 434V522" class="request"/>
+  <path d="M556 434V522" class="record"/>
+  <text x="236" y="493" class="label">Agent calls</text>
+  <text x="428" y="493" class="label">Records</text>
+
+  <g id="foundry-service">
+    <rect x="48" y="522" width="312" height="182" rx="12" fill="#0f2438" stroke="#4278a6" stroke-width="1.5"/>
+    <image href="data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC1mOWRiYjc0Yy1iYjY1LTQ0ZjUtYTBmMi0xODU1NDFjOGYyZTMiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC1jNDFhMWI1ZC1jM2VlLTQ0MTMtYmVmMi1mNWEwNzJiYTkzNmUiIHgxPSI3LjI4IiB5MT0iMjcyLjg0IiB4Mj0iLjM5IiB5Mj0iMjY3Ljg3IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDAgMjgwKSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzRmNDJmZCIgLz48c3RvcCBvZmZzZXQ9Ii44IiBzdG9wLWNvbG9yPSIjNzI3NGZmIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTdhODM5N2JiLWY4MmUtNGI0ZS04ZmIxLWM0OWRjMjBlYWU1MiIgeDE9IjEwLjE5IiB5MT0iMjY4LjQxIiB4Mj0iNC4zOCIgeTI9IjI2NS4xNiIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDI4MCkgc2NhbGUoMSAtMSkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9Ii4yNSIgc3RvcC1jb2xvcj0iIzRmNDJmZCIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyYzA4YWMiIC8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9InV1aWQtMzY0Y2IzOGItMjVlNi00ZDQ1LWE1ZjMtN2Y3NTY3Y2YxOTQ3IiB4MT0iMTcuNDMiIHkxPSIyNjcuMDIiIHgyPSI1LjA4IiB5Mj0iMjY0Ljk4IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDAgMjgwKSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iLjIiIHN0b3AtY29sb3I9IiM3Mjc0ZmYiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNGY0MmZkIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLWZiMzJlMzM0LTg2N2QtNGVkZS1iZWQxLTU2YWVjYWU3NjJjYiIgeDE9IjEwLjE1IiB5MT0iMjczLjQxIiB4Mj0iMTYuODciIHkyPSIyNjkuNzEiIGdyYWRpZW50VHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCAyODApIHNjYWxlKDEgLTEpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIuMjUiIHN0b3AtY29sb3I9IiM0ZjQyZmQiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMmMwOGFjIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTI1N2JlZGViLWNiNGUtNDhlYy05NzhkLTY2N2Q5NDNkNDg4NyIgeDE9IjE3LjY4IiB5MT0iMjcwLjU3IiB4Mj0iOC42OCIgeTI9IjI3OS40MyIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDI4MCkgc2NhbGUoMSAtMSkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM0ZjQyZmQiIC8+PHN0b3Agb2Zmc2V0PSIuOCIgc3RvcC1jb2xvcj0iIzcyNzRmZiIgLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC1kMjRiM2YyYi01NWJkLTQ3MzEtOGQ4Mi0yY2NiM2E5NDlkYTciIHgxPSI2LjY0IiB5MT0iMjcxLjAyIiB4Mj0iNi42NCIgeTI9IjI3OC4xMiIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDI4MCkgc2NhbGUoMSAtMSkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9Ii4yNSIgc3RvcC1jb2xvcj0iIzRmNDJmZCIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyYzA4YWMiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTUuMDIsMTUuMzFsLTIuODItMS42M2MtLjY2LS4zOC0xLjA2LTEuMDgtMS4wNi0xLjgzdi01LjY5YzAtLjc2LjQtMS40NiwxLjA2LTEuODNsMS41My0uODhjLjEtLjA2LjI0LjAxLjI0LjE0djkuOTFjMCwuMzcuMS43My4yOCwxLjA0LjE4LjMyLjQ1LjU5Ljc4Ljc4aDBaIiBmaWxsPSJ1cmwoI3V1aWQtYzQxYTFiNWQtYzNlZS00NDEzLWJlZjItZjVhMDcyYmE5MzZlKSIgLz48cGF0aCBkPSJNMTAuMTQsMTAuNTl2MS43NmMwLC43Ni0uNCwxLjQ2LTEuMDYsMS44M2wtMS45NCwxLjEyYy0uNjUuMzgtMS40Ni4zOC0yLjEyLDAtLjMzLS4xOS0uNTktLjQ2LS43OC0uNzgtLjE4LS4zMS0uMjgtLjY3LS4yOC0xLjA0di0uNDJjMCwuMzYuMzkuNTkuNzEuNGw1LjIzLTMuMDJjLjEtLjA2LjI0LjAxLjI0LjE0WiIgZmlsbD0idXJsKCN1dWlkLTdhODM5N2JiLWY4MmUtNGI0ZS04ZmIxLWM0OWRjMjBlYWU1MikiIC8+PHBhdGggZD0iTTE2Ljg2LDkuNTN2My4yNmMwLC43Ni0uNCwxLjQ2LTEuMDYsMS44M2wtNC45MywyLjg0Yy0uNjUuMzgtMS40Ni4zOC0yLjEyLDBsLTEuNTMtLjg4Yy0uMS0uMDYtLjEtLjIxLDAtLjI3bDguNTktNC45NmMuMzItLjE5LjU4LS40NS43Ni0uNzcuMTgtLjMyLjI4LS42OC4yOC0xLjA2WiIgZmlsbD0idXJsKCN1dWlkLTM2NGNiMzhiLTI1ZTYtNGQ0NS1hNWYzLTdmNzU2N2NmMTk0NykiIC8+PHBhdGggZD0iTTEwLjIyLDcuNDZsMS41My0uODhjLjY1LS4zOCwxLjQ2LS4zOCwyLjEyLDBsMS45NCwxLjEyYy42NS4zOCwxLjA2LDEuMDgsMS4wNiwxLjgzLDAsLjM4LS4xLjc0LS4yOCwxLjA2LS4xOC4zMS0uNDQuNTgtLjc2Ljc3bC0uMzYuMjFjLjMxLS4xOC4zMS0uNjMsMC0uODFsLTUuMjMtMy4wMmMtLjEtLjA2LS4xLS4yMSwwLS4yN1oiIGZpbGw9InVybCgjdXVpZC1mYjMyZTMzNC04NjdkLTRlZGUtYmVkMS01NmFlY2FlNzYyY2IpIiAvPjxwYXRoIGQ9Ik01Ljk0LDIuMTZsMi44Mi0xLjYzYy42Ni0uMzgsMS40Ni0uMzgsMi4xMiwwbDQuOTMsMi44NGMuNjUuMzgsMS4wNiwxLjA4LDEuMDYsMS44M3YxLjc2YzAsLjEyLS4xMy4yLS4yNC4xNEw4LjA0LDIuMTZjLS4zMi0uMTgtLjY4LS4yOC0xLjA1LS4yOC0uMzcsMC0uNzMuMDktMS4wNi4yOGgwWiIgZmlsbD0idXJsKCN1dWlkLTI1N2JlZGViLWNiNGUtNDhlYy05NzhkLTY2N2Q5NDNkNDg4NykiIC8+PHBhdGggZD0iTTcuNDcsOC45NWwtMS41My0uODhjLS42Ni0uMzgtMS4wNi0xLjA4LTEuMDYtMS44M3YtMi4yNGMwLS43Ni40LTEuNDYsMS4wNi0xLjgzLjMzLS4xOS42OS0uMjgsMS4wNi0uMjhzLjcyLjA5LDEuMDQuMjhsLjM2LjIxYy0uMzEtLjE4LS43LjA1LS43LjQxdjYuMDRjMCwuMTItLjEzLjItLjI0LjE0aDBaIiBmaWxsPSJ1cmwoI3V1aWQtZDI0YjNmMmItNTViZC00NzMxLThkODItMmNjYjNhOTQ5ZGE3KSIgLz48L3N2Zz4=" x="70" y="540" width="36" height="36"/>
+    <text x="120" y="561" class="heading">Foundry</text>
+    <text x="120" y="591" class="body">Agent Service</text>
+    <text x="70" y="624" class="detail">Coordinator + specialists</text>
+    <text x="70" y="654" class="detail">Uses the configured model</text>
+    <text x="70" y="684" class="detail">Private endpoint</text>
+  </g>
+  <g id="application-records">
+    <rect x="400" y="522" width="312" height="182" rx="12" fill="#0e2723" stroke="#3cc3ae" stroke-width="1.5"/>
+    <image href="data:image/svg+xml;base64,PHN2ZyBpZD0iYjA4OWNmY2EtMGRlMS00NTFjLWExY2EtNjY4MGVhNTBjYjRmIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImIyNWQwODM2LTk2NGEtNGM4NC04YzIwLTg1NWY2NmU4MzQ1ZSIgY3g9Ii0xMDUuMDA2IiBjeT0iLTEwLjQwOSIgcj0iNS45NTQiIGdyYWRpZW50VHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTE3LjczOSAxOS42NDQpIHNjYWxlKDEuMDM2IDEuMDI3KSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMC4xODMiIHN0b3AtY29sb3I9IiM1ZWEwZWYiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMDA3OGQ0IiAvPjwvcmFkaWFsR3JhZGllbnQ+PGNsaXBQYXRoIGlkPSJiMzZjN2Y1ZC0yZWYxLTQ3NjAtOGEyNS1lZWI5NjYxZjRlNDciPjxwYXRoIGQ9Ik0xNC45NjksNy41M0E2LjEzNyw2LjEzNywwLDEsMSw3LjU3NCwyLjk4Nyw2LjEzNyw2LjEzNywwLDAsMSwxNC45NjksNy41M1oiIGZpbGw9Im5vbmUiIC8+PC9jbGlwUGF0aD48L2RlZnM+PHRpdGxlPkljb24tZGF0YWJhc2VzLTEyMTwvdGl0bGU+PHBhdGggZD0iTTIuOTU0LDUuMjY2YS4xNzUuMTc1LDAsMCwxLS4xNzYtLjE3NmgwQTIuMDEyLDIuMDEyLDAsMCwwLC43NjksMy4wODFhLjE3Ni4xNzYsMCwwLDEtLjE3Ni0uMTc1aDBhLjE3Ni4xNzYsMCwwLDEsLjE3Ni0uMTc2QTIuMDEyLDIuMDEyLDAsMCwwLDIuNzc4LjcyLjE3NS4xNzUsMCwwLDEsMi45NTQuNTQ0aDBBLjE3NS4xNzUsMCwwLDEsMy4xMy43MmgwQTIuMDEyLDIuMDEyLDAsMCwwLDUuMTM5LDIuNzI5YS4xNzUuMTc1LDAsMCwxLC4xNzYuMTc2aDBhLjE3NS4xNzUsMCwwLDEtLjE3Ni4xNzZoMEEyLjAxMSwyLjAxMSwwLDAsMCwzLjEzLDUuMDkuMTc3LjE3NywwLDAsMSwyLjk1NCw1LjI2NloiIGZpbGw9IiM1MGU2ZmYiIC8+PHBhdGggZD0iTTE1LjYxMSwxNy40NTZhLjE0MS4xNDEsMCwwLDEtLjE0MS0uMTQxaDBhMS42MDksMS42MDksMCwwLDAtMS42MDctMS42MDcuMTQxLjE0MSwwLDAsMS0uMTQxLS4xNGgwYS4xNDEuMTQxLDAsMCwxLC4xNDEtLjE0MWgwYTEuNjA4LDEuNjA4LDAsMCwwLDEuNjA3LTEuNjA3LjE0MS4xNDEsMCwwLDEsLjE0MS0uMTQxaDBhLjE0MS4xNDEsMCwwLDEsLjE0MS4xNDFoMGExLjYwOCwxLjYwOCwwLDAsMCwxLjYwNywxLjYwNy4xNDEuMTQxLDAsMSwxLDAsLjI4MmgwYTEuNjA5LDEuNjA5LDAsMCwwLTEuNjA3LDEuNjA3QS4xNDEuMTQxLDAsMCwxLDE1LjYxMSwxNy40NTZaIiBmaWxsPSIjNTBlNmZmIiAvPjxnPjxwYXRoIGQ9Ik0xNC45NjksNy41M0E2LjEzNyw2LjEzNywwLDEsMSw3LjU3NCwyLjk4Nyw2LjEzNyw2LjEzNywwLDAsMSwxNC45NjksNy41M1oiIGZpbGw9InVybCgjYjI1ZDA4MzYtOTY0YS00Yzg0LThjMjAtODU1ZjY2ZTgzNDVlKSIgLz48ZyBjbGlwLXBhdGg9InVybCgjYjM2YzdmNWQtMmVmMS00NzYwLThhMjUtZWViOTY2MWY0ZTQ3KSI+PHBhdGggZD0iTTUuNzA5LDEzLjExNUExLjYzOCwxLjYzOCwwLDEsMCw1LjcxNCw5Ljg0LDEuMzA3LDEuMzA3LDAsMCwwLDUuNzIxLDkuNywxLjY1MSwxLjY1MSwwLDAsMCw0LjA2LDguMDY0SDIuODMyYTYuMjUxLDYuMjUxLDAsMCwwLDEuNTk1LDUuMDUxWiIgZmlsbD0iI2YyZjJmMiIgLz48cGF0aCBkPSJNMTUuMDQ1LDcuODE1YzAtLjAxNSwwLS4wMy0uMDA3LS4wNDRhNS45NzgsNS45NzgsMCwwLDAtMS40MDYtMi44OCwxLjgyNSwxLjgyNSwwLDAsMC0uMjg5LS4wOSwxLjgwNiwxLjgwNiwwLDAsMC0yLjMsMS42NjMsMiwyLDAsMCwwLS4yLS4wMTMsMS43MzcsMS43MzcsMCwwLDAtLjU4MSwzLjM3NCwxLjQ1MSwxLjQ1MSwwLDAsMCwuNTQxLjFoMi4wM0ExMy40NTMsMTMuNDUzLDAsMCwwLDE1LjA0NSw3LjgxNVoiIGZpbGw9IiNmMmYyZjIiIC8+PC9nPjwvZz48cGF0aCBkPSJNMTcuMTkxLDMuODMyYy0uNjI5LTEuMDQ3LTIuMS0xLjQ1NS00LjE1NS0xLjE0OWExNC42MDYsMTQuNjA2LDAsMCwwLTIuMDgyLjQ1Miw2LjQ1Niw2LjQ1NiwwLDAsMSwxLjUyOC43NjdjLjI0MS0uMDUzLjQ4My0uMTE2LjcxNS0uMTUxQTcuNDksNy40OSwwLDAsMSwxNC4zLDMuNjYyYTIuMTg4LDIuMTg4LDAsMCwxLDEuOTU5LjcyNWgwYy4zODMuNjM4LjA2LDEuNzI5LS44ODYsM2ExNi43MjMsMTYuNzIzLDAsMCwxLTQuNzQ5LDQuMDUxQTE2Ljc1OCwxNi43NTgsMCwwLDEsNC44LDEzLjdjLTEuNTY0LjIzNC0yLjY4MiwwLTMuMDY1LS42MzZzLS4wNi0xLjczLjg4Ni0yLjk5NWMuMTE3LS4xNTcuMTQ2LS4yMzQuMjc5LS4zOTJhNi4yNTIsNi4yNTIsMCwwLDEsLjAyNi0xLjYzQTExLjU1MiwxMS41NTIsMCwwLDAsMS43NTYsOS40MTlDLjUxNywxMS4wNzYuMTgxLDEyLjU2Ni44MDksMTMuNjEzYTMuMTY1LDMuMTY1LDAsMCwwLDIuOSwxLjI0OSw4LjQzNCw4LjQzNCwwLDAsMCwxLjI1MS0uMSwxNy44NTUsMTcuODU1LDAsMCwwLDYuMjE5LTIuNCwxNy44MDgsMTcuODA4LDAsMCwwLDUuMDYxLTQuMzMyQzE3LjQ4Myw2LjM2OSwxNy44MTksNC44OCwxNy4xOTEsMy44MzJaIiBmaWxsPSIjNTBlNmZmIiAvPjwvc3ZnPg==" x="422" y="540" width="36" height="36"/>
+    <text x="470" y="561" class="heading">Azure Cosmos DB</text>
+    <text x="470" y="591" class="body">Application data</text>
+    <text x="422" y="624" class="detail">Saved chats, reviews,</text>
+    <text x="422" y="654" class="detail">and created agents</text>
+    <text x="422" y="684" class="detail">Private endpoint</text>
+  </g>
+
+  <g id="persistence-note">
+    <rect x="48" y="732" width="664" height="88" rx="12" fill="#161b22" stroke="#5d6d7e"/>
+    <text x="70" y="765" class="detail">Chat is saved only when requested.</text>
+    <text x="70" y="796" class="detail">Document review drafts and results are saved by the server.</text>
+  </g>
+
+  <g id="optional-apim">
+    <rect x="24" y="844" width="712" height="100" rx="12" fill="#2a2313" stroke="#a08845" stroke-width="1.5" stroke-dasharray="7 5"/>
+    <image href="data:image/svg+xml;base64,PHN2ZyBpZD0iZjc4ZWYzN2ItZmRlNC00NjFjLTk0ZTItZGNjZmYzMmRkNWQ3IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImJmOGE5NTgzLWFhZTktNDhmZi04N2Q4LWZiOGY0NGU3ZDZiZCIgeDE9IjkiIHkxPSIxNi44MiIgeDI9IjkiIHkyPSIxLjE4IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMTk4YWIzIiAvPjxzdG9wIG9mZnNldD0iMC4wOSIgc3RvcC1jb2xvcj0iIzFmOWRjNCIgLz48c3RvcCBvZmZzZXQ9IjAuMjQiIHN0b3AtY29sb3I9IiMyOGI1ZDkiIC8+PHN0b3Agb2Zmc2V0PSIwLjQiIHN0b3AtY29sb3I9IiMyZGM2ZTkiIC8+PHN0b3Agb2Zmc2V0PSIwLjU3IiBzdG9wLWNvbG9yPSIjMzFkMWYyIiAvPjxzdG9wIG9mZnNldD0iMC43OCIgc3RvcC1jb2xvcj0iIzMyZDRmNSIgLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iZjliMWJiOGMtNzI4ZS00YWJmLWJjZTUtNmMxMWFjMTcwYzViIiB4MT0iOC4zNiIgeTE9IjExLjM1IiB4Mj0iOC4zNiIgeTI9IjE0LjQ2IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjYzY5YWViIiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzZmNGJiMiIgLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48dGl0bGU+SWNvbi13ZWItNDI8L3RpdGxlPjxwYXRoIGQ9Ik0xNC4xOCw1Ljg5QTQuODUsNC44NSwwLDAsMCw5LjIzLDEuMTgsNSw1LDAsMCwwLDQuNDgsNC40Nyw0LjYxLDQuNjEsMCwwLDAsLjUsOSw0LjY3LDQuNjcsMCwwLDAsNS4yOSwxMy41YTMsMywwLDAsMCwuNDIsMGgxLjJhMS40NywxLjQ3LDAsMCwxLS4xMS0uNTZ2MEExLjUxLDEuNTEsMCwwLDEsNywxMi4yMUg1LjZsLS4zMSwwQTMuNDEsMy40MSwwLDAsMSwxLjc3LDksMy4zMywzLjMzLDAsMCwxLDQuNjgsNS43M2wuNzYtLjEyLjI1LS43M0EzLjczLDMuNzMsMCwwLDEsOS4yMywyLjQ1LDMuNiwzLjYsMCwwLDEsMTIuOTEsNS45VjdMMTQsNy4xNWEyLjU5LDIuNTksMCwwLDEsMi4yNiwyLjQ5LDIuNjMsMi42MywwLDAsMS0yLjYyLDIuNTRoLS4xNWwtLjA4LDBoLTFBMy45MiwzLjkyLDAsMCwwLDguNTQsOWEuNjQuNjQsMCwxLDAsMCwxLjI3LDIuNjUsMi42NSwwLDAsMSwwLDUuMjkuNjQuNjQsMCwxLDAsMCwxLjI3LDMuOTIsMy45MiwwLDAsMCwzLjg3LTMuMzRoMS4wNWEuNjQuNjQsMCwwLDAsLjIsMEEzLjkxLDMuOTEsMCwwLDAsMTcuNSw5LjY0LDMuODYsMy44NiwwLDAsMCwxNC4xOCw1Ljg5WiIgZmlsbD0idXJsKCNiZjhhOTU4My1hYWU5LTQ4ZmYtODdkOC1mYjhmNDRlN2Q2YmQpIiAvPjxyZWN0IHg9IjYuOCIgeT0iMTEuMzUiIHdpZHRoPSIzLjEyIiBoZWlnaHQ9IjMuMTIiIHJ4PSIxLjU0IiBmaWxsPSJ1cmwoI2Y5YjFiYjhjLTcyOGUtNGFiZi1iY2U1LTZjMTFhYzE3MGM1YikiIC8+PC9zdmc+" x="48" y="864" width="40" height="40"/>
+    <text x="108" y="882" class="heading">Optional: Azure API Management</text>
+    <text x="108" y="917" class="detail">Not deployed by default; the Lab does not need it.</text>
+  </g>
+
+  <g id="shared-data-warning">
+    <rect x="24" y="968" width="712" height="74" rx="8" fill="#3b300d"/>
+    <text x="48" y="998" class="detail">Fictional data only. There is no end-user sign-in.</text>
+    <text x="48" y="1028" class="detail">Saved records are shared, without per-user authorization.</text>
+  </g>
+</svg>
