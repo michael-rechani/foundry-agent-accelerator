@@ -189,6 +189,7 @@ but no Search retrieval tool is connected to the reference review workflow.
 | --- | --- | --- |
 | Browser shell and chat | [ChatWorkspace.tsx](../workbench/frontend/src/ChatWorkspace.tsx) | Catalog selection, draft input, chat, explicit save/export, and view navigation. |
 | Structured review UI | [ReviewWorkspace.tsx](../workbench/frontend/src/ReviewWorkspace.tsx) | Inbox, status polling, evidence, findings, and explicit resume. |
+| Agent creation | [AgentCreationWorkspace.tsx](../workbench/frontend/src/AgentCreationWorkspace.tsx) and [agent_creation.py](../workbench/agent_creation.py) | Template setup review, operator-confirmed publication, the shared created-agent records, status polling, and deletion. See [configuration ownership](agent-creation.md#configuration-ownership) for templates, runtime, and publisher. |
 | HTTP boundary and Foundry client | [app.py](../workbench/app.py) | Origin and host checks, configured catalog, admission, bounded Responses calls, and receipt correlation. |
 | Review record controller | [review_runs.py](../workbench/review_runs.py) | Server-owned records, conditional starts, input snapshots, local tasks, and effective status. |
 | Input and result contract | [reviews.py](../workbench/reviews.py) | Structured schemas, criterion coverage, and exact-quote validation. |
