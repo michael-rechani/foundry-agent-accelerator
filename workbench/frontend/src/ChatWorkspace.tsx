@@ -1,30 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import {
-  Activity,
-  ArrowDownToLine,
-  ArrowRight,
-  ArrowUp,
-  Check,
-  ChevronDown,
-  CircleAlert,
-  Clock3,
-  FileCheck2,
-  FlaskConical,
-  GitBranch,
-  History,
-  Info,
-  Layers3,
-  LayoutGrid,
-  LoaderCircle,
-  MessageSquare,
-  Plus,
-  RefreshCw,
-  Save,
-  Search,
-  Square,
-  Trash2,
-  X,
-} from 'lucide-react'
+import { Check, CircleAlert, LoaderCircle, RefreshCw, X } from 'lucide-react'
 import '@fontsource-variable/manrope'
 import '@fontsource/ibm-plex-mono/400.css'
 import './chat.css'
@@ -36,22 +11,15 @@ import { WaitingIndicator } from './WaitingIndicator'
 import { useWorkspaceConfig, type Agent } from './workspace-config'
 import { ContinueDialog } from './ContinueDialog'
 import { ReviewWorkspace } from './ReviewWorkspace'
-import { AgentGuide, AgentRuntime, ConfigurationGuide } from './AgentGuide'
 import { AgentCreationWorkspace } from './AgentCreationWorkspace'
 import { creationRequest, parseCreatedAgent, useCreatedAgents } from './agent-creation-client'
-type Measurement = {
-  id: string
-  agent: string
-  outcome: 'completed' | 'failed' | 'stopped' | 'timed-out'
-  duration: number
-}
-type View = 'chat' | 'catalog' | 'performance' | 'history' | 'reviews' | 'create' | 'created'
-type SavedChat = {
-  id: string
-  title: string
-  agent_id: string
-  updated_at: string
-}
+import { ChatSidebar, type View } from './ChatSidebar'
+import { ChatTopbar } from './ChatTopbar'
+import { ChatWelcome } from './ChatWelcome'
+import { ChatComposer } from './ChatComposer'
+import { HistoryView, type SavedChat } from './HistoryView'
+import { AgentCatalog } from './AgentCatalog'
+import { PerformanceView, type Measurement } from './PerformanceView'
 type SavedVersion = { id: string; _etag: string }
 
 const errors: Record<string, string> = {
@@ -137,11 +105,6 @@ export default function ChatWorkspace() {
         turns.length / (config.max_history_turns + 1),
       )
     : 0
-  const completed = measurements.filter((item) => item.outcome === 'completed')
-  const average = completed.length
-    ? completed.reduce((total, item) => total + item.duration, 0) /
-      completed.length
-    : null
   const unsaved = dirty || !!draft || busy
 
   useEffect(() => {
@@ -426,181 +389,42 @@ export default function ChatWorkspace() {
 
   return (
     <div className={`chat-app${config?.agent_creation ? ' has-creation' : ''}`}>
-      <aside className="chat-sidebar">
-        <div className="chat-brand">
-          <span className="brand-mark" aria-hidden="true"><Layers3 size={23} /></span>
-          <span>{config?.title || 'AI Foundry Lab'}</span>
-        </div>
-        {view === 'chat' && <button
-          className="new-chat"
-          disabled={busy || historyBusy}
-          onClick={() => newChat()}
-          title="New chat"
-        >
-          <Plus size={18} />
-          <span>New chat</span>
-        </button>}
-        <nav aria-label="Workspace">
-          {config?.agent_creation && <>
-            <button
-              aria-current={view === 'create' ? 'page' : undefined}
-              onClick={() => setView('create')}
-              title="Create agent"
-            >
-              <Plus size={18} /><span>Create agent</span>
-            </button>
-            <button
-              aria-current={view === 'created' ? 'page' : undefined}
-              onClick={() => { setView('created'); void createdAgents.refresh() }}
-              title="Created agents"
-            >
-              <Layers3 size={18} /><span>Created agents</span>
-            </button>
-          </>}
-          <button
-            aria-current={view === 'chat' ? 'page' : undefined}
-            onClick={() => setView('chat')}
-            title="Chat"
-          >
-            <MessageSquare size={18} />
-            <span>Chat</span>
-          </button>
-          <button
-            aria-current={view === 'reviews' ? 'page' : undefined}
-            onClick={() => setView('reviews')}
-            title="Document reviews"
-          >
-            <FileCheck2 size={18} />
-            <span>Document reviews</span>
-          </button>
-          <button
-            disabled={!config?.history_enabled || historyBusy}
-            aria-current={view === 'history' ? 'page' : undefined}
-            onClick={() => void listHistory()}
-            title="Shared history"
-          >
-            <History size={18} />
-            <span>Shared history</span>
-          </button>
-          <button
-            aria-current={view === 'catalog' ? 'page' : undefined}
-            onClick={() => setView('catalog')}
-            title="Agents"
-          >
-            <LayoutGrid size={18} />
-            <span>Agents</span>
-            <small>{availableAgents.length}</small>
-          </button>
-          <button
-            aria-current={view === 'performance' ? 'page' : undefined}
-            onClick={() => setView('performance')}
-            title="Performance"
-          >
-            <Activity size={18} />
-            <span>Performance</span>
-          </button>
-        </nav>
-      </aside>
+      <ChatSidebar
+        title={config?.title}
+        view={view}
+        creationEnabled={!!config?.agent_creation}
+        historyEnabled={!!config?.history_enabled}
+        busy={busy}
+        historyBusy={historyBusy}
+        agentCount={availableAgents.length}
+        onNewChat={() => newChat()}
+        onView={setView}
+        onCreatedAgents={() => {
+          setView('created')
+          void createdAgents.refresh()
+        }}
+        onHistory={() => void listHistory()}
+      />
 
       <div className="chat-workspace">
-        <header className="chat-topbar">
-          {view === 'chat' && (
-            <div className="agent-controls">
-              <button
-                className="agent-picker"
-                title="Choose an agent"
-                disabled={!config}
-                onClick={() => setView('catalog')}
-              >
-                <span className="agent-name">{agent?.label || (selected.startsWith('created-') ? 'Agent unavailable' : 'Connecting')}</span>
-                <ChevronDown size={14} aria-hidden="true" />
-              </button>
-              {agent && (
-                <details
-                  className="agent-about"
-                  key={agent.id}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Escape') event.currentTarget.open = false
-                  }}
-                >
-                  <summary>About this agent</summary>
-                  <aside className="agent-info-panel" aria-label="Selected agent guide">
-                    <h2>{agent.label}</h2>
-                    <p>{agent.description}</p>
-                    <AgentGuide agent={agent} />
-                    <p>
-                      This agent already has a published setup. Your message gives
-                      it a task; it does not change its tools or permanent instructions.
-                    </p>
-                    <AgentRuntime agent={agent} />
-                    <button className="inline-link" onClick={() => setView('catalog')}>
-                      Choosing or changing an agent
-                    </button>
-                  </aside>
-                </details>
-              )}
-            </div>
-          )}
-          <div className="topbar-actions">
-            {config?.mode === 'private' ? (
-              <details
-                className="lab-info"
-                key={view}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') event.currentTarget.open = false
-                }}
-              >
-                <summary className="environment-badge private" title="About this shared lab">
-                  <span className="status-dot" />
-                  Shared lab
-                  <Info size={13} aria-hidden="true" />
-                </summary>
-                <aside className="lab-info-panel" aria-label="Shared lab details">
-                  <strong>Private shared lab</strong>
-                  <p>No user sign-in. Saved records are shared.</p>
-                  <p>Use synthetic data only.</p>
-                  <p>Everyone with workspace access can read, modify and delete saved chats, and read reviews and add requested evidence. There is no per-user authorization; private networking does not isolate users.</p>
-                  {config.agent_creation && <p>Created-agent setups are shared too. Publishing or deleting a created agent requires an operator key, not an individual user account.</p>}
-                </aside>
-              </details>
-            ) : (
-              <span className="environment-badge" title="No model calls or saving">
-                <span className="status-dot" />
-                {config ? 'Local preview' : 'Connecting'}
-              </span>
-            )}
-            {view === 'chat' && <>
-            <button
-              className="chat-icon"
-              title="Save to shared history"
-              aria-label="Save to shared history"
-              disabled={
-                !config?.history_enabled ||
-                !turns.length ||
-                busy ||
-                historyBusy ||
-                !dirty
-              }
-              onClick={() => void saveChat()}
-            >
-              {historyBusy ? (
-                <LoaderCircle size={17} className="spin" />
-              ) : (
-                <Save size={17} />
-              )}
-            </button>
-            <button
-              className="chat-icon"
-              title="Export conversation"
-              aria-label="Export conversation"
-              disabled={!turns.length && !draft}
-              onClick={download}
-            >
-              <ArrowDownToLine size={17} />
-            </button>
-            </>}
-          </div>
-        </header>
+        <ChatTopbar
+          view={view}
+          config={config}
+          agent={agent}
+          selected={selected}
+          saving={historyBusy}
+          saveDisabled={
+            !config?.history_enabled ||
+            !turns.length ||
+            busy ||
+            historyBusy ||
+            !dirty
+          }
+          exportDisabled={!turns.length && !draft}
+          onView={setView}
+          onSave={() => void saveChat()}
+          onExport={download}
+        />
 
         {!config && (
           <div
@@ -636,59 +460,17 @@ export default function ChatWorkspace() {
           />
         )}
         {view === 'reviews' || view === 'create' || view === 'created' ? null : view === 'history' ? (
-          <main className="secondary-view">
-            <div className="section-heading">
-              <h1>Saved conversations</h1>
-              <p>Everyone with workspace access can read, modify and delete saved conversations. Expires {config?.retention_days} days after the last update.</p>
-            </div>
-            <div className="saved-list">
-              {savedChats.map((item) => (
-                <article key={item.id}>
-                  <button
-                    className="saved-open"
-                    disabled={busy || historyBusy}
-                    onClick={() => void openChat(item)}
-                  >
-                    <MessageSquare size={18} />
-                    <span>
-                      <strong>{item.title}</strong>
-                      <small>
-                        {
-                          availableAgents.find(
-                            (entry) => entry.id === item.agent_id,
-                          )?.label
-                        }{' '}
-                        / {new Date(item.updated_at).toLocaleString()}
-                      </small>
-                    </span>
-                  </button>
-                  <button
-                    className="chat-icon"
-                    title="Delete shared conversation"
-                    aria-label={`Delete ${item.title}`}
-                    disabled={busy || historyBusy}
-                    onClick={() => void deleteChat(item)}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </article>
-              ))}
-            </div>
-            {historyBusy ? (
-              <p role="status">Loading history...</p>
-            ) : !savedChats.length ? (
-              <p className="no-data">No saved conversations</p>
-            ) : null}
-            {cursor && (
-              <button
-                className="history-more"
-                disabled={historyBusy}
-                onClick={() => void listHistory(true)}
-              >
-                Load more
-              </button>
-            )}
-          </main>
+          <HistoryView
+            chats={savedChats}
+            agents={availableAgents}
+            retentionDays={config?.retention_days}
+            cursor={cursor}
+            busy={busy}
+            historyBusy={historyBusy}
+            onOpen={(item) => void openChat(item)}
+            onDelete={(item) => void deleteChat(item)}
+            onMore={() => void listHistory(true)}
+          />
         ) : view === 'chat' ? (
           <main className="conversation-view">
             {selected.startsWith('created-') && !agent && !createdAgents.loading && (
@@ -698,44 +480,15 @@ export default function ChatWorkspace() {
             )}
             <div className="conversation-scroll" aria-label="Conversation">
               {!turns.length && !pending ? (
-                <div className="chat-welcome">
-                  <h1>Use {agent?.label || 'an existing agent'}</h1>
-                  <p>{agent?.description || 'Connecting to your workspace'}</p>
-                  {agent && <AgentGuide agent={agent} compact />}
-                  <p>
-                    You are using an existing agent, not creating one. Choose
-                    an example task below or write your own message, then Send.
-                  </p>
-                  <div className="prompt-options">
-                    {agent?.prompts.map((prompt) => (
-                      <button
-                        key={prompt.label}
-                        disabled={!config}
-                        onClick={() => {
-                          setDraft(prompt.text)
-                          editor.current?.focus()
-                        }}
-                      >
-                        <FlaskConical size={16} />
-                        <span>{prompt.label}</span>
-                        <ArrowRight size={15} />
-                      </button>
-                    ))}
-                  </div>
-                  <p className="chat-review-link">
-                    Want a saved check of each item on your checklist? Use{' '}
-                    <button className="inline-link" onClick={() => setView('reviews')}>
-                      Document reviews
-                    </button>
-                    . It starts separately; your Chat messages are not copied over.
-                  </p>
-                  {config?.mode === 'preview' && (
-                    <p className="preview-explanation">
-                      Local preview: try writing a message with made-up details.
-                      No model calls or saved records.
-                    </p>
-                  )}
-                </div>
+                <ChatWelcome
+                  agent={agent}
+                  config={config}
+                  onPrompt={(text) => {
+                    setDraft(text)
+                    editor.current?.focus()
+                  }}
+                  onReviews={() => setView('reviews')}
+                />
               ) : (
                 <div className="message-list">
                   {turns.map((turn, index) => (
@@ -773,287 +526,44 @@ export default function ChatWorkspace() {
               )}
               <div ref={bottom} />
             </div>
-            <div className="composer-area">
-              <form
-                className={`composer ${exceedsLimit ? 'over-limit' : ''}`}
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  void submit()
-                }}
-              >
-                <textarea
-                  ref={editor}
-                  aria-label="Message"
-                  placeholder={`Message ${agent?.label || 'your agent'}...`}
-                  value={draft}
-                  aria-describedby={config && hasConversation ? 'context-budget' : undefined}
-                  disabled={busy}
-                  rows={3}
-                  onChange={(event) => {
-                    setDraft(event.target.value)
-                    if (!busy) setPending('')
-                  }}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === 'Enter' &&
-                      !event.shiftKey &&
-                      !event.nativeEvent.isComposing
-                    ) {
-                      event.preventDefault()
-                      void submit()
-                    }
-                  }}
-                />
-                <div className="composer-toolbar">
-                  <span>
-                    <FlaskConical size={12} aria-hidden="true" />
-                    {config?.mode === 'private'
-                      ? 'Use made-up examples; you make decisions'
-                      : 'No model calls or saving'}
-                  </span>
-                  <div>
-                    {turns.length > 0 && (
-                      <button
-                        type="button"
-                        className="chat-icon"
-                        title="Continue in new chat"
-                        aria-label="Continue in new chat"
-                        disabled={busy || historyBusy}
-                        onClick={() => setContinuing(true)}
-                      >
-                        <GitBranch size={17} />
-                      </button>
-                    )}
-                    {busy ? (
-                      <button
-                        key="stop"
-                        type="button"
-                        className="send-button stop"
-                        aria-label="Stop waiting"
-                        title="Stop waiting"
-                        onClick={(event) => {
-                          event.preventDefault()
-                          controller.current?.abort()
-                        }}
-                      >
-                        <Square size={16} />
-                      </button>
-                    ) : (
-                      <button
-                        key="send"
-                        type="submit"
-                        className="send-button"
-                        disabled={
-                          !agent || !draft.trim() || exceedsLimit || historyBusy
-                        }
-                        aria-label="Send message"
-                        title="Send message"
-                      >
-                        <ArrowUp size={20} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </form>
-              {hasConversation && (
-                <div className="composer-details">
-                  {config && (
-                    <details
-                      className={`context-budget ${contextUsage >= 0.9 ? 'near-limit' : ''}`}
-                      id="context-budget"
-                    >
-                      <summary>
-                        Conversation limits{' '}
-                        <span>{Math.round(contextUsage * 100)}%</span>
-                      </summary>
-                      <dl>
-                        <div>
-                          <dt>Characters</dt>
-                          <dd>
-                            {characters.toLocaleString()} /{' '}
-                            {config.max_characters.toLocaleString()}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Request bytes</dt>
-                          <dd>
-                            {requestBytes.toLocaleString()} /{' '}
-                            {config.max_request_bytes.toLocaleString()}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Replies</dt>
-                          <dd>
-                            {turns.length} / {config.max_history_turns + 1}
-                          </dd>
-                        </div>
-                      </dl>
-                    </details>
-                  )}
-                  <span className="save-state">
-                    {saved
-                      ? dirty
-                        ? 'Unsaved changes'
-                        : draft
-                          ? 'Draft not saved'
-                          : 'Saved / shared'
-                      : 'Not saved'}
-                  </span>
-                </div>
-              )}
-              {exceedsLimit ? (
-                <p className="composer-warning" role="alert">
-                  {limitReasons.join(' ')} Shorten your message or start a new
-                  chat.
-                </p>
-              ) : contextUsage >= 0.9 ? (
-                <p className="composer-warning">
-                  Approaching the conversation limit.
-                </p>
-              ) : null}
-            </div>
+            <ChatComposer
+              editor={editor}
+              agent={agent}
+              config={config}
+              draft={draft}
+              busy={busy}
+              historyBusy={historyBusy}
+              turnCount={turns.length}
+              hasConversation={hasConversation}
+              characters={characters}
+              requestBytes={requestBytes}
+              contextUsage={contextUsage}
+              limitReasons={limitReasons}
+              saved={!!saved}
+              dirty={dirty}
+              onDraft={(value) => {
+                setDraft(value)
+                if (!busy) setPending('')
+              }}
+              onSubmit={() => void submit()}
+              onStop={() => controller.current?.abort()}
+              onContinue={() => setContinuing(true)}
+            />
           </main>
         ) : view === 'catalog' ? (
-          <main className="secondary-view">
-            <div className="section-heading">
-              <h1>Choose an agent</h1>
-              <p>Choose an enabled existing agent or a ready agent created in this shared Lab. Each has a saved job and fixed tools. Selecting one does not create a new agent.</p>
-            </div>
-            <ConfigurationGuide creation={config?.agent_creation} onCreate={() => setView('create')} />
-            <details className="catalog-status">
-              <summary>Sample scope and status</summary>
-              <p>Casework assistance and application completeness are available in source, not a claim of live validation. Requirements and proposal review is EXPERIMENTAL and reuses application review.</p>
-              <p>Agent-assisted business request triage is PLANNED, not runnable. Review routing is not business-request triage.</p>
-              <p>These samples target Microsoft Foundry. They are not an officially approved Microsoft offering.</p>
-            </details>
-            <label className="catalog-search">
-              <Search size={17} />
-              <input
-                aria-label="Search agents"
-                placeholder="Search agents"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </label>
-            <div className="agent-grid">
-              {availableAgents
-                .filter((item) =>
-                  `${item.label} ${item.description} ${item.category}`
-                    .toLowerCase()
-                    .includes(query.toLowerCase()),
-                )
-                .map((item) => (
-                  <article className="catalog-agent" key={item.id}>
-                    <div className="catalog-agent-top">
-                      <span className="catalog-avatar">
-                        {Object.keys(item.tools).length > 0 ? (
-                          <GitBranch size={25} />
-                        ) : (
-                          <FileCheck2 size={25} />
-                        )}
-                      </span>
-                      <span className="category-label">{item.category}</span>
-                    </div>
-                    <h2>{item.label}</h2>
-                    <p>{item.description}</p>
-                    <AgentGuide agent={item} />
-                    <AgentRuntime agent={item} />
-                    <button
-                      className="catalog-select"
-                      disabled={busy || historyBusy}
-                      onClick={() =>
-                        item.id === selected
-                          ? setView('chat')
-                          : newChat(item.id)
-                      }
-                    >
-                      {item.id === selected ? 'Return to chat' : 'Start chat'}
-                      <ArrowRight size={17} />
-                    </button>
-                  </article>
-                ))}
-            </div>
-            {config &&
-              !availableAgents.some((item) =>
-                `${item.label} ${item.description} ${item.category}`
-                  .toLowerCase()
-                  .includes(query.toLowerCase()),
-              ) && <p className="no-data">No matching agents</p>}
-          </main>
+          <AgentCatalog
+            agents={availableAgents}
+            selected={selected}
+            query={query}
+            loaded={!!config}
+            creation={config?.agent_creation}
+            disabled={busy || historyBusy}
+            onQuery={setQuery}
+            onCreate={() => setView('create')}
+            onChoose={(id) => (id === selected ? setView('chat') : newChat(id))}
+          />
         ) : (
-          <main className="secondary-view">
-            <div className="section-heading">
-              <h1>Performance</h1>
-              <p>Requests and response times from this browser session.</p>
-            </div>
-            <div className="metric-strip">
-              <div>
-                <MessageSquare size={18} />
-                <span>Completed</span>
-                <strong>{completed.length}</strong>
-              </div>
-              <div>
-                <Clock3 size={18} />
-                <span>Average response</span>
-                <strong>
-                  {average === null
-                    ? 'Not available'
-                    : `${(average / 1000).toFixed(1)}s`}
-                </strong>
-              </div>
-              <div>
-                <CircleAlert size={18} />
-                <span>Failed / timed out / stopped</span>
-                <strong>
-                  {
-                    measurements.filter((item) => item.outcome === 'failed')
-                      .length
-                  }{' '}
-                  /{' '}
-                  {
-                    measurements.filter((item) => item.outcome === 'timed-out')
-                      .length
-                  }
-                  {' / '}
-                  {
-                    measurements.filter((item) => item.outcome === 'stopped')
-                      .length
-                  }
-                </strong>
-              </div>
-            </div>
-            <h2 className="request-heading">Recent requests</h2>
-            {measurements.length ? (
-              <div className="request-table-wrap">
-                <table className="request-table">
-                  <thead>
-                    <tr>
-                      <th>Agent</th>
-                      <th>Outcome</th>
-                      <th>Elapsed</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {measurements
-                      .slice(-20)
-                      .reverse()
-                      .map((item) => (
-                        <tr key={item.id}>
-                          <td>{item.agent}</td>
-                          <td>{item.outcome}</td>
-                          <td>{(item.duration / 1000).toFixed(1)}s</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="metrics-empty">
-                <Activity size={30} strokeWidth={1.2} />
-                <h2>No live requests yet</h2>
-              </div>
-            )}
-          </main>
+          <PerformanceView measurements={measurements} />
         )}
       </div>
       {continuing && (
