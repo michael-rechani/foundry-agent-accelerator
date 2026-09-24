@@ -167,8 +167,10 @@ To deploy from a separate private machine, use the
   uses made-up, read-only data.
 - **People decide.** A matching quote shows where text came from, not that it's
   true. Missing evidence is a request for more information, not a rejection.
-- **No per-user access control.** The Lab has no sign-in or per-user
-  authorization. Before you go further, see the
+- **Access is by network, not by user.** The Lab has no sign-in. It accepts
+  traffic only from the private admin network, such as the jumpbox reached
+  through Azure Bastion, and everyone with that access shares the same saved
+  records. Before you go further, see the
   [production checklist](terraform/README.md#separately-scoped-production-considerations).
 
 ## Documentation

@@ -132,7 +132,7 @@ class TemplateTests(unittest.TestCase):
                     if identifier in SECTOR_JOBS:
                         self.assertIn(tool["name"], template["instructions"])
                     self.assertTrue(tool["description"].endswith("no external call or update."))
-        self.assertIn("experimental", TEMPLATES["criteria-checker"]["limits"])
+        self.assertIn("in preview", TEMPLATES["criteria-checker"]["limits"])
 
     def test_healthcare_and_public_sector_jobs_keep_a_person_in_charge(self):
         for identifier in SECTOR_JOBS:

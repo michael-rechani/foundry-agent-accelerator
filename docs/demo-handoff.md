@@ -22,7 +22,7 @@ customer systems and production deployment require separate scoping and agreemen
 
 | Field | Fill in |
 | --- | --- |
-| Scenario and source status | Selected creation template or existing casework / application / experimental proposal; business-request triage is still planned |
+| Scenario and source status | Selected creation template or existing casework / application / preview proposal review |
 | Validation mode | Offline illustration, offline automated tests, or approved live Microsoft Foundry run |
 | Inputs and versions | Synthetic fixture path, dataset version/hash, source revision, prompt version/hash |
 | Runtime | Agent names and routed versions, model/deployment names and model versions; unknown fields explicitly unavailable |
@@ -66,7 +66,7 @@ Check every incomplete or failed area that applies.
 - [ ] Missing-evidence handling, citation invention, wrong specialist routing,
   prompt injection, and prohibited decisions/actions on the versioned dataset.
 - [ ] Scenario-specific quality and repeated-run variability, especially
-  experimental proposal coverage. Business-request triage is not implemented.
+  preview proposal coverage.
 - [ ] Model/deployment availability, context bounds, latency under intended
   load, and the pinned software development kit (SDK)/private-network
   combination.

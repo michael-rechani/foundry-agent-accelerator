@@ -299,8 +299,7 @@ Those tests do not establish live Azure permissions, private connectivity,
 remote-build support, model availability, answer quality, or actual charges.
 Complete the approved staging checks above and record the difference between
 source availability, enabled configuration, and observed execution in the
-[demo handoff](demo-handoff.md). This is not an officially approved Microsoft
-offering or an implemented customer solution.
+[demo handoff](demo-handoff.md).
 
 On 2026-09-23, one private dev environment ran a live check with the pinned SDK.
 Three templates, each on a different model deployment (`gpt-5.4`,

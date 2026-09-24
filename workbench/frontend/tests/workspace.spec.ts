@@ -223,7 +223,7 @@ test('default helper explains its job and offers example tasks without auto-send
   await expect(page.locator('.prompt-options button')).toHaveText([
     'Review an application',
     'Summarize case notes',
-    'Compare a proposal (EXPERIMENTAL)',
+    'Compare a proposal (preview)',
     'Help me get started',
   ])
   await illustrativeScreenshot(page, testInfo, 'demo-starters.png')
@@ -314,16 +314,14 @@ test('catalog uses customer names while retaining runtime targets and scenario s
   ])
   await page.locator('.catalog-status > summary').click()
   await expect(page.locator('.catalog-status')).toContainText(
-    'available in source, not a claim of live validation',
+    'Automated tests use simulated responses, so check live answers yourself.',
   )
   await expect(page.locator('.catalog-status')).toContainText(
-    'Requirements and proposal review is EXPERIMENTAL',
+    'Requirements and proposal review is in preview',
   )
+  await expect(page.locator('.catalog-status')).not.toContainText('PLANNED')
   await expect(page.locator('.catalog-status')).toContainText(
-    'Agent-assisted business request triage is PLANNED, not runnable.',
-  )
-  await expect(page.locator('.catalog-status')).toContainText(
-    'not an officially approved Microsoft offering',
+    "They aren't an official Microsoft product.",
   )
   await expect(
     page.locator('.catalog-agent').filter({

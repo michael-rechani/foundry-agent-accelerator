@@ -42,17 +42,14 @@ export function AgentCatalog({
       <details className="catalog-status">
         <summary>Sample scope and status</summary>
         <p>
-          Casework assistance and application completeness are available in
-          source, not a claim of live validation. Requirements and proposal
-          review is EXPERIMENTAL and reuses application review.
+          Casework assistance and application completeness are available.
+          Automated tests use simulated responses, so check live answers
+          yourself. Requirements and proposal review is in preview and reuses
+          application review.
         </p>
         <p>
-          Agent-assisted business request triage is PLANNED, not runnable.
-          Review routing is not business-request triage.
-        </p>
-        <p>
-          These samples target Microsoft Foundry. They are not an officially
-          approved Microsoft offering.
+          These samples target Microsoft Foundry. They aren&apos;t an official
+          Microsoft product.
         </p>
       </details>
       <label className="catalog-search">

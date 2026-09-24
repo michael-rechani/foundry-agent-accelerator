@@ -42,8 +42,8 @@ checklist before you publish a new example.
 
 Start with [one scenario](demos.md), fictional inputs, expected findings, and a
 clear human-decision boundary. Casework and application completeness reuse the
-prebuilt agents. **Experimental** proposal coverage reuses application review and
-Document reviews. Business-request triage remains **Planned**;
+prebuilt agents. **Preview** proposal coverage reuses application review and
+Document reviews. Business-request triage isn't included;
 review-specialist routing is not a substitute for simulated request routing and
 human approval.
 

@@ -16,8 +16,11 @@ Status values use the definitions in [terms used in these guides](README.md#term
 | [Create and try a baseline agent](#create-and-try-a-baseline-agent) | **Available** | **Create agent**, then **Created agents** and **Chat** | A prepared template becomes a small Foundry agent, then a person checks its fictional sample output. |
 | [Casework assistance](#casework-assistance) | **Available** | **Application and case helper** with **Summarize case notes**; optional direct **Case notes summarizer** if enabled | The answer keeps known facts, missing evidence, and conflicting case notes separate. |
 | [Application completeness](#application-completeness) | **Available** | **Application and case helper** with **Review an application**; optional direct **Application checker** if enabled | The answer compares supplied evidence with a checklist without approving or denying the application. |
-| [Requirements and proposal review](#requirements-and-proposal-review) | **Experimental** | **Application and case helper** with **Compare a proposal (EXPERIMENTAL)** | The answer separates product claims, supported requirements, gaps, and conflicts without selecting a vendor. |
-| [Agent-assisted request triage](#agent-assisted-request-triage) | **Planned** | No runnable Lab task | The section records an acceptance outline for a future bounded workflow. |
+| [Requirements and proposal review](#requirements-and-proposal-review) | **Preview** | **Application and case helper** with **Compare a proposal (preview)** | The answer separates product claims, supported requirements, gaps, and conflicts without selecting a vendor. |
+
+For a service-request workflow, publish the **Service request planner** template
+from [Create and try a baseline agent](#create-and-try-a-baseline-agent). It uses
+simulated, read-only lookups and proposes next steps for a person to review.
 
 ## In this guide
 
@@ -27,7 +30,6 @@ Status values use the definitions in [terms used in these guides](README.md#term
 - [Casework assistance](#casework-assistance)
 - [Application completeness](#application-completeness)
 - [Requirements and proposal review](#requirements-and-proposal-review)
-- [Agent-assisted request triage](#agent-assisted-request-triage)
 - [Reset without hiding failures](#reset-without-hiding-failures)
 
 ## Prepare once, demonstrate separately
@@ -230,7 +232,7 @@ request; it must not include a fabricated execution receipt.
 
 ## Requirements and proposal review
 
-**Experimental**: a packaged adaptation of application review, with explicit
+**Preview**: a packaged adaptation of application review, with explicit
 proposal instructions and the existing criteria-and-evidence workflow. No new
 agent, tool framework, or infrastructure stack is introduced. Live
 scenario-specific evaluation remains required before calling this validated.
@@ -239,7 +241,7 @@ scenario-specific evaluation remains required before calling this validated.
 and help a person identify request for proposal (RFP) coverage gaps without
 selecting a vendor?
 
-**Run in chat:** choose **Compare a proposal (EXPERIMENTAL)** in
+**Run in chat:** choose **Compare a proposal (preview)** in
 **Application and case helper**, or paste [requirements.txt](demo-inputs/requirements.txt).
 The coordinator should use its application-review tool, not its case-review tool.
 The sample asks about comma-separated values (CSV) export and single sign-on
@@ -284,27 +286,6 @@ quotes or source IDs must be rejected, not displayed as verified findings.
 
 **Reset:** use the [shared reset procedure](#reset-without-hiding-failures).
 **Document reviews** does not currently offer saved-checklist editing or review deletion.
-
-## Agent-assisted request triage
-
-**Planned**: not runnable. The existing coordinator routes requests to review
-specialists. It does not implement business-request classification, routing
-destinations, simulated approval, or ticket creation.
-
-A future bounded demonstration would need:
-
-- A supplied destination list and synthetic service requests, with expected
-  classifications, missing-information and ambiguous/incorrect-routing cases.
-- A routing recommendation visible to a human; approve/reject using explicitly
-  simulated tools with recorded simulated outcomes, never real external actions.
-- Tests that ambiguous requests request clarification, incorrect destinations
-  fail, and instructions to bypass approval cannot execute actions.
-- No real tickets, notifications, customer connections, or autonomous
-  consequential decisions; no claims that a simulated action reached a system.
-
-This is an acceptance outline, not an implemented workflow. Evaluate the
-simplest Foundry implementation only when this scenario is selected and scoped;
-do not generalize coordinator profiles into a new framework.
 
 ## Reset without hiding failures
 

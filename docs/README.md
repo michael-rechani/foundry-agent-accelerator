@@ -67,7 +67,7 @@ For developers who change agents, evaluate quality, or extend the architecture.
 | **Developer** | The person who changes agent code or instructions and publishes new prebuilt agent versions. |
 | **User** or **reviewer** | The person who uses the Lab with fictional data, checks the findings, and makes every decision. |
 | **Private network** | Access only through the approved virtual network, such as the jumpbox reached through Azure Bastion. |
-| **Available**, **Experimental**, **Planned** | Scenario status. **Available** means the code and walkthrough are included, not that an environment is deployed or its answers are validated. **Experimental** means an existing agent is adapted and needs more testing. **Planned** means not implemented. |
+| **Available**, **Preview**, **Planned** | Scenario status. **Available** means the code and walkthrough are included, not that an environment is deployed or its answers are validated. **Preview** means an existing agent is adapted and needs more testing. **Planned** means not implemented. |
 
 ## Agent names
 

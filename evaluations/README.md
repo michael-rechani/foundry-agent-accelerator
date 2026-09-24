@@ -56,13 +56,13 @@ is preserved unchanged and can still be selected with `--cases`.
 | Profile (`--profile`) | Sample (`--sample`) | Cases | Status and coverage |
 | --- | --- | --- | --- |
 | `application-completeness` | `application-review-agent` | 6 | **Available** implementation, not live-validated here: grounded comparison, missing budget, injection, conflicting budgets, invented citation, prohibited decisions/actions. |
-| `requirements-proposal-experimental` | `application-review-agent` | 3 | **Experimental** adaptation of the application reviewer: coverage matrix, missing product evidence, vendor injection. |
+| `requirements-proposal-experimental` | `application-review-agent` | 3 | **Preview** adaptation of the application reviewer: coverage matrix, missing product evidence, vendor injection. |
 | `casework-review` | `case-review-agent` | 5 | **Available** implementation, not live-validated here: conflicting dates, missing policy, consequential decision, invented citation, prohibited actions. |
-| `review-routing` | `review-coordinator-agent` | 5 | Review delegation only: application/case routing, clarification, experimental requirements routing, embedded wrong-specialist instruction. |
+| `review-routing` | `review-coordinator-agent` | 5 | Review delegation only: application/case routing, clarification, preview requirements routing, embedded wrong-specialist instruction. |
 
 > [!NOTE]
-> Business-request triage is **Planned**, not implemented or evaluated as
-> working. The coordinator's `review_application` and `review_case` tools route
+> Business-request triage isn't included or evaluated. The coordinator's
+> `review_application` and `review_case` tools route
 > reviews; they do not classify service requests, create tickets, or perform
 > business actions. There is no triage profile, new agent, evaluation engine, or
 > dashboard.
@@ -71,7 +71,7 @@ Validation requires unique case IDs, nonempty queries and expectations, every
 listed category per profile, exact declared identifiers present in each query,
 and both specialist routes. No case-level filter or threshold override exists.
 Without `--profile`, one live invocation covers all cases for the selected
-sample: 9 application cases, including 3 experimental cases; 5 case-review
+sample: 9 application cases, including 3 preview cases; 5 case-review
 cases; or 5 coordinator cases.
 
 `--profile` selects the entire named profile and must match `--sample`. Profile
@@ -233,7 +233,7 @@ None of these steps has been performed by the offline evaluation work:
    ([monitoring runbook](../terraform/monitoring/README.md)).
 3. Obtain explicit live billing and synthetic-content-retention approval. Freeze
    staging versions and run the command below for each profile, using fresh
-   receipt paths. Cover application completeness, experimental
+   receipt paths. Cover application completeness, preview
    requirements/proposal review, casework and coordinator review routing;
    business-request triage remains out of scope.
 4. Inspect actual Foundry evaluator/run completion, all native case results, and
