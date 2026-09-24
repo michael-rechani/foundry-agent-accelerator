@@ -42,18 +42,80 @@
   font-size: 14px;
   line-height: 1.6;
 }
-.review-intro { margin-bottom: 18px; }
-.review-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 16px 0; list-style: none; counter-reset: review-step; }
-.review-steps li { counter-increment: review-step; display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 1.6; }
-.review-steps li::before { content: counter(review-step); display: grid; place-items: center; width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
-.review-hint { color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.7; }
-.review-guide { margin: 16px 0 22px; max-width: 960px; font-size: 12px; line-height: 1.8; color: var(--muted); }
-.review-guide > summary { cursor: pointer; color: var(--accent); width: fit-content; }
-.review-guide p { margin-top: 12px; }
-.finding-key { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 16px 0; }
-.finding-key dt { color: #424242; font-weight: 700; }
-.finding-key dd { margin: 4px 0 0; }
-.review-next-step { margin-bottom: 20px; padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--accent-soft); font-size: 12px; line-height: 1.7; }
+.review-intro {
+  margin-bottom: 18px;
+}
+.review-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0;
+  margin: 16px 0;
+  list-style: none;
+  counter-reset: review-step;
+}
+.review-steps li {
+  counter-increment: review-step;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.review-steps li::before {
+  content: counter(review-step);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+.review-hint {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.7;
+}
+.review-guide {
+  margin: 16px 0 22px;
+  max-width: 960px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.review-guide > summary {
+  cursor: pointer;
+  color: var(--accent);
+  width: fit-content;
+}
+.review-guide p {
+  margin-top: 12px;
+}
+.finding-key {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+.finding-key dt {
+  color: #424242;
+  font-weight: 700;
+}
+.finding-key dd {
+  margin: 4px 0 0;
+}
+.review-next-step {
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  font-size: 12px;
+  line-height: 1.7;
+}
 .review-overview {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -81,9 +143,15 @@
   font-variant-numeric: tabular-nums;
   margin: 8px 0 0;
 }
-.overview-waiting_input dd { color: #8a5700; }
-.overview-running dd { color: var(--accent); }
-.overview-completed dd { color: #107c41; }
+.overview-waiting_input dd {
+  color: #8a5700;
+}
+.overview-running dd {
+  color: var(--accent);
+}
+.overview-completed dd {
+  color: #107c41;
+}
 .review-actions,
 .review-meta,
 .review-form-bar,
@@ -283,7 +351,13 @@
   border-radius: 8px;
   background: linear-gradient(135deg, #f5f9fe, #ebf3fc);
 }
-.review-empty-state p { max-width: 560px; text-align: center; font-size: 12px; line-height: 1.8; padding: 0 12px 20px; }
+.review-empty-state p {
+  max-width: 560px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.8;
+  padding: 0 12px 20px;
+}
 .review-notice {
   display: flex;
   align-items: flex-start;
@@ -530,8 +604,12 @@
   }
 }
 @media (max-width: 600px) {
-  .review-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .finding-key { grid-template-columns: minmax(0, 1fr); }
+  .review-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .finding-key {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .review-overview {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 20px 0;

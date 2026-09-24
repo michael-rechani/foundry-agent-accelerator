@@ -12,7 +12,11 @@ import { useWorkspaceConfig, type Agent } from './workspace-config'
 import { ContinueDialog } from './ContinueDialog'
 import { ReviewWorkspace } from './ReviewWorkspace'
 import { AgentCreationWorkspace } from './AgentCreationWorkspace'
-import { creationRequest, parseCreatedAgent, useCreatedAgents } from './agent-creation-client'
+import {
+  creationRequest,
+  parseCreatedAgent,
+  useCreatedAgents,
+} from './agent-creation-client'
 import { ChatSidebar, type View } from './ChatSidebar'
 import { ChatTopbar } from './ChatTopbar'
 import { ChatWelcome } from './ChatWelcome'
@@ -23,8 +27,7 @@ import { PerformanceView, type Measurement } from './PerformanceView'
 type SavedVersion = { id: string; _etag: string }
 
 const errors: Record<string, string> = {
-  preview_only:
-    'Foundry is not connected. No agent was invoked.',
+  preview_only: 'Foundry is not connected. No agent was invoked.',
   busy: 'The workbench is at capacity. Try again shortly.',
   timeout:
     'The request timed out. Remote work may still finish; check before retrying.',
@@ -47,7 +50,9 @@ export default function ChatWorkspace() {
   const [selectedId, setSelected] = useState('')
   const selected = selectedId || config?.default_agent || ''
   const [selectedView, setView] = useState<View | null>(() =>
-    /^#review-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(window.location.hash)
+    /^#review-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(
+      window.location.hash,
+    )
       ? 'reviews'
       : null,
   )
@@ -55,7 +60,9 @@ export default function ChatWorkspace() {
   const createdAgents = useCreatedAgents(config?.agent_creation)
   const availableAgents: Agent[] = [
     ...(config?.agents || []),
-    ...createdAgents.records.map((record) => record.agent).filter((item): item is Agent => item !== null),
+    ...createdAgents.records
+      .map((record) => record.agent)
+      .filter((item): item is Agent => item !== null),
   ]
   const [draft, setDraft] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
@@ -312,9 +319,17 @@ export default function ChatWorkspace() {
     setHistoryBusy(true)
     try {
       const data = await historyRequest(`/${item.id}`)
-      if (!availableAgents.some((entry) => entry.id === data.agent_id) && data.agent_id.startsWith('created-')) {
-        const record = parseCreatedAgent(await creationRequest(`agents/${data.agent_id}`))
-        if (!record.agent) throw new Error('The saved conversation uses an agent that is no longer ready.')
+      if (
+        !availableAgents.some((entry) => entry.id === data.agent_id) &&
+        data.agent_id.startsWith('created-')
+      ) {
+        const record = parseCreatedAgent(
+          await creationRequest(`agents/${data.agent_id}`),
+        )
+        if (!record.agent)
+          throw new Error(
+            'The saved conversation uses an agent that is no longer ready.',
+          )
         createdAgents.update(record)
       }
       setSaved({ id: data.id, _etag: data._etag })
@@ -459,7 +474,9 @@ export default function ChatWorkspace() {
             onUse={(item) => newChat(item.id)}
           />
         )}
-        {view === 'reviews' || view === 'create' || view === 'created' ? null : view === 'history' ? (
+        {view === 'reviews' ||
+        view === 'create' ||
+        view === 'created' ? null : view === 'history' ? (
           <HistoryView
             chats={savedChats}
             agents={availableAgents}
@@ -473,11 +490,14 @@ export default function ChatWorkspace() {
           />
         ) : view === 'chat' ? (
           <main className="conversation-view">
-            {selected.startsWith('created-') && !agent && !createdAgents.loading && (
-              <p className="creation-error" role="alert">
-                {createdAgents.error || 'The selected created agent is unavailable or no longer ready. Choose another agent; your local messages are preserved.'}
-              </p>
-            )}
+            {selected.startsWith('created-') &&
+              !agent &&
+              !createdAgents.loading && (
+                <p className="creation-error" role="alert">
+                  {createdAgents.error ||
+                    'The selected created agent is unavailable or no longer ready. Choose another agent; your local messages are preserved.'}
+                </p>
+              )}
             <div className="conversation-scroll" aria-label="Conversation">
               {!turns.length && !pending ? (
                 <ChatWelcome

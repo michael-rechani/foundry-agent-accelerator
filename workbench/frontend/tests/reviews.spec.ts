@@ -3,7 +3,11 @@ import type { Review } from '../src/review-client'
 import type { Agent } from '../src/workspace-config'
 import { guidedReview, illustrativeScreenshot, registry } from './fixtures'
 
-async function setup(page: Page, preview = false, agents: Agent[] = [guidedReview]) {
+async function setup(
+  page: Page,
+  preview = false,
+  agents: Agent[] = [guidedReview],
+) {
   const state = {
     document: null as Review | null,
     executions: 0,
@@ -11,7 +15,10 @@ async function setup(page: Page, preview = false, agents: Agent[] = [guidedRevie
     pollFailure: null as 'network' | 'rate-limit' | null,
     runningReads: 0,
     chatRequests: 0,
-    creations: [] as Pick<Review, 'title' | 'agent_id' | 'criteria' | 'evidence'>[],
+    creations: [] as Pick<
+      Review,
+      'title' | 'agent_id' | 'criteria' | 'evidence'
+    >[],
   }
   await page.route('**/api/**', async (route) => {
     const request = route.request()
@@ -51,7 +58,10 @@ async function setup(page: Page, preview = false, agents: Agent[] = [guidedRevie
       })
     if (path === '/api/reviews') {
       state.chatRequests++
-      return route.fulfill({ status: 400, json: { error: 'unexpected_chat_request' } })
+      return route.fulfill({
+        status: 400,
+        json: { error: 'unexpected_chat_request' },
+      })
     }
     const document = state.document
     if (!document)
@@ -135,45 +145,92 @@ async function setup(page: Page, preview = false, agents: Agent[] = [guidedRevie
     return route.fulfill({ json: document })
   })
   await page.goto('/')
-  await expect(page.locator('.agent-picker')).toContainText('Application and case helper')
+  await expect(page.locator('.agent-picker')).toContainText(
+    'Application and case helper',
+  )
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
   await expect(navigation.getByRole('button').first()).toHaveText('Chat')
-  await expect(navigation.getByRole('button', { name: 'Chat', exact: true })).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible()
-  await navigation.getByRole('button', { name: 'Document reviews', exact: true }).click()
+  await expect(
+    navigation.getByRole('button', { name: 'Chat', exact: true }),
+  ).toHaveAttribute('aria-current', 'page')
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toBeVisible()
+  await navigation
+    .getByRole('button', { name: 'Document reviews', exact: true })
+    .click()
   await expect(
     page.getByRole('heading', { name: 'Document reviews', exact: true }),
   ).toBeVisible()
   return state
 }
 
-test('navigation is labelled and conversation actions stay in Chat', async ({ page }, testInfo) => {
+test('navigation is labelled and conversation actions stay in Chat', async ({
+  page,
+}, testInfo) => {
   await setup(page, true)
   await expect(page.getByText('Local preview', { exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Review storage unavailable' })).toBeVisible()
-  await expect(page.locator('.review-scope')).toContainText('Check the text you paste against your own checklist')
-  await expect(page.locator('.review-intro')).toContainText('Your Chat messages are not copied here, and review results are not sent back to Chat')
+  await expect(
+    page.getByRole('heading', { name: 'Review storage unavailable' }),
+  ).toBeVisible()
+  await expect(page.locator('.review-scope')).toContainText(
+    'Check the text you paste against your own checklist',
+  )
+  await expect(page.locator('.review-intro')).toContainText(
+    'Your Chat messages are not copied here, and review results are not sent back to Chat',
+  )
   await expect(page.locator('.review-steps li')).toHaveText([
-    'Add a checklist and document text', 'Run a review', 'Read results beside the original text', 'Add missing information and review again',
+    'Add a checklist and document text',
+    'Run a review',
+    'Read results beside the original text',
+    'Add missing information and review again',
   ])
-  await expect(page.getByRole('complementary', { name: 'Lab data boundary' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Save to shared history' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Export conversation' })).toHaveCount(0)
+  await expect(
+    page.getByRole('complementary', { name: 'Lab data boundary' }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Save to shared history' }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Export conversation' }),
+  ).toHaveCount(0)
   await illustrativeScreenshot(page, testInfo, 'reviews-navigation.png')
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
-  for (const label of ['Chat', 'Document reviews', 'Shared history', 'Agents', 'Performance']) {
-    await expect(navigation.locator('span').filter({ hasText: new RegExp(`^${label}$`) })).toBeVisible()
+  for (const label of [
+    'Chat',
+    'Document reviews',
+    'Shared history',
+    'Agents',
+    'Performance',
+  ]) {
+    await expect(
+      navigation.locator('span').filter({ hasText: new RegExp(`^${label}$`) }),
+    ).toBeVisible()
   }
   for (const label of ['Chat', 'Agents', 'Performance']) {
-    await navigation.getByRole('button', { name: label, exact: label !== 'Agents' }).click()
+    await navigation
+      .getByRole('button', { name: label, exact: label !== 'Agents' })
+      .click()
     await expect(page.getByText('Local preview', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Export conversation' })).toHaveCount(label === 'Chat' ? 1 : 0)
-    await page.screenshot({ path: testInfo.outputPath(`${label.toLowerCase().replaceAll(' ', '-')}.png`) })
+    await expect(
+      page.getByRole('button', { name: 'Export conversation' }),
+    ).toHaveCount(label === 'Chat' ? 1 : 0)
+    await page.screenshot({
+      path: testInfo.outputPath(
+        `${label.toLowerCase().replaceAll(' ', '-')}.png`,
+      ),
+    })
   }
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
 })
 
-test('review guide explains findings, storage and human decision boundaries', async ({ page }) => {
+test('review guide explains findings, storage and human decision boundaries', async ({
+  page,
+}) => {
   const state = await setup(page)
   const guide = page.locator('.review-guide')
   await guide.locator('summary').click()
@@ -182,46 +239,78 @@ test('review guide explains findings, storage and human decision boundaries', as
   await expect(guide).toContainText('does not mean the application has failed')
   await expect(guide).toContainText('Statements disagree')
   await expect(guide).toContainText('not whether it is true')
-  await expect(guide).toContainText('a copy of its input, results, follow-up questions and records of tool calls')
-  await expect(guide).toContainText('Anyone who can open this Lab can read saved reviews and add requested information')
+  await expect(guide).toContainText(
+    'a copy of its input, results, follow-up questions and records of tool calls',
+  )
+  await expect(guide).toContainText(
+    'Anyone who can open this Lab can read saved reviews and add requested information',
+  )
   await expect(guide).toContainText('Records are not private to you')
   await expect(guide).toContainText('30 days after their last update')
-  await expect(guide).toContainText('cannot delete a review or edit its saved checklist')
+  await expect(guide).toContainText(
+    'cannot delete a review or edit its saved checklist',
+  )
   await expect(guide).toContainText('not a continuation of Chat')
-  await expect(guide).toContainText('Requirements and proposal review is EXPERIMENTAL')
+  await expect(guide).toContainText(
+    'Requirements and proposal review is EXPERIMENTAL',
+  )
   expect(state.executions).toBe(0)
   expect(state.creations).toHaveLength(0)
 })
 
-test('document reviews use the Lab default and do not transfer Chat drafts', async ({ page }) => {
+test('document reviews use the Lab default and do not transfer Chat drafts', async ({
+  page,
+}) => {
   const caseAgent = registry.find((item) => item.id === 'case-review')!
   const state = await setup(page, false, [guidedReview, caseAgent])
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
   await navigation.getByRole('button', { name: 'Agents' }).click()
-  await page.locator('.catalog-agent').filter({ has: page.getByRole('heading', { name: caseAgent.label, exact: true }) })
-    .getByRole('button', { name: 'Start chat' }).click()
+  await page
+    .locator('.catalog-agent')
+    .filter({
+      has: page.getByRole('heading', { name: caseAgent.label, exact: true }),
+    })
+    .getByRole('button', { name: 'Start chat' })
+    .click()
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   await editor.fill('Fictional case notes only for Chat, not review evidence')
-  await navigation.getByRole('button', { name: 'Document reviews', exact: true }).click()
+  await navigation
+    .getByRole('button', { name: 'Document reviews', exact: true })
+    .click()
   await page.getByRole('button', { name: 'New review', exact: true }).click()
   await expect(page.getByLabel('Review title')).toHaveValue('')
   await expect(page.getByLabel('Checklist, one item per line')).toHaveValue('')
-  await expect(page.getByLabel('Document 1 (SRC-1)', { exact: true })).toHaveValue('')
-  await expect(page.locator('.review-form-bar')).toContainText('Agent doing this check: Application and case helper')
-  await expect(page.locator('.review-form-bar')).toContainText("Uses the Lab's default agent, not your Chat selection")
+  await expect(
+    page.getByLabel('Document 1 (SRC-1)', { exact: true }),
+  ).toHaveValue('')
+  await expect(page.locator('.review-form-bar')).toContainText(
+    'Agent doing this check: Application and case helper',
+  )
+  await expect(page.locator('.review-form-bar')).toContainText(
+    "Uses the Lab's default agent, not your Chat selection",
+  )
   await page.getByRole('button', { name: 'Use fictional example' }).click()
   expect(state.creations).toHaveLength(0)
   await page.getByRole('button', { name: 'Create shared review' }).click()
-  await expect(page.getByRole('button', { name: 'Run review', exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Run review', exact: true }),
+  ).toBeVisible()
   expect(state.creations).toHaveLength(1)
   expect(state.creations[0].agent_id).toBe('customer-review')
-  expect(Object.keys(state.creations[0]).sort()).toEqual(['agent_id', 'criteria', 'evidence', 'title'])
+  expect(Object.keys(state.creations[0]).sort()).toEqual([
+    'agent_id',
+    'criteria',
+    'evidence',
+    'title',
+  ])
   expect(JSON.stringify(state.creations[0])).not.toContain('only for Chat')
   expect(state.executions).toBe(0)
   expect(state.chatRequests).toBe(0)
   await navigation.getByRole('button', { name: 'Chat', exact: true }).click()
   await expect(page.locator('.agent-picker')).toHaveText(caseAgent.label)
-  await expect(editor).toHaveValue('Fictional case notes only for Chat, not review evidence')
+  await expect(editor).toHaveValue(
+    'Fictional case notes only for Chat, not review evidence',
+  )
 })
 
 test('invalid review links keep the chat-first default', async ({ page }) => {
@@ -229,9 +318,13 @@ test('invalid review links keep the chat-first default', async ({ page }) => {
   await page.goto('/#review-not-a-valid-id')
   await page.reload()
   await expect(
-    page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Chat', exact: true }),
+    page
+      .getByRole('navigation', { name: 'Workspace' })
+      .getByRole('button', { name: 'Chat', exact: true }),
   ).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toBeVisible()
 })
 
 async function create(page: Page) {
@@ -248,7 +341,9 @@ test('review, inspect evidence, clarify, resume, reopen and preserve snapshots',
 }, testInfo) => {
   const state = await setup(page)
   await create(page)
-  await expect(page.locator('.review-next-step')).toContainText('Checklist and documents saved; no results yet')
+  await expect(page.locator('.review-next-step')).toContainText(
+    'Checklist and documents saved; no results yet',
+  )
   expect(state.executions).toBe(0)
   await page.getByRole('button', { name: 'Run review', exact: true }).click()
   await expect(
@@ -259,13 +354,21 @@ test('review, inspect evidence, clarify, resume, reopen and preserve snapshots',
     page.getByRole('complementary', { name: 'Original text' }),
   ).toContainText('Twelve weekly workshops')
   await page.getByRole('tab', { name: 'Results' }).click()
-  await expect(page.locator('.review-disclaimer')).toContainText('they do not prove those documents are true')
-  await expect(page.locator('.review-disclaimer')).toContainText('They do not approve applications or make business decisions')
+  await expect(page.locator('.review-disclaimer')).toContainText(
+    'they do not prove those documents are true',
+  )
+  await expect(page.locator('.review-disclaimer')).toContainText(
+    'They do not approve applications or make business decisions',
+  )
   await illustrativeScreenshot(page, testInfo, 'review-findings.png')
-  await page.getByLabel('More information', { exact: true }).fill('Budget: $100.')
+  await page
+    .getByLabel('More information', { exact: true })
+    .fill('Budget: $100.')
   await page.getByRole('button', { name: 'Save added information' }).click()
   expect(state.executions).toBe(1)
-  await expect(page.locator('.review-next-step')).toContainText('saved but not checked yet')
+  await expect(page.locator('.review-next-step')).toContainText(
+    'saved but not checked yet',
+  )
   await page.getByRole('tab', { name: 'Original text', exact: true }).click()
   await page.getByLabel('Document', { exact: true }).selectOption('SRC-2')
   await expect(
@@ -275,7 +378,9 @@ test('review, inspect evidence, clarify, resume, reopen and preserve snapshots',
   await expect(page.getByText('Results saved', { exact: true })).toBeVisible()
   await page.reload()
   await expect(
-    page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Document reviews', exact: true }),
+    page
+      .getByRole('navigation', { name: 'Workspace' })
+      .getByRole('button', { name: 'Document reviews', exact: true }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(
     page.getByRole('heading', { name: 'Community workshop application' }),
@@ -290,9 +395,7 @@ test('review, inspect evidence, clarify, resume, reopen and preserve snapshots',
     page.getByLabel('Document', { exact: true }).locator('option'),
   ).toHaveCount(2)
   await page.getByRole('tab', { name: 'Run details' }).click()
-  await expect(
-    page.getByText('Quotes matched to your documents'),
-  ).toBeVisible()
+  await expect(page.getByText('Quotes matched to your documents')).toBeVisible()
   expect(state.executions).toBe(2)
   expect(
     await page.evaluate(
@@ -302,7 +405,9 @@ test('review, inspect evidence, clarify, resume, reopen and preserve snapshots',
 })
 
 for (const failure of ['network', 'rate-limit'] as const) {
-  test(`refresh restarts polling after ${failure} without another execution`, async ({ page }) => {
+  test(`refresh restarts polling after ${failure} without another execution`, async ({
+    page,
+  }) => {
     const state = await setup(page)
     await create(page)
     state.pollFailure = failure
@@ -311,33 +416,66 @@ for (const failure of ['network', 'rate-limit'] as const) {
     await expect(page.getByRole('alert')).toBeVisible()
     await page.getByRole('button', { name: 'Refresh reviews' }).click()
     await expect(page.getByRole('alert')).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: 'More information needed' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'More information needed' }),
+    ).toBeVisible()
     expect(state.executions).toBe(1)
     expect(state.runningReads).toBe(0)
   })
 }
 
-test('inbox counts reflect loaded records and status filters', async ({ page }, testInfo) => {
+test('inbox counts reflect loaded records and status filters', async ({
+  page,
+}, testInfo) => {
   const state = await setup(page)
-  await expect(page.getByRole('heading', { name: 'No reviews yet' })).toBeVisible()
-  await expect(page.locator('.review-overview dd')).toHaveText(['0', '0', '0', '0'])
+  await expect(
+    page.getByRole('heading', { name: 'No reviews yet' }),
+  ).toBeVisible()
+  await expect(page.locator('.review-overview dd')).toHaveText([
+    '0',
+    '0',
+    '0',
+    '0',
+  ])
   await create(page)
   await page.getByRole('button', { name: 'Run review', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'More information needed' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'More information needed' }),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Back to reviews' }).click()
   await expect(page.locator('.overview-all dd')).toHaveText('1')
   await expect(page.locator('.overview-waiting_input dd')).toHaveText('1')
   await expect(page.locator('.overview-running dd')).toHaveText('0')
   await expect(page.locator('.overview-completed dd')).toHaveText('0')
-  await page.getByLabel('Review status', { exact: true }).selectOption('completed')
-  await expect(page.getByRole('heading', { name: 'No matching reviews' })).toBeVisible()
-  await page.getByLabel('Review status', { exact: true }).selectOption('waiting_input')
+  await page
+    .getByLabel('Review status', { exact: true })
+    .selectOption('completed')
+  await expect(
+    page.getByRole('heading', { name: 'No matching reviews' }),
+  ).toBeVisible()
+  await page
+    .getByLabel('Review status', { exact: true })
+    .selectOption('waiting_input')
   await expect(page.locator('.review-row')).toHaveCount(1)
   await expect(page.locator('.review-row')).toContainText(state.document!.title)
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  expect(await page.evaluate(() => document.getAnimations().filter((animation) => animation.playState === 'running').length)).toBe(0)
-  await page.screenshot({ path: testInfo.outputPath('review-inbox.png'), fullPage: true })
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
+  expect(
+    await page.evaluate(
+      () =>
+        document
+          .getAnimations()
+          .filter((animation) => animation.playState === 'running').length,
+    ),
+  ).toBe(0)
+  await page.screenshot({
+    path: testInfo.outputPath('review-inbox.png'),
+    fullPage: true,
+  })
 })
 
 test('conflict preserves review and never silently resubmits', async ({
