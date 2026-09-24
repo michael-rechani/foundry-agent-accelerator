@@ -34,6 +34,7 @@ preview.
 - [Deployment](#deployment)
 - [Verification and portal use](#verification-and-portal-use)
 - [Offline validation](#offline-validation)
+- [Related content](#related-content)
 
 ## Metadata-only prerequisite
 

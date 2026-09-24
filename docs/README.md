@@ -86,3 +86,10 @@ for the agent or its traces in the Foundry portal.
 The Lab shows only **Application and case helper** by default. Operators can
 show the others with the `visible_agents` setting described in the
 [Lab guide](../workbench/README.md).
+
+## Related content
+
+- [Home](../README.md)
+- [Demo guide](demos.md)
+- [Architecture](architecture.md)
+- [Hosted agents](../hosted-agents/README.md)

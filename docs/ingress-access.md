@@ -29,7 +29,7 @@ browser doesn't receive Azure keys or need Foundry project permissions.
 - [Shared application and HTTP requirements](#shared-application-and-http-requirements)
 - [Acceptance checks before publishing the URL](#acceptance-checks-before-publishing-the-url)
 - [Cost, rollout, and ownership](#cost-rollout-and-ownership)
-- [Microsoft references](#microsoft-references)
+- [Related content](#related-content)
 
 ## Choose an ingress pattern
 
@@ -360,8 +360,11 @@ settings, and approved application configuration changes. This document doesn't
 add those examples or claim that either path has been deployed and live-tested.
 APIM remains a separate [optional API-governance integration](optional-integrations.md).
 
-## Microsoft references
+## Related content
 
+- [Architecture](architecture.md)
+- [The Lab](../workbench/README.md)
+- [Governed review API](apim-review-api.md)
 - [Application Gateway WAF with internal Container Apps][appgw-guide]
 - [Private Application Gateway v2 deployments][appgw-private]
 - [Front Door Premium with Container Apps Private Link][afd-guide]

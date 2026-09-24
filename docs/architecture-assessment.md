@@ -36,7 +36,7 @@ checklist before you publish a new example.
 - [Public service and SDK guidance](#public-service-and-sdk-guidance)
 - [Onboarding checklist for each customer example](#onboarding-checklist-for-each-customer-example)
 - [Features to evaluate only when needed](#features-to-evaluate-only-when-needed)
-- [References](#references)
+- [Related content](#related-content)
 
 ## Demonstration first
 
@@ -338,16 +338,17 @@ The remaining architecture decisions can be worked out from those examples.
   ownership where required, and restore tests remain gates. They do not all need
   to become prerequisites for a fictional-data demonstration.
 
-## References
+## Related content
 
-Implementation references include the [gateway and catalog validation](../workbench/app.py),
-[shared deployer](../hosted-agents/deployment.py),
-[coordinator configuration](../hosted-agents/review-coordinator-agent/configuration.py),
-[review execution](../workbench/review_runs.py), and
-[optional integration boundaries](optional-integrations.md).
-
-Microsoft documentation:
-
+- [Architecture](architecture.md)
+- [Staff workflow assistant](staff-workflow-assistant.md), a proposed example
+  that isn't implemented
+- [Coordinator profiles](agent-profiles.md)
+- [Optional integrations](optional-integrations.md)
+- Implementation code: [gateway and catalog validation](../workbench/app.py),
+  [shared deployer](../hosted-agents/deployment.py),
+  [coordinator configuration](../hosted-agents/review-coordinator-agent/configuration.py),
+  and [review execution](../workbench/review_runs.py)
 - [Foundry Agent Service overview](https://learn.microsoft.com/azure/foundry/agents/overview):
   agent choices, tools and toolboxes, evaluation and tracing lifecycle, and
   security.
@@ -361,9 +362,3 @@ Microsoft documentation:
 - [Long-running agent resilience](https://learn.microsoft.com/azure/foundry/agents/concepts/long-running-agent-resilience):
   preview status, stored-background prerequisites, handler reentry, and
   application responsibility for durable progress and side effects.
-
-Feature availability, private-network support, project creation requirements,
-API versions, and SDK contracts must be checked per selected feature. The
-current repository's tested package versions are not a guarantee of compatibility
-with every capability in newer documentation. In particular, Lab ACR connectivity
-is not proof of Foundry hosted-image pull compatibility.

@@ -301,10 +301,10 @@ Complete the approved staging checks above and record the difference between
 source availability, enabled configuration, and observed execution in the
 [demo handoff](demo-handoff.md).
 
-On 2026-09-23, one private dev environment ran a live check with the pinned SDK.
+One private dev environment ran a live check with the pinned SDK.
 Three templates, each on a different model deployment (`gpt-5.4`,
 `gpt-5.4-mini`, and `gpt-4.1`), were published, answered a sample review, and
-were deleted. Later that day, the four healthcare and public-sector templates
+were deleted. In a second pass, the four healthcare and public-sector templates
 were published the same way. Each called its simulated lookups, the Lab
 verified every tool call, each answer found the main problems planted in its
 fictional sample, and all four agents were deleted. That shows the flow can
