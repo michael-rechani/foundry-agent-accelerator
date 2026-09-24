@@ -227,6 +227,9 @@ test('default helper explains its job and offers example tasks without auto-send
     'Help me get started',
   ])
   await illustrativeScreenshot(page, testInfo, 'demo-starters.png')
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await illustrativeScreenshot(page, testInfo, 'demo-starters-dark.png')
+  await page.emulateMedia({ colorScheme: 'light' })
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   for (const prompt of guidedReview.prompts) {
     await page.getByRole('button', { name: prompt.label, exact: true }).click()

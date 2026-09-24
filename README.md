@@ -15,12 +15,13 @@ compare it with prebuilt agents that work as a team. Everything runs privately
 in your Azure subscription with fictional data.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshots/lab-create-agent-dark.png">
-  <img alt="Illustrative UI test of the Lab's Create agent page with mocked APIs: the sidebar lists all seven pages, and nine template cards in two groups, General and Healthcare and public sector, each show an icon, the model the job uses and whether it has tools, above a job description box" src="docs/images/screenshots/lab-create-agent.png">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/lab-tour-dark.svg">
+  <img alt="Illustrative UI test of the Lab with mocked APIs, shown as a looping three-step tour: 1, the Create agent page with nine template cards showing each job's model and tools; 2, a new Chat with the default agent's guide and example tasks; 3, a Document review with a gap, a supported item, and its quoted source" src="docs/images/lab-tour.svg">
 </picture>
 
-*The Lab's **Create agent** page, shown in light or dark to match your GitHub
-theme. Illustrative UI test with mocked APIs; nothing was published.* ·
+*A short tour of the Lab's **Create agent**, **Chat**, and **Document reviews**
+pages, shown in light or dark to match your GitHub theme. Illustrative UI test
+with mocked APIs; nothing was published, sent, or saved.* ·
 [View full size](docs/images/screenshots/lab-create-agent.png) ·
 [More screenshots](docs/images/README.md#lab-screenshots)
 
