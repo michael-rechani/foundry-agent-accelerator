@@ -126,8 +126,9 @@ findings, and guidance. Polling and resume stay in `ReviewWorkspace.tsx`.
 The visible **Local preview** state means no model calls or persistence.
 `tests/fixtures.ts` reads the real catalog rather than duplicating it. The
 screenshots used for the clarity walkthrough are watermarked as illustrative
-API-mocked UI tests, not live model output or saved Cosmos records. The copies
-used in the docs live in
+API-mocked UI tests, not live model output or saved Cosmos records. The example
+task, review findings, and dark template card tests also write `-dark`
+screenshots for the animated README tour. The copies used in the docs live in
 [`docs/images/screenshots/`](../../docs/images/README.md#lab-screenshots).
 
 Fonts and Markdown rendering are local. Do not add browser Azure credentials,

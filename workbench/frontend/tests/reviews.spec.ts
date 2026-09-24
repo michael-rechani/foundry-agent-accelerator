@@ -361,6 +361,9 @@ test('review, inspect evidence, clarify, resume, reopen and preserve snapshots',
     'They do not approve applications or make business decisions',
   )
   await illustrativeScreenshot(page, testInfo, 'review-findings.png')
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await illustrativeScreenshot(page, testInfo, 'review-findings-dark.png')
+  await page.emulateMedia({ colorScheme: 'light' })
   await page
     .getByLabel('More information', { exact: true })
     .fill('Budget: $100.')
