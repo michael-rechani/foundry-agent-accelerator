@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="1240" viewBox="0 0 760 1240" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">Deploy with Terraform</title>
+  <desc id="desc">Deployment ownership, not a runtime or network diagram. Protected Blob state and approved private deployment access are supplied separately. The platform Terraform root owns Foundry, model deployments, networking, identities, backing services, private diagnostics, and the optional admin VM. Three separate Terraform roots read platform resources by reviewed IDs and names, each with its own state. The Lab root owns internal Container Apps hosting, its registry and runtime identity, application Cosmos schema, monitoring, and optional alert email delivery. The optional Bastion root owns only the Standard Azure Bastion host, its subnet, and its public IP. The optional agent monitoring root owns an Application Insights resource for metadata-only agent traces. Image builds, agent publication, route verification, recovery, and approved quality checks remain separate release steps. No additional gateway, enterprise landing zone, or production readiness is implied.</desc>
+  <defs>
+    <marker id="deployment-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#4aa8ff"/>
+    </marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #e6edf3; }
+      .title { font-size: 30px; font-weight: 600; }
+      .heading { font-size: 25px; font-weight: 600; }
+      .body { font-size: 22px; }
+      .detail { font-size: 20px; }
+      .label { font-size: 20px; fill: #a9b4c0; }
+      .dependency { fill: none; stroke: #4aa8ff; stroke-width: 2.5; marker-end: url(#deployment-arrow); }
+    </style>
+  </defs>
+
+  <rect width="760" height="1240" fill="#0d1117"/>
+  <text x="24" y="42" class="title">Deploy with Terraform</text>
+  <text x="24" y="74" class="detail">Separate infrastructure ownership from code releases</text>
+
+  <g id="existing-environment">
+    <rect x="24" y="106" width="712" height="158" rx="16" fill="#161b22" stroke="#637484" stroke-width="1.5"/>
+    <text x="48" y="143" class="heading">Provide before deployment</text>
+    <text x="48" y="180" class="body">Protected Blob state + approved private deployment access</text>
+    <text x="48" y="212" class="detail">One state key per root; Entra authentication.</text>
+    <text x="48" y="242" class="detail">Supplied separately, not created by the roots below.</text>
+  </g>
+
+  <g id="platform-stack">
+    <rect x="24" y="286" width="712" height="196" rx="16" fill="#0f2438" stroke="#4278a6" stroke-width="1.5"/>
+    <text x="48" y="326" class="heading">Platform Terraform</text>
+    <text x="48" y="358" class="label">terraform/</text>
+    <text x="48" y="396" class="body">Foundry account, project, and model deployment</text>
+    <text x="48" y="428" class="body">Private network, identities, and backing services</text>
+    <text x="48" y="460" class="detail">Private monitoring; APIM and the admin VM are optional.</text>
+  </g>
+
+  <path d="M380 482V548" class="dependency"/>
+  <text x="402" y="522" class="label">Reviewed IDs + names</text>
+
+  <g id="dependent-roots">
+    <rect x="24" y="548" width="712" height="406" rx="16" fill="#0d1117" stroke="#637484" stroke-width="1.5" stroke-dasharray="7 5"/>
+    <text x="48" y="586" class="heading">Roots that read platform resources</text>
+
+    <g id="lab-stack">
+      <rect x="48" y="606" width="664" height="178" rx="12" fill="#0e2723" stroke="#3cc3ae" stroke-width="1.5"/>
+      <text x="70" y="644" class="heading">Lab Terraform</text>
+      <text x="70" y="675" class="label">workbench/infra/</text>
+      <text x="70" y="711" class="body">Private Container Apps, registry, and runtime identity</text>
+      <text x="70" y="742" class="body">Application database and operational monitoring</text>
+      <text x="70" y="771" class="detail">Optional email action group; no recipients by default.</text>
+    </g>
+
+    <g id="bastion-stack">
+      <rect x="48" y="802" width="322" height="134" rx="12" fill="#161b22" stroke="#6b7c8e" stroke-width="1.5"/>
+      <text x="70" y="840" class="heading">Azure Bastion</text>
+      <text x="70" y="870" class="label">terraform/bastion/</text>
+      <text x="70" y="900" class="detail">Optional admin access</text>
+      <text x="70" y="926" class="detail">Billed while it exists</text>
+    </g>
+
+    <g id="monitoring-stack">
+      <rect x="390" y="802" width="322" height="134" rx="12" fill="#161b22" stroke="#6b7c8e" stroke-width="1.5"/>
+      <text x="412" y="840" class="heading">Agent monitoring</text>
+      <text x="412" y="870" class="label">terraform/monitoring/</text>
+      <text x="412" y="900" class="detail">Optional agent tracing</text>
+      <text x="412" y="926" class="detail">Metadata only</text>
+    </g>
+  </g>
+
+  <g id="release-workflows">
+    <rect x="24" y="978" width="712" height="200" rx="16" fill="#2a2313" stroke="#a08845" stroke-width="1.5"/>
+    <text x="48" y="1016" class="heading">Release workflows, not Terraform hooks</text>
+    <text x="48" y="1054" class="body">Build images and pin the Lab digest.</text>
+    <text x="48" y="1086" class="body">Publish agent versions; verify and recover routes.</text>
+    <text x="48" y="1118" class="body">Run smoke checks and approved quality evaluations.</text>
+    <text x="48" y="1158" class="detail">A successful deployment does not prove answer quality.</text>
+  </g>
+
+  <text x="24" y="1214" class="detail">Each root keeps its own state. Review plans before applying.</text>
+</svg>

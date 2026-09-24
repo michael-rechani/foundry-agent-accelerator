@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="970" viewBox="0 0 760 970" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">How the review agents collaborate</title>
+  <desc id="desc">Default setup in the Lab. A person sends a question and supplied evidence through the Lab. The Application and case helper coordinator (customer-review-coordinator) in Microsoft Foundry Agent Service calls the Application checker through the inspect_application tool or the Case notes summarizer through the inspect_case tool, using both only when explicitly requested. Each specialist receives the complete request and source identifiers, then returns a completed, nonempty response to the same coordinator. Coordinator tools wrap successful responses with status, agent, and output. The Lab checks correlated tool records and shows the answer for a person to verify. Specialists do not call each other. Ambiguous requests need clarification; failed calls must not be replaced with invented findings. This is a logical interaction diagram, not a deployment or network map.</desc>
+  <defs>
+    <marker id="request-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#4aa8ff"/>
+    </marker>
+    <marker id="result-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#3cc3ae"/>
+    </marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #e6edf3; }
+      .title { font-size: 30px; font-weight: 600; }
+      .heading { font-size: 25px; font-weight: 600; }
+      .body { font-size: 22px; }
+      .detail { font-size: 20px; }
+      .label { font-size: 20px; fill: #a9b4c0; }
+      .tool { font-family: Consolas, monospace; font-size: 20px; fill: #b8c9da; }
+      .request { fill: none; stroke: #4aa8ff; stroke-width: 2.5; marker-end: url(#request-arrow); }
+      .result { fill: none; stroke: #3cc3ae; stroke-width: 2.5; marker-end: url(#result-arrow); }
+    </style>
+  </defs>
+
+  <rect width="760" height="970" fill="#0d1117"/>
+  <text x="24" y="42" class="title">How the review agents collaborate</text>
+  <text x="24" y="74" class="detail">Default setup: one coordinator, two specialists, human review.</text>
+
+  <g id="requester">
+    <rect x="120" y="100" width="520" height="90" rx="12" fill="#161b22" stroke="#637484" stroke-width="1.5"/>
+    <text x="146" y="137" class="heading">1  Ask in the Lab</text>
+    <text x="146" y="168" class="body">Question + supplied evidence</text>
+  </g>
+  <path d="M380 190V222" class="request"/>
+  <text x="402" y="212" class="label">Request</text>
+
+  <rect x="24" y="222" width="712" height="538" rx="16" fill="#0f2438" stroke="#4278a6" stroke-width="1.5"/>
+  <image href="data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC1mOWRiYjc0Yy1iYjY1LTQ0ZjUtYTBmMi0xODU1NDFjOGYyZTMiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC1jNDFhMWI1ZC1jM2VlLTQ0MTMtYmVmMi1mNWEwNzJiYTkzNmUiIHgxPSI3LjI4IiB5MT0iMjcyLjg0IiB4Mj0iLjM5IiB5Mj0iMjY3Ljg3IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDAgMjgwKSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzRmNDJmZCIgLz48c3RvcCBvZmZzZXQ9Ii44IiBzdG9wLWNvbG9yPSIjNzI3NGZmIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTdhODM5N2JiLWY4MmUtNGI0ZS04ZmIxLWM0OWRjMjBlYWU1MiIgeDE9IjEwLjE5IiB5MT0iMjY4LjQxIiB4Mj0iNC4zOCIgeTI9IjI2NS4xNiIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDI4MCkgc2NhbGUoMSAtMSkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9Ii4yNSIgc3RvcC1jb2xvcj0iIzRmNDJmZCIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyYzA4YWMiIC8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9InV1aWQtMzY0Y2IzOGItMjVlNi00ZDQ1LWE1ZjMtN2Y3NTY3Y2YxOTQ3IiB4MT0iMTcuNDMiIHkxPSIyNjcuMDIiIHgyPSI1LjA4IiB5Mj0iMjY0Ljk4IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDAgMjgwKSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iLjIiIHN0b3AtY29sb3I9IiM3Mjc0ZmYiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNGY0MmZkIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLWZiMzJlMzM0LTg2N2QtNGVkZS1iZWQxLTU2YWVjYWU3NjJjYiIgeDE9IjEwLjE1IiB5MT0iMjczLjQxIiB4Mj0iMTYuODciIHkyPSIyNjkuNzEiIGdyYWRpZW50VHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCAyODApIHNjYWxlKDEgLTEpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIuMjUiIHN0b3AtY29sb3I9IiM0ZjQyZmQiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMmMwOGFjIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTI1N2JlZGViLWNiNGUtNDhlYy05NzhkLTY2N2Q5NDNkNDg4NyIgeDE9IjE3LjY4IiB5MT0iMjcwLjU3IiB4Mj0iOC42OCIgeTI9IjI3OS40MyIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDI4MCkgc2NhbGUoMSAtMSkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM0ZjQyZmQiIC8+PHN0b3Agb2Zmc2V0PSIuOCIgc3RvcC1jb2xvcj0iIzcyNzRmZiIgLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC1kMjRiM2YyYi01NWJkLTQ3MzEtOGQ4Mi0yY2NiM2E5NDlkYTciIHgxPSI2LjY0IiB5MT0iMjcxLjAyIiB4Mj0iNi42NCIgeTI9IjI3OC4xMiIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDI4MCkgc2NhbGUoMSAtMSkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9Ii4yNSIgc3RvcC1jb2xvcj0iIzRmNDJmZCIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyYzA4YWMiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTUuMDIsMTUuMzFsLTIuODItMS42M2MtLjY2LS4zOC0xLjA2LTEuMDgtMS4wNi0xLjgzdi01LjY5YzAtLjc2LjQtMS40NiwxLjA2LTEuODNsMS41My0uODhjLjEtLjA2LjI0LjAxLjI0LjE0djkuOTFjMCwuMzcuMS43My4yOCwxLjA0LjE4LjMyLjQ1LjU5Ljc4Ljc4aDBaIiBmaWxsPSJ1cmwoI3V1aWQtYzQxYTFiNWQtYzNlZS00NDEzLWJlZjItZjVhMDcyYmE5MzZlKSIgLz48cGF0aCBkPSJNMTAuMTQsMTAuNTl2MS43NmMwLC43Ni0uNCwxLjQ2LTEuMDYsMS44M2wtMS45NCwxLjEyYy0uNjUuMzgtMS40Ni4zOC0yLjEyLDAtLjMzLS4xOS0uNTktLjQ2LS43OC0uNzgtLjE4LS4zMS0uMjgtLjY3LS4yOC0xLjA0di0uNDJjMCwuMzYuMzkuNTkuNzEuNGw1LjIzLTMuMDJjLjEtLjA2LjI0LjAxLjI0LjE0WiIgZmlsbD0idXJsKCN1dWlkLTdhODM5N2JiLWY4MmUtNGI0ZS04ZmIxLWM0OWRjMjBlYWU1MikiIC8+PHBhdGggZD0iTTE2Ljg2LDkuNTN2My4yNmMwLC43Ni0uNCwxLjQ2LTEuMDYsMS44M2wtNC45MywyLjg0Yy0uNjUuMzgtMS40Ni4zOC0yLjEyLDBsLTEuNTMtLjg4Yy0uMS0uMDYtLjEtLjIxLDAtLjI3bDguNTktNC45NmMuMzItLjE5LjU4LS40NS43Ni0uNzcuMTgtLjMyLjI4LS42OC4yOC0xLjA2WiIgZmlsbD0idXJsKCN1dWlkLTM2NGNiMzhiLTI1ZTYtNGQ0NS1hNWYzLTdmNzU2N2NmMTk0NykiIC8+PHBhdGggZD0iTTEwLjIyLDcuNDZsMS41My0uODhjLjY1LS4zOCwxLjQ2LS4zOCwyLjEyLDBsMS45NCwxLjEyYy42NS4zOCwxLjA2LDEuMDgsMS4wNiwxLjgzLDAsLjM4LS4xLjc0LS4yOCwxLjA2LS4xOC4zMS0uNDQuNTgtLjc2Ljc3bC0uMzYuMjFjLjMxLS4xOC4zMS0uNjMsMC0uODFsLTUuMjMtMy4wMmMtLjEtLjA2LS4xLS4yMSwwLS4yN1oiIGZpbGw9InVybCgjdXVpZC1mYjMyZTMzNC04NjdkLTRlZGUtYmVkMS01NmFlY2FlNzYyY2IpIiAvPjxwYXRoIGQ9Ik01Ljk0LDIuMTZsMi44Mi0xLjYzYy42Ni0uMzgsMS40Ni0uMzgsMi4xMiwwbDQuOTMsMi44NGMuNjUuMzgsMS4wNiwxLjA4LDEuMDYsMS44M3YxLjc2YzAsLjEyLS4xMy4yLS4yNC4xNEw4LjA0LDIuMTZjLS4zMi0uMTgtLjY4LS4yOC0xLjA1LS4yOC0uMzcsMC0uNzMuMDktMS4wNi4yOGgwWiIgZmlsbD0idXJsKCN1dWlkLTI1N2JlZGViLWNiNGUtNDhlYy05NzhkLTY2N2Q5NDNkNDg4NykiIC8+PHBhdGggZD0iTTcuNDcsOC45NWwtMS41My0uODhjLS42Ni0uMzgtMS4wNi0xLjA4LTEuMDYtMS44M3YtMi4yNGMwLS43Ni40LTEuNDYsMS4wNi0xLjgzLjMzLS4xOS42OS0uMjgsMS4wNi0uMjhzLjcyLjA5LDEuMDQuMjhsLjM2LjIxYy0uMzEtLjE4LS43LjA1LS43LjQxdjYuMDRjMCwuMTItLjEzLjItLjI0LjE0aDBaIiBmaWxsPSJ1cmwoI3V1aWQtZDI0YjNmMmItNTViZC00NzMxLThkODItMmNjYjNhOTQ5ZGE3KSIgLz48L3N2Zz4=" x="48" y="238" width="36" height="36"/>
+  <text x="98" y="264" class="heading">Microsoft Foundry Agent Service</text>
+  <path d="M380 276V292" class="request"/>
+
+  <g id="coordinator">
+    <rect x="120" y="292" width="520" height="98" rx="12" fill="#1f252e" stroke="#4aa8ff" stroke-width="2"/>
+    <text x="146" y="330" class="heading">2  Application and case helper</text>
+    <text x="146" y="362" class="body">Calls one specialist; both only if asked</text>
+  </g>
+  <path d="M380 390V418H205V472" class="request"/>
+  <path d="M380 418H555V472" class="request"/>
+  <text x="380" y="445" text-anchor="middle" class="label">Full request + evidence + source IDs</text>
+
+  <g id="application-specialist">
+    <rect x="40" y="472" width="330" height="116" rx="12" fill="#1f252e" stroke="#6b7c8e" stroke-width="1.5"/>
+    <text x="62" y="508" class="heading">Application checker</text>
+    <text x="62" y="537" class="tool">inspect_application</text>
+    <text x="62" y="568" class="detail">Checks criteria + evidence</text>
+  </g>
+  <g id="case-specialist">
+    <rect x="390" y="472" width="330" height="116" rx="12" fill="#1f252e" stroke="#6b7c8e" stroke-width="1.5"/>
+    <text x="412" y="508" class="heading">Case notes summarizer</text>
+    <text x="412" y="537" class="tool">inspect_case</text>
+    <text x="412" y="568" class="detail">Finds gaps + conflicts</text>
+  </g>
+  <path d="M205 588V622H380V652" class="result"/>
+  <path d="M555 588V622H380" fill="none" stroke="#3cc3ae" stroke-width="2.5"/>
+  <text x="380" y="611" text-anchor="middle" class="label">Completed, nonempty result</text>
+
+  <g id="coordinator-result">
+    <rect x="120" y="652" width="520" height="82" rx="12" fill="#0e2723" stroke="#3cc3ae" stroke-width="1.5"/>
+    <text x="146" y="687" class="heading">3  Coordinator returns findings</text>
+    <text x="146" y="717" class="detail">Same agent as step 2, plus a tool record</text>
+  </g>
+  <path d="M380 734V800" class="result"/>
+  <text x="402" y="783" class="label">Answer + tool record</text>
+
+  <g id="human-review">
+    <rect x="48" y="800" width="664" height="112" rx="12" fill="#161b22" stroke="#637484" stroke-width="1.5"/>
+    <text x="70" y="838" class="heading">4  Check the answer in the Lab</text>
+    <text x="70" y="869" class="detail">The Lab checks tool records; a person checks the evidence.</text>
+    <text x="70" y="898" class="detail">No automatic approval, denial, or external action.</text>
+  </g>
+
+  <rect x="24" y="920" width="712" height="40" rx="6" fill="#3b300d"/>
+  <text x="380" y="947" text-anchor="middle" class="label">Unclear request? Ask for details. Failed call? Report the failure.</text>
+</svg>
