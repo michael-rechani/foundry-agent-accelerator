@@ -87,14 +87,14 @@ export function ConversationTurn({
                 <code>{receipt.agent || 'Target not verified'}</code>
                 {receipt.output && (
                   <details>
-                    <summary>Specialist response</summary>
+                    <summary>What it returned</summary>
                     <Markdown text={receipt.output} />
                   </details>
                 )}
               </div>
             ))
           ) : (
-            <p>No specialist receipts returned. Delegation is not verified.</p>
+            <p>No tool calls were recorded for this answer.</p>
           )}
         </details>
       </article>

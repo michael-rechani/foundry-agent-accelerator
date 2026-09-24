@@ -88,10 +88,24 @@ class TemplateTests(unittest.TestCase):
             "Is this prior authorization packet ready to send?": "insurance-preapproval-helper",
             "Help a caseworker with a family's renewal paperwork.": "benefits-renewal-helper",
             "Compare our purchase order with what was delivered.": "supplier-invoice-reviewer",
+            "Find overcharges on my hospital statement.": "medical-bill-reviewer",
+            "Help families renew their food assistance.": "benefits-renewal-helper",
         }
         for goal, identifier in expected.items():
             with self.subTest(goal=goal):
                 self.assertEqual(prepare_draft(goal)["template_id"], identifier)
+
+    def test_trigger_words_outside_their_field_ask_instead_of_guessing(self):
+        for goal in (
+            "Help staff review business-license renewal paperwork.",
+            "Find overcharges on my electricity statement.",
+            "Check whether this mortgage pre-approval has the right paperwork.",
+            "Check our car insurance pre-approval.",
+            "Summarize supplier correspondence and draft follow-up questions.",
+        ):
+            with self.subTest(goal=goal), self.assertRaises(TemplateRequiredError) as error:
+                prepare_draft(goal)
+            self.assertEqual(error.exception.candidates, [])
 
     def test_explicit_choice_allows_task_wording_without_matching_keywords(self):
         result = prepare_draft("Help me with this general review.", "casework-assistant")

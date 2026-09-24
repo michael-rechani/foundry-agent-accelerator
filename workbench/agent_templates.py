@@ -17,7 +17,7 @@ _LOOKUP_RULES = (
 
 
 def _lookups(what):
-    return f"No specialist delegation. This agent calls two local simulation tools in its own runtime to look up {what}."
+    return f"Works on its own, without other agents. It uses two built-in lookups with made-up data to check {what}."
 
 
 def _tool(name, description):
@@ -167,10 +167,7 @@ TEMPLATES = {
             "Only two fixed read-only demo lookups. No connected SaaS systems, ticket creation, "
             "messages, approval enforcement or other business changes. A plan is not an executed action."
         ),
-        "delegation": (
-            "No specialist delegation. This agent calls two local simulation tools in its own runtime "
-            "to look up a fictional request and its service description."
-        ),
+        "delegation": _lookups("a fictional request and its service description"),
         "instructions": (
             "Help plan a fictional operational workflow using only the two provided simulated "
             "read-only lookup tools. Given a request ID, first look up the request, then use its "
@@ -260,17 +257,19 @@ TEMPLATES = {
         "instructions": (
             "You help fictional clinic office staff check an insurance pre-approval request before it is sent. "
             "First call lookup_preapproval_rules with the plan ID and service code in the request. Then call "
-            "lookup_facility with the facility ID. Compare each required item with the documents the request "
-            "lists. Return one row per requirement with the requirement, the matching document label and a "
-            "status of Ready, Missing, Out of date or Needs attention, plus a short reason. Work out date windows "
-            "from the dates given and show the calculation. Then list what staff should add or fix, and write a "
-            "short note to staff labeled UNSENT DRAFT. " + _LOOKUP_RULES + " Check paperwork only: never judge "
+            "lookup_facility with the facility ID. Work out each date window from the dates given and show the "
+            "calculation before you choose a status. Then compare each required item with the documents the "
+            "request lists. Return exactly one table row per requirement with the requirement, the matching "
+            "document label and one status of Ready, Missing, Out of date or Needs attention, plus a short "
+            "reason. A document dated outside its window is Out of date, not Ready. Then list what staff should "
+            "add or fix, and write a short note to staff labeled UNSENT DRAFT. " + _LOOKUP_RULES + " Check "
+            "paperwork only: never judge "
             "whether the service is medically needed, recommend treatment, or predict approval or denial. Do not "
             "claim the request was submitted or approved."
         ),
         "example_request": (
-            "Create an agent that checks whether a fictional insurance pre-approval request has every document "
-            "the insurer asks for."
+            "Create an agent that checks whether a fictional health insurance pre-approval request has every "
+            "document the insurer asks for."
         ),
         "sample_input": (
             "Check this fictional pre-approval request before it is sent. Use the lookups and show any date math. "
@@ -378,20 +377,42 @@ TEMPLATES = {
     },
 }
 
+def _words(pattern):
+    return re.compile(r"\b(" + pattern + r")\b")
+
+
+# The last four jobs use fixed healthcare, benefits or purchasing data, so a trigger word alone
+# (like "renewal" or "supplier") is not enough; every pattern in the tuple must match.
 _MATCHERS = {
-    "document-analyst": re.compile(r"\b(analy[sz]e|analysis|policy|legislation|legislative|notice|notices)\b"),
-    "criteria-checker": re.compile(r"\b(criteria|checklist|screen|screening|requirements|coverage)\b"),
-    "document-intake": re.compile(r"\b(extract|extracts|extraction|invoice|invoices|intake|fields|forms)\b"),
-    "casework-assistant": re.compile(r"\b(casework|case|cases)\b"),
-    "workflow-coordinator": re.compile(r"\b(workflow|coordinate|coordinates|orchestration|integration|lookups)\b"),
-    "medical-bill-reviewer": re.compile(
-        r"\b((medical|hospital|patient|doctor) bills?|itemi[sz]ed|overcharg\w*|explanation of benefits|eob)\b"),
-    "insurance-preapproval-helper": re.compile(
-        r"\b(pre-?approvals?|prior authori[sz]ations?|pre-?authori[sz]ations?)\b"),
-    "benefits-renewal-helper": re.compile(r"\b(renewals?|renew|recertif\w*|redetermination\w*)\b"),
-    "supplier-invoice-reviewer": re.compile(
-        r"\b(suppliers?|vendor (invoices?|bills?)|purchase orders?|delivered|delivery records?|packing slips?)\b"),
+    "document-analyst": (_words(r"analy[sz]e|analysis|policy|legislation|legislative|notice|notices"),),
+    "criteria-checker": (_words(r"criteria|checklist|screen|screening|requirements|coverage"),),
+    "document-intake": (_words(r"extract|extracts|extraction|invoice|invoices|intake|fields|forms"),),
+    "casework-assistant": (_words(r"casework|case|cases"),),
+    "workflow-coordinator": (_words(r"workflow|coordinate|coordinates|orchestration|integration|lookups"),),
+    "medical-bill-reviewer": (
+        _words(r"bills?|billed|billing|charges?|overcharg\w*|itemi[sz]ed|explanation of benefits|eob"),
+        _words(r"medical|hospitals?|patients?|doctors?|clinics?|health\w*|explanation of benefits|eob"),
+    ),
+    "insurance-preapproval-helper": (
+        _words(r"pre-?approv\w*|prior authori[sz]\w*|pre-?authori[sz]\w*"),
+        _words(r"medical|hospitals?|patients?|doctors?|clinics?|health\w*|treatments?|"
+               r"procedures?|surgery|imaging|mri|scans?|therapy|prior authori[sz]\w*"),
+    ),
+    "benefits-renewal-helper": (
+        _words(r"renewals?|renew\w*|recertif\w*|redetermination\w*"),
+        _words(r"benefits?|food|snap|medicaid|assistance|households?|eligib\w*|caseworkers?|"
+               r"pay stubs?|income|recertif\w*|redetermination\w*"),
+    ),
+    "supplier-invoice-reviewer": (
+        _words(r"suppliers?|vendors?|purchase orders?|packing slips?"),
+        _words(r"invoices?|bills?|billed|billing|charged|delivered|delivery|deliveries|packing slips?|"
+               r"payments?|paid"),
+    ),
 }
+
+
+def _matches(matcher, text):
+    return all(pattern.search(text) for pattern in matcher)
 
 
 class TemplateRequiredError(ValueError):
@@ -414,7 +435,8 @@ def prepare_draft(goal, template_id=None):
         raise ValueError("Describe a task in 10 to 1200 characters")
     goal = goal.strip()
     if template_id is None:
-        candidates = [key for key, matcher in _MATCHERS.items() if matcher.search(goal.casefold())]
+        text = goal.casefold()
+        candidates = [key for key, matcher in _MATCHERS.items() if _matches(matcher, text)]
         if len(candidates) != 1:
             raise TemplateRequiredError(candidates)
         template_id = candidates[0]
