@@ -252,7 +252,7 @@ test('review guide explains findings, storage and human decision boundaries', as
   )
   await expect(guide).toContainText('not a continuation of Chat')
   await expect(guide).toContainText(
-    'Requirements and proposal review is EXPERIMENTAL',
+    'Requirements and proposal review is in preview',
   )
   expect(state.executions).toBe(0)
   expect(state.creations).toHaveLength(0)

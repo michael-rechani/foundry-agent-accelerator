@@ -31,8 +31,7 @@ runtime reaches through `review_application` and `review_case`.
 Both Lab entries can ask what input is needed or run an application or case
 review. Select one scenario, not every review type. Routing to review
 specialists is not business-request triage. There are no ticket, notification,
-external-action, or simulated human-approval tools here; agent-assisted request
-triage remains **Planned**.
+external-action, or simulated human-approval tools here.
 
 Give the coordinator an application and checklist, or case notes with any
 relevant rules. It picks the matching specialist so the application checker can
@@ -50,7 +49,7 @@ business action.
 | Request | Tool | Default hosted agent |
 | --- | --- | --- |
 | Application against supplied criteria | `review_application` | `application-review-agent` |
-| Request for proposal (RFP) requirements against supplied product evidence (**Experimental**) | `review_application` | `application-review-agent` |
+| Request for proposal (RFP) requirements against supplied product evidence (**Preview**) | `review_application` | `application-review-agent` |
 | Case timeline or conflicting records | `review_case` | `case-review-agent` |
 | Ambiguous review type | Clarifying question | No call yet |
 

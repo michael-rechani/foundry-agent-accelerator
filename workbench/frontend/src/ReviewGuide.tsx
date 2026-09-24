@@ -73,7 +73,7 @@ export function ReviewGuide({ retentionDays }: { retentionDays: number }) {
         not a continuation of Chat.
       </p>
       <p>
-        Requirements and proposal review is EXPERIMENTAL and uses the same
+        Requirements and proposal review is in preview and uses the same
         application-checking agent. It cannot fetch documents or change a
         business system.
       </p>

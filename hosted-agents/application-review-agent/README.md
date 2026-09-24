@@ -44,7 +44,7 @@ corresponding to the Chat matrix's Met, Not demonstrated, and Unclear labels.
 The updated instructions accept that requested format without adding new
 criteria or turning a human-review notice into a request for more documents.
 
-## Experimental: requirements and proposal review
+## Preview: requirements and proposal review
 
 The same agent compares sample request for proposal (RFP) criteria with supplied
 product information. It uses a coverage matrix and flags gaps, conflicts, and

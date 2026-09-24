@@ -43,15 +43,15 @@ identity, scaling, session storage, observability, and version lifecycle.
 | --- | --- | --- |
 | [`basic-responses-agent/`](basic-responses-agent/) | Minimal Microsoft Agent Framework and Responses protocol baseline. | General-purpose demonstration only. |
 | [`case-review-agent/`](case-review-agent/) | Casework assistance, **Available**: cited summaries, missing or conflicting evidence, and staff questions. | Does not determine eligibility, liability, enforcement, or clinical status. |
-| [`application-review-agent/`](application-review-agent/) | Application completeness, **Available**; requirements and proposal review, **Experimental**: compare supplied material with explicit criteria. | Missing evidence is not automatic noncompliance. Does not score, rank, approve, deny, or recommend an outcome. |
+| [`application-review-agent/`](application-review-agent/) | Application completeness, **Available**; requirements and proposal review, **Preview**: compare supplied material with explicit criteria. | Missing evidence is not automatic noncompliance. Does not score, rank, approve, deny, or recommend an outcome. |
 | [`review-coordinator-agent/`](review-coordinator-agent/) | Route review requests to the application or case specialist. | Does not replace specialist review or make consequential decisions. |
 
 > [!NOTE]
 > **Available** means the code and walkthrough are included. It doesn't mean an
-> environment is deployed or that answers were validated. Business-request
-> triage is **Planned**, not implemented by the review coordinator.
+> environment is deployed or that answers were validated. The review coordinator
+> routes reviews only; it doesn't triage business requests.
 
-No additional agent or infrastructure stack is needed for the experimental
+No additional agent or infrastructure stack is needed for the preview
 proposal workflow. The coordinator is an optional review-delegation pattern, not
 a generic agent framework or a simulated business-approval system.
 
@@ -269,9 +269,10 @@ separate virtual environment, set the same two environment variables, run
 
 Start with the [scenario/status matrix](../docs/demos.md#at-a-glance), not a
 catalog of promised integrations. Reuse the supplied casework and application
-examples. Validate the experimental proposal adaptation before presenting it as
-proven. Business-request triage still needs a bounded simulation and explicit
-human-approval behavior; review delegation does not provide it.
+examples. Validate the preview proposal adaptation before presenting it as
+proven. Review delegation isn't business-request triage; for simulated request
+lookups, use the **Service request planner** template in
+[Create agent](../docs/agent-creation.md).
 
 The [extension guide](../docs/architecture-assessment.md) and
 [optional integrations](../docs/optional-integrations.md) preserve the technical

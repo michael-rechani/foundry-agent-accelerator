@@ -76,7 +76,7 @@ TEMPLATES = {
         "description": "Compare a submission with your checklist and point out missing or conflicting information.",
         "input": "Paste explicit checklist items and labeled documents to compare with them.",
         "output": "One row per checklist item showing support, missing information or disagreement, plus follow-up questions.",
-        "limits": _TEXT_LIMITS + " Requirement and proposal comparisons are experimental.",
+        "limits": _TEXT_LIMITS + " Requirement and proposal comparisons are in preview.",
         "delegation": _DIRECT,
         "instructions": (
             "You check fictional submissions against only the checklist supplied by the user. "
