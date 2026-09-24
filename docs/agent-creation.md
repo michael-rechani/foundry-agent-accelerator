@@ -57,7 +57,7 @@ Each healthcare and public-sector template uses two fixed, simulated,
 read-only lookups (for example, plan benefits and usual prices for the medical
 bill reviewer). The lookup data is made up for the demo.
 
-![Illustrative UI test of the Create agent page with mocked APIs: three numbered steps, template cards in two groups, a job description box, and a Prepare setup button](images/screenshots/lab-create-agent.png)
+![Illustrative UI test of the Create agent page with mocked APIs: three numbered steps, nine template cards in two groups, and a job description box](images/screenshots/lab-create-agent.png)
 
 *Illustrative UI test with mocked APIs; nothing was published.* ·
 [View full size](images/screenshots/lab-create-agent.png)
@@ -302,8 +302,12 @@ offering or an implemented customer solution.
 On 2026-09-23, one private dev environment ran a live check with the pinned SDK.
 Three templates, each on a different model deployment (`gpt-5.4`,
 `gpt-5.4-mini`, and `gpt-4.1`), were published, answered a sample review, and
-were deleted. That shows the flow can work there; it doesn't prove it works in
-another environment, subscription, region, or SDK version.
+were deleted. Later that day, the four healthcare and public-sector templates
+were published the same way. Each called its simulated lookups, the Lab
+verified every tool call, each answer found the main problems planted in its
+fictional sample, and all four agents were deleted. That shows the flow can
+work there; it doesn't prove it works in another environment, subscription,
+region, or SDK version.
 
 ## Related content
 

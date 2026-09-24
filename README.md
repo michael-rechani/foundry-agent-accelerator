@@ -14,7 +14,7 @@ can do. Publish a new hosted agent from a reviewed template, chat with it, and
 compare it with prebuilt agents that work as a team. Everything runs privately
 in your Azure subscription with fictional data.
 
-![Illustrative UI test of the Lab's Create agent page with mocked APIs: the sidebar lists all seven pages, and five template cards sit above a job description box and a Prepare setup button](docs/images/screenshots/lab-create-agent.png)
+![Illustrative UI test of the Lab's Create agent page with mocked APIs: the sidebar lists all seven pages, and nine template cards in two groups, General and Healthcare and public sector, sit above a job description box](docs/images/screenshots/lab-create-agent.png)
 
 *The Lab's **Create agent** page. Illustrative UI test with mocked APIs; nothing
 was published.* · [View full size](docs/images/screenshots/lab-create-agent.png) ·
