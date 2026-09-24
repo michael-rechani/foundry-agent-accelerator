@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { AgentGuide, AgentRuntime } from './AgentGuide'
 import type { View } from './ChatSidebar'
+import { ThemePicker } from './ThemePicker'
 import type { Agent, Config } from './workspace-config'
 
 export function ChatTopbar({
@@ -151,6 +152,7 @@ export function ChatTopbar({
             </button>
           </>
         )}
+        <ThemePicker />
       </div>
     </header>
   )
