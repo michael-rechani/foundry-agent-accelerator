@@ -14,10 +14,14 @@ can do. Publish a new hosted agent from a reviewed template, chat with it, and
 compare it with prebuilt agents that work as a team. Everything runs privately
 in your Azure subscription with fictional data.
 
-![Illustrative UI test of the Lab's Create agent page with mocked APIs: the sidebar lists all seven pages, and nine template cards in two groups, General and Healthcare and public sector, sit above a job description box](docs/images/screenshots/lab-create-agent.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshots/lab-create-agent-dark.png">
+  <img alt="Illustrative UI test of the Lab's Create agent page with mocked APIs: the sidebar lists all seven pages, and nine template cards in two groups, General and Healthcare and public sector, each show an icon, the model the job uses and whether it has tools, above a job description box" src="docs/images/screenshots/lab-create-agent.png">
+</picture>
 
-*The Lab's **Create agent** page. Illustrative UI test with mocked APIs; nothing
-was published.* · [View full size](docs/images/screenshots/lab-create-agent.png) ·
+*The Lab's **Create agent** page, shown in light or dark to match your GitHub
+theme. Illustrative UI test with mocked APIs; nothing was published.* ·
+[View full size](docs/images/screenshots/lab-create-agent.png) ·
 [More screenshots](docs/images/README.md#lab-screenshots)
 
 > [!WARNING]
