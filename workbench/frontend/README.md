@@ -14,11 +14,13 @@ From this directory:
 ```powershell
 npm ci
 npm run lint
+npm run format:check
 npm run build
 npx playwright install chromium
 npm test
 ```
 
+Run `npm run format` to fix formatting that `npm run format:check` reports.
 `npm test` builds production assets and starts an isolated preview server on
 `127.0.0.1:4174`. Playwright tests run at desktop and mobile sizes with
 fictional, intercepted APIs. They use no Azure resources or credentials.
