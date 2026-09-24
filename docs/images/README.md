@@ -2,10 +2,10 @@
 
 [Home](../../README.md) / [Docs](../README.md) / Architecture artwork
 
-Use this guide when you edit or rebuild the architecture diagrams or Lab
-screenshots. The source files, exported SVGs, and Azure icons are part of the
-documentation contract, so update them together and keep the images readable at
-README width and on mobile.
+Use this guide when you edit or rebuild the architecture diagrams, Lab
+screenshots, or README tour. The source files, exported SVGs, and Azure icons
+are part of the documentation contract, so update them together and keep the
+images readable at README width and on mobile.
 
 ## At a glance
 
@@ -15,6 +15,7 @@ README width and on mobile.
 | High-level overview diagrams | `.template.svg` files such as `foundry-overview.template.svg` | `./docs/images/build-architecture.ps1` |
 | Azure service icons | Unmodified SVG files in `azure-icons/` | Copied unchanged from the official Azure Architecture Center icon set. |
 | Lab screenshots | Playwright tests in `workbench/frontend/tests/` | `npm test -- --project=desktop` in `workbench/frontend/`, then copy from `test-results/` |
+| README tour | The six tour screenshots in `screenshots/` | `./docs/images/build-tour.ps1` |
 
 ## Azure icons in architecture diagrams
 
@@ -64,8 +65,9 @@ edited copy inside the SVG. Use
 `-Names lab-components` to rebuild one view. Commit sources and SVG exports
 together, not temporary previews or downloaded tools.
 
-The root README opens with the **Create agent** screenshot, in light or dark to
-match the reader's GitHub theme, shows the
+The root README opens with the [README tour](#readme-tour), an animated view of
+the **Create agent**, **Chat**, and **Document reviews** screenshots in light or
+dark to match the reader's GitHub theme. It shows the
 agent-collaboration view and the Azure architecture view under "How it works",
 and links to the architecture guide for the platform overview. The Azure
 architecture view is wide, so the README pairs it with a full-size link. Detailed diagrams belong in the
@@ -222,10 +224,12 @@ and say "illustrative" in the caption and alt text wherever you use one.
 
 | Screenshot | Shows | Test output | Used in |
 | --- | --- | --- | --- |
-| [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide and example tasks | `demo-starters.png` | [Demo guide](../demos.md#a-short-demonstration) |
-| [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [Review workflow](../review-workflow.md#workflow) |
-| [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page with its templates in two groups and the full sidebar | `creation-start.png` | [Root README](../../README.md), [agent creation](../agent-creation.md#what-a-participant-can-do) |
-| [lab-create-agent-dark.png](screenshots/lab-create-agent-dark.png) | The same page in the **Dark** theme with the Foundry accent and one template selected | `creation-start-dark.png` | [Root README](../../README.md) for readers using GitHub's dark theme |
+| [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide and example tasks | `demo-starters.png` | [README tour](#readme-tour), [demo guide](../demos.md#a-short-demonstration) |
+| [lab-chat-start-dark.png](screenshots/lab-chat-start-dark.png) | The same **Chat** with the **System** theme and a dark color scheme | `demo-starters-dark.png` | [README tour](#readme-tour) for readers using GitHub's dark theme |
+| [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [README tour](#readme-tour), [review workflow](../review-workflow.md#workflow) |
+| [lab-document-review-dark.png](screenshots/lab-document-review-dark.png) | The same review with the **System** theme and a dark color scheme | `review-findings-dark.png` | [README tour](#readme-tour) for readers using GitHub's dark theme |
+| [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page with its templates in two groups and the full sidebar | `creation-start.png` | [README tour](#readme-tour) and its full-size link, [agent creation](../agent-creation.md#what-a-participant-can-do) |
+| [lab-create-agent-dark.png](screenshots/lab-create-agent-dark.png) | The same page in the **Dark** theme with the Foundry accent and one template selected | `creation-start-dark.png` | [README tour](#readme-tour) for readers using GitHub's dark theme |
 
 To refresh them, run the desktop browser tests and copy the matching files:
 
@@ -239,14 +243,53 @@ npm test -- --project=desktop
 The tests write 1440 x 1000 PNGs under `test-results/`, which Git ignores.
 Rename each file as shown in the table, and do not crop out the watermark.
 
+## README tour
+
+The root README opens with [lab-tour.svg](lab-tour.svg), or
+[lab-tour-dark.svg](lab-tour-dark.svg) for readers using GitHub's dark theme.
+Each tour crossfades between three Lab screenshots, about four seconds each,
+and loops:
+
+| Step | Light frame | Dark frame |
+| --- | --- | --- |
+| 1 · Create an agent | `lab-create-agent.png` | `lab-create-agent-dark.png` |
+| 2 · Chat with it | `lab-chat-start.png` | `lab-chat-start-dark.png` |
+| 3 · Review documents | `lab-document-review.png` | `lab-document-review-dark.png` |
+
+A minimal window bar above the frames names the current step and shows a
+progress bar, so nothing covers the screenshots or their watermark. Both SVGs
+are generated, so do not edit them by hand. The frames are copies of the
+screenshots, so after you refresh any of the six, rebuild both tours and commit
+the screenshots and SVGs together:
+
+```powershell
+./docs/images/build-tour.ps1
+```
+
+The build embeds each PNG unchanged as base64 data and animates with CSS only.
+The SVGs have no scripts or external references, because GitHub shows README
+SVGs as images. The build fails if a screenshot is missing or is not 1440 x 1000
+desktop test output, and reruns give byte-identical files. Each SVG is about
+0.5 MB; keep them under about 1.3 MB, and do not recompress the frames as JPEG,
+which blurs the watermark and UI text.
+
+For readers who turn on reduced motion in their operating system, the SVGs'
+`prefers-reduced-motion: reduce` rules stop every animation and show only the
+first frame, **Create agent**, with its step label. The SVG `<title>` and
+`<desc>` say that the tour is an illustrative UI test with mocked APIs, and the
+README alt text describes all three frames.
+
 ## Visual review checklist
 
 - Check each image at README width and on mobile.
 - Check the overview diagrams in both GitHub themes. Render the light and
   `-dark` SVGs and confirm that text, arrows, notes, icons, and card edges stay
   visible in each.
-- Refresh `lab-create-agent-dark.png` together with `lab-create-agent.png` so
-  the two README variants show the same UI.
+- Refresh each `-dark` screenshot together with its light screenshot so the two
+  README tour variants show the same UI.
+- After you refresh any tour screenshot, rebuild the tour with
+  `./docs/images/build-tour.ps1`, then check a paused frame, a mid-fade state,
+  and the reduced-motion first frame in both variants.
 - Keep labels short and avoid crossing text with connectors.
 - Do not reduce type to fit more detail.
 - Use labels and callouts, not color alone, to explain requests, results,
