@@ -670,6 +670,47 @@ test('appearance follows the device by default and applies saved choices everywh
   ).toBe(true)
 })
 
+test('header panels open one at a time so none is hidden behind another', async ({
+  page,
+}) => {
+  await setup(page)
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: 'Chat', exact: true })
+    .click()
+  const appearance = page.getByRole('complementary', {
+    name: 'Appearance settings',
+  })
+  const lab = page.getByRole('complementary', { name: 'Shared lab details' })
+  const guide = page.getByRole('complementary', {
+    name: 'Selected agent guide',
+  })
+  const onTop = (panel: typeof lab) =>
+    panel.evaluate((element) => {
+      const { left, top, width } = element.getBoundingClientRect()
+      return element.contains(
+        document.elementFromPoint(left + width / 2, top + 16),
+      )
+    })
+
+  await page.getByTitle('Appearance', { exact: true }).click()
+  await expect(appearance).toBeInViewport()
+  await page.getByTitle('About this shared lab', { exact: true }).click()
+  await expect(lab).toBeInViewport()
+  await expect(appearance).toBeHidden()
+  expect(await onTop(lab)).toBe(true)
+
+  await page.getByText('About this agent', { exact: true }).click()
+  await expect(guide).toBeInViewport()
+  await expect(lab).toBeHidden()
+  expect(await onTop(guide)).toBe(true)
+
+  await page.getByTitle('Appearance', { exact: true }).click()
+  await expect(appearance).toBeInViewport()
+  await expect(guide).toBeHidden()
+  expect(await onTop(appearance)).toBe(true)
+})
+
 test('unreadable saved appearance falls back to the defaults', async ({
   page,
 }) => {

@@ -42,6 +42,7 @@ export function ThemePicker() {
   return (
     <details
       className="theme-menu"
+      name="topbar-panel"
       onKeyDown={(event) => {
         if (event.key !== 'Escape' || !event.currentTarget.open) return
         event.currentTarget.open = false
