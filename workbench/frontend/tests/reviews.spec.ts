@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import type { Review } from '../src/ReviewWorkspace'
+import type { Review } from '../src/review-client'
 import type { Agent } from '../src/workspace-config'
 import { guidedReview, illustrativeScreenshot, registry } from './fixtures'
 

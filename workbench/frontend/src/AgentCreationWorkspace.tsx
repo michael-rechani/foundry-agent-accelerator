@@ -1,19 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  ArrowRight,
-  Check,
-  CircleAlert,
-  LoaderCircle,
-  Plus,
-  RefreshCw,
-  Trash2,
-} from 'lucide-react'
+import { CircleAlert, Plus, RefreshCw } from 'lucide-react'
 import type { Agent, CreationCapability } from './workspace-config'
 import {
   CreationError,
-  creationMessage,
   creationRequest,
-  groupTemplates,
   parseCreatedAgent,
   parseDraft,
   parseTemplates,
@@ -23,27 +13,11 @@ import {
   type CreatedAgentState,
   type CreatePayload,
 } from './agent-creation-client'
+import { OperatorKeyField } from './OperatorKeyField'
+import { CreationTaskForm } from './CreationTaskForm'
+import { CreationSetupReview } from './CreationSetupReview'
+import { CreatedAgentDetail, CreatedAgentList } from './CreatedAgents'
 import './agent-creation.css'
-
-const stages: Record<string, string> = {
-  queued: 'Setup saved',
-  uploading: 'Publishing runtime code',
-  provisioning: 'Waiting for Foundry',
-  routing: 'Connecting the agent endpoint',
-  ready: 'Ready to try',
-  failed: 'Needs operator attention',
-  interrupted: 'Outcome needs checking',
-  deleting: 'Deleting from Foundry',
-  deleted: 'Deletion confirmed',
-}
-const statuses: Record<CreatedAgent['status'], string> = {
-  creating: 'Creating',
-  ready: 'Ready to try',
-  failed: 'Needs attention',
-  interrupted: 'Check outcome',
-  deleting: 'Deleting',
-  deleted: 'Deleted',
-}
 
 function problemText(problem: unknown) {
   return problem instanceof Error && problem.name !== 'AbortError'
@@ -77,7 +51,6 @@ export function AgentCreationWorkspace({
   const [name, setName] = useState('')
   const [instructions, setInstructions] = useState('')
   const workspace = useRef<HTMLElement>(null)
-  const goalField = useRef<HTMLTextAreaElement>(null)
   const keyField = useRef<HTMLInputElement>(null)
   const [consent, setConsent] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -153,6 +126,16 @@ export function AgentCreationWorkspace({
       window.clearTimeout(timer)
     }
   }, [selectedId, operationRunning, pollPaused, pollAttempt, update])
+
+  function pickTemplate(item: AgentTemplate) {
+    setTemplateId(item.id)
+    if (
+      !goal.trim() ||
+      templates.some((entry) => entry.example_request === goal)
+    )
+      setGoal(item.example_request)
+    setError('')
+  }
 
   async function prepare() {
     if (busy || [...goal.trim()].length < 10 || [...goal].length > 1200) return
@@ -326,32 +309,10 @@ export function AgentCreationWorkspace({
   }
 
   const keyInput = active && (
-    <div className="creation-key">
-      <label>
-        Operator key
-        <input
-          type="password"
-          autoComplete="off"
-          ref={keyField}
-          minLength={32}
-          maxLength={256}
-          disabled={!capability.enabled && !canManage}
-        />
-      </label>
-      <p>
-        Kept in memory for this view only, never sent to the model or saved with
-        the agent.
-      </p>
-      <button
-        className="inline-link"
-        type="button"
-        onClick={() => {
-          if (keyField.current) keyField.current.value = ''
-        }}
-      >
-        Clear operator key
-      </button>
-    </div>
+    <OperatorKeyField
+      inputRef={keyField}
+      disabled={!capability.enabled && !canManage}
+    />
   )
 
   return (
@@ -429,262 +390,40 @@ export function AgentCreationWorkspace({
             <p role="status">Loading prepared templates...</p>
           ) : null}
           {!draft ? (
-            <>
-              <div
-                className="creation-template-groups"
-                aria-label="Prepared agent templates"
-              >
-                {groupTemplates(templates).map(([category, items]) => (
-                  <section
-                    key={category}
-                    className="creation-template-group"
-                    aria-label={category}
-                  >
-                    <h2>{category}</h2>
-                    <div className="creation-templates">
-                      {items.map((item) => (
-                        <button
-                          key={item.id}
-                          className="creation-template"
-                          aria-pressed={templateId === item.id}
-                          disabled={busy}
-                          onClick={() => {
-                            setTemplateId(item.id)
-                            if (
-                              !goal.trim() ||
-                              templates.some(
-                                (entry) => entry.example_request === goal,
-                              )
-                            )
-                              setGoal(item.example_request)
-                            setError('')
-                            goalField.current?.focus()
-                          }}
-                        >
-                          <strong>{item.label}</strong>
-                          <span>{item.description}</span>
-                          <small>
-                            {item.tools.length
-                              ? 'Simulated read-only lookups'
-                              : 'Supplied text; no tools'}
-                          </small>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-              <form
-                className="creation-form"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  void prepare()
-                }}
-              >
-                <label>
-                  What should the agent help with?
-                  <textarea
-                    ref={goalField}
-                    rows={3}
-                    value={goal}
-                    disabled={busy}
-                    onChange={(event) => setGoal(event.target.value)}
-                    placeholder="For example: Create an agent that summarizes fictional policy notices and identifies questions for staff."
-                  />
-                </label>
-                <small>
-                  {[...goal].length}/1200 characters; at least 10. Use made-up
-                  details, not customer or patient information.
-                </small>
-                <label>
-                  Prepared template
-                  <select
-                    value={templateId}
-                    disabled={busy}
-                    onChange={(event) => setTemplateId(event.target.value)}
-                  >
-                    <option value="">
-                      Match my description, or ask me to choose
-                    </option>
-                    {groupTemplates(templates).map(([category, items]) => (
-                      <optgroup key={category} label={category}>
-                        {items.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.label}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </label>
-                <p className="creation-help">
-                  Setup uses a prepared template and your task description. It
-                  does not call a model, generate runtime code or save an agent.
-                </p>
-                <button
-                  className="creation-primary"
-                  disabled={
-                    busy ||
-                    !templates.length ||
-                    [...goal.trim()].length < 10 ||
-                    [...goal].length > 1200
-                  }
-                >
-                  {busy ? (
-                    <LoaderCircle size={16} className="spin" />
-                  ) : (
-                    <ArrowRight size={16} />
-                  )}
-                  Prepare setup
-                </button>
-              </form>
-            </>
+            <CreationTaskForm
+              templates={templates}
+              templateId={templateId}
+              goal={goal}
+              busy={busy}
+              onPick={pickTemplate}
+              onTemplateId={setTemplateId}
+              onGoal={setGoal}
+              onPrepare={() => void prepare()}
+            />
           ) : (
-            <section className="creation-setup" aria-label="Review agent setup">
-              <div className="creation-setup-heading">
-                <h2>Review your agent setup</h2>
-                <button
-                  className="inline-link"
-                  disabled={busy || !!pending}
-                  onClick={() => {
-                    setDraft(null)
-                    setError('')
-                    setConsent(false)
-                  }}
-                >
-                  Change task or template
-                </button>
-              </div>
-              <p>
-                Prepared from <strong>{template?.label}</strong> and your
-                description. No agent has been created yet.
-              </p>
-              {template && (
-                <dl className="creation-explanation">
-                  <div>
-                    <dt>What you give it</dt>
-                    <dd>{template.input}</dd>
-                  </div>
-                  <div>
-                    <dt>What you get</dt>
-                    <dd>{template.output}</dd>
-                  </div>
-                  <div>
-                    <dt>How it works</dt>
-                    <dd>{template.delegation}</dd>
-                  </div>
-                  <div>
-                    <dt>What it cannot do</dt>
-                    <dd>{template.limits}</dd>
-                  </div>
-                  <div>
-                    <dt>Model</dt>
-                    <dd>
-                      {templateModel ? (
-                        <code>{templateModel}</code>
-                      ) : (
-                        'Set by the Lab operator'
-                      )}
-                      {', chosen for '}
-                      <strong>{template.model_profile.label}</strong>
-                      {'. '}
-                      {template.model_profile.reason}
-                    </dd>
-                  </div>
-                </dl>
-              )}
-              <label>
-                Agent name
-                <input
-                  value={name}
-                  disabled={busy || !!pending}
-                  onChange={(event) => setName(event.target.value)}
-                />
-              </label>
-              <label>
-                Task instructions
-                <textarea
-                  rows={7}
-                  value={instructions}
-                  disabled={busy || !!pending}
-                  onChange={(event) => setInstructions(event.target.value)}
-                />
-              </label>
-              <small>
-                {[...instructions].length}/6000 instruction characters. Name: up
-                to 80 characters.
-              </small>
-              <p className="creation-help">
-                The template fixes the tools, runtime rules and model. A chat
-                prompt can't change them.
-              </p>
-              {template?.tools.length ? (
-                <ul className="creation-tool-list">
-                  {template.tools.map((tool) => (
-                    <li key={tool.name}>
-                      <code>{tool.name}</code> - {tool.description}
-                      {tool.simulated ? ' (SIMULATED)' : ''}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="creation-help">
-                  No tools or external integrations.
-                </p>
-              )}
-              <details className="creation-instructions">
-                <summary>Fictional test input</summary>
-                <pre>{draft.sample_input}</pre>
-              </details>
-              {keyInput}
-              <label className="creation-consent">
-                <input
-                  type="checkbox"
-                  checked={consent}
-                  disabled={busy || !!pending}
-                  onChange={(event) => setConsent(event.target.checked)}
-                />
-                <span>
-                  I confirm creating a shared Foundry agent can incur hosting,
-                  build and model charges. Closing this page does not stop the
-                  runtime.
-                </span>
-              </label>
-              {pending && (
-                <p className="creation-notice">
-                  This request may already be saved. Check its status or retry
-                  the same request; do not create another copy. Request ID:{' '}
-                  <code>{pending.idempotency_key}</code>
-                </p>
-              )}
-              <div className="creation-actions">
-                <button
-                  className="creation-primary"
-                  onClick={() => void publish()}
-                  disabled={
-                    busy || !capability.enabled || !validSetup || !consent
-                  }
-                >
-                  {busy ? (
-                    <LoaderCircle size={16} className="spin" />
-                  ) : (
-                    <Plus size={16} />
-                  )}
-                  {pending
-                    ? 'Retry same creation request'
-                    : 'Create in Foundry'}
-                </button>
-                {pending && (
-                  <button
-                    className="creation-secondary"
-                    disabled={busy}
-                    onClick={() => void checkSubmission()}
-                  >
-                    Check creation status
-                  </button>
-                )}
-              </div>
-            </section>
+            <CreationSetupReview
+              draft={draft}
+              template={template}
+              templateModel={templateModel}
+              name={name}
+              instructions={instructions}
+              consent={consent}
+              pending={pending}
+              busy={busy}
+              publishEnabled={capability.enabled}
+              validSetup={validSetup}
+              operatorKey={keyInput}
+              onChangeTask={() => {
+                setDraft(null)
+                setError('')
+                setConsent(false)
+              }}
+              onName={setName}
+              onInstructions={setInstructions}
+              onConsent={setConsent}
+              onPublish={() => void publish()}
+              onCheck={() => void checkSubmission()}
+            />
           )}
         </>
       ) : (
@@ -700,198 +439,37 @@ export function AgentCreationWorkspace({
               can be listed here.
             </p>
           ) : selected ? (
-            <section
-              className="creation-detail"
-              aria-label="Created agent details"
-            >
-              <button
-                className="inline-link"
-                onClick={() => {
-                  setSelected(null)
-                  setError('')
-                }}
-              >
-                Back to created agents
-              </button>
-              <h2>{selected.name}</h2>
-              <div className="creation-actions">
-                <span
-                  className={`creation-status creation-status-${selected.status}`}
-                >
-                  {statuses[selected.status]}
-                </span>
-                <button
-                  className="creation-secondary"
-                  disabled={busy}
-                  onClick={() => void refreshSelected()}
-                >
-                  <RefreshCw size={16} />
-                  Refresh status
-                </button>
-                {selected.agent && (
-                  <button
-                    className="creation-primary"
-                    disabled={chatBusy}
-                    onClick={() => {
-                      if (selected.agent) onUse(selected.agent)
-                    }}
-                  >
-                    <ArrowRight size={16} />
-                    Try in Chat
-                  </button>
-                )}
-              </div>
-              {operationRunning && (
-                <p role="status" className="creation-progress">
-                  <LoaderCircle size={18} className="spin" />
-                  {stages[selected.stage] || 'Operation in progress'}
-                  {pollPaused
-                    ? ' - automatic checks paused; refresh explicitly.'
-                    : '. This can take several minutes. You can return to this saved record.'}
-                </p>
-              )}
-              {selected.error && (
-                <p className="creation-notice">
-                  {creationMessage(selected.error)}
-                </p>
-              )}
-              {selected.status === 'ready' && (
-                <p className="creation-help">
-                  Foundry reported an active runtime and the route was checked.
-                  Send a sample in Chat to test the answer; this is not a
-                  model-quality certification.
-                </p>
-              )}
-              <dl className="creation-runtime">
-                <div>
-                  <dt>Template</dt>
-                  <dd>
-                    {selected.template_label ||
-                      templates.find((item) => item.id === selected.template_id)
-                        ?.label ||
-                      selected.template_id}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Foundry agent name</dt>
-                  <dd>
-                    <code>{selected.runtime_name}</code>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Version</dt>
-                  <dd>{selected.version || 'Not confirmed yet'}</dd>
-                </div>
-                {selected.model && (
-                  <div>
-                    <dt>Model deployment</dt>
-                    <dd>
-                      <code>{selected.model}</code>
-                      {selected.model_profile &&
-                        `, chosen for ${selected.model_profile.label}`}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-              {selected.instructions && (
-                <details className="creation-instructions">
-                  <summary>Saved task instructions</summary>
-                  <pre>{selected.instructions}</pre>
-                </details>
-              )}
-              <details className="creation-timeline">
-                <summary>Publication activity</summary>
-                <ol>
-                  {selected.events.map((event, index) => (
-                    <li key={`${index}-${event.at}`}>
-                      {stages[event.name] || event.name}
-                      <time>{new Date(event.at).toLocaleString()}</time>
-                    </li>
-                  ))}
-                </ol>
-              </details>
-              {!operationRunning && selected.status !== 'deleted' && (
-                <>
-                  {keyInput}
-                  <div className="creation-actions">
-                    {['failed', 'interrupted'].includes(selected.status) &&
-                      selected.operation !== 'delete' &&
-                      selected.error !== 'deletion_unconfirmed' && (
-                        <button
-                          className="creation-secondary"
-                          disabled={busy || !capability.enabled}
-                          onClick={() => void operate('resume')}
-                        >
-                          Resume setup
-                        </button>
-                      )}
-                    <button
-                      className="creation-secondary"
-                      disabled={busy || !canManage}
-                      onClick={() => void operate('delete')}
-                    >
-                      <Trash2 size={16} />
-                      Delete created agent
-                    </button>
-                  </div>
-                  <p className="creation-help">
-                    An operator can delete this created runtime for everyone.
-                    Export needed chats first. Existing catalog agents are not
-                    affected.
-                  </p>
-                </>
-              )}
-              {selected.status === 'deleted' && (
-                <p className="creation-notice">
-                  <Check size={16} />
-                  Deletion was confirmed. The saved name and instructions were
-                  cleared.
-                </p>
-              )}
-            </section>
+            <CreatedAgentDetail
+              record={selected}
+              templates={templates}
+              busy={busy}
+              chatBusy={chatBusy}
+              operationRunning={operationRunning}
+              pollPaused={pollPaused}
+              publishEnabled={capability.enabled}
+              canManage={canManage}
+              operatorKey={keyInput}
+              onBack={() => {
+                setSelected(null)
+                setError('')
+              }}
+              onRefresh={() => void refreshSelected()}
+              onUse={onUse}
+              onOperate={(action) => void operate(action)}
+            />
           ) : state.loading ? (
             <p role="status">Loading saved agents...</p>
-          ) : state.records.length ? (
-            <div className="created-agent-list">
-              {state.records.map((record) => (
-                <button
-                  className="created-agent-row"
-                  key={record.id}
-                  onClick={() => {
-                    setSelected(record)
-                    setError('')
-                    setPollPaused(false)
-                  }}
-                >
-                  <span>
-                    <strong>{record.name}</strong>
-                    <small>{record.template_label || record.template_id}</small>
-                  </span>
-                  <span
-                    className={`creation-status creation-status-${record.status}`}
-                  >
-                    {statuses[record.status]}
-                  </span>
-                  <ArrowRight size={16} />
-                </button>
-              ))}
-            </div>
           ) : (
-            !state.error && (
-              <div className="creation-empty">
-                <h2>No created agents yet</h2>
-                <p>
-                  Prepare a fictional task setup first. It appears here only
-                  after the server has saved a creation request.
-                </p>
-                <button
-                  className="creation-primary"
-                  onClick={() => onView('create')}
-                >
-                  Prepare an agent
-                </button>
-              </div>
-            )
+            <CreatedAgentList
+              records={state.records}
+              error={state.error}
+              onSelect={(record) => {
+                setSelected(record)
+                setError('')
+                setPollPaused(false)
+              }}
+              onCreate={() => onView('create')}
+            />
           )}
         </>
       )}

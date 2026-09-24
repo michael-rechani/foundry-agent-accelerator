@@ -33,8 +33,16 @@ install browser system dependencies with `npx playwright install --with-deps chr
 `ConversationTurn.tsx`. `WaitingIndicator.tsx` owns the elapsed timer so it
 does not rerender the transcript.
 
+State, effects, and request handlers stay in the three workspace components
+(`ChatWorkspace.tsx`, `AgentCreationWorkspace.tsx`, and `ReviewWorkspace.tsx`).
+The view components split out of them are presentational and receive values
+and callbacks as props.
+
 | File | Role |
 | --- | --- |
+| `ChatSidebar.tsx`, `ChatTopbar.tsx` | Render the view navigation and the Chat header, agent picker, and save/export actions. |
+| `ChatWelcome.tsx`, `ChatComposer.tsx` | Render the new-chat prompts and the message composer with its conversation limits. |
+| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx` | Render the **Shared history**, **Agents**, and **Performance** views. |
 | `history-client.ts` | Handles bounded history requests. |
 | `request.ts` | Handles transport-independent cancellation. |
 | `workspace-config.ts` | Validates public configuration and handles bootstrap timeouts and retry. |
@@ -50,7 +58,10 @@ Lab's display and receipt metadata from runtime instructions and tools.
 `AgentCreationWorkspace.tsx` implements template-based setup preparation,
 review, operator-confirmed publication, and the shared **Created agents** list.
 This is not a large language model (LLM) configuration conversation or an
-arbitrary code/tool generator.
+arbitrary code/tool generator. `CreationTaskForm.tsx` renders the template
+picker and job description, `CreationSetupReview.tsx` renders the setup review
+and publication controls, `CreatedAgents.tsx` renders the saved-agent list and
+detail, and `OperatorKeyField.tsx` renders the operator key input.
 
 `agent-creation-client.ts` validates API responses, bounds requests, loads saved
 agents, and merges only ready server-provided identities into **Chat**.
@@ -82,6 +93,11 @@ the configured Lab default at creation, not the current **Chat** choice.
 Creating or adding information saves a record; **Run review** and
 **Review again** separately call the agent. Tests cover that separation and the
 absence of automatic Chat transfer.
+
+`review-client.ts` holds the review types and request helper.
+`ReviewInbox.tsx`, `ReviewForm.tsx`, `ReviewDetail.tsx`, `ReviewResults.tsx`,
+and `ReviewGuide.tsx` render the inbox, new-review form, review detail,
+findings, and guidance. Polling and resume stay in `ReviewWorkspace.tsx`.
 
 ## Boundaries and fixtures
 
