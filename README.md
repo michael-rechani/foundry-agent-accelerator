@@ -7,73 +7,48 @@
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](hosted-agents/README.md)
 [![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-hosted_agents-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
 
-**Build, deploy, and explore agents on Microsoft Foundry.**
+**One foundation. Repeatable agent releases.**
 
-**One foundation. Repeatable agent releases.** Start with a practical question:
-what is missing from an application, what does not add up on an invoice, or what
-a caseworker needs to check next. Explore the fictional evidence, try a hosted
-agent, and compare its actual answer with the source.
+Build, deploy, and explore agents on **Microsoft Foundry** (formerly Azure AI
+Foundry). The Lab is a customer demo and workshop experience backed by reusable
+code: publish agents from reviewed templates, chat with them, and explore
+prebuilt agents working as a team.
 
-The Lab is a customer demo and workshop experience backed by reusable code for
-**Microsoft Foundry** (formerly Azure AI Foundry). Publish agents from reviewed
-templates, chat with them, and explore prebuilt agents working as a team. The
-Azure deployment runs privately in your subscription; local preview makes no
-model calls. This is a sample, not an official Microsoft product.
+Start with a practical question. Find what is missing from an application,
+check what does not add up on an invoice, or clarify a caseworker's next step.
+Then compare the agent's actual answer with the fictional source.
+
+The Azure deployment runs privately in your subscription. Local preview makes
+no model calls. This is a sample, not an official Microsoft product.
+
+> [!WARNING]
+> **Use fictional data only.** Saved chats, reviews, and agent setups go to a
+> shared database, and everyone with access to the Lab can read them.
+
+**On this page**
+
+[Get started](#get-started) · [Explore three stories](#explore-three-stories) ·
+[What you can show](#what-you-can-show) · [How it works](#how-it-works) ·
+[Deploy to Azure](#deploy-to-azure) · [What's included](#whats-included) ·
+[Documentation](#documentation)
+
+---
+
+## Take a tour
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/lab-tour-dark.svg">
   <img alt="Illustrative UI test with mocked APIs: Explore demos, prepare an agent, try Chat, and inspect a Document review. No live model results or saved records." src="docs/images/lab-tour.svg">
 </picture>
 
-*A short tour of **Explore demos**, **Create agent**, **Chat**, and **Document reviews**
-pages, shown in light or dark to match your GitHub theme. Illustrative UI test
-with mocked APIs; nothing was published, sent, or saved.* ·
-[View full size](docs/images/screenshots/lab-create-agent.png) ·
-[More screenshots](docs/images/README.md#lab-screenshots)
+**Explore demos → Create agent → Chat → Document reviews**
 
-> [!WARNING]
-> **Use fictional data only.** Saved chats, reviews, and agent setups go to a
-> shared database, and everyone with access to the Lab can read them.
+*The tour follows your GitHub theme. These are illustrative UI tests with
+mocked APIs; nothing was published, sent, or saved.*
 
-**Jump to:** [Explore three stories](#explore-three-stories) · [What you can show](#what-you-can-show) ·
-[Get started](#get-started) · [How it works](#how-it-works) ·
-[Deploy to Azure](#deploy-to-azure) · [Documentation](#documentation)
-
-## Explore three stories
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/scenario-tour-dark.svg">
-  <img alt="Three illustrative customer stories with mocked APIs: missing application evidence, supplier invoice discrepancies, and a casework brief. Expected findings are examples, not live model results." src="docs/images/scenario-tour.svg">
-</picture>
-
-| Start with the problem | What to look for | What stays with the person |
-| --- | --- | --- |
-| [Find the missing evidence](docs/showcase.md#find-the-missing-evidence) | A missing budget, a named owner, and conflicting schedules | Verify the documents; decide the application outcome |
-| [Catch what does not add up](docs/showcase.md#catch-what-does-not-add-up) | Billed quantities and prices that differ from a fictional order | Resolve damaged items and decide what to pay |
-| [Turn scattered notes into a brief](docs/showcase.md#turn-scattered-notes-into-a-brief) | Supported facts, conflicting dates, and missing evidence | Verify the authoritative record and decide next steps |
-
-These are fictional walkthroughs, not guaranteed answers or measured business
-results. The invoice scenario needs a ready **Supplier invoice reviewer**
-created from its template; it uses simulated lookups, not a finance integration.
-Read the [showcase and presenter guide](docs/showcase.md) without deploying anything.
-
-## What you can show
-
-| Foundry capability | Try it | Learn more |
-| --- | --- | --- |
-| **Hosted agents** | In **Create agent**, pick a template and publish it as a new agent. | [Agent creation](docs/agent-creation.md) |
-| **Model choice** | Each template runs on the model that suits its work: reasoning, fast extraction, or tool calling. | [How the Lab picks a model](docs/agent-creation.md#how-the-lab-picks-a-model) |
-| **Agents working together** | In **Chat**, the **Application and case helper** hands each task to a specialist agent. | [Hosted agents](hosted-agents/README.md) |
-| **Tool calling** | The **Service request planner** and the healthcare and public-sector templates call simulated, read-only lookup tools. | [Templates](docs/agent-creation.md#what-a-participant-can-do) |
-| **Grounded answers** | In **Document reviews**, every result quotes your text, and quotes that don't match are rejected. | [Document reviews](docs/review-workflow.md) |
-| **Tracing** | **Performance** shows response times. Optional agent traces appear in the Foundry portal. | [Agent monitoring](terraform/monitoring/README.md) |
-| **Evaluation** | Test models or prompts against the same cases with optional live Foundry evaluations. | [Evaluations](evaluations/README.md) |
-| **Private, keyless deployment** | Deploy with Terraform onto private networks. Services use managed identities, not API keys. | [Infrastructure](terraform/README.md) |
-
-**Create agent** is off until an operator turns it on, because publishing
-creates Azure resources that cost money. The Lab opens on **Explore demos**;
-**Chat** remains one click away. For all eight pages, see the
-[Lab guide](workbench/README.md#pages).
+[Open the full tour](docs/images/lab-tour.svg) ·
+[Create agent screenshot](docs/images/screenshots/lab-create-agent.png) ·
+[Browse all screenshots](docs/images/README.md#lab-screenshots)
 
 <a id="start-here"></a>
 <a id="scenarios-and-status"></a>
@@ -85,16 +60,104 @@ creates Azure resources that cost money. The Lab opens on **Explore demos**;
 
 ## Get started
 
-| I want to | Start here | What I need |
-| --- | --- | --- |
-| Create and deploy my own agent | [Create and try a baseline agent](docs/agent-creation.md) | An operator-enabled Lab, one or more model deployments, and cost approval |
-| Demo the prebuilt agents | [Demo guide](docs/demos.md) | A deployed Lab. Reading the walkthroughs and expected findings needs nothing. |
-| Check answer quality | [Evaluations](evaluations/README.md) | Nothing for offline checks. Live runs need a test environment and approval. |
-| Deploy my own environment | [Deploy to Azure](#deploy-to-azure) | Azure permissions, model quota, private network access, and cost approval |
+Choose the path that fits your session:
 
-For initial public sector and healthcare concepts, see the
+- **Explore without deploying.** Read the [showcase and presenter guide](docs/showcase.md)
+  for fictional inputs, expected findings, and the questions a person must
+  resolve. No Azure environment is needed to read the walkthroughs.
+
+- **Create your own agent.** Follow [Create and try a baseline agent](docs/agent-creation.md).
+  You need an operator-enabled Lab, one or more model deployments, and cost approval.
+
+- **Demo the prebuilt agents.** Follow the [demo guide](docs/demos.md) in a deployed
+  Lab. Reading the walkthroughs and expected findings needs nothing.
+
+- **Check answer quality.** Start with [evaluations](evaluations/README.md).
+  Offline checks need no Azure environment; live runs need a test environment
+  and approval.
+
+- **Deploy your environment.** Follow [Deploy to Azure](#deploy-to-azure).
+  You need Azure permissions, model quota, approved private network access,
+  and cost approval.
+
+For initial public-sector and healthcare concepts, see the
 [agent drafts](docs/agent-drafts/README.md). These documentation-only definitions
 and shared safeguards are not implemented, registered, or deployed agents.
+
+---
+
+## Explore three stories
+
+Choose a story in **Explore demos**. Each one pairs fictional evidence with
+findings to look for and a decision that stays with a person.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/scenario-tour-dark.svg">
+  <img alt="Three illustrative customer stories with mocked APIs: missing application evidence, supplier invoice discrepancies, and a casework brief. Expected findings are examples, not live model results." src="docs/images/scenario-tour.svg">
+</picture>
+
+### Find the missing evidence
+
+Spot a missing budget, a named owner, and conflicting schedules.
+
+**People decide:** verify the documents and determine the application outcome.
+Read the [application-completeness walkthrough](docs/showcase.md#find-the-missing-evidence).
+
+### Catch what does not add up
+
+Compare billed quantities and prices with a fictional purchase order.
+
+**People decide:** resolve damaged items and determine what to pay.
+Read the [supplier-invoice walkthrough](docs/showcase.md#catch-what-does-not-add-up).
+
+This scenario needs a ready **Supplier invoice reviewer** created from its
+template. It uses simulated lookups, not a finance integration.
+
+### Turn scattered notes into a brief
+
+Separate supported facts, conflicting dates, and missing evidence.
+
+**People decide:** verify the authoritative record and determine the next steps.
+Read the [casework walkthrough](docs/showcase.md#turn-scattered-notes-into-a-brief).
+
+These are fictional walkthroughs, not guaranteed answers or measured business
+results.
+
+## What you can show
+
+### Build and run
+
+- **[Hosted agents](docs/agent-creation.md):** choose a reviewed template in
+  **Create agent** and publish it as a new agent.
+- **[Model choice](docs/agent-creation.md#how-the-lab-picks-a-model):** use a
+  template's selected model for reasoning, fast extraction, or tool calling.
+- **[Agents working together](hosted-agents/README.md):** ask the **Application
+  and case helper** in Chat to hand a task to a specialist.
+- **[Tool calling](docs/agent-creation.md#what-a-participant-can-do):** try
+  simulated, read-only lookups in the **Service request planner** or the
+  healthcare and public-sector templates.
+
+### Review and improve
+
+- **[Grounded answers](docs/review-workflow.md):** in **Document reviews**,
+  every result quotes your text; quotes that don't match are rejected.
+- **[Tracing](terraform/monitoring/README.md):** see response times in
+  **Performance**, with optional agent traces in the Foundry portal.
+- **[Evaluation](evaluations/README.md):** compare models or prompts against
+  the same cases, including optional live Foundry evaluations.
+
+### Deploy privately
+
+**[Private, keyless deployment](terraform/README.md):** use Terraform to deploy
+onto private networks. Services use managed identities, not API keys.
+
+**Create agent** is off until an operator turns it on, because publishing
+creates Azure resources that cost money.
+
+The Lab opens on **Explore demos**; **Chat** remains one click away.
+For all eight pages, see the [Lab guide](workbench/README.md#pages).
+
+---
 
 <a id="architecture"></a>
 
@@ -107,12 +170,24 @@ and shared safeguards are not implemented, registered, or deployed agents.
   <img alt="Two connected workflows: Terraform and Azure Verified Modules provision the private foundation; agent bundles and instructions are released, verified, routed, and revised independently. Configuration connects the two; people approve changes." src="docs/images/agent-release-journey.svg">
 </picture>
 
-Terraform owns the infrastructure. Agent releases own source, instructions,
-versions, and verified routes. The configuration handoff connects them; a code
-push does not deploy either. See the [release journey](docs/showcase.md#one-foundation-repeatable-agent-releases)
-and [portable bundle guide](hosted-agents/README.md#portable-agent-bundles).
+**Foundation:** Terraform owns the infrastructure.
+
+**Agent releases:** source, instructions, versions, and verified routes evolve
+independently.
+
+**Configuration handoff:** connects the two workflows. A code push does not
+deploy either.
+
+Read the [release journey](docs/showcase.md#one-foundation-repeatable-agent-releases)
+or the [portable bundle guide](hosted-agents/README.md#portable-agent-bundles).
 
 ### Agents working together
+
+The default **Application and case helper** coordinates the prebuilt specialists.
+You still check the returned findings against the source.
+
+<details>
+<summary>View the collaboration diagram and request flow</summary>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-collaboration-dark.svg">
@@ -128,15 +203,27 @@ and [portable bundle guide](hosted-agents/README.md#portable-agent-bundles).
 4. **You check the answer** against the source. A completed tool call doesn't
    prove the findings are correct.
 
+</details>
+
 ### Creating your own agent
 
 When you publish from **Create agent**, the Lab packages its reviewed agent code
-with your instructions and uploads it with the Foundry SDK. Foundry Agent
-Service builds it and starts a new hosted agent named `lab-demo-...` on the
-model that suits the template's work. When Foundry reports the new version
-active and its route is confirmed, try the agent in **Chat**.
+with your instructions and uploads it with the Foundry SDK.
+
+Foundry Agent Service builds it and starts a new hosted agent named
+`lab-demo-...` on the model that suits the template's work.
+
+When Foundry reports the new version active and its route is confirmed, try
+the agent in **Chat**.
 
 ### What runs in Azure
+
+For components, data flows, and trust boundaries, see the
+[architecture guide](docs/architecture.md). For each agent's name in the Lab
+and in Foundry, see [agent names](docs/README.md#agent-names).
+
+<details>
+<summary>View the Azure architecture and private networking</summary>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/azure-architecture-dark.svg">
@@ -144,27 +231,13 @@ active and its route is confirmed, try the agent in **Chat**.
 </picture>
 
 *Logical view, not a resource inventory. Optional API Management isn't shown.*
-· [View full size](docs/images/azure-architecture.svg) ·
+
+[View full size](docs/images/azure-architecture.svg) ·
 [Edit the SVG template](docs/images/azure-architecture.template.svg)
 
-For components, data flows, and trust boundaries, see the
-[architecture guide](docs/architecture.md). For each agent's name in the Lab
-and in Foundry, see [agent names](docs/README.md#agent-names).
+</details>
 
-<a id="reusable-technical-foundations"></a>
-<a id="repository-layout"></a>
-<a id="project-files"></a>
-
-## What's included
-
-| Folder | What it contains |
-| --- | --- |
-| [`workbench/`](workbench/) | The Lab: a React front end, a FastAPI backend, browser tests, and its own Terraform |
-| [`hosted-agents/`](hosted-agents/) | The prebuilt coordinator and specialist agents, with scripts to publish, test, and roll back versions |
-| [`terraform/`](terraform/) | The private Foundry platform, built on Azure Verified Modules (AVM), plus optional Bastion and monitoring roots |
-| [`evaluations/`](evaluations/) | Test cases, offline checks, and optional live Foundry evaluations |
-| [`docs/`](docs/) | Demo walkthroughs, fictional inputs, and architecture and operations guides |
-| [`cost-comparison/`](cost-comparison/) | A calculator that compares Azure GPU VM and Foundry hosted-agent costs |
+---
 
 <a id="quick-start"></a>
 <a id="prepare-the-environment"></a>
@@ -177,18 +250,27 @@ and in Foundry, see [agent names](docs/README.md#agent-names).
 > agents cost money. Get approval, and review every Terraform plan before you
 > apply it.
 
-You need Terraform 1.16.1, the Azure CLI, permission to deploy resources and
-assign roles, model quota, approved private network access, and an existing
-Azure Storage container for Terraform state.
+### Before you begin
+
+- Terraform 1.16.1 and the Azure CLI.
+- Permission to deploy resources and assign roles.
+- Model quota and approved private network access.
+- An existing Azure Storage container for Terraform state.
+
+### Deployment order
 
 1. **Platform:** deploy [`terraform/`](terraform/README.md#deploy).
+
 2. **Prebuilt agents:** publish and test them from
    [`hosted-agents/`](hosted-agents/README.md).
+
 3. **The Lab:** deploy [`workbench/`](workbench/README.md#deployment), which has
    its own Terraform state.
+
 4. **Optional:** add [Bastion](terraform/bastion/README.md),
    [agent monitoring](terraform/monitoring/README.md), or
    [agent creation](docs/agent-creation.md#enable-publication).
+
 5. **Verify:** run one scenario from the [demo guide](docs/demos.md) before you
    present it.
 
@@ -203,29 +285,82 @@ To deploy from a separate private machine, use the
 
 - **For demonstrations and technical testing.** This isn't a production
   application or an officially supported Microsoft offering.
+
 - **No business systems.** Agents work only with the text you supply. They don't
   connect to customer systems or Microsoft 365, and every template lookup tool
   uses made-up, read-only data.
+
 - **People decide.** A matching quote shows where text came from, not that it's
   true. Missing evidence is a request for more information, not a rejection.
+
 - **Access is by network, not by user.** The Lab has no sign-in. It accepts
   traffic only from the private admin network, such as the jumpbox reached
   through Azure Bastion, and everyone with that access shares the same saved
   records. Before you go further, see the
   [production checklist](terraform/README.md#separately-scoped-production-considerations).
 
+---
+
+<a id="reusable-technical-foundations"></a>
+<a id="repository-layout"></a>
+<a id="project-files"></a>
+
+## What's included
+
+| Folder | What it contains |
+| --- | --- |
+| [`workbench/`](workbench/) | The Lab: React front end, FastAPI backend, browser tests, and its own Terraform |
+| [`hosted-agents/`](hosted-agents/) | Coordinator and specialist agents; scripts to publish, test, and roll back versions |
+| [`terraform/`](terraform/) | Private Foundry platform using Azure Verified Modules (AVM); optional Bastion and monitoring roots |
+| [`evaluations/`](evaluations/) | Test cases, offline checks, and optional live Foundry evaluations |
+| [`docs/`](docs/) | Demo walkthroughs, fictional inputs, architecture, and operations guides |
+| [`cost-comparison/`](cost-comparison/) | Azure GPU VM versus Foundry hosted-agent cost calculator |
+
 ## Documentation
 
-| Topic | Guides |
-| --- | --- |
-| Try the samples | [Showcase and presenter guide](docs/showcase.md), [demo guide](docs/demos.md), [agent creation](docs/agent-creation.md), [document reviews](docs/review-workflow.md), [demo handoff](docs/demo-handoff.md) |
-| Deploy and operate | [Infrastructure](terraform/README.md), [the Lab](workbench/README.md), [hosted agents](hosted-agents/README.md), [private deployment runbook](docs/private-deployment.md), [credentials](docs/credentials.md) |
-| Architecture and security | [Architecture](docs/architecture.md), [Azure architecture diagram](docs/images/azure-architecture.svg), [trust boundaries](docs/architecture.md#trust-boundaries), [diagrams](docs/images/README.md) |
-| Customize and extend | [Extension guide](docs/architecture-assessment.md), [coordinator profiles](docs/agent-profiles.md), [evaluations](evaluations/README.md), [cost comparison](cost-comparison/README.md) |
-| Optional integrations | [Governed review API (APIM)](docs/apim-review-api.md), [Application Gateway and Front Door](docs/ingress-access.md), [other integration options](docs/optional-integrations.md) |
+### Try and present
 
-For every guide and a glossary of terms, see the
-[documentation index](docs/README.md).
+- [Showcase and presenter guide](docs/showcase.md)
+- [Demo guide](docs/demos.md)
+- [Agent creation](docs/agent-creation.md)
+- [Document reviews](docs/review-workflow.md)
+- [Demo handoff](docs/demo-handoff.md)
+
+### Deploy and operate
+
+- [Infrastructure](terraform/README.md)
+- [The Lab](workbench/README.md)
+- [Hosted agents](hosted-agents/README.md)
+- [Private deployment runbook](docs/private-deployment.md)
+- [Credentials](docs/credentials.md)
+
+<details>
+<summary>More guides: architecture, customization, and optional integrations</summary>
+
+### Architecture and security
+
+- [Architecture](docs/architecture.md)
+- [Azure architecture diagram](docs/images/azure-architecture.svg)
+- [Trust boundaries](docs/architecture.md#trust-boundaries)
+- [Diagram sources and maintenance](docs/images/README.md)
+
+### Customize and extend
+
+- [Extension guide](docs/architecture-assessment.md)
+- [Coordinator profiles](docs/agent-profiles.md)
+- [Evaluations](evaluations/README.md)
+- [Cost comparison](cost-comparison/README.md)
+
+### Optional integrations
+
+- [Governed review API (APIM)](docs/apim-review-api.md)
+- [Application Gateway and Front Door](docs/ingress-access.md)
+- [Other integration options](docs/optional-integrations.md)
+
+</details>
+
+**Looking for something else?** The [documentation index](docs/README.md)
+includes every guide and a glossary.
 
 <a id="validation"></a>
 
@@ -233,22 +368,34 @@ For every guide and a glossary of terms, see the
 
 On every pull request and push to `main`, GitHub Actions tests the Python,
 TypeScript, and Terraform code, including browser tests at desktop and mobile
-sizes. The checks use simulated service responses. They don't call live agents
-or create Azure resources.
+sizes.
+
+The checks use simulated service responses. They don't call live agents or
+create Azure resources.
+
+<details>
+<summary>Dependency updates and release checks</summary>
 
 Dependabot alerts flag known vulnerabilities in pinned packages. Each month,
 [Dependabot](.github/dependabot.yml) also opens one grouped update pull request
 per ecosystem for GitHub Actions, Python, frontend, Docker, and Terraform
-dependencies. Major versions and the preview agent hosting package are
-upgraded by hand. Merge an update only after its checks pass. For Docker and
-Terraform changes, also verify a deployment, because the checks don't build
-the image or plan against live resources.
+dependencies.
+
+Major versions and the preview agent hosting package are upgraded by hand.
+Merge an update only after its checks pass.
+
+For Docker and Terraform changes, also verify a deployment, because the
+checks don't build the image or plan against live resources.
 
 Python correctness linting and dependency compatibility checks run alongside
 the Python 3.13 and 3.14 regression jobs. The frontend compiles with strict
-TypeScript checking. To move agent code and configuration without copying
-infrastructure or saved conversations, use the
+TypeScript checking.
+
+To move agent code and configuration without copying infrastructure or saved
+conversations, use the
 [portable agent bundle CLI](hosted-agents/README.md#portable-agent-bundles).
+
+</details>
 
 <a id="references"></a>
 
