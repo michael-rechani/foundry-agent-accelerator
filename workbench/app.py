@@ -18,6 +18,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from history import CosmosHistory, history_router
 from review_runs import ReviewRuns
 from agent_creation import CREATED_ID, AgentCreations, CreationSettings
+from request_guard import request_allowed
 
 
 ROOT = Path(__file__).resolve().parent
@@ -27,6 +28,10 @@ MAX_CHARACTERS = 60000
 MAX_REQUEST_BYTES = 65536
 MAX_HISTORY_TURNS = 10
 HISTORY_TIMEOUT_MS = 45000
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+}
 
 
 def cache_policy(path, status):
@@ -89,47 +94,71 @@ class Settings:
             raise ValueError("Preview mode is restricted to localhost")
 
 
+def validate_agent(agent):
+    required = {"id", "label", "category", "description", "agent", "tools"}
+    if not isinstance(agent, dict) or not required <= set(agent) or set(agent) - required - {"prompts", "guidance"}:
+        raise ValueError("Invalid agent configuration")
+    for key in ("id", "agent"):
+        if not isinstance(agent[key], str) or not NAME.fullmatch(agent[key]):
+            raise ValueError("Invalid agent name")
+    if CREATED_ID.fullmatch(agent["id"]):
+        raise ValueError("The created-agent identifier namespace is reserved")
+    for key in ("label", "category", "description"):
+        if not isinstance(agent[key], str) or not agent[key].strip():
+            raise ValueError("Agent display fields must be nonempty")
+    if "guidance" in agent:
+        guidance = agent["guidance"]
+        if (not isinstance(guidance, dict)
+                or set(guidance) != {"input", "output", "limits", "delegation", "configuration"}
+                or any(not isinstance(value, str) or not 1 <= len(value.strip()) <= 1200
+                       for value in guidance.values())):
+            raise ValueError("Invalid agent guidance")
+    if not isinstance(agent["tools"], dict) or any(
+        not isinstance(tool, str) or not NAME.fullmatch(tool) or not isinstance(target, str) or not NAME.fullmatch(target)
+        for tool, target in agent["tools"].items()
+    ):
+        raise ValueError("Invalid specialist bindings")
+    prompts = agent.setdefault("prompts", [])
+    if not isinstance(prompts, list) or len(prompts) > 6:
+        raise ValueError("Configure up to six starter prompts per agent")
+    for prompt in prompts:
+        if (not isinstance(prompt, dict) or set(prompt) != {"label", "text"}
+                or not isinstance(prompt["label"], str) or not 1 <= len(prompt["label"].strip()) <= 80
+                or not isinstance(prompt["text"], str) or not 1 <= len(prompt["text"].strip()) <= 4000):
+            raise ValueError("Invalid starter prompt")
+
+
 def load_agents(path):
     agents = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(agents, list) or not 1 <= len(agents) <= 16:
         raise ValueError("Configure between one and sixteen agents")
     identifiers = set()
     for agent in agents:
-        required = {"id", "label", "category", "description", "agent", "tools"}
-        if not isinstance(agent, dict) or not required <= set(agent) or set(agent) - required - {"prompts", "guidance"}:
-            raise ValueError("Invalid agent configuration")
-        for key in ("id", "agent"):
-            if not isinstance(agent[key], str) or not NAME.fullmatch(agent[key]):
-                raise ValueError("Invalid agent name")
-        if CREATED_ID.fullmatch(agent["id"]):
-            raise ValueError("The created-agent identifier namespace is reserved")
-        for key in ("label", "category", "description"):
-            if not isinstance(agent[key], str) or not agent[key].strip():
-                raise ValueError("Agent display fields must be nonempty")
-        if "guidance" in agent:
-            guidance = agent["guidance"]
-            if (not isinstance(guidance, dict)
-                    or set(guidance) != {"input", "output", "limits", "delegation", "configuration"}
-                    or any(not isinstance(value, str) or not 1 <= len(value.strip()) <= 1200
-                           for value in guidance.values())):
-                raise ValueError("Invalid agent guidance")
+        validate_agent(agent)
         if agent["id"] in identifiers:
             raise ValueError("Duplicate agent identifier")
         identifiers.add(agent["id"])
-        if not isinstance(agent["tools"], dict) or any(
-            not isinstance(tool, str) or not NAME.fullmatch(tool) or not isinstance(target, str) or not NAME.fullmatch(target)
-            for tool, target in agent["tools"].items()
-        ):
-            raise ValueError("Invalid specialist bindings")
-        prompts = agent.setdefault("prompts", [])
-        if not isinstance(prompts, list) or len(prompts) > 6:
-            raise ValueError("Configure up to six starter prompts per agent")
-        for prompt in prompts:
-            if (not isinstance(prompt, dict) or set(prompt) != {"label", "text"}
-                    or not isinstance(prompt["label"], str) or not 1 <= len(prompt["label"].strip()) <= 80
-                    or not isinstance(prompt["text"], str) or not 1 <= len(prompt["text"].strip()) <= 4000):
-                raise ValueError("Invalid starter prompt")
     return agents
+
+
+def chat_prompt(data, registry):
+    """Return the Responses input for a valid chat request body, or None when it is invalid."""
+    if (not isinstance(data, dict) or set(data) not in ({"agent_id", "input"}, {"agent_id", "input", "history"}) or
+            not isinstance(data["agent_id"], str) or
+            (data["agent_id"] not in registry and not CREATED_ID.fullmatch(data["agent_id"])) or
+            not isinstance(data["input"], str) or not data["input"].strip() or len(data["input"]) > MAX_CHARACTERS):
+        return None
+    history = data.get("history", [])
+    if not isinstance(history, list) or len(history) > MAX_HISTORY_TURNS * 2 or len(history) % 2:
+        return None
+    for index, message in enumerate(history):
+        if (not isinstance(message, dict) or set(message) != {"role", "content"} or
+                message["role"] != ("user" if index % 2 == 0 else "assistant") or
+                not isinstance(message["content"], str) or not message["content"].strip()):
+            return None
+    if sum(len(message["content"]) for message in history) + len(data["input"]) > MAX_CHARACTERS:
+        return None
+    return history + [{"role": "user", "content": data["input"]}] if history else data["input"]
 
 
 def execution_receipts(output, bindings):
@@ -180,6 +209,133 @@ class FoundryGateway:
                 return response.status, response.output_text, response.model_dump().get("output", [])
 
 
+class ChatReviews:
+    """Stateless chat turns: POST /api/reviews admission, validation, and one bounded Foundry Responses call."""
+
+    def __init__(self, settings, registry, gateway, created_agents, slots, recent):
+        self.settings, self.registry, self.gateway = settings, registry, gateway
+        self.created_agents, self.slots, self.recent = created_agents, slots, recent
+
+    async def admit(self, request: Request):
+        now = time.monotonic()
+        while self.recent and self.recent[0] <= now - 60:
+            self.recent.popleft()
+        if self.slots.locked() or len(self.recent) >= 20:
+            request.state.error_code = "busy"
+            return JSONResponse({"error": "busy", "request_id": request.state.request_id},
+                                status_code=429, headers={"Retry-After": "60"})
+        self.recent.append(now)
+        async with self.slots:
+            return await self.execute(request)
+
+    @staticmethod
+    def error(request, status, code):
+        request.state.error_code = code
+        request_id = request.state.request_id
+        return JSONResponse({"error": code, "request_id": request_id}, status_code=status,
+                            headers={"X-Correlation-ID": request_id})
+
+    async def read_json(self, request):
+        """Return (data, None) for a bounded JSON body, or (None, error response)."""
+        if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
+            return None, self.error(request, 415, "json_required")
+        body = bytearray()
+        try:
+            async with asyncio.timeout(5):
+                async for chunk in request.stream():
+                    body.extend(chunk)
+                    if len(body) > MAX_REQUEST_BYTES:
+                        return None, self.error(request, 413, "request_too_large")
+        except TimeoutError:
+            return None, self.error(request, 408, "request_timeout")
+        try:
+            return json.loads(body), None
+        except (ValueError, UnicodeError):
+            return None, self.error(request, 400, "invalid_request")
+
+    async def resolve(self, request, agent_id):
+        """Return (agent, None) for a configured or ready created agent, or (None, error response)."""
+        agent = self.registry.get(agent_id)
+        if agent is not None:
+            return agent, None
+        try:
+            agent = await self.created_agents.resolve_agent(agent_id)
+        except Exception as problem:
+            LOGGER.error(json.dumps({"event": "created_agent_lookup_failed", "type": type(problem).__name__}))
+            return None, self.error(request, 503, "agents_unavailable")
+        return (agent, None) if agent is not None else (None, self.error(request, 400, "invalid_request"))
+
+    async def execute(self, request: Request):
+        if not request_allowed(request, self.settings.origins):
+            return self.error(request, 403, "request_not_allowed")
+        data, rejection = await self.read_json(request)
+        if rejection is not None:
+            return rejection
+        prompt = chat_prompt(data, self.registry)
+        if prompt is None:
+            return self.error(request, 400, "invalid_request")
+        if self.settings.mode == "preview":
+            return self.error(request, 503, "preview_only")
+        agent, rejection = await self.resolve(request, data["agent_id"])
+        if rejection is not None:
+            return rejection
+        return await self.respond(request, agent, prompt)
+
+    async def respond(self, request, agent, prompt):
+        request_id = request.state.request_id
+        started = time.monotonic()
+        try:
+            async with asyncio.timeout(self.settings.timeout):
+                status, text, output = await self.gateway.review(agent, prompt)
+            if status != "completed" or not isinstance(text, str) or not text.strip():
+                return self.error(request, 502, "incomplete_response")
+            if len(text) > 100000 or len(json.dumps(output).encode("utf-8")) > 524288:
+                return self.error(request, 502, "response_too_large")
+            receipts = execution_receipts(output, agent["tools"])
+            if len(receipts) > 32 or any(len(receipt["output"] or "") > 100000 for receipt in receipts):
+                return self.error(request, 502, "response_too_large")
+            return JSONResponse({"request_id": request_id, "status": status, "agent": agent["agent"],
+                                 "text": text, "receipts": receipts, "elapsed_ms": round((time.monotonic() - started) * 1000)},
+                                headers={"X-Correlation-ID": request_id})
+        except TimeoutError:
+            return self.error(request, 504, "timeout")
+        except Exception:
+            return self.error(request, 502, "backend_unavailable")
+
+
+class DependencyMonitor:
+    """Probe Foundry and Cosmos DB at startup and every minute for /api/health/dependencies."""
+
+    def __init__(self, settings, gateway, agents, history_store):
+        self.gateway, self.agents, self.history_store = gateway, agents, history_store
+        self.status = {"status": "disabled" if settings.mode == "preview" else "starting"}
+
+    @staticmethod
+    async def check(operation):
+        try:
+            async with asyncio.timeout(15):
+                await operation()
+            return "ready"
+        except Exception:
+            return "unavailable"
+
+    async def probe(self):
+        foundry, cosmos = await asyncio.gather(
+            self.check(lambda: self.gateway.check(self.agents)),
+            self.check(self.history_store.check) if self.history_store is not None else asyncio.sleep(0, result="disabled"),
+        )
+        self.status.update(status="ready" if foundry == "ready" and cosmos in {"ready", "disabled"} else "degraded",
+                           foundry=foundry, cosmos=cosmos)
+        LOGGER.info(json.dumps({"event": "workbench_dependencies", **self.status}))
+
+    async def monitor(self, stopped):
+        while not stopped.is_set():
+            try:
+                await asyncio.wait_for(stopped.wait(), timeout=60)
+            except TimeoutError:
+                await self.probe()
+
+
 def create_app(settings=None, gateway=None, history_store=None, publisher=None):
     settings = settings or Settings.from_env()
     settings.validate()
@@ -201,31 +357,8 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
 
     review_runs = ReviewRuns(settings, registry, history_store, gateway, execution_receipts, slots, recent)
     created_agents = AgentCreations(settings, history_store, publisher)
-    dependency_status = {"status": "disabled" if settings.mode == "preview" else "starting"}
-
-    async def probe_dependencies():
-        async def check(operation):
-            try:
-                async with asyncio.timeout(15):
-                    await operation()
-                return "ready"
-            except Exception:
-                return "unavailable"
-
-        foundry, cosmos = await asyncio.gather(
-            check(lambda: gateway.check(agents)),
-            check(history_store.check) if history_store is not None else asyncio.sleep(0, result="disabled"),
-        )
-        dependency_status.update(status="ready" if foundry == "ready" and cosmos in {"ready", "disabled"} else "degraded",
-                                 foundry=foundry, cosmos=cosmos)
-        LOGGER.info(json.dumps({"event": "workbench_dependencies", **dependency_status}))
-
-    async def monitor_dependencies(stopped):
-        while not stopped.is_set():
-            try:
-                await asyncio.wait_for(stopped.wait(), timeout=60)
-            except TimeoutError:
-                await probe_dependencies()
+    chat = ChatReviews(settings, registry, gateway, created_agents, slots, recent)
+    dependencies = DependencyMonitor(settings, gateway, agents, history_store)
 
     @asynccontextmanager
     async def lifespan(application):
@@ -233,8 +366,8 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
         monitor = None
         try:
             if settings.mode == "private":
-                await probe_dependencies()
-                monitor = asyncio.create_task(monitor_dependencies(stopped))
+                await dependencies.probe()
+                monitor = asyncio.create_task(dependencies.monitor(stopped))
             yield
         finally:
             stopped.set()
@@ -254,11 +387,7 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
         started = time.monotonic()
         request.state.request_id = str(uuid4())
         response = await call_next(request)
-        response.headers.update({
-            "Cache-Control": cache_policy(request.url.path, response.status_code), "X-Content-Type-Options": "nosniff",
-            "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
-            "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
-        })
+        response.headers.update({"Cache-Control": cache_policy(request.url.path, response.status_code), **SECURITY_HEADERS})
         if settings.mode == "private":
             response.headers["Strict-Transport-Security"] = "max-age=31536000"
         if request.url.path.startswith("/api/"):
@@ -275,8 +404,8 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
         return {"status": "ready", "mode": settings.mode}
 
     @application.get("/api/health/dependencies")
-    async def dependencies():
-        return JSONResponse(dependency_status, status_code=200 if dependency_status["status"] == "ready" else 503)
+    async def dependency_health():
+        return JSONResponse(dependencies.status, status_code=200 if dependencies.status["status"] == "ready" else 503)
 
     @application.get("/api/config")
     async def configuration():
@@ -289,93 +418,7 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
             "reviews_enabled": settings.mode == "private" and history_store is not None,
             "agent_creation": created_agents.capabilities()}
 
-    @application.post("/api/reviews")
-    async def review(request: Request):
-        now = time.monotonic()
-        while recent and recent[0] <= now - 60:
-            recent.popleft()
-        if slots.locked() or len(recent) >= 20:
-            request.state.error_code = "busy"
-            return JSONResponse({"error": "busy", "request_id": request.state.request_id},
-                                status_code=429, headers={"Retry-After": "60"})
-        recent.append(now)
-        async with slots:
-            return await execute_review(request)
-
-    async def execute_review(request: Request):
-        request_id = request.state.request_id
-
-        def error(status, code):
-            request.state.error_code = code
-            return JSONResponse({"error": code, "request_id": request_id}, status_code=status,
-                                headers={"X-Correlation-ID": request_id})
-
-        origin = request.headers.get("origin")
-        if (request.headers.get("x-workbench-request") != "1" or
-                request.headers.get("sec-fetch-site") == "cross-site" or
-                (origin is not None and origin not in settings.origins)):
-            return error(403, "request_not_allowed")
-        if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
-            return error(415, "json_required")
-        body = bytearray()
-        try:
-            async with asyncio.timeout(5):
-                async for chunk in request.stream():
-                    body.extend(chunk)
-                    if len(body) > MAX_REQUEST_BYTES:
-                        return error(413, "request_too_large")
-        except TimeoutError:
-            return error(408, "request_timeout")
-        try:
-            data = json.loads(body)
-        except (ValueError, UnicodeError):
-            return error(400, "invalid_request")
-        if (not isinstance(data, dict) or set(data) not in ({"agent_id", "input"}, {"agent_id", "input", "history"}) or
-                not isinstance(data["agent_id"], str) or
-                (data["agent_id"] not in registry and not CREATED_ID.fullmatch(data["agent_id"])) or
-                not isinstance(data["input"], str) or not data["input"].strip() or len(data["input"]) > MAX_CHARACTERS):
-            return error(400, "invalid_request")
-        history = data.get("history", [])
-        if not isinstance(history, list) or len(history) > MAX_HISTORY_TURNS * 2 or len(history) % 2:
-            return error(400, "invalid_request")
-        for index, message in enumerate(history):
-            if (not isinstance(message, dict) or set(message) != {"role", "content"} or
-                    message["role"] != ("user" if index % 2 == 0 else "assistant") or
-                    not isinstance(message["content"], str) or not message["content"].strip()):
-                return error(400, "invalid_request")
-        if sum(len(message["content"]) for message in history) + len(data["input"]) > MAX_CHARACTERS:
-            return error(400, "invalid_request")
-        prompt = history + [{"role": "user", "content": data["input"]}] if history else data["input"]
-        if settings.mode == "preview":
-            return error(503, "preview_only")
-        agent = registry.get(data["agent_id"])
-        if agent is None:
-            try:
-                agent = await created_agents.resolve_agent(data["agent_id"])
-            except Exception as problem:
-                LOGGER.error(json.dumps({"event": "created_agent_lookup_failed", "type": type(problem).__name__}))
-                return error(503, "agents_unavailable")
-            if agent is None:
-                return error(400, "invalid_request")
-        started = time.monotonic()
-        try:
-            async with asyncio.timeout(settings.timeout):
-                status, text, output = await gateway.review(agent, prompt)
-            if status != "completed" or not isinstance(text, str) or not text.strip():
-                return error(502, "incomplete_response")
-            if len(text) > 100000 or len(json.dumps(output).encode("utf-8")) > 524288:
-                return error(502, "response_too_large")
-            receipts = execution_receipts(output, agent["tools"])
-            if len(receipts) > 32 or any(len(receipt["output"] or "") > 100000 for receipt in receipts):
-                return error(502, "response_too_large")
-            return JSONResponse({"request_id": request_id, "status": status, "agent": agent["agent"],
-                                 "text": text, "receipts": receipts, "elapsed_ms": round((time.monotonic() - started) * 1000)},
-                                headers={"X-Correlation-ID": request_id})
-        except TimeoutError:
-            return error(504, "timeout")
-        except Exception:
-            return error(502, "backend_unavailable")
-
+    application.add_api_route("/api/reviews", chat.admit, methods=["POST"])
     application.include_router(history_router(settings, registry, history_store, created_agents))
     application.include_router(review_runs.router)
     application.include_router(created_agents.router)

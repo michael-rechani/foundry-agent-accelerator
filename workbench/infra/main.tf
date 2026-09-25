@@ -248,6 +248,8 @@ resource "azurerm_container_app" "this" {
     }
   }
   template {
+    # Admission limits, publication tasks, and review runs are process-local; see
+    # workbench/README.md before raising replicas.
     min_replicas = 1
     max_replicas = 1
     container {

@@ -245,9 +245,9 @@ class FoundryPublisher:
         async with self.client() as client:
             try:
                 await client.agents.get(agent_name=document["runtime_name"])
-            except ResourceNotFoundError:
+            except ResourceNotFoundError as problem:
                 if document["version"] is None:
-                    raise PublicationError("deletion_unconfirmed")
+                    raise PublicationError("deletion_unconfirmed") from problem
                 await progress("deleted", status="deleted", error=None)
                 return
             version = await self.only_owned_version(client, document)

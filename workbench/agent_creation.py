@@ -21,6 +21,7 @@ from pydantic import Field, ValidationError, field_validator
 from agent_publisher import FoundryPublisher, PublicationError, resource_name, runtime_package
 from agent_templates import MODEL_PROFILES, TEMPLATES, TemplateRequiredError, list_templates, model_profile, prepare_draft
 from history import StrictModel
+from request_guard import request_allowed
 
 
 LOGGER = logging.getLogger("uvicorn.error")
@@ -180,9 +181,7 @@ class AgentCreations:
         )
 
     def admit(self, request):
-        if (request.headers.get("x-workbench-request") != "1"
-                or request.headers.get("sec-fetch-site") == "cross-site"
-                or request.headers.get("origin") not in (None, *self.settings.origins)):
+        if not request_allowed(request, self.settings.origins):
             return self.error(request, 403, "request_not_allowed")
         now = time.monotonic()
         while self.recent and self.recent[0] <= now - 60:
@@ -326,46 +325,7 @@ class AgentCreations:
                 return rejection
         try:
             async with self.read_slots, asyncio.timeout(35):
-                if request.method == "GET" and identifier is None:
-                    return {"items": [self.public(document) for document in await self.records()],
-                            "limit": self.config.max_agents}
-                if request.method == "GET":
-                    document = await self.storage(self.store.get(identifier))
-                    if not self.owned(document):
-                        return self.error(request, 404, "agent_not_found")
-                    return self.public(document)
-                async with self.mutation_lock:
-                    if identifier is None:
-                        data = await self.body(request, CreateInput)
-                        return await self.create(request, data)
-                    document = await self.storage(self.store.get(identifier))
-                    if not self.owned(document):
-                        return self.error(request, 404, "agent_not_found")
-                    if request.headers.get("if-match") != document["_etag"]:
-                        return self.error(request, 409, "agent_changed")
-                    if identifier in self.tasks:
-                        return self.error(request, 409, "agent_operation_running")
-                    if document["status"] == "deleted":
-                        return self.public(document)
-                    if resume and (self.effective_status(document) not in {"interrupted", "failed"}
-                                   or document["operation"] == "delete"):
-                        return self.error(request, 409, "agent_not_resumable")
-                    if self.operation_slot.locked():
-                        return self.error(request, 429, "agents_busy")
-                    operation = "resume" if resume else "delete"
-                    await self.operation_slot.acquire()
-                    try:
-                        document.update(
-                            status="creating" if resume else "deleting",
-                            stage="queued" if resume else "deleting", error=None,
-                            updated_at=timestamp(), operation=operation,
-                        )
-                        document = await self.storage(self.store.replace(document, document["_etag"]))
-                        self.start(document, operation)
-                    except BaseException:
-                        self.operation_slot.release()
-                        raise
-                    return JSONResponse(self.public(document), status_code=202)
+                return await self.dispatch(request, identifier, resume)
         except (ValidationError, ValueError):
             return self.error(request, 400, "invalid_setup")
         except OverflowError:
@@ -379,6 +339,51 @@ class AgentCreations:
         except Exception as problem:
             LOGGER.error(json.dumps({"event": "agent_record_failed", "type": type(problem).__name__}))
             return self.error(request, 503, "agents_unavailable")
+
+    async def dispatch(self, request, identifier, resume):
+        if request.method == "GET" and identifier is None:
+            return {"items": [self.public(document) for document in await self.records()],
+                    "limit": self.config.max_agents}
+        if request.method == "GET":
+            document = await self.storage(self.store.get(identifier))
+            if not self.owned(document):
+                return self.error(request, 404, "agent_not_found")
+            return self.public(document)
+        async with self.mutation_lock:
+            if identifier is None:
+                data = await self.body(request, CreateInput)
+                return await self.create(request, data)
+            return await self.change(request, identifier, resume)
+
+    async def change(self, request, identifier, resume):
+        document = await self.storage(self.store.get(identifier))
+        if not self.owned(document):
+            return self.error(request, 404, "agent_not_found")
+        if request.headers.get("if-match") != document["_etag"]:
+            return self.error(request, 409, "agent_changed")
+        if identifier in self.tasks:
+            return self.error(request, 409, "agent_operation_running")
+        if document["status"] == "deleted":
+            return self.public(document)
+        if resume and (self.effective_status(document) not in {"interrupted", "failed"}
+                       or document["operation"] == "delete"):
+            return self.error(request, 409, "agent_not_resumable")
+        if self.operation_slot.locked():
+            return self.error(request, 429, "agents_busy")
+        operation = "resume" if resume else "delete"
+        await self.operation_slot.acquire()
+        try:
+            document.update(
+                status="creating" if resume else "deleting",
+                stage="queued" if resume else "deleting", error=None,
+                updated_at=timestamp(), operation=operation,
+            )
+            document = await self.storage(self.store.replace(document, document["_etag"]))
+            self.start(document, operation)
+        except BaseException:
+            self.operation_slot.release()
+            raise
+        return JSONResponse(self.public(document), status_code=202)
 
     async def create(self, request, data):
         identifier = "created-" + data.idempotency_key

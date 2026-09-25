@@ -148,7 +148,7 @@ class CoordinatorTests(unittest.TestCase):
         ) as invoke:
             tools = self.module.create_specialist_tools("endpoint", object())
             self.assertEqual([tool.__name__ for tool in tools], [item["tool"] for item in specialists])
-            for tool, specialist in zip(tools, specialists):
+            for tool, specialist in zip(tools, specialists, strict=True):
                 self.assertEqual(tool.__doc__, specialist["description"])
                 self.assertEqual(json.loads(asyncio.run(tool("source")))["agent"], specialist["agent"])
             self.assertEqual([call.args[2] for call in invoke.call_args_list], [item["agent"] for item in specialists])

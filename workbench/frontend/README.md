@@ -15,12 +15,17 @@ From this directory:
 npm ci
 npm run lint
 npm run format:check
+npm run test:unit
 npm run build
 npx playwright install chromium
 npm test
 ```
 
 Run `npm run format` to fix formatting that `npm run format:check` reports.
+`npm run test:unit` uses Node's built-in test runner and type stripping, with no
+extra dependencies, to test browser-independent modules in `src/` from `unit/`.
+Those modules must use erasable TypeScript syntax, and tests import them with
+explicit `.ts` extensions. `unit/` sits outside `tests/` so Playwright ignores it.
 `npm run build` applies strict TypeScript checks to the application and Vite
 configuration, including nullability and implicit types.
 `npm test` builds production assets and starts an isolated preview server on

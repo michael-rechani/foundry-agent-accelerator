@@ -5,6 +5,7 @@
 !history.py
 !reviews.py
 !review_runs.py
+!request_guard.py
 !agents.json
 !agent_creation.py
 !agent_publisher.py
