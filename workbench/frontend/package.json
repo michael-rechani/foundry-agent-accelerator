@@ -10,6 +10,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "npm run build && playwright test",
+    "test:unit": "node --test \"unit/*.test.ts\"",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -202,6 +202,13 @@ class ReviewLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(response.json()["evidence"]), 2)
         self.assertEqual(len(response.json()["runs"][0]["input"]["evidence"]), 1)
 
+    async def test_oversized_review_body_is_rejected_before_storage(self):
+        response = await self.client.post("/api/review-runs", content=b"{" + b" " * 65536 + b"}",
+                                          headers={"Content-Type": "application/json"})
+        self.assertEqual(response.status_code, 413, response.text)
+        self.assertEqual(response.json()["error"], "request_too_large")
+        self.assertEqual(self.store.documents, {})
+
     async def test_competing_starts_execute_only_once(self):
         document = await self.draft()
         entered, release = asyncio.Event(), asyncio.Event()

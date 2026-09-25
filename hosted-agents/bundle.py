@@ -92,7 +92,7 @@ def nonempty(value, maximum=32768):
     return isinstance(value, str) and 0 < len(value.strip()) <= maximum
 
 
-def validate_manifest(manifest, code):
+def validate_fields(manifest):
     if not isinstance(manifest, dict) or set(manifest) != FIELDS:
         raise ValueError("Bundle manifest has missing or unknown fields")
     if type(manifest["schema_version"]) is not int or manifest["schema_version"] != 1:
@@ -112,6 +112,9 @@ def validate_manifest(manifest, code):
         raise ValueError("Unsupported runtime or CPU/memory allocation")
     if not isinstance(manifest["smoke_test_prompt"], str) or len(manifest["smoke_test_prompt"]) > 32768:
         raise ValueError("Invalid smoke-test prompt")
+
+
+def validate_archive(manifest, code):
     if not isinstance(manifest["code_sha256"], str) or manifest["code_sha256"] != digest(code):
         raise ValueError("Runtime archive hash does not match the manifest")
     files = zip_contents(code)
@@ -123,43 +126,62 @@ def validate_manifest(manifest, code):
         raise ValueError("Runtime archive has missing or unsupported files")
     if manifest["files"] != {name: digest(content) for name, content in files.items()}:
         raise ValueError("Source/dependency hashes do not match the manifest")
+    return files
+
+
+def validate_lab_environment(manifest, environment, checks):
+    if (set(environment) != {"DEMO_TEMPLATE_ID"} or checks
+            or not isinstance(environment["DEMO_TEMPLATE_ID"], str)
+            or not re.fullmatch(r"[a-z][a-z-]{0,63}", environment["DEMO_TEMPLATE_ID"])):
+        raise ValueError("Lab bundles require one template ID and no specialist bindings")
+    if not 10 <= len(manifest["instructions"].strip()) <= 6000:
+        raise ValueError("Lab instructions must contain 10 to 6000 characters")
+    if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", manifest["name"]):
+        raise ValueError("Invalid Lab runtime name")
+
+
+def specialist_bindings(manifest, environment):
+    if set(environment) != {"SPECIALIST_CONFIG"} or not isinstance(environment["SPECIALIST_CONFIG"], str):
+        raise ValueError("Only reviewed specialist configuration may travel with a prebuilt bundle")
+    specialists = read_json(environment["SPECIALIST_CONFIG"])
+    if not isinstance(specialists, list) or not 1 <= len(specialists) <= 16:
+        raise ValueError("Invalid specialist registry")
+    bindings = {}
+    for specialist in specialists:
+        if not isinstance(specialist, dict) or set(specialist) != {"tool", "agent", "description"}:
+            raise ValueError("Invalid specialist binding")
+        if any(not isinstance(specialist[key], str) or not NAME.fullmatch(specialist[key])
+               for key in ("tool", "agent")) or not nonempty(specialist["description"]):
+            raise ValueError("Invalid specialist name or description")
+        if specialist["tool"] in bindings or specialist["agent"] == manifest["name"]:
+            raise ValueError("Duplicate tool or self-delegation")
+        bindings[specialist["tool"]] = specialist["agent"]
+    return bindings
+
+
+def validate_delegation(manifest, environment, checks, files):
+    bindings = specialist_bindings(manifest, environment)
+    covered = set()
+    for check in checks:
+        if (not isinstance(check, list) or len(check) != 3 or not nonempty(check[0])
+                or not isinstance(check[1], str) or bindings.get(check[1]) != check[2]):
+            raise ValueError("Delegation checks must match the bundled specialists")
+        covered.add(check[1])
+    if covered != set(bindings) or "configuration.py" not in files:
+        raise ValueError("Every bundled specialist requires its runtime configuration and a check")
+
+
+def validate_manifest(manifest, code):
+    validate_fields(manifest)
+    files = validate_archive(manifest, code)
     environment = manifest["environment"]
     checks = manifest["delegation_checks"]
     if not isinstance(environment, dict) or not isinstance(checks, list):
         raise ValueError("Invalid environment or delegation checks")
     if manifest["kind"] == "lab-created":
-        if (set(environment) != {"DEMO_TEMPLATE_ID"} or checks
-                or not isinstance(environment["DEMO_TEMPLATE_ID"], str)
-                or not re.fullmatch(r"[a-z][a-z-]{0,63}", environment["DEMO_TEMPLATE_ID"])):
-            raise ValueError("Lab bundles require one template ID and no specialist bindings")
-        if not 10 <= len(manifest["instructions"].strip()) <= 6000:
-            raise ValueError("Lab instructions must contain 10 to 6000 characters")
-        if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", manifest["name"]):
-            raise ValueError("Invalid Lab runtime name")
+        validate_lab_environment(manifest, environment, checks)
     elif environment:
-        if set(environment) != {"SPECIALIST_CONFIG"} or not isinstance(environment["SPECIALIST_CONFIG"], str):
-            raise ValueError("Only reviewed specialist configuration may travel with a prebuilt bundle")
-        specialists = read_json(environment["SPECIALIST_CONFIG"])
-        if not isinstance(specialists, list) or not 1 <= len(specialists) <= 16:
-            raise ValueError("Invalid specialist registry")
-        bindings = {}
-        for specialist in specialists:
-            if not isinstance(specialist, dict) or set(specialist) != {"tool", "agent", "description"}:
-                raise ValueError("Invalid specialist binding")
-            if any(not isinstance(specialist[key], str) or not NAME.fullmatch(specialist[key])
-                   for key in ("tool", "agent")) or not nonempty(specialist["description"]):
-                raise ValueError("Invalid specialist name or description")
-            if specialist["tool"] in bindings or specialist["agent"] == manifest["name"]:
-                raise ValueError("Duplicate tool or self-delegation")
-            bindings[specialist["tool"]] = specialist["agent"]
-        covered = set()
-        for check in checks:
-            if (not isinstance(check, list) or len(check) != 3 or not nonempty(check[0])
-                    or not isinstance(check[1], str) or bindings.get(check[1]) != check[2]):
-                raise ValueError("Delegation checks must match the bundled specialists")
-            covered.add(check[1])
-        if covered != set(bindings) or "configuration.py" not in files:
-            raise ValueError("Every bundled specialist requires its runtime configuration and a check")
+        validate_delegation(manifest, environment, checks, files)
     elif checks:
         raise ValueError("Delegation checks require explicit specialist bindings")
     return manifest

@@ -11,7 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt && useradd --uid 10001 --create-home workbench
-COPY app.py history.py reviews.py review_runs.py agents.json agent_creation.py agent_publisher.py agent_package.py agent_templates.py ./
+COPY app.py history.py reviews.py review_runs.py request_guard.py agents.json agent_creation.py agent_publisher.py agent_package.py agent_templates.py ./
 COPY agent_runtime/ ./agent_runtime/
 COPY --from=frontend /build/static ./static
 USER 10001
