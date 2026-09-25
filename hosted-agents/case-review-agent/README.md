@@ -64,3 +64,10 @@ and run:
 ```powershell
 python deploy.py
 ```
+
+## Related content
+
+- [Hosted agents](../README.md)
+- [Application and case helper](../review-coordinator-agent/README.md)
+- [Application checker](../application-review-agent/README.md)
+- [Evaluations](../../evaluations/README.md)

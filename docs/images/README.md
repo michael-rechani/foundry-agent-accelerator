@@ -294,3 +294,9 @@ README alt text describes all three frames.
 - Do not reduce type to fit more detail.
 - Use labels and callouts, not color alone, to explain requests, results,
   persistence paths, optional paths, and execution boundaries.
+
+## Related content
+
+- [Architecture](../architecture.md)
+- [Docs](../README.md)
+- [Home](../../README.md)

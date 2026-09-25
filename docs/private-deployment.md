@@ -32,6 +32,7 @@ deployment continues automatically after reading these instructions.
 - [5. Deploy the coordinator](#5-deploy-the-coordinator)
 - [6. Verify deployment and routing](#6-verify-deployment-and-routing)
 - [7. Handle failure and cleanup](#7-handle-failure-and-cleanup)
+- [Related content](#related-content)
 
 ## 1. Confirm prerequisites
 

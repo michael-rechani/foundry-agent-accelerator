@@ -25,6 +25,7 @@ doesn't require a different client URL.
 - [Request contract](#request-contract)
 - [Request flow and controls](#request-flow-and-controls)
 - [Acceptance gates](#acceptance-gates)
+- [Related content](#related-content)
 
 ## At a glance
 
@@ -220,3 +221,11 @@ Offline tests check Terraform inputs and rendered XML, not Azure's policy
 compiler, token validation, DNS, schema enforcement, or the live error contract.
 Don't use live customer records for acceptance tests. Agent-profile smoke tests
 don't establish APIM-to-Foundry connectivity. Test the gateway path separately.
+
+## Related content
+
+- [Optional integrations](optional-integrations.md)
+- [Application ingress options](ingress-access.md)
+- [Coordinator profiles](agent-profiles.md)
+- [Infrastructure](../terraform/README.md)
+- [Private deployment runbook](private-deployment.md)

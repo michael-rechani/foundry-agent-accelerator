@@ -111,3 +111,11 @@ stops.
 Read [instructions.md](instructions.md) for routing and evidence boundaries. For
 tests, rollback behavior, and pinned dependencies, use the
 [shared guide](../README.md).
+
+## Related content
+
+- [Hosted agents](../README.md)
+- [Application checker](../application-review-agent/README.md)
+- [Case notes summarizer](../case-review-agent/README.md)
+- [Coordinator profiles](../../docs/agent-profiles.md)
+- [Evaluations](../../evaluations/README.md)

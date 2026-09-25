@@ -43,6 +43,7 @@ For every Azure service on one page, see
 - [Trust boundaries](#trust-boundaries)
 - [Review request](#review-request)
 - [Delivery is separate from runtime](#delivery-is-separate-from-runtime)
+- [Related content](#related-content)
 
 For the native Foundry capability comparison and new-agent onboarding checklist,
 see the [extension guide](architecture-assessment.md).
