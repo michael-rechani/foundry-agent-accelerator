@@ -14,6 +14,7 @@ function RunActivity({ run }: { run?: Run }) {
   return (
     <>
       <h2>Recorded activity</h2>
+      {run?.error && <p>Run error: {run.error}</p>}
       <ol className="review-timeline">
         {run?.events.map((event, index) => (
           <li key={index}>
@@ -61,6 +62,7 @@ export function ReviewDetail({
   onSource,
   onAdditional,
   onExecute,
+  onRecover,
   onAddEvidence,
 }: {
   review: Review
@@ -79,6 +81,7 @@ export function ReviewDetail({
   onSource: (id: string) => void
   onAdditional: (value: string) => void
   onExecute: () => void
+  onRecover: () => void
   onAddEvidence: () => void
 }) {
   return (
@@ -111,13 +114,42 @@ export function ReviewDetail({
       {review.status === 'running' && (
         <div className="review-progress" role="status">
           <LoaderCircle className="spin" size={18} />
-          Waiting for the agent&apos;s reply
+          Waiting for the agent&apos;s reply or its recovery window to expire.
+          No new call will start automatically.
         </div>
       )}
       {['failed', 'interrupted'].includes(review.status) && (
         <div className="review-notice" role="alert">
-          {run?.error || 'Execution interrupted'}. Remote work may have
-          completed. No automatic retry was made.
+          {review.runs.at(-1)?.error || 'Execution interrupted'}. Remote work
+          may have completed. No automatic retry was made.
+        </div>
+      )}
+      {review.status === 'interrupted' && (
+        <div className="review-next-step">
+          {review.runs.length > 0 && review.runs.length < 4 ? (
+            <>
+              <p>
+                Recover the latest run using its saved checklist and documents.
+                This starts a new agent call, not a continuation of the earlier
+                call. The earlier call may still complete, so recovery may incur
+                another model charge and uses one of the four runs.
+              </p>
+              <button
+                className="review-primary"
+                disabled={busy}
+                onClick={onRecover}
+              >
+                Recover review
+              </button>
+            </>
+          ) : (
+            <p>
+              {review.runs.length >= 4
+                ? 'The four-run limit has been reached. This review cannot be recovered again.'
+                : 'No saved run input is available for recovery.'}{' '}
+              You can still inspect or export this record.
+            </p>
+          )}
         </div>
       )}
       <div className="review-tabs" role="tablist" aria-label="Review detail">

@@ -578,6 +578,11 @@ Require successful private HTTPS, agent execution, and Cosmos CRUD verification.
 An infrastructure apply alone is not an application acceptance test. For the
 new workflow, also complete [review delivery checks](../docs/review-workflow.md#delivery-checks),
 including explicit clarification, resume, and prior-snapshot verification.
+Interrupted reviews also offer [explicit recovery](../docs/review-workflow.md#recover-an-interrupted-review)
+from saved run input after a recovery window. Recovery requires cost
+confirmation, preserves the earlier attempt, and consumes another run; it does
+not turn the process-local task into a durable worker or retrieve an earlier
+remote result.
 
 Private runtime settings are managed by Terraform: `WORKBENCH_MODE`,
 `WORKBENCH_VISIBLE_AGENTS`, `WORKBENCH_DEFAULT_AGENT`, `WORKBENCH_TITLE`, exact

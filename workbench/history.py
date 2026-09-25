@@ -71,7 +71,7 @@ class CosmosHistory:
 
     async def list_reviews(self, agents, cursor):
         query = self.container.query_items(
-            query="SELECT c.id, c.title, c.agent_id, c.updated_at, c.status FROM c WHERE c.kind = 'review' AND ARRAY_CONTAINS(@agents, c.agent_id) ORDER BY c.updated_at DESC",
+            query="SELECT c.id, c.title, c.agent_id, c.updated_at, c.status, c.recovery_after FROM c WHERE c.kind = 'review' AND ARRAY_CONTAINS(@agents, c.agent_id) ORDER BY c.updated_at DESC",
             parameters=[{"name": "@agents", "value": list(agents)}], partition_key="shared", max_item_count=20)
         pages = query.by_page(continuation_token=cursor)
         page = await anext(pages, None)

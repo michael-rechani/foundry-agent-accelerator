@@ -2,16 +2,18 @@ import json
 import asyncio
 from collections import deque
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import unittest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from azure.cosmos.exceptions import CosmosHttpResponseError
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from reviews import ReviewInput, review_prompt, validate_result
 from app import Settings, create_app, execution_receipts
-from review_runs import ReviewRuns
+from review_runs import RECOVERY_GRACE_SECONDS, ReviewRuns
 
 
 class ReviewContractTests(unittest.TestCase):
@@ -128,7 +130,8 @@ class ReviewStore:
         return await self.create(document)
 
     async def list_reviews(self, agents, cursor):
-        return {"items": [{key: document[key] for key in ("id", "title", "agent_id", "updated_at", "status")}
+        return {"items": [{key: document[key] for key in ("id", "title", "agent_id", "updated_at", "status", "recovery_after")
+                           if key in document}
                           for document in self.documents.values() if document["agent_id"] in agents], "cursor": None}
 
 
@@ -164,6 +167,28 @@ class ReviewLifecycleTests(unittest.IsolatedAsyncioTestCase):
         await controller.slots.acquire()
         await controller.execute(document)
         return await self.store.get(document["id"])
+
+    async def interrupted_review(self, status="running", *, legacy=False):
+        document = await self.draft()
+        document.update(status=status, updated_at="2026-01-01T00:00:00+00:00")
+        document["runs"] = [{"id": "lost-attempt", "started_at": document["updated_at"],
+                             "events": [{"name": "review_started", "at": document["updated_at"]}],
+                             "input": deepcopy(self.body)}]
+        if not legacy:
+            document["recovery_after"] = document["updated_at"]
+        return await self.store.replace(document, document["_etag"])
+
+    async def finish_tasks(self):
+        for task in list(asyncio.all_tasks()):
+            if task.get_coro().__qualname__ == "ReviewRuns.execute":
+                await task
+
+    async def resume(self, document, *, client=None, body=None):
+        return await (client or self.client).post(
+            f'/api/review-runs/{document["id"]}/resume',
+            json={"confirm_cost": True} if body is None else body,
+            headers={"If-Match": document["_etag"]},
+        )
 
     async def test_clarification_resume_preserves_previous_evidence(self):
         document = await self.draft()
@@ -215,9 +240,7 @@ class ReviewLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.gateway.review.await_count, 1)
 
     async def test_lost_worker_is_interrupted_not_restarted(self):
-        document = await self.draft()
-        document["status"] = "running"
-        await self.store.replace(document, document["_etag"])
+        document = await self.interrupted_review()
         response = await self.client.get('/api/review-runs/' + document["id"])
         self.assertEqual(response.json()["status"], "interrupted")
         inbox = await self.client.get('/api/review-runs')
@@ -226,13 +249,236 @@ class ReviewLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.gateway.review.assert_not_called()
 
     async def test_final_save_failure_never_claims_completion(self):
-        document = await self.draft()
+        document = await self.interrupted_review()
         self.gateway.review.return_value = ("completed", json.dumps(self.result), self.output)
-        self.store.documents[document["id"]]["status"] = "running"
         self.store.replace = AsyncMock(side_effect=RuntimeError("unavailable"))
-        await self.run_direct(document)
+        controller = self.controller()
+        await controller.slots.acquire()
+        await controller.execute(document)
         response = await self.client.get('/api/review-runs/' + document["id"])
         self.assertEqual(response.json()["status"], "interrupted")
+
+    async def test_restart_recovery_uses_saved_input_and_preserves_attempts(self):
+        for status, legacy in [("running", False), ("running", True), ("interrupted", False)]:
+            with self.subTest(status=status, legacy=legacy):
+                document = await self.interrupted_review(status, legacy=legacy)
+                original = deepcopy(document["runs"][0])
+                document["evidence"] = [{"id": "SRC-1", "text": "Not the saved run input."}]
+                document = await self.store.replace(document, document["_etag"])
+                self.gateway.review.return_value = ("completed", json.dumps(self.result), self.output)
+                response = await self.resume(document)
+                self.assertEqual(response.status_code, 202, response.text)
+                self.assertEqual(response.json()["status"], "running")
+                await self.finish_tasks()
+                saved = await self.store.get(document["id"])
+                self.assertEqual(saved["status"], "waiting_input")
+                self.assertEqual(len(saved["runs"]), 2)
+                first, recovered = saved["runs"]
+                self.assertEqual(first["input"], original["input"])
+                self.assertEqual(first["started_at"], original["started_at"])
+                self.assertEqual(first["events"][0], original["events"][0])
+                self.assertEqual(first["error"], "execution_interrupted")
+                self.assertEqual(first["events"][-1]["name"], "interrupted")
+                self.assertEqual(recovered["input"], original["input"])
+                self.assertEqual(recovered["resumed_from"], original["id"])
+                self.assertNotEqual(recovered["id"], original["id"])
+                self.assertEqual(recovered["events"][0]["name"], "review_recovery_requested")
+                self.assertEqual(self.gateway.review.call_args.args[1], review_prompt(ReviewInput.model_validate(original["input"])))
+                self.assertNotIn("error", recovered)
+                self.assertEqual(recovered["result"], self.result)
+
+    async def test_shutdown_interruption_can_be_recovered_by_new_worker(self):
+        document = await self.interrupted_review()
+        entered = asyncio.Event()
+
+        async def blocked(*args):
+            entered.set()
+            await asyncio.Event().wait()
+
+        self.gateway.review.side_effect = blocked
+        controller = self.controller()
+        await controller.slots.acquire()
+        controller.tasks[document["id"]] = asyncio.create_task(controller.execute(document))
+        await asyncio.wait_for(entered.wait(), 2)
+        await controller.close()
+        saved = await self.store.get(document["id"])
+        self.assertEqual(saved["status"], "interrupted")
+        original = deepcopy(saved["runs"][0])
+        self.gateway.review.side_effect = None
+        self.gateway.review.return_value = ("completed", json.dumps(self.result), self.output)
+        self.assertEqual((await self.resume(saved)).status_code, 202)
+        await self.finish_tasks()
+        recovered = await self.store.get(document["id"])
+        self.assertEqual(recovered["runs"][0], original)
+        self.assertEqual(recovered["status"], "waiting_input")
+        self.assertFalse(controller.tasks)
+        self.assertEqual(controller.slots._value, 4)
+
+    async def test_recovery_requires_exact_confirmation_and_current_etag(self):
+        document = await self.interrupted_review()
+        path = f'/api/review-runs/{document["id"]}/resume'
+        for body in [{}, {"confirm_cost": False}, {"confirm_cost": 1}, {"confirm_cost": "true"},
+                     {"confirm_cost": True, "input": self.body}]:
+            response = await self.resume(document, body=body)
+            self.assertEqual(response.status_code, 400, response.text)
+            self.assertEqual(response.json()["error"], "recovery_confirmation_required")
+        for headers in [{}, {"If-Match": "stale"}]:
+            response = await self.client.post(path, json={"confirm_cost": True}, headers=headers)
+            self.assertEqual(response.status_code, 409)
+        self.assertEqual((await self.client.post(path, headers={"If-Match": document["_etag"]})).status_code, 415)
+        self.assertEqual(await self.store.get(document["id"]), document)
+        self.gateway.review.assert_not_called()
+
+    async def test_recovery_rejects_other_states_missing_input_and_run_limit(self):
+        for status in ["draft", "waiting_input", "completed", "failed"]:
+            document = await self.interrupted_review(status)
+            self.assertEqual((await self.resume(document)).status_code, 409)
+        for runs in [[], None]:
+            document = await self.interrupted_review()
+            document["runs"] = runs if runs is not None else document["runs"] * 4
+            document = await self.store.replace(document, document["_etag"])
+            self.assertEqual((await self.resume(document)).status_code, 409)
+        document = await self.interrupted_review()
+        del document["runs"][0]["input"]
+        document = await self.store.replace(document, document["_etag"])
+        self.assertEqual((await self.resume(document)).status_code, 409)
+        document = await self.interrupted_review()
+        document["runs"][0]["input"]["agent_id"] = "case-review"
+        document = await self.store.replace(document, document["_etag"])
+        self.assertEqual((await self.resume(document)).status_code, 409)
+        self.gateway.review.assert_not_called()
+
+    async def test_persisted_deadline_protects_other_worker_and_legacy_records(self):
+        now = datetime.now(timezone.utc)
+        for legacy in [False, True]:
+            document = await self.interrupted_review(legacy=legacy)
+            document["updated_at"] = now.isoformat()
+            if not legacy:
+                document["recovery_after"] = (now + timedelta(seconds=30)).isoformat()
+            document = await self.store.replace(document, document["_etag"])
+            self.assertEqual((await self.resume(document)).status_code, 409)
+            path = '/api/review-runs/' + document["id"]
+            self.assertEqual((await self.client.get(path)).json()["status"], "running")
+            inbox = (await self.client.get('/api/review-runs')).json()["items"]
+            item = next(item for item in inbox if item["id"] == document["id"])
+            self.assertEqual(item["status"], "running")
+            self.assertNotIn("recovery_after", item)
+            seconds = 270 if legacy else 30
+            with patch("review_runs.datetime", wraps=datetime) as clock:
+                clock.now.return_value = now + timedelta(seconds=seconds - 0.001)
+                self.assertEqual((await self.client.get(path)).json()["status"], "running")
+                clock.now.return_value = now + timedelta(seconds=seconds)
+                self.assertEqual((await self.client.get(path)).json()["status"], "interrupted")
+                inbox = (await self.client.get('/api/review-runs')).json()["items"]
+                self.assertEqual(next(item for item in inbox if item["id"] == document["id"])["status"], "interrupted")
+        self.gateway.review.assert_not_called()
+
+    async def test_competing_recoveries_and_active_local_task_execute_only_once(self):
+        document = await self.interrupted_review()
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        async def blocked(*args):
+            entered.set()
+            await release.wait()
+            return "completed", json.dumps(self.result), self.output
+
+        self.gateway.review.side_effect = blocked
+        async with AsyncClient(
+            transport=ASGITransport(app=create_app(self.settings, self.gateway, self.store)),
+            base_url="https://testserver", headers=self.headers,
+        ) as other:
+            responses = await asyncio.gather(self.resume(document), self.resume(document, client=other))
+            self.assertEqual(sorted(response.status_code for response in responses), [202, 409])
+            await asyncio.wait_for(entered.wait(), 2)
+            saved = await self.store.get(document["id"])
+            self.assertGreater(datetime.fromisoformat(saved["recovery_after"]), datetime.now(timezone.utc))
+            self.assertLessEqual(
+                datetime.fromisoformat(saved["recovery_after"]) - datetime.fromisoformat(saved["updated_at"]),
+                timedelta(seconds=self.settings.timeout + RECOVERY_GRACE_SECONDS + 1),
+            )
+            self.assertEqual((await self.resume(saved)).status_code, 409)
+            self.assertEqual((await self.resume(saved, client=other)).status_code, 409)
+            # A live local task remains authoritative even after the recovery window.
+            winner = self.client if responses[0].status_code == 202 else other
+            with patch("review_runs.datetime", wraps=datetime) as clock:
+                clock.now.return_value = datetime.fromisoformat(saved["recovery_after"]) + timedelta(seconds=1)
+                self.assertEqual((await self.resume(saved, client=winner)).status_code, 409)
+            release.set()
+            await self.finish_tasks()
+        self.assertEqual(self.gateway.review.await_count, 1)
+
+    async def test_failed_recovery_claim_does_not_call_agent_or_lose_input(self):
+        document = await self.interrupted_review()
+        replace = self.store.replace
+        for failure, status in [(CosmosHttpResponseError(status_code=412), 409),
+                                (RuntimeError("unavailable"), 503)]:
+            self.store.replace = AsyncMock(side_effect=failure)
+            self.assertEqual((await self.resume(document)).status_code, status)
+            self.assertEqual(await self.store.get(document["id"]), document)
+        self.gateway.review.assert_not_called()
+        self.store.replace = replace
+        self.gateway.review.return_value = ("completed", json.dumps(self.result), self.output)
+        self.assertEqual((await self.resume(document)).status_code, 202)
+        await self.finish_tasks()
+
+    async def test_stale_worker_cannot_overwrite_recovered_result(self):
+        document = await self.interrupted_review()
+        self.gateway.review.return_value = ("completed", json.dumps(self.result), self.output)
+        self.assertEqual((await self.resume(document)).status_code, 202)
+        await self.finish_tasks()
+        saved = await self.store.get(document["id"])
+        stale = self.controller()
+        await stale.slots.acquire()
+        with self.assertLogs("uvicorn.error", level="WARNING") as captured:
+            await stale.execute(document)
+        self.assertIn("review_persistence_failed", captured.output[0])
+        self.assertEqual(await self.store.get(document["id"]), saved)
+
+    async def test_recovery_respects_shared_capacity_and_rate_limits(self):
+        document = await self.interrupted_review()
+        controller = self.controller()
+        app = FastAPI()
+        app.include_router(controller.router)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="https://testserver",
+                               headers=self.headers) as client:
+            for _ in range(4):
+                await controller.slots.acquire()
+            response = await self.resume(document, client=client)
+            self.assertEqual(response.status_code, 429)
+            self.assertEqual(response.headers["Retry-After"], "60")
+            for _ in range(4):
+                controller.slots.release()
+            controller.recent.extend([asyncio.get_running_loop().time()] * 20)
+            self.assertEqual((await self.resume(document, client=client)).status_code, 429)
+        self.assertEqual(await self.store.get(document["id"]), document)
+        self.gateway.review.assert_not_called()
+
+    async def test_unconfirmed_claim_waits_then_recovers_without_losing_history(self):
+        document = await self.interrupted_review()
+        replace = self.store.replace
+
+        async def accepted_but_unconfirmed(document, etag):
+            await replace(document, etag)
+            raise TimeoutError()
+
+        self.store.replace = accepted_but_unconfirmed
+        self.assertEqual((await self.resume(document)).status_code, 504)
+        self.gateway.review.assert_not_called()
+        saved = await self.store.get(document["id"])
+        self.assertEqual(len(saved["runs"]), 2)
+        self.assertEqual((await self.resume(saved)).status_code, 409)
+        self.store.replace = replace
+        self.gateway.review.return_value = ("completed", json.dumps(self.result), self.output)
+        with patch("review_runs.datetime", wraps=datetime) as clock:
+            clock.now.return_value = datetime.fromisoformat(saved["recovery_after"])
+            self.assertEqual((await self.resume(saved)).status_code, 202)
+            await self.finish_tasks()
+        recovered = await self.store.get(document["id"])
+        self.assertEqual(len(recovered["runs"]), 3)
+        self.assertEqual(recovered["runs"][0], saved["runs"][0])
+        self.assertEqual(recovered["runs"][-1]["resumed_from"], saved["runs"][-1]["id"])
+        self.assertEqual(recovered["status"], "waiting_input")
+        self.assertEqual(self.gateway.review.await_count, 1)
 
     async def test_origin_namespace_and_conditional_write_guards(self):
         document = await self.draft()
