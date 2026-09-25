@@ -109,3 +109,10 @@ and [Azure AI Search documentation](https://learn.microsoft.com/azure/search/)
 to check current capabilities. Root Terraform remains local-only under the
 repository's current publishing boundary. Links here are workspace references,
 not a claim that the latest local Terraform changes have been published.
+
+## Related content
+
+- [Governed review API](apim-review-api.md)
+- [Extension guide](architecture-assessment.md)
+- [Cost comparison](../cost-comparison/README.md)
+- [Infrastructure](../terraform/README.md)

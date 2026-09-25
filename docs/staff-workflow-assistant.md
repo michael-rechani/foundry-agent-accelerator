@@ -137,3 +137,10 @@ measured improvements before they are implemented and evaluated.
 Use the [extension guide](architecture-assessment.md) for delivery, testing,
 identity, retention, and Lab integration boundaries. Use Foundry's native
 evaluation and tracing capabilities rather than adding a parallel agent portal.
+
+## Related content
+
+- [Extension guide](architecture-assessment.md)
+- [Coordinator profiles](agent-profiles.md)
+- [Hosted agents](../hosted-agents/README.md)
+- [Optional integrations](optional-integrations.md)

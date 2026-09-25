@@ -36,6 +36,7 @@ identity, scaling, session storage, observability, and version lifecycle.
 - [Troubleshooting](#troubleshooting)
 - [Scenario selection and optional extensions](#scenario-selection-and-optional-extensions)
 - [Operational checklist](#operational-checklist)
+- [Related content](#related-content)
 
 ## Included samples
 

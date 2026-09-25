@@ -31,6 +31,7 @@ simulated, read-only lookups and proposes next steps for a person to review.
 - [Application completeness](#application-completeness)
 - [Requirements and proposal review](#requirements-and-proposal-review)
 - [Reset without hiding failures](#reset-without-hiding-failures)
+- [Related content](#related-content)
 
 ## Prepare once, demonstrate separately
 

@@ -115,3 +115,10 @@ or delete unrelated shared records to make the handoff look successful.
 | Unresolved interrupted calls |  |
 | Records intentionally deleted, if agreed |  |
 | Unresolved questions |  |
+
+## Related content
+
+- [Demo guide](demos.md)
+- [Create and try a baseline agent](agent-creation.md)
+- [The Lab](../workbench/README.md)
+- [Evaluations](../evaluations/README.md)

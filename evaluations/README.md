@@ -1,6 +1,6 @@
 # Synthetic review evaluations
 
-[Home](../README.md) / [Hosted agents](../hosted-agents/README.md) / Evaluations
+[Home](../README.md) / Evaluations
 
 Validate the review samples' quality without changing runtime dependencies,
 publishing agent versions, changing endpoint routes, or building a Lab
@@ -36,7 +36,7 @@ and OpenAI client libraries.
 - [SDK contract evidence, not service assumptions](#sdk-contract-evidence-not-service-assumptions)
 - [Optional candidate comparison and human review](#optional-candidate-comparison-and-human-review)
 - [Tracing and content authorization](#tracing-and-content-authorization)
-- [Microsoft references](#microsoft-references)
+- [Related content](#related-content)
 
 ## Offline and approved live modes
 
@@ -456,8 +456,11 @@ minimize content, and use synthetic material only. `store=False` is not a
 tracing or evaluation-retention opt-out. Never copy customer material,
 credentials, or trace payloads into Git.
 
-## Microsoft references
+## Related content
 
+- [Hosted agents](../hosted-agents/README.md)
+- [Demo handoff](../docs/demo-handoff.md)
+- [Agent monitoring](../terraform/monitoring/README.md)
 - [Agent evaluation guidance](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-agent)
 - [Rubric evaluators](https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/rubric-evaluators)
 - [Cloud evaluation results and cancellation](https://learn.microsoft.com/azure/foundry/observability/how-to/cloud-evaluation-results)

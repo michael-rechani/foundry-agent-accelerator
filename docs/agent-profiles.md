@@ -16,6 +16,7 @@ Python. They configure hosted agents in Microsoft Foundry.
 - [Select a use case](#select-a-use-case)
 - [Swap lifecycle](#swap-lifecycle)
 - [Isolation and remaining gates](#isolation-and-remaining-gates)
+- [Related content](#related-content)
 
 ## Ownership boundaries
 
@@ -281,3 +282,11 @@ public review API is published by this work. The
 [platform-aware cost calculator](../cost-comparison/README.md) lists missing
 platform prices explicitly. Review [credential handling](credentials.md) and
 follow the [private deployment runbook](private-deployment.md).
+
+## Related content
+
+- [Hosted agents](../hosted-agents/README.md)
+- [Application and case helper](../hosted-agents/review-coordinator-agent/README.md)
+- [Extension guide](architecture-assessment.md)
+- [Governed review API](apim-review-api.md)
+- [Evaluations](../evaluations/README.md)
