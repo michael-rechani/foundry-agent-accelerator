@@ -56,7 +56,7 @@ def read_bounded(path):
     return content
 
 
-def zip_contents(content):
+def zip_contents(content, *, max_file_bytes=MAX_FILE_BYTES):
     if len(content) > MAX_BYTES:
         raise ValueError("Archive exceeds the 2 MiB bundle limit")
     with ZipFile(io.BytesIO(content)) as archive:
@@ -68,7 +68,7 @@ def zip_contents(content):
             raise ValueError("Expanded archive exceeds the 2 MiB bundle limit")
         for entry in entries:
             if (not re.fullmatch(r"[A-Za-z0-9_.-]+", entry.filename)
-                    or entry.file_size > MAX_FILE_BYTES
+                    or entry.file_size > max_file_bytes
                     or entry.flag_bits & 1
                     or entry.compress_type not in (0, ZIP_DEFLATED)
                     or not stat.S_ISREG(entry.external_attr >> 16)):
@@ -177,15 +177,17 @@ def make_bundle(profile, code, *, kind="prebuilt", model=None, cpu="0.5", memory
         "files": {name: digest(content) for name, content in zip_contents(code).items()},
     }
     validate_manifest(manifest, code)
-    return zip_bytes({
+    content = zip_bytes({
         "manifest.json": json.dumps(manifest, sort_keys=True, indent=2).encode("utf-8"),
         "agent.zip": code,
     })
+    zip_contents(content, max_file_bytes=MAX_BYTES)
+    return content
 
 
 def read_bundle(path):
     content = read_bounded(path)
-    files = zip_contents(content)
+    files = zip_contents(content, max_file_bytes=MAX_BYTES)
     if set(files) != {"manifest.json", "agent.zip"}:
         raise ValueError("A bundle must contain only manifest.json and agent.zip")
     manifest = validate_manifest(read_json(files["manifest.json"]), files["agent.zip"])

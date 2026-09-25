@@ -256,6 +256,11 @@ move. Output files are never overwritten. The CLI prints a SHA-256 for transfer
 verification; `inspect` verifies integrity without executing bundled Python or
 printing prompt text.
 
+Individual runtime files are limited to 256 KiB. The embedded runtime ZIP can
+exceed that per-file limit, but each archive and its expanded entries must fit
+within 2 MiB. Export checks the completed bundle against the same limits as
+inspect and deploy before writing it.
+
 ### Export an agent created in the Lab
 
 Save the JSON response for `GET /api/agents/<created-ID>` from your approved

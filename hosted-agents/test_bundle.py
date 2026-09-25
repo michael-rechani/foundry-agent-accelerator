@@ -1,5 +1,6 @@
 import io
 import json
+import random
 import stat
 import sys
 import tempfile
@@ -160,6 +161,26 @@ class BundleTests(unittest.TestCase):
             bundle.zip_contents(bundle.zip_bytes({"large.py": b"x" * (bundle.MAX_FILE_BYTES + 1)}))
         with self.assertRaisesRegex(ValueError, "Duplicate JSON"):
             bundle.read_json('{"schema_version":1,"schema_version":2}')
+
+    def test_large_runtime_archive_round_trips_with_bounded_source_files(self):
+        random_bytes = random.Random(0)
+        sources = {
+            name: random_bytes.randbytes(bundle.MAX_FILE_BYTES)
+            for name in ("main.py", "requirements.txt")
+        }
+        code = bundle.zip_bytes(sources)
+        self.assertGreater(len(code), bundle.MAX_FILE_BYTES)
+        profile = bundle.AgentProfile(self.directory, "large-agent", "Large source fixture", "Review evidence.", "")
+        self.path.write_bytes(bundle.make_bundle(profile, code))
+        manifest, restored, _ = bundle.read_bundle(self.path)
+        self.assertEqual(restored, code)
+        self.assertEqual(manifest["files"], {name: bundle.digest(data) for name, data in sources.items()})
+
+    def test_export_rejects_outer_expansion_over_budget_before_writing(self):
+        profile = bundle.AgentProfile(self.directory, "agent", "Size fixture", "x" * 2000, "")
+        code = bundle.zip_bytes({"main.py": b"pass", "requirements.txt": b""})
+        with patch.object(bundle, "MAX_BYTES", 1024), self.assertRaisesRegex(ValueError, "Expanded archive"):
+            bundle.make_bundle(profile, code)
 
     def test_remapping_updates_runtime_bindings_and_all_checks(self):
         manifest, code, _ = self.write_bundle("review-coordinator-agent")
