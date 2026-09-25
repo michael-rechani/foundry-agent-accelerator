@@ -27,7 +27,8 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           "$RUNNER_TEMP/gitleaks" git . --no-banner --redact --exit-code 1
 
-  python:
+  python-tests:
+    name: python (${{ matrix.python-version }})
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -85,6 +86,20 @@ jobs:
           python -c "from agent_framework import Agent;
           from agent_framework.foundry import FoundryChatClient;
           from agent_framework_foundry_hosting import ResponsesHostServer"
+
+  python:
+    needs: python-tests
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require both Python versions to pass
+        env:
+          MATRIX_RESULT: ${{ needs.python-tests.result }}
+        run: |
+          if [ "$MATRIX_RESULT" != "success" ]; then
+            echo "Python matrix did not succeed: $MATRIX_RESULT"
+            exit 1
+          fi
 
   evaluations:
     runs-on: ubuntu-24.04
