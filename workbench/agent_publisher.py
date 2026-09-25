@@ -1,19 +1,13 @@
 import asyncio
-import hashlib
 import io
 import os
 import re
-import stat
 from contextlib import asynccontextmanager
 from copy import deepcopy
-from pathlib import Path
-from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 from azure.core.exceptions import ResourceNotFoundError
 
-
-RUNTIME_FILES = ("main.py", "demo_tools.py", "requirements.txt")
-RUNTIME_DIRECTORY = Path(__file__).with_name("agent_runtime")
+from agent_package import runtime_package as build_runtime_package
 
 
 class PublicationError(Exception):
@@ -40,20 +34,10 @@ class CodeArchive(io.BytesIO):
 
 
 def runtime_package():
-    output = io.BytesIO()
-    with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
-        for name in RUNTIME_FILES:
-            source = (RUNTIME_DIRECTORY / name).read_bytes()
-            if len(source) > 65536:
-                raise PublicationError("runtime_unavailable")
-            info = ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
-            info.compress_type = ZIP_DEFLATED
-            # Foundry's remote build skips Unix entries that lack the regular-file type bit.
-            info.create_system = 3
-            info.external_attr = (stat.S_IFREG | 0o644) << 16
-            archive.writestr(info, source)
-    package = output.getvalue()
-    return package, hashlib.sha256(package).hexdigest()
+    try:
+        return build_runtime_package()
+    except (OSError, ValueError) as error:
+        raise PublicationError("runtime_unavailable") from error
 
 
 def resource_name(identifier):

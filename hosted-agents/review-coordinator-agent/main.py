@@ -10,7 +10,7 @@ from agent_framework_foundry_hosting import ResponsesHostServer
 from azure.ai.projects.aio import AIProjectClient
 from azure.identity.aio import DefaultAzureCredential
 
-from configuration import validate_specialists
+from configuration import DEFAULT_SPECIALISTS, validate_specialists
 
 
 DEFAULT_INSTRUCTIONS = (Path(__file__).parent / "instructions.md").read_text(
@@ -71,10 +71,8 @@ def create_specialist_tools(
 
     configured = os.getenv("SPECIALIST_CONFIG")
     specialists = validate_specialists(json.loads(configured) if configured is not None else [
-        {"tool": "review_application", "agent": application_agent_name,
-         "description": "Review application completeness or RFP/proposal coverage against supplied criteria and source evidence."},
-        {"tool": "review_case", "agent": case_agent_name,
-         "description": "Review a case record and return evidence-grounded findings."},
+        {**DEFAULT_SPECIALISTS[0], "agent": application_agent_name},
+        {**DEFAULT_SPECIALISTS[1], "agent": case_agent_name},
     ])
     if any(item["agent"] == os.getenv("AGENT_NAME", "review-coordinator-agent") for item in specialists):
         raise ValueError("Coordinator cannot delegate to itself")

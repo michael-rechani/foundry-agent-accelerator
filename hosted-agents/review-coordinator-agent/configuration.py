@@ -1,6 +1,14 @@
 import re
 
 
+DEFAULT_SPECIALISTS = (
+    {"tool": "review_application", "agent": "application-review-agent",
+     "description": "Review application completeness or RFP/proposal coverage against supplied criteria and source evidence."},
+    {"tool": "review_case", "agent": "case-review-agent",
+     "description": "Review a case record and return evidence-grounded findings."},
+)
+
+
 def validate_specialists(value):
     if not isinstance(value, list) or not 1 <= len(value) <= 16:
         raise ValueError("specialists must contain between 1 and 16 entries")

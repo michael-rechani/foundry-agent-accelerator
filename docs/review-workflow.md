@@ -13,6 +13,7 @@ reviews.
 - [When to use Document reviews](#when-to-use-document-reviews)
 - [Workflow](#workflow)
 - [Execution and persistence](#execution-and-persistence)
+- [Recover an interrupted review](#recover-an-interrupted-review)
 - [Review states](#review-states)
 - [Execution and trust](#execution-and-trust)
 - [Persistence](#persistence)
@@ -123,6 +124,9 @@ writes, and the process-local task. In the diagram, `/execute` abbreviates
 `POST /api/review-runs/{id}/evidence`. The server snapshots the complete input
 before starting an attempt, then records validated findings or an error code. No
 model text is allowed to supply the record's status, receipt flags, or events.
+Interrupted attempts can be recovered explicitly through
+`POST /api/review-runs/{id}/resume`; this starts a new call from the saved input,
+not a continuation of a remote model session.
 
 Precondition conflicts return HTTP 409 without scheduling another execution.
 The final write uses the execution's ETag; the application does not blindly
@@ -133,29 +137,64 @@ Implementation: [review API and task lifecycle](../workbench/review_runs.py),
 [result validation](../workbench/reviews.py),
 [browser polling and resume](../workbench/frontend/src/ReviewWorkspace.tsx).
 
+## Recover an interrupted review
+
+After a restart, rollout, or unconfirmed final save, reopen the existing review
+and choose **Refresh**. Reading the record never starts another agent call.
+A recently started run remains `running` until its saved recovery window expires:
+the configured agent timeout plus 90 seconds for admission, persistence, and
+shutdown. At the maximum timeout this is 270 seconds from the start request.
+Older records without a saved window use 270 seconds from their last update.
+A live task in the serving process still blocks recovery even after that window.
+A confirmed shutdown interruption can be recovered without waiting for expiry.
+
+When the record is **Interrupted**, choose **Recover review** and confirm the
+warning. Recovery uses the latest attempt's saved checklist, documents, title,
+and agent ID. It appends a new attempt linked by `resumed_from`, marks the earlier
+attempt interrupted if needed, and preserves earlier input snapshots and events.
+The new call uses the currently configured deployment for that saved agent ID;
+it does not pin or restore an earlier agent version. Each recovery uses one of
+the record's four runs and the same shared admission limits as an ordinary run.
+There is no recovery action after four runs or for `failed` records.
+
+The API requires the current `If-Match` ETag, the usual
+`X-Workbench-Request: 1` and origin checks, `Content-Type: application/json`, and
+exactly `{"confirm_cost": true}`. The conditional Cosmos write saves both the
+interrupted history and the new running attempt before scheduling work and
+returning HTTP 202. Competing or stale submissions return HTTP 409; no second
+call is scheduled. A late result from an older worker cannot overwrite the
+recovered record because its ETag is stale.
+
+**Recovery is a rerun, not exactly-once execution or remote-result retrieval.**
+The earlier remote call may still complete and incur charges. Recovery can
+therefore incur another model charge and produce different findings. Refresh
+after an uncertain submission rather than confirming recovery again. No startup
+scan, automatic retry, durable queue, or distributed admission control is added;
+keep one worker and one replica.
+
 ## Review states
 
 | State | Meaning | Allowed next action |
 | --- | --- | --- |
 | `draft` | Validated input, either newly created or extended with evidence | Explicit **Run review** or **Review again** with a matching ETag and remaining run budget |
-| `running` | Input snapshot saved and a matching local task exists | Poll or reopen; do not submit another start |
+| `running` | Input snapshot saved and a matching local task exists, or the saved recovery window has not expired | Poll or reopen; do not submit another start |
 | `waiting_input` (**Needs information**) | A validated, saved result asks for more information | Append evidence with a matching ETag, fewer than four runs, and room within content limits; returns to `draft` |
 | `completed` (**Results saved**) | Validated findings with no questions and a confirmed final write | Read or export |
 | `failed` | A saved failure such as timeout or invalid agent output | Read or export; no retry transition in this release |
-| `interrupted` | No matching local task, or a saved interruption; stored status may still be `running` | Inspect or export; no automatic retry or claim that remote work stopped |
+| `interrupted` | No matching local task after the recovery window, or a saved interruption; stored status may still be `running` | Explicit **Recover review** with cost confirmation, a matching ETag, saved run input, and remaining run budget; otherwise inspect or export |
 
 Completed, failed, and interrupted records remain readable and exportable until
 expiry. Earlier run inputs remain snapshots when new evidence is appended. Each
-record allows at most four runs; correcting a failed result does not silently
-reuse or restart a prior call.
+record allows at most four runs, including recoveries; correcting a failed
+result does not silently reuse or restart a prior call.
 
 ## Execution and trust
 
 | Area | Behavior |
 | --- | --- |
 | Browser disconnects | Work continues independently. The API persists the running state before returning HTTP 202. The browser polls the selected run. If a status request fails, **Refresh** restarts polling without starting another agent execution. Inbox counts describe loaded records, not the entire store. |
-| Worker durability | Execution is process-local, not a durable distributed worker. Keep one worker and one replica. A process restart or an unconfirmed final save exposes an interrupted run in both the inbox and detail view. No automatic model retry or recovery is attempted. An already accepted remote call may still complete and incur charges. |
-| Concurrency | ETag preconditions protect starts and evidence updates from competing tabs. After an uncertain create or update, refresh the inbox before repeating it. Creating a brand-new review is not idempotent across repeated requests. |
+| Worker durability | Execution is process-local, not a durable distributed worker. Keep one worker and one replica. A process restart or an unconfirmed final save exposes an interrupted run after the recovery window in both inbox and detail. Explicit recovery reruns saved input; no automatic model retry is attempted. An already accepted remote call may still complete and incur charges. |
+| Concurrency | ETag preconditions protect starts, recovery, and evidence updates from competing tabs. A persisted recovery window prevents a new instance from immediately treating another instance's recent run as abandoned during rollout. It is not a distributed lease or a guarantee that remote work stopped. After an uncertain create or update, refresh the inbox before repeating it. Creating a brand-new review is not idempotent across repeated requests. |
 | Run budget | Each review permits at most four runs. Agent calls share Chat's four in-flight slots and 20-request/minute admission budget, with a maximum 180-second timeout. Review record operations have separate four-request concurrency, 120/minute admission, and 35-second deadlines. Input upload is limited to five seconds, 64 KiB JSON, and 30,000 content characters. Each source is at most 12,000 characters. |
 | Receipts | A coordinator result is accepted only with checked, correlated specialist receipts matching configured targets. Receipt metadata is stored server-side; browsers cannot submit findings, success flags, or run events. |
 | Timeline | Timeline entries are observed application milestones. Specialist receipt and citation checks happen after the response arrives, not as streamed specialist start events. No hidden reasoning or simulated progress is displayed. |
@@ -189,6 +228,9 @@ Run the Lab Python suite and frontend build, lint, and Playwright tests from the
 repository root using the [local validation commands](../workbench/README.md#local-development).
 Browser tests use controlled API responses; backend tests use an in-memory store
 and gateway doubles. They do not prove live Cosmos or model behavior.
+Recovery coverage includes lost workers, graceful shutdown, legacy records,
+recovery-window boundaries, competing submissions, stale-worker final writes,
+cost acknowledgement, and the four-run limit.
 
 ### 2. Review and deploy the intended image
 
@@ -230,7 +272,10 @@ $reviewId = '<synthetic-review-id-from-step-3>'
 Require verified specialist receipts, exact citations, and `waiting_input` for
 this fixture's missing budget. If still running, the script reports that it has
 not reached a result: inspect again later, without starting another execution.
-For failed or interrupted output, stop and investigate. An unexpected completed
+For failed or interrupted output, investigate before continuing. An interrupted
+run can be [recovered explicitly](#recover-an-interrupted-review), but that
+consumes another run and changes this fixture's expected run counts. Do not use
+recovery as evidence that the original call succeeded. An unexpected completed
 first run does not establish that clarification/resume was tested.
 
 ### 5. Append evidence and resume explicitly

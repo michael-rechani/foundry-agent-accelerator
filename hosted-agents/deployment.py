@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
+import stat
 import tempfile
 import time
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from zipfile import ZIP_DEFLATED, ZipFile
+from typing import TYPE_CHECKING
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
+
+if TYPE_CHECKING:
+    from azure.ai.projects import AIProjectClient
 
 SOURCE_FILES = ("main.py", "requirements.txt")
 OPTIONAL_SOURCE_FILES = ("instructions.md", "configuration.py")
@@ -23,6 +30,7 @@ class AgentProfile:
     smoke_test_prompt: str
     delegation_checks: tuple[tuple[str, str] | tuple[str, str, str], ...] = ()
     environment_variables: tuple[tuple[str, str], ...] = ()
+    code_archive: bytes | None = None
 
 
 def positive_number(value: str) -> str:
@@ -85,12 +93,14 @@ def create_package(source_directory: Path, destination: Path) -> None:
         raise FileNotFoundError(f"Missing agent source files: {', '.join(missing)}")
 
     with ZipFile(destination, "w", compression=ZIP_DEFLATED) as archive:
-        for name in SOURCE_FILES:
-            archive.write(source_directory / name, arcname=name)
-        for name in OPTIONAL_SOURCE_FILES:
+        for name in (*SOURCE_FILES, *OPTIONAL_SOURCE_FILES):
             source = source_directory / name
             if source.is_file():
-                archive.write(source, arcname=name)
+                info = ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
+                info.compress_type = ZIP_DEFLATED
+                info.create_system = 3
+                info.external_attr = (stat.S_IFREG | 0o644) << 16
+                archive.writestr(info, source.read_bytes())
 
 
 def wait_until_active(
@@ -165,10 +175,56 @@ def smoke_test(
     print(f"Smoke test passed: {expected_tool or agent_name}")
 
 
+def concrete_route(endpoint) -> bool:
+    selector = getattr(endpoint, "version_selector", None)
+    rules = getattr(selector, "version_selection_rules", None)
+    return isinstance(rules, list) and bool(rules) and all(
+        isinstance(getattr(rule, "agent_version", None), str)
+        and rule.agent_version
+        and not rule.agent_version.startswith("@")
+        for rule in rules
+    )
+
+
+def endpoint_snapshot(client, agent_name: str):
+    from azure.core.exceptions import ResourceNotFoundError
+
+    try:
+        endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+    except ResourceNotFoundError:
+        return None
+    if not concrete_route(endpoint):
+        raise RuntimeError(
+            "Pin the existing agent route to explicit versions before redeploying; "
+            "an unrouted or symbolic route such as @latest is not a safe recovery target"
+        )
+    return deepcopy(endpoint)
+
+
+def verify_route(client, agent_name: str, version: str) -> None:
+    endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+    rules = getattr(getattr(endpoint, "version_selector", None), "version_selection_rules", None)
+    if (
+        getattr(getattr(endpoint, "protocol_configuration", None), "responses", None) is None
+        or not isinstance(rules, list)
+        or len(rules) != 1
+        or str(rules[0].agent_version) != str(version)
+        or type(rules[0].traffic_percentage) not in (int, float)
+        or rules[0].traffic_percentage != 100
+    ):
+        raise RuntimeError("The promoted Responses route was not confirmed")
+    details = client.agents.get_version(agent_name=agent_name, agent_version=version)
+    if details["status"] != "active" or getattr(details, "draft", False):
+        raise RuntimeError("The promoted agent version is not active")
+
+
 def cleanup_failed_version(
     client, agent_name: str, version: str, original_endpoint, promotion_attempted: bool
 ) -> None:
     if promotion_attempted and original_endpoint is not None:
+        if not concrete_route(original_endpoint):
+            print(f"Warning: recovery route is not concrete; retained version {version}")
+            return
         try:
             client.agents.update_details(
                 agent_name=agent_name, agent_endpoint=original_endpoint
@@ -181,11 +237,7 @@ def cleanup_failed_version(
         endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
         selector = getattr(endpoint, "version_selector", None)
         rules = getattr(selector, "version_selection_rules", None)
-        if not rules or any(
-            not getattr(rule, "agent_version", None)
-            or str(rule.agent_version) == str(version)
-            for rule in rules
-        ):
+        if not concrete_route(endpoint) or any(str(rule.agent_version) == str(version) for rule in rules):
             print(f"Warning: route not confirmed safe; retained version {version}")
             return
         client.agents.delete_version(
@@ -239,7 +291,11 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
 
     with tempfile.TemporaryDirectory(prefix="foundry-agent-") as temporary:
         package_path = Path(temporary) / "agent.zip"
-        create_package(profile.source_directory, package_path)
+        if profile.code_archive is None:
+            create_package(profile.source_directory, package_path)
+        else:
+            package_path.write_bytes(profile.code_archive)
+        digest = hashlib.sha256(package_path.read_bytes()).hexdigest()
 
         with (
             package_path.open("rb") as package,
@@ -247,9 +303,12 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
             AIProjectClient(endpoint=args.endpoint, credential=credential, allow_preview=True) as client,
         ):
             verify_specialist_endpoints(client, profile, args.agent_name)
+            client.deployments.get(name=args.model)
+            original_endpoint = endpoint_snapshot(client, args.agent_name)
             created = client.agents.create_version_from_code(
                 agent_name=args.agent_name,
                 description=profile.description,
+                metadata={"source_sha256": digest},
                 definition=HostedAgentDefinition(
                     cpu=args.cpu,
                     memory=args.memory,
@@ -276,10 +335,10 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                     ],
                 ),
                 code=package,
+                code_zip_sha256=digest,
             )
             print(f"Created {args.agent_name} version {created.version}")
 
-            original_endpoint = None
             promotion_attempted = False
             try:
                 wait_until_active(
@@ -289,9 +348,15 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                     args.poll_seconds,
                     args.max_polls,
                 )
-                original_endpoint = client.agents.get(
+                current_endpoint = client.agents.get(
                     agent_name=args.agent_name,
                 ).agent_endpoint
+                if original_endpoint is not None and current_endpoint != original_endpoint:
+                    raise RuntimeError("The agent route changed during deployment; refusing promotion")
+                protocols = deepcopy(getattr(current_endpoint, "protocol_configuration", None))
+                if protocols is None:
+                    protocols = ProtocolConfiguration()
+                protocols.responses = ResponsesProtocolConfiguration()
                 endpoint_config = AgentEndpointConfig(
                     version_selector=VersionSelector(
                         version_selection_rules=[
@@ -301,18 +366,21 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                             )
                         ]
                     ),
-                    protocol_configuration=ProtocolConfiguration(
-                        responses=ResponsesProtocolConfiguration()
-                    ),
+                    protocol_configuration=protocols,
                 )
+                authorization = getattr(current_endpoint, "authorization_schemes", None)
+                if authorization is not None:
+                    endpoint_config.authorization_schemes = deepcopy(authorization)
                 promotion_attempted = True
                 client.agents.update_details(
                     agent_name=args.agent_name,
                     agent_endpoint=endpoint_config,
                 )
+                verify_route(client, args.agent_name, created.version)
                 smoke_test(client, args.agent_name, args.smoke_test_prompt)
                 for check in profile.delegation_checks:
                     smoke_test(client, args.agent_name, *check)
+                verify_route(client, args.agent_name, created.version)
             except (Exception, KeyboardInterrupt):
                 cleanup_failed_version(
                     client, args.agent_name, created.version,

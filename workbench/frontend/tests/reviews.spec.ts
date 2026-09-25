@@ -11,6 +11,7 @@ async function setup(
   const state = {
     document: null as Review | null,
     executions: 0,
+    recoveries: 0,
     conflict: false,
     pollFailure: null as 'network' | 'rate-limit' | null,
     runningReads: 0,
@@ -66,21 +67,37 @@ async function setup(
     const document = state.document
     if (!document)
       return route.fulfill({ status: 404, json: { error: 'not_found' } })
-    if (path.endsWith('/execute')) {
+    if (path.endsWith('/execute') || path.endsWith('/resume')) {
+      const recovering = path.endsWith('/resume')
       if (state.conflict)
         return route.fulfill({ status: 409, json: { error: 'review_changed' } })
       expect(request.headers()['if-match']).toBe(document._etag)
+      const previous = document.runs.at(-1)
+      if (recovering) {
+        expect(request.postDataJSON()).toEqual({ confirm_cost: true })
+        expect(document.status).toBe('interrupted')
+        expect(document.runs.length).toBeLessThan(4)
+        state.recoveries++
+      }
       state.executions++
       document.status = 'running'
       document._etag = String(Number(document._etag) + 1)
       document.runs.push({
         id: 'run-' + state.executions,
         started_at: document.updated_at,
-        input: {
-          criteria: [...document.criteria],
-          evidence: structuredClone(document.evidence),
-        },
-        events: [{ name: 'review_started', at: document.updated_at }],
+        input: recovering
+          ? structuredClone(previous!.input)
+          : {
+              criteria: [...document.criteria],
+              evidence: structuredClone(document.evidence),
+            },
+        events: [
+          {
+            name: recovering ? 'review_recovery_requested' : 'review_started',
+            at: document.updated_at,
+          },
+        ],
+        ...(recovering ? { resumed_from: previous!.id } : {}),
       })
       return route.fulfill({ status: 202, json: document })
     }
@@ -335,6 +352,118 @@ async function create(page: Page) {
     page.getByRole('button', { name: 'Run review', exact: true }),
   ).toBeVisible()
 }
+
+async function interrupt(page: Page) {
+  const state = await setup(page)
+  await create(page)
+  state.runningReads = 100
+  await page.getByRole('button', { name: 'Run review', exact: true }).click()
+  await expect(page.getByText('Running', { exact: true })).toBeVisible()
+  state.document!.status = 'interrupted'
+  state.document!.runs[0].error = 'execution_interrupted'
+  state.document!.runs[0].events.push({
+    name: 'interrupted',
+    at: state.document!.updated_at,
+  })
+  state.document!._etag = '3'
+  await page.reload()
+  await expect(
+    page.getByRole('button', { name: 'Recover review' }),
+  ).toBeVisible()
+  return state
+}
+
+test('interrupted recovery requires consent, uses saved input and preserves history', async ({
+  page,
+}, testInfo) => {
+  const state = await interrupt(page)
+  const original = structuredClone(state.document!.runs[0])
+  await expect(page.locator('.review-next-step')).toContainText(
+    'recovery may incur another model charge',
+  )
+  await page.getByRole('button', { name: 'Refresh reviews' }).click()
+  expect(state.recoveries).toBe(0)
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toContain('may incur another model charge')
+    await dialog.dismiss()
+  })
+  await page.getByRole('button', { name: 'Recover review' }).click()
+  expect(state.executions).toBe(1)
+  expect(state.document!.runs).toEqual([original])
+  await page.screenshot({
+    path: testInfo.outputPath('review-recovery.png'),
+    fullPage: true,
+  })
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Recover review' }).click()
+  await expect(page.getByText('Running', { exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Recover review' }),
+  ).toHaveCount(0)
+  expect(state.recoveries).toBe(1)
+  expect(state.document!.runs[0]).toEqual(original)
+  expect(state.document!.runs[1].input).toEqual(original.input)
+  expect(state.document!.runs[1].resumed_from).toBe(original.id)
+  state.runningReads = 0
+  await expect(page.getByText('Results saved', { exact: true })).toBeVisible()
+  await page.reload()
+  await page.getByRole('tab', { name: 'Run details' }).click()
+  await expect(
+    page.getByText('Recovery requested using saved input'),
+  ).toBeVisible()
+  await page.getByLabel('Run version').selectOption('0')
+  await expect(page.getByText('Run error: execution_interrupted')).toBeVisible()
+  expect(state.executions).toBe(2)
+})
+
+test('recovery conflicts preserve input and never silently resubmit', async ({
+  page,
+}) => {
+  const state = await interrupt(page)
+  const original = structuredClone(state.document)
+  state.conflict = true
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Recover review' }).click()
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'This review changed' }),
+  ).toBeVisible()
+  expect(state.document).toEqual(original)
+  await page.getByRole('button', { name: 'Refresh reviews' }).click()
+  expect(state.recoveries).toBe(0)
+  expect(state.executions).toBe(1)
+})
+
+test('recovery is unavailable after the four-run limit or a saved failure', async ({
+  page,
+}) => {
+  const state = await interrupt(page)
+  state.document!.runs = Array.from({ length: 4 }, (_, index) => ({
+    ...structuredClone(state.document!.runs[0]),
+    id: `run-${index + 1}`,
+  }))
+  await page.getByRole('button', { name: 'Refresh reviews' }).click()
+  await expect(page.locator('.review-next-step')).toContainText(
+    'four-run limit has been reached',
+  )
+  await expect(
+    page.getByRole('button', { name: 'Recover review' }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Export review' }),
+  ).toBeEnabled()
+  state.document!.status = 'failed'
+  state.document!.runs = state.document!.runs.slice(0, 1)
+  await page.getByRole('button', { name: 'Refresh reviews' }).click()
+  await expect(
+    page.getByRole('button', { name: 'Recover review' }),
+  ).toHaveCount(0)
+  expect(state.recoveries).toBe(0)
+})
 
 test('review, inspect evidence, clarify, resume, reopen and preserve snapshots', async ({
   page,

@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 $stage = Join-Path ([IO.Path]::GetTempPath()) ("workbench-build-" + [guid]::NewGuid().ToString("N"))
 try {
     New-Item -ItemType Directory -Path (Join-Path $stage "frontend") -Force | Out-Null
-    foreach ($name in @("Dockerfile", ".dockerignore", "requirements.txt", "app.py", "history.py", "reviews.py", "review_runs.py", "agents.json", "agent_creation.py", "agent_publisher.py", "agent_templates.py")) {
+    foreach ($name in @("Dockerfile", ".dockerignore", "requirements.txt", "app.py", "history.py", "reviews.py", "review_runs.py", "agents.json", "agent_creation.py", "agent_publisher.py", "agent_package.py", "agent_templates.py")) {
         Copy-Item (Join-Path $PSScriptRoot $name) $stage
     }
     New-Item -ItemType Directory -Path (Join-Path $stage "agent_runtime") | Out-Null

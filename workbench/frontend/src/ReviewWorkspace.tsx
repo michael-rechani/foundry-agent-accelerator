@@ -246,6 +246,25 @@ export function ReviewWorkspace({
     })
   }
 
+  function recover(review: Review) {
+    if (
+      !window.confirm(
+        'Recover this review using the latest saved run input? This starts a new agent call and uses one of the four runs. The earlier call may still complete, so recovery may incur another model charge.',
+      )
+    )
+      return
+    void perform(async () =>
+      accept(
+        await reviewRequest(
+          `/${review.id}/resume`,
+          'POST',
+          { confirm_cost: true },
+          review._etag,
+        ),
+      ),
+    )
+  }
+
   function loadMore(from: string) {
     void perform(async () => {
       const data = await reviewRequest('?cursor=' + encodeURIComponent(from))
@@ -366,6 +385,7 @@ export function ReviewWorkspace({
           onSource={setSourceId}
           onAdditional={setAdditional}
           onExecute={() => execute(selected)}
+          onRecover={() => recover(selected)}
           onAddEvidence={() => addEvidence(selected)}
         />
       ) : (

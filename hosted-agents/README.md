@@ -31,6 +31,7 @@ identity, scaling, session storage, observability, and version lifecycle.
 - [Coordinator delegation pattern](#coordinator-delegation-pattern)
 - [Deployment walkthrough](#deployment-walkthrough)
 - [What publication does](#what-publication-does)
+- [Portable agent bundles](#portable-agent-bundles)
 - [Test and validate](#test-and-validate)
 - [Roll back and recover](#roll-back-and-recover)
 - [Troubleshooting](#troubleshooting)
@@ -182,14 +183,23 @@ Terraform plan or a dry run. Require successful activation and all smoke checks.
 ## What publication does
 
 The deployer packages `main.py`, `requirements.txt`, and the sample's reviewed
-instructions and `configuration.py` when present. It uploads an immutable
-hosted-agent version, waits for activation, routes the endpoint, and invokes a
-sample-specific smoke test.
+instructions and `configuration.py` when present into a deterministic ZIP with
+portable regular-file permissions. Before upload it checks the model and
+specialists and snapshots the existing route. Existing routes must use explicit
+versions: a symbolic `@latest` route or an unrouted existing agent requires
+operator reconciliation before another version is created.
+
+It uploads an immutable hosted-agent version with a source hash, waits for
+activation, checks that the previous endpoint hasn't changed, preserves its
+authorization and other protocol settings, and promotes the Responses route.
+It reads the active version and exact 100% route back both before and after the
+sample-specific smoke checks. Clients can reach the candidate during those
+checks; this is not a pre-promotion canary.
 
 If provisioning or a smoke test fails, the deployer attempts to restore the
 previous route when promotion was attempted. It deletes the failed version only
 after a fresh route read confirms the candidate is no longer referenced. Failed
-restoration, an unknown route, or a first deployment without a previous route
+restoration, an unknown or symbolic route, or a first deployment without a previous route
 retains the candidate for manual inspection.
 
 Serialize deployments of the same agent. The cleanup flow does not provide a
@@ -213,18 +223,129 @@ run the deployment client. The hosting package is still a beta dependency, so
 versions are pinned and should be upgraded only after local and remote smoke
 tests pass.
 
+## Portable agent bundles
+
+`bundle.py` exports source plus a versioned configuration manifest. **Export and
+inspect are offline** and require only Python; only `deploy` uses the Azure SDK
+and creates billable resources. Run commands from the repository root.
+
+Each `.agent-bundle.zip` contains `manifest.json` and `agent.zip`. The manifest
+records instructions, allocation, runtime, approved template/specialist settings,
+smoke prompts, and hashes of the runtime archive and every source/dependency
+file. Source model names are informational: the destination project, model
+deployment, and agent name must always be supplied explicitly.
+
+### Export a prebuilt agent
+
+```powershell
+New-Item -ItemType Directory -Path agent-exports -Force | Out-Null
+python hosted-agents\bundle.py export --sample case-review-agent --output agent-exports\case.agent-bundle.zip
+python hosted-agents\bundle.py inspect agent-exports\case.agent-bundle.zip
+```
+
+Select any of the four sample directory names with `--sample`. For a coordinator,
+add `--profile <reviewed-profile.json>` to capture its instructions, specialist
+bindings, and mandatory delegation checks. For an unprofiled sample, use
+`--instructions-file <reviewed-instructions.txt>` to preserve an instruction
+override. `--model`, `--cpu`, and `--memory` record source configuration; CPU
+and memory default to `0.5` / `1Gi`.
+
+This exports **the reviewed checkout**, not a snapshot of live Azure overrides.
+Confirm that the checkout/profile/instructions match the version you intend to
+move. Output files are never overwritten. The CLI prints a SHA-256 for transfer
+verification; `inspect` verifies integrity without executing bundled Python or
+printing prompt text.
+
+Individual runtime files are limited to 256 KiB. The embedded runtime ZIP can
+exceed that per-file limit, but each archive and its expanded entries must fit
+within 2 MiB. Export checks the completed bundle against the same limits as
+inspect and deploy before writing it.
+
+### Export an agent created in the Lab
+
+Save the JSON response for `GET /api/agents/<created-ID>` from your approved
+private Lab. The updated API includes the saved `runtime_hash`; refresh the
+record after deploying the updated Lab if an older response omits it. An
+operator's saved Cosmos document with the same fields also works.
+
+```powershell
+$lab = 'https://<verified-private-lab-host>'
+$id = 'created-<agent-UUID>'
+Invoke-RestMethod "$lab/api/agents/$id" |
+    ConvertTo-Json -Depth 30 |
+    Set-Content agent-exports\created-record.json -Encoding utf8
+python hosted-agents\bundle.py export-created --record agent-exports\created-record.json --output agent-exports\created.agent-bundle.zip
+python hosted-agents\bundle.py inspect agent-exports\created.agent-bundle.zip
+```
+
+The record must be ready. The CLI takes its instructions, template ID, model,
+and runtime name, but does not export project IDs, operator keys, events, chat
+records, or resource ownership metadata. It requires the shared runtime ZIP
+hash to match the saved hash. If the Lab runtime changed since publication,
+use `--runtime-directory <original-agent_runtime-folder>` from the matching
+source revision. A mismatched or missing hash is an error, not permission to
+substitute today's code.
+
+### Deploy into a prepared destination
+
+On an approved private-network runner, prepare the deployment environment from
+the earlier walkthrough. Transfer the reviewed bundle and use this repository's
+`hosted-agents\bundle.py` and `deployment.py` as the deployment tooling:
+
+```powershell
+& $python hosted-agents\bundle.py deploy agent-exports\case.agent-bundle.zip `
+    --endpoint '<verified-destination-project-endpoint>' `
+    --model '<existing-destination-model-deployment>' `
+    --agent-name 'destination-case-review'
+if ($LASTEXITCODE -ne 0) { throw 'Bundle deployment failed; inspect routing before retrying' }
+```
+
+The destination name is deliberate: using an existing name updates its route.
+Deploy specialists first. When moving a coordinator, repeat
+`--specialist OLD=NEW` for renamed specialists, for example
+`--specialist case-review-agent=destination-case-review`. Both runtime bindings
+and delegation checks are remapped; missing/inactive dependencies and
+self-delegation fail before upload. Unmapped specialists retain their names.
+
+Lab-created bundles deploy as **independently managed Foundry agents**, not as
+new Lab creation records. Use a new destination name rather than taking over a
+Lab-managed resource. They preserve the Lab's no-hidden-model-smoke-call
+behavior: active runtime and confirmed routing are not proof of answer quality.
+Test their fictional prompts explicitly after deployment. Adding an independent
+agent to a destination Lab catalog is a separate operator change.
+
+### Transfer boundaries
+
+- Review source, instructions, dependencies, and the bundle before deployment.
+  Hashes detect corruption, not malicious code or a forged manifest. Deployment
+  executes the source in Foundry and installs its dependencies.
+- Keep exports in protected storage. `agent-exports/` and `*.agent-bundle.zip`
+  are ignored by Git; instructions and saved records can still contain data
+  that needs access controls. Never include credentials in prompts.
+- Bundles do not include infrastructure, model weights, permissions, identities,
+  conversations, evaluation results, or the Lab's citation/schema validators.
+  Recreate those prerequisites separately. No destination resources are
+  provisioned implicitly.
+- Direct dependency files travel unchanged; transitive dependency resolution
+  still happens during the remote build. A bundle is not a frozen container
+  image or a byte-for-byte runtime backup.
+
 ## Test and validate
 
 Run the local regression suites from the repository root:
 
 ```powershell
-python -m unittest discover -s hosted-agents -p test_deployment.py -v
+python -m pip install -r .github\requirements-validation.txt
+python -m ruff check cost-comparison hosted-agents workbench evaluations
+python -m pip check
+python -m unittest discover -s hosted-agents -p "test_*.py" -v
 python -m unittest discover -s hosted-agents/review-coordinator-agent -p "test_*.py" -v
 ```
 
 Install the coordinator's `requirements.txt` in an isolated environment to run
-the real software development kit (SDK) contract tests. Otherwise, those two
-tests are explicitly skipped.
+the real software development kit (SDK) contract tests. Deployment-only SDK
+tests need `requirements-deploy.txt`; unavailable SDK contracts are explicitly
+skipped.
 They use an in-memory HTTP transport, not Azure. Live delegation checks still
 require a deployment from the private network.
 

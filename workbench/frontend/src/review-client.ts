@@ -10,6 +10,7 @@ export type Run = {
   started_at: string
   elapsed_ms?: number
   error?: string
+  resumed_from?: string
   input: { criteria: string[]; evidence: Source[] }
   events: { name: string; at: string }[]
   result?: { summary: string; findings: Finding[]; questions: string[] }
@@ -43,6 +44,7 @@ export const statuses: Record<string, string> = {
 }
 export const eventNames: Record<string, string> = {
   review_started: 'Review requested',
+  review_recovery_requested: 'Recovery requested using saved input',
   specialist_receipts_checked: 'Records of specialist calls checked',
   citations_checked: 'Quotes matched to your documents',
   waiting_input: 'Additional information requested',
@@ -55,6 +57,10 @@ const messages: Record<string, string> = {
   reviews_disabled: 'Review persistence is unavailable in this environment.',
   invalid_review: 'Check your documents, checklist and length limits.',
   review_not_runnable: 'This revision cannot be run again.',
+  review_not_resumable:
+    'This review cannot be recovered. Refresh to check whether it is still running or has reached its four-run limit.',
+  recovery_confirmation_required:
+    'Confirm that recovery starts a new call and may incur another model charge.',
   review_not_waiting: 'This review is not accepting more information.',
   busy: 'Agent capacity is busy. Try again later.',
   reviews_busy: 'Review requests are limited. Try again in a minute.',

@@ -162,6 +162,14 @@ class PublisherTests(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(stat.S_ISREG(info.external_attr >> 16))
                 self.assertEqual(stat.S_IMODE(info.external_attr >> 16), 0o644)
 
+    async def test_missing_or_invalid_runtime_package_is_an_explicit_publication_error(self):
+        for error in (OSError("missing source"), ValueError("oversized source")):
+            with self.subTest(error=type(error).__name__):
+                with patch("agent_publisher.build_runtime_package", side_effect=error):
+                    with self.assertRaises(PublicationError) as raised:
+                        runtime_package()
+                self.assertEqual(raised.exception.code, "runtime_unavailable")
+
     async def test_new_agent_default_latest_route_is_pinned_to_the_owned_version(self):
         original = self.agents.create_version_from_code
 
