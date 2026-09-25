@@ -61,7 +61,7 @@ updates:
     ignore:
       - dependency-name: node
         update-types: ["version-update:semver-major"]
-      # Stay on Python 3.13 and take refreshed image digests only.
+      # Stay on Python 3.14 and take refreshed image digests only.
       - dependency-name: python
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
