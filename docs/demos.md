@@ -7,6 +7,11 @@ what the agent returns with the expected findings. It is for reviewers and demo
 leads who already have an operator-prepared Microsoft Foundry environment, or
 who need an offline walkthrough when live access is unavailable.
 
+For the visual introduction, start with **Explore demos** in the Lab or the
+[showcase and presenter guide](showcase.md). It adds fictional-input shortcuts
+and expected findings, not automatic agent execution. **Presenter view** enlarges
+the story and Chat text while keeping the environment and shared-data boundaries.
+
 ## At a glance
 
 Status values use the definitions in [terms used in these guides](README.md#terms-used-in-these-guides).
@@ -60,7 +65,7 @@ Before inviting participants:
   possible only if an operator has explicitly enabled that catalog entry.
   Proposal review reuses application review, not a third specialist.
 - **About this agent** explains what to paste, what the agent returns, and how it
-  works. **Agents** selects an existing setup. The separate **Create agent** flow
+  works. **Agent catalog** selects an existing setup. The separate **Create agent** flow
   prepares and, with explicit operator confirmation, publishes a new agent.
 - A starter is just an example task and message. Developer configuration and
   deployment are explained separately in [Lab settings](../workbench/README.md#workspace-configuration).

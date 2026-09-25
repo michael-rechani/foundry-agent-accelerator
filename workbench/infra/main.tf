@@ -54,7 +54,7 @@ variable "default_agent" {
 }
 variable "workspace_title" {
   type    = string
-  default = "AI Foundry Lab"
+  default = "Foundry Agent Lab"
   validation {
     condition     = length(trimspace(var.workspace_title)) > 0 && length(var.workspace_title) <= 80 && !can(regex("[[:cntrl:]]", var.workspace_title))
     error_message = "Use a workspace title of one to 80 printable characters."

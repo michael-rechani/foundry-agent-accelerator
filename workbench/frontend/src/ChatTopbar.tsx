@@ -3,6 +3,7 @@ import {
   ChevronDown,
   Info,
   LoaderCircle,
+  Presentation,
   Save,
 } from 'lucide-react'
 import { AgentGuide, AgentRuntime } from './AgentGuide'
@@ -18,6 +19,8 @@ export function ChatTopbar({
   saving,
   saveDisabled,
   exportDisabled,
+  presenting,
+  onPresent,
   onView,
   onSave,
   onExport,
@@ -29,6 +32,8 @@ export function ChatTopbar({
   saving: boolean
   saveDisabled: boolean
   exportDisabled: boolean
+  presenting: boolean
+  onPresent: () => void
   onView: (view: View) => void
   onSave: () => void
   onExport: () => void
@@ -86,6 +91,15 @@ export function ChatTopbar({
         </div>
       )}
       <div className="topbar-actions">
+        <button
+          className="chat-icon presenter-toggle"
+          title="Presenter view"
+          aria-label="Presenter view"
+          aria-pressed={presenting}
+          onClick={onPresent}
+        >
+          <Presentation size={18} />
+        </button>
         {config?.mode === 'private' ? (
           <details
             className="lab-info"

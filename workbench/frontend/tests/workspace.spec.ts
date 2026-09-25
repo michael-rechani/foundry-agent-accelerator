@@ -31,7 +31,7 @@ async function workspace(
   } = {},
 ) {
   const config: Config = {
-    title: 'AI Foundry Lab',
+    title: 'Foundry Agent Lab',
     mode: options.preview ? 'preview' : 'private',
     agents: [agent],
     default_agent: agent.id,
@@ -139,7 +139,7 @@ async function workspace(
     }
     return respond({ error: 'unexpected_test_request' }, 404)
   })
-  await page.goto('/')
+  await page.goto('/#chat')
   if (options.startup) await expect.poll(() => state.configRequests).toBe(1)
   else
     await expect(page.locator('.agent-picker')).toContainText(
@@ -166,7 +166,9 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
       exact: true,
     }),
   ).toBeVisible()
-  await expect(page.getByText('AI Foundry Lab', { exact: true })).toHaveCount(1)
+  await expect(
+    page.getByText('Foundry Agent Lab', { exact: true }),
+  ).toHaveCount(1)
   await expect(page.locator('body')).not.toContainText(
     /A LITTLE CONTEXT|Evidence-grounded\. Human-reviewed\.|CURRENT CONVERSATION/,
   )
@@ -335,13 +337,17 @@ test('catalog uses customer names while retaining runtime targets and scenario s
     const card = page.locator('.catalog-agent').filter({
       has: page.getByRole('heading', { name: item.label, exact: true }),
     })
-    for (const field of ['input', 'output', 'limits', 'delegation'] as const)
+    for (const field of ['input', 'output'] as const)
       await expect(card.locator('.agent-guide')).toContainText(
         item.guidance![field],
       )
+    await expect(card.locator('.catalog-human-decision')).toContainText(
+      item.guidance!.limits,
+    )
     const details = card.locator('.catalog-runtime')
     await expect(details.locator('dl')).toBeHidden()
     await details.locator('summary').click()
+    await expect(details).toContainText(item.guidance!.delegation)
     await expect(details.locator('dd')).toHaveText([item.id, item.agent])
     await expect(details).toContainText(
       `${Object.keys(item.tools).length} tool bindings`,
@@ -483,7 +489,7 @@ test('shared lab details are available on demand across workspace views', async 
     'Chat',
     'Document reviews',
     'Shared history',
-    'Agents',
+    'Agent catalog',
     'Performance',
   ]) {
     await page

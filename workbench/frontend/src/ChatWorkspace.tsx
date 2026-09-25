@@ -24,6 +24,8 @@ import { ChatComposer } from './ChatComposer'
 import { HistoryView, type SavedChat } from './HistoryView'
 import { AgentCatalog } from './AgentCatalog'
 import { PerformanceView, type Measurement } from './PerformanceView'
+import { ExploreDemos, DemoRunGuide } from './ExploreDemos'
+import { agentForDemo, type DemoScenario } from './demo-scenarios'
 type SavedVersion = { id: string; _etag: string }
 
 const errors: Record<string, string> = {
@@ -54,9 +56,16 @@ export default function ChatWorkspace() {
       window.location.hash,
     )
       ? 'reviews'
-      : null,
+      : window.location.hash === '#chat'
+        ? 'chat'
+        : window.location.hash === '#create'
+          ? 'create'
+          : null,
   )
-  const view = selectedView ?? (config?.agent_creation ? 'create' : 'chat')
+  const view =
+    selectedView === 'create' && config && !config.agent_creation
+      ? 'explore'
+      : (selectedView ?? 'explore')
   const createdAgents = useCreatedAgents(config?.agent_creation)
   const availableAgents: Agent[] = [
     ...(config?.agents || []),
@@ -78,6 +87,8 @@ export default function ChatWorkspace() {
   const [savedChats, setSavedChats] = useState<SavedChat[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [continuing, setContinuing] = useState(false)
+  const [presenting, setPresenting] = useState(false)
+  const [activeDemo, setActiveDemo] = useState<DemoScenario | null>(null)
   const historyRequest = useHistoryClient(config?.history_timeout_ms)
   const controller = useRef<AbortController | null>(null)
   const editor = useRef<HTMLTextAreaElement>(null)
@@ -127,8 +138,11 @@ export default function ChatWorkspace() {
   useEffect(() => () => controller.current?.abort(), [])
 
   useEffect(() => {
-    if (view === 'chat') bottom.current?.scrollIntoView({ block: 'end' })
-  }, [turns, busy, view])
+    if (view !== 'chat') return
+    if (activeDemo && !turns.length && !busy)
+      bottom.current?.parentElement?.scrollTo({ top: 0 })
+    else bottom.current?.scrollIntoView({ block: 'end' })
+  }, [turns, busy, view, activeDemo])
 
   useLayoutEffect(() => {
     const resize = () => {
@@ -255,6 +269,31 @@ export default function ChatWorkspace() {
     setView('chat')
     setSaved(null)
     setDirty(false)
+    setActiveDemo(null)
+  }
+
+  function loadDemo(scenario: DemoScenario) {
+    if (!config || busy || historyBusy) return
+    const target = agentForDemo(
+      scenario,
+      availableAgents,
+      createdAgents.records,
+    )
+    if (!target) {
+      setNotice(
+        'No matching agent is available. Your current messages are preserved.',
+      )
+      return
+    }
+    if (
+      (draft || dirty) &&
+      !window.confirm(
+        'Load this fictional example in a fresh chat? Unsaved local messages will be cleared. Saved history is not deleted.',
+      )
+    )
+      return
+    resetConversation(target.id, scenario.input)
+    setActiveDemo(scenario)
   }
 
   async function listHistory(more = false) {
@@ -341,6 +380,7 @@ export default function ChatWorkspace() {
       setError('')
       setNotice('')
       setView('chat')
+      setActiveDemo(null)
     } catch (problem) {
       setNotice(problem instanceof Error ? problem.message : 'Open failed.')
     } finally {
@@ -403,7 +443,9 @@ export default function ChatWorkspace() {
   }
 
   return (
-    <div className={`chat-app${config?.agent_creation ? ' has-creation' : ''}`}>
+    <div
+      className={`chat-app${config?.agent_creation ? ' has-creation' : ''}${presenting ? ' presenter-view' : ''}`}
+    >
       <ChatSidebar
         title={config?.title}
         view={view}
@@ -436,6 +478,8 @@ export default function ChatWorkspace() {
             !dirty
           }
           exportDisabled={!turns.length && !draft}
+          presenting={presenting}
+          onPresent={() => setPresenting((value) => !value)}
           onView={setView}
           onSave={() => void saveChat()}
           onExport={download}
@@ -474,9 +518,29 @@ export default function ChatWorkspace() {
             onUse={(item) => newChat(item.id)}
           />
         )}
-        {view === 'reviews' ||
-        view === 'create' ||
-        view === 'created' ? null : view === 'history' ? (
+        {view === 'explore' ? (
+          config && (
+            <ExploreDemos
+              config={config}
+              agents={availableAgents}
+              created={createdAgents.records}
+              loadingAgents={createdAgents.loading}
+              agentError={createdAgents.error}
+              busy={busy || historyBusy}
+              onLoad={loadDemo}
+              onCreate={(label) => {
+                setView('create')
+                if (label)
+                  setNotice(
+                    `Choose the ${label} template, then review its setup. Publication still requires operator approval.`,
+                  )
+              }}
+              onChat={() => setView('chat')}
+            />
+          )
+        ) : view === 'reviews' ||
+          view === 'create' ||
+          view === 'created' ? null : view === 'history' ? (
           <HistoryView
             chats={savedChats}
             agents={availableAgents}
@@ -499,16 +563,28 @@ export default function ChatWorkspace() {
                 </p>
               )}
             <div className="conversation-scroll" aria-label="Conversation">
-              {!turns.length && !pending ? (
-                <ChatWelcome
-                  agent={agent}
-                  config={config}
-                  onPrompt={(text) => {
-                    setDraft(text)
-                    editor.current?.focus()
-                  }}
-                  onReviews={() => setView('reviews')}
+              {activeDemo && (
+                <DemoRunGuide
+                  scenario={activeDemo}
+                  presenting={presenting}
+                  busy={busy || historyBusy}
+                  onFresh={() => loadDemo(activeDemo)}
+                  onClose={() => setActiveDemo(null)}
                 />
+              )}
+              {!turns.length && !pending ? (
+                activeDemo ? null : (
+                  <ChatWelcome
+                    agent={agent}
+                    config={config}
+                    onPrompt={(text) => {
+                      setDraft(text)
+                      setActiveDemo(null)
+                      editor.current?.focus()
+                    }}
+                    onReviews={() => setView('reviews')}
+                  />
+                )
               ) : (
                 <div className="message-list">
                   {turns.map((turn, index) => (

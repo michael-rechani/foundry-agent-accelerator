@@ -27,7 +27,7 @@ async function setup(
     if (path === '/api/config')
       return route.fulfill({
         json: {
-          title: 'AI Foundry Lab',
+          title: 'Foundry Agent Lab',
           mode: preview ? 'preview' : 'private',
           reviews_enabled: !preview,
           history_enabled: !preview,
@@ -161,12 +161,14 @@ async function setup(
     }
     return route.fulfill({ json: document })
   })
-  await page.goto('/')
+  await page.goto('/#chat')
   await expect(page.locator('.agent-picker')).toContainText(
     'Application and case helper',
   )
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
-  await expect(navigation.getByRole('button').first()).toHaveText('Chat')
+  await expect(navigation.getByRole('button').first()).toHaveText(
+    'Explore demos',
+  )
   await expect(
     navigation.getByRole('button', { name: 'Chat', exact: true }),
   ).toHaveAttribute('aria-current', 'page')
@@ -217,16 +219,16 @@ test('navigation is labelled and conversation actions stay in Chat', async ({
     'Chat',
     'Document reviews',
     'Shared history',
-    'Agents',
+    'Agent catalog',
     'Performance',
   ]) {
     await expect(
       navigation.locator('span').filter({ hasText: new RegExp(`^${label}$`) }),
     ).toBeVisible()
   }
-  for (const label of ['Chat', 'Agents', 'Performance']) {
+  for (const label of ['Chat', 'Agent catalog', 'Performance']) {
     await navigation
-      .getByRole('button', { name: label, exact: label !== 'Agents' })
+      .getByRole('button', { name: label, exact: label !== 'Agent catalog' })
       .click()
     await expect(page.getByText('Local preview', { exact: true })).toBeVisible()
     await expect(
@@ -281,7 +283,7 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   const caseAgent = registry.find((item) => item.id === 'case-review')!
   const state = await setup(page, false, [guidedReview, caseAgent])
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
-  await navigation.getByRole('button', { name: 'Agents' }).click()
+  await navigation.getByRole('button', { name: 'Agent catalog' }).click()
   await page
     .locator('.catalog-agent')
     .filter({
@@ -330,17 +332,19 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   )
 })
 
-test('invalid review links keep the chat-first default', async ({ page }) => {
+test('invalid review links fall back to Explore without opening a review', async ({
+  page,
+}) => {
   await setup(page)
   await page.goto('/#review-not-a-valid-id')
   await page.reload()
   await expect(
     page
       .getByRole('navigation', { name: 'Workspace' })
-      .getByRole('button', { name: 'Chat', exact: true }),
+      .getByRole('button', { name: 'Explore demos', exact: true }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(
-    page.getByRole('textbox', { name: 'Message', exact: true }),
+    page.getByRole('heading', { name: 'From paperwork to a clear next step.' }),
   ).toBeVisible()
 })
 

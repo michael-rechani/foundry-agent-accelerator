@@ -1,0 +1,9 @@
+Check this fictional supplier invoice before payment. Use the lookups, show the math and draft an email to the supplier. All data is made up.
+
+INVOICE INV-DEMO-7781 - Contoso Demo Furniture - dated 2027-04-05
+Bill to: City of Example, Parks Department (fictional)
+Purchase order: PO-DEMO-2210
+LINE-1 CH-100 Stacking chair - qty 120 x $55.00 = $6,600.00
+LINE-2 TB-300 Folding table - qty 10 x $300.00 = $3,000.00
+LINE-3 Delivery fee - $250.00
+Invoice total: $9,850.00

@@ -47,7 +47,7 @@ class Settings:
     timeout: float = 180
     visible_agents: tuple[str, ...] = ("customer-review",)
     default_agent: str | None = None
-    title: str = "AI Foundry Lab"
+    title: str = "Foundry Agent Lab"
     creation: CreationSettings = field(default_factory=CreationSettings)
 
     @classmethod
@@ -59,7 +59,7 @@ class Settings:
         visible_agents = tuple(filter(None, os.getenv("WORKBENCH_VISIBLE_AGENTS", "customer-review").split(",")))
         return cls(mode, endpoint, hosts, origins, Path(os.getenv("WORKBENCH_AGENTS_FILE", ROOT / "agents.json")),
                visible_agents=visible_agents, default_agent=os.getenv("WORKBENCH_DEFAULT_AGENT") or None,
-               title=os.getenv("WORKBENCH_TITLE", "AI Foundry Lab"), creation=CreationSettings.from_env())
+               title=os.getenv("WORKBENCH_TITLE", "Foundry Agent Lab"), creation=CreationSettings.from_env())
 
     def validate(self):
         if not isinstance(self.title, str) or not self.title.strip() or len(self.title) > 80 or any(ord(char) < 32 for char in self.title):

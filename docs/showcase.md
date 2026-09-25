@@ -1,0 +1,157 @@
+# Explore Foundry Agent Lab
+
+[Home](../README.md) / [Docs](README.md) / Showcase
+
+Start with a customer question, not a blank prompt. These three fictional
+stories show the input, findings to check, and decision that stays with a
+person. They can be read without Azure. They are not live model results,
+customer endorsements, or proof that an agent is ready for production.
+
+## In this guide
+
+- [Find the missing evidence](#find-the-missing-evidence)
+- [Catch what does not add up](#catch-what-does-not-add-up)
+- [Turn scattered notes into a brief](#turn-scattered-notes-into-a-brief)
+- [Present without hiding the boundaries](#present-without-hiding-the-boundaries)
+- [One foundation. Repeatable agent releases.](#one-foundation-repeatable-agent-releases)
+- [Related content](#related-content)
+
+## Find the missing evidence
+
+**Question:** Can a reviewer see which application details need clarification
+before making a decision?
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-demo-application-dark.png">
+  <img alt="Illustrative application-completeness walkthrough with a missing budget, supported owner, and conflicting schedule; mocked APIs, not a live result." src="images/screenshots/lab-demo-application.png">
+</picture>
+
+Use the [fictional application and checklist](demo-inputs/application.txt).
+In **Explore demos**, choose **Application completeness**, then **Load fictional
+input**. This chooses an enabled matching prebuilt agent, or a ready created
+**Checklist gap finder**. It only fills the composer: inspect the text, then
+explicitly Send.
+
+| Source | Expected finding | Human follow-up |
+| --- | --- | --- |
+| CRIT-1 | No budget was supplied | Obtain and verify the budget |
+| APP-1 | The Facilities team is named as owner | Confirm the named responsibility |
+| APP-2 / APP-3 | The completion dates disagree | Identify the current schedule |
+
+The agent must not approve, deny, score, or rank the application. Missing
+evidence is a question, not an automatic failure. Try the missing-information
+and adversarial variations in the [demo guide](demos.md#application-completeness).
+
+## Catch what does not add up
+
+**Question:** Can an accounts-payable clerk find discrepancies across an invoice,
+an order, and a delivery record without delegating the payment decision?
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-demo-invoice-dark.png">
+  <img alt="Illustrative supplier-invoice walkthrough with quantity, price, delivery-fee, and damaged-item questions; mocked APIs, not a live result." src="images/screenshots/lab-demo-invoice.png">
+</picture>
+
+Use the [fictional supplier invoice](demo-inputs/supplier-invoice.txt).
+This scenario requires a ready created **Supplier invoice reviewer**, whose
+two fixed tools return the fictional purchase order and delivery record for
+`PO-DEMO-2210`. They do not contact a finance system.
+
+Without a matching ready agent, **Explore demos** lets you read and copy the
+example and points you to the appropriate template. Preparing the template does
+not publish it. Publication still requires the operator key, explicit cost
+approval, and the existing [creation prerequisites](agent-creation.md).
+
+| Source | Expected finding | Human follow-up |
+| --- | --- | --- |
+| LINE-1 / purchase order | 120 chairs at $55 were billed; 100 at $50 were ordered | Resolve quantity and price differences |
+| LINE-3 / order terms | A $250 delivery fee conflicts with delivery being included | Clarify the fee |
+| Delivery record | Two received chairs have cracked seats | Decide how damage affects acceptance or payment |
+
+The tables match at 10 units and $300 each. The agent should show arithmetic
+and label any supplier email **UNSENT DRAFT**. It must not approve, hold, pay,
+reject, send a message, or claim a system update. Do not silently treat damaged
+chairs as accepted or rejected when presenting an amount.
+
+## Turn scattered notes into a brief
+
+**Question:** Can a caseworker separate reliable facts from conflicting records
+and unanswered questions?
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-demo-casework-dark.png">
+  <img alt="Illustrative casework walkthrough preserving conflicting intake dates, a supported follow-up date, and missing proof; mocked APIs, not a live result." src="images/screenshots/lab-demo-casework.png">
+</picture>
+
+Use the [fictional case notes](demo-inputs/casework.txt).
+Choose **Casework assistance** in **Explore demos**, then load the fictional
+input into an enabled matching prebuilt agent or ready created
+**Case notes summarizer**.
+
+| Source | Expected finding | Human follow-up |
+| --- | --- | --- |
+| CASE-1 / CASE-2 | Intake dates disagree: August 15 and August 17 | Find the authoritative record |
+| CASE-1 / CASE-2 | Both notes give August 22 as the follow-up date | Verify the appointment |
+| CASE-3 | Proof of address remains outstanding | Obtain the evidence and applicable policy |
+
+No policy is supplied. The agent should not infer an eligibility consequence,
+choose an unsupported date, or modify a system.
+
+## Present without hiding the boundaries
+
+1. Open **Explore demos** and choose one story. The displayed findings are
+   illustrative expectations, not an agent response.
+2. Turn on **Presenter view** in the header for larger story and conversation
+   text. The environment indicator and shared-record notices remain visible.
+3. Load the fictional input. Existing unsaved chat messages require confirmation
+   before replacement. Nothing is automatically sent, saved, or published.
+4. In a prepared private environment, explicitly Send and compare the real reply
+   with the evidence. Calls can incur costs. In local preview, no agent is invoked.
+5. Use the **Demo guide** in Chat to keep the expected findings and human decision
+   nearby. It is separate from the model's answer.
+6. Choose **Start fresh with this example** to reset local messages with
+   confirmation. It never deletes shared history, changes infrastructure, or
+   stops a deployed agent. Record failures rather than hiding them.
+
+Presenter view is a browser-session display preference, not a different
+security mode. The Lab still has no individual user sign-in; everyone with
+access shares saved records. Use fictional data only.
+
+The root URL opens Explore demos. Returning presenters can bookmark `/#chat`
+or `/#create`; the latter requires the creation capability. Valid saved-review
+deep links continue to open their review directly.
+
+## One foundation. Repeatable agent releases.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/agent-release-journey-dark.svg">
+  <img alt="Private foundation and agent releases are separate connected workflows, with an explicit configuration handoff and human approval." src="images/agent-release-journey.svg">
+</picture>
+
+**Foundation:** review Terraform plans, deploy the Azure Verified Modules-based
+platform and separate Lab root, then verify private access. Keep the existing
+remote state boundaries. This is not a new landing-zone module or a one-click
+deployment promise.
+
+**Configuration handoff:** supply the actual Foundry project endpoint, existing
+model deployment names, identities, and approved private connectivity. Portable
+bundles carry source and configuration, not Azure permissions, infrastructure,
+customer records, or saved conversations.
+
+**Agent releases:** prepare a reviewed bundle, publish a new version, verify
+the appropriate runtime/route behavior, and check answers against the source.
+When a release needs correction, follow the documented guarded recovery or
+rollback path; never imply that Terraform automatically published it.
+
+The prebuilt deployment CLI and operator-confirmed Lab publisher have different
+ownership and verification semantics. This diagram is their logical relationship,
+not a new universal pipeline or a guarantee of automatic rollback.
+
+## Related content
+
+- [Demo guide and failure cases](demos.md)
+- [Create and try an agent](agent-creation.md)
+- [Private deployment runbook](private-deployment.md)
+- [Portable agent bundles](../hosted-agents/README.md#portable-agent-bundles)
+- [Architecture artwork sources](images/README.md)
+- [Product purpose and naming](../PRODUCT.md)
