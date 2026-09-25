@@ -5,7 +5,7 @@ import re
 import time
 from collections import deque
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from azure.cosmos.exceptions import CosmosHttpResponseError
@@ -16,6 +16,11 @@ from pydantic import ValidationError
 from reviews import Evidence, ReviewInput, review_prompt, validate_result
 
 LOGGER = logging.getLogger("uvicorn.error")
+
+# Allow the admission write, final write, and shutdown to finish before recovery.
+RECOVERY_GRACE_SECONDS = 90
+LEGACY_TIMEOUT_SECONDS = 180
+
 
 def timestamp():
     return datetime.now(timezone.utc).isoformat()
@@ -45,7 +50,14 @@ class ReviewRuns:
 
     def public_status(self, document):
         if document["status"] == "running" and document["id"] not in self.tasks:
-            return "interrupted"
+            deadline = document.get("recovery_after")
+            if deadline:
+                recovery_after = datetime.fromisoformat(deadline)
+            else:
+                recovery_after = datetime.fromisoformat(document["updated_at"]) + timedelta(
+                    seconds=LEGACY_TIMEOUT_SECONDS + RECOVERY_GRACE_SECONDS)
+            if datetime.now(timezone.utc) >= recovery_after:
+                return "interrupted"
         return document["status"]
 
     def public(self, document):
@@ -68,7 +80,7 @@ class ReviewRuns:
             return error(503, "reviews_disabled")
         if identifier and not re.fullmatch(r"review-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", identifier):
             return error(400, "invalid_review")
-        if action not in {None, "execute", "evidence"}:
+        if action not in {None, "execute", "resume", "evidence"}:
             return error(404, "not_found")
         now = time.monotonic()
         while self.requests and self.requests[0] <= now - 60:
@@ -83,7 +95,9 @@ class ReviewRuns:
                     if cursor and len(cursor) > 8192:
                         return error(400, "invalid_cursor")
                     page = await self.store.list_reviews(self.registry, cursor)
-                    return {**page, "items": [{**item, "status": self.public_status(item)} for item in page["items"]]}
+                    return {**page, "items": [
+                        {**{key: item[key] for key in ("id", "title", "agent_id", "updated_at")},
+                         "status": self.public_status(item)} for item in page["items"]]}
                 document = await self.store.get(identifier) if identifier else None
                 if document and (document.get("kind") != "review" or document["agent_id"] not in self.registry):
                     return error(404, "not_found")
@@ -91,9 +105,34 @@ class ReviewRuns:
                     return self.public(document)
                 if document and request.headers.get("if-match") != document["_etag"]:
                     return error(409, "review_changed")
-                if action == "execute":
-                    if document["status"] != "draft" or len(document["runs"]) >= 4:
-                        return error(409, "review_not_runnable")
+                if action != "execute":
+                    if request.headers.get("content-type", "").split(";")[0] != "application/json":
+                        return error(415, "json_required")
+                    body = bytearray()
+                    async with asyncio.timeout(5):
+                        async for chunk in request.stream():
+                            body.extend(chunk)
+                            if len(body) > 65536:
+                                return error(413, "request_too_large")
+                if action in {"execute", "resume"}:
+                    recovering = action == "resume"
+                    previous = document["runs"][-1] if document["runs"] else None
+                    if recovering:
+                        if (self.public_status(document) != "interrupted" or identifier in self.tasks
+                                or not previous or not isinstance(previous.get("input"), dict)
+                                or len(document["runs"]) >= 4):
+                            return error(409, "review_not_resumable")
+                        confirmation = json.loads(body)
+                        if (not isinstance(confirmation, dict) or set(confirmation) != {"confirm_cost"}
+                                or confirmation["confirm_cost"] is not True):
+                            return error(400, "recovery_confirmation_required")
+                        snapshot = ReviewInput.model_validate(previous["input"]).model_dump()
+                        if snapshot["agent_id"] != document["agent_id"]:
+                            return error(409, "review_not_resumable")
+                    else:
+                        if document["status"] != "draft" or len(document["runs"]) >= 4:
+                            return error(409, "review_not_runnable")
+                        snapshot = {key: deepcopy(document[key]) for key in ("title", "agent_id", "criteria", "evidence")}
                     while self.recent and self.recent[0] <= now - 60:
                         self.recent.popleft()
                     if self.slots.locked() or len(self.recent) >= 20:
@@ -101,11 +140,21 @@ class ReviewRuns:
                     self.recent.append(now)
                     await self.slots.acquire()
                     try:
+                        if recovering:
+                            previous["error"] = "execution_interrupted"
+                            if not any(event["name"] == "interrupted" for event in previous["events"]):
+                                previous["events"].append({"name": "interrupted", "at": timestamp()})
                         document["status"] = "running"
                         document["updated_at"] = timestamp()
+                        document["recovery_after"] = (
+                            datetime.now(timezone.utc)
+                            + timedelta(seconds=self.settings.timeout + RECOVERY_GRACE_SECONDS)
+                        ).isoformat()
                         document["runs"].append({"id": str(uuid4()), "started_at": timestamp(),
-                                                 "events": [{"name": "review_started", "at": timestamp()}],
-                                                 "input": {key: document[key] for key in ("title", "agent_id", "criteria", "evidence")}})
+                                                 "events": [{"name": "review_recovery_requested" if recovering else "review_started",
+                                                             "at": timestamp()}],
+                                                 "input": snapshot,
+                                                 **({"resumed_from": previous["id"]} if recovering else {})})
                         saved = await self.store.replace(document, document["_etag"])
                         task = asyncio.create_task(self.execute(saved))
                         self.tasks[identifier] = task
@@ -113,14 +162,6 @@ class ReviewRuns:
                         self.slots.release()
                         raise
                     return JSONResponse(self.public(saved), status_code=202)
-                if request.headers.get("content-type", "").split(";")[0] != "application/json":
-                    return error(415, "json_required")
-                body = bytearray()
-                async with asyncio.timeout(5):
-                    async for chunk in request.stream():
-                        body.extend(chunk)
-                        if len(body) > 65536:
-                            return error(413, "request_too_large")
                 if action == "evidence":
                     if document["status"] != "waiting_input" or len(document["runs"]) >= 4:
                         return error(409, "review_not_waiting")
