@@ -21,10 +21,6 @@ Then compare the agent's actual answer with the fictional source.
 The Azure deployment runs privately in your subscription. Local preview makes
 no model calls. This is a sample, not an official Microsoft product.
 
-> [!WARNING]
-> **Use fictional data only.** Saved chats, reviews, and agent setups go to a
-> shared database, and everyone with access to the Lab can read them.
-
 **On this page**
 
 [Get started](#get-started) · [Explore three stories](#explore-three-stories) ·
