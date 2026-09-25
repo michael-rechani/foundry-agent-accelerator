@@ -67,6 +67,10 @@ For all seven pages in the Lab, see the [Lab guide](workbench/README.md#pages).
 | Check answer quality | [Evaluations](evaluations/README.md) | Nothing for offline checks. Live runs need a test environment and approval. |
 | Deploy my own environment | [Deploy to Azure](#deploy-to-azure) | Azure permissions, model quota, private network access, and cost approval |
 
+For initial public sector and healthcare concepts, see the
+[agent drafts](docs/agent-drafts/README.md). These documentation-only definitions
+and shared safeguards are not implemented, registered, or deployed agents.
+
 <a id="architecture"></a>
 
 ## How it works
