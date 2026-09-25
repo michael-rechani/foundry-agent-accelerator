@@ -1,4 +1,5 @@
 import json
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,11 +9,23 @@ from zipfile import ZipFile
 
 from deployment import (
     AgentProfile, cleanup_failed_version, create_package, smoke_test,
-    verify_delegation, verify_specialist_endpoints,
+    verify_delegation, verify_specialist_endpoints, concrete_route, verify_route,
 )
 
 
 class DeploymentPackageTests(unittest.TestCase):
+    def test_packages_are_deterministic_with_portable_regular_file_permissions(self):
+        source = Path(__file__).parent / "case-review-agent"
+        with tempfile.TemporaryDirectory() as temporary:
+            first, second = Path(temporary) / "first.zip", Path(temporary) / "second.zip"
+            create_package(source, first)
+            create_package(source, second)
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+            with ZipFile(first) as archive:
+                for info in archive.infolist():
+                    self.assertEqual(info.create_system, 3)
+                    self.assertTrue(stat.S_ISREG(info.external_attr >> 16))
+
     def test_package_includes_reviewed_instructions(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / "source"
@@ -208,6 +221,36 @@ class DeploymentRollbackTests(unittest.TestCase):
         cleanup_failed_version(self.client, "agent", "2", None, False)
         self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_called_once()
+
+    def test_symbolic_routes_never_authorize_candidate_deletion(self):
+        for version in ("@latest", "@unknown", None, ""):
+            with self.subTest(version=version):
+                self.original.version_selector.version_selection_rules[0].agent_version = version
+                self.client.agents.delete_version.reset_mock()
+                self.assertFalse(concrete_route(self.original))
+                cleanup_failed_version(self.client, "agent", "2", self.original, True)
+                self.client.agents.delete_version.assert_not_called()
+
+
+class RouteVerificationTests(unittest.TestCase):
+    def test_requires_exact_active_responses_route(self):
+        client = MagicMock()
+        rule = SimpleNamespace(agent_version="2", traffic_percentage=100)
+        endpoint = SimpleNamespace(
+            version_selector=SimpleNamespace(version_selection_rules=[rule]),
+            protocol_configuration=SimpleNamespace(responses=SimpleNamespace()),
+        )
+        client.agents.get.return_value.agent_endpoint = endpoint
+        client.agents.get_version.return_value = {"status": "active"}
+        verify_route(client, "agent", "2")
+        for version, percentage in (("@latest", 100), ("1", 100), ("2", 50), ("2", True)):
+            with self.subTest(version=version, percentage=percentage), self.assertRaises(RuntimeError):
+                rule.agent_version, rule.traffic_percentage = version, percentage
+                verify_route(client, "agent", "2")
+        rule.agent_version, rule.traffic_percentage = "2", 100
+        client.agents.get_version.return_value = {"status": "creating"}
+        with self.assertRaisesRegex(RuntimeError, "not active"):
+            verify_route(client, "agent", "2")
 
 
 if __name__ == "__main__":

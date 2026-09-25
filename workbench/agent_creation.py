@@ -271,7 +271,7 @@ class AgentCreations:
     def public(self, document):
         result = {key: deepcopy(document[key]) for key in (
             "id", "name", "template_id", "instructions", "runtime_name", "version", "status", "stage",
-            "created_at", "updated_at", "_etag", "error", "events", "operation", "model",
+            "created_at", "updated_at", "_etag", "error", "events", "operation", "model", "runtime_hash",
         )}
         result["template_label"] = document["template"]["label"]
         result["model_profile"] = deepcopy(document.get("model_profile"))

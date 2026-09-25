@@ -13,6 +13,7 @@ updates:
 
   - package-ecosystem: pip
     directories:
+      - /.github
       - /evaluations
       - /hosted-agents/application-review-agent
       - /hosted-agents/basic-responses-agent

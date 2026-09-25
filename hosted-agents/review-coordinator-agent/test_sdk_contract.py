@@ -46,11 +46,14 @@ class SDKContractTests(unittest.TestCase):
         with (patch("azure.ai.projects.AIProjectClient") as project,
               patch("azure.identity.DefaultAzureCredential"),
               patch("deployment.wait_until_active"),
+              patch("deployment.endpoint_snapshot") as snapshot,
+              patch("deployment.verify_route"),
               patch("deployment.smoke_test", side_effect=KeyboardInterrupt),
               patch("deployment.cleanup_failed_version") as cleanup):
             client = project.return_value.__enter__.return_value
             client.agents.create_version_from_code.return_value.version = "2"
             original_endpoint = client.agents.get.return_value.agent_endpoint
+            snapshot.return_value = original_endpoint
             with self.assertRaises(KeyboardInterrupt):
                 deploy(profile, args)
             cleanup.assert_called_once_with(client, "coordinator", "2", original_endpoint, True)

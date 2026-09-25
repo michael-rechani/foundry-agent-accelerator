@@ -59,6 +59,12 @@ hosted-agents/
     requirements-deploy.txt
 ```
 
+For portable bundle deployment, stage `hosted-agents\bundle.py`,
+`hosted-agents\deployment.py`, a deployment requirements file, and the reviewed
+`.agent-bundle.zip` instead. Export/inspect need no SDK; deployment uses the
+same private runner and permissions. See
+[portable agent bundles](../hosted-agents/README.md#portable-agent-bundles).
+
 Use an approved private runner artifact channel. Verify the extracted archive's
 SHA-256 against the local artifact and restrict execution access to operators.
 Never put credential values in scripts or transferred artifacts.
@@ -123,6 +129,9 @@ Record the currently routed versions before continuing. Do not redeploy healthy
 specialists merely to update the coordinator. If a specialist is missing, stage
 its equivalent five source files and deploy it first using its own requirements.
 An inventory error other than not-found is a blocker, not permission to recreate.
+An existing agent must have explicit version routing before redeployment.
+Reconcile `@latest`, unknown aliases, or an unrouted agent with an operator
+instead of letting a new version change a symbolic recovery target.
 
 ## 5. Deploy the coordinator
 
@@ -134,9 +143,11 @@ from step 3. This is a mutating operation, not a Terraform plan or dry run.
 if ($LASTEXITCODE -ne 0) { throw 'Coordinator deployment or verification failed' }
 ```
 
-The deployer creates an immutable version, waits for activation, captures the
-previous endpoint, promotes the candidate, and runs the general smoke test plus
-both mandatory delegation checks. Clients may reach the candidate during testing.
+The deployer checks the model and specialists and snapshots the previous endpoint
+before creating an immutable version. After activation it verifies the endpoint
+hasn't changed, promotes the candidate while preserving authorization, and reads
+the exact active route back before and after the general smoke test and both
+mandatory delegation checks. Clients may reach the candidate during testing.
 
 ## 6. Verify deployment and routing
 

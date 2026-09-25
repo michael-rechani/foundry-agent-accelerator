@@ -137,6 +137,14 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.json()["status"], "ready", result.text)
         return result.json()
 
+    async def test_saved_record_exposes_runtime_hash_for_offline_export(self):
+        record = await self.ready()
+        persisted = await self.store.get(record["id"])
+        self.assertEqual(record["runtime_hash"], persisted["runtime_hash"])
+        self.assertRegex(record["runtime_hash"], r"^[a-f0-9]{64}$")
+        self.assertNotIn("setup_hash", record)
+        self.assertNotIn("project", record)
+
     async def test_templates_and_drafts_do_not_use_storage_or_models(self):
         templates = await self.client.get("/api/agent-templates")
         self.assertEqual(templates.status_code, 200)

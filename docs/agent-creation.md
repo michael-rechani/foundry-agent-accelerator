@@ -202,6 +202,7 @@ valid verifier configured to allow operator deletion while creation is disabled.
 | --- | --- |
 | [`agent_templates.py`](../workbench/agent_templates.py) | Job descriptions, prepared instructions, examples, conservative matching, fixed public tool metadata, and each template's kind of work |
 | [`agent_runtime`](../workbench/agent_runtime) | Reviewed runtime code, immutable policy, allowed tools, and pinned remote-build requirements |
+| [`agent_package.py`](../workbench/agent_package.py) | Deterministic runtime packaging shared by publication and the offline export CLI |
 | Creation request and saved record | Chosen template metadata snapshot, edited name/instructions, model deployment chosen for the template's kind of work, generated resource identity, and setup/runtime hashes |
 | [`agent_publisher.py`](../workbench/agent_publisher.py) | SDK publication, version/ownership checks, activation polling, route verification, and retirement |
 | Server environment / [Lab Terraform](../workbench/infra/main.tf) | Enablement, the default and per-kind model deployments, operator-key verifier, and operational limits |
@@ -222,6 +223,13 @@ contains. The `created-<UUID>` identifier namespace belongs to saved created
 agents; prebuilt catalog entries cannot reuse it.
 
 ## Publication, recovery, and deletion
+
+For a CLI-only source/configuration export, see
+[portable agent bundles](../hosted-agents/README.md#portable-agent-bundles).
+The saved-agent API exposes its `runtime_hash` so the exporter can require the
+exact matching runtime source. Export/import does not add Lab UI controls.
+Redeployed bundles are independent agents: they do not copy this Lab's records,
+ownership, chat history, or automatic lifecycle management.
 
 The API saves a typed Cosmos record **before** scheduling remote work. It then
 checks that the chosen model deployment exists, uploads the reviewed ZIP

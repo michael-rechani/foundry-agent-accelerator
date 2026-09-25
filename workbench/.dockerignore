@@ -8,6 +8,7 @@
 !agents.json
 !agent_creation.py
 !agent_publisher.py
+!agent_package.py
 !agent_templates.py
 !agent_runtime/
 agent_runtime/*

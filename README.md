@@ -203,6 +203,12 @@ upgraded by hand. Merge an update only after its checks pass. For Docker and
 Terraform changes, also verify a deployment, because the checks don't build
 the image or plan against live resources.
 
+Python correctness linting and dependency compatibility checks run alongside
+the Python 3.13 and 3.14 regression jobs. The frontend compiles with strict
+TypeScript checking. To move agent code and configuration without copying
+infrastructure or saved conversations, use the
+[portable agent bundle CLI](hosted-agents/README.md#portable-agent-bundles).
+
 <a id="references"></a>
 
 ## Related content

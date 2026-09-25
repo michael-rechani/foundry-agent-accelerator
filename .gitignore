@@ -42,3 +42,6 @@ workbench/frontend/dist/
 workbench/frontend/test-results/
 workbench/frontend/playwright-report/
 /evaluations/results/
+/agent-exports/
+*.agent-bundle.zip
+.ruff_cache/
