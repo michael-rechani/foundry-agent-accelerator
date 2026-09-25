@@ -340,7 +340,7 @@ explicitly.
 
 ## Local development
 
-Requires Node 24 and Python 3.13.
+Requires Node 24 and Python 3.14.
 
 ```powershell
 npm --prefix workbench/frontend ci
@@ -378,7 +378,7 @@ image. Image building and runtime smoke tests are separate, explicit steps.
 ### 1. Confirm prerequisites and state ownership
 
 Require an existing Foundry project and tested agent, authenticated Azure access,
-Terraform 1.16.1, and an approved private-network path to the backend and
+Terraform 1.16.4, and an approved private-network path to the backend and
 workload. The state account and blob container must already exist. Ensure the
 executing identity has the necessary resource, role-assignment, and
 state-container access.

@@ -3,8 +3,8 @@
 # Foundry Agent Lab
 
 [![Validate](https://github.com/michael-rechani/ai-foundry-samples/actions/workflows/validate.yml/badge.svg)](https://github.com/michael-rechani/ai-foundry-samples/actions/workflows/validate.yml)
-[![Terraform 1.16.1](https://img.shields.io/badge/Terraform-1.16.1-844FBA?logo=terraform&logoColor=white)](terraform/README.md)
-[![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](hosted-agents/README.md)
+[![Terraform 1.16.4](https://img.shields.io/badge/Terraform-1.16.4-844FBA?logo=terraform&logoColor=white)](terraform/README.md)
+[![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](hosted-agents/README.md)
 [![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-hosted_agents-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
 
 **One foundation. Repeatable agent releases.**
@@ -252,7 +252,7 @@ and in Foundry, see [agent names](docs/README.md#agent-names).
 
 ### Before you begin
 
-- Terraform 1.16.1 and the Azure CLI.
+- Terraform 1.16.4 and the Azure CLI.
 - Permission to deploy resources and assign roles.
 - Model quota and approved private network access.
 - An existing Azure Storage container for Terraform state.
@@ -389,7 +389,7 @@ For Docker and Terraform changes, also verify a deployment, because the
 checks don't build the image or plan against live resources.
 
 Python correctness linting and dependency compatibility checks run alongside
-the Python 3.13 and 3.14 regression jobs. The frontend compiles with strict
+the Python 3.14 regression job. The frontend compiles with strict
 TypeScript checking.
 
 To move agent code and configuration without copying infrastructure or saved

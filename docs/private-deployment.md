@@ -82,7 +82,7 @@ status-read request failed.
 
 ## 3. Prepare the private runner
 
-From the staged `hosted-agents` directory, using a working Python 3.13
+From the staged `hosted-agents` directory, using a working Python 3.14
 executable:
 
 ```powershell
@@ -183,7 +183,7 @@ up unrouted candidates deliberately. Retained versions may incur costs.
 | Symptom | Likely cause | What to do |
 | --- | --- | --- |
 | Azure CLI works, but Foundry calls fail. | The runner can reach ARM but lacks private Foundry DNS or routing. | Move to an approved private-network runner and verify the project endpoint path. |
-| Dependency installation fails. | The private runner lacks a working Python 3.13 environment or package access. | Fix the runner environment before setting deployment variables or mutating agents. |
+| Dependency installation fails. | The private runner lacks a working Python 3.14 environment or package access. | Fix the runner environment before setting deployment variables or mutating agents. |
 | Inventory shows `not deployed` for a specialist. | The coordinator update depends on a missing specialist. | Stage that specialist's equivalent five source files and deploy it first. |
 | Deployment starts but the client disconnects. | Remote execution can outlive the initiating client connection. | Use the recorded task name, exit code, and restricted log location to confirm the result. |
 | Promotion fails after candidate creation. | Route restoration may have retained the candidate. | Inspect the actual endpoint, restore a known-good route under the lock, and clean up deliberately. |

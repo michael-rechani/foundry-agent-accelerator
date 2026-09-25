@@ -110,7 +110,7 @@ runbook gives the working directory for the staged layout.
 ### 1. Confirm prerequisites
 
 1. Confirm the baseline Terraform deployment was applied successfully.
-2. Confirm local Python 3.13 is available.
+2. Confirm local Python 3.14 is available.
 3. Sign in with an Azure identity that has Foundry Project Manager at project
    scope.
 4. Confirm private Domain Name System (DNS) and routing to the project.

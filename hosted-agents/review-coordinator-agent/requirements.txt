@@ -1,5 +1,5 @@
 agent-framework-foundry==1.13.1
-agent-framework-foundry-hosting==1.0.0b260821
+agent-framework-foundry-hosting==1.0.0b260918
 azure-ai-projects==2.6.1
 azure-identity==1.25.3
-openai==3.19.0
+openai==3.19.2

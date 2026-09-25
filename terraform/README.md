@@ -83,7 +83,7 @@ Follow this order for a new environment:
 
 ## Prerequisites
 
-- Terraform 1.16.1 or a later 1.16 patch release.
+- Terraform 1.16.4 or a later 1.16 patch release.
 - Azure CLI authenticated to the target tenant.
 - Contributor and User Access Administrator, or equivalent permissions.
 - Model availability and quota in the target region.

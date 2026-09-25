@@ -212,8 +212,7 @@ Only `main.py`, `demo_tools.py`, and `requirements.txt` enter the deterministic
 ZIP package. Prompts cannot upload source, install dependencies, select
 endpoints, change the model, or register tools. Hosted allocation is fixed at
 0.5 CPU / 1 GiB. Remote build uses `python_3_14`, matching the existing
-deployer. This runtime identifier is separate from the Lab container's Python
-3.13 version.
+deployer and the Lab container's Python 3.14 version.
 
 Changing templates, code, tools, permissions, or model configuration requires a
 developer/operator rollout. It does not mutate already published agents.
