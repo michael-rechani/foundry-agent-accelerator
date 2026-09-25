@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">One foundation. Repeatable agent releases.</title>
+  <desc id="desc">Two connected workflows for Foundry Agent Lab. Terraform and Azure Verified Modules provision the private foundation with separate state and human-approved plans. Project, model, identity, and networking configuration connect that foundation to independently packaged, published, verified, and routed agent versions. This is a logical workflow, not a new automated pipeline or a guarantee of automatic rollback.</desc>
+  <defs>
+    <marker id="foundation-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0L8 4L0 8Z" fill="#4aa8ff"/>
+    </marker>
+    <marker id="release-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0L8 4L0 8Z" fill="#3cc3ae"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="760" rx="16" fill="#0d1117"/>
+  <g font-family="Segoe UI, Arial, sans-serif" fill="#e6edf3">
+    <text x="40" y="55" font-size="32" font-weight="700">One foundation. Repeatable agent releases.</text>
+    <text x="40" y="88" font-size="17" fill="#a9b4c0">Prepare the Azure environment once. Evolve the agents without rebuilding the story.</text>
+
+    <rect x="40" y="116" width="1120" height="184" rx="12" fill="#0f2438" stroke="#4278a6"/>
+    <text x="64" y="151" font-size="20" font-weight="700">Private foundation</text>
+    <text x="64" y="180" font-size="14" fill="#b8c9da">Terraform + Azure Verified Modules</text>
+    <g font-size="17" font-weight="600">
+      <text x="64" y="222">Review the plan</text>
+      <text x="456" y="222">Provision separate roots</text>
+      <text x="848" y="222">Verify private access</text>
+    </g>
+    <g font-size="15" fill="#a9b4c0">
+      <text x="64" y="251">Permissions, quota, cost approval</text>
+      <text x="64" y="274">Keep protected remote state</text>
+      <text x="456" y="251">Foundry platform and Lab</text>
+      <text x="456" y="274">Optional Bastion and monitoring</text>
+      <text x="848" y="251">Network paths and identities</text>
+      <text x="848" y="274">Confirm the intended environment</text>
+    </g>
+    <path d="M369 229H422" fill="none" stroke="#4aa8ff" stroke-width="2" marker-end="url(#foundation-arrow)"/>
+    <path d="M761 229H814" fill="none" stroke="#4aa8ff" stroke-width="2" marker-end="url(#foundation-arrow)"/>
+
+    <path d="M600 302V329" fill="none" stroke="#4aa8ff" stroke-width="2" marker-end="url(#foundation-arrow)"/>
+    <rect x="160" y="342" width="880" height="108" rx="10" fill="#161b22" stroke="#637484"/>
+    <text x="600" y="377" text-anchor="middle" font-size="19" font-weight="700">An explicit configuration handoff</text>
+    <text x="600" y="406" text-anchor="middle" font-size="16" fill="#b8c9da">Project endpoint  /  Model deployments  /  Identity  /  Private connectivity</text>
+    <text x="600" y="432" text-anchor="middle" font-size="14" fill="#a9b4c0">A bundle does not carry Azure permissions, infrastructure, or saved records.</text>
+    <path d="M600 452V479" fill="none" stroke="#3cc3ae" stroke-width="2" marker-end="url(#release-arrow)"/>
+
+    <rect x="40" y="492" width="1120" height="184" rx="12" fill="#0e2723" stroke="#3cc3ae"/>
+    <text x="64" y="527" font-size="20" font-weight="700">Agent releases</text>
+    <text x="64" y="556" font-size="14" fill="#b8c9da">Reviewed code, instructions, and versioned configuration</text>
+    <g font-size="17" font-weight="600">
+      <text x="64" y="598">Package the agent</text>
+      <text x="456" y="598">Publish and verify</text>
+      <text x="848" y="598">Route, review, iterate</text>
+    </g>
+    <g font-size="15" fill="#a9b4c0">
+      <text x="64" y="627">Source + configuration manifest</text>
+      <text x="64" y="650">Keep deployment mappings explicit</text>
+      <text x="456" y="627">Create a new hosted version</text>
+      <text x="456" y="650">Check the documented release gates</text>
+      <text x="848" y="627">Check answers against evidence</text>
+      <text x="848" y="650">Use guarded recovery when needed</text>
+    </g>
+    <path d="M369 605H422" fill="none" stroke="#3cc3ae" stroke-width="2" marker-end="url(#release-arrow)"/>
+    <path d="M761 605H814" fill="none" stroke="#3cc3ae" stroke-width="2" marker-end="url(#release-arrow)"/>
+    <text x="40" y="714" font-size="15" font-weight="600">People approve infrastructure changes, publication costs, and business decisions.</text>
+    <text x="40" y="740" font-size="14" fill="#a9b4c0">Logical workflow only. CLI and Lab release paths have different gates; a code push is not a deployment.</text>
+  </g>
+</svg>

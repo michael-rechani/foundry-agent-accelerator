@@ -8,13 +8,14 @@ Foundry hosted agents when an operator enables creation, and save document
 reviews. When you finish this guide, you'll know how to run, configure, deploy,
 operate, and validate the Lab without changing the safety boundaries.
 
-The UI title is **AI Foundry Lab**. The private React/TypeScript UI uses a
+The UI title is **Foundry Agent Lab**. The private React/TypeScript UI uses a
 FastAPI backend and shared Azure Cosmos DB storage.
 
 ## At a glance
 
 | Area | What to know |
 | --- | --- |
+| Explore demos | The opening page shows three fictional customer stories, expected findings, and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
 | Agent creation | **Create agent** prepares instructions from reviewed templates. Publication is a separate operator-protected action. **Chat does not create or configure agents.** |
 | Prebuilt agents | The prebuilt agents remain available. **Application and case helper** is the default visible prebuilt agent. |
 | Document reviews | **Document reviews** saves one structured check per checklist item and keeps the original text beside the result. |
@@ -40,12 +41,13 @@ The Lab's pages, in the order they appear in its sidebar:
 
 | Page | What you do there |
 | --- | --- |
-| **Create agent** | Describe a job, pick one of nine [reviewed templates](../docs/agent-creation.md#what-a-participant-can-do), edit the name and instructions, and publish a new Foundry hosted agent on the [model that suits the job](../docs/agent-creation.md#how-the-lab-picks-a-model). Shown only when an operator turns on creation; the Lab then opens on this page. |
+| **Explore demos** | Start with application evidence, invoice discrepancies, or case notes. Read an illustrative story, copy its fictional input, or load it into an enabled matching agent. |
+| **Create agent** | Describe a job, pick one of nine [reviewed templates](../docs/agent-creation.md#what-a-participant-can-do), edit the name and instructions, and publish a new Foundry hosted agent on the [model that suits the job](../docs/agent-creation.md#how-the-lab-picks-a-model). Shown only when the server advertises creation; actual publication needs operator enablement. |
 | **Created agents** | Follow publication progress, open a ready agent in **Chat**, or delete an agent with the operator key. Shown only when creation is on. |
 | **Chat** | Talk with a prebuilt or created agent. An example task only fills in your message; you choose when to send it. |
 | **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. |
 | **Shared history** | Reopen chats that anyone saved. Saved chats are shared and kept for 30 days. |
-| **Agents** | Browse the agents you can chat with, read what each one needs and does, and start a chat. |
+| **Agent catalog** | Browse the agents you can chat with, read what each one needs and does, and start a chat. |
 | **Performance** | See completed, failed, and timed-out requests and the average response time for this browser session. |
 
 **Chat** can't change an agent's instructions, tools, or model; that's a
@@ -61,6 +63,12 @@ resources. Publishing is opt-in, costs money, and needs the
 **System** (follows your device, the default), **Light**, or **Dark**, with a
 **Foundry**, **Orchid**, or **Lagoon** accent. The choice is saved in this
 browser only; it isn't shared with other users or saved with chats.
+
+**Presenter view:** the presentation button in the header enlarges story and
+Chat text for this browser session. A loaded scenario has a compact **Demo
+guide** with expected findings and a guarded **Start fresh with this example**
+action. Environment notices stay available, and resetting local messages never
+deletes shared records. See the [showcase guide](../docs/showcase.md).
 
 **What gets saved:** **Chat** saves completed messages to the shared Azure
 Cosmos DB database only when you choose to save. Creating a document review
@@ -98,7 +106,7 @@ Live model execution still incurs charges. See [Storage and cost](#storage-and-c
 The frontend uses React 19, TypeScript, Vite, Lucide icons, and custom
 Fluent-inspired CSS, not the Fluent UI component library. Neutral surfaces and
 blue actions are shared across creation, **Chat**, **Document reviews**,
-history, **Agents**, and performance. Playwright covers desktop and mobile
+history, **Agent catalog**, and performance. Playwright covers desktop and mobile
 workflows. The Python backend uses FastAPI, Pydantic validation, and async Azure
 SDKs for Foundry and Cosmos DB.
 
@@ -141,10 +149,10 @@ control and they do not check that submitted data is fictional.
 
 ## Conversations
 
-**Create agent** is the initial view when the configuration includes the agent
-creation capability. A valid saved-review URL still opens its review directly,
-including after a reload. Older configuration responses without creation
-capability keep the Chat-first behavior.
+**Explore demos** is the initial view. Bookmark `/#chat` to start in Chat, or
+`/#create` for the creator when its capability is advertised. A valid saved-review
+URL still opens its review directly, including after a reload. No publication or
+model invocation happens merely by entering a view.
 
 The optional [Document reviews](../docs/review-workflow.md) workflow has its own
 data contract and deployment checks. You don't need it to use **Chat**.
@@ -153,13 +161,14 @@ data contract and deployment checks. You don't need it to use **Chat**.
 
 | UI label | What it does | Important limits |
 | --- | --- | --- |
+| **Explore demos** | Shows fictional stories and loads a sample into an enabled matching agent. | Expected findings are illustrative. Hidden, failed, and unavailable agents are not selectable; samples are never automatically sent. |
 | **New chat** | Starts a new Chat draft for the selected agent. | It doesn't create an agent or submit a starter prompt. |
 | **Create agent** | Prepares a setup from a reviewed template and, when enabled, lets an operator publish it. | Preparation is deterministic template assembly, not a model-designed agent. |
 | **Created agents** | Lists agents published from the Lab's creation flow. | Ready agents can be selected in **Chat**. |
 | **Chat** | Sends a message to the selected prebuilt or ready created agent. | A chat prompt doesn't edit tools, instructions, or runtime configuration. |
 | **Document reviews** | Saves and runs checklist-based reviews. | Chat messages and review results don't copy between views automatically. |
 | **Shared history** | Lists, reopens, and deletes saved conversations. | Everyone with workspace access can read, modify, and delete saved conversations. |
-| **Agents** | Lists only enabled entries. | Hidden agents can't be invoked directly through the Lab API. |
+| **Agent catalog** | Lists only enabled entries. | Hidden agents can't be invoked directly through the Lab API. |
 | **Performance** | Shows browser-session request counts and observed end-to-end latency. | It excludes local preview calls, clears on refresh, and isn't a fleet-wide metric or model-quality score. |
 
 ### Prebuilt and created agents
@@ -173,7 +182,7 @@ data contract and deployment checks. You don't need it to use **Chat**.
 | Ready created agents | Listed separately under **Created agents**. | They can be selected in **Chat** after publication is ready. |
 
 Configure `visible_agents` in Terraform or `WORKBENCH_VISIBLE_AGENTS` locally to
-change the prebuilt agent catalog that the Lab exposes. **Agents** lists only
+change the prebuilt agent catalog that the Lab exposes. **Agent catalog** lists only
 enabled entries.
 
 **Developer setup details** shows unchanged catalog IDs, runtime names, expected
@@ -280,7 +289,7 @@ map aligned with the deployed profile; it isn't a second runtime tool registry.
 | Optional `prompts` arrays | Accept up to six entries. Each entry has `label` up to 80 characters and `text` up to 4,000 characters. Starters use fictional inputs and are never submitted just by selecting one. |
 | `visible_agents` | Controls direct access. Terraform validates IDs against `agents.json`, and the backend independently validates the deployed registry. |
 | `default_agent` | Must be visible. When omitted, the first `visible_agents` entry is selected. Locally, use `WORKBENCH_DEFAULT_AGENT`. |
-| `workspace_title` | Defaults to `AI Foundry Lab`, with one to 80 printable characters. Locally, use `WORKBENCH_TITLE`. It updates the visible name and browser title without renaming Azure resources. |
+| `workspace_title` | Defaults to `Foundry Agent Lab`, with one to 80 printable characters. Locally, use `WORKBENCH_TITLE`. It updates the visible name and browser title without renaming Azure resources. |
 
 Rebuild the image after registry changes. Terraform title/default/visibility
 changes update container environment settings through the reviewed rollout.

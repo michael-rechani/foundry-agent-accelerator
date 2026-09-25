@@ -31,28 +31,30 @@ install browser system dependencies with `npx playwright install --with-deps chr
 
 ## App structure
 
-`src/ChatWorkspace.tsx` owns conversation and view state for **New chat**,
+`src/ChatWorkspace.tsx` owns conversation and view state for **Explore demos**, **New chat**,
 **Create agent**, **Created agents**, **Chat**, **Document reviews**,
-**Shared history**, **Agents**, and **Performance**. Reply rendering lives in
+**Shared history**, **Agent catalog**, and **Performance**. Reply rendering lives in
 `ConversationTurn.tsx`. `WaitingIndicator.tsx` owns the elapsed timer so it
 does not rerender the transcript.
 
 State, effects, and request handlers stay in the three workspace components
 (`ChatWorkspace.tsx`, `AgentCreationWorkspace.tsx`, and `ReviewWorkspace.tsx`).
 The view components split out of them are presentational and receive values
-and callbacks as props.
+and callbacks as props. `ExploreDemos.tsx` additionally owns its local story
+selection and clipboard feedback; it never invokes an agent or writes records.
 
-| File                                                         | Role                                                                                                                          |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `ChatSidebar.tsx`, `ChatTopbar.tsx`                          | Render the view navigation and the Chat header, agent picker, and save/export actions.                                        |
-| `ChatWelcome.tsx`, `ChatComposer.tsx`                        | Render the new-chat prompts and the message composer with its conversation limits.                                            |
-| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx` | Render the **Shared history**, **Agents**, and **Performance** views.                                                         |
-| `history-client.ts`                                          | Handles bounded history requests.                                                                                             |
-| `request.ts`                                                 | Handles transport-independent cancellation.                                                                                   |
-| `workspace-config.ts`                                        | Validates public configuration and handles bootstrap timeouts and retry.                                                      |
-| `ContinueDialog.tsx`                                         | Previews carry-over context before resetting the conversation. It never invokes an agent.                                     |
-| `AgentGuide.tsx`                                             | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Agents** cards. |
-| `theme.ts`, `ThemePicker.tsx`                                | Load, validate, save, and apply the **Appearance** choice, and render its header menu.                                        |
+| File                                                         | Role                                                                                                                                          |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ChatSidebar.tsx`, `ChatTopbar.tsx`                          | Render the view navigation and the Chat header, agent picker, and save/export actions.                                                        |
+| `ChatWelcome.tsx`, `ChatComposer.tsx`                        | Render the new-chat prompts and the message composer with its conversation limits.                                                            |
+| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx` | Render the **Shared history**, **Agent catalog**, and **Performance** views.                                                                  |
+| `history-client.ts`                                          | Handles bounded history requests.                                                                                                             |
+| `request.ts`                                                 | Handles transport-independent cancellation.                                                                                                   |
+| `workspace-config.ts`                                        | Validates public configuration and handles bootstrap timeouts and retry.                                                                      |
+| `ContinueDialog.tsx`                                         | Previews carry-over context before resetting the conversation. It never invokes an agent.                                                     |
+| `AgentGuide.tsx`                                             | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Agent catalog** cards.          |
+| `theme.ts`, `ThemePicker.tsx`                                | Load, validate, save, and apply the **Appearance** choice, and render its header menu.                                                        |
+| `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`      | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement. |
 
 Keep purpose, input, output, how-it-works, and limits in the registry, not
 hard-coded by agent ID in React. **Developer setup details** distinguishes the
@@ -92,8 +94,9 @@ Publication uses an idempotency UUID retained across uncertain retries. GET
 polling never submits another creation. Setup, publication, ready routing, and
 live answer quality remain distinct.
 
-New configurations with `agent_creation` default to **Create agent**. Older
-configurations remain Chat-first, and valid saved-review links keep priority.
+The opening view is **Explore demos**. Explicit `/#chat` and `/#create` entry
+links are supported; creation still requires its advertised capability. Valid
+saved-review links keep priority.
 The model and tools are not editable here. Operator keys are password fields
 kept only in memory, cleared when leaving the creator views, and never included
 in chat, exports, or persistent browser storage. Deletion requires explicit
@@ -107,6 +110,15 @@ layout. It also covers the **Appearance** menu, saved and unreadable theme
 choices, and dark-mode card contrast for each accent. Its publication and answer fixtures are explicitly mocked. For a focused
 check, run `npm test -- agent-creation.spec.ts`; this still builds the
 production assets first.
+
+## Showcase and presenter coverage
+
+`tests/showcase.spec.ts` covers the read-only opening experience, source-input
+parity with the downloadable examples, matching only visible or ready agents,
+confirmation before replacing a draft, explicit Send, presenter controls,
+storage failures, and desktop/mobile screenshots. The catalog keeps input,
+output, and human limits prominent; execution details stay in its developer
+disclosure. The existing appearance storage key is unchanged by the rebrand.
 
 ## Document reviews UI
 

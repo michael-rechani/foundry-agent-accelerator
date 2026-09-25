@@ -14,6 +14,7 @@ For anyone using the Lab with fictional data. You don't need Azure permissions.
 
 | Guide | Use it to |
 | --- | --- |
+| [Showcase and presenter guide](showcase.md) | Explore three fictional customer stories, inspect expected findings, and present without hiding safety boundaries. |
 | [Demo guide](demos.md) | Pick a scenario, copy its fictional input, and compare the answer with the expected findings. |
 | [Create and try a baseline agent](agent-creation.md) | Prepare an agent from a template and, in an operator-enabled Lab, publish and chat with it. |
 | [Document reviews](review-workflow.md) | Check pasted document text against your checklist and save the results. |
@@ -57,7 +58,7 @@ For developers who change agents, evaluate quality, or extend the architecture.
 | **Microsoft Foundry** | The Azure service that hosts the models and agents. The guides shorten it to **Foundry**. |
 | **Foundry project** | The workspace inside Foundry that holds agents, model deployments, and connections. Terraform names it `hosted-agents-<environment>`, for example `hosted-agents-dev`. A project isn't an agent. |
 | **Hosted agent** | Agent code that Foundry Agent Service packages and runs. Each publish creates an immutable **version**. The agent's **endpoint route** decides which version receives traffic. |
-| **The Lab** | The browser app in [`workbench/`](../workbench/). Its title bar reads **AI Foundry Lab**. |
+| **The Lab** | The browser app in [`workbench/`](../workbench/). Its title bar reads **Foundry Agent Lab**. |
 | **Prebuilt agents** | The agents a developer publishes from [`hosted-agents/`](../hosted-agents/). See [agent names](#agent-names). |
 | **Created agents** | Agents published from the Lab's **Create agent** page. They appear under **Created agents**. |
 | **Coordinator** | An agent that receives your request, asks one specialist to do the work, and returns the findings. |

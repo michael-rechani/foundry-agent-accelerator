@@ -40,6 +40,8 @@ export function AgentRuntime({ agent }: { agent: Agent }) {
   return (
     <details className="catalog-runtime">
       <summary>Developer setup details</summary>
+      <p className="category-label">{agent.category}</p>
+      {agent.guidance && <p>{agent.guidance.delegation}</p>}
       <dl>
         <div>
           <dt>Catalog ID</dt>

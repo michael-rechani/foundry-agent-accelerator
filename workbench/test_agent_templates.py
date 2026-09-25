@@ -1,22 +1,57 @@
 import unittest
+from pathlib import Path
 
-from agent_templates import MODEL_PROFILES, TEMPLATES, TemplateRequiredError, list_templates, prepare_draft
+from agent_templates import (
+    MODEL_PROFILES,
+    TEMPLATES,
+    TemplateRequiredError,
+    list_templates,
+    prepare_draft,
+)
 from agent_runtime.demo_tools import TEMPLATE_IDS, create_demo_tools
 
 
 LOOKUP_JOBS = {
-    "workflow-coordinator", "medical-bill-reviewer", "insurance-preapproval-helper",
-    "benefits-renewal-helper", "supplier-invoice-reviewer",
+    "workflow-coordinator",
+    "medical-bill-reviewer",
+    "insurance-preapproval-helper",
+    "benefits-renewal-helper",
+    "supplier-invoice-reviewer",
 }
 SECTOR_JOBS = LOOKUP_JOBS - {"workflow-coordinator"}
 
 
 class TemplateTests(unittest.TestCase):
+    def test_supplier_showcase_input_matches_the_reviewed_template(self):
+        sample = (
+            Path(__file__).resolve().parents[1]
+            / "docs"
+            / "demo-inputs"
+            / "supplier-invoice.txt"
+        )
+        self.assertEqual(
+            sample.read_text(encoding="utf-8").strip(),
+            TEMPLATES["supplier-invoice-reviewer"]["sample_input"],
+        )
+
     def test_all_nine_jobs_have_complete_bounded_guidance_and_examples(self):
         self.assertEqual(set(TEMPLATES), TEMPLATE_IDS)
         self.assertEqual(len(TEMPLATES), 9)
-        fields = {"id", "category", "label", "description", "input", "output", "limits", "delegation",
-                  "instructions", "example_request", "sample_input", "tools", "model_profile"}
+        fields = {
+            "id",
+            "category",
+            "label",
+            "description",
+            "input",
+            "output",
+            "limits",
+            "delegation",
+            "instructions",
+            "example_request",
+            "sample_input",
+            "tools",
+            "model_profile",
+        }
         for identifier, template in TEMPLATES.items():
             with self.subTest(identifier=identifier):
                 self.assertEqual(set(template), fields)
@@ -26,33 +61,57 @@ class TemplateTests(unittest.TestCase):
                     self.assertTrue(template[key].strip())
                 self.assertLessEqual(len(template["instructions"]), 6000)
                 self.assertLessEqual(len(template["sample_input"]), 4000)
-                self.assertIn("fictional", (template["sample_input"] + template["example_request"]).lower())
+                self.assertIn(
+                    "fictional",
+                    (template["sample_input"] + template["example_request"]).lower(),
+                )
                 self.assertEqual(
                     [tool["name"] for tool in template["tools"]],
-                    [tool.__name__ for tool in create_demo_tools(identifier, "test-demo-agent")],
+                    [
+                        tool.__name__
+                        for tool in create_demo_tools(identifier, "test-demo-agent")
+                    ],
                 )
 
     def test_jobs_are_grouped_so_each_category_is_listed_together(self):
         categories = [template["category"] for template in list_templates()]
-        self.assertEqual(categories, ["General"] * 5 + ["Healthcare and public sector"] * 4)
-        self.assertEqual({key for key, item in TEMPLATES.items() if item["category"] != "General"}, SECTOR_JOBS)
+        self.assertEqual(
+            categories, ["General"] * 5 + ["Healthcare and public sector"] * 4
+        )
+        self.assertEqual(
+            {key for key, item in TEMPLATES.items() if item["category"] != "General"},
+            SECTOR_JOBS,
+        )
 
     def test_each_job_names_the_kind_of_model_it_needs(self):
         expected = {
-            "document-analyst": "reasoning", "criteria-checker": "reasoning", "casework-assistant": "reasoning",
-            "document-intake": "extraction", "workflow-coordinator": "tool_calling",
-            "medical-bill-reviewer": "reasoning", "insurance-preapproval-helper": "tool_calling",
-            "benefits-renewal-helper": "reasoning", "supplier-invoice-reviewer": "reasoning",
+            "document-analyst": "reasoning",
+            "criteria-checker": "reasoning",
+            "casework-assistant": "reasoning",
+            "document-intake": "extraction",
+            "workflow-coordinator": "tool_calling",
+            "medical-bill-reviewer": "reasoning",
+            "insurance-preapproval-helper": "tool_calling",
+            "benefits-renewal-helper": "reasoning",
+            "supplier-invoice-reviewer": "reasoning",
         }
-        self.assertEqual({key: template["model_profile"] for key, template in TEMPLATES.items()}, expected)
+        self.assertEqual(
+            {key: template["model_profile"] for key, template in TEMPLATES.items()},
+            expected,
+        )
         self.assertEqual(set(expected.values()), set(MODEL_PROFILES))
         for profile in MODEL_PROFILES.values():
             self.assertEqual(set(profile), {"label", "reason"})
-            self.assertTrue(all(isinstance(text, str) and text.strip() for text in profile.values()))
+            self.assertTrue(
+                all(isinstance(text, str) and text.strip() for text in profile.values())
+            )
         for template in list_templates():
             with self.subTest(identifier=template["id"]):
                 profile = template["model_profile"]
-                self.assertEqual(profile, {"id": expected[template["id"]], **MODEL_PROFILES[profile["id"]]})
+                self.assertEqual(
+                    profile,
+                    {"id": expected[template["id"]], **MODEL_PROFILES[profile["id"]]},
+                )
         list_templates()[0]["model_profile"]["label"] = "Mutated"
         self.assertEqual(MODEL_PROFILES["reasoning"]["label"], "Reasoning")
 
@@ -74,11 +133,20 @@ class TemplateTests(unittest.TestCase):
     def test_ambiguous_and_unmatched_input_ask_instead_of_guessing(self):
         expected = {
             "Help me with this general review.": [],
-            "Analyze policy and extract invoice fields.": ["document-analyst", "document-intake"],
-            "Check a supplier invoice for me.": ["document-intake", "supplier-invoice-reviewer"],
+            "Analyze policy and extract invoice fields.": [
+                "document-analyst",
+                "document-intake",
+            ],
+            "Check a supplier invoice for me.": [
+                "document-intake",
+                "supplier-invoice-reviewer",
+            ],
         }
         for goal, candidates in expected.items():
-            with self.subTest(goal=goal), self.assertRaises(TemplateRequiredError) as error:
+            with (
+                self.subTest(goal=goal),
+                self.assertRaises(TemplateRequiredError) as error,
+            ):
                 prepare_draft(goal)
             self.assertEqual(error.exception.candidates, candidates)
 
@@ -103,12 +171,17 @@ class TemplateTests(unittest.TestCase):
             "Check our car insurance pre-approval.",
             "Summarize supplier correspondence and draft follow-up questions.",
         ):
-            with self.subTest(goal=goal), self.assertRaises(TemplateRequiredError) as error:
+            with (
+                self.subTest(goal=goal),
+                self.assertRaises(TemplateRequiredError) as error,
+            ):
                 prepare_draft(goal)
             self.assertEqual(error.exception.candidates, [])
 
     def test_explicit_choice_allows_task_wording_without_matching_keywords(self):
-        result = prepare_draft("Help me with this general review.", "casework-assistant")
+        result = prepare_draft(
+            "Help me with this general review.", "casework-assistant"
+        )
         self.assertEqual(result["template_id"], "casework-assistant")
         self.assertIn("Task described by the user:", result["instructions"])
 
@@ -126,12 +199,16 @@ class TemplateTests(unittest.TestCase):
     def test_only_lookup_jobs_have_tools_and_they_are_simulated(self):
         for identifier, template in TEMPLATES.items():
             with self.subTest(identifier=identifier):
-                self.assertEqual(len(template["tools"]), 2 if identifier in LOOKUP_JOBS else 0)
+                self.assertEqual(
+                    len(template["tools"]), 2 if identifier in LOOKUP_JOBS else 0
+                )
                 self.assertTrue(all(tool["simulated"] for tool in template["tools"]))
                 for tool in template["tools"]:
                     if identifier in SECTOR_JOBS:
                         self.assertIn(tool["name"], template["instructions"])
-                    self.assertTrue(tool["description"].endswith("no external call or update."))
+                    self.assertTrue(
+                        tool["description"].endswith("no external call or update.")
+                    )
         self.assertIn("in preview", TEMPLATES["criteria-checker"]["limits"])
 
     def test_healthcare_and_public_sector_jobs_keep_a_person_in_charge(self):
@@ -140,7 +217,10 @@ class TemplateTests(unittest.TestCase):
             with self.subTest(identifier=identifier):
                 self.assertIn("UNSENT DRAFT", template["instructions"])
                 self.assertIn("simulated lookups", template["instructions"])
-                self.assertRegex(template["instructions"], r"(?i)\b(never|do not) (judge|decide|approve)")
+                self.assertRegex(
+                    template["instructions"],
+                    r"(?i)\b(never|do not) (judge|decide|approve)",
+                )
                 self.assertIn("made up", template["sample_input"])
 
 

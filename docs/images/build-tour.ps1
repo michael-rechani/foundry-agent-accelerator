@@ -1,36 +1,48 @@
 param(
-    [string]$ScreenshotDirectory = (Join-Path $PSScriptRoot 'screenshots')
+    [string]$ScreenshotDirectory = (Join-Path $PSScriptRoot 'screenshots'),
+    [ValidateSet('lab', 'scenarios')]
+    [string]$Tour = 'lab'
 )
 
 $ErrorActionPreference = 'Stop'
 
-# The README tour: three illustrative Lab screenshots that crossfade inside a
+# The README tours: illustrative Lab screenshots that crossfade inside a
 # minimal window frame. Each step names its light and dark screenshot. Label
 # widths are the average of Segoe UI and Arial at 20px semibold; textLength keeps
 # every label inside its pill whichever system font renders it.
-$steps = @(
+$steps = if ($Tour -eq 'scenarios') { @(
+    [ordered]@{ Label = 'Find missing evidence'; Width = 200; Light = 'lab-demo-application.png'; Dark = 'lab-demo-application-dark.png' }
+    [ordered]@{ Label = 'Check an invoice'; Width = 155; Light = 'lab-demo-invoice.png'; Dark = 'lab-demo-invoice-dark.png' }
+    [ordered]@{ Label = 'Prepare a case brief'; Width = 185; Light = 'lab-demo-casework.png'; Dark = 'lab-demo-casework-dark.png' }
+) } else { @(
+    [ordered]@{ Label = 'Explore demos'; Width = 137; Light = 'lab-demo-application.png'; Dark = 'lab-demo-application-dark.png' }
     [ordered]@{ Label = 'Create an agent'; Width = 147; Light = 'lab-create-agent.png'; Dark = 'lab-create-agent-dark.png' }
     [ordered]@{ Label = 'Chat with it'; Width = 106; Light = 'lab-chat-start.png'; Dark = 'lab-chat-start-dark.png' }
     [ordered]@{ Label = 'Review documents'; Width = 175; Light = 'lab-document-review.png'; Dark = 'lab-document-review-dark.png' }
-)
+) }
+$tourName = if ($Tour -eq 'scenarios') { 'scenario-tour' } else { 'lab-tour' }
 
 # Label text meets a WCAG contrast ratio of at least 4.5:1 against its pill, and
 # badge numbers against their badge.
 $themes = [ordered]@{
-    'lab-tour'      = [ordered]@{
+    $tourName      = [ordered]@{
         Screenshot = 'Light'; Bar = '#f6f8fa'; Border = '#d1d9e0'; Dot = '#c8d1da'; Muted = '#59636e'
         Pill = '#ffffff'; PillText = '#1f2328'; Accent = '#0f6cbd'; AccentText = '#ffffff'; Track = '#d8dee4'
         Shadow = '#1f2328'; NearOpacity = '0.08'; FarOpacity = '0.14'
     }
-    'lab-tour-dark' = [ordered]@{
+    "$tourName-dark" = [ordered]@{
         Screenshot = 'Dark'; Bar = '#161b22'; Border = '#3d444d'; Dot = '#3d444d'; Muted = '#9198a1'
         Pill = '#212830'; PillText = '#f0f6fc'; Accent = '#4aa8ff'; AccentText = '#0d1117'; Track = '#2f3742'
         Shadow = '#010409'; NearOpacity = '0.3'; FarOpacity = '0.5'
     }
 }
 
-$title = 'Illustrative UI test of the AI Foundry Lab with mocked APIs'
-$description = 'An animated tour of three illustrative screenshots from the Lab''s browser tests, which use mocked APIs, so nothing was published, sent, or saved. 1, the Create agent page with nine template cards showing each job''s model and tools. 2, a new Chat with the default agent''s guide and example tasks. 3, a Document review with a gap, a supported item, and its quoted source.'
+$title = 'Illustrative UI test of the Foundry Agent Lab with mocked APIs'
+$description = if ($Tour -eq 'scenarios') {
+    'Three illustrative customer walkthroughs from browser tests with mocked APIs: missing application evidence, supplier invoice discrepancies, and a casework brief. Expected findings are examples, not live model results. Nothing was published, sent, or saved.'
+} else {
+    'Four illustrative screenshots from browser tests with mocked APIs: Explore demos, Create agent, Chat, and Document reviews. Nothing was published, sent, or saved; these are not live model results.'
+}
 
 # Each frame holds for $frameSeconds, including a $fadeSeconds crossfade into
 # the next one. The last frame fades back to the first, so the loop is seamless.
@@ -200,7 +212,7 @@ function New-Tour([string]$Name, [Collections.IDictionary]$Theme, [string[]]$Fra
         $lines += "  <circle cx=`"$($windowX + $offset)`" cy=`"$barCenter`" r=`"6`"/>"
     }
     $lines += '</g>'
-    $lines += "<text x=`"$($windowX + $imageWidth / 2)`" y=`"$(Format-Number ($barCenter + 5))`" font-size=`"15`" fill=`"$($Theme.Muted)`" text-anchor=`"middle`">AI Foundry Lab &#183; illustrative UI test with mocked APIs</text>"
+    $lines += "<text x=`"$($windowX + $imageWidth / 2)`" y=`"$(Format-Number ($barCenter + 5))`" font-size=`"15`" fill=`"$($Theme.Muted)`" text-anchor=`"middle`">Foundry Agent Lab &#183; illustrative UI test with mocked APIs</text>"
     for ($i = 0; $i -lt $steps.Count; $i++) {
         $step = $steps[$i]
         $pillWidth = ($textX - $pillX) + $step.Width + 18

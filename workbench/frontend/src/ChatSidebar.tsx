@@ -1,5 +1,6 @@
 import {
   Activity,
+  Compass,
   FileCheck2,
   History,
   Layers3,
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react'
 
 export type View =
+  | 'explore'
   | 'chat'
   | 'catalog'
   | 'performance'
@@ -48,7 +50,7 @@ export function ChatSidebar({
         <span className="brand-mark" aria-hidden="true">
           <Layers3 size={23} />
         </span>
-        <span>{title || 'AI Foundry Lab'}</span>
+        <span>{title || 'Foundry Agent Lab'}</span>
       </div>
       {view === 'chat' && (
         <button
@@ -62,6 +64,14 @@ export function ChatSidebar({
         </button>
       )}
       <nav aria-label="Workspace">
+        <button
+          aria-current={view === 'explore' ? 'page' : undefined}
+          onClick={() => onView('explore')}
+          title="Explore demos"
+        >
+          <Compass size={18} />
+          <span>Explore demos</span>
+        </button>
         {creationEnabled && (
           <>
             <button
@@ -110,10 +120,10 @@ export function ChatSidebar({
         <button
           aria-current={view === 'catalog' ? 'page' : undefined}
           onClick={() => onView('catalog')}
-          title="Agents"
+          title="Agent catalog"
         >
           <LayoutGrid size={18} />
-          <span>Agents</span>
+          <span>Agent catalog</span>
           <small>{agentCount}</small>
         </button>
         <button

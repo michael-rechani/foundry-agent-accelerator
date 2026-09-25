@@ -32,7 +32,7 @@ class WorkbenchTests(unittest.TestCase):
     def test_public_configuration_matches_request_limits(self):
         config = self.client.get("/api/config").json()
         self.assertEqual(config["default_agent"], "customer-review")
-        self.assertEqual(config["title"], "AI Foundry Lab")
+        self.assertEqual(config["title"], "Foundry Agent Lab")
         self.assertEqual(config["agents"][0]["prompts"][0]["label"], "Review an application")
         self.assertIn("application and your checklist", config["agents"][0]["guidance"]["input"])
         self.assertIn("where each point came from", config["agents"][0]["guidance"]["output"])

@@ -52,6 +52,21 @@ export function AgentCatalog({
           Microsoft product.
         </p>
       </details>
+      <div className="catalog-paths">
+        <p>
+          <strong>Configured agents</strong>Choose a setup below to open Chat.
+          Being listed is not proof of live connectivity or answer quality.
+        </p>
+        <p>
+          <strong>Templates</strong>When creation is enabled, prepare a new
+          setup in Create agent. Publication requires operator approval and can
+          incur costs.
+        </p>
+        <p>
+          <strong>Concepts</strong>Agent drafts in the repository are
+          documentation only, not deployed agents or connected business systems.
+        </p>
+      </div>
       <label className="catalog-search">
         <Search size={17} />
         <input
@@ -72,11 +87,23 @@ export function AgentCatalog({
                   <FileCheck2 size={25} />
                 )}
               </span>
-              <span className="category-label">{item.category}</span>
+              <span className="catalog-kind">
+                {item.id.startsWith('created-')
+                  ? 'Created in this Lab'
+                  : 'Prebuilt setup'}
+              </span>
             </div>
             <h2>{item.label}</h2>
             <p>{item.description}</p>
-            <AgentGuide agent={item} />
+            <AgentGuide agent={item} compact />
+            {item.guidance && (
+              <p className="catalog-human-decision">
+                <strong className="catalog-guide-label">
+                  What stays with you
+                </strong>
+                {item.guidance.limits}
+              </p>
+            )}
             <AgentRuntime agent={item} />
             <button
               className="catalog-select"

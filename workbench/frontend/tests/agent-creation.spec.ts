@@ -218,7 +218,7 @@ async function setup(
   } = {},
 ) {
   const config: Config = {
-    title: 'AI Foundry Lab',
+    title: 'Foundry Agent Lab',
     mode: options.preview ? 'preview' : 'private',
     agents: [guidedReview],
     default_agent: guidedReview.id,
@@ -424,7 +424,7 @@ async function setup(
     if (path === '/api/review-runs') return respond({ items: [], cursor: null })
     return respond({ error: 'not_found' }, 404)
   })
-  await page.goto('/' + (options.hash || ''))
+  await page.goto('/' + (options.hash || '#create'))
   await expect(
     page.getByRole('navigation', { name: 'Workspace' }),
   ).toBeVisible()
@@ -505,13 +505,13 @@ test('creation is the entry point with nine honest jobs in two groups and usable
     'Chat',
     'Document reviews',
     'Shared history',
-    'Agents',
+    'Agent catalog',
     'Performance',
   ]) {
     await expect(
       page.getByRole('navigation').getByRole('button', {
-        name: label === 'Agents' ? /^Agents\b/ : label,
-        exact: label !== 'Agents',
+        name: label === 'Agent catalog' ? /^Agent catalog\b/ : label,
+        exact: label !== 'Agent catalog',
       }),
     ).toBeVisible()
   }

@@ -1,25 +1,31 @@
 <a id="validate-your-ai-use-case-in-foundry"></a>
 
-# AI Foundry Lab
+# Foundry Agent Lab
 
 [![Validate](https://github.com/michael-rechani/ai-foundry-samples/actions/workflows/validate.yml/badge.svg)](https://github.com/michael-rechani/ai-foundry-samples/actions/workflows/validate.yml)
 [![Terraform 1.16.1](https://img.shields.io/badge/Terraform-1.16.1-844FBA?logo=terraform&logoColor=white)](terraform/README.md)
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](hosted-agents/README.md)
 [![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-hosted_agents-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
 
-**Create, deploy, and try Microsoft Foundry agents from one private web app.**
+**Build, deploy, and explore agents on Microsoft Foundry.**
 
-The Lab shows what agents in **Microsoft Foundry** (formerly Azure AI Foundry)
-can do. Publish a new hosted agent from a reviewed template, chat with it, and
-compare it with prebuilt agents that work as a team. Everything runs privately
-in your Azure subscription with fictional data.
+**One foundation. Repeatable agent releases.** Start with a practical question:
+what is missing from an application, what does not add up on an invoice, or what
+a caseworker needs to check next. Explore the fictional evidence, try a hosted
+agent, and compare its actual answer with the source.
+
+The Lab is a customer demo and workshop experience backed by reusable code for
+**Microsoft Foundry** (formerly Azure AI Foundry). Publish agents from reviewed
+templates, chat with them, and explore prebuilt agents working as a team. The
+Azure deployment runs privately in your subscription; local preview makes no
+model calls. This is a sample, not an official Microsoft product.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/lab-tour-dark.svg">
-  <img alt="Illustrative UI test of the Lab with mocked APIs, shown as a looping three-step tour: 1, the Create agent page with nine template cards showing each job's model and tools; 2, a new Chat with the default agent's guide and example tasks; 3, a Document review with a gap, a supported item, and its quoted source" src="docs/images/lab-tour.svg">
+  <img alt="Illustrative UI test with mocked APIs: Explore demos, prepare an agent, try Chat, and inspect a Document review. No live model results or saved records." src="docs/images/lab-tour.svg">
 </picture>
 
-*A short tour of the Lab's **Create agent**, **Chat**, and **Document reviews**
+*A short tour of **Explore demos**, **Create agent**, **Chat**, and **Document reviews**
 pages, shown in light or dark to match your GitHub theme. Illustrative UI test
 with mocked APIs; nothing was published, sent, or saved.* ·
 [View full size](docs/images/screenshots/lab-create-agent.png) ·
@@ -29,9 +35,27 @@ with mocked APIs; nothing was published, sent, or saved.* ·
 > **Use fictional data only.** Saved chats, reviews, and agent setups go to a
 > shared database, and everyone with access to the Lab can read them.
 
-**Jump to:** [What you can show](#what-you-can-show) ·
+**Jump to:** [Explore three stories](#explore-three-stories) · [What you can show](#what-you-can-show) ·
 [Get started](#get-started) · [How it works](#how-it-works) ·
 [Deploy to Azure](#deploy-to-azure) · [Documentation](#documentation)
+
+## Explore three stories
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/scenario-tour-dark.svg">
+  <img alt="Three illustrative customer stories with mocked APIs: missing application evidence, supplier invoice discrepancies, and a casework brief. Expected findings are examples, not live model results." src="docs/images/scenario-tour.svg">
+</picture>
+
+| Start with the problem | What to look for | What stays with the person |
+| --- | --- | --- |
+| [Find the missing evidence](docs/showcase.md#find-the-missing-evidence) | A missing budget, a named owner, and conflicting schedules | Verify the documents; decide the application outcome |
+| [Catch what does not add up](docs/showcase.md#catch-what-does-not-add-up) | Billed quantities and prices that differ from a fictional order | Resolve damaged items and decide what to pay |
+| [Turn scattered notes into a brief](docs/showcase.md#turn-scattered-notes-into-a-brief) | Supported facts, conflicting dates, and missing evidence | Verify the authoritative record and decide next steps |
+
+These are fictional walkthroughs, not guaranteed answers or measured business
+results. The invoice scenario needs a ready **Supplier invoice reviewer**
+created from its template; it uses simulated lookups, not a finance integration.
+Read the [showcase and presenter guide](docs/showcase.md) without deploying anything.
 
 ## What you can show
 
@@ -47,8 +71,9 @@ with mocked APIs; nothing was published, sent, or saved.* ·
 | **Private, keyless deployment** | Deploy with Terraform onto private networks. Services use managed identities, not API keys. | [Infrastructure](terraform/README.md) |
 
 **Create agent** is off until an operator turns it on, because publishing
-creates Azure resources that cost money. Until then, the Lab opens on **Chat**.
-For all seven pages in the Lab, see the [Lab guide](workbench/README.md#pages).
+creates Azure resources that cost money. The Lab opens on **Explore demos**;
+**Chat** remains one click away. For all eight pages, see the
+[Lab guide](workbench/README.md#pages).
 
 <a id="start-here"></a>
 <a id="scenarios-and-status"></a>
@@ -74,6 +99,18 @@ and shared safeguards are not implemented, registered, or deployed agents.
 <a id="architecture"></a>
 
 ## How it works
+
+### One foundation, two connected workflows
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-release-journey-dark.svg">
+  <img alt="Two connected workflows: Terraform and Azure Verified Modules provision the private foundation; agent bundles and instructions are released, verified, routed, and revised independently. Configuration connects the two; people approve changes." src="docs/images/agent-release-journey.svg">
+</picture>
+
+Terraform owns the infrastructure. Agent releases own source, instructions,
+versions, and verified routes. The configuration handoff connects them; a code
+push does not deploy either. See the [release journey](docs/showcase.md#one-foundation-repeatable-agent-releases)
+and [portable bundle guide](hosted-agents/README.md#portable-agent-bundles).
 
 ### Agents working together
 
@@ -181,7 +218,7 @@ To deploy from a separate private machine, use the
 
 | Topic | Guides |
 | --- | --- |
-| Try the samples | [Demo guide](docs/demos.md), [agent creation](docs/agent-creation.md), [document reviews](docs/review-workflow.md), [demo handoff](docs/demo-handoff.md) |
+| Try the samples | [Showcase and presenter guide](docs/showcase.md), [demo guide](docs/demos.md), [agent creation](docs/agent-creation.md), [document reviews](docs/review-workflow.md), [demo handoff](docs/demo-handoff.md) |
 | Deploy and operate | [Infrastructure](terraform/README.md), [the Lab](workbench/README.md), [hosted agents](hosted-agents/README.md), [private deployment runbook](docs/private-deployment.md), [credentials](docs/credentials.md) |
 | Architecture and security | [Architecture](docs/architecture.md), [Azure architecture diagram](docs/images/azure-architecture.svg), [trust boundaries](docs/architecture.md#trust-boundaries), [diagrams](docs/images/README.md) |
 | Customize and extend | [Extension guide](docs/architecture-assessment.md), [coordinator profiles](docs/agent-profiles.md), [evaluations](evaluations/README.md), [cost comparison](cost-comparison/README.md) |

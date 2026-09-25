@@ -79,7 +79,7 @@ function Test-Diagram([string]$Content) {
 
 # Build every variant before writing any, so a failure leaves no partial outputs.
 $outputs = [ordered]@{}
-foreach ($name in @('agent-collaboration', 'foundry-overview', 'foundry-operations', 'foundry-deployment', 'azure-architecture')) {
+foreach ($name in @('agent-collaboration', 'foundry-overview', 'foundry-operations', 'foundry-deployment', 'azure-architecture', 'agent-release-journey')) {
     $source = Get-Content (Join-Path $PSScriptRoot "$name.template.svg") -Raw
     $content = Add-OfficialIcons $source
     $darkContent = Add-OfficialIcons (ConvertTo-DarkTemplate $source $name)
