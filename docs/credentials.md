@@ -123,6 +123,7 @@ arguments.
 
 ## Related content
 
+- [Security policy](../SECURITY.md)
 - [Infrastructure deployment](../terraform/README.md)
 - [Private deployment runbook](private-deployment.md)
 - [Bastion](../terraform/bastion/README.md)

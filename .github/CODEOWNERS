@@ -1,0 +1,3 @@
+# Default reviewer for every change. Enforced only when branch protection
+# requires code owner review.
+* @michael-rechani

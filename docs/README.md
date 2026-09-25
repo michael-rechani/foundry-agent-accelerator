@@ -31,6 +31,7 @@ For operators who deploy Azure resources and keep the environment running.
 | [Hosted agents](../hosted-agents/README.md) | Publish, test, and roll back the prebuilt agents. |
 | [Private deployment runbook](private-deployment.md) | Publish agent updates from a separate machine inside the private network. |
 | [Credentials and protected state](credentials.md) | Keep credentials in Key Vault, scan every commit, and protect Terraform state. |
+| [Security policy](../SECURITY.md) | Report a suspected vulnerability privately and handle an exposed credential. |
 | [Bastion](../terraform/bastion/README.md) | Manage the Standard Azure Bastion host used to reach the jumpbox. |
 | [Agent monitoring](../terraform/monitoring/README.md) | Connect metadata-only agent traces to a private Application Insights resource. |
 | [Application ingress options](ingress-access.md) | Plan Application Gateway or Front Door access to the Lab. These gateways aren't deployed by default. |
