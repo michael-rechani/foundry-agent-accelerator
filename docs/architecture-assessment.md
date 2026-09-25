@@ -240,7 +240,7 @@ live routing, permissions, trace collection, or production suitability.
 | Surface | Repository baseline | Evidence and remaining validation |
 | --- | --- | --- |
 | Hosted agents | Responses 2.0.0, `python_3_14` remote build. | Packaging and deployment safeguards have offline tests. Verify private ingress, agent outbound access, deployment access, and live delegation on the selected staging environment. |
-| Agent runtime | `agent-framework-foundry==1.13.1`; `agent-framework-foundry-hosting==1.0.0b260821`. | The pinned hosting package is beta. Offline SDK contracts are covered; upgrades still require runtime, delegation, and private deployment checks. |
+| Agent runtime | `agent-framework-foundry==1.13.1`; `agent-framework-foundry-hosting==1.0.0b260918`. | The pinned hosting package is beta. Offline SDK contracts are covered; upgrades still require runtime, delegation, and private deployment checks. |
 | Deployment and Lab clients | `azure-ai-projects==2.6.1`; `openai==3.19.0`. | Preserve the pinned pair and its offline transport tests. A newer public release is not an instruction to upgrade without coordinated validation. |
 | Evaluation client | Separate environment with the same `azure-ai-projects==2.6.1`; `openai==3.19.0` pins. | Hand-authored rubric creation uses `.beta.evaluators`. Offline contracts are tested; live evaluation needs explicit approval and private-project, permissions, region, and judge-model verification. |
 | Tracing | Operational metadata logs and private Azure Monitor connectivity. | Verify project-linked Application Insights server-side traces before claiming end-to-end trace coverage or adding client instrumentation. Content capture requires explicit review. |

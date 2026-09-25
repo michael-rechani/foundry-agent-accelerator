@@ -48,9 +48,20 @@ jobs:
       - name: Upgrade pip
         run: python -m pip install "pip>=26.2,<27"
       - name: Install deployment dependencies
-        run: python -m pip install -r hosted-agents/basic-responses-agent/requirements-deploy.txt
+        run: >-
+          python -m pip install
+          -r hosted-agents/basic-responses-agent/requirements-deploy.txt
+          -r hosted-agents/case-review-agent/requirements-deploy.txt
+          -r hosted-agents/application-review-agent/requirements-deploy.txt
+          -r hosted-agents/review-coordinator-agent/requirements-deploy.txt
       - name: Install hosted runtime dependencies
-        run: python -m pip install -r hosted-agents/basic-responses-agent/requirements.txt -r hosted-agents/review-coordinator-agent/requirements.txt -r workbench/agent_runtime/requirements.txt
+        run: >-
+          python -m pip install
+          -r hosted-agents/basic-responses-agent/requirements.txt
+          -r hosted-agents/case-review-agent/requirements.txt
+          -r hosted-agents/application-review-agent/requirements.txt
+          -r hosted-agents/review-coordinator-agent/requirements.txt
+          -r workbench/agent_runtime/requirements.txt
       - name: Install workbench dependencies
         run: python -m pip install -r workbench/requirements.txt
       - name: Check combined dependency compatibility
