@@ -131,8 +131,15 @@ and single worker/replica. Before enabling, complete these checks.
    [platform Terraform](../terraform/README.md#1-configure-inputs-and-state).
    Use chat models that support the Responses API and tool calling.
 1. Review the Lab managed identity's ability to read, publish, route, and delete
-   the new hosted agents. Invocation access alone may be insufficient. This
-   feature does not grant roles or alter existing identities or permissions.
+   the new hosted agents. Lab Terraform gives it Foundry User on the project
+   (`azurerm_role_assignment.foundry` in
+   [`workbench/infra/main.tf`](../workbench/infra/main.tf)). Microsoft Learn's
+   deployment guide asks for Foundry Project Manager to publish, and Learn's
+   pages disagree on whether Foundry User is enough. Neither has been tested
+   here; see
+   [Foundry User and Foundry Project Manager](permissions.md#foundry-user-and-foundry-project-manager).
+   This feature does not grant roles or alter existing identities or
+   permissions.
 1. Create a strong, randomly generated operator key of at least 32 characters,
    preferably through an approved password manager. Store only its lowercase
    SHA-256 UTF-8 verifier in an existing Azure Key Vault secret. Give the raw

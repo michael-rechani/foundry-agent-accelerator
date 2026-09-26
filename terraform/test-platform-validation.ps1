@@ -11,7 +11,7 @@ if (!(Test-Path $providerDirectory) -or !(Test-Path $moduleDirectory)) {
 }
 New-Item -ItemType Directory -Path (Join-Path $temporary '.terraform') -Force | Out-Null
 try {
-    foreach ($source in @('versions.tf', 'variables.tf', 'region-preferences.tf', 'naming.tf', 'management-network.tf', 'keyless-accounts.tf', 'keyless-storage.tf', 'jumpbox.tf')) {
+    foreach ($source in @('versions.tf', 'variables.tf', 'region-preferences.tf', 'naming.tf', 'management-network.tf', 'keyless-accounts.tf', 'keyless-storage.tf', 'jumpbox.tf', 'agent-access.tf')) {
         Copy-Item (Join-Path $PSScriptRoot $source) $temporary
     }
     Copy-Item (Join-Path $PSScriptRoot 'tests/fixtures/platform-dependencies.tf.tftpl') (Join-Path $temporary 'dependencies.tf')

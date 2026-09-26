@@ -1,6 +1,7 @@
 import hashlib
 import io
 import unittest
+from contextlib import redirect_stdout
 from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,7 +11,7 @@ from deployment import AgentProfile, create_package, deploy
 
 try:
     from azure.ai.projects.models import (
-        AgentEndpointConfig, EntraAuthorizationScheme, FixedRatioVersionSelectionRule, McpProtocolConfiguration,
+        AgentEndpointConfig, AgentIdentity, EntraAuthorizationScheme, FixedRatioVersionSelectionRule, McpProtocolConfiguration,
         ProtocolConfiguration, ResponsesProtocolConfiguration, VersionSelector,
     )
     from azure.core.exceptions import ResourceNotFoundError
@@ -41,6 +42,7 @@ class DeploymentSDKTests(unittest.TestCase):
         self.original = deepcopy(self.endpoint)
         self.events = []
         self.missing = False
+        self.identity = None
         self.client.agents.get.side_effect = self.get
         self.client.agents.create_version_from_code.side_effect = self.create
         self.client.agents.update_details.side_effect = self.update
@@ -69,7 +71,7 @@ class DeploymentSDKTests(unittest.TestCase):
         if self.missing:
             self.endpoint = self.route("@latest")
             self.missing = False
-        return SimpleNamespace(version="2")
+        return SimpleNamespace(version="2", instance_identity=self.identity)
 
     def update(self, **kwargs):
         self.events.append("update")
@@ -158,6 +160,21 @@ class DeploymentSDKTests(unittest.TestCase):
         self.smoke.side_effect = lambda *args: setattr(self, "endpoint", self.route("@latest"))
         with self.assertRaisesRegex(RuntimeError, "route was not confirmed"):
             deploy(self.profile, self.args)
+
+    def test_reports_agent_identity_principal_for_role_assignments(self):
+        self.identity = AgentIdentity(principal_id="11111111-2222-3333-4444-555555555555", client_id="client")
+        output = io.StringIO()
+        with redirect_stdout(output):
+            deploy(self.profile, self.args)
+        self.assertIn("Agent identity principal ID: 11111111-2222-3333-4444-555555555555", output.getvalue())
+        self.assertNotIn("client", output.getvalue())
+
+    def test_missing_agent_identity_is_reported_without_failing(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            deploy(self.profile, self.args)
+        self.assertIn("No agent instance identity was reported", output.getvalue())
+        self.assertNotIn("principal ID:", output.getvalue())
 
     def test_portable_archive_is_uploaded_without_repackaging_local_source(self):
         package = io.BytesIO()

@@ -45,6 +45,7 @@ of deploying a second foundation.
 - [Private access](#private-access)
 - [Optional administration resources](#optional-administration-resources)
 - [Existing deployments](#existing-deployments)
+- [Coordinator agent access](#coordinator-agent-access)
 - [API Management gateway](#api-management-gateway)
 - [Local validation](#local-validation)
 - [Deploy](#deploy)
@@ -218,6 +219,37 @@ An existing state must already use the resource addresses declared here. Stop if
 a plan attempts to recreate an existing service or destroy an older owner.
 Resolve that installation's state separately. Preserve state and protected
 backups.
+
+Earlier versions gave the deployer Key Vault Secrets Officer on the Agent
+Service Key Vault. The next apply on an existing deployment deletes that role
+assignment. It doesn't delete any secret. See
+[Removed assignment](../docs/permissions.md#removed-assignment).
+
+## Coordinator agent access
+
+`coordinator_agent_access` is off by default. When set, Terraform assigns
+Foundry Agent Consumer to the review coordinator's agent identity on each
+specialist agent, not on the whole project. Foundry creates that identity when
+the coordinator is first deployed, so Terraform can't look it up. Copy the
+`Agent identity principal ID` that the hosted-agent deployer prints for the
+coordinator:
+
+```hcl
+coordinator_agent_access = {
+  principal_id = "<coordinator agent identity principal ID>"
+  # Optional. Defaults to the two review specialists.
+  specialist_agents = ["application-review-agent", "case-review-agent"]
+}
+```
+
+List the specialists from your [coordinator profile](../docs/agent-profiles.md)
+if you use one. The identity running Terraform needs permission to create role
+assignments. The [prerequisites](#prerequisites) include User Access
+Administrator, which per Microsoft Learn
+[manages user access to Azure resources](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles/privileged#user-access-administrator).
+See
+[coordinator agent access](../docs/permissions.md#coordinator-agent-access) for
+the first-deployment order and what's still unconfirmed.
 
 ## API Management gateway
 

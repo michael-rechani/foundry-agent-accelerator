@@ -329,6 +329,14 @@ def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name:
         print(f"Specialist preflight passed: {agent_name}")
 
 
+def report_agent_identity(created) -> None:
+    principal = getattr(getattr(created, "instance_identity", None), "principal_id", None)
+    if principal:
+        print(f"Agent identity principal ID: {principal}")
+    else:
+        print("No agent instance identity was reported; a legacy agent uses the shared project identity")
+
+
 def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
     from azure.ai.projects import AIProjectClient
     from azure.ai.projects.models import (
@@ -393,6 +401,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 code_zip_sha256=digest,
             )
             print(f"Created {args.agent_name} version {created.version}")
+            report_agent_identity(created)
 
             promotion_attempted = False
             try:

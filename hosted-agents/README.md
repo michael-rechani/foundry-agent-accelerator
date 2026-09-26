@@ -73,8 +73,13 @@ service it must access.
 The generated agent identity can invoke project models and use session storage
 by default.
 
-The deploying user needs the Foundry Project Manager role at project scope, or
-equivalent permissions, to create versions and update endpoint routing.
+The deploying identity needs permission to create versions and update endpoint
+routing at project scope. Microsoft Learn's
+[deployment guide](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent#required-permissions)
+asks for Foundry Project Manager, so this walkthrough does too. Learn's pages
+disagree on whether Foundry User is enough, and this repository hasn't tested
+it. See
+[Foundry User and Foundry Project Manager](../docs/permissions.md#foundry-user-and-foundry-project-manager).
 
 ## Coordinator delegation pattern
 
@@ -83,6 +88,15 @@ the Foundry project using its managed identity. The coordinator selects one
 specialist by default, forwards the complete request, and returns the
 specialist's findings. Deploy both specialist agents before deploying the
 coordinator.
+
+The coordinator needs `interact/action` on each specialist's endpoint. This
+repository doesn't know yet whether an agent's default access covers that. The
+deployer prints each new version's agent identity principal ID. To grant
+Foundry Agent Consumer on each specialist, set `coordinator_agent_access` in the
+[platform Terraform](../terraform/README.md#coordinator-agent-access) to the
+coordinator's principal ID and apply. See
+[coordinator agent access](../docs/permissions.md#coordinator-agent-access) for
+the order to follow on a first deployment.
 
 To swap use cases, use an operator-managed
 [coordinator profile](../docs/agent-profiles.md). A profile supplies
@@ -112,7 +126,7 @@ runbook gives the working directory for the staged layout.
 1. Confirm the baseline Terraform deployment was applied successfully.
 2. Confirm local Python 3.14 is available.
 3. Sign in with an Azure identity that has Foundry Project Manager at project
-   scope.
+   scope. See [Scope and safety boundaries](#scope-and-safety-boundaries).
 4. Confirm private Domain Name System (DNS) and routing to the project.
 5. Confirm the tenant and subscription before mutation.
 6. Confirm no other deployment of the same agent is active.
