@@ -118,9 +118,9 @@ Earlier versions gave the platform deployer Key Vault Secrets Officer on the
 Agent Service Key Vault, as `deployer_secrets_officer` in `module.ai_foundry`.
 Confirmed from source: it was added when Terraform wrote a generated jumpbox
 password to that vault as `jumpbox-admin-password`
-([commit 731f568](https://github.com/michael-rechani/ai-foundry-samples/commit/731f5687dedd88ab59914330853026d453c89ca7)),
+([commit 731f568](https://github.com/michael-rechani/foundry-agent-accelerator/commit/731f5687dedd88ab59914330853026d453c89ca7)),
 and kept after the switch to a pre-provisioned secret
-([commit 9561bac](https://github.com/michael-rechani/ai-foundry-samples/commit/9561bac275851a9a80ca5353f2a75ac93822e4f3)).
+([commit 9561bac](https://github.com/michael-rechani/foundry-agent-accelerator/commit/9561bac275851a9a80ca5353f2a75ac93822e4f3)).
 No Terraform in this repository or the pinned AVM module reads or writes that
 vault now, so the grant is gone.
 
