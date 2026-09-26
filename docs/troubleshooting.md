@@ -96,9 +96,11 @@ results from a live deployment.
 | Symptom | Likely area | Where to look |
 | --- | --- | --- |
 | A Lab, APIM, jumpbox, or project identity gets 401, 403, or `AuthorizationFailed`. | Role assigned by this repository | [Assigned by this repository](permissions.md#assigned-by-this-repository) |
-| Created-agent publication fails with `operator_permissions_required`. | Lab identity's Foundry role | [Permissions](permissions.md#not-assigned-by-this-repository), [agent creation troubleshooting](agent-creation.md#troubleshooting) |
+| Created-agent publication fails with `operator_permissions_required`. | Lab identity's Foundry role | [Foundry User and Foundry Project Manager](permissions.md#foundry-user-and-foundry-project-manager), [agent creation troubleshooting](agent-creation.md#troubleshooting) |
 | Publishing a hosted agent fails with an authorization error. | Foundry Project Manager for the publisher | [Not assigned by this repository](permissions.md#not-assigned-by-this-repository) |
 | Terraform can't create role assignments, read state, or refresh the Container App. | Operator prerequisites | [Not assigned by this repository](permissions.md#not-assigned-by-this-repository) |
+| The review coordinator gets 401 or 403 when it calls a specialist. | Coordinator identity's agent endpoint access | [Not assigned by this repository](permissions.md#not-assigned-by-this-repository) |
+| A portal user sees agent metrics but not traces. | Monitoring Reader on the Application Insights component | [Not assigned by this repository](permissions.md#not-assigned-by-this-repository) |
 | An Agent Service backing resource denies the project identity. | Assignments made inside the AVM module | [Assigned by the pinned AVM module](permissions.md#assigned-by-the-pinned-avm-module) |
 | You need to know why a role exists, and the reference doesn't say. | Gaps in the source | [Unconfirmed items](permissions.md#unconfirmed-items) |
 
