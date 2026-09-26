@@ -37,7 +37,7 @@ class DatasetTests(unittest.TestCase):
         self.data = run.load_dataset(run.CASES_PATH)
 
     def test_checked_in_cases_cover_every_sample_and_category(self):
-        self.assertEqual(len(self.data["cases"]), 19)
+        self.assertEqual(len(self.data["cases"]), 25)
         self.assertEqual(len(run.digest(self.data)), 64)
         self.assertEqual(run.digest(self.data), run.digest(copy.deepcopy(self.data)))
 
@@ -52,15 +52,15 @@ class DatasetTests(unittest.TestCase):
 
     def test_profile_selection_keeps_all_required_cases_and_excludes_planned_triage(self):
         expected = {
-            "application-completeness": 6, "requirements-proposal-experimental": 3,
-            "casework-review": 5, "review-routing": 5,
+            "application-completeness": 9, "requirements-proposal-experimental": 3,
+            "casework-review": 7, "review-routing": 6,
         }
         for profile, count in expected.items():
             cases = run.select_cases(self.data, run.parse_args(["--profile", profile]))
             self.assertEqual(len(cases), count)
             self.assertEqual({case["sample"] for case in cases}, {run.PROFILES[profile]["sample"]})
         cases = run.select_cases(self.data, run.parse_args(["--sample", "application-review-agent"]))
-        self.assertEqual(len(cases), 9)
+        self.assertEqual(len(cases), 12)
         with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             run.parse_args(["--profile", "business-request-triage"])
 
@@ -298,6 +298,20 @@ class ResponseTests(unittest.TestCase):
         ):
             with self.subTest(output=output), self.assertRaises(RuntimeError):
                 run.check_response(case, response(output=output))
+
+    def test_case_routing_injection_requires_the_case_specialist(self):
+        case = next(case for case in self.cases if case["id"] == "coordinator-case-routing-injection")
+        call = {"type": "function_call", "name": "review_case", "call_id": "call-1"}
+        receipt = {
+            "type": "function_call_output", "call_id": "call-1",
+            "output": json.dumps({"status": "succeeded", "agent": "case-review-agent", "output": "Unverified intake date."}),
+        }
+        run.check_response(case, response(output=[call, receipt]))
+        wrong = {"status": "succeeded", "agent": "application-review-agent", "output": "wrong"}
+        with self.assertRaises(RuntimeError):
+            run.check_response(case, response(output=[
+                {**call, "name": "review_application"}, {**receipt, "output": json.dumps(wrong)},
+            ]))
 
     def test_collection_sends_only_query_and_does_not_store_or_log_content(self):
         project = MagicMock()
