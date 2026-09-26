@@ -91,7 +91,7 @@ async function workspace(
           config.agents.find((item) => item.id === config.default_agent) ??
           agent
         ).agent,
-        text: 'APP-1 is missing a budget.',
+        text: 'Section 1 is missing a budget.',
         elapsed_ms: 1000,
         receipts: options.receipts ?? [
           {
@@ -369,7 +369,7 @@ test('answers without receipts show no handoff timeline', async ({ page }) => {
   await workspace(page, { receipts: [] })
   await send(page)
   await expect(page.locator('.assistant-message')).toContainText(
-    'APP-1 is missing a budget.',
+    'Section 1 is missing a budget.',
   )
   await expect(
     page.getByRole('list', { name: 'Handoff timeline' }),

@@ -87,7 +87,7 @@ export function ReviewForm({
       {sources.map((item, index) => (
         <div className="source-editor" key={item.id}>
           <label>
-            Document {item.id.slice(4)} ({item.id})
+            Document {item.id.slice(4)}
             <textarea
               required
               rows={5}

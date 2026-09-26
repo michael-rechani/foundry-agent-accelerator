@@ -77,7 +77,7 @@ const templates: AgentTemplate[] = [
   ],
   [
     'casework-assistant',
-    'Case notes summarizer',
+    'Casework brief writer',
     'Summarize fictional case notes and draft follow-up questions.',
   ],
   [
@@ -793,7 +793,7 @@ test('ambiguous descriptions require a template and preparation creates no agent
     page.getByRole('heading', { name: 'Review your agent setup' }),
   ).toBeVisible()
   await expect(page.getByLabel('Agent name', { exact: true })).toHaveValue(
-    'Case notes summarizer',
+    'Casework brief writer',
   )
   await expect(page.getByLabel('Task instructions')).toHaveValue(
     /Help our fictional team/,

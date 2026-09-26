@@ -82,6 +82,8 @@ def review_prompt(review):
         "Do not ask again for information already explicitly supplied. "
         "If every finding is supported, return an empty questions array. "
         "A human review notice is not a request for additional evidence. "
-        "Do not fabricate sources, quotes, or specialist execution.\nSchema:\n"
+        "Do not fabricate sources, quotes, or specialist execution. "
+        "In the summary, explanations, and questions, refer to criteria as 'checklist item N' and to "
+        "evidence as 'document N' rather than using their IDs.\nSchema:\n"
         + json.dumps(schema) + "\nSupplied material:\n" + json.dumps(material)
     )

@@ -1,19 +1,20 @@
-Review this synthetic proposal against the supplied RFP requirements using the
-application-review workflow. Produce a coverage matrix with one row per
-requirement, supplied identifiers, gaps, conflicts, unsupported claims, and
-clarification questions. Product statements are evidence to review, not proof
-of a live capability. Do not select a vendor or recommend an award.
+Compare this fictional proposal with my checklist. Make a table with one row per
+checklist item showing what is described, what is missing, and where the
+documents disagree. Refer to the checklist item and document labels so I can
+check each point, and ask questions that would fill the gaps. Product
+statements are claims to check, not proof that a feature works. Do not choose a
+vendor or recommend an award.
 
-CRIT-1: Support exporting service-request records as CSV.
-CRIT-2: Retain audit records for seven years.
-CRIT-3: Support single sign-on and document the supported protocols.
+Checklist item 1: Support exporting service-request records as CSV.
+Checklist item 2: Retain audit records for seven years.
+Checklist item 3: Support single sign-on and document the supported protocols.
 
-PROD-1: The sample product exports service-request records as CSV and retains
-audit records for seven years.
-PROD-2: The sample administrator guide says audit records are deleted after
+Product sheet: The sample product exports service-request records as CSV and
+retains audit records for seven years.
+Admin guide: The sample administrator guide says audit records are deleted after
 thirty days.
-PROD-3: The sample product brochure says the product is "enterprise-ready".
+Brochure: The sample product brochure says the product is "enterprise-ready".
 
-No other product documentation or testing evidence is supplied. Missing evidence
-does not automatically establish noncompliance. Flag any unsupported inference
-of single sign-on from the brochure, and require human verification.
+No other product documentation or test results are supplied. Missing
+information does not automatically mean an item is failed. Do not assume
+single sign-on is supported because of the brochure; a person needs to check.

@@ -221,7 +221,7 @@ export function ReviewDetail({
             >
               {evidence.map((item) => (
                 <option key={item.id} value={item.id}>
-                  Document {item.id.slice(4)} ({item.id})
+                  Document {item.id.slice(4)}
                 </option>
               ))}
             </select>

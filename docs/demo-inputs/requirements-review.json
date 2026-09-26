@@ -1,5 +1,5 @@
 {
-  "title": "Synthetic RFP coverage review",
+  "title": "Fictional proposal review",
   "agent_id": "customer-review",
   "criteria": [
     "Support exporting service-request records as CSV.",
@@ -9,15 +9,15 @@
   "evidence": [
     {
       "id": "SRC-1",
-      "text": "PROD-1: The sample product exports service-request records as CSV and retains audit records for seven years."
+      "text": "Product sheet: The sample product exports service-request records as CSV and retains audit records for seven years."
     },
     {
       "id": "SRC-2",
-      "text": "PROD-2: The sample administrator guide says audit records are deleted after thirty days."
+      "text": "Admin guide: The sample administrator guide says audit records are deleted after thirty days."
     },
     {
       "id": "SRC-3",
-      "text": "PROD-3: The sample product brochure says the product is \"enterprise-ready\"."
+      "text": "Brochure: The sample product brochure says the product is \"enterprise-ready\"."
     }
   ]
 }

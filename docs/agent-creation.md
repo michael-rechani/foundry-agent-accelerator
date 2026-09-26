@@ -41,7 +41,7 @@ only, not clinical advice or real patient data.
 | **Document explainer** | Policy, notice, or product text | A sourced summary, changes, and open questions |
 | **Checklist gap finder** | Your checklist and a document | Supported items, missing information, and conflicts. It doesn't make an approval decision. |
 | **Form and invoice extractor** | A fictional form or invoice and the fields to pull out | A field table with source references and unknown values called out |
-| **Case notes summarizer** | Fictional case notes | A summary, unresolved inconsistencies, and follow-up questions |
+| **Casework brief writer** | Fictional case notes | A summary, unresolved inconsistencies, and follow-up questions |
 | **Service request planner** | A fictional request and service identifiers | Read-only **simulated** lookup results and proposed next steps. It doesn't carry out business actions. |
 
 **Healthcare and public sector**
@@ -109,7 +109,7 @@ prompt can't change it.
 
 | Kind of work | Templates | What the model needs to do |
 | --- | --- | --- |
-| **Reasoning** | Document explainer, Checklist gap finder, Case notes summarizer, Medical bill reviewer, Benefits renewal helper, Supplier invoice reviewer | Compare sources step by step and keep gaps and conflicts visible |
+| **Reasoning** | Document explainer, Checklist gap finder, Casework brief writer, Medical bill reviewer, Benefits renewal helper, Supplier invoice reviewer | Compare sources step by step and keep gaps and conflicts visible |
 | **Fast extraction** | Form and invoice extractor | Copy stated values into a fixed structure, where speed and cost matter more than deep reasoning |
 | **Tool calling** | Service request planner, Insurance pre-approval helper | Call lookup tools in the right order and report exactly what they return |
 

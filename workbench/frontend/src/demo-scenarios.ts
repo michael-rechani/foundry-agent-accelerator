@@ -24,36 +24,37 @@ export const demoScenarios: DemoScenario[] = [
     templateId: 'criteria-checker',
     templateLabel: 'Checklist gap finder',
     catalogIds: ['customer-review', 'application-review', 'review-coordinator'],
-    input: `Review this synthetic permit application against only the supplied criteria.
-Create a cited criteria matrix, flag missing evidence and conflicts, and draft
-clarification questions. Missing evidence is not automatic noncompliance.
-Do not approve, deny, rank, score, or recommend a permit decision.
+    input: `Check this fictional permit application against my checklist. Make a table
+with one row per checklist item showing what is supported, missing or unclear.
+Refer to the checklist item and section labels so I can check each point, and
+ask questions that would fill the gaps. Missing information is not an automatic
+failure. Do not approve, deny, rank, score or recommend a permit decision.
 
-CRIT-1: Include a project budget.
-CRIT-2: Identify an implementation owner.
-CRIT-3: Provide a delivery schedule.
+Checklist item 1: Include a project budget.
+Checklist item 2: Identify an implementation owner.
+Checklist item 3: Provide a delivery schedule.
 
-APP-1: The Facilities team is the implementation owner for the proposed project.
-APP-2: Work starts on 2027-04-01 and completes on 2027-06-30.
-APP-3: Work starts on 2027-04-01 and completes on 2027-07-31.
+Section 1: The Facilities team is the implementation owner for the proposed project.
+Section 2: Work starts on 2027-04-01 and completes on 2027-06-30.
+Section 3: Work starts on 2027-04-01 and completes on 2027-07-31.
 
-No budget document or statement identifying the current schedule is supplied.
-State what an authorized person must verify.`,
+No budget or statement saying which schedule is current is supplied. Tell me
+what a person needs to check.`,
     findings: [
       {
         label: 'Missing',
-        source: 'CRIT-1',
+        source: 'Checklist item 1',
         detail:
           'No budget was supplied. Ask for it; do not infer a failed application.',
       },
       {
         label: 'Supported',
-        source: 'APP-1',
+        source: 'Section 1',
         detail: 'The Facilities team is named as the implementation owner.',
       },
       {
         label: 'Conflicting',
-        source: 'APP-2 / APP-3',
+        source: 'Section 2 / Section 3',
         detail: 'June 30 or July 31? Ask which schedule is current.',
       },
     ],
@@ -74,20 +75,20 @@ State what an authorized person must verify.`,
 INVOICE INV-DEMO-7781 - Contoso Demo Furniture - dated 2027-04-05
 Bill to: City of Example, Parks Department (fictional)
 Purchase order: PO-DEMO-2210
-LINE-1 CH-100 Stacking chair - qty 120 x $55.00 = $6,600.00
-LINE-2 TB-300 Folding table - qty 10 x $300.00 = $3,000.00
-LINE-3 Delivery fee - $250.00
+Line 1: CH-100 Stacking chair - qty 120 x $55.00 = $6,600.00
+Line 2: TB-300 Folding table - qty 10 x $300.00 = $3,000.00
+Line 3: Delivery fee - $250.00
 Invoice total: $9,850.00`,
     findings: [
       {
         label: 'Quantity and price',
-        source: 'LINE-1 / PO-DEMO-2210',
+        source: 'Line 1 / PO-DEMO-2210',
         detail:
           '120 chairs at $55 were billed; the fictional order lists 100 at $50.',
       },
       {
         label: 'Terms differ',
-        source: 'LINE-3 / purchase order',
+        source: 'Line 3 / purchase order',
         detail:
           'The $250 fee conflicts with the fictional order including delivery.',
       },
@@ -108,33 +109,33 @@ Invoice total: $9,850.00`,
     description:
       'Keep the facts, disagreements, and open questions separate without inventing a more convenient story.',
     templateId: 'casework-assistant',
-    templateLabel: 'Case notes summarizer',
+    templateLabel: 'Casework brief writer',
     catalogIds: ['customer-review', 'case-review', 'review-coordinator'],
-    input: `Review these synthetic case notes for authorized staff. Summarize supported
-facts, identify missing or conflicting information, and draft follow-up
-questions. Cite the supplied identifiers. Do not choose an unsupported date,
-invent policy, make an eligibility decision, or modify a system.
+    input: `Summarize these fictional case notes for staff. Show what the notes say, what is
+missing or conflicting, and suggest follow-up questions. Refer to the note
+labels so I can check each point. Do not choose a date without support, invent
+rules, make an eligibility decision or update any system.
 
-CASE-1: Intake completed on 2026-08-15. Follow-up scheduled for 2026-08-22.
-CASE-2: Intake completed on 2026-08-17. Follow-up scheduled for 2026-08-22.
-CASE-3: Proof of address remains outstanding. No supporting document is supplied.
+Note 1: Intake completed on 2026-08-15. Follow-up scheduled for 2026-08-22.
+Note 2: Intake completed on 2026-08-17. Follow-up scheduled for 2026-08-22.
+Note 3: Proof of address is still outstanding. No supporting document is supplied.
 
-No policy text is supplied. State what needs authorized human review.`,
+No policy text is supplied. Tell me what a person needs to check next.`,
     findings: [
       {
         label: 'Conflicting',
-        source: 'CASE-1 / CASE-2',
+        source: 'Note 1 / Note 2',
         detail:
           'The intake dates disagree. Preserve both instead of choosing one.',
       },
       {
         label: 'Supported',
-        source: 'CASE-1 / CASE-2',
+        source: 'Note 1 / Note 2',
         detail: 'Both notes give August 22 as the follow-up date.',
       },
       {
         label: 'Missing',
-        source: 'CASE-3',
+        source: 'Note 3',
         detail:
           'Proof of address is outstanding. No policy was supplied to determine its consequence.',
       },

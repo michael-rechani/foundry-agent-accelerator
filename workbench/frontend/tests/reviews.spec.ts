@@ -299,9 +299,7 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   await page.getByRole('button', { name: 'New review', exact: true }).click()
   await expect(page.getByLabel('Review title')).toHaveValue('')
   await expect(page.getByLabel('Checklist, one item per line')).toHaveValue('')
-  await expect(
-    page.getByLabel('Document 1 (SRC-1)', { exact: true }),
-  ).toHaveValue('')
+  await expect(page.getByLabel('Document 1', { exact: true })).toHaveValue('')
   await expect(page.locator('.review-form-bar')).toContainText(
     'Agent doing this check: Application and case helper',
   )
@@ -482,7 +480,7 @@ test('review, inspect evidence, clarify, resume, reopen and preserve snapshots',
   await expect(
     page.getByRole('heading', { name: 'More information needed' }),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Document 1 (SRC-1)' }).click()
+  await page.getByRole('button', { name: 'Document 1' }).click()
   await expect(
     page.getByRole('complementary', { name: 'Original text' }),
   ).toContainText('Twelve weekly workshops')
