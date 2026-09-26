@@ -403,6 +403,11 @@ commitment to connect organizational data. Education knowledge assistants and
 Microsoft 365/Copilot/SharePoint integrations are excluded from the primary
 path.
 
+The case agent has an optional, read-only policy guidance lookup over Azure AI
+Search behind `KNOWLEDGE_RETRIEVAL_ENABLED`, which is off by default. With the
+flag off, packages, bundles, and published agents are unchanged. See the
+[knowledge retrieval design](../docs/knowledge-retrieval.md).
+
 Responses remains the Lab contract. Invocations for webhooks, batch payloads, or
 custom streaming would need a separately justified adapter and validation, not a
 change to every existing chat or review agent.

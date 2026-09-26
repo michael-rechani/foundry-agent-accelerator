@@ -51,6 +51,7 @@ For developers who change agents, evaluate quality, or extend the architecture.
 | [Evaluations](../evaluations/README.md) | Test answer quality offline, or run an approved live evaluation in Foundry. |
 | [Cost comparison](../cost-comparison/README.md) | Compare Azure GPU VM costs with Foundry hosted-agent costs. |
 | [Optional integrations](optional-integrations.md) | Review integration paths that sit outside the core demo. |
+| [Knowledge retrieval design](knowledge-retrieval.md) | Review the flag-gated, read-only Azure AI Search lookup for the case agent. It's off by default and not deployed. |
 | [Staff workflow assistant](staff-workflow-assistant.md) | Read a proposed agent definition. It isn't implemented. |
 | [Architecture artwork](images/README.md) | Edit and rebuild the diagrams. |
 

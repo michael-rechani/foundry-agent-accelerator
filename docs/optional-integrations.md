@@ -85,7 +85,9 @@ data were removed by the APIM cleanup.
 4. Choose the supported Foundry AI Search tool or implement explicit retrieval in
    the hosted agent. A project connection alone doesn't make an agent search.
    Configure the index and tool binding, then deploy a new immutable agent
-   version.
+   version. The [knowledge retrieval design](knowledge-retrieval.md) compares
+   both and includes a flag-gated, read-only case-agent tool that is off by
+   default.
 5. Test retrieval relevance, citations, missing evidence, document authorization,
    and prompt injection in retrieved content. Benchmark capacity before changing
    replicas or tier. Update the [deployed budget](../cost-comparison/scenario.deployed.json).
@@ -114,5 +116,6 @@ not a claim that the latest local Terraform changes have been published.
 
 - [Governed review API](apim-review-api.md)
 - [Extension guide](architecture-assessment.md)
+- [Knowledge retrieval design](knowledge-retrieval.md)
 - [Cost comparison](../cost-comparison/README.md)
 - [Infrastructure](../terraform/README.md)
