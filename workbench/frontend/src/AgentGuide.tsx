@@ -97,7 +97,7 @@ export function ConfigurationGuide({
       <p>
         {creation
           ? "Create agent lets you describe a job, choose a prepared template and edit the new agent's name and task instructions. An operator must enable and explicitly confirm real publication in Foundry. Preparing a setup alone creates no resource."
-          : 'This server does not advertise agent creation. You can use the existing agents and their example tasks.'}
+          : "Agent creation isn't turned on in this Lab. You can use the existing agents and their example tasks."}
       </p>
       {creation && onCreate && (
         <button className="inline-link" onClick={onCreate}>

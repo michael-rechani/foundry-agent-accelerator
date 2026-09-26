@@ -2,13 +2,13 @@
   {
     "id": "customer-review",
     "label": "Application and case helper",
-    "category": "Uses specialist agents",
+    "category": "Coordinator: hands off to specialists",
     "description": "Check whether an application includes what you asked for, or turn case notes into a clear summary.",
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
       "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
       "limits": "It only reads what you supply. It cannot look up missing documents, change business systems or decide whether to approve something. Requirements and proposal review is in preview.",
-      "delegation": "It asks the application-checking or case-notes agent to handle your task, then returns their findings in one reply. It uses both only if you request both, and may first ask what you need.",
+      "delegation": "It hands your task to a specialist agent (Application checker or Case notes summarizer), then returns their findings in one reply. It uses both only if you ask for both, and may first ask what you need.",
       "configuration": "Instructions and specialist tools: hosted-agents\\review-coordinator-agent\\profiles\\evidence-review.example.json. Publish a new coordinator version with this profile to change runtime behavior."
     },
     "agent": "customer-review-coordinator",
@@ -23,13 +23,13 @@
   {
     "id": "review-coordinator",
     "label": "Application and case helper (base setup)",
-    "category": "Alternate setup",
-    "description": "The same jobs as Application and case helper, using the repository's base setup. This is an alternative setup, not an extra planning capability.",
+    "category": "Coordinator: developer variant",
+    "description": "Does the same jobs as Application and case helper, with the same two specialists. Only the developer setup differs; it does not add capabilities.",
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
       "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
       "limits": "It only reads what you supply. It cannot look up missing documents, change business systems or decide whether to approve something. Requirements and proposal review is in preview.",
-      "delegation": "Asks the same application-checking and case-notes agents to do the work. It uses one unless you ask for both; the difference is the developer setup, not what you can accomplish.",
+      "delegation": "It hands your task to the same specialists (Application checker or Case notes summarizer). It uses one unless you ask for both; what you can accomplish is the same as Application and case helper.",
       "configuration": "Base instructions: hosted-agents\\review-coordinator-agent\\instructions.md. Tools: main.py in that directory, with deployed SPECIALIST_CONFIG taking precedence over legacy agent-name settings. Publish a new agent version to change runtime behavior."
     },
     "agent": "review-coordinator-agent",
@@ -42,7 +42,7 @@
   {
     "id": "application-review",
     "label": "Application checker",
-    "category": "Single specialist",
+    "category": "Specialist: works on its own",
     "description": "Check an application against your checklist and point out missing information or statements that disagree.",
     "guidance": {
       "input": "Paste your checklist and the application or proposal text. Label each document so you can check references.",
@@ -60,7 +60,7 @@
   {
     "id": "case-review",
     "label": "Case notes summarizer",
-    "category": "Single specialist",
+    "category": "Specialist: works on its own",
     "description": "Turn case notes into a summary, point out missing or contradictory details, and suggest follow-up questions.",
     "guidance": {
       "input": "Paste fictional case notes and any rules you want it to consider. Label the notes so you can check references.",
