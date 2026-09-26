@@ -225,6 +225,19 @@ Service Key Vault. The next apply on an existing deployment deletes that role
 assignment. It doesn't delete any secret. See
 [Removed assignment](../docs/permissions.md#removed-assignment).
 
+Earlier versions didn't give the Foundry project's managed identity Foundry
+User on the Foundry resource, which [live evaluation](../evaluations/README.md)
+runs need. The next apply adds `azurerm_role_assignment.project_foundry_user`.
+If you already granted that role by hand, the apply fails because the
+assignment exists. Import it first with
+`terraform import azurerm_role_assignment.project_foundry_user <role assignment ID>`,
+or delete the manual assignment.
+
+The next apply also updates the agent storage account in place to admit the
+Foundry project as a resource instance, so live evaluation can store results.
+It doesn't change public network access. A rule already added by hand for the
+same project ID produces no change.
+
 ## Coordinator agent access
 
 `coordinator_agent_access` is off by default. When set, Terraform assigns
@@ -393,6 +406,15 @@ Each entry defaults to the `OpenAI` format and the `GlobalStandard` SKU, which
 bills per token rather than for idle capacity. Do not overwrite an existing environment's
 values or reuse another deployment's names and state. Check other automatically
 loaded variable files and remove unintended command-line overrides.
+
+The default `gpt-4.1` capacity of 10 allows 10,000 tokens and 10 requests per
+minute. That is enough for the agents, but too little to use the deployment as
+the [live evaluation](../evaluations/README.md) judge. Foundry grades rows in
+parallel, and throttled rows fail the run. To judge with it, raise
+`model_deployment.capacity`, for example to 50. Because `GlobalStandard` bills
+per token, more capacity adds no idle cost, but it uses more regional quota.
+Set the value in the environment's variables, or the next apply reverts a
+capacity raised by hand.
 
 The Agent Service's AI Search service is the largest fixed cost. It runs one
 replica by default (`ai_search_replica_count = 1`), which has no availability

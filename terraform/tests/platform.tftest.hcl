@@ -56,6 +56,15 @@ run "fresh_defaults" {
     )
     error_message = "Cleanup must preserve keyless authentication and private access."
   }
+  assert {
+    condition = (
+      azapi_resource.agent_storage.body.properties.networkAcls.bypass == "None" &&
+      azapi_resource.agent_storage.body.properties.networkAcls.defaultAction == "Deny" &&
+      length(azapi_resource.agent_storage.body.properties.networkAcls.resourceAccessRules) == 2 &&
+      azapi_resource.agent_storage.body.properties.networkAcls.resourceAccessRules[1].resourceId == "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-platform-test-12345/providers/Microsoft.CognitiveServices/accounts/foundry-hosted-agents-platform-test-12345/projects/hosted-agents-dev"
+    )
+    error_message = "Agent storage must admit only the scanner and this Foundry project, without the trusted-services bypass."
+  }
 }
 
 run "westus3_region" {

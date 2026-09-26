@@ -160,7 +160,46 @@ class SDKContractTests(unittest.TestCase):
     def test_missing_native_evaluation_usage_remains_null(self):
         self.exercise_evaluation(False, include_usage=False)
 
-    def exercise_evaluation(self, fail_last, include_usage=True):
+    def test_foundry_completed_items_and_skipped_count_are_graded_by_result(self):
+        self.exercise_evaluation(True, foundry_shape=True)
+
+    def test_evaluation_creation_waits_for_new_evaluator_then_stops(self):
+        def exercise(not_found_responses):
+            calls = []
+
+            def respond(request):
+                calls.append(request)
+                if len(calls) <= not_found_responses:
+                    return httpx2.Response(404, json={"error": {"message": "evaluator not found", "code": "NotFound"}})
+                return httpx2.Response(200, json={"id": "eval-test", "object": "eval"})
+
+            class Credential:
+                def get_token(self, *scopes, **kwargs):
+                    return AccessToken("test-only", int(time.time()) + 3600)
+
+            with (
+                AIProjectClient("https://example.services.ai.azure.com/api/projects/test", Credential()) as project,
+                project.get_openai_client(http_client=httpx2.Client(transport=httpx2.MockTransport(respond)), max_retries=0) as client,
+                tempfile.TemporaryFile(mode="w+", encoding="utf-8") as receipt,
+                patch.object(run.time, "sleep") as sleep,
+                redirect_stdout(io.StringIO()),
+            ):
+                try:
+                    result = run.create_evaluation(client, receipt, name="eval", data_source_config={"type": "custom", "item_schema": {}}, testing_criteria=[])
+                except Exception as error:  # noqa: BLE001
+                    result = error
+                receipt.seek(0)
+                events = [json.loads(line)["event"] for line in receipt]
+            return result, len(calls), [call.args[0] for call in sleep.call_args_list], events
+
+        result, calls, delays, events = exercise(2)
+        self.assertEqual(result.id, "eval-test")
+        self.assertEqual((calls, delays, events), (3, [5, 10], ["evaluator_not_ready"] * 2))
+        result, calls, delays, _ = exercise(10)
+        self.assertEqual(type(result).__name__, "NotFoundError")
+        self.assertEqual((calls, delays), (4, [5, 10, 20]))
+
+    def exercise_evaluation(self, fail_last, include_usage=True, foundry_shape=False):
         data = run.load_dataset(run.CASES_PATH)
         cases = data["cases"][:3]
         rows = [{"item": {"case_id": case["id"], "query": case["query"], "response": "synthetic"}} for case in cases]
@@ -188,10 +227,11 @@ class SDKContractTests(unittest.TestCase):
                     "id": f"output-{index + 1}", "created_at": 0,
                     "datasource_item": rows[index]["item"], "datasource_item_id": index,
                     "eval_id": "eval-test", "run_id": "run-test", "object": "eval.run.output_item",
-                    "status": "fail" if fail_last and index == 2 else "pass",
+                    "status": "completed" if foundry_shape else "fail" if fail_last and index == 2 else "pass",
                     "results": [{
                         "name": run.CRITERION, "passed": not (fail_last and index == 2),
                         "score": 0.0 if fail_last and index == 2 else 1.0, "type": "azure_ai_evaluator",
+                        **({"status": "completed"} if foundry_shape else {}),
                     }],
                     "sample": {},
                 } for index in indexes]
@@ -202,7 +242,10 @@ class SDKContractTests(unittest.TestCase):
             if path.endswith("/runs/run-test"):
                 return httpx2.Response(200, json={
                     "id": "run-test", "eval_id": "eval-test", "object": "eval.run", "status": "completed",
-                    "result_counts": {"total": 3, "passed": 2 if fail_last else 3, "failed": int(fail_last), "errored": 0},
+                    "result_counts": {
+                        "total": 3, "passed": 2 if fail_last else 3, "failed": int(fail_last), "errored": 0,
+                        **({"skipped": 0} if foundry_shape else {}),
+                    },
                     **({"per_model_usage": [{
                         "model_name": "judge-model", "prompt_tokens": 21, "completion_tokens": 9,
                         "total_tokens": 30, "cached_tokens": 0, "invocation_count": 3,

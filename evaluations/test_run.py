@@ -135,6 +135,18 @@ class ArgumentTests(unittest.TestCase):
             run.parse_args(["--run"])
         self.assertTrue(run.parse_args(self.live_args()).run)
 
+    def test_judge_model_accepts_dotted_deployment_names_but_agent_name_does_not(self):
+        for judge in ("gpt-4.1", "gpt-5.4-mini", "judge_v2"):
+            argv = self.live_args()
+            argv[argv.index("--judge-model") + 1] = judge
+            with self.subTest(judge=judge):
+                self.assertEqual(run.parse_args(argv).judge_model, judge)
+        for field, value in (("--judge-model", ".hidden"), ("--judge-model", "gpt/4.1"), ("--agent-name", "agent.v2")):
+            argv = self.live_args()
+            argv[argv.index(field) + 1] = value
+            with self.subTest(field=field, value=value), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                run.parse_args(argv)
+
     def test_live_run_requires_both_separate_approvals(self):
         for flag in ("--approve-billable-run", "--authorize-content-capture"):
             argv = self.live_args()
@@ -383,6 +395,33 @@ class ResultTests(unittest.TestCase):
         failed.results[0].score = 0.75
         result = run.assess_results(completed_run(1, 0, 1), [failed], {"one"})
         self.assertEqual(result["native_results"]["one"]["score"], 0.75)
+
+    def test_foundry_completed_status_uses_the_rubric_result(self):
+        items = [item("one"), item("two", False)]
+        for value in items:
+            value.status = "completed"
+            value.results[0].status = "completed"
+        finished = completed_run(2, 1, 1)
+        counts = finished.result_counts.model_dump()
+        finished.result_counts.model_dump = lambda: {**counts, "skipped": 0}
+        result = run.assess_results(finished, items, {"one", "two"})
+        self.assertEqual(result["cases"], {"one": True, "two": False})
+        self.assertEqual(set(result["counts"]), {"total", "passed", "failed", "errored"})
+
+    def test_skipped_errored_or_unfinished_results_fail_closed(self):
+        for extra in ({"skipped": 1}, {"skipped": True}):
+            finished = completed_run()
+            counts = finished.result_counts.model_dump()
+            finished.result_counts.model_dump = lambda counts=counts, extra=extra: {**counts, **extra}
+            with self.subTest(extra=extra), self.assertRaisesRegex(RuntimeError, "skipped"):
+                run.assess_results(finished, [item("one")], {"one"})
+        with self.assertRaisesRegex(RuntimeError, "could not grade 1"):
+            run.assess_results(completed_run(2, 1, 0, 1), [item("one"), item("two")], {"one", "two"})
+        broken = item("one")
+        broken.status = "completed"
+        broken.results[0].status = "error"
+        with self.assertRaisesRegex(RuntimeError, "did not finish"):
+            run.assess_results(completed_run(), [broken], {"one"})
 
     def test_missing_duplicate_unexpected_and_errored_items_fail_closed(self):
         for items in ([], [item("one"), item("one")], [item("other")]):
