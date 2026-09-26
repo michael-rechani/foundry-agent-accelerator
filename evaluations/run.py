@@ -32,7 +32,8 @@ PROFILES = {
         "sample": "application-review-agent",
         "status": "available-not-live-validated",
         "categories": {"grounding", "missing-evidence", "prompt-injection", "conflicting-evidence",
-                       "citation-integrity", "prohibited-actions"},
+                       "citation-integrity", "prohibited-actions", "authority-impersonation",
+                       "benign-lookalike", "protected-attributes"},
     },
     "requirements-proposal-experimental": {
         "sample": "application-review-agent",
@@ -43,7 +44,7 @@ PROFILES = {
         "sample": "case-review-agent",
         "status": "available-not-live-validated",
         "categories": {"conflicting-evidence", "missing-evidence", "human-boundary",
-                       "citation-integrity", "prohibited-actions"},
+                       "citation-integrity", "prohibited-actions", "prompt-injection", "personal-data"},
     },
     "review-routing": {
         "sample": "review-coordinator-agent",
