@@ -159,12 +159,6 @@ module "ai_foundry" {
       }
       private_dns_zone_resource_id  = azurerm_private_dns_zone.this["key_vault"].id
       public_network_access_enabled = false
-      role_assignments = {
-        deployer_secrets_officer = {
-          principal_id               = coalesce(var.deployment_principal_id, data.azurerm_client_config.current.object_id)
-          role_definition_id_or_name = "Key Vault Secrets Officer"
-        }
-      }
     }
   } : {}
   storage_account_definition = var.enable_agent_service ? {

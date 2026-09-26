@@ -283,3 +283,84 @@ run "management_network_opt_out" {
     error_message = "A platform without Lab, APIM, or a VM can opt out of the management network."
   }
 }
+
+run "coordinator_access_defaults_off" {
+  command = plan
+  assert {
+    condition     = var.coordinator_agent_access == null && length(azapi_resource.coordinator_agent_consumer) == 0
+    error_message = "Coordinator grants must be opt-in."
+  }
+}
+
+run "coordinator_access_default_specialists" {
+  command = plan
+  variables {
+    coordinator_agent_access = { principal_id = "AAAAAAAA-0000-0000-0000-000000000005" }
+  }
+  assert {
+    condition     = toset(keys(azapi_resource.coordinator_agent_consumer)) == toset(["application-review-agent", "case-review-agent"])
+    error_message = "The coordinator must be granted access to each default specialist."
+  }
+  assert {
+    condition = alltrue([
+      for grant in values(azapi_resource.coordinator_agent_consumer) :
+      grant.type == "Microsoft.Authorization/roleAssignments@2022-04-01" &&
+      grant.body.properties.roleDefinitionId == "/subscriptions/00000000-0000-0000-0000-000000000003/providers/Microsoft.Authorization/roleDefinitions/eed3b665-ab3a-47b6-8f48-c9382fb1dad6" &&
+      grant.body.properties.principalId == "aaaaaaaa-0000-0000-0000-000000000005" &&
+      grant.body.properties.principalType == "ServicePrincipal"
+    ])
+    error_message = "Each grant must assign Foundry Agent Consumer to the normalized coordinator principal."
+  }
+  assert {
+    condition = alltrue([
+      for name, grant in azapi_resource.coordinator_agent_consumer :
+      grant.parent_id == "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-platform-test-12345/providers/Microsoft.CognitiveServices/accounts/foundry-platform-test/projects/hosted-agents-dev/agents/${name}" &&
+      grant.name == uuidv5("url", "${grant.parent_id}/aaaaaaaa-0000-0000-0000-000000000005/Foundry Agent Consumer")
+    ])
+    error_message = "Each grant must be scoped to one specialist agent and use a deterministic assignment name."
+  }
+}
+
+run "coordinator_access_profile_specialists" {
+  command = plan
+  variables {
+    coordinator_agent_access = {
+      principal_id      = "aaaaaaaa-0000-0000-0000-000000000005"
+      specialist_agents = ["evidence-review-agent"]
+    }
+  }
+  assert {
+    condition     = keys(azapi_resource.coordinator_agent_consumer) == ["evidence-review-agent"]
+    error_message = "Profile specialists must replace the default specialist list."
+  }
+}
+
+run "reject_coordinator_access_client_id_format" {
+  command = plan
+  variables {
+    coordinator_agent_access = { principal_id = "api://not-a-principal" }
+  }
+  expect_failures = [var.coordinator_agent_access]
+}
+
+run "reject_coordinator_access_path_or_empty_specialists" {
+  command = plan
+  variables {
+    coordinator_agent_access = {
+      principal_id      = "aaaaaaaa-0000-0000-0000-000000000005"
+      specialist_agents = ["agents/case-review-agent"]
+    }
+  }
+  expect_failures = [var.coordinator_agent_access]
+}
+
+run "reject_coordinator_access_without_specialists" {
+  command = plan
+  variables {
+    coordinator_agent_access = {
+      principal_id      = "aaaaaaaa-0000-0000-0000-000000000005"
+      specialist_agents = []
+    }
+  }
+  expect_failures = [var.coordinator_agent_access]
+}

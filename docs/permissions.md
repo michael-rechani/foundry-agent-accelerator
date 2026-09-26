@@ -22,9 +22,9 @@ checked against a live deployment.
 
 | Area | What to know |
 | --- | --- |
-| Assigned by this repository | Nine role assignment resources across the platform, Lab, and monitoring Terraform roots. The jumpbox and APIM grants exist only when those off-by-default features are enabled. |
+| Assigned by this repository | Nine role assignment resources across the platform, Lab, and monitoring Terraform roots. The jumpbox, APIM, and coordinator grants exist only when you turn on those off-by-default inputs. |
 | Assigned by the pinned AVM module | Six more assignments to the Foundry project identity, created inside the Foundry pattern module when Agent Service is enabled. |
-| Not assigned by this repository | Operator prerequisites, state access, secret reads, image push, trace viewing, coordinator-to-specialist calls, and anything Foundry grants itself. |
+| Not assigned by this repository | Operator prerequisites, state access, secret reads, image push, trace viewing, and anything Foundry grants itself. |
 | Role names | The code refers to most roles by ID. Names come from Azure's built-in role catalog, not from this repository. |
 | Guidance | Scope each grant narrowly, prefer managed identity, and remove temporary grants after a rollout. |
 
@@ -51,12 +51,11 @@ plane role, which Azure lists separately in the
 | --- | --- | --- |
 | `53ca6127-db72-4b80-b1b0-d745d6d5456d` | Foundry User | [`terraform/main.tf`](../terraform/main.tf) (`azurerm_role_assignment.deployer_foundry_user`), [`terraform/apim.tf`](../terraform/apim.tf) (`azurerm_role_assignment.api_management_foundry_user`), [`workbench/infra/main.tf`](../workbench/infra/main.tf) (`azurerm_role_assignment.foundry`) |
 | `eadc314b-1a2d-4efa-be10-5d325db5065e` | Foundry Project Manager | [`terraform/jumpbox.tf`](../terraform/jumpbox.tf) (`azurerm_role_assignment.jumpbox_foundry_project_manager`) |
+| `eed3b665-ab3a-47b6-8f48-c9382fb1dad6` | Foundry Agent Consumer | [`terraform/agent-access.tf`](../terraform/agent-access.tf) (`local.agent_consumer_role_id`) |
 | `3913510d-42f4-4e42-8a64-420c390055eb` | Monitoring Metrics Publisher | [`terraform/monitoring/main.tf`](../terraform/monitoring/main.tf) (`local.publisher_role_id`) |
 | `00000000-0000-0000-0000-000000000002` (Cosmos DB SQL role) | Cosmos DB Built-in Data Contributor | [`workbench/infra/history.tf`](../workbench/infra/history.tf) (`azurerm_cosmosdb_sql_role_assignment.history`) |
 
-Two assignments use a role name directly: **Key Vault Secrets Officer** in
-[`terraform/main.tf`](../terraform/main.tf) (`deployer_secrets_officer` in
-`module.ai_foundry`) and **AcrPull** in
+One assignment uses a role name directly: **AcrPull** in
 [`workbench/infra/main.tf`](../workbench/infra/main.tf)
 (`azurerm_role_assignment.pull`).
 
@@ -69,10 +68,10 @@ creates role assignments. The Lab never grants roles itself.
 
 | Principal | Role | Scope | Assigned by | What breaks without it |
 | --- | --- | --- | --- | --- |
-| Platform deployer: `deployment_principal_id`, or the identity running Terraform when that's null | Key Vault Secrets Officer | The Agent Service Key Vault that the AVM module creates | [`terraform/main.tf`](../terraform/main.tf): `deployer_secrets_officer` in the `key_vault_definition` input of `module.ai_foundry`. Only when `enable_agent_service = true`, the default. | Nothing in the current apply. Confirmed from source: no Terraform in this repository or in the pinned AVM module writes or reads secrets in this vault. The grant was added when Terraform generated the jumpbox password and wrote it to this vault as `jumpbox-admin-password` ([commit 731f568](https://github.com/michael-rechani/ai-foundry-samples/commit/731f5687dedd88ab59914330853026d453c89ca7)). A later change switched to a pre-provisioned secret and kept the grant ([commit 9561bac](https://github.com/michael-rechani/ai-foundry-samples/commit/9561bac275851a9a80ca5353f2a75ac93822e4f3)). When `jumpbox_admin_secret` is null, the `jumpbox_key_vault_name` and `jumpbox_admin_password_secret_name` outputs in [`terraform/outputs.tf`](../terraform/outputs.tf) still point at that legacy secret, so the deployer couldn't read it without this role. Per Microsoft Learn, the role allows any action on secrets except managing permissions ([Key Vault built-in roles](https://learn.microsoft.com/azure/key-vault/general/rbac-guide#azure-built-in-roles-for-key-vault-data-plane-operations)). |
 | Platform deployer, as above | Foundry User | The Foundry project, `hosted-agents-<environment>` | [`terraform/main.tf`](../terraform/main.tf): `azurerm_role_assignment.deployer_foundry_user` | Nothing in the platform apply. Confirmed from source: the platform Terraform makes only Azure Resource Manager calls, and this role grants Foundry data actions. Per Microsoft Learn, it's the role standard agent setup gives developers who create or edit agents, and its absence causes `AuthorizationFailed` when creating or editing agents ([standard agent setup](https://learn.microsoft.com/azure/foundry/agents/concepts/standard-agent-setup#troubleshoot-common-issues)). The repository doesn't record why it was added. See [Foundry User and Foundry Project Manager](#foundry-user-and-foundry-project-manager). |
 | Jumpbox VM system-assigned identity | Foundry Project Manager | The Foundry project | [`terraform/jumpbox.tf`](../terraform/jumpbox.tf): `azurerm_role_assignment.jumpbox_foundry_project_manager`. Only when `enable_jumpbox = true`; the default is `false`. | The jumpbox can't publish hosted agents with its managed identity. The [private deployment runbook](private-deployment.md#1-confirm-prerequisites) requires this role at project scope. Recreating the VM changes the identity, so [reconcile role assignments](../terraform/README.md#optional-administration-resources) before the next apply. |
 | APIM system-assigned identity | Foundry User | The Foundry project | [`terraform/apim.tf`](../terraform/apim.tf): `azurerm_role_assignment.api_management_foundry_user`. Only when `enable_api_management = true`; the default is `false`. | The review API policy in [`review.xml.tftpl`](../terraform/policies/review.xml.tftpl) authenticates to the coordinator with this identity (`authentication-managed-identity`), so backend calls fail. `azurerm_api_management_api_policy.review` in [`terraform/review-api.tf`](../terraform/review-api.tf) depends on this assignment. See [API Management gateway](../terraform/README.md#api-management-gateway). |
+| Review coordinator's agent identity, from `coordinator_agent_access.principal_id` | Foundry Agent Consumer | Each specialist agent in `coordinator_agent_access.specialist_agents`, at `<project ID>/agents/<name>`. The default list is `application-review-agent` and `case-review-agent`. | [`terraform/agent-access.tf`](../terraform/agent-access.tf): `azapi_resource.coordinator_agent_consumer`. Only when `coordinator_agent_access` is set; the default is `null`. | Confirmed from source: `invoke_specialist` in [`review-coordinator-agent/main.py`](../hosted-agents/review-coordinator-agent/main.py) calls each specialist's agent endpoint with `DefaultAzureCredential`. Per Microsoft Learn, calling an agent endpoint needs `Microsoft.CognitiveServices/accounts/AIServices/endpoints/interact/action`, and Foundry Agent Consumer is the least-privilege built-in role for it ([agent interaction](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#agent-interaction)). Per Microsoft Learn, an agent-scope assignment applies only to that agent's endpoint ([agent-scope role assignments](https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry#agent-scope-role-assignments)). Whether calls fail without it isn't confirmed; see [coordinator agent access](#coordinator-agent-access). |
 | Lab user-assigned identity, `id-<name>` | AcrPull | The Lab's container registry | [`workbench/infra/main.tf`](../workbench/infra/main.tf): `azurerm_role_assignment.pull` | The Container App pulls its image with this identity (the `registry` block in `azurerm_container_app.this`); the registry admin account is disabled. |
 | Lab user-assigned identity | Foundry User | The Foundry project named by `foundry_account_name` and `foundry_project_name` | [`workbench/infra/main.tf`](../workbench/infra/main.tf): `azurerm_role_assignment.foundry` | The Lab calls Foundry with this identity, so chat, reviews, dependency checks, and created-agent publication fail. Publication reports [`operator_permissions_required`](agent-creation.md#troubleshooting) on a 401 or 403. Per Microsoft Learn, this role covers the agent calls that publication makes; see [Foundry User and Foundry Project Manager](#foundry-user-and-foundry-project-manager). |
 | Lab user-assigned identity | Cosmos DB Built-in Data Contributor (Cosmos DB SQL role) | The `workbench/conversations` container only | [`workbench/infra/history.tf`](../workbench/infra/history.tf): `azurerm_cosmosdb_sql_role_assignment.history` | Saved chats, reviews, and created-agent records can't be read or written. See [Storage and cost](../workbench/README.md#storage-and-cost). |
@@ -81,6 +80,56 @@ creates role assignments. The Lab never grants roles itself.
 
 The Lab's identity, registry, and Cosmos assignments live in the separate Lab
 Terraform state. The monitoring assignments live in the monitoring state.
+
+### Coordinator agent access
+
+The coordinator's agent identity is created by Foundry, not Terraform, so you
+supply its principal ID.
+
+- **Where the ID comes from.** Per Microsoft Learn, an agent created with the
+  current agent object model gets its own Microsoft Entra agent identity, and
+  `instance_identity.principal_id` is the ID for role assignments
+  ([retrieve the agent identity](https://learn.microsoft.com/azure/foundry/agents/how-to/manage-hosted-agent#retrieve-the-agent-identity-for-role-assignments),
+  [after the new model](https://learn.microsoft.com/azure/foundry/agents/how-to/migrate-agent-applications#after-new-model)).
+  Confirmed from source: `report_agent_identity` in
+  [`hosted-agents/deployment.py`](../hosted-agents/deployment.py) prints it
+  after each new version is created.
+- **Why platform Terraform assigns it.** Per Microsoft Learn, Foundry Project
+  Manager can assign only the Foundry User role
+  ([Foundry Project Manager](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles/ai-machine-learning#foundry-project-manager)),
+  so a publisher with that role can't grant Foundry Agent Consumer. The
+  platform deployer already needs User Access Administrator.
+- **Order.** The identity exists only after the coordinator's first version is
+  created. If that first deployment fails its delegation checks, copy the
+  printed principal ID into `coordinator_agent_access`, apply the platform
+  Terraform, wait for the assignment to take effect, and deploy the
+  coordinator again. Confirmed from source: `cleanup_failed_version` in
+  [`hosted-agents/deployment.py`](../hosted-agents/deployment.py) keeps a
+  failed first version, because the route still points at it and there's no
+  earlier route to restore.
+- **Identity changes.** Per Microsoft Learn, an agent identity lasts as long as
+  the agent resource
+  ([agent identity](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-identity)).
+  If you delete and re-create the coordinator, update the principal ID.
+
+### Removed assignment
+
+Earlier versions gave the platform deployer Key Vault Secrets Officer on the
+Agent Service Key Vault, as `deployer_secrets_officer` in `module.ai_foundry`.
+Confirmed from source: it was added when Terraform wrote a generated jumpbox
+password to that vault as `jumpbox-admin-password`
+([commit 731f568](https://github.com/michael-rechani/ai-foundry-samples/commit/731f5687dedd88ab59914330853026d453c89ca7)),
+and kept after the switch to a pre-provisioned secret
+([commit 9561bac](https://github.com/michael-rechani/ai-foundry-samples/commit/9561bac275851a9a80ca5353f2a75ac93822e4f3)).
+No Terraform in this repository or the pinned AVM module reads or writes that
+vault now, so the grant is gone.
+
+The next platform apply deletes that assignment,
+`module.ai_foundry.module.key_vault["agent"].azurerm_role_assignment.this["deployer_secrets_officer"]`.
+It doesn't delete a legacy `jumpbox-admin-password` secret. The
+`jumpbox_key_vault_name` and `jumpbox_admin_password_secret_name` outputs no
+longer point at it; they're `null` unless `jumpbox_admin_secret` is set. To keep
+reading a legacy secret, grant Key Vault Secrets User at secret scope.
 
 ## Assigned by the pinned AVM module
 
@@ -137,7 +186,6 @@ permissions itself. The **Documented in** column is the source for each row.
 | Lab user-assigned identity, when `agent_creation_key_secret_id` is set | Key Vault Secrets User, per Microsoft Learn | The Key Vault secret in `agent_creation_key_secret_id` | [Enable publication](agent-creation.md#enable-publication), the `agent_creation_key_secret_id` variable in [`workbench/infra/main.tf`](../workbench/infra/main.tf), [Container Apps Key Vault references](https://learn.microsoft.com/azure/container-apps/manage-secrets#reference-secret-from-key-vault) | Confirmed from source: the `agent-creation-key-verifier` secret in `azurerm_container_app.this` reads the secret with the Lab identity. Per Microsoft Learn, a Container App's managed identity needs Key Vault Secrets User to use a Key Vault reference. |
 | Hosted agent runtime identity | Model invocation and session storage | The Foundry project | [Scope and safety boundaries](../hosted-agents/README.md#scope-and-safety-boundaries), [agent access beyond defaults](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#agent-access-beyond-defaults) | Foundry provides these by default. Grant explicit least-privilege roles for any other Azure service an agent needs. |
 | `case-review-agent` runtime identity, only if knowledge retrieval is enabled | Search Index Data Reader | The single approved retrieval index | [Knowledge retrieval design](knowledge-retrieval.md#identity-and-rbac) | Querying fictional policy guidance. Retrieval is off by default, so no one needs this role today. |
-| Review coordinator identity | `Microsoft.CognitiveServices/accounts/AIServices/endpoints/interact/action`. Per Microsoft Learn, Foundry Agent Consumer is the least-privilege built-in role for it. | Per Microsoft Learn, the project or each specialist agent ([agent interaction](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#agent-interaction), [agent-scope role assignments](https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry#agent-scope-role-assignments)) | [Coordinator delegation pattern](../hosted-agents/README.md#coordinator-delegation-pattern) | Confirmed from source: `invoke_specialist` in [`review-coordinator-agent/main.py`](../hosted-agents/review-coordinator-agent/main.py) calls each specialist's agent endpoint with `DefaultAzureCredential`. This repository assigns no role for it. See [unconfirmed items](#unconfirmed-items). |
 | Portal users who view traces | Monitoring Reader, per Microsoft Learn. Log Analytics Reader on the workspace to query it directly. | The Application Insights component that the monitoring root creates | [Agent monitoring](../terraform/monitoring/README.md#at-a-glance), [viewing telemetry data](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#viewing-telemetry-data) | Viewing traces from the private network. Per Microsoft Learn, Foundry User shows metrics but not traces. |
 | Identity running monitoring Terraform | Monitoring resource and project-connection permissions, plus scoped RBAC administration for the publisher assignments; no role is named | Confirmed from source: the platform resource group, the Foundry project for the connection, and the new Application Insights component for the publisher grants ([`terraform/monitoring/main.tf`](../terraform/monitoring/main.tf): `azapi_resource.insights`, `azapi_resource.connection`, `azapi_resource.publisher`) | [Monitoring deployment](../terraform/monitoring/README.md#deployment) | Creating the component, the connection, and the publisher grants. An authorized administrator can create the grants and import them instead. |
 | Identity running Bastion Terraform | Permission to manage the Bastion host, subnet, and public IP; no role is named | Confirmed from source: the platform resource group, including the subnet in its management virtual network ([`terraform/bastion/main.tf`](../terraform/bastion/main.tf): `azapi_resource.subnet`, `azapi_resource.public_ip`, `azapi_resource.bastion`) | [Bastion upgrade](../terraform/bastion/README.md#existing-host-upgrade) | Adopting or creating the three Bastion resources. |
@@ -197,6 +245,9 @@ This follows the [credentials guide](credentials.md) and the deployment guides.
 - To read a single secret, grant Key Vault Secrets User at secret scope rather
   than Key Vault Secrets Officer on the vault. Per Microsoft Learn, Secrets User
   only reads secret contents.
+- Scope agent-to-agent access to the agents being called.
+  `coordinator_agent_access` assigns Foundry Agent Consumer on each specialist
+  agent, not the project.
 
 ## Unconfirmed items
 
@@ -209,10 +260,18 @@ before relying on the tables.
   The [Foundry RBAC table](https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry#permissions-for-each-built-in-role)
   also marks **Publish agents** as not allowed for Foundry User. Neither the
   Lab's publication nor `deployment.py` has been tested with Foundry User only.
-- **Whether the coordinator identity needs an explicit grant.** Per Microsoft
-  Learn, an agent's default access covers model inference and session storage.
-  Learn doesn't say whether that covers calling another agent in the same
-  project, and this repository grants the coordinator no role.
+- **Whether the coordinator needs its grant, and whether the grant applies.**
+  Per Microsoft Learn, an agent's default access covers model inference and
+  session storage. Learn doesn't say whether that covers calling another agent
+  in the same project. `coordinator_agent_access` is off by default for that
+  reason. Also untested: whether Azure Resource Manager accepts the
+  agent-scope assignment that `azapi_resource.coordinator_agent_consumer`
+  creates. Learn shows `az role assignment create` at that scope
+  ([agent-scope role assignments](https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry#agent-scope-role-assignments)).
+  If it's rejected, per Microsoft Learn the same role can be assigned at
+  project scope instead
+  ([agent interaction](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#agent-interaction)),
+  which lets the coordinator call every agent in the project.
 - **What breaks without the two Cosmos DB assignments.** Microsoft Learn lists
   Cosmos DB Operator and Cosmos DB Built-in Data Contributor as project identity
   roles but gives no symptom for either.

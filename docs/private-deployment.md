@@ -16,7 +16,7 @@ deployment continues automatically after reading these instructions.
 
 | Area | Requirement |
 | --- | --- |
-| Deployment identity | Foundry Project Manager at project scope |
+| Deployment identity | Foundry Project Manager at project scope, as Microsoft Learn asks. Whether Foundry User is enough is unconfirmed; see [permissions](permissions.md#foundry-user-and-foundry-project-manager). |
 | Credential model | Authorized managed identity only |
 | Runner | Private-network machine with Foundry DNS and routing |
 | Source transfer | Reviewed source files only |
@@ -37,7 +37,11 @@ deployment continues automatically after reading these instructions.
 ## 1. Confirm prerequisites
 
 - Confirm the subscription, tenant, project endpoint, intended agent, and change.
-- The deploying identity needs Foundry Project Manager at project scope.
+- The deploying identity needs Foundry Project Manager at project scope, as
+  Microsoft Learn's
+  [deployment guide](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent#required-permissions)
+  asks. Learn's pages disagree on whether Foundry User is enough; see
+  [Foundry User and Foundry Project Manager](permissions.md#foundry-user-and-foundry-project-manager).
 - Use an authorized managed identity; never transfer passwords or bearer tokens.
 - Transfer only reviewed source files, not Terraform state, plans, variable
   files, environment files, caches, or the complete working directory.

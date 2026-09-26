@@ -89,11 +89,11 @@ output "jumpbox_admin_username" {
 }
 
 output "jumpbox_key_vault_name" {
-  description = "Name of the private Key Vault containing the jumpbox credential, or null when disabled."
-  value       = !var.enable_jumpbox ? null : var.jumpbox_admin_secret != null ? basename(var.jumpbox_admin_secret.key_vault_id) : var.enable_agent_service ? module.ai_foundry.key_vault_name["agent"] : null
+  description = "Name of the Key Vault in jumpbox_admin_secret, or null when the jumpbox is disabled or no secret is pinned."
+  value       = var.enable_jumpbox && var.jumpbox_admin_secret != null ? basename(var.jumpbox_admin_secret.key_vault_id) : null
 }
 
 output "jumpbox_admin_password_secret_name" {
-  description = "Name of the Key Vault secret containing the jumpbox administrator password, or null when disabled."
-  value       = !var.enable_jumpbox ? null : var.jumpbox_admin_secret != null ? var.jumpbox_admin_secret.name : var.enable_agent_service ? "jumpbox-admin-password" : null
+  description = "Name of the Key Vault secret in jumpbox_admin_secret, or null when the jumpbox is disabled or no secret is pinned."
+  value       = var.enable_jumpbox && var.jumpbox_admin_secret != null ? var.jumpbox_admin_secret.name : null
 }

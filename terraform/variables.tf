@@ -280,6 +280,28 @@ variable "review_api" {
   }
 }
 
+variable "coordinator_agent_access" {
+  type = object({
+    principal_id      = string
+    specialist_agents = optional(set(string), ["application-review-agent", "case-review-agent"])
+  })
+  description = "Opt-in Foundry Agent Consumer grants that let the review coordinator call its specialists. Set principal_id to the coordinator's instance_identity.principal_id, which the hosted-agent deployer prints. Null creates no grants."
+  default     = null
+
+  validation {
+    condition     = var.coordinator_agent_access == null ? true : can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", var.coordinator_agent_access.principal_id))
+    error_message = "coordinator_agent_access.principal_id must be a principal GUID, not an application or client ID."
+  }
+
+  validation {
+    condition = var.coordinator_agent_access == null ? true : (
+      length(var.coordinator_agent_access.specialist_agents) > 0 &&
+      alltrue([for name in var.coordinator_agent_access.specialist_agents : can(regex("^[A-Za-z_][A-Za-z0-9_-]{0,63}$", name))])
+    )
+    error_message = "coordinator_agent_access.specialist_agents must list at least one valid agent name, not a URL or path."
+  }
+}
+
 variable "model_deployment" {
   type = object({
     deployment_name = string
