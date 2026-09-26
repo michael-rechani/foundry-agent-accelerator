@@ -87,7 +87,10 @@ async function workspace(
       return respond({
         request_id: `request-${state.requests.length}`,
         status: 'completed',
-        agent: agent.agent,
+        agent: (
+          config.agents.find((item) => item.id === config.default_agent) ??
+          agent
+        ).agent,
         text: 'APP-1 is missing a budget.',
         elapsed_ms: 1000,
         receipts: options.receipts ?? [
@@ -322,9 +325,44 @@ test('handoff timeline marks unverified receipts', async ({ page }) => {
   await send(page)
   const timeline = page.getByRole('list', { name: 'Handoff timeline' })
   await expect(timeline.getByRole('listitem').nth(2)).toHaveText(
-    /Target not verified\s*Unverified/,
+    /inspect_application\s*Tool call\s*Unverified/,
   )
+  await expect(timeline).not.toContainText('Target not verified')
   await expect(timeline.getByText('Verified', { exact: true })).toHaveCount(0)
+})
+
+test('self-targeted lookups on a created agent show tool calls, not a handoff', async ({
+  page,
+}) => {
+  const created = {
+    ...agent,
+    id: 'created-service-planner',
+    label: 'Service request planner',
+    agent: 'service-request-planner-1a2b',
+    tools: { lookup_demo_request: 'service-request-planner-1a2b' },
+  }
+  await workspace(page, {
+    config: { agents: [created], default_agent: created.id },
+    receipts: [
+      {
+        tool: 'lookup_demo_request',
+        call_id: 'call-1',
+        verified: true,
+        agent: created.agent,
+        output: 'Synthetic request record.',
+      },
+    ],
+  })
+  await send(page)
+  const timeline = page.getByRole('list', { name: 'Handoff timeline' })
+  await expect(timeline.getByRole('listitem')).toHaveText([
+    'You asked',
+    /Service request planner\s*Agent/,
+    /lookup_demo_request\s*Tool call\s*Verified/,
+    'You check the findings',
+  ])
+  await expect(timeline).not.toContainText('Coordinator')
+  await expect(timeline).not.toContainText(created.agent)
 })
 
 test('answers without receipts show no handoff timeline', async ({ page }) => {
@@ -677,13 +715,15 @@ test('save, reopen, follow up, update and delete shared history', async ({
   await page.locator('.saved-open').click()
   const storedTimeline = page.getByRole('list', { name: 'Handoff timeline' })
   await expect(storedTimeline.getByRole('listitem').nth(2)).toHaveText(
-    /application-review-agent\s*Stored - not reverified/,
+    /application-review-agent\s*Stored \/ not reverified/,
   )
   await expect(
     storedTimeline.getByText('Verified', { exact: true }),
   ).toHaveCount(0)
   await page.locator('.receipt-details > summary').click()
-  await expect(page.getByText('Stored / not reverified')).toBeVisible()
+  await expect(
+    page.locator('.receipt').getByText('Stored / not reverified'),
+  ).toBeVisible()
   await expect(page.getByText('Verified receipt', { exact: true })).toHaveCount(
     0,
   )

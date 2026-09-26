@@ -30,7 +30,7 @@ const receiptLabels: Record<ReceiptState, string> = {
 const stepLabels: Record<ReceiptState, string> = {
   verified: 'Verified',
   unverified: 'Unverified',
-  stored: 'Stored - not reverified',
+  stored: receiptLabels.stored,
 }
 
 const stepIcons = {
@@ -39,13 +39,22 @@ const stepIcons = {
   stored: Archive,
 }
 
+// A receipt is a handoff only when it names another agent. Created agents
+// bind simulated lookups to their own runtime name; those are tool calls.
+function isHandoff(turn: Turn, receipt: Receipt) {
+  return Boolean(receipt.agent) && receipt.agent !== turn.result.agent
+}
+
 function HandoffTimeline({
   turn,
-  coordinator,
+  answering,
 }: {
   turn: Turn
-  coordinator: string
+  answering: string
 }) {
+  const handoff = turn.result.receipts.some((receipt) =>
+    isHandoff(turn, receipt),
+  )
   return (
     <ol className="handoff-timeline" aria-label="Handoff timeline">
       <li>
@@ -55,15 +64,16 @@ function HandoffTimeline({
       <li>
         <ChevronRight className="handoff-arrow" size={12} aria-hidden="true" />
         <GitBranch size={13} aria-hidden="true" />
-        <span>{coordinator}</span>
-        <small>Coordinator</small>
+        <span>{answering}</span>
+        <small>{handoff ? 'Coordinator' : 'Agent'}</small>
       </li>
       {turn.result.receipts.map((receipt, index) => {
         const state = receiptState(turn, receipt)
         const Icon = stepIcons[state]
+        const specialist = isHandoff(turn, receipt)
         return (
           <li
-            className={`handoff-specialist ${state}`}
+            className={`handoff-step ${state}`}
             key={`${receipt.call_id}-${index}`}
           >
             <ChevronRight
@@ -71,8 +81,9 @@ function HandoffTimeline({
               size={12}
               aria-hidden="true"
             />
-            <span>{receipt.agent || 'Target not verified'}</span>
-            <small>
+            <span>{specialist ? receipt.agent : receipt.tool}</span>
+            {!specialist && <small>Tool call</small>}
+            <small className="handoff-state">
               <Icon size={12} aria-hidden="true" />
               {stepLabels[state]}
             </small>
@@ -129,10 +140,7 @@ export function ConversationTurn({
         </div>
         <Markdown text={turn.result.text} />
         {turn.result.receipts.length > 0 && (
-          <HandoffTimeline
-            turn={turn}
-            coordinator={label || turn.result.agent}
-          />
+          <HandoffTimeline turn={turn} answering={label || turn.result.agent} />
         )}
         <div className="response-tools">
           <button

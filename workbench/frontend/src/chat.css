@@ -1003,15 +1003,15 @@ p {
   background: var(--neutral-bg);
   color: var(--neutral-fg);
 }
-.handoff-specialist > span {
+.handoff-step > span {
   font: 10px var(--mono);
   color: var(--text);
 }
-.handoff-specialist.verified small {
+.handoff-step.verified .handoff-state {
   background: var(--success-bg);
   color: var(--success-fg);
 }
-.handoff-specialist.unverified small {
+.handoff-step.unverified .handoff-state {
   background: var(--warning-bg);
   color: var(--warning-fg);
 }
