@@ -45,7 +45,8 @@ class PrivateClient:
             headers["If-Match"] = etag
         if body is not None:
             headers["Content-Type"] = "application/json"
-        request = Request(self.base_url + path, method=method, headers=headers,
+        # The constructor restricts base_url to HTTPS or the fixed loopback origin.
+        request = Request(self.base_url + path, method=method, headers=headers,  # noqa: S310
                           data=json.dumps(body).encode() if body is not None else None)
         try:
             with self.opener.open(request, timeout=200 if path == "/api/reviews" else 45) as response:
