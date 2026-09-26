@@ -1,5 +1,7 @@
 param(
-    [string]$IconDirectory = (Join-Path $PSScriptRoot 'azure-icons')
+    [string]$IconDirectory = (Join-Path $PSScriptRoot 'azure-icons'),
+    # Build only these diagrams, such as -Name agent-collaboration. Builds every template by default.
+    [string[]]$Name
 )
 
 $ErrorActionPreference = 'Stop'
@@ -79,19 +81,25 @@ function Test-Diagram([string]$Content) {
 
 # Build every variant before writing any, so a failure leaves no partial outputs.
 $outputs = [ordered]@{}
-foreach ($name in @('agent-collaboration', 'foundry-overview', 'foundry-operations', 'foundry-deployment', 'azure-architecture', 'agent-release-journey')) {
-    $source = Get-Content (Join-Path $PSScriptRoot "$name.template.svg") -Raw
+$diagrams = Get-ChildItem $PSScriptRoot -Filter '*.template.svg' | Sort-Object Name | ForEach-Object { $_.Name -replace '\.template\.svg$', '' }
+if ($Name) {
+    $missing = $Name | Where-Object { $_ -notin $diagrams }
+    if ($missing) { throw "No template for: $($missing -join ', ')" }
+    $diagrams = $Name
+}
+foreach ($diagram in $diagrams) {
+    $source = Get-Content (Join-Path $PSScriptRoot "$diagram.template.svg") -Raw
     $content = Add-OfficialIcons $source
-    $darkContent = Add-OfficialIcons (ConvertTo-DarkTemplate $source $name)
+    $darkContent = Add-OfficialIcons (ConvertTo-DarkTemplate $source $diagram)
     $light = Test-Diagram $content
     $dark = Test-Diagram $darkContent
     foreach ($element in @('title', 'desc')) {
         if ($dark.DocumentElement[$element].InnerText -cne $light.DocumentElement[$element].InnerText) {
-            throw "The dark $name diagram changed its $element text."
+            throw "The dark $diagram diagram changed its $element text."
         }
     }
-    $outputs[(Join-Path $PSScriptRoot "$name.svg")] = $content
-    $outputs[(Join-Path $PSScriptRoot "$name-dark.svg")] = $darkContent
+    $outputs[(Join-Path $PSScriptRoot "$diagram.svg")] = $content
+    $outputs[(Join-Path $PSScriptRoot "$diagram-dark.svg")] = $darkContent
 }
 
 foreach ($output in $outputs.Keys) {

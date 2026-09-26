@@ -79,7 +79,7 @@ checks as explicit delivery steps.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/foundry-deployment-dark.svg">
-  <img alt="Deployment ownership: existing state and private access, the platform Terraform root, separate Lab, Bastion, and agent monitoring roots that read platform resources, and separate image and agent release workflows" src="images/foundry-deployment.svg">
+  <img alt="Deploy with Terraform: protected Blob state, approved private access, and Entra authentication are provided before deployment. The platform root in terraform/ owns Microsoft Foundry, the private foundation, private monitoring, and optional extras. The Lab root, the optional Bastion root, and the optional agent monitoring root read reviewed platform IDs and names. Separate release workflows build images, publish agent versions, and run quality checks after infrastructure is reviewed." src="images/foundry-deployment.svg">
 </picture>
 
 [View full size](images/foundry-deployment.svg) · [Edit the SVG template](images/foundry-deployment.template.svg)

@@ -125,10 +125,10 @@ deep links continue to open their review directly.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/agent-release-journey-dark.svg">
-  <img alt="Private foundation and agent releases are separate connected workflows, with an explicit configuration handoff and human approval." src="images/agent-release-journey.svg">
+  <img alt="Agent release journey in six numbered steps. Private foundation, built with Terraform and Azure Verified Modules: review the plan, provision separate roots, and verify private access. A configuration handoff carries the project endpoint, model deployments, identity, and private connectivity to agent releases: package the agent, publish and verify a new hosted version, then route, review, and iterate. People approve infrastructure changes, publication costs, and business decisions." src="images/agent-release-journey.svg">
 </picture>
 
-**Foundation:** review Terraform plans, deploy the Azure Verified Modules-based
+**Foundation (steps 1 to 3):** review Terraform plans, deploy the Azure Verified Modules-based
 platform and separate Lab root, then verify private access. Keep the existing
 remote state boundaries. This is not a new landing-zone module or a one-click
 deployment promise.
@@ -138,7 +138,7 @@ model deployment names, identities, and approved private connectivity. Portable
 bundles carry source and configuration, not Azure permissions, infrastructure,
 customer records, or saved conversations.
 
-**Agent releases:** prepare a reviewed bundle, publish a new version, verify
+**Agent releases (steps 4 to 6):** prepare a reviewed bundle, publish a new version, verify
 the appropriate runtime/route behavior, and check answers against the source.
 When a release needs correction, follow the documented guarded recovery or
 rollback path; never imply that Terraform automatically published it.
@@ -146,6 +146,9 @@ rollback path; never imply that Terraform automatically published it.
 The prebuilt deployment CLI and operator-confirmed Lab publisher have different
 ownership and verification semantics. This diagram is their logical relationship,
 not a new universal pipeline or a guarantee of automatic rollback.
+
+[View full size](images/agent-release-journey.svg) ·
+[Edit the SVG template](images/agent-release-journey.template.svg)
 
 ## Related content
 

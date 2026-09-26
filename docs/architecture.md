@@ -53,7 +53,7 @@ see the [extension guide](architecture-assessment.md).
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/foundry-overview-dark.svg">
-  <img alt="Default Lab infrastructure: private browser access such as the jumpbox through Azure Bastion, separate agent and record paths, and optional API Management outside the default flow" src="images/foundry-overview.svg">
+  <img alt="How the Lab handles a request: a person on an approved private network sends a request over HTTPS to the Lab in Container Apps (step 1), the Lab calls Foundry Agent Service with its managed identity (step 2), the coordinator and specialists return a result (step 3), and the Lab responds to the browser (step 4). Saving records to Azure Cosmos DB is a separate step 5: chats only when requested, review drafts and results saved by the server, and created-agent records. Optional API Management sits outside the default flow." src="images/foundry-overview.svg">
 </picture>
 
 [View full size](images/foundry-overview.svg) · [Edit the SVG template](images/foundry-overview.template.svg)
@@ -64,11 +64,12 @@ virtual network placement. Foundry and Cosmos DB are managed services reached
 through private endpoints. Custom review agents are not Microsoft products.
 
 The overview shows the default request and data paths, not a live resource
-inventory. The solid blue path calls agents. The dashed green path represents
-separate record operations: chat saves are explicit, while structured review
-drafts and results are persisted by the server. The dashed path does not mean
-every agent response is saved. APIM is outside the default flow and is disabled
-unless separately enabled.
+inventory. Steps 1 to 4 follow one request: the browser calls the Lab, the Lab
+calls an agent, and the result comes back. Step 5, the dashed green path, is a
+separate record save: chat saves are explicit, while structured review drafts
+and results are persisted by the server. It does not mean every agent response
+is saved. APIM is outside the default flow and is disabled unless separately
+enabled.
 
 The Lab uses its own remote state key. Choose the view that matches the question
 you need to answer:
@@ -110,7 +111,7 @@ to that same coordinator.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/agent-collaboration-dark.svg">
-  <img alt="Default review-agent collaboration, from the Lab through one selected specialist and back to a person for review" src="images/agent-collaboration.svg">
+  <img alt="Default agent collaboration in four numbered steps: you ask in the Lab with supplied evidence; in Foundry Agent Service, the Application and case helper calls one specialist, the Application checker or the Case notes summarizer; the coordinator returns findings with a tool record; and a person checks the answer against the evidence" src="images/agent-collaboration.svg">
 </picture>
 
 [View full size](images/agent-collaboration.svg) · [Edit the SVG template](images/agent-collaboration.template.svg) · [Request and result example](agent-profiles.md#example-handoff)
@@ -173,13 +174,16 @@ capabilities before adding a custom orchestration layer.
 
 ## Component interactions
 
-![Editable draw.io component map showing the React browser, internal FastAPI app, Foundry coordinator and specialists, and Cosmos persistence](images/lab-components.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/lab-components-dark.svg">
+  <img alt="Lab components and connections: the browser runs the React web app over same-origin HTTPS to the Lab's internal Container App, where the FastAPI request boundary validates requests, application routes handle chat, history, reviews, and agent creation, and FoundryGateway calls the Application and case helper in Microsoft Foundry with a managed identity. The coordinator calls the Application checker or Case notes summarizer, and both use the configured model deployment. The routes read and write application records in Azure Cosmos DB. Foundry's platform dependencies are Storage, Cosmos DB, Azure AI Search, and Key Vault." src="images/lab-components.svg">
+</picture>
 
-[View full size](images/lab-components.svg) · [Edit the draw.io source](images/lab-components.drawio)
+[View full size](images/lab-components.svg) · [Edit the SVG template](images/lab-components.template.svg)
 
-Blue connectors carry application requests; green connectors are application
-record operations. The dashed dependency connector is not a per-request
-retrieval call. The platform's Storage, Cosmos DB, and Azure AI Search backing
+Blue arrows carry application and agent calls. The dashed green arrow is the
+Lab's own record reads and writes in Cosmos DB. The gray platform connection is
+a dependency, not a per-request retrieval call. The platform's Storage, Cosmos DB, and Azure AI Search backing
 services are distinct from the Lab's application-owned conversation and review
 records. The Lab uses a dedicated container in the existing Cosmos DB account;
 Foundry-owned data is not managed through the Lab's history endpoints.
@@ -207,11 +211,15 @@ but no Search retrieval tool is connected to the reference review workflow.
 
 ## Chat and delegation
 
-![Draw.io sequence showing chat requests, managed-identity specialist delegation, response receipts, and explicit Cosmos history saves](images/lab-request-flow.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/lab-request-flow-dark.svg">
+  <img alt="How a chat request flows, in eight numbered steps: the browser posts the message and bounded history to /api/reviews (1); after admission checks, FastAPI calls the Foundry coordinator with its managed identity and store=false (2); if a specialist is selected, the coordinator sends it the full request (3) and receives a completed result (4); the coordinator returns the final answer and tool outputs (5); and the Lab returns the answer with receipt status, without saving it (6). Later, only if the user saves, the browser posts to /api/conversations (7) and the Lab creates or conditionally updates the Cosmos DB record (8)." src="images/lab-request-flow.svg">
+</picture>
 
-[View full size](images/lab-request-flow.svg) · [Edit the draw.io source](images/lab-request-flow.drawio)
+[View full size](images/lab-request-flow.svg) · [Edit the SVG template](images/lab-request-flow.template.svg)
 
-The browser sends the selected catalog ID, new message, and bounded prior turns
+Steps 1 to 6 follow one chat request. Steps 7 and 8 happen later, only if the
+user saves the chat. The browser sends the selected catalog ID, new message, and bounded prior turns
 to `POST /api/reviews`. FastAPI rejects disallowed origins, unknown agents, and
 invalid or oversized input before invoking Foundry. The backend uses managed
 identity with a named agent Responses client, `store=false`, and no automatic
@@ -252,13 +260,15 @@ of the others.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/foundry-operations-dark.svg">
-  <img alt="Separate operational paths for Lab metadata and optional agent traces, private image publishing, and protected Terraform state, with Key Vault for necessary secrets" src="images/foundry-operations.svg">
+  <img alt="Operate and protect the Lab in three independent lanes. Observe: Lab runtime metadata goes to Azure Monitor Log Analytics, and optional agent trace metadata goes from Foundry hosted agents to Application Insights. Build and publish: a private build runner pushes the image to Azure Container Registry, and the Lab pulls and runs the pinned image by digest. Protect state: Terraform reads and writes state in an existing Azure Blob Storage backend. Azure Key Vault holds only necessary secrets." src="images/foundry-operations.svg">
 </picture>
 
 [View full size](images/foundry-operations.svg) · [Edit the SVG template](images/foundry-operations.template.svg)
 
 Each row is a separate operational path, not a sequence of deployment steps.
-The image path includes the approved private runner and registry; the Lab uses
+Optional agent traces come from the Foundry hosted agents, through Application
+Insights connected to the Foundry project; the Lab itself sends only request
+metadata to Azure Monitor. The image path includes the approved private runner and registry; the Lab uses
 the resulting image digest. Terraform state uses an existing protected backend,
 not a store that this sample bootstraps. Microsoft Entra authentication can use
 the approved Azure CLI path or managed identity; the diagram does not require

@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1140" viewBox="0 0 1600 1140" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">Lab components and connections</title>
+  <desc id="desc">The Lab component map has a Browser panel for a React and TypeScript web app with Chat and Agents, Document reviews, Create agent, and shared history. The browser uses same-origin HTTPS, has no Azure credentials, uses shared fictional data, and has no end-user sign-in. A request arrow labeled Same-origin HTTPS goes to an Internal Container App panel for Azure Container Apps. Inside the app, a FastAPI request boundary performs host and origin checks, validation, and admission before application routes for chat, history, reviews, and agent creation. The routes call the FoundryGateway class, which uses a selected agent, the Responses API, and store=false. The app has one worker per replica, shared process-local limits, and signs server calls with a managed identity. A managed-identity request arrow goes from FoundryGateway to Microsoft Foundry Agent Service. The Microsoft Foundry panel contains Agent Service with named endpoints and routed versions, an Application and case helper coordinator with profile-defined tools, Application checker and Case notes summarizer specialist agents, and one configured model deployment used by the coordinator and specialists. A request fork shows the coordinator calling specialists, and a gray link shows the coordinator and specialists use the configured model deployment. A data arrow labeled Cosmos reads and writes goes from application routes through the app's left channel to Application data, which is Azure Cosmos DB with a shared partition for chat, review, and created-agent records and container-scoped managed identity access. A link line connects Microsoft Foundry to platform dependencies: Storage, Cosmos DB, AI Search, and Key Vault as the Foundry platform backing services, with Key Vault for necessary secrets. A caveat states that APIM is optional and not in the default path, and boxes are logical, not deployment units.</desc>
+  <defs>
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#0078d4"/>
+    </marker>
+    <marker id="teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#00786a"/>
+    </marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #242424; }
+      .title { font-size: 34px; font-weight: 600; }
+      .sub { font-size: 21px; fill: #4d5b69; }
+      .heading { font-size: 24px; font-weight: 600; }
+      .name { font-size: 20px; font-weight: 600; }
+      .body { font-size: 20px; }
+      .detail { font-size: 18px; }
+      .small { font-size: 18px; fill: #4d5b69; }
+      .pe { font-size: 18px; font-weight: 600; fill: #334e68; }
+      .mono { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 17px; font-weight: 600; fill: #334e68; }
+      .cidr { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 17px; fill: #4d5b69; }
+      .label { font-size: 18px; fill: #4d5b69; font-weight: 600; }
+      .boundary { font-size: 18px; font-weight: 600; fill: #4d5b69; letter-spacing: 0.4px; }
+      .num { font-family: 'Segoe UI', Arial, sans-serif; font-size: 17px; font-weight: 700; fill: #fff; }
+      .request { fill: none; stroke: #0078d4; stroke-width: 2.5; marker-end: url(#blue); }
+      .result { fill: none; stroke: #00786a; stroke-width: 2.5; marker-end: url(#teal); }
+      .data { fill: none; stroke: #00786a; stroke-width: 2.5; stroke-dasharray: 7 5; marker-end: url(#teal); }
+      .bus { fill: none; stroke: #00786a; stroke-width: 2.5; stroke-dasharray: 7 5; }
+      .line { fill: none; stroke: #0078d4; stroke-width: 2.5; }
+      .link { fill: none; stroke: #8da6bb; stroke-width: 2; }
+    </style>
+  </defs>
+  <rect width="1600" height="1140" fill="#fff"/>
+  <text x="24" y="50" class="title">Lab components and connections</text>
+  <text x="24" y="86" class="sub">What runs in the browser, the Lab's internal container app, Microsoft Foundry, and the data store, and how they connect.</text>
+  <rect x="24" y="130" width="330" height="630" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/users.svg" x="38" y="144" width="36" height="36"/>
+  <text x="84" y="168" class="name">Browser</text>
+  <text x="84" y="192" class="small">React + TypeScript web app</text>
+  <rect x="530" y="130" width="420" height="650" rx="12" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+  <image href="azure-icons/container-apps.svg" x="544" y="144" width="36" height="36"/>
+  <text x="590" y="168" class="name">Internal Container App</text>
+  <text x="590" y="192" class="small">Azure Container Apps</text>
+  <rect x="990" y="130" width="586" height="670" rx="12" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+  <image href="azure-icons/foundry.svg" x="1004" y="144" width="36" height="36"/>
+  <text x="1050" y="168" class="name">Microsoft Foundry</text>
+  <text x="1050" y="192" class="small">Named endpoints, routed versions, and one model deployment</text>
+  <rect x="48" y="222" width="282" height="190" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="64" y="258" class="name">Web app features</text>
+  <text x="64" y="290" class="detail">Chat and Agents</text>
+  <text x="64" y="316" class="detail">Document reviews</text>
+  <text x="64" y="342" class="detail">Create agent</text>
+  <text x="64" y="368" class="detail">Shared history</text>
+  <rect x="48" y="446" width="282" height="214" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="64" y="482" class="name">Browser trust</text>
+  <text x="64" y="514" class="detail">Same-origin HTTPS</text>
+  <text x="64" y="540" class="detail">No browser Azure credentials</text>
+  <text x="64" y="566" class="detail">Shared fictional data</text>
+  <text x="64" y="592" class="detail">No end-user sign-in</text>
+  <rect x="570" y="220" width="356" height="112" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="586" y="256" class="name">FastAPI request boundary</text>
+  <text x="586" y="288" class="detail">Host and origin checks</text>
+  <text x="586" y="314" class="detail">Validation and admission</text>
+  <rect x="570" y="368" width="356" height="150" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="586" y="404" class="name">Application routes</text>
+  <text x="586" y="436" class="detail">Chat, history, reviews, agent creation</text>
+  <text x="586" y="468" class="mono">/api/reviews  /api/conversations</text>
+  <text x="586" y="492" class="mono">/api/review-runs  /api/agents</text>
+  <rect x="570" y="560" width="356" height="120" rx="10" fill="#fff" stroke="#0078d4" stroke-width="2"/>
+  <text x="586" y="596" class="name">FoundryGateway</text>
+  <text x="586" y="620" class="small">Class boundary</text>
+  <text x="586" y="646" class="detail">Selected agent and Responses API</text>
+  <text x="586" y="670" class="mono">store=false</text>
+  <rect x="570" y="704" width="356" height="60" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/managed-identity.svg" x="584" y="716" width="30" height="30"/>
+  <text x="624" y="728" class="name">Managed identity</text>
+  <text x="624" y="750" class="small">Signs calls; process-local limits</text>
+  <rect x="1022" y="220" width="520" height="126" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/agent-service.svg" x="1034" y="232" width="36" height="36"/>
+  <text x="1080" y="256" class="name">Foundry Agent Service</text>
+  <text x="1038" y="296" class="detail">Named agent endpoints</text>
+  <text x="1038" y="322" class="detail">Routed versions</text>
+  <rect x="1022" y="374" width="520" height="90" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="1038" y="410" class="name">Application and case helper</text>
+  <text x="1038" y="434" class="small">Coordinator with profile-defined tools</text>
+  <rect x="1022" y="544" width="246" height="96" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="1038" y="580" class="name">Application checker</text>
+  <text x="1038" y="604" class="small">Specialist agent</text>
+  <rect x="1298" y="544" width="246" height="96" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="1314" y="580" class="name">Case notes summarizer</text>
+  <text x="1314" y="604" class="small">Specialist agent</text>
+  <rect x="1022" y="668" width="520" height="124" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/foundry-models.svg" x="1034" y="686" width="36" height="36"/>
+  <text x="1084" y="704" class="name">Configured model deployment</text>
+  <text x="1038" y="762" class="detail">Used by coordinator and specialists</text>
+  <rect x="530" y="840" width="420" height="180" rx="12" fill="#edf7f4" stroke="#00786a" stroke-width="1.5"/>
+  <text x="546" y="872" class="boundary">APPLICATION DATA</text>
+  <rect x="552" y="892" width="376" height="112" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/cosmos-db.svg" x="564" y="922" width="36" height="36"/>
+  <text x="612" y="916" class="name">Azure Cosmos DB</text>
+  <text x="612" y="940" class="small">Shared partition for app records</text>
+  <text x="612" y="962" class="small">Chat, review, created-agent records</text>
+  <text x="612" y="984" class="small">Container-scoped managed identity</text>
+  <rect x="990" y="840" width="586" height="180" rx="12" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+  <text x="1006" y="872" class="boundary">PLATFORM DEPENDENCIES</text>
+  <text x="1012" y="902" class="detail">Foundry platform backing services</text>
+  <image href="azure-icons/storage.svg" x="1012" y="920" width="30" height="30"/>
+  <text x="1050" y="942" class="small">Storage</text>
+  <image href="azure-icons/cosmos-db.svg" x="1155" y="920" width="30" height="30"/>
+  <text x="1193" y="942" class="small">Cosmos DB</text>
+  <image href="azure-icons/ai-search.svg" x="1295" y="920" width="30" height="30"/>
+  <text x="1333" y="942" class="small">AI Search</text>
+  <image href="azure-icons/key-vault.svg" x="1425" y="920" width="30" height="30"/>
+  <text x="1463" y="942" class="small">Key Vault</text>
+  <text x="1012" y="975" class="small">Key Vault holds necessary secrets</text>
+  <rect x="24" y="840" width="330" height="180" rx="8" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="42" y="876" class="name">Caveats</text>
+  <text x="42" y="908" class="detail">APIM is optional and not in</text>
+  <text x="42" y="933" class="detail">the default path.</text>
+  <text x="42" y="958" class="detail">Boxes are logical, not</text>
+  <text x="42" y="983" class="detail">deployment units.</text>
+  <path d="M330 286H562" class="request"/>
+  <text x="442" y="264" class="small" text-anchor="middle">Same-origin HTTPS</text>
+  <path d="M748 332V360" class="request"/>
+  <text x="766" y="354" class="small">Validated request</text>
+  <path d="M748 518V552" class="request"/>
+  <text x="766" y="544" class="small">Agent calls</text>
+  <path d="M926 618H960V419H1014" class="request"/>
+  <path d="M1283 464V512" class="line"/>
+  <path d="M1283 512H1145" class="line"/>
+  <path d="M1283 512H1421" class="line"/>
+  <path d="M1145 512V536" class="request"/>
+  <path d="M1421 512V536" class="request"/>
+  <text x="1297" y="500" class="small">Specialist calls</text>
+  <path d="M1283 512V668" class="link"/>
+  <path d="M570 430H548V832" class="data"/>
+  <text x="560" y="812" class="small">Cosmos reads and writes</text>
+  <path d="M1283 780V832" class="link"/>
+  <text x="1300" y="824" class="small">Platform connections</text>
+  <text x="24" y="1096" class="boundary">LEGEND</text>
+  <path d="M120 1090H176" class="request"/>
+  <text x="186" y="1096" class="small">Application or agent call</text>
+  <path d="M413 1090H469" class="data"/>
+  <text x="479" y="1096" class="small">Cosmos read or write</text>
+  <path d="M684 1090H740" class="link"/>
+  <text x="750" y="1096" class="small">Platform dependency</text>
+  <rect x="951" y="1076" width="44" height="28" rx="6" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="1005" y="1096" class="small">Caveat</text>
+  <text x="1576" y="1096" class="small" text-anchor="end">Fictional shared data only; no end-user sign-in</text>
+</svg>

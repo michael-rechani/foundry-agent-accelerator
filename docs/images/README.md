@@ -3,7 +3,7 @@
 [Home](../../README.md) / [Docs](../README.md) / Architecture artwork
 
 Use this guide when you edit or rebuild the architecture diagrams, Lab
-screenshots, or README tour. The source files, exported SVGs, and Azure icons
+screenshots, or README tour. The templates, generated SVGs, and Azure icons
 are part of the documentation contract, so update them together and keep the
 images readable at README width and on mobile.
 
@@ -11,130 +11,96 @@ images readable at README width and on mobile.
 
 | Artwork type | Source of truth | Rebuild command |
 | --- | --- | --- |
-| Detailed draw.io diagrams | `.drawio` files such as `lab-components.drawio` | `./docs/images/build-flow-diagrams.ps1 -DrawioPath "C:\Program Files\draw.io\draw.io.exe"` |
-| High-level overview diagrams | `.template.svg` files such as `foundry-overview.template.svg` | `./docs/images/build-architecture.ps1` |
+| Diagrams | `.template.svg` files such as `azure-architecture.template.svg` | `./docs/images/build-architecture.ps1` |
 | Azure service icons | Unmodified SVG files in `azure-icons/` | Copied unchanged from the official Azure Architecture Center icon set. |
 | Lab screenshots | Playwright tests in `workbench/frontend/tests/` | `npm test -- --project=desktop` in `workbench/frontend/`, then `./docs/images/refresh-screenshots.ps1` from the repo root |
 | README and scenario tours | The twelve screenshots in `screenshots/` | `./docs/images/build-tour.ps1`, then `./docs/images/build-tour.ps1 -Tour scenarios` |
 
-## Azure icons in architecture diagrams
+## Diagrams
 
-The architecture diagrams use unmodified Microsoft Azure service icons from the
-official [Azure Architecture Center icon set](https://learn.microsoft.com/azure/architecture/icons/),
-release V24. The selected SVGs in `azure-icons/` are copied unchanged from
-[Microsoft's distribution](https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip),
-which Microsoft updates in place; they match its July 2026 update. When you add
-an icon, copy it from the current download under a short lowercase name, such
-as `private-endpoints.svg`, and delete icons that no template or draw.io source
-references.
+Each diagram answers one question, so no single picture has to show every
+component:
 
-Microsoft permits these icons in architectural diagrams, training materials, and
-documentation, and reserves other rights. Do not crop, recolor, distort, rotate,
-or repurpose product icons to represent custom applications. Product names
-accompany their icons; custom review agents use plain labeled shapes inside the
-Foundry Agent Service boundary.
+| Diagram | What it shows | Where it appears | Source |
+| --- | --- | --- | --- |
+| [Agent release journey](agent-release-journey.svg) | The private foundation and agent releases as two connected workflows, their configuration handoff, and the decisions people approve. | [README](../../README.md#one-foundation-two-connected-workflows), [showcase](../showcase.md) | [Template](agent-release-journey.template.svg) |
+| [Azure architecture](azure-architecture.svg) | One-page network map: the subscription and resource group, the admin and workload networks with their default subnets, a private endpoint for each service, and seven numbered request steps. | [README](../../README.md#what-runs-in-azure) | [Template](azure-architecture.template.svg) |
+| [Agent collaboration](agent-collaboration.svg) | The coordinator's requests to specialists, their results, and the person who checks the answer. | [README](../../README.md#agents-working-together), [architecture guide](../architecture.md#agent-collaboration) | [Template](agent-collaboration.template.svg) |
+| [How the Lab handles a request](foundry-overview.svg) | The Lab's request path, the records it saves, and optional Azure API Management (APIM) outside the default flow. | [Architecture guide](../architecture.md#implementation-overview) | [Template](foundry-overview.template.svg) |
+| [Lab components](lab-components.svg) | What runs in the browser, the Lab's internal container app, Microsoft Foundry, and the data store, and how they connect. | [Architecture guide](../architecture.md#component-interactions) | [Template](lab-components.template.svg) |
+| [Chat request flow](lab-request-flow.svg) | One chat request in sequence: admission, specialist delegation, receipts, and the separate save to shared history. | [Architecture guide](../architecture.md#chat-and-delegation) | [Template](lab-request-flow.template.svg) |
+| [Review lifecycle](review-lifecycle.svg) | What a document review saves before it runs, how results are checked, and how clarification resumes. | [Review workflow](../review-workflow.md#execution-and-persistence) | [Template](review-lifecycle.template.svg) |
+| [Operations](foundry-operations.svg) | Independent telemetry, image-publishing, and state paths, plus secret ownership. | [Architecture guide](../architecture.md#operations) | [Template](foundry-operations.template.svg) |
+| [Terraform deployment](foundry-deployment.svg) | Which Terraform root owns what, what must exist first, and the separate release workflows. | [Extension guide](../architecture-assessment.md#terraform-first-deployment) | [Template](foundry-deployment.template.svg) |
 
-## Detailed draw.io diagrams
-
-The deeper architecture views are native, editable draw.io documents. Shapes,
-labels, boundaries, and connectors remain editable; these are not flattened
-screenshots imported into draw.io. Official icon bytes are embedded unchanged.
-
-| View | Editable source | GitHub-readable export |
-| --- | --- | --- |
-| Lab components and dependencies | [lab-components.drawio](lab-components.drawio) | [lab-components.svg](lab-components.svg) |
-| Chat request, delegation, and save | [lab-request-flow.drawio](lab-request-flow.drawio) | [lab-request-flow.svg](lab-request-flow.svg) |
-| Review persistence and recovery | [review-lifecycle.drawio](review-lifecycle.drawio) | [review-lifecycle.svg](review-lifecycle.svg) |
-
-Open a source in draw.io Desktop, or choose **File > Open from > Device** in
-[diagrams.net](https://app.diagrams.net/). Edit the source, then export with
-draw.io Desktop (verified with version 31.4.4):
-
-```powershell
-./docs/images/build-flow-diagrams.ps1 -DrawioPath "C:\Program Files\draw.io\draw.io.exe"
-```
-
-The script checks native XML references, embeds any `azure-icons/...` image
-references, and exports SVGs containing both the artwork and an editable diagram
-copy. It rejects external image dependencies. Exports use the light theme only,
-so GitHub shows the light artwork in both themes. These diagrams have no dark
-variant yet: their SVGs come from draw.io Desktop, not the template build, so
-the overview color map does not apply, and a dark export would need its own
-draw.io Desktop pass and visual review. The script also removes
-the PNG copies of text labels that draw.io adds for viewers without HTML text
-support; browsers render the text directly, and the SVGs stay under 100 KB.
-The standalone `.drawio` file is the source of truth; do not maintain a separate
-edited copy inside the SVG. Use
-`-PreviewDirectory <temporary-directory>` for PNG inspection copies, and
-`-Names lab-components` to rebuild one view. Commit sources and SVG exports
-together, not temporary previews or downloaded tools.
-
-The root README opens with the [README tour](#readme-tour), an animated view of
-**Explore demos**, **Create agent**, **Chat**, and **Document reviews** in light or
-dark to match the reader's GitHub theme. A second tour presents the three
-fictional customer stories. It shows the release journey,
-agent-collaboration view, and Azure architecture view under "How it works",
-and links to the architecture guide for the platform overview. The Azure
-architecture view is wide, so the README pairs it with a full-size link. Detailed diagrams belong in the
-[architecture guide](../architecture.md) and
-[review workflow](../review-workflow.md), with full-size links for zooming on
-small screens. Each view labels its requests, results, and persistence paths;
-color alone does not identify a trust boundary or prove success. Product icons
-identify Microsoft services; plain shapes identify custom code. Label optional
-paths and execution boundaries explicitly rather than relying on color alone.
-
-## High-level overview artwork
-
-Use the six views for different questions rather than putting every component
-in one diagram:
-
-| View | Purpose | Editable source |
-| --- | --- | --- |
-| [Agent release journey](agent-release-journey.svg) | Customer-facing explanation of the separate foundation and agent-release workflows, their configuration handoff, and human approval boundaries. | [SVG template](agent-release-journey.template.svg) |
-| [Azure architecture](azure-architecture.svg) | One-page network map: the subscription and resource group, the admin and workload networks with their default subnets, a private endpoint for each service, and seven numbered request steps. | [SVG template](azure-architecture.template.svg) |
-| [Agent collaboration](agent-collaboration.svg) | Coordinator requests, specialist results, and human review. | [SVG template](agent-collaboration.template.svg) |
-| [Lab infrastructure](foundry-overview.svg) | Default request paths and application-owned records; optional Azure API Management (APIM) stays outside the flow. | [SVG template](foundry-overview.template.svg) |
-| [Operations and security](foundry-operations.svg) | Independent telemetry, image-publishing, and state paths, plus secret ownership. | [SVG template](foundry-operations.template.svg) |
-| [Terraform deployment](foundry-deployment.svg) | Platform, Lab, Bastion, and agent monitoring resource ownership, existing prerequisites, and separate release workflows. | [SVG template](foundry-deployment.template.svg) |
-
-Edit the [Azure architecture view](azure-architecture.template.svg),
-[agent-collaboration view](agent-collaboration.template.svg),
-[runtime overview](foundry-overview.template.svg),
-[operations diagram](foundry-operations.template.svg), or
-[deployment view](foundry-deployment.template.svg), or
-[agent release journey](agent-release-journey.template.svg), then run:
+Edit a template, then rebuild every diagram, or only the ones you changed:
 
 ```powershell
 ./docs/images/build-architecture.ps1
+./docs/images/build-architecture.ps1 -Name agent-collaboration
 ```
 
-The build embeds any referenced icons as their original SVG bytes. It writes a
-light `<name>.svg` and a dark `<name>-dark.svg` from each template; see
-[Dark variants](#dark-variants). The
-[rendered Azure architecture](azure-architecture.svg),
-[rendered agent flow](agent-collaboration.svg),
-[rendered overview](foundry-overview.svg),
-[rendered operations diagram](foundry-operations.svg), and
-[rendered deployment view](foundry-deployment.svg) remain self-contained when
-GitHub displays them, as do their dark variants, with no external asset or
-network dependency. Keep source icons, templates, and generated images together.
+The build picks up every `*.template.svg` file in this folder. It writes a
+light `<name>.svg` and a dark `<name>-dark.svg` from each template (see
+[Dark variants](#dark-variants)) and embeds the referenced icons as their
+original SVG bytes. The generated SVGs are self-contained when GitHub displays
+them, with no external asset or network dependency, so don't edit them by
+hand. Commit each template with both of its outputs.
 
-The Azure architecture view is the one-picture network map. It borrows the
-layered layout of the Azure Architecture Center reference diagrams: dashed
-boundaries for the subscription and resource group, blue panels for the two
-virtual networks, and white subnet boxes labeled with their Terraform names and
-default address ranges. Only what is deployed into a virtual network sits inside
-one: Azure Bastion and the jumpbox in the admin network, and in the workload
-network the Lab's internal Container Apps environment, the agent subnet
-delegated to Foundry, and one private endpoint for each service. Foundry, data
-services, and shared services sit outside the networks, each linked to its
-private endpoint.
+These are logical diagrams, not a resource inventory. Only the Azure
+architecture view shows subnets; elsewhere, boxes don't place managed services
+inside virtual networks.
 
-Numbered badges 1 to 7 follow one request and match the steps in the root
-README and the SVG description. Solid blue arrows are requests, dashed green
-arrows are data reads and writes, and plain gray lines are private endpoint
-connections outside the numbered steps. Warm dashed cards mark optional
-resources. The legend repeats each cue in words. Don't draw what Terraform
+## Diagram style
+
+All nine diagrams follow the same rules, so the set reads as one family. They
+borrow the layered layout of the
+[Azure Architecture Center](https://learn.microsoft.com/azure/architecture/browse/)
+reference diagrams, simplified for a workshop audience: official icons,
+restrained color, generous spacing, and labeled flows.
+
+- **Canvas:** 1600 pixels wide, so every diagram scales by the same amount at
+  README width. The height fits the content.
+- **Header:** a 34 px title and a 21 px subtitle that states the main idea.
+  When a diagram has numbered steps, the subtitle says what they follow.
+- **Type:** 20 px semibold names; 18 px details, captions, and arrow labels;
+  17 px monospace for paths, endpoints, and tool names; 18 px uppercase labels
+  for boundaries. Don't go smaller; add height or cut words instead.
+- **Boundaries and panels:**
+  - Dashed outlines group things that share a scope, such as the subscription,
+    a phase, or the roots that read platform resources.
+  - Blue panels hold Azure services and networks.
+  - Green panels hold data.
+  - Gray panels hold people, the browser, and tooling.
+  - Warm dashed cards mark optional resources.
+  - Yellow boxes hold caveats.
+- **Cards:** white with a thin border. A 2 px blue border marks the focal item.
+  Microsoft services carry their official icon and product name. Custom agents
+  and custom code use plain cards, sometimes with a monospace name. Name
+  third-party tools such as Terraform and Docker in text; don't use their logos.
+- **Arrows:** solid blue for requests, solid green for results, dashed green
+  for data reads and writes, and plain gray for connections with no direction,
+  such as a private endpoint and its service. Arrows don't cross, and their
+  labels sit clear of borders.
+- **Numbered badges:** blue circles on requests and green circles on data
+  steps, numbered in the order of one story. The steps beside the diagram and
+  the SVG description use the same numbers.
+- **Legend:** a bottom row repeats, in words, only the cues that diagram uses,
+  with one short caveat on the right.
+- **Color:** only the colors in the [dark-variant map](#dark-variants). No
+  gradients, shadows, transparency, or animation.
+- **Accessibility:** the `<title>` names the diagram and the `<desc>` describes
+  every box, path, and step in prose. Labels, not color alone, carry meaning.
+
+### Keep each diagram accurate
+
+The Azure architecture view is the one-picture network map. Only what is
+deployed into a virtual network sits inside one: Azure Bastion and the jumpbox
+in the admin network, and in the workload network the Lab's internal Container
+Apps environment, the agent subnet delegated to Foundry, and one private
+endpoint for each service. Foundry, data services, and shared services sit
+outside the networks, each linked to its private endpoint. Badges 1 to 7 follow
+one request and match the steps in the root README. Don't draw what Terraform
 doesn't create, such as network security groups or a firewall, and don't add
 paths the view omits on purpose, such as Lab logs, which reach Azure Monitor
 through diagnostic settings rather than its private endpoint. Model names are
@@ -145,38 +111,58 @@ update the view.
 The collaboration view shows the Lab's default setup: **Application and case
 helper** with the **Application checker** and **Case notes summarizer**
 specialists. Its numbered steps match the root README. Steps 2 and 3 are stages
-of one coordinator agent, not separate agents. Blue arrows carry requests;
-green arrows return results. Arrow labels and text explain the distinction
-without relying on color. Keep the one-specialist default,
-clarification/failure behavior, and human-review boundary aligned with the
-implementation. The official Foundry icon labels the service boundary; the
-custom agents use plain cards.
+of one coordinator agent, not separate agents. Keep the one-specialist default,
+clarification and failure behavior, and human-review boundary aligned with the
+implementation.
 
-The infrastructure view separates agent calls from record reads and writes. Its
-dashed record path is not an automatic transcript-save step. Keep explicit chat
-saves distinct from server-persisted review drafts and results. The operations
-rows are independent paths, not sequential tasks or network boundaries. Preserve
-the existing-backend requirement and the distinction between Entra
-authentication and a specific managed identity.
+The Lab request view separates agent calls from record saves. Chat is saved
+only when someone asks; review drafts and results are saved by the server.
+Neither is an automatic transcript save. Keep optional APIM outside the default
+flow.
+
+The component map and the chat request flow show the Lab's own code as plain
+cards: the FastAPI request boundary, its routes, and `FoundryGateway`. The
+platform's Storage, Cosmos DB, and Azure AI Search backing services are distinct
+from the Lab's application records. In the request flow, saving to shared
+history is a separate user action, and limits match the values in
+`workbench/app.py`.
+
+The review lifecycle shows that a review is saved before it runs, that results
+must pass fail-closed checks before the final write, and how clarification
+resumes a run. Keep its endpoints, status codes, and steps aligned with
+`workbench/review_runs.py` and the [review workflow](../review-workflow.md).
+
+The operations lanes are independent paths, not sequential tasks or network
+boundaries. Optional agent traces come from Foundry, not the Lab. Preserve the
+existing-backend requirement and the distinction between Entra authentication
+and a specific managed identity.
 
 The deployment view shows ownership, not another runtime flow. The Lab,
 Bastion, and agent monitoring roots reference platform resources; none of them
 takes ownership of the platform state. Build artifacts and agent versions remain
-release-workflow outputs. Keep
-optional alert delivery distinct from agent-triggered email, and do not depict
-an enterprise landing zone or gateway as deployed by default.
+release-workflow outputs. Keep optional alert delivery distinct from
+agent-triggered email, and don't depict an enterprise landing zone or gateway
+as deployed by default.
 
-These are logical diagrams, not a resource inventory. Only the Azure
-architecture view shows subnets. Component boxes do not place managed services
-inside virtual networks. The
-overview focuses on runtime calls; the operations view covers monitoring,
-private state access, and security boundaries. APIM is optional. Keep secret
-ownership and private connectivity boundaries visible without adding
-deployment-history notes.
+## Azure icons in architecture diagrams
+
+The diagrams use unmodified Microsoft Azure service icons from the
+official [Azure Architecture Center icon set](https://learn.microsoft.com/azure/architecture/icons/),
+release V24. The selected SVGs in `azure-icons/` are copied unchanged from
+[Microsoft's distribution](https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip),
+which Microsoft updates in place; they match its July 2026 update. When you add
+an icon, copy it from the current download under a short lowercase name, such
+as `private-endpoints.svg`, and delete icons that no template references.
+
+Microsoft permits these icons in architectural diagrams, training materials, and
+documentation, and reserves other rights. Do not crop, recolor, distort, rotate,
+or repurpose product icons to represent custom applications. Product names
+accompany their icons; custom review agents use plain labeled cards inside the
+Foundry Agent Service boundary. Don't use the Azure logo as a service icon.
 
 ## Dark variants
 
-GitHub shows the `-dark` overview diagrams to readers who use a dark theme.
+GitHub shows the `-dark` diagrams to readers who use a dark theme.
 Both variants come from the same template, so do not edit either SVG by hand.
 Edit the template, rebuild, and commit the template and both outputs together.
 
@@ -233,9 +219,8 @@ and after the block so the surrounding Markdown still renders:
 </picture>
 ```
 
-Full-size and template links keep pointing to the light SVG and the template.
-The draw.io diagrams stay light-only for now; see
-[Detailed draw.io diagrams](#detailed-drawio-diagrams).
+Every diagram and screenshot embed uses this pattern. Full-size and template
+links keep pointing to the light SVG and the template.
 
 ## Lab screenshots
 
@@ -248,11 +233,11 @@ and say "illustrative" in the caption and alt text wherever you use one.
 | Screenshot | Shows | Test output | Used in |
 | --- | --- | --- | --- |
 | [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide and example tasks | `demo-starters.png` | [README tour](#readme-tour), [demo guide](../demos.md#a-short-demonstration) |
-| [lab-chat-start-dark.png](screenshots/lab-chat-start-dark.png) | The same **Chat** with the **System** theme and a dark color scheme | `demo-starters-dark.png` | [README tour](#readme-tour) for readers using GitHub's dark theme |
+| [lab-chat-start-dark.png](screenshots/lab-chat-start-dark.png) | The same **Chat** with the **System** theme and a dark color scheme | `demo-starters-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
 | [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [README tour](#readme-tour), [review workflow](../review-workflow.md#workflow) |
-| [lab-document-review-dark.png](screenshots/lab-document-review-dark.png) | The same review with the **System** theme and a dark color scheme | `review-findings-dark.png` | [README tour](#readme-tour) for readers using GitHub's dark theme |
+| [lab-document-review-dark.png](screenshots/lab-document-review-dark.png) | The same review with the **System** theme and a dark color scheme | `review-findings-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
 | [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page with its templates in two groups and the full sidebar | `creation-start.png` | [README tour](#readme-tour) and its full-size link, [agent creation](../agent-creation.md#what-a-participant-can-do) |
-| [lab-create-agent-dark.png](screenshots/lab-create-agent-dark.png) | The same page in the **Dark** theme with the Foundry accent and one template selected | `creation-start-dark.png` | [README tour](#readme-tour) for readers using GitHub's dark theme |
+| [lab-create-agent-dark.png](screenshots/lab-create-agent-dark.png) | The same page in the **Dark** theme with the Foundry accent and one template selected | `creation-start-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
 | [lab-demo-application.png](screenshots/lab-demo-application.png) / [dark](screenshots/lab-demo-application-dark.png) | Application completeness story in **Explore demos** | `demo-application.png` / `demo-application-dark.png` | README and scenario tours, [showcase](../showcase.md) |
 | [lab-demo-invoice.png](screenshots/lab-demo-invoice.png) / [dark](screenshots/lab-demo-invoice-dark.png) | Supplier invoice story with clearly illustrative findings | `demo-invoice.png` / `demo-invoice-dark.png` | Scenario tour and showcase |
 | [lab-demo-casework.png](screenshots/lab-demo-casework.png) / [dark](screenshots/lab-demo-casework-dark.png) | Casework story preserving facts, disagreements, and human decisions | `demo-casework.png` / `demo-casework-dark.png` | Scenario tour and showcase |
@@ -318,9 +303,12 @@ README alt text describes the full sequence.
 ## Visual review checklist
 
 - Check each image at README width and on mobile.
-- Check the overview diagrams in both GitHub themes. Render the light and
-  `-dark` SVGs and confirm that text, arrows, notes, icons, and card edges stay
-  visible in each.
+- Check every diagram in both GitHub themes. Render the light and `-dark` SVGs
+  and confirm that text, arrows, notes, icons, and card edges stay visible in
+  each.
+- Confirm that each diagram follows the [diagram style](#diagram-style): gaps
+  wide enough for arrow labels, no crossings, labels clear of borders, and
+  numbered badges that match the steps in the surrounding page.
 - Refresh each `-dark` screenshot together with its light screenshot so the two
   README tour variants show the same UI.
 - After you refresh any tour screenshot, rebuild the tour with
