@@ -223,10 +223,22 @@ and in Foundry, see [agent names](docs/README.md#agent-names).
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/azure-architecture-dark.svg">
-  <img alt="Azure architecture at a glance: people sign in through Azure Bastion to a jumpbox in an optional admin network peered with a private workload network. The Lab runs in an internal Azure Container Apps environment and calls Foundry Agent Service, which uses Foundry Models. Records and agent data live in Azure Cosmos DB, Azure Storage, and Azure AI Search, reached through private endpoints. Managed identities, Key Vault, Container Registry, and Azure Monitor are shared services" src="docs/images/azure-architecture.svg">
+  <img alt="Azure architecture at a glance: one subscription and resource group hold an admin network, a private workload network, Microsoft Foundry, data services, and shared services. The admin network has subnets for optional Azure Bastion and an optional jumpbox and is peered with the workload network. The workload network has subnets for the Lab in an internal Azure Container Apps environment, the agent network delegated to Foundry, and one private endpoint for each service. Seven numbered steps follow a request from the presenter through Bastion, the jumpbox, and the Lab to Foundry Agent Service, Foundry Models, Azure Cosmos DB, Azure Storage, and Azure AI Search" src="docs/images/azure-architecture.svg">
 </picture>
 
-*Logical view, not a resource inventory. Optional API Management isn't shown.*
+1. A presenter opens Azure Bastion from the Azure portal.
+2. Bastion opens a remote desktop session to the private jumpbox.
+3. The jumpbox browser opens the Lab across the network peering. The Lab
+   accepts traffic only from the jumpbox subnet.
+4. The Lab calls Foundry Agent Service through the Foundry private endpoint,
+   signing in with its managed identity.
+5. The agents run on a Foundry Models deployment, GPT-4.1 by default.
+6. From the agent subnet, Foundry agents keep conversations, files, and search
+   data in Cosmos DB, Storage, and AI Search through their private endpoints.
+7. The Lab saves its records in Cosmos DB through the same private endpoint.
+
+*Logical view with Terraform default addresses, not a resource inventory.
+Bastion and the jumpbox are optional; API Management isn't shown.*
 
 [View full size](docs/images/azure-architecture.svg) ·
 [Edit the SVG template](docs/images/azure-architecture.template.svg)

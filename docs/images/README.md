@@ -22,7 +22,11 @@ images readable at README width and on mobile.
 The architecture diagrams use unmodified Microsoft Azure service icons from the
 official [Azure Architecture Center icon set](https://learn.microsoft.com/azure/architecture/icons/),
 release V24. The selected SVGs in `azure-icons/` are copied unchanged from
-[Microsoft's distribution](https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip).
+[Microsoft's distribution](https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip),
+which Microsoft updates in place; they match its July 2026 update. When you add
+an icon, copy it from the current download under a short lowercase name, such
+as `private-endpoints.svg`, and delete icons that no template or draw.io source
+references.
 
 Microsoft permits these icons in architectural diagrams, training materials, and
 documentation, and reserves other rights. Do not crop, recolor, distort, rotate,
@@ -87,7 +91,7 @@ in one diagram:
 | View | Purpose | Editable source |
 | --- | --- | --- |
 | [Agent release journey](agent-release-journey.svg) | Customer-facing explanation of the separate foundation and agent-release workflows, their configuration handoff, and human approval boundaries. | [SVG template](agent-release-journey.template.svg) |
-| [Azure architecture](azure-architecture.svg) | One-page map of the Azure services: the optional admin network, the private workload network, Foundry, data services, and shared services. | [SVG template](azure-architecture.template.svg) |
+| [Azure architecture](azure-architecture.svg) | One-page network map: the subscription and resource group, the admin and workload networks with their default subnets, a private endpoint for each service, and seven numbered request steps. | [SVG template](azure-architecture.template.svg) |
 | [Agent collaboration](agent-collaboration.svg) | Coordinator requests, specialist results, and human review. | [SVG template](agent-collaboration.template.svg) |
 | [Lab infrastructure](foundry-overview.svg) | Default request paths and application-owned records; optional Azure API Management (APIM) stays outside the flow. | [SVG template](foundry-overview.template.svg) |
 | [Operations and security](foundry-operations.svg) | Independent telemetry, image-publishing, and state paths, plus secret ownership. | [SVG template](foundry-operations.template.svg) |
@@ -115,13 +119,28 @@ light `<name>.svg` and a dark `<name>-dark.svg` from each template; see
 GitHub displays them, as do their dark variants, with no external asset or
 network dependency. Keep source icons, templates, and generated images together.
 
-The Azure architecture view is the one-picture map. Network boxes hold only
-what is deployed into a virtual network: the optional admin network with
-Bastion and the jumpbox, the internal Container Apps environment, the delegated
-agent subnet, and private endpoints. Foundry, data services, and shared services
-sit outside them and are reached through those private endpoints. Model names
-are examples; deployments are configurable. Keep optional API Management out of
-this view.
+The Azure architecture view is the one-picture network map. It borrows the
+layered layout of the Azure Architecture Center reference diagrams: dashed
+boundaries for the subscription and resource group, blue panels for the two
+virtual networks, and white subnet boxes labeled with their Terraform names and
+default address ranges. Only what is deployed into a virtual network sits inside
+one: Azure Bastion and the jumpbox in the admin network, and in the workload
+network the Lab's internal Container Apps environment, the agent subnet
+delegated to Foundry, and one private endpoint for each service. Foundry, data
+services, and shared services sit outside the networks, each linked to its
+private endpoint.
+
+Numbered badges 1 to 7 follow one request and match the steps in the root
+README and the SVG description. Solid blue arrows are requests, dashed green
+arrows are data reads and writes, and plain gray lines are private endpoint
+connections outside the numbered steps. Warm dashed cards mark optional
+resources. The legend repeats each cue in words. Don't draw what Terraform
+doesn't create, such as network security groups or a firewall, and don't add
+paths the view omits on purpose, such as Lab logs, which reach Azure Monitor
+through diagnostic settings rather than its private endpoint. Model names are
+examples; deployments are configurable. Keep optional API Management and its
+subnet out of this view. When a subnet or address default changes in Terraform,
+update the view.
 
 The collaboration view shows the Lab's default setup: **Application and case
 helper** with the **Application checker** and **Case notes summarizer**
@@ -147,8 +166,9 @@ release-workflow outputs. Keep
 optional alert delivery distinct from agent-triggered email, and do not depict
 an enterprise landing zone or gateway as deployed by default.
 
-These are logical diagrams, not an exhaustive subnet or resource inventory.
-Component boxes do not place managed services inside virtual networks. The
+These are logical diagrams, not a resource inventory. Only the Azure
+architecture view shows subnets. Component boxes do not place managed services
+inside virtual networks. The
 overview focuses on runtime calls; the operations view covers monitoring,
 private state access, and security boundaries. APIM is optional. Keep secret
 ownership and private connectivity boundaries visible without adding
