@@ -1,14 +1,16 @@
 import asyncio
 import json
+import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from dataclasses import replace
-from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from app import Settings, cache_policy, create_app, execution_receipts, load_agents
+from app import FoundryGateway, Settings, cache_policy, create_app, execution_receipts, load_agents
 
 
 class WorkbenchTests(unittest.TestCase):
@@ -274,6 +276,41 @@ class WorkbenchTests(unittest.TestCase):
         self.assertFalse(execution_receipts(output + output, {"inspect": "specialist"})[0]["verified"])
         output[1]["call_id"] = "other"
         self.assertFalse(execution_receipts(output, {"inspect": "specialist"})[0]["verified"])
+
+
+class FoundryGatewayTests(unittest.IsolatedAsyncioTestCase):
+    async def test_reviews_reuse_one_credential_project_and_connection_pool(self):
+        response = SimpleNamespace(status="completed", output_text="Finding", model_dump=lambda: {"output": []})
+        openai_client = MagicMock()
+        openai_client.responses.create = AsyncMock(return_value=response)
+        project, credential, pool = MagicMock(close=AsyncMock()), MagicMock(close=AsyncMock()), MagicMock(aclose=AsyncMock())
+        project.get_openai_client.return_value = openai_client
+        project_class, credential_class = MagicMock(return_value=project), MagicMock(return_value=credential)
+        modules = {
+            "azure.ai.projects.aio": SimpleNamespace(AIProjectClient=project_class),
+            "azure.identity.aio": SimpleNamespace(ManagedIdentityCredential=credential_class),
+            "openai": SimpleNamespace(DefaultAsyncHttpxClient=MagicMock(return_value=pool)),
+        }
+        settings = Settings("private", "https://example.services.ai.azure.com/api/projects/test",
+                            ("testserver",), ("https://testserver",))
+        gateway = FoundryGateway(settings)
+        with patch.dict(sys.modules, modules):
+            for agent in ("case-review-agent", "application-review-agent"):
+                self.assertEqual(await gateway.review({"agent": agent}, "Review"), ("completed", "Finding", []))
+        project_class.assert_called_once_with(endpoint=settings.endpoint, credential=credential, allow_preview=True)
+        credential_class.assert_called_once()
+        self.assertEqual([call.kwargs for call in project.get_openai_client.call_args_list], [
+            {"agent_name": agent, "timeout": settings.timeout, "max_retries": 0, "http_client": pool}
+            for agent in ("case-review-agent", "application-review-agent")
+        ])
+        openai_client.responses.create.assert_awaited_with(input="Review", store=False, stream=False)
+        openai_client.close.assert_not_called()
+        await gateway.close()
+        pool.aclose.assert_awaited_once()
+        project.close.assert_awaited_once()
+        credential.close.assert_awaited_once()
+        await gateway.close()
+        pool.aclose.assert_awaited_once()
 
 
 if __name__ == "__main__":

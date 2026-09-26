@@ -134,26 +134,32 @@ class SDKContractTests(unittest.TestCase):
                 })
 
             original = AIProjectClient.get_openai_client
+            created = []
 
             def get_client(project, **kwargs):
+                created.append(kwargs["agent_name"])
                 return original(project, http_client=httpx2.AsyncClient(
                     transport=httpx2.MockTransport(respond)
                 ), **kwargs)
 
             credential = Credential()
             with patch.object(AIProjectClient, "get_openai_client", get_client):
-                result = await module.invoke_specialist(
-                    "https://example.services.ai.azure.com/api/projects/test",
-                    credential, "application-review-agent", "review", 2,
-                )
-            self.assertEqual(result, "grounded finding")
-            self.assertEqual(len(requests), 1)
+                async with module.SpecialistClients(
+                    "https://example.services.ai.azure.com/api/projects/test", credential,
+                ) as clients:
+                    results = [
+                        await module.invoke_specialist(clients, "application-review-agent", "review", 2)
+                        for _ in range(2)
+                    ]
+            self.assertEqual(results, ["grounded finding", "grounded finding"])
+            self.assertEqual(created, ["application-review-agent"])
+            self.assertEqual(len(requests), 2)
             self.assertTrue(requests[0].url.path.endswith(
                 "/agents/application-review-agent/endpoint/protocols/openai/responses"
             ))
             self.assertEqual(json.loads(requests[0].content)["store"], False)
             self.assertEqual(requests[0].headers["authorization"], "Bearer test-only-token")
-            tools = module.create_specialist_tools("https://example.test", credential)
+            tools = module.create_specialist_tools(clients)
             client = FoundryChatClient(project_endpoint="https://example.test", model="test",
                                        credential=credential, allow_preview=True)
             agent = Agent(client=client, tools=tools)
@@ -161,7 +167,7 @@ class SDKContractTests(unittest.TestCase):
                              {"review_application", "review_case"})
             registry = [{"tool": "inspect_stock", "agent": "stock-agent", "description": "Inspect supplied inventory."}]
             with patch.dict(module.os.environ, {"SPECIALIST_CONFIG": json.dumps(registry)}):
-                custom_agent = Agent(client=client, tools=module.create_specialist_tools("https://example.test", credential))
+                custom_agent = Agent(client=client, tools=module.create_specialist_tools(clients))
             registered = custom_agent.default_options["tools"]
             self.assertEqual([tool.name for tool in registered], ["inspect_stock"])
             self.assertEqual(registered[0].description, "Inspect supplied inventory.")

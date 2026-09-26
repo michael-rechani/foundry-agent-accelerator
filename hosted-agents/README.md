@@ -109,7 +109,9 @@ specialist retries and allows at most four specialist calls in flight per
 process. Set `SPECIALIST_TIMEOUT_SECONDS` and `SPECIALIST_MAX_CONCURRENCY` in
 the runtime environment to tune these limits. Cancelling the HTTP request
 releases local resources but does not guarantee the remote service stops
-already-started work.
+already-started work. The coordinator keeps one authenticated client per
+specialist for the life of the process, so repeated calls reuse open
+connections. Each request still gets a current access token.
 
 ## Deployment walkthrough
 

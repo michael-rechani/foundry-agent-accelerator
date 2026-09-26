@@ -185,6 +185,7 @@ def execution_receipts(output, bindings):
 class FoundryGateway:
     def __init__(self, settings):
         self.settings = settings
+        self._credential = self._project = self._http_client = None
 
     async def check(self, agents):
         from azure.ai.projects.aio import AIProjectClient
@@ -197,16 +198,34 @@ class FoundryGateway:
             for agent in agents:
                 await project.agents.get(agent["agent"])
 
-    async def review(self, agent, prompt):
-        from azure.ai.projects.aio import AIProjectClient
-        from azure.identity.aio import ManagedIdentityCredential
+    def _review_project(self):
+        if self._project is None:
+            from azure.ai.projects.aio import AIProjectClient
+            from azure.identity.aio import ManagedIdentityCredential
+            from openai import DefaultAsyncHttpxClient
 
-        async with ManagedIdentityCredential(client_id=os.getenv("AZURE_CLIENT_ID")) as credential, AIProjectClient(
-            endpoint=self.settings.endpoint, credential=credential, allow_preview=True,
-        ) as project:
-            async with project.get_openai_client(agent_name=agent["agent"], timeout=self.settings.timeout, max_retries=0) as client:
-                response = await client.responses.create(input=prompt, store=False, stream=False)
-                return response.status, response.output_text, response.model_dump().get("output", [])
+            self._credential = ManagedIdentityCredential(client_id=os.getenv("AZURE_CLIENT_ID"))
+            self._project = AIProjectClient(endpoint=self.settings.endpoint, credential=self._credential, allow_preview=True)
+            self._http_client = DefaultAsyncHttpxClient()
+        return self._project
+
+    async def review(self, agent, prompt):
+        # Reuses the cached token and open connections. The per-agent client shares the pool, so closing it would close the pool.
+        client = self._review_project().get_openai_client(
+            agent_name=agent["agent"], timeout=self.settings.timeout, max_retries=0, http_client=self._http_client,
+        )
+        response = await client.responses.create(input=prompt, store=False, stream=False)
+        return response.status, response.output_text, response.model_dump().get("output", [])
+
+    async def close(self):
+        http_client, project, credential = self._http_client, self._project, self._credential
+        self._credential = self._project = self._http_client = None
+        if http_client is not None:
+            await http_client.aclose()
+        if project is not None:
+            await project.close()
+        if credential is not None:
+            await credential.close()
 
 
 class ChatReviews:
@@ -376,6 +395,7 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
                 await asyncio.gather(monitor, return_exceptions=True)
             await review_runs.close()
             await created_agents.close()
+            await gateway.close()
             if history_store is not None:
                 await history_store.close()
 
