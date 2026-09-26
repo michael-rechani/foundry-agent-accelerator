@@ -44,7 +44,7 @@ draft only: no model calls and no saved records.
 For a customer-facing walkthrough, choose [one demonstration](demos.md).
 Application completeness is available in source. Requirements and proposal
 coverage is **Preview** and reuses this criteria-and-evidence contract. The
-[fictional RFP input](demo-inputs/requirements-review.json) can be pasted into
+[fictional proposal input](demo-inputs/requirements-review.json) can be pasted into
 the existing fields; there is no file-import feature or new agent requirement.
 Ordinary **Chat** remains separate and does not require this JSON schema or
 review receipts.

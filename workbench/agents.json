@@ -2,47 +2,47 @@
   {
     "id": "customer-review",
     "label": "Application and case helper",
-    "category": "Uses specialist agents",
+    "category": "Coordinator: hands off to specialists",
     "description": "Check whether an application includes what you asked for, or turn case notes into a clear summary.",
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
       "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
       "limits": "It only reads what you supply. It cannot look up missing documents, change business systems or decide whether to approve something. Requirements and proposal review is in preview.",
-      "delegation": "It asks the application-checking or case-notes agent to handle your task, then returns their findings in one reply. It uses both only if you request both, and may first ask what you need.",
+      "delegation": "It hands your task to a specialist agent (Application checker or Case notes summarizer), then returns their findings in one reply. It uses both only if you ask for both, and may first ask what you need.",
       "configuration": "Instructions and specialist tools: hosted-agents\\review-coordinator-agent\\profiles\\evidence-review.example.json. Publish a new coordinator version with this profile to change runtime behavior."
     },
     "agent": "customer-review-coordinator",
     "tools": {"inspect_application": "application-review-agent", "inspect_case": "case-review-agent"},
     "prompts": [
-      {"label": "Review an application", "text": "Check this fictional permit application against my checklist. Make a table showing what is included, missing or unclear. Refer to the checklist and document labels so I can check each point. Ask questions that would help fill in the missing details. Missing information is not an automatic failure. Do not approve, deny, score, rank or recommend a permit decision.\n\nCRIT-1: Include a project budget.\nCRIT-2: Identify an implementation owner.\nCRIT-3: Provide a delivery schedule.\nAPP-1: The Facilities team is the implementation owner.\nAPP-2: Work starts April 1, 2027 and completes June 30, 2027.\nAPP-3: Work starts April 1, 2027 and completes July 31, 2027.\n\nNo budget or statement identifying the current schedule is supplied. Point out the disagreement without choosing a date. Do not take any external action."},
-      {"label": "Summarize case notes", "text": "Read these fictional case notes. Summarize what they say, show where statements disagree or information is missing, and suggest follow-up questions. Refer to the note labels so I can check your answer. Do not choose a date without support or invent rules. Do not decide eligibility or update any system.\n\nCASE-1: Intake completed August 15, 2026; follow-up August 22, 2026.\nCASE-2: Intake completed August 17, 2026; follow-up August 22, 2026.\nCASE-3: Proof of address remains outstanding. No supporting document is supplied.\n\nNo policy text is supplied. Tell me what a person needs to check next."},
-      {"label": "Compare a proposal (preview)", "text": "Compare this fictional proposal with my checklist. Make a table with one row per requirement. Show what is described, what is missing, and where the documents disagree. Quote or refer to the document labels so I can check each point. Do not treat a brochure claim as a tested product feature. Ask what else is needed; do not choose a vendor or recommend an award.\n\nCRIT-1: Support CSV export of service-request records.\nCRIT-2: Retain audit records for seven years.\nCRIT-3: Support single sign-on with documented supported protocols.\nPROD-1: The sample product exports service-request records as CSV and retains audit records for seven years.\nPROD-2: The sample administrator guide says audit records are deleted after thirty days.\nPROD-3: The sample brochure says the product is enterprise-ready.\n\nNo other documentation or test results are supplied. Do not assume single sign-on is supported. Missing information does not automatically mean a requirement is failed. Do not take any external action."},
+      {"label": "Review an application", "text": "Check this fictional permit application against my checklist. Make a table showing what is included, missing or unclear. Refer to the checklist item and section labels so I can check each point. Ask questions that would help fill in the missing details. Missing information is not an automatic failure. Do not approve, deny, score, rank or recommend a permit decision.\n\nChecklist item 1: Include a project budget.\nChecklist item 2: Identify an implementation owner.\nChecklist item 3: Provide a delivery schedule.\nSection 1: The Facilities team is the implementation owner.\nSection 2: Work starts April 1, 2027 and completes June 30, 2027.\nSection 3: Work starts April 1, 2027 and completes July 31, 2027.\n\nNo budget or statement identifying the current schedule is supplied. Point out the disagreement without choosing a date. Do not take any external action."},
+      {"label": "Summarize case notes", "text": "Read these fictional case notes. Summarize what they say, show where statements disagree or information is missing, and suggest follow-up questions. Refer to the note labels so I can check your answer. Do not choose a date without support or invent rules. Do not decide eligibility or update any system.\n\nNote 1: Intake completed August 15, 2026; follow-up August 22, 2026.\nNote 2: Intake completed August 17, 2026; follow-up August 22, 2026.\nNote 3: Proof of address is still outstanding. No supporting document is supplied.\n\nNo policy text is supplied. Tell me what a person needs to check next."},
+      {"label": "Compare a proposal (preview)", "text": "Compare this fictional proposal with my checklist. Make a table with one row per checklist item. Show what is described, what is missing, and where the documents disagree. Quote or refer to the checklist item and document labels so I can check each point. Do not treat a brochure claim as a tested product feature. Ask what else is needed; do not choose a vendor or recommend an award.\n\nChecklist item 1: Support CSV export of service-request records.\nChecklist item 2: Retain audit records for seven years.\nChecklist item 3: Support single sign-on with documented supported protocols.\nProduct sheet: The sample product exports service-request records as CSV and retains audit records for seven years.\nAdmin guide: The sample administrator guide says audit records are deleted after thirty days.\nBrochure: The sample brochure says the product is enterprise-ready.\n\nNo other documentation or test results are supplied. Do not assume single sign-on is supported. Missing information does not automatically mean a requirement is failed. Do not take any external action."},
       {"label": "Help me get started", "text": "I want help checking an application or summarizing case notes. What should I paste here, and what will you do with it? I am using this existing agent, not creating a new one."}
     ]
   },
   {
     "id": "review-coordinator",
     "label": "Application and case helper (base setup)",
-    "category": "Alternate setup",
-    "description": "The same jobs as Application and case helper, using the repository's base setup. This is an alternative setup, not an extra planning capability.",
+    "category": "Coordinator: developer variant",
+    "description": "Does the same jobs as Application and case helper, with the same two specialists. Only the developer setup differs; it does not add capabilities.",
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
       "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
       "limits": "It only reads what you supply. It cannot look up missing documents, change business systems or decide whether to approve something. Requirements and proposal review is in preview.",
-      "delegation": "Asks the same application-checking and case-notes agents to do the work. It uses one unless you ask for both; the difference is the developer setup, not what you can accomplish.",
+      "delegation": "It hands your task to the same specialists (Application checker or Case notes summarizer). It uses one unless you ask for both; what you can accomplish is the same as Application and case helper.",
       "configuration": "Base instructions: hosted-agents\\review-coordinator-agent\\instructions.md. Tools: main.py in that directory, with deployed SPECIALIST_CONFIG taking precedence over legacy agent-name settings. Publish a new agent version to change runtime behavior."
     },
     "agent": "review-coordinator-agent",
     "tools": {"review_application": "application-review-agent", "review_case": "case-review-agent"},
     "prompts": [
-      {"label": "Review case notes", "text": "Review these fictional case records. Summarize supported facts, cite conflicting sources without choosing a date, and ask for clarification. No policy is supplied; do not make eligibility decisions or modify systems.\n\nCASE-1: Intake completed June 1, 2027.\nCASE-2: Intake completed June 3, 2027."},
+      {"label": "Review case notes", "text": "Summarize these fictional case notes. Show what they say, point out the notes that disagree without choosing a date, and ask what needs clarifying. No policy is supplied. Do not make eligibility decisions or update any system.\n\nNote 1: Intake completed June 1, 2027.\nNote 2: Intake completed June 3, 2027."},
       {"label": "Help me get started", "text": "I need to check a fictional application and summarize its case notes. What checklist and documents should I supply for each task? I am using this existing agent, not creating a new one."}
     ]
   },
   {
     "id": "application-review",
     "label": "Application checker",
-    "category": "Single specialist",
+    "category": "Specialist: works on its own",
     "description": "Check an application against your checklist and point out missing information or statements that disagree.",
     "guidance": {
       "input": "Paste your checklist and the application or proposal text. Label each document so you can check references.",
@@ -54,13 +54,13 @@
     "agent": "application-review-agent",
     "tools": {},
     "prompts": [
-      {"label": "Check an application", "text": "Check this fictional application against my checklist. Make a table showing what is included or missing, refer to the document labels, and ask what else is needed. Missing information is not an automatic failure. Do not approve or deny the application; a person makes the decision.\n\nCRIT-1: Include a project budget.\nAPP-1: Twelve weekly workshops are proposed. No budget is supplied."}
+      {"label": "Check an application", "text": "Check this fictional application against my checklist. Make a table showing what is included or missing, refer to the checklist item and section labels, and ask what else is needed. Missing information is not an automatic failure. Do not approve or deny the application; a person makes the decision.\n\nChecklist item 1: Include a project budget.\nSection 1: Twelve weekly workshops are proposed. No budget is supplied."}
     ]
   },
   {
     "id": "case-review",
     "label": "Case notes summarizer",
-    "category": "Single specialist",
+    "category": "Specialist: works on its own",
     "description": "Turn case notes into a summary, point out missing or contradictory details, and suggest follow-up questions.",
     "guidance": {
       "input": "Paste fictional case notes and any rules you want it to consider. Label the notes so you can check references.",
@@ -72,7 +72,7 @@
     "agent": "case-review-agent",
     "tools": {},
     "prompts": [
-      {"label": "Check conflicting dates", "text": "Review these fictional case records. Summarize supported facts, cite the conflicting records without choosing a date, and draft a follow-up question. No policy is supplied. Do not determine eligibility or modify a system; a person makes decisions.\n\nCASE-1: Intake completed June 1, 2027.\nCASE-2: Intake completed June 3, 2027."}
+      {"label": "Check conflicting dates", "text": "Summarize these fictional case notes. Show what they say, point out the notes that disagree without choosing a date, and draft a follow-up question. No policy is supplied. Do not decide eligibility or update any system; a person makes decisions.\n\nNote 1: Intake completed June 1, 2027.\nNote 2: Intake completed June 3, 2027."}
     ]
   }
 ]

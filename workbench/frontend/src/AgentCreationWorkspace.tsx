@@ -349,7 +349,7 @@ export function AgentCreationWorkspace({
               }}
             >
               <Plus size={16} />
-              New setup
+              Create agent
             </button>
           </div>
         )}

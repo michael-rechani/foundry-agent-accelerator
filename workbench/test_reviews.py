@@ -102,7 +102,7 @@ class ReviewContractTests(unittest.TestCase):
         self.assertEqual(review.agent_id, "customer-review")
         prompt = review_prompt(review)
         self.assertIn("CRIT-3", prompt)
-        self.assertIn("PROD-3", prompt)
+        self.assertIn("Brochure:", prompt)
         result["findings"][2]["citations"] = [{"source_id": "SRC-3", "quote": "Supports SAML and OIDC."}]
         with self.assertRaisesRegex(ValueError, "Citation does not match evidence"):
             validate_result(json.dumps(result), review)

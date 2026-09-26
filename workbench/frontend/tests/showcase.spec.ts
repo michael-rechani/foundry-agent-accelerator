@@ -107,7 +107,7 @@ async function setup(
           request_id: 'fictional-showcase-response',
           status: 'completed',
           agent: guidedReview.agent,
-          text: 'Illustrative test reply: CRIT-1 has no supplied budget.',
+          text: 'Illustrative test reply: Checklist item 1 has no supplied budget.',
           elapsed_ms: 100,
           receipts: [],
         },

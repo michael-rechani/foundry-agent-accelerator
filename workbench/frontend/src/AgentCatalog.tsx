@@ -33,9 +33,8 @@ export function AgentCatalog({
       <div className="section-heading">
         <h1>Choose an agent</h1>
         <p>
-          Choose an enabled existing agent or a ready agent created in this
-          shared Lab. Each has a saved job and fixed tools. Selecting one does
-          not create a new agent.
+          Pick an agent to open it in Chat. Each one has a fixed job and fixed
+          tools. Picking one does not create or change an agent.
         </p>
       </div>
       <ConfigurationGuide creation={creation} onCreate={onCreate} />
@@ -54,17 +53,18 @@ export function AgentCatalog({
       </details>
       <div className="catalog-paths">
         <p>
-          <strong>Configured agents</strong>Choose a setup below to open Chat.
-          Being listed is not proof of live connectivity or answer quality.
+          <strong>Use an agent</strong>Pick one below to open Chat. A listing
+          does not prove the agent is reachable or that its answers are right.
         </p>
         <p>
-          <strong>Templates</strong>When creation is enabled, prepare a new
-          setup in Create agent. Publication requires operator approval and can
-          incur costs.
+          <strong>Create your own</strong>If agent creation is turned on, start
+          in Create agent. Publishing needs operator approval and can incur
+          costs.
         </p>
         <p>
-          <strong>Concepts</strong>Agent drafts in the repository are
-          documentation only, not deployed agents or connected business systems.
+          <strong>Repository drafts</strong>Agent drafts in the repository are
+          documentation only. They are not deployed and do not connect to
+          business systems.
         </p>
       </div>
       <label className="catalog-search">
@@ -90,7 +90,7 @@ export function AgentCatalog({
               <span className="catalog-kind">
                 {item.id.startsWith('created-')
                   ? 'Created in this Lab'
-                  : 'Prebuilt setup'}
+                  : 'Prebuilt agent'}
               </span>
             </div>
             <h2>{item.label}</h2>

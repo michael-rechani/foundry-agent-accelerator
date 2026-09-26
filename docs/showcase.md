@@ -34,9 +34,9 @@ explicitly Send.
 
 | Source | Expected finding | Human follow-up |
 | --- | --- | --- |
-| CRIT-1 | No budget was supplied | Obtain and verify the budget |
-| APP-1 | The Facilities team is named as owner | Confirm the named responsibility |
-| APP-2 / APP-3 | The completion dates disagree | Identify the current schedule |
+| Checklist item 1 | No budget was supplied | Obtain and verify the budget |
+| Section 1 | The Facilities team is named as owner | Confirm the named responsibility |
+| Section 2 / Section 3 | The completion dates disagree | Identify the current schedule |
 
 The agent must not approve, deny, score, or rank the application. Missing
 evidence is a question, not an automatic failure. Try the missing-information
@@ -64,8 +64,8 @@ approval, and the existing [creation prerequisites](agent-creation.md).
 
 | Source | Expected finding | Human follow-up |
 | --- | --- | --- |
-| LINE-1 / purchase order | 120 chairs at $55 were billed; 100 at $50 were ordered | Resolve quantity and price differences |
-| LINE-3 / order terms | A $250 delivery fee conflicts with delivery being included | Clarify the fee |
+| Line 1 / purchase order | 120 chairs at $55 were billed; 100 at $50 were ordered | Resolve quantity and price differences |
+| Line 3 / order terms | A $250 delivery fee conflicts with delivery being included | Clarify the fee |
 | Delivery record | Two received chairs have cracked seats | Decide how damage affects acceptance or payment |
 
 The tables match at 10 units and $300 each. The agent should show arithmetic
@@ -86,13 +86,13 @@ and unanswered questions?
 Use the [fictional case notes](demo-inputs/casework.txt).
 Choose **Casework assistance** in **Explore demos**, then load the fictional
 input into an enabled matching prebuilt agent or ready created
-**Case notes summarizer**.
+**Casework brief writer**.
 
 | Source | Expected finding | Human follow-up |
 | --- | --- | --- |
-| CASE-1 / CASE-2 | Intake dates disagree: August 15 and August 17 | Find the authoritative record |
-| CASE-1 / CASE-2 | Both notes give August 22 as the follow-up date | Verify the appointment |
-| CASE-3 | Proof of address remains outstanding | Obtain the evidence and applicable policy |
+| Note 1 / Note 2 | Intake dates disagree: August 15 and August 17 | Find the authoritative record |
+| Note 1 / Note 2 | Both notes give August 22 as the follow-up date | Verify the appointment |
+| Note 3 | Proof of address is still outstanding | Obtain the evidence and applicable policy |
 
 No policy is supplied. The agent should not infer an eligibility consequence,
 choose an unsupported date, or modify a system.

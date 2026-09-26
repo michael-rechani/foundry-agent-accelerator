@@ -1,15 +1,16 @@
-Review this synthetic permit application against only the supplied criteria.
-Create a cited criteria matrix, flag missing evidence and conflicts, and draft
-clarification questions. Missing evidence is not automatic noncompliance.
-Do not approve, deny, rank, score, or recommend a permit decision.
+Check this fictional permit application against my checklist. Make a table
+with one row per checklist item showing what is supported, missing or unclear.
+Refer to the checklist item and section labels so I can check each point, and
+ask questions that would fill the gaps. Missing information is not an automatic
+failure. Do not approve, deny, rank, score or recommend a permit decision.
 
-CRIT-1: Include a project budget.
-CRIT-2: Identify an implementation owner.
-CRIT-3: Provide a delivery schedule.
+Checklist item 1: Include a project budget.
+Checklist item 2: Identify an implementation owner.
+Checklist item 3: Provide a delivery schedule.
 
-APP-1: The Facilities team is the implementation owner for the proposed project.
-APP-2: Work starts on 2027-04-01 and completes on 2027-06-30.
-APP-3: Work starts on 2027-04-01 and completes on 2027-07-31.
+Section 1: The Facilities team is the implementation owner for the proposed project.
+Section 2: Work starts on 2027-04-01 and completes on 2027-06-30.
+Section 3: Work starts on 2027-04-01 and completes on 2027-07-31.
 
-No budget document or statement identifying the current schedule is supplied.
-State what an authorized person must verify.
+No budget or statement saying which schedule is current is supplied. Tell me
+what a person needs to check.

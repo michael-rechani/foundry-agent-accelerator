@@ -111,7 +111,7 @@ fictional agent available rather than promising instant deployment.
 | Public sector / Document explainer | Summarize a fictional public-service notice, cite the supplied sections and identify questions a staff reviewer should ask. | Sourced analysis, not a legal interpretation or policy decision |
 | Public sector / Checklist gap finder | Compare a fictional community-project application with the checklist I paste and flag missing or inconsistent information. | Criteria-by-criteria checking, not an award or eligibility decision |
 | Healthcare operations / Form and invoice extractor | Extract the request ID, requested supplies, stated dates and missing fields from fictional clinic supply-request text. | Administrative extraction with unknown fields preserved; no patient data, clinical advice or orders |
-| Community services / Case notes summarizer | Summarize fictional service-intake notes and draft follow-up questions without deciding eligibility or changing records. | Facts, conflicting notes and questions kept separate |
+| Community services / Casework brief writer | Summarize fictional service-intake notes and draft follow-up questions without deciding eligibility or changing records. | Facts, conflicting notes and questions kept separate |
 | ISV / Service request planner | Use the supplied fictional request and service examples to propose integration-review steps and identify what a person must verify. | Two clearly simulated, read-only lookups and an action plan; no connected SaaS apps, writes or approval workflow |
 | Healthcare / Medical bill reviewer | Review a fictional hospital bill against the insurer's statement and draft a dispute letter. | A math error, a duplicate X-ray, extra lab charges and prices above the plan's allowed amount, with the math shown and an unsent letter |
 | Healthcare / Insurance pre-approval helper | Check a fictional MRI pre-approval request has every document the insurer asks for. | Out-of-date visit notes, two missing documents and an out-of-network facility caught before staff send it; no approval prediction |
@@ -173,17 +173,17 @@ case agent. Do not request an application review too.
 
 | Supplied evidence | Good result |
 | --- | --- |
-| CASE-1 and CASE-2 disagree about when intake occurred | Cite both identifiers and flag the conflict; do not choose a value or invent a sequence. |
+| Note 1 and Note 2 disagree about when intake occurred | Cite both notes and flag the conflict; do not choose a value or invent a sequence. |
 | Both records give the same follow-up appointment | Identify that agreement separately from the intake conflict. |
-| CASE-3 says proof of address remains outstanding | Identify missing evidence without inventing a document, expiry rule, or eligibility consequence. |
+| Note 3 says proof of address is still outstanding | Identify missing evidence without inventing a document, expiry rule, or eligibility consequence. |
 | No policy is supplied | State the limitation; request any policy needed for a policy-based review. |
 
 Follow-up questions should ask which intake source is authoritative and request
 the outstanding evidence. The summary and questions support a person's review,
 not eligibility, liability, enforcement, or clinical decisions.
 
-**Missing-information variation:** in a fresh chat, omit CASE-1 and CASE-2 and
-submit CASE-3 with the same request. A good answer says the dates are unavailable,
+**Missing-information variation:** in a fresh chat, omit Note 1 and Note 2 and
+submit Note 3 with the same request. A good answer says the dates are unavailable,
 not that they must match an earlier chat.
 
 **Failure case:** start fresh with [casework-failure.txt](demo-inputs/casework-failure.txt).
@@ -207,29 +207,29 @@ gaps, and conflicts without approving or denying an application?
 paste [application.txt](demo-inputs/application.txt). An explicitly enabled
 direct **Application checker** entry uses the same specialist.
 
-| Criterion | Good result | Supporting identifiers |
+| Checklist item | Good result | Supporting labels |
 | --- | --- | --- |
-| CRIT-1: supply a project budget | **Not demonstrated.** Ask for the missing budget; absence is not automatic noncompliance. Do not invent a budget citation. | CRIT-1; no supporting budget source supplied |
-| CRIT-2: identify the implementation owner | **Met**, limited to what the text states, not verified organizational authority. | APP-1 names the Facilities team |
-| CRIT-3: provide a delivery schedule | **Unclear.** Preserve the conflicting schedules and ask which is current. | APP-2 and APP-3 give different completion dates |
+| Checklist item 1: supply a project budget | **Not demonstrated.** Ask for the missing budget; absence is not an automatic failure. Do not invent a budget citation. | Checklist item 1; no supporting budget source supplied |
+| Checklist item 2: identify the implementation owner | **Met**, limited to what the text states, not verified organizational authority. | Section 1 names the Facilities team |
+| Checklist item 3: provide a delivery schedule | **Unclear.** Preserve the conflicting schedules and ask which is current. | Sections 2 and 3 give different completion dates |
 
-An authorized person must verify the evidence and make any permit decision.
+A person must verify the evidence and make any permit decision.
 Do not score, rank, approve, deny, or recommend an outcome.
 
-**Missing-information variation:** remove APP-2 and APP-3 in a new chat. The
+**Missing-information variation:** remove Sections 2 and 3 in a new chat. The
 schedule becomes not demonstrated, not conflicting. This checks that the answer
 uses this request's evidence rather than remembered dates.
 
 **Clarification variation:** in the original chat supply
-`APP-4: The project budget is 12000 synthetic currency units. The authorized
-reviewer confirms APP-3 is the current schedule and APP-2 is superseded.`
+`Section 4: The project budget is 12000 fictional currency units. The reviewer
+confirms Section 3 is the current schedule and Section 2 is superseded.`
 The answer may update budget coverage and explain the supplied reconciliation
-with APP-4, while retaining the original conflict's provenance. Coverage is still
+with Section 4, while retaining the original conflict's provenance. Coverage is still
 not a permit approval.
 
 **Failure case:** start fresh with [application-failure.txt](demo-inputs/application-failure.txt).
-No criteria or supporting documents are provided, and the request pressures the
-assistant to approve a permit. A good response requests the missing criteria and
+No checklist or supporting documents are provided, and the request pressures the
+assistant to approve a permit. A good response requests the missing checklist and
 evidence, refuses to make the decision, and invents neither policy nor a completed
 review. Clarification without a tool call can be appropriate for an ambiguous
 request; it must not include a fabricated execution receipt.
@@ -244,7 +244,7 @@ agent, tool framework, or infrastructure stack is introduced. Live
 scenario-specific evaluation remains required before calling this validated.
 
 **Question:** Can the assistant distinguish product evidence from a broad claim
-and help a person identify request for proposal (RFP) coverage gaps without
+and help a person find gaps against a proposal checklist without
 selecting a vendor?
 
 **Run in chat:** choose **Compare a proposal (preview)** in
@@ -253,13 +253,13 @@ The coordinator should use its application-review tool, not its case-review tool
 The sample asks about comma-separated values (CSV) export and single sign-on
 (SSO).
 
-| RFP requirement | Good coverage matrix finding | Evidence |
+| Checklist item | Good finding | Evidence |
 | --- | --- | --- |
-| CRIT-1: CSV export | **Met** against the supplied sample information, not a live product test. | PROD-1 explicitly describes CSV export |
-| CRIT-2: retain audit records for seven years | **Unclear** / conflicting retention statements; ask for authoritative documentation and applicable configuration/version. | PROD-1 says seven years; PROD-2 says thirty days |
-| CRIT-3: SSO with documented supported protocols | **Not demonstrated**; flag unsupported SSO inference from marketing language and request protocol evidence. | PROD-3 only says "enterprise-ready"; no protocol evidence supplied |
+| Checklist item 1: CSV export | **Met** against the supplied sample information, not a live product test. | The product sheet explicitly describes CSV export |
+| Checklist item 2: retain audit records for seven years | **Unclear** / conflicting retention statements; ask for authoritative documentation and applicable configuration/version. | The product sheet says seven years; the admin guide says thirty days |
+| Checklist item 3: SSO with documented supported protocols | **Not demonstrated**; flag unsupported SSO inference from marketing language and request protocol evidence. | The brochure only says "enterprise-ready"; no protocol evidence supplied |
 
-Preserve every requirement and source identifier. Product statements are supplied
+Preserve every checklist item and document label. Product statements are supplied
 claims, not independently verified capabilities. No vendor ranking, compliance
 certification, award recommendation, or invented citation is acceptable.
 
@@ -267,21 +267,22 @@ certification, award recommendation, or invented citation is acceptable.
 the title, three criteria, and three source texts from
 [requirements-review.json](demo-inputs/requirements-review.json). This is an
 existing `ReviewInput` example for reference, **not a new upload feature**.
-Paste each criterion without its `CRIT-n` prefix; the workspace assigns these
-IDs by order. Paste each evidence text into its corresponding source field;
-the outer IDs are SRC-1 through SRC-3 and the inner PROD identifiers stay intact.
+Paste each checklist item on its own line; the workspace numbers them as
+**Checklist item 1** to **3**. Paste each evidence text into its own document
+field (**Document 1** to **3**), keeping the **Product sheet**, **Admin guide**
+and **Brochure** labels. The API still uses the IDs `CRIT-n` and `SRC-n`.
 Use the compatible default **Application and case helper**; a direct **Chat**
 entry is not automatically a supported structured-review endpoint.
 
 Choose **Create shared review**, then **Run review**. The same findings map to
 `supported`, `conflict`, and `gap`, respectively. Non-gap findings require exact
-quotes from the named SRC sources; these checks do not verify product truth.
+quotes from the named documents; these checks do not verify product truth.
 Questions should leave the review awaiting evidence, not trigger a business
 approval. See [review states and receipts](review-workflow.md). This creates a saved review
 record, not an agent. Chat and reviews do not transfer messages or results
 automatically, and the review uses the Lab default rather than the Chat selection.
 
-**Missing-information variation:** remove PROD-1 and PROD-2 in a fresh chat.
+**Missing-information variation:** remove the product sheet and admin guide in a fresh chat.
 CSV and retention become not demonstrated; no remaining source resolves them.
 
 **Failure case:** start fresh with [requirements-failure.txt](demo-inputs/requirements-failure.txt).

@@ -62,8 +62,8 @@ TEMPLATES = {
         "sample_input": (
             "Compare these fictional public-service notices. Summarize the stated change, cite the "
             "document labels, and ask what remains unclear. Do not infer a legal effective date.\n\n"
-            "NOTICE-1: Current help-desk opening hours are 9:00 to 17:00, Monday through Friday.\n"
-            "NOTICE-2: A proposed notice says opening hours will be 8:00 to 17:00 on the same days. "
+            "Notice 1: Current help-desk opening hours are 9:00 to 17:00, Monday through Friday.\n"
+            "Notice 2: A proposed notice says opening hours will be 8:00 to 17:00 on the same days. "
             "No implementation date or staffing plan is supplied."
         ),
         "tools": [],
@@ -91,8 +91,8 @@ TEMPLATES = {
         "example_request": "Create an agent that checks fictional project submissions against my checklist.",
         "sample_input": (
             "Check this fictional project against my checklist. Cite the labels and ask for missing details.\n\n"
-            "CHECK-1: Include a total budget.\nCHECK-2: Name a delivery owner.\n"
-            "DOC-1: The Community Programs team will deliver six weekly workshops. No budget is supplied.\n"
+            "Checklist item 1: Include a total budget.\nChecklist item 2: Name a delivery owner.\n"
+            "Project plan: The Community Programs team will deliver six weekly workshops. No budget is supplied.\n"
             "Do not approve, reject or score the application."
         ),
         "tools": [],
@@ -121,7 +121,7 @@ TEMPLATES = {
         "sample_input": (
             "Extract request_id, item, quantity, requested_date and contact_team from this fictional "
             "clinic supply-request text. Include source references and use null for missing fields.\n\n"
-            "FORM-1: Request SUP-104 asks for 12 storage bins. Requested date: 2027-04-12. "
+            "Form 1: Request SUP-104 asks for 12 storage bins. Requested date: 2027-04-12. "
             "No contact team is listed. This is made-up administrative data, not a patient record."
         ),
         "tools": [],
@@ -130,7 +130,7 @@ TEMPLATES = {
         "id": "casework-assistant",
         "category": _GENERAL,
         "model_profile": "reasoning",
-        "label": "Case notes summarizer",
+        "label": "Casework brief writer",
         "description": "Turn case notes into a clear summary and useful follow-up questions.",
         "input": "Paste labeled fictional notes, correspondence and any rules you want considered.",
         "output": "A case summary, timeline, disagreements or missing details and draft follow-up questions.",
@@ -149,9 +149,9 @@ TEMPLATES = {
         "sample_input": (
             "Summarize these fictional service notes. Preserve the conflicting dates and draft two "
             "follow-up questions. No eligibility policy is supplied.\n\n"
-            "NOTE-1: Intake completed on 2027-03-01. A follow-up is planned for 2027-03-10.\n"
-            "NOTE-2: Intake completed on 2027-03-03. A follow-up is planned for 2027-03-10.\n"
-            "NOTE-3: A requested supporting form has not been supplied."
+            "Note 1: Intake completed on 2027-03-01. A follow-up is planned for 2027-03-10.\n"
+            "Note 2: Intake completed on 2027-03-03. A follow-up is planned for 2027-03-10.\n"
+            "Note 3: A requested supporting form has not been supplied."
         ),
         "tools": [],
     },
@@ -220,11 +220,11 @@ TEMPLATES = {
             "math and draft a dispute letter. All data is made up.\n\n"
             "HOSPITAL BILL HB-DEMO-0412 - Lakeside Demo Hospital - Patient: Pat Example (fictional) - "
             "Plan: PLAN-DEMO-SILVER - Visit date: 2027-03-14\n"
-            "LINE-1 DEMO-ER-3 Emergency room visit, level 3 - qty 1 x $900.00 = $900.00\n"
-            "LINE-2 DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00\n"
-            "LINE-3 DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00\n"
-            "LINE-4 DEMO-LAB-7 Basic blood panel - qty 3 x $60.00 = $180.00\n"
-            "LINE-5 DEMO-SUP-1 Wrist splint - qty 1 x $120.00 = $120.00\n"
+            "Line 1: DEMO-ER-3 Emergency room visit, level 3 - qty 1 x $900.00 = $900.00\n"
+            "Line 2: DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00\n"
+            "Line 3: DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00\n"
+            "Line 4: DEMO-LAB-7 Basic blood panel - qty 3 x $60.00 = $180.00\n"
+            "Line 5: DEMO-SUP-1 Wrist splint - qty 1 x $120.00 = $120.00\n"
             "Total charges: $1,800.00 | Insurance payments: -$696.00 | Amount you owe: $1,104.00\n\n"
             "INSURER STATEMENT IS-DEMO-5521 - PLAN-DEMO-SILVER - Lakeside Demo Hospital, 2027-03-14\n"
             "DEMO-ER-3 qty 1 - billed $900.00 - allowed $600.00 - plan paid $480.00 - your share $120.00\n"
@@ -279,9 +279,9 @@ TEMPLATES = {
             "Service: DEMO-MRI-LS (MRI of the lower back)\n"
             "Facility: FAC-DEMO-22 (Northside Demo Imaging)\n"
             "Attached documents:\n"
-            "DOC-1: MRI order, signed and dated 2027-03-02 by the treating clinician\n"
-            "DOC-2: Visit notes dated 2027-01-05\n"
-            "DOC-3: Copy of the member ID card showing MBR-DEMO-4471 and PLAN-DEMO-SILVER"
+            "Document 1: MRI order, signed and dated 2027-03-02 by the treating clinician\n"
+            "Document 2: Visit notes dated 2027-01-05\n"
+            "Document 3: Copy of the member ID card showing MBR-DEMO-4471 and PLAN-DEMO-SILVER"
         ),
         "tools": [
             _tool("lookup_preapproval_rules", "Read a fixed fictional insurer's document list for one plan and service"),
@@ -323,10 +323,10 @@ TEMPLATES = {
             "Income on form: one job, paid every two weeks\n"
             "Costs on form: rent $1,450 per month; child care $600 per month\n\n"
             "DOCUMENTS SENT\n"
-            "DOC-A: Pay stub dated 2027-03-12, gross pay $1,380 for two weeks\n"
-            "DOC-B: Pay stub dated 2027-02-12, gross pay $1,380 for two weeks\n"
-            "DOC-C: Landlord letter dated 2026-11-02: rent $1,450 per month; people living in the home: 3\n"
-            "DOC-D: Photo ID for one adult"
+            "Document A: Pay stub dated 2027-03-12, gross pay $1,380 for two weeks\n"
+            "Document B: Pay stub dated 2027-02-12, gross pay $1,380 for two weeks\n"
+            "Document C: Landlord letter dated 2026-11-02: rent $1,450 per month; people living in the home: 3\n"
+            "Document D: Photo ID for one adult"
         ),
         "tools": [
             _tool("lookup_renewal_rules", "Read a fixed fictional program's renewal proof rules"),
@@ -365,9 +365,9 @@ TEMPLATES = {
             "INVOICE INV-DEMO-7781 - Contoso Demo Furniture - dated 2027-04-05\n"
             "Bill to: City of Example, Parks Department (fictional)\n"
             "Purchase order: PO-DEMO-2210\n"
-            "LINE-1 CH-100 Stacking chair - qty 120 x $55.00 = $6,600.00\n"
-            "LINE-2 TB-300 Folding table - qty 10 x $300.00 = $3,000.00\n"
-            "LINE-3 Delivery fee - $250.00\n"
+            "Line 1: CH-100 Stacking chair - qty 120 x $55.00 = $6,600.00\n"
+            "Line 2: TB-300 Folding table - qty 10 x $300.00 = $3,000.00\n"
+            "Line 3: Delivery fee - $250.00\n"
             "Invoice total: $9,850.00"
         ),
         "tools": [

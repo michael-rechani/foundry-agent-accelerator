@@ -91,7 +91,7 @@ async function workspace(
           config.agents.find((item) => item.id === config.default_agent) ??
           agent
         ).agent,
-        text: 'APP-1 is missing a budget.',
+        text: 'Section 1 is missing a budget.',
         elapsed_ms: 1000,
         receipts: options.receipts ?? [
           {
@@ -369,7 +369,7 @@ test('answers without receipts show no handoff timeline', async ({ page }) => {
   await workspace(page, { receipts: [] })
   await send(page)
   await expect(page.locator('.assistant-message')).toContainText(
-    'APP-1 is missing a budget.',
+    'Section 1 is missing a budget.',
   )
   await expect(
     page.getByRole('list', { name: 'Handoff timeline' }),
@@ -416,10 +416,15 @@ test('catalog uses customer names while retaining runtime targets and scenario s
     'Case notes summarizer',
   ])
   await expect(page.locator('.category-label')).toHaveText([
-    'Uses specialist agents',
-    'Alternate setup',
-    'Single specialist',
-    'Single specialist',
+    'Coordinator: hands off to specialists',
+    'Coordinator: developer variant',
+    'Specialist: works on its own',
+    'Specialist: works on its own',
+  ])
+  await expect(page.locator('.catalog-paths strong')).toHaveText([
+    'Use an agent',
+    'Create your own',
+    'Repository drafts',
   ])
   await page.locator('.catalog-status > summary').click()
   await expect(page.locator('.catalog-status')).toContainText(
@@ -439,7 +444,7 @@ test('catalog uses customer names while retaining runtime targets and scenario s
         exact: true,
       }),
     }),
-  ).toContainText('not an extra planning capability')
+  ).toContainText('it does not add capabilities')
   for (const item of registry) {
     const card = page.locator('.catalog-agent').filter({
       has: page.getByRole('heading', { name: item.label, exact: true }),
@@ -529,7 +534,7 @@ test('configuration guidance separates UI settings from deployed agent behavior'
   const guide = page.locator('.configuration-guide')
   await guide.locator(':scope > summary').click()
   await expect(guide).toContainText(
-    'This server does not advertise agent creation',
+    "Agent creation isn't turned on in this Lab",
   )
   await expect(guide).toContainText(
     'A starter is just an example task and message, not a new agent',

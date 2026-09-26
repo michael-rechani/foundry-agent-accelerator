@@ -193,7 +193,7 @@ export function ReviewWorkspace({
     setSources([
       {
         id: 'SRC-1',
-        text: 'Fictional application APP-1: Twelve weekly workshops beginning October 1. A program lead and two facilitators will deliver the sessions. No budget is supplied.',
+        text: 'Fictional application: Twelve weekly workshops beginning October 1. A program lead and two facilitators will deliver the sessions. No budget is supplied.',
       },
     ])
   }

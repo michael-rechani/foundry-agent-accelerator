@@ -120,7 +120,7 @@ class WorkbenchTests(unittest.TestCase):
         base = next(agent for agent in agents if agent["id"] == "review-coordinator")
         self.assertEqual(set(base["tools"].values()), set(guided["tools"].values()))
         self.assertNotEqual(base["agent"], guided["agent"])
-        self.assertIn("not an extra planning capability", base["description"])
+        self.assertIn("it does not add capabilities", base["description"])
 
     def test_only_fingerprinted_assets_are_cached(self):
         for path in ("/assets/index-abcdefgh.js", "/assets/index-abcdefgh.css", "/assets/font-abcdefgh.woff2"):

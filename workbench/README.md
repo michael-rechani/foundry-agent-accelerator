@@ -175,11 +175,17 @@ data contract and deployment checks. You don't need it to use **Chat**.
 
 | Agent or entry | Availability | Behavior |
 | --- | --- | --- |
-| **Application and case helper** (`customer-review`, formerly Guided review) | Default visible prebuilt agent. | The coordinator asks the application-checking or case-notes specialist to do the task, then returns the findings. |
-| **Application and case helper (base setup)** (`review-coordinator`, formerly Review planning) | Visible only when enabled. | Uses the same specialists through different tool names. This is an alternative developer setup, not a separate planning capability. |
-| **Application checker** | Visible only when enabled. | Talks directly to the application specialist. |
-| **Case notes summarizer** | Visible only when enabled. | Talks directly to the case-notes specialist. |
+| **Application and case helper** (`customer-review`, formerly Guided review) | Default visible prebuilt agent. | A coordinator. It hands the task to the **Application checker** or **Case notes summarizer** specialist, then returns the findings. |
+| **Application and case helper (base setup)** (`review-coordinator`, formerly Review planning) | Visible only when enabled. | A developer variant of the coordinator. It uses the same specialists through different tool names and does not add capabilities. |
+| **Application checker** | Visible only when enabled. | The application specialist on its own. It does the check itself and calls no other agents. |
+| **Case notes summarizer** | Visible only when enabled. | The case-notes specialist on its own. It writes the summary itself and calls no other agents. |
 | Ready created agents | Listed separately under **Created agents**. | They can be selected in **Chat** after publication is ready. |
+
+Each catalog card is marked **Prebuilt agent** or **Created in this Lab**. Its
+**Developer setup details** name its role: **Coordinator: hands off to
+specialists**, **Coordinator: developer variant**, or **Specialist: works on its
+own**. If agent creation isn't turned on, the catalog says so and offers only the
+existing agents.
 
 Configure `visible_agents` in Terraform or `WORKBENCH_VISIBLE_AGENTS` locally to
 change the prebuilt agent catalog that the Lab exposes. **Agent catalog** lists only

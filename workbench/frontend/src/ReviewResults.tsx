@@ -39,7 +39,9 @@ export function ReviewResults({
                 <span className={`finding-label finding-${finding.assessment}`}>
                   {finding.assessment}
                 </span>
-                <span className="micro-label">{finding.criterion_id}</span>
+                <span className="micro-label">
+                  Checklist item {finding.criterion_id.slice(5)}
+                </span>
               </div>
               <h3>
                 {run.input.criteria[Number(finding.criterion_id.slice(5)) - 1]}
@@ -49,8 +51,7 @@ export function ReviewResults({
                 <blockquote key={index}>
                   <button onClick={() => onCitation(citation.source_id)}>
                     <FileText size={14} />
-                    Document {citation.source_id.slice(4)} ({citation.source_id}
-                    )
+                    Document {citation.source_id.slice(4)}
                     <ArrowRight size={14} />
                   </button>
                   <p>{citation.quote}</p>
@@ -65,7 +66,7 @@ export function ReviewResults({
           <ol className="review-criteria">
             {review.criteria.map((criterion, index) => (
               <li key={index}>
-                <span className="micro-label">CRIT-{index + 1}</span>
+                <span className="micro-label">Checklist item {index + 1}</span>
                 <p>{criterion}</p>
               </li>
             ))}
