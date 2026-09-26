@@ -78,7 +78,10 @@ agreement.
    snapshots and export the record as JSON. **Chat** remains a separate
    workspace view.
 
-![Illustrative UI test of a Document reviews record with mocked APIs: Results list a Gap for the missing budget and a Supported delivery timeline with its quoted source, beside the Original text panel](images/screenshots/lab-document-review.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-document-review-dark.png">
+  <img alt="Illustrative UI test of a Document reviews record with mocked APIs: Results list a Gap for the missing budget and a Supported delivery timeline with its quoted source, beside the Original text panel" src="images/screenshots/lab-document-review.png">
+</picture>
 
 *Illustrative UI test with mocked APIs, not a live model result.* ·
 [View full size](images/screenshots/lab-document-review.png)
@@ -114,19 +117,34 @@ This workflow is distinct from the chat request path in the
 [architecture guide](architecture.md). The background task below lives inside
 the FastAPI process; it is not a queue, separate worker service, or durable job.
 
-![Draw.io review lifecycle showing conditional start, persistence before HTTP 202, agent result validation, effective outcomes, and clarification resume](images/review-lifecycle.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/review-lifecycle-dark.svg">
+  <img alt="Document review lifecycle in eight numbered steps: create and validate a draft without a model call (1), start a run with If-Match from one of four runs (2), save a running snapshot of the input in Azure Cosmos DB before returning HTTP 202 (3), run the coordinator and specialists in Foundry Agent Service for up to 180 seconds (4), apply fail-closed checks to receipts, the JSON schema, and exact source quotes (5), and save the final result with the run's ETag (6). The inbox then shows completed, waiting_input, failed, or interrupted. Adding evidence (7) or recovering an interrupted run with cost confirmation (8) starts a new run from step 2." src="images/review-lifecycle.svg">
+</picture>
 
-[View full size](images/review-lifecycle.svg) · [Edit the draw.io source](images/review-lifecycle.drawio)
+[View full size](images/review-lifecycle.svg) · [Edit the SVG template](images/review-lifecycle.template.svg)
 
-The numbered steps distinguish browser actions, server validation, Cosmos
-writes, and the process-local task. In the diagram, `/execute` abbreviates
-`POST /api/review-runs/{id}/execute`. Evidence is appended through
-`POST /api/review-runs/{id}/evidence`. The server snapshots the complete input
-before starting an attempt, then records validated findings or an error code. No
-model text is allowed to supply the record's status, receipt flags, or events.
-Interrupted attempts can be recovered explicitly through
-`POST /api/review-runs/{id}/resume`; this starts a new call from the saved input,
-not a continuation of a remote model session.
+1. **Create draft.** `POST /api/review-runs` validates the criteria and sources
+   and saves a draft. No model is called.
+2. **Start run.** `POST /api/review-runs/{id}/execute` with the current
+   `If-Match` ETag uses one of the record's four runs.
+3. **Save running snapshot.** A conditional Cosmos write saves the complete
+   input before the server schedules work and returns HTTP 202.
+4. **Run the agents.** The coordinator and specialists run in Foundry Agent
+   Service for up to 180 seconds.
+5. **Check the result.** Fail-closed checks verify specialist receipts, the JSON
+   schema and criterion coverage, and exact quotes from the named sources.
+6. **Save the final result.** The server records validated findings or an error
+   code with the run's ETag.
+7. **Add evidence.** For `waiting_input`, `POST /api/review-runs/{id}/evidence`
+   appends evidence and returns the record to `draft` for a new run from step 2.
+8. **Recover.** For `interrupted`, `POST /api/review-runs/{id}/resume` with
+   `confirm_cost: true` starts a new run from the saved input.
+
+In the diagram, `…/execute`, `…/evidence`, and `…/resume` abbreviate the full
+routes above. No model text is allowed to supply the record's status, receipt
+flags, or events. Recovery starts a new call from the saved input, not a
+continuation of a remote model session.
 
 Precondition conflicts return HTTP 409 without scheduling another execution.
 The final write uses the execution's ETag; the application does not blindly

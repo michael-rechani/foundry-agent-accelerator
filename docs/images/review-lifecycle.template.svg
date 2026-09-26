@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">Document review lifecycle</title>
+  <desc id="desc">Document review lifecycle. Phase Save before running: step 1 creates a draft with POST /api/review-runs, validates criteria and sources, sets server-owned fields and an ETag, and does not call the model. Step 2 starts a run with POST /api/review-runs/{id}/execute and If-Match, requires draft status and run budget, takes one of the record's four runs, acquires a shared agent slot, and returns HTTP 409 for stale or competing starts. Step 3 saves a running snapshot with a conditional Cosmos DB write, stores the input, execution ETag, and recovery window, schedules local asyncio execution, returns HTTP 202, and keeps running if the browser disconnects. Phase Run, check, then save: step 4 calls Microsoft Foundry Agent Service using the existing coordinator and specialists, schema, and accumulated evidence, with managed identity and up to 180 seconds. Step 5 fail-closed checks verify specialist receipts, JSON schema, complete criterion coverage, and exact quotes from named sources. Step 6 conditionally writes findings or a failure code, observed events, and elapsed time using the run's ETag; model text cannot set the status, receipt flags, or events. The Cosmos DB record stores drafts, snapshots, results, ETags, and the 30-day TTL. The inbox can show completed, waiting_input, failed, or interrupted. Reading or refreshing a record never starts an agent call. Follow-up action step 7 adds evidence with POST /api/review-runs/{id}/evidence and If-Match, returning to draft and starting a new run from step 2. Follow-up action step 8 recovers an interrupted run with POST /api/review-runs/{id}/resume, If-Match, and confirm_cost true, starting a new call from saved input. Prior run inputs stay unchanged. Recovery reruns saved input; it is not exactly-once execution and may incur another charge. Execution runs inside the Lab process with one worker and one replica, no durable queue, no automatic retry, and no immutable audit ledger.</desc>
+  <defs>
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#0078d4"/>
+    </marker>
+    <marker id="teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#00786a"/>
+    </marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #242424; }
+      .title { font-size: 34px; font-weight: 600; }
+      .sub { font-size: 21px; fill: #4d5b69; }
+      .heading { font-size: 24px; font-weight: 600; }
+      .name { font-size: 20px; font-weight: 600; }
+      .body { font-size: 20px; }
+      .detail { font-size: 18px; }
+      .small { font-size: 18px; fill: #4d5b69; }
+      .pe { font-size: 18px; font-weight: 600; fill: #334e68; }
+      .mono { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 17px; font-weight: 600; fill: #334e68; }
+      .cidr { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 17px; fill: #4d5b69; }
+      .label { font-size: 18px; fill: #4d5b69; font-weight: 600; }
+      .boundary { font-size: 18px; font-weight: 600; fill: #4d5b69; letter-spacing: 0.4px; }
+      .num { font-family: 'Segoe UI', Arial, sans-serif; font-size: 17px; font-weight: 700; fill: #fff; }
+      .request { fill: none; stroke: #0078d4; stroke-width: 2.5; marker-end: url(#blue); }
+      .result { fill: none; stroke: #00786a; stroke-width: 2.5; marker-end: url(#teal); }
+      .data { fill: none; stroke: #00786a; stroke-width: 2.5; stroke-dasharray: 7 5; marker-end: url(#teal); }
+      .bus { fill: none; stroke: #00786a; stroke-width: 2.5; stroke-dasharray: 7 5; }
+      .line { fill: none; stroke: #0078d4; stroke-width: 2.5; }
+      .link { fill: none; stroke: #8da6bb; stroke-width: 2; }
+    </style>
+  </defs>
+  <rect width="1600" height="1100" fill="#fff"/>
+  <text x="24" y="50" class="title">Document review lifecycle</text>
+  <text x="24" y="86" class="sub">Each review is saved before it runs and checked before its result is saved. Numbers follow one review run.</text>
+  <rect x="1280" y="160" width="296" height="372" rx="12" fill="#edf7f4" stroke="#00786a" stroke-width="1.5"/>
+  <image href="azure-icons/cosmos-db.svg" x="1294" y="174" width="36" height="36"/>
+  <text x="1340" y="198" class="name">Azure Cosmos DB</text>
+  <text x="1340" y="222" class="small">Review records</text>
+  <text x="1300" y="254" class="detail">Drafts, snapshots, results</text>
+  <text x="1300" y="282" class="detail">Conditional writes with ETags</text>
+  <text x="1300" y="310" class="detail">30-day TTL records</text>
+  <rect x="24" y="122" width="1080" height="260" rx="16" fill="#fff" stroke="#8da6bb" stroke-width="1.5" stroke-dasharray="9 6"/>
+  <text x="40" y="153" class="boundary">SAVE BEFORE RUNNING</text>
+  <rect x="48" y="184" width="300" height="160" rx="10" fill="#fff" stroke="#0078d4" stroke-width="1.5"/>
+  <text x="64" y="220" class="name">Create draft</text>
+  <circle cx="320" cy="212" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="320" y="218" class="num" text-anchor="middle">1</text>
+  <text x="64" y="250" class="mono">POST /api/review-runs</text>
+  <text x="64" y="275" class="detail">Validate criteria + sources</text>
+  <text x="64" y="300" class="detail">Server fields + ETag</text>
+  <text x="64" y="325" class="detail">No model call</text>
+  <rect x="416" y="184" width="300" height="160" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="432" y="220" class="name">Start run</text>
+  <circle cx="688" cy="212" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="688" y="218" class="num" text-anchor="middle">2</text>
+  <text x="432" y="250" class="mono">POST …/execute</text>
+  <text x="432" y="275" class="mono">If-Match</text>
+  <text x="432" y="300" class="detail">Uses one of four runs</text>
+  <text x="432" y="325" class="detail">409 if stale/competing</text>
+  <rect x="784" y="184" width="300" height="160" rx="10" fill="#fff" stroke="#00786a" stroke-width="2"/>
+  <text x="800" y="220" class="name">Save running snapshot</text>
+  <circle cx="1056" cy="212" r="15" fill="#00786a" stroke="#fff" stroke-width="2.5"/>
+  <text x="1056" y="218" class="num" text-anchor="middle">3</text>
+  <text x="800" y="250" class="detail">Conditional Cosmos write</text>
+  <text x="800" y="275" class="detail">Saves input snapshot</text>
+  <text x="800" y="300" class="detail">Returns HTTP 202</text>
+  <path d="M348 264H408" class="request"/>
+  <path d="M716 264H776" class="request"/>
+  <path d="M1084 264H1272" class="data"/>
+  <rect x="24" y="386" width="1080" height="226" rx="16" fill="#fff" stroke="#8da6bb" stroke-width="1.5" stroke-dasharray="9 6"/>
+  <text x="40" y="417" class="boundary">RUN, CHECK, THEN SAVE</text>
+  <path d="M934 344V368H330V440" class="request"/>
+  <rect x="48" y="448" width="340" height="130" rx="10" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+  <image href="azure-icons/agent-service.svg" x="62" y="464" width="36" height="36"/>
+  <text x="108" y="484" class="name">Foundry Agent Service</text>
+  <circle cx="360" cy="476" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="360" y="482" class="num" text-anchor="middle">4</text>
+  <text x="64" y="514" class="detail">Coordinator + specialists</text>
+  <text x="64" y="539" class="detail">Schema + accumulated evidence</text>
+  <text x="64" y="564" class="detail">Managed identity; up to 180 s</text>
+  <rect x="440" y="448" width="310" height="130" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="456" y="484" class="name">Fail-closed checks</text>
+  <circle cx="722" cy="476" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="722" y="482" class="num" text-anchor="middle">5</text>
+  <text x="456" y="514" class="detail">Verified specialist receipts</text>
+  <text x="456" y="539" class="detail">JSON schema + coverage</text>
+  <text x="456" y="564" class="detail">Exact source quotes</text>
+  <rect x="812" y="448" width="272" height="130" rx="10" fill="#fff" stroke="#00786a" stroke-width="2"/>
+  <text x="828" y="484" class="name">Final write</text>
+  <circle cx="1056" cy="476" r="15" fill="#00786a" stroke="#fff" stroke-width="2.5"/>
+  <text x="1056" y="482" class="num" text-anchor="middle">6</text>
+  <text x="828" y="514" class="detail">Findings or failure code</text>
+  <text x="828" y="539" class="detail">Uses the run's ETag</text>
+  <text x="828" y="564" class="detail">Model text cannot set status</text>
+  <path d="M388 513H432" class="request"/>
+  <path d="M750 513H804" class="request"/>
+  <path d="M1084 513H1272" class="data"/>
+  <rect x="24" y="638" width="1080" height="148" rx="16" fill="#fff" stroke="#8da6bb" stroke-width="1.5" stroke-dasharray="9 6"/>
+  <text x="40" y="669" class="boundary">WHAT THE INBOX SHOWS</text>
+  <rect x="48" y="692" width="220" height="70" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="64" y="722" class="mono">completed</text>
+  <text x="64" y="748" class="detail">Findings saved</text>
+  <rect x="310" y="692" width="220" height="70" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="326" y="722" class="mono">waiting_input</text>
+  <text x="326" y="748" class="detail">Questions saved</text>
+  <rect x="580" y="692" width="220" height="70" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="596" y="722" class="mono">failed</text>
+  <text x="596" y="748" class="detail">Failure saved; no retry</text>
+  <rect x="830" y="692" width="220" height="70" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="846" y="722" class="mono">interrupted</text>
+  <text x="846" y="748" class="detail">Recover explicitly</text>
+  <rect x="24" y="812" width="1080" height="204" rx="16" fill="#fff" stroke="#8da6bb" stroke-width="1.5" stroke-dasharray="9 6"/>
+  <text x="40" y="843" class="boundary">FOLLOW-UP ACTIONS</text>
+  <rect x="280" y="860" width="280" height="132" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="296" y="896" class="name">Add evidence</text>
+  <circle cx="532" cy="888" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="532" y="894" class="num" text-anchor="middle">7</text>
+  <text x="296" y="926" class="mono">POST …/evidence</text>
+  <text x="296" y="951" class="detail">If-Match</text>
+  <text x="296" y="976" class="detail">Starts a new run from step 2</text>
+  <rect x="800" y="860" width="280" height="132" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="816" y="896" class="name">Recover</text>
+  <circle cx="1052" cy="888" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="1052" y="894" class="num" text-anchor="middle">8</text>
+  <text x="816" y="926" class="mono">POST …/resume</text>
+  <text x="816" y="951" class="detail">confirm_cost: true</text>
+  <text x="816" y="976" class="detail">Starts a new run from step 2</text>
+  <path d="M420 762V852" class="request"/>
+  <path d="M940 762V852" class="request"/>
+  <rect x="1296" y="426" width="264" height="82" rx="8" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="1312" y="456" class="detail">Reading or refreshing</text>
+  <text x="1312" y="481" class="detail">never starts an agent call.</text>
+  <rect x="1280" y="820" width="296" height="112" rx="8" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="1296" y="850" class="detail">Runs inside the Lab process:</text>
+  <text x="1296" y="875" class="detail">one worker, one replica,</text>
+  <text x="1296" y="900" class="detail">no queue or automatic retry.</text>
+  <text x="24" y="1064" class="boundary">LEGEND</text>
+  <path d="M120 1058H176" class="request"/>
+  <text x="186" y="1064" class="small">Request</text>
+  <path d="M287 1058H343" class="data"/>
+  <text x="353" y="1064" class="small">Data read or write</text>
+  <circle cx="544" cy="1058" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="544" y="1064" class="num" text-anchor="middle">n</text>
+  <text x="570" y="1064" class="small">Step</text>
+  <circle cx="658" cy="1058" r="15" fill="#00786a" stroke="#fff" stroke-width="2.5"/>
+  <text x="658" y="1064" class="num" text-anchor="middle">n</text>
+  <text x="684" y="1064" class="small">Data step</text>
+  <rect x="796" y="1044" width="44" height="28" rx="6" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="850" y="1064" class="small">Caveat</text>
+  <text x="1576" y="1064" class="small" text-anchor="end">Recovery reruns saved input; it is not exactly-once.</text>
+</svg>

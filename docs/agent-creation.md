@@ -60,7 +60,10 @@ bill reviewer). The lookup data is made up for the demo.
 Each template card shows the [model profile](#how-the-lab-picks-a-model) the
 job uses and whether it has simulated lookups.
 
-![Illustrative UI test of the Create agent page with mocked APIs: three numbered steps, nine template cards in two groups, each with an icon, a model chip and a tools label, and a job description box](images/screenshots/lab-create-agent.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-create-agent-dark.png">
+  <img alt="Illustrative UI test of the Create agent page with mocked APIs: three numbered steps, nine template cards in two groups, each with an icon, a model chip and a tools label, and a job description box" src="images/screenshots/lab-create-agent.png">
+</picture>
 
 *Illustrative UI test with mocked APIs; nothing was published.* ·
 [View full size](images/screenshots/lab-create-agent.png)

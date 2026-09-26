@@ -1,101 +1,121 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="1092" viewBox="0 0 760 1092" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1180" viewBox="0 0 1600 1180" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
   <title id="title">Operate and protect the Lab</title>
-  <desc id="desc">Three separate operational paths, not a sequential workflow or network map. The bounded Lab runtime sends request metadata, not prompts, to private Log Analytics through Azure Monitor. Hosted agents can optionally send metadata-only traces to a workspace-based Application Insights resource. Delivered notifications require an existing action group or an opt-in Terraform-owned email group; there are no recipients by default. An approved private runner uses Linux Docker to publish the Lab image to a private Azure Container Registry; the Lab is deployed by image digest. Registry admin authentication is disabled. Terraform uses authorized private access and Entra authentication for a separate state key per Terraform root in an existing Azure Blob backend. State requires locking, protected versions, and backups. Necessary secrets belong in Azure Key Vault; prefer managed identity for service access. These are default configuration and operating requirements, not proof of a live deployment.</desc>
+  <desc id="desc">Three independent operational lanes, not a sequential workflow. In Observe, the Lab runtime has limits and deadlines, cached health probes, one worker, one replica, and no prompt logging; it sends metadata to Azure Monitor and Log Analytics through private ingestion and private queries with local keys disabled, and action groups are existing or Terraform-owned. Separately, Foundry hosted agents can optionally send metadata-only agent traces to a workspace-based Application Insights resource connected to the Foundry project, with private ingestion. In Build and publish, an approved private build runner with a Linux Docker engine and approved identity pushes the Lab image to Azure Container Registry over private access; the registry has a private endpoint only and admin access is disabled. The Lab pulls the approved image by digest and runs the pinned image. In Protect state, Terraform uses private access, Entra authentication, and keyless resource reads to read and write Azure Blob Storage state, with one state key per root, locking, protected versions, and an existing backend not created here. Azure Key Vault holds only necessary secrets; prefer managed identity, and state plus backups still need their own protection.</desc>
   <defs>
-    <marker id="operation-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0 0L10 5L0 10z" fill="#4aa8ff"/>
     </marker>
-    <marker id="state-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0 0L10 5L0 10z" fill="#3cc3ae"/>
     </marker>
     <style>
       text { font-family: 'Segoe UI', Arial, sans-serif; fill: #e6edf3; }
-      .title { font-size: 30px; font-weight: 600; }
-      .heading { font-size: 25px; font-weight: 600; }
-      .body { font-size: 22px; }
-      .detail { font-size: 20px; }
-      .label { font-size: 20px; fill: #a9b4c0; }
-      .operation { fill: none; stroke: #4aa8ff; stroke-width: 2.5; marker-end: url(#operation-arrow); }
-      .state { fill: none; stroke: #3cc3ae; stroke-width: 2.5; marker-end: url(#state-arrow); }
+      .title { font-size: 34px; font-weight: 600; }
+      .sub { font-size: 21px; fill: #a9b4c0; }
+      .heading { font-size: 24px; font-weight: 600; }
+      .name { font-size: 20px; font-weight: 600; }
+      .body { font-size: 20px; }
+      .detail { font-size: 18px; }
+      .small { font-size: 18px; fill: #a9b4c0; }
+      .pe { font-size: 18px; font-weight: 600; fill: #b8c9da; }
+      .mono { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 17px; font-weight: 600; fill: #b8c9da; }
+      .cidr { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 17px; fill: #a9b4c0; }
+      .label { font-size: 18px; fill: #a9b4c0; font-weight: 600; }
+      .boundary { font-size: 18px; font-weight: 600; fill: #a9b4c0; letter-spacing: 0.4px; }
+      .num { font-family: 'Segoe UI', Arial, sans-serif; font-size: 17px; font-weight: 700; fill: #1f252e; }
+      .request { fill: none; stroke: #4aa8ff; stroke-width: 2.5; marker-end: url(#blue); }
+      .result { fill: none; stroke: #3cc3ae; stroke-width: 2.5; marker-end: url(#teal); }
+      .data { fill: none; stroke: #3cc3ae; stroke-width: 2.5; stroke-dasharray: 7 5; marker-end: url(#teal); }
+      .bus { fill: none; stroke: #3cc3ae; stroke-width: 2.5; stroke-dasharray: 7 5; }
+      .line { fill: none; stroke: #4aa8ff; stroke-width: 2.5; }
+      .link { fill: none; stroke: #6b7c8e; stroke-width: 2; }
     </style>
   </defs>
-
-  <rect width="760" height="1092" fill="#0d1117"/>
-  <text x="24" y="42" class="title">Operate and protect the Lab</text>
-  <text x="24" y="74" class="detail">Separate paths for telemetry, image publishing, and state</text>
-
-  <g id="telemetry-path">
-    <rect x="24" y="106" width="712" height="282" rx="16" fill="#161b22" stroke="#5d6d7e"/>
-    <text x="48" y="142" class="heading">Observe the Lab and agents</text>
-    <g id="lab-runtime">
-      <rect x="48" y="166" width="248" height="144" rx="12" fill="#1f252e" stroke="#6b7c8e" stroke-width="1.5"/>
-      <text x="70" y="201" class="heading">Lab runtime</text>
-      <text x="70" y="233" class="detail">Limits and deadlines</text>
-      <text x="70" y="264" class="detail">Cached health probes</text>
-      <text x="70" y="294" class="detail">One worker, one replica</text>
-    </g>
-    <g id="private-logs">
-      <rect x="400" y="166" width="312" height="144" rx="12" fill="#0f2438" stroke="#4278a6" stroke-width="1.5"/>
-      <text x="422" y="201" class="heading">Azure Monitor</text>
-      <text x="422" y="233" class="body">Log Analytics</text>
-      <text x="422" y="264" class="detail">Private ingestion + queries</text>
-      <text x="422" y="294" class="detail">Local keys disabled</text>
-    </g>
-    <path d="M296 240H400" class="operation"/>
-    <text x="348" y="220" text-anchor="middle" class="label">Metadata</text>
-    <text x="48" y="341" class="detail">No prompt logging. Action groups: existing or Terraform-owned.</text>
-    <text x="48" y="371" class="detail">Optional agent traces: Application Insights, metadata only.</text>
-  </g>
-
-  <g id="image-path">
-    <rect x="24" y="408" width="712" height="250" rx="16" fill="#161b22" stroke="#5d6d7e"/>
-    <text x="48" y="444" class="heading">Build and publish the Lab</text>
-    <g id="private-runner">
-      <rect x="48" y="472" width="248" height="144" rx="12" fill="#1f252e" stroke="#6b7c8e" stroke-width="1.5"/>
-      <text x="70" y="507" class="heading">Build runner</text>
-      <text x="70" y="539" class="detail">Private access</text>
-      <text x="70" y="569" class="detail">Linux Docker engine</text>
-      <text x="70" y="599" class="detail">Approved identity</text>
-    </g>
-    <g id="private-registry">
-      <rect x="400" y="472" width="312" height="144" rx="12" fill="#0f2438" stroke="#4278a6" stroke-width="1.5"/>
-      <text x="422" y="507" class="heading">Image registry</text>
-      <text x="422" y="539" class="body">Azure Container Registry</text>
-      <text x="422" y="569" class="detail">Private endpoint only</text>
-      <text x="422" y="599" class="detail">Registry admin disabled</text>
-    </g>
-    <path d="M296 546H400" class="operation"/>
-    <text x="348" y="526" text-anchor="middle" class="label">Push</text>
-    <text x="48" y="645" class="detail">The Lab pulls the approved image by digest, using scoped access.</text>
-  </g>
-
-  <g id="state-path">
-    <rect x="24" y="678" width="712" height="250" rx="16" fill="#161b22" stroke="#5d6d7e"/>
-    <text x="48" y="714" class="heading">Protect deployment state</text>
-    <g id="terraform-client">
-      <rect x="48" y="742" width="248" height="144" rx="12" fill="#1f252e" stroke="#6b7c8e" stroke-width="1.5"/>
-      <text x="70" y="777" class="heading">Terraform</text>
-      <text x="70" y="809" class="detail">Private access</text>
-      <text x="70" y="839" class="detail">Entra authentication</text>
-      <text x="70" y="869" class="detail">Keyless resource reads</text>
-    </g>
-    <g id="state-storage">
-      <rect x="400" y="742" width="312" height="144" rx="12" fill="#0e2723" stroke="#3cc3ae" stroke-width="1.5"/>
-      <image href="data:image/svg+xml;base64,PHN2ZyBpZD0iZjJmMDQzNDktOGFlZS00NDEzLTg0YzktYTkwNTM2MTFiMzE5IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImFkNGM0Zjk2LTA5YWEtNGY5MS1iYTEwLTVjYjhhZDUzMGY3NCIgeDE9IjkiIHkxPSIxNS44MyIgeDI9IjkiIHkyPSI1Ljc5IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjYjNiM2IzIiAvPjxzdG9wIG9mZnNldD0iMC4yNiIgc3RvcC1jb2xvcj0iI2MxYzFjMSIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNlNmU2ZTYiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRpdGxlPkljb24tc3RvcmFnZS04NjwvdGl0bGU+PHBhdGggZD0iTS41LDUuNzloMTdhMCwwLDAsMCwxLDAsMHY5LjQ4YS41Ny41NywwLDAsMS0uNTcuNTdIMS4wN2EuNTcuNTcsMCwwLDEtLjU3LS41N1Y1Ljc5QTAsMCwwLDAsMSwuNSw1Ljc5WiIgZmlsbD0idXJsKCNhZDRjNGY5Ni0wOWFhLTRmOTEtYmExMC01Y2I4YWQ1MzBmNzQpIiAvPjxwYXRoIGQ9Ik0xLjA3LDIuMTdIMTYuOTNhLjU3LjU3LDAsMCwxLC41Ny41N1Y1Ljc5YTAsMCwwLDAsMSwwLDBILjVhMCwwLDAsMCwxLDAsMFYyLjczQS41Ny41NywwLDAsMSwxLjA3LDIuMTdaIiBmaWxsPSIjMzdjMmIxIiAvPjxwYXRoIGQ9Ik0yLjgxLDYuODlIMTUuMThhLjI3LjI3LDAsMCwxLC4yNi4yN3YxLjRhLjI3LjI3LDAsMCwxLS4yNi4yN0gyLjgxYS4yNy4yNywwLDAsMS0uMjYtLjI3VjcuMTZBLjI3LjI3LDAsMCwxLDIuODEsNi44OVoiIGZpbGw9IiNmZmYiIC8+PHBhdGggZD0iTTIuODIsOS42OEgxNS4xOWEuMjcuMjcsMCwwLDEsLjI2LjI3djEuNDFhLjI3LjI3LDAsMCwxLS4yNi4yN0gyLjgyYS4yNy4yNywwLDAsMS0uMjYtLjI3VjEwQS4yNy4yNywwLDAsMSwyLjgyLDkuNjhaIiBmaWxsPSIjMzdjMmIxIiAvPjxwYXRoIGQ9Ik0yLjgyLDEyLjVIMTUuMTlhLjI3LjI3LDAsMCwxLC4yNi4yN3YxLjQxYS4yNy4yNywwLDAsMS0uMjYuMjdIMi44MmEuMjcuMjcsMCwwLDEtLjI2LS4yN1YxMi43N0EuMjcuMjcsMCwwLDEsMi44MiwxMi41WiIgZmlsbD0iIzI1ODI3NyIgLz48L3N2Zz4=" x="422" y="760" width="36" height="36"/>
-      <text x="470" y="786" class="heading">Azure Blob Storage</text>
-      <text x="422" y="823" class="detail">One state key per root</text>
-      <text x="422" y="855" class="detail">Locking + protected versions</text>
-    </g>
-    <path d="M296 816H400" class="state"/>
-    <text x="348" y="796" text-anchor="middle" class="label">State I/O</text>
-    <text x="48" y="915" class="detail">Use private Blob access; preserve state and protected backups.</text>
-  </g>
-
-  <g id="credential-boundary">
-    <rect x="24" y="948" width="712" height="118" rx="12" fill="#2a2313" stroke="#a08845" stroke-width="1.5"/>
-    <image href="data:image/svg+xml;base64,PHN2ZyBpZD0iYmM5MzE2OWEtMjRjNC00Njg2LTlmMzctYzdlNGY1M2IzZDM0IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImZiMTE0YzkzLTdjMTYtNDU0MC04OTlhLTA3OTYwNDE2MjllNiIgY3g9IjkiIGN5PSI5IiByPSI4LjUiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAuMTgiIHN0b3AtY29sb3I9IiM1ZWEwZWYiIC8+PHN0b3Agb2Zmc2V0PSIwLjU2IiBzdG9wLWNvbG9yPSIjNWM5ZmVlIiAvPjxzdG9wIG9mZnNldD0iMC42OSIgc3RvcC1jb2xvcj0iIzU1OWNlZCIgLz48c3RvcCBvZmZzZXQ9IjAuNzgiIHN0b3AtY29sb3I9IiM0YTk3ZTkiIC8+PHN0b3Agb2Zmc2V0PSIwLjg2IiBzdG9wLWNvbG9yPSIjMzk5MGU0IiAvPjxzdG9wIG9mZnNldD0iMC45MyIgc3RvcC1jb2xvcj0iIzIzODdkZSIgLz48c3RvcCBvZmZzZXQ9IjAuOTkiIHN0b3AtY29sb3I9IiMwODdiZDYiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMDA3OGQ0IiAvPjwvcmFkaWFsR3JhZGllbnQ+PHJhZGlhbEdyYWRpZW50IGlkPSJlYzQ3OGJkMy01YjM4LTRlN2YtYjY2MS0xMWYzNTU1NzhiZmYiIGN4PSIzOC45NSIgY3k9IjE4Mi4wNyIgcj0iOS44OCIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgtMjguNzEgLTE2My4yNCkgc2NhbGUoMC45NCAwLjk0KSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMC4yNyIgc3RvcC1jb2xvcj0iI2ZmZDcwZiIgLz48c3RvcCBvZmZzZXQ9IjAuNDkiIHN0b3AtY29sb3I9IiNmZmNiMTIiIC8+PHN0b3Agb2Zmc2V0PSIwLjg4IiBzdG9wLWNvbG9yPSIjZmVhYzE5IiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2ZlYTExYiIgLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48dGl0bGU+SWNvbi1zZWN1cml0eS0yNDU8L3RpdGxlPjxwYXRoIGlkPSJhYWNmODMxMS1hMzE3LTQwMGYtYjYxMy03NGJkMDBkYTVjZTMiIGQ9Ik05LC41QTguNSw4LjUsMCwxLDAsMTcuNSw5LDguNTEsOC41MSwwLDAsMCw5LC41Wk05LDE2LjM0QTcuMzQsNy4zNCwwLDEsMSwxNi4zNCw5LDcuMzQsNy4zNCwwLDAsMSw5LDE2LjM0WiIgZmlsbD0idXJsKCNmYjExNGM5My03YzE2LTQ1NDAtODk5YS0wNzk2MDQxNjI5ZTYpIiAvPjxjaXJjbGUgY3g9IjkiIGN5PSI5IiByPSI3LjM0IiBmaWxsPSIjZmZmIiAvPjxnPjxwYXRoIGlkPSJiZDk4M2M0MS1kYjczLTQwZWMtYTRmNC1kYTEyMTNmYzk5MjQiIGQ9Ik0xMy40NCw3LjMzYTEuODQsMS44NCwwLDAsMCwwLTIuNTloMEwxMC4yOSwxLjU4YTEuODMsMS44MywwLDAsMC0yLjU4LDBoMEw0LjU2LDQuNzRhMS44NCwxLjg0LDAsMCwwLDAsMi41OUw3LjE4LDEwYS41MS41MSwwLDAsMSwuMTUuMzZ2NC44OGEuNjMuNjMsMCwwLDAsLjE4LjQ0bDEuMiwxLjJhLjQxLjQxLDAsMCwwLC41OCwwbDEuMTYtMS4xNmgwbC42OC0uNjhhLjI1LjI1LDAsMCwwLDAtLjM0bC0uNDktLjQ5YS4yNy4yNywwLDAsMSwwLS4zN2wuNDktLjQ5YS4yNS4yNSwwLDAsMCwwLS4zNGwtLjQ5LS40OWEuMjcuMjcsMCwwLDEsMC0uMzdsLjQ5LS40OWEuMjUuMjUsMCwwLDAsMC0uMzRsLS42OC0uNjl2LS4yNVpNOSwyLjM1QTEsMSwwLDAsMSw5LDQuNDIsMSwxLDAsMSwxLDksMi4zNVoiIGZpbGw9InVybCgjZWM0NzhiZDMtNWIzOC00ZTdmLWI2NjEtMTFmMzU1NTc4YmZmKSIgLz48cGF0aCBpZD0iYWQyZTdlNDQtOWJmZC00Nzc1LThiZjQtOGVmMjZhNTQ0OTIxIiBkPSJNOC4xOCwxNS4zaDBhLjIzLjIzLDAsMCwwLC4zOC0uMTd2LTRhLjI0LjI0LDAsMCwwLS4xMS0uMmgwYS4yMi4yMiwwLDAsMC0uMzQuMnY0QS4yOC4yOCwwLDAsMCw4LjE4LDE1LjNaIiBmaWxsPSIjZmY5MzAwIiBvcGFjaXR5PSIwLjc1IiAvPjxyZWN0IGlkPSJhOTk2ZmJmZi0zOTM2LTRiMjQtYjQwNy0zNjkzMzZjMTQzYmEiIHg9IjYuNDgiIHk9IjUuNzkiIHdpZHRoPSI1LjE3IiBoZWlnaHQ9IjAuNjEiIHJ4PSIwLjI4IiBmaWxsPSIjZmY5MzAwIiBvcGFjaXR5PSIwLjc1IiAvPjxyZWN0IGlkPSJiYjEyZDMxYy0zMzUyLTRhMTgtODdkZC1hMTY5YTRhODcyMWQiIHg9IjYuNDgiIHk9IjYuNzgiIHdpZHRoPSI1LjE3IiBoZWlnaHQ9IjAuNjEiIHJ4PSIwLjI4IiBmaWxsPSIjZmY5MzAwIiBvcGFjaXR5PSIwLjc1IiAvPjwvZz48L3N2Zz4=" x="48" y="970" width="40" height="40"/>
-    <text x="108" y="989" class="heading">Azure Key Vault: necessary secrets</text>
-    <text x="108" y="1021" class="detail">Prefer managed identity for service access.</text>
-    <text x="108" y="1051" class="detail">State and backups still need their own protection.</text>
-  </g>
+  <rect width="1600" height="1180" fill="#0d1117"/>
+  <text x="24" y="50" class="title">Operate and protect the Lab</text>
+  <text x="24" y="86" class="sub">Telemetry, image publishing, and Terraform state are three independent operational lanes.</text>
+  <rect x="24" y="124" width="1552" height="392" rx="12" fill="#0f2438" stroke="#4278a6" stroke-width="1.5"/>
+  <text x="40" y="156" class="boundary">OBSERVE</text>
+  <rect x="56" y="170" width="414" height="154" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <text x="72" y="206" class="name">Lab runtime</text>
+  <text x="72" y="238" class="detail">Limits and deadlines</text>
+  <text x="72" y="262" class="detail">Cached health probes</text>
+  <text x="72" y="286" class="detail">One worker, one replica</text>
+  <text x="72" y="310" class="detail">No prompt logging</text>
+  <rect x="660" y="170" width="860" height="154" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <image href="data:image/svg+xml;base64,PHN2ZyBpZD0iZTRlNzY0Y2QtMmU3My00NzJmLWI4OGEtYmY4YmZjMmMyOTk0IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImFjOGIzMmRhLTMwY2EtNGI5Mi04ZDBmLThkMmQ1ZWYyNzhhMCIgY3g9IjUuNzIiIGN5PSI3LjQ1IiByPSI4LjQyIiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDMuMjMgMS41MSkgc2NhbGUoMS4wMSAxLjAxKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMC4xOCIgc3RvcC1jb2xvcj0iIzVlYTBlZiIgLz48c3RvcCBvZmZzZXQ9IjAuNTYiIHN0b3AtY29sb3I9IiM1YzlmZWUiIC8+PHN0b3Agb2Zmc2V0PSIwLjY5IiBzdG9wLWNvbG9yPSIjNTU5Y2VkIiAvPjxzdG9wIG9mZnNldD0iMC43OCIgc3RvcC1jb2xvcj0iIzRhOTdlOSIgLz48c3RvcCBvZmZzZXQ9IjAuODYiIHN0b3AtY29sb3I9IiMzOTkwZTQiIC8+PHN0b3Agb2Zmc2V0PSIwLjkzIiBzdG9wLWNvbG9yPSIjMjM4N2RlIiAvPjxzdG9wIG9mZnNldD0iMC45OSIgc3RvcC1jb2xvcj0iIzA4N2JkNiIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwMDc4ZDQiIC8+PC9yYWRpYWxHcmFkaWVudD48cmFkaWFsR3JhZGllbnQgaWQ9ImE5OTU0ODIwLWNiMzgtNDk0My05ODQyLWYwYTU2OGQyYjAxNSIgY3g9IjI4LjE4IiBjeT0iMjAyLjI5IiByPSIyLjciIGdyYWRpZW50VHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTE3Ljc3IC0xODUuMDEpIHNjYWxlKDAuOTUpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwLjE5IiBzdG9wLWNvbG9yPSIjOGM4ZTkwIiAvPjxzdG9wIG9mZnNldD0iMC4zNSIgc3RvcC1jb2xvcj0iIzg0ODY4OCIgLz48c3RvcCBvZmZzZXQ9IjAuNiIgc3RvcC1jb2xvcj0iIzZlNzA3MSIgLz48c3RvcCBvZmZzZXQ9IjAuOTEiIHN0b3AtY29sb3I9IiM0YTRiNGMiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjM2UzZjNmIiAvPjwvcmFkaWFsR3JhZGllbnQ+PC9kZWZzPjx0aXRsZT5JY29uLW1hbmFnZS0zMTc8L3RpdGxlPjxlbGxpcHNlIGN4PSI5IiBjeT0iOSIgcng9IjguNSIgcnk9IjguNDciIGZpbGw9InVybCgjYWM4YjMyZGEtMzBjYS00YjkyLThkMGYtOGQyZDVlZjI3OGEwKSIgLz48ZWxsaXBzZSBjeD0iOSIgY3k9IjkiIHJ4PSI3LjQiIHJ5PSI3LjM3IiBmaWxsPSIjZmZmIiAvPjxwYXRoIGQ9Ik0yLjcyLDkuNDRhNi4yNCw2LjI0LDAsMCwwLDEuODIsNGwyLTJhMy41MywzLjUzLDAsMCwxLTEtMloiIGZpbGw9IiM5Y2ViZmYiIC8+PHBhdGggZD0iTTEzLjEzLDQuMjdBNi4yNSw2LjI1LDAsMCwwLDkuNDQsMi43NFY1LjUzYTMuNDEsMy40MSwwLDAsMSwxLjcxLjdaIiBmaWxsPSIjMzJiZWRkIiAvPjxwYXRoIGQ9Ik00Ljg3LDQuMjdsMiwyYTMuNDEsMy40MSwwLDAsMSwxLjcxLS43VjIuNzRBNi4yNSw2LjI1LDAsMCwwLDQuODcsNC4yN1oiIGZpbGw9IiMzMmJlZGQiIC8+PHBhdGggZD0iTTExLjc4LDYuODVhMy42LDMuNiwwLDAsMSwuNzEsMS43MWgyLjc5YTYuMTYsNi4xNiwwLDAsMC0xLjUzLTMuNjdaIiBmaWxsPSIjMzJiZWRkIiAvPjxwYXRoIGQ9Ik02LjIyLDYuODVsLTItMkE2LjE2LDYuMTYsMCwwLDAsMi43Miw4LjU2SDUuNTFBMy42LDMuNiwwLDAsMSw2LjIyLDYuODVaIiBmaWxsPSIjNTBlNmZmIiAvPjxwYXRoIGQ9Ik0xNC4xNCw3YS40NS40NSwwLDAsMC0uNTctLjI1TDkuNDUsOC40MWwuMzIuODEsNC4xMi0xLjYzQS40NC40NCwwLDAsMCwxNC4xNCw3WiIgZmlsbD0iI2YwNDA0OSIgLz48ZWxsaXBzZSBjeD0iOSIgY3k9IjkiIHJ4PSIxLjIiIHJ5PSIxLjIiIGZpbGw9InVybCgjYTk5NTQ4MjAtY2IzOC00OTQzLTk4NDItZjBhNTY4ZDJiMDE1KSIgLz48L3N2Zz4=" x="672" y="182" width="36" height="36"/>
+  <text x="718" y="206" class="name">Azure Monitor</text>
+  <text x="718" y="230" class="small">Log Analytics</text>
+  <text x="676" y="264" class="detail">Private ingestion + queries</text>
+  <text x="676" y="288" class="detail">Local keys disabled</text>
+  <text x="676" y="312" class="detail">Action groups: existing or Terraform-owned</text>
+  <path d="M470 254H652" class="request"/>
+  <text x="565" y="236" class="small" text-anchor="middle">Metadata</text>
+  <rect x="56" y="348" width="414" height="124" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <image href="data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC1mOWRiYjc0Yy1iYjY1LTQ0ZjUtYTBmMi0xODU1NDFjOGYyZTMiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC1jNDFhMWI1ZC1jM2VlLTQ0MTMtYmVmMi1mNWEwNzJiYTkzNmUiIHgxPSI3LjI4IiB5MT0iMjcyLjg0IiB4Mj0iLjM5IiB5Mj0iMjY3Ljg3IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDAgMjgwKSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzRmNDJmZCIgLz48c3RvcCBvZmZzZXQ9Ii44IiBzdG9wLWNvbG9yPSIjNzI3NGZmIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTdhODM5N2JiLWY4MmUtNGI0ZS04ZmIxLWM0OWRjMjBlYWU1MiIgeDE9IjEwLjE5IiB5MT0iMjY4LjQxIiB4Mj0iNC4zOCIgeTI9IjI2NS4xNiIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDI4MCkgc2NhbGUoMSAtMSkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9Ii4yNSIgc3RvcC1jb2xvcj0iIzRmNDJmZCIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyYzA4YWMiIC8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9InV1aWQtMzY0Y2IzOGItMjVlNi00ZDQ1LWE1ZjMtN2Y3NTY3Y2YxOTQ3IiB4MT0iMTcuNDMiIHkxPSIyNjcuMDIiIHgyPSI1LjA4IiB5Mj0iMjY0Ljk4IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDAgMjgwKSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iLjIiIHN0b3AtY29sb3I9IiM3Mjc0ZmYiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNGY0MmZkIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLWZiMzJlMzM0LTg2N2QtNGVkZS1iZWQxLTU2YWVjYWU3NjJjYiIgeDE9IjEwLjE1IiB5MT0iMjczLjQxIiB4Mj0iMTYuODciIHkyPSIyNjkuNzEiIGdyYWRpZW50VHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCAyODApIHNjYWxlKDEgLTEpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIuMjUiIHN0b3AtY29sb3I9IiM0ZjQyZmQiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMmMwOGFjIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTI1N2JlZGViLWNiNGUtNDhlYy05NzhkLTY2N2Q5NDNkNDg4NyIgeDE9IjE3LjY4IiB5MT0iMjcwLjU3IiB4Mj0iOC42OCIgeTI9IjI3OS40MyIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDI4MCkgc2NhbGUoMSAtMSkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM0ZjQyZmQiIC8+PHN0b3Agb2Zmc2V0PSIuOCIgc3RvcC1jb2xvcj0iIzcyNzRmZiIgLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC1kMjRiM2YyYi01NWJkLTQ3MzEtOGQ4Mi0yY2NiM2E5NDlkYTciIHgxPSI2LjY0IiB5MT0iMjcxLjAyIiB4Mj0iNi42NCIgeTI9IjI3OC4xMiIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDI4MCkgc2NhbGUoMSAtMSkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9Ii4yNSIgc3RvcC1jb2xvcj0iIzRmNDJmZCIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyYzA4YWMiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTUuMDIsMTUuMzFsLTIuODItMS42M2MtLjY2LS4zOC0xLjA2LTEuMDgtMS4wNi0xLjgzdi01LjY5YzAtLjc2LjQtMS40NiwxLjA2LTEuODNsMS41My0uODhjLjEtLjA2LjI0LjAxLjI0LjE0djkuOTFjMCwuMzcuMS43My4yOCwxLjA0LjE4LjMyLjQ1LjU5Ljc4Ljc4aDBaIiBmaWxsPSJ1cmwoI3V1aWQtYzQxYTFiNWQtYzNlZS00NDEzLWJlZjItZjVhMDcyYmE5MzZlKSIgLz48cGF0aCBkPSJNMTAuMTQsMTAuNTl2MS43NmMwLC43Ni0uNCwxLjQ2LTEuMDYsMS44M2wtMS45NCwxLjEyYy0uNjUuMzgtMS40Ni4zOC0yLjEyLDAtLjMzLS4xOS0uNTktLjQ2LS43OC0uNzgtLjE4LS4zMS0uMjgtLjY3LS4yOC0xLjA0di0uNDJjMCwuMzYuMzkuNTkuNzEuNGw1LjIzLTMuMDJjLjEtLjA2LjI0LjAxLjI0LjE0WiIgZmlsbD0idXJsKCN1dWlkLTdhODM5N2JiLWY4MmUtNGI0ZS04ZmIxLWM0OWRjMjBlYWU1MikiIC8+PHBhdGggZD0iTTE2Ljg2LDkuNTN2My4yNmMwLC43Ni0uNCwxLjQ2LTEuMDYsMS44M2wtNC45MywyLjg0Yy0uNjUuMzgtMS40Ni4zOC0yLjEyLDBsLTEuNTMtLjg4Yy0uMS0uMDYtLjEtLjIxLDAtLjI3bDguNTktNC45NmMuMzItLjE5LjU4LS40NS43Ni0uNzcuMTgtLjMyLjI4LS42OC4yOC0xLjA2WiIgZmlsbD0idXJsKCN1dWlkLTM2NGNiMzhiLTI1ZTYtNGQ0NS1hNWYzLTdmNzU2N2NmMTk0NykiIC8+PHBhdGggZD0iTTEwLjIyLDcuNDZsMS41My0uODhjLjY1LS4zOCwxLjQ2LS4zOCwyLjEyLDBsMS45NCwxLjEyYy42NS4zOCwxLjA2LDEuMDgsMS4wNiwxLjgzLDAsLjM4LS4xLjc0LS4yOCwxLjA2LS4xOC4zMS0uNDQuNTgtLjc2Ljc3bC0uMzYuMjFjLjMxLS4xOC4zMS0uNjMsMC0uODFsLTUuMjMtMy4wMmMtLjEtLjA2LS4xLS4yMSwwLS4yN1oiIGZpbGw9InVybCgjdXVpZC1mYjMyZTMzNC04NjdkLTRlZGUtYmVkMS01NmFlY2FlNzYyY2IpIiAvPjxwYXRoIGQ9Ik01Ljk0LDIuMTZsMi44Mi0xLjYzYy42Ni0uMzgsMS40Ni0uMzgsMi4xMiwwbDQuOTMsMi44NGMuNjUuMzgsMS4wNiwxLjA4LDEuMDYsMS44M3YxLjc2YzAsLjEyLS4xMy4yLS4yNC4xNEw4LjA0LDIuMTZjLS4zMi0uMTgtLjY4LS4yOC0xLjA1LS4yOC0uMzcsMC0uNzMuMDktMS4wNi4yOGgwWiIgZmlsbD0idXJsKCN1dWlkLTI1N2JlZGViLWNiNGUtNDhlYy05NzhkLTY2N2Q5NDNkNDg4NykiIC8+PHBhdGggZD0iTTcuNDcsOC45NWwtMS41My0uODhjLS42Ni0uMzgtMS4wNi0xLjA4LTEuMDYtMS44M3YtMi4yNGMwLS43Ni40LTEuNDYsMS4wNi0xLjgzLjMzLS4xOS42OS0uMjgsMS4wNi0uMjhzLjcyLjA5LDEuMDQuMjhsLjM2LjIxYy0uMzEtLjE4LS43LjA1LS43LjQxdjYuMDRjMCwuMTItLjEzLjItLjI0LjE0aDBaIiBmaWxsPSJ1cmwoI3V1aWQtZDI0YjNmMmItNTViZC00NzMxLThkODItMmNjYjNhOTQ5ZGE3KSIgLz48L3N2Zz4=" x="68" y="360" width="36" height="36"/>
+  <text x="114" y="384" class="name">Hosted agents</text>
+  <text x="114" y="408" class="small">Foundry project</text>
+  <text x="72" y="442" class="detail">Optional trace source</text>
+  <rect x="660" y="348" width="860" height="124" rx="10" fill="#2a2313" stroke="#a08845" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="676" y="384" class="name">Optional Application Insights</text>
+  <text x="676" y="416" class="detail">Workspace-based connection</text>
+  <text x="676" y="440" class="detail">Metadata-only traces</text>
+  <text x="676" y="464" class="detail">Private ingestion</text>
+  <path d="M470 414H652" class="request"/>
+  <text x="565" y="396" class="small" text-anchor="middle">Trace metadata</text>
+  <rect x="24" y="540" width="1552" height="210" rx="12" fill="#0f2438" stroke="#4278a6" stroke-width="1.5"/>
+  <text x="40" y="572" class="boundary">BUILD AND PUBLISH</text>
+  <rect x="56" y="596" width="414" height="132" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <text x="72" y="632" class="name">Build runner</text>
+  <text x="72" y="664" class="detail">Private access</text>
+  <text x="72" y="688" class="detail">Linux Docker engine</text>
+  <text x="72" y="712" class="detail">Approved identity</text>
+  <rect x="660" y="596" width="410" height="132" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <image href="data:image/svg+xml;base64,PHN2ZyBpZD0iZTlmN2JhNzMtNTZiOC00ODY0LTk2ZmYtZGNlODBiZWY3MjlhIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImJkZjI3ZGM2LTAyNWMtNDgwNS04YmZkLTNhMDVkZWZkM2ZiZCIgeDE9IjguNjM3IiB5MT0iLTEuOTkxIiB4Mj0iOC42MzciIHkyPSIxNi43MzkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM1ZWEwZWYiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMDA3OGQ0IiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJmY2Q2YzZjNy1lMmViLTRhMzItYjkxNC0zYTg0ODU1ODVhMWIiIHgxPSIxMi45NiIgeTE9IjguNTYxIiB4Mj0iMTIuOTYiIHkyPSI2LjE0MSIgZ3JhZGllbnRUcmFuc2Zvcm09Im1hdHJpeCgxLCAwLCAwLCAtMSwgMCwgMjApIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMzMzMTMyIiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzViNWE1YyIgLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cGF0aCBkPSJNNy40Myw4LjE3OGwyLjU4OS0xLjU3Myw3LjI1NSwyLjczMUEzLjY2NCwzLjY2NCwwLDAsMCwxNi4yMyw3LjQ5bC0uMDEtLjA1QTQuMTk0LDQuMTk0LDAsMCwwLDE0LDYuMzJhNC45MSw0LjkxLDAsMCwwLTUuMS00LjdBNS4wNzEsNS4wNzEsMCwwLDAsNC4wNiw0LjkxLDQuNjIxLDQuNjIxLDAsMCwwLDAsOS4zOWE0LjczLDQuNzMsMCwwLDAsNC44OSw0LjU0SDcuNDNaIiBmaWxsPSJ1cmwoI2JkZjI3ZGM2LTAyNWMtNDgwNS04YmZkLTNhMDVkZWZkM2ZiZCkiIC8+PHBvbHlnb24gcG9pbnRzPSIxMC4wNyA3LjE1OSAxMC4wOCAxMS40MzkgMTcuOTkgMTMuMTE5IDE3Ljk5IDEwLjEzOSAxMC4wNyA3LjE1OSIgZmlsbD0iIzc2NzY3NiIgLz48cG9seWxpbmUgcG9pbnRzPSIxMC4wNyA3LjE1OSA3LjkzIDguNDU5IDcuOTMgMTIuNDM5IDEwLjA4IDExLjQzOSIgZmlsbD0iIzk5OSIgLz48cG9seWdvbiBwb2ludHM9IjEzLjY4IDExLjQ5OSAxNC40IDExLjY5OSAxNC40IDkuMzY5IDEzLjY4IDkuMTE5IDEzLjY4IDExLjQ5OSIgZmlsbD0iI2EzYTNhMyIgLz48cG9seWdvbiBwb2ludHM9IjEyLjk2IDguODg5IDEyLjI0IDguNjI5IDEyLjI0IDExLjExOSAxMi45NiAxMS4zMTkgMTIuOTYgOC44ODkiIGZpbGw9IiNhM2EzYTMiIC8+PHBvbHlnb24gcG9pbnRzPSIxNS4xMiAxMS44ODkgMTUuODIgMTIuMDc5IDE1Ljg0IDkuODU5IDE1LjEyIDkuNjE5IDE1LjEyIDExLjg4OSIgZmlsbD0iI2EzYTNhMyIgLz48cG9seWdvbiBwb2ludHM9IjEwLjgxIDEwLjc0OSAxMS41MyAxMC45MjkgMTEuNTMgOC4zOTkgMTAuODEgOC4xNTkgMTAuODEgMTAuNzQ5IiBmaWxsPSIjYTNhM2EzIiAvPjxwb2x5Z29uIHBvaW50cz0iMTcuMjcgMTAuMzQ5IDE2LjU1IDEwLjA5OSAxNi41NSAxMi4yNjkgMTcuMjcgMTIuNDY5IDE3LjI3IDEwLjM0OSIgZmlsbD0iI2EzYTNhMyIgLz48cGF0aCBpZD0iZWYwZDFiNTQtYTFlNy00Y2I5LWE0ZTUtOGE4NTE4ZTdjMTI3IiBkPSJNOC42NiwxMS4zNjlsLS4zNi4yMVY4Ljc0OWwuMzYtLjE5Wm0uNzEtMy4yMkw5LDguMzg5djIuNzVsLjM3LS4yWiIgZmlsbD0iI2IzYjNiMyIgLz48cG9seWdvbiBwb2ludHM9IjE3Ljk5IDEzLjExOSAxNS44MyAxMy44NTkgNy45MyAxMi40MzkgMTAuMDggMTEuNDM5IDE3Ljk5IDEzLjExOSIgZmlsbD0idXJsKCNmY2Q2YzZjNy1lMmViLTRhMzItYjkxNC0zYTg0ODU1ODVhMWIpIiAvPjxwb2x5Z29uIHBvaW50cz0iMTcuOTkgMTYuMTY5IDEwLjA0IDE3LjY3OSAxMC4wOCAxMi4wODkgMTcuOTkgMTMuNTU5IDE3Ljk5IDE2LjE2OSIgZmlsbD0iIzc2NzY3NiIgLz48cG9seWdvbiBwb2ludHM9IjEwLjgxIDE2Ljc1OSAxMC44MSAxMy4yMDkgMTEuNTMgMTMuMjk5IDExLjUzIDE2LjYzOSAxMC44MSAxNi43NTkiIGZpbGw9IiNhM2EzYTMiIC8+PHBvbHlnb24gcG9pbnRzPSIxMi45NiAxNi4zOTkgMTIuMjQgMTYuNTI5IDEyLjI0IDEzLjM4OSAxMi45NiAxMy40OTkgMTIuOTYgMTYuMzk5IDEyLjk2IDE2LjM5OSIgZmlsbD0iI2EzYTNhMyIgLz48cG9seWdvbiBwb2ludHM9IjEzLjY4IDE2LjI4OSAxMy42OCAxMy41NjkgMTQuNCAxMy42NTkgMTQuNCAxNi4xNTkgMTMuNjggMTYuMjg5IiBmaWxsPSIjYTNhM2EzIiAvPjxwb2x5Z29uIHBvaW50cz0iMTUuODMgMTUuOTA5IDE1LjEyIDE2LjAzOSAxNS4xMiAxMy43NDkgMTUuODMgMTMuODU5IDE1LjgzIDE1LjkwOSIgZmlsbD0iI2EzYTNhMyIgLz48cG9seWdvbiBwb2ludHM9IjE3LjI5IDE1LjY3OSAxNi41NSAxNS44MDkgMTYuNTUgMTMuOTI5IDE3LjI0IDE0LjAxOSAxNy4yOSAxNS42NzkiIGZpbGw9IiNhM2EzYTMiIC8+PHBhdGggaWQ9ImI5ZjI1ZWI0LTRjODgtNDVjMi1iYzRkLWY5OTI3NTdkN2UwZSIgZD0iTTcuOTMsMTYuNHYtMy4yNmwyLjE2LTF2NS42WiIgZmlsbD0iIzk5OSIgLz48cGF0aCBpZD0iZWI5MjAwYTctNDY5My00NDI3LWJkYWUtYjMzY2U5MGZmN2YyIiBkPSJNOC42MSwxNi4zODlsLS4zMi0uMTZ2LTIuNzZsLjMyLS4xNVptLjc3LTMuNDUtLjM4LjE5djMuNDhsLjM3LjE5di0zLjg2WiIgZmlsbD0iI2IzYjNiMyIgLz48L3N2Zz4=" x="672" y="608" width="36" height="36"/>
+  <text x="718" y="632" class="name">Azure Container Registry</text>
+  <text x="718" y="656" class="small">Private registry</text>
+  <text x="676" y="690" class="detail">Private endpoint only</text>
+  <text x="676" y="714" class="detail">Registry admin disabled</text>
+  <rect x="1224" y="596" width="300" height="132" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImEzYTQ0MDkzLWIxNTctNDI2ZS1hOGZlLWNlYzlmOWMyMzk3OCIgeDE9IjExLjcyOSIgeTE9IjQuODgiIHgyPSIxMS43MjkiIHkyPSIxMy4wOTkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAuMDAxIiBzdG9wLWNvbG9yPSIjNzczYWRjIiAvPjxzdG9wIG9mZnNldD0iMC41MjgiIHN0b3AtY29sb3I9IiM2NjM1YmIiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNTUyZjk5IiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJhZDgzODg1OS0wM2Y0LTQ3MmYtODFiYy1lYmM5MjFkNzEzMzUiIHgxPSI2LjM1IiB5MT0iMTMuOTE0IiB4Mj0iNi4zNSIgeTI9IjQuMTk4IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwLjAwMSIgc3RvcC1jb2xvcj0iIzc3M2FkYyIgLz48c3RvcCBvZmZzZXQ9IjAuMzA3IiBzdG9wLWNvbG9yPSIjNzkzZGRkIiAvPjxzdG9wIG9mZnNldD0iMC41MzIiIHN0b3AtY29sb3I9IiM4MDQ2ZTEiIC8+PHN0b3Agb2Zmc2V0PSIwLjczMSIgc3RvcC1jb2xvcj0iIzhjNTZlNyIgLz48c3RvcCBvZmZzZXQ9IjAuOTE1IiBzdG9wLWNvbG9yPSIjOWM2ZGVmIiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2E2N2FmNCIgLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48ZyBpZD0iYWU4MjQ3MGQtN2E2Yy00ZGZlLTg1MzMtNTlkOGZmOTQ4NjI5Ij48Zz48cGF0aCBkPSJNOC42MTcsOC42NDRILjYzOVYxLjc4NEExLjE2LDEuMTYsMCwwLDEsMS43ODguNjI0SDguNjE3Wk0xLjYzLDcuNjUzaDZWMS41OTRIMS43ODhhLjE1OC4xNTgsMCwwLDAtLjE1OC4xNThoMFoiIGZpbGw9IiM5NDk0OTQiIC8+PHBhdGggZD0iTTE3LjUsOC42NDRIOS41MjNWLjYyNGg2LjgyOEExLjE2LDEuMTYsMCwwLDEsMTcuNSwxLjc4NFptLTYuOTg3LS45OTFoNlYxLjc4NGEuMTU3LjE1NywwLDAsMC0uMTIzLS4xODcuMi4yLDAsMCwwLS4wMzUsMEgxMC41MTNaIiBmaWxsPSIjOTQ5NDk0IiAvPjxwYXRoIGQ9Ik04LjYxNywxNy40ODVIMS43ODhBMS4xNDksMS4xNDksMCwwLDEsLjYzOSwxNi4zNDdWOS40NzZIOC42MTdaTTEuNjMsMTAuNDY3djUuODhhLjE1OC4xNTgsMCwwLDAsLjE1OC4xNThINy42MjZWMTAuNDY3WiIgZmlsbD0iIzk0OTQ5NCIgLz48cGF0aCBkPSJNMTYuMzUxLDE3LjQ4NUg5LjUyM1Y5LjQ3NkgxNy41djYuODcxQTEuMTQ5LDEuMTQ5LDAsMCwxLDE2LjM1MSwxNy40ODVabS01LjgzOC0uOTkxaDUuODM4YS4xNTcuMTU3LDAsMCwwLC4xNTgtLjE1OFYxMC40NjdoLTZaIiBmaWxsPSIjOTQ5NDk0IiAvPjxwYXRoIGQ9Ik0xNC42LDYuMjk0YS4yOTQuMjk0LDAsMCwwLS4yLS4yNzhMOS4wNDQsNC4yMDVBLjEyOC4xMjgsMCwwLDAsOSw0LjJIOWEuMTMyLjEzMiwwLDAsMC0uMTMzLjEzM3Y5LjQ0NUEuMTMzLjEzMywwLDAsMCw5LDEzLjkxMUg5YS4xMzguMTM4LDAsMCwwLC4wNDktLjAxbDUuMzY1LTIuMTQ1YS4yOTIuMjkyLDAsMCwwLC4xODQtLjI3MloiIGZpbGw9InVybCgjYTNhNDQwOTMtYjE1Ny00MjZlLWE4ZmUtY2VjOWY5YzIzOTc4KSIgLz48cGF0aCBkPSJNOC45NjYsNC4ybC01LjI5My45NjZhLjE2MS4xNjEsMCwwLDAtLjEzLjE1OFYxMi42M2EuMTYuMTYsMCwwLDAsLjEyNi4xNTdMOC45NjIsMTMuOTFhLjE2MS4xNjEsMCwwLDAsLjE5MS0uMTIxLjIyLjIyLDAsMCwwLDAtLjAzNlY0LjM1OEEuMTYuMTYsMCwwLDAsOSw0LjIuMTYzLjE2MywwLDAsMCw4Ljk2Niw0LjJaIiBmaWxsPSJ1cmwoI2FkODM4ODU5LTAzZjQtNDcyZi04MWJjLWViYzkyMWQ3MTMzNSkiIC8+PHBhdGggZD0iTTYuNTIsNS42NTZ2Ni44bDEuODQyLjNWNS4zMzVabS0yLjI2Mi4zNjd2NS45NTVsMS42LjMyNlY1Ljc1NFoiIGZpbGw9IiNiNzk2ZjkiIG9wYWNpdHk9IjAuNSIgLz48L2c+PC9nPjwvc3ZnPg==" x="1236" y="608" width="36" height="36"/>
+  <text x="1282" y="632" class="name">The Lab</text>
+  <text x="1282" y="656" class="small">Approved image</text>
+  <text x="1240" y="690" class="detail">Runs the pinned image</text>
+  <text x="1240" y="714" class="detail">Uses scoped access</text>
+  <path d="M470 662H652" class="request"/>
+  <text x="565" y="644" class="small" text-anchor="middle">Push image</text>
+  <path d="M1070 662H1216" class="result"/>
+  <text x="1147" y="644" class="small" text-anchor="middle">Pull by digest</text>
+  <rect x="24" y="774" width="1552" height="230" rx="12" fill="#0f2438" stroke="#4278a6" stroke-width="1.5"/>
+  <text x="40" y="806" class="boundary">PROTECT STATE</text>
+  <rect x="56" y="830" width="414" height="132" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <text x="72" y="866" class="name">Terraform</text>
+  <text x="72" y="898" class="detail">Private access</text>
+  <text x="72" y="922" class="detail">Entra authentication</text>
+  <text x="72" y="946" class="detail">Keyless resource reads</text>
+  <rect x="660" y="830" width="860" height="150" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <image href="data:image/svg+xml;base64,PHN2ZyBpZD0iZjJmMDQzNDktOGFlZS00NDEzLTg0YzktYTkwNTM2MTFiMzE5IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImFkNGM0Zjk2LTA5YWEtNGY5MS1iYTEwLTVjYjhhZDUzMGY3NCIgeDE9IjkiIHkxPSIxNS44MyIgeDI9IjkiIHkyPSI1Ljc5IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjYjNiM2IzIiAvPjxzdG9wIG9mZnNldD0iMC4yNiIgc3RvcC1jb2xvcj0iI2MxYzFjMSIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNlNmU2ZTYiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRpdGxlPkljb24tc3RvcmFnZS04NjwvdGl0bGU+PHBhdGggZD0iTS41LDUuNzloMTdhMCwwLDAsMCwxLDAsMHY5LjQ4YS41Ny41NywwLDAsMS0uNTcuNTdIMS4wN2EuNTcuNTcsMCwwLDEtLjU3LS41N1Y1Ljc5QTAsMCwwLDAsMSwuNSw1Ljc5WiIgZmlsbD0idXJsKCNhZDRjNGY5Ni0wOWFhLTRmOTEtYmExMC01Y2I4YWQ1MzBmNzQpIiAvPjxwYXRoIGQ9Ik0xLjA3LDIuMTdIMTYuOTNhLjU3LjU3LDAsMCwxLC41Ny41N1Y1Ljc5YTAsMCwwLDAsMSwwLDBILjVhMCwwLDAsMCwxLDAsMFYyLjczQS41Ny41NywwLDAsMSwxLjA3LDIuMTdaIiBmaWxsPSIjMzdjMmIxIiAvPjxwYXRoIGQ9Ik0yLjgxLDYuODlIMTUuMThhLjI3LjI3LDAsMCwxLC4yNi4yN3YxLjRhLjI3LjI3LDAsMCwxLS4yNi4yN0gyLjgxYS4yNy4yNywwLDAsMS0uMjYtLjI3VjcuMTZBLjI3LjI3LDAsMCwxLDIuODEsNi44OVoiIGZpbGw9IiNmZmYiIC8+PHBhdGggZD0iTTIuODIsOS42OEgxNS4xOWEuMjcuMjcsMCwwLDEsLjI2LjI3djEuNDFhLjI3LjI3LDAsMCwxLS4yNi4yN0gyLjgyYS4yNy4yNywwLDAsMS0uMjYtLjI3VjEwQS4yNy4yNywwLDAsMSwyLjgyLDkuNjhaIiBmaWxsPSIjMzdjMmIxIiAvPjxwYXRoIGQ9Ik0yLjgyLDEyLjVIMTUuMTlhLjI3LjI3LDAsMCwxLC4yNi4yN3YxLjQxYS4yNy4yNywwLDAsMS0uMjYuMjdIMi44MmEuMjcuMjcsMCwwLDEtLjI2LS4yN1YxMi43N0EuMjcuMjcsMCwwLDEsMi44MiwxMi41WiIgZmlsbD0iIzI1ODI3NyIgLz48L3N2Zz4=" x="672" y="842" width="36" height="36"/>
+  <text x="718" y="866" class="name">Azure Blob Storage</text>
+  <text x="718" y="890" class="small">Terraform backend</text>
+  <text x="676" y="924" class="detail">One state key per root</text>
+  <text x="676" y="947" class="detail">Locking + protected versions</text>
+  <text x="676" y="970" class="detail">Existing backend; not created here</text>
+  <path d="M470 896H652" class="data"/>
+  <text x="565" y="878" class="small" text-anchor="middle">Read and write state</text>
+  <rect x="24" y="1028" width="1552" height="76" rx="12" fill="#3b300d" stroke="#a08845" stroke-width="1.5"/>
+  <image href="data:image/svg+xml;base64,PHN2ZyBpZD0iYmM5MzE2OWEtMjRjNC00Njg2LTlmMzctYzdlNGY1M2IzZDM0IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImZiMTE0YzkzLTdjMTYtNDU0MC04OTlhLTA3OTYwNDE2MjllNiIgY3g9IjkiIGN5PSI5IiByPSI4LjUiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAuMTgiIHN0b3AtY29sb3I9IiM1ZWEwZWYiIC8+PHN0b3Agb2Zmc2V0PSIwLjU2IiBzdG9wLWNvbG9yPSIjNWM5ZmVlIiAvPjxzdG9wIG9mZnNldD0iMC42OSIgc3RvcC1jb2xvcj0iIzU1OWNlZCIgLz48c3RvcCBvZmZzZXQ9IjAuNzgiIHN0b3AtY29sb3I9IiM0YTk3ZTkiIC8+PHN0b3Agb2Zmc2V0PSIwLjg2IiBzdG9wLWNvbG9yPSIjMzk5MGU0IiAvPjxzdG9wIG9mZnNldD0iMC45MyIgc3RvcC1jb2xvcj0iIzIzODdkZSIgLz48c3RvcCBvZmZzZXQ9IjAuOTkiIHN0b3AtY29sb3I9IiMwODdiZDYiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMDA3OGQ0IiAvPjwvcmFkaWFsR3JhZGllbnQ+PHJhZGlhbEdyYWRpZW50IGlkPSJlYzQ3OGJkMy01YjM4LTRlN2YtYjY2MS0xMWYzNTU1NzhiZmYiIGN4PSIzOC45NSIgY3k9IjE4Mi4wNyIgcj0iOS44OCIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgtMjguNzEgLTE2My4yNCkgc2NhbGUoMC45NCAwLjk0KSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMC4yNyIgc3RvcC1jb2xvcj0iI2ZmZDcwZiIgLz48c3RvcCBvZmZzZXQ9IjAuNDkiIHN0b3AtY29sb3I9IiNmZmNiMTIiIC8+PHN0b3Agb2Zmc2V0PSIwLjg4IiBzdG9wLWNvbG9yPSIjZmVhYzE5IiAvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2ZlYTExYiIgLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48dGl0bGU+SWNvbi1zZWN1cml0eS0yNDU8L3RpdGxlPjxwYXRoIGlkPSJhYWNmODMxMS1hMzE3LTQwMGYtYjYxMy03NGJkMDBkYTVjZTMiIGQ9Ik05LC41QTguNSw4LjUsMCwxLDAsMTcuNSw5LDguNTEsOC41MSwwLDAsMCw5LC41Wk05LDE2LjM0QTcuMzQsNy4zNCwwLDEsMSwxNi4zNCw5LDcuMzQsNy4zNCwwLDAsMSw5LDE2LjM0WiIgZmlsbD0idXJsKCNmYjExNGM5My03YzE2LTQ1NDAtODk5YS0wNzk2MDQxNjI5ZTYpIiAvPjxjaXJjbGUgY3g9IjkiIGN5PSI5IiByPSI3LjM0IiBmaWxsPSIjZmZmIiAvPjxnPjxwYXRoIGlkPSJiZDk4M2M0MS1kYjczLTQwZWMtYTRmNC1kYTEyMTNmYzk5MjQiIGQ9Ik0xMy40NCw3LjMzYTEuODQsMS44NCwwLDAsMCwwLTIuNTloMEwxMC4yOSwxLjU4YTEuODMsMS44MywwLDAsMC0yLjU4LDBoMEw0LjU2LDQuNzRhMS44NCwxLjg0LDAsMCwwLDAsMi41OUw3LjE4LDEwYS41MS41MSwwLDAsMSwuMTUuMzZ2NC44OGEuNjMuNjMsMCwwLDAsLjE4LjQ0bDEuMiwxLjJhLjQxLjQxLDAsMCwwLC41OCwwbDEuMTYtMS4xNmgwbC42OC0uNjhhLjI1LjI1LDAsMCwwLDAtLjM0bC0uNDktLjQ5YS4yNy4yNywwLDAsMSwwLS4zN2wuNDktLjQ5YS4yNS4yNSwwLDAsMCwwLS4zNGwtLjQ5LS40OWEuMjcuMjcsMCwwLDEsMC0uMzdsLjQ5LS40OWEuMjUuMjUsMCwwLDAsMC0uMzRsLS42OC0uNjl2LS4yNVpNOSwyLjM1QTEsMSwwLDAsMSw5LDQuNDIsMSwxLDAsMSwxLDksMi4zNVoiIGZpbGw9InVybCgjZWM0NzhiZDMtNWIzOC00ZTdmLWI2NjEtMTFmMzU1NTc4YmZmKSIgLz48cGF0aCBpZD0iYWQyZTdlNDQtOWJmZC00Nzc1LThiZjQtOGVmMjZhNTQ0OTIxIiBkPSJNOC4xOCwxNS4zaDBhLjIzLjIzLDAsMCwwLC4zOC0uMTd2LTRhLjI0LjI0LDAsMCwwLS4xMS0uMmgwYS4yMi4yMiwwLDAsMC0uMzQuMnY0QS4yOC4yOCwwLDAsMCw4LjE4LDE1LjNaIiBmaWxsPSIjZmY5MzAwIiBvcGFjaXR5PSIwLjc1IiAvPjxyZWN0IGlkPSJhOTk2ZmJmZi0zOTM2LTRiMjQtYjQwNy0zNjkzMzZjMTQzYmEiIHg9IjYuNDgiIHk9IjUuNzkiIHdpZHRoPSI1LjE3IiBoZWlnaHQ9IjAuNjEiIHJ4PSIwLjI4IiBmaWxsPSIjZmY5MzAwIiBvcGFjaXR5PSIwLjc1IiAvPjxyZWN0IGlkPSJiYjEyZDMxYy0zMzUyLTRhMTgtODdkZC1hMTY5YTRhODcyMWQiIHg9IjYuNDgiIHk9IjYuNzgiIHdpZHRoPSI1LjE3IiBoZWlnaHQ9IjAuNjEiIHJ4PSIwLjI4IiBmaWxsPSIjZmY5MzAwIiBvcGFjaXR5PSIwLjc1IiAvPjwvZz48L3N2Zz4=" x="48" y="1046" width="42" height="42"/>
+  <text x="108" y="1062" class="name">Azure Key Vault holds only necessary secrets</text>
+  <text x="108" y="1090" class="detail">Prefer managed identity; state and backups still need their own protection.</text>
+  <text x="24" y="1138" class="boundary">LEGEND</text>
+  <path d="M120 1132H176" class="request"/>
+  <text x="186" y="1138" class="small">Request</text>
+  <path d="M287 1132H343" class="result"/>
+  <text x="353" y="1138" class="small">Result</text>
+  <path d="M441 1132H497" class="data"/>
+  <text x="507" y="1138" class="small">Data read or write</text>
+  <rect x="684" y="1118" width="44" height="28" rx="6" fill="#2a2313" stroke="#a08845" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="738" y="1138" class="small">Optional</text>
+  <rect x="841" y="1118" width="44" height="28" rx="6" fill="#3b300d" stroke="#a08845" stroke-width="1.5"/>
+  <text x="895" y="1138" class="small">Caveat</text>
+  <text x="1576" y="1138" class="small" text-anchor="end">Rows are independent operational paths</text>
 </svg>

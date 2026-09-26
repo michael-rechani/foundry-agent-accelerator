@@ -23,10 +23,13 @@ no model calls. This is a sample, not an official Microsoft product.
 
 **On this page**
 
-[Get started](#get-started) · [Explore three stories](#explore-three-stories) ·
+[Take a tour](#take-a-tour) · [Get started](#get-started) ·
+[Explore three stories](#explore-three-stories) ·
 [What you can show](#what-you-can-show) · [How it works](#how-it-works) ·
-[Deploy to Azure](#deploy-to-azure) · [What's included](#whats-included) ·
-[Documentation](#documentation)
+[Deploy to Azure](#deploy-to-azure) ·
+[Scope and limitations](#scope-and-limitations) ·
+[What's included](#whats-included) · [Documentation](#documentation) ·
+[Automated checks](#automated-checks)
 
 ---
 
@@ -159,67 +162,45 @@ For all eight pages, see the [Lab guide](workbench/README.md#pages).
 
 ## How it works
 
+Each diagram answers one question, follows your GitHub theme, and numbers its
+steps in the same order as the list below it.
+
 ### One foundation, two connected workflows
+
+Terraform prepares the private foundation once. Agents are then released,
+verified, and revised on their own schedule, connected by an explicit
+configuration handoff.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-release-journey-dark.svg">
-  <img alt="Two connected workflows: Terraform and Azure Verified Modules provision the private foundation; agent bundles and instructions are released, verified, routed, and revised independently. Configuration connects the two; people approve changes." src="docs/images/agent-release-journey.svg">
+  <img alt="Agent release journey in six numbered steps. Private foundation, built with Terraform and Azure Verified Modules: review the plan, provision separate roots, and verify private access. A configuration handoff carries the project endpoint, model deployments, identity, and private connectivity to agent releases: package the agent, publish and verify a new hosted version, then route, review, and iterate. People approve infrastructure changes, publication costs, and business decisions." src="docs/images/agent-release-journey.svg">
 </picture>
 
-**Foundation:** Terraform owns the infrastructure.
+1. **Review the plan.** Confirm permissions, quota, cost approval, and
+   protected remote state.
+2. **Provision separate roots.** Deploy the Foundry platform and the Lab, with
+   optional Bastion and monitoring.
+3. **Verify private access.** Check network paths and identities in the
+   intended environment.
+4. **Package the agent.** Bundle its source and configuration manifest, with
+   explicit model deployment mappings.
+5. **Publish and verify.** Create a new hosted version and check the
+   documented release gates.
+6. **Route, review, and iterate.** Check answers against evidence, and use
+   guarded recovery if a release misbehaves.
 
-**Agent releases:** source, instructions, versions, and verified routes evolve
-independently.
+*A logical workflow. A code push doesn't deploy either workflow, and a bundle
+carries configuration, not Azure permissions.*
 
-**Configuration handoff:** connects the two workflows. A code push does not
-deploy either.
-
-Read the [release journey](docs/showcase.md#one-foundation-repeatable-agent-releases)
-or the [portable bundle guide](hosted-agents/README.md#portable-agent-bundles).
-
-### Agents working together
-
-The default **Application and case helper** coordinates the prebuilt specialists.
-You still check the returned findings against the source.
-
-<details>
-<summary>View the collaboration diagram and request flow</summary>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-collaboration-dark.svg">
-  <img alt="Default agent collaboration: you ask in the Lab, the Application and case helper calls one specialist, returns its findings, and you check the answer" src="docs/images/agent-collaboration.svg">
-</picture>
-
-1. **You ask in the Lab.** Its backend calls the coordinator agent in Foundry by
-   using a managed identity.
-2. **The coordinator picks a specialist** and calls it through a tool.
-   Specialists don't message each other.
-3. **The coordinator returns the findings**, with a record of which specialist
-   answered.
-4. **You check the answer** against the source. A completed tool call doesn't
-   prove the findings are correct.
-
-</details>
-
-### Creating your own agent
-
-When you publish from **Create agent**, the Lab packages its reviewed agent code
-with your instructions and uploads it with the Foundry SDK.
-
-Foundry Agent Service builds it and starts a new hosted agent named
-`lab-demo-...` on the model that suits the template's work.
-
-When Foundry reports the new version active and its route is confirmed, try
-the agent in **Chat**.
+[View full size](docs/images/agent-release-journey.svg) ·
+[Edit the SVG template](docs/images/agent-release-journey.template.svg) ·
+[Read the release journey](docs/showcase.md#one-foundation-repeatable-agent-releases) ·
+[Portable bundles](hosted-agents/README.md#portable-agent-bundles)
 
 ### What runs in Azure
 
-For components, data flows, and trust boundaries, see the
-[architecture guide](docs/architecture.md). For each agent's name in the Lab
-and in Foundry, see [agent names](docs/README.md#agent-names).
-
-<details>
-<summary>View the Azure architecture and private networking</summary>
+Everything runs in one subscription on private networks. Services sign in with
+managed identities, not API keys.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/azure-architecture-dark.svg">
@@ -241,9 +222,59 @@ and in Foundry, see [agent names](docs/README.md#agent-names).
 Bastion and the jumpbox are optional; API Management isn't shown.*
 
 [View full size](docs/images/azure-architecture.svg) ·
-[Edit the SVG template](docs/images/azure-architecture.template.svg)
+[Edit the SVG template](docs/images/azure-architecture.template.svg) ·
+[Architecture guide](docs/architecture.md) ·
+[Agent names](docs/README.md#agent-names)
 
-</details>
+### Agents working together
+
+The default **Application and case helper** coordinates the prebuilt
+specialists. You still check the returned findings against the source.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-collaboration-dark.svg">
+  <img alt="Default agent collaboration in four numbered steps: you ask in the Lab with supplied evidence; in Foundry Agent Service, the Application and case helper calls one specialist, the Application checker or the Case notes summarizer; the coordinator returns findings with a tool record; and a person checks the answer against the evidence" src="docs/images/agent-collaboration.svg">
+</picture>
+
+1. **You ask in the Lab.** Its backend calls the coordinator agent in Foundry by
+   using a managed identity.
+2. **The coordinator picks a specialist** and calls it through a tool.
+   Specialists don't message each other.
+3. **The coordinator returns the findings**, with a record of which specialist
+   answered.
+4. **You check the answer** against the source. A completed tool call doesn't
+   prove the findings are correct.
+
+*It calls one specialist by default, or both only if you ask. There is no
+automatic approval, denial, or external action.*
+
+[View full size](docs/images/agent-collaboration.svg) ·
+[Edit the SVG template](docs/images/agent-collaboration.template.svg) ·
+[Hosted agents](hosted-agents/README.md)
+
+### Creating your own agent
+
+When you publish from **Create agent**, the Lab packages its reviewed agent code
+with your instructions and uploads it with the Foundry SDK.
+
+Foundry Agent Service builds it and starts a new hosted agent named
+`lab-demo-...` on the model that suits the template's work.
+
+When Foundry reports the new version active and its route is confirmed, try
+the agent in **Chat**. See [agent creation](docs/agent-creation.md).
+
+### More diagrams
+
+| Diagram | Question it answers |
+| --- | --- |
+| [How the Lab handles a request](docs/architecture.md#implementation-overview) | What does the Lab call, and what does it save? |
+| [Lab components](docs/architecture.md#component-interactions) | What runs in the browser, the Lab, Foundry, and the data store? |
+| [Chat request flow](docs/architecture.md#chat-and-delegation) | What happens, in order, when you send a chat message? |
+| [Review lifecycle](docs/review-workflow.md#execution-and-persistence) | How is a document review saved, checked, and recovered? |
+| [Operations](docs/architecture.md#operations) | How are telemetry, images, and Terraform state handled? |
+| [Terraform deployment](docs/architecture-assessment.md#terraform-first-deployment) | Which Terraform root owns what? |
+
+All diagrams share one [style guide](docs/images/README.md#diagram-style).
 
 ---
 
@@ -353,7 +384,7 @@ To deploy from a separate private machine, use the
 - [Architecture](docs/architecture.md)
 - [Azure architecture diagram](docs/images/azure-architecture.svg)
 - [Trust boundaries](docs/architecture.md#trust-boundaries)
-- [Diagram sources and maintenance](docs/images/README.md)
+- [Diagrams and style guide](docs/images/README.md)
 
 ### Customize and extend
 

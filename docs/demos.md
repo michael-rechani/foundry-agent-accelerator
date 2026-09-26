@@ -147,7 +147,10 @@ promised.
 4. **Handoff (2 minutes):** record [what worked, what needs further validation,
    and the recommended next step](demo-handoff.md). Reset as described below.
 
-![Illustrative UI test of an empty Chat with mocked APIs: the Application and case helper explains what you give it and what you get, with example tasks to review an application, summarize case notes, or compare a proposal](images/screenshots/lab-chat-start.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-chat-start-dark.png">
+  <img alt="Illustrative UI test of an empty Chat with mocked APIs: the Application and case helper explains what you give it and what you get, with example tasks to review an application, summarize case notes, or compare a proposal" src="images/screenshots/lab-chat-start.png">
+</picture>
 
 *Illustrative UI test with mocked APIs, not a live model result.* ·
 [View full size](images/screenshots/lab-chat-start.png)

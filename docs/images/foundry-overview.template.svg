@@ -1,85 +1,134 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="1070" viewBox="0 0 760 1070" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
-  <title id="title">Lab infrastructure at a glance</title>
-  <desc id="desc">Default logical runtime paths. A browser on an approved private network, such as the jumpbox reached through Azure Bastion, reaches the Lab's React and FastAPI application in an internal Azure Container Apps environment. The backend uses managed identity to call named agents in Foundry Agent Service and, separately, to read and write application records, including saved chats, reviews, and created agents, in Cosmos DB. Both managed services are reached through private endpoints; they are not placed inside the Container Apps environment. Chat saves are explicit. Document review drafts and results are persisted by the server. API Management is optional, disabled by default, and outside these paths. The Lab has shared records and no end-user sign-in or per-user authorization. This is not a live resource inventory.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="930" viewBox="0 0 1600 930" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">How the Lab handles a request</title>
+  <desc id="desc">A browser on an approved network, such as a jumpbox reached through Azure Bastion, sends a private HTTPS request to the Lab with no Azure keys in the browser (step 1). The Lab is a React web app and FastAPI API in an internal Azure Container Apps environment. It offers chat and agents, Document reviews, Create agent, and Shared history, accepts only the configured catalog, and signs in to Azure services with managed identity. The Lab calls Microsoft Foundry Agent Service through a private endpoint using a configured model deployment (step 2), and the agent result returns to the Lab (step 3). The Lab returns the response to the browser (step 4). Separately, only when a record is saved, the Lab writes Azure Cosmos DB records: chats only when requested, review drafts and results saved by the server, and created-agent metadata; this is not an automatic transcript save (step 5). Azure API Management is optional, outside the default flow, not deployed by default, and not required by the Lab. Caveats: use fictional data only, there is no end-user sign-in, and saved records are shared without per-user authorization.</desc>
   <defs>
-    <marker id="request-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0 0L10 5L0 10z" fill="#0078d4"/>
     </marker>
-    <marker id="record-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0 0L10 5L0 10z" fill="#00786a"/>
     </marker>
     <style>
       text { font-family: 'Segoe UI', Arial, sans-serif; fill: #242424; }
-      .title { font-size: 30px; font-weight: 600; }
-      .heading { font-size: 25px; font-weight: 600; }
-      .body { font-size: 22px; }
-      .detail { font-size: 20px; }
-      .label { font-size: 20px; fill: #4d5b69; }
-      .request { fill: none; stroke: #0078d4; stroke-width: 2.5; marker-end: url(#request-arrow); }
-      .record { fill: none; stroke: #00786a; stroke-width: 2.5; stroke-dasharray: 7 5; marker-end: url(#record-arrow); }
+      .title { font-size: 34px; font-weight: 600; }
+      .sub { font-size: 21px; fill: #4d5b69; }
+      .heading { font-size: 24px; font-weight: 600; }
+      .name { font-size: 20px; font-weight: 600; }
+      .body { font-size: 20px; }
+      .detail { font-size: 18px; }
+      .small { font-size: 18px; fill: #4d5b69; }
+      .pe { font-size: 18px; font-weight: 600; fill: #334e68; }
+      .mono { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 17px; font-weight: 600; fill: #334e68; }
+      .cidr { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 17px; fill: #4d5b69; }
+      .label { font-size: 18px; fill: #4d5b69; font-weight: 600; }
+      .boundary { font-size: 18px; font-weight: 600; fill: #4d5b69; letter-spacing: 0.4px; }
+      .num { font-family: 'Segoe UI', Arial, sans-serif; font-size: 17px; font-weight: 700; fill: #fff; }
+      .request { fill: none; stroke: #0078d4; stroke-width: 2.5; marker-end: url(#blue); }
+      .result { fill: none; stroke: #00786a; stroke-width: 2.5; marker-end: url(#teal); }
+      .data { fill: none; stroke: #00786a; stroke-width: 2.5; stroke-dasharray: 7 5; marker-end: url(#teal); }
+      .bus { fill: none; stroke: #00786a; stroke-width: 2.5; stroke-dasharray: 7 5; }
+      .line { fill: none; stroke: #0078d4; stroke-width: 2.5; }
+      .link { fill: none; stroke: #8da6bb; stroke-width: 2; }
     </style>
   </defs>
-
-  <rect width="760" height="1070" fill="#fff"/>
-  <text x="24" y="42" class="title">Lab infrastructure at a glance</text>
-  <text x="24" y="74" class="detail">Default request paths and application-owned data</text>
-
-  <g id="private-browser">
-    <rect x="120" y="104" width="520" height="126" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
-    <text x="146" y="141" class="heading">Browser on an approved network</text>
-    <text x="146" y="175" class="detail">Private HTTPS; no Azure keys in the browser</text>
-    <text x="146" y="205" class="detail">For example, the jumpbox via Azure Bastion</text>
-  </g>
-  <path d="M380 230V282" class="request"/>
-  <text x="402" y="264" class="label">Private app access</text>
-
-  <g id="lab-backend">
-    <rect x="120" y="282" width="520" height="152" rx="12" fill="#fff" stroke="#0078d4" stroke-width="2"/>
-    <text x="146" y="320" class="heading">The Lab</text>
-    <text x="146" y="353" class="body">React + FastAPI in Azure Container Apps</text>
-    <text x="146" y="384" class="detail">Internal environment; controlled private access</text>
-    <text x="146" y="413" class="detail">Managed identity for Azure service calls</text>
-  </g>
-  <path d="M204 434V522" class="request"/>
-  <path d="M556 434V522" class="record"/>
-  <text x="236" y="493" class="label">Agent calls</text>
-  <text x="428" y="493" class="label">Records</text>
-
-  <g id="foundry-service">
-    <rect x="48" y="522" width="312" height="182" rx="12" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
-    <image href="azure-icons/agent-service.svg" x="70" y="540" width="36" height="36"/>
-    <text x="120" y="561" class="heading">Foundry</text>
-    <text x="120" y="591" class="body">Agent Service</text>
-    <text x="70" y="624" class="detail">Coordinator + specialists</text>
-    <text x="70" y="654" class="detail">Uses the configured model</text>
-    <text x="70" y="684" class="detail">Private endpoint</text>
-  </g>
-  <g id="application-records">
-    <rect x="400" y="522" width="312" height="182" rx="12" fill="#edf7f4" stroke="#00786a" stroke-width="1.5"/>
-    <image href="azure-icons/cosmos-db.svg" x="422" y="540" width="36" height="36"/>
-    <text x="470" y="561" class="heading">Azure Cosmos DB</text>
-    <text x="470" y="591" class="body">Application data</text>
-    <text x="422" y="624" class="detail">Saved chats, reviews,</text>
-    <text x="422" y="654" class="detail">and created agents</text>
-    <text x="422" y="684" class="detail">Private endpoint</text>
-  </g>
-
-  <g id="persistence-note">
-    <rect x="48" y="732" width="664" height="88" rx="12" fill="#f5f7fa" stroke="#cdd9e2"/>
-    <text x="70" y="765" class="detail">Chat is saved only when requested.</text>
-    <text x="70" y="796" class="detail">Document review drafts and results are saved by the server.</text>
-  </g>
-
-  <g id="optional-apim">
-    <rect x="24" y="844" width="712" height="100" rx="12" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5" stroke-dasharray="7 5"/>
-    <image href="azure-icons/api-management.svg" x="48" y="864" width="40" height="40"/>
-    <text x="108" y="882" class="heading">Optional: Azure API Management</text>
-    <text x="108" y="917" class="detail">Not deployed by default; the Lab does not need it.</text>
-  </g>
-
-  <g id="shared-data-warning">
-    <rect x="24" y="968" width="712" height="74" rx="8" fill="#fff4ce"/>
-    <text x="48" y="998" class="detail">Fictional data only. There is no end-user sign-in.</text>
-    <text x="48" y="1028" class="detail">Saved records are shared, without per-user authorization.</text>
-  </g>
+  <rect width="1600" height="930" fill="#fff"/>
+  <text x="24" y="50" class="title">How the Lab handles a request</text>
+  <text x="24" y="86" class="sub">Numbers 1–4 follow one request; 5 happens only when a record is saved.</text>
+  <rect x="24" y="124" width="320" height="560" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/users.svg" x="38" y="138" width="36" height="36"/>
+  <text x="84" y="162" class="name">Browser</text>
+  <text x="84" y="186" class="small">Approved private network</text>
+  <rect x="40" y="214" width="288" height="190" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="56" y="250" class="name">Private access</text>
+  <text x="56" y="282" class="detail">Private HTTPS</text>
+  <text x="56" y="308" class="detail">No Azure keys in browser</text>
+  <text x="56" y="334" class="detail">Example: Bastion jumpbox</text>
+  <rect x="40" y="428" width="288" height="230" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="56" y="464" class="name">Human action</text>
+  <text x="56" y="496" class="detail">Choose an agent or review</text>
+  <text x="56" y="522" class="detail">Send a request</text>
+  <text x="56" y="548" class="detail">Save chat only when asked</text>
+  <rect x="524" y="124" width="460" height="560" rx="12" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+  <image href="azure-icons/container-apps.svg" x="538" y="138" width="36" height="36"/>
+  <text x="584" y="162" class="name">The Lab</text>
+  <text x="584" y="186" class="small">React + FastAPI in Container Apps</text>
+  <rect x="540" y="214" width="428" height="138" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="556" y="250" class="name">App and API</text>
+  <text x="556" y="282" class="detail">Internal Container Apps environment</text>
+  <text x="556" y="308" class="detail">Accepts the configured catalog only</text>
+  <text x="556" y="334" class="detail">No browser Azure credentials</text>
+  <rect x="540" y="382" width="428" height="176" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="556" y="418" class="name">What people do in the Lab</text>
+  <text x="556" y="450" class="detail">Chat with prebuilt or created agents</text>
+  <text x="556" y="476" class="detail">Run Document reviews</text>
+  <text x="556" y="502" class="detail">Prepare and publish Create agent setups</text>
+  <text x="556" y="528" class="detail">Reopen Shared history</text>
+  <rect x="540" y="584" width="428" height="84" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/managed-identity.svg" x="552" y="596" width="34" height="34"/>
+  <text x="596" y="620" class="name">Managed identity</text>
+  <text x="596" y="644" class="small">Signs in for Azure service calls</text>
+  <rect x="1164" y="124" width="412" height="250" rx="12" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+  <image href="azure-icons/agent-service.svg" x="1178" y="138" width="36" height="36"/>
+  <text x="1224" y="162" class="name">Foundry Agent Service</text>
+  <text x="1224" y="186" class="small">Microsoft Foundry private endpoint</text>
+  <rect x="1180" y="226" width="380" height="136" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="1196" y="262" class="name">Coordinator + specialists</text>
+  <text x="1196" y="294" class="detail">Configured model deployment</text>
+  <text x="1196" y="320" class="detail">Return agent results to the Lab</text>
+  <rect x="1164" y="434" width="412" height="250" rx="12" fill="#edf7f4" stroke="#00786a" stroke-width="1.5"/>
+  <image href="azure-icons/cosmos-db.svg" x="1178" y="448" width="36" height="36"/>
+  <text x="1224" y="472" class="name">Azure Cosmos DB</text>
+  <text x="1224" y="496" class="small">Application-owned records</text>
+  <rect x="1180" y="526" width="380" height="154" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="1196" y="562" class="name">Saved records</text>
+  <text x="1196" y="594" class="detail">Chats only when requested</text>
+  <text x="1196" y="618" class="detail">Review drafts and results, server-saved</text>
+  <text x="1196" y="642" class="detail">Created-agent metadata</text>
+  <text x="1196" y="666" class="detail">Not automatic transcripts</text>
+  <rect x="24" y="724" width="760" height="104" rx="12" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <image href="azure-icons/api-management.svg" x="38" y="738" width="36" height="36"/>
+  <text x="84" y="762" class="name">Optional APIM</text>
+  <text x="84" y="786" class="small">Outside the default flow</text>
+  <text x="84" y="812" class="detail">Not deployed by default; the Lab does not need it.</text>
+  <rect x="824" y="724" width="752" height="104" rx="12" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="848" y="758" class="boundary">Caveats</text>
+  <text x="848" y="788" class="detail">Use fictional data only; there is no end-user sign-in.</text>
+  <text x="848" y="814" class="detail">Saved records are shared, without per-user authorization.</text>
+  <path d="M344 310H516" class="request"/>
+  <circle cx="434" cy="310" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="434" y="316" class="num" text-anchor="middle">1</text>
+  <text x="434" y="292" class="small" text-anchor="middle">HTTPS</text>
+  <path d="M984 286H1156" class="request"/>
+  <circle cx="1074" cy="286" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="1074" y="292" class="num" text-anchor="middle">2</text>
+  <text x="1074" y="268" class="small" text-anchor="middle">Agent call</text>
+  <path d="M1164 354H992" class="result"/>
+  <circle cx="1074" cy="354" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="1074" y="360" class="num" text-anchor="middle">3</text>
+  <text x="1074" y="336" class="small" text-anchor="middle">Result</text>
+  <path d="M524 520H352" class="result"/>
+  <circle cx="434" cy="520" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="434" y="526" class="num" text-anchor="middle">4</text>
+  <text x="434" y="502" class="small" text-anchor="middle">Response</text>
+  <path d="M984 610H1156" class="data"/>
+  <circle cx="1074" cy="610" r="15" fill="#00786a" stroke="#fff" stroke-width="2.5"/>
+  <text x="1074" y="616" class="num" text-anchor="middle">5</text>
+  <text x="1074" y="592" class="small" text-anchor="middle">Save records</text>
+  <text x="24" y="886" class="boundary">LEGEND</text>
+  <path d="M120 880H176" class="request"/>
+  <text x="186" y="886" class="small">Request</text>
+  <path d="M287 880H343" class="result"/>
+  <text x="353" y="886" class="small">Result</text>
+  <path d="M441 880H497" class="data"/>
+  <text x="507" y="886" class="small">Separate save</text>
+  <rect x="655" y="866" width="44" height="28" rx="6" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="709" y="886" class="small">Optional</text>
+  <rect x="812" y="866" width="44" height="28" rx="6" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="866" y="886" class="small">Caveat</text>
+  <circle cx="972" cy="880" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="972" y="886" class="num" text-anchor="middle">n</text>
+  <text x="998" y="886" class="small">Step</text>
+  <circle cx="1086" cy="880" r="15" fill="#00786a" stroke="#fff" stroke-width="2.5"/>
+  <text x="1086" y="886" class="num" text-anchor="middle">n</text>
+  <text x="1112" y="886" class="small">Data step</text>
 </svg>

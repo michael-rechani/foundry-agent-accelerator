@@ -1,83 +1,111 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="970" viewBox="0 0 760 970" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="860" viewBox="0 0 1600 860" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
   <title id="title">How the review agents collaborate</title>
-  <desc id="desc">Default setup in the Lab. A person sends a question and supplied evidence through the Lab. The Application and case helper coordinator (customer-review-coordinator) in Microsoft Foundry Agent Service calls the Application checker through the inspect_application tool or the Case notes summarizer through the inspect_case tool, using both only when explicitly requested. Each specialist receives the complete request and source identifiers, then returns a completed, nonempty response to the same coordinator. Coordinator tools wrap successful responses with status, agent, and output. The Lab checks correlated tool records and shows the answer for a person to verify. Specialists do not call each other. Ambiguous requests need clarification; failed calls must not be replaced with invented findings. This is a logical interaction diagram, not a deployment or network map.</desc>
+  <desc id="desc">A person asks a question in the Lab with supplied evidence (step 1). In Microsoft Foundry Agent Service, the Application and case helper coordinator calls one specialist, or both only if asked, sending the full request, evidence and source IDs (step 2). The Application checker (inspect_application) checks criteria and evidence; the Case notes summarizer (inspect_case) finds gaps and conflicts. Each returns a completed, nonempty result. The coordinator returns findings plus a tool record to the Lab (step 3). The Lab checks the tool records and a person checks the evidence; there is no automatic approval, denial or external action (step 4). If a request is unclear the coordinator asks for details; if a call fails it reports the failure.</desc>
   <defs>
-    <marker id="request-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0 0L10 5L0 10z" fill="#0078d4"/>
     </marker>
-    <marker id="result-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0 0L10 5L0 10z" fill="#00786a"/>
     </marker>
     <style>
       text { font-family: 'Segoe UI', Arial, sans-serif; fill: #242424; }
-      .title { font-size: 30px; font-weight: 600; }
-      .heading { font-size: 25px; font-weight: 600; }
-      .body { font-size: 22px; }
-      .detail { font-size: 20px; }
-      .label { font-size: 20px; fill: #4d5b69; }
-      .tool { font-family: Consolas, monospace; font-size: 20px; fill: #334e68; }
-      .request { fill: none; stroke: #0078d4; stroke-width: 2.5; marker-end: url(#request-arrow); }
-      .result { fill: none; stroke: #00786a; stroke-width: 2.5; marker-end: url(#result-arrow); }
+      .title { font-size: 34px; font-weight: 600; }
+      .sub { font-size: 21px; fill: #4d5b69; }
+      .heading { font-size: 24px; font-weight: 600; }
+      .name { font-size: 20px; font-weight: 600; }
+      .body { font-size: 20px; }
+      .detail { font-size: 18px; }
+      .small { font-size: 18px; fill: #4d5b69; }
+      .pe { font-size: 18px; font-weight: 600; fill: #334e68; }
+      .mono { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 17px; font-weight: 600; fill: #334e68; }
+      .cidr { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 17px; fill: #4d5b69; }
+      .label { font-size: 18px; fill: #4d5b69; font-weight: 600; }
+      .boundary { font-size: 18px; font-weight: 600; fill: #4d5b69; letter-spacing: 0.4px; }
+      .num { font-family: 'Segoe UI', Arial, sans-serif; font-size: 17px; font-weight: 700; fill: #fff; }
+      .request { fill: none; stroke: #0078d4; stroke-width: 2.5; marker-end: url(#blue); }
+      .result { fill: none; stroke: #00786a; stroke-width: 2.5; marker-end: url(#teal); }
+      .data { fill: none; stroke: #00786a; stroke-width: 2.5; stroke-dasharray: 7 5; marker-end: url(#teal); }
+      .bus { fill: none; stroke: #00786a; stroke-width: 2.5; stroke-dasharray: 7 5; }
+      .line { fill: none; stroke: #0078d4; stroke-width: 2.5; }
+      .link { fill: none; stroke: #8da6bb; stroke-width: 2; }
     </style>
   </defs>
-
-  <rect width="760" height="970" fill="#fff"/>
-  <text x="24" y="42" class="title">How the review agents collaborate</text>
-  <text x="24" y="74" class="detail">Default setup: one coordinator, two specialists, human review.</text>
-
-  <g id="requester">
-    <rect x="120" y="100" width="520" height="90" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
-    <text x="146" y="137" class="heading">1  Ask in the Lab</text>
-    <text x="146" y="168" class="body">Question + supplied evidence</text>
-  </g>
-  <path d="M380 190V222" class="request"/>
-  <text x="402" y="212" class="label">Request</text>
-
-  <rect x="24" y="222" width="712" height="538" rx="16" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
-  <image href="azure-icons/agent-service.svg" x="48" y="238" width="36" height="36"/>
-  <text x="98" y="264" class="heading">Microsoft Foundry Agent Service</text>
-  <path d="M380 276V292" class="request"/>
-
-  <g id="coordinator">
-    <rect x="120" y="292" width="520" height="98" rx="12" fill="#fff" stroke="#0078d4" stroke-width="2"/>
-    <text x="146" y="330" class="heading">2  Application and case helper</text>
-    <text x="146" y="362" class="body">Calls one specialist; both only if asked</text>
-  </g>
-  <path d="M380 390V418H205V472" class="request"/>
-  <path d="M380 418H555V472" class="request"/>
-  <text x="380" y="445" text-anchor="middle" class="label">Full request + evidence + source IDs</text>
-
-  <g id="application-specialist">
-    <rect x="40" y="472" width="330" height="116" rx="12" fill="#fff" stroke="#8da6bb" stroke-width="1.5"/>
-    <text x="62" y="508" class="heading">Application checker</text>
-    <text x="62" y="537" class="tool">inspect_application</text>
-    <text x="62" y="568" class="detail">Checks criteria + evidence</text>
-  </g>
-  <g id="case-specialist">
-    <rect x="390" y="472" width="330" height="116" rx="12" fill="#fff" stroke="#8da6bb" stroke-width="1.5"/>
-    <text x="412" y="508" class="heading">Case notes summarizer</text>
-    <text x="412" y="537" class="tool">inspect_case</text>
-    <text x="412" y="568" class="detail">Finds gaps + conflicts</text>
-  </g>
-  <path d="M205 588V622H380V652" class="result"/>
-  <path d="M555 588V622H380" fill="none" stroke="#00786a" stroke-width="2.5"/>
-  <text x="380" y="611" text-anchor="middle" class="label">Completed, nonempty result</text>
-
-  <g id="coordinator-result">
-    <rect x="120" y="652" width="520" height="82" rx="12" fill="#edf7f4" stroke="#00786a" stroke-width="1.5"/>
-    <text x="146" y="687" class="heading">3  Coordinator returns findings</text>
-    <text x="146" y="717" class="detail">Same agent as step 2, plus a tool record</text>
-  </g>
-  <path d="M380 734V800" class="result"/>
-  <text x="402" y="783" class="label">Answer + tool record</text>
-
-  <g id="human-review">
-    <rect x="48" y="800" width="664" height="112" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
-    <text x="70" y="838" class="heading">4  Check the answer in the Lab</text>
-    <text x="70" y="869" class="detail">The Lab checks tool records; a person checks the evidence.</text>
-    <text x="70" y="898" class="detail">No automatic approval, denial, or external action.</text>
-  </g>
-
-  <rect x="24" y="920" width="712" height="40" rx="6" fill="#fff4ce"/>
-  <text x="380" y="947" text-anchor="middle" class="label">Unclear request? Ask for details. Failed call? Report the failure.</text>
+  <rect width="1600" height="860" fill="#fff"/>
+  <text x="24" y="50" class="title">How the review agents collaborate</text>
+  <text x="24" y="86" class="sub">Default setup: one coordinator, two specialists, and a person who checks every answer. Numbers follow one request.</text>
+  <rect x="24" y="124" width="330" height="640" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/container-apps.svg" x="38" y="138" width="36" height="36"/>
+  <text x="84" y="162" class="name">The Lab</text>
+  <text x="84" y="186" class="small">Web app and API</text>
+  <rect x="40" y="214" width="298" height="150" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/users.svg" x="52" y="226" width="36" height="36"/>
+  <text x="98" y="250" class="name">Ask in the Lab</text>
+  <text x="56" y="290" class="detail">A question plus the</text>
+  <text x="56" y="316" class="detail">supplied evidence</text>
+  <rect x="40" y="500" width="298" height="200" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="56" y="536" class="name">Check the answer</text>
+  <text x="56" y="568" class="detail">The Lab checks tool records.</text>
+  <text x="56" y="594" class="detail">A person checks the evidence.</text>
+  <text x="56" y="620" class="detail"></text>
+  <text x="56" y="646" class="detail">No automatic approval,</text>
+  <text x="56" y="672" class="detail">denial, or external action.</text>
+  <circle cx="308" cy="530" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="308" y="536" class="num" text-anchor="middle">4</text>
+  <rect x="594" y="124" width="982" height="640" rx="12" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+  <image href="azure-icons/agent-service.svg" x="608" y="138" width="36" height="36"/>
+  <text x="654" y="162" class="name">Microsoft Foundry Agent Service</text>
+  <text x="654" y="186" class="small">Reached through a private endpoint. Every agent uses the configured model deployment.</text>
+  <rect x="650" y="300" width="340" height="380" rx="10" fill="#fff" stroke="#0078d4" stroke-width="2"/>
+  <text x="666" y="336" class="name">Application and case helper</text>
+  <text x="666" y="360" class="small">Coordinator agent</text>
+  <text x="666" y="394" class="detail">Calls one specialist;</text>
+  <text x="666" y="420" class="detail">both only if asked</text>
+  <text x="666" y="446" class="detail"></text>
+  <text x="666" y="472" class="detail">Returns findings plus</text>
+  <text x="666" y="498" class="detail">a tool record</text>
+  <rect x="666" y="536" width="308" height="128" rx="8" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="682" y="568" class="detail">Unclear request?</text>
+  <text x="682" y="594" class="detail">It asks for details.</text>
+  <text x="682" y="620" class="detail">Failed call?</text>
+  <text x="682" y="646" class="detail">It reports the failure.</text>
+  <rect x="1200" y="260" width="336" height="150" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="1216" y="296" class="name">Application checker</text>
+  <text x="1216" y="320" class="small">Specialist agent</text>
+  <text x="1216" y="354" class="mono">inspect_application</text>
+  <text x="1216" y="382" class="detail">Checks criteria + evidence</text>
+  <rect x="1200" y="540" width="336" height="150" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="1216" y="576" class="name">Case notes summarizer</text>
+  <text x="1216" y="600" class="small">Specialist agent</text>
+  <text x="1216" y="634" class="mono">inspect_case</text>
+  <text x="1216" y="662" class="detail">Finds gaps + conflicts</text>
+  <path d="M338 330H642" class="request"/>
+  <circle cx="474" cy="330" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="474" y="336" class="num" text-anchor="middle">1</text>
+  <text x="474" y="312" class="small" text-anchor="middle">Question + evidence</text>
+  <path d="M990 475H1110V335H1192" class="request"/>
+  <path d="M990 475H1110V615H1192" class="request"/>
+  <circle cx="1050" cy="475" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="1050" y="481" class="num" text-anchor="middle">2</text>
+  <text x="1130" y="471" class="small">Full request + evidence</text>
+  <text x="1130" y="495" class="small">+ source IDs</text>
+  <path d="M1480 260V236H740V292" class="result"/>
+  <path d="M1480 690V732H740V688" class="result"/>
+  <text x="1460" y="226" class="small" text-anchor="end">Completed, nonempty result</text>
+  <text x="1180" y="722" class="small" text-anchor="end">Completed, nonempty result</text>
+  <path d="M650 610H346" class="result"/>
+  <circle cx="474" cy="610" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="474" y="616" class="num" text-anchor="middle">3</text>
+  <text x="474" y="592" class="small" text-anchor="middle">Findings + tool record</text>
+  <text x="24" y="818" class="boundary">LEGEND</text>
+  <path d="M120 812H176" class="request"/>
+  <text x="186" y="818" class="small">Request</text>
+  <path d="M287 812H343" class="result"/>
+  <text x="353" y="818" class="small">Result</text>
+  <circle cx="455" cy="812" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="455" y="818" class="num" text-anchor="middle">n</text>
+  <text x="481" y="818" class="small">Step</text>
+  <rect x="555" y="798" width="44" height="28" rx="6" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="609" y="818" class="small">Caveat</text>
+  <text x="1576" y="818" class="small" text-anchor="end">Specialists run only when the coordinator calls them</text>
 </svg>

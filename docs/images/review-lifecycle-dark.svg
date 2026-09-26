@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">Document review lifecycle</title>
+  <desc id="desc">Document review lifecycle. Phase Save before running: step 1 creates a draft with POST /api/review-runs, validates criteria and sources, sets server-owned fields and an ETag, and does not call the model. Step 2 starts a run with POST /api/review-runs/{id}/execute and If-Match, requires draft status and run budget, takes one of the record's four runs, acquires a shared agent slot, and returns HTTP 409 for stale or competing starts. Step 3 saves a running snapshot with a conditional Cosmos DB write, stores the input, execution ETag, and recovery window, schedules local asyncio execution, returns HTTP 202, and keeps running if the browser disconnects. Phase Run, check, then save: step 4 calls Microsoft Foundry Agent Service using the existing coordinator and specialists, schema, and accumulated evidence, with managed identity and up to 180 seconds. Step 5 fail-closed checks verify specialist receipts, JSON schema, complete criterion coverage, and exact quotes from named sources. Step 6 conditionally writes findings or a failure code, observed events, and elapsed time using the run's ETag; model text cannot set the status, receipt flags, or events. The Cosmos DB record stores drafts, snapshots, results, ETags, and the 30-day TTL. The inbox can show completed, waiting_input, failed, or interrupted. Reading or refreshing a record never starts an agent call. Follow-up action step 7 adds evidence with POST /api/review-runs/{id}/evidence and If-Match, returning to draft and starting a new run from step 2. Follow-up action step 8 recovers an interrupted run with POST /api/review-runs/{id}/resume, If-Match, and confirm_cost true, starting a new call from saved input. Prior run inputs stay unchanged. Recovery reruns saved input; it is not exactly-once execution and may incur another charge. Execution runs inside the Lab process with one worker and one replica, no durable queue, no automatic retry, and no immutable audit ledger.</desc>
+  <defs>
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#4aa8ff"/>
+    </marker>
+    <marker id="teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#3cc3ae"/>
+    </marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #e6edf3; }
+      .title { font-size: 34px; font-weight: 600; }
+      .sub { font-size: 21px; fill: #a9b4c0; }
+      .heading { font-size: 24px; font-weight: 600; }
+      .name { font-size: 20px; font-weight: 600; }
+      .body { font-size: 20px; }
+      .detail { font-size: 18px; }
+      .small { font-size: 18px; fill: #a9b4c0; }
+      .pe { font-size: 18px; font-weight: 600; fill: #b8c9da; }
+      .mono { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 17px; font-weight: 600; fill: #b8c9da; }
+      .cidr { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 17px; fill: #a9b4c0; }
+      .label { font-size: 18px; fill: #a9b4c0; font-weight: 600; }
+      .boundary { font-size: 18px; font-weight: 600; fill: #a9b4c0; letter-spacing: 0.4px; }
+      .num { font-family: 'Segoe UI', Arial, sans-serif; font-size: 17px; font-weight: 700; fill: #1f252e; }
+      .request { fill: none; stroke: #4aa8ff; stroke-width: 2.5; marker-end: url(#blue); }
+      .result { fill: none; stroke: #3cc3ae; stroke-width: 2.5; marker-end: url(#teal); }
+      .data { fill: none; stroke: #3cc3ae; stroke-width: 2.5; stroke-dasharray: 7 5; marker-end: url(#teal); }
+      .bus { fill: none; stroke: #3cc3ae; stroke-width: 2.5; stroke-dasharray: 7 5; }
+      .line { fill: none; stroke: #4aa8ff; stroke-width: 2.5; }
+      .link { fill: none; stroke: #6b7c8e; stroke-width: 2; }
+    </style>
+  </defs>
+  <rect width="1600" height="1100" fill="#0d1117"/>
+  <text x="24" y="50" class="title">Document review lifecycle</text>
+  <text x="24" y="86" class="sub">Each review is saved before it runs and checked before its result is saved. Numbers follow one review run.</text>
+  <rect x="1280" y="160" width="296" height="372" rx="12" fill="#0e2723" stroke="#3cc3ae" stroke-width="1.5"/>
+  <image href="data:image/svg+xml;base64,PHN2ZyBpZD0iYjA4OWNmY2EtMGRlMS00NTFjLWExY2EtNjY4MGVhNTBjYjRmIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE4IDE4Ij48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImIyNWQwODM2LTk2NGEtNGM4NC04YzIwLTg1NWY2NmU4MzQ1ZSIgY3g9Ii0xMDUuMDA2IiBjeT0iLTEwLjQwOSIgcj0iNS45NTQiIGdyYWRpZW50VHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTE3LjczOSAxOS42NDQpIHNjYWxlKDEuMDM2IDEuMDI3KSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMC4xODMiIHN0b3AtY29sb3I9IiM1ZWEwZWYiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMDA3OGQ0IiAvPjwvcmFkaWFsR3JhZGllbnQ+PGNsaXBQYXRoIGlkPSJiMzZjN2Y1ZC0yZWYxLTQ3NjAtOGEyNS1lZWI5NjYxZjRlNDciPjxwYXRoIGQ9Ik0xNC45NjksNy41M0E2LjEzNyw2LjEzNywwLDEsMSw3LjU3NCwyLjk4Nyw2LjEzNyw2LjEzNywwLDAsMSwxNC45NjksNy41M1oiIGZpbGw9Im5vbmUiIC8+PC9jbGlwUGF0aD48L2RlZnM+PHRpdGxlPkljb24tZGF0YWJhc2VzLTEyMTwvdGl0bGU+PHBhdGggZD0iTTIuOTU0LDUuMjY2YS4xNzUuMTc1LDAsMCwxLS4xNzYtLjE3NmgwQTIuMDEyLDIuMDEyLDAsMCwwLC43NjksMy4wODFhLjE3Ni4xNzYsMCwwLDEtLjE3Ni0uMTc1aDBhLjE3Ni4xNzYsMCwwLDEsLjE3Ni0uMTc2QTIuMDEyLDIuMDEyLDAsMCwwLDIuNzc4LjcyLjE3NS4xNzUsMCwwLDEsMi45NTQuNTQ0aDBBLjE3NS4xNzUsMCwwLDEsMy4xMy43MmgwQTIuMDEyLDIuMDEyLDAsMCwwLDUuMTM5LDIuNzI5YS4xNzUuMTc1LDAsMCwxLC4xNzYuMTc2aDBhLjE3NS4xNzUsMCwwLDEtLjE3Ni4xNzZoMEEyLjAxMSwyLjAxMSwwLDAsMCwzLjEzLDUuMDkuMTc3LjE3NywwLDAsMSwyLjk1NCw1LjI2NloiIGZpbGw9IiM1MGU2ZmYiIC8+PHBhdGggZD0iTTE1LjYxMSwxNy40NTZhLjE0MS4xNDEsMCwwLDEtLjE0MS0uMTQxaDBhMS42MDksMS42MDksMCwwLDAtMS42MDctMS42MDcuMTQxLjE0MSwwLDAsMS0uMTQxLS4xNGgwYS4xNDEuMTQxLDAsMCwxLC4xNDEtLjE0MWgwYTEuNjA4LDEuNjA4LDAsMCwwLDEuNjA3LTEuNjA3LjE0MS4xNDEsMCwwLDEsLjE0MS0uMTQxaDBhLjE0MS4xNDEsMCwwLDEsLjE0MS4xNDFoMGExLjYwOCwxLjYwOCwwLDAsMCwxLjYwNywxLjYwNy4xNDEuMTQxLDAsMSwxLDAsLjI4MmgwYTEuNjA5LDEuNjA5LDAsMCwwLTEuNjA3LDEuNjA3QS4xNDEuMTQxLDAsMCwxLDE1LjYxMSwxNy40NTZaIiBmaWxsPSIjNTBlNmZmIiAvPjxnPjxwYXRoIGQ9Ik0xNC45NjksNy41M0E2LjEzNyw2LjEzNywwLDEsMSw3LjU3NCwyLjk4Nyw2LjEzNyw2LjEzNywwLDAsMSwxNC45NjksNy41M1oiIGZpbGw9InVybCgjYjI1ZDA4MzYtOTY0YS00Yzg0LThjMjAtODU1ZjY2ZTgzNDVlKSIgLz48ZyBjbGlwLXBhdGg9InVybCgjYjM2YzdmNWQtMmVmMS00NzYwLThhMjUtZWViOTY2MWY0ZTQ3KSI+PHBhdGggZD0iTTUuNzA5LDEzLjExNUExLjYzOCwxLjYzOCwwLDEsMCw1LjcxNCw5Ljg0LDEuMzA3LDEuMzA3LDAsMCwwLDUuNzIxLDkuNywxLjY1MSwxLjY1MSwwLDAsMCw0LjA2LDguMDY0SDIuODMyYTYuMjUxLDYuMjUxLDAsMCwwLDEuNTk1LDUuMDUxWiIgZmlsbD0iI2YyZjJmMiIgLz48cGF0aCBkPSJNMTUuMDQ1LDcuODE1YzAtLjAxNSwwLS4wMy0uMDA3LS4wNDRhNS45NzgsNS45NzgsMCwwLDAtMS40MDYtMi44OCwxLjgyNSwxLjgyNSwwLDAsMC0uMjg5LS4wOSwxLjgwNiwxLjgwNiwwLDAsMC0yLjMsMS42NjMsMiwyLDAsMCwwLS4yLS4wMTMsMS43MzcsMS43MzcsMCwwLDAtLjU4MSwzLjM3NCwxLjQ1MSwxLjQ1MSwwLDAsMCwuNTQxLjFoMi4wM0ExMy40NTMsMTMuNDUzLDAsMCwwLDE1LjA0NSw3LjgxNVoiIGZpbGw9IiNmMmYyZjIiIC8+PC9nPjwvZz48cGF0aCBkPSJNMTcuMTkxLDMuODMyYy0uNjI5LTEuMDQ3LTIuMS0xLjQ1NS00LjE1NS0xLjE0OWExNC42MDYsMTQuNjA2LDAsMCwwLTIuMDgyLjQ1Miw2LjQ1Niw2LjQ1NiwwLDAsMSwxLjUyOC43NjdjLjI0MS0uMDUzLjQ4My0uMTE2LjcxNS0uMTUxQTcuNDksNy40OSwwLDAsMSwxNC4zLDMuNjYyYTIuMTg4LDIuMTg4LDAsMCwxLDEuOTU5LjcyNWgwYy4zODMuNjM4LjA2LDEuNzI5LS44ODYsM2ExNi43MjMsMTYuNzIzLDAsMCwxLTQuNzQ5LDQuMDUxQTE2Ljc1OCwxNi43NTgsMCwwLDEsNC44LDEzLjdjLTEuNTY0LjIzNC0yLjY4MiwwLTMuMDY1LS42MzZzLS4wNi0xLjczLjg4Ni0yLjk5NWMuMTE3LS4xNTcuMTQ2LS4yMzQuMjc5LS4zOTJhNi4yNTIsNi4yNTIsMCwwLDEsLjAyNi0xLjYzQTExLjU1MiwxMS41NTIsMCwwLDAsMS43NTYsOS40MTlDLjUxNywxMS4wNzYuMTgxLDEyLjU2Ni44MDksMTMuNjEzYTMuMTY1LDMuMTY1LDAsMCwwLDIuOSwxLjI0OSw4LjQzNCw4LjQzNCwwLDAsMCwxLjI1MS0uMSwxNy44NTUsMTcuODU1LDAsMCwwLDYuMjE5LTIuNCwxNy44MDgsMTcuODA4LDAsMCwwLDUuMDYxLTQuMzMyQzE3LjQ4Myw2LjM2OSwxNy44MTksNC44OCwxNy4xOTEsMy44MzJaIiBmaWxsPSIjNTBlNmZmIiAvPjwvc3ZnPg==" x="1294" y="174" width="36" height="36"/>
+  <text x="1340" y="198" class="name">Azure Cosmos DB</text>
+  <text x="1340" y="222" class="small">Review records</text>
+  <text x="1300" y="254" class="detail">Drafts, snapshots, results</text>
+  <text x="1300" y="282" class="detail">Conditional writes with ETags</text>
+  <text x="1300" y="310" class="detail">30-day TTL records</text>
+  <rect x="24" y="122" width="1080" height="260" rx="16" fill="#0d1117" stroke="#6b7c8e" stroke-width="1.5" stroke-dasharray="9 6"/>
+  <text x="40" y="153" class="boundary">SAVE BEFORE RUNNING</text>
+  <rect x="48" y="184" width="300" height="160" rx="10" fill="#1f252e" stroke="#4aa8ff" stroke-width="1.5"/>
+  <text x="64" y="220" class="name">Create draft</text>
+  <circle cx="320" cy="212" r="15" fill="#4aa8ff" stroke="#1f252e" stroke-width="2.5"/>
+  <text x="320" y="218" class="num" text-anchor="middle">1</text>
+  <text x="64" y="250" class="mono">POST /api/review-runs</text>
+  <text x="64" y="275" class="detail">Validate criteria + sources</text>
+  <text x="64" y="300" class="detail">Server fields + ETag</text>
+  <text x="64" y="325" class="detail">No model call</text>
+  <rect x="416" y="184" width="300" height="160" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <text x="432" y="220" class="name">Start run</text>
+  <circle cx="688" cy="212" r="15" fill="#4aa8ff" stroke="#1f252e" stroke-width="2.5"/>
+  <text x="688" y="218" class="num" text-anchor="middle">2</text>
+  <text x="432" y="250" class="mono">POST …/execute</text>
+  <text x="432" y="275" class="mono">If-Match</text>
+  <text x="432" y="300" class="detail">Uses one of four runs</text>
+  <text x="432" y="325" class="detail">409 if stale/competing</text>
+  <rect x="784" y="184" width="300" height="160" rx="10" fill="#1f252e" stroke="#3cc3ae" stroke-width="2"/>
+  <text x="800" y="220" class="name">Save running snapshot</text>
+  <circle cx="1056" cy="212" r="15" fill="#3cc3ae" stroke="#1f252e" stroke-width="2.5"/>
+  <text x="1056" y="218" class="num" text-anchor="middle">3</text>
+  <text x="800" y="250" class="detail">Conditional Cosmos write</text>
+  <text x="800" y="275" class="detail">Saves input snapshot</text>
+  <text x="800" y="300" class="detail">Returns HTTP 202</text>
+  <path d="M348 264H408" class="request"/>
+  <path d="M716 264H776" class="request"/>
+  <path d="M1084 264H1272" class="data"/>
+  <rect x="24" y="386" width="1080" height="226" rx="16" fill="#0d1117" stroke="#6b7c8e" stroke-width="1.5" stroke-dasharray="9 6"/>
+  <text x="40" y="417" class="boundary">RUN, CHECK, THEN SAVE</text>
+  <path d="M934 344V368H330V440" class="request"/>
+  <rect x="48" y="448" width="340" height="130" rx="10" fill="#0f2438" stroke="#4278a6" stroke-width="1.5"/>
+  <image href="data:image/svg+xml;base64,PHN2ZyBpZD0idXVpZC1mOWRiYjc0Yy1iYjY1LTQ0ZjUtYTBmMi0xODU1NDFjOGYyZTMiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMTggMTgiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC1jNDFhMWI1ZC1jM2VlLTQ0MTMtYmVmMi1mNWEwNzJiYTkzNmUiIHgxPSI3LjI4IiB5MT0iMjcyLjg0IiB4Mj0iLjM5IiB5Mj0iMjY3Ljg3IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDAgMjgwKSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzRmNDJmZCIgLz48c3RvcCBvZmZzZXQ9Ii44IiBzdG9wLWNvbG9yPSIjNzI3NGZmIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTdhODM5N2JiLWY4MmUtNGI0ZS04ZmIxLWM0OWRjMjBlYWU1MiIgeDE9IjEwLjE5IiB5MT0iMjY4LjQxIiB4Mj0iNC4zOCIgeTI9IjI2NS4xNiIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDI4MCkgc2NhbGUoMSAtMSkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9Ii4yNSIgc3RvcC1jb2xvcj0iIzRmNDJmZCIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyYzA4YWMiIC8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9InV1aWQtMzY0Y2IzOGItMjVlNi00ZDQ1LWE1ZjMtN2Y3NTY3Y2YxOTQ3IiB4MT0iMTcuNDMiIHkxPSIyNjcuMDIiIHgyPSI1LjA4IiB5Mj0iMjY0Ljk4IiBncmFkaWVudFRyYW5zZm9ybT0idHJhbnNsYXRlKDAgMjgwKSBzY2FsZSgxIC0xKSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iLjIiIHN0b3AtY29sb3I9IiM3Mjc0ZmYiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNGY0MmZkIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLWZiMzJlMzM0LTg2N2QtNGVkZS1iZWQxLTU2YWVjYWU3NjJjYiIgeDE9IjEwLjE1IiB5MT0iMjczLjQxIiB4Mj0iMTYuODciIHkyPSIyNjkuNzEiIGdyYWRpZW50VHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCAyODApIHNjYWxlKDEgLTEpIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIuMjUiIHN0b3AtY29sb3I9IiM0ZjQyZmQiIC8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMmMwOGFjIiAvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTI1N2JlZGViLWNiNGUtNDhlYy05NzhkLTY2N2Q5NDNkNDg4NyIgeDE9IjE3LjY4IiB5MT0iMjcwLjU3IiB4Mj0iOC42OCIgeTI9IjI3OS40MyIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDI4MCkgc2NhbGUoMSAtMSkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM0ZjQyZmQiIC8+PHN0b3Agb2Zmc2V0PSIuOCIgc3RvcC1jb2xvcj0iIzcyNzRmZiIgLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC1kMjRiM2YyYi01NWJkLTQ3MzEtOGQ4Mi0yY2NiM2E5NDlkYTciIHgxPSI2LjY0IiB5MT0iMjcxLjAyIiB4Mj0iNi42NCIgeTI9IjI3OC4xMiIgZ3JhZGllbnRUcmFuc2Zvcm09InRyYW5zbGF0ZSgwIDI4MCkgc2NhbGUoMSAtMSkiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9Ii4yNSIgc3RvcC1jb2xvcj0iIzRmNDJmZCIgLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyYzA4YWMiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTUuMDIsMTUuMzFsLTIuODItMS42M2MtLjY2LS4zOC0xLjA2LTEuMDgtMS4wNi0xLjgzdi01LjY5YzAtLjc2LjQtMS40NiwxLjA2LTEuODNsMS41My0uODhjLjEtLjA2LjI0LjAxLjI0LjE0djkuOTFjMCwuMzcuMS43My4yOCwxLjA0LjE4LjMyLjQ1LjU5Ljc4Ljc4aDBaIiBmaWxsPSJ1cmwoI3V1aWQtYzQxYTFiNWQtYzNlZS00NDEzLWJlZjItZjVhMDcyYmE5MzZlKSIgLz48cGF0aCBkPSJNMTAuMTQsMTAuNTl2MS43NmMwLC43Ni0uNCwxLjQ2LTEuMDYsMS44M2wtMS45NCwxLjEyYy0uNjUuMzgtMS40Ni4zOC0yLjEyLDAtLjMzLS4xOS0uNTktLjQ2LS43OC0uNzgtLjE4LS4zMS0uMjgtLjY3LS4yOC0xLjA0di0uNDJjMCwuMzYuMzkuNTkuNzEuNGw1LjIzLTMuMDJjLjEtLjA2LjI0LjAxLjI0LjE0WiIgZmlsbD0idXJsKCN1dWlkLTdhODM5N2JiLWY4MmUtNGI0ZS04ZmIxLWM0OWRjMjBlYWU1MikiIC8+PHBhdGggZD0iTTE2Ljg2LDkuNTN2My4yNmMwLC43Ni0uNCwxLjQ2LTEuMDYsMS44M2wtNC45MywyLjg0Yy0uNjUuMzgtMS40Ni4zOC0yLjEyLDBsLTEuNTMtLjg4Yy0uMS0uMDYtLjEtLjIxLDAtLjI3bDguNTktNC45NmMuMzItLjE5LjU4LS40NS43Ni0uNzcuMTgtLjMyLjI4LS42OC4yOC0xLjA2WiIgZmlsbD0idXJsKCN1dWlkLTM2NGNiMzhiLTI1ZTYtNGQ0NS1hNWYzLTdmNzU2N2NmMTk0NykiIC8+PHBhdGggZD0iTTEwLjIyLDcuNDZsMS41My0uODhjLjY1LS4zOCwxLjQ2LS4zOCwyLjEyLDBsMS45NCwxLjEyYy42NS4zOCwxLjA2LDEuMDgsMS4wNiwxLjgzLDAsLjM4LS4xLjc0LS4yOCwxLjA2LS4xOC4zMS0uNDQuNTgtLjc2Ljc3bC0uMzYuMjFjLjMxLS4xOC4zMS0uNjMsMC0uODFsLTUuMjMtMy4wMmMtLjEtLjA2LS4xLS4yMSwwLS4yN1oiIGZpbGw9InVybCgjdXVpZC1mYjMyZTMzNC04NjdkLTRlZGUtYmVkMS01NmFlY2FlNzYyY2IpIiAvPjxwYXRoIGQ9Ik01Ljk0LDIuMTZsMi44Mi0xLjYzYy42Ni0uMzgsMS40Ni0uMzgsMi4xMiwwbDQuOTMsMi44NGMuNjUuMzgsMS4wNiwxLjA4LDEuMDYsMS44M3YxLjc2YzAsLjEyLS4xMy4yLS4yNC4xNEw4LjA0LDIuMTZjLS4zMi0uMTgtLjY4LS4yOC0xLjA1LS4yOC0uMzcsMC0uNzMuMDktMS4wNi4yOGgwWiIgZmlsbD0idXJsKCN1dWlkLTI1N2JlZGViLWNiNGUtNDhlYy05NzhkLTY2N2Q5NDNkNDg4NykiIC8+PHBhdGggZD0iTTcuNDcsOC45NWwtMS41My0uODhjLS42Ni0uMzgtMS4wNi0xLjA4LTEuMDYtMS44M3YtMi4yNGMwLS43Ni40LTEuNDYsMS4wNi0xLjgzLjMzLS4xOS42OS0uMjgsMS4wNi0uMjhzLjcyLjA5LDEuMDQuMjhsLjM2LjIxYy0uMzEtLjE4LS43LjA1LS43LjQxdjYuMDRjMCwuMTItLjEzLjItLjI0LjE0aDBaIiBmaWxsPSJ1cmwoI3V1aWQtZDI0YjNmMmItNTViZC00NzMxLThkODItMmNjYjNhOTQ5ZGE3KSIgLz48L3N2Zz4=" x="62" y="464" width="36" height="36"/>
+  <text x="108" y="484" class="name">Foundry Agent Service</text>
+  <circle cx="360" cy="476" r="15" fill="#4aa8ff" stroke="#1f252e" stroke-width="2.5"/>
+  <text x="360" y="482" class="num" text-anchor="middle">4</text>
+  <text x="64" y="514" class="detail">Coordinator + specialists</text>
+  <text x="64" y="539" class="detail">Schema + accumulated evidence</text>
+  <text x="64" y="564" class="detail">Managed identity; up to 180 s</text>
+  <rect x="440" y="448" width="310" height="130" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <text x="456" y="484" class="name">Fail-closed checks</text>
+  <circle cx="722" cy="476" r="15" fill="#4aa8ff" stroke="#1f252e" stroke-width="2.5"/>
+  <text x="722" y="482" class="num" text-anchor="middle">5</text>
+  <text x="456" y="514" class="detail">Verified specialist receipts</text>
+  <text x="456" y="539" class="detail">JSON schema + coverage</text>
+  <text x="456" y="564" class="detail">Exact source quotes</text>
+  <rect x="812" y="448" width="272" height="130" rx="10" fill="#1f252e" stroke="#3cc3ae" stroke-width="2"/>
+  <text x="828" y="484" class="name">Final write</text>
+  <circle cx="1056" cy="476" r="15" fill="#3cc3ae" stroke="#1f252e" stroke-width="2.5"/>
+  <text x="1056" y="482" class="num" text-anchor="middle">6</text>
+  <text x="828" y="514" class="detail">Findings or failure code</text>
+  <text x="828" y="539" class="detail">Uses the run's ETag</text>
+  <text x="828" y="564" class="detail">Model text cannot set status</text>
+  <path d="M388 513H432" class="request"/>
+  <path d="M750 513H804" class="request"/>
+  <path d="M1084 513H1272" class="data"/>
+  <rect x="24" y="638" width="1080" height="148" rx="16" fill="#0d1117" stroke="#6b7c8e" stroke-width="1.5" stroke-dasharray="9 6"/>
+  <text x="40" y="669" class="boundary">WHAT THE INBOX SHOWS</text>
+  <rect x="48" y="692" width="220" height="70" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <text x="64" y="722" class="mono">completed</text>
+  <text x="64" y="748" class="detail">Findings saved</text>
+  <rect x="310" y="692" width="220" height="70" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <text x="326" y="722" class="mono">waiting_input</text>
+  <text x="326" y="748" class="detail">Questions saved</text>
+  <rect x="580" y="692" width="220" height="70" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <text x="596" y="722" class="mono">failed</text>
+  <text x="596" y="748" class="detail">Failure saved; no retry</text>
+  <rect x="830" y="692" width="220" height="70" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <text x="846" y="722" class="mono">interrupted</text>
+  <text x="846" y="748" class="detail">Recover explicitly</text>
+  <rect x="24" y="812" width="1080" height="204" rx="16" fill="#0d1117" stroke="#6b7c8e" stroke-width="1.5" stroke-dasharray="9 6"/>
+  <text x="40" y="843" class="boundary">FOLLOW-UP ACTIONS</text>
+  <rect x="280" y="860" width="280" height="132" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <text x="296" y="896" class="name">Add evidence</text>
+  <circle cx="532" cy="888" r="15" fill="#4aa8ff" stroke="#1f252e" stroke-width="2.5"/>
+  <text x="532" y="894" class="num" text-anchor="middle">7</text>
+  <text x="296" y="926" class="mono">POST …/evidence</text>
+  <text x="296" y="951" class="detail">If-Match</text>
+  <text x="296" y="976" class="detail">Starts a new run from step 2</text>
+  <rect x="800" y="860" width="280" height="132" rx="10" fill="#1f252e" stroke="#637484" stroke-width="1.5"/>
+  <text x="816" y="896" class="name">Recover</text>
+  <circle cx="1052" cy="888" r="15" fill="#4aa8ff" stroke="#1f252e" stroke-width="2.5"/>
+  <text x="1052" y="894" class="num" text-anchor="middle">8</text>
+  <text x="816" y="926" class="mono">POST …/resume</text>
+  <text x="816" y="951" class="detail">confirm_cost: true</text>
+  <text x="816" y="976" class="detail">Starts a new run from step 2</text>
+  <path d="M420 762V852" class="request"/>
+  <path d="M940 762V852" class="request"/>
+  <rect x="1296" y="426" width="264" height="82" rx="8" fill="#3b300d" stroke="#a08845" stroke-width="1.5"/>
+  <text x="1312" y="456" class="detail">Reading or refreshing</text>
+  <text x="1312" y="481" class="detail">never starts an agent call.</text>
+  <rect x="1280" y="820" width="296" height="112" rx="8" fill="#3b300d" stroke="#a08845" stroke-width="1.5"/>
+  <text x="1296" y="850" class="detail">Runs inside the Lab process:</text>
+  <text x="1296" y="875" class="detail">one worker, one replica,</text>
+  <text x="1296" y="900" class="detail">no queue or automatic retry.</text>
+  <text x="24" y="1064" class="boundary">LEGEND</text>
+  <path d="M120 1058H176" class="request"/>
+  <text x="186" y="1064" class="small">Request</text>
+  <path d="M287 1058H343" class="data"/>
+  <text x="353" y="1064" class="small">Data read or write</text>
+  <circle cx="544" cy="1058" r="15" fill="#4aa8ff" stroke="#1f252e" stroke-width="2.5"/>
+  <text x="544" y="1064" class="num" text-anchor="middle">n</text>
+  <text x="570" y="1064" class="small">Step</text>
+  <circle cx="658" cy="1058" r="15" fill="#3cc3ae" stroke="#1f252e" stroke-width="2.5"/>
+  <text x="658" y="1064" class="num" text-anchor="middle">n</text>
+  <text x="684" y="1064" class="small">Data step</text>
+  <rect x="796" y="1044" width="44" height="28" rx="6" fill="#3b300d" stroke="#a08845" stroke-width="1.5"/>
+  <text x="850" y="1064" class="small">Caveat</text>
+  <text x="1576" y="1064" class="small" text-anchor="end">Recovery reruns saved input; it is not exactly-once.</text>
+</svg>
