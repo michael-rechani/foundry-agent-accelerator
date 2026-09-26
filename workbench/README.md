@@ -187,7 +187,13 @@ enabled entries.
 
 **Developer setup details** shows unchanged catalog IDs, runtime names, expected
 tool bindings, and configuration sources. These details describe configured
-capabilities, not observed execution. Check response execution details and
+capabilities, not observed execution. Each answer with receipts shows a compact
+handoff timeline (**You asked** → coordinator → each specialist with
+**Verified**, **Unverified**, or **Stored - not reverified** → **You check the
+findings**). It uses the same verification state as the collapsed **Execution
+details** receipts, and answers without receipts show no timeline. A verified
+receipt only shows that the expected specialist was called; it doesn't prove
+the findings are correct. Check response execution details and
 receipts; stored receipts are not reverified.
 
 ### Starters and guidance
@@ -210,7 +216,7 @@ Starter prompts fill the composer without submitting. The user must choose
 | Unsaved draft | No. | Browser memory only. | Browser navigation warns about unsaved work where supported. It can't prevent data loss from a browser crash or forced close. |
 | Saved conversation | Yes, after the user selects the Save icon. | Expires 30 days after its last update. | Saving is explicit, not automatic. |
 | Export | Download only. | User-controlled. | Export includes completed exchanges and the current draft. |
-| Saved/read receipt flags | Yes, with verification flags cleared. | Same as the conversation. | Reopened receipts display `Stored / not reverified`. Live response receipts are checked separately against correlated tool calls and expected targets. |
+| Saved/read receipt flags | Yes, with verification flags cleared. | Same as the conversation. | Reopened receipts display `Stored / not reverified`, and their handoff timeline steps display `Stored - not reverified`. Live response receipts are checked separately against correlated tool calls and expected targets. |
 
 Deletion and time to live (TTL) remove active documents. The account's backup
 retention is separate and isn't immediate secure erasure. Foundry requests use

@@ -964,6 +964,57 @@ p {
   font-size: 9px;
   margin: 12px 0 5px;
 }
+.handoff-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 4px;
+  list-style: none;
+  margin: 14px 0 4px;
+  padding: 0;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.handoff-timeline li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.handoff-timeline li > span {
+  overflow-wrap: anywhere;
+}
+.handoff-timeline li > svg:not(.handoff-arrow) {
+  flex: none;
+  color: var(--accent);
+}
+.handoff-arrow {
+  flex: none;
+  color: var(--muted);
+}
+.handoff-timeline small {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  white-space: nowrap;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.handoff-specialist > span {
+  font: 10px var(--mono);
+  color: var(--text);
+}
+.handoff-specialist.verified small {
+  background: var(--success-bg);
+  color: var(--success-fg);
+}
+.handoff-specialist.unverified small {
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+}
 .receipt-details {
   border-top: 1px solid var(--line);
   padding-top: 12px;

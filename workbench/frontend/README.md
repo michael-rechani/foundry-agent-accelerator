@@ -38,7 +38,8 @@ install browser system dependencies with `npx playwright install --with-deps chr
 
 `src/ChatWorkspace.tsx` owns conversation and view state for **Explore demos**, **New chat**,
 **Create agent**, **Created agents**, **Chat**, **Document reviews**,
-**Shared history**, **Agent catalog**, and **Performance**. Reply rendering lives in
+**Shared history**, **Agent catalog**, and **Performance**. Reply rendering,
+including the handoff timeline and collapsed execution details, lives in
 `ConversationTurn.tsx`. `WaitingIndicator.tsx` owns the elapsed timer so it
 does not rerender the transcript.
 
