@@ -164,7 +164,7 @@ integration.
 | Hosted agent | Custom Python code, validated packaging, or controlled specialist tools. | Preserve immutable versions, deployment preflight, private ingress checks, and route verification. |
 | Coordinator with specialists | Independently useful specialists with explicit handoffs. | More agents add latency, cost, and failure modes. Do not use a hosted coordinator for every example by default. |
 | Direct Responses call from the Lab | App-owned logic where the Lab should own prompts, records, and controls. | Keep Responses as the current contract. Add an adapter only for a concrete example needing a different contract. |
-| Native retrieval or toolboxes | Approved data sources or tools that multiple examples need. | A Search connection alone is not retrieval or document authorization. Validate identity, private routing, versioning, and freshness. |
+| Native retrieval or toolboxes | Approved data sources or tools that multiple examples need. | A Search connection alone is not retrieval or document authorization. Validate identity, private routing, versioning, and freshness. See the [knowledge retrieval design](knowledge-retrieval.md). |
 | Managed conversations, background work, or resilience | Examples that need native recovery or state after retention requirements are clear. | Background acceptance alone is not durable recovery or exactly-once side effects. Test against pinned SDK and runtime versions. |
 | Customer channels or Azure API Management (APIM) | A specific governed API or supported channel requirement. | APIM stays disabled unless its cost, policy, authorization, and networking are reviewed. Native publishing can fit some channels better. |
 
@@ -175,7 +175,7 @@ integration.
 | Platform | Terraform, private networking, model deployment, managed identities, separate platform and Lab state. | Agent hosting, endpoints, identities, model access, and managed runtime lifecycle. | Keep Terraform for infrastructure and permissions; keep agent publication separate. |
 | Agent implementation | Python hosted samples and a shared version deployer. | Prompt agents for configuration-led use cases; hosted agents for custom code; direct Responses calls for app-owned logic. | Choose the least complex supported type per example. Do not require a hosted coordinator for every agent. |
 | Invocation | The Lab calls configured named agent Responses endpoints by using managed identity. | Responses protocol and additional protocols for other client needs. | Keep Responses as the current Lab contract. Add an adapter only for a concrete example needing a different contract. |
-| Tools and knowledge | Custom specialist function tools; connected backing Search, but no retrieval tool. | Managed tools, versioned toolboxes, Model Context Protocol (MCP) or OpenAPI integrations, and Search retrieval. | Prefer a supported native integration when permissions and private connectivity fit; keep domain-specific code in the agent. |
+| Tools and knowledge | Custom specialist function tools; connected backing Search, but no deployed retrieval tool. An optional, flag-gated case-agent lookup is designed but off by default ([knowledge retrieval design](knowledge-retrieval.md)). | Managed tools, versioned toolboxes, Model Context Protocol (MCP) or OpenAPI integrations, and Search retrieval. | Prefer a supported native integration when permissions and private connectivity fit; keep domain-specific code in the agent. |
 | Conversation state | Explicitly saved shared Cosmos DB transcripts; bounded history resubmitted with `store=False`. | Managed conversations and sessions. | Preserve current behavior until retention and authorization are decided. Avoid silently enabling a second transcript store. |
 | Long-running work | Optional review records with local background tasks and interruption reporting. | Background Responses and separately configured resilient execution. | Evaluate native recovery first when an example needs it. Background acceptance alone is not durable recovery or exactly-once side effects. |
 | Quality and diagnostics | Unit and browser tests, deployment smoke checks, opt-in fictional Foundry evaluations, metadata logs, and session timings. | Agent tracing, Application Insights integration, and evaluations. | Keep test cases and acceptance thresholds in source; use Foundry for evaluation and diagnostic analysis, not a new Lab dashboard. |
@@ -244,7 +244,7 @@ live routing, permissions, trace collection, or production suitability.
 | Deployment and Lab clients | `azure-ai-projects==2.6.1`; `openai==3.19.2`. | Preserve the pinned pair and its offline transport tests. A newer public release is not an instruction to upgrade without coordinated validation. |
 | Evaluation client | Separate environment with the same `azure-ai-projects==2.6.1`; `openai==3.19.2` pins. | Hand-authored rubric creation uses `.beta.evaluators`. Offline contracts are tested; live evaluation needs explicit approval and private-project, permissions, region, and judge-model verification. |
 | Tracing | Operational metadata logs and private Azure Monitor connectivity. | Verify project-linked Application Insights server-side traces before claiming end-to-end trace coverage or adding client instrumentation. Content capture requires explicit review. |
-| Tools and retrieval | Custom specialist tools; Search connected but not used for retrieval. | A Search connection alone is not retrieval or document authorization. Native toolboxes and new integrations need their own identity and network validation. |
+| Tools and retrieval | Custom specialist tools; Search connected but not used for retrieval. `azure-search-documents==12.0.0` is pinned only for the optional, off-by-default case-agent lookup. | A Search connection alone is not retrieval or document authorization. Native toolboxes and new integrations need their own identity and network validation. See the [knowledge retrieval design](knowledge-retrieval.md). |
 | Default model | GPT-4.1, with its version set in the [Terraform inputs](../terraform/variables.tf). | A configured model is not a quality result. Compare alternatives against the same evaluation set before an approved change. |
 
 ## Public service and SDK guidance
@@ -314,6 +314,10 @@ The remaining architecture decisions can be worked out from those examples.
 - **Knowledge retrieval:** try the supported Foundry tool against the existing
   approved Search setup before writing a bespoke retrieval service. The backing
   Search connection alone does not establish retrieval or document authorization.
+  The [knowledge retrieval design](knowledge-retrieval.md) compares the Foundry
+  tool with a flag-gated, read-only function tool for the case agent. The
+  function tool is off by default and not deployed; a staging comparison with the
+  Foundry tool remains open.
 - **Native state and recovery:** test managed conversations, background work,
   and resilience against pinned SDK and runtime versions and retention
   requirements. The current `store=False` gateway and local review task are not
@@ -345,6 +349,7 @@ The remaining architecture decisions can be worked out from those examples.
   that isn't implemented
 - [Coordinator profiles](agent-profiles.md)
 - [Optional integrations](optional-integrations.md)
+- [Knowledge retrieval design](knowledge-retrieval.md)
 - Implementation code: [gateway and catalog validation](../workbench/app.py),
   [shared deployer](../hosted-agents/deployment.py),
   [coordinator configuration](../hosted-agents/review-coordinator-agent/configuration.py),

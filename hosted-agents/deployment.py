@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import math
 import os
@@ -9,7 +10,7 @@ import stat
 import tempfile
 import time
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
@@ -87,6 +88,14 @@ def parse_args(profile: AgentProfile, argv=None) -> argparse.Namespace:
     return args
 
 
+def zip_entry(archive: ZipFile, name: str, content: bytes) -> None:
+    info = ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
+    info.compress_type = ZIP_DEFLATED
+    info.create_system = 3
+    info.external_attr = (stat.S_IFREG | 0o644) << 16
+    archive.writestr(info, content)
+
+
 def create_package(source_directory: Path, destination: Path) -> None:
     missing = [name for name in SOURCE_FILES if not (source_directory / name).is_file()]
     if missing:
@@ -96,11 +105,57 @@ def create_package(source_directory: Path, destination: Path) -> None:
         for name in (*SOURCE_FILES, *OPTIONAL_SOURCE_FILES):
             source = source_directory / name
             if source.is_file():
-                info = ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
-                info.compress_type = ZIP_DEFLATED
-                info.create_system = 3
-                info.external_attr = (stat.S_IFREG | 0o644) << 16
-                archive.writestr(info, source.read_bytes())
+                zip_entry(archive, name, source.read_bytes())
+
+
+KNOWLEDGE_CHECK_PROMPT = (
+    "Call search_policy_guidance exactly once to look up fictional guidance "
+    "about missing evidence in a synthetic case, then summarize what was "
+    "retrieved with source_id citations or state that nothing matched. Do not "
+    "make an eligibility decision."
+)
+
+
+def knowledge_package(source_directory: Path) -> bytes:
+    shared = Path(__file__).resolve().parent
+    extra = source_directory / "requirements-knowledge.txt"
+    if not extra.is_file():
+        raise FileNotFoundError("Knowledge retrieval requires requirements-knowledge.txt")
+    requirements = [
+        line.strip()
+        for source in (source_directory / "requirements.txt", extra)
+        for line in source.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    files = {
+        "main.py": (shared / "knowledge_main.py").read_bytes(),
+        "requirements.txt": ("\n".join(requirements) + "\n").encode("utf-8"),
+        "knowledge_retrieval.py": (shared / "knowledge_retrieval.py").read_bytes(),
+    }
+    if (source_directory / "instructions.md").is_file():
+        files["instructions.md"] = (source_directory / "instructions.md").read_bytes()
+    output = io.BytesIO()
+    with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
+        for name, content in files.items():
+            zip_entry(archive, name, content)
+    return output.getvalue()
+
+
+def with_knowledge_retrieval(profile: AgentProfile, environ=None) -> AgentProfile:
+    """Return the profile unchanged unless KNOWLEDGE_RETRIEVAL_ENABLED is exactly true."""
+    from knowledge_retrieval import TOOL_NAME, read_settings
+
+    settings = read_settings(os.environ if environ is None else environ)
+    if settings is None:
+        return profile
+    if profile.code_archive is not None:
+        raise ValueError("Knowledge retrieval applies only to repository source profiles")
+    return replace(
+        profile,
+        code_archive=knowledge_package(profile.source_directory),
+        environment_variables=(*profile.environment_variables, *settings.environment()),
+        delegation_checks=(*profile.delegation_checks, (KNOWLEDGE_CHECK_PROMPT, TOOL_NAME)),
+    )
 
 
 def wait_until_active(

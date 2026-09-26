@@ -59,6 +59,7 @@ jobs:
           python -m pip install
           -r hosted-agents/basic-responses-agent/requirements.txt
           -r hosted-agents/case-review-agent/requirements.txt
+          -r hosted-agents/case-review-agent/requirements-knowledge.txt
           -r hosted-agents/application-review-agent/requirements.txt
           -r hosted-agents/review-coordinator-agent/requirements.txt
           -r workbench/agent_runtime/requirements.txt
@@ -96,7 +97,8 @@ jobs:
         run: >-
           python -c "from agent_framework import Agent;
           from agent_framework.foundry import FoundryChatClient;
-          from agent_framework_foundry_hosting import ResponsesHostServer"
+          from agent_framework_foundry_hosting import ResponsesHostServer;
+          from azure.search.documents import SearchClient"
 
   python:
     needs: python-tests

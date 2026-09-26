@@ -4,7 +4,7 @@ from pathlib import Path
 SOURCE_DIRECTORY = Path(__file__).resolve().parent
 sys.path.insert(0, str(SOURCE_DIRECTORY.parent))
 
-from deployment import AgentProfile, run
+from deployment import AgentProfile, run, with_knowledge_retrieval
 
 
 def default_profile() -> AgentProfile:
@@ -22,4 +22,4 @@ def default_profile() -> AgentProfile:
 
 
 if __name__ == "__main__":
-    run(default_profile())
+    run(with_knowledge_retrieval(default_profile()))
