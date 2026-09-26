@@ -329,6 +329,8 @@ To deploy from a separate private machine, use the
 - [Hosted agents](hosted-agents/README.md)
 - [Private deployment runbook](docs/private-deployment.md)
 - [Credentials](docs/credentials.md)
+- [Permissions reference](docs/permissions.md)
+- [Troubleshooting](docs/troubleshooting.md)
 - [Security policy](SECURITY.md)
 
 <details>

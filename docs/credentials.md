@@ -24,6 +24,8 @@ Do not create redundant Key Vault copies of unused, disabled service keys.
 The Lab accesses Foundry and Cosmos through managed identity. Registry access
 also uses managed identity, with the registry admin account disabled. Keep local
 or shared-key authentication disabled on supporting services wherever supported.
+For the roles each identity receives, and the permissions operators grant
+themselves, see the [permissions reference](permissions.md).
 
 Transcripts and operational metadata are application data, not vault secrets.
 Keep them in their dedicated protected stores with appropriate access and
@@ -124,6 +126,8 @@ arguments.
 ## Related content
 
 - [Security policy](../SECURITY.md)
+- [Permissions reference](permissions.md)
+- [Troubleshooting](troubleshooting.md)
 - [Infrastructure deployment](../terraform/README.md)
 - [Private deployment runbook](private-deployment.md)
 - [Bastion](../terraform/bastion/README.md)
