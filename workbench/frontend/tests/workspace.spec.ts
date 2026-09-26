@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import type { Turn } from '../src/conversation-types'
+import type { Receipt, Turn } from '../src/conversation-types'
 import type { Config } from '../src/workspace-config'
 import { guidedReview, illustrativeScreenshot, registry } from './fixtures'
 const agent = {
@@ -28,6 +28,7 @@ async function workspace(
     preview?: boolean
     startup?: 'stalled' | 'invalid' | 'invalid-guidance' | 'failed'
     config?: Partial<Config>
+    receipts?: Receipt[]
   } = {},
 ) {
   const config: Config = {
@@ -86,10 +87,13 @@ async function workspace(
       return respond({
         request_id: `request-${state.requests.length}`,
         status: 'completed',
-        agent: agent.agent,
+        agent: (
+          config.agents.find((item) => item.id === config.default_agent) ??
+          agent
+        ).agent,
         text: 'APP-1 is missing a budget.',
         elapsed_ms: 1000,
-        receipts: [
+        receipts: options.receipts ?? [
           {
             tool: 'inspect_application',
             call_id: 'call-1',
@@ -269,6 +273,109 @@ test('default helper explains its job and offers example tasks without auto-send
   await expect(page.locator('.receipt')).toContainText('inspect_application')
   await expect(page.locator('.receipt')).toContainText(
     'application-review-agent',
+  )
+})
+
+test('handoff timeline shows a verified specialist without opening execution details', async ({
+  page,
+}, testInfo) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await workspace(page)
+  await send(page)
+  const timeline = page.getByRole('list', { name: 'Handoff timeline' })
+  await expect(timeline).toBeVisible()
+  await expect(timeline.getByRole('listitem')).toHaveText([
+    'You asked',
+    /Application and case helper\s*Coordinator/,
+    /application-review-agent\s*Verified/,
+    'You check the findings',
+  ])
+  await expect(page.locator('.receipt-details')).not.toHaveAttribute('open')
+  await expect(page.locator('.handoff-timeline')).not.toContainText(/\d/)
+  expect(
+    await timeline.evaluate(
+      (element) =>
+        element.getBoundingClientRect().right <= innerWidth &&
+        document.documentElement.scrollWidth <= innerWidth &&
+        element.getAnimations({ subtree: true }).length === 0,
+    ),
+  ).toBe(true)
+  await timeline.screenshot({
+    path: testInfo.outputPath('handoff-timeline.png'),
+  })
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await expect(timeline.getByText('Verified', { exact: true })).toBeVisible()
+  await timeline.screenshot({
+    path: testInfo.outputPath('handoff-timeline-dark.png'),
+  })
+})
+
+test('handoff timeline marks unverified receipts', async ({ page }) => {
+  await workspace(page, {
+    receipts: [
+      {
+        tool: 'inspect_application',
+        call_id: null,
+        verified: false,
+        agent: null,
+        output: null,
+      },
+    ],
+  })
+  await send(page)
+  const timeline = page.getByRole('list', { name: 'Handoff timeline' })
+  await expect(timeline.getByRole('listitem').nth(2)).toHaveText(
+    /inspect_application\s*Tool call\s*Unverified/,
+  )
+  await expect(timeline).not.toContainText('Target not verified')
+  await expect(timeline.getByText('Verified', { exact: true })).toHaveCount(0)
+})
+
+test('self-targeted lookups on a created agent show tool calls, not a handoff', async ({
+  page,
+}) => {
+  const created = {
+    ...agent,
+    id: 'created-service-planner',
+    label: 'Service request planner',
+    agent: 'service-request-planner-1a2b',
+    tools: { lookup_demo_request: 'service-request-planner-1a2b' },
+  }
+  await workspace(page, {
+    config: { agents: [created], default_agent: created.id },
+    receipts: [
+      {
+        tool: 'lookup_demo_request',
+        call_id: 'call-1',
+        verified: true,
+        agent: created.agent,
+        output: 'Synthetic request record.',
+      },
+    ],
+  })
+  await send(page)
+  const timeline = page.getByRole('list', { name: 'Handoff timeline' })
+  await expect(timeline.getByRole('listitem')).toHaveText([
+    'You asked',
+    /Service request planner\s*Agent/,
+    /lookup_demo_request\s*Tool call\s*Verified/,
+    'You check the findings',
+  ])
+  await expect(timeline).not.toContainText('Coordinator')
+  await expect(timeline).not.toContainText(created.agent)
+})
+
+test('answers without receipts show no handoff timeline', async ({ page }) => {
+  await workspace(page, { receipts: [] })
+  await send(page)
+  await expect(page.locator('.assistant-message')).toContainText(
+    'APP-1 is missing a budget.',
+  )
+  await expect(
+    page.getByRole('list', { name: 'Handoff timeline' }),
+  ).toHaveCount(0)
+  await expect(page.locator('.receipt-details > summary')).toContainText(
+    'Execution details',
   )
 })
 
@@ -606,8 +713,17 @@ test('save, reopen, follow up, update and delete shared history', async ({
     .getByRole('button', { name: 'Shared history', exact: true })
     .click()
   await page.locator('.saved-open').click()
+  const storedTimeline = page.getByRole('list', { name: 'Handoff timeline' })
+  await expect(storedTimeline.getByRole('listitem').nth(2)).toHaveText(
+    /application-review-agent\s*Stored \/ not reverified/,
+  )
+  await expect(
+    storedTimeline.getByText('Verified', { exact: true }),
+  ).toHaveCount(0)
   await page.locator('.receipt-details > summary').click()
-  await expect(page.getByText('Stored / not reverified')).toBeVisible()
+  await expect(
+    page.locator('.receipt').getByText('Stored / not reverified'),
+  ).toBeVisible()
   await expect(page.getByText('Verified receipt', { exact: true })).toHaveCount(
     0,
   )
