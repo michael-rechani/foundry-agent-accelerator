@@ -78,6 +78,7 @@ you need to answer:
 | --- | --- | --- |
 | [Agent creation](agent-creation.md) | How a prepared task setup becomes a named, usable Foundry agent. | Opt-in publication, shared registry, and recovery; no cloud creation in local preview. |
 | [Agent collaboration](#agent-collaboration) | Who asks whom, what information is passed, and who checks the result. | Default coordinator and review specialists. |
+| [Orchestration pattern](#orchestration-pattern) | Which of Microsoft's agent orchestration patterns the coordinator resembles, and how it differs. | Default coordinator. |
 | [Component interactions](#component-interactions) | What runs where and which component owns each interaction. | Platform and application components. |
 | [Chat and delegation](#chat-and-delegation) | How a browser request reaches a specialist and when chat is saved. | Existing Lab chat path. |
 | [Review persistence and recovery](review-workflow.md#execution-and-persistence) | What is saved before execution and how clarification and interruptions behave. | Optional Document reviews workflow. |
@@ -149,6 +150,34 @@ result, not whether every statement is true. The Lab still has shared history
 and no per-user authorization. Structured reviews add
 [coverage, citation, and saved-result checks](review-workflow.md#execution-and-trust).
 Ordinary chat can also return clarification without a specialist receipt.
+
+### Orchestration pattern
+
+Microsoft's [AI agent orchestration patterns](https://learn.microsoft.com/azure/architecture/ai-ml/guide/ai-agent-design-patterns)
+guide names five multi-agent patterns. The default coordinator is closest to
+**handoff**, which the guide also calls routing: the coordinator's model picks
+the specialist for each request. It differs in one important way: control never
+transfers. Specialists are called as tools, each result returns to the
+coordinator, and the coordinator writes the answer.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/orchestration-pattern-dark.svg">
+  <img alt="The Lab's coordinator compared with Microsoft's five orchestration patterns: sequential, group chat, and magentic are not used, concurrent is not the default, and handoff (routing) is the closest match. In the guide's handoff, control moves from agent to agent; in the Lab, specialists work as the coordinator's tools, every result comes back to it, and control stays with it. A person checks each answer." src="images/orchestration-pattern.svg">
+</picture>
+
+[View full size](images/orchestration-pattern.svg) · [Edit the SVG template](images/orchestration-pattern.template.svg)
+
+The Lab doesn't use sequential, group chat, or magentic orchestration. When a
+user explicitly asks for both review types, the coordinator can call both
+specialists on the same request, which is the nearest the Lab gets to
+concurrent orchestration. People stay outside the agent loop: they answer
+clarifying questions and check each answer, and no agent approves, denies, or
+acts on the result.
+
+*Pattern names and descriptions are adapted from the Azure Architecture Center
+guide, which Microsoft licenses under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The schematics are
+redrawn for this repository, not copied from the guide.*
 
 ### Applying the pattern to larger workflows
 

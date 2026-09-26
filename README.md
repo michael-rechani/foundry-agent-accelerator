@@ -250,7 +250,8 @@ automatic approval, denial, or external action.*
 
 [View full size](docs/images/agent-collaboration.svg) ·
 [Edit the SVG template](docs/images/agent-collaboration.template.svg) ·
-[Hosted agents](hosted-agents/README.md)
+[Hosted agents](hosted-agents/README.md) ·
+[Which orchestration pattern is this?](docs/architecture.md#orchestration-pattern)
 
 ### Creating your own agent
 
@@ -268,6 +269,7 @@ the agent in **Chat**. See [agent creation](docs/agent-creation.md).
 | Diagram | Question it answers |
 | --- | --- |
 | [How the Lab handles a request](docs/architecture.md#implementation-overview) | What does the Lab call, and what does it save? |
+| [Orchestration pattern](docs/architecture.md#orchestration-pattern) | Which of Microsoft's agent orchestration patterns does the coordinator follow? |
 | [Lab components](docs/architecture.md#component-interactions) | What runs in the browser, the Lab, Foundry, and the data store? |
 | [Chat request flow](docs/architecture.md#chat-and-delegation) | What happens, in order, when you send a chat message? |
 | [Review lifecycle](docs/review-workflow.md#execution-and-persistence) | How is a document review saved, checked, and recovered? |
@@ -410,7 +412,9 @@ includes every guide and a glossary.
 
 On every pull request and push to `main`, GitHub Actions tests the Python,
 TypeScript, and Terraform code, including browser tests at desktop and mobile
-sizes.
+sizes. A docs check rebuilds every diagram from its template and fails if the
+committed SVGs differ, then checks that every relative link, image, and heading
+anchor in the Markdown resolves.
 
 The checks use simulated service responses. They don't call live agents or
 create Azure resources.

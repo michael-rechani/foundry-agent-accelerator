@@ -14,6 +14,8 @@
       live resources.
 - [ ] For UI changes: I refreshed affected screenshots and tours, as described
       in `docs/images/README.md`.
+- [ ] For diagram changes: I edited the `.template.svg`, rebuilt it with
+      `docs/images/build-architecture.ps1`, and committed both outputs.
 
 ## Safety checklist
 

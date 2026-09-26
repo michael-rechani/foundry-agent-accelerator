@@ -26,6 +26,7 @@ component:
 | [Agent release journey](agent-release-journey.svg) | The private foundation and agent releases as two connected workflows, their configuration handoff, and the decisions people approve. | [README](../../README.md#one-foundation-two-connected-workflows), [showcase](../showcase.md) | [Template](agent-release-journey.template.svg) |
 | [Azure architecture](azure-architecture.svg) | One-page network map: the subscription and resource group, the admin and workload networks with their default subnets, a private endpoint for each service, and seven numbered request steps. | [README](../../README.md#what-runs-in-azure) | [Template](azure-architecture.template.svg) |
 | [Agent collaboration](agent-collaboration.svg) | The coordinator's requests to specialists, their results, and the person who checks the answer. | [README](../../README.md#agents-working-together), [architecture guide](../architecture.md#agent-collaboration) | [Template](agent-collaboration.template.svg) |
+| [Orchestration pattern](orchestration-pattern.svg) | How the coordinator compares with the five patterns in Microsoft's agent orchestration guide: handoff is the closest match, with one difference. | [Architecture guide](../architecture.md#orchestration-pattern) | [Template](orchestration-pattern.template.svg) |
 | [How the Lab handles a request](foundry-overview.svg) | The Lab's request path, the records it saves, and optional Azure API Management (APIM) outside the default flow. | [Architecture guide](../architecture.md#implementation-overview) | [Template](foundry-overview.template.svg) |
 | [Lab components](lab-components.svg) | What runs in the browser, the Lab's internal container app, Microsoft Foundry, and the data store, and how they connect. | [Architecture guide](../architecture.md#component-interactions) | [Template](lab-components.template.svg) |
 | [Chat request flow](lab-request-flow.svg) | One chat request in sequence: admission, specialist delegation, receipts, and the separate save to shared history. | [Architecture guide](../architecture.md#chat-and-delegation) | [Template](lab-request-flow.template.svg) |
@@ -47,13 +48,22 @@ original SVG bytes. The generated SVGs are self-contained when GitHub displays
 them, with no external asset or network dependency, so don't edit them by
 hand. Commit each template with both of its outputs.
 
+The **docs** check in the Validate workflow reruns the build and fails if any
+committed SVG differs from its template's output. It also checks every relative
+link, image path, and heading anchor in the repository's Markdown. Run the same
+link check locally before you push:
+
+```powershell
+python .github/scripts/check_markdown_links.py
+```
+
 These are logical diagrams, not a resource inventory. Only the Azure
 architecture view shows subnets; elsewhere, boxes don't place managed services
 inside virtual networks.
 
 ## Diagram style
 
-All nine diagrams follow the same rules, so the set reads as one family. They
+All ten diagrams follow the same rules, so the set reads as one family. They
 borrow the layered layout of the
 [Azure Architecture Center](https://learn.microsoft.com/azure/architecture/browse/)
 reference diagrams, simplified for a workshop audience: official icons,
@@ -114,6 +124,18 @@ specialists. Its numbered steps match the root README. Steps 2 and 3 are stages
 of one coordinator agent, not separate agents. Keep the one-specialist default,
 clarification and failure behavior, and human-review boundary aligned with the
 implementation.
+
+The orchestration-pattern view compares the default coordinator with the five
+patterns in Microsoft's
+[AI agent orchestration patterns](https://learn.microsoft.com/azure/architecture/ai-ml/guide/ai-agent-design-patterns)
+guide. Keep its message precise: handoff is the *closest* match, not an exact
+one, because specialists are tools and control stays with the coordinator. It
+uses plain shapes rather than icons, because the patterns are concepts, not
+products. Gray arrows show generic pattern flow and dashed gray arrows show
+routes not taken; the blue request and green result arrows belong to the
+coordinator. Each pattern also has a text status, so color is not the only
+signal. The schematics are redrawn, not copied; keep the CC BY 4.0 attribution
+in the diagram, its description, and the architecture guide caption.
 
 The Lab request view separates agent calls from record saves. Chat is saved
 only when someone asks; review drafts and results are saved by the server.
