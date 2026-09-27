@@ -165,7 +165,7 @@ class MiddlewareTests(unittest.IsolatedAsyncioTestCase):
                 context = SimpleNamespace(messages=[message("user", "Exact source.")], stream=stream, result=None)
                 responses = ['"Exact..."', '"Exact source."']
 
-                async def call(responses=responses, stream=stream):
+                async def call(responses=responses, stream=stream, context=context):
                     response = FakeResponse([message("assistant", responses.pop(0))], usage_details={"input_token_count": 5})
                     context.result = as_stream(response) if stream else response
 
