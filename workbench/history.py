@@ -15,7 +15,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from request_guard import request_allowed
+from request_guard import MAX_CONVERSATION_BYTES, read_bounded_body, record_request_failure, request_allowed
 
 
 class StrictModel(BaseModel):
@@ -141,7 +141,8 @@ class ConversationHistory:
             try:
                 async with asyncio.timeout(35):
                     return await self.execute(request, identifier)
-            except TimeoutError:
+            except TimeoutError as problem:
+                record_request_failure(request, problem, "cosmos")
                 request.state.error_code = "history_timeout"
                 return JSONResponse({"error": "history_timeout", "request_id": request.state.request_id}, status_code=504)
 
@@ -156,10 +157,17 @@ class ConversationHistory:
             return await self.dispatch(request, identifier)
         except ValidationError:
             return history_error(request, 400, "invalid_conversation")
+        except OverflowError:
+            return history_error(request, 413, "conversation_too_large")
         except CosmosHttpResponseError as problem:
+            if problem.status_code not in {404, 412}:
+                record_request_failure(request, problem, "cosmos")
             return history_error(request, 404 if problem.status_code == 404 else 409 if problem.status_code == 412 else 503,
                                  "conversation_not_found" if problem.status_code == 404 else "conversation_changed" if problem.status_code == 412 else "history_unavailable")
-        except Exception:
+        except TimeoutError:
+            raise
+        except Exception as problem:
+            record_request_failure(request, problem, "cosmos")
             return history_error(request, 503, "history_unavailable")
 
     async def dispatch(self, request, identifier):
@@ -191,11 +199,10 @@ class ConversationHistory:
     async def save_conversation(self, request, identifier, existing):
         if request.headers.get("content-type", "").split(";")[0] != "application/json":
             return history_error(request, 415, "json_required")
-        body = bytearray()
-        async for chunk in request.stream():
-            body.extend(chunk)
-            if len(body) > 524288:
-                return history_error(request, 413, "conversation_too_large")
+        try:
+            body = await read_bounded_body(request, MAX_CONVERSATION_BYTES)
+        except TimeoutError:
+            return history_error(request, 408, "request_timeout")
         conversation = Conversation.model_validate_json(body)
         agent = await self.resolve(conversation.agent_id)
         if agent is None or any(turn.result.agent != agent["agent"] for turn in conversation.turns):

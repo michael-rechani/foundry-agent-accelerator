@@ -159,6 +159,21 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.publisher.calls, [])
         self.gateway.review.assert_not_awaited()
 
+    async def test_slow_setup_upload_never_starts_publication(self):
+        async def stalled(request):
+            await asyncio.Event().wait()
+            yield b""
+
+        timeout = asyncio.timeout
+        with patch("starlette.requests.Request.stream", stalled), patch(
+            "request_guard.asyncio.timeout", side_effect=lambda seconds: timeout(0.01 if seconds == 5 else seconds)
+        ):
+            response = await self.create()
+        self.assertEqual(response.status_code, 408)
+        self.assertEqual(response.json()["error"], "request_timeout")
+        self.assertEqual(self.store.rows, {})
+        self.assertEqual(self.publisher.calls, [])
+
     async def test_ambiguous_and_invalid_drafts_are_explicit(self):
         response = await self.client.post("/api/agent-drafts", json={"goal": "Help with this generic review."})
         self.assertEqual(response.status_code, 400)

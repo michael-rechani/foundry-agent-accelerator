@@ -21,7 +21,7 @@ from pydantic import Field, ValidationError, field_validator
 from agent_publisher import FoundryPublisher, PublicationError, resource_name, runtime_package
 from agent_templates import MODEL_PROFILES, TEMPLATES, TemplateRequiredError, list_templates, model_profile, prepare_draft
 from history import StrictModel
-from request_guard import request_allowed
+from request_guard import BodyReadTimeout, MAX_SETUP_BYTES, read_bounded_body, record_request_failure, request_allowed
 
 
 LOGGER = logging.getLogger("uvicorn.error")
@@ -205,12 +205,7 @@ class AgentCreations:
     async def body(self, request, model):
         if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
             raise ValueError("JSON required")
-        body = bytearray()
-        async with asyncio.timeout(5):
-            async for chunk in request.stream():
-                body.extend(chunk)
-                if len(body) > 32768:
-                    raise OverflowError("Request too large")
+        body = await read_bounded_body(request, MAX_SETUP_BYTES)
         return model.model_validate_json(body)
 
     async def templates(self, request: Request):
@@ -331,13 +326,18 @@ class AgentCreations:
         except OverflowError:
             return self.error(request, 413, "request_too_large")
         except CosmosHttpResponseError as problem:
+            if problem.status_code not in {404, 409, 412}:
+                record_request_failure(request, problem, "cosmos")
             return self.error(request, 404 if problem.status_code == 404 else 409 if problem.status_code in {409, 412} else 503,
                               "agent_not_found" if problem.status_code == 404 else
                               "agent_changed" if problem.status_code in {409, 412} else "agents_unavailable")
-        except TimeoutError:
+        except BodyReadTimeout:
+            return self.error(request, 408, "request_timeout")
+        except TimeoutError as problem:
+            record_request_failure(request, problem, "cosmos")
             return self.error(request, 504, "agents_timeout")
         except Exception as problem:
-            LOGGER.error(json.dumps({"event": "agent_record_failed", "type": type(problem).__name__}))
+            record_request_failure(request, problem, "cosmos")
             return self.error(request, 503, "agents_unavailable")
 
     async def dispatch(self, request, identifier, resume):

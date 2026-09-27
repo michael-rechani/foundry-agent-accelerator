@@ -71,4 +71,50 @@ describe('requestJson', () => {
     abort.abort()
     await assert.rejects(pending, { name: 'AbortError' })
   })
+
+  it('propagates cancellation to the underlying fetch', async () => {
+    let aborted = false
+    const unrelated = new AbortController()
+    globalThis.fetch = (_url, options) =>
+      new Promise<Response>((_resolve, reject) => {
+        options?.signal?.addEventListener(
+          'abort',
+          () => {
+            aborted = true
+            reject(new DOMException('Aborted', 'AbortError'))
+          },
+          { once: true },
+        )
+      })
+    const abort = new AbortController()
+    const pending = requestJson(
+      '/api/config',
+      { signal: unrelated.signal },
+      abort.signal,
+    )
+    abort.abort()
+    await assert.rejects(pending, { name: 'AbortError' })
+    assert.equal(aborted, true)
+    assert.equal(unrelated.signal.aborted, false)
+  })
+
+  it('stops waiting while the response body is still streaming', async () => {
+    let reading = () => {}
+    const started = new Promise<void>((resolve) => {
+      reading = resolve
+    })
+    globalThis.fetch = async () => {
+      const response = new Response('{}')
+      response.text = () => {
+        reading()
+        return new Promise<string>(() => {})
+      }
+      return response
+    }
+    const abort = new AbortController()
+    const pending = requestJson('/api/config', {}, abort.signal)
+    await started
+    abort.abort()
+    await assert.rejects(pending, { name: 'AbortError' })
+  })
 })

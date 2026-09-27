@@ -148,6 +148,9 @@ export function ChatTopbar({
               className="chat-icon"
               title="Save to shared history"
               aria-label="Save to shared history"
+              aria-describedby={
+                config?.mode === 'private' ? 'chat-privacy' : undefined
+              }
               disabled={saveDisabled}
               onClick={onSave}
             >

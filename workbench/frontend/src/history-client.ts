@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 import { requestJson } from './request'
 
 const historyErrors: Record<string, string> = {
+  request_timeout:
+    'The upload took too long. Your local messages are unchanged; check your connection before saving again.',
   conversation_changed:
     'This shared conversation changed in another browser. Reopen it before saving; export your local messages first.',
   conversation_too_large:

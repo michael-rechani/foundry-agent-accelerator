@@ -358,6 +358,7 @@ export function ReviewWorkspace({
           agentLabel={reviewAgent?.label}
           busy={busy}
           enabled={enabled}
+          retentionDays={config.retention_days}
           onTitle={setTitle}
           onCriteria={setCriteria}
           onSources={setSources}

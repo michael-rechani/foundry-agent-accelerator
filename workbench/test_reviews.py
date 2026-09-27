@@ -209,6 +209,21 @@ class ReviewLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.json()["error"], "request_too_large")
         self.assertEqual(self.store.documents, {})
 
+    async def test_slow_upload_is_not_reported_as_a_cosmos_timeout(self):
+        async def stalled(request):
+            await asyncio.Event().wait()
+            yield b""
+
+        timeout = asyncio.timeout
+        with patch("starlette.requests.Request.stream", stalled), patch(
+            "request_guard.asyncio.timeout", side_effect=lambda seconds: timeout(0.01 if seconds == 5 else seconds)
+        ):
+            response = await self.client.post("/api/review-runs", json=self.body)
+        self.assertEqual(response.status_code, 408)
+        self.assertEqual(response.json()["error"], "request_timeout")
+        self.assertEqual(self.store.documents, {})
+        self.gateway.review.assert_not_awaited()
+
     async def test_competing_starts_execute_only_once(self):
         document = await self.draft()
         entered, release = asyncio.Event(), asyncio.Event()

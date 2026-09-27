@@ -53,6 +53,8 @@ export const eventNames: Record<string, string> = {
   interrupted: 'Execution interrupted',
 }
 const messages: Record<string, string> = {
+  request_timeout:
+    'The upload took too long. Your draft is unchanged; check your connection before submitting again.',
   review_changed: 'This review changed. Refresh before continuing.',
   reviews_disabled: 'Review persistence is unavailable in this environment.',
   invalid_review: 'Check your documents, checklist and length limits.',

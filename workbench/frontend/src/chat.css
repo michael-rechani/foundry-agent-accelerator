@@ -694,6 +694,12 @@ p {
   gap: 12px;
   margin-top: 8px;
 }
+.composer-privacy {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+}
 .save-state {
   margin-left: auto;
   padding-top: 3px;
