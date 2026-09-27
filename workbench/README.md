@@ -135,6 +135,19 @@ private Lab. Azure resource access still uses managed identities. Restrict the
 Lab to trusted operators and fictional inputs. The Lab is not a user-isolated
 application.
 
+**Keep the quick-start simple:** `WORKBENCH_MODE=private` is a shared demo,
+not an authenticated team mode. No end-user app registration or Entra sign-in
+is required. The Lab header and origin checks prevent cross-site browser
+requests; they do not identify a user. The operator key protects publication
+and deletion, not access to shared records.
+
+An optional authenticated team mode is a future extension, not a supported
+setting today. It would need both validated identities and authorization on
+every record read and mutation; placing a sign-in page in front of the current
+Lab would still leave records shared. Do not expose this sample to untrusted
+participants or use sensitive data on the assumption that private networking
+provides user isolation.
+
 The **Shared lab** control in the header explains these limits on demand:
 
 | Shared item | Who can act | Limits |
@@ -344,10 +357,10 @@ registry/builds, and existing network resources, so it is not the total Lab bill
 | --- | --- |
 | Container Apps runtime | One warm 0.5-vCPU/1-GiB replica for responsiveness. Uvicorn limits connection/task concurrency to 32. |
 | Agent and review execution | At most four concurrent requests and 20 requests/minute, including rejected input. Admission occurs before reading bodies or calling dependencies. Agent execution retains its 180-second deadline. |
-| History operations | Four concurrent requests and 60 requests/minute. History operations, including uploads and SDK retries, have a 35-second server deadline. The browser waits up to 45 seconds. |
+| History operations | Four concurrent requests and 60 requests/minute. History operations, including uploads and SDK retries, have a 35-second server deadline. Uploads also have a five-second deadline. The browser waits up to 45 seconds. |
 | Created-agent APIs | Four concurrent requests and 120 requests/minute. New publication and deletion run one at a time. |
 | Created-agent count | At most five nondeleted hosted agents by default, including unconfirmed or failed attempts. Each uses 0.5 CPU / 1 GiB and can incur hosted runtime/build costs as well as model charges. |
-| Uploads and rejections | Review body uploads have a five-second server deadline. Rejections return HTTP 429 with `Retry-After: 60`. Responses are size-bounded. |
+| Uploads and rejections | All JSON-reading endpoints use one streamed body reader with a five-second upload deadline: 32 KiB for agent setups, 64 KiB for chat/document reviews, and 512 KiB for saved conversations. It counts actual bytes, including chunked uploads, before adding each chunk to its buffer or parsing JSON. Oversized uploads return HTTP 413; slow uploads return HTTP 408. Rate-limit rejections return HTTP 429 with `Retry-After: 60`. Responses are size-bounded. |
 
 These admission limits are process-local. Do not increase workers or replicas
 without distributed controls. Reused agent sessions are also process-local; with
@@ -625,9 +638,14 @@ replace this deployment check.
 ## Diagnostics and caching
 
 The backend emits JSON request metadata through the Uvicorn console logger:
-server-generated correlation ID, route template, outcome, HTTP status, and
-elapsed milliseconds. It does not log prompts, transcripts, bodies, raw URLs,
-headers, credentials, or exception details. API responses carry the correlation
+server-generated correlation ID, route template, HTTP method, outcome, HTTP
+status, and elapsed milliseconds. Caught Foundry/Cosmos failures include the
+dependency name and exception class (`error_type`); unexpected API failures
+use `application` and return a generic HTTP 500. HTTP 5xx request events use
+error severity. These are diagnostic categories, not proof of the root cause.
+Elapsed time covers the whole request, not just the dependency call.
+It does not log prompts, transcripts, bodies, raw URLs, headers, credentials,
+exception messages, or tracebacks. API responses carry the correlation
 ID, including history failures. Azure Container Apps (ACA) console/system logs
 go to a dedicated Log Analytics workspace with 30-day retention and a 0.1-GB
 daily ingestion cap. Workspace ingestion/query uses Azure Monitor Private Link
@@ -638,6 +656,11 @@ retained logs and scheduled-query alerts incur Azure charges.
 Every minute the backend checks configured Foundry agents without generating
 responses and performs an empty-result Cosmos query. Results are cached at
 `/api/health/dependencies`; failures return 503 without exception details.
+Failed probes emit `workbench_dependency_failed` with the dependency,
+exception class, and probe duration. They have no request ID because they run
+outside a browser request. Use the response's `X-Correlation-ID` to find a
+failed API request's `workbench_request` event; never collect submitted text
+or operator keys to diagnose it.
 `/healthz` remains process-only, so dependency outages do not cause restart
 loops. These checks verify access, not model-generation quality or full Cosmos
 CRUD.

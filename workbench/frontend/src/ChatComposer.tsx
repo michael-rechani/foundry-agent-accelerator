@@ -57,7 +57,12 @@ export function ChatComposer({
           placeholder={`Message ${agent?.label || 'your agent'}...`}
           value={draft}
           aria-describedby={
-            config && hasConversation ? 'context-budget' : undefined
+            [
+              config?.mode === 'private' && 'chat-privacy',
+              config && hasConversation && 'context-budget',
+            ]
+              .filter(Boolean)
+              .join(' ') || undefined
           }
           disabled={busy}
           rows={3}
@@ -124,6 +129,13 @@ export function ChatComposer({
           </div>
         </div>
       </form>
+      {config?.mode === 'private' && (
+        <p className="composer-privacy" id="chat-privacy">
+          Use fictional data only, never personal or confidential information.
+          {config.history_enabled &&
+            ` Saving shares completed messages with everyone in this Lab for ${config.retention_days} days after the last update.`}
+        </p>
+      )}
       {hasConversation && (
         <div className="composer-details">
           {config && (

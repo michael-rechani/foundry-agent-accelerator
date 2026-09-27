@@ -1,4 +1,5 @@
 import asyncio
+import json
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -70,7 +71,30 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 409)
         self.assertNotIn("secret", response.text)
         self.store.get.side_effect = RuntimeError("secret")
-        self.assertEqual(self.client.get(f"/api/conversations/{self.identifier}", headers=self.headers).status_code, 503)
+        with self.assertLogs("uvicorn.error", level="ERROR") as logs:
+            response = self.client.get(f"/api/conversations/{self.identifier}", headers=self.headers)
+        self.assertEqual(response.status_code, 503)
+        event = json.loads(logs.records[-1].getMessage())
+        self.assertEqual(event["dependency"], "cosmos")
+        self.assertEqual(event["error_type"], "RuntimeError")
+        self.assertEqual(event["request_id"], response.headers["X-Correlation-ID"])
+        self.assertEqual(event["route"], "/api/conversations/{identifier}")
+        self.assertNotIn(self.identifier, " ".join(logs.output))
+        self.assertNotIn("secret", " ".join(logs.output))
+
+    def test_stalled_history_upload_is_rejected_without_saving(self):
+        async def stalled(request):
+            await asyncio.Event().wait()
+            yield b""
+
+        timeout = asyncio.timeout
+        with patch("starlette.requests.Request.stream", stalled), patch(
+            "request_guard.asyncio.timeout", side_effect=lambda seconds: timeout(0.01 if seconds == 5 else seconds)
+        ):
+            response = self.client.post("/api/conversations", json=self.body, headers=self.headers)
+        self.assertEqual(response.status_code, 408)
+        self.assertEqual(response.json()["error"], "request_timeout")
+        self.store.create.assert_not_called()
 
     def test_history_rate_limit_blocks_store_and_expires(self):
         self.store.list.return_value = {"items": [], "cursor": None}

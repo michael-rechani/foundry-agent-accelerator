@@ -141,8 +141,35 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(event["outcome"], "backend_unavailable")
         self.assertEqual(event["request_id"], response.headers["X-Correlation-ID"])
         self.assertEqual(event["route"], "/api/reviews")
-        self.assertNotIn("private", captured.output[0])
+        self.assertEqual(event["dependency"], "foundry")
+        self.assertEqual(event["error_type"], "RuntimeError")
+        self.assertEqual(event["method"], "POST")
+        self.assertGreaterEqual(event["elapsed_ms"], 0)
+        self.assertEqual(captured.records[-1].levelname, "ERROR")
+        self.assertNotIn("private", " ".join(captured.output))
         self.assertNotIn("input", event)
+
+    def test_unexpected_api_errors_have_safe_diagnostics_and_security_headers(self):
+        application = create_app(self.settings, self.gateway)
+
+        @application.get("/api/unexpected")
+        async def unexpected():
+            raise RuntimeError("sensitive exception message")
+
+        # Keep this test route ahead of the static-files catch-all.
+        application.router.routes.insert(0, application.router.routes.pop())
+        with self.assertLogs("uvicorn.error", level="ERROR") as logs:
+            response = TestClient(application).get("/api/unexpected?token=sensitive-query")
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.json()["error"], "internal_error")
+        self.assertEqual(response.json()["request_id"], response.headers["X-Correlation-ID"])
+        self.assertEqual(response.headers["cache-control"], "no-store")
+        self.assertIn("frame-ancestors 'none'", response.headers["content-security-policy"])
+        event = json.loads(logs.records[-1].getMessage())
+        self.assertEqual(event["route"], "/api/unexpected")
+        self.assertEqual(event["dependency"], "application")
+        self.assertEqual(event["error_type"], "RuntimeError")
+        self.assertNotIn("sensitive", " ".join(logs.output) + response.text)
 
     def test_dependency_probe_is_cached_and_does_not_generate(self):
         store = AsyncMock()
@@ -164,6 +191,12 @@ class WorkbenchTests(unittest.TestCase):
                 self.assertEqual(response.json()["foundry"], "unavailable")
                 self.assertEqual(client.get("/healthz").status_code, 200)
         self.assertNotIn("secret", " ".join(logs.output))
+        failures = [json.loads(record.getMessage()) for record in logs.records
+                    if json.loads(record.getMessage())["event"] == "workbench_dependency_failed"]
+        self.assertEqual(len(failures), 1)
+        self.assertEqual(failures[0]["dependency"], "foundry")
+        self.assertEqual(failures[0]["error_type"], "RuntimeError")
+        self.assertGreaterEqual(failures[0]["elapsed_ms"], 0)
 
     def test_rejects_unapproved_browser_requests(self):
         for headers in ({}, {**self.headers, "Origin": "https://evil.example"},

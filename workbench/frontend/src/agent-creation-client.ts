@@ -106,6 +106,8 @@ const messages: Record<string, string> = {
   request_not_allowed: 'This browser request is not permitted.',
   request_too_large:
     'The setup exceeds the request size limit. Shorten the instructions.',
+  request_timeout:
+    'The upload took too long. Your setup is unchanged; check your connection before submitting again.',
   agents_timeout:
     'The saved-state request timed out. Check the same operation before retrying.',
 }

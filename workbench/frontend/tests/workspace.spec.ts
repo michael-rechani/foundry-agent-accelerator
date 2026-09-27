@@ -163,6 +163,46 @@ async function send(page: Page, text = 'Review synthetic APP-1') {
   ).toBeEnabled()
 }
 
+test('shared privacy notice is visible before sending or saving', async ({
+  page,
+}, testInfo) => {
+  await workspace(page)
+  const notice = page.locator('#chat-privacy')
+  await expect(notice).toBeVisible()
+  await expect(notice).toBeInViewport({ ratio: 1 })
+  await expect(notice).toContainText(
+    'never personal or confidential information',
+  )
+  await expect(notice).toContainText(
+    'Saving shares completed messages with everyone in this Lab for 30 days after the last update.',
+  )
+  await expect(page.getByRole('textbox', { name: 'Message' })).toHaveAttribute(
+    'aria-describedby',
+    /chat-privacy/,
+  )
+  await expect(
+    page.getByRole('button', { name: 'Save to shared history' }),
+  ).toHaveAttribute('aria-describedby', 'chat-privacy')
+  await page.screenshot({
+    path: testInfo.outputPath('chat-privacy-mocked-apis.png'),
+    fullPage: true,
+    animations: 'disabled',
+  })
+})
+
+test('preview chat does not promise shared persistence', async ({ page }) => {
+  await workspace(page, { preview: true })
+  await expect(page.locator('#chat-privacy')).toHaveCount(0)
+})
+
+test('storage-disabled chat does not promise shared persistence', async ({
+  page,
+}) => {
+  await workspace(page, { config: { history_enabled: false } })
+  await expect(page.locator('#chat-privacy')).toBeVisible()
+  await expect(page.locator('#chat-privacy')).not.toContainText('Saving shares')
+})
+
 test('chat starts with focused controls and preserves drafts when choosing an agent', async ({
   page,
 }) => {

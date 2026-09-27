@@ -18,14 +18,13 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from history import CosmosHistory, history_router
 from review_runs import ReviewRuns
 from agent_creation import CREATED_ID, AgentCreations, CreationSettings
-from request_guard import request_allowed
+from request_guard import MAX_REQUEST_BYTES, read_bounded_body, record_request_failure, request_allowed
 
 
 ROOT = Path(__file__).resolve().parent
 NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_-]{0,63}\Z")
 LOGGER = logging.getLogger("uvicorn.error")
 MAX_CHARACTERS = 60000
-MAX_REQUEST_BYTES = 65536
 MAX_HISTORY_TURNS = 10
 MAX_REUSED_SESSIONS = 512
 THREAD = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\Z")
@@ -289,13 +288,10 @@ class ChatReviews:
         """Return (data, None) for a bounded JSON body, or (None, error response)."""
         if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
             return None, self.error(request, 415, "json_required")
-        body = bytearray()
         try:
-            async with asyncio.timeout(5):
-                async for chunk in request.stream():
-                    body.extend(chunk)
-                    if len(body) > MAX_REQUEST_BYTES:
-                        return None, self.error(request, 413, "request_too_large")
+            body = await read_bounded_body(request, MAX_REQUEST_BYTES)
+        except OverflowError:
+            return None, self.error(request, 413, "request_too_large")
         except TimeoutError:
             return None, self.error(request, 408, "request_timeout")
         try:
@@ -311,7 +307,7 @@ class ChatReviews:
         try:
             agent = await self.created_agents.resolve_agent(agent_id)
         except Exception as problem:
-            LOGGER.error(json.dumps({"event": "created_agent_lookup_failed", "type": type(problem).__name__}))
+            record_request_failure(request, problem, "cosmos")
             return None, self.error(request, 503, "agents_unavailable")
         return (agent, None) if agent is not None else (None, self.error(request, 400, "invalid_request"))
 
@@ -347,9 +343,11 @@ class ChatReviews:
             return JSONResponse({"request_id": request_id, "status": status, "agent": agent["agent"],
                                  "text": text, "receipts": receipts, "elapsed_ms": round((time.monotonic() - started) * 1000)},
                                 headers={"X-Correlation-ID": request_id})
-        except TimeoutError:
+        except TimeoutError as problem:
+            record_request_failure(request, problem, "foundry")
             return self.error(request, 504, "timeout")
-        except Exception:
+        except Exception as problem:
+            record_request_failure(request, problem, "foundry")
             return self.error(request, 502, "backend_unavailable")
 
 
@@ -361,18 +359,22 @@ class DependencyMonitor:
         self.status = {"status": "disabled" if settings.mode == "preview" else "starting"}
 
     @staticmethod
-    async def check(operation):
+    async def check(operation, dependency):
+        started = time.monotonic()
         try:
             async with asyncio.timeout(15):
                 await operation()
             return "ready"
-        except Exception:
+        except Exception as problem:
+            LOGGER.warning(json.dumps({"event": "workbench_dependency_failed", "dependency": dependency,
+                "error_type": type(problem).__name__,
+                "elapsed_ms": round((time.monotonic() - started) * 1000)}))
             return "unavailable"
 
     async def probe(self):
         foundry, cosmos = await asyncio.gather(
-            self.check(lambda: self.gateway.check(self.agents)),
-            self.check(self.history_store.check) if self.history_store is not None else asyncio.sleep(0, result="disabled"),
+            self.check(lambda: self.gateway.check(self.agents), "foundry"),
+            self.check(self.history_store.check, "cosmos") if self.history_store is not None else asyncio.sleep(0, result="disabled"),
         )
         self.status.update(status="ready" if foundry == "ready" and cosmos in {"ready", "disabled"} else "degraded",
                            foundry=foundry, cosmos=cosmos)
@@ -437,16 +439,25 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
     async def security_headers(request, call_next):
         started = time.monotonic()
         request.state.request_id = str(uuid4())
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception as problem:
+            if not request.url.path.startswith("/api/"):
+                raise
+            record_request_failure(request, problem, "application")
+            request.state.error_code = "internal_error"
+            response = JSONResponse({"error": "internal_error", "request_id": request.state.request_id}, status_code=500)
         response.headers.update({"Cache-Control": cache_policy(request.url.path, response.status_code), **SECURITY_HEADERS})
         if settings.mode == "private":
             response.headers["Strict-Transport-Security"] = "max-age=31536000"
         if request.url.path.startswith("/api/"):
             response.headers["X-Correlation-ID"] = request.state.request_id
             route = getattr(request.scope.get("route"), "path", "unmatched")
-            LOGGER.info(json.dumps({"event": "workbench_request", "request_id": request.state.request_id,
-                "route": route, "status": response.status_code,
+            log = LOGGER.error if response.status_code >= 500 else LOGGER.info
+            log(json.dumps({"event": "workbench_request", "request_id": request.state.request_id,
+                "route": route, "method": request.method, "status": response.status_code,
                 "outcome": getattr(request.state, "error_code", "completed" if response.status_code < 400 else "rejected"),
+                **getattr(request.state, "failure", {}),
                 "elapsed_ms": round((time.monotonic() - started) * 1000)}))
         return response
 

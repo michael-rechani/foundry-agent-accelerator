@@ -9,6 +9,7 @@ export function ReviewForm({
   agentLabel,
   busy,
   enabled,
+  retentionDays,
   onTitle,
   onCriteria,
   onSources,
@@ -21,6 +22,7 @@ export function ReviewForm({
   agentLabel?: string
   busy: boolean
   enabled: boolean
+  retentionDays: number
   onTitle: (value: string) => void
   onCriteria: (value: string) => void
   onSources: Dispatch<SetStateAction<Source[]>>
@@ -66,6 +68,7 @@ export function ReviewForm({
         Review title
         <input
           required
+          aria-describedby="review-privacy"
           maxLength={80}
           value={title}
           onChange={(event) => onTitle(event.target.value)}
@@ -77,7 +80,7 @@ export function ReviewForm({
           required
           rows={4}
           maxLength={12000}
-          aria-describedby="review-input-guide"
+          aria-describedby="review-input-guide review-privacy"
           placeholder="For example: Include a project budget."
           value={criteria}
           onChange={(event) => onCriteria(event.target.value)}
@@ -92,7 +95,7 @@ export function ReviewForm({
               required
               rows={5}
               maxLength={12000}
-              aria-describedby="review-input-guide"
+              aria-describedby="review-input-guide review-privacy"
               placeholder="Paste a document or note here. Results will point back to this text."
               value={item.text}
               onChange={(event) =>
@@ -122,9 +125,11 @@ export function ReviewForm({
           </button>
         </div>
       ))}
-      <p className="review-hint">
-        Create shared review saves this checklist and text for everyone who can
-        open the Lab. It does not run the agent; choose Run review next.
+      <p className="review-hint" id="review-privacy">
+        Use fictional data only, never personal or confidential information.{' '}
+        {enabled
+          ? `Create shared review saves this checklist and text for everyone who can open the Lab. Reviews expire ${retentionDays} days after the last update; backup retention is separate. It does not run the agent; choose Run review next.`
+          : 'Saving and running reviews are unavailable here.'}
       </p>
       <footer>
         <button
@@ -144,7 +149,11 @@ export function ReviewForm({
           <Plus size={16} />
           Add document
         </button>
-        <button className="review-primary" disabled={!enabled || busy}>
+        <button
+          className="review-primary"
+          aria-describedby="review-privacy"
+          disabled={!enabled || busy}
+        >
           <CheckCheck size={16} />
           Create shared review
         </button>

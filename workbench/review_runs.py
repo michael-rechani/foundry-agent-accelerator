@@ -13,7 +13,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from request_guard import request_allowed
+from request_guard import BodyReadTimeout, MAX_REQUEST_BYTES, read_bounded_body, record_request_failure, request_allowed
 from reviews import Evidence, ReviewInput, review_prompt, validate_result
 
 LOGGER = logging.getLogger("uvicorn.error")
@@ -96,11 +96,17 @@ class ReviewRuns:
         except OverflowError:
             return self.error(request, 413, "request_too_large")
         except CosmosHttpResponseError as problem:
+            if problem.status_code not in {404, 412}:
+                record_request_failure(request, problem, "cosmos")
             return self.error(request, 404 if problem.status_code == 404 else 409 if problem.status_code == 412 else 503,
                               "not_found" if problem.status_code == 404 else "review_changed" if problem.status_code == 412 else "reviews_unavailable")
-        except TimeoutError:
+        except BodyReadTimeout:
+            return self.error(request, 408, "request_timeout")
+        except TimeoutError as problem:
+            record_request_failure(request, problem, "cosmos")
             return self.error(request, 504, "reviews_timeout")
-        except Exception:
+        except Exception as problem:
+            record_request_failure(request, problem, "cosmos")
             return self.error(request, 503, "reviews_unavailable")
 
     async def dispatch(self, request, identifier, action, now):
@@ -125,13 +131,7 @@ class ReviewRuns:
         return await self.create(request, body)
 
     async def read_body(self, request):
-        body = bytearray()
-        async with asyncio.timeout(5):
-            async for chunk in request.stream():
-                body.extend(chunk)
-                if len(body) > 65536:
-                    raise OverflowError("Request too large")
-        return body
+        return await read_bounded_body(request, MAX_REQUEST_BYTES)
 
     async def list_page(self, request):
         cursor = request.query_params.get("cursor")

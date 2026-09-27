@@ -279,7 +279,7 @@ test('review guide explains findings, storage and human decision boundaries', as
 
 test('document reviews use the Lab default and do not transfer Chat drafts', async ({
   page,
-}) => {
+}, testInfo) => {
   const caseAgent = registry.find((item) => item.id === 'case-review')!
   const state = await setup(page, false, [guidedReview, caseAgent])
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
@@ -308,6 +308,22 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   )
   await page.getByRole('button', { name: 'Use fictional example' }).click()
   expect(state.creations).toHaveLength(0)
+  await expect(page.locator('#review-privacy')).toBeVisible()
+  await expect(page.locator('#review-privacy')).toContainText(
+    'never personal or confidential information',
+  )
+  await expect(page.locator('#review-privacy')).toContainText(
+    'Reviews expire 30 days after the last update; backup retention is separate.',
+  )
+  await expect(
+    page.getByRole('button', { name: 'Create shared review' }),
+  ).toHaveAttribute('aria-describedby', 'review-privacy')
+  await page.locator('#review-privacy').scrollIntoViewIfNeeded()
+  await page.screenshot({
+    path: testInfo.outputPath('review-privacy-mocked-apis.png'),
+    fullPage: true,
+    animations: 'disabled',
+  })
   await page.getByRole('button', { name: 'Create shared review' }).click()
   await expect(
     page.getByRole('button', { name: 'Run review', exact: true }),
