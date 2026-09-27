@@ -63,14 +63,36 @@ function ConvertTo-DarkTemplate([string]$Content, [string]$Name) {
     }, 'IgnoreCase, Singleline')
 }
 
-function Add-OfficialIcons([string]$Content) {
-    return [regex]::Replace($Content, 'href="azure-icons/([a-z-]+\.svg)"', {
+# Icons are inlined as nested <svg> markup, not data: images. GitHub serves SVGs
+# with Content-Security-Policy default-src 'none', which blocks every nested
+# image when a reader opens a diagram directly. Each copy gets its own ID prefix
+# so the gradients and clip paths of repeated icons can't collide.
+function Add-OfficialIcons([string]$Content, [string]$Name) {
+    $icon = @{ Count = 0 }
+    $inlined = [regex]::Replace($Content, '<image href="azure-icons/([a-z-]+\.svg)"([^>]*?)\s*/>', {
         param($match)
         $path = Join-Path $IconDirectory $match.Groups[1].Value
         if (!(Test-Path $path)) { throw "Missing official icon: $path" }
-        $encoded = [Convert]::ToBase64String([IO.File]::ReadAllBytes($path))
-        return 'href="data:image/svg+xml;base64,' + $encoded + '"'
+        $source = [IO.File]::ReadAllText($path)
+        $root = [regex]::Match($source, '^\s*<svg\b([^>]*)>(.*)</svg>\s*$', 'Singleline')
+        $viewBox = [regex]::Match($root.Groups[1].Value, '\sviewBox="([^"]+)"')
+        if (!$root.Success -or !$viewBox.Success) { throw "Unexpected icon markup: $path" }
+        $icon.Count++
+        $prefix = "icon$($icon.Count)-"
+        $body = [regex]::Replace($root.Groups[2].Value, '<title\b[^>]*>.*?</title>', '', 'Singleline')
+        $ids = @([regex]::Matches($body, '\sid="([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
+        $body = [regex]::Replace($body, '(\sid="|url\(#|href="#)([^")]+)', {
+            param($reference)
+            $id = $reference.Groups[2].Value
+            if ($id -cnotin $ids) { throw "Icon $path references an ID it doesn't define: $id" }
+            return $reference.Groups[1].Value + $prefix + $id
+        })
+        return "<svg$($match.Groups[2].Value) viewBox=`"$($viewBox.Groups[1].Value)`">$body</svg>"
     })
+    if ($inlined -match '<image\b[^>]*azure-icons/') {
+        throw "Use <image href=`"azure-icons/<name>.svg`" x y width height/> for icons in $Name.template.svg."
+    }
+    return $inlined
 }
 
 function Test-Diagram([string]$Content) {
@@ -89,8 +111,8 @@ if ($Name) {
 }
 foreach ($diagram in $diagrams) {
     $source = Get-Content (Join-Path $PSScriptRoot "$diagram.template.svg") -Raw
-    $content = Add-OfficialIcons $source
-    $darkContent = Add-OfficialIcons (ConvertTo-DarkTemplate $source $diagram)
+    $content = Add-OfficialIcons $source $diagram
+    $darkContent = Add-OfficialIcons (ConvertTo-DarkTemplate $source $diagram) $diagram
     $light = Test-Diagram $content
     $dark = Test-Diagram $darkContent
     foreach ($element in @('title', 'desc')) {
