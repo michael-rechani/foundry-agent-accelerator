@@ -10,7 +10,6 @@ _TEXT_LIMITS = (
 _DIRECT = "Works directly on your supplied text. No other agents or external tools are called."
 _GENERAL = "General"
 _SECTOR = "Healthcare and public sector"
-_PUBLIC = "Public sector"
 _PRIVATE = "Private sector"
 _LOOKUP_RULES = (
     "Say which facts came from simulated lookups. If a lookup fails or a detail is missing, "
@@ -382,7 +381,7 @@ TEMPLATES = {
 TEMPLATES.update({
     "public-records-intake": {
         "id": "public-records-intake",
-        "category": _PUBLIC,
+        "category": _SECTOR,
         "model_profile": "extraction",
         "label": "Public records request organizer",
         "description": "Organize a fictional public records request into scope, date range, named offices and clarification questions.",
@@ -408,7 +407,7 @@ TEMPLATES.update({
     },
     "grant-reporting-checker": {
         "id": "grant-reporting-checker",
-        "category": _PUBLIC,
+        "category": _SECTOR,
         "model_profile": "reasoning",
         "label": "Grant reporting checker",
         "description": "Compare a fictional grant report with supplied award terms and evidence before staff review.",
@@ -435,7 +434,7 @@ TEMPLATES.update({
     },
     "community-program-brief": {
         "id": "community-program-brief",
-        "category": _PUBLIC,
+        "category": _SECTOR,
         "model_profile": "reasoning",
         "label": "Community program brief writer",
         "description": "Turn fictional program notes and measures into an evidence-linked briefing for staff.",
@@ -736,7 +735,7 @@ TEMPLATES.update({
 
 SECTORS = (
     {"id": "cross-sector", "label": "Cross-sector"},
-    {"id": "public", "label": "Public sector"},
+    {"id": "public", "label": "Healthcare and public sector"},
     {"id": "private", "label": "Private sector"},
 )
 INDUSTRIES = (
@@ -762,7 +761,7 @@ TASKS = (
 )
 READINESS_LEVELS = (
     {"id": "reviewed", "label": "Reviewed", "description": "Reviewed definition with deterministic contract and runtime tests."},
-    {"id": "sample", "label": "Preview", "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."},
+    {"id": "sample", "label": "In progress", "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."},
 )
 TOOL_MODES = (
     {"id": "none", "label": "No tools", "description": "Uses only text supplied in the request."},
@@ -805,11 +804,11 @@ TEMPLATE_METADATA = {
         "Use simulated request and service lookups to prepare a reviewable next-step plan.",
         "Labels fixture results as simulated, preserves identifiers and reports lookup failures instead of guessing.",
         "A person approves and executes any workflow or system change.", ["workflow", "request", "service"], readiness="reviewed"),
-    "medical-bill-reviewer": _metadata("cross-sector", "health-administration", ["review", "draft"],
+    "medical-bill-reviewer": _metadata("public", "health-administration", ["review", "draft"],
         "Compare a fictional bill with an insurer statement and show likely discrepancies.",
         "Uses simulated plan data, shows arithmetic and labels the dispute letter as an unsent draft.",
         "A person confirms the amount, disputes the bill and makes payment decisions.", ["medical bill", "insurer", "dispute"], readiness="reviewed"),
-    "insurance-preapproval-helper": _metadata("private", "health-administration", ["review", "triage"],
+    "insurance-preapproval-helper": _metadata("public", "health-administration", ["review", "triage"],
         "Check a fictional pre-approval packet for missing or outdated paperwork.",
         "Uses simulated rules and facility status, computes stated date windows and avoids judging medical need.",
         "Clinical and insurer staff decide medical necessity and approval.", ["insurance", "preapproval", "paperwork"], readiness="reviewed"),

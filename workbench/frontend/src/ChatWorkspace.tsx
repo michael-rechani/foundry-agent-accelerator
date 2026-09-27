@@ -30,6 +30,8 @@ import type { Measurement } from './performance-stats'
 import { RequestLog } from './RequestLog'
 import { AgentLibrary, type ReadyAgent } from './AgentLibrary'
 import { ExploreDemos, DemoRunGuide } from './ExploreDemos'
+import { useLibraryCatalog } from './library-catalog-client'
+import { isPreviewId, previewAgents } from './library-catalog'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
 type SavedVersion = { id: string; _etag: string }
 
@@ -61,6 +63,15 @@ const errors: Record<string, string> = {
   invalid_request:
     'The conversation was not accepted. Check its length and selected agent.',
   request_not_allowed: 'This browser origin is not permitted.',
+  library_preview_disabled:
+    'Library previews are turned off in this Lab. Choose a ready agent, or create this one from the Library.',
+}
+
+const previewReasons: Record<string, string> = {
+  local_preview: 'Library previews need a connected Lab.',
+  not_enabled: 'Library previews are turned off in this Lab.',
+  model_not_configured:
+    'Library previews need a model deployment. Ask the Lab operator.',
 }
 
 export default function ChatWorkspace() {
@@ -89,6 +100,13 @@ export default function ChatWorkspace() {
       .map((record) => record.agent)
       .filter((item): item is Agent => item !== null),
   ]
+  const previewCapability = config?.library_preview
+  const library = useLibraryCatalog(
+    !!config && (view === 'library' || !!previewCapability?.enabled),
+  )
+  const previewList = previewCapability?.enabled
+    ? previewAgents(library.catalog, previewCapability.agent)
+    : []
   const [draft, setDraft] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
   const [pending, setPending] = useState('')
@@ -114,8 +132,36 @@ export default function ChatWorkspace() {
   const controller = useRef<AbortController | null>(null)
   const editor = useRef<HTMLTextAreaElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
-  const agent = availableAgents.find((item) => item.id === selected)
-  const hasConversation = !!draft || turns.length > 0 || !!pending
+  const isPreview = isPreviewId(selected)
+  const agent = (isPreview ? previewList : availableAgents).find(
+    (item) => item.id === selected,
+  )
+  const previewNote = !previewCapability
+    ? ''
+    : !previewCapability.enabled
+      ? previewReasons[previewCapability.reason || ''] ||
+        'Library previews are unavailable.'
+      : library.error
+        ? 'The library did not load. Open the Library to retry.'
+        : !library.catalog
+          ? 'Loading library previews...'
+          : ''
+  const readyOptions = availableAgents.map((item) => ({
+    agent: item,
+    detail: item.category,
+  }))
+  const previewOptions = previewList.map((item) => {
+    const template = library.catalog?.templates.find(
+      (entry) => `library-${entry.id}` === item.id,
+    )
+    return {
+      agent: item,
+      detail: template
+        ? `Preview · ${template.sector.label} · ${template.industry.label}`
+        : 'Preview',
+      inProgress: template?.readiness.id === 'sample',
+    }
+  })
   const history = turns.flatMap((turn) => [
     { role: 'user', content: turn.question },
     { role: 'assistant', content: turn.result.text },
@@ -525,8 +571,19 @@ export default function ChatWorkspace() {
           config={config}
           agent={agent}
           selected={selected}
+          readyOptions={readyOptions}
+          previewOptions={previewOptions}
+          previewNote={previewNote}
+          switchDisabled={busy || historyBusy}
+          isPreview={isPreview}
           saving={historyBusy}
+          saveNote={
+            isPreview
+              ? "Preview chats can't be saved. Create this agent from the Library to save conversations."
+              : undefined
+          }
           saveDisabled={
+            isPreview ||
             !config?.history_enabled ||
             !turns.length ||
             busy ||
@@ -537,6 +594,9 @@ export default function ChatWorkspace() {
           presenting={presenting}
           onPresent={() => setPresenting((value) => !value)}
           onView={setView}
+          onChoose={(id) => {
+            if (id !== selected) newChat(id)
+          }}
           onSave={() => void saveChat()}
           onExport={download}
         />
@@ -579,8 +639,12 @@ export default function ChatWorkspace() {
         {config && (
           <AgentLibrary
             active={view === 'library'}
+            library={library}
             capability={config.agent_creation}
             readyAgentFor={readyAgentFor}
+            previewFor={(templateId) =>
+              previewList.find((item) => item.id === `library-${templateId}`)
+            }
             busy={busy || historyBusy}
             onCreate={(id) => {
               setRequestedTemplate((current) => ({
@@ -655,6 +719,14 @@ export default function ChatWorkspace() {
                     'The selected created agent is unavailable or no longer ready. Choose another agent; your local messages are preserved.'}
                 </p>
               )}
+            {isPreview &&
+              !agent &&
+              (library.error || !previewCapability?.enabled) && (
+                <p className="creation-error" role="alert">
+                  {previewNote ||
+                    'This library preview is unavailable. Choose another agent.'}
+                </p>
+              )}
             <div className="conversation-scroll" aria-label="Conversation">
               {activeDemo && (
                 <DemoRunGuide
@@ -670,12 +742,17 @@ export default function ChatWorkspace() {
                   <ChatWelcome
                     agent={agent}
                     config={config}
+                    isPreview={isPreview}
+                    inProgress={
+                      !!previewOptions.find(
+                        (item) => item.agent.id === selected,
+                      )?.inProgress
+                    }
                     onPrompt={(text) => {
                       setDraft(text)
                       setActiveDemo(null)
                       editor.current?.focus()
                     }}
-                    onReviews={() => setView('reviews')}
                   />
                 )
               ) : (
@@ -723,13 +800,13 @@ export default function ChatWorkspace() {
               busy={busy}
               historyBusy={historyBusy}
               turnCount={turns.length}
-              hasConversation={hasConversation}
               characters={characters}
               requestBytes={requestBytes}
               contextUsage={contextUsage}
               limitReasons={limitReasons}
               saved={!!saved}
               dirty={dirty}
+              isPreview={isPreview}
               onDraft={(value) => {
                 setDraft(value)
                 if (!busy) setPending('')

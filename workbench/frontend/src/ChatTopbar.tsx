@@ -1,12 +1,12 @@
 import {
   ArrowDownToLine,
-  ChevronDown,
   Info,
   LoaderCircle,
   Presentation,
   Save,
 } from 'lucide-react'
 import { AgentGuide, AgentRuntime } from './AgentGuide'
+import { AgentSwitcher, type SwitcherOption } from './AgentSwitcher'
 import type { View } from './ChatSidebar'
 import { ThemePicker } from './ThemePicker'
 import type { Agent, Config } from './workspace-config'
@@ -16,12 +16,19 @@ export function ChatTopbar({
   config,
   agent,
   selected,
+  readyOptions,
+  previewOptions,
+  previewNote,
+  switchDisabled,
+  isPreview,
   saving,
   saveDisabled,
+  saveNote,
   exportDisabled,
   presenting,
   onPresent,
   onView,
+  onChoose,
   onSave,
   onExport,
 }: {
@@ -29,12 +36,19 @@ export function ChatTopbar({
   config: Config | null
   agent?: Agent
   selected: string
+  readyOptions: SwitcherOption[]
+  previewOptions: SwitcherOption[]
+  previewNote: string
+  switchDisabled: boolean
+  isPreview: boolean
   saving: boolean
   saveDisabled: boolean
+  saveNote?: string
   exportDisabled: boolean
   presenting: boolean
   onPresent: () => void
   onView: (view: View) => void
+  onChoose: (id: string) => void
   onSave: () => void
   onExport: () => void
 }) {
@@ -42,20 +56,23 @@ export function ChatTopbar({
     <header className="chat-topbar">
       {view === 'chat' && (
         <div className="agent-controls">
-          <button
-            className="agent-picker"
-            title="Choose an agent"
-            disabled={!config}
-            onClick={() => onView('catalog')}
-          >
-            <span className="agent-name">
-              {agent?.label ||
-                (selected.startsWith('created-')
-                  ? 'Agent unavailable'
-                  : 'Connecting')}
-            </span>
-            <ChevronDown size={14} aria-hidden="true" />
-          </button>
+          <AgentSwitcher
+            label={
+              agent?.label ||
+              (selected.startsWith('created-')
+                ? 'Agent unavailable'
+                : config
+                  ? 'Loading agent'
+                  : 'Connecting')
+            }
+            selected={selected}
+            ready={readyOptions}
+            previews={previewOptions}
+            previewNote={previewNote}
+            disabled={!config || switchDisabled}
+            onChoose={onChoose}
+            onBrowse={() => onView('library')}
+          />
           {agent && (
             <details
               className="agent-about"
@@ -74,9 +91,9 @@ export function ChatTopbar({
                 <p>{agent.description}</p>
                 <AgentGuide agent={agent} />
                 <p>
-                  This agent already has a published setup. Your message gives
-                  it a task; it does not change its tools or permanent
-                  instructions.
+                  {isPreview
+                    ? 'Library preview: the Lab runs this definition on its model with fictional lookups only. Nothing is published, and preview chats are not saved.'
+                    : 'This agent already has a published setup. Your message gives it a task; it does not change its tools or permanent instructions.'}
                 </p>
                 <AgentRuntime agent={agent} />
                 <button
@@ -145,8 +162,8 @@ export function ChatTopbar({
         {view === 'chat' && (
           <>
             <button
-              className="chat-icon"
-              title="Save to shared history"
+              className="topbar-button"
+              title={saveNote || 'Save to shared history'}
               aria-label="Save to shared history"
               aria-describedby={
                 config?.mode === 'private' ? 'chat-privacy' : undefined
@@ -157,17 +174,19 @@ export function ChatTopbar({
               {saving ? (
                 <LoaderCircle size={17} className="spin" />
               ) : (
-                <Save size={17} />
+                <Save size={16} />
               )}
+              <span>Save</span>
             </button>
             <button
-              className="chat-icon"
+              className="topbar-button"
               title="Export conversation"
               aria-label="Export conversation"
               disabled={exportDisabled}
               onClick={onExport}
             >
-              <ArrowDownToLine size={17} />
+              <ArrowDownToLine size={16} />
+              <span>Export</span>
             </button>
           </>
         )}

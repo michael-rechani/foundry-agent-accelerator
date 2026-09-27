@@ -3,8 +3,11 @@ import { readFile } from 'node:fs/promises'
 import { describe, it } from 'node:test'
 import {
   filterTemplates,
+  isPreviewId,
   liveFacets,
   parseCatalog,
+  previewAgent,
+  previewAgents,
 } from '../src/library-catalog.ts'
 
 const raw = JSON.parse(
@@ -77,5 +80,70 @@ describe('agent library catalog', () => {
       readiness.items.reduce((total, item) => total + item.count, 0),
       filterTemplates(catalog, '', { sectors: 'public' }).length,
     )
+  })
+})
+
+describe('library previews', () => {
+  it('maps each runnable template to a chat agent bound to the preview runtime', () => {
+    const catalog = parseCatalog(raw)
+    const agents = previewAgents(catalog, 'lab-library-preview')
+    assert.equal(agents.length, catalog.templates.length)
+    for (const [index, agent] of agents.entries()) {
+      const template = catalog.templates[index]
+      assert.equal(agent.id, `library-${template.id}`)
+      assert.ok(isPreviewId(agent.id))
+      assert.equal(agent.agent, 'lab-library-preview')
+      assert.equal(agent.category, 'Library preview')
+      assert.deepEqual(
+        Object.keys(agent.tools),
+        template.tools.map((tool) => tool.name),
+      )
+      assert.ok(
+        Object.values(agent.tools).every(
+          (target) => target === 'lab-library-preview',
+        ),
+      )
+      assert.deepEqual(agent.prompts, [
+        { label: 'Try the fictional example', text: template.sample_input },
+      ])
+      assert.ok(agent.guidance)
+      for (const text of Object.values(agent.guidance))
+        assert.ok(text.trim() && [...text].length <= 1200)
+      assert.match(agent.guidance.configuration, /Nothing is published/)
+    }
+  })
+
+  it('offers no previews without a catalog, runtime or runnable template', () => {
+    const catalog = parseCatalog(raw)
+    assert.deepEqual(previewAgents(null, 'lab-library-preview'), [])
+    assert.deepEqual(previewAgents(catalog, undefined), [])
+    const connected = {
+      ...catalog,
+      templates: [
+        {
+          ...catalog.templates[0],
+          tool_mode: {
+            ...catalog.templates[0].tool_mode,
+            id: 'connected-required',
+          },
+        },
+      ],
+    }
+    assert.deepEqual(previewAgents(connected, 'lab-library-preview'), [])
+    assert.equal(isPreviewId('customer-review'), false)
+  })
+
+  it('fills an empty delegation and clips long guidance', () => {
+    const template = {
+      ...parseCatalog(raw).templates[0],
+      delegation: '',
+      limits: 'x'.repeat(1500),
+    }
+    const agent = previewAgent(template, 'lab-library-preview')
+    assert.equal(
+      agent.guidance?.delegation,
+      'Works directly on the text you supply.',
+    )
+    assert.equal([...(agent.guidance?.limits || '')].length, 1200)
   })
 })

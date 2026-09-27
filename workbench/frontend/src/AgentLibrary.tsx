@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
+  BadgeCheck,
   Check,
   CircleAlert,
+  Construction,
   Copy,
   Download,
   FlaskConical,
+  MessageSquare,
   PackageOpen,
   RefreshCw,
   Search,
@@ -19,12 +22,11 @@ import {
   facetKeys,
   filterTemplates,
   liveFacets,
-  parseCatalog,
   type FacetKey,
-  type LibraryCatalog,
   type LibraryTemplate,
   type Selection,
 } from './library-catalog'
+import type { LibraryCatalogState } from './library-catalog-client'
 import type { Agent, CreationCapability } from './workspace-config'
 import './library.css'
 
@@ -38,8 +40,8 @@ const facetLabels: Record<FacetKey, string> = {
 const tones: Record<string, string> = {
   reviewed: 'good',
   'tested-live': 'good',
-  sample: 'info',
-  simulated: 'caution',
+  sample: 'caution',
+  simulated: 'info',
   'connected-required': 'caution',
 }
 type Tab = 'overview' | 'test' | 'export'
@@ -48,45 +50,29 @@ export type ReadyAgent = { agent: Agent; recordId: string }
 
 export function AgentLibrary({
   active,
+  library,
   capability,
   readyAgentFor,
+  previewFor,
   busy,
   onCreate,
   onTest,
 }: {
   active: boolean
+  library: LibraryCatalogState
   capability?: CreationCapability
   readyAgentFor: (templateId: string) => ReadyAgent | undefined
+  previewFor: (templateId: string) => Agent | undefined
   busy: boolean
   onCreate: (templateId: string) => void
   onTest: (agent: Agent, input: string) => void
 }) {
-  const [catalog, setCatalog] = useState<LibraryCatalog | null>(null)
-  const [error, setError] = useState('')
-  const [attempt, setAttempt] = useState(0)
+  const { catalog, error } = library
   const [query, setQuery] = useState('')
   const [selection, setSelection] = useState<Selection>({})
   const [openId, setOpenId] = useState('')
   const [tab, setTab] = useState<Tab>('overview')
   const [notice, setNotice] = useState('')
-
-  useEffect(() => {
-    if (!active || catalog) return
-    const abort = new AbortController()
-    void creationRequest('agent-templates', {}, abort.signal)
-      .then((value) => {
-        if (!abort.signal.aborted) setCatalog(parseCatalog(value))
-      })
-      .catch((problem) => {
-        if (!abort.signal.aborted)
-          setError(
-            problem instanceof Error && problem.name !== 'AbortError'
-              ? problem.message
-              : 'The agent library did not load.',
-          )
-      })
-    return () => abort.abort()
-  }, [active, catalog, attempt])
 
   const results = useMemo(
     () => (catalog ? filterTemplates(catalog, query, selection) : []),
@@ -97,6 +83,7 @@ export function AgentLibrary({
     [catalog, query, selection],
   )
   const open = catalog?.templates.find((item) => item.id === openId)
+  const previewsOn = !!catalog?.templates.some((item) => previewFor(item.id))
   const filtered = !!query.trim() || facetKeys.some((key) => selection[key])
 
   if (!active) return null
@@ -126,13 +113,7 @@ export function AgentLibrary({
         <div className="library-error" role="alert">
           <CircleAlert size={18} />
           <p>{error}</p>
-          <button
-            type="button"
-            onClick={() => {
-              setError('')
-              setAttempt((value) => value + 1)
-            }}
-          >
+          <button type="button" onClick={library.retry}>
             <RefreshCw size={15} /> Retry
           </button>
         </div>
@@ -144,6 +125,7 @@ export function AgentLibrary({
           tab={tab}
           capability={capability}
           ready={readyAgentFor(open.id)}
+          preview={previewFor(open.id)}
           busy={busy}
           notice={notice}
           onTab={setTab}
@@ -171,10 +153,12 @@ export function AgentLibrary({
                 <span>1</span>Choose
               </li>
               <li>
-                <span>2</span>Create in this Lab
+                <span>2</span>
+                {previewsOn ? 'Try it in Chat' : 'Create in this Lab'}
               </li>
               <li>
-                <span>3</span>Test with fictional data
+                <span>3</span>
+                {previewsOn ? 'Create in this Lab' : 'Test with fictional data'}
               </li>
               <li>
                 <span>4</span>Export to your environment
@@ -267,12 +251,27 @@ export function AgentLibrary({
   )
 }
 
+function inProgress(template: LibraryTemplate) {
+  return template.readiness.id === 'sample'
+}
+
+function ReadinessBadge({ template }: { template: LibraryTemplate }) {
+  const Icon = inProgress(template) ? Construction : BadgeCheck
+  return (
+    <span
+      className={`library-badge ${tones[template.readiness.id] || ''}`}
+      title={template.readiness.description}
+    >
+      <Icon size={12} aria-hidden="true" />
+      {template.readiness.label}
+    </span>
+  )
+}
+
 function Badges({ template }: { template: LibraryTemplate }) {
   return (
     <>
-      <span className={`library-badge ${tones[template.readiness.id] || ''}`}>
-        {template.readiness.label}
-      </span>
+      <ReadinessBadge template={template} />
       <span className={`library-badge ${tones[template.tool_mode.id] || ''}`}>
         {template.tool_mode.label}
       </span>
@@ -324,6 +323,7 @@ function LibraryDetail({
   tab,
   capability,
   ready,
+  preview,
   busy,
   notice,
   onTab,
@@ -336,6 +336,7 @@ function LibraryDetail({
   tab: Tab
   capability?: CreationCapability
   ready?: ReadyAgent
+  preview?: Agent
   busy: boolean
   notice: string
   onTab: (tab: Tab) => void
@@ -407,6 +408,16 @@ function LibraryDetail({
       </div>
       <h1 id="library-detail-title">{template.label}</h1>
       <p className="library-lede">{template.summary}</p>
+      {inProgress(template) && (
+        <div className="library-progress" role="note">
+          <Construction size={18} aria-hidden="true" />
+          <p>
+            <strong>In progress. </strong>
+            This agent passes offline tests but hasn't been validated against a
+            live model yet. Try it with fictional data; answers may change.
+          </p>
+        </div>
+      )}
       <div className="library-decision" role="note">
         <UserCheck size={18} aria-hidden="true" />
         <p>
@@ -556,16 +567,28 @@ function LibraryDetail({
                     This agent needs a connection to your own system and cannot
                     run in the Lab.
                   </p>
-                ) : ready ? (
+                ) : preview ? (
                   <button
                     type="button"
                     className="library-primary"
                     disabled={busy}
+                    onClick={() => onTest(preview, template.sample_input)}
+                  >
+                    <MessageSquare size={16} /> Try it now in Chat
+                  </button>
+                ) : null}
+                {runnable && ready ? (
+                  <button
+                    type="button"
+                    className={
+                      preview ? 'library-secondary' : 'library-primary'
+                    }
+                    disabled={busy}
                     onClick={() => onTest(ready.agent, template.sample_input)}
                   >
-                    Open in Chat with this example <ArrowRight size={16} />
+                    Open your created agent <ArrowRight size={16} />
                   </button>
-                ) : (
+                ) : runnable && !preview ? (
                   <button
                     type="button"
                     className="library-primary"
@@ -574,7 +597,7 @@ function LibraryDetail({
                   >
                     Create this agent to test it <ArrowRight size={16} />
                   </button>
-                )}
+                ) : null}
                 <button
                   type="button"
                   className="library-secondary"
@@ -584,9 +607,11 @@ function LibraryDetail({
                 </button>
               </div>
               <p className="library-muted">
-                {ready
-                  ? `Uses ${ready.agent.label}. The example is placed in Chat as a draft; nothing is sent until you press Send, which calls the model and may incur cost.`
-                  : creationNote}
+                {preview
+                  ? 'Opens a preview chat with this example as a draft. Nothing is published and nothing is sent until you press Send, which calls the model and may incur cost. Preview chats are not saved.'
+                  : ready
+                    ? `Uses ${ready.agent.label}. The example is placed in Chat as a draft; nothing is sent until you press Send, which calls the model and may incur cost.`
+                    : creationNote}
               </p>
             </section>
             <section className="library-panel">
@@ -599,8 +624,9 @@ function LibraryDetail({
                 </li>
               </ul>
               <p className="library-muted">
-                Use fictional data only. Chat responses are not saved unless you
-                choose Save to shared history.
+                {preview
+                  ? 'Use fictional data only. Preview chats are not saved; create the agent to save or share conversations.'
+                  : 'Use fictional data only. Chat responses are not saved unless you choose Save to shared history.'}
               </p>
             </section>
           </div>

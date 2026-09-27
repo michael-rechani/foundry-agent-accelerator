@@ -41,7 +41,7 @@ function docker {
     switch ($operation) {
         'docker build' {
             $stage = $args[-1]
-            $expected = @('Dockerfile', '.dockerignore', 'requirements.txt', 'app.py', 'history.py', 'reviews.py', 'review_runs.py', 'request_guard.py', 'agents.json', 'agent_creation.py', 'agent_publisher.py', 'agent_package.py', 'agent_templates.py', 'agent_runtime', 'frontend')
+            $expected = @('Dockerfile', '.dockerignore', 'requirements.txt', 'app.py', 'history.py', 'reviews.py', 'review_runs.py', 'request_guard.py', 'agents.json', 'agent_creation.py', 'agent_publisher.py', 'agent_package.py', 'agent_templates.py', 'library_preview.py', 'agent_runtime', 'frontend')
             $actual = @(Get-ChildItem -LiteralPath $stage -Force | Select-Object -ExpandProperty Name)
             if (Compare-Object $expected $actual) { throw 'Unexpected build context contents' }
             if (!(Test-Path (Join-Path $stage 'frontend/src'))) { throw 'Frontend source not staged' }

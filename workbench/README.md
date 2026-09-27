@@ -91,14 +91,18 @@ all-scenarios demonstration.
 | [Application completeness](../docs/demos.md#application-completeness) | **Available** | The source and walkthrough are included. This is not a live-validation claim. |
 | [Requirements and proposal review](../docs/demos.md#requirements-and-proposal-review) | **Preview** | This reuses the application agent and the existing criteria-and-evidence workflow. It doesn't add another agent. |
 
-The nine creation jobs are grouped on the page. **General:** Document
+The creation jobs are grouped on the page. **General:** Document
 explainer, Checklist gap finder, Form and invoice extractor, Case notes
 summarizer, and Service request planner. **Healthcare and public sector:**
 Medical bill reviewer, Insurance pre-approval helper, Benefits renewal helper,
-and Supplier invoice reviewer. The first four General jobs use supplied text
-only. The Service request planner and the four healthcare and public-sector
-jobs each have two **simulated read-only** lookups. None connects to customer
-systems or performs business writes. See [Create and try a baseline Microsoft Foundry agent](../docs/agent-creation.md).
+Supplier invoice reviewer, Public records intake, Grant reporting checker, and
+Community program brief. **Private sector:** nine jobs. The three newest
+public-sector jobs and all nine private-sector jobs are marked **In progress**:
+they pass offline contract and acceptance tests but aren't yet validated live.
+The first four General jobs use supplied text only. The Service request
+planner, the four reviewed healthcare and public-sector jobs, and two private-sector
+jobs each have two **simulated read-only** lookups.
+None connects to customer systems or performs business writes. See [Create and try a baseline Microsoft Foundry agent](../docs/agent-creation.md).
 
 > [!IMPORTANT]
 > Use supplied fictional inputs only. People verify evidence and make decisions.

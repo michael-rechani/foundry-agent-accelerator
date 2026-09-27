@@ -219,7 +219,7 @@
       "summary": "Turn supplied case notes into a sourced summary and focused follow-up questions.",
       "sector": {
         "id": "public",
-        "label": "Public sector"
+        "label": "Healthcare and public sector"
       },
       "industry": {
         "id": "government-services",
@@ -376,8 +376,8 @@
       ],
       "summary": "Compare a fictional bill with an insurer statement and show likely discrepancies.",
       "sector": {
-        "id": "cross-sector",
-        "label": "Cross-sector"
+        "id": "public",
+        "label": "Healthcare and public sector"
       },
       "industry": {
         "id": "health-administration",
@@ -455,8 +455,8 @@
       ],
       "summary": "Check a fictional pre-approval packet for missing or outdated paperwork.",
       "sector": {
-        "id": "private",
-        "label": "Private sector"
+        "id": "public",
+        "label": "Healthcare and public sector"
       },
       "industry": {
         "id": "health-administration",
@@ -535,7 +535,7 @@
       "summary": "Check fictional benefits renewal paperwork against simulated proof rules.",
       "sector": {
         "id": "public",
-        "label": "Public sector"
+        "label": "Healthcare and public sector"
       },
       "industry": {
         "id": "government-services",
@@ -663,7 +663,7 @@
     },
     {
       "id": "public-records-intake",
-      "category": "Public sector",
+      "category": "Healthcare and public sector",
       "model_profile": {
         "id": "extraction",
         "label": "Fast extraction",
@@ -682,7 +682,7 @@
       "summary": "Organize a fictional public records request and draft clarification questions.",
       "sector": {
         "id": "public",
-        "label": "Public sector"
+        "label": "Healthcare and public sector"
       },
       "industry": {
         "id": "government-services",
@@ -704,8 +704,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -735,7 +735,7 @@
     },
     {
       "id": "grant-reporting-checker",
-      "category": "Public sector",
+      "category": "Healthcare and public sector",
       "model_profile": {
         "id": "reasoning",
         "label": "Reasoning",
@@ -754,7 +754,7 @@
       "summary": "Find unsupported claims and missing evidence in a fictional grant report.",
       "sector": {
         "id": "public",
-        "label": "Public sector"
+        "label": "Healthcare and public sector"
       },
       "industry": {
         "id": "government-services",
@@ -768,8 +768,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -799,7 +799,7 @@
     },
     {
       "id": "community-program-brief",
-      "category": "Public sector",
+      "category": "Healthcare and public sector",
       "model_profile": {
         "id": "reasoning",
         "label": "Reasoning",
@@ -818,7 +818,7 @@
       "summary": "Build an evidence-linked briefing from fictional community program notes.",
       "sector": {
         "id": "public",
-        "label": "Public sector"
+        "label": "Healthcare and public sector"
       },
       "industry": {
         "id": "government-services",
@@ -836,8 +836,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -908,8 +908,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -976,8 +976,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -1048,8 +1048,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -1112,8 +1112,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -1180,8 +1180,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -1259,8 +1259,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "simulated",
@@ -1327,8 +1327,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -1395,8 +1395,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -1474,8 +1474,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "simulated",
@@ -1509,17 +1509,17 @@
       {
         "id": "cross-sector",
         "label": "Cross-sector",
-        "count": 6
+        "count": 5
       },
       {
         "id": "public",
-        "label": "Public sector",
-        "count": 5
+        "label": "Healthcare and public sector",
+        "count": 7
       },
       {
         "id": "private",
         "label": "Private sector",
-        "count": 10
+        "count": 9
       }
     ],
     "industries": [
@@ -1620,8 +1620,8 @@
       },
       {
         "id": "sample",
-        "label": "Preview",
-        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use.",
+        "label": "In progress",
+        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use.",
         "count": 12
       }
     ],

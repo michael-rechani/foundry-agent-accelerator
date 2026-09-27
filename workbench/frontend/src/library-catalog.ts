@@ -1,6 +1,8 @@
 // Browser-independent catalog parsing and filtering for the Agent library.
 // Uses erasable TypeScript only so `node --test` can import it directly.
 
+import type { Agent } from './workspace-config'
+
 export type Choice = { id: string; label: string }
 export type DescribedChoice = Choice & { description: string }
 export type Facet = Choice & { count: number; description?: string }
@@ -247,4 +249,67 @@ export function liveFacets(
       })),
     }
   })
+}
+
+export const previewPrefix = 'library-'
+
+const profileNames: Record<string, string> = {
+  reasoning: 'reasoning',
+  extraction: 'extraction',
+  tool_calling: 'tool-calling',
+}
+
+const clip = (value: string) =>
+  [...value.trim()].length > 1200
+    ? [...value.trim()].slice(0, 1199).join('') + '…'
+    : value.trim()
+
+export function isPreviewId(id: string) {
+  return id.startsWith(previewPrefix)
+}
+
+// A library preview runs the template's own instructions and simulated tools
+// on the Lab's model, without publishing anything. The server re-derives the
+// binding from the ID; nothing here is trusted beyond display.
+export function previewAgent(
+  template: LibraryTemplate,
+  runtimeAgent: string,
+): Agent {
+  const lookups = template.tools.length
+    ? `${template.tools.length} fictional ${template.tools.length === 1 ? 'lookup' : 'lookups'}`
+    : 'no tools'
+  return {
+    id: `${previewPrefix}${template.id}`,
+    label: template.label,
+    category: 'Library preview',
+    description: template.summary,
+    agent: runtimeAgent,
+    tools: Object.fromEntries(
+      template.tools.map((tool) => [tool.name, runtimeAgent]),
+    ),
+    prompts: [
+      { label: 'Try the fictional example', text: template.sample_input },
+    ],
+    guidance: {
+      input: clip(template.input),
+      output: clip(template.output),
+      limits: clip(template.limits),
+      delegation: clip(
+        template.delegation || 'Works directly on the text you supply.',
+      ),
+      configuration: clip(
+        `Library preview of template ${template.id}: the Lab applies its fixed demonstration policy and this template's instructions with ${lookups} on the ${profileNames[template.model_profile.id] || template.model_profile.id} model. Nothing is published, and preview chats are not saved. Create the agent to save, share or export it.`,
+      ),
+    },
+  }
+}
+
+export function previewAgents(
+  catalog: LibraryCatalog | null,
+  runtimeAgent?: string,
+) {
+  if (!catalog || !runtimeAgent) return []
+  return catalog.templates
+    .filter((template) => template.tool_mode.id !== 'connected-required')
+    .map((template) => previewAgent(template, runtimeAgent))
 }

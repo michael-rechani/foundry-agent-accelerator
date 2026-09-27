@@ -10,13 +10,13 @@ export function ChatComposer({
   busy,
   historyBusy,
   turnCount,
-  hasConversation,
   characters,
   requestBytes,
   contextUsage,
   limitReasons,
   saved,
   dirty,
+  isPreview,
   onDraft,
   onSubmit,
   onStop,
@@ -29,19 +29,21 @@ export function ChatComposer({
   busy: boolean
   historyBusy: boolean
   turnCount: number
-  hasConversation: boolean
   characters: number
   requestBytes: number
   contextUsage: number
   limitReasons: string[]
   saved: boolean
   dirty: boolean
+  isPreview: boolean
   onDraft: (value: string) => void
   onSubmit: () => void
   onStop: () => void
   onContinue: () => void
 }) {
   const exceedsLimit = limitReasons.length > 0
+  // Limits and save state only matter once there is something to lose.
+  const showDetails = turnCount > 0 || contextUsage >= 0.5
   return (
     <div className="composer-area">
       <form
@@ -59,7 +61,7 @@ export function ChatComposer({
           aria-describedby={
             [
               config?.mode === 'private' && 'chat-privacy',
-              config && hasConversation && 'context-budget',
+              config && showDetails && 'context-budget',
             ]
               .filter(Boolean)
               .join(' ') || undefined
@@ -80,22 +82,25 @@ export function ChatComposer({
         />
         <div className="composer-toolbar">
           <span>
-            <FlaskConical size={12} aria-hidden="true" />
-            {config?.mode === 'private'
-              ? 'Use made-up examples; you make decisions'
-              : 'No model calls or saving'}
+            {config?.mode !== 'private' && (
+              <>
+                <FlaskConical size={12} aria-hidden="true" />
+                No model calls or saving
+              </>
+            )}
           </span>
           <div>
             {turnCount > 0 && (
               <button
                 type="button"
-                className="chat-icon"
-                title="Continue in new chat"
+                className="composer-continue"
+                title="Start a new chat that carries this reply forward"
                 aria-label="Continue in new chat"
                 disabled={busy || historyBusy}
                 onClick={onContinue}
               >
-                <GitBranch size={17} />
+                <GitBranch size={15} aria-hidden="true" />
+                <span>Continue in new chat</span>
               </button>
             )}
             {busy ? (
@@ -132,11 +137,14 @@ export function ChatComposer({
       {config?.mode === 'private' && (
         <p className="composer-privacy" id="chat-privacy">
           Use fictional data only, never personal or confidential information.
-          {config.history_enabled &&
-            ` Saving shares completed messages with everyone in this Lab for ${config.retention_days} days after the last update.`}
+          Each message calls the model and may incur cost.
+          {isPreview
+            ? ' Preview chats are not saved.'
+            : config.history_enabled &&
+              ` Saving shares completed messages with everyone in this Lab for ${config.retention_days} days after the last update.`}
         </p>
       )}
-      {hasConversation && (
+      {showDetails && (
         <div className="composer-details">
           {config && (
             <details
@@ -172,13 +180,15 @@ export function ChatComposer({
             </details>
           )}
           <span className="save-state">
-            {saved
-              ? dirty
-                ? 'Unsaved changes'
-                : draft
-                  ? 'Draft not saved'
-                  : 'Saved / shared'
-              : 'Not saved'}
+            {isPreview
+              ? 'Preview · not saved'
+              : saved
+                ? dirty
+                  ? 'Unsaved changes'
+                  : draft
+                    ? 'Draft not saved'
+                    : 'Saved / shared'
+                : 'Not saved'}
           </span>
         </div>
       )}

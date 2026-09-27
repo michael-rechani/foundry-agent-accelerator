@@ -251,13 +251,18 @@ test('browse, filter and search the catalog with live counts', async ({
     page
       .locator('.library-facet')
       .filter({ has: page.getByText(name, { exact: true }) })
-  await expect(facet('Public sector')).toContainText(String(publicCount))
-  await facet('Public sector').click()
-  await expect(facet('Public sector')).toHaveAttribute('aria-pressed', 'true')
+  await expect(facet('Healthcare and public sector')).toContainText(
+    String(publicCount),
+  )
+  await facet('Healthcare and public sector').click()
+  await expect(facet('Healthcare and public sector')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   await expect(results).toHaveText(`${publicCount} agents`)
   await expect(cards).toHaveCount(publicCount)
   for (const card of await cards.all())
-    await expect(card).toContainText('Public sector')
+    await expect(card).toContainText('Healthcare and public sector')
   await illustrativeScreenshot(page, testInfo, 'library-filtered.png')
 
   await page.getByRole('searchbox', { name: 'Search agents' }).fill('grant')
@@ -272,7 +277,10 @@ test('browse, filter and search the catalog with live counts', async ({
     .getByRole('button', { name: 'Clear filters' })
     .click()
   await expect(cards).toHaveCount(templates.length)
-  await expect(facet('Public sector')).toHaveAttribute('aria-pressed', 'false')
+  await expect(facet('Healthcare and public sector')).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  )
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -362,9 +370,7 @@ test('a created agent opens in Chat as a draft and its request is logged and ben
   await expect(page.getByRole('tabpanel')).toContainText(
     'nothing is sent until you press Send',
   )
-  await page
-    .getByRole('button', { name: 'Open in Chat with this example' })
-    .click()
+  await page.getByRole('button', { name: 'Open your created agent' }).click()
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   await expect(editor).toHaveValue(grant.sample_input)
   await expect(page.locator('.agent-picker')).toContainText(

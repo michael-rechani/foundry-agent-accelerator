@@ -260,6 +260,22 @@
   background: var(--warning-bg);
   color: var(--warning-fg);
 }
+.library-progress {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px dashed var(--warning-fg);
+  border-radius: 10px;
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+}
+.library-progress p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
 .library-empty,
 .library-error {
   display: flex;

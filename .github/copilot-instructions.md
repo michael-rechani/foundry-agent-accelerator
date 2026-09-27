@@ -31,3 +31,10 @@ approval, and a "Done when" checklist. Use these labels where they fit:
 
 Reference the issue from code comments, docs, or the PR description when the
 deferred work affects them.
+
+Add every issue to the private
+[Foundry Agent Lab project](https://github.com/users/michael-rechani/projects/2)
+and keep its **Status** current: `Backlog`, `Next`, `In progress`,
+`Needs your approval` (billable calls, shared data, infrastructure, or
+deployment), and `Done`. Move an issue to `In progress` when you start it and
+to `Done` only after verification.

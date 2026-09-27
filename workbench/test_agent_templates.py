@@ -100,13 +100,12 @@ class TemplateTests(unittest.TestCase):
         self.assertEqual(
             categories,
             ["General"] * 5
-            + ["Healthcare and public sector"] * 4
-            + ["Public sector"] * 3
+            + ["Healthcare and public sector"] * 7
             + ["Private sector"] * 9,
         )
         self.assertEqual(
             {key for key, item in TEMPLATES.items() if item["category"] == "Healthcare and public sector"},
-            SECTOR_JOBS,
+            SECTOR_JOBS | {"public-records-intake", "grant-reporting-checker", "community-program-brief"},
         )
 
     def test_each_job_names_the_kind_of_model_it_needs(self):
@@ -347,7 +346,7 @@ class TemplateTests(unittest.TestCase):
                 self.assertEqual(public[identifier]["sector"]["id"], "private")
                 self.assertEqual(public[identifier]["readiness"], {"id": "sample", **{
                     key: value for key, value in READINESS_LEVELS[1].items() if key != "id"}})
-                self.assertEqual(public[identifier]["readiness"]["label"], "Preview")
+                self.assertEqual(public[identifier]["readiness"]["label"], "In progress")
                 self.assertIn(prohibited, template["instructions"].lower())
                 self.assertIn(owner, public[identifier]["human_decision"].lower())
                 self.assertIn("made up", template["sample_input"])

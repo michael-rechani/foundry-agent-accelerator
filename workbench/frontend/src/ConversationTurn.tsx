@@ -155,8 +155,12 @@ export function ConversationTurn({
         </div>
         <details className="receipt-details">
           <summary>
-            <Activity size={14} /> Execution details{' '}
-            <span>{turn.result.receipts.length}</span>
+            <Activity size={14} aria-hidden="true" /> Execution details
+            <span>
+              {turn.result.receipts.length === 0
+                ? 'No tool calls'
+                : `${turn.result.receipts.length} tool ${turn.result.receipts.length === 1 ? 'call' : 'calls'}`}
+            </span>
           </summary>
           <code>{turn.result.request_id}</code>
           {turn.result.receipts.length ? (
