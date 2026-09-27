@@ -78,7 +78,7 @@ export function ChatSidebar({
       label: 'Chat and test',
       items: [
         { view: 'chat', label: 'Chat', icon: MessageSquare },
-        // Reviews are reached from Chat or a saved-review link, not the sidebar.
+        // Reviews are reached only from /#reviews or a saved-review link.
         ...(view === 'reviews'
           ? [
               {
