@@ -193,6 +193,7 @@ data "azapi_resource" "jumpbox_identity" {
   response_export_values = ["identity.principalId"]
 }
 
+# Foundry Project Manager: the optional private runner publishes agents in this project.
 resource "azurerm_role_assignment" "jumpbox_foundry_project_manager" {
   count = var.enable_jumpbox ? 1 : 0
 

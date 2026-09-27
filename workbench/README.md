@@ -371,7 +371,9 @@ explicitly.
 
 ## Local development
 
-Requires Node 24 and Python 3.14.
+Requires Node 24 and Python 3.14. See the
+[tool versions and upgrade expectations](../README.md#tool-versions-and-upgrades);
+these disconnected checks need neither Azure sign-in nor `azd`.
 
 ```powershell
 npm --prefix workbench/frontend ci
@@ -636,6 +638,34 @@ conversation afterward. Browser tests use controlled API responses and do not
 replace this deployment check.
 
 ## Diagnostics and caching
+
+### Agent session reuse
+
+The cache holds at most 512 idle chat/agent sessions per process. Its default
+10-minute window is absolute, measured from the call that created the session;
+successful follow-ups do not extend it. Capacity eviction removes the oldest
+idle entry in cache insertion order, not the oldest saved conversation.
+
+Taking a session removes it from the cache until that request completes. Two
+overlapping requests for the same chat therefore cannot lease the same session:
+the second starts a separate session, and the last successful completion may
+supply the next reusable session. Failure or cancellation discards the leased
+session, not another request's successful lease. Restart, expiry, or eviction
+means a cold start, not missing context: every request still sends its full
+bounded history with `store=false`. Reuse is a latency optimization, not
+persistence, identity, or an authorization boundary.
+
+`workbench_session` logs the checkout category (`hit`, `miss`, `expired`, or
+`disabled`) and `cached_sessions`, the idle count **after** checkout.
+`disabled` also covers requests without a chat thread, including document
+reviews. A `miss` can mean a new chat, restart, eviction, or an overlapping
+request; it cannot distinguish those causes. `workbench_session_eviction`
+reports expired and capacity-evicted counts after a successful cache insertion.
+These events contain no chat IDs, Foundry session IDs, agent names, or input.
+They are process-local cache observations, not proof of model success or
+measured cold-start savings. Use `workbench_request` for correlated outcomes.
+
+### Request and dependency diagnostics
 
 The backend emits JSON request metadata through the Uvicorn console logger:
 server-generated correlation ID, route template, HTTP method, outcome, HTTP

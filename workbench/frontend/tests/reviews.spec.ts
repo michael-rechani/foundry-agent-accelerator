@@ -318,12 +318,22 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   await expect(
     page.getByRole('button', { name: 'Create shared review' }),
   ).toHaveAttribute('aria-describedby', 'review-privacy')
-  await page.locator('#review-privacy').scrollIntoViewIfNeeded()
-  await page.screenshot({
-    path: testInfo.outputPath('review-privacy-mocked-apis.png'),
-    fullPage: true,
-    animations: 'disabled',
-  })
+  await page
+    .getByRole('button', { name: 'Create shared review' })
+    .scrollIntoViewIfNeeded()
+  await expect(page.locator('#review-privacy')).toBeInViewport({ ratio: 0.99 })
+  await expect(
+    page.getByRole('button', { name: 'Create shared review' }),
+  ).toBeInViewport({ ratio: 1 })
+  await illustrativeScreenshot(page, testInfo, 'review-privacy.png', 'sidebar')
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await illustrativeScreenshot(
+    page,
+    testInfo,
+    'review-privacy-dark.png',
+    'sidebar',
+  )
+  await page.emulateMedia({ colorScheme: 'light' })
   await page.getByRole('button', { name: 'Create shared review' }).click()
   await expect(
     page.getByRole('button', { name: 'Run review', exact: true }),

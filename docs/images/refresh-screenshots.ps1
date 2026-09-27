@@ -1,5 +1,6 @@
 param(
-    [string]$TestResultsDirectory = (Join-Path $PSScriptRoot '../../workbench/frontend/test-results')
+    [string]$TestResultsDirectory = (Join-Path $PSScriptRoot '../../workbench/frontend/test-results'),
+    [string[]]$Names = @()
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,6 +11,8 @@ $sources = [ordered]@{
     'lab-chat-start-dark.png' = 'demo-starters-dark.png'
     'lab-document-review.png' = 'review-findings.png'
     'lab-document-review-dark.png' = 'review-findings-dark.png'
+    'lab-review-privacy.png' = 'review-privacy.png'
+    'lab-review-privacy-dark.png' = 'review-privacy-dark.png'
     'lab-demo-application.png' = 'demo-application.png'
     'lab-demo-application-dark.png' = 'demo-application-dark.png'
     'lab-demo-invoice.png' = 'demo-invoice.png'
@@ -18,9 +21,14 @@ $sources = [ordered]@{
     'lab-demo-casework-dark.png' = 'demo-casework-dark.png'
 }
 
-# Resolve and validate the whole set before replacing any documentation assets.
+foreach ($selected in $Names) {
+    if (!$sources.Contains($selected)) { throw "Unknown screenshot: $selected" }
+}
+
+# Resolve and validate the selected set before replacing any documentation assets.
 $outputs = [ordered]@{}
 foreach ($name in $sources.Keys) {
+    if ($Names.Count -gt 0 -and $name -notin $Names) { continue }
     $matches = @(Get-ChildItem -LiteralPath $TestResultsDirectory -Recurse -File -Filter $sources[$name] |
         Where-Object { $_.Directory.Name -match '-desktop$' })
     if ($matches.Count -ne 1) {

@@ -36,6 +36,9 @@ deployment continues automatically after reading these instructions.
 
 ## 1. Confirm prerequisites
 
+- Check the [tool versions and upgrade expectations](../README.md#tool-versions-and-upgrades).
+  This runner needs Python 3.14 and the staged deployment requirements, not
+  Node, Docker, Terraform state, or `azd` just to publish Python source.
 - Confirm the subscription, tenant, project endpoint, intended agent, and change.
 - The deploying identity needs Foundry Project Manager at project scope, as
   Microsoft Learn's

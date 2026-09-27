@@ -420,6 +420,131 @@ class FoundryGatewayTests(unittest.IsolatedAsyncioTestCase):
                 await gateway.review({"agent": "case"}, "Review", thread=f"{index}f8b6c1e-2a3d-4e5f-8a7b-1c2d3e4f5a6b")
         self.assertEqual([session for session, _ in gateway._sessions.values()], ["s2", "s3"])
 
+    async def test_restart_rebuilds_clients_and_sends_full_history_without_old_session(self):
+        gateway, client, modules = self.session_gateway([("completed", "old"), ("completed", "new")])
+        prompt = [{"role": "user", "content": "Fictional input"},
+                  {"role": "assistant", "content": "Finding"},
+                  {"role": "user", "content": "Follow up"}]
+        with modules:
+            await gateway.review({"agent": "case"}, "Fictional input", thread="chat")
+            await gateway.close()
+            restarted = FoundryGateway(gateway.settings)
+            await restarted.review({"agent": "case"}, prompt, thread="chat")
+            await restarted.close()
+        self.assertEqual(self.sent_sessions(client), [None, None])
+        client.responses.create.assert_awaited_with(input=prompt, store=False, stream=False)
+        self.assertEqual(gateway._sessions, {})
+        self.assertEqual(restarted._sessions, {})
+
+    async def test_overlapping_requests_never_lease_the_same_session(self):
+        for completion_order in ((0, 1), (1, 0)):
+            with self.subTest(completion_order=completion_order):
+                gateway, client, modules = self.session_gateway([("completed", "initial")])
+                entered = [asyncio.Event(), asyncio.Event()]
+                finished = [asyncio.Event(), asyncio.Event()]
+                prompts = [
+                    [{"role": "user", "content": "First"}, {"role": "assistant", "content": "Finding"},
+                     {"role": "user", "content": f"Follow up {index}"}] for index in range(2)
+                ]
+
+                async def respond(*, input, prompts=prompts, entered=entered, finished=finished, **kwargs):
+                    index = prompts.index(input)
+                    entered[index].set()
+                    await finished[index].wait()
+                    return SimpleNamespace(status="completed", output_text="Finding", model_dump=lambda: {"output": []},
+                                           model_extra={"agent_session_id": ("initial", "separate")[index]})
+
+                with modules:
+                    await gateway.review({"agent": "case"}, "First", thread="chat")
+                    client.responses.create.side_effect = respond
+                    first = asyncio.create_task(gateway.review({"agent": "case"}, prompts[0], thread="chat"))
+                    await asyncio.wait_for(entered[0].wait(), 1)
+                    second = asyncio.create_task(gateway.review({"agent": "case"}, prompts[1], thread="chat"))
+                    await asyncio.wait_for(entered[1].wait(), 1)
+                    tasks = [first, second]
+                    for index in completion_order:
+                        finished[index].set()
+                        await tasks[index]
+                self.assertEqual(self.sent_sessions(client), [None, "initial", None])
+                for call, prompt in zip(client.responses.create.await_args_list[1:], prompts, strict=True):
+                    self.assertEqual(call.kwargs["input"], prompt)
+                    self.assertFalse(call.kwargs["store"])
+                self.assertEqual(len(gateway._sessions), 1)
+                self.assertEqual(gateway._sessions[("chat", "case")][0],
+                                 ("initial", "separate")[completion_order[-1]])
+
+    async def test_exception_and_cancellation_discard_only_the_leased_session(self):
+        for error in (RuntimeError("sensitive dependency message"), asyncio.CancelledError()):
+            with self.subTest(error=type(error).__name__):
+                gateway, client, modules = self.session_gateway([("completed", "s1"), ("completed", "other")])
+                with modules:
+                    await gateway.review({"agent": "case"}, "First", thread="chat")
+                    await gateway.review({"agent": "case"}, "Other", thread="other-chat")
+                    client.responses.create.side_effect = error
+                    with self.assertRaises(type(error)):
+                        await gateway.review({"agent": "case"}, "Follow up", thread="chat")
+                    self.assertNotIn(("chat", "case"), gateway._sessions)
+                    self.assertEqual(gateway._sessions[("other-chat", "case")][0], "other")
+                    client.responses.create.side_effect = None
+                    client.responses.create.return_value = SimpleNamespace(
+                        status="completed", output_text="Finding", model_dump=lambda: {"output": []}, model_extra={})
+                    await gateway.review({"agent": "case"}, "Retry", thread="chat")
+                self.assertEqual(self.sent_sessions(client), [None, None, "s1", None])
+                self.assertEqual(client.responses.create.await_count, 4)
+
+    async def test_reuse_has_absolute_lifetime_even_when_response_omits_session(self):
+        gateway, client, modules = self.session_gateway(
+            [("completed", "s1"), ("completed", None), ("completed", None), ("completed", "s2")])
+        now = [100.0]
+        with modules, patch("app.time", SimpleNamespace(monotonic=lambda: now[0])):
+            for moment in (100, 699, 700, 701):
+                now[0] = moment
+                await gateway.review({"agent": "case"}, "Review", thread="chat")
+        self.assertEqual(self.sent_sessions(client), [None, "s1", None, None])
+        self.assertEqual(gateway._sessions[("chat", "case")], ("s2", 701))
+
+    async def test_session_finishing_after_its_window_is_not_cached(self):
+        gateway, client, modules = self.session_gateway([])
+        now = [100.0]
+
+        async def respond(**kwargs):
+            now[0] += 600
+            return SimpleNamespace(status="completed", output_text="Finding", model_dump=lambda: {"output": []},
+                                   model_extra={"agent_session_id": "slow-session"})
+
+        client.responses.create.side_effect = respond
+        with modules, patch("app.time", SimpleNamespace(monotonic=lambda: now[0])):
+            await gateway.review({"agent": "case"}, "Review", thread="chat")
+        self.assertEqual(gateway._sessions, {})
+
+    async def test_eviction_recovers_without_history_loss_and_logs_only_counts(self):
+        gateway, client, modules = self.session_gateway([("completed", f"private-session-{i}") for i in range(6)])
+        now = [100.0]
+        prompt = [{"role": "user", "content": "Private fictional prompt"},
+                  {"role": "assistant", "content": "Private fictional response"},
+                  {"role": "user", "content": "Follow up"}]
+        with modules, patch("app.time", SimpleNamespace(monotonic=lambda: now[0])), patch("app.MAX_REUSED_SESSIONS", 2), \
+                self.assertLogs("uvicorn.error", level="INFO") as logs:
+            for thread in ("private-chat-1", "private-chat-2", "private-chat-3", "private-chat-1"):
+                await gateway.review({"agent": "private-agent"}, prompt, thread=thread)
+            now[0] += 600
+            await gateway.review({"agent": "private-agent"}, prompt, thread="private-chat-1")
+            await gateway.review({"agent": "private-agent"}, prompt)
+        self.assertEqual(self.sent_sessions(client), [None] * 6)
+        self.assertEqual(gateway._sessions, {("private-chat-1", "private-agent"): ("private-session-4", 700)})
+        events = [json.loads(record.getMessage()) for record in logs.records]
+        self.assertEqual([event["reuse"] for event in events if event["event"] == "workbench_session"],
+                         ["miss", "miss", "miss", "miss", "expired", "disabled"])
+        self.assertEqual([event for event in events if event["event"] == "workbench_session_eviction"], [
+            {"event": "workbench_session_eviction", "expired": 0, "capacity": 1, "cached_sessions": 2},
+            {"event": "workbench_session_eviction", "expired": 0, "capacity": 1, "cached_sessions": 2},
+            {"event": "workbench_session_eviction", "expired": 1, "capacity": 0, "cached_sessions": 1},
+        ])
+        self.assertNotIn("private", " ".join(logs.output).lower())
+        for call in client.responses.create.await_args_list:
+            self.assertEqual(call.kwargs["input"], prompt)
+            self.assertFalse(call.kwargs["store"])
+
 
 if __name__ == "__main__":
     unittest.main()

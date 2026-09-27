@@ -84,6 +84,9 @@ Follow this order for a new environment:
 
 ## Prerequisites
 
+See [tool versions and upgrades](../README.md#tool-versions-and-upgrades) for
+version checks, lockfile expectations, and installation troubleshooting.
+
 - Terraform 1.16.4 or a later 1.16 patch release.
 - Azure CLI authenticated to the target tenant.
 - Contributor and User Access Administrator, or equivalent permissions.

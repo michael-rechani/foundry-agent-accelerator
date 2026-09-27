@@ -18,7 +18,7 @@ $steps = if ($Tour -eq 'scenarios') { @(
     [ordered]@{ Label = 'Explore demos'; Width = 137; Light = 'lab-demo-application.png'; Dark = 'lab-demo-application-dark.png' }
     [ordered]@{ Label = 'Create an agent'; Width = 147; Light = 'lab-create-agent.png'; Dark = 'lab-create-agent-dark.png' }
     [ordered]@{ Label = 'Chat with it'; Width = 106; Light = 'lab-chat-start.png'; Dark = 'lab-chat-start-dark.png' }
-    [ordered]@{ Label = 'Review documents'; Width = 175; Light = 'lab-document-review.png'; Dark = 'lab-document-review-dark.png' }
+    [ordered]@{ Label = 'Review documents'; Width = 175; Light = 'lab-review-privacy.png'; Dark = 'lab-review-privacy-dark.png' }
 ) }
 $tourName = if ($Tour -eq 'scenarios') { 'scenario-tour' } else { 'lab-tour' }
 
@@ -41,7 +41,7 @@ $title = 'Illustrative UI test of the Foundry Agent Lab with mocked APIs'
 $description = if ($Tour -eq 'scenarios') {
     'Three illustrative customer walkthroughs from browser tests with mocked APIs: missing application evidence, supplier invoice discrepancies, and a casework brief. Expected findings are examples, not live model results. Nothing was published, sent, or saved.'
 } else {
-    'Four illustrative screenshots from browser tests with mocked APIs: Explore demos, Create agent, Chat, and Document reviews. Nothing was published, sent, or saved; these are not live model results.'
+    'Four illustrative screenshots from browser tests with mocked APIs: Explore demos, Create agent, Chat with its shared-data notice, and the Document reviews form explaining shared storage before saving. Nothing was published, sent, or saved; these are not live model results.'
 }
 
 # Each frame holds for $frameSeconds, including a $fadeSeconds crossfade into

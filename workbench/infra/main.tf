@@ -159,6 +159,7 @@ resource "azurerm_role_assignment" "pull" {
   role_definition_name = "AcrPull"
   principal_id         = azurerm_user_assigned_identity.this.principal_id
 }
+# Foundry User: Lab calls and opt-in publication, scoped to the configured project.
 resource "azurerm_role_assignment" "foundry" {
   scope              = local.project_id
   role_definition_id = "/subscriptions/${var.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/53ca6127-db72-4b80-b1b0-d745d6d5456d"
