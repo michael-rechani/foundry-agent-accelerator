@@ -1,6 +1,6 @@
 # Security policy
 
-Foundry Agent Lab is a sample, not an official Microsoft product. It has no
+Foundry Agent Accelerator is a sample, not an official Microsoft product. It has no
 support agreement or response-time commitment, but security reports are
 welcome and handled as a priority.
 

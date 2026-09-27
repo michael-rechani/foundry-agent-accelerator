@@ -1,4 +1,4 @@
-# Explore Foundry Agent Lab
+# Explore Foundry Agent Accelerator
 
 [Home](../README.md) / [Docs](README.md) / Showcase
 
