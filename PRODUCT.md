@@ -1,4 +1,4 @@
-# Foundry Agent Lab
+# Foundry Agent Accelerator
 
 <!-- impeccable:product-schema 1 -->
 
@@ -44,8 +44,8 @@ Browser-test artwork uses explicitly labeled mocked APIs, not live results.
 
 ## Brand Commitments
 
-Use **Foundry Agent Lab** for this experience and **Microsoft Foundry** for the
-underlying service. Retain the existing light/dark themes, optional accents,
+Use **Foundry Agent Accelerator** for the repository, **Foundry Agent Lab** for
+the browser experience, and **Microsoft Foundry** for the underlying service. Retain the existing light/dark themes, optional accents,
 framed walkthroughs, and evidence-led voice. Show practical work, not invented
 benchmarks, customer endorsements, or production claims.
 

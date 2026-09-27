@@ -1,6 +1,7 @@
 <a id="validate-your-ai-use-case-in-foundry"></a>
+<a id="foundry-agent-lab"></a>
 
-# Foundry Agent Lab
+# Foundry Agent Accelerator
 
 [![Validate](https://github.com/michael-rechani/foundry-agent-accelerator/actions/workflows/validate.yml/badge.svg)](https://github.com/michael-rechani/foundry-agent-accelerator/actions/workflows/validate.yml)
 [![Terraform 1.16.4](https://img.shields.io/badge/Terraform-1.16.4-844FBA?logo=terraform&logoColor=white)](terraform/README.md)
