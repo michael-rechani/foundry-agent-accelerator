@@ -14,10 +14,12 @@ For an ordinary Chat request, return these sections:
 4. Clarification questions
 5. Human review notice
 
-When the request supplies a structured review result schema, use that schema
-instead of the prose sections. Return one finding per supplied criterion with
-supported, gap, or conflict assessments and exact quotes from the named source
-texts. These correspond to Met, Not demonstrated, and Unclear in the Chat matrix.
+Use a structured format only when the request includes an explicit JSON result
+schema; a request for findings, source identifiers, or a summary is still an
+ordinary Chat request. When a schema is supplied, use it instead of the prose
+sections. Return one finding per supplied criterion with supported, gap, or
+conflict assessments and exact quotes from the named source texts. These
+correspond to Met, Not demonstrated, and Unclear in the Chat matrix.
 Ask questions only to resolve gaps or conflicts in the supplied criteria, using
 all evidence including later clarifications. If every finding is supported,
 return an empty questions array. Keep any human review notice in the summary;
@@ -29,10 +31,11 @@ with one row per supplied requirement. Distinguish a product claim from supporti
 evidence, flag unsupported claims, and preserve conflicting sources without
 choosing an unsupported winner. Do not infer a capability from marketing language.
 
-Missing evidence means Not demonstrated, not automatic noncompliance. Use Unclear
-for conflicting evidence and ask what would resolve it. Do not invent a source
-for absent evidence; cite the criterion and relevant supplied material, and state
-explicitly when no supporting source was supplied.
+Missing evidence means Not demonstrated, not automatic noncompliance. Never
+describe a Not demonstrated criterion as not met, noncompliant, or failed. Use
+Unclear for conflicting evidence and ask what would resolve it. Do not invent a
+source for absent evidence; cite the criterion and relevant supplied material,
+and state explicitly when no supporting source was supplied.
 
 For each matrix row, cite the supplied criterion and relevant source identifiers.
 When no supporting source was supplied, say so rather than inventing a citation.

@@ -216,11 +216,33 @@ Before live execution:
   The requirements/proposal instruction changes in this repository have not
   been live-deployed or validated by this evaluation work.
 - Confirm the judge is an existing supported chat-completion model deployment in
-  that project, with sufficient quota and evaluation-region support.
+  that project, with sufficient quota and evaluation-region support. Pass its
+  deployment name, such as `gpt-4.1`, to `--judge-model`. Foundry grades rows
+  in parallel, so give the judge enough throughput. In the private Lab, a
+  capacity of 10 (10,000 tokens and 10 requests per minute) throttled 11 of 25
+  rows with `429 Too Many Requests`, and the runner correctly failed each
+  profile; a capacity of 50 is the working value. See
+  [model capacity](../terraform/README.md#1-configure-inputs-and-state).
 - Confirm Foundry permissions for reading agent/model inventory, invoking
   agents and models, and creating/reading custom evaluators and evaluation
   runs. The cloud-evaluation guide lists Foundry User at project scope; validate
   any additional permissions required by the selected preview feature.
+- Confirm the Foundry project's managed identity has Foundry User at the Foundry
+  resource scope. Per Microsoft Learn, evaluation runs fail without it
+  ([virtual network support for evaluation](https://learn.microsoft.com/azure/foundry/concepts/evaluation-virtual-network#configure-evaluation-network-requirements)).
+  The platform Terraform assigns it as
+  `azurerm_role_assignment.project_foundry_user`.
+- Confirm the agent storage account admits the Foundry project as a resource
+  instance. Foundry's hosted asset store writes evaluation results to that
+  account as the project identity, from outside the virtual network. With
+  public network access disabled and no exception, creating a run fails with
+  `Pending evaluation-result upload was denied (HTTP 403)`, and
+  `project.datasets.pending_upload` reports
+  `ResourceMsiTokenDoesntHavePermissionsOnStorage`, even though the identity
+  has Blob roles. The platform Terraform adds this project-only rule to
+  `resourceAccessRules` in [`keyless-storage.tf`](../terraform/keyless-storage.tf).
+  It doesn't enable public access or the trusted-services bypass, and RBAC
+  still applies.
 - Each agent must be active, advertise Responses **2.0.0**, route 100 percent of
   traffic to a single version, explicitly set `AGENT_STORE_RESPONSES=false`, and
   use this same project's endpoint in `FOUNDRY_PROJECT_ENDPOINT`.
@@ -383,10 +405,18 @@ permissions, retention, and telemetry delivery still require the approved live
 steps above.
 
 Agent calls have a 180-second request timeout; other SDK requests have bounded
-timeouts. Client retries are disabled. The default grading polling budget is 600
-seconds, through `--timeout-seconds`, and the maximum is 3600. This is not an
-end-to-end deadline, token budget, hard billing cap, or remote cancellation
-guarantee.
+timeouts. Client retries are disabled. The one exception: if creating the
+evaluation returns 404 because the just-created custom evaluator isn't visible
+yet, the runner waits 5, 10, and 20 seconds between up to four attempts and
+records each wait as `evaluator_not_ready`. A 404 creates nothing. The default
+grading polling budget is 600 seconds, through `--timeout-seconds`, and the
+maximum is 3600. This is not an end-to-end deadline, token budget, hard billing
+cap, or remote cancellation guarantee.
+
+Live Foundry grading reports each case as `completed` rather than `pass` or
+`fail`, and adds a `skipped` count. The runner takes each case's outcome from
+its single rubric result. It fails the run if any case is skipped or errored,
+or if the rubric result didn't finish.
 
 No remote resources are automatically deleted. Inspect the evaluator name,
 evaluation ID, and run ID in the receipt and open **Evaluations** in Foundry. If

@@ -18,24 +18,58 @@ DEFAULT_INSTRUCTIONS = (Path(__file__).parent / "instructions.md").read_text(
 )
 
 
+class SpecialistClients:
+    """Keeps one authenticated client per specialist so calls reuse open connections.
+
+    Each client fetches a current token for every request, so reuse does not pin an expiring token.
+    """
+
+    def __init__(self, project_endpoint: str, credential: DefaultAzureCredential) -> None:
+        self._project_endpoint = project_endpoint
+        self._credential = credential
+        self._project_client = None
+        self._clients = {}
+
+    def get(self, agent_name: str, timeout_seconds: float):
+        client = self._clients.get(agent_name)
+        if client is None:
+            if self._project_client is None:
+                self._project_client = AIProjectClient(
+                    endpoint=self._project_endpoint,
+                    credential=self._credential,
+                    allow_preview=True,
+                )
+            client = self._project_client.get_openai_client(
+                agent_name=agent_name,
+                timeout=timeout_seconds,
+                max_retries=0,
+            )
+            self._clients[agent_name] = client
+        return client
+
+    async def close(self) -> None:
+        clients, self._clients = list(self._clients.values()), {}
+        project_client, self._project_client = self._project_client, None
+        for client in clients:
+            await client.close()
+        if project_client is not None:
+            await project_client.close()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc_info) -> None:
+        await self.close()
+
+
 async def invoke_specialist(
-    project_endpoint: str,
-    credential: DefaultAzureCredential,
+    clients: SpecialistClients,
     agent_name: str,
     request: str,
     timeout_seconds: float = 90,
 ) -> str:
-    async with AIProjectClient(
-        endpoint=project_endpoint,
-        credential=credential,
-        allow_preview=True,
-    ) as project_client:
-        async with project_client.get_openai_client(
-            agent_name=agent_name,
-            timeout=timeout_seconds,
-            max_retries=0,
-        ) as openai_client:
-            response = await openai_client.responses.create(input=request, store=False)
+    openai_client = clients.get(agent_name, timeout_seconds)
+    response = await openai_client.responses.create(input=request, store=False)
 
     if response.status != "completed":
         raise RuntimeError(f"Specialist agent {agent_name} did not complete")
@@ -45,10 +79,7 @@ async def invoke_specialist(
     return result
 
 
-def create_specialist_tools(
-    project_endpoint: str,
-    credential: DefaultAzureCredential,
-):
+def create_specialist_tools(clients: SpecialistClients):
     timeout_seconds = float(os.getenv("SPECIALIST_TIMEOUT_SECONDS", "90"))
     max_concurrency = int(os.getenv("SPECIALIST_MAX_CONCURRENCY", "4"))
     if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
@@ -64,9 +95,7 @@ def create_specialist_tools(
     async def review(agent_name: str, request: str) -> str:
         async with asyncio.timeout(timeout_seconds):
             async with semaphore:
-                result = await invoke_specialist(
-                    project_endpoint, credential, agent_name, request, timeout_seconds
-                )
+                result = await invoke_specialist(clients, agent_name, request, timeout_seconds)
                 return json.dumps({"status": "succeeded", "agent": agent_name, "output": result})
 
     configured = os.getenv("SPECIALIST_CONFIG")
@@ -97,7 +126,10 @@ async def main() -> None:
         )
     store_responses = os.getenv("AGENT_STORE_RESPONSES", "false").lower() == "true"
 
-    async with DefaultAzureCredential() as credential:
+    async with (
+        DefaultAzureCredential() as credential,
+        SpecialistClients(project_endpoint, credential) as specialist_clients,
+    ):
         agent = Agent(
             client=FoundryChatClient(
                 project_endpoint=project_endpoint,
@@ -107,7 +139,7 @@ async def main() -> None:
             ),
             name=os.getenv("AGENT_NAME", "review-coordinator-agent"),
             instructions=os.getenv("AGENT_INSTRUCTIONS", DEFAULT_INSTRUCTIONS),
-            tools=create_specialist_tools(project_endpoint, credential),
+            tools=create_specialist_tools(specialist_clients),
             default_options={"store": store_responses},
         )
         await ResponsesHostServer(agent).run_async()

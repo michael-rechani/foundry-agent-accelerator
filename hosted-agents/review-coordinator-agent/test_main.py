@@ -43,20 +43,24 @@ class CoordinatorTests(unittest.TestCase):
     def setUp(self) -> None:
         self.module = load_main_module()
 
-    def test_invoke_specialist_returns_response_text(self) -> None:
+    def mock_clients(self, response=None, side_effect=None):
         openai_client = MagicMock()
-        openai_client.__aenter__.return_value = openai_client
-        openai_client.responses.create = AsyncMock(return_value=SimpleNamespace(
+        openai_client.close = AsyncMock()
+        openai_client.responses.create = AsyncMock(return_value=response, side_effect=side_effect)
+        project_client = MagicMock()
+        project_client.close = AsyncMock()
+        project_client.get_openai_client.return_value = openai_client
+        self.module.AIProjectClient.reset_mock()
+        self.module.AIProjectClient.return_value = project_client
+        return project_client, openai_client
+
+    def test_invoke_specialist_returns_response_text(self) -> None:
+        project_client, openai_client = self.mock_clients(SimpleNamespace(
             output_text="  grounded finding  ", status="completed"
         ))
-        project_client = MagicMock()
-        project_client.__aenter__.return_value = project_client
-        project_client.get_openai_client.return_value = openai_client
-        self.module.AIProjectClient.return_value = project_client
+        clients = self.module.SpecialistClients("https://project.example", object())
 
-        result = asyncio.run(self.module.invoke_specialist(
-            "https://project.example", object(), "application-review-agent", "review"
-        ))
+        result = asyncio.run(self.module.invoke_specialist(clients, "application-review-agent", "review"))
 
         self.assertEqual(result, "grounded finding")
         project_client.get_openai_client.assert_called_once_with(
@@ -64,19 +68,31 @@ class CoordinatorTests(unittest.TestCase):
         )
         openai_client.responses.create.assert_awaited_once_with(input="review", store=False)
 
+    def test_specialist_clients_are_reused_until_closed(self) -> None:
+        async def run_check():
+            project_client, openai_client = self.mock_clients(SimpleNamespace(output_text="finding", status="completed"))
+            async with self.module.SpecialistClients("https://project.example", "credential") as clients:
+                for agent_name in ("application-review-agent", "application-review-agent", "case-review-agent"):
+                    await self.module.invoke_specialist(clients, agent_name, "review")
+                self.module.AIProjectClient.assert_called_once_with(
+                    endpoint="https://project.example", credential="credential", allow_preview=True
+                )
+                self.assertEqual(
+                    [call.kwargs["agent_name"] for call in project_client.get_openai_client.call_args_list],
+                    ["application-review-agent", "case-review-agent"],
+                )
+                openai_client.close.assert_not_awaited()
+            self.assertEqual(openai_client.close.await_count, 2)
+            project_client.close.assert_awaited_once()
+
+        asyncio.run(run_check())
+
     def test_invoke_specialist_rejects_empty_response(self) -> None:
-        openai_client = MagicMock()
-        openai_client.__aenter__.return_value = openai_client
-        openai_client.responses.create = AsyncMock(return_value=SimpleNamespace(output_text=" ", status="completed"))
-        project_client = MagicMock()
-        project_client.__aenter__.return_value = project_client
-        project_client.get_openai_client.return_value = openai_client
-        self.module.AIProjectClient.return_value = project_client
+        self.mock_clients(SimpleNamespace(output_text=" ", status="completed"))
+        clients = self.module.SpecialistClients("https://project.example", object())
 
         with self.assertRaisesRegex(RuntimeError, "returned an empty response"):
-            asyncio.run(self.module.invoke_specialist(
-                "https://project.example", object(), "case-review-agent", "review"
-            ))
+            asyncio.run(self.module.invoke_specialist(clients, "case-review-agent", "review"))
 
     def test_tools_route_to_configured_specialists(self) -> None:
         with (
@@ -93,20 +109,18 @@ class CoordinatorTests(unittest.TestCase):
                 return_value="finding",
             ) as invoke,
         ):
-            application_tool, case_tool = self.module.create_specialist_tools(
-                "https://project.example", object()
-            )
+            application_tool, case_tool = self.module.create_specialist_tools("clients")
             self.assertEqual(json.loads(asyncio.run(application_tool("application"))),
                              {"status": "succeeded", "agent": "applications", "output": "finding"})
             self.assertEqual(json.loads(asyncio.run(case_tool("case"))),
                              {"status": "succeeded", "agent": "cases", "output": "finding"})
 
         self.assertEqual(
-            [call.args[2:4] for call in invoke.call_args_list],
-            [("applications", "application"), ("cases", "case")],
+            [call.args[:3] for call in invoke.call_args_list],
+            [("clients", "applications", "application"), ("clients", "cases", "case")],
         )
 
-    def test_timeout_closes_clients_and_releases_slot(self) -> None:
+    def test_timeout_cancels_request_and_releases_slot(self) -> None:
         async def run_check():
             cancelled = asyncio.Event()
 
@@ -116,25 +130,20 @@ class CoordinatorTests(unittest.TestCase):
                 finally:
                     cancelled.set()
 
-            openai_client = MagicMock()
-            openai_client.__aenter__.return_value = openai_client
-            openai_client.responses.create = AsyncMock(side_effect=slow_response)
-            project_client = MagicMock()
-            project_client.__aenter__.return_value = project_client
-            project_client.get_openai_client.return_value = openai_client
-            self.module.AIProjectClient.return_value = project_client
+            _, openai_client = self.mock_clients(side_effect=slow_response)
+            clients = self.module.SpecialistClients("endpoint", object())
             with patch.dict(self.module.os.environ, {
                 "SPECIALIST_TIMEOUT_SECONDS": "0.05", "SPECIALIST_MAX_CONCURRENCY": "1"
             }):
-                application_tool, case_tool = self.module.create_specialist_tools("endpoint", object())
+                application_tool, case_tool = self.module.create_specialist_tools(clients)
             with self.assertRaises(TimeoutError):
                 await application_tool("request")
             self.assertTrue(cancelled.is_set())
-            openai_client.__aexit__.assert_awaited_once()
-            project_client.__aexit__.assert_awaited_once()
             openai_client.responses.create.side_effect = None
             openai_client.responses.create.return_value = SimpleNamespace(output_text="finding", status="completed")
             self.assertEqual(json.loads(await case_tool("request"))["output"], "finding")
+            await clients.close()
+            self.assertEqual(openai_client.close.await_count, 2)
 
         asyncio.run(run_check())
 
@@ -146,12 +155,12 @@ class CoordinatorTests(unittest.TestCase):
         with patch.dict(self.module.os.environ, {"SPECIALIST_CONFIG": json.dumps(specialists)}), patch.object(
             self.module, "invoke_specialist", return_value="finding"
         ) as invoke:
-            tools = self.module.create_specialist_tools("endpoint", object())
+            tools = self.module.create_specialist_tools("clients")
             self.assertEqual([tool.__name__ for tool in tools], [item["tool"] for item in specialists])
             for tool, specialist in zip(tools, specialists, strict=True):
                 self.assertEqual(tool.__doc__, specialist["description"])
                 self.assertEqual(json.loads(asyncio.run(tool("source")))["agent"], specialist["agent"])
-            self.assertEqual([call.args[2] for call in invoke.call_args_list], [item["agent"] for item in specialists])
+            self.assertEqual([call.args[1] for call in invoke.call_args_list], [item["agent"] for item in specialists])
 
     def test_invalid_registry_fails_before_serving(self) -> None:
         entry = {"tool": "review", "agent": "specialist", "description": "Review evidence."}
@@ -161,7 +170,7 @@ class CoordinatorTests(unittest.TestCase):
                          [{**entry, "endpoint": "override"}]):
             with self.subTest(registry=registry), patch.dict(self.module.os.environ, {"SPECIALIST_CONFIG": json.dumps(registry)}):
                 with self.assertRaises(ValueError):
-                    self.module.create_specialist_tools("endpoint", object())
+                    self.module.create_specialist_tools("clients")
 
     def test_concurrency_is_shared_between_specialists(self) -> None:
         async def run_check():
@@ -184,7 +193,7 @@ class CoordinatorTests(unittest.TestCase):
             with patch.dict(self.module.os.environ, {"SPECIALIST_MAX_CONCURRENCY": "1"}), patch.object(
                 self.module, "invoke_specialist", side_effect=invoke
             ):
-                application_tool, case_tool = self.module.create_specialist_tools("endpoint", object())
+                application_tool, case_tool = self.module.create_specialist_tools("clients")
                 tasks = [asyncio.create_task(tool("request")) for tool in (application_tool, case_tool)]
                 await asyncio.wait_for(started.wait(), 1)
                 release.set()
@@ -202,20 +211,13 @@ class CoordinatorTests(unittest.TestCase):
         ):
             with self.subTest(settings=settings), patch.dict(self.module.os.environ, settings):
                 with self.assertRaises(ValueError):
-                    self.module.create_specialist_tools("endpoint", object())
+                    self.module.create_specialist_tools("clients")
 
     def test_nonempty_failed_specialist_is_rejected(self) -> None:
-        openai_client = MagicMock()
-        openai_client.__aenter__.return_value = openai_client
-        openai_client.responses.create = AsyncMock(return_value=SimpleNamespace(
-            status="failed", output_text="partial output"
-        ))
-        project_client = MagicMock()
-        project_client.__aenter__.return_value = project_client
-        project_client.get_openai_client.return_value = openai_client
-        self.module.AIProjectClient.return_value = project_client
+        self.mock_clients(SimpleNamespace(status="failed", output_text="partial output"))
+        clients = self.module.SpecialistClients("endpoint", object())
         with self.assertRaisesRegex(RuntimeError, "did not complete"):
-            asyncio.run(self.module.invoke_specialist("endpoint", object(), "case-review-agent", "review"))
+            asyncio.run(self.module.invoke_specialist(clients, "case-review-agent", "review"))
 
 
 if __name__ == "__main__":

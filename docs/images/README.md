@@ -296,7 +296,9 @@ and loops:
 
 [scenario-tour.svg](scenario-tour.svg) and its [dark variant](scenario-tour-dark.svg)
 use the application, invoice, and casework screenshots as three separate
-customer stories. They share the same accessible frame and reduced-motion behavior.
+customer stories. The root README links to them from its story table rather
+than embedding them, because their first frame repeats the Lab tour's. They
+share the same accessible frame and reduced-motion behavior.
 
 A minimal window bar above the frames names the current step and shows a
 progress bar, so nothing covers the screenshots or their watermark. Both SVGs

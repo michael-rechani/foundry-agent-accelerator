@@ -159,6 +159,7 @@ module "ai_foundry" {
       }
       private_dns_zone_resource_id  = azurerm_private_dns_zone.this["key_vault"].id
       public_network_access_enabled = false
+      role_assignments              = local.agent_key_vault_role_assignments
     }
   } : {}
   storage_account_definition = var.enable_agent_service ? {
@@ -179,4 +180,12 @@ resource "azurerm_role_assignment" "deployer_foundry_user" {
   principal_id       = coalesce(var.deployment_principal_id, data.azurerm_client_config.current.object_id)
   role_definition_id = "/subscriptions/${var.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/53ca6127-db72-4b80-b1b0-d745d6d5456d"
   scope              = module.ai_foundry.ai_foundry_project_id["primary"]
+}
+
+# Microsoft Learn requires this for evaluation runs in a network-isolated project.
+resource "azurerm_role_assignment" "project_foundry_user" {
+  principal_id       = module.ai_foundry.ai_foundry_project_system_identity_principal_id["primary"]
+  principal_type     = "ServicePrincipal"
+  role_definition_id = "/subscriptions/${var.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/53ca6127-db72-4b80-b1b0-d745d6d5456d"
+  scope              = module.ai_foundry.ai_foundry_id
 }

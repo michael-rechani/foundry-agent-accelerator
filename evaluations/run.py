@@ -54,6 +54,7 @@ PROFILES = {
 }
 RUBRIC_VERSION = "review-rubric-v2"
 CRITERION = "review-quality"
+EVALUATOR_READY_DELAYS = (5, 10, 20)
 RUBRIC = {
     "type": "rubric",
     "pass_threshold": 1.0,
@@ -242,9 +243,11 @@ def parse_args(argv=None):
             or not re.fullmatch(r"/api/projects/[A-Za-z0-9_-]+", endpoint.path)
         ):
             parser.error("--endpoint must be an HTTPS Foundry project URL without credentials, query or fragment")
-        for name in ("agent_name", "judge_model"):
-            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", getattr(args, name)):
-                parser.error(f"Invalid --{name.replace('_', '-')}")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", args.agent_name):
+            parser.error("Invalid --agent-name")
+        # Model deployment names such as gpt-4.1 contain periods; agent names cannot.
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", args.judge_model):
+            parser.error("Invalid --judge-model")
         if not re.fullmatch(r"[1-9][0-9]*", args.agent_version):
             parser.error("--agent-version must be a positive integer version")
         if not re.fullmatch(r"[a-fA-F0-9]{40}", args.source_revision):
@@ -428,39 +431,61 @@ def wait_for_run(client, eval_id: str, run_id: str, timeout: int, interval: int)
 
 
 def assess_results(run, items, expected_ids: set[str]) -> dict:
-    counts = run.result_counts.model_dump()
+    counts = dict(run.result_counts.model_dump())
+    # Foundry also reports skipped cases; a skipped case was never graded.
+    skipped = counts.pop("skipped", 0)
     if (
         set(counts) != {"total", "passed", "failed", "errored"}
+        or type(skipped) is not int or skipped != 0
         or any(type(value) is not int or value < 0 for value in counts.values())
         or counts["total"] != len(expected_ids)
         or counts["passed"] + counts["failed"] + counts["errored"] != counts["total"]
     ):
-        raise RuntimeError("Evaluation returned missing or inconsistent result counts")
+        raise RuntimeError("Evaluation returned missing, skipped or inconsistent result counts")
+    if counts["errored"]:
+        raise RuntimeError(f"Evaluation could not grade {counts['errored']} case(s); inspect the run's native results")
     outcomes = {}
     native_results = {}
     for item in items:
         case_id = item.datasource_item.get("case_id")
         if not isinstance(case_id, str) or case_id not in expected_ids or case_id in outcomes:
             raise RuntimeError("Evaluation returned missing, duplicate or unexpected case IDs")
-        if item.status != "pass" and item.status != "fail":
+        # OpenAI reports pass or fail per item; Foundry reports completed and leaves the outcome to the result.
+        if item.status not in {"pass", "fail", "completed"}:
             raise RuntimeError(f"{case_id}: evaluation item did not finish successfully")
         if len(item.results) != 1 or item.results[0].name != CRITERION or type(item.results[0].passed) is not bool:
             raise RuntimeError(f"{case_id}: expected exactly one rubric result")
+        if getattr(item.results[0], "status", None) not in (None, "completed"):
+            raise RuntimeError(f"{case_id}: rubric result did not finish successfully")
         passed = item.results[0].passed
         score = item.results[0].score
         if type(score) not in (int, float) or not math.isfinite(score) or not 0 <= score <= 1:
             raise RuntimeError(f"{case_id}: missing or invalid normalized rubric score")
         if passed != (score >= RUBRIC["pass_threshold"]):
             raise RuntimeError(f"{case_id}: rubric score disagrees with its pass threshold")
-        if passed != (item.status == "pass"):
+        if item.status != "completed" and passed != (item.status == "pass"):
             raise RuntimeError(f"{case_id}: inconsistent evaluation item status")
         outcomes[case_id] = passed
         native_results[case_id] = {"name": CRITERION, "score": score, "passed": passed}
     if set(outcomes) != expected_ids:
         raise RuntimeError("Evaluation omitted one or more cases")
-    if counts["errored"] or counts["passed"] != sum(outcomes.values()):
+    if counts["passed"] != sum(outcomes.values()):
         raise RuntimeError("Evaluation item outcomes disagree with aggregate counts")
     return {"passed": all(outcomes.values()), "counts": counts, "cases": outcomes, "native_results": native_results}
+
+
+def create_evaluation(client, receipt, **request):
+    from openai import NotFoundError
+
+    # A just-created custom evaluator can briefly return 404; nothing is created on a 404.
+    for delay in (*EVALUATOR_READY_DELAYS, None):
+        try:
+            return client.evals.create(**request)
+        except NotFoundError:
+            if delay is None:
+                raise
+            emit(receipt, "evaluator_not_ready", retry_after_seconds=delay)
+            time.sleep(delay)
 
 
 def evaluate(project, client, args, data, cases, receipt) -> bool:
@@ -494,7 +519,8 @@ def evaluate(project, client, args, data, cases, receipt) -> bool:
         value = getattr(args, name)
         if value is not None:
             metadata[name] = value
-    evaluation = client.evals.create(
+    evaluation = create_evaluation(
+        client, receipt,
         name=f"{args.sample}-{data['dataset_version']}",
         metadata=metadata,
         data_source_config={

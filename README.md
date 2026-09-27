@@ -90,37 +90,22 @@ and shared safeguards are not implemented, registered, or deployed agents.
 Choose a story in **Explore demos**. Each one pairs fictional evidence with
 findings to look for and a decision that stays with a person.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/scenario-tour-dark.svg">
-  <img alt="Three illustrative customer stories with mocked APIs: missing application evidence, supplier invoice discrepancies, and a casework brief. Expected findings are examples, not live model results." src="docs/images/scenario-tour.svg">
-</picture>
+<a id="find-the-missing-evidence"></a>
+<a id="catch-what-does-not-add-up"></a>
+<a id="turn-scattered-notes-into-a-brief"></a>
 
-### Find the missing evidence
+| Story | What to spot | People decide |
+| --- | --- | --- |
+| [Find the missing evidence](docs/showcase.md#find-the-missing-evidence) | A missing budget, a named owner, and conflicting schedules. | Verify the documents and determine the application outcome. |
+| [Catch what does not add up](docs/showcase.md#catch-what-does-not-add-up) | Billed quantities and prices that differ from a fictional purchase order. | Resolve damaged items and determine what to pay. |
+| [Turn scattered notes into a brief](docs/showcase.md#turn-scattered-notes-into-a-brief) | Supported facts, conflicting dates, and missing evidence. | Verify the authoritative record and determine the next steps. |
 
-Spot a missing budget, a named owner, and conflicting schedules.
-
-**People decide:** verify the documents and determine the application outcome.
-Read the [application-completeness walkthrough](docs/showcase.md#find-the-missing-evidence).
-
-### Catch what does not add up
-
-Compare billed quantities and prices with a fictional purchase order.
-
-**People decide:** resolve damaged items and determine what to pay.
-Read the [supplier-invoice walkthrough](docs/showcase.md#catch-what-does-not-add-up).
-
-This scenario needs a ready **Supplier invoice reviewer** created from its
+The invoice story needs a ready **Supplier invoice reviewer** created from its
 template. It uses simulated lookups, not a finance integration.
 
-### Turn scattered notes into a brief
-
-Separate supported facts, conflicting dates, and missing evidence.
-
-**People decide:** verify the authoritative record and determine the next steps.
-Read the [casework walkthrough](docs/showcase.md#turn-scattered-notes-into-a-brief).
-
-These are fictional walkthroughs, not guaranteed answers or measured business
-results.
+[Watch all three stories](docs/images/scenario-tour.svg) ·
+[Dark theme](docs/images/scenario-tour-dark.svg). These are fictional
+walkthroughs, not guaranteed answers or measured business results.
 
 ## What you can show
 

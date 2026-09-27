@@ -37,10 +37,18 @@ resource "azapi_resource" "agent_storage" {
         defaultAction       = "Deny"
         ipRules             = []
         virtualNetworkRules = []
-        resourceAccessRules = [{
-          resourceId = "/subscriptions/${var.subscription_id}/providers/Microsoft.Security/datascanners/StorageDataScanner"
-          tenantId   = data.azurerm_client_config.current.tenant_id
-        }]
+        resourceAccessRules = [
+          {
+            resourceId = "/subscriptions/${var.subscription_id}/providers/Microsoft.Security/datascanners/StorageDataScanner"
+            tenantId   = data.azurerm_client_config.current.tenant_id
+          },
+          # Foundry's hosted asset store writes evaluation results here as the project identity from outside the VNet.
+          # The ID is built from names because the Foundry module depends on this account.
+          {
+            resourceId = "/subscriptions/${var.subscription_id}/resourceGroups/${azurerm_resource_group.this.name}/providers/Microsoft.CognitiveServices/accounts/${local.foundry_account_name}/projects/${local.foundry_project_name}"
+            tenantId   = data.azurerm_client_config.current.tenant_id
+          },
+        ]
       }
     }
   }
