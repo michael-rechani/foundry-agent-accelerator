@@ -113,6 +113,18 @@ already-started work. The coordinator keeps one authenticated client per
 specialist for the life of the process, so repeated calls reuse open
 connections. Each request still gets a current access token.
 
+The coordinator also reuses specialist sessions to skip the cold start of a new
+sandbox. After a specialist call completes, the coordinator sends that call's
+`agent_session_id` with its next call to the same specialist. Each session
+serves one call at a time, and a failed call discards its session. A session is
+reused for at most `SPECIALIST_SESSION_REUSE_SECONDS` after it's created, 600 by
+default, which is shorter than the default 900-second idle timeout. Set it to
+`0` to turn reuse off. A session stays on the agent version that created it, so
+after you deploy a new specialist version, a running coordinator can keep
+calling the previous version until the window ends. Reuse doesn't carry
+conversation history between calls because the coordinator doesn't store
+responses and doesn't send a previous response or conversation ID.
+
 ## Deployment walkthrough
 
 Terraform creates the baseline. The following procedures publish agent code
@@ -445,7 +457,9 @@ compliance sweeps. Those scenarios are covered by
 - Choose the smallest sandbox, 0.5 vCPU/1 GiB initially, and right-size from
   Application Insights data.
 - Set the shortest practical idle timeout because idle time is billable until
-  the sandbox is deprovisioned.
+  the sandbox is deprovisioned. Every call without an `agent_session_id` starts
+  a new session and sandbox. Reusing a session for related calls avoids that
+  cold start and leaves fewer sandboxes idle.
 - Keep secrets in managed connections or Key Vault, never in source, images, or
   version environment variables.
 - Apply Responsible AI mitigations and validate all tool inputs and outputs.

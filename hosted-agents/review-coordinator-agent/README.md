@@ -101,6 +101,7 @@ deploy its specialists, grant permissions, or isolate customer data.
 | `SPECIALIST_CONFIG` | Default two review tools | Validated JSON specialist registry; set by profile deployment, overrides legacy name settings. |
 | `SPECIALIST_TIMEOUT_SECONDS` | `90` | Deadline includes waiting for a slot. |
 | `SPECIALIST_MAX_CONCURRENCY` | `4` | Shared in-flight limit per process. |
+| `SPECIALIST_SESSION_REUSE_SECONDS` | `600` | How long a completed specialist session is reused, from 0 to 3600 seconds. `0` turns reuse off. |
 
 The shared deployer sets project and model values and the default runtime
 behavior. Profiles configure specialist names, descriptions, and tool names.

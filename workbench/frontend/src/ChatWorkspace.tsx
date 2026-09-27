@@ -28,6 +28,10 @@ import { ExploreDemos, DemoRunGuide } from './ExploreDemos'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
 type SavedVersion = { id: string; _etag: string }
 
+// Identifies one conversation so the server can reuse its warm agent session.
+const newThread = () =>
+  typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : undefined
+
 const errors: Record<string, string> = {
   preview_only: 'Foundry is not connected. No agent was invoked.',
   busy: 'The workbench is at capacity. Try again shortly.',
@@ -89,6 +93,7 @@ export default function ChatWorkspace() {
   const [continuing, setContinuing] = useState(false)
   const [presenting, setPresenting] = useState(false)
   const [activeDemo, setActiveDemo] = useState<DemoScenario | null>(null)
+  const [thread, setThread] = useState(newThread)
   const historyRequest = useHistoryClient(config?.history_timeout_ms)
   const controller = useRef<AbortController | null>(null)
   const editor = useRef<HTMLTextAreaElement>(null)
@@ -102,7 +107,12 @@ export default function ChatWorkspace() {
   const characters =
     history.reduce((total, message) => total + [...message.content].length, 0) +
     [...draft].length
-  const payload = JSON.stringify({ agent_id: selected, input: draft, history })
+  const payload = JSON.stringify({
+    agent_id: selected,
+    input: draft,
+    history,
+    thread,
+  })
   const requestBytes = new TextEncoder().encode(payload).length
   const limitReasons = config
     ? [
@@ -261,6 +271,7 @@ export default function ChatWorkspace() {
 
   function resetConversation(agentId: string, initialDraft = '') {
     setSelected(agentId)
+    setThread(newThread())
     setTurns([])
     setDraft(initialDraft)
     setPending('')
@@ -373,6 +384,7 @@ export default function ChatWorkspace() {
       }
       setSaved({ id: data.id, _etag: data._etag })
       setSelected(data.agent_id)
+      setThread(newThread())
       setTurns(data.turns.map((turn: Turn) => ({ ...turn, stored: true })))
       setDirty(false)
       setDraft('')

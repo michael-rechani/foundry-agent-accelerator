@@ -48,7 +48,10 @@ async function workspace(
   const state = {
     configRequests: 0,
     document: null as Document | null,
-    requests: [] as { history: { role: string; content: string }[] }[],
+    requests: [] as {
+      history: { role: string; content: string }[]
+      thread: string
+    }[],
     saves: [] as { turns: Turn[] }[],
     updates: [] as string[],
     deletes: [] as string[],
@@ -264,7 +267,14 @@ test('default helper explains its job and offers example tasks without auto-send
     page.getByRole('button', { name: 'Save to shared history' }),
   ).toBeEnabled()
   expect(state.requests).toEqual([
-    { agent_id: 'customer-review', input: proposal.text, history: [] },
+    {
+      agent_id: 'customer-review',
+      input: proposal.text,
+      history: [],
+      thread: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      ),
+    },
   ])
   await page.locator('.receipt-details > summary').click()
   await expect(
@@ -737,6 +747,7 @@ test('save, reopen, follow up, update and delete shared history', async ({
     'user',
     'assistant',
   ])
+  expect(state.requests[1].thread).not.toBe(state.requests[0].thread)
   await page.getByRole('button', { name: 'Save to shared history' }).click()
   await expect(page.getByText('Saved / shared', { exact: true })).toBeVisible()
   expect(state.updates).toEqual(['v1'])
@@ -756,11 +767,12 @@ test('save, reopen, follow up, update and delete shared history', async ({
 test('conflicting save preserves local replies and allows export', async ({
   page,
 }) => {
-  await workspace(page, { conflict: true })
+  const state = await workspace(page, { conflict: true })
   await send(page)
   await page.getByRole('button', { name: 'Save to shared history' }).click()
   await expect(page.getByText('Saved / shared', { exact: true })).toBeVisible()
   await send(page, 'Keep this local follow-up')
+  expect(state.requests[1].thread).toBe(state.requests[0].thread)
   await page.getByRole('button', { name: 'Save to shared history' }).click()
   await expect(page.getByRole('status')).toContainText(
     'changed in another browser',
@@ -1054,6 +1066,7 @@ test('continuation previews context and leaves saved source unchanged', async ({
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect.poll(() => state.requests.length).toBe(2)
   expect(state.requests[1].history).toEqual([])
+  expect(state.requests[1].thread).not.toBe(state.requests[0].thread)
 })
 
 test('composer grows within viewport bounds and shrinks again', async ({

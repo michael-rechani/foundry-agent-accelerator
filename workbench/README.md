@@ -243,6 +243,7 @@ an immutable audit trail.
 | Composer height | Up to 240 pixels or 25% of viewport height. | **Conversation limits** shows Unicode characters, UTF-8 JSON bytes, and completed replies. Warnings identify the exhausted limit. |
 | History wait | Browser waits up to 45 seconds. | A timed-out history request doesn't clear local work. An interrupted save may have completed remotely; check **Shared history** before repeating it. |
 | Stop waiting | Browser wait only. | Cancellation doesn't guarantee remote agent execution stopped. Requests are not automatically retried. |
+| Agent session reuse | Up to 10 minutes per chat and agent. | Follow-ups in the same chat reuse that chat's Foundry agent session, which skips the cold start of a new sandbox. The browser sends a random chat ID, and the Foundry session ID stays in server memory until the window ends or the Lab restarts. A new, reopened, or continued chat starts a new session, and a failed request discards its session. Reuse doesn't carry history: the browser still sends the bounded conversation each turn. A reused session stays on the agent version that created it, so a newly deployed version applies to new chats or after the window ends. Locally, set `WORKBENCH_SESSION_REUSE_SECONDS` from 0 to 3600; `0` turns reuse off. Document reviews don't reuse sessions. |
 
 Save state and expandable **Conversation limits** appear once there is a draft or
 conversation. They don't add status rows to an empty chat.
@@ -349,7 +350,9 @@ registry/builds, and existing network resources, so it is not the total Lab bill
 | Uploads and rejections | Review body uploads have a five-second server deadline. Rejections return HTTP 429 with `Retry-After: 60`. Responses are size-bounded. |
 
 These admission limits are process-local. Do not increase workers or replicas
-without distributed controls. Closing the tab, disabling new creation, or
+without distributed controls. Reused agent sessions are also process-local; with
+more replicas, a follow-up that reaches another replica starts a new session.
+Closing the tab, disabling new creation, or
 stopping the browser wait doesn't stop an existing hosted runtime. Retire it
 explicitly.
 
