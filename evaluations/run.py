@@ -312,7 +312,7 @@ def agent_identity(
     configuration = {key: environment.get(key) for key in (
         "FOUNDRY_MODEL_NAME", "AGENT_STORE_RESPONSES", "AGENT_INSTRUCTIONS",
         "SPECIALIST_CONFIG", "APPLICATION_REVIEW_AGENT_NAME", "CASE_REVIEW_AGENT_NAME",
-        "SPECIALIST_TIMEOUT_SECONDS", "SPECIALIST_MAX_CONCURRENCY",
+        "SPECIALIST_TIMEOUT_SECONDS", "SPECIALIST_MAX_CONCURRENCY", "SPECIALIST_SESSION_REUSE_SECONDS",
     )}
     return {
         "name": name, "version": routed_version, "model": model_identity(project, model),

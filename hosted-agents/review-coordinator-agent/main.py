@@ -2,6 +2,7 @@ import asyncio
 import json
 import math
 import os
+import time
 from pathlib import Path
 
 from agent_framework import Agent
@@ -18,17 +19,45 @@ DEFAULT_INSTRUCTIONS = (Path(__file__).parent / "instructions.md").read_text(
 )
 
 
+def session_reuse_seconds() -> float:
+    value = float(os.getenv("SPECIALIST_SESSION_REUSE_SECONDS", "600"))
+    if not math.isfinite(value) or not 0 <= value <= 3600:
+        raise ValueError("SPECIALIST_SESSION_REUSE_SECONDS must be between 0 and 3600")
+    return value
+
+
 class SpecialistClients:
     """Keeps one authenticated client per specialist so calls reuse open connections.
 
     Each client fetches a current token for every request, so reuse does not pin an expiring token.
+    Completed specialist sessions are also kept for a bounded time so later calls skip a cold start.
+    A session serves one call at a time, and a failed call discards its session.
     """
 
-    def __init__(self, project_endpoint: str, credential: DefaultAzureCredential) -> None:
+    def __init__(
+        self,
+        project_endpoint: str,
+        credential: DefaultAzureCredential,
+        reuse_seconds: float | None = None,
+    ) -> None:
         self._project_endpoint = project_endpoint
         self._credential = credential
         self._project_client = None
         self._clients = {}
+        self._reuse_seconds = session_reuse_seconds() if reuse_seconds is None else reuse_seconds
+        self._idle_sessions = {}
+
+    def lease_session(self, agent_name: str) -> tuple[str, float] | None:
+        sessions = self._idle_sessions.get(agent_name, [])
+        while sessions:
+            session_id, created = sessions.pop()
+            if time.monotonic() - created < self._reuse_seconds:
+                return session_id, created
+        return None
+
+    def release_session(self, agent_name: str, session_id: object, created: float) -> None:
+        if isinstance(session_id, str) and session_id and time.monotonic() - created < self._reuse_seconds:
+            self._idle_sessions.setdefault(agent_name, []).append((session_id, created))
 
     def get(self, agent_name: str, timeout_seconds: float):
         client = self._clients.get(agent_name)
@@ -48,6 +77,7 @@ class SpecialistClients:
         return client
 
     async def close(self) -> None:
+        self._idle_sessions = {}
         clients, self._clients = list(self._clients.values()), {}
         project_client, self._project_client = self._project_client, None
         for client in clients:
@@ -69,13 +99,18 @@ async def invoke_specialist(
     timeout_seconds: float = 90,
 ) -> str:
     openai_client = clients.get(agent_name, timeout_seconds)
-    response = await openai_client.responses.create(input=request, store=False)
+    leased = clients.lease_session(agent_name)
+    started = time.monotonic()
+    options = {"extra_body": {"agent_session_id": leased[0]}} if leased else {}
+    response = await openai_client.responses.create(input=request, store=False, **options)
 
     if response.status != "completed":
         raise RuntimeError(f"Specialist agent {agent_name} did not complete")
     result = response.output_text.strip()
     if not result:
         raise RuntimeError(f"Specialist agent {agent_name} returned an empty response")
+    session_id = (getattr(response, "model_extra", None) or {}).get("agent_session_id") or (leased and leased[0])
+    clients.release_session(agent_name, session_id, leased[1] if leased and session_id == leased[0] else started)
     return result
 
 

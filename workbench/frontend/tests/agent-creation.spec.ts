@@ -195,6 +195,7 @@ type ChatRequest = {
   agent_id: string
   input: string
   history: { role: string; content: string }[]
+  thread: string
 }
 type SavedChat = {
   id: string
@@ -865,7 +866,14 @@ test('publishes reviewed setup, uses its real ID in chat, saves and restores his
     page.getByRole('button', { name: 'Save to shared history' }),
   ).toBeEnabled()
   expect(state.chat).toEqual([
-    { agent_id: state.record!.id, input: sample, history: [] },
+    {
+      agent_id: state.record!.id,
+      input: sample,
+      history: [],
+      thread: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      ),
+    },
   ])
   await illustrativeScreenshot(page, testInfo, 'creation-chat.png')
   const downloadEvent = page.waitForEvent('download')

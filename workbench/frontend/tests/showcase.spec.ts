@@ -81,7 +81,12 @@ async function setup(
   const state = {
     writes: [] as {
       path: string
-      body: { agent_id: string; input: string; history: unknown[] }
+      body: {
+        agent_id: string
+        input: string
+        history: unknown[]
+        thread: string
+      }
     }[],
   }
   await page.route('**/api/**', async (route) => {
@@ -195,6 +200,9 @@ test('loading a demo preserves unsaved work until confirmed and never auto-sends
       agent_id: guidedReview.id,
       input: demoScenarios[0].input,
       history: [],
+      thread: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      ),
     },
   })
 })

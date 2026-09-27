@@ -125,7 +125,7 @@ class SDKContractTests(unittest.TestCase):
                 requests.append(request)
                 return httpx2.Response(200, json={
                     "id": "resp-test", "object": "response", "created_at": 0,
-                    "status": "completed", "model": "test", "output": [{
+                    "status": "completed", "model": "test", "agent_session_id": "session-test", "output": [{
                         "id": "msg-test", "type": "message", "role": "assistant",
                         "status": "completed", "content": [{
                             "type": "output_text", "text": "grounded finding", "annotations": []
@@ -158,6 +158,8 @@ class SDKContractTests(unittest.TestCase):
                 "/agents/application-review-agent/endpoint/protocols/openai/responses"
             ))
             self.assertEqual(json.loads(requests[0].content)["store"], False)
+            self.assertNotIn("agent_session_id", json.loads(requests[0].content))
+            self.assertEqual(json.loads(requests[1].content)["agent_session_id"], "session-test")
             self.assertEqual(requests[0].headers["authorization"], "Bearer test-only-token")
             tools = module.create_specialist_tools(clients)
             client = FoundryChatClient(project_endpoint="https://example.test", model="test",
