@@ -189,7 +189,7 @@ managed identities, not API keys.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/azure-architecture-dark.svg">
-  <img alt="Azure architecture at a glance: one subscription and resource group hold an admin network, a private workload network, Microsoft Foundry, data services, and shared services. The admin network has subnets for optional Azure Bastion and an optional jumpbox and is peered with the workload network. The workload network has subnets for the Lab in an internal Azure Container Apps environment, the agent network delegated to Foundry, and one private endpoint for each service. Seven numbered steps follow a request from the presenter through Bastion, the jumpbox, and the Lab to Foundry Agent Service, Foundry Models, Azure Cosmos DB, Azure Storage, and Azure AI Search" src="docs/images/azure-architecture.svg">
+  <img alt="Azure architecture at a glance: one subscription and resource group hold an admin network, a private workload network, Microsoft Foundry, data services, and shared services. The admin network has subnets for optional Azure Bastion and an optional jumpbox and is peered with the workload network. The workload network has subnets for the Lab in an internal Azure Container Apps environment, the agent network delegated to Foundry, and one private endpoint for each service. Seven numbered steps follow a request from the presenter through Bastion, the jumpbox, and the Lab to Foundry Agent Service and Foundry Models, then through the agent network to Azure Cosmos DB, Azure Storage, and Azure AI Search" src="docs/images/azure-architecture.svg">
 </picture>
 
 1. A presenter opens Azure Bastion from the Azure portal.
@@ -199,8 +199,9 @@ managed identities, not API keys.
 4. The Lab calls Foundry Agent Service through the Foundry private endpoint,
    signing in with its managed identity.
 5. The agents run on a Foundry Models deployment, GPT-4.1 by default.
-6. From the agent subnet, Foundry agents keep conversations, files, and search
-   data in Cosmos DB, Storage, and AI Search through their private endpoints.
+6. Foundry Agent Service connects the agents to the delegated agent subnet.
+   From there, they keep conversations, files, and search data in Cosmos DB,
+   Storage, and AI Search through their private endpoints.
 7. The Lab saves its records in Cosmos DB through the same private endpoint.
 
 *Logical view with Terraform default addresses, not a resource inventory.
