@@ -55,6 +55,16 @@ agreement.
 
 ## Workflow
 
+Before creating a shared record, the form explains that its text will be saved
+for everyone with Lab access and that backup retention is separate:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-review-privacy-dark.png">
+  <img alt="Illustrative UI test with mocked APIs: a fictional Document review form shows its shared-data and retention notice beside Create shared review, before anything is saved" src="images/screenshots/lab-review-privacy.png">
+</picture>
+
+*Illustrative browser-test screenshot; no live model call or saved record.*
+
 1. Choose **New review**.
 1. Enter a title and **Checklist, one item per line**.
 1. Paste text into **Documents to check**. **Use fictional example** fills a

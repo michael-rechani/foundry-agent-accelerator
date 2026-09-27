@@ -73,11 +73,3 @@ module "api_management" {
 
   depends_on = [azurerm_subnet_network_security_group_association.api_management]
 }
-
-resource "azurerm_role_assignment" "api_management_foundry_user" {
-  count = var.enable_api_management ? 1 : 0
-
-  principal_id       = module.api_management[0].resource.identity[0].principal_id
-  role_definition_id = "/subscriptions/${var.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/53ca6127-db72-4b80-b1b0-d745d6d5456d"
-  scope              = module.ai_foundry.ai_foundry_project_id["primary"]
-}

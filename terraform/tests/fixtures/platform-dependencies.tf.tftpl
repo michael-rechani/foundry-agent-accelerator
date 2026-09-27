@@ -11,6 +11,11 @@ module "ai_foundry" {
   source = "./tests/fixtures/foundry"
 }
 
+module "api_management" {
+  count  = var.enable_api_management ? 1 : 0
+  source = "./tests/fixtures/api-management"
+}
+
 resource "azurerm_resource_group" "this" {
   name     = "rg-platform-test-12345"
   location = local.deployment_location

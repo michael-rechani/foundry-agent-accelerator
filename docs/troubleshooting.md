@@ -12,6 +12,7 @@ results from a live deployment.
 
 ## In this guide
 
+- [Tools and dependencies](#tools-and-dependencies)
 - [Deploy the platform](#deploy-the-platform)
 - [Publish agents](#publish-agents)
 - [Deploy the Lab](#deploy-the-lab)
@@ -21,6 +22,20 @@ results from a live deployment.
 - [Access, Bastion, and ingress](#access-bastion-and-ingress)
 - [Permissions](#permissions)
 - [Related content](#related-content)
+
+## Tools and dependencies
+
+Check the [toolchain baseline](../README.md#tool-versions-and-upgrades) before
+changing configuration or credentials.
+
+| Symptom | Check | Safe next step |
+| --- | --- | --- |
+| `Unsupported Terraform Core version` | `terraform version` and the root's `required_version` | Use 1.16.4 or a later 1.16 patch. Pass its full path with `-TerraformCommand` to test helpers; do not relax the constraint. |
+| Python imports or SDK attributes differ from CI | `python --version`, `python -m pip --version`, and the task's requirements | Use a Python 3.14 virtual environment and install its pinned requirements. Keep evaluation dependencies isolated; run `python -m pip check`. |
+| Vite or Node's TypeScript unit runner fails before tests start | `node --version` and the frontend lockfile | Select Node 24 (CI uses 24.21.0), then run `npm ci`. Do not regenerate the lock to accommodate an old runtime. |
+| `npm ci` reports a tarball 404, TLS failure, or integrity error | Approved registry/mirror and the exact URL/version in the error | Fix or wait for the approved source; do not disable TLS/integrity checks or silently substitute packages. Exact-pin CI can validate a PR while a local mirror is unavailable. |
+| A PowerShell helper fails on syntax before doing work | `$PSVersionTable.PSVersion` | Use PowerShell 7 (`pwsh`), the shell used by CI, rather than Windows PowerShell 5.1. |
+| A generic Foundry tool asks for `azd` during local checks | Which repository command you are actually running | This repo's Python, frontend, Terraform mock tests, and artwork scripts do not require `azd` or Azure setup. Follow the task-specific repository guide. |
 
 ## Deploy the platform
 
@@ -68,6 +83,7 @@ results from a live deployment.
 | The Lab won't load its configuration. | Bootstrap deadline and settings | [Configuration loading](../workbench/README.md#configuration-loading) |
 | A chat stops waiting, times out, or a save is rejected. | Request limits and ETag checks | [Limits and request behavior](../workbench/README.md#limits-and-request-behavior), [failure and capacity boundaries](architecture.md#failure-and-capacity-boundaries) |
 | Requests return HTTP 429. | Process-local admission limits | [Storage and cost](../workbench/README.md#storage-and-cost) |
+| A follow-up starts cold after a restart, delay, or overlapping request. | Process-local session lease/cache | [Agent session reuse](../workbench/README.md#agent-session-reuse) |
 | `/api/health/dependencies` returns 503. | Foundry or Cosmos access | [Diagnostics and caching](../workbench/README.md#diagnostics-and-caching) |
 | A review stays **running** or shows **Interrupted**. | Review recovery window | [Recover an interrupted review](review-workflow.md#recover-an-interrupted-review) |
 | A review state or next action is unclear. | Review lifecycle | [Review states](review-workflow.md#review-states) |

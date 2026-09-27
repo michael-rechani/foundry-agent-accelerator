@@ -35,6 +35,8 @@ resource "azurerm_cosmosdb_sql_container" "history" {
   }
 }
 
+# Cosmos DB Built-in Data Contributor: shared Lab records in this container only.
+# This is a Cosmos data-plane role, not an Azure RBAC role or per-user authorization.
 resource "azurerm_cosmosdb_sql_role_assignment" "history" {
   resource_group_name = var.resource_group_name
   account_name        = var.cosmos_account_name

@@ -38,7 +38,7 @@ no model calls. This is a sample, not an official Microsoft product.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/lab-tour-dark.svg">
-  <img alt="Illustrative UI test with mocked APIs: Explore demos, prepare an agent, try Chat, and inspect a Document review. No live model results or saved records." src="docs/images/lab-tour.svg">
+  <img alt="Illustrative UI test with mocked APIs: Explore demos, prepare an agent, try Chat, and prepare a Document review, with shared-data notices before sending or saving. No live model results or saved records." src="docs/images/lab-tour.svg">
 </picture>
 
 **Explore demos → Create agent → Chat → Document reviews**
@@ -284,6 +284,40 @@ All diagrams share one [style guide](docs/images/README.md#diagram-style).
 - Permission to deploy resources and assign roles.
 - Model quota and approved private network access.
 - An existing Azure Storage container for Terraform state.
+
+### Tool versions and upgrades
+
+Check only the tools needed for your task. Reading docs, preparing fictional
+inputs, and running mocked tests need no Azure sign-in or end-user Entra setup.
+Local tests do not require `azd`.
+
+| Tool | Repository baseline | When needed / source of truth |
+| --- | --- | --- |
+| Terraform | 1.16.4 or a later **1.16 patch**, not 1.17 | Infrastructure and mock-provider tests. Each root's `required_version` enforces `~> 1.16.4`; CI uses 1.16.4. Keep its committed `.terraform.lock.hcl`. |
+| Python | 3.14 | Backend, hosted agents, and offline Python tests. Use that interpreter to create a virtual environment, then install the task's `requirements*.txt`. Evaluation dependencies use a separate environment. |
+| Node.js | 24; CI and the image build use **24.21.0** | Lab frontend only. Run `npm ci` against [`package-lock.json`](workbench/frontend/package-lock.json), not an unpinned install. |
+| PowerShell | 7 (`pwsh`); no patch pinned | Repository `.ps1` helpers and artwork generation. Windows PowerShell 5.1 is not the CI shell. |
+| Azure CLI | No minimum version pinned by this repository | Azure authentication and the documented operator/build helpers only; not needed for offline unit/browser tests. Use an organization-approved current release. |
+| Docker | No engine version pinned; Linux `amd64` builds | The local path in [`workbench/build.ps1`](workbench/build.ps1), not ordinary UI/Python tests. Base images are digest-pinned in the Dockerfile. |
+
+Check the selected executables with `terraform version`, `python --version`,
+`node --version`, `$PSVersionTable.PSVersion`, and, when applicable, `az version`
+and `docker version`. A full executable path avoids a stale Windows PATH or a
+different Python on PATH; Terraform test helpers accept `-TerraformCommand`.
+Do not lower pins to make an older local tool pass.
+
+After pulling an update, recreate or update the affected Python environment and
+rerun `npm ci` when the frontend lock changes. Ordinary Terraform initialization
+uses the lock; use `init -upgrade` only for an intentional, reviewed provider or
+module update. Review SDK/API compatibility, lockfile and image-digest changes,
+and the [automated release checks](#automated-checks) together. A package-mirror
+404 or TLS failure is an installation problem, not a reason to rewrite the
+lockfile: use an approved source or exact-pin CI and disclose any local version
+differences. Passing offline checks is not a deployment acceptance test; any
+private rollout or billable live check still needs separate approval.
+
+Start with the [troubleshooting index](docs/troubleshooting.md#tools-and-dependencies)
+for version, import, and dependency-install failures.
 
 ### Deployment order
 

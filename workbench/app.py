@@ -226,8 +226,11 @@ class FoundryGateway:
         # A chat thread reuses its Foundry session to skip a sandbox cold start. The session ID never leaves the server.
         key = (thread, agent["agent"]) if thread and self.settings.session_reuse_seconds > 0 else None
         leased = self._sessions.pop(key, None) if key else None
+        reuse = "hit" if leased else "miss" if key else "disabled"
         if leased and time.monotonic() - leased[1] >= self.settings.session_reuse_seconds:
             leased = None
+            reuse = "expired"
+        LOGGER.info(json.dumps({"event": "workbench_session", "reuse": reuse, "cached_sessions": len(self._sessions)}))
         started = time.monotonic()
         options = {"extra_body": {"agent_session_id": leased[0]}} if leased else {}
         response = await client.responses.create(input=prompt, store=False, stream=False, **options)
@@ -241,10 +244,16 @@ class FoundryGateway:
         if not isinstance(session_id, str) or not session_id or now - created >= reuse:
             return
         self._sessions[key] = (session_id, created)
-        for stale in [item for item, (_, since) in self._sessions.items() if now - since >= reuse]:
+        expired = [item for item, (_, since) in self._sessions.items() if now - since >= reuse]
+        for stale in expired:
             del self._sessions[stale]
+        evicted = 0
         while len(self._sessions) > MAX_REUSED_SESSIONS:
             del self._sessions[next(iter(self._sessions))]
+            evicted += 1
+        if expired or evicted:
+            LOGGER.info(json.dumps({"event": "workbench_session_eviction", "expired": len(expired),
+                                   "capacity": evicted, "cached_sessions": len(self._sessions)}))
 
     async def close(self):
         self._sessions = {}

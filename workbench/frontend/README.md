@@ -9,6 +9,9 @@ backend, private access, Cosmos retention, and deployment instructions, see the
 
 ## Run local checks
 
+Use [Node 24 and the committed lockfile](../../README.md#tool-versions-and-upgrades).
+The toolchain guide also covers upgrades and unavailable package mirrors.
+
 From this directory:
 
 ```powershell

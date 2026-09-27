@@ -14,7 +14,7 @@ images readable at README width and on mobile.
 | Diagrams | `.template.svg` files such as `azure-architecture.template.svg` | `./docs/images/build-architecture.ps1` |
 | Azure service icons | Unmodified SVG files in `azure-icons/` | Copied unchanged from the official Azure Architecture Center icon set. |
 | Lab screenshots | Playwright tests in `workbench/frontend/tests/` | `npm test -- --project=desktop` in `workbench/frontend/`, then `./docs/images/refresh-screenshots.ps1` from the repo root |
-| README and scenario tours | The twelve screenshots in `screenshots/` | `./docs/images/build-tour.ps1`, then `./docs/images/build-tour.ps1 -Tour scenarios` |
+| README and scenario tours | Screenshots in `screenshots/` | `./docs/images/build-tour.ps1`, then `./docs/images/build-tour.ps1 -Tour scenarios` |
 
 ## Diagrams
 
@@ -259,15 +259,17 @@ links keep pointing to the light SVG and the template.
 The screenshots in `screenshots/` come from the Lab's browser tests. The tests
 replace the backend with mocked API responses, so the images show real UI
 layout but not live model answers or saved records. Each image carries the
-**ILLUSTRATIVE UI TEST** watermark in its lower-right corner; keep it visible
+**ILLUSTRATIVE UI TEST** watermark in its lower-right corner, or in the empty
+lower-left sidebar for desktop privacy captures so no notice is obscured; keep it visible
 and say "illustrative" in the caption and alt text wherever you use one.
 
 | Screenshot | Shows | Test output | Used in |
 | --- | --- | --- | --- |
-| [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide and example tasks | `demo-starters.png` | [README tour](#readme-tour), [demo guide](../demos.md#a-short-demonstration) |
+| [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide, example tasks, and inline shared-data notice | `demo-starters.png` | [README tour](#readme-tour), [demo guide](../demos.md#a-short-demonstration) |
 | [lab-chat-start-dark.png](screenshots/lab-chat-start-dark.png) | The same **Chat** with the **System** theme and a dark color scheme | `demo-starters-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
-| [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [README tour](#readme-tour), [review workflow](../review-workflow.md#workflow) |
+| [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [Review workflow](../review-workflow.md#workflow) |
 | [lab-document-review-dark.png](screenshots/lab-document-review-dark.png) | The same review with the **System** theme and a dark color scheme | `review-findings-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
+| [lab-review-privacy.png](screenshots/lab-review-privacy.png) / [dark](screenshots/lab-review-privacy-dark.png) | The fictional new-review form, scrolled to its shared-data and retention notice before **Create shared review** | `review-privacy.png` / `review-privacy-dark.png` | README tour, [review workflow](../review-workflow.md#workflow) |
 | [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page with its templates in two groups and the full sidebar | `creation-start.png` | [README tour](#readme-tour) and its full-size link, [agent creation](../agent-creation.md#what-a-participant-can-do) |
 | [lab-create-agent-dark.png](screenshots/lab-create-agent-dark.png) | The same page in the **Dark** theme with the Foundry accent and one template selected | `creation-start-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
 | [lab-demo-application.png](screenshots/lab-demo-application.png) / [dark](screenshots/lab-demo-application-dark.png) | Application completeness story in **Explore demos** | `demo-application.png` / `demo-application-dark.png` | README and scenario tours, [showcase](../showcase.md) |
@@ -286,9 +288,20 @@ cd ../..
 ```
 
 The tests write 1440 x 1000 PNGs under `test-results/`, which Git ignores.
-The refresh script requires exactly one desktop result per source and validates
-every PNG before replacing the documentation images. It also rebuilds both
-tours. Do not crop out the watermark or substitute mobile screenshots.
+The refresh script requires exactly one desktop result per selected source and
+validates every selected PNG before replacing documentation images. By default
+it refreshes all fourteen images. For a focused UI change, run the relevant
+desktop tests and refresh just the affected light/dark pairs:
+
+```powershell
+./docs/images/refresh-screenshots.ps1 -Names lab-chat-start.png,lab-chat-start-dark.png,lab-review-privacy.png,lab-review-privacy-dark.png
+```
+
+Use `-TestResultsDirectory` for an isolated test copy. The script rebuilds both
+tours from the selected new frames plus unchanged committed frames; unchanged
+scenario artwork should stay byte-identical. Do not crop out the watermark or
+substitute mobile screenshots. The review findings images remain separate from
+the pre-save form so the walkthrough still shows both stages.
 
 ## README tour
 
@@ -302,7 +315,7 @@ and loops:
 | 1 · Explore demos | `lab-demo-application.png` | `lab-demo-application-dark.png` |
 | 2 · Create an agent | `lab-create-agent.png` | `lab-create-agent-dark.png` |
 | 3 · Chat with it | `lab-chat-start.png` | `lab-chat-start-dark.png` |
-| 4 · Review documents | `lab-document-review.png` | `lab-document-review-dark.png` |
+| 4 · Review documents | `lab-review-privacy.png` | `lab-review-privacy-dark.png` |
 
 [scenario-tour.svg](scenario-tour.svg) and its [dark variant](scenario-tour-dark.svg)
 use the application, invoice, and casework screenshots as three separate
@@ -313,7 +326,7 @@ share the same accessible frame and reduced-motion behavior.
 A minimal window bar above the frames names the current step and shows a
 progress bar, so nothing covers the screenshots or their watermark. Both SVGs
 are generated, so do not edit them by hand. The frames are copies of the
-screenshots, so after you refresh any of the twelve, rebuild both tours and commit
+screenshots, so after you refresh any tour frame, rebuild both tours and commit
 the screenshots and SVGs together:
 
 ```powershell
