@@ -42,8 +42,8 @@ The sidebar groups the Lab's pages into three sections, in this order. Every age
 
 | Section | Page | What you do there |
 | --- | --- | --- |
-| Chat and test | **Chat** | Talk with a prebuilt or created agent. An example task only fills in your message; you choose when to send it. |
-| Chat and test | **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. Not in the sidebar: open it from the link in **Chat** (shown when reviews are enabled), a saved-review link, or `/#reviews`. |
+| Chat and test | **Chat** | Talk with a prebuilt or created agent, or try a library agent instantly as a preview. Switch agents from the name in the Chat header. An example task only fills in your message; you choose when to send it. |
+| Chat and test | **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. Not in the sidebar or Chat: open a saved-review link or `/#reviews`. |
 | Chat and test | **Guided demos** | Start with application evidence, invoice discrepancies, or case notes. Read an illustrative story, copy its fictional input, or load it into an enabled matching agent. |
 | Agent library | **All agents** > **Templates** | Filter the [agent library](../docs/agent-creation.md#what-a-participant-can-do) by sector, industry, task, readiness, and tools. Each entry shows what you provide, what you get, its limits, what a person decides, a fictional example, and the expected behavior. From an entry you can create the agent, open a ready one in **Chat** with the example as an unsent draft, or download its saved record for export. |
 | Agent library | **All agents** > **Ready to use** | Browse the prebuilt and ready created agents you can chat with, read what each one needs and does, and start a chat. |
@@ -187,7 +187,9 @@ data contract and deployment checks. You don't need it to use **Chat**.
 | **New chat** | Starts a new Chat draft for the selected agent. | It doesn't create an agent or submit a starter prompt. |
 | **Create agent** | Prepares a setup from a reviewed template and, when enabled, lets an operator publish it. | Preparation is deterministic template assembly, not a model-designed agent. |
 | **Created here** | Lists agents published from the Lab's creation flow. | Ready agents can be selected in **Chat**. |
-| **Chat** | Sends a message to the selected prebuilt or ready created agent. | A chat prompt doesn't edit tools, instructions, or runtime configuration. |
+| **Chat** | Sends a message to the selected prebuilt agent, ready created agent, or library preview. | A chat prompt doesn't edit tools, instructions, or runtime configuration. |
+| **Agent switcher** | Opens from the agent name in the Chat header. Search and switch between **Ready agents** and **Library previews** without leaving Chat, or choose **Browse the full library**. | Switching keeps your unsent draft. Agents marked **In progress** pass offline tests but aren't validated live. |
+| **Library preview** | Runs a library definition directly on the Lab's model deployment, without publishing an agent. Start one from the switcher or from a library entry's **Test** tab (**Try it now in Chat**). | Private mode only, and only when `WORKBENCH_LIBRARY_PREVIEW_ENABLED` isn't `false` and a creation model is configured. Uses the definition's instructions and its simulated read-only lookups; tool loops are bounded. Preview chats can't be saved to **Shared history**. Each message calls the model and may incur cost. |
 | **Document reviews** | Saves and runs checklist-based reviews. | Chat messages and review results don't copy between views automatically. |
 | **Shared history** | Lists, reopens, and deletes saved conversations. | Everyone with workspace access can read, modify, and delete saved conversations. |
 | **Ready to use** | Lists only enabled prebuilt agents and ready created agents. | Hidden agents can't be invoked directly through the Lab API. |
@@ -268,8 +270,9 @@ an immutable audit trail.
 | Stop waiting | Browser wait only. | Cancellation doesn't guarantee remote agent execution stopped. Requests are not automatically retried. |
 | Agent session reuse | Up to 10 minutes per chat and agent. | Follow-ups in the same chat reuse that chat's Foundry agent session, which skips the cold start of a new sandbox. The browser sends a random chat ID, and the Foundry session ID stays in server memory until the window ends or the Lab restarts. A new, reopened, or continued chat starts a new session, and a failed request discards its session. Reuse doesn't carry history: the browser still sends the bounded conversation each turn. A reused session stays on the agent version that created it, so a newly deployed version applies to new chats or after the window ends. Locally, set `WORKBENCH_SESSION_REUSE_SECONDS` from 0 to 3600; `0` turns reuse off. Document reviews don't reuse sessions. |
 
-Save state and expandable **Conversation limits** appear once there is a draft or
-conversation. They don't add status rows to an empty chat.
+Save state and expandable **Conversation limits** appear after the first reply, or
+earlier when a draft reaches half of a limit. They don't add status rows to an
+empty chat.
 
 ### Continue in new chat
 

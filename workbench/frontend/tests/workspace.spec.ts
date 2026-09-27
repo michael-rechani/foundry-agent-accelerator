@@ -163,6 +163,17 @@ async function send(page: Page, text = 'Review synthetic APP-1') {
   ).toBeEnabled()
 }
 
+async function openReadyAgents(page: Page) {
+  await page
+    .getByRole('navigation', { name: 'Workspace' })
+    .getByRole('button', { name: 'All agents' })
+    .click()
+  await page
+    .getByRole('navigation', { name: 'Agent library' })
+    .getByRole('button', { name: /^Ready to use/ })
+    .click()
+}
+
 test('shared privacy notice is visible before sending or saving', async ({
   page,
 }, testInfo) => {
@@ -209,7 +220,7 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
   const state = await workspace(page)
   await expect(
     page.getByRole('heading', {
-      name: 'Use Application and case helper',
+      name: 'Application and case helper',
       exact: true,
     }),
   ).toBeVisible()
@@ -231,21 +242,20 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   await expect(editor).toHaveValue('Synthetic configured starter')
   await expect(editor).toBeFocused()
-  await expect(page.getByText('Not saved', { exact: true })).toBeVisible()
-  await expect(page.locator('#context-budget summary')).toContainText(
-    'Conversation limits',
-  )
+  await expect(page.getByText('Not saved', { exact: true })).toHaveCount(0)
+  await expect(page.locator('#context-budget')).toHaveCount(0)
 
   await page
     .getByRole('banner')
     .getByTitle('Choose an agent', { exact: true })
     .click()
+  const switcher = page.getByRole('dialog', { name: 'Choose an agent' })
+  await expect(switcher).toBeVisible()
   await expect(
-    page.getByRole('heading', { name: 'Choose an agent', exact: true }),
-  ).toBeVisible()
-  await page
-    .getByRole('button', { name: 'Return to chat', exact: true })
-    .click()
+    switcher.getByRole('button', { name: /Application and case helper/ }),
+  ).toHaveAttribute('aria-current', 'true')
+  await page.keyboard.press('Escape')
+  await expect(switcher).toHaveCount(0)
   await expect(editor).toHaveValue('Synthetic configured starter')
   await editor.fill('')
   await expect(page.locator('#context-budget')).toHaveCount(0)
@@ -260,7 +270,7 @@ test('default helper explains its job and offers example tasks without auto-send
   await expect(page.locator('.agent-picker')).toHaveText(
     'Application and case helper',
   )
-  await expect(page.locator('.chat-welcome')).toContainText(
+  await expect(page.locator('.chat-welcome')).not.toContainText(
     'You are using an existing agent, not creating one',
   )
   await expect(page.locator('.chat-welcome .agent-guide')).toContainText(
@@ -269,7 +279,7 @@ test('default helper explains its job and offers example tasks without auto-send
   await expect(page.locator('.chat-welcome .agent-guide')).toContainText(
     guidedReview.guidance!.output,
   )
-  await expect(page.locator('.prompt-options button')).toHaveText([
+  await expect(page.locator('.prompt-options button strong')).toHaveText([
     'Review an application',
     'Summarize case notes',
     'Compare a proposal (preview)',
@@ -292,10 +302,7 @@ test('default helper explains its job and offers example tasks without auto-send
     await expect(editor).toBeFocused()
     expect(state.requests).toHaveLength(0)
   }
-  await page
-    .getByRole('banner')
-    .getByTitle('Choose an agent', { exact: true })
-    .click()
+  await openReadyAgents(page)
   await expect(page.locator('.catalog-agent')).toHaveCount(1)
   await expect(
     page.getByRole('heading', {
@@ -461,10 +468,7 @@ test('catalog uses customer names while retaining runtime targets and scenario s
     { id: 'application-review', agent: 'application-review-agent', tools: {} },
     { id: 'case-review', agent: 'case-review-agent', tools: {} },
   ])
-  await page
-    .getByRole('banner')
-    .getByTitle('Choose an agent', { exact: true })
-    .click()
+  await openReadyAgents(page)
   await expect(page.locator('.catalog-agent h2')).toHaveText([
     'Application and case helper',
     'Application and case helper (base setup)',
@@ -586,7 +590,7 @@ test('configuration guidance separates UI settings from deployed agent behavior'
   page,
 }, testInfo) => {
   const state = await workspace(page)
-  await page.getByTitle('Choose an agent', { exact: true }).click()
+  await openReadyAgents(page)
   const guide = page.locator('.configuration-guide')
   await guide.locator(':scope > summary').click()
   await expect(guide).toContainText(
@@ -748,7 +752,7 @@ test('disconnected preview does not claim connected shared storage', async ({
     page.getByRole('complementary', { name: 'Shared lab details' }),
   ).toHaveCount(0)
   await expect(page.getByText('Local preview', { exact: true })).toBeVisible()
-  await expect(page.locator('.preview-explanation')).toContainText(
+  await expect(page.locator('.chat-welcome .welcome-hint')).toContainText(
     'No model calls or saved records',
   )
   await expect(

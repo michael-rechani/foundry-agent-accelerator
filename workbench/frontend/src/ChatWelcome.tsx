@@ -51,16 +51,20 @@ export function ChatWelcome({
         <>
           <h2 className="welcome-examples-title">Start with an example</h2>
           <div className="prompt-options">
-            {agent.prompts.map((prompt) => (
+            {agent.prompts.map((prompt, index) => (
               <button
                 key={prompt.label}
                 disabled={!config}
+                aria-label={prompt.label}
+                aria-describedby={`welcome-prompt-${index}`}
                 onClick={() => onPrompt(prompt.text)}
               >
                 <FlaskConical size={16} aria-hidden="true" />
                 <span>
                   <strong>{prompt.label}</strong>
-                  <small>{snippet(prompt.text)}</small>
+                  <small id={`welcome-prompt-${index}`}>
+                    {snippet(prompt.text)}
+                  </small>
                 </span>
                 <ArrowRight size={15} aria-hidden="true" />
               </button>

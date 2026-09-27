@@ -89,6 +89,14 @@ export default function ChatWorkspace() {
       ? 'reviews'
       : (hashViews[window.location.hash] ?? null),
   )
+  useEffect(() => {
+    const follow = () => {
+      const next = hashViews[window.location.hash]
+      if (next) setView(next)
+    }
+    window.addEventListener('hashchange', follow)
+    return () => window.removeEventListener('hashchange', follow)
+  }, [])
   const view =
     selectedView === 'create' && config && !config.agent_creation
       ? 'library'
