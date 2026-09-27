@@ -248,11 +248,13 @@ but no Search retrieval tool is connected to the reference review workflow.
 [View full size](images/lab-request-flow.svg) · [Edit the SVG template](images/lab-request-flow.template.svg)
 
 Steps 1 to 6 follow one chat request. Steps 7 and 8 happen later, only if the
-user saves the chat. The browser sends the selected catalog ID, new message, and bounded prior turns
-to `POST /api/reviews`. FastAPI rejects disallowed origins, unknown agents, and
+user saves the chat. The browser sends the selected catalog ID, new message, bounded prior turns,
+and a random chat ID to `POST /api/reviews`. FastAPI rejects disallowed origins, unknown agents, and
 invalid or oversized input before invoking Foundry. The backend uses managed
 identity with a named agent Responses client, `store=false`, and no automatic
-model retry. The coordinator may select a configured specialist or ask for
+model retry. Follow-ups in the same chat reuse that chat's Foundry agent session
+for up to 10 minutes, and the coordinator likewise reuses each specialist's
+session, so later turns skip sandbox cold starts. The coordinator may select a configured specialist or ask for
 clarification without invoking one. Each specialist call is separately bounded
 and returns a named success result only after a completed, nonempty response.
 

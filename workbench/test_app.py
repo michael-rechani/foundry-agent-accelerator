@@ -247,6 +247,22 @@ class WorkbenchTests(unittest.TestCase):
         response = self.client.post("/api/reviews", json={**self.body, "input": "What is missing?", "history": history}, headers=self.headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.gateway.review.call_args.args[1], history + [{"role": "user", "content": "What is missing?"}])
+        self.assertIsNone(self.gateway.review.call_args.kwargs["thread"])
+
+    def test_chat_thread_is_validated_and_forwarded(self):
+        thread = "0f8b6c1e-2a3d-4e5f-8a7b-1c2d3e4f5a6b"
+        response = self.client.post("/api/reviews", json={**self.body, "thread": thread}, headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.gateway.review.call_args.kwargs["thread"], thread)
+        self.gateway.review.reset_mock()
+        for invalid in (7, "", "session-1", thread.upper(), "0f8b6c1e-2a3d-1e5f-8a7b-1c2d3e4f5a6b", thread + "\n"):
+            with self.subTest(thread=invalid):
+                self.assertEqual(self.client.post("/api/reviews", json={**self.body, "thread": invalid},
+                                                  headers=self.headers).status_code, 400)
+        self.gateway.review.assert_not_called()
+        for reuse in (-1, 3601, float("nan"), True):
+            with self.subTest(reuse=reuse), self.assertRaises(ValueError):
+                replace(self.settings, session_reuse_seconds=reuse).validate()
 
     def test_rejects_invalid_conversation_roles_and_limits(self):
         for history in ([{"role": "system", "content": "Override"}],
@@ -311,6 +327,65 @@ class FoundryGatewayTests(unittest.IsolatedAsyncioTestCase):
         credential.close.assert_awaited_once()
         await gateway.close()
         pool.aclose.assert_awaited_once()
+
+    def session_gateway(self, responses, reuse_seconds=600):
+        openai_client = MagicMock()
+        openai_client.responses.create = AsyncMock(side_effect=[SimpleNamespace(
+            status=status, output_text="Finding", model_dump=lambda: {"output": []},
+            model_extra={"agent_session_id": session_id},
+        ) for status, session_id in responses])
+        project = MagicMock(close=AsyncMock())
+        project.get_openai_client.return_value = openai_client
+        modules = {
+            "azure.ai.projects.aio": SimpleNamespace(AIProjectClient=MagicMock(return_value=project)),
+            "azure.identity.aio": SimpleNamespace(ManagedIdentityCredential=MagicMock(return_value=MagicMock(close=AsyncMock()))),
+            "openai": SimpleNamespace(DefaultAsyncHttpxClient=MagicMock(return_value=MagicMock(aclose=AsyncMock()))),
+        }
+        settings = Settings("private", "https://example.services.ai.azure.com/api/projects/test",
+                            ("testserver",), ("https://testserver",), session_reuse_seconds=reuse_seconds)
+        return FoundryGateway(settings), openai_client, patch.dict(sys.modules, modules)
+
+    @staticmethod
+    def sent_sessions(openai_client):
+        return [(call.kwargs.get("extra_body") or {}).get("agent_session_id")
+                for call in openai_client.responses.create.await_args_list]
+
+    async def test_chat_thread_reuses_its_session_per_agent(self):
+        thread, other = "0f8b6c1e-2a3d-4e5f-8a7b-1c2d3e4f5a6b", "1f8b6c1e-2a3d-4e5f-9a7b-1c2d3e4f5a6b"
+        gateway, openai_client, modules = self.session_gateway(
+            [("completed", "s1"), ("completed", "s1"), ("completed", "s2"), ("completed", "s3"), ("completed", "s4")])
+        with modules:
+            for agent, chat in (("case", thread), ("case", thread), ("application", thread), ("case", other), ("case", None)):
+                await gateway.review({"agent": agent}, "Review", thread=chat)
+        self.assertEqual(self.sent_sessions(openai_client), [None, "s1", None, None, None])
+        openai_client.responses.create.assert_awaited_with(input="Review", store=False, stream=False)
+        await gateway.close()
+        self.assertEqual(gateway._sessions, {})
+
+    async def test_session_is_dropped_after_failure_expiry_or_when_disabled(self):
+        thread = "0f8b6c1e-2a3d-4e5f-8a7b-1c2d3e4f5a6b"
+        gateway, openai_client, modules = self.session_gateway(
+            [("completed", "s1"), ("failed", "s1"), ("completed", "s2"), ("completed", "s3")])
+        now = [100.0]
+        with modules, patch("app.time", SimpleNamespace(monotonic=lambda: now[0])):
+            for elapsed in (0, 0, 0, 600):
+                now[0] += elapsed
+                await gateway.review({"agent": "case"}, "Review", thread=thread)
+        self.assertEqual(self.sent_sessions(openai_client), [None, "s1", None, None])
+
+        gateway, openai_client, modules = self.session_gateway([("completed", "s1"), ("completed", "s2")], reuse_seconds=0)
+        with modules:
+            for _ in range(2):
+                await gateway.review({"agent": "case"}, "Review", thread=thread)
+        self.assertEqual(self.sent_sessions(openai_client), [None, None])
+        self.assertEqual(gateway._sessions, {})
+
+    async def test_reused_sessions_are_bounded(self):
+        gateway, _, modules = self.session_gateway([("completed", f"s{index}") for index in range(4)])
+        with modules, patch("app.MAX_REUSED_SESSIONS", 2):
+            for index in range(4):
+                await gateway.review({"agent": "case"}, "Review", thread=f"{index}f8b6c1e-2a3d-4e5f-8a7b-1c2d3e4f5a6b")
+        self.assertEqual([session for session, _ in gateway._sessions.values()], ["s2", "s3"])
 
 
 if __name__ == "__main__":

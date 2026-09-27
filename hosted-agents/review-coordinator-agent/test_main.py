@@ -82,10 +82,94 @@ class CoordinatorTests(unittest.TestCase):
                     ["application-review-agent", "case-review-agent"],
                 )
                 openai_client.close.assert_not_awaited()
-            self.assertEqual(openai_client.close.await_count, 2)
-            project_client.close.assert_awaited_once()
+        asyncio.run(run_check())
+
+    @staticmethod
+    def session_response(session_id="session-1", status="completed"):
+        return SimpleNamespace(output_text="finding", status=status, model_extra={"agent_session_id": session_id})
+
+    @staticmethod
+    def sent_sessions(openai_client):
+        return [(call.kwargs.get("extra_body") or {}).get("agent_session_id")
+                for call in openai_client.responses.create.await_args_list]
+
+    def test_completed_specialist_session_is_reused_per_specialist(self) -> None:
+        async def run_check():
+            _, openai_client = self.mock_clients(self.session_response())
+            clients = self.module.SpecialistClients("endpoint", object())
+            for agent_name in ("application-review-agent", "application-review-agent", "case-review-agent"):
+                await self.module.invoke_specialist(clients, agent_name, "review")
+            self.assertEqual(self.sent_sessions(openai_client), [None, "session-1", None])
+            openai_client.responses.create.assert_awaited_with(input="review", store=False)
 
         asyncio.run(run_check())
+
+    def test_session_reuse_expires_and_can_be_disabled(self) -> None:
+        async def second_session(reuse_seconds, elapsed):
+            now = [100.0]
+            _, openai_client = self.mock_clients(self.session_response())
+            clients = self.module.SpecialistClients("endpoint", object(), reuse_seconds=reuse_seconds)
+            with patch.object(self.module, "time", SimpleNamespace(monotonic=lambda: now[0])):
+                await self.module.invoke_specialist(clients, "case-review-agent", "review")
+                now[0] += elapsed
+                await self.module.invoke_specialist(clients, "case-review-agent", "review")
+            return self.sent_sessions(openai_client)[1]
+
+        self.assertEqual(asyncio.run(second_session(600, 599)), "session-1")
+        self.assertIsNone(asyncio.run(second_session(600, 600)))
+        self.assertIsNone(asyncio.run(second_session(0, 0)))
+
+    def test_failed_call_discards_its_session(self) -> None:
+        async def run_check():
+            _, openai_client = self.mock_clients(side_effect=[
+                self.session_response(), RuntimeError("unavailable"), self.session_response("session-2"),
+                self.session_response("session-2", status="failed"), self.session_response("session-3"),
+            ])
+            clients = self.module.SpecialistClients("endpoint", object())
+            for expected in (None, "unavailable", None, "did not complete", None):
+                if expected is None:
+                    await self.module.invoke_specialist(clients, "case-review-agent", "review")
+                else:
+                    with self.assertRaisesRegex(RuntimeError, expected):
+                        await self.module.invoke_specialist(clients, "case-review-agent", "review")
+            self.assertEqual(self.sent_sessions(openai_client), [None, "session-1", None, "session-2", None])
+
+        asyncio.run(run_check())
+
+    def test_concurrent_calls_do_not_share_a_session(self) -> None:
+        async def run_check():
+            release = asyncio.Event()
+            new_sessions = iter(("session-1", "session-2"))
+
+            async def respond(**kwargs):
+                await release.wait()
+                return self.session_response((kwargs.get("extra_body") or {}).get("agent_session_id")
+                                             or next(new_sessions))
+
+            _, openai_client = self.mock_clients(side_effect=respond)
+            clients = self.module.SpecialistClients("endpoint", object())
+            release.set()
+            await self.module.invoke_specialist(clients, "case-review-agent", "review")
+            for _ in range(2):
+                release.clear()
+                calls = [asyncio.create_task(self.module.invoke_specialist(clients, "case-review-agent", "review"))
+                         for _ in range(2)]
+                await asyncio.sleep(0)
+                release.set()
+                await asyncio.gather(*calls)
+            sessions = self.sent_sessions(openai_client)
+            self.assertEqual(sessions[:3], [None, "session-1", None])
+            self.assertEqual(sorted(sessions[3:]), ["session-1", "session-2"])
+
+        asyncio.run(run_check())
+
+    def test_invalid_session_reuse_window_fails_before_serving(self) -> None:
+        for value in ("nan", "-1", "3601", "later"):
+            with self.subTest(value=value), patch.dict(
+                self.module.os.environ, {"SPECIALIST_SESSION_REUSE_SECONDS": value}
+            ):
+                with self.assertRaises(ValueError):
+                    self.module.SpecialistClients("endpoint", object())
 
     def test_invoke_specialist_rejects_empty_response(self) -> None:
         self.mock_clients(SimpleNamespace(output_text=" ", status="completed"))

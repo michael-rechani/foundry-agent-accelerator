@@ -27,6 +27,8 @@ LOGGER = logging.getLogger("uvicorn.error")
 MAX_CHARACTERS = 60000
 MAX_REQUEST_BYTES = 65536
 MAX_HISTORY_TURNS = 10
+MAX_REUSED_SESSIONS = 512
+THREAD = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\Z")
 HISTORY_TIMEOUT_MS = 45000
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
@@ -54,6 +56,7 @@ class Settings:
     default_agent: str | None = None
     title: str = "Foundry Agent Lab"
     creation: CreationSettings = field(default_factory=CreationSettings)
+    session_reuse_seconds: float = 600
 
     @classmethod
     def from_env(cls):
@@ -64,13 +67,17 @@ class Settings:
         visible_agents = tuple(filter(None, os.getenv("WORKBENCH_VISIBLE_AGENTS", "customer-review").split(",")))
         return cls(mode, endpoint, hosts, origins, Path(os.getenv("WORKBENCH_AGENTS_FILE", ROOT / "agents.json")),
                visible_agents=visible_agents, default_agent=os.getenv("WORKBENCH_DEFAULT_AGENT") or None,
-               title=os.getenv("WORKBENCH_TITLE", "Foundry Agent Lab"), creation=CreationSettings.from_env())
+               title=os.getenv("WORKBENCH_TITLE", "Foundry Agent Lab"), creation=CreationSettings.from_env(),
+               session_reuse_seconds=float(os.getenv("WORKBENCH_SESSION_REUSE_SECONDS", "600")))
 
     def validate(self):
         if not isinstance(self.title, str) or not self.title.strip() or len(self.title) > 80 or any(ord(char) < 32 for char in self.title):
             raise ValueError("Workspace title must contain one to 80 printable characters")
         if not isinstance(self.timeout, (int, float)) or isinstance(self.timeout, bool) or not 1 <= self.timeout <= 180:
             raise ValueError("Review timeout must be between one and 180 seconds")
+        reuse = self.session_reuse_seconds
+        if not isinstance(reuse, (int, float)) or isinstance(reuse, bool) or not 0 <= reuse <= 3600:
+            raise ValueError("Session reuse must be between zero and 3600 seconds")
         if self.mode not in {"preview", "private"}:
             raise ValueError("WORKBENCH_MODE must be preview or private")
         self.creation.validate(self.mode)
@@ -143,10 +150,12 @@ def load_agents(path):
 
 def chat_prompt(data, registry):
     """Return the Responses input for a valid chat request body, or None when it is invalid."""
-    if (not isinstance(data, dict) or set(data) not in ({"agent_id", "input"}, {"agent_id", "input", "history"}) or
+    if (not isinstance(data, dict) or not {"agent_id", "input"} <= set(data) <= {"agent_id", "input", "history", "thread"} or
             not isinstance(data["agent_id"], str) or
             (data["agent_id"] not in registry and not CREATED_ID.fullmatch(data["agent_id"])) or
             not isinstance(data["input"], str) or not data["input"].strip() or len(data["input"]) > MAX_CHARACTERS):
+        return None
+    if "thread" in data and (not isinstance(data["thread"], str) or not THREAD.fullmatch(data["thread"])):
         return None
     history = data.get("history", [])
     if not isinstance(history, list) or len(history) > MAX_HISTORY_TURNS * 2 or len(history) % 2:
@@ -186,6 +195,7 @@ class FoundryGateway:
     def __init__(self, settings):
         self.settings = settings
         self._credential = self._project = self._http_client = None
+        self._sessions = {}
 
     async def check(self, agents):
         from azure.ai.projects.aio import AIProjectClient
@@ -209,15 +219,36 @@ class FoundryGateway:
             self._http_client = DefaultAsyncHttpxClient()
         return self._project
 
-    async def review(self, agent, prompt):
+    async def review(self, agent, prompt, thread=None):
         # Reuses the cached token and open connections. The per-agent client shares the pool, so closing it would close the pool.
         client = self._review_project().get_openai_client(
             agent_name=agent["agent"], timeout=self.settings.timeout, max_retries=0, http_client=self._http_client,
         )
-        response = await client.responses.create(input=prompt, store=False, stream=False)
+        # A chat thread reuses its Foundry session to skip a sandbox cold start. The session ID never leaves the server.
+        key = (thread, agent["agent"]) if thread and self.settings.session_reuse_seconds > 0 else None
+        leased = self._sessions.pop(key, None) if key else None
+        if leased and time.monotonic() - leased[1] >= self.settings.session_reuse_seconds:
+            leased = None
+        started = time.monotonic()
+        options = {"extra_body": {"agent_session_id": leased[0]}} if leased else {}
+        response = await client.responses.create(input=prompt, store=False, stream=False, **options)
+        if key and response.status == "completed":
+            session_id = (getattr(response, "model_extra", None) or {}).get("agent_session_id") or (leased and leased[0])
+            self._keep_session(key, session_id, leased[1] if leased and session_id == leased[0] else started)
         return response.status, response.output_text, response.model_dump().get("output", [])
 
+    def _keep_session(self, key, session_id, created):
+        now, reuse = time.monotonic(), self.settings.session_reuse_seconds
+        if not isinstance(session_id, str) or not session_id or now - created >= reuse:
+            return
+        self._sessions[key] = (session_id, created)
+        for stale in [item for item, (_, since) in self._sessions.items() if now - since >= reuse]:
+            del self._sessions[stale]
+        while len(self._sessions) > MAX_REUSED_SESSIONS:
+            del self._sessions[next(iter(self._sessions))]
+
     async def close(self):
+        self._sessions = {}
         http_client, project, credential = self._http_client, self._project, self._credential
         self._credential = self._project = self._http_client = None
         if http_client is not None:
@@ -298,14 +329,14 @@ class ChatReviews:
         agent, rejection = await self.resolve(request, data["agent_id"])
         if rejection is not None:
             return rejection
-        return await self.respond(request, agent, prompt)
+        return await self.respond(request, agent, prompt, data.get("thread"))
 
-    async def respond(self, request, agent, prompt):
+    async def respond(self, request, agent, prompt, thread=None):
         request_id = request.state.request_id
         started = time.monotonic()
         try:
             async with asyncio.timeout(self.settings.timeout):
-                status, text, output = await self.gateway.review(agent, prompt)
+                status, text, output = await self.gateway.review(agent, prompt, thread=thread)
             if status != "completed" or not isinstance(text, str) or not text.strip():
                 return self.error(request, 502, "incomplete_response")
             if len(text) > 100000 or len(json.dumps(output).encode("utf-8")) > 524288:

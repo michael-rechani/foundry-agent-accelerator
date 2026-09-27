@@ -43,10 +43,19 @@ Edit a template, then rebuild every diagram, or only the ones you changed:
 
 The build picks up every `*.template.svg` file in this folder. It writes a
 light `<name>.svg` and a dark `<name>-dark.svg` from each template (see
-[Dark variants](#dark-variants)) and embeds the referenced icons as their
-original SVG bytes. The generated SVGs are self-contained when GitHub displays
-them, with no external asset or network dependency, so don't edit them by
-hand. Commit each template with both of its outputs.
+[Dark variants](#dark-variants)) and inlines each referenced icon as nested
+`<svg>` markup, with its shapes and colors unchanged. Each copy gets its own ID
+prefix so repeated icons can't share gradients, and icon `<title>` text is
+dropped. The generated SVGs are self-contained, with no external asset or
+network dependency, so don't edit them by hand. Commit each template with both
+of its outputs.
+
+Don't embed icons or other artwork as `data:` images. GitHub serves SVG files
+with `Content-Security-Policy: default-src 'none'`, so when a reader clicks a
+diagram to open it on its own, the browser blocks every nested image and shows
+a broken-image placeholder. Inline shapes aren't affected. Icons in templates
+must use `<image href="azure-icons/<name>.svg" x="…" y="…" width="…" height="…"/>`;
+the build fails if it can't inline one.
 
 The **docs** check in the Validate workflow reruns the build and fails if any
 committed SVG differs from its template's output. It also checks every relative
@@ -189,8 +198,8 @@ GitHub shows the `-dark` diagrams to readers who use a dark theme.
 Both variants come from the same template, so do not edit either SVG by hand.
 Edit the template, rebuild, and commit the template and both outputs together.
 
-The build swaps colors in the template markup before it embeds the icons, so
-the icon bytes are identical in both variants. The `<title>` and `<desc>` text
+The build swaps colors in the template markup before it inlines the icons, so
+the icons are identical in both variants. The `<title>` and `<desc>` text
 is never changed. `$darkPalette` in `build-architecture.ps1` is the single
 light-to-dark color map. The build fails if a template uses a hex color that
 the map does not cover, so add each new color to the map before you use it.
