@@ -6,6 +6,8 @@ from copy import deepcopy
 TEMPLATE_IDS = frozenset({
     "document-analyst", "criteria-checker", "document-intake", "casework-assistant", "workflow-coordinator",
     "medical-bill-reviewer", "insurance-preapproval-helper", "benefits-renewal-helper", "supplier-invoice-reviewer",
+    "public-records-intake", "grant-reporting-checker", "community-program-brief", "customer-support-brief",
+    "cash-application-reviewer", "maintenance-work-order-planner",
 })
 _EXAMPLE = "Example only; not a real record"
 

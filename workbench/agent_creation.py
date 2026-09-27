@@ -19,7 +19,10 @@ from fastapi.responses import JSONResponse
 from pydantic import Field, ValidationError, field_validator
 
 from agent_publisher import FoundryPublisher, PublicationError, resource_name, runtime_package
-from agent_templates import MODEL_PROFILES, TEMPLATES, TemplateRequiredError, list_templates, model_profile, prepare_draft
+from agent_templates import (
+    MODEL_PROFILES, TEMPLATES, TemplateRequiredError, catalog_facets, list_templates,
+    model_profile, prepare_draft,
+)
 from history import StrictModel
 from request_guard import BodyReadTimeout, MAX_SETUP_BYTES, read_bounded_body, record_request_failure, request_allowed
 
@@ -210,7 +213,12 @@ class AgentCreations:
 
     async def templates(self, request: Request):
         rejection = self.admit(request)
-        return rejection if rejection is not None else {"templates": list_templates(), "draft_mode": "template"}
+        return rejection if rejection is not None else {
+            "schema_version": 1,
+            "templates": list_templates(),
+            "facets": catalog_facets(),
+            "draft_mode": "template",
+        }
 
     async def draft(self, request: Request):
         rejection = self.admit(request)

@@ -316,6 +316,13 @@ inspect and deploy before writing it.
 
 ### Export an agent created in the Lab
 
+The Lab library's `export.availability` value is `after_creation`. Catalog
+definitions are not standalone checked-in bundle samples: prepare and publish
+the selected definition through the existing creation lifecycle, then export
+the resulting ready record. This distinction prevents the browser from
+presenting discovery as deployment or implying one-click movement between
+environments.
+
 Save the JSON response for `GET /api/agents/<created-ID>` from your approved
 private Lab. The updated API includes the saved `runtime_hash`; refresh the
 record after deploying the updated Lab if an older response omits it. An

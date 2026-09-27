@@ -218,6 +218,21 @@ valid verifier configured to allow operator deletion while creation is disabled.
 | Server environment / [Lab Terraform](../workbench/infra/main.tf) | Enablement, the default and per-kind model deployments, operator-key verifier, and operational limits |
 | Existing [`agents.json`](../workbench/agents.json) and coordinator profiles | Unchanged prebuilt agent catalog, visibility, and specialist bindings; not overwritten by creation |
 
+`GET /api/agent-templates` is also the browser's library contract. The response
+keeps `templates` and `draft_mode` for existing clients, adds
+`schema_version: 1`, and derives stable `facets` from the same template data.
+Each template includes its sector, industry, tasks, readiness, tool mode,
+prerequisites, relative runtime hint, expected behavior, required human
+decision, search keywords, and export status. Facet counts are derived rather
+than maintained separately.
+
+Readiness and runtime hints are bounded labels, not service-level claims.
+`Sample` means the definition has deterministic contract tests but still needs
+customer policy review. `Reviewed` identifies the earlier reviewed Lab
+definitions. Current tool modes are only `No tools` and `Simulated tools`;
+neither means a customer system is connected. Cost and latency are relative
+model-profile hints, not prices or performance guarantees.
+
 Only `main.py`, `demo_tools.py`, and `requirements.txt` enter the deterministic
 ZIP package. Prompts cannot upload source, install dependencies, select
 endpoints, change the model, or register tools. Hosted allocation is fixed at
@@ -237,6 +252,9 @@ For a CLI-only source/configuration export, see
 [portable agent bundles](../hosted-agents/README.md#portable-agent-bundles).
 The saved-agent API exposes its `runtime_hash` so the exporter can require the
 exact matching runtime source. Export/import does not add Lab UI controls.
+Library templates are marked exportable only through the `after_creation`
+path: first create and publish a saved Lab agent, then export its ready record.
+Browsing a template alone does not produce a bundle.
 Redeployed bundles are independent agents: they do not copy this Lab's records,
 ownership, chat history, or automatic lifecycle management.
 
