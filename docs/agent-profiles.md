@@ -59,6 +59,12 @@ The example uses `inspect_application` and `inspect_case`; the base setup uses
 can ask what input is needed. Keeping both IDs preserves existing routes and
 visibility choices, not a claim that they are different scenarios.
 
+The checked-in example profile now carries the same behavioral instructions as
+the base coordinator, with only tool names changed. A local parity test prevents
+one entry point from silently losing the other's formatting, clarification,
+or decision-boundary rules. Operator-authored profiles can still use different
+instructions; they need their own acceptance checks.
+
 The deployed version's instructions and environment settings govern runtime
 behavior. Profile publication captures its instructions and `SPECIALIST_CONFIG`.
 Without a profile, the base files and defaults apply unless the deployed
@@ -113,6 +119,7 @@ default roles and the distinction between agent output and human review.
 - A deployed named agent in the same Foundry project exposes the Responses
   protocol.
 - It accepts a string request containing the required evidence and context.
+- Blank or non-text requests are rejected before acquiring a specialist client.
 - It returns a completed response with nonempty text or fails explicitly.
 - The coordinator wraps successful output in a receipt containing `status`,
   `agent`, and `output`, correlated to the function call by `call_id`.
@@ -169,6 +176,17 @@ In the Lab this is **Document reviews**. The backend supplies its JSON schema;
 coordinators pass the schema, checklist, and text to the specialist. Specialist
 instructions use that requested format instead of ordinary Chat prose sections.
 Offline schema tests do not establish live model adherence to the instructions.
+
+For ordinary Chat, runtime middleware returns the complete specialist `output`
+as Markdown after its label, preserving tables, quotes, calculations and
+questions without a synthesis model call. For one structured result it returns
+the original JSON text unchanged. Only successful receipts correlated to the
+current turn's allowlisted calls qualify; failed or mismatched results fail
+explicitly. Multiple structured results require separate reviews rather than
+an invented combined schema. Runtime forwarding uses original user messages,
+not model-written evidence summaries, and checks final quotations against those
+originals. Tool selection still requires live checks; unchanged evidence and
+deterministic output preservation are not factual accuracy.
 
 | Situation | Expected handling |
 | --- | --- |

@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 
 def load_main_module():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     agent_framework = ModuleType("agent_framework")
     agent_framework.Agent = object
     foundry = ModuleType("agent_framework.foundry")
@@ -172,11 +173,59 @@ class CoordinatorTests(unittest.TestCase):
                     self.module.SpecialistClients("endpoint", object())
 
     def test_invoke_specialist_rejects_empty_response(self) -> None:
-        self.mock_clients(SimpleNamespace(output_text=" ", status="completed"))
-        clients = self.module.SpecialistClients("https://project.example", object())
+        for text in ("", " ", None, {}, []):
+            with self.subTest(text=text):
+                self.mock_clients(SimpleNamespace(output_text=text, status="completed"))
+                clients = self.module.SpecialistClients("https://project.example", object())
 
-        with self.assertRaisesRegex(RuntimeError, "returned an empty response"):
-            asyncio.run(self.module.invoke_specialist(clients, "case-review-agent", "review"))
+                with self.assertRaisesRegex(RuntimeError, "returned an empty response"):
+                    asyncio.run(self.module.invoke_specialist(clients, "case-review-agent", "review"))
+
+    def test_invalid_request_is_rejected_before_acquiring_a_client(self) -> None:
+        for request in ("", " ", None, {}, []):
+            with self.subTest(request=request):
+                clients = MagicMock()
+                with self.assertRaisesRegex(ValueError, "Specialist request must be nonempty text"):
+                    asyncio.run(self.module.invoke_specialist(clients, "application-review-agent", request))
+                clients.get.assert_not_called()
+                clients.lease_session.assert_not_called()
+
+    def test_each_specialist_preserves_full_request_and_markdown_or_schema_output(self) -> None:
+        example = json.loads(
+            (Path(__file__).parent / "profiles" / "evidence-review.example.json").read_text(encoding="utf-8")
+        )
+        formats = [
+            (
+                "Review CRIT-1 against APP-1 and the later APP-2 clarification. Return a Markdown table.",
+                "## Criteria matrix\n\n| Item | Status | Evidence |\n| --- | --- | --- |\n"
+                '| CRIT-1 | Met | APP-1: "1,500"; APP-2: "1,000" |\n\n'
+                "Calculation: 1,500 + 1,000 = 2,500.\n\nAn authorized person makes the decision.",
+            ),
+            (
+                'Return JSON matching Schema: {"summary": "string", "findings": "array", "questions": "array"}. '
+                "CRIT-1: budget; SRC-1: no budget; SRC-2: later clarification supplies 2,500.",
+                json.dumps({
+                    "summary": "For human review.",
+                    "findings": [{"criterion_id": "CRIT-1", "assessment": "supported",
+                                  "explanation": "The later clarification supplies the budget.",
+                                  "citations": [{"source_id": "SRC-2", "quote": "2,500"}]}],
+                    "questions": [],
+                }),
+            ),
+        ]
+        for environment in ({}, {"SPECIALIST_CONFIG": json.dumps(example["specialists"])}):
+            for request, text in formats:
+                with self.subTest(environment=environment, request=request), patch.dict(
+                    self.module.os.environ, environment, clear=True
+                ):
+                    _, openai_client = self.mock_clients(SimpleNamespace(output_text=text, status="completed"))
+                    clients = self.module.SpecialistClients("https://project.example", object())
+                    for tool, agent in zip(self.module.create_specialist_tools(clients),
+                                           ("application-review-agent", "case-review-agent"), strict=True):
+                        receipt = json.loads(asyncio.run(tool(request)))
+                        self.assertEqual(receipt, {"status": "succeeded", "agent": agent, "output": text})
+                        openai_client.responses.create.assert_awaited_with(input=request, store=False)
+                    self.assertEqual(openai_client.responses.create.await_count, 2)
 
     def test_tools_route_to_configured_specialists(self) -> None:
         with (

@@ -12,6 +12,7 @@ from azure.ai.projects.aio import AIProjectClient
 from azure.identity.aio import DefaultAzureCredential
 
 from configuration import DEFAULT_SPECIALISTS, validate_specialists
+from review_output import passthrough_middleware
 
 
 DEFAULT_INSTRUCTIONS = (Path(__file__).parent / "instructions.md").read_text(
@@ -98,6 +99,8 @@ async def invoke_specialist(
     request: str,
     timeout_seconds: float = 90,
 ) -> str:
+    if not isinstance(request, str) or not request.strip():
+        raise ValueError("Specialist request must be nonempty text")
     openai_client = clients.get(agent_name, timeout_seconds)
     leased = clients.lease_session(agent_name)
     started = time.monotonic()
@@ -106,12 +109,25 @@ async def invoke_specialist(
 
     if response.status != "completed":
         raise RuntimeError(f"Specialist agent {agent_name} did not complete")
-    result = response.output_text.strip()
-    if not result:
+    if not isinstance(response.output_text, str) or not response.output_text.strip():
         raise RuntimeError(f"Specialist agent {agent_name} returned an empty response")
+    result = response.output_text.strip()
     session_id = (getattr(response, "model_extra", None) or {}).get("agent_session_id") or (leased and leased[0])
     clients.release_session(agent_name, session_id, leased[1] if leased and session_id == leased[0] else started)
     return result
+
+
+def configured_specialists():
+    application_agent_name = os.getenv("APPLICATION_REVIEW_AGENT_NAME", "application-review-agent")
+    case_agent_name = os.getenv("CASE_REVIEW_AGENT_NAME", "case-review-agent")
+    configured = os.getenv("SPECIALIST_CONFIG")
+    specialists = validate_specialists(json.loads(configured) if configured is not None else [
+        {**DEFAULT_SPECIALISTS[0], "agent": application_agent_name},
+        {**DEFAULT_SPECIALISTS[1], "agent": case_agent_name},
+    ])
+    if any(item["agent"] == os.getenv("AGENT_NAME", "review-coordinator-agent") for item in specialists):
+        raise ValueError("Coordinator cannot delegate to itself")
+    return specialists
 
 
 def create_specialist_tools(clients: SpecialistClients):
@@ -122,10 +138,6 @@ def create_specialist_tools(clients: SpecialistClients):
     if max_concurrency <= 0:
         raise ValueError("SPECIALIST_MAX_CONCURRENCY must be positive")
     semaphore = asyncio.Semaphore(max_concurrency)
-    application_agent_name = os.getenv(
-        "APPLICATION_REVIEW_AGENT_NAME", "application-review-agent"
-    )
-    case_agent_name = os.getenv("CASE_REVIEW_AGENT_NAME", "case-review-agent")
 
     async def review(agent_name: str, request: str) -> str:
         async with asyncio.timeout(timeout_seconds):
@@ -133,13 +145,7 @@ def create_specialist_tools(clients: SpecialistClients):
                 result = await invoke_specialist(clients, agent_name, request, timeout_seconds)
                 return json.dumps({"status": "succeeded", "agent": agent_name, "output": result})
 
-    configured = os.getenv("SPECIALIST_CONFIG")
-    specialists = validate_specialists(json.loads(configured) if configured is not None else [
-        {**DEFAULT_SPECIALISTS[0], "agent": application_agent_name},
-        {**DEFAULT_SPECIALISTS[1], "agent": case_agent_name},
-    ])
-    if any(item["agent"] == os.getenv("AGENT_NAME", "review-coordinator-agent") for item in specialists):
-        raise ValueError("Coordinator cannot delegate to itself")
+    specialists = configured_specialists()
 
     def create_tool(specialist):
         async def invoke(request: str) -> str:
@@ -171,6 +177,9 @@ async def main() -> None:
                 model=model_deployment,
                 credential=credential,
                 allow_preview=True,
+                middleware=[passthrough_middleware({
+                    item["tool"]: item["agent"] for item in configured_specialists()
+                })],
             ),
             name=os.getenv("AGENT_NAME", "review-coordinator-agent"),
             instructions=os.getenv("AGENT_INSTRUCTIONS", DEFAULT_INSTRUCTIONS),

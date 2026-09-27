@@ -58,6 +58,7 @@ Retain this layout on the private runner:
 ```text
 hosted-agents/
   deployment.py
+  review_output.py
   review-coordinator-agent/
     deploy.py
     main.py

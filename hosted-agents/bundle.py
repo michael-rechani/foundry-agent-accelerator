@@ -119,7 +119,7 @@ def validate_archive(manifest, code):
         raise ValueError("Runtime archive hash does not match the manifest")
     files = zip_contents(code)
     required = {"main.py", "requirements.txt"}
-    allowed = required | {"instructions.md", "configuration.py"}
+    allowed = required | {"instructions.md", "configuration.py", "review_output.py"}
     if manifest["kind"] == "lab-created":
         required = allowed = required | {"demo_tools.py"}
     if not required <= files.keys() <= allowed:

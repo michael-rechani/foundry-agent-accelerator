@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 SOURCE_FILES = ("main.py", "requirements.txt")
 OPTIONAL_SOURCE_FILES = ("instructions.md", "configuration.py")
+REVIEW_SAMPLES = {"application-review-agent", "case-review-agent", "review-coordinator-agent"}
 
 
 @dataclass(frozen=True)
@@ -106,6 +107,8 @@ def create_package(source_directory: Path, destination: Path) -> None:
             source = source_directory / name
             if source.is_file():
                 zip_entry(archive, name, source.read_bytes())
+        if source_directory.name in REVIEW_SAMPLES:
+            zip_entry(archive, "review_output.py", (Path(__file__).parent / "review_output.py").read_bytes())
 
 
 KNOWLEDGE_CHECK_PROMPT = (
@@ -131,6 +134,7 @@ def knowledge_package(source_directory: Path) -> bytes:
         "main.py": (shared / "knowledge_main.py").read_bytes(),
         "requirements.txt": ("\n".join(requirements) + "\n").encode("utf-8"),
         "knowledge_retrieval.py": (shared / "knowledge_retrieval.py").read_bytes(),
+        "review_output.py": (shared / "review_output.py").read_bytes(),
     }
     if (source_directory / "instructions.md").is_file():
         files["instructions.md"] = (source_directory / "instructions.md").read_bytes()

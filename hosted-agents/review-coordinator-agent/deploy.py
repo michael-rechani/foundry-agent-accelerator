@@ -53,6 +53,13 @@ def default_profile() -> AgentProfile:
                 "review_case",
                 "case-review-agent",
             ),
+            (
+                "Write a brief handoff summary of these fictional notes only; do not assess eligibility or timeliness. "
+                "CASE-1 reports intake completed September 3, 2027. CASE-2 reports a follow-up appointment "
+                "booked for September 10, 2027 with the intake team. No notes conflict; no policy is needed.",
+                "review_case",
+                "case-review-agent",
+            ),
         ),
         environment_variables=(("SPECIALIST_CONFIG", json.dumps(DEFAULT_SPECIALISTS)),),
     )

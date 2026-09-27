@@ -89,6 +89,28 @@ specialist by default, forwards the complete request, and returns the
 specialist's findings. Deploy both specialist agents before deploying the
 coordinator.
 
+Keep the three responsibilities distinct:
+
+| Agent | Useful task and required input | Result a person can use | Capability boundary |
+| --- | --- | --- | --- |
+| Application checker | Compare supplied application or proposal text with an explicit checklist. Ask for either if missing. | One cited row per item, budget calculations where relevant, and specific questions for incomplete or ambiguous evidence. | No invented criteria, external verification, approval, scoring, or business writes. |
+| Case notes summarizer | Summarize supplied notes; use policy only when supplied and needed for the question. | Attributed facts, unresolved dates or conflicting notes, and focused staff questions. A basic summary does not require policy. | No inferred deadlines, unsupported reconciliation, eligibility decisions, or system updates. |
+| Application and case helper | Select the appropriate specialist for a review; explain needed inputs without specialist execution. | The complete specialist findings, not another review or a serialized receipt. | Routing is model-directed. It adds inference work; use a directly enabled specialist for a known single task. |
+
+These are supplied-evidence assistants, not autonomous case-management systems.
+Adding retrieval or write tools would change their permissions, data boundary,
+and evaluation requirements; it is not needed to improve these tasks. **Chat**
+owns conversation context and **Document reviews** owns saved review state.
+Neither ownership belongs in the coordinator or its specialists.
+
+Refine and validate one layer at a time: application specialist, case specialist,
+then coordinator. The [evaluation guide](../evaluations/README.md#offline-validation)
+provides separate offline selectors. After separately approved staging publication,
+test each specialist's answer before comparing it with the coordinator's visible
+answer and execution receipt. Confirm both useful findings and the absence of
+unnecessary questions. Passing packaging or mock tests is not a model-quality
+result; no source edit changes an already deployed agent.
+
 The coordinator needs `interact/action` on each specialist's endpoint. This
 repository doesn't know yet whether an agent's default access covers that. The
 deployer prints each new version's agent identity principal ID. To grant
@@ -212,7 +234,10 @@ Terraform plan or a dry run. Require successful activation and all smoke checks.
 
 The deployer packages `main.py`, `requirements.txt`, and the sample's reviewed
 instructions and `configuration.py` when present into a deterministic ZIP with
-portable regular-file permissions. Before upload it checks the model and
+portable regular-file permissions. Review agents also include the shared
+`review_output.py` quotation and result-preservation middleware. Stage that file
+beside `deployment.py` when deploying source rather than a portable bundle.
+Before upload it checks the model and
 specialists and snapshots the existing route. Existing routes must use explicit
 versions: a symbolic `@latest` route or an unrouted existing agent requires
 operator reconciliation before another version is created.

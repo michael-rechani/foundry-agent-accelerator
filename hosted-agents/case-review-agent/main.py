@@ -7,6 +7,7 @@ from agent_framework.foundry import FoundryChatClient
 from agent_framework_foundry_hosting import ResponsesHostServer
 from azure.identity import DefaultAzureCredential
 
+from review_output import quotation_middleware
 
 DEFAULT_INSTRUCTIONS = (Path(__file__).parent / "instructions.md").read_text(
     encoding="utf-8"
@@ -29,6 +30,7 @@ async def main() -> None:
                 model=model_deployment,
                 credential=credential,
                 allow_preview=True,
+                middleware=[quotation_middleware()],
             ),
             name=os.getenv("AGENT_NAME", "case-review-agent"),
             instructions=os.getenv("AGENT_INSTRUCTIONS", DEFAULT_INSTRUCTIONS),

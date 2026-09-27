@@ -46,12 +46,37 @@ checklist items and document text, then returns that format. Saving and
 re-running reviews is the Lab's workflow, not extra coordinator memory or a
 business action.
 
+The coordinator is a routing and presentation layer, not a second reviewer.
+Runtime middleware replaces model-written tool request arguments with the
+original user messages in order, excluding generated assistant history. The
+specialist therefore receives the source wording, not a routing-model paraphrase.
+After its tools finish, runtime middleware checks the correlated call IDs,
+configured tool/agent bindings and successful receipts, then returns the full
+specialist text without another model call. Tables, calculations and questions
+therefore remain unchanged. A single JSON result is returned without a label or
+wrapper; ordinary Chat adds only the specialist label. Multiple prose results
+stay separate; multiple structured results fail rather than inventing a merged
+schema. Invalid or failed receipts produce an error, not a substitute review.
+The example profile and base instructions are checked for behavioral parity,
+allowing only their different tool names.
+
+Use a directly enabled specialist when the task is already known; the optional
+coordinator is useful when one entry point must handle both application and case
+requests. It adds model work and another opportunity to alter findings. The
+runtime no longer asks the model to rewrite successful specialist output.
+Initial tool selection is still model-generated, not a
+deterministic routing or first-batch call-count guarantee. Live acceptance must
+check the selected tool, unchanged forwarded evidence and useful findings, not just text
+equality. A direct specialist also avoids the coordinator's initial routing
+inference; no fixed latency improvement is promised.
+
 | Request | Tool | Default hosted agent |
 | --- | --- | --- |
 | Application against supplied criteria | `review_application` | `application-review-agent` |
 | Request for proposal (RFP) requirements against supplied product evidence (**Preview**) | `review_application` | `application-review-agent` |
 | Case timeline or conflicting records | `review_case` | `case-review-agent` |
 | Ambiguous review type | Clarifying question | No call yet |
+| Help with what to paste or what the agent can do | Input guidance | No specialist call |
 
 ## Try the scenario
 

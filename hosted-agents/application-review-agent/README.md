@@ -44,6 +44,25 @@ corresponding to the Chat matrix's Met, Not demonstrated, and Unclear labels.
 The updated instructions accept that requested format without adding new
 criteria or turning a human-review notice into a request for more documents.
 
+For ordinary Chat, the matrix is a readable Markdown table, not JSON. A mention
+of a topic is not enough to satisfy a checklist item: an unanchored relative
+date is **Not demonstrated**, and an incomplete itemized budget includes the
+calculated unexplained amount. **Unclear** is reserved for conflicting
+statements. Later supplied clarifications can resolve a gap without adding new
+requirements or repeatedly asking for the same information.
+Without a supplied checklist, the agent must ask for it and stop rather than
+inventing common proposal requirements. Each quotation must remain a contiguous
+excerpt from a single source; calculations and combined-source explanations
+belong outside quotation marks.
+
+The supplied-text runtime checks single- and double-quoted Chat excerpts against the
+user-supplied text before releasing the response, including streamed responses.
+An altered excerpt triggers one model repair attempt; a second failure
+withholds the review with an explicit error. Structured citations use the
+named source when the Lab supplies its document-review envelope. This checks
+literal text, not factual truth or every claim's attribution. The Lab's existing
+schema, criterion-coverage and exact-source checks still apply to saved reviews.
+
 ## Preview: requirements and proposal review
 
 The same agent compares sample request for proposal (RFP) criteria with supplied

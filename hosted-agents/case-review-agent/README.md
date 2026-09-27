@@ -37,6 +37,18 @@ Chat normally returns prose sections. A request with explicit checklist items
 and a structured review schema uses that format instead. This does not create a
 review record on its own; the Lab owns **Document reviews** persistence.
 
+The summary attributes statements to their notes rather than presenting them
+as independently verified facts. Relative dates without an explicit anchor stay
+uncertain. Follow-up questions address the requested task, not a generic list of
+documents to collect: a straightforward summary can say **No policy supplied**
+without demanding policy or inventing a deadline.
+
+The default supplied-text runtime checks quotations before releasing output,
+with one bounded repair attempt and an explicit error if the check still fails.
+Streaming output is buffered for that check. It verifies literal excerpts, not
+the truth of a note. This supplied-text check does not apply to the optional
+retrieval-enabled runtime, whose sources come from a separate tool boundary.
+
 ## Data and decision boundaries
 
 > [!IMPORTANT]
