@@ -221,9 +221,10 @@ Resolve that installation's state separately. Preserve state and protected
 backups.
 
 Earlier versions gave the deployer Key Vault Secrets Officer on the Agent
-Service Key Vault. The next apply on an existing deployment deletes that role
-assignment. It doesn't delete any secret. See
-[Removed assignment](../docs/permissions.md#removed-assignment).
+Service Key Vault by default. To keep it, set
+`deployer_key_vault_secrets_officer = true`; the plan then shows no change.
+Otherwise the next apply deletes that role assignment. It doesn't delete any
+secret. See [Deployer Key Vault access](../docs/permissions.md#deployer-key-vault-access).
 
 Earlier versions didn't give the Foundry project's managed identity Foundry
 User on the Foundry resource, which [live evaluation](../evaluations/README.md)
@@ -231,7 +232,9 @@ runs need. The next apply adds `azurerm_role_assignment.project_foundry_user`.
 If you already granted that role by hand, the apply fails because the
 assignment exists. Import it first with
 `terraform import azurerm_role_assignment.project_foundry_user <role assignment ID>`,
-or delete the manual assignment.
+or delete the manual assignment. Role assignments can't be updated in place, so
+if the manual one has a description, the import plan replaces it. Clear the
+description first to import without a change.
 
 The next apply also updates the agent storage account in place to admit the
 Foundry project as a resource instance, so live evaluation can store results.

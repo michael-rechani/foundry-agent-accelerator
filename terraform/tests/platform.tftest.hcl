@@ -373,3 +373,36 @@ run "reject_coordinator_access_without_specialists" {
   }
   expect_failures = [var.coordinator_agent_access]
 }
+
+run "deployer_key_vault_access_defaults_off" {
+  command = plan
+  assert {
+    condition     = !var.deployer_key_vault_secrets_officer && length(local.agent_key_vault_role_assignments) == 0
+    error_message = "The deployer's Key Vault grant must be opt-in."
+  }
+}
+
+run "deployer_key_vault_access_opt_in" {
+  command = plan
+  variables {
+    deployer_key_vault_secrets_officer = true
+    deployment_principal_id            = "00000000-0000-0000-0000-000000000006"
+  }
+  assert {
+    condition = (
+      keys(local.agent_key_vault_role_assignments) == ["deployer_secrets_officer"] &&
+      local.agent_key_vault_role_assignments.deployer_secrets_officer.principal_id == "00000000-0000-0000-0000-000000000006" &&
+      local.agent_key_vault_role_assignments.deployer_secrets_officer.role_definition_id_or_name == "Key Vault Secrets Officer"
+    )
+    error_message = "Opting in must grant Key Vault Secrets Officer to the deployment principal under the original key, so an existing grant isn't replaced."
+  }
+}
+
+run "deployer_key_vault_access_defaults_to_caller" {
+  command = plan
+  variables { deployer_key_vault_secrets_officer = true }
+  assert {
+    condition     = local.agent_key_vault_role_assignments.deployer_secrets_officer.principal_id == "00000000-0000-0000-0000-000000000002"
+    error_message = "Without a deployment principal, the grant must go to the identity running Terraform."
+  }
+}

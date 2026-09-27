@@ -159,6 +159,7 @@ module "ai_foundry" {
       }
       private_dns_zone_resource_id  = azurerm_private_dns_zone.this["key_vault"].id
       public_network_access_enabled = false
+      role_assignments              = local.agent_key_vault_role_assignments
     }
   } : {}
   storage_account_definition = var.enable_agent_service ? {

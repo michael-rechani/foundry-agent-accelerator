@@ -22,7 +22,7 @@ checked against a live deployment.
 
 | Area | What to know |
 | --- | --- |
-| Assigned by this repository | Nine role assignment resources across the platform, Lab, and monitoring Terraform roots. The jumpbox, APIM, and coordinator grants exist only when you turn on those off-by-default inputs. |
+| Assigned by this repository | Eleven role assignments across the platform, Lab, and monitoring Terraform roots. The jumpbox, APIM, coordinator, and deployer Key Vault grants exist only when you turn on those off-by-default inputs. |
 | Assigned by the pinned AVM module | Six more assignments to the Foundry project identity, created inside the Foundry pattern module when Agent Service is enabled. |
 | Not assigned by this repository | Operator prerequisites, state access, secret reads, image push, trace viewing, and anything Foundry grants itself. |
 | Role names | The code refers to most roles by ID. Names come from Azure's built-in role catalog, not from this repository. |
@@ -55,9 +55,11 @@ plane role, which Azure lists separately in the
 | `3913510d-42f4-4e42-8a64-420c390055eb` | Monitoring Metrics Publisher | [`terraform/monitoring/main.tf`](../terraform/monitoring/main.tf) (`local.publisher_role_id`) |
 | `00000000-0000-0000-0000-000000000002` (Cosmos DB SQL role) | Cosmos DB Built-in Data Contributor | [`workbench/infra/history.tf`](../workbench/infra/history.tf) (`azurerm_cosmosdb_sql_role_assignment.history`) |
 
-One assignment uses a role name directly: **AcrPull** in
+Two assignments use a role name directly: **AcrPull** in
 [`workbench/infra/main.tf`](../workbench/infra/main.tf)
-(`azurerm_role_assignment.pull`).
+(`azurerm_role_assignment.pull`), and **Key Vault Secrets Officer** in
+[`terraform/key-vault-access.tf`](../terraform/key-vault-access.tf)
+(`local.agent_key_vault_role_assignments`).
 
 ## Assigned by this repository
 
@@ -70,6 +72,7 @@ creates role assignments. The Lab never grants roles itself.
 | --- | --- | --- | --- | --- |
 | Platform deployer, as above | Foundry User | The Foundry project, `hosted-agents-<environment>` | [`terraform/main.tf`](../terraform/main.tf): `azurerm_role_assignment.deployer_foundry_user` | Nothing in the platform apply. Confirmed from source: the platform Terraform makes only Azure Resource Manager calls, and this role grants Foundry data actions. Per Microsoft Learn, it's the role standard agent setup gives developers who create or edit agents, and its absence causes `AuthorizationFailed` when creating or editing agents ([standard agent setup](https://learn.microsoft.com/azure/foundry/agents/concepts/standard-agent-setup#troubleshoot-common-issues)). The repository doesn't record why it was added. See [Foundry User and Foundry Project Manager](#foundry-user-and-foundry-project-manager). |
 | Foundry project system-assigned identity | Foundry User | The Foundry resource (account) | [`terraform/main.tf`](../terraform/main.tf): `azurerm_role_assignment.project_foundry_user` | [Live evaluation](../evaluations/README.md) runs. Per Microsoft Learn, assign this role to the project's managed identity at the Foundry resource scope to prevent evaluation and red teaming run failures ([virtual network support for evaluation](https://learn.microsoft.com/azure/foundry/concepts/evaluation-virtual-network#configure-evaluation-network-requirements)). Not confirmed in the private Lab whether it's required: there, `client.evals.runs.create` failed with `400 UserError: Pending evaluation-result upload was denied (HTTP 403)`, the failure persisted after this grant, and it cleared once the agent storage account admitted the project as a resource instance ([`terraform/keyless-storage.tf`](../terraform/keyless-storage.tf)). Hosted agents, delegation, and the Lab worked without it. |
+| Platform deployer, as above | Key Vault Secrets Officer | The Agent Service Key Vault that the pinned AVM module creates | [`terraform/key-vault-access.tf`](../terraform/key-vault-access.tf): `local.agent_key_vault_role_assignments`, passed to `module.ai_foundry` as `deployer_secrets_officer`. Only when `deployer_key_vault_secrets_officer = true`; the default is `false`. | Nothing in this repository. Confirmed from source: no Terraform here or in the pinned AVM module reads or writes that vault. It's for operators who keep their own secrets there. See [Deployer Key Vault access](#deployer-key-vault-access). |
 | Jumpbox VM system-assigned identity | Foundry Project Manager | The Foundry project | [`terraform/jumpbox.tf`](../terraform/jumpbox.tf): `azurerm_role_assignment.jumpbox_foundry_project_manager`. Only when `enable_jumpbox = true`; the default is `false`. | The jumpbox can't publish hosted agents with its managed identity. The [private deployment runbook](private-deployment.md#1-confirm-prerequisites) requires this role at project scope. Recreating the VM changes the identity, so [reconcile role assignments](../terraform/README.md#optional-administration-resources) before the next apply. |
 | APIM system-assigned identity | Foundry User | The Foundry project | [`terraform/apim.tf`](../terraform/apim.tf): `azurerm_role_assignment.api_management_foundry_user`. Only when `enable_api_management = true`; the default is `false`. | The review API policy in [`review.xml.tftpl`](../terraform/policies/review.xml.tftpl) authenticates to the coordinator with this identity (`authentication-managed-identity`), so backend calls fail. `azurerm_api_management_api_policy.review` in [`terraform/review-api.tf`](../terraform/review-api.tf) depends on this assignment. See [API Management gateway](../terraform/README.md#api-management-gateway). |
 | Review coordinator's agent identity, from `coordinator_agent_access.principal_id` | Foundry Agent Consumer | Each specialist agent in `coordinator_agent_access.specialist_agents`, at `<project ID>/agents/<name>`. The default list is `application-review-agent` and `case-review-agent`. | [`terraform/agent-access.tf`](../terraform/agent-access.tf): `azapi_resource.coordinator_agent_consumer`. Only when `coordinator_agent_access` is set; the default is `null`. | Confirmed from source: `invoke_specialist` in [`review-coordinator-agent/main.py`](../hosted-agents/review-coordinator-agent/main.py) calls each specialist's agent endpoint with `DefaultAzureCredential`. Per Microsoft Learn, calling an agent endpoint needs `Microsoft.CognitiveServices/accounts/AIServices/endpoints/interact/action`, and Foundry Agent Consumer is the least-privilege built-in role for it ([agent interaction](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#agent-interaction)). Per Microsoft Learn, an agent-scope assignment applies only to that agent's endpoint ([agent-scope role assignments](https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry#agent-scope-role-assignments)). Whether calls fail without it isn't confirmed; see [coordinator agent access](#coordinator-agent-access). |
@@ -113,24 +116,31 @@ supply its principal ID.
   ([agent identity](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-identity)).
   If you delete and re-create the coordinator, update the principal ID.
 
-### Removed assignment
+### Deployer Key Vault access
 
-Earlier versions gave the platform deployer Key Vault Secrets Officer on the
-Agent Service Key Vault, as `deployer_secrets_officer` in `module.ai_foundry`.
-Confirmed from source: it was added when Terraform wrote a generated jumpbox
-password to that vault as `jumpbox-admin-password`
+`deployer_key_vault_secrets_officer` is off by default. When it's `true`,
+Terraform gives the platform deployer Key Vault Secrets Officer on the Agent
+Service Key Vault, so the deployer can create and rotate secrets there. The
+deployer is `deployment_principal_id`, or the identity running Terraform when
+that's unset.
+
+Confirmed from source: this grant was added when Terraform wrote a generated
+jumpbox password to that vault as `jumpbox-admin-password`
 ([commit 731f568](https://github.com/michael-rechani/foundry-agent-accelerator/commit/731f5687dedd88ab59914330853026d453c89ca7)),
-and kept after the switch to a pre-provisioned secret
-([commit 9561bac](https://github.com/michael-rechani/foundry-agent-accelerator/commit/9561bac275851a9a80ca5353f2a75ac93822e4f3)).
-No Terraform in this repository or the pinned AVM module reads or writes that
-vault now, so the grant is gone.
+kept after the switch to a pre-provisioned secret
+([commit 9561bac](https://github.com/michael-rechani/foundry-agent-accelerator/commit/9561bac275851a9a80ca5353f2a75ac93822e4f3)),
+and made opt-in once no Terraform in this repository or the pinned AVM module
+used that vault.
 
-The next platform apply deletes that assignment,
-`module.ai_foundry.module.key_vault["agent"].azurerm_role_assignment.this["deployer_secrets_officer"]`.
-It doesn't delete a legacy `jumpbox-admin-password` secret. The
-`jumpbox_key_vault_name` and `jumpbox_admin_password_secret_name` outputs no
-longer point at it; they're `null` unless `jumpbox_admin_secret` is set. To keep
-reading a legacy secret, grant Key Vault Secrets User at secret scope.
+- **Existing deployments.** Earlier versions created it by default, at
+  `module.ai_foundry.module.key_vault["agent"].azurerm_role_assignment.this["deployer_secrets_officer"]`.
+  Set `deployer_key_vault_secrets_officer = true` to keep it. The input uses the
+  same key, role, and principal, so the plan shows no change. Leave it `false`
+  and the next apply deletes the assignment. It doesn't delete any secret.
+- **Reading one secret.** To read a single secret, such as a legacy
+  `jumpbox-admin-password`, grant Key Vault Secrets User at secret scope
+  instead. The `jumpbox_key_vault_name` and `jumpbox_admin_password_secret_name`
+  outputs are `null` unless `jumpbox_admin_secret` is set.
 
 ## Assigned by the pinned AVM module
 
@@ -245,7 +255,8 @@ This follows the [credentials guide](credentials.md) and the deployment guides.
   See [production considerations](../terraform/README.md#separately-scoped-production-considerations).
 - To read a single secret, grant Key Vault Secrets User at secret scope rather
   than Key Vault Secrets Officer on the vault. Per Microsoft Learn, Secrets User
-  only reads secret contents.
+  only reads secret contents. Turn on `deployer_key_vault_secrets_officer` only
+  if the deployer manages secrets in that vault.
 - Scope agent-to-agent access to the agents being called.
   `coordinator_agent_access` assigns Foundry Agent Consumer on each specialist
   agent, not the project.

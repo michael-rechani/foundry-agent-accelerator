@@ -14,6 +14,12 @@ variable "deployment_principal_id" {
   description = "Stable deployment operator identity when Terraform runs under a private managed identity."
 }
 
+variable "deployer_key_vault_secrets_officer" {
+  type        = bool
+  default     = false
+  description = "Grants the deployment principal Key Vault Secrets Officer on the Agent Service Key Vault, so it can create and rotate secrets there, such as the Lab's operator-key verifier. Nothing in this configuration reads or writes that vault, so this is off by default."
+}
+
 variable "base_name" {
   type        = string
   description = "Short lowercase name used as a resource-name suffix."
