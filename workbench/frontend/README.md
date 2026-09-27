@@ -39,9 +39,13 @@ install browser system dependencies with `npx playwright install --with-deps chr
 
 ## App structure
 
-`src/ChatWorkspace.tsx` owns conversation and view state for **Explore demos**, **New chat**,
-**Create agent**, **Created agents**, **Chat**, **Document reviews**,
-**Shared history**, **Agent catalog**, and **Performance**. Reply rendering,
+`src/ChatWorkspace.tsx` owns conversation and view state for the library's
+**Templates**, **Ready to use**, and **Created here** tabs, **Create agent**, **Chat**,
+**Document reviews**, **Guided demos**, **Performance**, **Request log**, and
+**Shared history**. `ChatSidebar.tsx` groups them into three sections: **Chat
+and test**, **Agent library**, and **Performance and monitoring**. The
+library is one sidebar entry, **All agents**; LibraryTabs.tsx switches between
+its three tabs. Reply rendering,
 including the handoff timeline and collapsed execution details, lives in
 `ConversationTurn.tsx`. `WaitingIndicator.tsx` owns the elapsed timer so it
 does not rerender the transcript.
@@ -56,12 +60,14 @@ selection and clipboard feedback; it never invokes an agent or writes records.
 | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ChatSidebar.tsx`, `ChatTopbar.tsx`                          | Render the view navigation and the Chat header, agent picker, and save/export actions.                                                        |
 | `ChatWelcome.tsx`, `ChatComposer.tsx`                        | Render the new-chat prompts and the message composer with its conversation limits.                                                            |
-| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx` | Render the **Shared history**, **Agent catalog**, and **Performance** views.                                                                  |
+| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx` | Render the **Shared history**, **Ready to use**, and **Performance** views.                                                                   |
+| `AgentLibrary.tsx`, `library-catalog.ts`, `library.css`      | Render **Templates**. `library-catalog.ts` strictly validates `/api/agent-templates` (`schema_version` 1) and filters with live facet counts. |
+| `RequestLog.tsx`, `performance-stats.ts`                     | Render the **Request log** and compute per-agent median, 90th-percentile, and slowest timings.                                                |
 | `history-client.ts`                                          | Handles bounded history requests.                                                                                                             |
 | `request.ts`                                                 | Handles transport-independent cancellation.                                                                                                   |
 | `workspace-config.ts`                                        | Validates public configuration and handles bootstrap timeouts and retry.                                                                      |
 | `ContinueDialog.tsx`                                         | Previews carry-over context before resetting the conversation. It never invokes an agent.                                                     |
-| `AgentGuide.tsx`                                             | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Agent catalog** cards.          |
+| `AgentGuide.tsx`                                             | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Ready to use** cards.           |
 | `theme.ts`, `ThemePicker.tsx`                                | Load, validate, save, and apply the **Appearance** choice, and render its header menu.                                                        |
 | `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`      | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement. |
 
@@ -90,7 +96,7 @@ opposite theme.
 ## Agent creation UI
 
 `AgentCreationWorkspace.tsx` implements template-based setup preparation,
-review, operator-confirmed publication, and the shared **Created agents** list.
+review, operator-confirmed publication, and the shared **Created here** list.
 This is not a large language model (LLM) configuration conversation or an
 arbitrary code/tool generator. `CreationTaskForm.tsx` renders the template
 picker and job description, `CreationSetupReview.tsx` renders the setup review
@@ -103,8 +109,10 @@ Publication uses an idempotency UUID retained across uncertain retries. GET
 polling never submits another creation. Setup, publication, ready routing, and
 live answer quality remain distinct.
 
-The opening view is **Explore demos**. Explicit `/#chat` and `/#create` entry
-links are supported; creation still requires its advertised capability. Valid
+The opening view is **All agents** > **Templates**. Explicit `/#chat`, `/#library`, `/#agents`,
+`/#demos`, `/#performance`, `/#logs`, and `/#create` entry links are
+supported; a library **Create** action opens the creator with that template
+preselected unless setup work is already in progress; creation still requires its advertised capability. Valid
 saved-review links keep priority.
 The model and tools are not editable here. Operator keys are password fields
 kept only in memory, cleared when leaving the creator views, and never included
@@ -119,6 +127,19 @@ layout. It also covers the **Appearance** menu, saved and unreadable theme
 choices, and dark-mode card contrast for each accent. Its publication and answer fixtures are explicitly mocked. For a focused
 check, run `npm test -- agent-creation.spec.ts`; this still builds the
 production assets first.
+
+## Library, performance, and log coverage
+
+`tests/library.spec.ts` routes `/api/agent-templates` to
+`tests/agent-templates.fixture.json`, which
+`workbench/test_frontend_catalog_fixture.py` keeps identical to the served
+catalog. It covers the four-section navigation and hash links, filters with
+live counts, search and the empty state, detail tabs and honest labels, template
+preselection without preparing or publishing, opening a ready agent in Chat as
+an unsent draft, the request log reference, the per-agent benchmark, record
+download for export, preview and retry states, and light and dark contrast.
+`unit/library-catalog.test.ts` and `unit/performance-stats.test.ts` cover the
+pure catalog and timing logic.
 
 ## Showcase and presenter coverage
 

@@ -88,7 +88,7 @@ and shared safeguards are not implemented, registered, or deployed agents.
 
 ## Explore three stories
 
-Choose a story in **Explore demos**. Each one pairs fictional evidence with
+Choose a story in **Guided demos**. Each one pairs fictional evidence with
 findings to look for and a decision that stays with a person.
 
 <a id="find-the-missing-evidence"></a>
@@ -126,8 +126,9 @@ walkthroughs, not guaranteed answers or measured business results.
 
 - **[Grounded answers](docs/review-workflow.md):** in **Document reviews**,
   every result quotes your text; quotes that don't match are rejected.
-- **[Tracing](terraform/monitoring/README.md):** see response times in
-  **Performance**, with optional agent traces in the Foundry portal.
+- **[Tracing](terraform/monitoring/README.md):** compare response times by agent
+  in **Performance**, copy a request reference from **Request log**, and view
+  optional agent traces in the Foundry portal.
 - **[Evaluation](evaluations/README.md):** compare models or prompts against
   the same cases, including optional live Foundry evaluations.
 
@@ -139,8 +140,10 @@ onto private networks. Services use managed identities, not API keys.
 **Create agent** is off until an operator turns it on, because publishing
 creates Azure resources that cost money.
 
-The Lab opens on **Explore demos**; **Chat** remains one click away.
-For all eight pages, see the [Lab guide](workbench/README.md#pages).
+The Lab opens on the **Agent library**; **Chat** remains one click away. The
+sidebar groups its pages into three sections: **Chat and test**, **Agent
+library** (every agent, under **Templates**, **Ready to use**, and **Created
+here**), and **Performance and monitoring**. See the [Lab guide](workbench/README.md#pages).
 
 ---
 

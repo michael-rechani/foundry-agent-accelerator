@@ -18,12 +18,17 @@ import {
   useCreatedAgents,
 } from './agent-creation-client'
 import { ChatSidebar, type View } from './ChatSidebar'
+import { libraryViews } from './navigation'
+import { LibraryTabs } from './LibraryTabs'
 import { ChatTopbar } from './ChatTopbar'
 import { ChatWelcome } from './ChatWelcome'
 import { ChatComposer } from './ChatComposer'
 import { HistoryView, type SavedChat } from './HistoryView'
 import { AgentCatalog } from './AgentCatalog'
-import { PerformanceView, type Measurement } from './PerformanceView'
+import { PerformanceView } from './PerformanceView'
+import type { Measurement } from './performance-stats'
+import { RequestLog } from './RequestLog'
+import { AgentLibrary, type ReadyAgent } from './AgentLibrary'
 import { ExploreDemos, DemoRunGuide } from './ExploreDemos'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
 type SavedVersion = { id: string; _etag: string }
@@ -31,6 +36,16 @@ type SavedVersion = { id: string; _etag: string }
 // Identifies one conversation so the server can reuse its warm agent session.
 const newThread = () =>
   typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : undefined
+
+const hashViews: Record<string, View> = {
+  '#chat': 'chat',
+  '#create': 'create',
+  '#library': 'library',
+  '#agents': 'catalog',
+  '#demos': 'explore',
+  '#performance': 'performance',
+  '#logs': 'log',
+}
 
 const errors: Record<string, string> = {
   preview_only: 'Foundry is not connected. No agent was invoked.',
@@ -60,16 +75,12 @@ export default function ChatWorkspace() {
       window.location.hash,
     )
       ? 'reviews'
-      : window.location.hash === '#chat'
-        ? 'chat'
-        : window.location.hash === '#create'
-          ? 'create'
-          : null,
+      : (hashViews[window.location.hash] ?? null),
   )
   const view =
     selectedView === 'create' && config && !config.agent_creation
-      ? 'explore'
-      : (selectedView ?? 'explore')
+      ? 'library'
+      : (selectedView ?? 'library')
   const createdAgents = useCreatedAgents(config?.agent_creation)
   const availableAgents: Agent[] = [
     ...(config?.agents || []),
@@ -93,6 +104,10 @@ export default function ChatWorkspace() {
   const [continuing, setContinuing] = useState(false)
   const [presenting, setPresenting] = useState(false)
   const [activeDemo, setActiveDemo] = useState<DemoScenario | null>(null)
+  const [requestedTemplate, setRequestedTemplate] = useState<{
+    id: string
+    key: number
+  } | null>(null)
   const [thread, setThread] = useState(newThread)
   const historyRequest = useHistoryClient(config?.history_timeout_ms)
   const controller = useRef<AbortController | null>(null)
@@ -192,6 +207,7 @@ export default function ChatWorkspace() {
       config.review_timeout_ms,
     )
     let serverTimedOut = false
+    let reference: string | undefined
     try {
       const { response, data } = await requestJson(
         '/api/reviews',
@@ -205,6 +221,7 @@ export default function ChatWorkspace() {
         },
         abort.signal,
       )
+      if (typeof data.request_id === 'string') reference = data.request_id
       if (!response.ok) {
         serverTimedOut = data.error === 'timeout'
         throw new Error(
@@ -221,34 +238,40 @@ export default function ChatWorkspace() {
           {
             id: measurementId,
             agent: agent.label,
+            agentId: agent.id,
             outcome: 'completed',
             duration: performance.now() - started,
+            at: Date.now(),
+            reference,
           },
         ])
     } catch (problem) {
       const timedOut =
         serverTimedOut || abort.signal.reason?.name === 'TimeoutError'
-      setError(
-        abort.signal.aborted
-          ? timedOut
-            ? 'Request timed out. Remote work may continue; no automatic retry was made.'
-            : 'Stopped waiting. Remote work may continue; no automatic retry was made.'
-          : problem instanceof Error
-            ? problem.message
-            : 'Request failed.',
-      )
+      const message = abort.signal.aborted
+        ? timedOut
+          ? 'Request timed out. Remote work may continue; no automatic retry was made.'
+          : 'Stopped waiting. Remote work may continue; no automatic retry was made.'
+        : problem instanceof Error
+          ? problem.message
+          : 'Request failed.'
+      setError(message)
       if (config?.mode === 'private')
         setMeasurements((previous) => [
           ...previous,
           {
             id: measurementId,
             agent: agent.label,
+            agentId: agent.id,
             outcome: timedOut
               ? 'timed-out'
               : abort.signal.aborted
                 ? 'stopped'
                 : 'failed',
             duration: performance.now() - started,
+            at: Date.now(),
+            reference,
+            message,
           },
         ])
     } finally {
@@ -305,6 +328,30 @@ export default function ChatWorkspace() {
       return
     resetConversation(target.id, scenario.input)
     setActiveDemo(scenario)
+  }
+
+  function readyAgentFor(templateId: string): ReadyAgent | undefined {
+    const record = createdAgents.records.find(
+      (item) =>
+        item.template_id === templateId &&
+        item.status === 'ready' &&
+        item.agent !== null,
+    )
+    return record?.agent
+      ? { agent: record.agent, recordId: record.id }
+      : undefined
+  }
+
+  function testFromLibrary(target: Agent, input: string) {
+    if (busy || historyBusy) return
+    if (
+      (draft || dirty) &&
+      !window.confirm(
+        'Open this fictional example in a fresh chat? Unsaved local messages will be cleared. Saved history is not deleted.',
+      )
+    )
+      return
+    resetConversation(target.id, input)
   }
 
   async function listHistory(more = false) {
@@ -431,10 +478,10 @@ export default function ChatWorkspace() {
     }
   }
 
-  async function copy(text: string) {
+  async function copy(text: string, done = 'Response copied.') {
     try {
       await navigator.clipboard.writeText(text)
-      setNotice('Response copied.')
+      setNotice(done)
     } catch {
       setNotice('Clipboard unavailable. Select and copy the response manually.')
     }
@@ -465,13 +512,9 @@ export default function ChatWorkspace() {
         historyEnabled={!!config?.history_enabled}
         busy={busy}
         historyBusy={historyBusy}
-        agentCount={availableAgents.length}
+        requestCount={measurements.length}
         onNewChat={() => newChat()}
         onView={setView}
-        onCreatedAgents={() => {
-          setView('created')
-          void createdAgents.refresh()
-        }}
         onHistory={() => void listHistory()}
       />
 
@@ -516,8 +559,37 @@ export default function ChatWorkspace() {
           </div>
         )}
 
+        {config && libraryViews.includes(view) && (
+          <LibraryTabs
+            view={view}
+            readyCount={availableAgents.length}
+            createdCount={createdAgents.records.length}
+            creationEnabled={!!config.agent_creation}
+            onView={setView}
+            onCreated={() => {
+              setView('created')
+              void createdAgents.refresh()
+            }}
+          />
+        )}
         {config && (
           <ReviewWorkspace config={config} active={view === 'reviews'} />
+        )}
+        {config && (
+          <AgentLibrary
+            active={view === 'library'}
+            capability={config.agent_creation}
+            readyAgentFor={readyAgentFor}
+            busy={busy || historyBusy}
+            onCreate={(id) => {
+              setRequestedTemplate((current) => ({
+                id,
+                key: (current?.key ?? 0) + 1,
+              }))
+              setView('create')
+            }}
+            onTest={testFromLibrary}
+          />
         )}
         {config?.agent_creation && (
           <AgentCreationWorkspace
@@ -525,6 +597,7 @@ export default function ChatWorkspace() {
             state={createdAgents}
             active={view === 'create' || view === 'created'}
             view={view === 'create' ? 'create' : 'created'}
+            requestedTemplate={requestedTemplate}
             chatBusy={busy || historyBusy}
             onView={setView}
             onUse={(item) => newChat(item.id)}
@@ -551,8 +624,15 @@ export default function ChatWorkspace() {
             />
           )
         ) : view === 'reviews' ||
+          view === 'library' ||
           view === 'create' ||
-          view === 'created' ? null : view === 'history' ? (
+          view === 'created' ? null : view === 'log' ? (
+          <RequestLog
+            measurements={measurements}
+            preview={config?.mode !== 'private'}
+            onCopy={(text) => void copy(text, 'Reference copied.')}
+          />
+        ) : view === 'history' ? (
           <HistoryView
             chats={savedChats}
             agents={availableAgents}
@@ -671,7 +751,11 @@ export default function ChatWorkspace() {
             onChoose={(id) => (id === selected ? setView('chat') : newChat(id))}
           />
         ) : (
-          <PerformanceView measurements={measurements} />
+          <PerformanceView
+            measurements={measurements}
+            preview={config?.mode !== 'private'}
+            onLog={() => setView('log')}
+          />
         )}
       </div>
       {continuing && (

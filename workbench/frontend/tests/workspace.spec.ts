@@ -657,7 +657,7 @@ test('shared lab details are available on demand across workspace views', async 
     'Chat',
     'Document reviews',
     'Shared history',
-    'Agent catalog',
+    'All agents',
     'Performance',
   ]) {
     await page

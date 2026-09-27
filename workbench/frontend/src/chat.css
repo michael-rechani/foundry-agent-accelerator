@@ -195,7 +195,23 @@ p {
 }
 .chat-sidebar nav {
   display: grid;
-  gap: 6px;
+  gap: 18px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.nav-section {
+  display: grid;
+  gap: 2px;
+}
+.nav-section-label {
+  padding: 0 12px 4px;
+  font: 700 10px/1.6 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.nav-section[data-single] .nav-section-label {
+  display: none;
 }
 .chat-sidebar nav button {
   display: flex;
@@ -205,8 +221,8 @@ p {
   background: transparent;
   color: var(--text-secondary);
   border-radius: 6px;
-  min-height: 44px;
-  padding: 12px;
+  min-height: 40px;
+  padding: 10px 12px;
   font-size: 13px;
   transition: background 0.15s;
 }
@@ -243,6 +259,43 @@ p {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+}
+.library-switch {
+  display: flex;
+  gap: 4px;
+  padding: 0 32px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.library-switch button {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 14px 11px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.library-switch button:hover {
+  color: var(--text);
+}
+.library-switch button[aria-current] {
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 700;
+}
+.library-switch small {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-hover);
+  font: 10px/1.6 var(--mono);
 }
 .chat-topbar {
   position: relative;
@@ -1492,17 +1545,35 @@ p {
     gap: 5px;
   }
   .chat-sidebar nav {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    display: flex;
     gap: 2px;
     width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .nav-section {
+    display: flex;
+    gap: 2px;
+    padding-left: 6px;
+    border-left: 1px solid var(--line);
+  }
+  .nav-section:first-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .nav-section-label {
+    display: none;
   }
   .chat-sidebar nav button {
+    flex: 0 0 auto;
+    min-width: 70px;
+    max-width: 92px;
     flex-direction: column;
     justify-content: center;
     gap: 5px;
-    padding: 6px 2px;
+    padding: 6px 4px;
     height: 64px;
+    min-height: 0;
     font-size: 10px;
     line-height: 1.3;
     text-align: center;
@@ -1585,6 +1656,9 @@ p {
   .secondary-view {
     padding: 28px 19px;
   }
+  .library-switch {
+    padding: 0 12px;
+  }
   .section-heading h1 {
     font-size: 22px;
   }
@@ -1611,4 +1685,74 @@ p {
     animation: none !important;
     scroll-behavior: auto !important;
   }
+}
+.metric-strip-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.request-table tbody th {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text);
+}
+.table-note {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  max-width: 760px;
+}
+.table-note code {
+  font: 11px var(--mono);
+}
+.log-outcome {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.log-outcome.completed {
+  background: var(--success-bg);
+  color: var(--success-fg);
+}
+.log-outcome.failed,
+.log-outcome.timed-out {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+.log-outcome.stopped {
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+}
+.log-reference {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+}
+.log-reference:hover {
+  background: var(--accent-soft);
+}
+.log-reference code {
+  font: 11px var(--mono);
+}
+@media (max-width: 650px) {
+  .metric-strip-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metric-strip-4 > div:nth-child(3) {
+    padding-left: 0;
+  }
+  .metric-strip-4 > div:nth-child(2) {
+    border-right: 0;
+  }
+}
+.table-id {
+  color: var(--muted);
+  font: 400 11px var(--mono);
 }

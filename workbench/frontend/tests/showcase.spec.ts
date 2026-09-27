@@ -122,7 +122,7 @@ async function setup(
       json: { error: 'unexpected_test_request' },
     })
   })
-  await page.goto('/')
+  await page.goto('/#demos')
   await expect(
     page.getByRole('heading', { name: 'From paperwork to a clear next step.' }),
   ).toBeVisible()
@@ -135,7 +135,7 @@ test('exploration is read-only and every scenario has an honest customer story',
   const state = await setup(page)
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
   await expect(
-    navigation.getByRole('button', { name: 'Explore demos' }),
+    navigation.getByRole('button', { name: 'Guided demos' }),
   ).toHaveAttribute('aria-current', 'page')
   for (const scenario of demoScenarios) {
     await page
@@ -175,14 +175,14 @@ test('loading a demo preserves unsaved work until confirmed and never auto-sends
   await page
     .getByRole('textbox', { name: 'Message', exact: true })
     .fill('Keep my existing draft')
-  await page.getByRole('button', { name: 'Explore demos', exact: true }).click()
+  await page.getByRole('button', { name: 'Guided demos', exact: true }).click()
   page.once('dialog', (dialog) => dialog.dismiss())
   await page.getByRole('button', { name: 'Load fictional input' }).click()
   await page.getByRole('button', { name: 'Go straight to Chat' }).click()
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toHaveValue('Keep my existing draft')
-  await page.getByRole('button', { name: 'Explore demos', exact: true }).click()
+  await page.getByRole('button', { name: 'Guided demos', exact: true }).click()
   page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Load fictional input' }).click()
   await expect(

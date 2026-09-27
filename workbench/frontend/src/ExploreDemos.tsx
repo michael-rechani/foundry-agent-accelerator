@@ -56,7 +56,7 @@ export function ExploreDemos({
   }
 
   return (
-    <main className="demo-explorer" aria-label="Explore demos">
+    <main className="demo-explorer" aria-label="Guided demos">
       <div className="demo-introduction">
         <h1>From paperwork to a clear next step.</h1>
         <p>

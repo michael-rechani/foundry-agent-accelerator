@@ -1,0 +1,1197 @@
+{
+  "schema_version": 1,
+  "draft_mode": "template",
+  "templates": [
+    {
+      "id": "document-analyst",
+      "category": "General",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "Document explainer",
+      "description": "Explain a document, compare stated changes and identify questions for staff.",
+      "input": "Paste labeled policy, notice or product text and say what you want to understand.",
+      "output": "A plain-language summary, references to the text, stated changes and open questions.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "You are a document analyst for fictional demonstrations. Explain the supplied material in plain language. Preserve source labels and quote or reference the passages behind important statements. When comparing versions, separate changes stated in the text from possible implications that need human confirmation. Ask for any missing version or reference instead of inventing it. Return a short summary, a change table when applicable, and questions for a reviewer. Do not provide legal or clinical advice, invent implementation obligations or claim to search documents not supplied.",
+      "example_request": "Create an agent that explains fictional policy notices and identifies proposed changes.",
+      "sample_input": "Compare these fictional public-service notices. Summarize the stated change, cite the document labels, and ask what remains unclear. Do not infer a legal effective date.\n\nNotice 1: Current help-desk opening hours are 9:00 to 17:00, Monday through Friday.\nNotice 2: A proposed notice says opening hours will be 8:00 to 17:00 on the same days. No implementation date or staffing plan is supplied.",
+      "tools": [],
+      "summary": "Explain supplied documents, compare stated changes and surface questions for staff.",
+      "sector": {
+        "id": "cross-sector",
+        "label": "Cross-sector"
+      },
+      "industry": {
+        "id": "general-operations",
+        "label": "General operations"
+      },
+      "tasks": [
+        {
+          "id": "summarize",
+          "label": "Summarize"
+        },
+        {
+          "id": "review",
+          "label": "Review"
+        }
+      ],
+      "readiness": {
+        "id": "reviewed",
+        "label": "Reviewed",
+        "description": "Reviewed definition with deterministic contract and runtime tests."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "References supplied labels, separates stated changes from implications and asks for missing material.",
+      "human_decision": "A person interprets obligations and decides what action to take.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["documents", "policy", "comparison"]
+    },
+    {
+      "id": "criteria-checker",
+      "category": "General",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "Checklist gap finder",
+      "description": "Compare a submission with your checklist and point out missing or conflicting information.",
+      "input": "Paste explicit checklist items and labeled documents to compare with them.",
+      "output": "One row per checklist item showing support, missing information or disagreement, plus follow-up questions.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer. Requirement and proposal comparisons are in preview.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "You check fictional submissions against only the checklist supplied by the user. Return exactly one row per checklist item with its identifier, a supported / gap / conflict assessment, a plain-language explanation and source references or exact quotes. Explain that a gap means missing information, not automatic noncompliance. Conflicting statements require clarification, not an unsupported choice. Do not add criteria, approve or reject submissions, score people, select a vendor or recommend an award. Ask only questions needed to address an unresolved supplied checklist item. Requirements/proposal use is experimental; product documents are claims, not live tests.",
+      "example_request": "Create an agent that checks fictional project submissions against my checklist.",
+      "sample_input": "Check this fictional project against my checklist. Cite the labels and ask for missing details.\n\nChecklist item 1: Include a total budget.\nChecklist item 2: Name a delivery owner.\nProject plan: The Community Programs team will deliver six weekly workshops. No budget is supplied.\nDo not approve, reject or score the application.",
+      "tools": [],
+      "summary": "Compare a submission with a supplied checklist and surface gaps or conflicts.",
+      "sector": {
+        "id": "cross-sector",
+        "label": "Cross-sector"
+      },
+      "industry": {
+        "id": "general-operations",
+        "label": "General operations"
+      },
+      "tasks": [
+        {
+          "id": "review",
+          "label": "Review"
+        }
+      ],
+      "readiness": {
+        "id": "reviewed",
+        "label": "Reviewed",
+        "description": "Reviewed definition with deterministic contract and runtime tests."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Returns one result per supplied criterion with evidence, gaps, conflicts and focused questions.",
+      "human_decision": "A person decides compliance, acceptance, scoring and any award.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["checklist", "criteria", "requirements"]
+    },
+    {
+      "id": "document-intake",
+      "category": "General",
+      "model_profile": {
+        "id": "extraction",
+        "label": "Fast extraction",
+        "reason": "Copies stated values into a fixed structure, where speed and cost matter more than deep reasoning."
+      },
+      "label": "Form and invoice extractor",
+      "description": "Extract stated fields from administrative forms or invoices without filling in guesses.",
+      "input": "Paste fictional document text, label each document, and list the fields to capture.",
+      "output": "A structured field table or requested JSON, references for extracted values and missing-field questions.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer. No file uploads, OCR, patient data, payment approval or system-of-record writes.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "Extract information from fictional administrative intake documents or invoices. Use the user's requested fields; ask for the field list if none is supplied. Preserve stated values and source labels. Return a field table, or JSON when explicitly requested, with null for missing values and references or short exact quotes supporting each populated field. Do not infer dates, identifiers, amounts or people. List missing and inconsistent details separately and ask focused clarification questions. This is extraction, not a compliance assessment, invoice approval, payment or record update. Healthcare examples concern fictional administration only, never clinical decisions.",
+      "example_request": "Create an agent that extracts requested fields from fictional invoices and intake forms.",
+      "sample_input": "Extract request_id, item, quantity, requested_date and contact_team from this fictional clinic supply-request text. Include source references and use null for missing fields.\n\nForm 1: Request SUP-104 asks for 12 storage bins. Requested date: 2027-04-12. No contact team is listed. This is made-up administrative data, not a patient record.",
+      "tools": [],
+      "summary": "Extract requested fields from supplied forms or invoices without filling gaps.",
+      "sector": {
+        "id": "cross-sector",
+        "label": "Cross-sector"
+      },
+      "industry": {
+        "id": "general-operations",
+        "label": "General operations"
+      },
+      "tasks": [
+        {
+          "id": "extract",
+          "label": "Extract"
+        }
+      ],
+      "readiness": {
+        "id": "reviewed",
+        "label": "Reviewed",
+        "description": "Reviewed definition with deterministic contract and runtime tests."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "lower",
+        "relative_latency": "lower",
+        "basis": "Fast extraction profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Preserves stated values and labels, uses null for missing fields and identifies inconsistencies.",
+      "human_decision": "A person validates extracted data and decides whether to update a record.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["forms", "invoice", "fields"]
+    },
+    {
+      "id": "casework-assistant",
+      "category": "General",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "Casework brief writer",
+      "description": "Turn case notes into a clear summary and useful follow-up questions.",
+      "input": "Paste labeled fictional notes, correspondence and any rules you want considered.",
+      "output": "A case summary, timeline, disagreements or missing details and draft follow-up questions.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "Summarize fictional case notes for staff. Separate what the notes explicitly say, any supplied rules, uncertain or contradictory information, and questions to ask next. Preserve record identifiers and cite them for important facts and timeline entries. Never choose between conflicting dates without support or invent an absent policy. Draft a short follow-up message if asked, labeling it as an unsent draft. Do not determine eligibility, liability, enforcement, diagnosis or treatment, and do not claim to update a record or contact a person.",
+      "example_request": "Create an agent that summarizes fictional case notes and drafts follow-up questions.",
+      "sample_input": "Summarize these fictional service notes. Preserve the conflicting dates and draft two follow-up questions. No eligibility policy is supplied.\n\nNote 1: Intake completed on 2027-03-01. A follow-up is planned for 2027-03-10.\nNote 2: Intake completed on 2027-03-03. A follow-up is planned for 2027-03-10.\nNote 3: A requested supporting form has not been supplied.",
+      "tools": [],
+      "summary": "Turn supplied case notes into a sourced summary and focused follow-up questions.",
+      "sector": {
+        "id": "public",
+        "label": "Public sector"
+      },
+      "industry": {
+        "id": "government-services",
+        "label": "Government services"
+      },
+      "tasks": [
+        {
+          "id": "summarize",
+          "label": "Summarize"
+        },
+        {
+          "id": "draft",
+          "label": "Draft"
+        }
+      ],
+      "readiness": {
+        "id": "reviewed",
+        "label": "Reviewed",
+        "description": "Reviewed definition with deterministic contract and runtime tests."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Preserves timelines and conflicts, separates supplied rules and labels any message as an unsent draft.",
+      "human_decision": "A person decides eligibility, liability, enforcement and any case action.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["casework", "timeline", "follow-up"]
+    },
+    {
+      "id": "workflow-coordinator",
+      "category": "General",
+      "model_profile": {
+        "id": "tool_calling",
+        "label": "Tool calling",
+        "reason": "Calls lookup tools in the right order and reports exactly what they return."
+      },
+      "label": "Service request planner",
+      "description": "Use simulated request and service lookups to prepare a next-step plan.",
+      "input": "Use the supplied fictional request identifier and explain the task you want to plan.",
+      "output": "Clearly labeled simulated lookup results, missing details and proposed steps for a person to review.",
+      "limits": "Only two fixed read-only demo lookups. No connected SaaS systems, ticket creation, messages, approval enforcement or other business changes. A plan is not an executed action.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check a fictional request and its service description.",
+      "instructions": "Help plan a fictional operational workflow using only the two provided simulated read-only lookup tools. Given a request ID, first look up the request, then use its service_id to look up the corresponding service. Preserve the request and service identifiers in your response. Say clearly that these are simulated fixture lookups and no external system was contacted. Propose next steps and questions based on the returned data. If a lookup fails, report it instead of inventing a result. Never claim to create or update tickets, approve a request, notify anyone, or execute the proposed plan. There is no business-action or human-approval tool.",
+      "example_request": "Create an agent that coordinates a fictional service request using simulated lookups.",
+      "sample_input": "Use the demo tools to look up fictional request REQ-101 and its service. Explain what information is missing and propose next steps for a reviewer. Label the lookups as simulated. Do not claim that a system change or approval occurred.",
+      "tools": [
+        {
+          "name": "lookup_demo_request",
+          "description": "Read one fixed fictional request; no external call or update.",
+          "simulated": true
+        },
+        {
+          "name": "lookup_demo_service",
+          "description": "Read a fixed fictional service description; no external call or update.",
+          "simulated": true
+        }
+      ],
+      "summary": "Use simulated request and service lookups to prepare a reviewable next-step plan.",
+      "sector": {
+        "id": "cross-sector",
+        "label": "Cross-sector"
+      },
+      "industry": {
+        "id": "general-operations",
+        "label": "General operations"
+      },
+      "tasks": [
+        {
+          "id": "plan",
+          "label": "Plan"
+        },
+        {
+          "id": "triage",
+          "label": "Triage"
+        }
+      ],
+      "readiness": {
+        "id": "reviewed",
+        "label": "Reviewed",
+        "description": "Reviewed definition with deterministic contract and runtime tests."
+      },
+      "tool_mode": {
+        "id": "simulated",
+        "label": "Simulated tools",
+        "description": "Uses only included read-only fictional fixture lookups."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "higher",
+        "basis": "Tool calling profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Labels fixture results as simulated, preserves identifiers and reports lookup failures instead of guessing.",
+      "human_decision": "A person approves and executes any workflow or system change.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["workflow", "request", "service"]
+    },
+    {
+      "id": "medical-bill-reviewer",
+      "category": "Healthcare and public sector",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "Medical bill reviewer",
+      "description": "Check a hospital bill against the insurer's statement, find likely mistakes and draft a dispute letter.",
+      "input": "Paste a fictional itemized hospital bill and the matching insurer statement, including the plan ID.",
+      "output": "A list of likely mistakes with the math shown, the amount the documents support, questions to ask and an unsent dispute letter.",
+      "limits": "Uses your supplied text and two fixed, simulated plan lookups. It cannot contact a hospital or insurer, send a letter, pay or refuse a bill, or give medical or legal advice. Use fictional examples and check its answer.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check a fictional plan's benefits and its usual price for each service.",
+      "instructions": "You review fictional medical bills for a patient or a billing-office helper. Compare the itemized bill with the insurer statement line by line. Call lookup_plan_benefits with the plan ID in the documents, and lookup_usual_price for each service code you need to check. Look for the same service billed more than once, quantities that differ between the bill and the insurer statement, prices above the plan's usual allowed amount, totals that do not add up, and amounts billed to the patient beyond the patient share on the insurer statement. Show your arithmetic. Return: (1) a table of issues with the bill line, what looks wrong, the evidence and the amount; (2) the amount the documents support the patient owing, labeled as an estimate to confirm with the insurer and hospital; (3) questions to ask; (4) a short dispute letter labeled UNSENT DRAFT. Say which facts came from simulated lookups. If a lookup fails or a detail is missing, say so instead of guessing. Do not judge whether care was medically needed, give legal advice, or claim that anything was sent, paid or corrected.",
+      "example_request": "Create an agent that reviews fictional hospital bills against the insurer's statement and drafts a dispute letter.",
+      "sample_input": "Review this fictional hospital bill against the insurer statement. Use the plan lookups, show the math and draft a dispute letter. All data is made up.\n\nHOSPITAL BILL HB-DEMO-0412 - Lakeside Demo Hospital - Patient: Pat Example (fictional) - Plan: PLAN-DEMO-SILVER - Visit date: 2027-03-14\nLine 1: DEMO-ER-3 Emergency room visit, level 3 - qty 1 x $900.00 = $900.00\nLine 2: DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00\nLine 3: DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00\nLine 4: DEMO-LAB-7 Basic blood panel - qty 3 x $60.00 = $180.00\nLine 5: DEMO-SUP-1 Wrist splint - qty 1 x $120.00 = $120.00\nTotal charges: $1,800.00 | Insurance payments: -$696.00 | Amount you owe: $1,104.00\n\nINSURER STATEMENT IS-DEMO-5521 - PLAN-DEMO-SILVER - Lakeside Demo Hospital, 2027-03-14\nDEMO-ER-3 qty 1 - billed $900.00 - allowed $600.00 - plan paid $480.00 - your share $120.00\nDEMO-XR-2 qty 1 - billed $250.00 - allowed $150.00 - plan paid $120.00 - your share $30.00\nDEMO-XR-2 qty 1 - billed $250.00 - allowed $0.00 - plan paid $0.00 - your share $0.00 - note: duplicate of a line already processed\nDEMO-LAB-7 qty 1 - billed $60.00 - allowed $40.00 - plan paid $32.00 - your share $8.00\nDEMO-SUP-1 qty 1 - billed $120.00 - allowed $80.00 - plan paid $64.00 - your share $16.00\nTotal plan paid: $696.00 | Total your share: $174.00",
+      "tools": [
+        {
+          "name": "lookup_plan_benefits",
+          "description": "Read a fixed fictional health plan's benefits and billing rules; no external call or update.",
+          "simulated": true
+        },
+        {
+          "name": "lookup_usual_price",
+          "description": "Read the fictional plan's usual allowed price for one service code; no external call or update.",
+          "simulated": true
+        }
+      ],
+      "summary": "Compare a fictional bill with an insurer statement and show likely discrepancies.",
+      "sector": {
+        "id": "cross-sector",
+        "label": "Cross-sector"
+      },
+      "industry": {
+        "id": "health-administration",
+        "label": "Health administration"
+      },
+      "tasks": [
+        {
+          "id": "review",
+          "label": "Review"
+        },
+        {
+          "id": "draft",
+          "label": "Draft"
+        }
+      ],
+      "readiness": {
+        "id": "reviewed",
+        "label": "Reviewed",
+        "description": "Reviewed definition with deterministic contract and runtime tests."
+      },
+      "tool_mode": {
+        "id": "simulated",
+        "label": "Simulated tools",
+        "description": "Uses only included read-only fictional fixture lookups."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Uses simulated plan data, shows arithmetic and labels the dispute letter as an unsent draft.",
+      "human_decision": "A person confirms the amount, disputes the bill and makes payment decisions.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["medical bill", "insurer", "dispute"]
+    },
+    {
+      "id": "insurance-preapproval-helper",
+      "category": "Healthcare and public sector",
+      "model_profile": {
+        "id": "tool_calling",
+        "label": "Tool calling",
+        "reason": "Calls lookup tools in the right order and reports exactly what they return."
+      },
+      "label": "Insurance pre-approval helper",
+      "description": "Check that a pre-approval request has every document the insurer asks for before staff send it.",
+      "input": "Paste a fictional pre-approval request with its plan ID, service code, facility ID and attached documents.",
+      "output": "A ready, missing or out-of-date checklist, what to fix and an unsent note to office staff.",
+      "limits": "Checks paperwork only, using your supplied text and two fixed, simulated lookups. It never judges whether care is medically needed, predicts the insurer's decision or submits anything. Use fictional examples and check its answer.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check a fictional insurer's document list and a facility's network status.",
+      "instructions": "You help fictional clinic office staff check an insurance pre-approval request before it is sent. First call lookup_preapproval_rules with the plan ID and service code in the request. Then call lookup_facility with the facility ID. Work out each date window from the dates given and show the calculation before you choose a status. Then compare each required item with the documents the request lists. Return exactly one table row per requirement with the requirement, the matching document label and one status of Ready, Missing, Out of date or Needs attention, plus a short reason. A document dated outside its window is Out of date, not Ready. Then list what staff should add or fix, and write a short note to staff labeled UNSENT DRAFT. Say which facts came from simulated lookups. If a lookup fails or a detail is missing, say so instead of guessing. Check paperwork only: never judge whether the service is medically needed, recommend treatment, or predict approval or denial. Do not claim the request was submitted or approved.",
+      "example_request": "Create an agent that checks whether a fictional health insurance pre-approval request has every document the insurer asks for.",
+      "sample_input": "Check this fictional pre-approval request before it is sent. Use the lookups and show any date math. All data is made up.\n\nREQUEST PA-DEMO-3107 - prepared 2027-03-20 by Riverbend Demo Clinic\nMember: MBR-DEMO-4471 (fictional) - Plan: PLAN-DEMO-SILVER\nService: DEMO-MRI-LS (MRI of the lower back)\nFacility: FAC-DEMO-22 (Northside Demo Imaging)\nAttached documents:\nDocument 1: MRI order, signed and dated 2027-03-02 by the treating clinician\nDocument 2: Visit notes dated 2027-01-05\nDocument 3: Copy of the member ID card showing MBR-DEMO-4471 and PLAN-DEMO-SILVER",
+      "tools": [
+        {
+          "name": "lookup_preapproval_rules",
+          "description": "Read a fixed fictional insurer's document list for one plan and service; no external call or update.",
+          "simulated": true
+        },
+        {
+          "name": "lookup_facility",
+          "description": "Read a fixed fictional facility's network status; no external call or update.",
+          "simulated": true
+        }
+      ],
+      "summary": "Check a fictional pre-approval packet for missing or outdated paperwork.",
+      "sector": {
+        "id": "private",
+        "label": "Private sector"
+      },
+      "industry": {
+        "id": "health-administration",
+        "label": "Health administration"
+      },
+      "tasks": [
+        {
+          "id": "review",
+          "label": "Review"
+        },
+        {
+          "id": "triage",
+          "label": "Triage"
+        }
+      ],
+      "readiness": {
+        "id": "reviewed",
+        "label": "Reviewed",
+        "description": "Reviewed definition with deterministic contract and runtime tests."
+      },
+      "tool_mode": {
+        "id": "simulated",
+        "label": "Simulated tools",
+        "description": "Uses only included read-only fictional fixture lookups."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "higher",
+        "basis": "Tool calling profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Uses simulated rules and facility status, computes stated date windows and avoids judging medical need.",
+      "human_decision": "Clinical and insurer staff decide medical necessity and approval.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["insurance", "preapproval", "paperwork"]
+    },
+    {
+      "id": "benefits-renewal-helper",
+      "category": "Healthcare and public sector",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "Benefits renewal helper",
+      "description": "Sort a family's renewal paperwork, flag what's missing, old or doesn't match, and draft a friendly note.",
+      "input": "Paste a fictional renewal form summary and a labeled list of the documents the family sent, with dates.",
+      "output": "A proof-by-proof checklist, questions for the caseworker and an unsent plain-language note to the family.",
+      "limits": "Uses your supplied text and two fixed, simulated lookups. It does not decide eligibility or benefit amounts, change records or contact the family. The caseworker decides. Use fictional examples and check its answer.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check a fictional program's renewal rules and what the household already has on file.",
+      "instructions": "You help a fictional benefits caseworker prepare a household's renewal. Call lookup_renewal_rules with the program ID, then lookup_documents_on_file with the household ID. Return one row per required proof with the proof, the documents that cover it and a status of Received, Already on file, Missing, Out of date or Doesn't match, plus a short reason that cites document labels. Check dates against the rules and show the calculation. Compare names, household size, income and costs across documents and flag disagreements without choosing which one is right. Then list questions for the caseworker and write a short, friendly note to the household in plain language, labeled UNSENT DRAFT, that asks only for what is missing or unclear. Say which facts came from simulated lookups. If a lookup fails or a detail is missing, say so instead of guessing. Never decide eligibility or benefit amounts, and never claim a record was updated or a message was sent.",
+      "example_request": "Create an agent that sorts a fictional family's benefits renewal paperwork and lists what is missing.",
+      "sample_input": "Prepare this fictional household renewal for the caseworker. Use the lookups, check the dates and draft a note to the family. All data is made up.\n\nRENEWAL FORM RF-DEMO-208 - Program: PROG-DEMO-FOOD - Household: HH-DEMO-5150 (Rivera household, fictional)\nForm signed: 2027-03-20 | Renewal due: 2027-04-01\nHousehold size on form: 4 (two adults, two children)\nIncome on form: one job, paid every two weeks\nCosts on form: rent $1,450 per month; child care $600 per month\n\nDOCUMENTS SENT\nDocument A: Pay stub dated 2027-03-12, gross pay $1,380 for two weeks\nDocument B: Pay stub dated 2027-02-12, gross pay $1,380 for two weeks\nDocument C: Landlord letter dated 2026-11-02: rent $1,450 per month; people living in the home: 3\nDocument D: Photo ID for one adult",
+      "tools": [
+        {
+          "name": "lookup_renewal_rules",
+          "description": "Read a fixed fictional program's renewal proof rules; no external call or update.",
+          "simulated": true
+        },
+        {
+          "name": "lookup_documents_on_file",
+          "description": "Read which fictional proofs a household already has on file; no external call or update.",
+          "simulated": true
+        }
+      ],
+      "summary": "Check fictional benefits renewal paperwork against simulated proof rules.",
+      "sector": {
+        "id": "public",
+        "label": "Public sector"
+      },
+      "industry": {
+        "id": "government-services",
+        "label": "Government services"
+      },
+      "tasks": [
+        {
+          "id": "review",
+          "label": "Review"
+        },
+        {
+          "id": "draft",
+          "label": "Draft"
+        }
+      ],
+      "readiness": {
+        "id": "reviewed",
+        "label": "Reviewed",
+        "description": "Reviewed definition with deterministic contract and runtime tests."
+      },
+      "tool_mode": {
+        "id": "simulated",
+        "label": "Simulated tools",
+        "description": "Uses only included read-only fictional fixture lookups."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Keeps missing proof separate from eligibility and drafts only an unsent follow-up.",
+      "human_decision": "A caseworker decides eligibility, benefit amount and case action.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["benefits", "renewal", "proof"]
+    },
+    {
+      "id": "supplier-invoice-reviewer",
+      "category": "Healthcare and public sector",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "Supplier invoice reviewer",
+      "description": "Compare what was ordered, delivered and billed, and show what the documents support paying.",
+      "input": "Paste a fictional supplier invoice with its purchase order number and line items.",
+      "output": "A line-by-line match table, the amount the documents support, questions for the supplier and an unsent email.",
+      "limits": "Uses your supplied text and two fixed, simulated lookups. It cannot approve, hold or pay an invoice, change a purchase order or contact the supplier. Use fictional examples and check its answer.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check a fictional purchase order and its delivery record.",
+      "instructions": "You help a fictional accounts-payable clerk check a supplier invoice before anyone pays it. Call lookup_purchase_order with the purchase order number on the invoice, then lookup_delivery_record with the same number. Compare each invoice line with what was ordered (item, quantity, agreed price and terms) and what was received. Return a table with the item, ordered, received, billed, a status of Matches, Not ordered, Not received, Price differs or Needs attention, and the amount at issue. Show your arithmetic, give the total the documents support and explain the difference from the invoice total. Flag anything a person must decide, such as damaged items, without deciding it. Then list questions for the supplier and write a short email to the supplier labeled UNSENT DRAFT. Say which facts came from simulated lookups. If a lookup fails or a detail is missing, say so instead of guessing. Never approve, hold, pay or reject the invoice, and never claim a message was sent or a record changed.",
+      "example_request": "Create an agent that compares what a fictional supplier billed with the purchase order and what was delivered.",
+      "sample_input": "Check this fictional supplier invoice before payment. Use the lookups, show the math and draft an email to the supplier. All data is made up.\n\nINVOICE INV-DEMO-7781 - Contoso Demo Furniture - dated 2027-04-05\nBill to: City of Example, Parks Department (fictional)\nPurchase order: PO-DEMO-2210\nLine 1: CH-100 Stacking chair - qty 120 x $55.00 = $6,600.00\nLine 2: TB-300 Folding table - qty 10 x $300.00 = $3,000.00\nLine 3: Delivery fee - $250.00\nInvoice total: $9,850.00",
+      "tools": [
+        {
+          "name": "lookup_purchase_order",
+          "description": "Read a fixed fictional purchase order; no external call or update.",
+          "simulated": true
+        },
+        {
+          "name": "lookup_delivery_record",
+          "description": "Read what the fictional buyer recorded as delivered; no external call or update.",
+          "simulated": true
+        }
+      ],
+      "summary": "Compare a fictional invoice with simulated order and delivery records.",
+      "sector": {
+        "id": "cross-sector",
+        "label": "Cross-sector"
+      },
+      "industry": {
+        "id": "procurement",
+        "label": "Procurement"
+      },
+      "tasks": [
+        {
+          "id": "review",
+          "label": "Review"
+        },
+        {
+          "id": "draft",
+          "label": "Draft"
+        }
+      ],
+      "readiness": {
+        "id": "reviewed",
+        "label": "Reviewed",
+        "description": "Reviewed definition with deterministic contract and runtime tests."
+      },
+      "tool_mode": {
+        "id": "simulated",
+        "label": "Simulated tools",
+        "description": "Uses only included read-only fictional fixture lookups."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Shows line-level matches and arithmetic, flags damaged items and drafts an unsent supplier email.",
+      "human_decision": "Finance and procurement staff decide payment, holds and supplier action.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["invoice", "purchase order", "delivery"]
+    },
+    {
+      "id": "public-records-intake",
+      "category": "Public sector",
+      "model_profile": {
+        "id": "extraction",
+        "label": "Fast extraction",
+        "reason": "Copies stated values into a fixed structure, where speed and cost matter more than deep reasoning."
+      },
+      "label": "Public records request organizer",
+      "description": "Organize a fictional public records request into scope, date range, named offices and clarification questions.",
+      "input": "Paste the fictional request, any supplied correspondence and the intake fields your office uses.",
+      "output": "A structured intake summary, quoted scope terms, missing details and an unsent clarification draft.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer. It does not search records, apply exemptions, calculate fees or release information.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "Organize fictional public records request text for intake staff. Extract only stated requester details, date ranges, offices, record types, delivery preferences and deadlines. Quote the words that define scope and use null for missing fields. Identify ambiguous terms and draft focused clarification questions labeled UNSENT DRAFT. Do not search for records, interpret disclosure law, apply exemptions, estimate fees, set a legal deadline or decide what must be released. A records officer makes those decisions.",
+      "example_request": "Create an agent that organizes a fictional public records request and drafts clarification questions.",
+      "sample_input": "Organize this fictional public records request. Quote the scope and use null for missing intake fields.\n\nRequest PR-DEMO-17: Please provide final inspection summaries issued by the Example Building Office for community centers between 2027-01-01 and 2027-03-31. Electronic delivery is preferred. The request does not name a contact person or clarify whether attachments are included.",
+      "tools": [],
+      "summary": "Organize a fictional public records request and draft clarification questions.",
+      "sector": {
+        "id": "public",
+        "label": "Public sector"
+      },
+      "industry": {
+        "id": "government-services",
+        "label": "Government services"
+      },
+      "tasks": [
+        {
+          "id": "extract",
+          "label": "Extract"
+        },
+        {
+          "id": "triage",
+          "label": "Triage"
+        },
+        {
+          "id": "draft",
+          "label": "Draft"
+        }
+      ],
+      "readiness": {
+        "id": "sample",
+        "label": "Sample",
+        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "lower",
+        "relative_latency": "lower",
+        "basis": "Fast extraction profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Quotes scope terms, uses null for missing fields and does not make disclosure decisions.",
+      "human_decision": "A records officer decides deadlines, exemptions, fees and release.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["public records", "intake", "scope"]
+    },
+    {
+      "id": "grant-reporting-checker",
+      "category": "Public sector",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "Grant reporting checker",
+      "description": "Compare a fictional grant report with supplied award terms and evidence before staff review.",
+      "input": "Paste labeled award terms, the draft report and the evidence supplied for each reported result.",
+      "output": "A requirement-by-requirement evidence table, unsupported claims, conflicts and reviewer questions.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer. It cannot certify compliance, approve costs, recover funds or submit a report.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "Check a fictional grant report against only the supplied award terms and labeled evidence. Return one row per reporting requirement with the stated claim, supporting quote or reference, and a status of supported, gap or conflict. A gap is a request for evidence, not a finding of noncompliance. Preserve conflicting figures and draft reviewer questions. Do not invent award conditions, certify compliance, approve spending, recommend enforcement, recover funds or claim the report was submitted.",
+      "example_request": "Create an agent that checks a fictional grant report against award terms and evidence.",
+      "sample_input": "Check this fictional grant report. Do not certify compliance.\n\nAward term A: Report the number of completed workshops and attach attendance evidence.\nDraft report: Six workshops were completed and 84 residents attended.\nEvidence E1: Sign-in sheets labeled Workshop 1 through Workshop 5 list 68 total entries. No evidence for Workshop 6 is supplied.",
+      "tools": [],
+      "summary": "Find unsupported claims and missing evidence in a fictional grant report.",
+      "sector": {
+        "id": "public",
+        "label": "Public sector"
+      },
+      "industry": {
+        "id": "government-services",
+        "label": "Government services"
+      },
+      "tasks": [
+        {
+          "id": "review",
+          "label": "Review"
+        }
+      ],
+      "readiness": {
+        "id": "sample",
+        "label": "Sample",
+        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Checks each supplied term, cites evidence and treats gaps as questions rather than noncompliance.",
+      "human_decision": "A grant officer decides compliance, accepts reports and takes funding action.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["grant", "reporting", "evidence"]
+    },
+    {
+      "id": "community-program-brief",
+      "category": "Public sector",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "Community program brief writer",
+      "description": "Turn fictional program notes and measures into an evidence-linked briefing for staff.",
+      "input": "Paste labeled program notes, stated measures, results and unresolved questions.",
+      "output": "A concise briefing, measure table, caveats and draft questions for the program owner.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer. It cannot validate outcomes, allocate funding or make policy decisions.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "Prepare a briefing from fictional community program material. Separate planned activities, reported results, source-supported observations and unresolved questions. Cite labels for every numeric claim and preserve differences between targets and results. Do not infer causation, validate outcomes, rank communities, allocate funding or recommend a policy decision. End with questions a person should resolve.",
+      "example_request": "Create an agent that summarizes a fictional community program and its reported outcomes.",
+      "sample_input": "Brief this fictional community program for staff.\n\nPlan P1: Run eight digital-skills sessions with a target of 80 registrations.\nUpdate U1: Seven sessions were held; registration records show 76 registrations and 51 unique attendees.\nSurvey S1: 29 attendees responded; 22 said they felt more confident. No comparison group is supplied.",
+      "tools": [],
+      "summary": "Build an evidence-linked briefing from fictional community program notes.",
+      "sector": {
+        "id": "public",
+        "label": "Public sector"
+      },
+      "industry": {
+        "id": "government-services",
+        "label": "Government services"
+      },
+      "tasks": [
+        {
+          "id": "summarize",
+          "label": "Summarize"
+        },
+        {
+          "id": "review",
+          "label": "Review"
+        }
+      ],
+      "readiness": {
+        "id": "sample",
+        "label": "Sample",
+        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Cites numeric claims, separates targets from results and avoids unsupported causal conclusions.",
+      "human_decision": "Program staff validate outcomes and make policy or funding decisions.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["community program", "outcomes", "briefing"]
+    },
+    {
+      "id": "customer-support-brief",
+      "category": "Private sector",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "Customer support handoff writer",
+      "description": "Turn fictional support tickets into a sourced handoff with unresolved questions and a reply draft.",
+      "input": "Paste labeled ticket messages, product notes and any response policy you want applied.",
+      "output": "A timeline, confirmed facts, unresolved issues, next-step options and an unsent customer reply.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer. It cannot access an account, issue credits, change service or contact a customer.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "Create a handoff from fictional customer support ticket text. Preserve the timeline, distinguish customer claims from confirmed product notes, cite labels and keep conflicting details visible. Suggest bounded next steps and write a response labeled UNSENT DRAFT. Do not access accounts, promise resolution dates, issue credits, change service, assign fault or claim a message was sent.",
+      "example_request": "Create an agent that summarizes a fictional customer support ticket and drafts a handoff reply.",
+      "sample_input": "Prepare a handoff for this fictional customer support ticket.\n\nTicket T1, 09:10: Customer says export job EX-44 has shown Processing since yesterday.\nAgent note N1, 09:35: Status screenshot shows Processing; no service logs were checked.\nProduct note P1: Escalate after four hours only when a job start timestamp is confirmed. The start timestamp is not supplied.",
+      "tools": [],
+      "summary": "Create a sourced handoff from fictional customer support tickets.",
+      "sector": {
+        "id": "private",
+        "label": "Private sector"
+      },
+      "industry": {
+        "id": "customer-operations",
+        "label": "Customer operations"
+      },
+      "tasks": [
+        {
+          "id": "summarize",
+          "label": "Summarize"
+        },
+        {
+          "id": "triage",
+          "label": "Triage"
+        },
+        {
+          "id": "draft",
+          "label": "Draft"
+        }
+      ],
+      "readiness": {
+        "id": "sample",
+        "label": "Sample",
+        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Separates customer claims from confirmed notes and labels the reply as an unsent draft.",
+      "human_decision": "Support staff decide account changes, credits, escalation and communication.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["customer support", "ticket", "handoff"]
+    },
+    {
+      "id": "cash-application-reviewer",
+      "category": "Private sector",
+      "model_profile": {
+        "id": "extraction",
+        "label": "Fast extraction",
+        "reason": "Copies stated values into a fixed structure, where speed and cost matter more than deep reasoning."
+      },
+      "label": "Cash application reviewer",
+      "description": "Match fictional remittance details to open invoices and isolate amounts that need review.",
+      "input": "Paste labeled remittance advice, payment totals and an open-invoice list with customer references.",
+      "output": "A proposed match table, arithmetic, unmatched amounts and questions for finance staff.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer. It cannot post cash, change a ledger, issue refunds or decide a write-off.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "Compare fictional remittance advice with a supplied open-invoice list. Preserve identifiers and amounts, show arithmetic, and label each proposed match as exact, partial, ambiguous or unmatched. Never choose between ambiguous invoices. Return questions for finance staff and use null for absent references. Do not post cash, modify a ledger, issue a refund, approve a write-off or claim reconciliation is final.",
+      "example_request": "Create an agent that reviews fictional remittance advice against open receivables.",
+      "sample_input": "Review this fictional remittance against open receivables and show the math.\n\nRemittance R-88: Payment total $1,450. References INV-101 for $1,000 and INV-104 for $400. No reference is supplied for the remaining amount.\nOpen invoices: INV-101 $1,000; INV-104 $450; INV-140 $50.",
+      "tools": [],
+      "summary": "Match fictional remittance details to open invoices and isolate exceptions.",
+      "sector": {
+        "id": "private",
+        "label": "Private sector"
+      },
+      "industry": {
+        "id": "finance",
+        "label": "Finance"
+      },
+      "tasks": [
+        {
+          "id": "extract",
+          "label": "Extract"
+        },
+        {
+          "id": "review",
+          "label": "Review"
+        }
+      ],
+      "readiness": {
+        "id": "sample",
+        "label": "Sample",
+        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "lower",
+        "relative_latency": "lower",
+        "basis": "Fast extraction profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Shows arithmetic and labels matches exact, partial, ambiguous or unmatched without forcing a choice.",
+      "human_decision": "Finance staff validate matches and decide posting, refunds and write-offs.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["remittance", "receivables", "cash application"]
+    },
+    {
+      "id": "maintenance-work-order-planner",
+      "category": "Private sector",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "Maintenance work order planner",
+      "description": "Convert fictional maintenance notes into a bounded work plan and safety questions for review.",
+      "input": "Paste labeled work order notes, asset guidance and site constraints.",
+      "output": "A problem summary, evidence-linked plan, missing safety details and an unsent technician brief.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer. It cannot diagnose equipment, dispatch staff, authorize shutdowns or control machinery.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "Prepare a plan from fictional maintenance work order notes and supplied asset guidance. Separate observed symptoms from possible causes, cite labels, and list missing isolation, access and safety information. Propose inspection steps only when supported by the supplied guidance and label the technician brief UNSENT DRAFT. Do not diagnose equipment, direct hazardous work, dispatch staff, authorize a shutdown, change a schedule or claim that machinery was controlled.",
+      "example_request": "Create an agent that plans a fictional maintenance work order from notes and asset guidance.",
+      "sample_input": "Plan this fictional maintenance work order without diagnosing the equipment.\n\nWork order WO-72: Conveyor C-4 makes an intermittent scraping sound near the end roller.\nShift note S1: Sound was heard twice during unloaded operation. No vibration reading was taken.\nAsset guide G1: Before inspection, confirm lockout authorization and inspect guards for visible contact. No lockout authorization or site contact is supplied.",
+      "tools": [],
+      "summary": "Turn fictional maintenance notes into a bounded plan and safety questions.",
+      "sector": {
+        "id": "private",
+        "label": "Private sector"
+      },
+      "industry": {
+        "id": "field-operations",
+        "label": "Field operations"
+      },
+      "tasks": [
+        {
+          "id": "plan",
+          "label": "Plan"
+        },
+        {
+          "id": "triage",
+          "label": "Triage"
+        },
+        {
+          "id": "draft",
+          "label": "Draft"
+        }
+      ],
+      "readiness": {
+        "id": "sample",
+        "label": "Sample",
+        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Separates observations from possible causes and requires missing safety details before inspection.",
+      "human_decision": "Qualified staff diagnose equipment and authorize dispatch, isolation and shutdown.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["maintenance", "work order", "safety"]
+    }
+  ],
+  "facets": {
+    "sectors": [
+      {
+        "id": "cross-sector",
+        "label": "Cross-sector",
+        "count": 6
+      },
+      {
+        "id": "public",
+        "label": "Public sector",
+        "count": 5
+      },
+      {
+        "id": "private",
+        "label": "Private sector",
+        "count": 4
+      }
+    ],
+    "industries": [
+      {
+        "id": "general-operations",
+        "label": "General operations",
+        "count": 4
+      },
+      {
+        "id": "health-administration",
+        "label": "Health administration",
+        "count": 2
+      },
+      {
+        "id": "government-services",
+        "label": "Government services",
+        "count": 5
+      },
+      {
+        "id": "procurement",
+        "label": "Procurement",
+        "count": 1
+      },
+      {
+        "id": "finance",
+        "label": "Finance",
+        "count": 1
+      },
+      {
+        "id": "customer-operations",
+        "label": "Customer operations",
+        "count": 1
+      },
+      {
+        "id": "field-operations",
+        "label": "Field operations",
+        "count": 1
+      }
+    ],
+    "tasks": [
+      {
+        "id": "review",
+        "label": "Review",
+        "count": 9
+      },
+      {
+        "id": "extract",
+        "label": "Extract",
+        "count": 3
+      },
+      {
+        "id": "summarize",
+        "label": "Summarize",
+        "count": 4
+      },
+      {
+        "id": "plan",
+        "label": "Plan",
+        "count": 2
+      },
+      {
+        "id": "draft",
+        "label": "Draft",
+        "count": 7
+      },
+      {
+        "id": "triage",
+        "label": "Triage",
+        "count": 5
+      }
+    ],
+    "readiness": [
+      {
+        "id": "reviewed",
+        "label": "Reviewed",
+        "description": "Reviewed definition with deterministic contract and runtime tests.",
+        "count": 9
+      },
+      {
+        "id": "sample",
+        "label": "Sample",
+        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use.",
+        "count": 6
+      }
+    ],
+    "tool_modes": [
+      {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request.",
+        "count": 10
+      },
+      {
+        "id": "simulated",
+        "label": "Simulated tools",
+        "description": "Uses only included read-only fictional fixture lookups.",
+        "count": 5
+      }
+    ]
+  }
+}

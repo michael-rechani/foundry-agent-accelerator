@@ -433,10 +433,16 @@ async function setup(
 }
 
 async function navigate(page: Page, name: string) {
-  await page
-    .getByRole('navigation', { name: 'Workspace' })
-    .getByRole('button', { name, exact: true })
-    .click()
+  const workspace = page.getByRole('navigation', { name: 'Workspace' })
+  if (name === 'Created agents') {
+    await workspace.getByRole('button', { name: 'All agents' }).click()
+    await page
+      .getByRole('navigation', { name: 'Agent library' })
+      .getByRole('button', { name: /^Created here/ })
+      .click()
+    return
+  }
+  await workspace.getByRole('button', { name, exact: true }).click()
 }
 
 async function prepare(page: Page, label = 'Document explainer') {
@@ -502,18 +508,16 @@ test('creation is the entry point with nine honest jobs in two groups and usable
   ).toBeDisabled()
   for (const label of [
     'Create agent',
-    'Created agents',
+    'All agents',
     'Chat',
     'Document reviews',
     'Shared history',
-    'Agent catalog',
     'Performance',
   ]) {
     await expect(
-      page.getByRole('navigation').getByRole('button', {
-        name: label === 'Agent catalog' ? /^Agent catalog\b/ : label,
-        exact: label !== 'Agent catalog',
-      }),
+      page
+        .getByRole('navigation', { name: 'Workspace' })
+        .getByRole('button', { name: label, exact: true }),
     ).toBeVisible()
   }
   expect(
