@@ -704,8 +704,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Sample",
-        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -768,8 +768,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Sample",
-        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -836,8 +836,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Sample",
-        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -908,8 +908,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Sample",
-        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -976,8 +976,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Sample",
-        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -1048,8 +1048,8 @@
       ],
       "readiness": {
         "id": "sample",
-        "label": "Sample",
-        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
       },
       "tool_mode": {
         "id": "none",
@@ -1076,6 +1076,432 @@
         "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
       },
       "keywords": ["maintenance", "work order", "safety"]
+    },
+    {
+      "id": "contract-playbook-checker",
+      "category": "Private sector",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "Contract playbook checker",
+      "description": "Compare fictional contract clauses with your negotiation playbook and flag where they fall outside it.",
+      "input": "Paste labeled contract clauses and a playbook with preferred, fallback and unacceptable positions.",
+      "output": "A clause-by-clause table against the playbook, missing clauses and questions for legal counsel.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer. It cannot give legal advice, negotiate, accept terms or sign a contract.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "You compare fictional contract clauses with a supplied negotiation playbook. For each playbook item, quote the matching clause label and label it Matches preferred, Within fallback, Outside playbook or Not found. Show the playbook position you compared it with. Keep conflicting clauses visible instead of choosing one. Only suggest replacement wording copied from the supplied playbook, labeled SUGGESTION FOR COUNSEL REVIEW. List questions for legal counsel. Do not give legal advice, judge enforceability, decide whether to sign, accept or reject terms, or claim anything was negotiated or sent.",
+      "example_request": "Create an agent that checks fictional contract clauses against our negotiation playbook.",
+      "sample_input": "Check this fictional contract against our playbook. Cite the labels. All text is made up.\n\nPlaybook PB-1 Liability cap: preferred 12 months of fees; fallback up to 24 months; unlimited is not acceptable.\nPlaybook PB-2 Payment terms: preferred net 45; fallback net 30.\nPlaybook PB-3 Governing law: preferred Example State (fictional).\n\nContract C-1, section 4.2: Supplier liability is capped at 36 months of fees.\nContract C-1, section 6.1: Invoices are payable net 30.\nNo governing law clause is supplied.",
+      "tools": [],
+      "summary": "Check fictional contract clauses against a negotiation playbook and flag deviations.",
+      "sector": {
+        "id": "private",
+        "label": "Private sector"
+      },
+      "industry": {
+        "id": "legal-operations",
+        "label": "Legal operations"
+      },
+      "tasks": [
+        {
+          "id": "review",
+          "label": "Review"
+        }
+      ],
+      "readiness": {
+        "id": "sample",
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Labels each clause against the preferred and fallback positions, reports missing clauses and gives no legal advice.",
+      "human_decision": "Legal counsel decides negotiation positions, acceptance and signature.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["contract", "clause", "playbook", "legal"]
+    },
+    {
+      "id": "rfp-answer-drafter",
+      "category": "Private sector",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "RFP answer drafter",
+      "description": "Draft answers to fictional RFP or security questionnaire questions using only approved product facts.",
+      "input": "Paste labeled questions and the approved product facts the answers may use.",
+      "output": "Draft answers with source facts, a support level for each and a list of questions for subject-matter experts.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer. It cannot submit a response, commit to prices or dates, or claim certifications.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "You draft answers to fictional request for proposal (RFP) or security questionnaire questions. Use only the supplied approved facts and cite their labels. For each question, return a draft answer and a support level of Supported, Partly supported or No approved answer. When no fact covers a question, write NEEDS SME instead of an answer. Never invent capabilities, certifications, prices, delivery dates or contractual commitments, and never soften a fact into a broader claim. Label the full answer set UNSENT DRAFT. Do not submit anything or claim a response was sent.",
+      "example_request": "Create an agent that drafts answers to fictional RFP questions from approved product facts.",
+      "sample_input": "Draft answers to these fictional RFP questions using only our approved facts. All text is made up.\n\nQ1: Does the product support single sign-on with SAML?\nQ2: Where is customer data stored?\nQ3: Do you hold ISO 27001 certification?\n\nFact F1: Supports SAML 2.0 single sign-on on the Business and Enterprise plans.\nFact F2: Customer data is stored in the region the customer chooses: United States or European Union.\nNo approved fact covers certifications.",
+      "tools": [],
+      "summary": "Draft RFP and security questionnaire answers from approved facts only.",
+      "sector": {
+        "id": "private",
+        "label": "Private sector"
+      },
+      "industry": {
+        "id": "sales",
+        "label": "Sales"
+      },
+      "tasks": [
+        {
+          "id": "draft",
+          "label": "Draft"
+        },
+        {
+          "id": "review",
+          "label": "Review"
+        }
+      ],
+      "readiness": {
+        "id": "sample",
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Cites a fact for every answer, marks uncovered questions NEEDS SME and never invents certifications or commitments.",
+      "human_decision": "Sales and subject-matter experts approve every answer, price and commitment before submission.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["rfp", "proposal", "questionnaire", "security"]
+    },
+    {
+      "id": "expense-report-checker",
+      "category": "Private sector",
+      "model_profile": {
+        "id": "tool_calling",
+        "label": "Tool calling",
+        "reason": "Calls lookup tools in the right order and reports exactly what they return."
+      },
+      "label": "Expense report checker",
+      "description": "Check a fictional expense report against the travel rules and the approved trip before reimbursement.",
+      "input": "Paste a fictional expense report with its policy ID, trip ID and itemized lines.",
+      "output": "A line-by-line check with the math, items that need receipts or an explanation, and an unsent note.",
+      "limits": "Uses your supplied text and two fixed, simulated lookups. It cannot approve, reject or reimburse expenses, change a report or contact the employee. Use fictional examples and check its answer.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check fictional travel rules and an approved trip.",
+      "instructions": "You help a fictional finance reviewer check an expense report before reimbursement. Call lookup_expense_policy with the policy ID on the report, then lookup_trip_request with the trip ID. Check every line against the policy limits, receipt rule and non-reimbursable items, and against the approved trip dates and budget. Return a table with the line, amount, rule checked, a status of Within policy, Over limit, Needs receipt, Not reimbursable, Outside trip dates or Needs attention, and the amount at issue. Show your arithmetic. Then write a short note to the employee labeled UNSENT DRAFT that asks only for missing receipts or explanations. Say which facts came from simulated lookups. If a lookup fails or a detail is missing, say so instead of guessing. Never approve, reject or reimburse an expense, grant a policy exception or claim a message was sent.",
+      "example_request": "Create an agent that checks fictional employee expense reports and receipts before reimbursement.",
+      "sample_input": "Check this fictional expense report. Use the lookups, show the math and draft a note to the employee. All data is made up.\n\nEXPENSE REPORT ER-DEMO-118 - Employee: Jordan Lee (fictional)\nPolicy: POL-DEMO-TRAVEL | Trip: TRIP-DEMO-4410\nLine 1: Hotel, 2 nights x $260.00 = $520.00, receipt attached\nLine 2: Dinner 2027-05-10, $96.00 including $18.00 wine, receipt attached\nLine 3: Rideshare 2027-05-11, $34.00, no receipt\nLine 4: Lunch 2027-05-13, $22.00, no receipt\nReport total: $672.00",
+      "tools": [
+        {
+          "name": "lookup_expense_policy",
+          "description": "Read fixed fictional travel and expense rules; no external call or update.",
+          "simulated": true
+        },
+        {
+          "name": "lookup_trip_request",
+          "description": "Read a fixed fictional approved trip request; no external call or update.",
+          "simulated": true
+        }
+      ],
+      "summary": "Check a fictional expense report against simulated travel rules and the approved trip.",
+      "sector": {
+        "id": "private",
+        "label": "Private sector"
+      },
+      "industry": {
+        "id": "finance",
+        "label": "Finance"
+      },
+      "tasks": [
+        {
+          "id": "review",
+          "label": "Review"
+        },
+        {
+          "id": "draft",
+          "label": "Draft"
+        }
+      ],
+      "readiness": {
+        "id": "sample",
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+      },
+      "tool_mode": {
+        "id": "simulated",
+        "label": "Simulated tools",
+        "description": "Uses only included read-only fictional fixture lookups."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "higher",
+        "basis": "Tool calling profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Uses simulated policy and trip lookups, shows arithmetic per line and asks only for missing receipts or explanations.",
+      "human_decision": "A finance approver decides reimbursement, policy exceptions and any follow-up.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["expense", "travel", "receipts", "reimbursement"]
+    },
+    {
+      "id": "incident-timeline-writer",
+      "category": "Private sector",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "IT incident timeline writer",
+      "description": "Turn fictional alerts, chat notes and tickets into a sourced incident timeline and stakeholder update.",
+      "input": "Paste labeled, timestamped alert, chat and ticket excerpts from a fictional incident.",
+      "output": "A timeline, stated impact, open questions, facts kept apart from guesses and an unsent stakeholder update.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer. It cannot run commands, change systems, declare a root cause or close an incident.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "You build an incident timeline from fictional alert, chat and ticket excerpts. Keep the original timestamps and time zone, order events by time and cite each source label. Separate observed facts from hypotheses, and mark guesses in the notes as unconfirmed. State impact only as the sources state it and list what is unknown, such as the number of affected customers. Write a short stakeholder update labeled UNSENT DRAFT. Do not run or suggest running commands against production, declare a root cause, set severity, assign blame, close the incident or say service is restored unless a source says so.",
+      "example_request": "Create an agent that builds a timeline and stakeholder update from fictional incident notes.",
+      "sample_input": "Build a timeline and a stakeholder update from these fictional incident notes. All text is made up.\n\nA1 14:02 UTC Alert: checkout API error rate 12% (threshold 2%).\nC1 14:06 UTC On-call chat: Rolled back deployment 7.4.1 at 14:05.\nC2 14:11 UTC On-call chat: Error rate back under 1%. Maybe it was the cache?\nT1 14:20 UTC Ticket: A customer reports failed payments between 13:55 and 14:08 UTC.\nNo count of affected customers is supplied.",
+      "tools": [],
+      "summary": "Build a sourced timeline and stakeholder update from fictional incident notes.",
+      "sector": {
+        "id": "private",
+        "label": "Private sector"
+      },
+      "industry": {
+        "id": "it-operations",
+        "label": "IT operations"
+      },
+      "tasks": [
+        {
+          "id": "summarize",
+          "label": "Summarize"
+        },
+        {
+          "id": "draft",
+          "label": "Draft"
+        }
+      ],
+      "readiness": {
+        "id": "sample",
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Keeps timestamps and sources, separates facts from guesses and never declares a root cause or closure.",
+      "human_decision": "The incident commander decides severity, root cause, communication and closure.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["incident", "outage", "timeline", "postmortem"]
+    },
+    {
+      "id": "customer-feedback-themes",
+      "category": "Private sector",
+      "model_profile": {
+        "id": "reasoning",
+        "label": "Reasoning",
+        "reason": "Compares sources step by step and keeps gaps and conflicts visible."
+      },
+      "label": "Customer feedback theme finder",
+      "description": "Group fictional customer feedback into themes with counts, quotes and items that fit nowhere.",
+      "input": "Paste labeled customer feedback items, such as survey comments or support notes.",
+      "output": "A theme table with item counts and labels, representative quotes, outliers and questions for the product team.",
+      "limits": "Uses only the text you supply. It cannot fetch documents, change systems, approve applications or make legal, clinical, eligibility or payment decisions. Use fictional examples and check its answer. It cannot identify individuals, contact customers or set product priorities.",
+      "delegation": "Works directly on your supplied text. No other agents or external tools are called.",
+      "instructions": "You group fictional customer feedback into themes. Give each theme a short name, the labels of the items in it and a count of those items; an item may belong to more than one theme. Quote one representative item per theme. Report sentiment only as the item states it. List items that fit no theme. The counts describe only the supplied items: never turn them into percentages of all customers or claim a trend. Do not infer who a customer is or any personal traits, contact customers, or decide product priorities or roadmap changes.",
+      "example_request": "Create an agent that groups fictional customer feedback into themes with counts and quotes.",
+      "sample_input": "Group this fictional customer feedback into themes with counts and quotes. All text is made up.\n\nF1: Export to CSV takes forever on large reports.\nF2: Love the new dashboard colors.\nF3: CSV export timed out twice this week.\nF4: I can't find where to change my billing email.\nF5: The dashboard looks great, but export is still slow.",
+      "tools": [],
+      "summary": "Group fictional customer feedback into themes with counts and quotes.",
+      "sector": {
+        "id": "private",
+        "label": "Private sector"
+      },
+      "industry": {
+        "id": "customer-operations",
+        "label": "Customer operations"
+      },
+      "tasks": [
+        {
+          "id": "summarize",
+          "label": "Summarize"
+        },
+        {
+          "id": "triage",
+          "label": "Triage"
+        }
+      ],
+      "readiness": {
+        "id": "sample",
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+      },
+      "tool_mode": {
+        "id": "none",
+        "label": "No tools",
+        "description": "Uses only text supplied in the request."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "medium",
+        "basis": "Reasoning profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Counts only supplied items, quotes each theme, lists outliers and avoids trend or percentage claims.",
+      "human_decision": "Product owners decide priorities, roadmap changes and customer follow-up.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["feedback", "survey", "themes", "voice of customer"]
+    },
+    {
+      "id": "order-delay-helper",
+      "category": "Private sector",
+      "model_profile": {
+        "id": "tool_calling",
+        "label": "Tool calling",
+        "reason": "Calls lookup tools in the right order and reports exactly what they return."
+      },
+      "label": "Order delay helper",
+      "description": "Explain where a fictional delayed order is, from order and shipment records, and draft a reply.",
+      "input": "Paste a fictional customer message that includes the order number.",
+      "output": "Order and shipment status with sources, items not yet shipped, questions for staff and an unsent reply.",
+      "limits": "Uses your supplied text and two fixed, simulated lookups. It cannot refund, credit, cancel or reship an order, promise a delivery date or contact a carrier. Use fictional examples and check its answer.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check a fictional order and its shipment tracking.",
+      "instructions": "You help fictional customer service staff answer a question about a delayed order. Call lookup_order with the order number in the message, then lookup_shipment with the same number. Summarize what was ordered, the promised date, each shipment's latest tracking event and any item not yet shipped, citing which lookup each fact came from. Quote the carrier's estimate as an estimate, not a promise. List what a person must decide, such as a refund request, without deciding it. Write a short, friendly reply labeled UNSENT DRAFT. Say which facts came from simulated lookups. If a lookup fails or a detail is missing, say so instead of guessing. Never issue or promise a refund, credit, cancellation or reshipment, promise a delivery date, or claim the carrier or customer was contacted.",
+      "example_request": "Create an agent that explains a fictional delayed customer order and drafts a reply.",
+      "sample_input": "A fictional customer wrote in. Use the lookups, explain where the order is and draft a reply. All data is made up.\n\nMessage: Hi, my order ORD-DEMO-3307 was supposed to arrive on June 6 and it still isn't here. Where is it? I want a refund. - A. Chen (fictional)",
+      "tools": [
+        {
+          "name": "lookup_order",
+          "description": "Read a fixed fictional customer order; no external call or update.",
+          "simulated": true
+        },
+        {
+          "name": "lookup_shipment",
+          "description": "Read fixed fictional shipment tracking for an order; no external call or update.",
+          "simulated": true
+        }
+      ],
+      "summary": "Explain a fictional delayed order from simulated order and tracking records.",
+      "sector": {
+        "id": "private",
+        "label": "Private sector"
+      },
+      "industry": {
+        "id": "retail",
+        "label": "Retail and e-commerce"
+      },
+      "tasks": [
+        {
+          "id": "triage",
+          "label": "Triage"
+        },
+        {
+          "id": "draft",
+          "label": "Draft"
+        }
+      ],
+      "readiness": {
+        "id": "sample",
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."
+      },
+      "tool_mode": {
+        "id": "simulated",
+        "label": "Simulated tools",
+        "description": "Uses only included read-only fictional fixture lookups."
+      },
+      "prerequisites": [
+        "A model deployment",
+        "Customer-reviewed instructions and acceptance cases"
+      ],
+      "runtime_hint": {
+        "relative_cost": "medium",
+        "relative_latency": "higher",
+        "basis": "Tool calling profile; actual usage depends on the selected model and input."
+      },
+      "expected_behavior": "Cites each lookup, treats carrier dates as estimates, flags unshipped items and drafts an unsent reply.",
+      "human_decision": "Customer service staff decide refunds, credits, cancellations and reshipment.",
+      "export": {
+        "exportable": true,
+        "availability": "after_creation",
+        "bundle_kind": "lab-created",
+        "package_format": "agent-bundle-v1",
+        "sample_name": null,
+        "description": "Create and publish the agent, then export its saved ready record with the matching runtime source."
+      },
+      "keywords": ["order", "shipment", "delivery", "tracking"]
     }
   ],
   "facets": {
@@ -1093,7 +1519,7 @@
       {
         "id": "private",
         "label": "Private sector",
-        "count": 4
+        "count": 10
       }
     ],
     "industries": [
@@ -1120,16 +1546,36 @@
       {
         "id": "finance",
         "label": "Finance",
-        "count": 1
+        "count": 2
       },
       {
         "id": "customer-operations",
         "label": "Customer operations",
-        "count": 1
+        "count": 2
       },
       {
         "id": "field-operations",
         "label": "Field operations",
+        "count": 1
+      },
+      {
+        "id": "legal-operations",
+        "label": "Legal operations",
+        "count": 1
+      },
+      {
+        "id": "sales",
+        "label": "Sales",
+        "count": 1
+      },
+      {
+        "id": "it-operations",
+        "label": "IT operations",
+        "count": 1
+      },
+      {
+        "id": "retail",
+        "label": "Retail and e-commerce",
         "count": 1
       }
     ],
@@ -1137,7 +1583,7 @@
       {
         "id": "review",
         "label": "Review",
-        "count": 9
+        "count": 12
       },
       {
         "id": "extract",
@@ -1147,7 +1593,7 @@
       {
         "id": "summarize",
         "label": "Summarize",
-        "count": 4
+        "count": 6
       },
       {
         "id": "plan",
@@ -1157,12 +1603,12 @@
       {
         "id": "draft",
         "label": "Draft",
-        "count": 7
+        "count": 11
       },
       {
         "id": "triage",
         "label": "Triage",
-        "count": 5
+        "count": 7
       }
     ],
     "readiness": [
@@ -1174,9 +1620,9 @@
       },
       {
         "id": "sample",
-        "label": "Sample",
-        "description": "Sample definition with deterministic contract tests; validate it with customer policies before use.",
-        "count": 6
+        "label": "Preview",
+        "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use.",
+        "count": 12
       }
     ],
     "tool_modes": [
@@ -1184,13 +1630,13 @@
         "id": "none",
         "label": "No tools",
         "description": "Uses only text supplied in the request.",
-        "count": 10
+        "count": 14
       },
       {
         "id": "simulated",
         "label": "Simulated tools",
         "description": "Uses only included read-only fictional fixture lookups.",
-        "count": 5
+        "count": 7
       }
     ]
   }

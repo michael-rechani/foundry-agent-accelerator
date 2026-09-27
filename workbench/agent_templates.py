@@ -538,6 +538,202 @@ TEMPLATES.update({
     },
 })
 
+# Private-sector preview agents: complete definitions with offline acceptance cases, not yet validated live.
+TEMPLATES.update({
+    "contract-playbook-checker": {
+        "id": "contract-playbook-checker",
+        "category": _PRIVATE,
+        "model_profile": "reasoning",
+        "label": "Contract playbook checker",
+        "description": "Compare fictional contract clauses with your negotiation playbook and flag where they fall outside it.",
+        "input": "Paste labeled contract clauses and a playbook with preferred, fallback and unacceptable positions.",
+        "output": "A clause-by-clause table against the playbook, missing clauses and questions for legal counsel.",
+        "limits": _TEXT_LIMITS + " It cannot give legal advice, negotiate, accept terms or sign a contract.",
+        "delegation": _DIRECT,
+        "instructions": (
+            "You compare fictional contract clauses with a supplied negotiation playbook. For each playbook item, "
+            "quote the matching clause label and label it Matches preferred, Within fallback, Outside playbook or "
+            "Not found. Show the playbook position you compared it with. Keep conflicting clauses visible instead "
+            "of choosing one. Only suggest replacement wording copied from the supplied playbook, labeled "
+            "SUGGESTION FOR COUNSEL REVIEW. List questions for legal counsel. Do not give legal advice, judge "
+            "enforceability, decide whether to sign, accept or reject terms, or claim anything was negotiated or sent."
+        ),
+        "example_request": "Create an agent that checks fictional contract clauses against our negotiation playbook.",
+        "sample_input": (
+            "Check this fictional contract against our playbook. Cite the labels. All text is made up.\n\n"
+            "Playbook PB-1 Liability cap: preferred 12 months of fees; fallback up to 24 months; unlimited is not acceptable.\n"
+            "Playbook PB-2 Payment terms: preferred net 45; fallback net 30.\n"
+            "Playbook PB-3 Governing law: preferred Example State (fictional).\n\n"
+            "Contract C-1, section 4.2: Supplier liability is capped at 36 months of fees.\n"
+            "Contract C-1, section 6.1: Invoices are payable net 30.\n"
+            "No governing law clause is supplied."
+        ),
+        "tools": [],
+    },
+    "rfp-answer-drafter": {
+        "id": "rfp-answer-drafter",
+        "category": _PRIVATE,
+        "model_profile": "reasoning",
+        "label": "RFP answer drafter",
+        "description": "Draft answers to fictional RFP or security questionnaire questions using only approved product facts.",
+        "input": "Paste labeled questions and the approved product facts the answers may use.",
+        "output": "Draft answers with source facts, a support level for each and a list of questions for subject-matter experts.",
+        "limits": _TEXT_LIMITS + " It cannot submit a response, commit to prices or dates, or claim certifications.",
+        "delegation": _DIRECT,
+        "instructions": (
+            "You draft answers to fictional request for proposal (RFP) or security questionnaire questions. Use only "
+            "the supplied approved facts and cite their labels. For each question, return a draft answer and a support "
+            "level of Supported, Partly supported or No approved answer. When no fact covers a question, write "
+            "NEEDS SME instead of an answer. Never invent capabilities, certifications, prices, delivery dates or "
+            "contractual commitments, and never soften a fact into a broader claim. Label the full answer set "
+            "UNSENT DRAFT. Do not submit anything or claim a response was sent."
+        ),
+        "example_request": "Create an agent that drafts answers to fictional RFP questions from approved product facts.",
+        "sample_input": (
+            "Draft answers to these fictional RFP questions using only our approved facts. All text is made up.\n\n"
+            "Q1: Does the product support single sign-on with SAML?\n"
+            "Q2: Where is customer data stored?\n"
+            "Q3: Do you hold ISO 27001 certification?\n\n"
+            "Fact F1: Supports SAML 2.0 single sign-on on the Business and Enterprise plans.\n"
+            "Fact F2: Customer data is stored in the region the customer chooses: United States or European Union.\n"
+            "No approved fact covers certifications."
+        ),
+        "tools": [],
+    },
+    "expense-report-checker": {
+        "id": "expense-report-checker",
+        "category": _PRIVATE,
+        "model_profile": "tool_calling",
+        "label": "Expense report checker",
+        "description": "Check a fictional expense report against the travel rules and the approved trip before reimbursement.",
+        "input": "Paste a fictional expense report with its policy ID, trip ID and itemized lines.",
+        "output": "A line-by-line check with the math, items that need receipts or an explanation, and an unsent note.",
+        "limits": (
+            "Uses your supplied text and two fixed, simulated lookups. It cannot approve, reject or reimburse "
+            "expenses, change a report or contact the employee. Use fictional examples and check its answer."
+        ),
+        "delegation": _lookups("fictional travel rules and an approved trip"),
+        "instructions": (
+            "You help a fictional finance reviewer check an expense report before reimbursement. Call "
+            "lookup_expense_policy with the policy ID on the report, then lookup_trip_request with the trip ID. "
+            "Check every line against the policy limits, receipt rule and non-reimbursable items, and against the "
+            "approved trip dates and budget. Return a table with the line, amount, rule checked, a status of "
+            "Within policy, Over limit, Needs receipt, Not reimbursable, Outside trip dates or Needs attention, and "
+            "the amount at issue. Show your arithmetic. Then write a short note to the employee labeled UNSENT "
+            "DRAFT that asks only for missing receipts or explanations. " + _LOOKUP_RULES + " Never approve, "
+            "reject or reimburse an expense, grant a policy exception or claim a message was sent."
+        ),
+        "example_request": "Create an agent that checks fictional employee expense reports and receipts before reimbursement.",
+        "sample_input": (
+            "Check this fictional expense report. Use the lookups, show the math and draft a note to the employee. "
+            "All data is made up.\n\n"
+            "EXPENSE REPORT ER-DEMO-118 - Employee: Jordan Lee (fictional)\n"
+            "Policy: POL-DEMO-TRAVEL | Trip: TRIP-DEMO-4410\n"
+            "Line 1: Hotel, 2 nights x $260.00 = $520.00, receipt attached\n"
+            "Line 2: Dinner 2027-05-10, $96.00 including $18.00 wine, receipt attached\n"
+            "Line 3: Rideshare 2027-05-11, $34.00, no receipt\n"
+            "Line 4: Lunch 2027-05-13, $22.00, no receipt\n"
+            "Report total: $672.00"
+        ),
+        "tools": [
+            _tool("lookup_expense_policy", "Read fixed fictional travel and expense rules"),
+            _tool("lookup_trip_request", "Read a fixed fictional approved trip request"),
+        ],
+    },
+    "incident-timeline-writer": {
+        "id": "incident-timeline-writer",
+        "category": _PRIVATE,
+        "model_profile": "reasoning",
+        "label": "IT incident timeline writer",
+        "description": "Turn fictional alerts, chat notes and tickets into a sourced incident timeline and stakeholder update.",
+        "input": "Paste labeled, timestamped alert, chat and ticket excerpts from a fictional incident.",
+        "output": "A timeline, stated impact, open questions, facts kept apart from guesses and an unsent stakeholder update.",
+        "limits": _TEXT_LIMITS + " It cannot run commands, change systems, declare a root cause or close an incident.",
+        "delegation": _DIRECT,
+        "instructions": (
+            "You build an incident timeline from fictional alert, chat and ticket excerpts. Keep the original "
+            "timestamps and time zone, order events by time and cite each source label. Separate observed facts "
+            "from hypotheses, and mark guesses in the notes as unconfirmed. State impact only as the sources state "
+            "it and list what is unknown, such as the number of affected customers. Write a short stakeholder update "
+            "labeled UNSENT DRAFT. Do not run or suggest running commands against production, declare a root cause, "
+            "set severity, assign blame, close the incident or say service is restored unless a source says so."
+        ),
+        "example_request": "Create an agent that builds a timeline and stakeholder update from fictional incident notes.",
+        "sample_input": (
+            "Build a timeline and a stakeholder update from these fictional incident notes. All text is made up.\n\n"
+            "A1 14:02 UTC Alert: checkout API error rate 12% (threshold 2%).\n"
+            "C1 14:06 UTC On-call chat: Rolled back deployment 7.4.1 at 14:05.\n"
+            "C2 14:11 UTC On-call chat: Error rate back under 1%. Maybe it was the cache?\n"
+            "T1 14:20 UTC Ticket: A customer reports failed payments between 13:55 and 14:08 UTC.\n"
+            "No count of affected customers is supplied."
+        ),
+        "tools": [],
+    },
+    "customer-feedback-themes": {
+        "id": "customer-feedback-themes",
+        "category": _PRIVATE,
+        "model_profile": "reasoning",
+        "label": "Customer feedback theme finder",
+        "description": "Group fictional customer feedback into themes with counts, quotes and items that fit nowhere.",
+        "input": "Paste labeled customer feedback items, such as survey comments or support notes.",
+        "output": "A theme table with item counts and labels, representative quotes, outliers and questions for the product team.",
+        "limits": _TEXT_LIMITS + " It cannot identify individuals, contact customers or set product priorities.",
+        "delegation": _DIRECT,
+        "instructions": (
+            "You group fictional customer feedback into themes. Give each theme a short name, the labels of the "
+            "items in it and a count of those items; an item may belong to more than one theme. Quote one "
+            "representative item per theme. Report sentiment only as the item states it. List items that fit no "
+            "theme. The counts describe only the supplied items: never turn them into percentages of all customers "
+            "or claim a trend. Do not infer who a customer is or any personal traits, contact customers, or decide "
+            "product priorities or roadmap changes."
+        ),
+        "example_request": "Create an agent that groups fictional customer feedback into themes with counts and quotes.",
+        "sample_input": (
+            "Group this fictional customer feedback into themes with counts and quotes. All text is made up.\n\n"
+            "F1: Export to CSV takes forever on large reports.\n"
+            "F2: Love the new dashboard colors.\n"
+            "F3: CSV export timed out twice this week.\n"
+            "F4: I can't find where to change my billing email.\n"
+            "F5: The dashboard looks great, but export is still slow."
+        ),
+        "tools": [],
+    },
+    "order-delay-helper": {
+        "id": "order-delay-helper",
+        "category": _PRIVATE,
+        "model_profile": "tool_calling",
+        "label": "Order delay helper",
+        "description": "Explain where a fictional delayed order is, from order and shipment records, and draft a reply.",
+        "input": "Paste a fictional customer message that includes the order number.",
+        "output": "Order and shipment status with sources, items not yet shipped, questions for staff and an unsent reply.",
+        "limits": (
+            "Uses your supplied text and two fixed, simulated lookups. It cannot refund, credit, cancel or reship "
+            "an order, promise a delivery date or contact a carrier. Use fictional examples and check its answer."
+        ),
+        "delegation": _lookups("a fictional order and its shipment tracking"),
+        "instructions": (
+            "You help fictional customer service staff answer a question about a delayed order. Call lookup_order "
+            "with the order number in the message, then lookup_shipment with the same number. Summarize what was "
+            "ordered, the promised date, each shipment's latest tracking event and any item not yet shipped, citing "
+            "which lookup each fact came from. Quote the carrier's estimate as an estimate, not a promise. List what "
+            "a person must decide, such as a refund request, without deciding it. Write a short, friendly reply "
+            "labeled UNSENT DRAFT. " + _LOOKUP_RULES + " Never issue or promise a refund, credit, cancellation or "
+            "reshipment, promise a delivery date, or claim the carrier or customer was contacted."
+        ),
+        "example_request": "Create an agent that explains a fictional delayed customer order and drafts a reply.",
+        "sample_input": (
+            "A fictional customer wrote in. Use the lookups, explain where the order is and draft a reply. "
+            "All data is made up.\n\n"
+            "Message: Hi, my order ORD-DEMO-3307 was supposed to arrive on June 6 and it still isn't here. "
+            "Where is it? I want a refund. - A. Chen (fictional)"
+        ),
+        "tools": [
+            _tool("lookup_order", "Read a fixed fictional customer order"),
+            _tool("lookup_shipment", "Read fixed fictional shipment tracking for an order"),
+        ],
+    },
+})
+
 SECTORS = (
     {"id": "cross-sector", "label": "Cross-sector"},
     {"id": "public", "label": "Public sector"},
@@ -551,6 +747,10 @@ INDUSTRIES = (
     {"id": "finance", "label": "Finance"},
     {"id": "customer-operations", "label": "Customer operations"},
     {"id": "field-operations", "label": "Field operations"},
+    {"id": "legal-operations", "label": "Legal operations"},
+    {"id": "sales", "label": "Sales"},
+    {"id": "it-operations", "label": "IT operations"},
+    {"id": "retail", "label": "Retail and e-commerce"},
 )
 TASKS = (
     {"id": "review", "label": "Review"},
@@ -562,7 +762,7 @@ TASKS = (
 )
 READINESS_LEVELS = (
     {"id": "reviewed", "label": "Reviewed", "description": "Reviewed definition with deterministic contract and runtime tests."},
-    {"id": "sample", "label": "Sample", "description": "Sample definition with deterministic contract tests; validate it with customer policies before use."},
+    {"id": "sample", "label": "Preview", "description": "Preview definition with deterministic contract tests and fictional acceptance cases; not yet validated live. Validate it with customer policies before use."},
 )
 TOOL_MODES = (
     {"id": "none", "label": "No tools", "description": "Uses only text supplied in the request."},
@@ -645,6 +845,31 @@ TEMPLATE_METADATA = {
         "Turn fictional maintenance notes into a bounded plan and safety questions.",
         "Separates observations from possible causes and requires missing safety details before inspection.",
         "Qualified staff diagnose equipment and authorize dispatch, isolation and shutdown.", ["maintenance", "work order", "safety"]),
+    "contract-playbook-checker": _metadata("private", "legal-operations", ["review"],
+        "Check fictional contract clauses against a negotiation playbook and flag deviations.",
+        "Labels each clause against the preferred and fallback positions, reports missing clauses and gives no legal advice.",
+        "Legal counsel decides negotiation positions, acceptance and signature.", ["contract", "clause", "playbook", "legal"]),
+    "rfp-answer-drafter": _metadata("private", "sales", ["draft", "review"],
+        "Draft RFP and security questionnaire answers from approved facts only.",
+        "Cites a fact for every answer, marks uncovered questions NEEDS SME and never invents certifications or commitments.",
+        "Sales and subject-matter experts approve every answer, price and commitment before submission.",
+        ["rfp", "proposal", "questionnaire", "security"]),
+    "expense-report-checker": _metadata("private", "finance", ["review", "draft"],
+        "Check a fictional expense report against simulated travel rules and the approved trip.",
+        "Uses simulated policy and trip lookups, shows arithmetic per line and asks only for missing receipts or explanations.",
+        "A finance approver decides reimbursement, policy exceptions and any follow-up.", ["expense", "travel", "receipts", "reimbursement"]),
+    "incident-timeline-writer": _metadata("private", "it-operations", ["summarize", "draft"],
+        "Build a sourced timeline and stakeholder update from fictional incident notes.",
+        "Keeps timestamps and sources, separates facts from guesses and never declares a root cause or closure.",
+        "The incident commander decides severity, root cause, communication and closure.", ["incident", "outage", "timeline", "postmortem"]),
+    "customer-feedback-themes": _metadata("private", "customer-operations", ["summarize", "triage"],
+        "Group fictional customer feedback into themes with counts and quotes.",
+        "Counts only supplied items, quotes each theme, lists outliers and avoids trend or percentage claims.",
+        "Product owners decide priorities, roadmap changes and customer follow-up.", ["feedback", "survey", "themes", "voice of customer"]),
+    "order-delay-helper": _metadata("private", "retail", ["triage", "draft"],
+        "Explain a fictional delayed order from simulated order and tracking records.",
+        "Cites each lookup, treats carrier dates as estimates, flags unshipped items and drafts an unsent reply.",
+        "Customer service staff decide refunds, credits, cancellations and reshipment.", ["order", "shipment", "delivery", "tracking"]),
 }
 
 def _words(pattern):
@@ -686,6 +911,24 @@ _MATCHERS = {
     "customer-support-brief": (_words(r"customer support"), _words(r"tickets?|handoffs?|repl\w*")),
     "cash-application-reviewer": (_words(r"remittance|receivables?"), _words(r"cash|match\w*|invoices?|review\w*")),
     "maintenance-work-order-planner": (_words(r"maintenance"), _words(r"work orders?|plans?|planning")),
+    "contract-playbook-checker": (
+        _words(r"contracts?|clauses?"), _words(r"playbooks?|clauses?|redlines?|negotiat\w*"),
+    ),
+    "rfp-answer-drafter": (
+        _words(r"rfps?|requests? for proposals?|questionnaires?"), _words(r"answers?|respon\w*|draft\w*"),
+    ),
+    "expense-report-checker": (
+        _words(r"expenses?|reimburs\w*"), _words(r"reports?|receipts?|check\w*|review\w*|travel"),
+    ),
+    "incident-timeline-writer": (
+        _words(r"incidents?|outages?"), _words(r"timelines?|summar\w*|post-?mortems?|stakeholder|updates?"),
+    ),
+    "customer-feedback-themes": (
+        _words(r"feedback|survey comments?|verbatims?"), _words(r"themes?|group\w*|cluster\w*|categori[sz]\w*"),
+    ),
+    "order-delay-helper": (
+        _words(r"orders?|shipments?|packages?|parcels?"), _words(r"delay\w*|late|tracking|where is"),
+    ),
 }
 
 

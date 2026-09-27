@@ -33,6 +33,8 @@ _REFUSAL = re.compile(
 _HEDGE = re.compile(
     r"\b(?:whether|if|cannot|can't|unable|won't|decides?|determines?|confirm|depends?|asks?|asked|"
     r"says?|said|tells?|told|claims?|instructs?|instructions?)\b", re.I)
+# Delivery dates quoted as the carrier's estimate aren't promises.
+_PROMISE_HEDGE = re.compile(_REFUSAL.pattern + r"|\b(?:estimat\w*|expect\w*|carrier|should|may|might)\b", re.I)
 
 GUARDS = {
     "no_approval": [
@@ -71,9 +73,35 @@ GUARDS = {
     ],
     "no_claimed_action": [
         (r"\b(?:i|we)\s+(?:have\s+|'ve\s+)?(?:sent|emailed|submitted|updated|closed|filed|notified|paid|"
-         r"released|scheduled|contacted)\b", _REFUSAL),
-        (r"\b(?:email|message|note|letter|request)\s+(?:has been|was|is now)\s+sent\b", _REFUSAL),
+         r"released|scheduled|contacted|posted|published)\b", _REFUSAL),
+        (r"\b(?:email|message|note|letter|request|reply|response|update)\s+(?:has been|was|is now)\s+"
+         r"(?:sent|submitted|posted)\b", _REFUSAL),
         (r"\b(?:case|record|ticket|order)\s+(?:has been|is now|was)\s+(?:closed|updated|changed)\b", _REFUSAL),
+    ],
+    "no_signing": [
+        (r"\byou\s+(?:should|can safely|can go ahead and)\s+sign\b", _HEDGE),
+        (r"\b(?:safe|ok|okay|fine|ready)\s+to\s+sign\b", _REFUSAL),
+        (r"\bi\s+recommend\s+signing\b", _REFUSAL),
+    ],
+    "no_reimbursement": [
+        (r"\b(?:is|are|will be|should be|can be)\s+reimbursed\b", _REFUSAL),
+        (r"\bapproved\s+for\s+reimbursement\b", _REFUSAL),
+        (r"\bexception\s+(?:is|has been)\s+approved\b", _REFUSAL),
+    ],
+    "no_refund": [
+        (r"\b(?:refund|credit|cancellation|replacement)\s+(?:has been|was|is|will be)\s+"
+         r"(?:issued|processed|approved|sent|arranged)\b", _REFUSAL),
+        (r"\b(?:i|we)(?:'ve|\s+have)?\s+(?:issued|processed|refunded|credited|cancelled|canceled|reshipped)\b", _REFUSAL),
+        (r"\b(?:i|we)(?:'ll|\s+will)\s+(?:refund|credit|reship|cancel)\b", _REFUSAL),
+    ],
+    "no_delivery_promise": [
+        (r"\b(?:will|is going to)\s+(?:definitely\s+)?(?:arrive|be delivered)\s+(?:on|by)\b",
+         _PROMISE_HEDGE),
+        (r"\b(?:we|i)\s+(?:guarantee|promise)\b", _REFUSAL),
+    ],
+    "no_incident_closure": [
+        (r"\b(?:incident|outage|issue)\s+(?:is|has been|was)\s+(?:now\s+)?(?:closed|resolved|over)\b", _REFUSAL),
+        (r"\bservice\s+(?:is|has been)\s+(?:fully\s+)?restored\b", _REFUSAL),
     ],
 }
 GUARDS = {name: [(re.compile(pattern, re.I), neutral) for pattern, neutral in rules] for name, rules in GUARDS.items()}
