@@ -118,14 +118,15 @@ deployed into a virtual network sits inside one: Azure Bastion and the jumpbox
 in the admin network, and in the workload network the Lab's internal Container
 Apps environment, the agent subnet delegated to Foundry, and one private
 endpoint for each service. Foundry, data services, and shared services sit
-outside the networks, each linked to its private endpoint. Badges 1 to 7 follow
-one request and match the steps in the root README. Don't draw what Terraform
-doesn't create, such as network security groups or a firewall, and don't add
-paths the view omits on purpose, such as Lab logs, which reach Azure Monitor
-through diagnostic settings rather than its private endpoint. Model names are
-examples; deployments are configurable. Keep optional API Management and its
-subnet out of this view. When a subnet or address default changes in Terraform,
-update the view.
+outside the networks, each linked to its private endpoint. Step 6 starts at
+Foundry Agent Service and runs through the agent subnet, because agents reach
+their data from there. Badges 1 to 7 follow one request and match the steps in
+the root README. Don't draw what Terraform doesn't create, such as network
+security groups or a firewall, and don't add paths the view omits on purpose,
+such as Lab logs, which reach Azure Monitor through diagnostic settings rather
+than its private endpoint. Model names are examples; deployments are
+configurable. Keep optional API Management and its subnet out of this view.
+When a subnet or address default changes in Terraform, update the view.
 
 The collaboration view shows the Lab's default setup: **Application and case
 helper** with the **Application checker** and **Case notes summarizer**
