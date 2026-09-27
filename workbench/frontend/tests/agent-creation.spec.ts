@@ -510,7 +510,6 @@ test('creation is the entry point with nine honest jobs in two groups and usable
     'Create agent',
     'All agents',
     'Chat',
-    'Document reviews',
     'Shared history',
     'Performance',
   ]) {
@@ -520,6 +519,11 @@ test('creation is the entry point with nine honest jobs in two groups and usable
         .getByRole('button', { name: label, exact: true }),
     ).toBeVisible()
   }
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Workspace' })
+      .getByRole('button', { name: 'Document reviews' }),
+  ).toHaveCount(0)
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

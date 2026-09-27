@@ -78,7 +78,16 @@ export function ChatSidebar({
       label: 'Chat and test',
       items: [
         { view: 'chat', label: 'Chat', icon: MessageSquare },
-        { view: 'reviews', label: 'Document reviews', icon: FileCheck2 },
+        // Reviews are reached from Chat or a saved-review link, not the sidebar.
+        ...(view === 'reviews'
+          ? [
+              {
+                view: 'reviews' as const,
+                label: 'Document reviews',
+                icon: FileCheck2,
+              },
+            ]
+          : []),
         { view: 'explore', label: 'Guided demos', icon: Compass },
       ],
     },

@@ -173,9 +173,21 @@ async function setup(
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toBeVisible()
-  await navigation
-    .getByRole('button', { name: 'Document reviews', exact: true })
-    .click()
+  await expect(
+    navigation.getByRole('button', { name: 'Document reviews' }),
+  ).toHaveCount(0)
+  if (preview) {
+    await expect(page.locator('.chat-review-link')).toHaveCount(0)
+    await page.goto('/#reviews')
+    await page.reload()
+  } else
+    await page
+      .locator('.chat-review-link')
+      .getByRole('button', { name: 'Document reviews', exact: true })
+      .click()
+  await expect(
+    navigation.getByRole('button', { name: 'Document reviews', exact: true }),
+  ).toHaveAttribute('aria-current', 'page')
   await expect(
     page.getByRole('heading', { name: 'Document reviews', exact: true }),
   ).toBeVisible()
@@ -293,7 +305,8 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
     .click()
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   await editor.fill('Fictional case notes only for Chat, not review evidence')
-  await navigation
+  await page
+    .locator('.chat-review-link')
     .getByRole('button', { name: 'Document reviews', exact: true })
     .click()
   await page.getByRole('button', { name: 'New review', exact: true }).click()

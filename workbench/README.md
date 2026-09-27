@@ -43,7 +43,7 @@ The sidebar groups the Lab's pages into three sections, in this order. Every age
 | Section | Page | What you do there |
 | --- | --- | --- |
 | Chat and test | **Chat** | Talk with a prebuilt or created agent. An example task only fills in your message; you choose when to send it. |
-| Chat and test | **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. |
+| Chat and test | **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. Not in the sidebar: open it from the link in **Chat** (shown when reviews are enabled), a saved-review link, or `/#reviews`. |
 | Chat and test | **Guided demos** | Start with application evidence, invoice discrepancies, or case notes. Read an illustrative story, copy its fictional input, or load it into an enabled matching agent. |
 | Agent library | **All agents** > **Templates** | Filter the [agent library](../docs/agent-creation.md#what-a-participant-can-do) by sector, industry, task, readiness, and tools. Each entry shows what you provide, what you get, its limits, what a person decides, a fictional example, and the expected behavior. From an entry you can create the agent, open a ready one in **Chat** with the example as an unsent draft, or download its saved record for export. |
 | Agent library | **All agents** > **Ready to use** | Browse the prebuilt and ready created agents you can chat with, read what each one needs and does, and start a chat. |
@@ -165,7 +165,7 @@ control and they do not check that submitted data is fictional.
 
 ## Conversations
 
-**All agents** > **Templates** is the initial view. Bookmark `/#chat` to start in Chat, `/#agents` for **Ready to use**,
+**All agents** > **Templates** is the initial view. Bookmark `/#chat` to start in Chat, `/#agents` for **Ready to use**, `/#reviews` for **Document reviews**,
 `/#demos` for **Guided demos**, `/#performance`, `/#logs`, or `/#create` for the
 creator when its capability is advertised. A valid saved-review
 URL still opens its review directly, including after a reload. No publication or

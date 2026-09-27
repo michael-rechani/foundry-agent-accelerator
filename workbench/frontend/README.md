@@ -110,7 +110,7 @@ polling never submits another creation. Setup, publication, ready routing, and
 live answer quality remain distinct.
 
 The opening view is **All agents** > **Templates**. Explicit `/#chat`, `/#library`, `/#agents`,
-`/#demos`, `/#performance`, `/#logs`, and `/#create` entry links are
+`/#demos`, `/#reviews`, `/#performance`, `/#logs`, and `/#create` entry links are
 supported; a library **Create** action opens the creator with that template
 preselected unless setup work is already in progress; creation still requires its advertised capability. Valid
 saved-review links keep priority.

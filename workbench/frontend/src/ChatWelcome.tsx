@@ -35,13 +35,15 @@ export function ChatWelcome({
           </button>
         ))}
       </div>
-      <p className="chat-review-link">
-        Want a saved check of each item on your checklist? Use{' '}
-        <button className="inline-link" onClick={onReviews}>
-          Document reviews
-        </button>
-        . It starts separately; your Chat messages are not copied over.
-      </p>
+      {config?.reviews_enabled && (
+        <p className="chat-review-link">
+          Want a saved check of each item on your checklist? Use{' '}
+          <button className="inline-link" onClick={onReviews}>
+            Document reviews
+          </button>
+          . It starts separately; your Chat messages are not copied over.
+        </p>
+      )}
       {config?.mode === 'preview' && (
         <p className="preview-explanation">
           Local preview: try writing a message with made-up details. No model

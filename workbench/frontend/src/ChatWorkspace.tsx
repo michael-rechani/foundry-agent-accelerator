@@ -43,6 +43,7 @@ const hashViews: Record<string, View> = {
   '#library': 'library',
   '#agents': 'catalog',
   '#demos': 'explore',
+  '#reviews': 'reviews',
   '#performance': 'performance',
   '#logs': 'log',
 }

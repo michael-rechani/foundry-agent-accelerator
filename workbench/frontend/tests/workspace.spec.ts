@@ -653,13 +653,7 @@ test('shared lab details are available on demand across workspace views', async 
   await workspace(page, { config: { reviews_enabled: true } })
   const control = page.getByTitle('About this shared lab', { exact: true })
   const notice = page.getByRole('complementary', { name: 'Shared lab details' })
-  for (const name of [
-    'Chat',
-    'Document reviews',
-    'Shared history',
-    'All agents',
-    'Performance',
-  ]) {
+  for (const name of ['Chat', 'Shared history', 'All agents', 'Performance']) {
     await page
       .getByRole('navigation', { name: 'Workspace' })
       .getByTitle(name, { exact: true })
