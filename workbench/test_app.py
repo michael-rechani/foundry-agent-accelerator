@@ -615,6 +615,19 @@ class LibraryPreviewTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "WORKBENCH_LIBRARY_PREVIEW_ENABLED"):
                 Settings.from_env()
 
+    def test_budget_alert_status_is_reported_in_private_mode_only(self):
+        self.assertIs(self.client.get("/api/config").json()["budget_alerts"], False)
+        enabled = replace(self.settings, budget_alerts=True)
+        self.assertIs(TestClient(create_app(enabled, self.gateway)).get("/api/config").json()["budget_alerts"],
+                      enabled.mode == "private")
+        with self.assertRaisesRegex(ValueError, "Budget alert status"):
+            create_app(replace(self.settings, budget_alerts="yes"), self.gateway)
+        with patch.dict("os.environ", {"WORKBENCH_BUDGET_ALERTS_ENABLED": "maybe"}):
+            with self.assertRaisesRegex(ValueError, "WORKBENCH_BUDGET_ALERTS_ENABLED"):
+                Settings.from_env()
+        with patch.dict("os.environ", {"WORKBENCH_BUDGET_ALERTS_ENABLED": "true"}):
+            self.assertIs(Settings.from_env().budget_alerts, True)
+
 
 class LibraryPreviewGatewayTests(unittest.IsolatedAsyncioTestCase):
     async def test_preview_calls_the_profile_model_directly(self):

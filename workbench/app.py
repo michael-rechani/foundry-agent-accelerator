@@ -58,6 +58,7 @@ class Settings:
     creation: CreationSettings = field(default_factory=CreationSettings)
     session_reuse_seconds: float = 600
     library_preview: bool = True
+    budget_alerts: bool = False
 
     @classmethod
     def from_env(cls):
@@ -69,11 +70,14 @@ class Settings:
         library_preview = os.getenv("WORKBENCH_LIBRARY_PREVIEW_ENABLED", "true")
         if library_preview not in {"true", "false"}:
             raise ValueError("WORKBENCH_LIBRARY_PREVIEW_ENABLED must be true or false")
+        budget_alerts = os.getenv("WORKBENCH_BUDGET_ALERTS_ENABLED", "false")
+        if budget_alerts not in {"true", "false"}:
+            raise ValueError("WORKBENCH_BUDGET_ALERTS_ENABLED must be true or false")
         return cls(mode, endpoint, hosts, origins, Path(os.getenv("WORKBENCH_AGENTS_FILE", ROOT / "agents.json")),
                visible_agents=visible_agents, default_agent=os.getenv("WORKBENCH_DEFAULT_AGENT") or None,
                title=os.getenv("WORKBENCH_TITLE", "Foundry Agent Lab"), creation=CreationSettings.from_env(),
                session_reuse_seconds=float(os.getenv("WORKBENCH_SESSION_REUSE_SECONDS", "600")),
-               library_preview=library_preview == "true")
+               library_preview=library_preview == "true", budget_alerts=budget_alerts == "true")
 
     def validate(self):
         if not isinstance(self.title, str) or not self.title.strip() or len(self.title) > 80 or any(ord(char) < 32 for char in self.title):
@@ -88,6 +92,8 @@ class Settings:
         self.creation.validate(self.mode)
         if type(self.library_preview) is not bool:
             raise ValueError("Library preview enablement must be a boolean")
+        if type(self.budget_alerts) is not bool:
+            raise ValueError("Budget alert status must be a boolean")
         if self.library_preview_enabled and not DEPLOYMENT_NAME.fullmatch(self.creation.model):
             raise ValueError("Library previews need an existing model deployment name")
         if not self.hosts or any("*" in host or "/" in host for host in self.hosts):
@@ -531,7 +537,8 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
             "history_enabled": history_store is not None, "history_scope": "shared", "retention_days": 30,
             "reviews_enabled": settings.mode == "private" and history_store is not None,
             "agent_creation": created_agents.capabilities(),
-            "library_preview": settings.library_preview_capability()}
+            "library_preview": settings.library_preview_capability(),
+            "budget_alerts": settings.mode == "private" and settings.budget_alerts}
 
     application.add_api_route("/api/reviews", chat.admit, methods=["POST"])
     application.include_router(history_router(settings, registry, history_store, created_agents))

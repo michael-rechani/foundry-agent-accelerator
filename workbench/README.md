@@ -770,6 +770,39 @@ isolated directory, without the deployment backend or tfvars. Both Terraform
 providers are mocked, including test runs named `apply`; no Azure resources are
 created and no mail is sent. CI runs the same checks.
 
+### Budget alerts
+
+Azure Monitor alerts cover health, not spend. To be told about spend, set
+`lab_budget` in your ignored Lab deployment inputs. Terraform then creates a
+monthly Cost Management budget on the Lab resource group:
+
+```hcl
+lab_budget = {
+  amount     = 150                    # Billing currency, per calendar month.
+  start_date = "2026-06-01T00:00:00Z" # First day of the current or a later month.
+  # contact_emails = ["finance@example.invalid"]
+}
+```
+
+The budget alerts at 50%, 80% and 100% of actual spend and when spend is
+forecast to reach 100%. It notifies the operational action groups described
+above, plus any `contact_emails`; planning fails if it has no recipient. It
+also sets `WORKBENCH_BUDGET_ALERTS_ENABLED=true`, so the Lab's **Performance**
+page says a budget is configured. Budgets are free, but they only warn you. They
+don't stop resources or model calls. Cost data can arrive 8 to 24 hours after
+the spend. The budget covers only the Lab resource group. Foundry, Cosmos DB or
+network resources in other resource groups need their own budgets. The amount
+and recipients are the owner's decision, and an apply changes infrastructure,
+so get approval for both. Leave `lab_budget` unset (the default) to create no
+budget.
+
+The model deployment's capacity also limits spend. On Standard and Global
+Standard deployments, each capacity unit is 1,000 tokens per minute, and the
+Foundry configuration in `terraform/` sets it. Requests over the limit return
+HTTP 429 instead of running. For example, capacity 10 limits a deployment to
+10,000 tokens per minute. The Lab's Performance page lists which Lab actions
+are billable.
+
 ### Browser caching
 
 API responses remain `no-store`. HTML revalidates, and fingerprinted static

@@ -15,10 +15,12 @@ const seconds = (value: number) => `${(value / 1000).toFixed(1)}s`
 export function PerformanceView({
   measurements,
   preview,
+  budgetAlerts = false,
   onLog,
 }: {
   measurements: Measurement[]
   preview: boolean
+  budgetAlerts?: boolean
   onLog: () => void
 }) {
   const completed = measurements.filter((item) => item.outcome === 'completed')
@@ -133,6 +135,7 @@ export function PerformanceView({
         usages={measurements
           .filter((item) => item.outcome === 'completed')
           .map((item) => item.usage ?? null)}
+        budgetAlerts={budgetAlerts}
       />
       <h2 className="request-heading" id="recent-heading">
         Recent requests
