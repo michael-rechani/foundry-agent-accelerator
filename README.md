@@ -17,7 +17,7 @@ prebuilt agents working as a team.
 
 Start with a practical question. Find what is missing from an application,
 check what does not add up on an invoice, or clarify a caseworker's next step.
-Then compare the agent's actual answer with the fictional source.
+Then compare the agent's actual answer with the sample source.
 
 The Azure deployment runs privately in your subscription. Local preview makes
 no model calls. This is a sample, not an official Microsoft product.
@@ -63,7 +63,7 @@ mocked APIs; nothing was published, sent, or saved.*
 Choose the path that fits your session:
 
 - **Explore without deploying.** Read the [showcase and presenter guide](docs/showcase.md)
-  for fictional inputs, expected findings, and the questions a person must
+  for sample inputs, expected findings, and the questions a person must
   resolve. No Azure environment is needed to read the walkthroughs.
 
 - **Create your own agent.** Follow [Create and try a baseline agent](docs/agent-creation.md).
@@ -88,24 +88,25 @@ and shared safeguards are not implemented, registered, or deployed agents.
 
 ## Explore three stories
 
-Choose a story in **Guided demos**. Each one pairs fictional evidence with
+Choose a story in **Guided demos**. Each one pairs sample evidence with
 findings to look for and a decision that stays with a person.
 
 <a id="find-the-missing-evidence"></a>
+<a id="find-whats-missing"></a>
 <a id="catch-what-does-not-add-up"></a>
 <a id="turn-scattered-notes-into-a-brief"></a>
 
 | Story | What to spot | People decide |
 | --- | --- | --- |
-| [Find the missing evidence](docs/showcase.md#find-the-missing-evidence) | A missing budget, a named owner, and conflicting schedules. | Verify the documents and determine the application outcome. |
-| [Catch what does not add up](docs/showcase.md#catch-what-does-not-add-up) | Billed quantities and prices that differ from a fictional purchase order. | Resolve damaged items and determine what to pay. |
+| [Find what’s missing](docs/showcase.md#find-whats-missing) | A missing budget, a named owner, and conflicting schedules. | Verify the documents and determine the application outcome. |
+| [Catch what does not add up](docs/showcase.md#catch-what-does-not-add-up) | Billed quantities and prices that differ from the purchase order. | Resolve damaged items and determine what to pay. |
 | [Turn scattered notes into a brief](docs/showcase.md#turn-scattered-notes-into-a-brief) | Supported facts, conflicting dates, and missing evidence. | Verify the authoritative record and determine the next steps. |
 
 The invoice story needs a ready **Supplier invoice reviewer** created from its
 template. It uses simulated lookups, not a finance integration.
 
 [Watch all three stories](docs/images/scenario-tour.svg) ·
-[Dark theme](docs/images/scenario-tour-dark.svg). These are fictional
+[Dark theme](docs/images/scenario-tour-dark.svg). These are sample
 walkthroughs, not guaranteed answers or measured business results.
 
 ## What you can show
@@ -292,7 +293,7 @@ All diagrams share one [style guide](docs/images/README.md#diagram-style).
 
 ### Tool versions and upgrades
 
-Check only the tools needed for your task. Reading docs, preparing fictional
+Check only the tools needed for your task. Reading docs, preparing sample
 inputs, and running mocked tests need no Azure sign-in or end-user Entra setup.
 Local tests do not require `azd`.
 
@@ -380,7 +381,7 @@ To deploy from a separate private machine, use the
 | [`hosted-agents/`](hosted-agents/) | Coordinator and specialist agents; scripts to publish, test, and roll back versions |
 | [`terraform/`](terraform/) | Private Foundry platform using Azure Verified Modules (AVM); optional Bastion and monitoring roots |
 | [`evaluations/`](evaluations/) | Test cases, offline checks, and optional live Foundry evaluations |
-| [`docs/`](docs/) | Demo walkthroughs, fictional inputs, architecture, and operations guides |
+| [`docs/`](docs/) | Demo walkthroughs, sample inputs, architecture, and operations guides |
 | [`cost-comparison/`](cost-comparison/) | Azure GPU VM versus Foundry hosted-agent cost calculator |
 
 ## Documentation

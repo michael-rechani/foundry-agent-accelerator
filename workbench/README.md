@@ -15,12 +15,12 @@ FastAPI backend and shared Azure Cosmos DB storage.
 
 | Area | What to know |
 | --- | --- |
-| Agent library | The opening page. Browse agent definitions by sector, industry, task, readiness, and tool mode; compare a fictional example with expected behavior; create, test, and export. |
-| Guided demos | Three fictional customer stories with expected findings and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
+| Agent library | The opening page. Browse agent definitions by sector, industry, task, readiness, and tool mode; compare a sample example with expected behavior; create, test, and export. |
+| Guided demos | Three sample customer stories with expected findings and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
 | Agent creation | **Create agent** prepares instructions from reviewed templates. Publication is a separate operator-protected action. **Chat does not create or configure agents.** |
 | Prebuilt agents | The prebuilt agents remain available. **Application and case helper** is the default visible prebuilt agent. |
 | Document reviews | **Document reviews** saves one structured check per checklist item and keeps the original text beside the result. |
-| Data boundary | Use fictional data only. The Lab doesn't connect to customer systems or perform business writes. |
+| Data boundary | Use sample data only. The Lab doesn't connect to customer systems or perform business writes. |
 | Access model | The current private Lab has no end-user Microsoft Entra ID sign-in or per-user authorization. |
 
 ## In this guide
@@ -48,7 +48,7 @@ The Lab opens in a plain customer view. Turn on **Under the hood** at the bottom
 | Agent library | **All agents** > **Ready to chat** | Browse the prebuilt and ready created agents you can chat with, read what each one needs and does, and start a chat. |
 | Agent library | **Create agent** | Describe a job, pick a library template, edit the name and instructions, and publish a new Foundry hosted agent on the [model that suits the job](../docs/agent-creation.md#how-the-lab-picks-a-model). Shown only when the server advertises creation; actual publication needs operator enablement. |
 | Agent library | **All agents** > **Made in this Lab** | Follow publication progress, open a ready agent in **Chat**, or delete an agent with the operator key. Shown only when creation is on. |
-| Agent library | **All agents** > **Guided demos** | Start with application evidence, invoice discrepancies, or case notes. Read an illustrative story, copy its fictional input, or load it into an enabled matching agent. |
+| Agent library | **All agents** > **Guided demos** | Start with application evidence, invoice discrepancies, or case notes. Read an illustrative story, copy its sample input, or load it into an enabled matching agent. |
 | Try it | **Chat** | Talk with a prebuilt or created agent, or try a library agent instantly as a preview. Switch agents from the name in the Chat header. An example task only fills in your message; you choose when to send it. |
 | Try it | **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. Not in the sidebar or Chat: open a saved-review link or `/#reviews`. |
 | Try it | **Shared history** | Reopen chats that anyone saved. Saved chats are shared and kept for 30 days. |
@@ -107,7 +107,7 @@ jobs each have two **simulated read-only** lookups.
 None connects to customer systems or performs business writes. See [Create and try a baseline Microsoft Foundry agent](../docs/agent-creation.md).
 
 > [!IMPORTANT]
-> Use supplied fictional inputs only. People verify evidence and make decisions.
+> Use supplied sample inputs only. People verify evidence and make decisions.
 > Model output is not an approval, award, eligibility, or permit decision.
 
 Live model execution still incurs charges. See [Storage and cost](#storage-and-cost).
@@ -141,7 +141,7 @@ behavior. Neither gateway is deployed by this sample.
 
 End-user Microsoft Entra ID sign-in is not a prerequisite for the current
 private Lab. Azure resource access still uses managed identities. Restrict the
-Lab to trusted operators and fictional inputs. The Lab is not a user-isolated
+Lab to trusted operators and sample inputs. The Lab is not a user-isolated
 application.
 
 **Keep the quick-start simple:** `WORKBENCH_MODE=private` is a shared demo,
@@ -167,7 +167,7 @@ The **Shared lab** control in the header explains these limits on demand:
 
 The Lab has no permanent warning banner. The **Shared lab** details are
 available on desktop and mobile. They are informational; they are not an access
-control and they do not check that submitted data is fictional.
+control and they do not check that submitted data is sample data.
 
 ## Conversations
 
@@ -185,7 +185,7 @@ data contract and deployment checks. You don't need it to use **Chat**.
 | UI label | What it does | Important limits |
 | --- | --- | --- |
 | **Browse** | Lists every agent definition from `GET /api/agent-templates` with server-derived filters and live counts. | Readiness and tool mode come from the catalog; nothing claims a connected customer system. **Expected behavior** is an acceptance description, not a recorded model response. Export downloads a ready saved record for `bundle.py export-created`; there is no one-click cross-environment deployment. |
-| **Guided demos** | Shows fictional stories and loads a sample into an enabled matching agent. | Expected findings are illustrative. Hidden, failed, and unavailable agents are not selectable; samples are never automatically sent. |
+| **Guided demos** | Shows sample stories and loads a sample into an enabled matching agent. | Expected findings are illustrative. Hidden, failed, and unavailable agents are not selectable; samples are never automatically sent. |
 | **New chat** | Starts a new Chat draft for the selected agent. | It doesn't create an agent or submit a starter prompt. |
 | **Create agent** | Prepares a setup from a reviewed template and, when enabled, lets an operator publish it. | Preparation is deterministic template assembly, not a model-designed agent. |
 | **Made in this Lab** | Lists agents published from the Lab's creation flow. | Ready agents can be selected in **Chat**. |
@@ -331,7 +331,7 @@ map aligned with the deployed profile; it isn't a second runtime tool registry.
 | Configuration item | Limit or behavior |
 | --- | --- |
 | Optional `guidance` in `agents.json` | Contains `input`, `output`, `limits`, `delegation`, and `configuration`. Each value must be a nonempty string up to 1,200 trimmed characters. These are presentation text only. Older catalogs without guidance still load with an explicit getting-started-guide-unavailable message. |
-| Optional `prompts` arrays | Accept up to six entries. Each entry has `label` up to 80 characters and `text` up to 4,000 characters. Starters use fictional inputs and are never submitted just by selecting one. |
+| Optional `prompts` arrays | Accept up to six entries. Each entry has `label` up to 80 characters and `text` up to 4,000 characters. Starters use sample inputs and are never submitted just by selecting one. |
 | `visible_agents` | Controls direct access. Terraform validates IDs against `agents.json`, and the backend independently validates the deployed registry. |
 | `default_agent` | Must be visible. When omitted, the first `visible_agents` entry is selected. Locally, use `WORKBENCH_DEFAULT_AGENT`. |
 | `workspace_title` | Defaults to `Foundry Agent Lab`, with one to 80 printable characters. Locally, use `WORKBENCH_TITLE`. It updates the visible name and browser title without renaming Azure resources. |
@@ -618,7 +618,7 @@ terraform -chdir=workbench/infra output -raw private_url
 ```
 
 Confirm the intended revision and immutable image are ready before using this
-URL. From authorized private-network access, run the fictional runtime check:
+URL. From authorized private-network access, run the sample-data runtime check:
 
 ```powershell
 ./workbench/test-private.ps1 -BaseUrl '<verified-private-url>'
@@ -626,12 +626,12 @@ URL. From authorized private-network access, run the fictional runtime check:
 
 Replace the URL placeholder with the Terraform output. The check uses the
 deployed default agent and its configured specialist bindings. Review the
-fictional application prompt before using it against a different agent profile.
-It makes one billable fictional request and requires a verified specialist
+sample application prompt before using it against a different agent profile.
+It makes one billable sample request and requires a verified specialist
 receipt when that agent has specialist tools, not just a nonempty answer.
 
 The same check verifies Cosmos create, read, conditional update, stale-ETag
-rejection, and deletion of its own fictional conversation. Use `-SkipAgentCall`
+rejection, and deletion of its own test conversation. Use `-SkipAgentCall`
 for storage checks without model generation. For read-only configuration and
 cached dependency checks:
 
@@ -663,7 +663,7 @@ host/origin allowlists, Foundry project endpoint, Cosmos endpoint, and
 managed-identity client ID. Cosmos data-plane resources are provisioned by
 Terraform, never created by the runtime.
 
-The private smoke test creates a fictional test conversation, verifies agent
+The private smoke test creates a sample test conversation, verifies agent
 invocation and Cosmos create/read/update/delete, and deletes the test
 conversation afterward. Browser tests use controlled API responses and do not
 replace this deployment check.

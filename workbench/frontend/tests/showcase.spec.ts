@@ -30,9 +30,7 @@ function invoiceRecord(status: CreatedAgent['status']): CreatedAgent {
             id,
             label: 'Fictional invoice helper',
             agent: 'lab-demo-12345678123442349234123456789abc',
-            prompts: [
-              { label: 'Try a fictional example', text: invoice.input },
-            ],
+            prompts: [{ label: 'Try the sample', text: invoice.input }],
           }
         : null,
   }

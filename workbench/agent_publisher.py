@@ -199,7 +199,7 @@ class FoundryPublisher:
             with CodeArchive(package) as code:
                 created = await client.agents.create_version_from_code(
                     agent_name=document["runtime_name"],
-                    description="Fictional-input Lab demonstration: " + document["template_id"],
+                    description="Lab demonstration with sample data: " + document["template_id"],
                     metadata=ownership(document),
                     definition=HostedAgentDefinition(
                         cpu="0.5", memory="1Gi",

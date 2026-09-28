@@ -43,9 +43,7 @@ function readyRecord(template: LibraryTemplate): CreatedAgent {
       category: 'Created in this Lab',
       description: template.description,
       tools: {},
-      prompts: [
-        { label: 'Try a fictional example', text: template.sample_input },
-      ],
+      prompts: [{ label: 'Try the sample', text: template.sample_input }],
       guidance: {
         input: template.input,
         output: template.output,

@@ -2,7 +2,7 @@
 
 [Home](../README.md) / [Docs](README.md) / Showcase
 
-Start with a customer question, not a blank prompt. These three fictional
+Start with a customer question, not a blank prompt. These three sample
 stories show the input, findings to check, and decision that stays with a
 person. They can be read without Azure. They are not live model results,
 customer endorsements, or proof that an agent is ready for production.
@@ -54,7 +54,7 @@ an order, and a delivery record without delegating the payment decision?
 
 Use the [sample supplier invoice](demo-inputs/supplier-invoice.txt).
 This scenario requires a ready created **Supplier invoice reviewer**, whose
-two fixed tools return the fictional purchase order and delivery record for
+two fixed tools return the sample purchase order and delivery record for
 `PO-DEMO-2210`. They do not contact a finance system.
 
 Without a matching ready agent, **Guided demos** lets you read and copy the
@@ -103,7 +103,7 @@ choose an unsupported date, or modify a system.
    illustrative expectations, not an agent response.
 2. Turn on **Presenter view** in the header for larger story and conversation
    text. The environment indicator and shared-record notices remain visible.
-3. Load the fictional input. Existing unsaved chat messages require confirmation
+3. Load the sample input. Existing unsaved chat messages require confirmation
    before replacement. Nothing is automatically sent, saved, or published.
 4. In a prepared private environment, explicitly Send and compare the real reply
    with the evidence. Calls can incur costs. In local preview, no agent is invoked.
@@ -115,7 +115,7 @@ choose an unsupported date, or modify a system.
 
 Presenter view is a browser-session display preference, not a different
 security mode. The Lab still has no individual user sign-in; everyone with
-access shares saved records. Use fictional data only.
+access shares saved records. Use sample data only.
 
 The root URL opens the **Agent library**. Presenters can bookmark `/#demos` to
 open **Guided demos** directly, or `/#chat`

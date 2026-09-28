@@ -175,9 +175,7 @@ function recordFor(
             tools: Object.fromEntries(
               template.tools.map((tool) => [tool.name, runtime]),
             ),
-            prompts: [
-              { label: 'Try a fictional example', text: template.sample_input },
-            ],
+            prompts: [{ label: 'Try the sample', text: template.sample_input }],
             guidance: {
               input: template.input,
               output: template.output,
@@ -863,7 +861,7 @@ test('publishes reviewed setup, uses its real ID in chat, saves and restores his
   ).toHaveValue('')
   expect(state.chat).toHaveLength(0)
   await page
-    .getByRole('button', { name: 'Try a fictional example', exact: true })
+    .getByRole('button', { name: 'Try the sample', exact: true })
     .click()
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),

@@ -1161,4 +1161,5 @@ def prepare_draft(goal, template_id=None):
     }
 
 
-assert set(LIBRARY_ORDER) == set(TEMPLATES) - RETIRED_TEMPLATES and len(LIBRARY_ORDER) == len(set(LIBRARY_ORDER))
+if set(LIBRARY_ORDER) != set(TEMPLATES) - RETIRED_TEMPLATES or len(LIBRARY_ORDER) != len(set(LIBRARY_ORDER)):
+    raise RuntimeError("LIBRARY_ORDER must list every active template exactly once")
