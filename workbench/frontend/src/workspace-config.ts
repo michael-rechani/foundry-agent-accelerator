@@ -33,6 +33,7 @@ export type Config = {
   retention_days: number
   agent_creation?: CreationCapability
   library_preview?: LibraryPreviewCapability
+  budget_alerts?: boolean
 }
 
 export type LibraryPreviewCapability = {
@@ -157,6 +158,8 @@ function parseConfig(value: unknown): Config {
     (config.mode === 'preview' && config.agent_creation?.enabled) ||
     !validLibraryPreview(config.library_preview) ||
     (config.mode === 'preview' && config.library_preview?.enabled) ||
+    (config.budget_alerts !== undefined &&
+      typeof config.budget_alerts !== 'boolean') ||
     ![
       config.max_characters,
       config.max_request_bytes,

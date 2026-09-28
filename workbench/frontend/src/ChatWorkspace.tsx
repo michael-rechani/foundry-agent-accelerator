@@ -849,6 +849,7 @@ export default function ChatWorkspace() {
           <PerformanceView
             measurements={measurements}
             preview={config?.mode !== 'private'}
+            budgetAlerts={config?.budget_alerts === true}
             onLog={() => setView('log')}
           />
         )}

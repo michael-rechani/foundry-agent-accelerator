@@ -34,7 +34,13 @@ const billable = [
   ],
 ] as const
 
-export function TokenCost({ usages }: { usages: (Usage | null)[] }) {
+export function TokenCost({
+  usages,
+  budgetAlerts = false,
+}: {
+  usages: (Usage | null)[]
+  budgetAlerts?: boolean
+}) {
   const totals = totalUsage(usages)
   const [rates, setRates] = useState<Rates | null>(() => loadRates())
   const [input, setInput] = useState(() => rates?.input.toString() ?? '')
@@ -138,10 +144,12 @@ export function TokenCost({ usages }: { usages: (Usage | null)[] }) {
           </li>
         ))}
       </ul>
-      <p className="table-note">
+      <p className="table-note" id="budget-alert-status">
         For monthly estimates, use the calculator in{' '}
-        <code>cost-comparison/</code> in the repository. Azure budget alerts
-        aren&apos;t set up for this Lab yet.
+        <code>cost-comparison/</code> in the repository.{' '}
+        {budgetAlerts
+          ? 'A monthly Azure budget on the Lab resource group emails alerts at 50%, 80% and 100% of the amount, and when spend is forecast to pass it. Budget alerts can arrive hours after the spend and don\u2019t stop anything.'
+          : 'Azure budget alerts aren\u2019t set up for this Lab. An operator can turn them on; see \u201cBudget alerts\u201d in workbench/README.md.'}
       </p>
     </section>
   )

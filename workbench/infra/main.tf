@@ -276,6 +276,9 @@ resource "azurerm_container_app" "this" {
           length(var.agent_creation_models) == 0 ? {} : {
             WORKBENCH_AGENT_CREATION_MODELS = jsonencode(var.agent_creation_models)
           },
+          var.lab_budget == null ? {} : {
+            WORKBENCH_BUDGET_ALERTS_ENABLED = "true"
+          },
         )
         content {
           name  = env.key

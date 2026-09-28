@@ -980,6 +980,22 @@ test('replies show reported tokens and Performance estimates cost from user rate
   expect(
     await page.evaluate(() => localStorage.getItem('foundry-lab-token-rates')),
   ).toBeNull()
+  await expect(cost.locator('#budget-alert-status')).toContainText(
+    'budget alerts aren’t set up for this Lab',
+  )
+})
+
+test('Performance says when an Azure budget alerts on Lab spend', async ({
+  page,
+}) => {
+  await workspace(page, { config: { budget_alerts: true } })
+  await page
+    .getByRole('navigation', { name: 'Workspace' })
+    .getByRole('button', { name: 'Performance', exact: true })
+    .click()
+  const status = page.locator('#budget-alert-status')
+  await expect(status).toContainText('50%, 80% and 100%')
+  await expect(status).not.toContainText('aren’t set up')
 })
 
 test('replies without reported tokens say so instead of showing zero', async ({
