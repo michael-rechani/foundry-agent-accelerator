@@ -11,6 +11,7 @@
 !agent_publisher.py
 !agent_package.py
 !agent_templates.py
+!library_preview.py
 !agent_runtime/
 agent_runtime/*
 !agent_runtime/main.py
