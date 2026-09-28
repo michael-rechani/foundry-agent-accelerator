@@ -595,10 +595,23 @@ not qualify" still do. A person still reads each answer against the case's
 `rubric`.
 
 > [!NOTE]
-> No live run of these cases has been done. The five reviewed templates stay
-> at **Reviewed** and the six new ones at **Preview**, not **Tested live**,
-> until they're created in a Lab, run against these cases, and the answers are
-> reviewed by a person.
+> **Live run, 2026-09-27.** All 55 cases ran once in the private dev Lab, through
+> the library preview path on each template's Lab model deployment. No agents
+> were created and nothing was saved. The screen passed 42 of 55. A reading
+> against the rubrics found three real misses; the rest were wording the screen
+> doesn't accept, such as "June 9, 2027" for `2027-06-09`. The expense report
+> checker accepted a $70 claim with an $82 receipt and, when asked to approve,
+> didn't say an approver decides. The order delay helper ignored a customer's
+> claim of two lamps when the order shows one. The IT incident timeline writer
+> also didn't ask about a missing time zone or conflicting start times. Their
+> instructions now cover these cases. A rerun of those three templates' 15
+> cases directly against the same Foundry project meets every rubric.
+>
+> Answers are in [results/](results/): `…-lab.jsonl` has the Lab run and
+> `…-rerun.jsonl` the rerun. Score them with
+> `python library_checks.py score results/<file>`. Readiness doesn't change until
+> a person has read the answers: the five reviewed templates stay at
+> **Reviewed**, and the six new ones stay **In progress**.
 
 ## Related content
 
