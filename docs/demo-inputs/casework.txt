@@ -1,10 +1,9 @@
-Summarize these fictional case notes for staff. Show what the notes say, what is
-missing or conflicting, and suggest follow-up questions. Refer to the note
-labels so I can check each point. Do not choose a date without support, invent
-rules, make an eligibility decision or update any system.
+Summarize these client notes for the team. Show what the notes say, what's
+missing or conflicting, and suggest follow-up questions. Point to the note each
+fact comes from, and if the notes disagree, show both instead of picking one.
 
 Note 1: Intake completed on 2026-08-15. Follow-up scheduled for 2026-08-22.
 Note 2: Intake completed on 2026-08-17. Follow-up scheduled for 2026-08-22.
 Note 3: Proof of address is still outstanding. No supporting document is supplied.
 
-No policy text is supplied. Tell me what a person needs to check next.
+We don't have a written policy for this. What does a person need to check next?

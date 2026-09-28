@@ -33,25 +33,25 @@ export function AgentCatalog({
       <div className="section-heading">
         <h1>Choose an agent</h1>
         <p>
-          Pick an agent to open it in Chat. Each one has a fixed job and fixed
-          tools. Picking one does not create or change an agent.
+          Pick an agent to start a chat. Each one does one job, and nothing is
+          sent until you press Send.
         </p>
       </div>
       <ConfigurationGuide creation={creation} onCreate={onCreate} />
-      <details className="catalog-status">
+      <details className="catalog-status hood-only">
         <summary>Sample scope and status</summary>
         <p>
-          Casework assistance and application completeness are available.
-          Automated tests use simulated responses, so check live answers
-          yourself. Requirements and proposal review is in preview and reuses
-          application review.
+          Checklist reviews and case notes summaries are available. Automated
+          tests use simulated responses, so check live answers yourself.
+          Comparing proposals with requirements is in preview and reuses the
+          checklist reviewer.
         </p>
         <p>
           These samples target Microsoft Foundry. They aren&apos;t an official
           Microsoft product.
         </p>
       </details>
-      <div className="catalog-paths">
+      <div className="catalog-paths hood-only">
         <p>
           <strong>Use an agent</strong>Pick one below to open Chat. A listing
           does not prove the agent is reachable or that its answers are right.

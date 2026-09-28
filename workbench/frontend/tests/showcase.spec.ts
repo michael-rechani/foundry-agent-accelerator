@@ -301,9 +301,7 @@ test('agent storage failures remain explicit while the walkthrough is usable', a
   await expect(page.locator('.demo-error')).toContainText(
     'storage is unavailable',
   )
-  await expect(page.locator('.demo-story h2')).toHaveText(
-    'Find the missing evidence',
-  )
+  await expect(page.locator('.demo-story h2')).toHaveText('Find what?s missing')
 })
 
 test('bundled fictional inputs stay aligned with the downloadable demo sources', async () => {

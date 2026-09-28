@@ -6,7 +6,10 @@ import { guidedReview, illustrativeScreenshot, registry } from './fixtures'
 const agent = {
   ...guidedReview,
   prompts: [
-    { label: 'Review an application', text: 'Synthetic configured starter' },
+    {
+      label: 'Check against a checklist',
+      text: 'Synthetic configured starter',
+    },
   ],
 }
 type Document = {
@@ -239,7 +242,7 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
   await expect(page.getByText('Not saved', { exact: true })).toHaveCount(0)
 
   await page
-    .getByRole('button', { name: 'Review an application', exact: true })
+    .getByRole('button', { name: 'Check against a checklist', exact: true })
     .click()
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   await expect(editor).toHaveValue('Synthetic configured starter')
@@ -282,7 +285,7 @@ test('default helper explains its job and offers example tasks without auto-send
     guidedReview.guidance!.output,
   )
   await expect(page.locator('.prompt-options button strong')).toHaveText([
-    'Review an application',
+    'Check against a checklist',
     'Summarize case notes',
     'Compare a proposal (preview)',
     'Help me get started',
@@ -493,7 +496,7 @@ test('catalog uses customer names while retaining runtime targets and scenario s
     'Automated tests use simulated responses, so check live answers yourself.',
   )
   await expect(page.locator('.catalog-status')).toContainText(
-    'Requirements and proposal review is in preview',
+    'Comparing proposals with requirements is in preview',
   )
   await expect(page.locator('.catalog-status')).not.toContainText('PLANNED')
   await expect(page.locator('.catalog-status')).toContainText(
@@ -638,7 +641,10 @@ test('legacy catalogs without guidance remain usable without invented capabiliti
     'This agent has no getting-started guide',
   )
   await expect(
-    page.getByRole('button', { name: 'Review an application', exact: true }),
+    page.getByRole('button', {
+      name: 'Check against a checklist',
+      exact: true,
+    }),
   ).toBeEnabled()
 })
 
@@ -1106,7 +1112,7 @@ for (const startup of ['invalid', 'invalid-guidance', 'failed'] as const) {
     ).toBeDisabled()
     await page.getByRole('button', { name: 'Retry', exact: true }).click()
     await expect(
-      page.getByRole('button', { name: 'Review an application' }),
+      page.getByRole('button', { name: 'Check against a checklist' }),
     ).toBeVisible()
     expect(state.configRequests).toBe(2)
   })

@@ -10,6 +10,8 @@ from agent_templates import (
     TEMPLATES,
     TEMPLATE_METADATA,
     TOOL_MODES,
+    LIBRARY_ORDER,
+    RETIRED_TEMPLATES,
     TemplateRequiredError,
     catalog_facets,
     list_templates,
@@ -27,6 +29,11 @@ LOOKUP_JOBS = {
     "expense-report-checker",
     "order-delay-helper",
 }
+CUSTOMER_TEXT = (
+    "label", "description", "input", "output", "limits", "delegation", "example_request", "sample_input",
+)
+# Customer-facing text reads like a real request, not a test script.
+TEST_SCRIPT_WORDING = r"(?i)fictional|made[- ]up|all (data|text) is|do not (certify|approve|infer)|\bcontoso\b"
 SECTOR_JOBS = {
     "medical-bill-reviewer",
     "insurance-preapproval-helper",
@@ -83,10 +90,12 @@ class TemplateTests(unittest.TestCase):
                     self.assertTrue(template[key].strip())
                 self.assertLessEqual(len(template["instructions"]), 6000)
                 self.assertLessEqual(len(template["sample_input"]), 4000)
-                self.assertIn(
-                    "fictional",
-                    (template["sample_input"] + template["example_request"]).lower(),
+                shown = " ".join(
+                    [template[key] for key in CUSTOMER_TEXT]
+                    + [tool["description"] for tool in template["tools"]]
                 )
+                if identifier not in RETIRED_TEMPLATES:
+                    self.assertNotRegex(shown, TEST_SCRIPT_WORDING)
                 self.assertEqual(
                     [tool["name"] for tool in template["tools"]],
                     [
@@ -95,18 +104,32 @@ class TemplateTests(unittest.TestCase):
                     ],
                 )
 
-    def test_jobs_are_grouped_so_each_category_is_listed_together(self):
-        categories = [template["category"] for template in list_templates()]
+    def test_library_leads_with_everyday_business_jobs_and_hides_retired_ones(self):
+        listed = [template["id"] for template in list_templates()]
+        self.assertEqual(listed, list(LIBRARY_ORDER))
+        self.assertEqual(len(listed), 18)
+        self.assertEqual(set(listed), set(TEMPLATES) - RETIRED_TEMPLATES)
         self.assertEqual(
-            categories,
-            ["General"] * 5
-            + ["Healthcare and public sector"] * 7
-            + ["Private sector"] * 9,
+            listed[:5],
+            ["supplier-invoice-reviewer", "expense-report-checker", "order-delay-helper",
+             "customer-support-brief", "customer-feedback-themes"],
         )
         self.assertEqual(
             {key for key, item in TEMPLATES.items() if item["category"] == "Healthcare and public sector"},
-            SECTOR_JOBS | {"public-records-intake", "grant-reporting-checker", "community-program-brief"},
+            (SECTOR_JOBS - {"supplier-invoice-reviewer"}) | RETIRED_TEMPLATES,
         )
+        self.assertEqual(sum(item["count"] for item in catalog_facets()["sectors"]), 18)
+
+    def test_retired_jobs_stay_loadable_but_cannot_be_matched_or_chosen(self):
+        for identifier in RETIRED_TEMPLATES:
+            with self.subTest(identifier=identifier):
+                self.assertIn(identifier, TEMPLATES)
+                self.assertIn(identifier, TEMPLATE_METADATA)
+                with self.assertRaises(ValueError):
+                    prepare_draft("A valid task description.", identifier)
+                with self.assertRaises(TemplateRequiredError) as error:
+                    prepare_draft(TEMPLATES[identifier]["example_request"])
+                self.assertNotIn(identifier, error.exception.candidates)
 
     def test_each_job_names_the_kind_of_model_it_needs(self):
         expected = {
@@ -213,7 +236,8 @@ class TemplateTests(unittest.TestCase):
                 self.assertEqual(facets[name], expected)
 
     def test_examples_match_only_their_own_template(self):
-        for identifier, template in TEMPLATES.items():
+        for identifier in LIBRARY_ORDER:
+            template = TEMPLATES[identifier]
             with self.subTest(identifier=identifier):
                 result = prepare_draft(template["example_request"])
                 self.assertEqual(result["template_id"], identifier)
@@ -317,7 +341,7 @@ class TemplateTests(unittest.TestCase):
                     template["instructions"],
                     r"(?i)\b(never|do not) (judge|decide|approve)",
                 )
-                self.assertIn("made up", template["sample_input"])
+                self.assertNotRegex(template["sample_input"], TEST_SCRIPT_WORDING)
 
     def test_new_library_jobs_preserve_their_human_decision_boundary(self):
         expected = {
@@ -328,13 +352,11 @@ class TemplateTests(unittest.TestCase):
             "cash-application-reviewer": ("post cash", "finance staff"),
             "maintenance-work-order-planner": ("diagnose equipment", "qualified staff"),
         }
-        public = {item["id"]: item for item in list_templates()}
         for identifier, (prohibited_action, owner) in expected.items():
             with self.subTest(identifier=identifier):
                 template = TEMPLATES[identifier]
                 self.assertIn(prohibited_action, template["instructions"].lower())
-                self.assertIn(owner, public[identifier]["human_decision"].lower())
-                self.assertIn("fictional", template["sample_input"].lower())
+                self.assertIn(owner, TEMPLATE_METADATA[identifier]["human_decision"].lower())
                 self.assertEqual(template["tools"], [])
 
     def test_private_preview_jobs_are_previews_that_keep_a_person_in_charge(self):
@@ -349,7 +371,7 @@ class TemplateTests(unittest.TestCase):
                 self.assertEqual(public[identifier]["readiness"]["label"], "In progress")
                 self.assertIn(prohibited, template["instructions"].lower())
                 self.assertIn(owner, public[identifier]["human_decision"].lower())
-                self.assertIn("made up", template["sample_input"])
+                self.assertNotRegex(template["sample_input"], TEST_SCRIPT_WORDING)
                 if identifier != "customer-feedback-themes":
                     self.assertRegex(template["instructions"], r"UNSENT DRAFT|SUGGESTION FOR COUNSEL REVIEW")
 

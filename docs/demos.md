@@ -20,7 +20,7 @@ Status values use the definitions in [terms used in these guides](README.md#term
 | --- | --- | --- | --- |
 | [Create and try a baseline agent](#create-and-try-a-baseline-agent) | **Available** | **Create agent**, then **All agents** > **Made in this Lab** and **Chat** | A prepared template becomes a small Foundry agent, then a person checks its fictional sample output. |
 | [Casework assistance](#casework-assistance) | **Available** | **Application and case helper** with **Summarize case notes**; optional direct **Case notes summarizer** if enabled | The answer keeps known facts, missing evidence, and conflicting case notes separate. |
-| [Application completeness](#application-completeness) | **Available** | **Application and case helper** with **Review an application**; optional direct **Application checker** if enabled | The answer compares supplied evidence with a checklist without approving or denying the application. |
+| [Application completeness](#application-completeness) | **Available** | **Application and case helper** with **Check against a checklist**; optional direct **Application checker** if enabled | The answer compares supplied evidence with a checklist without approving or denying the application. |
 | [Requirements and proposal review](#requirements-and-proposal-review) | **Preview** | **Application and case helper** with **Compare a proposal (preview)** | The answer separates product claims, supported requirements, gaps, and conflicts without selecting a vendor. |
 
 For a service-request workflow, publish the **Service request planner** template
@@ -206,7 +206,7 @@ The sample is a fictional permit application, not a regulatory rules engine.
 **Question:** Can the assistant help a reviewer distinguish supplied evidence,
 gaps, and conflicts without approving or denying an application?
 
-**Run:** choose **Review an application** in **Application and case helper**, or
+**Run:** choose **Check against a checklist** in **Application and case helper**, or
 paste [application.txt](demo-inputs/application.txt). An explicitly enabled
 direct **Application checker** entry uses the same specialist.
 

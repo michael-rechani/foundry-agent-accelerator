@@ -1365,8 +1365,14 @@ p {
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   margin: 12px 0 5px;
+}
+.review-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary, var(--muted));
 }
 .handoff-timeline {
   display: flex;

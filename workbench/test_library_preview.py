@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 from agent_runtime.demo_tools import create_demo_tools
 from agent_runtime.main import DEMO_POLICY
-from agent_templates import TEMPLATES
+from agent_templates import RETIRED_TEMPLATES, TEMPLATES
 from library_preview import (MAX_TOOL_ROUNDS, PREVIEW_AGENT, preview_agent, run_preview, run_tool, summarize_usage,
                              tool_specs, usage_record)
 
@@ -40,6 +40,9 @@ class LibraryPreviewTests(unittest.TestCase):
     def test_every_template_has_a_preview_binding(self):
         for template_id, template in TEMPLATES.items():
             agent = preview_agent(f"library-{template_id}")
+            if template_id in RETIRED_TEMPLATES:
+                self.assertIsNone(agent)
+                continue
             self.assertEqual(agent["template_id"], template_id)
             self.assertEqual(agent["agent"], PREVIEW_AGENT)
             self.assertTrue(agent["preview"])

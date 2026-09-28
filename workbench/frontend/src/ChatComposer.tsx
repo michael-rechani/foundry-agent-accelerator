@@ -148,7 +148,7 @@ export function ChatComposer({
         <div className="composer-details">
           {config && (
             <details
-              className={`context-budget ${contextUsage >= 0.9 ? 'near-limit' : ''}`}
+              className={`context-budget ${contextUsage >= 0.9 ? 'near-limit' : 'hood-only'}`}
               id="context-budget"
             >
               <summary>

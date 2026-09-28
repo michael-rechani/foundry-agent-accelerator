@@ -1,8 +1,7 @@
-Check this fictional permit application against my checklist. Make a table
-with one row per checklist item showing what is supported, missing or unclear.
-Refer to the checklist item and section labels so I can check each point, and
-ask questions that would fill the gaps. Missing information is not an automatic
-failure. Do not approve, deny, rank, score or recommend a permit decision.
+Before this project goes for sign-off, check it against our checklist. Make a
+table with one row per checklist item showing what's covered, missing or
+unclear, point to the section each answer comes from, and list the questions we
+need answered. Don't approve or reject it; I'll decide.
 
 Checklist item 1: Include a project budget.
 Checklist item 2: Identify an implementation owner.
@@ -12,5 +11,5 @@ Section 1: The Facilities team is the implementation owner for the proposed proj
 Section 2: Work starts on 2027-04-01 and completes on 2027-06-30.
 Section 3: Work starts on 2027-04-01 and completes on 2027-07-31.
 
-No budget or statement saying which schedule is current is supplied. Tell me
-what a person needs to check.
+There's no budget, and nothing says which schedule is current. What does a
+person need to check?

@@ -1,7 +1,7 @@
-Check this fictional supplier invoice before payment. Use the lookups, show the math and draft an email to the supplier. All data is made up.
+Can you check this invoice before I approve it? Compare it with the purchase order and what we actually received, show the math, and draft an email to the supplier about anything that doesn't match.
 
 INVOICE INV-DEMO-7781 - Example Furniture Supply - dated 2027-04-05
-Bill to: City of Example, Parks Department (fictional)
+Bill to: Example Conference Center
 Purchase order: PO-DEMO-2210
 Line 1: CH-100 Stacking chair - qty 120 x $55.00 = $6,600.00
 Line 2: TB-300 Folding table - qty 10 x $300.00 = $3,000.00

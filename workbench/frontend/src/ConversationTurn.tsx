@@ -160,7 +160,10 @@ export function ConversationTurn({
           >
             <Clipboard size={15} />
           </button>
-          <span>Human review required</span>
+          <span className="review-note">
+            <UserCheck size={14} aria-hidden="true" /> Check this answer before
+            you use it. A person makes the final decision.
+          </span>
         </div>
         <details className="receipt-details hood-only">
           <summary>

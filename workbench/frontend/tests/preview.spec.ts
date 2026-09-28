@@ -38,7 +38,9 @@ test('the preview runs under the Lab security policy', async ({
   await expect(
     page.getByRole('heading', { name: 'Agent library' }),
   ).toBeVisible()
-  await expect(page.locator('#cards .card')).toHaveCount(21)
+  await expect(page.locator('#cards .card')).toHaveCount(
+    catalog.templates.length,
+  )
   await expect(page.locator('body')).not.toContainText(
     /made[- ]up|fictional|contoso|sketch/i,
   )

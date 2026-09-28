@@ -15,28 +15,28 @@ _EXAMPLE = "Example only; not a real record"
 _REQUESTS = {
     "REQ-101": {
         "request_id": "REQ-101", "service_id": "SVC-DEMO-ACCESS",
-        "summary": "A fictional team wants read-only access to a demo reporting workspace.",
-        "supplied_information": ["Purpose: inspect fictional monthly counts."],
+        "summary": "The analytics team wants read-only access to a reporting workspace.",
+        "supplied_information": ["Purpose: review monthly counts."],
         "missing_information": ["Requested access duration", "Named team owner"],
         "status": "Example only; no real request exists",
     },
     "REQ-102": {
         "request_id": "REQ-102", "service_id": "SVC-DEMO-EXPORT",
-        "summary": "A fictional team wants to explore a sample data export.",
-        "supplied_information": ["Format: CSV.", "Contents: made-up equipment inventory."],
+        "summary": "The operations team wants to plan a data export.",
+        "supplied_information": ["Format: CSV.", "Contents: equipment inventory."],
         "missing_information": ["Required fields"],
         "status": "Example only; no real request exists",
     },
 }
 _SERVICES = {
     "SVC-DEMO-ACCESS": {
-        "service_id": "SVC-DEMO-ACCESS", "name": "Fictional reporting access",
+        "service_id": "SVC-DEMO-ACCESS", "name": "Reporting access",
         "suggested_review_steps": ["Clarify the duration and team owner.", "Have a person review the request."],
         "actions_available": "None. This fixture does not provision accounts or enforce approval.",
         "status": "Example only; no real service exists",
     },
     "SVC-DEMO-EXPORT": {
-        "service_id": "SVC-DEMO-EXPORT", "name": "Fictional export planning",
+        "service_id": "SVC-DEMO-EXPORT", "name": "Data export planning",
         "suggested_review_steps": ["Clarify the fields.", "Have a person review the intended use."],
         "actions_available": "None. This fixture cannot export data or contact a system.",
         "status": "Example only; no real service exists",
@@ -44,7 +44,7 @@ _SERVICES = {
 }
 _PLANS = {
     "PLAN-DEMO-SILVER": {
-        "plan_id": "PLAN-DEMO-SILVER", "plan_name": "Fictional Silver Demo Plan", "plan_year": 2027,
+        "plan_id": "PLAN-DEMO-SILVER", "plan_name": "Silver Demo Plan", "plan_year": 2027,
         "in_network_providers": ["Lakeside Demo Hospital", "Riverbend Demo Clinic", "Lakeside Demo Imaging Center"],
         "deductible_remaining": "$0.00 (met earlier in 2027)",
         "patient_share_after_deductible": "20% of the allowed amount for in-network care",
@@ -55,7 +55,7 @@ _PLANS = {
         "duplicate_rule": "The same service on the same date is paid once unless the provider explains why it was repeated.",
         "dispute_steps": [
             "Ask the hospital billing office for a corrected itemized bill.",
-            "Call member services at the number on the fictional member card.",
+            "Call member services at the number on the member card.",
             "Send a written dispute within 180 days of the insurer statement date.",
         ],
         "status": "Example only; not a real health plan",
@@ -100,7 +100,7 @@ _FACILITIES = {
 }
 _RENEWAL_RULES = {
     "PROG-DEMO-FOOD": {
-        "program_id": "PROG-DEMO-FOOD", "program_name": "Fictional Family Food Help",
+        "program_id": "PROG-DEMO-FOOD", "program_name": "Family Food Help",
         "required_proofs": [
             {"id": "PROOF-1", "proof": "Identity of the head of household", "rule": "Not needed again if still valid on file"},
             {"id": "PROOF-2", "proof": "Income", "rule": "Every pay stub dated in the 30 days before the form was signed"},
@@ -127,7 +127,7 @@ _ON_FILE = {
 _PURCHASE_ORDERS = {
     "PO-DEMO-2210": {
         "po_number": "PO-DEMO-2210", "supplier": "Example Furniture Supply",
-        "buyer": "City of Example, Parks Department (fictional)", "ordered_on": "2027-03-01",
+        "buyer": "Example Conference Center", "ordered_on": "2027-03-01",
         "lines": [
             {"item": "CH-100 Stacking chair", "quantity": 100, "agreed_unit_price": "$50.00"},
             {"item": "TB-300 Folding table", "quantity": 10, "agreed_unit_price": "$300.00"},
@@ -139,7 +139,7 @@ _PURCHASE_ORDERS = {
 }
 _DELIVERIES = {
     "PO-DEMO-2210": {
-        "po_number": "PO-DEMO-2210", "delivered_on": "2027-03-28", "received_by": "Parks warehouse (fictional)",
+        "po_number": "PO-DEMO-2210", "delivered_on": "2027-03-28", "received_by": "Receiving dock",
         "lines": [
             {"item": "CH-100 Stacking chair", "quantity_received": 100,
              "note": "2 chairs arrived with cracked seats; photos on file"},
@@ -150,7 +150,7 @@ _DELIVERIES = {
 }
 _EXPENSE_POLICIES = {
     "POL-DEMO-TRAVEL": {
-        "policy_id": "POL-DEMO-TRAVEL", "policy_name": "Fictional Travel and Expense Rules",
+        "policy_id": "POL-DEMO-TRAVEL", "policy_name": "Travel and Expense Rules",
         "rules": [
             {"id": "RULE-1", "rule": "Hotel: up to $220.00 per night"},
             {"id": "RULE-2", "rule": "Meals: up to $75.00 per person per day, excluding non-reimbursable items"},
@@ -164,16 +164,16 @@ _EXPENSE_POLICIES = {
 }
 _TRIPS = {
     "TRIP-DEMO-4410": {
-        "trip_id": "TRIP-DEMO-4410", "traveler": "Jordan Lee (fictional)",
-        "purpose": "Customer workshop in Example City (fictional)", "approved_dates": "2027-05-10 to 2027-05-12",
+        "trip_id": "TRIP-DEMO-4410", "traveler": "Jordan Lee",
+        "purpose": "Customer workshop in Example City", "approved_dates": "2027-05-10 to 2027-05-12",
         "approved_budget": {"hotel": "$440.00 for 2 nights", "meals": "$225.00 for 3 days", "local_transport": "$60.00"},
-        "approved_by": "Finance lead (fictional)",
+        "approved_by": "Finance lead",
         "status": "Example only; not a real trip request",
     },
 }
 _ORDERS = {
     "ORD-DEMO-3307": {
-        "order_id": "ORD-DEMO-3307", "customer": "A. Chen (fictional)", "placed_on": "2027-06-01",
+        "order_id": "ORD-DEMO-3307", "customer": "A. Chen", "placed_on": "2027-06-01",
         "promised_delivery": "2027-06-06", "shipping": "Standard",
         "lines": [
             {"item": "DL-20 Desk lamp", "quantity": 1, "price": "$45.00"},
@@ -188,7 +188,7 @@ _SHIPMENTS = {
     "ORD-DEMO-3307": {
         "order_id": "ORD-DEMO-3307",
         "shipments": [
-            {"shipment_id": "SHP-DEMO-881", "carrier": "Example Parcel (fictional)", "items": ["DL-20 Desk lamp"],
+            {"shipment_id": "SHP-DEMO-881", "carrier": "Example Parcel", "items": ["DL-20 Desk lamp"],
              "events": ["2027-06-02 Label created", "2027-06-03 Picked up",
                         "2027-06-05 Delayed: weather at regional hub"],
              "carrier_estimate": "2027-06-09"},

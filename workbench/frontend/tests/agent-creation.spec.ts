@@ -72,12 +72,12 @@ const templates: AgentTemplate[] = [
   ],
   [
     'document-intake',
-    'Form and invoice extractor',
+    'Form field extractor',
     'Extract stated fields from fictional administrative forms or invoices.',
   ],
   [
     'casework-assistant',
-    'Casework brief writer',
+    'Case summary writer',
     'Summarize fictional case notes and draft follow-up questions.',
   ],
   [
@@ -802,7 +802,7 @@ test('ambiguous descriptions require a template and preparation creates no agent
     page.getByRole('heading', { name: 'Review your agent setup' }),
   ).toBeVisible()
   await expect(page.getByLabel('Agent name', { exact: true })).toHaveValue(
-    'Casework brief writer',
+    'Case summary writer',
   )
   await expect(page.getByLabel('Task instructions')).toHaveValue(
     /Help our fictional team/,

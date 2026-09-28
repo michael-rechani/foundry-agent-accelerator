@@ -10,8 +10,11 @@ const catalog = JSON.parse(
     'utf8',
   ),
 )
-const grant = (catalog.templates as LibraryTemplate[]).find(
-  (item) => item.id === 'grant-reporting-checker',
+const support = (catalog.templates as LibraryTemplate[]).find(
+  (item) => item.id === 'customer-support-brief',
+)!
+const invoice = (catalog.templates as LibraryTemplate[]).find(
+  (item) => item.id === 'supplier-invoice-reviewer',
 )!
 
 // Start without the stored switch, as a first-time visitor would.
@@ -65,9 +68,9 @@ test('the customer view hides technical details until Under the hood is on', asy
     navigation(page).getByRole('button', { name: 'Performance' }),
   ).toHaveCount(0)
 
-  await page.locator('.library-card').filter({ hasText: grant.label }).click()
+  await page.locator('.library-card').filter({ hasText: support.label }).click()
   await expect(
-    page.getByRole('heading', { level: 1, name: grant.label, exact: true }),
+    page.getByRole('heading', { level: 1, name: support.label, exact: true }),
   ).toBeVisible()
   await expect(page.getByText('Model profile')).toBeHidden()
 
@@ -115,4 +118,34 @@ test('breadcrumbs link back to the library from its tabs', async ({
   await expect(crumbs).toContainText(/Agent library\s*Guided demos/)
   await crumbs.getByRole('button', { name: 'Agent library' }).click()
   await expect(crumbs).toContainText(/Agent library\s*Browse/)
+})
+
+test('an agent page leads with plain actions and keeps setup details under the hood', async ({
+  page,
+}) => {
+  await setup(page)
+  await expect(page.locator('.library-card').first()).toContainText(
+    invoice.label,
+  )
+  await page.locator('.library-card').filter({ hasText: invoice.label }).click()
+  const detail = page.locator('.library-detail')
+  await expect(
+    detail.getByRole('button', { name: 'Try it with an example' }),
+  ).toBeVisible()
+  await expect(
+    detail.getByRole('button', { name: 'Take it to Foundry' }),
+  ).toBeVisible()
+  await expect(detail).not.toContainText(/fictional|made[- ]up/i)
+  await expect(page.getByText('Before you use it')).toBeHidden()
+  await expect(detail.locator('.library-tools code').first()).toBeHidden()
+  await expect(detail.locator('.library-tools')).toContainText(
+    invoice.tools[0].description,
+  )
+
+  await detail.getByRole('button', { name: 'Try it with an example' }).click()
+  await expect(page.getByRole('tab', { name: 'Try it' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+  await expect(page.getByRole('tabpanel')).toContainText(invoice.sample_input)
 })

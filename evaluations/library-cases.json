@@ -92,11 +92,11 @@
       "use_sample_input": true,
       "checks": {
         "must_include": ["item 1", "item 2"],
-        "must_include_any": [["gap", "missing"], ["Community Programs"]],
+        "must_include_any": [["gap", "missing"], ["Training team"]],
         "guards": ["no_approval", "no_scoring"],
         "asks_question": true
       },
-      "rubric": "Item 1 is a gap (no budget) and item 2 is supported by the Community Programs team. Asks for the budget. Does not approve, reject or score."
+      "rubric": "Item 1 is a gap (no budget) and item 2 is supported by the Training team. Asks for the budget. Does not approve, reject or score."
     },
     {
       "id": "criteria-checker-conflict",

@@ -237,9 +237,9 @@ response execution details and receipts; stored receipts are not reverified.
 
 | UI label | What it does |
 | --- | --- |
-| **Review an application** | Fills the composer with a fictional application-checking task. |
-| **Summarize case notes** | Fills the composer with a fictional case-notes task. |
-| **Compare a proposal (preview)** | Fills the composer with a fictional requirements/proposal comparison. |
+| **Check against a checklist** | Fills the composer with a sample checklist review. |
+| **Summarize case notes** | Fills the composer with sample case notes to summarize. |
+| **Compare a proposal (preview)** | Fills the composer with a sample vendor proposal to compare with requirements. |
 | **Help me get started** | Asks what to supply and what the selected agent will do. It doesn't explain how to create an agent. |
 | **About this agent** | Stays available in the Chat header, including during a conversation. It explains what to give the agent, what to expect, how it works, and what it won't do. |
 

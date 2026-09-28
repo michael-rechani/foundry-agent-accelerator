@@ -452,6 +452,8 @@
   padding-left: 18px;
 }
 .library-tools code {
+  margin-left: 6px;
+  color: var(--text-secondary);
   font: 11px var(--mono);
 }
 .library-sample {
@@ -481,6 +483,9 @@
   gap: 10px;
   align-items: center;
   margin-top: 14px;
+}
+.library-hero-actions {
+  margin: 4px 0 18px;
 }
 .library-primary {
   display: inline-flex;
