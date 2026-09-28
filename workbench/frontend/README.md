@@ -72,6 +72,10 @@ selection and clipboard feedback; it never invokes an agent or writes records.
 | `theme.ts`, `ThemePicker.tsx`                                | Load, validate, save, and apply the **Appearance** choice, and render its header menu.                                                                                         |
 | `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`      | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement.                                  |
 
+`public/ideas/` is a static design sketch served at `/ideas/`, for reviewing
+redesign ideas from [#77](https://github.com/michael-rechani/foundry-agent-accelerator/issues/77).
+It uses made-up data, calls no API and isn't linked from the Lab.
+
 Keep purpose, input, output, how-it-works, and limits in the registry, not
 hard-coded by agent ID in React. **Developer setup details** distinguishes the
 Lab's display and receipt metadata from runtime instructions and tools.

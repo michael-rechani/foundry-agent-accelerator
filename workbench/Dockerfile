@@ -3,6 +3,7 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/src/ ./src/
+COPY frontend/public/ ./public/
 COPY frontend/index.html frontend/tsconfig*.json frontend/vite.config.ts ./
 RUN npm run build
 
