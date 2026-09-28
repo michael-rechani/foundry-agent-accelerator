@@ -3,11 +3,13 @@ $buildTestState = @{
     Failure = $null
     InvalidDigest = $false
     MismatchedDigest = $false
+    PushedConfig = $null
     PublicAccess = 'Disabled'
     PublicMode = $false
     Commands = [System.Collections.Generic.List[string]]::new()
 }
 $testDigest = 'example.azurecr.io/workbench@sha256:' + ('a' * 64)
+$testImageId = 'c' * 64
 
 function az {
     $operation = "az $($args[0]) $($args[1])"
@@ -25,6 +27,10 @@ function az {
         'az acr login' {}
         'az acr repository' {
             if ($buildTestState.InvalidDigest) { 'latest' } else { 'sha256:' + ('a' * 64) }
+        }
+        'az acr manifest' {
+            if ($args -notcontains ('workbench@sha256:' + ('a' * 64))) { throw 'Manifest lookup must use the pushed digest' }
+            $buildTestState.PushedConfig
         }
         default { throw "Unexpected Azure operation: $operation" }
     }
@@ -59,11 +65,8 @@ function docker {
         'docker push' {}
         'docker image' {
             $olderDigest = 'example.azurecr.io/workbench@sha256:' + ('b' * 64)
-            if ($buildTestState.MismatchedDigest) {
-                ConvertTo-Json -InputObject @($olderDigest) -Compress
-            } else {
-                ConvertTo-Json -InputObject @($olderDigest, $testDigest) -Compress
-            }
+            $digests = @(if ($buildTestState.MismatchedDigest) { $olderDigest } else { $olderDigest, $testDigest })
+            (ConvertTo-Json -InputObject $digests -Compress) + " $testImageId"
         }
         'docker pull' {
             if ($args[-1] -ne $testDigest) { throw 'Pull must verify the immutable digest' }
@@ -73,6 +76,7 @@ function docker {
 }
 
 $expectedCommands = @('az acr show', 'az acr login', 'docker build', 'docker run', 'docker push', 'az acr repository', 'docker image', 'docker pull')
+$podmanCommands = @('az acr show', 'az acr login', 'docker build', 'docker run', 'docker push', 'az acr repository', 'docker image', 'az acr manifest', 'docker pull')
 $cases = @(
     @{ Name = 'private build succeeds'; Failure = $null; Error = $null },
     @{ Name = 'registry lookup failure'; Failure = 'az acr show'; Error = 'Registry lookup failed' },
@@ -83,7 +87,9 @@ $cases = @(
     @{ Name = 'digest lookup failure'; Failure = 'az acr repository'; Error = 'Image digest lookup failed' },
     @{ Name = 'invalid digest'; Failure = $null; InvalidDigest = $true; Error = 'Image digest lookup failed' },
     @{ Name = 'local digest lookup failure'; Failure = 'docker image'; Error = 'Pushed image digest does not match the local build' },
-    @{ Name = 'mismatched pushed digest'; Failure = $null; MismatchedDigest = $true; Error = 'Pushed image digest does not match the local build' },
+    @{ Name = 'Podman push with matching config digest'; Failure = $null; MismatchedDigest = $true; PushedConfig = "sha256:$testImageId"; Error = $null; Commands = $podmanCommands },
+    @{ Name = 'mismatched pushed digest and config'; Failure = $null; MismatchedDigest = $true; PushedConfig = 'sha256:' + ('d' * 64); Error = 'Pushed image digest does not match the local build'; Commands = $podmanCommands },
+    @{ Name = 'pushed manifest lookup failure'; Failure = 'az acr manifest'; MismatchedDigest = $true; Error = 'Pushed image digest does not match the local build'; Commands = $podmanCommands },
     @{ Name = 'pull failure'; Failure = 'docker pull'; Error = 'Image pull verification failed' }
 )
 
@@ -91,7 +97,9 @@ foreach ($case in $cases) {
     $buildTestState.Failure = $case.Failure
     $buildTestState.InvalidDigest = $case.InvalidDigest -eq $true
     $buildTestState.MismatchedDigest = $case.MismatchedDigest -eq $true
+    $buildTestState.PushedConfig = $case.PushedConfig
     $buildTestState.Commands.Clear()
+    $caseCommands = if ($case.Commands) { $case.Commands } else { $expectedCommands }
     $output = [System.Collections.Generic.List[string]]::new()
     $failure = $null
     try {
@@ -103,16 +111,16 @@ foreach ($case in $cases) {
     if ($case.Error) {
         if ($failure -ne $case.Error) { throw "Unexpected failure for $($case.Name): $failure" }
         if ($output -contains 'PRIVATE_BUILD_PUSH_AND_PULL_VERIFIED=True') { throw 'Failed build reported success' }
-        $lastCommand = if ($case.InvalidDigest) { 'az acr repository' } elseif ($case.MismatchedDigest) { 'docker image' } else { $case.Failure }
-        $expectedCount = [array]::IndexOf($expectedCommands, $lastCommand) + 1
+        $lastCommand = if ($case.InvalidDigest) { 'az acr repository' } elseif ($case.Commands) { 'az acr manifest' } elseif ($case.MismatchedDigest) { 'docker image' } else { $case.Failure }
+        $expectedCount = [array]::IndexOf($caseCommands, $lastCommand) + 1
     } else {
         if ($failure) { throw $failure }
         if ($output -notcontains $testDigest -or $output -notcontains 'PRIVATE_BUILD_PUSH_AND_PULL_VERIFIED=True') {
             throw 'Successful build did not report its verified digest'
         }
-        $expectedCount = $expectedCommands.Count
+        $expectedCount = $caseCommands.Count
     }
-    if (($buildTestState.Commands -join ',') -ne ($expectedCommands[0..($expectedCount - 1)] -join ',')) {
+    if (($buildTestState.Commands -join ',') -ne ($caseCommands[0..($expectedCount - 1)] -join ',')) {
         throw "Unexpected command order for $($case.Name)"
     }
     Write-Output "PASS: $($case.Name)"
