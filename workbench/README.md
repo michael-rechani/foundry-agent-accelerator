@@ -508,14 +508,14 @@ dependencies, state, plans, and environment files. The Premium Azure Container
 Registry (ACR) has public access and admin credentials disabled. The private
 build uses the local Linux Docker engine on the current authorized
 private-network runner, such as a jumpbox or continuous integration (CI) agent.
-Install Docker with Linux-container support and Azure CLI. Authenticate with an
+Install Docker with Linux-container support, or Podman with a `docker` command that points to it, and Azure CLI. Authenticate with an
 authorized identity, preferably managed identity, and provide registry-scoped
 push/pull permission. Both the runner and Docker engine need private DNS and
 routing to ACR, plus access to the base-image and package sources.
 
 The helper logs Docker into ACR using Azure CLI; use the runner's approved
 Docker credential storage. It validates the image as its non-root user before
-pushing, checks the registry's tag digest against the local build, then verifies
+pushing, checks the registry's tag digest against the local build (Podman recompresses layers on push, so for Podman it compares the pushed image's config digest with the local image ID), then verifies
 a pull by immutable digest. Subscription, registry, and release tag must be
 supplied explicitly. Use a unique tag and do not overwrite it during
 verification. The helper does not create virtual machines, grant roles, or

@@ -35,10 +35,15 @@ try {
         $imageDigest = & az acr repository show --subscription $Subscription --name $Registry --image "workbench:$Tag" --query digest --output tsv --only-show-errors
         if ($LASTEXITCODE -ne 0 -or $imageDigest -notmatch '^sha256:[a-f0-9]{64}$') { throw "Image digest lookup failed" }
         $digest = "${loginServer}/workbench@$imageDigest"
-        $localDigests = & docker image inspect $image --format '{{json .RepoDigests}}'
-        if ($LASTEXITCODE -ne 0) { throw "Pushed image digest does not match the local build" }
-        $parsedDigests = $localDigests | ConvertFrom-Json
-        if ($parsedDigests -notcontains $digest) { throw "Pushed image digest does not match the local build" }
+        $localImage = & docker image inspect $image --format '{{json .RepoDigests}} {{.Id}}'
+        if ($LASTEXITCODE -ne 0 -or "$localImage" -notmatch '^(\[.*\]|null) (?:sha256:)?([a-f0-9]{64})$') { throw "Pushed image digest does not match the local build" }
+        $localId = $Matches[2]
+        $parsedDigests = $Matches[1] | ConvertFrom-Json
+        if ($parsedDigests -notcontains $digest) {
+            # Podman compresses layers on push, so its local manifest digest differs; the config digest still identifies the build.
+            $pushedConfig = & az acr manifest show --subscription $Subscription --registry $Registry --name "workbench@$imageDigest" --query config.digest --output tsv --only-show-errors
+            if ($LASTEXITCODE -ne 0 -or "$pushedConfig" -ne "sha256:$localId") { throw "Pushed image digest does not match the local build" }
+        }
         & docker pull --platform linux/amd64 $digest
         if ($LASTEXITCODE -ne 0) { throw "Image pull verification failed" }
         Write-Output $digest
