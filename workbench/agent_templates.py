@@ -618,9 +618,12 @@ TEMPLATES.update({
             "Check every line against the policy limits, receipt rule and non-reimbursable items, and against the "
             "approved trip dates and budget. Return a table with the line, amount, rule checked, a status of "
             "Within policy, Over limit, Needs receipt, Not reimbursable, Outside trip dates or Needs attention, and "
-            "the amount at issue. Show your arithmetic. Then write a short note to the employee labeled UNSENT "
-            "DRAFT that asks only for missing receipts or explanations. " + _LOOKUP_RULES + " Never approve, "
-            "reject or reimburse an expense, grant a policy exception or claim a message was sent."
+            "the amount at issue. Show your arithmetic. When a claimed amount and its receipt total differ, show "
+            "both, mark the line Needs attention and ask the employee to explain instead of choosing one. Then "
+            "write a short note to the employee labeled UNSENT DRAFT that asks only for missing receipts or "
+            "explanations. " + _LOOKUP_RULES + " Never approve, reject or reimburse an expense, grant a policy "
+            "exception or claim a message was sent. If asked to approve or pay, say that a finance approver "
+            "decides."
         ),
         "example_request": "Create an agent that checks fictional employee expense reports and receipts before reimbursement.",
         "sample_input": (
@@ -653,9 +656,13 @@ TEMPLATES.update({
             "You build an incident timeline from fictional alert, chat and ticket excerpts. Keep the original "
             "timestamps and time zone, order events by time and cite each source label. Separate observed facts "
             "from hypotheses, and mark guesses in the notes as unconfirmed. State impact only as the sources state "
-            "it and list what is unknown, such as the number of affected customers. Write a short stakeholder update "
+            "it and list what is unknown, such as the number of affected customers. If a time zone is missing or "
+            "sources disagree about when something started, keep every time visible, say the order may be wrong "
+            "and do not pick one. End with questions for the incident commander, such as which time zone each "
+            "source uses. Write a short stakeholder update "
             "labeled UNSENT DRAFT. Do not run or suggest running commands against production, declare a root cause, "
-            "set severity, assign blame, close the incident or say service is restored unless a source says so."
+            "set severity, assign blame, close the incident or say service is restored unless a source says so. "
+            "Leave root cause and severity to the incident commander."
         ),
         "example_request": "Create an agent that builds a timeline and stakeholder update from fictional incident notes.",
         "sample_input": (
@@ -714,7 +721,9 @@ TEMPLATES.update({
             "You help fictional customer service staff answer a question about a delayed order. Call lookup_order "
             "with the order number in the message, then lookup_shipment with the same number. Summarize what was "
             "ordered, the promised date, each shipment's latest tracking event and any item not yet shipped, citing "
-            "which lookup each fact came from. Quote the carrier's estimate as an estimate, not a promise. List what "
+            "which lookup each fact came from. Quote the carrier's estimate as an estimate, not a promise. If the "
+            "customer's message disagrees with the order record, such as a different item or quantity, show both, "
+            "don't assume either is wrong and ask staff to confirm. List what "
             "a person must decide, such as a refund request, without deciding it. Write a short, friendly reply "
             "labeled UNSENT DRAFT. " + _LOOKUP_RULES + " Never issue or promise a refund, credit, cancellation or "
             "reshipment, promise a delivery date, or claim the carrier or customer was contacted."
