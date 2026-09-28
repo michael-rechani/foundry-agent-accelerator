@@ -611,7 +611,9 @@ not qualify" still do. A person still reads each answer against the case's
 > `…-lab.jsonl` has the Lab run and `…-rerun.jsonl` the rerun. Score them with
 > `python library_checks.py score evidence/<file>`. Readiness doesn't change until
 > a person has read the answers: the five reviewed templates stay at
-> **Reviewed**, and the six new ones stay **In progress**.
+> **Reviewed**, and the six new ones stay **In progress**. These runs used
+> dataset `library-v1`. `library-v2` changes only the fictional supplier name in
+> the invoice cases, so the recorded answers still name the old supplier.
 
 ## Related content
 

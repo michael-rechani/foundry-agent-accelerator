@@ -126,7 +126,7 @@ _ON_FILE = {
 }
 _PURCHASE_ORDERS = {
     "PO-DEMO-2210": {
-        "po_number": "PO-DEMO-2210", "supplier": "Contoso Demo Furniture",
+        "po_number": "PO-DEMO-2210", "supplier": "Example Furniture Supply",
         "buyer": "City of Example, Parks Department (fictional)", "ordered_on": "2027-03-01",
         "lines": [
             {"item": "CH-100 Stacking chair", "quantity": 100, "agreed_unit_price": "$50.00"},

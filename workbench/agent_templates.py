@@ -363,7 +363,7 @@ TEMPLATES = {
         "sample_input": (
             "Check this fictional supplier invoice before payment. Use the lookups, show the math and draft an "
             "email to the supplier. All data is made up.\n\n"
-            "INVOICE INV-DEMO-7781 - Contoso Demo Furniture - dated 2027-04-05\n"
+            "INVOICE INV-DEMO-7781 - Example Furniture Supply - dated 2027-04-05\n"
             "Bill to: City of Example, Parks Department (fictional)\n"
             "Purchase order: PO-DEMO-2210\n"
             "Line 1: CH-100 Stacking chair - qty 120 x $55.00 = $6,600.00\n"
