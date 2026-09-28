@@ -49,8 +49,8 @@ sections: **Agent library**, **Try it**, **Measure**, and **Activity**.
 `ChatTopbar.tsx` shows the breadcrumb from `navigation.ts`. The
 library is one sidebar entry, **All
 agents**; `LibraryTabs.tsx` switches between its tabs. Reply rendering,
-including the handoff timeline and collapsed execution details, lives in
-`ConversationTurn.tsx`. `WaitingIndicator.tsx` owns the elapsed timer so it
+including the **How I got this** steps and collapsed execution details, lives in
+`ConversationTurn.tsx`; plain step wording comes from `answer-steps.ts`. `WaitingIndicator.tsx` owns the elapsed timer so it
 does not rerender the transcript.
 
 State, effects, and request handlers stay in the three workspace components

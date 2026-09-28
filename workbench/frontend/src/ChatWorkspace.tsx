@@ -146,6 +146,9 @@ export default function ChatWorkspace() {
   const agent = (isPreview ? previewList : availableAgents).find(
     (item) => item.id === selected,
   )
+  const agentLabels = Object.fromEntries(
+    availableAgents.map((item) => [item.agent, item.label]),
+  )
   const previewNote = !previewCapability
     ? ''
     : !previewCapability.enabled
@@ -789,6 +792,7 @@ export default function ChatWorkspace() {
                       key={`${turn.result.request_id}-${index}`}
                       turn={turn}
                       label={agent?.label}
+                      agentLabels={agentLabels}
                       onCopy={copy}
                     />
                   ))}

@@ -221,16 +221,17 @@ enabled entries.
 
 **Developer setup details** shows unchanged catalog IDs, runtime names, expected
 tool bindings, and configuration sources. These details describe configured
-capabilities, not observed execution. Each answer with receipts shows a compact
-handoff timeline (**You asked** → answering agent → each step with
-**Verified**, **Unverified**, or **Stored / not reverified** → **You check the
-findings**). A step names the specialist only when the receipt targets a
-different agent, and the answering agent is then labeled **Coordinator**. A
-created agent's lookups against its own runtime name appear as **Tool call**
-steps under an **Agent** label, not as a handoff. The timeline uses the same
-verification state as the collapsed **Execution details** receipts, and answers
-without receipts show no timeline. A verified receipt only shows that the
-expected target was called; it doesn't prove the findings are correct. Check
+capabilities, not observed execution. Each answer has a collapsed **How I got
+this** panel. Its steps come only from the answer's receipts, in plain words
+such as **Asked the Application checker** or **Looked up the purchase order**,
+followed by **Wrote the answer**. Each step is **Confirmed**, **Not confirmed**,
+or **Saved earlier** (reopened from shared history and not checked again). A
+step asks another agent only when the receipt targets a different agent; a
+created agent's lookups against its own runtime name read as lookups. Answers
+without receipts say no lookups or other agents were recorded. With **Under the
+hood** on, each step also shows its tool and target, and the last step shows
+the time and reported token usage. A confirmed step only shows that the expected
+target was called; it doesn't prove the findings are correct. Check
 response execution details and receipts; stored receipts are not reverified.
 
 ### Starters and guidance
@@ -253,7 +254,7 @@ Starter prompts fill the composer without submitting. The user must choose
 | Unsaved draft | No. | Browser memory only. | Browser navigation warns about unsaved work where supported. It can't prevent data loss from a browser crash or forced close. |
 | Saved conversation | Yes, after the user selects the Save icon. | Expires 30 days after its last update. | Saving is explicit, not automatic. |
 | Export | Download only. | User-controlled. | Export includes completed exchanges and the current draft. |
-| Saved/read receipt flags | Yes, with verification flags cleared. | Same as the conversation. | Reopened receipts and their handoff timeline steps display `Stored / not reverified`. Live response receipts are checked separately against correlated tool calls and expected targets. |
+| Saved/read receipt flags | Yes, with verification flags cleared. | Same as the conversation. | Reopened receipts display `Stored / not reverified`, and their **How I got this** steps display **Saved earlier**. Live response receipts are checked separately against correlated tool calls and expected targets. |
 
 Deletion and time to live (TTL) remove active documents. The account's backup
 retention is separate and isn't immediate secure erasure. Foundry requests use

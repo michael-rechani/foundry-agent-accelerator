@@ -1374,56 +1374,118 @@ p {
   gap: 6px;
   color: var(--text-secondary, var(--muted));
 }
-.handoff-timeline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 4px;
-  list-style: none;
+.answer-steps {
   margin: 14px 0 4px;
-  padding: 0;
-  font-size: 10px;
-  color: var(--text-secondary);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-sunken);
+  font-size: 12px;
+  color: var(--text-secondary, var(--muted));
 }
-.handoff-timeline li {
+.answer-steps > summary {
   display: flex;
   align-items: center;
-  gap: 5px;
-  min-width: 0;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  list-style: none;
 }
-.handoff-timeline li > span {
+.answer-steps > summary::-webkit-details-marker {
+  display: none;
+}
+.answer-steps > summary strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.answer-steps > summary > span {
+  min-width: 0;
   overflow-wrap: anywhere;
 }
-.handoff-timeline li > svg:not(.handoff-arrow) {
-  flex: none;
-  color: var(--accent);
-}
-.handoff-arrow {
+.answer-steps-chevron {
   flex: none;
   color: var(--muted);
+  transition: transform 0.15s ease;
 }
-.handoff-timeline small {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 9px;
+.answer-steps[open] .answer-steps-chevron {
+  transform: rotate(90deg);
+}
+.answer-steps > ol {
+  list-style: none;
+  margin: 0;
+  padding: 4px 12px 10px 34px;
+  display: grid;
+  gap: 8px;
+}
+.answer-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  position: relative;
+}
+.answer-step-dot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.answer-step.verified .answer-step-dot {
+  background: var(--success-bg);
+  color: var(--success-fg);
+}
+.answer-step.unverified .answer-step-dot {
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+}
+.answer-step.answer .answer-step-dot {
+  color: var(--accent);
+}
+.answer-step-text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.answer-step-text small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.answer-step-text code {
+  font: 11px var(--mono);
+}
+.answer-step-state {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
   white-space: nowrap;
   background: var(--neutral-bg);
   color: var(--neutral-fg);
 }
-.handoff-step > span {
-  font: 10px var(--mono);
-  color: var(--text);
-}
-.handoff-step.verified .handoff-state {
+.answer-step.verified .answer-step-state {
   background: var(--success-bg);
   color: var(--success-fg);
+  box-shadow: inset 0 0 0 1px currentColor;
 }
-.handoff-step.unverified .handoff-state {
+.answer-step.unverified .answer-step-state {
   background: var(--warning-bg);
   color: var(--warning-fg);
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.answer-steps-note {
+  margin: 0;
+  padding: 0 12px 10px 34px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .answer-steps-chevron {
+    transition: none;
+  }
 }
 .receipt-details {
   border-top: 1px solid var(--line);

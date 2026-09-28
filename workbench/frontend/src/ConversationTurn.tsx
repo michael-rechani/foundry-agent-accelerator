@@ -11,16 +11,14 @@ import {
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { Receipt, Turn } from './conversation-types'
+import {
+  plainStep,
+  receiptState,
+  stepsSummary,
+  type ReceiptState,
+} from './answer-steps'
+import type { Turn } from './conversation-types'
 import { usageDetail, usageLabel } from './token-usage'
-
-type ReceiptState = 'verified' | 'unverified' | 'stored'
-
-// Stored history is never reverified, so it can't claim live verification.
-function receiptState(turn: Turn, receipt: Receipt): ReceiptState {
-  if (turn.stored) return 'stored'
-  return receipt.verified ? 'verified' : 'unverified'
-}
 
 const receiptLabels: Record<ReceiptState, string> = {
   verified: 'Verified receipt',
@@ -29,9 +27,15 @@ const receiptLabels: Record<ReceiptState, string> = {
 }
 
 const stepLabels: Record<ReceiptState, string> = {
-  verified: 'Verified',
-  unverified: 'Unverified',
-  stored: receiptLabels.stored,
+  verified: 'Confirmed',
+  unverified: 'Not confirmed',
+  stored: 'Saved earlier',
+}
+
+const stepHints: Record<ReceiptState, string> = {
+  verified: 'The Lab confirmed this step ran.',
+  unverified: 'The Lab could not confirm this step ran.',
+  stored: 'Saved with the conversation; not checked again.',
 }
 
 const stepIcons = {
@@ -40,63 +44,74 @@ const stepIcons = {
   stored: Archive,
 }
 
-// A receipt is a handoff only when it names another agent. Created agents
-// bind simulated lookups to their own runtime name; those are tool calls.
-function isHandoff(turn: Turn, receipt: Receipt) {
-  return Boolean(receipt.agent) && receipt.agent !== turn.result.agent
-}
-
-function HandoffTimeline({
+function AnswerSteps({
   turn,
-  answering,
+  agentLabels,
 }: {
   turn: Turn
-  answering: string
+  agentLabels?: Record<string, string>
 }) {
-  const handoff = turn.result.receipts.some((receipt) =>
-    isHandoff(turn, receipt),
-  )
+  const usage = usageLabel(turn.result.usage)
   return (
-    <ol className="handoff-timeline" aria-label="Handoff timeline">
-      <li>
-        <MessageSquare size={13} aria-hidden="true" />
-        <span>You asked</span>
-      </li>
-      <li>
-        <ChevronRight className="handoff-arrow" size={12} aria-hidden="true" />
-        <GitBranch size={13} aria-hidden="true" />
-        <span>{answering}</span>
-        <small>{handoff ? 'Coordinator' : 'Agent'}</small>
-      </li>
-      {turn.result.receipts.map((receipt, index) => {
-        const state = receiptState(turn, receipt)
-        const Icon = stepIcons[state]
-        const specialist = isHandoff(turn, receipt)
-        return (
-          <li
-            className={`handoff-step ${state}`}
-            key={`${receipt.call_id}-${index}`}
-          >
-            <ChevronRight
-              className="handoff-arrow"
-              size={12}
-              aria-hidden="true"
-            />
-            <span>{specialist ? receipt.agent : receipt.tool}</span>
-            {!specialist && <small>Tool call</small>}
-            <small className="handoff-state">
-              <Icon size={12} aria-hidden="true" />
-              {stepLabels[state]}
+    <details className="answer-steps">
+      <summary>
+        <ChevronRight
+          className="answer-steps-chevron"
+          size={14}
+          aria-hidden="true"
+        />
+        <strong>How I got this</strong>
+        <span>{stepsSummary(turn)}</span>
+      </summary>
+      <ol aria-label="How I got this">
+        {turn.result.receipts.map((receipt, index) => {
+          const state = receiptState(turn, receipt)
+          const Icon = stepIcons[state]
+          return (
+            <li
+              className={`answer-step ${state}`}
+              key={`${receipt.call_id}-${index}`}
+            >
+              <span className="answer-step-dot" aria-hidden="true">
+                <Icon size={12} />
+              </span>
+              <span className="answer-step-text">
+                {plainStep(turn, receipt, agentLabels)}
+                <small className="hood-only">
+                  <code>{receipt.tool}</code>
+                  {receipt.agent && (
+                    <>
+                      {' \u2192 '}
+                      <code>{receipt.agent}</code>
+                    </>
+                  )}
+                </small>
+              </span>
+              <small className="answer-step-state" title={stepHints[state]}>
+                {stepLabels[state]}
+              </small>
+            </li>
+          )
+        })}
+        <li className="answer-step answer">
+          <span className="answer-step-dot" aria-hidden="true">
+            <MessageSquare size={12} />
+          </span>
+          <span className="answer-step-text">
+            Wrote the answer
+            <small className="hood-only">
+              {(turn.result.elapsed_ms / 1000).toFixed(1)} s total
+              {usage && ` ? ${usage}`}
             </small>
-          </li>
-        )
-      })}
-      <li>
-        <ChevronRight className="handoff-arrow" size={12} aria-hidden="true" />
-        <UserCheck size={13} aria-hidden="true" />
-        <span>You check the findings</span>
-      </li>
-    </ol>
+          </span>
+        </li>
+      </ol>
+      {turn.result.receipts.length === 0 && (
+        <p className="answer-steps-note">
+          No lookups or other agents were recorded for this answer.
+        </p>
+      )}
+    </details>
   )
 }
 
@@ -119,10 +134,12 @@ function Markdown({ text }: { text: string }) {
 export function ConversationTurn({
   turn,
   label,
+  agentLabels,
   onCopy,
 }: {
   turn: Turn
   label?: string
+  agentLabels?: Record<string, string>
   onCopy: (text: string) => void
 }) {
   return (
@@ -148,9 +165,7 @@ export function ConversationTurn({
           </span>
         </div>
         <Markdown text={turn.result.text} />
-        {turn.result.receipts.length > 0 && (
-          <HandoffTimeline turn={turn} answering={label || turn.result.agent} />
-        )}
+        <AnswerSteps turn={turn} agentLabels={agentLabels} />
         <div className="response-tools">
           <button
             className="chat-icon"
