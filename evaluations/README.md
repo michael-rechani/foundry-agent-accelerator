@@ -607,9 +607,9 @@ not qualify" still do. A person still reads each answer against the case's
 > instructions now cover these cases. A rerun of those three templates' 15
 > cases directly against the same Foundry project meets every rubric.
 >
-> Answers are in [results/](results/): `…-lab.jsonl` has the Lab run and
-> `…-rerun.jsonl` the rerun. Score them with
-> `python library_checks.py score results/<file>`. Readiness doesn't change until
+> Answers are in [evidence/](evidence/), which holds only fictional data.
+> `…-lab.jsonl` has the Lab run and `…-rerun.jsonl` the rerun. Score them with
+> `python library_checks.py score evidence/<file>`. Readiness doesn't change until
 > a person has read the answers: the five reviewed templates stay at
 > **Reviewed**, and the six new ones stay **In progress**.
 
