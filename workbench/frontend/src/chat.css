@@ -210,9 +210,7 @@ p {
   text-transform: uppercase;
   color: var(--muted);
 }
-.nav-section[data-single] .nav-section-label {
-  display: none;
-}
+
 .chat-sidebar nav button {
   display: flex;
   gap: 12px;
@@ -1962,6 +1960,62 @@ p {
 }
 .table-note code {
   font: 11px var(--mono);
+}
+.rate-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin-top: 18px;
+}
+.rate-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.rate-form input {
+  width: 180px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+.rate-form button[type='submit'] {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  min-height: 36px;
+}
+.rate-form button[type='submit']:disabled {
+  opacity: 0.5;
+}
+.cost-heading {
+  margin-top: 26px;
+  font-size: 13px;
+}
+.cost-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.cost-list strong {
+  color: inherit;
+  font-weight: 600;
+}
+.receipt-details .usage-detail {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
 }
 .log-outcome {
   display: inline-block;

@@ -38,20 +38,20 @@ FastAPI backend and shared Azure Cosmos DB storage.
 
 ## Pages
 
-The sidebar groups the Lab's pages into three sections, in this order. Every agent lives under **Agent library** > **All agents**, which has tabs for **Templates**, **Ready to use**, and (when creation is on) **Created here**.
+The sidebar groups the Lab's pages into four sections, in this order: **Chat and test**, **Agent library**, **Performance and benchmarking**, and **Logging**. Every agent lives under **Agent library** > **All agents**, which has tabs for **Templates**, **Ready to use**, **Created here** (when creation is on), and **Guided demos**.
 
 | Section | Page | What you do there |
 | --- | --- | --- |
 | Chat and test | **Chat** | Talk with a prebuilt or created agent, or try a library agent instantly as a preview. Switch agents from the name in the Chat header. An example task only fills in your message; you choose when to send it. |
 | Chat and test | **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. Not in the sidebar or Chat: open a saved-review link or `/#reviews`. |
-| Chat and test | **Guided demos** | Start with application evidence, invoice discrepancies, or case notes. Read an illustrative story, copy its fictional input, or load it into an enabled matching agent. |
+| Chat and test | **Shared history** | Reopen chats that anyone saved. Saved chats are shared and kept for 30 days. |
 | Agent library | **All agents** > **Templates** | Filter the [agent library](../docs/agent-creation.md#what-a-participant-can-do) by sector, industry, task, readiness, and tools. Each entry shows what you provide, what you get, its limits, what a person decides, a fictional example, and the expected behavior. From an entry you can create the agent, open a ready one in **Chat** with the example as an unsent draft, or download its saved record for export. |
 | Agent library | **All agents** > **Ready to use** | Browse the prebuilt and ready created agents you can chat with, read what each one needs and does, and start a chat. |
 | Agent library | **Create agent** | Describe a job, pick a library template, edit the name and instructions, and publish a new Foundry hosted agent on the [model that suits the job](../docs/agent-creation.md#how-the-lab-picks-a-model). Shown only when the server advertises creation; actual publication needs operator enablement. |
 | Agent library | **All agents** > **Created here** | Follow publication progress, open a ready agent in **Chat**, or delete an agent with the operator key. Shown only when creation is on. |
-| Performance and monitoring | **Performance** | See completed and unsuccessful requests, average and 90th-percentile response time, and a per-agent benchmark table for this browser session. |
-| Performance and monitoring | **Request log** | See each live request from this browser tab with its time, agent, outcome, elapsed time, and a copyable reference that matches the server's `request_id` log entry. |
-| Performance and monitoring | **Shared history** | Reopen chats that anyone saved. Saved chats are shared and kept for 30 days. |
+| Agent library | **All agents** > **Guided demos** | Start with application evidence, invoice discrepancies, or case notes. Read an illustrative story, copy its fictional input, or load it into an enabled matching agent. |
+| Performance and benchmarking | **Performance** | See completed and unsuccessful requests, average and 90th-percentile response time, a per-agent benchmark with average tokens, and **Token usage and cost** for this browser session. Enter your own per-1M-token rates for an estimate; the Lab ships no prices. |
+| Logging | **Request log** | See each live request from this browser tab with its time, agent, outcome, elapsed time, reported tokens, and a copyable reference that matches the server's `request_id` log entry. |
 
 **Chat** can't change an agent's instructions, tools, or model; that's a
 [developer or operator task](#workspace-configuration). **Document reviews**
@@ -193,7 +193,8 @@ data contract and deployment checks. You don't need it to use **Chat**.
 | **Document reviews** | Saves and runs checklist-based reviews. | Chat messages and review results don't copy between views automatically. |
 | **Shared history** | Lists, reopens, and deletes saved conversations. | Everyone with workspace access can read, modify, and delete saved conversations. |
 | **Ready to use** | Lists only enabled prebuilt agents and ready created agents. | Hidden agents can't be invoked directly through the Lab API. |
-| **Performance** | Shows browser-session request counts, average and 90th-percentile latency, and a per-agent benchmark. | It excludes local preview calls, clears on refresh, and isn't a fleet-wide metric or model-quality score. |
+| **Performance** | Shows browser-session request counts, average and 90th-percentile latency, a per-agent benchmark, and reported token totals with an optional estimate from rates you enter. | It excludes local preview calls, clears on refresh, and isn't a fleet-wide metric or model-quality score. Replies without reported tokens are counted as **Not reported**, never zero. Rates stay in this browser; the estimate prices cached input at the full rate and isn't invoiced spend. |
+| **Token counts** | Each reply shows its reported tokens next to its elapsed time, with input, cached, output, and reasoning counts under **Execution details**. Library previews add up every model call in their tool loop. | Counts come from the answering agent's response; a coordinator's count may not include the specialists it calls. Saved chats keep the counts as stored, unverified values. |
 | **Request log** | Lists this tab's live requests with outcome, elapsed time, and the server `request_id` reference. | It doesn't store message text, excludes local preview calls, and clears on refresh. It isn't the server log. |
 
 ### Prebuilt and created agents

@@ -7,6 +7,8 @@ import {
 } from 'lucide-react'
 
 import { benchmarks, percentile, type Measurement } from './performance-stats'
+import { TokenCost } from './TokenCost'
+import { formatTokens } from './token-usage'
 
 const seconds = (value: number) => `${(value / 1000).toFixed(1)}s`
 
@@ -82,6 +84,7 @@ export function PerformanceView({
                 <th scope="col">90th percentile</th>
                 <th scope="col">Slowest</th>
                 <th scope="col">Unsuccessful</th>
+                <th scope="col">Avg tokens</th>
               </tr>
             </thead>
             <tbody>
@@ -100,6 +103,11 @@ export function PerformanceView({
                   <td>{row.p90 === null ? '—' : seconds(row.p90)}</td>
                   <td>{row.slowest === null ? '—' : seconds(row.slowest)}</td>
                   <td>{row.unsuccessful}</td>
+                  <td>
+                    {row.averageTokens === null
+                      ? 'Not reported'
+                      : formatTokens(row.averageTokens)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -121,6 +129,11 @@ export function PerformanceView({
           </span>
         </div>
       )}
+      <TokenCost
+        usages={measurements
+          .filter((item) => item.outcome === 'completed')
+          .map((item) => item.usage ?? null)}
+      />
       <h2 className="request-heading" id="recent-heading">
         Recent requests
       </h2>

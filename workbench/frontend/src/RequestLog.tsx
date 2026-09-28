@@ -1,5 +1,6 @@
 import { Copy, ScrollText } from 'lucide-react'
 import type { Measurement } from './performance-stats'
+import { usageLabel } from './token-usage'
 
 const outcomes: Record<Measurement['outcome'], string> = {
   completed: 'Completed',
@@ -37,6 +38,7 @@ export function RequestLog({
                 <th scope="col">Agent</th>
                 <th scope="col">Outcome</th>
                 <th scope="col">Elapsed</th>
+                <th scope="col">Tokens</th>
                 <th scope="col">Reference</th>
                 <th scope="col">Details</th>
               </tr>
@@ -56,6 +58,11 @@ export function RequestLog({
                     </span>
                   </td>
                   <td>{(item.duration / 1000).toFixed(1)}s</td>
+                  <td>
+                    {item.outcome === 'completed'
+                      ? (usageLabel(item.usage ?? null) ?? '—')
+                      : '—'}
+                  </td>
                   <td>
                     {item.reference ? (
                       <button

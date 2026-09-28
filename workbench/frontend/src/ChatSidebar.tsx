@@ -1,7 +1,6 @@
 import {
   Activity,
   BookOpen,
-  Compass,
   FileCheck2,
   History,
   Layers3,
@@ -24,7 +23,7 @@ export type View =
   | 'create'
   | 'created'
 
-export type Section = 'test' | 'library' | 'monitoring'
+export type Section = 'test' | 'library' | 'performance' | 'logging'
 
 type Item = {
   view: View
@@ -39,14 +38,14 @@ type Item = {
 const sectionOf: Record<View, Section> = {
   chat: 'test',
   reviews: 'test',
-  explore: 'test',
+  history: 'test',
+  explore: 'library',
   library: 'library',
   catalog: 'library',
   create: 'library',
   created: 'library',
-  performance: 'monitoring',
-  log: 'monitoring',
-  history: 'monitoring',
+  performance: 'performance',
+  log: 'logging',
 }
 
 export function ChatSidebar({
@@ -88,7 +87,13 @@ export function ChatSidebar({
               },
             ]
           : []),
-        { view: 'explore', label: 'Guided demos', icon: Compass },
+        {
+          view: 'history',
+          label: 'Shared history',
+          icon: History,
+          enabled: historyEnabled && !historyBusy,
+          onSelect: onHistory,
+        },
       ],
     },
     {
@@ -107,22 +112,19 @@ export function ChatSidebar({
       ],
     },
     {
-      id: 'monitoring',
-      label: 'Performance and monitoring',
+      id: 'performance',
+      label: 'Performance and benchmarking',
+      items: [{ view: 'performance', label: 'Performance', icon: Activity }],
+    },
+    {
+      id: 'logging',
+      label: 'Logging',
       items: [
-        { view: 'performance', label: 'Performance', icon: Activity },
         {
           view: 'log',
           label: 'Request log',
           icon: ScrollText,
           count: requestCount,
-        },
-        {
-          view: 'history',
-          label: 'Shared history',
-          icon: History,
-          enabled: historyEnabled && !historyBusy,
-          onSelect: onHistory,
         },
       ],
     },
@@ -155,7 +157,6 @@ export function ChatSidebar({
             role="group"
             aria-labelledby={`nav-section-${section.id}`}
             data-active={current === section.id ? 'true' : undefined}
-            data-single={section.items.length === 1 ? 'true' : undefined}
           >
             <div className="nav-section-label" id={`nav-section-${section.id}`}>
               {section.label}

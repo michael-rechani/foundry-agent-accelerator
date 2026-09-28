@@ -12,6 +12,7 @@ import {
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Receipt, Turn } from './conversation-types'
+import { usageDetail, usageLabel } from './token-usage'
 
 type ReceiptState = 'verified' | 'unverified' | 'stored'
 
@@ -136,7 +137,12 @@ export function ConversationTurn({
             <GitBranch size={16} />
           </span>
           <strong>{label}</strong>
-          <span>{(turn.result.elapsed_ms / 1000).toFixed(1)}s</span>
+          <span>
+            {(turn.result.elapsed_ms / 1000).toFixed(1)}s
+            {usageLabel(turn.result.usage) && (
+              <> · {usageLabel(turn.result.usage)}</>
+            )}
+          </span>
         </div>
         <Markdown text={turn.result.text} />
         {turn.result.receipts.length > 0 && (
@@ -163,6 +169,15 @@ export function ConversationTurn({
             </span>
           </summary>
           <code>{turn.result.request_id}</code>
+          {turn.result.usage !== undefined && (
+            <p className="usage-detail">
+              {turn.result.usage
+                ? `Tokens: ${usageDetail(turn.result.usage)}.`
+                : 'The service did not report token usage for this answer.'}{' '}
+              Counts come from the answering agent&apos;s response. A
+              coordinator&apos;s count may not include specialists it calls.
+            </p>
+          )}
           {turn.result.receipts.length ? (
             turn.result.receipts.map((receipt, index) => (
               <div className="receipt" key={`${receipt.call_id}-${index}`}>

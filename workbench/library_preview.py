@@ -16,6 +16,29 @@ PREVIEW_ID = re.compile(r"library-([a-z0-9]+(?:-[a-z0-9]+)*)\Z")
 PREVIEW_AGENT = "lab-library-preview"
 MAX_TOOL_ROUNDS = 4
 MAX_CALLS_PER_ROUND = 8
+USAGE_FIELDS = ("input_tokens", "output_tokens", "total_tokens", "cached_tokens", "reasoning_tokens")
+
+
+def usage_record(response):
+    """Return one Responses API result's reported token counts; a count the service didn't report is None."""
+    reported = getattr(response, "usage", None)
+    if hasattr(reported, "model_dump"):
+        reported = reported.model_dump()
+    if not isinstance(reported, dict):
+        reported = {}
+    counts = {key: reported.get(key) for key in ("input_tokens", "output_tokens", "total_tokens")}
+    counts["cached_tokens"] = (reported.get("input_tokens_details") or {}).get("cached_tokens")
+    counts["reasoning_tokens"] = (reported.get("output_tokens_details") or {}).get("reasoning_tokens")
+    return {key: value if type(value) is int and value >= 0 else None for key, value in counts.items()}
+
+
+def summarize_usage(records):
+    """Sum per-call token counts. A count missing from any call is None, so partial totals never look complete."""
+    if not records:
+        return None
+    total = {key: sum(record[key] for record in records) if all(record[key] is not None for record in records) else None
+             for key in USAGE_FIELDS}
+    return total if any(value is not None for value in total.values()) else None
 
 
 def preview_agent(identifier):
@@ -62,7 +85,7 @@ def run_tool(functions, call):
         return json.dumps({"status": "failed", "error": str(problem)})
 
 
-async def run_preview(client, *, template_id, model, prompt, reasoning=False):
+async def run_preview(client, *, template_id, model, prompt, reasoning=False, usage=None):
     """Return (status, text, output items) after a bounded simulated-tool loop.
 
     Output items include each function_call_output so the caller can verify receipts the same way it
@@ -79,6 +102,8 @@ async def run_preview(client, *, template_id, model, prompt, reasoning=False):
     transcript = []
     for _ in range(MAX_TOOL_ROUNDS + 1):
         response = await client.responses.create(input=items, **options)
+        if usage is not None:
+            usage.append(usage_record(response))
         output = response.model_dump(exclude_none=True).get("output", [])
         transcript.extend(output)
         calls = [item for item in output if item.get("type") == "function_call"]

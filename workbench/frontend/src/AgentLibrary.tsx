@@ -608,7 +608,7 @@ function LibraryDetail({
               </div>
               <p className="library-muted">
                 {preview
-                  ? 'Opens a preview chat with this example as a draft. Nothing is published and nothing is sent until you press Send, which calls the model and may incur cost. Preview chats are not saved.'
+                  ? 'Opens a preview chat with this example as a draft. Nothing is published and nothing is sent until you press Send, which calls the model and may incur cost. Preview chats are not saved. A preview calls the model directly rather than running as a hosted agent, so test the created agent before handing it to a customer.'
                   : ready
                     ? `Uses ${ready.agent.label}. The example is placed in Chat as a draft; nothing is sent until you press Send, which calls the model and may incur cost.`
                     : creationNote}

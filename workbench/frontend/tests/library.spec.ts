@@ -163,7 +163,7 @@ async function openAgent(page: Page, label: string) {
   ).toBeVisible()
 }
 
-test('the library is the landing view and groups navigation into three sections', async ({
+test('the library is the landing view and groups navigation into four sections', async ({
   page,
 }) => {
   await setup(page)
@@ -172,12 +172,26 @@ test('the library is the landing view and groups navigation into three sections'
   ).toHaveAttribute('aria-current', 'page')
   await expect(
     navigation(page).getByRole('group').locator('.nav-section-label'),
-  ).toHaveText(['Chat and test', 'Agent library', 'Performance and monitoring'])
+  ).toHaveText([
+    'Chat and test',
+    'Agent library',
+    'Performance and benchmarking',
+    'Logging',
+  ])
   const tabs = page.getByRole('navigation', { name: 'Agent library' })
   await expect(tabs.getByRole('button')).toHaveText([
     'Templates',
     /^Ready to use\s*1$/,
     /^Created here\s*0$/,
+    'Guided demos',
+  ])
+  await expect(navigation(page).getByRole('button')).toHaveText([
+    'Chat',
+    'Shared history',
+    'All agents',
+    'Create agent',
+    'Performance',
+    /^Request log/,
   ])
   await expect(tabs.getByRole('button', { name: 'Templates' })).toHaveAttribute(
     'aria-current',
@@ -193,7 +207,6 @@ test('the library is the landing view and groups navigation into three sections'
   await tabs.getByRole('button', { name: 'Templates' }).click()
   for (const [name, heading] of [
     ['Chat', null],
-    ['Guided demos', 'From paperwork to a clear next step.'],
     [/^Request log/, 'Request log'],
     ['Performance', 'Performance'],
     ['All agents', 'Start from a job that needs doing'],
@@ -211,10 +224,23 @@ test('the library is the landing view and groups navigation into three sections'
       ).toBeVisible()
     await expect(tabs).toHaveCount(name === 'All agents' ? 1 : 0)
   }
+  await tabs.getByRole('button', { name: 'Guided demos' }).click()
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: 'From paperwork to a clear next step.',
+    }),
+  ).toBeVisible()
+  await expect(
+    tabs.getByRole('button', { name: 'Guided demos' }),
+  ).toHaveAttribute('aria-current', 'page')
+  await expect(
+    navigation(page).getByRole('button', { name: 'All agents' }),
+  ).toHaveAttribute('aria-current', 'page')
   for (const [hash, name] of [
     ['#library', 'All agents'],
     ['#agents', 'All agents'],
-    ['#demos', 'Guided demos'],
+    ['#demos', 'All agents'],
     ['#performance', 'Performance'],
     ['#logs', /^Request log/],
   ] as const) {

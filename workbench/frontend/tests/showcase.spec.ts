@@ -129,13 +129,26 @@ async function setup(
   return state
 }
 
+// Guided demos is a tab inside the Agent library.
+async function openDemos(page: Page) {
+  await page
+    .getByRole('navigation', { name: 'Workspace' })
+    .getByRole('button', { name: 'All agents' })
+    .click()
+  await page
+    .getByRole('navigation', { name: 'Agent library' })
+    .getByRole('button', { name: 'Guided demos' })
+    .click()
+}
+
 test('exploration is read-only and every scenario has an honest customer story', async ({
   page,
 }, testInfo) => {
   const state = await setup(page)
-  const navigation = page.getByRole('navigation', { name: 'Workspace' })
   await expect(
-    navigation.getByRole('button', { name: 'Guided demos' }),
+    page
+      .getByRole('navigation', { name: 'Agent library' })
+      .getByRole('button', { name: 'Guided demos' }),
   ).toHaveAttribute('aria-current', 'page')
   for (const scenario of demoScenarios) {
     await page
@@ -175,14 +188,14 @@ test('loading a demo preserves unsaved work until confirmed and never auto-sends
   await page
     .getByRole('textbox', { name: 'Message', exact: true })
     .fill('Keep my existing draft')
-  await page.getByRole('button', { name: 'Guided demos', exact: true }).click()
+  await openDemos(page)
   page.once('dialog', (dialog) => dialog.dismiss())
   await page.getByRole('button', { name: 'Load fictional input' }).click()
   await page.getByRole('button', { name: 'Go straight to Chat' }).click()
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toHaveValue('Keep my existing draft')
-  await page.getByRole('button', { name: 'Guided demos', exact: true }).click()
+  await openDemos(page)
   page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Load fictional input' }).click()
   await expect(

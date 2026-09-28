@@ -33,6 +33,7 @@ import { ExploreDemos, DemoRunGuide } from './ExploreDemos'
 import { useLibraryCatalog } from './library-catalog-client'
 import { isPreviewId, previewAgents } from './library-catalog'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
+import { parseUsage } from './token-usage'
 type SavedVersion = { id: string; _etag: string }
 
 // Identifies one conversation so the server can reuse its warm agent session.
@@ -283,7 +284,14 @@ export default function ChatWorkspace() {
           `${errors[data.error] || 'Request failed.'}${data.request_id ? ` Reference: ${data.request_id}` : ''}`,
         )
       }
-      setTurns((previous) => [...previous, { question, result: data }])
+      const usage = parseUsage(data.usage)
+      setTurns((previous) => [
+        ...previous,
+        {
+          question,
+          result: { ...data, ...('usage' in data ? { usage } : {}) },
+        },
+      ])
       setDirty(true)
       setDraft('')
       setPending('')
@@ -298,6 +306,7 @@ export default function ChatWorkspace() {
             duration: performance.now() - started,
             at: Date.now(),
             reference,
+            usage,
           },
         ])
     } catch (problem) {

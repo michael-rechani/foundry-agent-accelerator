@@ -32,6 +32,20 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertIn("frame-ancestors 'none'", response.headers["content-security-policy"])
 
+    def test_reply_reports_token_usage_or_null(self):
+        response = self.client.post("/api/reviews", json=self.body, headers=self.headers)
+        self.assertIsNone(response.json()["usage"])
+
+        async def review(agent, prompt, thread=None, usage=None):
+            usage.append({"input_tokens": 40, "output_tokens": 10, "total_tokens": 50,
+                          "cached_tokens": None, "reasoning_tokens": 0})
+            return "completed", "Finding APP-1", []
+
+        self.gateway.review.side_effect = review
+        response = self.client.post("/api/reviews", json=self.body, headers=self.headers)
+        self.assertEqual(response.json()["usage"], {"input_tokens": 40, "output_tokens": 10, "total_tokens": 50,
+                                                    "cached_tokens": None, "reasoning_tokens": 0})
+
     def test_public_configuration_matches_request_limits(self):
         config = self.client.get("/api/config").json()
         self.assertEqual(config["default_agent"], "customer-review")

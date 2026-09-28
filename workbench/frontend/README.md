@@ -40,12 +40,12 @@ install browser system dependencies with `npx playwright install --with-deps chr
 ## App structure
 
 `src/ChatWorkspace.tsx` owns conversation and view state for the library's
-**Templates**, **Ready to use**, and **Created here** tabs, **Create agent**, **Chat**,
-**Document reviews**, **Guided demos**, **Performance**, **Request log**, and
-**Shared history**. `ChatSidebar.tsx` groups them into three sections: **Chat
-and test**, **Agent library**, and **Performance and monitoring**. The
-library is one sidebar entry, **All agents**; LibraryTabs.tsx switches between
-its three tabs. Reply rendering,
+**Templates**, **Ready to use**, **Created here**, and **Guided demos** tabs,
+**Create agent**, **Chat**, **Document reviews**, **Performance**, **Request
+log**, and **Shared history**. `ChatSidebar.tsx` groups them into four
+sections: **Chat and test**, **Agent library**, **Performance and
+benchmarking**, and **Logging**. The library is one sidebar entry, **All
+agents**; `LibraryTabs.tsx` switches between its tabs. Reply rendering,
 including the handoff timeline and collapsed execution details, lives in
 `ConversationTurn.tsx`. `WaitingIndicator.tsx` owns the elapsed timer so it
 does not rerender the transcript.
@@ -56,20 +56,21 @@ The view components split out of them are presentational and receive values
 and callbacks as props. `ExploreDemos.tsx` additionally owns its local story
 selection and clipboard feedback; it never invokes an agent or writes records.
 
-| File                                                         | Role                                                                                                                                          |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ChatSidebar.tsx`, `ChatTopbar.tsx`                          | Render the view navigation and the Chat header, agent picker, and save/export actions.                                                        |
-| `ChatWelcome.tsx`, `ChatComposer.tsx`                        | Render the new-chat prompts and the message composer with its conversation limits.                                                            |
-| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx` | Render the **Shared history**, **Ready to use**, and **Performance** views.                                                                   |
-| `AgentLibrary.tsx`, `library-catalog.ts`, `library.css`      | Render **Templates**. `library-catalog.ts` strictly validates `/api/agent-templates` (`schema_version` 1) and filters with live facet counts. |
-| `RequestLog.tsx`, `performance-stats.ts`                     | Render the **Request log** and compute per-agent median, 90th-percentile, and slowest timings.                                                |
-| `history-client.ts`                                          | Handles bounded history requests.                                                                                                             |
-| `request.ts`                                                 | Handles transport-independent cancellation.                                                                                                   |
-| `workspace-config.ts`                                        | Validates public configuration and handles bootstrap timeouts and retry.                                                                      |
-| `ContinueDialog.tsx`                                         | Previews carry-over context before resetting the conversation. It never invokes an agent.                                                     |
-| `AgentGuide.tsx`                                             | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Ready to use** cards.           |
-| `theme.ts`, `ThemePicker.tsx`                                | Load, validate, save, and apply the **Appearance** choice, and render its header menu.                                                        |
-| `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`      | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement. |
+| File                                                         | Role                                                                                                                                                                           |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ChatSidebar.tsx`, `ChatTopbar.tsx`                          | Render the view navigation and the Chat header, agent picker, and save/export actions.                                                                                         |
+| `ChatWelcome.tsx`, `ChatComposer.tsx`                        | Render the new-chat prompts and the message composer with its conversation limits.                                                                                             |
+| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx` | Render the **Shared history**, **Ready to use**, and **Performance** views.                                                                                                    |
+| `AgentLibrary.tsx`, `library-catalog.ts`, `library.css`      | Render **Templates**. `library-catalog.ts` strictly validates `/api/agent-templates` (`schema_version` 1) and filters with live facet counts.                                  |
+| `RequestLog.tsx`, `performance-stats.ts`                     | Render the **Request log** and compute per-agent median, 90th-percentile, slowest timings, and average tokens.                                                                 |
+| `TokenCost.tsx`, `token-usage.ts`                            | Render **Token usage and cost** in Performance. Parse reported token counts, total them without treating missing counts as zero, and estimate cost from rates the user enters. |
+| `history-client.ts`                                          | Handles bounded history requests.                                                                                                                                              |
+| `request.ts`                                                 | Handles transport-independent cancellation.                                                                                                                                    |
+| `workspace-config.ts`                                        | Validates public configuration and handles bootstrap timeouts and retry.                                                                                                       |
+| `ContinueDialog.tsx`                                         | Previews carry-over context before resetting the conversation. It never invokes an agent.                                                                                      |
+| `AgentGuide.tsx`                                             | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Ready to use** cards.                                            |
+| `theme.ts`, `ThemePicker.tsx`                                | Load, validate, save, and apply the **Appearance** choice, and render its header menu.                                                                                         |
+| `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`      | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement.                                  |
 
 Keep purpose, input, output, how-it-works, and limits in the registry, not
 hard-coded by agent ID in React. **Developer setup details** distinguishes the

@@ -48,6 +48,7 @@ describe('performance stats', () => {
       p90: 4000,
       slowest: 4000,
       unsuccessful: 1,
+      averageTokens: null,
     })
   })
 
@@ -63,6 +64,23 @@ describe('performance stats', () => {
         ['created-b', 'Document explainer', 5000],
       ],
     )
+  })
+
+  it('averages only reported token totals from completed requests', () => {
+    const usage = (total: number | null) => ({
+      input_tokens: null,
+      output_tokens: null,
+      total_tokens: total,
+      cached_tokens: null,
+      reasoning_tokens: null,
+    })
+    const [row] = benchmarks([
+      { ...measurement('Grant checker', 1000), usage: usage(100) },
+      { ...measurement('Grant checker', 1200), usage: usage(301) },
+      { ...measurement('Grant checker', 1300), usage: null },
+      { ...measurement('Grant checker', 900, 'failed'), usage: usage(9000) },
+    ])
+    assert.equal(row.averageTokens, 201)
   })
 
   it('reports no timings when every request failed', () => {

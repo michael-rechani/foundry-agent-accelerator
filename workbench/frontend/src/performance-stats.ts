@@ -1,3 +1,5 @@
+import type { Usage } from './token-usage'
+
 export type Measurement = {
   id: string
   agent: string
@@ -7,6 +9,7 @@ export type Measurement = {
   at: number
   reference?: string
   message?: string
+  usage?: Usage | null
 }
 
 export function percentile(values: number[], fraction: number) {
@@ -22,9 +25,11 @@ export function benchmarks(measurements: Measurement[]) {
   for (const item of measurements)
     groups.set(item.agentId, [...(groups.get(item.agentId) ?? []), item])
   return [...groups].map(([agentId, items]) => {
-    const durations = items
-      .filter((item) => item.outcome === 'completed')
-      .map((item) => item.duration)
+    const completed = items.filter((item) => item.outcome === 'completed')
+    const durations = completed.map((item) => item.duration)
+    const tokens = completed
+      .map((item) => item.usage?.total_tokens)
+      .filter((value): value is number => typeof value === 'number')
     return {
       agentId,
       agent: items[0].agent,
@@ -34,6 +39,11 @@ export function benchmarks(measurements: Measurement[]) {
       p90: percentile(durations, 0.9),
       slowest: durations.length ? Math.max(...durations) : null,
       unsuccessful: items.length - durations.length,
+      averageTokens: tokens.length
+        ? Math.round(
+            tokens.reduce((total, value) => total + value, 0) / tokens.length,
+          )
+        : null,
     }
   })
 }

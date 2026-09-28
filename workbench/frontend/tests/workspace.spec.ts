@@ -29,6 +29,7 @@ async function workspace(
     startup?: 'stalled' | 'invalid' | 'invalid-guidance' | 'failed'
     config?: Partial<Config>
     receipts?: Receipt[]
+    usage?: unknown
   } = {},
 ) {
   const config: Config = {
@@ -96,6 +97,7 @@ async function workspace(
         ).agent,
         text: 'Section 1 is missing a budget.',
         elapsed_ms: 1000,
+        ...(options.usage !== undefined ? { usage: options.usage } : {}),
         receipts: options.receipts ?? [
           {
             tool: 'inspect_application',
@@ -919,6 +921,85 @@ test('preview calls do not count as live performance', async ({ page }) => {
   await expect(page.getByRole('alert')).toContainText('No agent was invoked')
   await page.getByRole('button', { name: 'Performance', exact: true }).click()
   await expect(page.locator('.metric-strip > div').first()).toContainText('0')
+})
+
+test('replies show reported tokens and Performance estimates cost from user rates', async ({
+  page,
+}) => {
+  const state = await workspace(page, {
+    usage: {
+      input_tokens: 1200,
+      output_tokens: 300,
+      total_tokens: 1500,
+      cached_tokens: 200,
+      reasoning_tokens: 120,
+    },
+  })
+  await page.evaluate(() => localStorage.removeItem('foundry-lab-token-rates'))
+  await page
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Review the fictional application')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-heading')).toContainText(
+    '1.0s · 1,500 tokens',
+  )
+  await page.locator('.receipt-details > summary').click()
+  await expect(page.locator('.usage-detail')).toContainText(
+    '1,200 in (200 cached) · 300 out (120 reasoning) · 1,500 total',
+  )
+  await page.getByRole('button', { name: 'Save to shared history' }).click()
+  await expect.poll(() => state.saves.length).toBe(1)
+  expect(state.saves[0].turns[0].result.usage?.total_tokens).toBe(1500)
+
+  const nav = page.getByRole('navigation', { name: 'Workspace' })
+  await nav.getByRole('button', { name: /^Request log/ }).click()
+  await expect(
+    page.getByRole('table', { name: 'Request log' }).locator('tbody td').nth(4),
+  ).toHaveText('1,500 tokens')
+  await nav.getByRole('button', { name: 'Performance', exact: true }).click()
+  const cost = page.getByRole('region', { name: 'Token usage and cost' })
+  await expect(cost.locator('.metric-strip > div')).toHaveText([
+    /Input tokens\s*1,200/,
+    /Output tokens\s*300/,
+    /Estimated cost\s*Add your rates/,
+  ])
+  await expect(
+    page.getByRole('table', { name: 'Benchmark by agent' }),
+  ).toContainText('1,500')
+  await cost.getByLabel('Input rate per 1M tokens').fill('2')
+  await cost.getByLabel('Output rate per 1M tokens').fill('8')
+  await cost.getByRole('button', { name: 'Use rates' }).click()
+  // 1,200 x 2 / 1M + 300 x 8 / 1M
+  await expect(cost.locator('.metric-strip > div').nth(2)).toContainText(
+    '0.0048',
+  )
+  await page.reload()
+  await nav.getByRole('button', { name: 'Performance', exact: true }).click()
+  await expect(cost.getByLabel('Input rate per 1M tokens')).toHaveValue('2')
+  await cost.getByRole('button', { name: 'Clear' }).click()
+  expect(
+    await page.evaluate(() => localStorage.getItem('foundry-lab-token-rates')),
+  ).toBeNull()
+})
+
+test('replies without reported tokens say so instead of showing zero', async ({
+  page,
+}) => {
+  await workspace(page, { usage: null })
+  await page
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Review the fictional application')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-heading')).toContainText(
+    'Tokens not reported',
+  )
+  await page
+    .getByRole('navigation', { name: 'Workspace' })
+    .getByRole('button', { name: 'Performance', exact: true })
+    .click()
+  await expect(
+    page.getByRole('region', { name: 'Token usage and cost' }),
+  ).toContainText('1 did not report tokens and are not counted')
 })
 
 test('layout, text contrast and reduced motion', async ({ page }, testInfo) => {

@@ -6,12 +6,13 @@ from types import SimpleNamespace
 from agent_runtime.demo_tools import create_demo_tools
 from agent_runtime.main import DEMO_POLICY
 from agent_templates import TEMPLATES
-from library_preview import MAX_TOOL_ROUNDS, PREVIEW_AGENT, preview_agent, run_preview, run_tool, tool_specs
+from library_preview import (MAX_TOOL_ROUNDS, PREVIEW_AGENT, preview_agent, run_preview, run_tool, summarize_usage,
+                             tool_specs, usage_record)
 
 
 class Response:
-    def __init__(self, output, status="completed", text=""):
-        self.output, self.status, self.output_text = output, status, text
+    def __init__(self, output, status="completed", text="", usage=None):
+        self.output, self.status, self.output_text, self.usage = output, status, text, usage
 
     def model_dump(self, exclude_none=False):
         return {"output": [dict(item) for item in self.output]}
@@ -106,6 +107,30 @@ class LibraryPreviewTests(unittest.TestCase):
         self.assertEqual(parsed["agent"], PREVIEW_AGENT)
         self.assertTrue(parsed["simulation"])
         self.assertEqual(history[2], {"role": "user", "content": "Look it up"})
+
+    def test_usage_is_summed_across_tool_rounds(self):
+        call = {"type": "function_call", "call_id": "call-1", "name": "lookup_demo_request",
+                "arguments": json.dumps({"request_id": "REQ-101"})}
+        first = {"input_tokens": 100, "output_tokens": 20, "total_tokens": 120,
+                 "input_tokens_details": {"cached_tokens": 0}, "output_tokens_details": {"reasoning_tokens": 8}}
+        second = {"input_tokens": 150, "output_tokens": 40, "total_tokens": 190,
+                  "input_tokens_details": {"cached_tokens": 64}, "output_tokens_details": {"reasoning_tokens": 12}}
+        client = FakeClient([Response([call], usage=first), Response([{"type": "message"}], text="Answer", usage=second)])
+        usage = []
+        asyncio.run(run_preview(client, template_id="workflow-coordinator", model="gpt-test", prompt="Check", usage=usage))
+        self.assertEqual(summarize_usage(usage), {"input_tokens": 250, "output_tokens": 60, "total_tokens": 310,
+                                                  "cached_tokens": 64, "reasoning_tokens": 20})
+
+    def test_missing_usage_is_not_reported_as_zero(self):
+        self.assertIsNone(summarize_usage([]))
+        self.assertIsNone(summarize_usage([usage_record(Response([]))]))
+        partial = [usage_record(Response([], usage={"input_tokens": 10, "output_tokens": 2, "total_tokens": 12})),
+                   usage_record(Response([], usage={"input_tokens": 5, "output_tokens": True, "total_tokens": -1}))]
+        self.assertEqual(summarize_usage(partial), {"input_tokens": 15, "output_tokens": None, "total_tokens": None,
+                                                    "cached_tokens": None, "reasoning_tokens": None})
+        dumped = SimpleNamespace(usage=SimpleNamespace(model_dump=lambda: {"input_tokens": 3, "output_tokens": 4,
+                                                                            "total_tokens": 7}))
+        self.assertEqual(usage_record(dumped)["total_tokens"], 7)
 
     def test_tool_calling_profile_omits_reasoning_include(self):
         template_id = tool_template()

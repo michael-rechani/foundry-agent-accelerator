@@ -141,9 +141,11 @@ onto private networks. Services use managed identities, not API keys.
 creates Azure resources that cost money.
 
 The Lab opens on the **Agent library**; **Chat** remains one click away. The
-sidebar groups its pages into three sections: **Chat and test**, **Agent
-library** (every agent, under **Templates**, **Ready to use**, and **Created
-here**), and **Performance and monitoring**. See the [Lab guide](workbench/README.md#pages).
+sidebar groups its pages into four sections: **Chat and test** (Chat and
+Shared history), **Agent library** (every agent, under **Templates**, **Ready
+to use**, **Created here**, and **Guided demos**), **Performance and
+benchmarking** (response times, tokens, and cost), and **Logging**. See the
+[Lab guide](workbench/README.md#pages).
 
 ---
 
