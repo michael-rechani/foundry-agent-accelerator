@@ -474,6 +474,21 @@ the intended account, subscription, container, and separate Lab state key. Keep
 the existing state key for an established deployment; do not edit the tracked
 example to store environment configuration.
 
+**Start from the canonical inputs, not an old local copy.** A stale
+`dev.tfvars` can plan to turn off agent creation, drop the creation-key secret,
+or destroy the alert action group. Keep one complete inputs file (everything
+except `image_digest`) next to the Lab's state blob with the same private access,
+for example `<state-key-prefix>/workbench-dev.tfvars`, and download it before
+each plan:
+
+```powershell
+az storage blob download --auth-mode login --subscription '<state-subscription-id>' --account-name '<state-account>' --container-name '<state-container>' --name '<state-key-prefix>/workbench-dev.tfvars' --file workbench/infra/dev.tfvars
+```
+
+After a change to the inputs, upload the file again. A plan with only a new
+`image_digest` should show `1 to change, 0 to destroy`. The inputs can hold alert
+email addresses, so never commit them.
+
 ```powershell
 terraform -chdir=workbench/infra init -backend-config=backend.hcl
 terraform -chdir=workbench/infra validate
