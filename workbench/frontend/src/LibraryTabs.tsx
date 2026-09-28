@@ -16,13 +16,13 @@ export function LibraryTabs({
   onCreated: () => void
 }) {
   const tabs: { view: View; label: string; count?: number }[] = [
-    { view: 'library', label: 'Templates' },
-    { view: 'catalog', label: 'Ready to use', count: readyCount },
+    { view: 'library', label: 'Browse' },
+    { view: 'catalog', label: 'Ready to chat', count: readyCount },
     ...(creationEnabled
       ? [
           {
             view: 'created' as const,
-            label: 'Created here',
+            label: 'Made in this Lab',
             count: createdCount,
           },
         ]

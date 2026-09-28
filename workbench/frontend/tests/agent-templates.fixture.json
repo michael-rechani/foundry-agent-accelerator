@@ -20,10 +20,10 @@
       "example_request": "Create an agent that explains fictional policy notices and identifies proposed changes.",
       "sample_input": "Compare these fictional public-service notices. Summarize the stated change, cite the document labels, and ask what remains unclear. Do not infer a legal effective date.\n\nNotice 1: Current help-desk opening hours are 9:00 to 17:00, Monday through Friday.\nNotice 2: A proposed notice says opening hours will be 8:00 to 17:00 on the same days. No implementation date or staffing plan is supplied.",
       "tools": [],
-      "summary": "Explain supplied documents, compare stated changes and surface questions for staff.",
+      "summary": "Explains documents in plain language, shows what changed and lists questions for staff.",
       "sector": {
         "id": "cross-sector",
-        "label": "Cross-sector"
+        "label": "Any sector"
       },
       "industry": {
         "id": "general-operations",
@@ -42,12 +42,12 @@
       "readiness": {
         "id": "reviewed",
         "label": "Reviewed",
-        "description": "Reviewed definition with deterministic contract and runtime tests."
+        "description": "Its instructions have been reviewed and it passes the automated checks."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -88,10 +88,10 @@
       "example_request": "Create an agent that checks fictional project submissions against my checklist.",
       "sample_input": "Check this fictional project against my checklist. Cite the labels and ask for missing details.\n\nChecklist item 1: Include a total budget.\nChecklist item 2: Name a delivery owner.\nProject plan: The Community Programs team will deliver six weekly workshops. No budget is supplied.\nDo not approve, reject or score the application.",
       "tools": [],
-      "summary": "Compare a submission with a supplied checklist and surface gaps or conflicts.",
+      "summary": "Checks a submission against a checklist and points out anything missing or conflicting.",
       "sector": {
         "id": "cross-sector",
-        "label": "Cross-sector"
+        "label": "Any sector"
       },
       "industry": {
         "id": "general-operations",
@@ -106,12 +106,12 @@
       "readiness": {
         "id": "reviewed",
         "label": "Reviewed",
-        "description": "Reviewed definition with deterministic contract and runtime tests."
+        "description": "Its instructions have been reviewed and it passes the automated checks."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -152,10 +152,10 @@
       "example_request": "Create an agent that extracts requested fields from fictional invoices and intake forms.",
       "sample_input": "Extract request_id, item, quantity, requested_date and contact_team from this fictional clinic supply-request text. Include source references and use null for missing fields.\n\nForm 1: Request SUP-104 asks for 12 storage bins. Requested date: 2027-04-12. No contact team is listed. This is made-up administrative data, not a patient record.",
       "tools": [],
-      "summary": "Extract requested fields from supplied forms or invoices without filling gaps.",
+      "summary": "Pulls the fields you ask for from forms or invoices, and leaves missing ones blank.",
       "sector": {
         "id": "cross-sector",
-        "label": "Cross-sector"
+        "label": "Any sector"
       },
       "industry": {
         "id": "general-operations",
@@ -170,12 +170,12 @@
       "readiness": {
         "id": "reviewed",
         "label": "Reviewed",
-        "description": "Reviewed definition with deterministic contract and runtime tests."
+        "description": "Its instructions have been reviewed and it passes the automated checks."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -216,7 +216,7 @@
       "example_request": "Create an agent that summarizes fictional case notes and drafts follow-up questions.",
       "sample_input": "Summarize these fictional service notes. Preserve the conflicting dates and draft two follow-up questions. No eligibility policy is supplied.\n\nNote 1: Intake completed on 2027-03-01. A follow-up is planned for 2027-03-10.\nNote 2: Intake completed on 2027-03-03. A follow-up is planned for 2027-03-10.\nNote 3: A requested supporting form has not been supplied.",
       "tools": [],
-      "summary": "Turn supplied case notes into a sourced summary and focused follow-up questions.",
+      "summary": "Turns case notes into a short summary with sources and follow-up questions.",
       "sector": {
         "id": "public",
         "label": "Healthcare and public sector"
@@ -238,12 +238,12 @@
       "readiness": {
         "id": "reviewed",
         "label": "Reviewed",
-        "description": "Reviewed definition with deterministic contract and runtime tests."
+        "description": "Its instructions have been reviewed and it passes the automated checks."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -295,10 +295,10 @@
           "simulated": true
         }
       ],
-      "summary": "Use simulated request and service lookups to prepare a reviewable next-step plan.",
+      "summary": "Looks up a service request and suggests next steps for a person to approve.",
       "sector": {
         "id": "cross-sector",
-        "label": "Cross-sector"
+        "label": "Any sector"
       },
       "industry": {
         "id": "general-operations",
@@ -317,12 +317,12 @@
       "readiness": {
         "id": "reviewed",
         "label": "Reviewed",
-        "description": "Reviewed definition with deterministic contract and runtime tests."
+        "description": "Its instructions have been reviewed and it passes the automated checks."
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Simulated tools",
-        "description": "Uses only included read-only fictional fixture lookups."
+        "label": "Sample lookups",
+        "description": "Looks up made-up records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -374,7 +374,7 @@
           "simulated": true
         }
       ],
-      "summary": "Compare a fictional bill with an insurer statement and show likely discrepancies.",
+      "summary": "Compares a medical bill with the insurer's statement and points out likely errors.",
       "sector": {
         "id": "public",
         "label": "Healthcare and public sector"
@@ -396,12 +396,12 @@
       "readiness": {
         "id": "reviewed",
         "label": "Reviewed",
-        "description": "Reviewed definition with deterministic contract and runtime tests."
+        "description": "Its instructions have been reviewed and it passes the automated checks."
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Simulated tools",
-        "description": "Uses only included read-only fictional fixture lookups."
+        "label": "Sample lookups",
+        "description": "Looks up made-up records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -453,7 +453,7 @@
           "simulated": true
         }
       ],
-      "summary": "Check a fictional pre-approval packet for missing or outdated paperwork.",
+      "summary": "Checks an insurance pre-approval request for missing or out-of-date paperwork.",
       "sector": {
         "id": "public",
         "label": "Healthcare and public sector"
@@ -475,12 +475,12 @@
       "readiness": {
         "id": "reviewed",
         "label": "Reviewed",
-        "description": "Reviewed definition with deterministic contract and runtime tests."
+        "description": "Its instructions have been reviewed and it passes the automated checks."
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Simulated tools",
-        "description": "Uses only included read-only fictional fixture lookups."
+        "label": "Sample lookups",
+        "description": "Looks up made-up records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -532,7 +532,7 @@
           "simulated": true
         }
       ],
-      "summary": "Check fictional benefits renewal paperwork against simulated proof rules.",
+      "summary": "Checks a benefits renewal for missing proof and drafts a follow-up.",
       "sector": {
         "id": "public",
         "label": "Healthcare and public sector"
@@ -554,12 +554,12 @@
       "readiness": {
         "id": "reviewed",
         "label": "Reviewed",
-        "description": "Reviewed definition with deterministic contract and runtime tests."
+        "description": "Its instructions have been reviewed and it passes the automated checks."
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Simulated tools",
-        "description": "Uses only included read-only fictional fixture lookups."
+        "label": "Sample lookups",
+        "description": "Looks up made-up records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -611,10 +611,10 @@
           "simulated": true
         }
       ],
-      "summary": "Compare a fictional invoice with simulated order and delivery records.",
+      "summary": "Matches a supplier invoice with the order and delivery records.",
       "sector": {
         "id": "cross-sector",
-        "label": "Cross-sector"
+        "label": "Any sector"
       },
       "industry": {
         "id": "procurement",
@@ -633,12 +633,12 @@
       "readiness": {
         "id": "reviewed",
         "label": "Reviewed",
-        "description": "Reviewed definition with deterministic contract and runtime tests."
+        "description": "Its instructions have been reviewed and it passes the automated checks."
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Simulated tools",
-        "description": "Uses only included read-only fictional fixture lookups."
+        "label": "Sample lookups",
+        "description": "Looks up made-up records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -679,7 +679,7 @@
       "example_request": "Create an agent that organizes a fictional public records request and drafts clarification questions.",
       "sample_input": "Organize this fictional public records request. Quote the scope and use null for missing intake fields.\n\nRequest PR-DEMO-17: Please provide final inspection summaries issued by the Example Building Office for community centers between 2027-01-01 and 2027-03-31. Electronic delivery is preferred. The request does not name a contact person or clarify whether attachments are included.",
       "tools": [],
-      "summary": "Organize a fictional public records request and draft clarification questions.",
+      "summary": "Organizes a public records request and drafts questions to clarify it.",
       "sector": {
         "id": "public",
         "label": "Healthcare and public sector"
@@ -705,12 +705,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -751,7 +751,7 @@
       "example_request": "Create an agent that checks a fictional grant report against award terms and evidence.",
       "sample_input": "Check this fictional grant report. Do not certify compliance.\n\nAward term A: Report the number of completed workshops and attach attendance evidence.\nDraft report: Six workshops were completed and 84 residents attended.\nEvidence E1: Sign-in sheets labeled Workshop 1 through Workshop 5 list 68 total entries. No evidence for Workshop 6 is supplied.",
       "tools": [],
-      "summary": "Find unsupported claims and missing evidence in a fictional grant report.",
+      "summary": "Finds claims in a grant report that aren't backed by evidence.",
       "sector": {
         "id": "public",
         "label": "Healthcare and public sector"
@@ -769,12 +769,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -815,7 +815,7 @@
       "example_request": "Create an agent that summarizes a fictional community program and its reported outcomes.",
       "sample_input": "Brief this fictional community program for staff.\n\nPlan P1: Run eight digital-skills sessions with a target of 80 registrations.\nUpdate U1: Seven sessions were held; registration records show 76 registrations and 51 unique attendees.\nSurvey S1: 29 attendees responded; 22 said they felt more confident. No comparison group is supplied.",
       "tools": [],
-      "summary": "Build an evidence-linked briefing from fictional community program notes.",
+      "summary": "Writes a briefing from community program notes, with a source for every number.",
       "sector": {
         "id": "public",
         "label": "Healthcare and public sector"
@@ -837,12 +837,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -883,7 +883,7 @@
       "example_request": "Create an agent that summarizes a fictional customer support ticket and drafts a handoff reply.",
       "sample_input": "Prepare a handoff for this fictional customer support ticket.\n\nTicket T1, 09:10: Customer says export job EX-44 has shown Processing since yesterday.\nAgent note N1, 09:35: Status screenshot shows Processing; no service logs were checked.\nProduct note P1: Escalate after four hours only when a job start timestamp is confirmed. The start timestamp is not supplied.",
       "tools": [],
-      "summary": "Create a sourced handoff from fictional customer support tickets.",
+      "summary": "Writes a handoff note from support tickets so the next person can pick up.",
       "sector": {
         "id": "private",
         "label": "Private sector"
@@ -909,12 +909,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -955,7 +955,7 @@
       "example_request": "Create an agent that reviews fictional remittance advice against open receivables.",
       "sample_input": "Review this fictional remittance against open receivables and show the math.\n\nRemittance R-88: Payment total $1,450. References INV-101 for $1,000 and INV-104 for $400. No reference is supplied for the remaining amount.\nOpen invoices: INV-101 $1,000; INV-104 $450; INV-140 $50.",
       "tools": [],
-      "summary": "Match fictional remittance details to open invoices and isolate exceptions.",
+      "summary": "Matches customer payments to open invoices and flags the ones that don't fit.",
       "sector": {
         "id": "private",
         "label": "Private sector"
@@ -977,12 +977,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -1023,7 +1023,7 @@
       "example_request": "Create an agent that plans a fictional maintenance work order from notes and asset guidance.",
       "sample_input": "Plan this fictional maintenance work order without diagnosing the equipment.\n\nWork order WO-72: Conveyor C-4 makes an intermittent scraping sound near the end roller.\nShift note S1: Sound was heard twice during unloaded operation. No vibration reading was taken.\nAsset guide G1: Before inspection, confirm lockout authorization and inspect guards for visible contact. No lockout authorization or site contact is supplied.",
       "tools": [],
-      "summary": "Turn fictional maintenance notes into a bounded plan and safety questions.",
+      "summary": "Turns maintenance notes into a work plan and asks the safety questions first.",
       "sector": {
         "id": "private",
         "label": "Private sector"
@@ -1049,12 +1049,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -1095,7 +1095,7 @@
       "example_request": "Create an agent that checks fictional contract clauses against our negotiation playbook.",
       "sample_input": "Check this fictional contract against our playbook. Cite the labels. All text is made up.\n\nPlaybook PB-1 Liability cap: preferred 12 months of fees; fallback up to 24 months; unlimited is not acceptable.\nPlaybook PB-2 Payment terms: preferred net 45; fallback net 30.\nPlaybook PB-3 Governing law: preferred Example State (fictional).\n\nContract C-1, section 4.2: Supplier liability is capped at 36 months of fees.\nContract C-1, section 6.1: Invoices are payable net 30.\nNo governing law clause is supplied.",
       "tools": [],
-      "summary": "Check fictional contract clauses against a negotiation playbook and flag deviations.",
+      "summary": "Checks contract clauses against your negotiation playbook and flags differences.",
       "sector": {
         "id": "private",
         "label": "Private sector"
@@ -1113,12 +1113,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -1159,7 +1159,7 @@
       "example_request": "Create an agent that drafts answers to fictional RFP questions from approved product facts.",
       "sample_input": "Draft answers to these fictional RFP questions using only our approved facts. All text is made up.\n\nQ1: Does the product support single sign-on with SAML?\nQ2: Where is customer data stored?\nQ3: Do you hold ISO 27001 certification?\n\nFact F1: Supports SAML 2.0 single sign-on on the Business and Enterprise plans.\nFact F2: Customer data is stored in the region the customer chooses: United States or European Union.\nNo approved fact covers certifications.",
       "tools": [],
-      "summary": "Draft RFP and security questionnaire answers from approved facts only.",
+      "summary": "Drafts RFP and security questionnaire answers using only approved facts.",
       "sector": {
         "id": "private",
         "label": "Private sector"
@@ -1181,12 +1181,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -1238,7 +1238,7 @@
           "simulated": true
         }
       ],
-      "summary": "Check a fictional expense report against simulated travel rules and the approved trip.",
+      "summary": "Checks an expense report against travel rules and the approved trip.",
       "sector": {
         "id": "private",
         "label": "Private sector"
@@ -1260,12 +1260,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Simulated tools",
-        "description": "Uses only included read-only fictional fixture lookups."
+        "label": "Sample lookups",
+        "description": "Looks up made-up records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -1306,7 +1306,7 @@
       "example_request": "Create an agent that builds a timeline and stakeholder update from fictional incident notes.",
       "sample_input": "Build a timeline and a stakeholder update from these fictional incident notes. All text is made up.\n\nA1 14:02 UTC Alert: checkout API error rate 12% (threshold 2%).\nC1 14:06 UTC On-call chat: Rolled back deployment 7.4.1 at 14:05.\nC2 14:11 UTC On-call chat: Error rate back under 1%. Maybe it was the cache?\nT1 14:20 UTC Ticket: A customer reports failed payments between 13:55 and 14:08 UTC.\nNo count of affected customers is supplied.",
       "tools": [],
-      "summary": "Build a sourced timeline and stakeholder update from fictional incident notes.",
+      "summary": "Builds an incident timeline and a stakeholder update from incident notes.",
       "sector": {
         "id": "private",
         "label": "Private sector"
@@ -1328,12 +1328,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -1374,7 +1374,7 @@
       "example_request": "Create an agent that groups fictional customer feedback into themes with counts and quotes.",
       "sample_input": "Group this fictional customer feedback into themes with counts and quotes. All text is made up.\n\nF1: Export to CSV takes forever on large reports.\nF2: Love the new dashboard colors.\nF3: CSV export timed out twice this week.\nF4: I can't find where to change my billing email.\nF5: The dashboard looks great, but export is still slow.",
       "tools": [],
-      "summary": "Group fictional customer feedback into themes with counts and quotes.",
+      "summary": "Groups customer feedback into themes, with counts and example quotes.",
       "sector": {
         "id": "private",
         "label": "Private sector"
@@ -1396,12 +1396,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request."
+        "label": "Text only",
+        "description": "Works only from the text you give it."
       },
       "prerequisites": [
         "A model deployment",
@@ -1453,7 +1453,7 @@
           "simulated": true
         }
       ],
-      "summary": "Explain a fictional delayed order from simulated order and tracking records.",
+      "summary": "Explains where a late order is and drafts a reply to the customer.",
       "sector": {
         "id": "private",
         "label": "Private sector"
@@ -1475,12 +1475,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Simulated tools",
-        "description": "Uses only included read-only fictional fixture lookups."
+        "label": "Sample lookups",
+        "description": "Looks up made-up records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -1508,7 +1508,7 @@
     "sectors": [
       {
         "id": "cross-sector",
-        "label": "Cross-sector",
+        "label": "Any sector",
         "count": 5
       },
       {
@@ -1615,27 +1615,27 @@
       {
         "id": "reviewed",
         "label": "Reviewed",
-        "description": "Reviewed definition with deterministic contract and runtime tests.",
+        "description": "Its instructions have been reviewed and it passes the automated checks.",
         "count": 9
       },
       {
         "id": "sample",
         "label": "In progress",
-        "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use.",
+        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use.",
         "count": 12
       }
     ],
     "tool_modes": [
       {
         "id": "none",
-        "label": "No tools",
-        "description": "Uses only text supplied in the request.",
+        "label": "Text only",
+        "description": "Works only from the text you give it.",
         "count": 14
       },
       {
         "id": "simulated",
-        "label": "Simulated tools",
-        "description": "Uses only included read-only fictional fixture lookups.",
+        "label": "Sample lookups",
+        "description": "Looks up made-up records that come with the Lab. It can't change anything.",
         "count": 7
       }
     ]

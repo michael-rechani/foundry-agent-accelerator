@@ -438,7 +438,7 @@ async function navigate(page: Page, name: string) {
     await workspace.getByRole('button', { name: 'All agents' }).click()
     await page
       .getByRole('navigation', { name: 'Agent library' })
-      .getByRole('button', { name: /^Created here/ })
+      .getByRole('button', { name: /^Made in this Lab/ })
       .click()
     return
   }

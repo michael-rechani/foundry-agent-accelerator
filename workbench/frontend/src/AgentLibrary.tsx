@@ -35,7 +35,7 @@ const facetLabels: Record<FacetKey, string> = {
   industries: 'Industry',
   tasks: 'Task',
   readiness: 'Readiness',
-  tool_modes: 'Tools',
+  tool_modes: 'Works with',
 }
 const tones: Record<string, string> = {
   reviewed: 'good',
@@ -141,27 +141,26 @@ export function AgentLibrary({
         <>
           <header className="library-hero">
             <p className="library-eyebrow">Agent library</p>
-            <h1>Start from a job that needs doing</h1>
+            <h1>Find an agent for the job</h1>
             <p>
-              Browse agent definitions for public- and private-sector work. Try
-              each one with fictional examples, then take a portable package
-              into your own Microsoft Foundry project. Every agent states what
-              it needs and what a person still decides.
+              Each agent does one job. Try it with made-up examples, see what it
+              needs and what it leaves to a person, then take it to your own
+              Microsoft Foundry project.
             </p>
             <ol className="library-path" aria-label="How the library works">
               <li>
-                <span>1</span>Choose
+                <span>1</span>Pick an agent
               </li>
               <li>
                 <span>2</span>
-                {previewsOn ? 'Try it in Chat' : 'Create in this Lab'}
+                {previewsOn ? 'Try it in Chat' : 'Make your own copy'}
               </li>
               <li>
                 <span>3</span>
-                {previewsOn ? 'Create in this Lab' : 'Test with fictional data'}
+                {previewsOn ? 'Make your own copy' : 'Try it with made-up data'}
               </li>
               <li>
-                <span>4</span>Export to your environment
+                <span>4</span>Take it to Foundry
               </li>
             </ol>
           </header>
@@ -173,7 +172,7 @@ export function AgentLibrary({
                 <input
                   type="search"
                   value={query}
-                  placeholder="Search jobs, industries, keywords"
+                  placeholder="Search by job, team or keyword"
                   onChange={(event) => setQuery(event.target.value)}
                 />
               </label>
@@ -301,16 +300,15 @@ function LibraryCard({
       </span>
       <strong>{template.label}</strong>
       <span className="library-summary">{template.summary}</span>
+      <span className="library-decides">
+        <UserCheck size={13} aria-hidden="true" />
+        {template.human_decision}
+      </span>
       <span className="library-badges">
         <Badges template={template} />
-        {template.tasks.map((task) => (
-          <span key={task.id} className="library-badge">
-            {task.label}
-          </span>
-        ))}
         {ready && (
           <span className="library-badge good">
-            <Check size={12} aria-hidden="true" /> Created here
+            <Check size={12} aria-hidden="true" /> Made in this Lab
           </span>
         )}
       </span>
@@ -394,7 +392,7 @@ function LibraryDetail({
   return (
     <article className="library-detail" aria-labelledby="library-detail-title">
       <button type="button" className="library-back" onClick={onBack}>
-        <ArrowLeft size={16} /> Back to templates
+        <ArrowLeft size={16} /> Back to all agents
       </button>
       <div className="library-badges">
         <span className="library-badge">{template.sector.label}</span>
@@ -413,8 +411,9 @@ function LibraryDetail({
           <Construction size={18} aria-hidden="true" />
           <p>
             <strong>In progress. </strong>
-            This agent passes offline tests but hasn't been validated against a
-            live model yet. Try it with fictional data; answers may change.
+            It passes the automated checks, but a person hasn&apos;t signed off
+            on its live answers yet. Try it with made-up data; answers may
+            change.
           </p>
         </div>
       )}
@@ -501,13 +500,13 @@ function LibraryDetail({
             </dl>
             <div className="library-columns">
               <section className="library-panel">
-                <h2>You provide</h2>
+                <h2>What it needs</h2>
                 <p>{template.input}</p>
-                <h2>You get</h2>
+                <h2>What you get</h2>
                 <p>{template.output}</p>
               </section>
               <section className="library-panel">
-                <h2>Limits</h2>
+                <h2>What it can&apos;t do</h2>
                 <p>{template.limits}</p>
                 <h2>Before you use it</h2>
                 <ul>

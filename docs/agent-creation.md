@@ -230,7 +230,7 @@ than maintained separately.
 Readiness and runtime hints are bounded labels, not service-level claims.
 `Sample` means the definition has deterministic contract tests but still needs
 customer policy review. `Reviewed` identifies the earlier reviewed Lab
-definitions. Current tool modes are only `No tools` and `Simulated tools`;
+definitions. Current tool modes are only `Text only` and `Sample lookups`;
 neither means a customer system is connected. Cost and latency are relative
 model-profile hints, not prices or performance guarantees.
 

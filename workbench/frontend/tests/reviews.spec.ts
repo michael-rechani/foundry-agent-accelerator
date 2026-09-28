@@ -166,7 +166,7 @@ async function setup(
     'Application and case helper',
   )
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
-  await expect(navigation.getByRole('button').first()).toHaveText('Chat')
+  await expect(navigation.getByRole('button').first()).toHaveText('All agents')
   await expect(
     navigation.getByRole('button', { name: 'Chat', exact: true }),
   ).toHaveAttribute('aria-current', 'page')
@@ -288,7 +288,7 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   await navigation.getByRole('button', { name: 'All agents' }).click()
   await page
     .getByRole('navigation', { name: 'Agent library' })
-    .getByRole('button', { name: /^Ready to use/ })
+    .getByRole('button', { name: /^Ready to chat/ })
     .click()
   await page
     .locator('.catalog-agent')

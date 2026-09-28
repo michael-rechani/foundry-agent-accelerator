@@ -172,44 +172,39 @@ test('the library is the landing view and groups navigation into four sections',
   ).toHaveAttribute('aria-current', 'page')
   await expect(
     navigation(page).getByRole('group').locator('.nav-section-label'),
-  ).toHaveText([
-    'Chat and test',
-    'Agent library',
-    'Performance and benchmarking',
-    'Logging',
-  ])
+  ).toHaveText(['Agent library', 'Try it', 'Measure', 'Activity'])
   const tabs = page.getByRole('navigation', { name: 'Agent library' })
   await expect(tabs.getByRole('button')).toHaveText([
-    'Templates',
-    /^Ready to use\s*1$/,
-    /^Created here\s*0$/,
+    'Browse',
+    /^Ready to chat\s*1$/,
+    /^Made in this Lab\s*0$/,
     'Guided demos',
   ])
   await expect(navigation(page).getByRole('button')).toHaveText([
-    'Chat',
-    'Shared history',
     'All agents',
     'Create agent',
+    'Chat',
+    'Shared history',
     'Performance',
     /^Request log/,
   ])
-  await expect(tabs.getByRole('button', { name: 'Templates' })).toHaveAttribute(
+  await expect(tabs.getByRole('button', { name: 'Browse' })).toHaveAttribute(
     'aria-current',
     'page',
   )
-  await tabs.getByRole('button', { name: /^Ready to use/ }).click()
+  await tabs.getByRole('button', { name: /^Ready to chat/ }).click()
   await expect(
     page.getByRole('heading', { level: 1, name: 'Choose an agent' }),
   ).toBeVisible()
   await expect(
     navigation(page).getByRole('button', { name: 'All agents' }),
   ).toHaveAttribute('aria-current', 'page')
-  await tabs.getByRole('button', { name: 'Templates' }).click()
+  await tabs.getByRole('button', { name: 'Browse' }).click()
   for (const [name, heading] of [
     ['Chat', null],
     [/^Request log/, 'Request log'],
     ['Performance', 'Performance'],
-    ['All agents', 'Start from a job that needs doing'],
+    ['All agents', 'Find an agent for the job'],
   ] as const) {
     await navigation(page)
       .getByRole('button', { name, exact: typeof name === 'string' })
@@ -268,7 +263,7 @@ test('browse, filter and search the catalog with live counts', async ({
     'Industry',
     'Task',
     'Readiness',
-    'Tools',
+    'Works with',
   ])
   const publicCount = templates.filter(
     (item) => item.sector.id === 'public',
@@ -350,7 +345,7 @@ test('details state limits, human decisions and never claim a recorded answer', 
     panel.getByRole('button', { name: 'Create this agent first' }),
   ).toBeEnabled()
 
-  await page.getByRole('button', { name: 'Back to templates' }).click()
+  await page.getByRole('button', { name: 'Back to all agents' }).click()
   await expect(page.locator('.library-card')).toHaveCount(templates.length)
   expect(state.chat).toHaveLength(0)
   expect(state.drafts).toBe(0)
@@ -390,7 +385,7 @@ test('a created agent opens in Chat as a draft and its request is logged and ben
   const state = await setup(page, { ready: true })
   await expect(
     page.locator('.library-card').filter({ hasText: grant.label }),
-  ).toContainText('Created here')
+  ).toContainText('Made in this Lab')
   await openAgent(page, grant.label)
   await page.getByRole('tab', { name: 'Test' }).click()
   await expect(page.getByRole('tabpanel')).toContainText(

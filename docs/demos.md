@@ -18,7 +18,7 @@ Status values use the definitions in [terms used in these guides](README.md#term
 
 | Scenario | Status | Lab agent or task to pick | What you'll check |
 | --- | --- | --- | --- |
-| [Create and try a baseline agent](#create-and-try-a-baseline-agent) | **Available** | **Create agent**, then **All agents** > **Created here** and **Chat** | A prepared template becomes a small Foundry agent, then a person checks its fictional sample output. |
+| [Create and try a baseline agent](#create-and-try-a-baseline-agent) | **Available** | **Create agent**, then **All agents** > **Made in this Lab** and **Chat** | A prepared template becomes a small Foundry agent, then a person checks its fictional sample output. |
 | [Casework assistance](#casework-assistance) | **Available** | **Application and case helper** with **Summarize case notes**; optional direct **Case notes summarizer** if enabled | The answer keeps known facts, missing evidence, and conflicting case notes separate. |
 | [Application completeness](#application-completeness) | **Available** | **Application and case helper** with **Review an application**; optional direct **Application checker** if enabled | The answer compares supplied evidence with a checklist without approving or denying the application. |
 | [Requirements and proposal review](#requirements-and-proposal-review) | **Preview** | **Application and case helper** with **Compare a proposal (preview)** | The answer separates product claims, supported requirements, gaps, and conflicts without selecting a vendor. |
@@ -65,7 +65,7 @@ Before inviting participants:
   possible only if an operator has explicitly enabled that catalog entry.
   Proposal review reuses application review, not a third specialist.
 - **About this agent** explains what to paste, what the agent returns, and how it
-  works. **All agents** > **Ready to use** selects an existing setup. The separate **Create agent** flow
+  works. **All agents** > **Ready to chat** selects an existing setup. The separate **Create agent** flow
   prepares and, with explicit operator confirmation, publishes a new agent.
 - A starter is just an example task and message. Developer configuration and
   deployment are explained separately in [Lab settings](../workbench/README.md#workspace-configuration).
@@ -97,7 +97,7 @@ fictional agent available rather than promising instant deployment.
    instructions if needed.
 5. Confirm costs and shared visibility, enter the operator key, and explicitly
    create it.
-6. Follow the real upload, provisioning, and routing stages in **All agents** > **Created here**.
+6. Follow the real upload, provisioning, and routing stages in **All agents** > **Made in this Lab**.
    **Ready to try** means an active runtime and checked Responses route, not a
    quality pass.
 7. Open it in **Chat**, select its fictional sample, and send it. Keep the source

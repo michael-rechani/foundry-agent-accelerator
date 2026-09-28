@@ -172,7 +172,7 @@ async function openReadyAgents(page: Page) {
     .click()
   await page
     .getByRole('navigation', { name: 'Agent library' })
-    .getByRole('button', { name: /^Ready to use/ })
+    .getByRole('button', { name: /^Ready to chat/ })
     .click()
 }
 

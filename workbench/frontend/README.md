@@ -40,11 +40,11 @@ install browser system dependencies with `npx playwright install --with-deps chr
 ## App structure
 
 `src/ChatWorkspace.tsx` owns conversation and view state for the library's
-**Templates**, **Ready to use**, **Created here**, and **Guided demos** tabs,
+**Browse**, **Ready to chat**, **Made in this Lab**, and **Guided demos** tabs,
 **Create agent**, **Chat**, **Document reviews**, **Performance**, **Request
 log**, and **Shared history**. `ChatSidebar.tsx` groups them into four
-sections: **Chat and test**, **Agent library**, **Performance and
-benchmarking**, and **Logging**. The library is one sidebar entry, **All
+sections: **Agent library**, **Try it**, **Measure**, and **Activity**. The
+library is one sidebar entry, **All
 agents**; `LibraryTabs.tsx` switches between its tabs. Reply rendering,
 including the handoff timeline and collapsed execution details, lives in
 `ConversationTurn.tsx`. `WaitingIndicator.tsx` owns the elapsed timer so it
@@ -60,15 +60,15 @@ selection and clipboard feedback; it never invokes an agent or writes records.
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `ChatSidebar.tsx`, `ChatTopbar.tsx`                          | Render the view navigation and the Chat header, agent picker, and save/export actions.                                                                                         |
 | `ChatWelcome.tsx`, `ChatComposer.tsx`                        | Render the new-chat prompts and the message composer with its conversation limits.                                                                                             |
-| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx` | Render the **Shared history**, **Ready to use**, and **Performance** views.                                                                                                    |
-| `AgentLibrary.tsx`, `library-catalog.ts`, `library.css`      | Render **Templates**. `library-catalog.ts` strictly validates `/api/agent-templates` (`schema_version` 1) and filters with live facet counts.                                  |
+| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx` | Render the **Shared history**, **Ready to chat**, and **Performance** views.                                                                                                    |
+| `AgentLibrary.tsx`, `library-catalog.ts`, `library.css`      | Render **Browse**. `library-catalog.ts` strictly validates `/api/agent-templates` (`schema_version` 1) and filters with live facet counts.                                  |
 | `RequestLog.tsx`, `performance-stats.ts`                     | Render the **Request log** and compute per-agent median, 90th-percentile, slowest timings, and average tokens.                                                                 |
 | `TokenCost.tsx`, `token-usage.ts`                            | Render **Token usage and cost** in Performance. Parse reported token counts, total them without treating missing counts as zero, and estimate cost from rates the user enters. |
 | `history-client.ts`                                          | Handles bounded history requests.                                                                                                                                              |
 | `request.ts`                                                 | Handles transport-independent cancellation.                                                                                                                                    |
 | `workspace-config.ts`                                        | Validates public configuration and handles bootstrap timeouts and retry.                                                                                                       |
 | `ContinueDialog.tsx`                                         | Previews carry-over context before resetting the conversation. It never invokes an agent.                                                                                      |
-| `AgentGuide.tsx`                                             | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Ready to use** cards.                                            |
+| `AgentGuide.tsx`                                             | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Ready to chat** cards.                                            |
 | `theme.ts`, `ThemePicker.tsx`                                | Load, validate, save, and apply the **Appearance** choice, and render its header menu.                                                                                         |
 | `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`      | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement.                                  |
 
@@ -97,7 +97,7 @@ opposite theme.
 ## Agent creation UI
 
 `AgentCreationWorkspace.tsx` implements template-based setup preparation,
-review, operator-confirmed publication, and the shared **Created here** list.
+review, operator-confirmed publication, and the shared **Made in this Lab** list.
 This is not a large language model (LLM) configuration conversation or an
 arbitrary code/tool generator. `CreationTaskForm.tsx` renders the template
 picker and job description, `CreationSetupReview.tsx` renders the setup review
@@ -110,7 +110,7 @@ Publication uses an idempotency UUID retained across uncertain retries. GET
 polling never submits another creation. Setup, publication, ready routing, and
 live answer quality remain distinct.
 
-The opening view is **All agents** > **Templates**. Explicit `/#chat`, `/#library`, `/#agents`,
+The opening view is **All agents** > **Browse**. Explicit `/#chat`, `/#library`, `/#agents`,
 `/#demos`, `/#reviews`, `/#performance`, `/#logs`, and `/#create` entry links are
 supported; a library **Create** action opens the creator with that template
 preselected unless setup work is already in progress; creation still requires its advertised capability. Valid

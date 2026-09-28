@@ -73,8 +73,23 @@ export function ChatSidebar({
 }) {
   const sections: { id: Section; label: string; items: Item[] }[] = [
     {
+      id: 'library',
+      label: 'Agent library',
+      items: [
+        {
+          view: 'library',
+          label: 'All agents',
+          icon: BookOpen,
+          current: libraryViews.includes(view),
+        },
+        ...(creationEnabled
+          ? [{ view: 'create' as const, label: 'Create agent', icon: Plus }]
+          : []),
+      ],
+    },
+    {
       id: 'test',
-      label: 'Chat and test',
+      label: 'Try it',
       items: [
         { view: 'chat', label: 'Chat', icon: MessageSquare },
         // Reviews are reached only from /#reviews or a saved-review link.
@@ -97,28 +112,13 @@ export function ChatSidebar({
       ],
     },
     {
-      id: 'library',
-      label: 'Agent library',
-      items: [
-        {
-          view: 'library',
-          label: 'All agents',
-          icon: BookOpen,
-          current: libraryViews.includes(view),
-        },
-        ...(creationEnabled
-          ? [{ view: 'create' as const, label: 'Create agent', icon: Plus }]
-          : []),
-      ],
-    },
-    {
       id: 'performance',
-      label: 'Performance and benchmarking',
+      label: 'Measure',
       items: [{ view: 'performance', label: 'Performance', icon: Activity }],
     },
     {
       id: 'logging',
-      label: 'Logging',
+      label: 'Activity',
       items: [
         {
           view: 'log',
