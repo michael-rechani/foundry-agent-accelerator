@@ -276,7 +276,7 @@ export function previewAgent(
   runtimeAgent: string,
 ): Agent {
   const lookups = template.tools.length
-    ? `${template.tools.length} fictional ${template.tools.length === 1 ? 'lookup' : 'lookups'}`
+    ? `${template.tools.length} sample ${template.tools.length === 1 ? 'lookup' : 'lookups'}`
     : 'no tools'
   return {
     id: `${previewPrefix}${template.id}`,
@@ -287,9 +287,7 @@ export function previewAgent(
     tools: Object.fromEntries(
       template.tools.map((tool) => [tool.name, runtimeAgent]),
     ),
-    prompts: [
-      { label: 'Try the fictional example', text: template.sample_input },
-    ],
+    prompts: [{ label: 'Try the example', text: template.sample_input }],
     guidance: {
       input: clip(template.input),
       output: clip(template.output),

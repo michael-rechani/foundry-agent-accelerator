@@ -1,5 +1,6 @@
 import {
   ArrowDownToLine,
+  ChevronRight,
   Info,
   LoaderCircle,
   Presentation,
@@ -8,11 +9,13 @@ import {
 import { AgentGuide, AgentRuntime } from './AgentGuide'
 import { AgentSwitcher, type SwitcherOption } from './AgentSwitcher'
 import type { View } from './ChatSidebar'
+import { crumbs, libraryViews } from './navigation'
 import { ThemePicker } from './ThemePicker'
 import type { Agent, Config } from './workspace-config'
 
 export function ChatTopbar({
   view,
+  detail,
   config,
   agent,
   selected,
@@ -33,6 +36,7 @@ export function ChatTopbar({
   onExport,
 }: {
   view: View
+  detail?: string
   config: Config | null
   agent?: Agent
   selected: string
@@ -54,6 +58,23 @@ export function ChatTopbar({
 }) {
   return (
     <header className="chat-topbar">
+      {view !== 'chat' && (
+        <nav className="topbar-crumbs" aria-label="Breadcrumb">
+          <ol>
+            <li>
+              {libraryViews.includes(view) && view !== 'library' && !detail ? (
+                <button type="button" onClick={() => onView('library')}>
+                  {crumbs[view][0]}
+                </button>
+              ) : (
+                <span>{crumbs[view][0]}</span>
+              )}
+              <ChevronRight size={14} aria-hidden="true" />
+            </li>
+            <li aria-current="page">{detail || crumbs[view][1]}</li>
+          </ol>
+        </nav>
+      )}
       {view === 'chat' && (
         <div className="agent-controls">
           <AgentSwitcher
@@ -92,7 +113,7 @@ export function ChatTopbar({
                 <AgentGuide agent={agent} />
                 <p>
                   {isPreview
-                    ? 'Library preview: the Lab runs this definition on its model with fictional lookups only. Nothing is published, and preview chats are not saved.'
+                    ? 'Library preview: the Lab runs this definition on its model with sample lookups only. Nothing is published, and preview chats are not saved.'
                     : 'This agent already has a published setup. Your message gives it a task; it does not change its tools or permanent instructions.'}
                 </p>
                 <AgentRuntime agent={agent} />
@@ -137,7 +158,7 @@ export function ChatTopbar({
             <aside className="lab-info-panel" aria-label="Shared lab details">
               <strong>Private shared lab</strong>
               <p>No user sign-in. Saved records are shared.</p>
-              <p>Use synthetic data only.</p>
+              <p>Use sample data only.</p>
               <p>
                 Everyone with workspace access can read, modify and delete saved
                 chats, and read reviews and add requested evidence. There is no

@@ -664,8 +664,12 @@ test('shared lab details are available on demand across workspace views', async 
       .getByRole('navigation', { name: 'Workspace' })
       .getByTitle(name, { exact: true })
       .click()
+    // The top bar names the page only in its breadcrumb, never as a title.
     await expect(
-      page.getByRole('banner').getByText(name, { exact: true }),
+      page
+        .getByRole('banner')
+        .getByText(name, { exact: true })
+        .and(page.locator(':not(.topbar-crumbs *)')),
     ).toHaveCount(0)
     await expect(control).toBeInViewport()
     await expect(notice).toBeHidden()
@@ -677,7 +681,7 @@ test('shared lab details are available on demand across workspace views', async 
     await expect(notice).toContainText(
       'No user sign-in. Saved records are shared.',
     )
-    await expect(notice).toContainText('Use synthetic data only.')
+    await expect(notice).toContainText('Use sample data only.')
     await expect(notice).toContainText(
       'read, modify and delete saved chats, and read reviews and add requested evidence',
     )

@@ -47,10 +47,10 @@ export function ExploreDemos({
   async function copyInput() {
     try {
       await navigator.clipboard.writeText(selected.input)
-      setCopyStatus('Fictional input copied. Nothing was sent.')
+      setCopyStatus('Sample input copied. Nothing was sent.')
     } catch {
       setCopyStatus(
-        'Clipboard unavailable. Open Fictional input and select the text to copy it.',
+        'Clipboard unavailable. Open Sample input and select the text to copy it.',
       )
     }
   }
@@ -102,7 +102,7 @@ export function ExploreDemos({
                 disabled={busy}
                 onClick={() => onLoad(selected)}
               >
-                Load fictional input <ArrowRight size={17} />
+                Load sample input <ArrowRight size={17} />
               </button>
             ) : config.agent_creation ? (
               <button
@@ -154,7 +154,7 @@ export function ExploreDemos({
             <p>{selected.decision}</p>
           </div>
           <details className="demo-input" key={selected.id}>
-            <summary>Fictional input</summary>
+            <summary>Sample input</summary>
             <pre>{selected.input}</pre>
           </details>
           {loadingAgents && (
@@ -205,7 +205,7 @@ export function DemoRunGuide({
       <summary>Demo guide: {scenario.task}</summary>
       <p>
         Expected findings, not a live result. Compare the actual reply with the
-        fictional source.
+        sample source.
       </p>
       <ul>
         {scenario.findings.map((finding) => (

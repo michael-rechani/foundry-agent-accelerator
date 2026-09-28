@@ -194,11 +194,11 @@
   text-align: left;
 }
 .demo-primary {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: var(--on-accent);
 }
 .demo-primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: var(--accent-fill-hover);
 }
 .demo-copy {
   background: transparent;

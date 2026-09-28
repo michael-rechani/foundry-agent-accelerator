@@ -56,9 +56,11 @@ export function ChatSidebar({
   busy,
   historyBusy,
   requestCount,
+  hood,
   onNewChat,
   onView,
   onHistory,
+  onHood,
 }: {
   title?: string
   view: View
@@ -67,11 +69,18 @@ export function ChatSidebar({
   busy: boolean
   historyBusy: boolean
   requestCount: number
+  hood: boolean
   onNewChat: () => void
   onView: (view: View) => void
   onHistory: () => void
+  onHood: (on: boolean) => void
 }) {
-  const sections: { id: Section; label: string; items: Item[] }[] = [
+  const sections: {
+    id: Section
+    label: string
+    items: Item[]
+    hood?: boolean
+  }[] = [
     {
       id: 'library',
       label: 'Agent library',
@@ -114,11 +123,13 @@ export function ChatSidebar({
     {
       id: 'performance',
       label: 'Measure',
+      hood: true,
       items: [{ view: 'performance', label: 'Performance', icon: Activity }],
     },
     {
       id: 'logging',
       label: 'Activity',
+      hood: true,
       items: [
         {
           view: 'log',
@@ -150,38 +161,61 @@ export function ChatSidebar({
         </button>
       )}
       <nav aria-label="Workspace">
-        {sections.map((section) => (
-          <div
-            key={section.id}
-            className="nav-section"
-            role="group"
-            aria-labelledby={`nav-section-${section.id}`}
-            data-active={current === section.id ? 'true' : undefined}
-          >
-            <div className="nav-section-label" id={`nav-section-${section.id}`}>
-              {section.label}
+        {sections
+          .filter((section) => !section.hood || hood || current === section.id)
+          .map((section) => (
+            <div
+              key={section.id}
+              className="nav-section"
+              role="group"
+              aria-labelledby={`nav-section-${section.id}`}
+              data-active={current === section.id ? 'true' : undefined}
+            >
+              <div
+                className="nav-section-label"
+                id={`nav-section-${section.id}`}
+              >
+                {section.label}
+              </div>
+              {section.items.map((item) => {
+                const Icon = item.icon
+                return (
+                  <button
+                    key={item.view}
+                    disabled={item.enabled === false}
+                    aria-current={
+                      (item.current ?? view === item.view) ? 'page' : undefined
+                    }
+                    onClick={item.onSelect ?? (() => onView(item.view))}
+                    title={item.label}
+                  >
+                    <Icon size={18} />
+                    <span>{item.label}</span>
+                    {item.count !== undefined && <small>{item.count}</small>}
+                  </button>
+                )
+              })}
             </div>
-            {section.items.map((item) => {
-              const Icon = item.icon
-              return (
-                <button
-                  key={item.view}
-                  disabled={item.enabled === false}
-                  aria-current={
-                    (item.current ?? view === item.view) ? 'page' : undefined
-                  }
-                  onClick={item.onSelect ?? (() => onView(item.view))}
-                  title={item.label}
-                >
-                  <Icon size={18} />
-                  <span>{item.label}</span>
-                  {item.count !== undefined && <small>{item.count}</small>}
-                </button>
-              )
-            })}
-          </div>
-        ))}
+          ))}
       </nav>
+      <div className="sidebar-footer">
+        <label className="hood-switch">
+          <span>
+            Under the hood
+            <small>
+              {hood
+                ? 'Showing models, tokens and setup'
+                : 'Plain view for customers'}
+            </small>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            checked={hood}
+            onChange={(event) => onHood(event.currentTarget.checked)}
+          />
+        </label>
+      </div>
     </aside>
   )
 }

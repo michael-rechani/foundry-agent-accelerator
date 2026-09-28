@@ -43,7 +43,10 @@ install browser system dependencies with `npx playwright install --with-deps chr
 **Browse**, **Ready to chat**, **Made in this Lab**, and **Guided demos** tabs,
 **Create agent**, **Chat**, **Document reviews**, **Performance**, **Request
 log**, and **Shared history**. `ChatSidebar.tsx` groups them into four
-sections: **Agent library**, **Try it**, **Measure**, and **Activity**. The
+sections: **Agent library**, **Try it**, **Measure**, and **Activity**.
+**Measure** and **Activity** appear only with **Under the hood** on
+(`under-the-hood.ts`); elements marked `hood-only` are hidden otherwise.
+`ChatTopbar.tsx` shows the breadcrumb from `navigation.ts`. The
 library is one sidebar entry, **All
 agents**; `LibraryTabs.tsx` switches between its tabs. Reply rendering,
 including the handoff timeline and collapsed execution details, lives in
@@ -184,9 +187,9 @@ task, review findings, and dark template card tests also write `-dark`
 screenshots for the animated README tour. The copies used in the docs live in
 [`docs/images/screenshots/`](../../docs/images/README.md#lab-screenshots).
 
-Fonts and Markdown rendering are local. Do not add browser Azure credentials,
+The UI uses system fonts, and Markdown rendering is local. Do not add browser Azure credentials,
 remote image rendering, or persistent transcript storage. Preserve the explicit
-shared-history and fictional-data boundaries. No React Compiler or global state
+shared-history and sample-data boundaries. No React Compiler or global state
 library is required for the current bounded workflow.
 
 ## Related content

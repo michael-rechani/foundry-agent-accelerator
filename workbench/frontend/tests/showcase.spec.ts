@@ -190,14 +190,14 @@ test('loading a demo preserves unsaved work until confirmed and never auto-sends
     .fill('Keep my existing draft')
   await openDemos(page)
   page.once('dialog', (dialog) => dialog.dismiss())
-  await page.getByRole('button', { name: 'Load fictional input' }).click()
+  await page.getByRole('button', { name: 'Load sample input' }).click()
   await page.getByRole('button', { name: 'Go straight to Chat' }).click()
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toHaveValue('Keep my existing draft')
   await openDemos(page)
   page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: 'Load fictional input' }).click()
+  await page.getByRole('button', { name: 'Load sample input' }).click()
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toHaveValue(demoScenarios[0].input)
@@ -228,7 +228,7 @@ test('presenter controls keep environment and human-review boundaries visible', 
   await presenter.click()
   await expect(presenter).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.chat-app')).toHaveClass(/presenter-view/)
-  await page.getByRole('button', { name: 'Load fictional input' }).click()
+  await page.getByRole('button', { name: 'Load sample input' }).click()
   await expect(page.locator('.demo-run-guide')).toHaveAttribute('open', '')
   await expect(
     page.getByRole('button', { name: 'Start fresh with this example' }),
@@ -257,7 +257,7 @@ test('preview and hidden agents never become a simulated live connection', async
     page.getByText('Local preview makes no model calls and saves no records.'),
   ).toBeVisible()
   await expect(
-    page.getByRole('button', { name: 'Load fictional input' }),
+    page.getByRole('button', { name: 'Load sample input' }),
   ).toHaveCount(0)
   await expect(
     page.getByText('No matching agent is configured.', { exact: false }),
@@ -275,7 +275,7 @@ for (const status of ['ready', 'failed'] as const) {
       .getByRole('button', { name: /Supplier invoice review/ })
       .click()
     if (status === 'ready') {
-      await page.getByRole('button', { name: 'Load fictional input' }).click()
+      await page.getByRole('button', { name: 'Load sample input' }).click()
       await expect(page.locator('.agent-picker')).toHaveText(
         'Fictional invoice helper',
       )
@@ -284,7 +284,7 @@ for (const status of ['ready', 'failed'] as const) {
       ).toHaveValue(invoice.input)
     } else {
       await expect(
-        page.getByRole('button', { name: 'Load fictional input' }),
+        page.getByRole('button', { name: 'Load sample input' }),
       ).toHaveCount(0)
       await expect(
         page.getByRole('button', { name: 'Choose Supplier invoice reviewer' }),

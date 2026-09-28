@@ -43,8 +43,8 @@ export function ChatWelcome({
       {isPreview && (
         <p className="welcome-preview-note">
           This preview runs the library definition on the Lab&apos;s model with
-          fictional lookups only. Nothing is published, and preview chats are
-          not saved. It calls the model directly rather than running as a hosted
+          sample lookups only. Nothing is published, and preview chats are not
+          saved. It calls the model directly rather than running as a hosted
           agent, so test the created agent before handing it to a customer.
         </p>
       )}

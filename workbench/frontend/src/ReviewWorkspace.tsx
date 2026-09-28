@@ -193,7 +193,7 @@ export function ReviewWorkspace({
     setSources([
       {
         id: 'SRC-1',
-        text: 'Fictional application: Twelve weekly workshops beginning October 1. A program lead and two facilitators will deliver the sessions. No budget is supplied.',
+        text: 'Sample application: Twelve weekly workshops beginning October 1. A program lead and two facilitators will deliver the sessions. No budget is supplied.',
       },
     ])
   }
@@ -347,7 +347,7 @@ export function ReviewWorkspace({
         <div className="review-notice">
           <CircleAlert size={17} />
           Review execution and saving are unavailable in this environment. You
-          can try a fictional draft without calling a model.
+          can try a sample draft without calling a model.
         </div>
       )}
       {creating ? (

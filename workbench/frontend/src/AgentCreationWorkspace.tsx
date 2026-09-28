@@ -342,7 +342,7 @@ export function AgentCreationWorkspace({
           <h1>{view === 'create' ? 'Create an agent' : 'Created agents'}</h1>
           <p>
             {view === 'create'
-              ? 'Describe a useful job, review its setup, then create a real Foundry agent to try. Use fictional public-sector, healthcare-administration or software-product tasks.'
+              ? 'Describe a useful job, review its setup, then create a real Foundry agent to try. Use sample public-sector, healthcare-administration or software-product tasks.'
               : 'Agents created in this shared Lab. Everyone with access can read their setups and use ready agents.'}
           </p>
         </div>

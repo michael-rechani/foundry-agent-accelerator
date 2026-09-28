@@ -68,8 +68,8 @@ export function CreatedAgentList({
       <div className="creation-empty">
         <h2>No created agents yet</h2>
         <p>
-          Prepare a fictional task setup first. It appears here only after the
-          server has saved a creation request.
+          Prepare a task setup first. It appears here only after the server has
+          saved a creation request.
         </p>
         <button className="creation-primary" onClick={onCreate}>
           Prepare an agent

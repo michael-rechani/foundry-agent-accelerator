@@ -313,7 +313,7 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   await expect(page.locator('.review-form-bar')).toContainText(
     "Uses the Lab's default agent, not your Chat selection",
   )
-  await page.getByRole('button', { name: 'Use fictional example' }).click()
+  await page.getByRole('button', { name: 'Use sample text' }).click()
   expect(state.creations).toHaveLength(0)
   await expect(page.locator('#review-privacy')).toBeVisible()
   await expect(page.locator('#review-privacy')).toContainText(
@@ -384,7 +384,7 @@ test('invalid review links fall back to the library without opening a review', a
 
 async function create(page: Page) {
   await page.getByRole('button', { name: 'New review', exact: true }).click()
-  await page.getByRole('button', { name: 'Use fictional example' }).click()
+  await page.getByRole('button', { name: 'Use sample text' }).click()
   await page.getByRole('button', { name: 'Create shared review' }).click()
   await expect(
     page.getByRole('button', { name: 'Run review', exact: true }),
@@ -664,7 +664,7 @@ test('preview accepts a synthetic draft but never executes', async ({
 }, testInfo) => {
   await setup(page, true)
   await page.getByRole('button', { name: 'New review', exact: true }).click()
-  await page.getByRole('button', { name: 'Use fictional example' }).click()
+  await page.getByRole('button', { name: 'Use sample text' }).click()
   await expect(
     page.getByRole('button', { name: 'Create shared review' }),
   ).toBeDisabled()

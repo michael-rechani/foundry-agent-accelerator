@@ -57,6 +57,7 @@ export function AgentLibrary({
   busy,
   onCreate,
   onTest,
+  onOpen,
 }: {
   active: boolean
   library: LibraryCatalogState
@@ -66,6 +67,7 @@ export function AgentLibrary({
   busy: boolean
   onCreate: (templateId: string) => void
   onTest: (agent: Agent, input: string) => void
+  onOpen?: (label: string) => void
 }) {
   const { catalog, error } = library
   const [query, setQuery] = useState('')
@@ -99,6 +101,7 @@ export function AgentLibrary({
     setOpenId(id)
     setTab('overview')
     setNotice('')
+    onOpen?.(catalog?.templates.find((item) => item.id === id)?.label ?? '')
     document.querySelector('.library-view')?.scrollTo({ top: 0 })
   }
 
@@ -132,6 +135,7 @@ export function AgentLibrary({
           onBack={() => {
             setOpenId('')
             setNotice('')
+            onOpen?.('')
           }}
           onCreate={() => onCreate(open.id)}
           onTest={onTest}
@@ -471,7 +475,7 @@ function LibraryDetail({
                   <span>{template.tool_mode.description}</span>
                 </dd>
               </div>
-              <div>
+              <div className="hood-only">
                 <dt>
                   <FlaskConical size={15} aria-hidden="true" /> Model profile
                 </dt>
@@ -521,7 +525,7 @@ function LibraryDetail({
                       {template.tools.map((tool) => (
                         <li key={tool.name}>
                           <code>{tool.name}</code>
-                          {tool.simulated ? ' (fictional fixture) ' : ' '}
+                          {tool.simulated ? ' (sample records) ' : ' '}
                           {tool.description}
                         </li>
                       ))}
@@ -532,7 +536,7 @@ function LibraryDetail({
             </div>
             <div className="library-columns">
               <section className="library-panel">
-                <h2>Example input · fictional</h2>
+                <h2>Example input</h2>
                 <pre className="library-sample">{template.sample_input}</pre>
               </section>
               <section className="library-panel">
@@ -558,7 +562,7 @@ function LibraryDetail({
         {tab === 'test' && (
           <div className="library-columns">
             <section className="library-panel">
-              <h2>Fictional test input</h2>
+              <h2>Sample input</h2>
               <pre className="library-sample">{template.sample_input}</pre>
               <div className="library-actions">
                 {!runnable ? (
@@ -672,13 +676,15 @@ function LibraryDetail({
                 </li>
                 {template.tool_mode.id !== 'none' && (
                   <li>
-                    Replace the fictional lookups with reviewed connectors to
-                    your own systems.
+                    Replace the sample lookups with reviewed connectors to your
+                    own systems.
                   </li>
                 )}
-                <li>Build and check the bundle from the saved record:</li>
+                <li className="hood-only">
+                  Build and check the bundle from the saved record:
+                </li>
               </ol>
-              <pre className="library-sample library-command">
+              <pre className="library-sample library-command hood-only">
                 {`python hosted-agents/bundle.py export-created --record ${template.id}-record.json --output ${template.id}.agent-bundle.zip
 python hosted-agents/bundle.py inspect ${template.id}.agent-bundle.zip
 python hosted-agents/bundle.py deploy ${template.id}.agent-bundle.zip --endpoint <your-project-endpoint> --model <your-deployment> --agent-name <your-agent-name>`}

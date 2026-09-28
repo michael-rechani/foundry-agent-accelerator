@@ -6,7 +6,21 @@ export default defineConfig({
   workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: 'list',
-  use: { baseURL: 'http://127.0.0.1:4174', trace: 'retain-on-failure' },
+  use: {
+    baseURL: 'http://127.0.0.1:4174',
+    trace: 'retain-on-failure',
+    // Most specs check technical details, so they start with Under the hood on.
+    // customer-view.spec.ts covers the default customer view.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: 'http://127.0.0.1:4174',
+          localStorage: [{ name: 'ai-foundry-lab-under-the-hood', value: '1' }],
+        },
+      ],
+    },
+  },
   projects: [
     {
       name: 'desktop',

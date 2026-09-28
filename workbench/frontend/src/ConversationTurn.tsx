@@ -140,7 +140,10 @@ export function ConversationTurn({
           <span>
             {(turn.result.elapsed_ms / 1000).toFixed(1)}s
             {usageLabel(turn.result.usage) && (
-              <> · {usageLabel(turn.result.usage)}</>
+              <span className="hood-only">
+                {' '}
+                · {usageLabel(turn.result.usage)}
+              </span>
             )}
           </span>
         </div>
@@ -159,7 +162,7 @@ export function ConversationTurn({
           </button>
           <span>Human review required</span>
         </div>
-        <details className="receipt-details">
+        <details className="receipt-details hood-only">
           <summary>
             <Activity size={14} aria-hidden="true" /> Execution details
             <span>

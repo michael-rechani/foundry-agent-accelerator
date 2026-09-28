@@ -40,9 +40,11 @@ FastAPI backend and shared Azure Cosmos DB storage.
 
 The sidebar groups the Lab's pages into four sections, in this order: **Agent library**, **Try it**, **Measure**, and **Activity**. Every agent lives under **Agent library** > **All agents**, which has tabs for **Browse**, **Ready to chat**, **Made in this Lab** (when creation is on), and **Guided demos**.
 
+The Lab opens in a plain customer view. Turn on **Under the hood** at the bottom of the sidebar to show models, token counts, execution details, setup commands, and the **Measure** and **Activity** sections. The choice is saved in this browser. A breadcrumb in the top bar shows the current section and page.
+
 | Section | Page | What you do there |
 | --- | --- | --- |
-| Agent library | **All agents** > **Browse** | Filter the [agent library](../docs/agent-creation.md#what-a-participant-can-do) by sector, industry, task, readiness, and tools. Each entry shows what it needs, what you get, what it can't do, who decides, a fictional example, and the expected behavior. From an entry you can create the agent, open a ready one in **Chat** with the example as an unsent draft, or download its saved record for export. |
+| Agent library | **All agents** > **Browse** | Filter the [agent library](../docs/agent-creation.md#what-a-participant-can-do) by sector, industry, task, readiness, and tools. Each entry shows what it needs, what you get, what it can't do, who decides, an example with sample data, and the expected behavior. From an entry you can create the agent, open a ready one in **Chat** with the example as an unsent draft, or download its saved record for export. |
 | Agent library | **All agents** > **Ready to chat** | Browse the prebuilt and ready created agents you can chat with, read what each one needs and does, and start a chat. |
 | Agent library | **Create agent** | Describe a job, pick a library template, edit the name and instructions, and publish a new Foundry hosted agent on the [model that suits the job](../docs/agent-creation.md#how-the-lab-picks-a-model). Shown only when the server advertises creation; actual publication needs operator enablement. |
 | Agent library | **All agents** > **Made in this Lab** | Follow publication progress, open a ready agent in **Chat**, or delete an agent with the operator key. Shown only when creation is on. |
@@ -396,8 +398,8 @@ python -m pip install -r workbench/requirements.txt
 python -m uvicorn app:create_app --factory --app-dir workbench --host 127.0.0.1 --port 8080 --no-access-log
 ```
 
-Vite writes compiled assets to `workbench/static`, which FastAPI serves. Fonts
-are local. The browser has no Content Delivery Network (CDN) dependencies or
+Vite writes compiled assets to `workbench/static`, which FastAPI serves. The Lab
+uses the device's Segoe UI system fonts and downloads none. The browser has no Content Delivery Network (CDN) dependencies or
 Azure credentials. The optional operator key is held in memory only for creation
 or deletion requests. Markdown doesn't render raw HTML, external images, or
 clickable external links.

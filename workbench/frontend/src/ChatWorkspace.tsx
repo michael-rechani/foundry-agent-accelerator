@@ -1,7 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Check, CircleAlert, LoaderCircle, RefreshCw, X } from 'lucide-react'
-import '@fontsource-variable/manrope'
-import '@fontsource/ibm-plex-mono/400.css'
 import './chat.css'
 import { useHistoryClient } from './history-client'
 import { ConversationTurn } from './ConversationTurn'
@@ -34,6 +32,7 @@ import { useLibraryCatalog } from './library-catalog-client'
 import { isPreviewId, previewAgents } from './library-catalog'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
 import { parseUsage } from './token-usage'
+import { hoodViews, loadUnderTheHood, saveUnderTheHood } from './under-the-hood'
 type SavedVersion = { id: string; _etag: string }
 
 // Identifies one conversation so the server can reuse its warm agent session.
@@ -131,6 +130,8 @@ export default function ChatWorkspace() {
   const [cursor, setCursor] = useState<string | null>(null)
   const [continuing, setContinuing] = useState(false)
   const [presenting, setPresenting] = useState(false)
+  const [hood, setHood] = useState(loadUnderTheHood)
+  const [libraryDetail, setLibraryDetail] = useState('')
   const [activeDemo, setActiveDemo] = useState<DemoScenario | null>(null)
   const [requestedTemplate, setRequestedTemplate] = useState<{
     id: string
@@ -386,7 +387,7 @@ export default function ChatWorkspace() {
     if (
       (draft || dirty) &&
       !window.confirm(
-        'Load this fictional example in a fresh chat? Unsaved local messages will be cleared. Saved history is not deleted.',
+        'Load this example in a fresh chat? Unsaved local messages will be cleared. Saved history is not deleted.',
       )
     )
       return
@@ -411,7 +412,7 @@ export default function ChatWorkspace() {
     if (
       (draft || dirty) &&
       !window.confirm(
-        'Open this fictional example in a fresh chat? Unsaved local messages will be cleared. Saved history is not deleted.',
+        'Open this example in a fresh chat? Unsaved local messages will be cleared. Saved history is not deleted.',
       )
     )
       return
@@ -567,7 +568,7 @@ export default function ChatWorkspace() {
 
   return (
     <div
-      className={`chat-app${config?.agent_creation ? ' has-creation' : ''}${presenting ? ' presenter-view' : ''}`}
+      className={`chat-app${config?.agent_creation ? ' has-creation' : ''}${presenting ? ' presenter-view' : ''}${hood ? ' under-the-hood' : ''}`}
     >
       <ChatSidebar
         title={config?.title}
@@ -577,14 +578,22 @@ export default function ChatWorkspace() {
         busy={busy}
         historyBusy={historyBusy}
         requestCount={measurements.length}
+        hood={hood}
         onNewChat={() => newChat()}
         onView={setView}
         onHistory={() => void listHistory()}
+        onHood={(on) => {
+          setHood(on)
+          saveUnderTheHood(on)
+          if (!on && (hoodViews as readonly View[]).includes(view))
+            setView('library')
+        }}
       />
 
       <div className="chat-workspace">
         <ChatTopbar
           view={view}
+          detail={view === 'library' ? libraryDetail : ''}
           config={config}
           agent={agent}
           selected={selected}
@@ -663,6 +672,7 @@ export default function ChatWorkspace() {
               previewList.find((item) => item.id === `library-${templateId}`)
             }
             busy={busy || historyBusy}
+            onOpen={setLibraryDetail}
             onCreate={(id) => {
               setRequestedTemplate((current) => ({
                 id,

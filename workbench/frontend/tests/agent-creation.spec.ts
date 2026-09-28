@@ -556,7 +556,7 @@ test('template selection preserves custom input and brings the next step into vi
 
 const themeKey = 'ai-foundry-lab-theme'
 const lightSurface = 'rgb(255, 255, 255)'
-const darkSurface = 'rgb(22, 26, 32)'
+const darkSurface = 'rgb(41, 41, 41)'
 
 function computed(page: Page, selector: string, property: string) {
   return page
@@ -639,7 +639,7 @@ test('appearance follows the device by default and applies saved choices everywh
   await expect(root).toHaveAttribute('data-accent', 'orchid')
   await page.screenshot({ path: testInfo.outputPath('appearance.png') })
   expect(await computed(page, '.creation-primary', 'background-color')).toBe(
-    'rgb(240, 123, 198)',
+    'rgb(140, 28, 106)',
   )
   expect(
     JSON.parse(

@@ -55,7 +55,7 @@ export function ReviewForm({
           disabled={busy}
         >
           <FileText size={16} />
-          Use fictional example
+          Use sample text
         </button>
       </div>
       <p className="review-hint" id="review-input-guide">

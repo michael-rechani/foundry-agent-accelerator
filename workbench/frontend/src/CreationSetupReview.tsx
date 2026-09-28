@@ -131,7 +131,7 @@ export function CreationSetupReview({
         <p className="creation-help">No tools or external integrations.</p>
       )}
       <details className="creation-instructions">
-        <summary>Fictional test input</summary>
+        <summary>Sample input</summary>
         <pre>{draft.sample_input}</pre>
       </details>
       {operatorKey}
