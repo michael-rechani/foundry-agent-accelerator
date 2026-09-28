@@ -51,7 +51,7 @@ function docker {
             $actual = @(Get-ChildItem -LiteralPath $stage -Force | Select-Object -ExpandProperty Name)
             if (Compare-Object $expected $actual) { throw 'Unexpected build context contents' }
             if (!(Test-Path (Join-Path $stage 'frontend/src'))) { throw 'Frontend source not staged' }
-            if (!(Test-Path (Join-Path $stage 'frontend/public/ideas/index.html'))) { throw 'Frontend public files not staged' }
+            if (!(Test-Path (Join-Path $stage 'frontend/public/preview/index.html'))) { throw 'Frontend public files not staged' }
             $runtimeFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'agent_runtime') -Force | Select-Object -ExpandProperty Name)
             if (Compare-Object @('main.py', 'demo_tools.py', 'requirements.txt') $runtimeFiles) { throw 'Unexpected hosted runtime bundle contents' }
         }

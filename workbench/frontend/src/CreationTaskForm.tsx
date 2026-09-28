@@ -142,7 +142,7 @@ export function CreationTaskForm({
           />
         </label>
         <small>
-          {[...goal].length}/1200 characters; at least 10. Use made-up details,
+          {[...goal].length}/1200 characters; at least 10. Use sample details,
           not customer or patient information.
         </small>
         <label>

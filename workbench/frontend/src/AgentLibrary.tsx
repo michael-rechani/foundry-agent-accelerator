@@ -143,7 +143,7 @@ export function AgentLibrary({
             <p className="library-eyebrow">Agent library</p>
             <h1>Find an agent for the job</h1>
             <p>
-              Each agent does one job. Try it with made-up examples, see what it
+              Each agent does one job. Try it with sample inputs, see what it
               needs and what it leaves to a person, then take it to your own
               Microsoft Foundry project.
             </p>
@@ -157,7 +157,7 @@ export function AgentLibrary({
               </li>
               <li>
                 <span>3</span>
-                {previewsOn ? 'Make your own copy' : 'Try it with made-up data'}
+                {previewsOn ? 'Make your own copy' : 'Try it with sample data'}
               </li>
               <li>
                 <span>4</span>Take it to Foundry
@@ -412,7 +412,7 @@ function LibraryDetail({
           <p>
             <strong>In progress. </strong>
             It passes the automated checks, but a person hasn&apos;t signed off
-            on its live answers yet. Try it with made-up data; answers may
+            on its live answers yet. Try it with sample data; answers may
             change.
           </p>
         </div>
@@ -624,8 +624,8 @@ function LibraryDetail({
               </ul>
               <p className="library-muted">
                 {preview
-                  ? 'Use fictional data only. Preview chats are not saved; create the agent to save or share conversations.'
-                  : 'Use fictional data only. Chat responses are not saved unless you choose Save to shared history.'}
+                  ? 'Use sample data only. Preview chats are not saved; create the agent to save or share conversations.'
+                  : 'Use sample data only. Chat responses are not saved unless you choose Save to shared history.'}
               </p>
             </section>
           </div>

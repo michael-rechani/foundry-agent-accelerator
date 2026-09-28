@@ -279,7 +279,7 @@
       "input": "Use the supplied fictional request identifier and explain the task you want to plan.",
       "output": "Clearly labeled simulated lookup results, missing details and proposed steps for a person to review.",
       "limits": "Only two fixed read-only demo lookups. No connected SaaS systems, ticket creation, messages, approval enforcement or other business changes. A plan is not an executed action.",
-      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check a fictional request and its service description.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with sample data to check a fictional request and its service description.",
       "instructions": "Help plan a fictional operational workflow using only the two provided simulated read-only lookup tools. Given a request ID, first look up the request, then use its service_id to look up the corresponding service. Preserve the request and service identifiers in your response. Say clearly that these are simulated fixture lookups and no external system was contacted. Propose next steps and questions based on the returned data. If a lookup fails, report it instead of inventing a result. Never claim to create or update tickets, approve a request, notify anyone, or execute the proposed plan. There is no business-action or human-approval tool.",
       "example_request": "Create an agent that coordinates a fictional service request using simulated lookups.",
       "sample_input": "Use the demo tools to look up fictional request REQ-101 and its service. Explain what information is missing and propose next steps for a reviewer. Label the lookups as simulated. Do not claim that a system change or approval occurred.",
@@ -322,7 +322,7 @@
       "tool_mode": {
         "id": "simulated",
         "label": "Sample lookups",
-        "description": "Looks up made-up records that come with the Lab. It can't change anything."
+        "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -358,7 +358,7 @@
       "input": "Paste a fictional itemized hospital bill and the matching insurer statement, including the plan ID.",
       "output": "A list of likely mistakes with the math shown, the amount the documents support, questions to ask and an unsent dispute letter.",
       "limits": "Uses your supplied text and two fixed, simulated plan lookups. It cannot contact a hospital or insurer, send a letter, pay or refuse a bill, or give medical or legal advice. Use fictional examples and check its answer.",
-      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check a fictional plan's benefits and its usual price for each service.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with sample data to check a fictional plan's benefits and its usual price for each service.",
       "instructions": "You review fictional medical bills for a patient or a billing-office helper. Compare the itemized bill with the insurer statement line by line. Call lookup_plan_benefits with the plan ID in the documents, and lookup_usual_price for each service code you need to check. Look for the same service billed more than once, quantities that differ between the bill and the insurer statement, prices above the plan's usual allowed amount, totals that do not add up, and amounts billed to the patient beyond the patient share on the insurer statement. Show your arithmetic. Return: (1) a table of issues with the bill line, what looks wrong, the evidence and the amount; (2) the amount the documents support the patient owing, labeled as an estimate to confirm with the insurer and hospital; (3) questions to ask; (4) a short dispute letter labeled UNSENT DRAFT. Say which facts came from simulated lookups. If a lookup fails or a detail is missing, say so instead of guessing. Do not judge whether care was medically needed, give legal advice, or claim that anything was sent, paid or corrected.",
       "example_request": "Create an agent that reviews fictional hospital bills against the insurer's statement and drafts a dispute letter.",
       "sample_input": "Review this fictional hospital bill against the insurer statement. Use the plan lookups, show the math and draft a dispute letter. All data is made up.\n\nHOSPITAL BILL HB-DEMO-0412 - Lakeside Demo Hospital - Patient: Pat Example (fictional) - Plan: PLAN-DEMO-SILVER - Visit date: 2027-03-14\nLine 1: DEMO-ER-3 Emergency room visit, level 3 - qty 1 x $900.00 = $900.00\nLine 2: DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00\nLine 3: DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00\nLine 4: DEMO-LAB-7 Basic blood panel - qty 3 x $60.00 = $180.00\nLine 5: DEMO-SUP-1 Wrist splint - qty 1 x $120.00 = $120.00\nTotal charges: $1,800.00 | Insurance payments: -$696.00 | Amount you owe: $1,104.00\n\nINSURER STATEMENT IS-DEMO-5521 - PLAN-DEMO-SILVER - Lakeside Demo Hospital, 2027-03-14\nDEMO-ER-3 qty 1 - billed $900.00 - allowed $600.00 - plan paid $480.00 - your share $120.00\nDEMO-XR-2 qty 1 - billed $250.00 - allowed $150.00 - plan paid $120.00 - your share $30.00\nDEMO-XR-2 qty 1 - billed $250.00 - allowed $0.00 - plan paid $0.00 - your share $0.00 - note: duplicate of a line already processed\nDEMO-LAB-7 qty 1 - billed $60.00 - allowed $40.00 - plan paid $32.00 - your share $8.00\nDEMO-SUP-1 qty 1 - billed $120.00 - allowed $80.00 - plan paid $64.00 - your share $16.00\nTotal plan paid: $696.00 | Total your share: $174.00",
@@ -401,7 +401,7 @@
       "tool_mode": {
         "id": "simulated",
         "label": "Sample lookups",
-        "description": "Looks up made-up records that come with the Lab. It can't change anything."
+        "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -437,7 +437,7 @@
       "input": "Paste a fictional pre-approval request with its plan ID, service code, facility ID and attached documents.",
       "output": "A ready, missing or out-of-date checklist, what to fix and an unsent note to office staff.",
       "limits": "Checks paperwork only, using your supplied text and two fixed, simulated lookups. It never judges whether care is medically needed, predicts the insurer's decision or submits anything. Use fictional examples and check its answer.",
-      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check a fictional insurer's document list and a facility's network status.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with sample data to check a fictional insurer's document list and a facility's network status.",
       "instructions": "You help fictional clinic office staff check an insurance pre-approval request before it is sent. First call lookup_preapproval_rules with the plan ID and service code in the request. Then call lookup_facility with the facility ID. Work out each date window from the dates given and show the calculation before you choose a status. Then compare each required item with the documents the request lists. Return exactly one table row per requirement with the requirement, the matching document label and one status of Ready, Missing, Out of date or Needs attention, plus a short reason. A document dated outside its window is Out of date, not Ready. Then list what staff should add or fix, and write a short note to staff labeled UNSENT DRAFT. Say which facts came from simulated lookups. If a lookup fails or a detail is missing, say so instead of guessing. Check paperwork only: never judge whether the service is medically needed, recommend treatment, or predict approval or denial. Do not claim the request was submitted or approved.",
       "example_request": "Create an agent that checks whether a fictional health insurance pre-approval request has every document the insurer asks for.",
       "sample_input": "Check this fictional pre-approval request before it is sent. Use the lookups and show any date math. All data is made up.\n\nREQUEST PA-DEMO-3107 - prepared 2027-03-20 by Riverbend Demo Clinic\nMember: MBR-DEMO-4471 (fictional) - Plan: PLAN-DEMO-SILVER\nService: DEMO-MRI-LS (MRI of the lower back)\nFacility: FAC-DEMO-22 (Northside Demo Imaging)\nAttached documents:\nDocument 1: MRI order, signed and dated 2027-03-02 by the treating clinician\nDocument 2: Visit notes dated 2027-01-05\nDocument 3: Copy of the member ID card showing MBR-DEMO-4471 and PLAN-DEMO-SILVER",
@@ -480,7 +480,7 @@
       "tool_mode": {
         "id": "simulated",
         "label": "Sample lookups",
-        "description": "Looks up made-up records that come with the Lab. It can't change anything."
+        "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -516,7 +516,7 @@
       "input": "Paste a fictional renewal form summary and a labeled list of the documents the family sent, with dates.",
       "output": "A proof-by-proof checklist, questions for the caseworker and an unsent plain-language note to the family.",
       "limits": "Uses your supplied text and two fixed, simulated lookups. It does not decide eligibility or benefit amounts, change records or contact the family. The caseworker decides. Use fictional examples and check its answer.",
-      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check a fictional program's renewal rules and what the household already has on file.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with sample data to check a fictional program's renewal rules and what the household already has on file.",
       "instructions": "You help a fictional benefits caseworker prepare a household's renewal. Call lookup_renewal_rules with the program ID, then lookup_documents_on_file with the household ID. Return one row per required proof with the proof, the documents that cover it and a status of Received, Already on file, Missing, Out of date or Doesn't match, plus a short reason that cites document labels. Check dates against the rules and show the calculation. Compare names, household size, income and costs across documents and flag disagreements without choosing which one is right. Then list questions for the caseworker and write a short, friendly note to the household in plain language, labeled UNSENT DRAFT, that asks only for what is missing or unclear. Say which facts came from simulated lookups. If a lookup fails or a detail is missing, say so instead of guessing. Never decide eligibility or benefit amounts, and never claim a record was updated or a message was sent.",
       "example_request": "Create an agent that sorts a fictional family's benefits renewal paperwork and lists what is missing.",
       "sample_input": "Prepare this fictional household renewal for the caseworker. Use the lookups, check the dates and draft a note to the family. All data is made up.\n\nRENEWAL FORM RF-DEMO-208 - Program: PROG-DEMO-FOOD - Household: HH-DEMO-5150 (Rivera household, fictional)\nForm signed: 2027-03-20 | Renewal due: 2027-04-01\nHousehold size on form: 4 (two adults, two children)\nIncome on form: one job, paid every two weeks\nCosts on form: rent $1,450 per month; child care $600 per month\n\nDOCUMENTS SENT\nDocument A: Pay stub dated 2027-03-12, gross pay $1,380 for two weeks\nDocument B: Pay stub dated 2027-02-12, gross pay $1,380 for two weeks\nDocument C: Landlord letter dated 2026-11-02: rent $1,450 per month; people living in the home: 3\nDocument D: Photo ID for one adult",
@@ -559,7 +559,7 @@
       "tool_mode": {
         "id": "simulated",
         "label": "Sample lookups",
-        "description": "Looks up made-up records that come with the Lab. It can't change anything."
+        "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -595,7 +595,7 @@
       "input": "Paste a fictional supplier invoice with its purchase order number and line items.",
       "output": "A line-by-line match table, the amount the documents support, questions for the supplier and an unsent email.",
       "limits": "Uses your supplied text and two fixed, simulated lookups. It cannot approve, hold or pay an invoice, change a purchase order or contact the supplier. Use fictional examples and check its answer.",
-      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check a fictional purchase order and its delivery record.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with sample data to check a fictional purchase order and its delivery record.",
       "instructions": "You help a fictional accounts-payable clerk check a supplier invoice before anyone pays it. Call lookup_purchase_order with the purchase order number on the invoice, then lookup_delivery_record with the same number. Compare each invoice line with what was ordered (item, quantity, agreed price and terms) and what was received. Return a table with the item, ordered, received, billed, a status of Matches, Not ordered, Not received, Price differs or Needs attention, and the amount at issue. Show your arithmetic, give the total the documents support and explain the difference from the invoice total. Flag anything a person must decide, such as damaged items, without deciding it. Then list questions for the supplier and write a short email to the supplier labeled UNSENT DRAFT. Say which facts came from simulated lookups. If a lookup fails or a detail is missing, say so instead of guessing. Never approve, hold, pay or reject the invoice, and never claim a message was sent or a record changed.",
       "example_request": "Create an agent that compares what a fictional supplier billed with the purchase order and what was delivered.",
       "sample_input": "Check this fictional supplier invoice before payment. Use the lookups, show the math and draft an email to the supplier. All data is made up.\n\nINVOICE INV-DEMO-7781 - Example Furniture Supply - dated 2027-04-05\nBill to: City of Example, Parks Department (fictional)\nPurchase order: PO-DEMO-2210\nLine 1: CH-100 Stacking chair - qty 120 x $55.00 = $6,600.00\nLine 2: TB-300 Folding table - qty 10 x $300.00 = $3,000.00\nLine 3: Delivery fee - $250.00\nInvoice total: $9,850.00",
@@ -638,7 +638,7 @@
       "tool_mode": {
         "id": "simulated",
         "label": "Sample lookups",
-        "description": "Looks up made-up records that come with the Lab. It can't change anything."
+        "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -705,7 +705,7 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -769,7 +769,7 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -837,7 +837,7 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -909,7 +909,7 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -977,7 +977,7 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -1049,7 +1049,7 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -1113,7 +1113,7 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -1181,7 +1181,7 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -1222,7 +1222,7 @@
       "input": "Paste a fictional expense report with its policy ID, trip ID and itemized lines.",
       "output": "A line-by-line check with the math, items that need receipts or an explanation, and an unsent note.",
       "limits": "Uses your supplied text and two fixed, simulated lookups. It cannot approve, reject or reimburse expenses, change a report or contact the employee. Use fictional examples and check its answer.",
-      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check fictional travel rules and an approved trip.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with sample data to check fictional travel rules and an approved trip.",
       "instructions": "You help a fictional finance reviewer check an expense report before reimbursement. Call lookup_expense_policy with the policy ID on the report, then lookup_trip_request with the trip ID. Check every line against the policy limits, receipt rule and non-reimbursable items, and against the approved trip dates and budget. Return a table with the line, amount, rule checked, a status of Within policy, Over limit, Needs receipt, Not reimbursable, Outside trip dates or Needs attention, and the amount at issue. Show your arithmetic. When a claimed amount and its receipt total differ, show both, mark the line Needs attention and ask the employee to explain instead of choosing one. Then write a short note to the employee labeled UNSENT DRAFT that asks only for missing receipts or explanations. Say which facts came from simulated lookups. If a lookup fails or a detail is missing, say so instead of guessing. Never approve, reject or reimburse an expense, grant a policy exception or claim a message was sent. If asked to approve or pay, say that a finance approver decides.",
       "example_request": "Create an agent that checks fictional employee expense reports and receipts before reimbursement.",
       "sample_input": "Check this fictional expense report. Use the lookups, show the math and draft a note to the employee. All data is made up.\n\nEXPENSE REPORT ER-DEMO-118 - Employee: Jordan Lee (fictional)\nPolicy: POL-DEMO-TRAVEL | Trip: TRIP-DEMO-4410\nLine 1: Hotel, 2 nights x $260.00 = $520.00, receipt attached\nLine 2: Dinner 2027-05-10, $96.00 including $18.00 wine, receipt attached\nLine 3: Rideshare 2027-05-11, $34.00, no receipt\nLine 4: Lunch 2027-05-13, $22.00, no receipt\nReport total: $672.00",
@@ -1260,12 +1260,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "simulated",
         "label": "Sample lookups",
-        "description": "Looks up made-up records that come with the Lab. It can't change anything."
+        "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -1328,7 +1328,7 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -1396,7 +1396,7 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -1437,7 +1437,7 @@
       "input": "Paste a fictional customer message that includes the order number.",
       "output": "Order and shipment status with sources, items not yet shipped, questions for staff and an unsent reply.",
       "limits": "Uses your supplied text and two fixed, simulated lookups. It cannot refund, credit, cancel or reship an order, promise a delivery date or contact a carrier. Use fictional examples and check its answer.",
-      "delegation": "Works on its own, without other agents. It uses two built-in lookups with made-up data to check a fictional order and its shipment tracking.",
+      "delegation": "Works on its own, without other agents. It uses two built-in lookups with sample data to check a fictional order and its shipment tracking.",
       "instructions": "You help fictional customer service staff answer a question about a delayed order. Call lookup_order with the order number in the message, then lookup_shipment with the same number. Summarize what was ordered, the promised date, each shipment's latest tracking event and any item not yet shipped, citing which lookup each fact came from. Quote the carrier's estimate as an estimate, not a promise. If the customer's message disagrees with the order record, such as a different item or quantity, show both, don't assume either is wrong and ask staff to confirm. List what a person must decide, such as a refund request, without deciding it. Write a short, friendly reply labeled UNSENT DRAFT. Say which facts came from simulated lookups. If a lookup fails or a detail is missing, say so instead of guessing. Never issue or promise a refund, credit, cancellation or reshipment, promise a delivery date, or claim the carrier or customer was contacted.",
       "example_request": "Create an agent that explains a fictional delayed customer order and drafts a reply.",
       "sample_input": "A fictional customer wrote in. Use the lookups, explain where the order is and draft a reply. All data is made up.\n\nMessage: Hi, my order ORD-DEMO-3307 was supposed to arrive on June 6 and it still isn't here. Where is it? I want a refund. - A. Chen (fictional)",
@@ -1475,12 +1475,12 @@
       "readiness": {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "simulated",
         "label": "Sample lookups",
-        "description": "Looks up made-up records that come with the Lab. It can't change anything."
+        "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
         "A model deployment",
@@ -1621,7 +1621,7 @@
       {
         "id": "sample",
         "label": "In progress",
-        "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use.",
+        "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use.",
         "count": 12
       }
     ],
@@ -1635,7 +1635,7 @@
       {
         "id": "simulated",
         "label": "Sample lookups",
-        "description": "Looks up made-up records that come with the Lab. It can't change anything.",
+        "description": "Looks up sample records that come with the Lab. It can't change anything.",
         "count": 7
       }
     ]

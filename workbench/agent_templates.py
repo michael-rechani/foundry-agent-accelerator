@@ -18,7 +18,7 @@ _LOOKUP_RULES = (
 
 
 def _lookups(what):
-    return f"Works on its own, without other agents. It uses two built-in lookups with made-up data to check {what}."
+    return f"Works on its own, without other agents. It uses two built-in lookups with sample data to check {what}."
 
 
 def _tool(name, description):
@@ -770,11 +770,11 @@ TASKS = (
 )
 READINESS_LEVELS = (
     {"id": "reviewed", "label": "Reviewed", "description": "Its instructions have been reviewed and it passes the automated checks."},
-    {"id": "sample", "label": "In progress", "description": "It passes the automated checks on made-up cases, but a person hasn't signed off on its live answers yet. Try it with made-up data, and check it against your own policies before real use."},
+    {"id": "sample", "label": "In progress", "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."},
 )
 TOOL_MODES = (
     {"id": "none", "label": "Text only", "description": "Works only from the text you give it."},
-    {"id": "simulated", "label": "Sample lookups", "description": "Looks up made-up records that come with the Lab. It can't change anything."},
+    {"id": "simulated", "label": "Sample lookups", "description": "Looks up sample records that come with the Lab. It can't change anything."},
 )
 
 _PROFILE_HINTS = {
