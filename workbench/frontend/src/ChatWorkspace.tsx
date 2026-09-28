@@ -18,19 +18,38 @@ import {
   useCreatedAgents,
 } from './agent-creation-client'
 import { ChatSidebar, type View } from './ChatSidebar'
+import { libraryViews } from './navigation'
+import { LibraryTabs } from './LibraryTabs'
 import { ChatTopbar } from './ChatTopbar'
 import { ChatWelcome } from './ChatWelcome'
 import { ChatComposer } from './ChatComposer'
 import { HistoryView, type SavedChat } from './HistoryView'
 import { AgentCatalog } from './AgentCatalog'
-import { PerformanceView, type Measurement } from './PerformanceView'
+import { PerformanceView } from './PerformanceView'
+import type { Measurement } from './performance-stats'
+import { RequestLog } from './RequestLog'
+import { AgentLibrary, type ReadyAgent } from './AgentLibrary'
 import { ExploreDemos, DemoRunGuide } from './ExploreDemos'
+import { useLibraryCatalog } from './library-catalog-client'
+import { isPreviewId, previewAgents } from './library-catalog'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
+import { parseUsage } from './token-usage'
 type SavedVersion = { id: string; _etag: string }
 
 // Identifies one conversation so the server can reuse its warm agent session.
 const newThread = () =>
   typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : undefined
+
+const hashViews: Record<string, View> = {
+  '#chat': 'chat',
+  '#create': 'create',
+  '#library': 'library',
+  '#agents': 'catalog',
+  '#demos': 'explore',
+  '#reviews': 'reviews',
+  '#performance': 'performance',
+  '#logs': 'log',
+}
 
 const errors: Record<string, string> = {
   preview_only: 'Foundry is not connected. No agent was invoked.',
@@ -45,6 +64,15 @@ const errors: Record<string, string> = {
   invalid_request:
     'The conversation was not accepted. Check its length and selected agent.',
   request_not_allowed: 'This browser origin is not permitted.',
+  library_preview_disabled:
+    'Library previews are turned off in this Lab. Choose a ready agent, or create this one from the Library.',
+}
+
+const previewReasons: Record<string, string> = {
+  local_preview: 'Library previews need a connected Lab.',
+  not_enabled: 'Library previews are turned off in this Lab.',
+  model_not_configured:
+    'Library previews need a model deployment. Ask the Lab operator.',
 }
 
 export default function ChatWorkspace() {
@@ -60,16 +88,20 @@ export default function ChatWorkspace() {
       window.location.hash,
     )
       ? 'reviews'
-      : window.location.hash === '#chat'
-        ? 'chat'
-        : window.location.hash === '#create'
-          ? 'create'
-          : null,
+      : (hashViews[window.location.hash] ?? null),
   )
+  useEffect(() => {
+    const follow = () => {
+      const next = hashViews[window.location.hash]
+      if (next) setView(next)
+    }
+    window.addEventListener('hashchange', follow)
+    return () => window.removeEventListener('hashchange', follow)
+  }, [])
   const view =
     selectedView === 'create' && config && !config.agent_creation
-      ? 'explore'
-      : (selectedView ?? 'explore')
+      ? 'library'
+      : (selectedView ?? 'library')
   const createdAgents = useCreatedAgents(config?.agent_creation)
   const availableAgents: Agent[] = [
     ...(config?.agents || []),
@@ -77,6 +109,13 @@ export default function ChatWorkspace() {
       .map((record) => record.agent)
       .filter((item): item is Agent => item !== null),
   ]
+  const previewCapability = config?.library_preview
+  const library = useLibraryCatalog(
+    !!config && (view === 'library' || !!previewCapability?.enabled),
+  )
+  const previewList = previewCapability?.enabled
+    ? previewAgents(library.catalog, previewCapability.agent)
+    : []
   const [draft, setDraft] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
   const [pending, setPending] = useState('')
@@ -93,13 +132,45 @@ export default function ChatWorkspace() {
   const [continuing, setContinuing] = useState(false)
   const [presenting, setPresenting] = useState(false)
   const [activeDemo, setActiveDemo] = useState<DemoScenario | null>(null)
+  const [requestedTemplate, setRequestedTemplate] = useState<{
+    id: string
+    key: number
+  } | null>(null)
   const [thread, setThread] = useState(newThread)
   const historyRequest = useHistoryClient(config?.history_timeout_ms)
   const controller = useRef<AbortController | null>(null)
   const editor = useRef<HTMLTextAreaElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
-  const agent = availableAgents.find((item) => item.id === selected)
-  const hasConversation = !!draft || turns.length > 0 || !!pending
+  const isPreview = isPreviewId(selected)
+  const agent = (isPreview ? previewList : availableAgents).find(
+    (item) => item.id === selected,
+  )
+  const previewNote = !previewCapability
+    ? ''
+    : !previewCapability.enabled
+      ? previewReasons[previewCapability.reason || ''] ||
+        'Library previews are unavailable.'
+      : library.error
+        ? 'The library did not load. Open the Library to retry.'
+        : !library.catalog
+          ? 'Loading library previews...'
+          : ''
+  const readyOptions = availableAgents.map((item) => ({
+    agent: item,
+    detail: item.category,
+  }))
+  const previewOptions = previewList.map((item) => {
+    const template = library.catalog?.templates.find(
+      (entry) => `library-${entry.id}` === item.id,
+    )
+    return {
+      agent: item,
+      detail: template
+        ? `Preview · ${template.sector.label} · ${template.industry.label}`
+        : 'Preview',
+      inProgress: template?.readiness.id === 'sample',
+    }
+  })
   const history = turns.flatMap((turn) => [
     { role: 'user', content: turn.question },
     { role: 'assistant', content: turn.result.text },
@@ -192,6 +263,7 @@ export default function ChatWorkspace() {
       config.review_timeout_ms,
     )
     let serverTimedOut = false
+    let reference: string | undefined
     try {
       const { response, data } = await requestJson(
         '/api/reviews',
@@ -205,13 +277,21 @@ export default function ChatWorkspace() {
         },
         abort.signal,
       )
+      if (typeof data.request_id === 'string') reference = data.request_id
       if (!response.ok) {
         serverTimedOut = data.error === 'timeout'
         throw new Error(
           `${errors[data.error] || 'Request failed.'}${data.request_id ? ` Reference: ${data.request_id}` : ''}`,
         )
       }
-      setTurns((previous) => [...previous, { question, result: data }])
+      const usage = parseUsage(data.usage)
+      setTurns((previous) => [
+        ...previous,
+        {
+          question,
+          result: { ...data, ...('usage' in data ? { usage } : {}) },
+        },
+      ])
       setDirty(true)
       setDraft('')
       setPending('')
@@ -221,34 +301,41 @@ export default function ChatWorkspace() {
           {
             id: measurementId,
             agent: agent.label,
+            agentId: agent.id,
             outcome: 'completed',
             duration: performance.now() - started,
+            at: Date.now(),
+            reference,
+            usage,
           },
         ])
     } catch (problem) {
       const timedOut =
         serverTimedOut || abort.signal.reason?.name === 'TimeoutError'
-      setError(
-        abort.signal.aborted
-          ? timedOut
-            ? 'Request timed out. Remote work may continue; no automatic retry was made.'
-            : 'Stopped waiting. Remote work may continue; no automatic retry was made.'
-          : problem instanceof Error
-            ? problem.message
-            : 'Request failed.',
-      )
+      const message = abort.signal.aborted
+        ? timedOut
+          ? 'Request timed out. Remote work may continue; no automatic retry was made.'
+          : 'Stopped waiting. Remote work may continue; no automatic retry was made.'
+        : problem instanceof Error
+          ? problem.message
+          : 'Request failed.'
+      setError(message)
       if (config?.mode === 'private')
         setMeasurements((previous) => [
           ...previous,
           {
             id: measurementId,
             agent: agent.label,
+            agentId: agent.id,
             outcome: timedOut
               ? 'timed-out'
               : abort.signal.aborted
                 ? 'stopped'
                 : 'failed',
             duration: performance.now() - started,
+            at: Date.now(),
+            reference,
+            message,
           },
         ])
     } finally {
@@ -305,6 +392,30 @@ export default function ChatWorkspace() {
       return
     resetConversation(target.id, scenario.input)
     setActiveDemo(scenario)
+  }
+
+  function readyAgentFor(templateId: string): ReadyAgent | undefined {
+    const record = createdAgents.records.find(
+      (item) =>
+        item.template_id === templateId &&
+        item.status === 'ready' &&
+        item.agent !== null,
+    )
+    return record?.agent
+      ? { agent: record.agent, recordId: record.id }
+      : undefined
+  }
+
+  function testFromLibrary(target: Agent, input: string) {
+    if (busy || historyBusy) return
+    if (
+      (draft || dirty) &&
+      !window.confirm(
+        'Open this fictional example in a fresh chat? Unsaved local messages will be cleared. Saved history is not deleted.',
+      )
+    )
+      return
+    resetConversation(target.id, input)
   }
 
   async function listHistory(more = false) {
@@ -431,10 +542,10 @@ export default function ChatWorkspace() {
     }
   }
 
-  async function copy(text: string) {
+  async function copy(text: string, done = 'Response copied.') {
     try {
       await navigator.clipboard.writeText(text)
-      setNotice('Response copied.')
+      setNotice(done)
     } catch {
       setNotice('Clipboard unavailable. Select and copy the response manually.')
     }
@@ -465,13 +576,9 @@ export default function ChatWorkspace() {
         historyEnabled={!!config?.history_enabled}
         busy={busy}
         historyBusy={historyBusy}
-        agentCount={availableAgents.length}
+        requestCount={measurements.length}
         onNewChat={() => newChat()}
         onView={setView}
-        onCreatedAgents={() => {
-          setView('created')
-          void createdAgents.refresh()
-        }}
         onHistory={() => void listHistory()}
       />
 
@@ -481,8 +588,19 @@ export default function ChatWorkspace() {
           config={config}
           agent={agent}
           selected={selected}
+          readyOptions={readyOptions}
+          previewOptions={previewOptions}
+          previewNote={previewNote}
+          switchDisabled={busy || historyBusy}
+          isPreview={isPreview}
           saving={historyBusy}
+          saveNote={
+            isPreview
+              ? "Preview chats can't be saved. Create this agent from the Library to save conversations."
+              : undefined
+          }
           saveDisabled={
+            isPreview ||
             !config?.history_enabled ||
             !turns.length ||
             busy ||
@@ -493,6 +611,9 @@ export default function ChatWorkspace() {
           presenting={presenting}
           onPresent={() => setPresenting((value) => !value)}
           onView={setView}
+          onChoose={(id) => {
+            if (id !== selected) newChat(id)
+          }}
           onSave={() => void saveChat()}
           onExport={download}
         />
@@ -516,8 +637,41 @@ export default function ChatWorkspace() {
           </div>
         )}
 
+        {config && libraryViews.includes(view) && (
+          <LibraryTabs
+            view={view}
+            readyCount={availableAgents.length}
+            createdCount={createdAgents.records.length}
+            creationEnabled={!!config.agent_creation}
+            onView={setView}
+            onCreated={() => {
+              setView('created')
+              void createdAgents.refresh()
+            }}
+          />
+        )}
         {config && (
           <ReviewWorkspace config={config} active={view === 'reviews'} />
+        )}
+        {config && (
+          <AgentLibrary
+            active={view === 'library'}
+            library={library}
+            capability={config.agent_creation}
+            readyAgentFor={readyAgentFor}
+            previewFor={(templateId) =>
+              previewList.find((item) => item.id === `library-${templateId}`)
+            }
+            busy={busy || historyBusy}
+            onCreate={(id) => {
+              setRequestedTemplate((current) => ({
+                id,
+                key: (current?.key ?? 0) + 1,
+              }))
+              setView('create')
+            }}
+            onTest={testFromLibrary}
+          />
         )}
         {config?.agent_creation && (
           <AgentCreationWorkspace
@@ -525,6 +679,7 @@ export default function ChatWorkspace() {
             state={createdAgents}
             active={view === 'create' || view === 'created'}
             view={view === 'create' ? 'create' : 'created'}
+            requestedTemplate={requestedTemplate}
             chatBusy={busy || historyBusy}
             onView={setView}
             onUse={(item) => newChat(item.id)}
@@ -551,8 +706,15 @@ export default function ChatWorkspace() {
             />
           )
         ) : view === 'reviews' ||
+          view === 'library' ||
           view === 'create' ||
-          view === 'created' ? null : view === 'history' ? (
+          view === 'created' ? null : view === 'log' ? (
+          <RequestLog
+            measurements={measurements}
+            preview={config?.mode !== 'private'}
+            onCopy={(text) => void copy(text, 'Reference copied.')}
+          />
+        ) : view === 'history' ? (
           <HistoryView
             chats={savedChats}
             agents={availableAgents}
@@ -574,6 +736,14 @@ export default function ChatWorkspace() {
                     'The selected created agent is unavailable or no longer ready. Choose another agent; your local messages are preserved.'}
                 </p>
               )}
+            {isPreview &&
+              !agent &&
+              (library.error || !previewCapability?.enabled) && (
+                <p className="creation-error" role="alert">
+                  {previewNote ||
+                    'This library preview is unavailable. Choose another agent.'}
+                </p>
+              )}
             <div className="conversation-scroll" aria-label="Conversation">
               {activeDemo && (
                 <DemoRunGuide
@@ -589,12 +759,17 @@ export default function ChatWorkspace() {
                   <ChatWelcome
                     agent={agent}
                     config={config}
+                    isPreview={isPreview}
+                    inProgress={
+                      !!previewOptions.find(
+                        (item) => item.agent.id === selected,
+                      )?.inProgress
+                    }
                     onPrompt={(text) => {
                       setDraft(text)
                       setActiveDemo(null)
                       editor.current?.focus()
                     }}
-                    onReviews={() => setView('reviews')}
                   />
                 )
               ) : (
@@ -642,13 +817,13 @@ export default function ChatWorkspace() {
               busy={busy}
               historyBusy={historyBusy}
               turnCount={turns.length}
-              hasConversation={hasConversation}
               characters={characters}
               requestBytes={requestBytes}
               contextUsage={contextUsage}
               limitReasons={limitReasons}
               saved={!!saved}
               dirty={dirty}
+              isPreview={isPreview}
               onDraft={(value) => {
                 setDraft(value)
                 if (!busy) setPending('')
@@ -671,7 +846,11 @@ export default function ChatWorkspace() {
             onChoose={(id) => (id === selected ? setView('chat') : newChat(id))}
           />
         ) : (
-          <PerformanceView measurements={measurements} />
+          <PerformanceView
+            measurements={measurements}
+            preview={config?.mode !== 'private'}
+            onLog={() => setView('log')}
+          />
         )}
       </div>
       {continuing && (

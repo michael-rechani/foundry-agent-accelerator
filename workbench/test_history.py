@@ -34,6 +34,19 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(saved["ttl"], 2592000)
         self.assertEqual(saved["title"], "Review APP-1")
 
+    def test_saved_replies_may_include_bounded_token_usage(self):
+        usage = {"input_tokens": 40, "output_tokens": 10, "total_tokens": 50, "cached_tokens": None, "reasoning_tokens": 0}
+        self.body["turns"][0]["result"]["usage"] = usage
+        response = self.client.post("/api/conversations", json=self.body, headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.store.create.call_args.args[0]["turns"][0]["result"]["usage"], usage)
+        self.store.create.reset_mock()
+        for bad in ({**usage, "input_tokens": -1}, {**usage, "cost": 1}, {**usage, "total_tokens": "50"}):
+            self.body["turns"][0]["result"]["usage"] = bad
+            response = self.client.post("/api/conversations", json=self.body, headers=self.headers)
+            self.assertEqual(response.status_code, 400, bad)
+        self.store.create.assert_not_called()
+
     def test_stored_receipts_cannot_claim_live_verification(self):
         receipt = {"tool": "invented", "call_id": "one", "verified": True,
                    "agent": "unconfigured-agent", "output": "Synthetic receipt"}

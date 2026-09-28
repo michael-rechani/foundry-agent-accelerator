@@ -30,6 +30,14 @@ class Receipt(StrictModel):
     output: str | None = Field(max_length=100000)
 
 
+class Usage(StrictModel):
+    input_tokens: int | None = Field(ge=0)
+    output_tokens: int | None = Field(ge=0)
+    total_tokens: int | None = Field(ge=0)
+    cached_tokens: int | None = Field(ge=0)
+    reasoning_tokens: int | None = Field(ge=0)
+
+
 class Result(StrictModel):
     request_id: str = Field(min_length=1, max_length=128)
     status: Literal["completed"] = "completed"
@@ -37,6 +45,7 @@ class Result(StrictModel):
     text: str = Field(min_length=1, max_length=100000)
     receipts: list[Receipt] = Field(max_length=32)
     elapsed_ms: int = Field(ge=0)
+    usage: Usage | None = None
 
 
 class Turn(StrictModel):

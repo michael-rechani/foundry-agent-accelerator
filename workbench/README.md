@@ -15,7 +15,8 @@ FastAPI backend and shared Azure Cosmos DB storage.
 
 | Area | What to know |
 | --- | --- |
-| Explore demos | The opening page shows three fictional customer stories, expected findings, and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
+| Agent library | The opening page. Browse agent definitions by sector, industry, task, readiness, and tool mode; compare a fictional example with expected behavior; create, test, and export. |
+| Guided demos | Three fictional customer stories with expected findings and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
 | Agent creation | **Create agent** prepares instructions from reviewed templates. Publication is a separate operator-protected action. **Chat does not create or configure agents.** |
 | Prebuilt agents | The prebuilt agents remain available. **Application and case helper** is the default visible prebuilt agent. |
 | Document reviews | **Document reviews** saves one structured check per checklist item and keeps the original text beside the result. |
@@ -37,18 +38,20 @@ FastAPI backend and shared Azure Cosmos DB storage.
 
 ## Pages
 
-The Lab's pages, in the order they appear in its sidebar:
+The sidebar groups the Lab's pages into four sections, in this order: **Chat and test**, **Agent library**, **Performance and benchmarking**, and **Logging**. Every agent lives under **Agent library** > **All agents**, which has tabs for **Templates**, **Ready to use**, **Created here** (when creation is on), and **Guided demos**.
 
-| Page | What you do there |
-| --- | --- |
-| **Explore demos** | Start with application evidence, invoice discrepancies, or case notes. Read an illustrative story, copy its fictional input, or load it into an enabled matching agent. |
-| **Create agent** | Describe a job, pick one of nine [reviewed templates](../docs/agent-creation.md#what-a-participant-can-do), edit the name and instructions, and publish a new Foundry hosted agent on the [model that suits the job](../docs/agent-creation.md#how-the-lab-picks-a-model). Shown only when the server advertises creation; actual publication needs operator enablement. |
-| **Created agents** | Follow publication progress, open a ready agent in **Chat**, or delete an agent with the operator key. Shown only when creation is on. |
-| **Chat** | Talk with a prebuilt or created agent. An example task only fills in your message; you choose when to send it. |
-| **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. |
-| **Shared history** | Reopen chats that anyone saved. Saved chats are shared and kept for 30 days. |
-| **Agent catalog** | Browse the agents you can chat with, read what each one needs and does, and start a chat. |
-| **Performance** | See completed, failed, and timed-out requests and the average response time for this browser session. |
+| Section | Page | What you do there |
+| --- | --- | --- |
+| Chat and test | **Chat** | Talk with a prebuilt or created agent, or try a library agent instantly as a preview. Switch agents from the name in the Chat header. An example task only fills in your message; you choose when to send it. |
+| Chat and test | **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. Not in the sidebar or Chat: open a saved-review link or `/#reviews`. |
+| Chat and test | **Shared history** | Reopen chats that anyone saved. Saved chats are shared and kept for 30 days. |
+| Agent library | **All agents** > **Templates** | Filter the [agent library](../docs/agent-creation.md#what-a-participant-can-do) by sector, industry, task, readiness, and tools. Each entry shows what you provide, what you get, its limits, what a person decides, a fictional example, and the expected behavior. From an entry you can create the agent, open a ready one in **Chat** with the example as an unsent draft, or download its saved record for export. |
+| Agent library | **All agents** > **Ready to use** | Browse the prebuilt and ready created agents you can chat with, read what each one needs and does, and start a chat. |
+| Agent library | **Create agent** | Describe a job, pick a library template, edit the name and instructions, and publish a new Foundry hosted agent on the [model that suits the job](../docs/agent-creation.md#how-the-lab-picks-a-model). Shown only when the server advertises creation; actual publication needs operator enablement. |
+| Agent library | **All agents** > **Created here** | Follow publication progress, open a ready agent in **Chat**, or delete an agent with the operator key. Shown only when creation is on. |
+| Agent library | **All agents** > **Guided demos** | Start with application evidence, invoice discrepancies, or case notes. Read an illustrative story, copy its fictional input, or load it into an enabled matching agent. |
+| Performance and benchmarking | **Performance** | See completed and unsuccessful requests, average and 90th-percentile response time, a per-agent benchmark with average tokens, and **Token usage and cost** for this browser session. Enter your own per-1M-token rates for an estimate; the Lab ships no prices. |
+| Logging | **Request log** | See each live request from this browser tab with its time, agent, outcome, elapsed time, reported tokens, and a copyable reference that matches the server's `request_id` log entry. |
 
 **Chat** can't change an agent's instructions, tools, or model; that's a
 [developer or operator task](#workspace-configuration). **Document reviews**
@@ -88,14 +91,18 @@ all-scenarios demonstration.
 | [Application completeness](../docs/demos.md#application-completeness) | **Available** | The source and walkthrough are included. This is not a live-validation claim. |
 | [Requirements and proposal review](../docs/demos.md#requirements-and-proposal-review) | **Preview** | This reuses the application agent and the existing criteria-and-evidence workflow. It doesn't add another agent. |
 
-The nine creation jobs are grouped on the page. **General:** Document
+The creation jobs are grouped on the page. **General:** Document
 explainer, Checklist gap finder, Form and invoice extractor, Case notes
 summarizer, and Service request planner. **Healthcare and public sector:**
 Medical bill reviewer, Insurance pre-approval helper, Benefits renewal helper,
-and Supplier invoice reviewer. The first four General jobs use supplied text
-only. The Service request planner and the four healthcare and public-sector
-jobs each have two **simulated read-only** lookups. None connects to customer
-systems or performs business writes. See [Create and try a baseline Microsoft Foundry agent](../docs/agent-creation.md).
+Supplier invoice reviewer, Public records intake, Grant reporting checker, and
+Community program brief. **Private sector:** nine jobs. The three newest
+public-sector jobs and all nine private-sector jobs are marked **In progress**:
+they pass offline contract and acceptance tests but aren't yet validated live.
+The first four General jobs use supplied text only. The Service request
+planner, the four reviewed healthcare and public-sector jobs, and two private-sector
+jobs each have two **simulated read-only** lookups.
+None connects to customer systems or performs business writes. See [Create and try a baseline Microsoft Foundry agent](../docs/agent-creation.md).
 
 > [!IMPORTANT]
 > Use supplied fictional inputs only. People verify evidence and make decisions.
@@ -106,7 +113,7 @@ Live model execution still incurs charges. See [Storage and cost](#storage-and-c
 The frontend uses React 19, TypeScript, Vite, Lucide icons, and custom
 Fluent-inspired CSS, not the Fluent UI component library. Neutral surfaces and
 blue actions are shared across creation, **Chat**, **Document reviews**,
-history, **Agent catalog**, and performance. Playwright covers desktop and mobile
+history, **Agent library**, performance, and the request log. Playwright covers desktop and mobile
 workflows. The Python backend uses FastAPI, Pydantic validation, and async Azure
 SDKs for Foundry and Cosmos DB.
 
@@ -162,8 +169,9 @@ control and they do not check that submitted data is fictional.
 
 ## Conversations
 
-**Explore demos** is the initial view. Bookmark `/#chat` to start in Chat, or
-`/#create` for the creator when its capability is advertised. A valid saved-review
+**All agents** > **Templates** is the initial view. Bookmark `/#chat` to start in Chat, `/#agents` for **Ready to use**, `/#reviews` for **Document reviews**,
+`/#demos` for **Guided demos**, `/#performance`, `/#logs`, or `/#create` for the
+creator when its capability is advertised. A valid saved-review
 URL still opens its review directly, including after a reload. No publication or
 model invocation happens merely by entering a view.
 
@@ -174,15 +182,20 @@ data contract and deployment checks. You don't need it to use **Chat**.
 
 | UI label | What it does | Important limits |
 | --- | --- | --- |
-| **Explore demos** | Shows fictional stories and loads a sample into an enabled matching agent. | Expected findings are illustrative. Hidden, failed, and unavailable agents are not selectable; samples are never automatically sent. |
+| **Templates** | Lists every agent definition from `GET /api/agent-templates` with server-derived filters and live counts. | Readiness and tool mode come from the catalog; nothing claims a connected customer system. **Expected behavior** is an acceptance description, not a recorded model response. Export downloads a ready saved record for `bundle.py export-created`; there is no one-click cross-environment deployment. |
+| **Guided demos** | Shows fictional stories and loads a sample into an enabled matching agent. | Expected findings are illustrative. Hidden, failed, and unavailable agents are not selectable; samples are never automatically sent. |
 | **New chat** | Starts a new Chat draft for the selected agent. | It doesn't create an agent or submit a starter prompt. |
 | **Create agent** | Prepares a setup from a reviewed template and, when enabled, lets an operator publish it. | Preparation is deterministic template assembly, not a model-designed agent. |
-| **Created agents** | Lists agents published from the Lab's creation flow. | Ready agents can be selected in **Chat**. |
-| **Chat** | Sends a message to the selected prebuilt or ready created agent. | A chat prompt doesn't edit tools, instructions, or runtime configuration. |
+| **Created here** | Lists agents published from the Lab's creation flow. | Ready agents can be selected in **Chat**. |
+| **Chat** | Sends a message to the selected prebuilt agent, ready created agent, or library preview. | A chat prompt doesn't edit tools, instructions, or runtime configuration. |
+| **Agent switcher** | Opens from the agent name in the Chat header. Search and switch between **Ready agents** and **Library previews** without leaving Chat, or choose **Browse the full library**. | Switching keeps your unsent draft. Agents marked **In progress** pass offline tests but aren't validated live. |
+| **Library preview** | Runs a library definition directly on the Lab's model deployment, without publishing an agent. Start one from the switcher or from a library entry's **Test** tab (**Try it now in Chat**). | Private mode only, and only when `WORKBENCH_LIBRARY_PREVIEW_ENABLED` isn't `false` and a creation model is configured. Uses the definition's instructions and its simulated read-only lookups; tool loops are bounded. Preview chats can't be saved to **Shared history**. Each message calls the model and may incur cost. |
 | **Document reviews** | Saves and runs checklist-based reviews. | Chat messages and review results don't copy between views automatically. |
 | **Shared history** | Lists, reopens, and deletes saved conversations. | Everyone with workspace access can read, modify, and delete saved conversations. |
-| **Agent catalog** | Lists only enabled entries. | Hidden agents can't be invoked directly through the Lab API. |
-| **Performance** | Shows browser-session request counts and observed end-to-end latency. | It excludes local preview calls, clears on refresh, and isn't a fleet-wide metric or model-quality score. |
+| **Ready to use** | Lists only enabled prebuilt agents and ready created agents. | Hidden agents can't be invoked directly through the Lab API. |
+| **Performance** | Shows browser-session request counts, average and 90th-percentile latency, a per-agent benchmark, and reported token totals with an optional estimate from rates you enter. | It excludes local preview calls, clears on refresh, and isn't a fleet-wide metric or model-quality score. Replies without reported tokens are counted as **Not reported**, never zero. Rates stay in this browser; the estimate prices cached input at the full rate and isn't invoiced spend. |
+| **Token counts** | Each reply shows its reported tokens next to its elapsed time, with input, cached, output, and reasoning counts under **Execution details**. Library previews add up every model call in their tool loop. | Counts come from the answering agent's response; a coordinator's count may not include the specialists it calls. Saved chats keep the counts as stored, unverified values. |
+| **Request log** | Lists this tab's live requests with outcome, elapsed time, and the server `request_id` reference. | It doesn't store message text, excludes local preview calls, and clears on refresh. It isn't the server log. |
 
 ### Prebuilt and created agents
 
@@ -192,7 +205,7 @@ data contract and deployment checks. You don't need it to use **Chat**.
 | **Application and case helper (base setup)** (`review-coordinator`, formerly Review planning) | Visible only when enabled. | A developer variant of the coordinator. It uses the same specialists through different tool names and does not add capabilities. |
 | **Application checker** | Visible only when enabled. | The application specialist on its own. It does the check itself and calls no other agents. |
 | **Case notes summarizer** | Visible only when enabled. | The case-notes specialist on its own. It writes the summary itself and calls no other agents. |
-| Ready created agents | Listed separately under **Created agents**. | They can be selected in **Chat** after publication is ready. |
+| Ready created agents | Listed under **Ready to use** and managed under **Created here**. | They can be selected in **Chat** after publication is ready. |
 
 Each catalog card is marked **Prebuilt agent** or **Created in this Lab**. Its
 **Developer setup details** name its role: **Coordinator: hands off to
@@ -201,7 +214,7 @@ own**. If agent creation isn't turned on, the catalog says so and offers only th
 existing agents.
 
 Configure `visible_agents` in Terraform or `WORKBENCH_VISIBLE_AGENTS` locally to
-change the prebuilt agent catalog that the Lab exposes. **Agent catalog** lists only
+change the prebuilt agent catalog that the Lab exposes. **Ready to use** lists only
 enabled entries.
 
 **Developer setup details** shows unchanged catalog IDs, runtime names, expected
@@ -258,8 +271,9 @@ an immutable audit trail.
 | Stop waiting | Browser wait only. | Cancellation doesn't guarantee remote agent execution stopped. Requests are not automatically retried. |
 | Agent session reuse | Up to 10 minutes per chat and agent. | Follow-ups in the same chat reuse that chat's Foundry agent session, which skips the cold start of a new sandbox. The browser sends a random chat ID, and the Foundry session ID stays in server memory until the window ends or the Lab restarts. A new, reopened, or continued chat starts a new session, and a failed request discards its session. Reuse doesn't carry history: the browser still sends the bounded conversation each turn. A reused session stays on the agent version that created it, so a newly deployed version applies to new chats or after the window ends. Locally, set `WORKBENCH_SESSION_REUSE_SECONDS` from 0 to 3600; `0` turns reuse off. Document reviews don't reuse sessions. |
 
-Save state and expandable **Conversation limits** appear once there is a draft or
-conversation. They don't add status rows to an empty chat.
+Save state and expandable **Conversation limits** appear after the first reply, or
+earlier when a draft reaches half of a limit. They don't add status rows to an
+empty chat.
 
 ### Continue in new chat
 

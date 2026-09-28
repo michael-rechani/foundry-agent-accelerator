@@ -1,3 +1,5 @@
+import type { Usage } from './token-usage'
+
 export type Receipt = {
   tool: string
   call_id: string | null
@@ -12,6 +14,8 @@ export type Result = {
   text: string
   receipts: Receipt[]
   elapsed_ms: number
+  // Absent on replies saved before token reporting; null when the service reported none.
+  usage?: Usage | null
 }
 
 export type Turn = { question: string; result: Result; stored?: boolean }

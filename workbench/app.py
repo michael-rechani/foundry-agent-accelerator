@@ -17,7 +17,8 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from history import CosmosHistory, history_router
 from review_runs import ReviewRuns
-from agent_creation import CREATED_ID, AgentCreations, CreationSettings
+from agent_creation import CREATED_ID, DEPLOYMENT_NAME, AgentCreations, CreationSettings
+from library_preview import PREVIEW_AGENT, PREVIEW_ID, preview_agent, run_preview, summarize_usage, usage_record
 from request_guard import MAX_REQUEST_BYTES, read_bounded_body, record_request_failure, request_allowed
 
 
@@ -56,6 +57,7 @@ class Settings:
     title: str = "Foundry Agent Lab"
     creation: CreationSettings = field(default_factory=CreationSettings)
     session_reuse_seconds: float = 600
+    library_preview: bool = True
 
     @classmethod
     def from_env(cls):
@@ -64,10 +66,14 @@ class Settings:
         hosts = tuple(filter(None, os.getenv("WORKBENCH_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")))
         origins = tuple(filter(None, os.getenv("WORKBENCH_ORIGINS", "http://127.0.0.1:8080,http://localhost:8080").split(",")))
         visible_agents = tuple(filter(None, os.getenv("WORKBENCH_VISIBLE_AGENTS", "customer-review").split(",")))
+        library_preview = os.getenv("WORKBENCH_LIBRARY_PREVIEW_ENABLED", "true")
+        if library_preview not in {"true", "false"}:
+            raise ValueError("WORKBENCH_LIBRARY_PREVIEW_ENABLED must be true or false")
         return cls(mode, endpoint, hosts, origins, Path(os.getenv("WORKBENCH_AGENTS_FILE", ROOT / "agents.json")),
                visible_agents=visible_agents, default_agent=os.getenv("WORKBENCH_DEFAULT_AGENT") or None,
                title=os.getenv("WORKBENCH_TITLE", "Foundry Agent Lab"), creation=CreationSettings.from_env(),
-               session_reuse_seconds=float(os.getenv("WORKBENCH_SESSION_REUSE_SECONDS", "600")))
+               session_reuse_seconds=float(os.getenv("WORKBENCH_SESSION_REUSE_SECONDS", "600")),
+               library_preview=library_preview == "true")
 
     def validate(self):
         if not isinstance(self.title, str) or not self.title.strip() or len(self.title) > 80 or any(ord(char) < 32 for char in self.title):
@@ -80,6 +86,10 @@ class Settings:
         if self.mode not in {"preview", "private"}:
             raise ValueError("WORKBENCH_MODE must be preview or private")
         self.creation.validate(self.mode)
+        if type(self.library_preview) is not bool:
+            raise ValueError("Library preview enablement must be a boolean")
+        if self.library_preview_enabled and not DEPLOYMENT_NAME.fullmatch(self.creation.model):
+            raise ValueError("Library previews need an existing model deployment name")
         if not self.hosts or any("*" in host or "/" in host for host in self.hosts):
             raise ValueError("Explicit allowed hosts are required")
         if not self.origins:
@@ -99,6 +109,15 @@ class Settings:
         elif any(host not in {"localhost", "127.0.0.1"} for host in self.hosts):
             raise ValueError("Preview mode is restricted to localhost")
 
+    @property
+    def library_preview_enabled(self):
+        return self.mode == "private" and self.library_preview is True and bool(self.creation.model)
+
+    def library_preview_capability(self):
+        reason = ("local_preview" if self.mode == "preview" else "not_enabled" if self.library_preview is not True else
+                  "model_not_configured" if not self.creation.model else None)
+        return {"enabled": reason is None, "reason": reason, "agent": PREVIEW_AGENT}
+
 
 def validate_agent(agent):
     required = {"id", "label", "category", "description", "agent", "tools"}
@@ -107,8 +126,8 @@ def validate_agent(agent):
     for key in ("id", "agent"):
         if not isinstance(agent[key], str) or not NAME.fullmatch(agent[key]):
             raise ValueError("Invalid agent name")
-    if CREATED_ID.fullmatch(agent["id"]):
-        raise ValueError("The created-agent identifier namespace is reserved")
+    if CREATED_ID.fullmatch(agent["id"]) or PREVIEW_ID.fullmatch(agent["id"]):
+        raise ValueError("The created-agent and library-preview identifier namespace is reserved")
     for key in ("label", "category", "description"):
         if not isinstance(agent[key], str) or not agent[key].strip():
             raise ValueError("Agent display fields must be nonempty")
@@ -151,7 +170,8 @@ def chat_prompt(data, registry):
     """Return the Responses input for a valid chat request body, or None when it is invalid."""
     if (not isinstance(data, dict) or not {"agent_id", "input"} <= set(data) <= {"agent_id", "input", "history", "thread"} or
             not isinstance(data["agent_id"], str) or
-            (data["agent_id"] not in registry and not CREATED_ID.fullmatch(data["agent_id"])) or
+            (data["agent_id"] not in registry and not CREATED_ID.fullmatch(data["agent_id"])
+             and not PREVIEW_ID.fullmatch(data["agent_id"])) or
             not isinstance(data["input"], str) or not data["input"].strip() or len(data["input"]) > MAX_CHARACTERS):
         return None
     if "thread" in data and (not isinstance(data["thread"], str) or not THREAD.fullmatch(data["thread"])):
@@ -218,7 +238,7 @@ class FoundryGateway:
             self._http_client = DefaultAsyncHttpxClient()
         return self._project
 
-    async def review(self, agent, prompt, thread=None):
+    async def review(self, agent, prompt, thread=None, usage=None):
         # Reuses the cached token and open connections. The per-agent client shares the pool, so closing it would close the pool.
         client = self._review_project().get_openai_client(
             agent_name=agent["agent"], timeout=self.settings.timeout, max_retries=0, http_client=self._http_client,
@@ -234,10 +254,25 @@ class FoundryGateway:
         started = time.monotonic()
         options = {"extra_body": {"agent_session_id": leased[0]}} if leased else {}
         response = await client.responses.create(input=prompt, store=False, stream=False, **options)
+        if usage is not None:
+            usage.append(usage_record(response))
         if key and response.status == "completed":
             session_id = (getattr(response, "model_extra", None) or {}).get("agent_session_id") or (leased and leased[0])
             self._keep_session(key, session_id, leased[1] if leased and session_id == leased[0] else started)
         return response.status, response.output_text, response.model_dump().get("output", [])
+
+    async def preview(self, agent, prompt, thread=None, usage=None):
+        # A library preview calls the model deployment directly; there is no hosted agent or session to reuse.
+        client = self._review_project().get_openai_client(
+            timeout=self.settings.timeout, max_retries=0, http_client=self._http_client,
+        )
+        status, text, output = await run_preview(
+            client, template_id=agent["template_id"], model=self.settings.creation.model_for(agent["model_profile"]),
+            prompt=prompt, reasoning=agent["model_profile"] != "tool_calling", usage=usage,
+        )
+        LOGGER.info(json.dumps({"event": "workbench_library_preview", "template_id": agent["template_id"],
+                                "status": status, "tool_calls": sum(item.get("type") == "function_call" for item in output)}))
+        return status, text, output
 
     def _keep_session(self, key, session_id, created):
         now, reuse = time.monotonic(), self.settings.session_reuse_seconds
@@ -313,6 +348,11 @@ class ChatReviews:
         agent = self.registry.get(agent_id)
         if agent is not None:
             return agent, None
+        if PREVIEW_ID.fullmatch(agent_id):
+            if not self.settings.library_preview_enabled:
+                return None, self.error(request, 503, "library_preview_disabled")
+            agent = preview_agent(agent_id)
+            return (agent, None) if agent is not None else (None, self.error(request, 400, "invalid_request"))
         try:
             agent = await self.created_agents.resolve_agent(agent_id)
         except Exception as problem:
@@ -339,9 +379,11 @@ class ChatReviews:
     async def respond(self, request, agent, prompt, thread=None):
         request_id = request.state.request_id
         started = time.monotonic()
+        usage = []
         try:
             async with asyncio.timeout(self.settings.timeout):
-                status, text, output = await self.gateway.review(agent, prompt, thread=thread)
+                call = self.gateway.preview if agent.get("preview") else self.gateway.review
+                status, text, output = await call(agent, prompt, thread=thread, usage=usage)
             if status != "completed" or not isinstance(text, str) or not text.strip():
                 return self.error(request, 502, "incomplete_response")
             if len(text) > 100000 or len(json.dumps(output).encode("utf-8")) > 524288:
@@ -350,7 +392,8 @@ class ChatReviews:
             if len(receipts) > 32 or any(len(receipt["output"] or "") > 100000 for receipt in receipts):
                 return self.error(request, 502, "response_too_large")
             return JSONResponse({"request_id": request_id, "status": status, "agent": agent["agent"],
-                                 "text": text, "receipts": receipts, "elapsed_ms": round((time.monotonic() - started) * 1000)},
+                                 "text": text, "receipts": receipts, "elapsed_ms": round((time.monotonic() - started) * 1000),
+                                 "usage": summarize_usage(usage)},
                                 headers={"X-Correlation-ID": request_id})
         except TimeoutError as problem:
             record_request_failure(request, problem, "foundry")
@@ -487,7 +530,8 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
             "history_timeout_ms": HISTORY_TIMEOUT_MS,
             "history_enabled": history_store is not None, "history_scope": "shared", "retention_days": 30,
             "reviews_enabled": settings.mode == "private" and history_store is not None,
-            "agent_creation": created_agents.capabilities()}
+            "agent_creation": created_agents.capabilities(),
+            "library_preview": settings.library_preview_capability()}
 
     application.add_api_route("/api/reviews", chat.admit, methods=["POST"])
     application.include_router(history_router(settings, registry, history_store, created_agents))

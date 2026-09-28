@@ -32,6 +32,13 @@ export type Config = {
   reviews_enabled?: boolean
   retention_days: number
   agent_creation?: CreationCapability
+  library_preview?: LibraryPreviewCapability
+}
+
+export type LibraryPreviewCapability = {
+  enabled: boolean
+  reason: string | null
+  agent: string
 }
 
 export type CreationCapability = {
@@ -102,6 +109,20 @@ function validCreation(
   )
 }
 
+function validLibraryPreview(
+  value: unknown,
+): value is LibraryPreviewCapability | undefined {
+  return (
+    value === undefined ||
+    (isObject(value) &&
+      typeof value.enabled === 'boolean' &&
+      (value.reason === null || typeof value.reason === 'string') &&
+      typeof value.agent === 'string' &&
+      value.agent.trim().length > 0 &&
+      value.enabled === (value.reason === null))
+  )
+}
+
 function validGuidance(value: unknown): boolean {
   const keys = ['input', 'output', 'limits', 'delegation', 'configuration']
   return (
@@ -134,6 +155,8 @@ function parseConfig(value: unknown): Config {
       typeof config.reviews_enabled !== 'boolean') ||
     !validCreation(config.agent_creation) ||
     (config.mode === 'preview' && config.agent_creation?.enabled) ||
+    !validLibraryPreview(config.library_preview) ||
+    (config.mode === 'preview' && config.library_preview?.enabled) ||
     ![
       config.max_characters,
       config.max_request_bytes,

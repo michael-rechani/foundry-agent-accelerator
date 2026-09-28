@@ -64,7 +64,7 @@ For developers who change agents, evaluate quality, or extend the architecture.
 | **Hosted agent** | Agent code that Foundry Agent Service packages and runs. Each publish creates an immutable **version**. The agent's **endpoint route** decides which version receives traffic. |
 | **The Lab** | The browser app in [`workbench/`](../workbench/). Its title bar reads **Foundry Agent Lab**. |
 | **Prebuilt agents** | The agents a developer publishes from [`hosted-agents/`](../hosted-agents/). See [agent names](#agent-names). |
-| **Created agents** | Agents published from the Lab's **Create agent** page. They appear under **Created agents**. |
+| **Created agents** | Agents published from the Lab's **Create agent** page. They appear under **All agents** > **Created here**. |
 | **Coordinator** | An agent that receives your request, asks one specialist to do the work, and returns the findings. |
 | **Specialist** | An agent that the coordinator calls as a tool, such as the application checker. |
 | **Platform infrastructure** | The Azure resources in the [`terraform/`](../terraform/) root. The Lab, Bastion, and monitoring each have their own Terraform root and state. |

@@ -45,6 +45,15 @@ class ProfileTests(unittest.TestCase):
     def test_valid_profile(self):
         self.assertEqual(validate_profile(self.profile), self.profile)
 
+    def test_example_matches_base_behavior_with_only_tool_names_changed(self):
+        directory = Path(__file__).parent
+        example = validate_profile(json.loads(
+            (directory / "profiles" / "evidence-review.example.json").read_text(encoding="utf-8")
+        ))
+        base = (directory / "instructions.md").read_text(encoding="utf-8")
+        expected = base.replace("review_application", "inspect_application").replace("review_case", "inspect_case")
+        self.assertEqual(example["instructions"].strip(), expected.strip())
+
     def test_rejects_invalid_or_untested_profiles(self):
         overrides = [
             {"schema_version": 2}, {"schema_version": True}, {"instructions": " "},
@@ -62,6 +71,8 @@ class ProfileTests(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         profile = module.profile_from_file(Path(__file__).with_name("profiles") / "evidence-review.example.json")
+        example = json.loads((path.parent / "profiles" / "evidence-review.example.json").read_text(encoding="utf-8"))
+        self.assertEqual(profile.instructions, example["instructions"])
         specialists = json.loads(dict(profile.environment_variables)["SPECIALIST_CONFIG"])
         self.assertEqual(len(specialists), 2)
         self.assertEqual({(check[1], check[2]) for check in profile.delegation_checks},

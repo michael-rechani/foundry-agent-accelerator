@@ -27,7 +27,7 @@ before making a decision?
 </picture>
 
 Use the [fictional application and checklist](demo-inputs/application.txt).
-In **Explore demos**, choose **Application completeness**, then **Load fictional
+In **Guided demos**, choose **Application completeness**, then **Load fictional
 input**. This chooses an enabled matching prebuilt agent, or a ready created
 **Checklist gap finder**. It only fills the composer: inspect the text, then
 explicitly Send.
@@ -57,7 +57,7 @@ This scenario requires a ready created **Supplier invoice reviewer**, whose
 two fixed tools return the fictional purchase order and delivery record for
 `PO-DEMO-2210`. They do not contact a finance system.
 
-Without a matching ready agent, **Explore demos** lets you read and copy the
+Without a matching ready agent, **Guided demos** lets you read and copy the
 example and points you to the appropriate template. Preparing the template does
 not publish it. Publication still requires the operator key, explicit cost
 approval, and the existing [creation prerequisites](agent-creation.md).
@@ -84,7 +84,7 @@ and unanswered questions?
 </picture>
 
 Use the [fictional case notes](demo-inputs/casework.txt).
-Choose **Casework assistance** in **Explore demos**, then load the fictional
+Choose **Casework assistance** in **Guided demos**, then load the fictional
 input into an enabled matching prebuilt agent or ready created
 **Casework brief writer**.
 
@@ -99,7 +99,7 @@ choose an unsupported date, or modify a system.
 
 ## Present without hiding the boundaries
 
-1. Open **Explore demos** and choose one story. The displayed findings are
+1. Open **Guided demos** and choose one story. The displayed findings are
    illustrative expectations, not an agent response.
 2. Turn on **Presenter view** in the header for larger story and conversation
    text. The environment indicator and shared-record notices remain visible.
@@ -117,7 +117,8 @@ Presenter view is a browser-session display preference, not a different
 security mode. The Lab still has no individual user sign-in; everyone with
 access shares saved records. Use fictional data only.
 
-The root URL opens Explore demos. Returning presenters can bookmark `/#chat`
+The root URL opens the **Agent library**. Presenters can bookmark `/#demos` to
+open **Guided demos** directly, or `/#chat`
 or `/#create`; the latter requires the creation capability. Valid saved-review
 deep links continue to open their review directly.
 

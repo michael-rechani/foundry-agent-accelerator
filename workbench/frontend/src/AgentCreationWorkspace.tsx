@@ -31,6 +31,7 @@ export function AgentCreationWorkspace({
   view,
   active,
   chatBusy,
+  requestedTemplate,
   onView,
   onUse,
 }: {
@@ -39,6 +40,7 @@ export function AgentCreationWorkspace({
   view: 'create' | 'created'
   active: boolean
   chatBusy: boolean
+  requestedTemplate?: { id: string; key: number } | null
   onView: (view: 'create' | 'created') => void
   onUse: (agent: Agent) => void
 }) {
@@ -59,6 +61,7 @@ export function AgentCreationWorkspace({
   const [selected, setSelected] = useState<CreatedAgent | null>(null)
   const [pollPaused, setPollPaused] = useState(false)
   const [pollAttempt, setPollAttempt] = useState(0)
+  const [handledRequest, setHandledRequest] = useState(0)
   const template = templates.find(
     (item) => item.id === (draft?.template_id || templateId),
   )
@@ -126,6 +129,23 @@ export function AgentCreationWorkspace({
       window.clearTimeout(timer)
     }
   }, [selectedId, operationRunning, pollPaused, pollAttempt, update])
+
+  // A library selection preselects its template unless setup work is already in progress.
+  if (requestedTemplate && handledRequest !== requestedTemplate.key) {
+    const found = templates.find((item) => item.id === requestedTemplate.id)
+    if (found) {
+      setHandledRequest(requestedTemplate.key)
+      if (!draft && !pending) {
+        setTemplateId(found.id)
+        if (
+          !goal.trim() ||
+          templates.some((entry) => entry.example_request === goal)
+        )
+          setGoal(found.example_request)
+        setError('')
+      }
+    }
+  }
 
   function pickTemplate(item: AgentTemplate) {
     setTemplateId(item.id)

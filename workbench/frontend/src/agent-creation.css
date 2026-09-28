@@ -493,10 +493,4 @@
     gap: 8px;
     padding: 14px;
   }
-  .chat-app.has-creation .chat-sidebar nav {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .chat-app.has-creation .chat-sidebar nav button {
-    height: 54px;
-  }
 }

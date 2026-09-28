@@ -149,7 +149,12 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
         templates = await self.client.get("/api/agent-templates")
         self.assertEqual(templates.status_code, 200)
         self.assertEqual(templates.json()["draft_mode"], "template")
-        self.assertEqual(len(templates.json()["templates"]), 9)
+        self.assertEqual(templates.json()["schema_version"], 1)
+        self.assertEqual(len(templates.json()["templates"]), 21)
+        self.assertEqual(
+            sum(item["count"] for item in templates.json()["facets"]["sectors"]),
+            21,
+        )
         response = await self.client.post("/api/agent-drafts", json={
             "goal": "Summarize a fictional policy document.", "template_id": "document-analyst",
         })

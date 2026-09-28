@@ -2,9 +2,16 @@ import unittest
 from pathlib import Path
 
 from agent_templates import (
+    INDUSTRIES,
     MODEL_PROFILES,
+    READINESS_LEVELS,
+    SECTORS,
+    TASKS,
     TEMPLATES,
+    TEMPLATE_METADATA,
+    TOOL_MODES,
     TemplateRequiredError,
+    catalog_facets,
     list_templates,
     prepare_draft,
 )
@@ -17,8 +24,23 @@ LOOKUP_JOBS = {
     "insurance-preapproval-helper",
     "benefits-renewal-helper",
     "supplier-invoice-reviewer",
+    "expense-report-checker",
+    "order-delay-helper",
 }
-SECTOR_JOBS = LOOKUP_JOBS - {"workflow-coordinator"}
+SECTOR_JOBS = {
+    "medical-bill-reviewer",
+    "insurance-preapproval-helper",
+    "benefits-renewal-helper",
+    "supplier-invoice-reviewer",
+}
+PREVIEW_JOBS = {
+    "contract-playbook-checker": ("legal advice", "legal counsel"),
+    "rfp-answer-drafter": ("invent capabilities", "subject-matter experts"),
+    "expense-report-checker": ("never approve", "finance approver"),
+    "incident-timeline-writer": ("declare a root cause", "incident commander"),
+    "customer-feedback-themes": ("decide product priorities", "product owners"),
+    "order-delay-helper": ("never issue or promise a refund", "customer service staff"),
+}
 
 
 class TemplateTests(unittest.TestCase):
@@ -34,9 +56,9 @@ class TemplateTests(unittest.TestCase):
             TEMPLATES["supplier-invoice-reviewer"]["sample_input"],
         )
 
-    def test_all_nine_jobs_have_complete_bounded_guidance_and_examples(self):
+    def test_all_jobs_have_complete_bounded_guidance_and_examples(self):
         self.assertEqual(set(TEMPLATES), TEMPLATE_IDS)
-        self.assertEqual(len(TEMPLATES), 9)
+        self.assertEqual(len(TEMPLATES), 21)
         fields = {
             "id",
             "category",
@@ -76,11 +98,14 @@ class TemplateTests(unittest.TestCase):
     def test_jobs_are_grouped_so_each_category_is_listed_together(self):
         categories = [template["category"] for template in list_templates()]
         self.assertEqual(
-            categories, ["General"] * 5 + ["Healthcare and public sector"] * 4
+            categories,
+            ["General"] * 5
+            + ["Healthcare and public sector"] * 7
+            + ["Private sector"] * 9,
         )
         self.assertEqual(
-            {key for key, item in TEMPLATES.items() if item["category"] != "General"},
-            SECTOR_JOBS,
+            {key for key, item in TEMPLATES.items() if item["category"] == "Healthcare and public sector"},
+            SECTOR_JOBS | {"public-records-intake", "grant-reporting-checker", "community-program-brief"},
         )
 
     def test_each_job_names_the_kind_of_model_it_needs(self):
@@ -94,6 +119,18 @@ class TemplateTests(unittest.TestCase):
             "insurance-preapproval-helper": "tool_calling",
             "benefits-renewal-helper": "reasoning",
             "supplier-invoice-reviewer": "reasoning",
+            "public-records-intake": "extraction",
+            "grant-reporting-checker": "reasoning",
+            "community-program-brief": "reasoning",
+            "customer-support-brief": "reasoning",
+            "cash-application-reviewer": "extraction",
+            "maintenance-work-order-planner": "reasoning",
+            "contract-playbook-checker": "reasoning",
+            "rfp-answer-drafter": "reasoning",
+            "expense-report-checker": "tool_calling",
+            "incident-timeline-writer": "reasoning",
+            "customer-feedback-themes": "reasoning",
+            "order-delay-helper": "tool_calling",
         }
         self.assertEqual(
             {key: template["model_profile"] for key, template in TEMPLATES.items()},
@@ -118,9 +155,62 @@ class TemplateTests(unittest.TestCase):
     def test_public_metadata_is_an_independent_copy(self):
         data = list_templates()
         data[0]["label"] = "Mutated"
-        data[-1]["tools"].clear()
+        data[-1]["tasks"].clear()
+        supplier = next(item for item in data if item["id"] == "supplier-invoice-reviewer")
+        supplier["tools"].clear()
         self.assertNotEqual(TEMPLATES["document-analyst"]["label"], "Mutated")
-        self.assertEqual(len(TEMPLATES[data[-1]["id"]]["tools"]), 2)
+        self.assertTrue(TEMPLATE_METADATA[data[-1]["id"]]["tasks"])
+        self.assertEqual(len(TEMPLATES["supplier-invoice-reviewer"]["tools"]), 2)
+
+    def test_catalog_metadata_uses_closed_taxonomy_and_complete_display_fields(self):
+        sector_ids = {item["id"] for item in SECTORS}
+        industry_ids = {item["id"] for item in INDUSTRIES}
+        task_ids = {item["id"] for item in TASKS}
+        readiness_ids = {item["id"] for item in READINESS_LEVELS}
+        tool_mode_ids = {item["id"] for item in TOOL_MODES}
+        templates = list_templates()
+        self.assertEqual(len({item["id"] for item in templates}), len(templates))
+        self.assertEqual(set(TEMPLATE_METADATA), set(TEMPLATES))
+        for template in templates:
+            with self.subTest(identifier=template["id"]):
+                self.assertIn(template["sector"]["id"], sector_ids)
+                self.assertIn(template["industry"]["id"], industry_ids)
+                self.assertTrue(template["tasks"])
+                self.assertTrue({item["id"] for item in template["tasks"]} <= task_ids)
+                self.assertIn(template["readiness"]["id"], readiness_ids)
+                self.assertIn(template["tool_mode"]["id"], tool_mode_ids)
+                self.assertLessEqual(len(template["summary"]), 140)
+                for key in ("summary", "expected_behavior", "human_decision"):
+                    self.assertIsInstance(template[key], str)
+                    self.assertTrue(template[key].strip())
+                self.assertIsInstance(template["keywords"], list)
+                self.assertTrue(all(isinstance(value, str) and value.strip() for value in template["keywords"]))
+                export = template["export"]
+                self.assertEqual(export["exportable"], export["availability"] == "after_creation")
+                if template["tool_mode"]["id"] == "connected-required":
+                    self.assertTrue(any("connection" in item.lower() for item in template["prerequisites"]))
+
+    def test_facets_have_stable_order_and_counts_matching_templates(self):
+        templates = list_templates()
+        facets = catalog_facets()
+        sources = {
+            "sectors": (SECTORS, lambda item: [item["sector"]["id"]]),
+            "industries": (INDUSTRIES, lambda item: [item["industry"]["id"]]),
+            "tasks": (TASKS, lambda item: [task["id"] for task in item["tasks"]]),
+            "readiness": (READINESS_LEVELS, lambda item: [item["readiness"]["id"]]),
+            "tool_modes": (TOOL_MODES, lambda item: [item["tool_mode"]["id"]]),
+        }
+        for name, (definitions, identifiers) in sources.items():
+            with self.subTest(facet=name):
+                expected = [
+                    {
+                        **definition,
+                        "count": sum(definition["id"] in identifiers(template) for template in templates),
+                    }
+                    for definition in definitions
+                    if any(definition["id"] in identifiers(template) for template in templates)
+                ]
+                self.assertEqual(facets[name], expected)
 
     def test_examples_match_only_their_own_template(self):
         for identifier, template in TEMPLATES.items():
@@ -158,6 +248,12 @@ class TemplateTests(unittest.TestCase):
             "Compare our purchase order with what was delivered.": "supplier-invoice-reviewer",
             "Find overcharges on my hospital statement.": "medical-bill-reviewer",
             "Help families renew their food assistance.": "benefits-renewal-helper",
+            "Compare this contract with our clause playbook.": "contract-playbook-checker",
+            "Draft answers to this security questionnaire.": "rfp-answer-drafter",
+            "Check my expense report before I submit it.": "expense-report-checker",
+            "Write a timeline for last night's outage.": "incident-timeline-writer",
+            "Group our survey feedback into themes.": "customer-feedback-themes",
+            "Where is my late order?": "order-delay-helper",
         }
         for goal, identifier in expected.items():
             with self.subTest(goal=goal):
@@ -204,7 +300,7 @@ class TemplateTests(unittest.TestCase):
                 )
                 self.assertTrue(all(tool["simulated"] for tool in template["tools"]))
                 for tool in template["tools"]:
-                    if identifier in SECTOR_JOBS:
+                    if identifier in SECTOR_JOBS or identifier in PREVIEW_JOBS:
                         self.assertIn(tool["name"], template["instructions"])
                     self.assertTrue(
                         tool["description"].endswith("no external call or update.")
@@ -223,6 +319,39 @@ class TemplateTests(unittest.TestCase):
                 )
                 self.assertIn("made up", template["sample_input"])
 
+    def test_new_library_jobs_preserve_their_human_decision_boundary(self):
+        expected = {
+            "public-records-intake": ("release", "records officer"),
+            "grant-reporting-checker": ("certify compliance", "grant officer"),
+            "community-program-brief": ("allocate funding", "program staff"),
+            "customer-support-brief": ("issue credits", "support staff"),
+            "cash-application-reviewer": ("post cash", "finance staff"),
+            "maintenance-work-order-planner": ("diagnose equipment", "qualified staff"),
+        }
+        public = {item["id"]: item for item in list_templates()}
+        for identifier, (prohibited_action, owner) in expected.items():
+            with self.subTest(identifier=identifier):
+                template = TEMPLATES[identifier]
+                self.assertIn(prohibited_action, template["instructions"].lower())
+                self.assertIn(owner, public[identifier]["human_decision"].lower())
+                self.assertIn("fictional", template["sample_input"].lower())
+                self.assertEqual(template["tools"], [])
+
+    def test_private_preview_jobs_are_previews_that_keep_a_person_in_charge(self):
+        public = {item["id"]: item for item in list_templates()}
+        for identifier, (prohibited, owner) in PREVIEW_JOBS.items():
+            with self.subTest(identifier=identifier):
+                template = TEMPLATES[identifier]
+                self.assertEqual(template["category"], "Private sector")
+                self.assertEqual(public[identifier]["sector"]["id"], "private")
+                self.assertEqual(public[identifier]["readiness"], {"id": "sample", **{
+                    key: value for key, value in READINESS_LEVELS[1].items() if key != "id"}})
+                self.assertEqual(public[identifier]["readiness"]["label"], "In progress")
+                self.assertIn(prohibited, template["instructions"].lower())
+                self.assertIn(owner, public[identifier]["human_decision"].lower())
+                self.assertIn("made up", template["sample_input"])
+                if identifier != "customer-feedback-themes":
+                    self.assertRegex(template["instructions"], r"UNSENT DRAFT|SUGGESTION FOR COUNSEL REVIEW")
 
 if __name__ == "__main__":
     unittest.main()

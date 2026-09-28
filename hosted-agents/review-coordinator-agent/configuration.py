@@ -5,7 +5,7 @@ DEFAULT_SPECIALISTS = (
     {"tool": "review_application", "agent": "application-review-agent",
      "description": "Review application completeness or RFP/proposal coverage against supplied criteria and source evidence."},
     {"tool": "review_case", "agent": "case-review-agent",
-     "description": "Review a case record and return evidence-grounded findings."},
+     "description": "Summarize case notes, write simple handoff briefs, or review case evidence and conflicts. Use even when no policy, gap, eligibility or timeliness assessment is requested."},
 )
 
 

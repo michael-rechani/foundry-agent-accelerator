@@ -62,3 +62,29 @@ templates in `workbench/agent_templates.py`, simulated lookup records in
 - Make evidence, uncertainty, and the human decision visible.
 - Keep exploration separate from resource creation and paid execution.
 - Reuse one foundation while releasing and verifying agents independently.
+
+## Next Product Direction
+
+Grow into a customer-ready library of public-sector and private-sector agent
+templates: discover a practical job, configure its boundaries, try fictional
+inputs, inspect the results, then export a versioned package for deployment in
+the customer's environment. Keep reusable skills separate from deployed agents;
+a catalog entry or prepared setup is not a running service.
+
+Use a distinctive, rich interface: searchable sector and task collections,
+outcome-focused cards, detailed input/output examples, a guided configuration
+workspace, and side-by-side source evidence and results. Show actual readiness,
+required integrations, simulated versus connected tools, execution cost and
+deployment prerequisites instead of decorative capability claims. Preserve
+keyboard access, responsive layouts, accessible contrast and reduced motion.
+
+LifeOS Skills is an inspiration for discoverability, not a design or content
+template. Create original visual language, agent definitions and workflows.
+Build on the existing reviewed templates, creation lifecycle and portable
+bundles rather than introducing a parallel catalog or deployment system.
+
+This is a direction, not a claim that customer isolation, arbitrary agent
+composition or one-click cross-environment deployment already exists. Private
+customer data needs a real authorization boundary. Keep browsing and local
+configuration distinct from paid calls, shared saves and deployment approvals;
+never silently enable public access or external business actions.

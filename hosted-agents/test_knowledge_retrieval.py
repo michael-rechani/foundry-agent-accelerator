@@ -271,9 +271,9 @@ class FlagOffUnchangedTests(unittest.TestCase):
         deployment.create_package(CASE, output)
         with ZipFile(output) as archive:
             files = {name: archive.read(name) for name in archive.namelist()}
-        self.assertEqual(set(files), {"main.py", "requirements.txt", "instructions.md"})
+        self.assertEqual(set(files), {"main.py", "requirements.txt", "instructions.md", "review_output.py"})
         for name, content in files.items():
-            self.assertEqual(content, (CASE / name).read_bytes())
+            self.assertEqual(content, ((HERE if name == "review_output.py" else CASE) / name).read_bytes())
         self.assertNotIn(b"knowledge", files["main.py"])
         self.assertNotIn(b"azure-search-documents", files["requirements.txt"])
         self.assertNotIn(b"search_policy_guidance", files["instructions.md"])
@@ -309,7 +309,8 @@ class FlagOnTests(unittest.TestCase):
             files = {info.filename: archive.read(info) for info in archive.infolist()}
             self.assertTrue(all(info.create_system == 3 and info.date_time == (2026, 1, 1, 0, 0, 0)
                                 for info in archive.infolist()))
-        self.assertEqual(set(files), {"main.py", "requirements.txt", "knowledge_retrieval.py", "instructions.md"})
+        self.assertEqual(set(files), {"main.py", "requirements.txt", "knowledge_retrieval.py", "instructions.md",
+                                      "review_output.py"})
         self.assertEqual(files["main.py"], (HERE / "knowledge_main.py").read_bytes())
         self.assertEqual(files["knowledge_retrieval.py"], (HERE / "knowledge_retrieval.py").read_bytes())
         self.assertEqual(files["instructions.md"], (CASE / "instructions.md").read_bytes())
@@ -365,7 +366,8 @@ def run_main(path, environ):
     }
     environ = {**environ, "FOUNDRY_PROJECT_ENDPOINT": "https://example.services.ai.azure.com/api/projects/test",
                "FOUNDRY_MODEL_NAME": "model"}
-    with patch.dict(sys.modules, modules), patch.dict(os.environ, environ, clear=True):
+    with (patch.dict(sys.modules, modules), patch.dict(os.environ, environ, clear=True),
+          patch("review_output.quotation_middleware", return_value="quotation-check")):
         spec = importlib.util.spec_from_file_location(f"main_under_test_{path.parent.name}", path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)

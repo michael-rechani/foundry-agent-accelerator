@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
+from agent_creation import CreationSettings
 from app import FoundryGateway, Settings, cache_policy, create_app, execution_receipts, load_agents
 
 
@@ -30,6 +31,20 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(self.gateway.review.call_args.args[0]["agent"], "customer-review-coordinator")
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertIn("frame-ancestors 'none'", response.headers["content-security-policy"])
+
+    def test_reply_reports_token_usage_or_null(self):
+        response = self.client.post("/api/reviews", json=self.body, headers=self.headers)
+        self.assertIsNone(response.json()["usage"])
+
+        async def review(agent, prompt, thread=None, usage=None):
+            usage.append({"input_tokens": 40, "output_tokens": 10, "total_tokens": 50,
+                          "cached_tokens": None, "reasoning_tokens": 0})
+            return "completed", "Finding APP-1", []
+
+        self.gateway.review.side_effect = review
+        response = self.client.post("/api/reviews", json=self.body, headers=self.headers)
+        self.assertEqual(response.json()["usage"], {"input_tokens": 40, "output_tokens": 10, "total_tokens": 50,
+                                                    "cached_tokens": None, "reasoning_tokens": 0})
 
     def test_public_configuration_matches_request_limits(self):
         config = self.client.get("/api/config").json()
@@ -544,6 +559,89 @@ class FoundryGatewayTests(unittest.IsolatedAsyncioTestCase):
         for call in client.responses.create.await_args_list:
             self.assertEqual(call.kwargs["input"], prompt)
             self.assertFalse(call.kwargs["store"])
+
+class LibraryPreviewTests(unittest.TestCase):
+    def setUp(self):
+        self.gateway = AsyncMock()
+        self.gateway.review.return_value = ("completed", "Finding APP-1", [])
+        self.gateway.preview.return_value = ("completed", "Preview answer", [])
+        self.settings = Settings("private", "https://example.services.ai.azure.com/api/projects/test",
+                                 ("testserver",), ("https://testserver",),
+                                 creation=CreationSettings(False, "test-model", models={"reasoning": "reason-model"}))
+        self.client = TestClient(create_app(self.settings, self.gateway))
+        self.headers = {"X-Workbench-Request": "1", "Origin": "https://testserver"}
+
+    def test_configuration_reports_preview_capability(self):
+        self.assertEqual(self.client.get("/api/config").json()["library_preview"],
+                         {"enabled": True, "reason": None, "agent": "lab-library-preview"})
+        for settings, reason in ((replace(self.settings, library_preview=False), "not_enabled"),
+                                 (replace(self.settings, creation=CreationSettings()), "model_not_configured")):
+            config = TestClient(create_app(settings, self.gateway)).get("/api/config").json()
+            self.assertEqual(config["library_preview"], {"enabled": False, "reason": reason, "agent": "lab-library-preview"})
+
+    def test_preview_chat_uses_template_binding_without_publishing(self):
+        response = self.client.post("/api/reviews", json={"agent_id": "library-document-analyst", "input": "Summarize"},
+                                    headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["agent"], "lab-library-preview")
+        self.assertEqual(response.json()["text"], "Preview answer")
+        agent = self.gateway.preview.call_args.args[0]
+        self.assertEqual((agent["template_id"], agent["preview"]), ("document-analyst", True))
+        self.gateway.review.assert_not_called()
+
+    def test_preview_receipts_are_verified_against_the_preview_binding(self):
+        output = [{"type": "function_call", "call_id": "one", "name": "lookup_demo_request"},
+                  {"type": "function_call_output", "call_id": "one", "output": json.dumps(
+                      {"status": "succeeded", "agent": "lab-library-preview", "simulation": True, "output": "REQ-101"})}]
+        self.gateway.preview.return_value = ("completed", "Answer", output)
+        response = self.client.post("/api/reviews", json={"agent_id": "library-workflow-coordinator", "input": "Check REQ-101"},
+                                    headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["receipts"][0]["verified"])
+
+    def test_disabled_or_unknown_previews_are_rejected(self):
+        body = {"agent_id": "library-document-analyst", "input": "Summarize"}
+        disabled = TestClient(create_app(replace(self.settings, library_preview=False), self.gateway))
+        response = disabled.post("/api/reviews", json=body, headers=self.headers)
+        self.assertEqual((response.status_code, response.json()["error"]), (503, "library_preview_disabled"))
+        response = self.client.post("/api/reviews", json={**body, "agent_id": "library-missing"}, headers=self.headers)
+        self.assertEqual((response.status_code, response.json()["error"]), (400, "invalid_request"))
+        self.gateway.preview.assert_not_called()
+
+    def test_preview_flag_must_be_boolean(self):
+        with self.assertRaisesRegex(ValueError, "Library preview enablement"):
+            create_app(replace(self.settings, library_preview="yes"), self.gateway)
+        with patch.dict("os.environ", {"WORKBENCH_LIBRARY_PREVIEW_ENABLED": "maybe"}):
+            with self.assertRaisesRegex(ValueError, "WORKBENCH_LIBRARY_PREVIEW_ENABLED"):
+                Settings.from_env()
+
+
+class LibraryPreviewGatewayTests(unittest.IsolatedAsyncioTestCase):
+    async def test_preview_calls_the_profile_model_directly(self):
+        response = SimpleNamespace(status="completed", output_text="Preview", model_dump=lambda **_: {"output": []})
+        openai_client = MagicMock()
+        openai_client.responses.create = AsyncMock(return_value=response)
+        project, pool = MagicMock(close=AsyncMock()), MagicMock(aclose=AsyncMock())
+        project.get_openai_client.return_value = openai_client
+        modules = {
+            "azure.ai.projects.aio": SimpleNamespace(AIProjectClient=MagicMock(return_value=project)),
+            "azure.identity.aio": SimpleNamespace(ManagedIdentityCredential=MagicMock(return_value=MagicMock(close=AsyncMock()))),
+            "openai": SimpleNamespace(DefaultAsyncHttpxClient=MagicMock(return_value=pool)),
+        }
+        settings = Settings("private", "https://example.services.ai.azure.com/api/projects/test",
+                            ("testserver",), ("https://testserver",),
+                            creation=CreationSettings(False, "test-model", models={"reasoning": "reason-model"}))
+        gateway = FoundryGateway(settings)
+        agent = {"template_id": "document-analyst", "model_profile": "reasoning"}
+        with patch.dict(sys.modules, modules):
+            self.assertEqual(await gateway.preview(agent, "Summarize"), ("completed", "Preview", []))
+        self.assertEqual(project.get_openai_client.call_args.kwargs,
+                         {"timeout": settings.timeout, "max_retries": 0, "http_client": pool})
+        options = openai_client.responses.create.await_args.kwargs
+        self.assertEqual(options["model"], "reason-model")
+        self.assertFalse(options["store"])
+        openai_client.close.assert_not_called()
+        await gateway.close()
 
 
 if __name__ == "__main__":

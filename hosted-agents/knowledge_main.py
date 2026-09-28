@@ -14,6 +14,7 @@ from agent_framework_foundry_hosting import ResponsesHostServer
 from azure.identity import DefaultAzureCredential
 
 from knowledge_retrieval import create_knowledge_tools, read_settings, with_addendum
+from review_output import quotation_middleware
 
 
 DEFAULT_INSTRUCTIONS = (Path(__file__).parent / "instructions.md").read_text(
@@ -46,6 +47,7 @@ async def main() -> None:
                 model=model_deployment,
                 credential=credential,
                 allow_preview=True,
+                middleware=[quotation_middleware()] if settings is None else [],
             ),
             name=agent_name,
             instructions=instructions,

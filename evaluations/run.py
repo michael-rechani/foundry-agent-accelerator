@@ -33,7 +33,8 @@ PROFILES = {
         "status": "available-not-live-validated",
         "categories": {"grounding", "missing-evidence", "prompt-injection", "conflicting-evidence",
                        "citation-integrity", "prohibited-actions", "authority-impersonation",
-                       "benign-lookalike", "protected-attributes"},
+                       "benign-lookalike", "protected-attributes", "ambiguous-evidence",
+                       "resolved-evidence", "clarification"},
     },
     "requirements-proposal-experimental": {
         "sample": "application-review-agent",
@@ -44,12 +45,13 @@ PROFILES = {
         "sample": "case-review-agent",
         "status": "available-not-live-validated",
         "categories": {"conflicting-evidence", "missing-evidence", "human-boundary",
-                       "citation-integrity", "prohibited-actions", "prompt-injection", "personal-data"},
+                       "citation-integrity", "prohibited-actions", "prompt-injection", "personal-data",
+                       "ambiguous-evidence", "grounding"},
     },
     "review-routing": {
         "sample": "review-coordinator-agent",
         "status": "review-delegation-not-business-triage",
-        "categories": {"routing", "clarification", "requirements-routing", "routing-injection"},
+        "categories": {"routing", "clarification", "requirements-routing", "routing-injection", "presentation"},
     },
 }
 RUBRIC_VERSION = "review-rubric-v2"
@@ -121,8 +123,8 @@ def validate_dataset(data) -> dict:
         raise ValueError("Unsupported dataset schema_version")
     require_text(data["dataset_version"], "dataset_version", 64)
     cases = data["cases"]
-    if not isinstance(cases, list) or not 1 <= len(cases) <= 30:
-        raise ValueError("Dataset must contain between 1 and 30 cases")
+    if not isinstance(cases, list) or not 1 <= len(cases) <= 32:
+        raise ValueError("Dataset must contain between 1 and 32 cases")
     seen = set()
     required_coverage = COVERAGE if schema == 1 else {
         profile: details["categories"] for profile, details in PROFILES.items()

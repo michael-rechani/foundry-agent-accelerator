@@ -21,6 +21,10 @@ SAMPLE_LOOKUPS = {
     "supplier-invoice-reviewer": [
         ("lookup_purchase_order", "PO-DEMO-2210"), ("lookup_delivery_record", "PO-DEMO-2210"),
     ],
+    "expense-report-checker": [
+        ("lookup_expense_policy", "POL-DEMO-TRAVEL"), ("lookup_trip_request", "TRIP-DEMO-4410"),
+    ],
+    "order-delay-helper": [("lookup_order", "ORD-DEMO-3307"), ("lookup_shipment", "ORD-DEMO-3307")],
 }
 
 

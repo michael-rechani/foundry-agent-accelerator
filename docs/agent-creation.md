@@ -188,6 +188,7 @@ For non-Terraform operators, the equivalent server configuration is:
 | `WORKBENCH_CREATION_KEY_SHA256` | Lowercase, 64-character verifier from a secret reference; never the raw key |
 | `WORKBENCH_MAX_CREATED_AGENTS` | Defaults to 5; allowed range 1-20; failed/unconfirmed attempts still count |
 | `WORKBENCH_PUBLICATION_TIMEOUT_SECONDS` | Defaults to 600; allowed range 30-900 |
+| `WORKBENCH_LIBRARY_PREVIEW_ENABLED` | `true` (default) or `false`. When `true` in private mode with a creation model configured, **Chat** can run library definitions as unsaved previews on that model without publishing an agent. Previews use only simulated read-only lookups, and each message may incur model cost. Other values fail startup. |
 
 The existing `WORKBENCH_MODE=private`, Foundry endpoint, managed identity,
 trusted hosts/origins, and Cosmos configuration still apply. Invalid opt-in
@@ -218,6 +219,21 @@ valid verifier configured to allow operator deletion while creation is disabled.
 | Server environment / [Lab Terraform](../workbench/infra/main.tf) | Enablement, the default and per-kind model deployments, operator-key verifier, and operational limits |
 | Existing [`agents.json`](../workbench/agents.json) and coordinator profiles | Unchanged prebuilt agent catalog, visibility, and specialist bindings; not overwritten by creation |
 
+`GET /api/agent-templates` is also the browser's library contract. The response
+keeps `templates` and `draft_mode` for existing clients, adds
+`schema_version: 1`, and derives stable `facets` from the same template data.
+Each template includes its sector, industry, tasks, readiness, tool mode,
+prerequisites, relative runtime hint, expected behavior, required human
+decision, search keywords, and export status. Facet counts are derived rather
+than maintained separately.
+
+Readiness and runtime hints are bounded labels, not service-level claims.
+`Sample` means the definition has deterministic contract tests but still needs
+customer policy review. `Reviewed` identifies the earlier reviewed Lab
+definitions. Current tool modes are only `No tools` and `Simulated tools`;
+neither means a customer system is connected. Cost and latency are relative
+model-profile hints, not prices or performance guarantees.
+
 Only `main.py`, `demo_tools.py`, and `requirements.txt` enter the deterministic
 ZIP package. Prompts cannot upload source, install dependencies, select
 endpoints, change the model, or register tools. Hosted allocation is fixed at
@@ -233,10 +249,16 @@ agents; prebuilt catalog entries cannot reuse it.
 
 ## Publication, recovery, and deletion
 
-For a CLI-only source/configuration export, see
+For a source/configuration export, see
 [portable agent bundles](../hosted-agents/README.md#portable-agent-bundles).
 The saved-agent API exposes its `runtime_hash` so the exporter can require the
-exact matching runtime source. Export/import does not add Lab UI controls.
+exact matching runtime source. In the Lab, a library entry's **Export and
+deploy** tab downloads a ready agent's saved record (`GET /api/agents/{id}`) and
+shows the `bundle.py export-created`, `inspect`, and `deploy` commands; building
+and deploying the bundle remain CLI steps in your own environment.
+Library templates are marked exportable only through the `after_creation`
+path: first create and publish a saved Lab agent, then export its ready record.
+Browsing a template alone does not produce a bundle.
 Redeployed bundles are independent agents: they do not copy this Lab's records,
 ownership, chat history, or automatic lifecycle management.
 

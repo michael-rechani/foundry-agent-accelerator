@@ -6,6 +6,9 @@ from copy import deepcopy
 TEMPLATE_IDS = frozenset({
     "document-analyst", "criteria-checker", "document-intake", "casework-assistant", "workflow-coordinator",
     "medical-bill-reviewer", "insurance-preapproval-helper", "benefits-renewal-helper", "supplier-invoice-reviewer",
+    "public-records-intake", "grant-reporting-checker", "community-program-brief", "customer-support-brief",
+    "cash-application-reviewer", "maintenance-work-order-planner", "contract-playbook-checker", "rfp-answer-drafter",
+    "expense-report-checker", "incident-timeline-writer", "customer-feedback-themes", "order-delay-helper",
 })
 _EXAMPLE = "Example only; not a real record"
 
@@ -145,6 +148,55 @@ _DELIVERIES = {
         "status": "Example only; not a real delivery record",
     },
 }
+_EXPENSE_POLICIES = {
+    "POL-DEMO-TRAVEL": {
+        "policy_id": "POL-DEMO-TRAVEL", "policy_name": "Fictional Travel and Expense Rules",
+        "rules": [
+            {"id": "RULE-1", "rule": "Hotel: up to $220.00 per night"},
+            {"id": "RULE-2", "rule": "Meals: up to $75.00 per person per day, excluding non-reimbursable items"},
+            {"id": "RULE-3", "rule": "Receipts: required for any line over $25.00"},
+            {"id": "RULE-4", "rule": "Not reimbursable: alcohol and personal entertainment"},
+            {"id": "RULE-5", "rule": "Dates: expenses must fall within the approved trip dates, including travel days"},
+        ],
+        "note": "Checklist only. A finance approver decides reimbursement and any exception.",
+        "status": "Example only; not a real expense policy",
+    },
+}
+_TRIPS = {
+    "TRIP-DEMO-4410": {
+        "trip_id": "TRIP-DEMO-4410", "traveler": "Jordan Lee (fictional)",
+        "purpose": "Customer workshop in Example City (fictional)", "approved_dates": "2027-05-10 to 2027-05-12",
+        "approved_budget": {"hotel": "$440.00 for 2 nights", "meals": "$225.00 for 3 days", "local_transport": "$60.00"},
+        "approved_by": "Finance lead (fictional)",
+        "status": "Example only; not a real trip request",
+    },
+}
+_ORDERS = {
+    "ORD-DEMO-3307": {
+        "order_id": "ORD-DEMO-3307", "customer": "A. Chen (fictional)", "placed_on": "2027-06-01",
+        "promised_delivery": "2027-06-06", "shipping": "Standard",
+        "lines": [
+            {"item": "DL-20 Desk lamp", "quantity": 1, "price": "$45.00"},
+            {"item": "MS-5 Monitor stand", "quantity": 1, "price": "$80.00"},
+        ],
+        "order_total": "$125.00",
+        "note": "Refunds, credits, cancellations and reshipments are decided by customer service staff.",
+        "status": "Example only; not a real order",
+    },
+}
+_SHIPMENTS = {
+    "ORD-DEMO-3307": {
+        "order_id": "ORD-DEMO-3307",
+        "shipments": [
+            {"shipment_id": "SHP-DEMO-881", "carrier": "Example Parcel (fictional)", "items": ["DL-20 Desk lamp"],
+             "events": ["2027-06-02 Label created", "2027-06-03 Picked up",
+                        "2027-06-05 Delayed: weather at regional hub"],
+             "carrier_estimate": "2027-06-09"},
+        ],
+        "not_shipped": [{"item": "MS-5 Monitor stand", "state": "Backordered; restock date not confirmed"}],
+        "status": "Example only; not a real tracking record",
+    },
+}
 
 
 def _lookup(records, identifier):
@@ -209,10 +261,28 @@ def create_demo_tools(template_id, agent_name):
         """Read what the fictional buyer recorded as delivered for a PO number. SIMULATED, read-only; never changes a record."""
         return receipt(_lookup(_DELIVERIES, po_number))
 
+    def lookup_expense_policy(policy_id: str) -> str:
+        """Read fixed fictional travel and expense rules by policy ID. SIMULATED, read-only; never approves a claim."""
+        return receipt(_lookup(_EXPENSE_POLICIES, policy_id))
+
+    def lookup_trip_request(trip_id: str) -> str:
+        """Read a fixed fictional approved trip request by trip ID. SIMULATED, read-only; never changes a record."""
+        return receipt(_lookup(_TRIPS, trip_id))
+
+    def lookup_order(order_id: str) -> str:
+        """Read a fixed fictional customer order by order ID. SIMULATED, read-only; never refunds or changes an order."""
+        return receipt(_lookup(_ORDERS, order_id))
+
+    def lookup_shipment(order_id: str) -> str:
+        """Read fixed fictional shipment tracking for an order ID. SIMULATED, read-only; never contacts a carrier."""
+        return receipt(_lookup(_SHIPMENTS, order_id))
+
     return {
         "workflow-coordinator": [lookup_demo_request, lookup_demo_service],
         "medical-bill-reviewer": [lookup_plan_benefits, lookup_usual_price],
         "insurance-preapproval-helper": [lookup_preapproval_rules, lookup_facility],
         "benefits-renewal-helper": [lookup_renewal_rules, lookup_documents_on_file],
         "supplier-invoice-reviewer": [lookup_purchase_order, lookup_delivery_record],
+        "expense-report-checker": [lookup_expense_policy, lookup_trip_request],
+        "order-delay-helper": [lookup_order, lookup_shipment],
     }.get(template_id, [])

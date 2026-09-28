@@ -166,18 +166,22 @@ async function setup(
     'Application and case helper',
   )
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
-  await expect(navigation.getByRole('button').first()).toHaveText(
-    'Explore demos',
-  )
+  await expect(navigation.getByRole('button').first()).toHaveText('Chat')
   await expect(
     navigation.getByRole('button', { name: 'Chat', exact: true }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toBeVisible()
-  await navigation
-    .getByRole('button', { name: 'Document reviews', exact: true })
-    .click()
+  await expect(
+    navigation.getByRole('button', { name: 'Document reviews' }),
+  ).toHaveCount(0)
+  await expect(page.locator('.chat-review-link')).toHaveCount(0)
+  await page.goto('/#reviews')
+  await page.reload()
+  await expect(
+    navigation.getByRole('button', { name: 'Document reviews', exact: true }),
+  ).toHaveAttribute('aria-current', 'page')
   await expect(
     page.getByRole('heading', { name: 'Document reviews', exact: true }),
   ).toBeVisible()
@@ -219,17 +223,15 @@ test('navigation is labelled and conversation actions stay in Chat', async ({
     'Chat',
     'Document reviews',
     'Shared history',
-    'Agent catalog',
+    'All agents',
     'Performance',
   ]) {
     await expect(
       navigation.locator('span').filter({ hasText: new RegExp(`^${label}$`) }),
     ).toBeVisible()
   }
-  for (const label of ['Chat', 'Agent catalog', 'Performance']) {
-    await navigation
-      .getByRole('button', { name: label, exact: label !== 'Agent catalog' })
-      .click()
+  for (const label of ['Chat', 'All agents', 'Performance']) {
+    await navigation.getByRole('button', { name: label, exact: true }).click()
     await expect(page.getByText('Local preview', { exact: true })).toBeVisible()
     await expect(
       page.getByRole('button', { name: 'Export conversation' }),
@@ -283,7 +285,11 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   const caseAgent = registry.find((item) => item.id === 'case-review')!
   const state = await setup(page, false, [guidedReview, caseAgent])
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
-  await navigation.getByRole('button', { name: 'Agent catalog' }).click()
+  await navigation.getByRole('button', { name: 'All agents' }).click()
+  await page
+    .getByRole('navigation', { name: 'Agent library' })
+    .getByRole('button', { name: /^Ready to use/ })
+    .click()
   await page
     .locator('.catalog-agent')
     .filter({
@@ -293,9 +299,10 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
     .click()
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   await editor.fill('Fictional case notes only for Chat, not review evidence')
-  await navigation
-    .getByRole('button', { name: 'Document reviews', exact: true })
-    .click()
+  await page.evaluate(() => {
+    window.location.hash = ''
+    window.location.hash = '#reviews'
+  })
   await page.getByRole('button', { name: 'New review', exact: true }).click()
   await expect(page.getByLabel('Review title')).toHaveValue('')
   await expect(page.getByLabel('Checklist, one item per line')).toHaveValue('')
@@ -356,7 +363,7 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   )
 })
 
-test('invalid review links fall back to Explore without opening a review', async ({
+test('invalid review links fall back to the library without opening a review', async ({
   page,
 }) => {
   await setup(page)
@@ -365,11 +372,14 @@ test('invalid review links fall back to Explore without opening a review', async
   await expect(
     page
       .getByRole('navigation', { name: 'Workspace' })
-      .getByRole('button', { name: 'Explore demos', exact: true }),
+      .getByRole('button', { name: 'All agents', exact: true }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(
-    page.getByRole('heading', { name: 'From paperwork to a clear next step.' }),
+    page.getByRole('heading', { level: 1, name: /library|job that needs/i }),
   ).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Document reviews', exact: true }),
+  ).toHaveCount(0)
 })
 
 async function create(page: Page) {

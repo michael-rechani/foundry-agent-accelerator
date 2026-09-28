@@ -37,7 +37,8 @@ class DatasetTests(unittest.TestCase):
         self.data = run.load_dataset(run.CASES_PATH)
 
     def test_checked_in_cases_cover_every_sample_and_category(self):
-        self.assertEqual(len(self.data["cases"]), 25)
+        self.assertEqual(self.data["dataset_version"], "review-v2.2")
+        self.assertEqual(len(self.data["cases"]), 31)
         self.assertEqual(len(run.digest(self.data)), 64)
         self.assertEqual(run.digest(self.data), run.digest(copy.deepcopy(self.data)))
 
@@ -52,15 +53,15 @@ class DatasetTests(unittest.TestCase):
 
     def test_profile_selection_keeps_all_required_cases_and_excludes_planned_triage(self):
         expected = {
-            "application-completeness": 9, "requirements-proposal-experimental": 3,
-            "casework-review": 7, "review-routing": 6,
+            "application-completeness": 12, "requirements-proposal-experimental": 3,
+            "casework-review": 9, "review-routing": 7,
         }
         for profile, count in expected.items():
             cases = run.select_cases(self.data, run.parse_args(["--profile", profile]))
             self.assertEqual(len(cases), count)
             self.assertEqual({case["sample"] for case in cases}, {run.PROFILES[profile]["sample"]})
         cases = run.select_cases(self.data, run.parse_args(["--sample", "application-review-agent"]))
-        self.assertEqual(len(cases), 12)
+        self.assertEqual(len(cases), 15)
         with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             run.parse_args(["--profile", "business-request-triage"])
 
@@ -106,6 +107,26 @@ class DatasetTests(unittest.TestCase):
             path.write_text("{", encoding="utf-8")
             with self.assertRaises(json.JSONDecodeError):
                 run.load_dataset(path)
+
+    def test_usability_regressions_cannot_be_removed_from_required_coverage(self):
+        for case_id in (
+            "application-missing-checklist",
+            "application-ambiguous-plan", "application-clarified-plan",
+            "case-relative-follow-up", "case-simple-summary", "coordinator-readable-application",
+        ):
+            with self.subTest(case=case_id):
+                data = copy.deepcopy(self.data)
+                data["cases"] = [case for case in data["cases"] if case["id"] != case_id]
+                with self.assertRaisesRegex(ValueError, "every required category"):
+                    run.validate_dataset(data)
+
+    def test_dataset_size_limit(self):
+        data = copy.deepcopy(self.data)
+        data["cases"].append({**copy.deepcopy(data["cases"][0]), "id": "additional-grounding"})
+        self.assertEqual(len(run.validate_dataset(data)["cases"]), 32)
+        data["cases"].append({**copy.deepcopy(data["cases"][0]), "id": "overflow-grounding"})
+        with self.assertRaisesRegex(ValueError, "between 1 and 32"):
+            run.validate_dataset(data)
 
     def test_default_command_needs_no_credentials_or_sdk(self):
         with redirect_stdout(io.StringIO()) as output:

@@ -29,6 +29,7 @@ async function workspace(
     startup?: 'stalled' | 'invalid' | 'invalid-guidance' | 'failed'
     config?: Partial<Config>
     receipts?: Receipt[]
+    usage?: unknown
   } = {},
 ) {
   const config: Config = {
@@ -96,6 +97,7 @@ async function workspace(
         ).agent,
         text: 'Section 1 is missing a budget.',
         elapsed_ms: 1000,
+        ...(options.usage !== undefined ? { usage: options.usage } : {}),
         receipts: options.receipts ?? [
           {
             tool: 'inspect_application',
@@ -163,6 +165,17 @@ async function send(page: Page, text = 'Review synthetic APP-1') {
   ).toBeEnabled()
 }
 
+async function openReadyAgents(page: Page) {
+  await page
+    .getByRole('navigation', { name: 'Workspace' })
+    .getByRole('button', { name: 'All agents' })
+    .click()
+  await page
+    .getByRole('navigation', { name: 'Agent library' })
+    .getByRole('button', { name: /^Ready to use/ })
+    .click()
+}
+
 test('shared privacy notice is visible before sending or saving', async ({
   page,
 }, testInfo) => {
@@ -209,7 +222,7 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
   const state = await workspace(page)
   await expect(
     page.getByRole('heading', {
-      name: 'Use Application and case helper',
+      name: 'Application and case helper',
       exact: true,
     }),
   ).toBeVisible()
@@ -231,21 +244,20 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   await expect(editor).toHaveValue('Synthetic configured starter')
   await expect(editor).toBeFocused()
-  await expect(page.getByText('Not saved', { exact: true })).toBeVisible()
-  await expect(page.locator('#context-budget summary')).toContainText(
-    'Conversation limits',
-  )
+  await expect(page.getByText('Not saved', { exact: true })).toHaveCount(0)
+  await expect(page.locator('#context-budget')).toHaveCount(0)
 
   await page
     .getByRole('banner')
     .getByTitle('Choose an agent', { exact: true })
     .click()
+  const switcher = page.getByRole('dialog', { name: 'Choose an agent' })
+  await expect(switcher).toBeVisible()
   await expect(
-    page.getByRole('heading', { name: 'Choose an agent', exact: true }),
-  ).toBeVisible()
-  await page
-    .getByRole('button', { name: 'Return to chat', exact: true })
-    .click()
+    switcher.getByRole('button', { name: /Application and case helper/ }),
+  ).toHaveAttribute('aria-current', 'true')
+  await page.keyboard.press('Escape')
+  await expect(switcher).toHaveCount(0)
   await expect(editor).toHaveValue('Synthetic configured starter')
   await editor.fill('')
   await expect(page.locator('#context-budget')).toHaveCount(0)
@@ -260,7 +272,7 @@ test('default helper explains its job and offers example tasks without auto-send
   await expect(page.locator('.agent-picker')).toHaveText(
     'Application and case helper',
   )
-  await expect(page.locator('.chat-welcome')).toContainText(
+  await expect(page.locator('.chat-welcome')).not.toContainText(
     'You are using an existing agent, not creating one',
   )
   await expect(page.locator('.chat-welcome .agent-guide')).toContainText(
@@ -269,7 +281,7 @@ test('default helper explains its job and offers example tasks without auto-send
   await expect(page.locator('.chat-welcome .agent-guide')).toContainText(
     guidedReview.guidance!.output,
   )
-  await expect(page.locator('.prompt-options button')).toHaveText([
+  await expect(page.locator('.prompt-options button strong')).toHaveText([
     'Review an application',
     'Summarize case notes',
     'Compare a proposal (preview)',
@@ -292,10 +304,7 @@ test('default helper explains its job and offers example tasks without auto-send
     await expect(editor).toBeFocused()
     expect(state.requests).toHaveLength(0)
   }
-  await page
-    .getByRole('banner')
-    .getByTitle('Choose an agent', { exact: true })
-    .click()
+  await openReadyAgents(page)
   await expect(page.locator('.catalog-agent')).toHaveCount(1)
   await expect(
     page.getByRole('heading', {
@@ -461,10 +470,7 @@ test('catalog uses customer names while retaining runtime targets and scenario s
     { id: 'application-review', agent: 'application-review-agent', tools: {} },
     { id: 'case-review', agent: 'case-review-agent', tools: {} },
   ])
-  await page
-    .getByRole('banner')
-    .getByTitle('Choose an agent', { exact: true })
-    .click()
+  await openReadyAgents(page)
   await expect(page.locator('.catalog-agent h2')).toHaveText([
     'Application and case helper',
     'Application and case helper (base setup)',
@@ -586,7 +592,7 @@ test('configuration guidance separates UI settings from deployed agent behavior'
   page,
 }, testInfo) => {
   const state = await workspace(page)
-  await page.getByTitle('Choose an agent', { exact: true }).click()
+  await openReadyAgents(page)
   const guide = page.locator('.configuration-guide')
   await guide.locator(':scope > summary').click()
   await expect(guide).toContainText(
@@ -653,13 +659,7 @@ test('shared lab details are available on demand across workspace views', async 
   await workspace(page, { config: { reviews_enabled: true } })
   const control = page.getByTitle('About this shared lab', { exact: true })
   const notice = page.getByRole('complementary', { name: 'Shared lab details' })
-  for (const name of [
-    'Chat',
-    'Document reviews',
-    'Shared history',
-    'Agent catalog',
-    'Performance',
-  ]) {
+  for (const name of ['Chat', 'Shared history', 'All agents', 'Performance']) {
     await page
       .getByRole('navigation', { name: 'Workspace' })
       .getByTitle(name, { exact: true })
@@ -754,7 +754,7 @@ test('disconnected preview does not claim connected shared storage', async ({
     page.getByRole('complementary', { name: 'Shared lab details' }),
   ).toHaveCount(0)
   await expect(page.getByText('Local preview', { exact: true })).toBeVisible()
-  await expect(page.locator('.preview-explanation')).toContainText(
+  await expect(page.locator('.chat-welcome .welcome-hint')).toContainText(
     'No model calls or saved records',
   )
   await expect(
@@ -921,6 +921,85 @@ test('preview calls do not count as live performance', async ({ page }) => {
   await expect(page.getByRole('alert')).toContainText('No agent was invoked')
   await page.getByRole('button', { name: 'Performance', exact: true }).click()
   await expect(page.locator('.metric-strip > div').first()).toContainText('0')
+})
+
+test('replies show reported tokens and Performance estimates cost from user rates', async ({
+  page,
+}) => {
+  const state = await workspace(page, {
+    usage: {
+      input_tokens: 1200,
+      output_tokens: 300,
+      total_tokens: 1500,
+      cached_tokens: 200,
+      reasoning_tokens: 120,
+    },
+  })
+  await page.evaluate(() => localStorage.removeItem('foundry-lab-token-rates'))
+  await page
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Review the fictional application')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-heading')).toContainText(
+    '1.0s · 1,500 tokens',
+  )
+  await page.locator('.receipt-details > summary').click()
+  await expect(page.locator('.usage-detail')).toContainText(
+    '1,200 in (200 cached) · 300 out (120 reasoning) · 1,500 total',
+  )
+  await page.getByRole('button', { name: 'Save to shared history' }).click()
+  await expect.poll(() => state.saves.length).toBe(1)
+  expect(state.saves[0].turns[0].result.usage?.total_tokens).toBe(1500)
+
+  const nav = page.getByRole('navigation', { name: 'Workspace' })
+  await nav.getByRole('button', { name: /^Request log/ }).click()
+  await expect(
+    page.getByRole('table', { name: 'Request log' }).locator('tbody td').nth(4),
+  ).toHaveText('1,500 tokens')
+  await nav.getByRole('button', { name: 'Performance', exact: true }).click()
+  const cost = page.getByRole('region', { name: 'Token usage and cost' })
+  await expect(cost.locator('.metric-strip > div')).toHaveText([
+    /Input tokens\s*1,200/,
+    /Output tokens\s*300/,
+    /Estimated cost\s*Add your rates/,
+  ])
+  await expect(
+    page.getByRole('table', { name: 'Benchmark by agent' }),
+  ).toContainText('1,500')
+  await cost.getByLabel('Input rate per 1M tokens').fill('2')
+  await cost.getByLabel('Output rate per 1M tokens').fill('8')
+  await cost.getByRole('button', { name: 'Use rates' }).click()
+  // 1,200 x 2 / 1M + 300 x 8 / 1M
+  await expect(cost.locator('.metric-strip > div').nth(2)).toContainText(
+    '0.0048',
+  )
+  await page.reload()
+  await nav.getByRole('button', { name: 'Performance', exact: true }).click()
+  await expect(cost.getByLabel('Input rate per 1M tokens')).toHaveValue('2')
+  await cost.getByRole('button', { name: 'Clear' }).click()
+  expect(
+    await page.evaluate(() => localStorage.getItem('foundry-lab-token-rates')),
+  ).toBeNull()
+})
+
+test('replies without reported tokens say so instead of showing zero', async ({
+  page,
+}) => {
+  await workspace(page, { usage: null })
+  await page
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Review the fictional application')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-heading')).toContainText(
+    'Tokens not reported',
+  )
+  await page
+    .getByRole('navigation', { name: 'Workspace' })
+    .getByRole('button', { name: 'Performance', exact: true })
+    .click()
+  await expect(
+    page.getByRole('region', { name: 'Token usage and cost' }),
+  ).toContainText('1 did not report tokens and are not counted')
 })
 
 test('layout, text contrast and reduced motion', async ({ page }, testInfo) => {

@@ -65,6 +65,10 @@ class BundleTests(unittest.TestCase):
                 self.assertIn("requirements.txt", manifest["files"])
                 self.assertNotIn("deploy.py", manifest["files"])
                 self.assertNotIn("FOUNDRY_PROJECT_ENDPOINT", manifest["environment"])
+                instructions = bundle.HERE / sample / "instructions.md"
+                if instructions.is_file():
+                    self.assertEqual(manifest["instructions"], instructions.read_text(encoding="utf-8"))
+                    self.assertEqual(bundle.zip_contents(code)["instructions.md"], instructions.read_bytes())
 
     def test_profiles_and_instruction_overrides_are_preserved(self):
         profile = bundle.HERE / "review-coordinator-agent" / "profiles" / "evidence-review.example.json"

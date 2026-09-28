@@ -61,7 +61,7 @@ class DeploymentPackageTests(unittest.TestCase):
             with ZipFile(destination) as archive:
                 self.assertEqual(
                     set(archive.namelist()),
-                    {"main.py", "requirements.txt", "instructions.md", "configuration.py"},
+                    {"main.py", "requirements.txt", "instructions.md", "configuration.py", "review_output.py"},
                 )
 
     def test_demo_agents_package_the_reviewed_scenario_instructions(self) -> None:
