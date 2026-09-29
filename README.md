@@ -143,8 +143,8 @@ creates Azure resources that cost money.
 
 The Lab opens on the **Agent library**; **Chat** remains one click away. The
 sidebar groups its pages into four sections: **Agent library** (every agent,
-under **Browse**, **Ready to chat**, **Made in this Lab**, and **Guided
-demos**), **Try it** (Chat and Shared history), **Measure** (response times,
+under **Browse**, **Ready to chat**, **Made in this Lab**, **Guided
+demos**, and **Add-ons**), **Try it** (Chat and Shared history), **Measure** (response times,
 tokens, and cost), and **Activity** (the request log). See the
 [Lab guide](workbench/README.md#pages).
 

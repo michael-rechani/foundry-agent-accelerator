@@ -593,6 +593,70 @@
 .scorecard-empty p {
   margin: 0;
 }
+.addon-rules {
+  margin: 16px 0 24px;
+}
+.addon-rules h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.addon-grid {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+.addon-card {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+.addon-card h2 {
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+.addon-card h3 {
+  margin-top: 6px;
+  font: 600 12px/1.5 var(--font);
+  color: var(--muted);
+}
+.addon-card p,
+.addon-card li {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.addon-card ul {
+  margin: -4px 0 0;
+  padding-left: 18px;
+}
+.addon-summary,
+.addon-example {
+  color: var(--text-secondary);
+}
+.addon-hood {
+  margin: 8px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.addon-hood dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+.addon-hood dd {
+  margin: 0;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
 @media (max-width: 1050px) {
   .library-layout {
     grid-template-columns: minmax(0, 1fr);

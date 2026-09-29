@@ -126,6 +126,25 @@ test('the customer view hides technical details until Under the hood is on', asy
 const portal =
   'https://ai.azure.com/nextgen/r/2gTvLTQRRlqW0WfHU1ZyCg,rg-lab,,lab-account,lab-project'
 
+test('add-on technical details stay hidden until Under the hood is on', async ({
+  page,
+}) => {
+  await setup(page)
+  await page
+    .getByRole('navigation', { name: 'Agent library' })
+    .getByRole('button', { name: 'Add-ons' })
+    .click()
+  const first = page.locator('.addon-card').first()
+  await expect(first).toContainText('Knowledge search')
+  await expect(first).toContainText('What it would cost')
+  await expect(first.getByText('Azure AI Search')).toBeHidden()
+  await expect(first.getByText('Add-ons roadmap (#54)')).toBeHidden()
+
+  await hoodSwitch(page).check()
+  await expect(first.getByText('Azure AI Search')).toBeVisible()
+  await expect(first.getByText('Add-ons roadmap (#54)')).toBeVisible()
+})
+
 test('Foundry links appear only under the hood', async ({ page }) => {
   await setup(page, { foundry_portal: portal })
   const projectLink = page.getByRole('link', {

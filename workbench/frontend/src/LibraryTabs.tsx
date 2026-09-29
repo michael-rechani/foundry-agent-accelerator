@@ -28,6 +28,7 @@ export function LibraryTabs({
         ]
       : []),
     { view: 'explore', label: 'Guided demos' },
+    { view: 'addons', label: 'Add-ons' },
   ]
   return (
     <nav className="library-switch" aria-label="Agent library">
