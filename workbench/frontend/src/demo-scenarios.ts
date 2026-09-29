@@ -17,7 +17,7 @@ export type DemoScenario = {
 export const demoScenarios: DemoScenario[] = [
   {
     id: 'application',
-    title: 'Find what?s missing',
+    title: "Find what's missing",
     task: 'Checklist review',
     description:
       'A missing budget and two different schedules. See the open questions before anyone signs off.',
@@ -58,14 +58,14 @@ person need to check?`,
       },
     ],
     decision:
-      'A reviewer confirms the budget and the current schedule. The agent doesn?t approve or reject the project.',
+      "A reviewer confirms the budget and the current schedule. The agent doesn't approve or reject the project.",
   },
   {
     id: 'invoice',
     title: 'Catch what does not add up',
     task: 'Supplier invoice review',
     description:
-      'Compare an invoice with the order and delivery record. See exactly what doesn?t match, not just a summary.',
+      "Compare an invoice with the order and delivery record. See exactly what doesn't match, not just a summary.",
     templateId: 'supplier-invoice-reviewer',
     templateLabel: 'Supplier invoice reviewer',
     catalogIds: [],
@@ -105,7 +105,7 @@ Invoice total: $9,850.00`,
     title: 'Turn scattered notes into a brief',
     task: 'Case notes summary',
     description:
-      'Keep facts, disagreements and open questions apart, without smoothing over what doesn?t line up.',
+      "Keep facts, disagreements and open questions apart, without smoothing over what doesn't line up.",
     templateId: 'casework-assistant',
     templateLabel: 'Case summary writer',
     catalogIds: ['customer-review', 'case-review', 'review-coordinator'],
@@ -134,7 +134,7 @@ We don't have a written policy for this. What does a person need to check next?`
         label: 'Missing',
         source: 'Note 3',
         detail:
-          'Proof of address hasn?t come in. With no policy supplied, the agent doesn?t guess what that means.',
+          "Proof of address hasn't come in. With no policy supplied, the agent doesn't guess what that means.",
       },
     ],
     decision:

@@ -25,6 +25,7 @@ export async function illustrativeScreenshot(
     if (watermark === 'sidebar' && innerWidth >= 1000) {
       label.style.right = 'auto'
       label.style.left = '8px'
+      label.style.bottom = '104px'
       label.style.maxWidth = '200px'
     }
     document.body.append(label)
