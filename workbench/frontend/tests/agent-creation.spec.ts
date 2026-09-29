@@ -72,12 +72,12 @@ const templates: AgentTemplate[] = [
   ],
   [
     'document-intake',
-    'Form and invoice extractor',
+    'Form field extractor',
     'Extract stated fields from fictional administrative forms or invoices.',
   ],
   [
     'casework-assistant',
-    'Casework brief writer',
+    'Case summary writer',
     'Summarize fictional case notes and draft follow-up questions.',
   ],
   [
@@ -175,9 +175,7 @@ function recordFor(
             tools: Object.fromEntries(
               template.tools.map((tool) => [tool.name, runtime]),
             ),
-            prompts: [
-              { label: 'Try a fictional example', text: template.sample_input },
-            ],
+            prompts: [{ label: 'Try the sample', text: template.sample_input }],
             guidance: {
               input: template.input,
               output: template.output,
@@ -438,7 +436,7 @@ async function navigate(page: Page, name: string) {
     await workspace.getByRole('button', { name: 'All agents' }).click()
     await page
       .getByRole('navigation', { name: 'Agent library' })
-      .getByRole('button', { name: /^Created here/ })
+      .getByRole('button', { name: /^Made in this Lab/ })
       .click()
     return
   }
@@ -556,7 +554,7 @@ test('template selection preserves custom input and brings the next step into vi
 
 const themeKey = 'ai-foundry-lab-theme'
 const lightSurface = 'rgb(255, 255, 255)'
-const darkSurface = 'rgb(22, 26, 32)'
+const darkSurface = 'rgb(41, 41, 41)'
 
 function computed(page: Page, selector: string, property: string) {
   return page
@@ -639,7 +637,7 @@ test('appearance follows the device by default and applies saved choices everywh
   await expect(root).toHaveAttribute('data-accent', 'orchid')
   await page.screenshot({ path: testInfo.outputPath('appearance.png') })
   expect(await computed(page, '.creation-primary', 'background-color')).toBe(
-    'rgb(240, 123, 198)',
+    'rgb(140, 28, 106)',
   )
   expect(
     JSON.parse(
@@ -802,7 +800,7 @@ test('ambiguous descriptions require a template and preparation creates no agent
     page.getByRole('heading', { name: 'Review your agent setup' }),
   ).toBeVisible()
   await expect(page.getByLabel('Agent name', { exact: true })).toHaveValue(
-    'Casework brief writer',
+    'Case summary writer',
   )
   await expect(page.getByLabel('Task instructions')).toHaveValue(
     /Help our fictional team/,
@@ -863,7 +861,7 @@ test('publishes reviewed setup, uses its real ID in chat, saves and restores his
   ).toHaveValue('')
   expect(state.chat).toHaveLength(0)
   await page
-    .getByRole('button', { name: 'Try a fictional example', exact: true })
+    .getByRole('button', { name: 'Try the sample', exact: true })
     .click()
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),

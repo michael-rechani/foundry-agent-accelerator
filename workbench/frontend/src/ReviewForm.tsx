@@ -55,11 +55,11 @@ export function ReviewForm({
           disabled={busy}
         >
           <FileText size={16} />
-          Use fictional example
+          Use sample text
         </button>
       </div>
       <p className="review-hint" id="review-input-guide">
-        Paste made-up text directly; file uploads and fetching links are not
+        Paste sample text directly; file uploads and fetching links are not
         available. Add up to 12 checklist items (1,000 characters each) and 12
         documents (12,000 characters each), within 30,000 content characters in
         total.
@@ -126,7 +126,7 @@ export function ReviewForm({
         </div>
       ))}
       <p className="review-hint" id="review-privacy">
-        Use fictional data only, never personal or confidential information.{' '}
+        Use sample data only, never personal or confidential information.{' '}
         {enabled
           ? `Create shared review saves this checklist and text for everyone who can open the Lab. Reviews expire ${retentionDays} days after the last update; backup retention is separate. It does not run the agent; choose Run review next.`
           : 'Saving and running reviews are unavailable here.'}

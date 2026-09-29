@@ -104,7 +104,7 @@ describe('library previews', () => {
         ),
       )
       assert.deepEqual(agent.prompts, [
-        { label: 'Try the fictional example', text: template.sample_input },
+        { label: 'Try the example', text: template.sample_input },
       ])
       assert.ok(agent.guidance)
       for (const text of Object.values(agent.guidance))

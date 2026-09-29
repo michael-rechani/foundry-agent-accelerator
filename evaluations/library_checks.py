@@ -144,7 +144,8 @@ def validate_cases(data):
         if bool(case.get("use_sample_input")) == bool(case.get("input")):
             errors.append(prefix + "use exactly one of input or use_sample_input")
         text = case_input(case) if case.get("use_sample_input") or case.get("input") else ""
-        if "fictional" not in text.lower():
+        # Hand-written inputs must say they are fictional; catalog sample inputs are reviewed sample data.
+        if case.get("input") and "fictional" not in text.lower():
             errors.append(prefix + "input must say it is fictional")
         if not str(case.get("rubric", "")).strip():
             errors.append(prefix + "rubric is required")

@@ -35,7 +35,7 @@ const facetLabels: Record<FacetKey, string> = {
   industries: 'Industry',
   tasks: 'Task',
   readiness: 'Readiness',
-  tool_modes: 'Tools',
+  tool_modes: 'Works with',
 }
 const tones: Record<string, string> = {
   reviewed: 'good',
@@ -57,6 +57,7 @@ export function AgentLibrary({
   busy,
   onCreate,
   onTest,
+  onOpen,
 }: {
   active: boolean
   library: LibraryCatalogState
@@ -66,6 +67,7 @@ export function AgentLibrary({
   busy: boolean
   onCreate: (templateId: string) => void
   onTest: (agent: Agent, input: string) => void
+  onOpen?: (label: string) => void
 }) {
   const { catalog, error } = library
   const [query, setQuery] = useState('')
@@ -99,6 +101,7 @@ export function AgentLibrary({
     setOpenId(id)
     setTab('overview')
     setNotice('')
+    onOpen?.(catalog?.templates.find((item) => item.id === id)?.label ?? '')
     document.querySelector('.library-view')?.scrollTo({ top: 0 })
   }
 
@@ -132,6 +135,7 @@ export function AgentLibrary({
           onBack={() => {
             setOpenId('')
             setNotice('')
+            onOpen?.('')
           }}
           onCreate={() => onCreate(open.id)}
           onTest={onTest}
@@ -141,27 +145,26 @@ export function AgentLibrary({
         <>
           <header className="library-hero">
             <p className="library-eyebrow">Agent library</p>
-            <h1>Start from a job that needs doing</h1>
+            <h1>Find an agent for the job</h1>
             <p>
-              Browse agent definitions for public- and private-sector work. Try
-              each one with fictional examples, then take a portable package
-              into your own Microsoft Foundry project. Every agent states what
-              it needs and what a person still decides.
+              Each agent does one job. Try it with sample inputs, see what it
+              needs and what it leaves to a person, then take it to your own
+              Microsoft Foundry project.
             </p>
             <ol className="library-path" aria-label="How the library works">
               <li>
-                <span>1</span>Choose
+                <span>1</span>Pick an agent
               </li>
               <li>
                 <span>2</span>
-                {previewsOn ? 'Try it in Chat' : 'Create in this Lab'}
+                {previewsOn ? 'Try it in Chat' : 'Make your own copy'}
               </li>
               <li>
                 <span>3</span>
-                {previewsOn ? 'Create in this Lab' : 'Test with fictional data'}
+                {previewsOn ? 'Make your own copy' : 'Try it with sample data'}
               </li>
               <li>
-                <span>4</span>Export to your environment
+                <span>4</span>Take it to Foundry
               </li>
             </ol>
           </header>
@@ -173,7 +176,7 @@ export function AgentLibrary({
                 <input
                   type="search"
                   value={query}
-                  placeholder="Search jobs, industries, keywords"
+                  placeholder="Search by job, team or keyword"
                   onChange={(event) => setQuery(event.target.value)}
                 />
               </label>
@@ -301,16 +304,15 @@ function LibraryCard({
       </span>
       <strong>{template.label}</strong>
       <span className="library-summary">{template.summary}</span>
+      <span className="library-decides">
+        <UserCheck size={13} aria-hidden="true" />
+        {template.human_decision}
+      </span>
       <span className="library-badges">
         <Badges template={template} />
-        {template.tasks.map((task) => (
-          <span key={task.id} className="library-badge">
-            {task.label}
-          </span>
-        ))}
         {ready && (
           <span className="library-badge good">
-            <Check size={12} aria-hidden="true" /> Created here
+            <Check size={12} aria-hidden="true" /> Made in this Lab
           </span>
         )}
       </span>
@@ -347,8 +349,8 @@ function LibraryDetail({
 }) {
   const tabs: [Tab, string][] = [
     ['overview', 'Overview'],
-    ['test', 'Test'],
-    ['export', 'Export and deploy'],
+    ['test', 'Try it'],
+    ['export', 'Take it to Foundry'],
   ]
   const runnable = template.tool_mode.id !== 'connected-required'
   const creationNote = !capability
@@ -358,6 +360,12 @@ function LibraryDetail({
       : capability.reason === 'local_preview'
         ? 'Local preview: you can prepare and review a setup, but nothing is published.'
         : 'Publishing is not enabled here. You can still prepare and review a setup.'
+
+  function tryIt() {
+    if (runnable && preview) onTest(preview, template.sample_input)
+    else if (runnable && ready) onTest(ready.agent, template.sample_input)
+    else onTab('test')
+  }
 
   async function copySample() {
     try {
@@ -394,27 +402,45 @@ function LibraryDetail({
   return (
     <article className="library-detail" aria-labelledby="library-detail-title">
       <button type="button" className="library-back" onClick={onBack}>
-        <ArrowLeft size={16} /> Back to templates
+        <ArrowLeft size={16} /> Back to all agents
       </button>
       <div className="library-badges">
-        <span className="library-badge">{template.sector.label}</span>
         <span className="library-badge">{template.industry.label}</span>
+        <Badges template={template} />
+        <span className="library-badge hood-only">{template.sector.label}</span>
         {template.tasks.map((task) => (
-          <span key={task.id} className="library-badge">
+          <span key={task.id} className="library-badge hood-only">
             {task.label}
           </span>
         ))}
-        <Badges template={template} />
       </div>
       <h1 id="library-detail-title">{template.label}</h1>
       <p className="library-lede">{template.summary}</p>
+      <div className="library-actions library-hero-actions">
+        <button
+          type="button"
+          className="library-primary"
+          disabled={busy}
+          onClick={tryIt}
+        >
+          <MessageSquare size={16} /> Try it with an example
+        </button>
+        <button
+          type="button"
+          className="library-secondary"
+          onClick={() => onTab('export')}
+        >
+          Take it to Foundry <ArrowRight size={16} />
+        </button>
+      </div>
       {inProgress(template) && (
         <div className="library-progress" role="note">
           <Construction size={18} aria-hidden="true" />
           <p>
             <strong>In progress. </strong>
-            This agent passes offline tests but hasn't been validated against a
-            live model yet. Try it with fictional data; answers may change.
+            It passes the automated checks, but a person hasn&apos;t signed off
+            on its live answers yet. Try it with sample data; answers may
+            change.
           </p>
         </div>
       )}
@@ -472,7 +498,7 @@ function LibraryDetail({
                   <span>{template.tool_mode.description}</span>
                 </dd>
               </div>
-              <div>
+              <div className="hood-only">
                 <dt>
                   <FlaskConical size={15} aria-hidden="true" /> Model profile
                 </dt>
@@ -485,7 +511,7 @@ function LibraryDetail({
                   </span>
                 </dd>
               </div>
-              <div>
+              <div className="hood-only">
                 <dt>
                   <PackageOpen size={15} aria-hidden="true" /> Export
                 </dt>
@@ -501,65 +527,48 @@ function LibraryDetail({
             </dl>
             <div className="library-columns">
               <section className="library-panel">
-                <h2>You provide</h2>
+                <h2>What you give it</h2>
                 <p>{template.input}</p>
-                <h2>You get</h2>
+                <h2>What you get back</h2>
                 <p>{template.output}</p>
+                <h2>What a good answer does</h2>
+                <p>{template.expected_behavior}</p>
+                <p className="library-muted">
+                  Based on its acceptance tests, not a recorded answer.
+                </p>
               </section>
               <section className="library-panel">
-                <h2>Limits</h2>
+                <h2>What it won&apos;t do</h2>
                 <p>{template.limits}</p>
-                <h2>Before you use it</h2>
-                <ul>
-                  {template.prerequisites.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
                 {template.tools.length > 0 && (
                   <>
-                    <h2>Included lookups</h2>
+                    <h2>Sample lookups it uses</h2>
                     <ul className="library-tools">
                       {template.tools.map((tool) => (
                         <li key={tool.name}>
-                          <code>{tool.name}</code>
-                          {tool.simulated ? ' (fictional fixture) ' : ' '}
                           {tool.description}
+                          <code className="hood-only">{tool.name}</code>
                         </li>
                       ))}
                     </ul>
                   </>
                 )}
+                <div className="hood-only">
+                  <h2>Before you use it</h2>
+                  <ul>
+                    {template.prerequisites.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
               </section>
-            </div>
-            <div className="library-columns">
-              <section className="library-panel">
-                <h2>Example input · fictional</h2>
-                <pre className="library-sample">{template.sample_input}</pre>
-              </section>
-              <section className="library-panel">
-                <h2>What a good answer does</h2>
-                <p>{template.expected_behavior}</p>
-                <p className="library-muted">
-                  Expected behavior from this agent&apos;s acceptance tests.
-                  This is not a recorded model response.
-                </p>
-              </section>
-            </div>
-            <div className="library-actions">
-              <button
-                type="button"
-                className="library-primary"
-                onClick={() => onTab('test')}
-              >
-                Test this agent <ArrowRight size={16} />
-              </button>
             </div>
           </>
         )}
         {tab === 'test' && (
           <div className="library-columns">
             <section className="library-panel">
-              <h2>Fictional test input</h2>
+              <h2>Example to try</h2>
               <pre className="library-sample">{template.sample_input}</pre>
               <div className="library-actions">
                 {!runnable ? (
@@ -608,25 +617,30 @@ function LibraryDetail({
               </div>
               <p className="library-muted">
                 {preview
-                  ? 'Opens a preview chat with this example as a draft. Nothing is published and nothing is sent until you press Send, which calls the model and may incur cost. Preview chats are not saved. A preview calls the model directly rather than running as a hosted agent, so test the created agent before handing it to a customer.'
+                  ? 'Opens Chat with this example ready to send. Nothing happens until you press Send, which calls the model and has a small cost. Preview chats aren?t saved.'
                   : ready
-                    ? `Uses ${ready.agent.label}. The example is placed in Chat as a draft; nothing is sent until you press Send, which calls the model and may incur cost.`
+                    ? `Uses ${ready.agent.label}. Opens Chat with this example ready to send. Nothing happens until you press Send, which calls the model and has a small cost.`
                     : creationNote}
               </p>
+              {preview && (
+                <p className="library-muted hood-only">
+                  A preview calls the model directly rather than running as a
+                  hosted agent, so test the created agent before handing it to a
+                  customer.
+                </p>
+              )}
             </section>
             <section className="library-panel">
-              <h2>What to check in the answer</h2>
+              <h2>What to look for in the answer</h2>
               <ul className="library-checks">
                 <li>{template.expected_behavior}</li>
-                <li>It stays within its limits: {template.limits}</li>
-                <li>
-                  It leaves the decision to a person: {template.human_decision}
-                </li>
+                <li>It stays within its limits. {template.limits}</li>
+                <li>It leaves the decision to a person.</li>
               </ul>
               <p className="library-muted">
                 {preview
-                  ? 'Use fictional data only. Preview chats are not saved; create the agent to save or share conversations.'
-                  : 'Use fictional data only. Chat responses are not saved unless you choose Save to shared history.'}
+                  ? 'Use sample data only. Preview chats are not saved; create the agent to save or share conversations.'
+                  : 'Use sample data only. Chat responses are not saved unless you choose Save to shared history.'}
               </p>
             </section>
           </div>
@@ -634,9 +648,9 @@ function LibraryDetail({
         {tab === 'export' && (
           <div className="library-columns">
             <section className="library-panel">
-              <h2>Package</h2>
+              <h2>Get the package</h2>
               <p>{template.export.description}</p>
-              <p className="library-muted">
+              <p className="library-muted hood-only">
                 Format {template.export.package_format}. Target: a Microsoft
                 Foundry hosted agent in a project you control.
               </p>
@@ -664,7 +678,7 @@ function LibraryDetail({
               )}
             </section>
             <section className="library-panel">
-              <h2>Deploy in your environment</h2>
+              <h2>Set it up in your Foundry project</h2>
               <ol className="library-steps">
                 <li>Provide a model deployment in your own Foundry project.</li>
                 <li>
@@ -673,13 +687,15 @@ function LibraryDetail({
                 </li>
                 {template.tool_mode.id !== 'none' && (
                   <li>
-                    Replace the fictional lookups with reviewed connectors to
-                    your own systems.
+                    Replace the sample lookups with reviewed connectors to your
+                    own systems.
                   </li>
                 )}
-                <li>Build and check the bundle from the saved record:</li>
+                <li className="hood-only">
+                  Build and check the bundle from the saved record:
+                </li>
               </ol>
-              <pre className="library-sample library-command">
+              <pre className="library-sample library-command hood-only">
                 {`python hosted-agents/bundle.py export-created --record ${template.id}-record.json --output ${template.id}.agent-bundle.zip
 python hosted-agents/bundle.py inspect ${template.id}.agent-bundle.zip
 python hosted-agents/bundle.py deploy ${template.id}.agent-bundle.zip --endpoint <your-project-endpoint> --model <your-deployment> --agent-name <your-agent-name>`}

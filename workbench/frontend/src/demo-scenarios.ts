@@ -17,18 +17,17 @@ export type DemoScenario = {
 export const demoScenarios: DemoScenario[] = [
   {
     id: 'application',
-    title: 'Find the missing evidence',
-    task: 'Application completeness',
+    title: 'Find what?s missing',
+    task: 'Checklist review',
     description:
-      'A missing budget. Two different schedules. Make the questions visible before someone decides.',
+      'A missing budget and two different schedules. See the open questions before anyone signs off.',
     templateId: 'criteria-checker',
     templateLabel: 'Checklist gap finder',
     catalogIds: ['customer-review', 'application-review', 'review-coordinator'],
-    input: `Check this fictional permit application against my checklist. Make a table
-with one row per checklist item showing what is supported, missing or unclear.
-Refer to the checklist item and section labels so I can check each point, and
-ask questions that would fill the gaps. Missing information is not an automatic
-failure. Do not approve, deny, rank, score or recommend a permit decision.
+    input: `Before this project goes for sign-off, check it against our checklist. Make a
+table with one row per checklist item showing what's covered, missing or
+unclear, point to the section each answer comes from, and list the questions we
+need answered. Don't approve or reject it; I'll decide.
 
 Checklist item 1: Include a project budget.
 Checklist item 2: Identify an implementation owner.
@@ -38,14 +37,14 @@ Section 1: The Facilities team is the implementation owner for the proposed proj
 Section 2: Work starts on 2027-04-01 and completes on 2027-06-30.
 Section 3: Work starts on 2027-04-01 and completes on 2027-07-31.
 
-No budget or statement saying which schedule is current is supplied. Tell me
-what a person needs to check.`,
+There's no budget, and nothing says which schedule is current. What does a
+person need to check?`,
     findings: [
       {
         label: 'Missing',
         source: 'Checklist item 1',
         detail:
-          'No budget was supplied. Ask for it; do not infer a failed application.',
+          'No budget was supplied. Ask for it instead of treating the project as failed.',
       },
       {
         label: 'Supported',
@@ -59,21 +58,21 @@ what a person needs to check.`,
       },
     ],
     decision:
-      'A reviewer verifies the budget and current schedule. The agent does not approve or deny the permit.',
+      'A reviewer confirms the budget and the current schedule. The agent doesn?t approve or reject the project.',
   },
   {
     id: 'invoice',
     title: 'Catch what does not add up',
     task: 'Supplier invoice review',
     description:
-      'Compare an invoice with a fictional order and delivery record. See the discrepancy, not just a summary.',
+      'Compare an invoice with the order and delivery record. See exactly what doesn?t match, not just a summary.',
     templateId: 'supplier-invoice-reviewer',
     templateLabel: 'Supplier invoice reviewer',
     catalogIds: [],
-    input: `Check this fictional supplier invoice before payment. Use the lookups, show the math and draft an email to the supplier. All data is made up.
+    input: `Can you check this invoice before I approve it? Compare it with the purchase order and what we actually received, show the math, and draft an email to the supplier about anything that doesn't match.
 
-INVOICE INV-DEMO-7781 - Contoso Demo Furniture - dated 2027-04-05
-Bill to: City of Example, Parks Department (fictional)
+INVOICE INV-DEMO-7781 - Example Furniture Supply - dated 2027-04-05
+Bill to: Example Conference Center
 Purchase order: PO-DEMO-2210
 Line 1: CH-100 Stacking chair - qty 120 x $55.00 = $6,600.00
 Line 2: TB-300 Folding table - qty 10 x $300.00 = $3,000.00
@@ -83,14 +82,13 @@ Invoice total: $9,850.00`,
       {
         label: 'Quantity and price',
         source: 'Line 1 / PO-DEMO-2210',
-        detail:
-          '120 chairs at $55 were billed; the fictional order lists 100 at $50.',
+        detail: '120 chairs at $55 were billed; the order lists 100 at $50.',
       },
       {
         label: 'Terms differ',
         source: 'Line 3 / purchase order',
         detail:
-          'The $250 fee conflicts with the fictional order including delivery.',
+          'The $250 fee conflicts with the order, which includes delivery.',
       },
       {
         label: 'Human review',
@@ -100,27 +98,26 @@ Invoice total: $9,850.00`,
       },
     ],
     decision:
-      'The clerk checks the discrepancies and any unsent supplier draft. Nothing is paid, held, rejected, or sent.',
+      'The clerk checks the differences and the draft email to the supplier. Nothing is paid, held, rejected or sent.',
   },
   {
     id: 'casework',
     title: 'Turn scattered notes into a brief',
-    task: 'Casework assistance',
+    task: 'Case notes summary',
     description:
-      'Keep the facts, disagreements, and open questions separate without inventing a more convenient story.',
+      'Keep facts, disagreements and open questions apart, without smoothing over what doesn?t line up.',
     templateId: 'casework-assistant',
-    templateLabel: 'Casework brief writer',
+    templateLabel: 'Case summary writer',
     catalogIds: ['customer-review', 'case-review', 'review-coordinator'],
-    input: `Summarize these fictional case notes for staff. Show what the notes say, what is
-missing or conflicting, and suggest follow-up questions. Refer to the note
-labels so I can check each point. Do not choose a date without support, invent
-rules, make an eligibility decision or update any system.
+    input: `Summarize these client notes for the team. Show what the notes say, what's
+missing or conflicting, and suggest follow-up questions. Point to the note each
+fact comes from, and if the notes disagree, show both instead of picking one.
 
 Note 1: Intake completed on 2026-08-15. Follow-up scheduled for 2026-08-22.
 Note 2: Intake completed on 2026-08-17. Follow-up scheduled for 2026-08-22.
 Note 3: Proof of address is still outstanding. No supporting document is supplied.
 
-No policy text is supplied. Tell me what a person needs to check next.`,
+We don't have a written policy for this. What does a person need to check next?`,
     findings: [
       {
         label: 'Conflicting',
@@ -137,11 +134,11 @@ No policy text is supplied. Tell me what a person needs to check next.`,
         label: 'Missing',
         source: 'Note 3',
         detail:
-          'Proof of address is outstanding. No policy was supplied to determine its consequence.',
+          'Proof of address hasn?t come in. With no policy supplied, the agent doesn?t guess what that means.',
       },
     ],
     decision:
-      'A caseworker verifies the authoritative record and required evidence. No eligibility decision or system update is made.',
+      'A caseworker checks the official record and what evidence is needed. No eligibility decision or system update is made.',
   },
 ]
 

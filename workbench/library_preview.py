@@ -9,7 +9,7 @@ import re
 
 from agent_runtime.demo_tools import TEMPLATE_IDS, create_demo_tools
 from agent_runtime.main import DEMO_POLICY
-from agent_templates import TEMPLATES
+from agent_templates import TEMPLATES, is_listed
 
 PREVIEW_ID = re.compile(r"library-([a-z0-9]+(?:-[a-z0-9]+)*)\Z")
 # Receipt binding for simulated lookups; it names no Foundry resource.
@@ -45,7 +45,7 @@ def preview_agent(identifier):
     """Return the server-side binding for a library preview ID, or None."""
     match = PREVIEW_ID.fullmatch(identifier) if isinstance(identifier, str) else None
     template_id = match.group(1) if match else None
-    if template_id not in TEMPLATES or template_id not in TEMPLATE_IDS:
+    if not is_listed(template_id) or template_id not in TEMPLATE_IDS:
         return None
     template = TEMPLATES[template_id]
     return {

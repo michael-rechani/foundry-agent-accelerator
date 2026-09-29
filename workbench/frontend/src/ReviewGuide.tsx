@@ -62,7 +62,7 @@ export function ReviewGuide({ retentionDays }: { retentionDays: number }) {
       <p>
         Anyone who can open this Lab can read saved reviews and add requested
         information. Records are not private to you; there are no individual
-        user accounts. Use made-up examples only. Reviews expire {retentionDays}{' '}
+        user accounts. Use sample content only. Reviews expire {retentionDays}{' '}
         days after their last update; backup retention is separate. You cannot
         delete a review or edit its saved checklist here.
       </p>

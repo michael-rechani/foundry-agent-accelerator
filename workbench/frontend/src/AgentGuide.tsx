@@ -38,7 +38,7 @@ export function AgentGuide({
 
 export function AgentRuntime({ agent }: { agent: Agent }) {
   return (
-    <details className="catalog-runtime">
+    <details className="catalog-runtime hood-only">
       <summary>Developer setup details</summary>
       <p className="category-label">{agent.category}</p>
       {agent.guidance && <p>{agent.guidance.delegation}</p>}

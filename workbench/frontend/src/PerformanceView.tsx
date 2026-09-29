@@ -115,7 +115,7 @@ export function PerformanceView({
             </tbody>
           </table>
           <p className="table-note">
-            Compare agents with the same fictional input for a fair benchmark.
+            Compare agents with the same sample input for a fair benchmark.
             Small samples vary widely. For repeatable quality checks, run the
             acceptance cases in <code>evaluations/</code>.
           </p>

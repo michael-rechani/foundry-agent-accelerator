@@ -166,7 +166,7 @@ async function setup(
     'Application and case helper',
   )
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
-  await expect(navigation.getByRole('button').first()).toHaveText('Chat')
+  await expect(navigation.getByRole('button').first()).toHaveText('All agents')
   await expect(
     navigation.getByRole('button', { name: 'Chat', exact: true }),
   ).toHaveAttribute('aria-current', 'page')
@@ -288,7 +288,7 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   await navigation.getByRole('button', { name: 'All agents' }).click()
   await page
     .getByRole('navigation', { name: 'Agent library' })
-    .getByRole('button', { name: /^Ready to use/ })
+    .getByRole('button', { name: /^Ready to chat/ })
     .click()
   await page
     .locator('.catalog-agent')
@@ -313,7 +313,7 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   await expect(page.locator('.review-form-bar')).toContainText(
     "Uses the Lab's default agent, not your Chat selection",
   )
-  await page.getByRole('button', { name: 'Use fictional example' }).click()
+  await page.getByRole('button', { name: 'Use sample text' }).click()
   expect(state.creations).toHaveLength(0)
   await expect(page.locator('#review-privacy')).toBeVisible()
   await expect(page.locator('#review-privacy')).toContainText(
@@ -384,7 +384,7 @@ test('invalid review links fall back to the library without opening a review', a
 
 async function create(page: Page) {
   await page.getByRole('button', { name: 'New review', exact: true }).click()
-  await page.getByRole('button', { name: 'Use fictional example' }).click()
+  await page.getByRole('button', { name: 'Use sample text' }).click()
   await page.getByRole('button', { name: 'Create shared review' }).click()
   await expect(
     page.getByRole('button', { name: 'Run review', exact: true }),
@@ -664,7 +664,7 @@ test('preview accepts a synthetic draft but never executes', async ({
 }, testInfo) => {
   await setup(page, true)
   await page.getByRole('button', { name: 'New review', exact: true }).click()
-  await page.getByRole('button', { name: 'Use fictional example' }).click()
+  await page.getByRole('button', { name: 'Use sample text' }).click()
   await expect(
     page.getByRole('button', { name: 'Create shared review' }),
   ).toBeDisabled()

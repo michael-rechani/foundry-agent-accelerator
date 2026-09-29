@@ -12,7 +12,7 @@ const catalog = JSON.parse(
   ),
 )
 const templates: LibraryTemplate[] = catalog.templates
-const grant = templates.find((item) => item.id === 'grant-reporting-checker')!
+const support = templates.find((item) => item.id === 'customer-support-brief')!
 const runtimeHash = 'a'.repeat(64)
 
 function readyRecord(template: LibraryTemplate): CreatedAgent {
@@ -20,7 +20,7 @@ function readyRecord(template: LibraryTemplate): CreatedAgent {
   const runtime = 'lab-demo-12345678123442349234123456789abc'
   return {
     id,
-    name: 'Fictional grant checker',
+    name: 'Support handoff helper',
     template_id: template.id,
     template_label: template.label,
     instructions: template.instructions,
@@ -39,13 +39,11 @@ function readyRecord(template: LibraryTemplate): CreatedAgent {
     agent: {
       id,
       agent: runtime,
-      label: 'Fictional grant checker',
+      label: 'Support handoff helper',
       category: 'Created in this Lab',
       description: template.description,
       tools: {},
-      prompts: [
-        { label: 'Try a fictional example', text: template.sample_input },
-      ],
+      prompts: [{ label: 'Try the sample', text: template.sample_input }],
       guidance: {
         input: template.input,
         output: template.output,
@@ -99,7 +97,7 @@ async function setup(
     },
   }
   const record = options.ready
-    ? { ...readyRecord(grant), runtime_hash: runtimeHash }
+    ? { ...readyRecord(support), runtime_hash: runtimeHash }
     : null
   const state = {
     chat: [] as { agent_id: string; input: string }[],
@@ -172,44 +170,39 @@ test('the library is the landing view and groups navigation into four sections',
   ).toHaveAttribute('aria-current', 'page')
   await expect(
     navigation(page).getByRole('group').locator('.nav-section-label'),
-  ).toHaveText([
-    'Chat and test',
-    'Agent library',
-    'Performance and benchmarking',
-    'Logging',
-  ])
+  ).toHaveText(['Agent library', 'Try it', 'Measure', 'Activity'])
   const tabs = page.getByRole('navigation', { name: 'Agent library' })
   await expect(tabs.getByRole('button')).toHaveText([
-    'Templates',
-    /^Ready to use\s*1$/,
-    /^Created here\s*0$/,
+    'Browse',
+    /^Ready to chat\s*1$/,
+    /^Made in this Lab\s*0$/,
     'Guided demos',
   ])
   await expect(navigation(page).getByRole('button')).toHaveText([
-    'Chat',
-    'Shared history',
     'All agents',
     'Create agent',
+    'Chat',
+    'Shared history',
     'Performance',
     /^Request log/,
   ])
-  await expect(tabs.getByRole('button', { name: 'Templates' })).toHaveAttribute(
+  await expect(tabs.getByRole('button', { name: 'Browse' })).toHaveAttribute(
     'aria-current',
     'page',
   )
-  await tabs.getByRole('button', { name: /^Ready to use/ }).click()
+  await tabs.getByRole('button', { name: /^Ready to chat/ }).click()
   await expect(
     page.getByRole('heading', { level: 1, name: 'Choose an agent' }),
   ).toBeVisible()
   await expect(
     navigation(page).getByRole('button', { name: 'All agents' }),
   ).toHaveAttribute('aria-current', 'page')
-  await tabs.getByRole('button', { name: 'Templates' }).click()
+  await tabs.getByRole('button', { name: 'Browse' }).click()
   for (const [name, heading] of [
     ['Chat', null],
     [/^Request log/, 'Request log'],
     ['Performance', 'Performance'],
-    ['All agents', 'Start from a job that needs doing'],
+    ['All agents', 'Find an agent for the job'],
   ] as const) {
     await navigation(page)
       .getByRole('button', { name, exact: typeof name === 'string' })
@@ -268,7 +261,7 @@ test('browse, filter and search the catalog with live counts', async ({
     'Industry',
     'Task',
     'Readiness',
-    'Tools',
+    'Works with',
   ])
   const publicCount = templates.filter(
     (item) => item.sector.id === 'public',
@@ -291,9 +284,9 @@ test('browse, filter and search the catalog with live counts', async ({
     await expect(card).toContainText('Healthcare and public sector')
   await illustrativeScreenshot(page, testInfo, 'library-filtered.png')
 
-  await page.getByRole('searchbox', { name: 'Search agents' }).fill('grant')
+  await page.getByRole('searchbox', { name: 'Search agents' }).fill('renewal')
   await expect(cards).toHaveCount(1)
-  await expect(cards.first()).toContainText(grant.label)
+  await expect(cards.first()).toContainText('Benefits renewal helper')
   await page
     .getByRole('searchbox', { name: 'Search agents' })
     .fill('fictional-nothing-matches-this')
@@ -318,39 +311,41 @@ test('details state limits, human decisions and never claim a recorded answer', 
   page,
 }) => {
   const state = await setup(page)
-  await openAgent(page, grant.label)
+  await openAgent(page, support.label)
   await expect(page.locator('.library-decision')).toContainText(
-    grant.human_decision,
+    support.human_decision,
   )
   const tabs = page.getByRole('tablist', { name: 'Agent details' })
   await expect(tabs.getByRole('tab')).toHaveText([
     'Overview',
-    'Test',
-    'Export and deploy',
+    'Try it',
+    'Take it to Foundry',
   ])
   await expect(tabs.getByRole('tab', { name: 'Overview' })).toHaveAttribute(
     'aria-selected',
     'true',
   )
   const panel = page.getByRole('tabpanel')
-  await expect(panel).toContainText(grant.limits)
-  await expect(panel).toContainText(grant.expected_behavior)
-  await expect(panel).toContainText('This is not a recorded model response.')
-  for (const item of grant.prerequisites)
+  await expect(panel).toContainText(support.limits)
+  await expect(panel).toContainText(support.expected_behavior)
+  await expect(panel).toContainText(
+    'Based on its acceptance tests, not a recorded answer.',
+  )
+  for (const item of support.prerequisites)
     await expect(panel).toContainText(item)
 
-  await tabs.getByRole('tab', { name: 'Export and deploy' }).click()
+  await tabs.getByRole('tab', { name: 'Take it to Foundry' }).click()
   await expect(panel).toContainText(
     'There is no one-click cross-environment deployment.',
   )
   await expect(panel.locator('.library-command')).toContainText(
-    `bundle.py export-created --record ${grant.id}-record.json`,
+    `bundle.py export-created --record ${support.id}-record.json`,
   )
   await expect(
     panel.getByRole('button', { name: 'Create this agent first' }),
   ).toBeEnabled()
 
-  await page.getByRole('button', { name: 'Back to templates' }).click()
+  await page.getByRole('button', { name: 'Back to all agents' }).click()
   await expect(page.locator('.library-card')).toHaveCount(templates.length)
   expect(state.chat).toHaveLength(0)
   expect(state.drafts).toBe(0)
@@ -361,8 +356,8 @@ test('creating from the library preselects the template without preparing or pub
   page,
 }) => {
   const state = await setup(page)
-  await openAgent(page, grant.label)
-  await page.getByRole('tab', { name: 'Test' }).click()
+  await openAgent(page, support.label)
+  await page.getByRole('tab', { name: 'Try it' }).click()
   await page
     .getByRole('button', { name: 'Create this agent to test it' })
     .click()
@@ -371,13 +366,13 @@ test('creating from the library preselects the template without preparing or pub
   ).toBeVisible()
   await expect(
     page.locator('.creation-template[aria-pressed="true"]'),
-  ).toContainText(grant.label)
+  ).toContainText(support.label)
   await expect(
     page.getByRole('textbox', { name: 'What should the agent help with?' }),
-  ).toHaveValue(grant.example_request)
+  ).toHaveValue(support.example_request)
   await expect(
     page.getByRole('combobox', { name: 'Prepared template' }),
-  ).toHaveValue(grant.id)
+  ).toHaveValue(support.id)
   expect(state.drafts).toBe(0)
   expect(state.creations).toBe(0)
 })
@@ -389,25 +384,25 @@ test('a created agent opens in Chat as a draft and its request is logged and ben
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   const state = await setup(page, { ready: true })
   await expect(
-    page.locator('.library-card').filter({ hasText: grant.label }),
-  ).toContainText('Created here')
-  await openAgent(page, grant.label)
-  await page.getByRole('tab', { name: 'Test' }).click()
+    page.locator('.library-card').filter({ hasText: support.label }),
+  ).toContainText('Made in this Lab')
+  await openAgent(page, support.label)
+  await page.getByRole('tab', { name: 'Try it' }).click()
   await expect(page.getByRole('tabpanel')).toContainText(
-    'nothing is sent until you press Send',
+    'Nothing happens until you press Send',
   )
   await page.getByRole('button', { name: 'Open your created agent' }).click()
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
-  await expect(editor).toHaveValue(grant.sample_input)
+  await expect(editor).toHaveValue(support.sample_input)
   await expect(page.locator('.agent-picker')).toContainText(
-    'Fictional grant checker',
+    'Support handoff helper',
   )
   expect(state.chat).toHaveLength(0)
 
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect(page.getByText('ILLUSTRATIVE ANSWER')).toBeVisible()
   expect(state.chat).toHaveLength(1)
-  expect(state.chat[0].agent_id).toBe(readyRecord(grant).id)
+  expect(state.chat[0].agent_id).toBe(readyRecord(support).id)
 
   const log = navigation(page).getByRole('button', { name: /^Request log/ })
   await expect(log).toContainText('1')
@@ -416,7 +411,7 @@ test('a created agent opens in Chat as a draft and its request is logged and ben
     .getByRole('table', { name: 'Request log' })
     .locator('tbody tr')
   await expect(row).toHaveCount(1)
-  await expect(row).toContainText('Fictional grant checker')
+  await expect(row).toContainText('Support handoff helper')
   await expect(row).toContainText('Completed')
   await row.getByRole('button', { name: /fictional-request-0001/ }).click()
   await expect(page.getByText('Reference copied.')).toBeVisible()
@@ -431,7 +426,7 @@ test('a created agent opens in Chat as a draft and its request is logged and ben
   await expect(page.locator('.metric-strip-4 > div')).toHaveCount(4)
   await expect(
     page.getByRole('table', { name: 'Benchmark by agent' }),
-  ).toContainText('Fictional grant checker')
+  ).toContainText('Support handoff helper')
   await illustrativeScreenshot(page, testInfo, 'performance.png')
 })
 
@@ -439,16 +434,16 @@ test('export downloads the saved ready record needed by export-created', async (
   page,
 }) => {
   await setup(page, { ready: true })
-  await openAgent(page, grant.label)
-  await page.getByRole('tab', { name: 'Export and deploy' }).click()
+  await openAgent(page, support.label)
+  await page.getByRole('tab', { name: 'Take it to Foundry' }).click()
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download saved record' }).click()
   const file = await download
-  expect(file.suggestedFilename()).toBe(`${grant.id}-record.json`)
+  expect(file.suggestedFilename()).toBe(`${support.id}-record.json`)
   const saved = JSON.parse(await readFile(await file.path(), 'utf8'))
   expect(saved).toMatchObject({
     status: 'ready',
-    template_id: grant.id,
+    template_id: support.id,
     runtime_hash: runtimeHash,
     model: 'demo-reasoning-model',
   })
@@ -468,8 +463,8 @@ test('preview explains that nothing is published and catalog failures can be ret
   state.failCatalog = false
   await page.getByRole('button', { name: 'Retry' }).click()
   await expect(page.locator('.library-card')).toHaveCount(templates.length)
-  await openAgent(page, grant.label)
-  await page.getByRole('tab', { name: 'Test' }).click()
+  await openAgent(page, support.label)
+  await page.getByRole('tab', { name: 'Try it' }).click()
   await expect(page.getByRole('tabpanel')).toContainText(
     'Local preview: you can prepare and review a setup, but nothing is published.',
   )
@@ -491,7 +486,7 @@ for (const mode of ['light', 'dark'] as const)
     }, mode)
     await setup(page, { ready: true })
     await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
-    await openAgent(page, grant.label)
+    await openAgent(page, support.label)
     const contrast = await page.locator('.library-lede').evaluate((element) => {
       const luminance = (color: string) => {
         const [r, g, b] = color

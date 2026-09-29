@@ -117,7 +117,7 @@ export function ReviewInbox({
           </h2>
           {!query && filter === 'all' && (loaded || !enabled) && (
             <p>
-              Try New review and its made-up example: your checklist asks for a
+              Try New review and its sample example: your checklist asks for a
               budget, but the application only lists workshop dates. The
               expected result is &ldquo;budget missing&rdquo;, not
               &ldquo;application rejected&rdquo;. This is an illustration, not a

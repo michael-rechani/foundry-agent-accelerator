@@ -2,13 +2,13 @@
 
 [Home](../README.md) / [Docs](README.md) / Demo guide
 
-Use this guide to pick one Lab scenario, run it with fictional data, and compare
+Use this guide to pick one Lab scenario, run it with sample data, and compare
 what the agent returns with the expected findings. It is for reviewers and demo
 leads who already have an operator-prepared Microsoft Foundry environment, or
 who need an offline walkthrough when live access is unavailable.
 
 For the visual introduction, start with **Guided demos** in the Lab or the
-[showcase and presenter guide](showcase.md). It adds fictional-input shortcuts
+[showcase and presenter guide](showcase.md). It adds sample-input shortcuts
 and expected findings, not automatic agent execution. **Presenter view** enlarges
 the story and Chat text while keeping the environment and shared-data boundaries.
 
@@ -18,9 +18,9 @@ Status values use the definitions in [terms used in these guides](README.md#term
 
 | Scenario | Status | Lab agent or task to pick | What you'll check |
 | --- | --- | --- | --- |
-| [Create and try a baseline agent](#create-and-try-a-baseline-agent) | **Available** | **Create agent**, then **All agents** > **Created here** and **Chat** | A prepared template becomes a small Foundry agent, then a person checks its fictional sample output. |
+| [Create and try a baseline agent](#create-and-try-a-baseline-agent) | **Available** | **Create agent**, then **All agents** > **Made in this Lab** and **Chat** | A prepared template becomes a small Foundry agent, then a person checks its sample output. |
 | [Casework assistance](#casework-assistance) | **Available** | **Application and case helper** with **Summarize case notes**; optional direct **Case notes summarizer** if enabled | The answer keeps known facts, missing evidence, and conflicting case notes separate. |
-| [Application completeness](#application-completeness) | **Available** | **Application and case helper** with **Review an application**; optional direct **Application checker** if enabled | The answer compares supplied evidence with a checklist without approving or denying the application. |
+| [Application completeness](#application-completeness) | **Available** | **Application and case helper** with **Check against a checklist**; optional direct **Application checker** if enabled | The answer compares supplied evidence with a checklist without approving or denying the application. |
 | [Requirements and proposal review](#requirements-and-proposal-review) | **Preview** | **Application and case helper** with **Compare a proposal (preview)** | The answer separates product claims, supported requirements, gaps, and conflicts without selecting a vendor. |
 
 For a service-request workflow, publish the **Service request planner** template
@@ -47,7 +47,7 @@ can incur charges and require explicit approval. This guide does not perform
 them.
 
 > [!IMPORTANT]
-> Use only the supplied fictional data. Customer-system connections and
+> Use only the supplied sample data. Customer-system connections and
 > production deployment require separate planning and agreement. This repository
 > is not an officially approved or funded Microsoft service offering, and the
 > Lab has shared history with no per-user authorization boundary.
@@ -65,7 +65,7 @@ Before inviting participants:
   possible only if an operator has explicitly enabled that catalog entry.
   Proposal review reuses application review, not a third specialist.
 - **About this agent** explains what to paste, what the agent returns, and how it
-  works. **All agents** > **Ready to use** selects an existing setup. The separate **Create agent** flow
+  works. **All agents** > **Ready to chat** selects an existing setup. The separate **Create agent** flow
   prepares and, with explicit operator confirmation, publishes a new agent.
 - A starter is just an example task and message. Developer configuration and
   deployment are explained separately in [Lab settings](../workbench/README.md#workspace-configuration).
@@ -86,7 +86,7 @@ separately scoped.
 Use this path to show how a recognizable job becomes a small Foundry agent. The
 [operator setup](agent-creation.md#enable-publication) must already be approved
 and complete. Publication time is service-dependent, so have a previously created
-fictional agent available rather than promising instant deployment.
+sample agent available rather than promising instant deployment.
 
 1. Open **Create agent**.
 2. Describe one job or choose a prepared template.
@@ -97,10 +97,10 @@ fictional agent available rather than promising instant deployment.
    instructions if needed.
 5. Confirm costs and shared visibility, enter the operator key, and explicitly
    create it.
-6. Follow the real upload, provisioning, and routing stages in **All agents** > **Created here**.
+6. Follow the real upload, provisioning, and routing stages in **All agents** > **Made in this Lab**.
    **Ready to try** means an active runtime and checked Responses route, not a
    quality pass.
-7. Open it in **Chat**, select its fictional sample, and send it. Keep the source
+7. Open it in **Chat**, select its sample, and send it. Keep the source
    text visible and ask a follow-up. Observe tool receipts only when tools
    actually run.
 8. Record findings and export anything needed before an operator deletes the
@@ -108,15 +108,15 @@ fictional agent available rather than promising instant deployment.
 
 | Audience / template | Example job description | What to demonstrate |
 | --- | --- | --- |
-| Public sector / Document explainer | Summarize a fictional public-service notice, cite the supplied sections and identify questions a staff reviewer should ask. | Sourced analysis, not a legal interpretation or policy decision |
-| Public sector / Checklist gap finder | Compare a fictional community-project application with the checklist I paste and flag missing or inconsistent information. | Criteria-by-criteria checking, not an award or eligibility decision |
-| Healthcare operations / Form and invoice extractor | Extract the request ID, requested supplies, stated dates and missing fields from fictional clinic supply-request text. | Administrative extraction with unknown fields preserved; no patient data, clinical advice or orders |
-| Community services / Casework brief writer | Summarize fictional service-intake notes and draft follow-up questions without deciding eligibility or changing records. | Facts, conflicting notes and questions kept separate |
-| ISV / Service request planner | Use the supplied fictional request and service examples to propose integration-review steps and identify what a person must verify. | Two clearly simulated, read-only lookups and an action plan; no connected SaaS apps, writes or approval workflow |
-| Healthcare / Medical bill reviewer | Review a fictional hospital bill against the insurer's statement and draft a dispute letter. | A math error, a duplicate X-ray, extra lab charges and prices above the plan's allowed amount, with the math shown and an unsent letter |
-| Healthcare / Insurance pre-approval helper | Check a fictional MRI pre-approval request has every document the insurer asks for. | Out-of-date visit notes, two missing documents and an out-of-network facility caught before staff send it; no approval prediction |
-| Public sector / Benefits renewal helper | Sort a family's fictional food-assistance renewal paperwork and flag what's missing or doesn't match. | An old pay stub, a likely missing one, a household-size mismatch and a friendly draft note; the caseworker decides |
-| Public sector / Supplier invoice reviewer | Compare a fictional furniture invoice with the purchase order and delivery record. | 20 extra chairs, a price increase, an unexpected delivery fee and damaged items flagged for a person to decide; no payment approval |
+| Any sector / Supplier invoice reviewer | Compare a sample furniture invoice with the purchase order and delivery record. | 20 extra chairs, a price increase, an unexpected delivery fee and damaged items flagged for a person to decide; no payment approval |
+| Any sector / Document explainer | Explain a sample service notice in plain language, cite the sections and list questions for staff. | Sourced explanation, not a legal interpretation or policy decision |
+| Any sector / Checklist gap finder | Compare a sample project application with the checklist I paste and flag anything missing or conflicting. | Item-by-item checking, not an award or eligibility decision |
+| Any sector / Form field extractor | Pull the request ID, requested supplies, dates and any blank fields from a sample supply request. | Fields copied as written, blanks left blank; no guessing |
+| Any sector / Service request planner | Use the sample request and service records to plan the review steps and list what a person must check. | Two read-only sample lookups and a step-by-step plan; no connected apps, writes or approvals |
+| Healthcare / Medical bill reviewer | Review a sample hospital bill against the insurer's statement and draft a dispute letter. | A math error, a duplicate X-ray, extra lab charges and prices above the plan's allowed amount, with the math shown and an unsent letter |
+| Healthcare / Insurance pre-approval helper | Check that a sample MRI pre-approval request has every document the insurer asks for. | Out-of-date visit notes, two missing documents and an out-of-network facility caught before staff send it; no approval prediction |
+| Public sector / Benefits renewal helper | Sort a family's sample food-assistance renewal paperwork and flag what's missing or doesn't match. | An old pay stub, a likely missing one, a household-size mismatch and a friendly draft note; the caseworker decides |
+| Public sector / Case summary writer | Summarize sample intake notes and draft follow-up questions without deciding eligibility or changing records. | Facts, conflicting notes and questions kept separate |
 
 These examples include independent software vendor (ISV) and software as a
 service (SaaS) language so you can discuss product integration without
@@ -201,12 +201,12 @@ No real system is connected. Claiming a successful update is a failed demo.
 
 **Available**: criteria-and-evidence comparison in the existing
 [application-review agent](../hosted-agents/application-review-agent/README.md).
-The sample is a fictional permit application, not a regulatory rules engine.
+The input is a sample permit application, not a regulatory rules engine.
 
 **Question:** Can the assistant help a reviewer distinguish supplied evidence,
 gaps, and conflicts without approving or denying an application?
 
-**Run:** choose **Review an application** in **Application and case helper**, or
+**Run:** choose **Check against a checklist** in **Application and case helper**, or
 paste [application.txt](demo-inputs/application.txt). An explicitly enabled
 direct **Application checker** entry uses the same specialist.
 
@@ -224,7 +224,7 @@ schedule becomes not demonstrated, not conflicting. This checks that the answer
 uses this request's evidence rather than remembered dates.
 
 **Clarification variation:** in the original chat supply
-`Section 4: The project budget is 12000 fictional currency units. The reviewer
+`Section 4: The project budget is $12,000. The reviewer
 confirms Section 3 is the current schedule and Section 2 is superseded.`
 The answer may update budget coverage and explain the supplied reconciliation
 with Section 4, while retaining the original conflict's provenance. Coverage is still

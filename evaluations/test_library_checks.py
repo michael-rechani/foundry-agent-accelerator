@@ -35,7 +35,7 @@ GOOD = {
         "Which pool price is intended?"),
     "criteria-checker-sample": (
         "Checklist item 1 (budget): Gap. The plan says no budget is supplied.\n"
-        "Checklist item 2 (delivery owner): Supported. The Community Programs team will deliver the workshops.\n"
+        "Checklist item 2 (delivery owner): Supported. The Training team will run the workshops.\n"
         "What is the total budget?"),
     "criteria-checker-conflict": (
         "CRIT-1: Conflict. SRC-1 says $4,000 and SRC-2 says $4,500; the figures differ.\n"

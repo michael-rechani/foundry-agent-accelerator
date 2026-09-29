@@ -181,12 +181,12 @@
   font-weight: 650;
 }
 .review-primary {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: var(--on-accent);
   box-shadow: 0 1px 2px var(--shadow-soft);
 }
 .review-primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: var(--accent-fill-hover);
 }
 .review-secondary {
   background: var(--surface);

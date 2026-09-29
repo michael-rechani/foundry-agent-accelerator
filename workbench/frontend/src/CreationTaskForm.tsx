@@ -138,11 +138,11 @@ export function CreationTaskForm({
             value={goal}
             disabled={busy}
             onChange={(event) => onGoal(event.target.value)}
-            placeholder="For example: Create an agent that summarizes fictional policy notices and identifies questions for staff."
+            placeholder="For example: Create an agent that summarizes policy notices and identifies questions for staff."
           />
         </label>
         <small>
-          {[...goal].length}/1200 characters; at least 10. Use made-up details,
+          {[...goal].length}/1200 characters; at least 10. Use sample details,
           not customer or patient information.
         </small>
         <label>

@@ -6,7 +6,10 @@ import { guidedReview, illustrativeScreenshot, registry } from './fixtures'
 const agent = {
   ...guidedReview,
   prompts: [
-    { label: 'Review an application', text: 'Synthetic configured starter' },
+    {
+      label: 'Check against a checklist',
+      text: 'Synthetic configured starter',
+    },
   ],
 }
 type Document = {
@@ -172,7 +175,7 @@ async function openReadyAgents(page: Page) {
     .click()
   await page
     .getByRole('navigation', { name: 'Agent library' })
-    .getByRole('button', { name: /^Ready to use/ })
+    .getByRole('button', { name: /^Ready to chat/ })
     .click()
 }
 
@@ -239,7 +242,7 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
   await expect(page.getByText('Not saved', { exact: true })).toHaveCount(0)
 
   await page
-    .getByRole('button', { name: 'Review an application', exact: true })
+    .getByRole('button', { name: 'Check against a checklist', exact: true })
     .click()
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   await expect(editor).toHaveValue('Synthetic configured starter')
@@ -282,7 +285,7 @@ test('default helper explains its job and offers example tasks without auto-send
     guidedReview.guidance!.output,
   )
   await expect(page.locator('.prompt-options button strong')).toHaveText([
-    'Review an application',
+    'Check against a checklist',
     'Summarize case notes',
     'Compare a proposal (preview)',
     'Help me get started',
@@ -341,41 +344,60 @@ test('default helper explains its job and offers example tasks without auto-send
   )
 })
 
-test('handoff timeline shows a verified specialist without opening execution details', async ({
+const openSteps = async (page: Page) => {
+  const panel = page.locator('.answer-steps').last()
+  await panel.locator('summary').click()
+  return panel.getByRole('list', { name: 'How I got this' })
+}
+
+test('How I got this lists the recorded steps in plain words', async ({
   page,
 }, testInfo) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await workspace(page)
   await send(page)
-  const timeline = page.getByRole('list', { name: 'Handoff timeline' })
-  await expect(timeline).toBeVisible()
-  await expect(timeline.getByRole('listitem')).toHaveText([
-    'You asked',
-    /Application and case helper\s*Coordinator/,
-    /application-review-agent\s*Verified/,
-    'You check the findings',
+  const panel = page.locator('.answer-steps')
+  await expect(panel).not.toHaveAttribute('open')
+  await expect(panel.locator('summary')).toHaveText(
+    /How I got this\s*Asked another agent/,
+  )
+  const steps = await openSteps(page)
+  await expect(steps.locator('.answer-step-text')).toHaveText([
+    /^Asked the Application review agent/,
+    /^Wrote the answer/,
   ])
+  await expect(steps.locator('.answer-step-state')).toHaveText(['Confirmed'])
   await expect(page.locator('.receipt-details')).not.toHaveAttribute('open')
-  await expect(page.locator('.handoff-timeline')).not.toContainText(/\d/)
   expect(
-    await timeline.evaluate(
+    await panel.evaluate(
       (element) =>
         element.getBoundingClientRect().right <= innerWidth &&
-        document.documentElement.scrollWidth <= innerWidth &&
-        element.getAnimations({ subtree: true }).length === 0,
+        document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true)
-  await timeline.screenshot({
-    path: testInfo.outputPath('handoff-timeline.png'),
-  })
+  await panel.screenshot({ path: testInfo.outputPath('answer-steps.png') })
   await page.emulateMedia({ colorScheme: 'dark' })
-  await expect(timeline.getByText('Verified', { exact: true })).toBeVisible()
-  await timeline.screenshot({
-    path: testInfo.outputPath('handoff-timeline-dark.png'),
-  })
+  await expect(steps.getByText('Confirmed', { exact: true })).toBeVisible()
+  await panel.screenshot({ path: testInfo.outputPath('answer-steps-dark.png') })
 })
 
-test('handoff timeline marks unverified receipts', async ({ page }) => {
+test('How I got this keeps tool names and timing under the hood', async ({
+  page,
+}) => {
+  await workspace(page)
+  await send(page)
+  const steps = await openSteps(page)
+  // Tests run with Under the hood on.
+  await expect(steps.locator('.answer-step').first()).toContainText(
+    'inspect_application \u2192 application-review-agent',
+  )
+  await expect(steps.locator('.answer-step').last()).toContainText(/s total/)
+  await page.getByRole('switch', { name: /Under the hood/ }).uncheck()
+  await expect(steps.getByText('inspect_application')).toBeHidden()
+  await expect(steps.getByText(/s total/)).toBeHidden()
+})
+
+test('How I got this marks unconfirmed steps', async ({ page }) => {
   await workspace(page, {
     receipts: [
       {
@@ -388,15 +410,18 @@ test('handoff timeline marks unverified receipts', async ({ page }) => {
     ],
   })
   await send(page)
-  const timeline = page.getByRole('list', { name: 'Handoff timeline' })
-  await expect(timeline.getByRole('listitem').nth(2)).toHaveText(
-    /inspect_application\s*Tool call\s*Unverified/,
+  const steps = await openSteps(page)
+  await expect(steps.locator('.answer-step').first()).toHaveClass(/unverified/)
+  await expect(steps.locator('.answer-step-text').first()).toHaveText(
+    /^Checked the application/,
   )
-  await expect(timeline).not.toContainText('Target not verified')
-  await expect(timeline.getByText('Verified', { exact: true })).toHaveCount(0)
+  await expect(steps.locator('.answer-step-state')).toHaveText([
+    'Not confirmed',
+  ])
+  await expect(steps.getByText('Confirmed', { exact: true })).toHaveCount(0)
 })
 
-test('self-targeted lookups on a created agent show tool calls, not a handoff', async ({
+test('self-targeted lookups on a created agent read as lookups, not a handoff', async ({
   page,
 }) => {
   const created = {
@@ -419,26 +444,31 @@ test('self-targeted lookups on a created agent show tool calls, not a handoff', 
     ],
   })
   await send(page)
-  const timeline = page.getByRole('list', { name: 'Handoff timeline' })
-  await expect(timeline.getByRole('listitem')).toHaveText([
-    'You asked',
-    /Service request planner\s*Agent/,
-    /lookup_demo_request\s*Tool call\s*Verified/,
-    'You check the findings',
-  ])
-  await expect(timeline).not.toContainText('Coordinator')
-  await expect(timeline).not.toContainText(created.agent)
+  await expect(page.locator('.answer-steps summary')).toHaveText(
+    /How I got this\s*Used 1 lookup/,
+  )
+  const steps = await openSteps(page)
+  await expect(steps.locator('.answer-step-text').first()).toHaveText(
+    /^Looked up the request/,
+  )
+  await expect(steps).not.toContainText('Asked')
 })
 
-test('answers without receipts show no handoff timeline', async ({ page }) => {
+test('answers without receipts say no steps were recorded', async ({
+  page,
+}) => {
   await workspace(page, { receipts: [] })
   await send(page)
   await expect(page.locator('.assistant-message')).toContainText(
     'Section 1 is missing a budget.',
   )
-  await expect(
-    page.getByRole('list', { name: 'Handoff timeline' }),
-  ).toHaveCount(0)
+  await expect(page.locator('.answer-steps summary')).toHaveText(
+    /How I got this\s*No lookups or other agents recorded/,
+  )
+  const steps = await openSteps(page)
+  await expect(steps.locator('.answer-step-text')).toHaveText([
+    /^Wrote the answer/,
+  ])
   await expect(page.locator('.receipt-details > summary')).toContainText(
     'Execution details',
   )
@@ -493,7 +523,7 @@ test('catalog uses customer names while retaining runtime targets and scenario s
     'Automated tests use simulated responses, so check live answers yourself.',
   )
   await expect(page.locator('.catalog-status')).toContainText(
-    'Requirements and proposal review is in preview',
+    'Comparing proposals with requirements is in preview',
   )
   await expect(page.locator('.catalog-status')).not.toContainText('PLANNED')
   await expect(page.locator('.catalog-status')).toContainText(
@@ -638,7 +668,10 @@ test('legacy catalogs without guidance remain usable without invented capabiliti
     'This agent has no getting-started guide',
   )
   await expect(
-    page.getByRole('button', { name: 'Review an application', exact: true }),
+    page.getByRole('button', {
+      name: 'Check against a checklist',
+      exact: true,
+    }),
   ).toBeEnabled()
 })
 
@@ -664,8 +697,12 @@ test('shared lab details are available on demand across workspace views', async 
       .getByRole('navigation', { name: 'Workspace' })
       .getByTitle(name, { exact: true })
       .click()
+    // The top bar names the page only in its breadcrumb, never as a title.
     await expect(
-      page.getByRole('banner').getByText(name, { exact: true }),
+      page
+        .getByRole('banner')
+        .getByText(name, { exact: true })
+        .and(page.locator(':not(.topbar-crumbs *)')),
     ).toHaveCount(0)
     await expect(control).toBeInViewport()
     await expect(notice).toBeHidden()
@@ -677,7 +714,7 @@ test('shared lab details are available on demand across workspace views', async 
     await expect(notice).toContainText(
       'No user sign-in. Saved records are shared.',
     )
-    await expect(notice).toContainText('Use synthetic data only.')
+    await expect(notice).toContainText('Use sample data only.')
     await expect(notice).toContainText(
       'read, modify and delete saved chats, and read reviews and add requested evidence',
     )
@@ -774,13 +811,13 @@ test('save, reopen, follow up, update and delete shared history', async ({
     .getByRole('button', { name: 'Shared history', exact: true })
     .click()
   await page.locator('.saved-open').click()
-  const storedTimeline = page.getByRole('list', { name: 'Handoff timeline' })
-  await expect(storedTimeline.getByRole('listitem').nth(2)).toHaveText(
-    /application-review-agent\s*Stored \/ not reverified/,
+  const storedSteps = await openSteps(page)
+  await expect(storedSteps.locator('.answer-step-state')).toHaveText([
+    'Saved earlier',
+  ])
+  await expect(storedSteps.getByText('Confirmed', { exact: true })).toHaveCount(
+    0,
   )
-  await expect(
-    storedTimeline.getByText('Verified', { exact: true }),
-  ).toHaveCount(0)
   await page.locator('.receipt-details > summary').click()
   await expect(
     page.locator('.receipt').getByText('Stored / not reverified'),
@@ -1102,7 +1139,7 @@ for (const startup of ['invalid', 'invalid-guidance', 'failed'] as const) {
     ).toBeDisabled()
     await page.getByRole('button', { name: 'Retry', exact: true }).click()
     await expect(
-      page.getByRole('button', { name: 'Review an application' }),
+      page.getByRole('button', { name: 'Check against a checklist' }),
     ).toBeVisible()
     expect(state.configRequests).toBe(2)
   })

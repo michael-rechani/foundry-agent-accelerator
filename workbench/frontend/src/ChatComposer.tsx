@@ -136,8 +136,8 @@ export function ChatComposer({
       </form>
       {config?.mode === 'private' && (
         <p className="composer-privacy" id="chat-privacy">
-          Use fictional data only, never personal or confidential information.
-          Each message calls the model and may incur cost.
+          Use sample data only, never personal or confidential information. Each
+          message calls the model and may incur cost.
           {isPreview
             ? ' Preview chats are not saved.'
             : config.history_enabled &&
@@ -148,7 +148,7 @@ export function ChatComposer({
         <div className="composer-details">
           {config && (
             <details
-              className={`context-budget ${contextUsage >= 0.9 ? 'near-limit' : ''}`}
+              className={`context-budget ${contextUsage >= 0.9 ? 'near-limit' : 'hood-only'}`}
               id="context-budget"
             >
               <summary>

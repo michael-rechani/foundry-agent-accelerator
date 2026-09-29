@@ -132,7 +132,7 @@
   inset: 0;
   z-index: -1;
   border-radius: inherit;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: linear-gradient(135deg, var(--accent-fill), var(--accent-2));
   box-shadow: 0 6px 14px -6px var(--accent-glow);
   opacity: 0;
   transition: opacity 0.18s;
@@ -154,7 +154,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-fill);
   color: var(--on-accent);
   animation: creation-check 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -261,12 +261,12 @@
   font-weight: 650;
 }
 .creation-primary {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: var(--on-accent);
   width: fit-content;
 }
 .creation-primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: var(--accent-fill-hover);
 }
 .creation-secondary {
   background: var(--surface);

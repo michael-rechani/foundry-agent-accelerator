@@ -2,32 +2,32 @@
 
 [Home](../README.md) / [Docs](README.md) / Showcase
 
-Start with a customer question, not a blank prompt. These three fictional
+Start with a customer question, not a blank prompt. These three sample
 stories show the input, findings to check, and decision that stays with a
 person. They can be read without Azure. They are not live model results,
 customer endorsements, or proof that an agent is ready for production.
 
 ## In this guide
 
-- [Find the missing evidence](#find-the-missing-evidence)
+- [Find what?s missing](#find-whats-missing)
 - [Catch what does not add up](#catch-what-does-not-add-up)
 - [Turn scattered notes into a brief](#turn-scattered-notes-into-a-brief)
 - [Present without hiding the boundaries](#present-without-hiding-the-boundaries)
 - [One foundation. Repeatable agent releases.](#one-foundation-repeatable-agent-releases)
 - [Related content](#related-content)
 
-## Find the missing evidence
+## Find what?s missing
 
-**Question:** Can a reviewer see which application details need clarification
-before making a decision?
+**Question:** Can a reviewer see which project details need clarification
+before signing off?
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-demo-application-dark.png">
   <img alt="Illustrative application-completeness walkthrough with a missing budget, supported owner, and conflicting schedule; mocked APIs, not a live result." src="images/screenshots/lab-demo-application.png">
 </picture>
 
-Use the [fictional application and checklist](demo-inputs/application.txt).
-In **Guided demos**, choose **Application completeness**, then **Load fictional
+Use the [sample project and checklist](demo-inputs/application.txt).
+In **Guided demos**, choose **Checklist review**, then **Load sample
 input**. This chooses an enabled matching prebuilt agent, or a ready created
 **Checklist gap finder**. It only fills the composer: inspect the text, then
 explicitly Send.
@@ -52,9 +52,9 @@ an order, and a delivery record without delegating the payment decision?
   <img alt="Illustrative supplier-invoice walkthrough with quantity, price, delivery-fee, and damaged-item questions; mocked APIs, not a live result." src="images/screenshots/lab-demo-invoice.png">
 </picture>
 
-Use the [fictional supplier invoice](demo-inputs/supplier-invoice.txt).
+Use the [sample supplier invoice](demo-inputs/supplier-invoice.txt).
 This scenario requires a ready created **Supplier invoice reviewer**, whose
-two fixed tools return the fictional purchase order and delivery record for
+two fixed tools return the sample purchase order and delivery record for
 `PO-DEMO-2210`. They do not contact a finance system.
 
 Without a matching ready agent, **Guided demos** lets you read and copy the
@@ -83,10 +83,10 @@ and unanswered questions?
   <img alt="Illustrative casework walkthrough preserving conflicting intake dates, a supported follow-up date, and missing proof; mocked APIs, not a live result." src="images/screenshots/lab-demo-casework.png">
 </picture>
 
-Use the [fictional case notes](demo-inputs/casework.txt).
-Choose **Casework assistance** in **Guided demos**, then load the fictional
+Use the [sample case notes](demo-inputs/casework.txt).
+Choose **Case notes summary** in **Guided demos**, then load the sample
 input into an enabled matching prebuilt agent or ready created
-**Casework brief writer**.
+**Case summary writer**.
 
 | Source | Expected finding | Human follow-up |
 | --- | --- | --- |
@@ -103,7 +103,7 @@ choose an unsupported date, or modify a system.
    illustrative expectations, not an agent response.
 2. Turn on **Presenter view** in the header for larger story and conversation
    text. The environment indicator and shared-record notices remain visible.
-3. Load the fictional input. Existing unsaved chat messages require confirmation
+3. Load the sample input. Existing unsaved chat messages require confirmation
    before replacement. Nothing is automatically sent, saved, or published.
 4. In a prepared private environment, explicitly Send and compare the real reply
    with the evidence. Calls can incur costs. In local preview, no agent is invoked.
@@ -115,7 +115,7 @@ choose an unsupported date, or modify a system.
 
 Presenter view is a browser-session display preference, not a different
 security mode. The Lab still has no individual user sign-in; everyone with
-access shares saved records. Use fictional data only.
+access shares saved records. Use sample data only.
 
 The root URL opens the **Agent library**. Presenters can bookmark `/#demos` to
 open **Guided demos** directly, or `/#chat`

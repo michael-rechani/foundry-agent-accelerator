@@ -3,11 +3,10 @@ from copy import deepcopy
 
 
 _TEXT_LIMITS = (
-    "Uses only the text you supply. It cannot fetch documents, change systems, "
-    "approve applications or make legal, clinical, eligibility or payment decisions. "
-    "Use fictional examples and check its answer."
+    "Works only from the text you give it. It can't open files, change other systems, "
+    "or make legal, medical, eligibility or payment decisions."
 )
-_DIRECT = "Works directly on your supplied text. No other agents or external tools are called."
+_DIRECT = "Works on its own from the text you give it. It doesn't call other agents or tools."
 _GENERAL = "General"
 _SECTOR = "Healthcare and public sector"
 _PRIVATE = "Private sector"
@@ -18,7 +17,7 @@ _LOOKUP_RULES = (
 
 
 def _lookups(what):
-    return f"Works on its own, without other agents. It uses two built-in lookups with made-up data to check {what}."
+    return f"Works on its own. It uses two built-in lookups with sample data to check {what}."
 
 
 def _tool(name, description):
@@ -45,9 +44,9 @@ TEMPLATES = {
         "category": _GENERAL,
         "model_profile": "reasoning",
         "label": "Document explainer",
-        "description": "Explain a document, compare stated changes and identify questions for staff.",
-        "input": "Paste labeled policy, notice or product text and say what you want to understand.",
-        "output": "A plain-language summary, references to the text, stated changes and open questions.",
+        "description": "Explains a document in plain language, shows what changed and lists questions to ask.",
+        "input": "Paste a document, or two versions to compare, and say what you want to understand.",
+        "output": "A plain-language summary, what changed, where each point comes from and open questions.",
         "limits": _TEXT_LIMITS,
         "delegation": _DIRECT,
         "instructions": (
@@ -59,13 +58,16 @@ TEMPLATES = {
             "applicable, and questions for a reviewer. Do not provide legal or clinical advice, "
             "invent implementation obligations or claim to search documents not supplied."
         ),
-        "example_request": "Create an agent that explains fictional policy notices and identifies proposed changes.",
+        "example_request": "Create an agent that explains policy notices in plain language and shows what changed.",
         "sample_input": (
-            "Compare these fictional public-service notices. Summarize the stated change, cite the "
-            "document labels, and ask what remains unclear. Do not infer a legal effective date.\n\n"
-            "Notice 1: Current help-desk opening hours are 9:00 to 17:00, Monday through Friday.\n"
-            "Notice 2: A proposed notice says opening hours will be 8:00 to 17:00 on the same days. "
-            "No implementation date or staffing plan is supplied."
+            (
+            "We're changing our help desk hours. What's actually changing, and what should I ask before we "
+            "announce it?\n"
+            "\n"
+            "Notice 1: Current help desk hours are 9:00 to 17:00, Monday through Friday.\n"
+            "Notice 2: Proposed notice: help desk hours will be 8:00 to 17:00 on the same days. No start date or "
+            "staffing plan is given."
+        )
         ),
         "tools": [],
     },
@@ -74,10 +76,10 @@ TEMPLATES = {
         "category": _GENERAL,
         "model_profile": "reasoning",
         "label": "Checklist gap finder",
-        "description": "Compare a submission with your checklist and point out missing or conflicting information.",
-        "input": "Paste explicit checklist items and labeled documents to compare with them.",
-        "output": "One row per checklist item showing support, missing information or disagreement, plus follow-up questions.",
-        "limits": _TEXT_LIMITS + " Requirement and proposal comparisons are in preview.",
+        "description": "Compares a document with your checklist and shows what's covered, missing or unclear.",
+        "input": "Paste your checklist and the document you want to check against it.",
+        "output": "One row per checklist item showing what's covered, missing or contradictory, plus follow-up questions.",
+        "limits": _TEXT_LIMITS + " Comparing requirements with proposals is in preview.",
         "delegation": _DIRECT,
         "instructions": (
             "You check fictional submissions against only the checklist supplied by the user. "
@@ -89,12 +91,16 @@ TEMPLATES = {
             "an award. Ask only questions needed to address an unresolved supplied checklist item. "
             "Requirements/proposal use is experimental; product documents are claims, not live tests."
         ),
-        "example_request": "Create an agent that checks fictional project submissions against my checklist.",
+        "example_request": "Create an agent that checks project plans against our checklist before sign-off.",
         "sample_input": (
-            "Check this fictional project against my checklist. Cite the labels and ask for missing details.\n\n"
-            "Checklist item 1: Include a total budget.\nChecklist item 2: Name a delivery owner.\n"
-            "Project plan: The Community Programs team will deliver six weekly workshops. No budget is supplied.\n"
-            "Do not approve, reject or score the application."
+            (
+            "Before I send this project plan for sign-off, does it cover everything on our checklist?\n"
+            "\n"
+            "Checklist item 1: Includes a total budget.\n"
+            "Checklist item 2: Names a delivery owner.\n"
+            "Project plan: The Training team will run six weekly onboarding workshops for new hires. No budget is "
+            "given."
+        )
         ),
         "tools": [],
     },
@@ -102,11 +108,11 @@ TEMPLATES = {
         "id": "document-intake",
         "category": _GENERAL,
         "model_profile": "extraction",
-        "label": "Form and invoice extractor",
-        "description": "Extract stated fields from administrative forms or invoices without filling in guesses.",
-        "input": "Paste fictional document text, label each document, and list the fields to capture.",
-        "output": "A structured field table or requested JSON, references for extracted values and missing-field questions.",
-        "limits": _TEXT_LIMITS + " No file uploads, OCR, patient data, payment approval or system-of-record writes.",
+        "label": "Form field extractor",
+        "description": "Pulls the fields you ask for out of forms or invoices, and leaves blanks instead of guessing.",
+        "input": "Paste the form or invoice text and list the fields you need.",
+        "output": "A table of fields (or JSON if you ask), where each value came from and questions about missing fields.",
+        "limits": _TEXT_LIMITS + " It doesn't read file uploads or scans, or update records.",
         "delegation": _DIRECT,
         "instructions": (
             "Extract information from fictional administrative intake documents or invoices. "
@@ -118,12 +124,15 @@ TEMPLATES = {
             "extraction, not a compliance assessment, invoice approval, payment or record update. "
             "Healthcare examples concern fictional administration only, never clinical decisions."
         ),
-        "example_request": "Create an agent that extracts requested fields from fictional invoices and intake forms.",
+        "example_request": "Create an agent that pulls the fields I need from invoices and request forms.",
         "sample_input": (
-            "Extract request_id, item, quantity, requested_date and contact_team from this fictional "
-            "clinic supply-request text. Include source references and use null for missing fields.\n\n"
-            "Form 1: Request SUP-104 asks for 12 storage bins. Requested date: 2027-04-12. "
-            "No contact team is listed. This is made-up administrative data, not a patient record."
+            (
+            "Pull these fields from the supply request below: request_id, item, quantity, requested_date and "
+            "contact_team. Leave anything that isn't there blank and tell me where each value came from.\n"
+            "\n"
+            "Form 1: Request SUP-104 asks for 12 storage bins. Requested date: 2027-04-12. No contact team is "
+            "listed."
+        )
         ),
         "tools": [],
     },
@@ -131,10 +140,10 @@ TEMPLATES = {
         "id": "casework-assistant",
         "category": _GENERAL,
         "model_profile": "reasoning",
-        "label": "Casework brief writer",
-        "description": "Turn case notes into a clear summary and useful follow-up questions.",
-        "input": "Paste labeled fictional notes, correspondence and any rules you want considered.",
-        "output": "A case summary, timeline, disagreements or missing details and draft follow-up questions.",
+        "label": "Case summary writer",
+        "description": "Turns case notes into a clear summary, a timeline and useful follow-up questions.",
+        "input": "Paste the case notes and any messages, plus any rules you want it to keep in mind.",
+        "output": "A summary, a timeline, anything that conflicts or is missing and draft follow-up questions.",
         "limits": _TEXT_LIMITS,
         "delegation": _DIRECT,
         "instructions": (
@@ -146,13 +155,16 @@ TEMPLATES = {
             "Do not determine eligibility, liability, enforcement, diagnosis or treatment, "
             "and do not claim to update a record or contact a person."
         ),
-        "example_request": "Create an agent that summarizes fictional case notes and drafts follow-up questions.",
+        "example_request": "Create an agent that summarizes case notes and suggests follow-up questions.",
         "sample_input": (
-            "Summarize these fictional service notes. Preserve the conflicting dates and draft two "
-            "follow-up questions. No eligibility policy is supplied.\n\n"
+            (
+            "Can you summarize these client notes for my handoff? Flag anything that doesn't line up and suggest "
+            "two follow-up questions.\n"
+            "\n"
             "Note 1: Intake completed on 2027-03-01. A follow-up is planned for 2027-03-10.\n"
             "Note 2: Intake completed on 2027-03-03. A follow-up is planned for 2027-03-10.\n"
-            "Note 3: A requested supporting form has not been supplied."
+            "Note 3: A requested supporting form hasn't come in yet."
+        )
         ),
         "tools": [],
     },
@@ -161,14 +173,16 @@ TEMPLATES = {
         "category": _GENERAL,
         "model_profile": "tool_calling",
         "label": "Service request planner",
-        "description": "Use simulated request and service lookups to prepare a next-step plan.",
-        "input": "Use the supplied fictional request identifier and explain the task you want to plan.",
-        "output": "Clearly labeled simulated lookup results, missing details and proposed steps for a person to review.",
+        "description": "Looks up a service request and suggests next steps for a person to approve.",
+        "input": "Give it a request number, such as REQ-101, and say what you want to plan.",
+        "output": "What the lookups found, what's missing and suggested next steps for a person to approve.",
         "limits": (
-            "Only two fixed read-only demo lookups. No connected SaaS systems, ticket creation, "
-            "messages, approval enforcement or other business changes. A plan is not an executed action."
+            (
+            "Uses the text you give it and two built-in sample lookups. It can't create tickets, send messages or "
+            "change other systems. It suggests a plan; it doesn't carry it out."
+        )
         ),
-        "delegation": _lookups("a fictional request and its service description"),
+        "delegation": _lookups("the request and the service it asks for"),
         "instructions": (
             "Help plan a fictional operational workflow using only the two provided simulated "
             "read-only lookup tools. Given a request ID, first look up the request, then use its "
@@ -179,15 +193,13 @@ TEMPLATES = {
             "Never claim to create or update tickets, approve a request, notify anyone, or "
             "execute the proposed plan. There is no business-action or human-approval tool."
         ),
-        "example_request": "Create an agent that coordinates a fictional service request using simulated lookups.",
+        "example_request": "Create an agent that coordinates service requests and suggests next steps.",
         "sample_input": (
-            "Use the demo tools to look up fictional request REQ-101 and its service. "
-            "Explain what information is missing and propose next steps for a reviewer. "
-            "Label the lookups as simulated. Do not claim that a system change or approval occurred."
+            "Look up request REQ-101 and the service it's for. What's missing, and what should happen next?"
         ),
         "tools": [
-            _tool("lookup_demo_request", "Read one fixed fictional request"),
-            _tool("lookup_demo_service", "Read a fixed fictional service description"),
+            _tool("lookup_demo_request", "Looks up a sample service request"),
+            _tool("lookup_demo_service", "Looks up the service a sample request asks for"),
         ],
     },
     "medical-bill-reviewer": {
@@ -195,14 +207,22 @@ TEMPLATES = {
         "category": _SECTOR,
         "model_profile": "reasoning",
         "label": "Medical bill reviewer",
-        "description": "Check a hospital bill against the insurer's statement, find likely mistakes and draft a dispute letter.",
-        "input": "Paste a fictional itemized hospital bill and the matching insurer statement, including the plan ID.",
-        "output": "A list of likely mistakes with the math shown, the amount the documents support, questions to ask and an unsent dispute letter.",
-        "limits": (
-            "Uses your supplied text and two fixed, simulated plan lookups. It cannot contact a hospital or insurer, "
-            "send a letter, pay or refuse a bill, or give medical or legal advice. Use fictional examples and check its answer."
+        "description": (
+            "Checks a hospital bill against the insurer's statement, finds likely mistakes and drafts a dispute "
+            "letter."
         ),
-        "delegation": _lookups("a fictional plan's benefits and its usual price for each service"),
+        "input": "Paste the itemized hospital bill and the insurer's statement, including the plan ID.",
+        "output": (
+            "Likely mistakes with the math shown, what the documents say you owe, questions to ask and a draft "
+            "dispute letter."
+        ),
+        "limits": (
+            (
+            "Uses the text you give it and two built-in sample lookups. It can't contact the hospital or insurer, "
+            "send a letter or pay a bill, and it doesn't give medical or legal advice."
+        )
+        ),
+        "delegation": _lookups("the plan's benefits and its usual price for each service"),
         "instructions": (
             "You review fictional medical bills for a patient or a billing-office helper. Compare the itemized "
             "bill with the insurer statement line by line. Call lookup_plan_benefits with the plan ID in the "
@@ -215,30 +235,37 @@ TEMPLATES = {
             "(3) questions to ask; (4) a short dispute letter labeled UNSENT DRAFT. " + _LOOKUP_RULES + " Do not "
             "judge whether care was medically needed, give legal advice, or claim that anything was sent, paid or corrected."
         ),
-        "example_request": "Create an agent that reviews fictional hospital bills against the insurer's statement and drafts a dispute letter.",
+        "example_request": (
+            "Create an agent that checks hospital bills against the insurer's statement and drafts a dispute "
+            "letter."
+        ),
         "sample_input": (
-            "Review this fictional hospital bill against the insurer statement. Use the plan lookups, show the "
-            "math and draft a dispute letter. All data is made up.\n\n"
-            "HOSPITAL BILL HB-DEMO-0412 - Lakeside Demo Hospital - Patient: Pat Example (fictional) - "
-            "Plan: PLAN-DEMO-SILVER - Visit date: 2027-03-14\n"
+            (
+            "I think this hospital bill is wrong. Can you check it against what my insurer says, show the math and "
+            "help me write a dispute letter?\n"
+            "\n"
+            "HOSPITAL BILL HB-DEMO-0412 - Lakeside Demo Hospital - Patient: Pat Example - Plan: PLAN-DEMO-SILVER - "
+            "Visit date: 2027-03-14\n"
             "Line 1: DEMO-ER-3 Emergency room visit, level 3 - qty 1 x $900.00 = $900.00\n"
             "Line 2: DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00\n"
             "Line 3: DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00\n"
             "Line 4: DEMO-LAB-7 Basic blood panel - qty 3 x $60.00 = $180.00\n"
             "Line 5: DEMO-SUP-1 Wrist splint - qty 1 x $120.00 = $120.00\n"
-            "Total charges: $1,800.00 | Insurance payments: -$696.00 | Amount you owe: $1,104.00\n\n"
+            "Total charges: $1,800.00 | Insurance payments: -$696.00 | Amount you owe: $1,104.00\n"
+            "\n"
             "INSURER STATEMENT IS-DEMO-5521 - PLAN-DEMO-SILVER - Lakeside Demo Hospital, 2027-03-14\n"
             "DEMO-ER-3 qty 1 - billed $900.00 - allowed $600.00 - plan paid $480.00 - your share $120.00\n"
             "DEMO-XR-2 qty 1 - billed $250.00 - allowed $150.00 - plan paid $120.00 - your share $30.00\n"
-            "DEMO-XR-2 qty 1 - billed $250.00 - allowed $0.00 - plan paid $0.00 - your share $0.00 - "
-            "note: duplicate of a line already processed\n"
+            "DEMO-XR-2 qty 1 - billed $250.00 - allowed $0.00 - plan paid $0.00 - your share $0.00 - note: "
+            "duplicate of a line already processed\n"
             "DEMO-LAB-7 qty 1 - billed $60.00 - allowed $40.00 - plan paid $32.00 - your share $8.00\n"
             "DEMO-SUP-1 qty 1 - billed $120.00 - allowed $80.00 - plan paid $64.00 - your share $16.00\n"
             "Total plan paid: $696.00 | Total your share: $174.00"
+        )
         ),
         "tools": [
-            _tool("lookup_plan_benefits", "Read a fixed fictional health plan's benefits and billing rules"),
-            _tool("lookup_usual_price", "Read the fictional plan's usual allowed price for one service code"),
+            _tool("lookup_plan_benefits", "Looks up a sample health plan's benefits and billing rules"),
+            _tool("lookup_usual_price", "Looks up the sample plan's usual price for one service"),
         ],
     },
     "insurance-preapproval-helper": {
@@ -246,15 +273,16 @@ TEMPLATES = {
         "category": _SECTOR,
         "model_profile": "tool_calling",
         "label": "Insurance pre-approval helper",
-        "description": "Check that a pre-approval request has every document the insurer asks for before staff send it.",
-        "input": "Paste a fictional pre-approval request with its plan ID, service code, facility ID and attached documents.",
-        "output": "A ready, missing or out-of-date checklist, what to fix and an unsent note to office staff.",
+        "description": "Checks that a pre-approval request has every document the insurer asks for before staff send it.",
+        "input": "Paste the pre-approval request with its plan ID, service code, facility ID and attached documents.",
+        "output": "A checklist marked ready, missing or out of date, what to fix and a draft note to office staff.",
         "limits": (
-            "Checks paperwork only, using your supplied text and two fixed, simulated lookups. It never judges whether "
-            "care is medically needed, predicts the insurer's decision or submits anything. Use fictional examples and "
-            "check its answer."
+            (
+            "Uses the text you give it and two built-in sample lookups. It checks paperwork only. It never judges "
+            "whether care is medically needed, predicts the insurer's decision or submits anything."
+        )
         ),
-        "delegation": _lookups("a fictional insurer's document list and a facility's network status"),
+        "delegation": _lookups("the insurer's document list and whether the facility is in network"),
         "instructions": (
             "You help fictional clinic office staff check an insurance pre-approval request before it is sent. "
             "First call lookup_preapproval_rules with the plan ID and service code in the request. Then call "
@@ -269,24 +297,29 @@ TEMPLATES = {
             "claim the request was submitted or approved."
         ),
         "example_request": (
-            "Create an agent that checks whether a fictional health insurance pre-approval request has every "
-            "document the insurer asks for."
+            (
+            "Create an agent that checks whether a health insurance pre-approval request has every document the "
+            "insurer asks for."
+        )
         ),
         "sample_input": (
-            "Check this fictional pre-approval request before it is sent. Use the lookups and show any date math. "
-            "All data is made up.\n\n"
+            (
+            "Is this pre-approval request ready to send? Check it against what the insurer requires and show any "
+            "date math.\n"
+            "\n"
             "REQUEST PA-DEMO-3107 - prepared 2027-03-20 by Riverbend Demo Clinic\n"
-            "Member: MBR-DEMO-4471 (fictional) - Plan: PLAN-DEMO-SILVER\n"
+            "Member: MBR-DEMO-4471 - Plan: PLAN-DEMO-SILVER\n"
             "Service: DEMO-MRI-LS (MRI of the lower back)\n"
             "Facility: FAC-DEMO-22 (Northside Demo Imaging)\n"
             "Attached documents:\n"
             "Document 1: MRI order, signed and dated 2027-03-02 by the treating clinician\n"
             "Document 2: Visit notes dated 2027-01-05\n"
             "Document 3: Copy of the member ID card showing MBR-DEMO-4471 and PLAN-DEMO-SILVER"
+        )
         ),
         "tools": [
-            _tool("lookup_preapproval_rules", "Read a fixed fictional insurer's document list for one plan and service"),
-            _tool("lookup_facility", "Read a fixed fictional facility's network status"),
+            _tool("lookup_preapproval_rules", "Looks up a sample insurer's required documents for one plan and service"),
+            _tool("lookup_facility", "Looks up whether a sample facility is in network"),
         ],
     },
     "benefits-renewal-helper": {
@@ -294,15 +327,22 @@ TEMPLATES = {
         "category": _SECTOR,
         "model_profile": "reasoning",
         "label": "Benefits renewal helper",
-        "description": "Sort a family's renewal paperwork, flag what's missing, old or doesn't match, and draft a friendly note.",
-        "input": "Paste a fictional renewal form summary and a labeled list of the documents the family sent, with dates.",
-        "output": "A proof-by-proof checklist, questions for the caseworker and an unsent plain-language note to the family.",
-        "limits": (
-            "Uses your supplied text and two fixed, simulated lookups. It does not decide eligibility or benefit "
-            "amounts, change records or contact the family. The caseworker decides. Use fictional examples and "
-            "check its answer."
+        "description": (
+            "Sorts a family's renewal paperwork, flags what's missing, old or doesn't match, and drafts a friendly "
+            "note."
         ),
-        "delegation": _lookups("a fictional program's renewal rules and what the household already has on file"),
+        "input": "Paste the renewal form summary and a list of the documents the family sent, with dates.",
+        "output": (
+            "A proof-by-proof checklist, questions for the caseworker and a draft plain-language note to the "
+            "family."
+        ),
+        "limits": (
+            (
+            "Uses the text you give it and two built-in sample lookups. It doesn't decide eligibility or benefit "
+            "amounts, change records or contact the family. The caseworker decides."
+        )
+        ),
+        "delegation": _lookups("the program's renewal rules and what the household already has on file"),
         "instructions": (
             "You help a fictional benefits caseworker prepare a household's renewal. Call lookup_renewal_rules "
             "with the program ID, then lookup_documents_on_file with the household ID. Return one row per "
@@ -314,39 +354,45 @@ TEMPLATES = {
             "UNSENT DRAFT, that asks only for what is missing or unclear. " + _LOOKUP_RULES + " Never decide "
             "eligibility or benefit amounts, and never claim a record was updated or a message was sent."
         ),
-        "example_request": "Create an agent that sorts a fictional family's benefits renewal paperwork and lists what is missing.",
+        "example_request": "Create an agent that sorts a family's benefits renewal paperwork and lists what is missing.",
         "sample_input": (
-            "Prepare this fictional household renewal for the caseworker. Use the lookups, check the dates and "
-            "draft a note to the family. All data is made up.\n\n"
-            "RENEWAL FORM RF-DEMO-208 - Program: PROG-DEMO-FOOD - Household: HH-DEMO-5150 (Rivera household, fictional)\n"
+            (
+            "Help me get this family's renewal ready. What's missing, out of date or doesn't match? Then draft a "
+            "friendly note asking for what we still need.\n"
+            "\n"
+            "RENEWAL FORM RF-DEMO-208 - Program: PROG-DEMO-FOOD - Household: HH-DEMO-5150 (Rivera household)\n"
             "Form signed: 2027-03-20 | Renewal due: 2027-04-01\n"
             "Household size on form: 4 (two adults, two children)\n"
             "Income on form: one job, paid every two weeks\n"
-            "Costs on form: rent $1,450 per month; child care $600 per month\n\n"
+            "Costs on form: rent $1,450 per month; child care $600 per month\n"
+            "\n"
             "DOCUMENTS SENT\n"
             "Document A: Pay stub dated 2027-03-12, gross pay $1,380 for two weeks\n"
             "Document B: Pay stub dated 2027-02-12, gross pay $1,380 for two weeks\n"
             "Document C: Landlord letter dated 2026-11-02: rent $1,450 per month; people living in the home: 3\n"
             "Document D: Photo ID for one adult"
+        )
         ),
         "tools": [
-            _tool("lookup_renewal_rules", "Read a fixed fictional program's renewal proof rules"),
-            _tool("lookup_documents_on_file", "Read which fictional proofs a household already has on file"),
+            _tool("lookup_renewal_rules", "Looks up a sample program's renewal rules"),
+            _tool("lookup_documents_on_file", "Looks up which proofs a sample household already has on file"),
         ],
     },
     "supplier-invoice-reviewer": {
         "id": "supplier-invoice-reviewer",
-        "category": _SECTOR,
+        "category": _GENERAL,
         "model_profile": "reasoning",
         "label": "Supplier invoice reviewer",
-        "description": "Compare what was ordered, delivered and billed, and show what the documents support paying.",
-        "input": "Paste a fictional supplier invoice with its purchase order number and line items.",
-        "output": "A line-by-line match table, the amount the documents support, questions for the supplier and an unsent email.",
+        "description": "Compares what was ordered, delivered and billed, and shows what the documents support paying.",
+        "input": "Paste the supplier's invoice, including the purchase order number and line items.",
+        "output": "A line-by-line match, the amount the documents support, questions for the supplier and a draft email.",
         "limits": (
-            "Uses your supplied text and two fixed, simulated lookups. It cannot approve, hold or pay an invoice, "
-            "change a purchase order or contact the supplier. Use fictional examples and check its answer."
+            (
+            "Uses the text you give it and two built-in sample lookups. It can't approve, hold or pay an invoice, "
+            "change a purchase order or contact the supplier."
+        )
         ),
-        "delegation": _lookups("a fictional purchase order and its delivery record"),
+        "delegation": _lookups("the purchase order and what was delivered"),
         "instructions": (
             "You help a fictional accounts-payable clerk check a supplier invoice before anyone pays it. Call "
             "lookup_purchase_order with the purchase order number on the invoice, then lookup_delivery_record "
@@ -359,21 +405,25 @@ TEMPLATES = {
             + _LOOKUP_RULES + " Never approve, hold, pay or reject the invoice, and never claim a message was "
             "sent or a record changed."
         ),
-        "example_request": "Create an agent that compares what a fictional supplier billed with the purchase order and what was delivered.",
+        "example_request": "Create an agent that compares what a supplier billed with the purchase order and what was delivered.",
         "sample_input": (
-            "Check this fictional supplier invoice before payment. Use the lookups, show the math and draft an "
-            "email to the supplier. All data is made up.\n\n"
-            "INVOICE INV-DEMO-7781 - Contoso Demo Furniture - dated 2027-04-05\n"
-            "Bill to: City of Example, Parks Department (fictional)\n"
+            (
+            "Can you check this invoice before I approve it? Compare it with the purchase order and what we "
+            "actually received, show the math, and draft an email to the supplier about anything that doesn't "
+            "match.\n"
+            "\n"
+            "INVOICE INV-DEMO-7781 - Example Furniture Supply - dated 2027-04-05\n"
+            "Bill to: Example Conference Center\n"
             "Purchase order: PO-DEMO-2210\n"
             "Line 1: CH-100 Stacking chair - qty 120 x $55.00 = $6,600.00\n"
             "Line 2: TB-300 Folding table - qty 10 x $300.00 = $3,000.00\n"
             "Line 3: Delivery fee - $250.00\n"
             "Invoice total: $9,850.00"
+        )
         ),
         "tools": [
-            _tool("lookup_purchase_order", "Read a fixed fictional purchase order"),
-            _tool("lookup_delivery_record", "Read what the fictional buyer recorded as delivered"),
+            _tool("lookup_purchase_order", "Looks up the sample purchase order"),
+            _tool("lookup_delivery_record", "Looks up what the sample buyer recorded as delivered"),
         ],
     },
 }
@@ -387,7 +437,7 @@ TEMPLATES.update({
         "description": "Organize a fictional public records request into scope, date range, named offices and clarification questions.",
         "input": "Paste the fictional request, any supplied correspondence and the intake fields your office uses.",
         "output": "A structured intake summary, quoted scope terms, missing details and an unsent clarification draft.",
-        "limits": _TEXT_LIMITS + " It does not search records, apply exemptions, calculate fees or release information.",
+        "limits": _TEXT_LIMITS + " It doesn't search records, apply exemptions, calculate fees or release information.",
         "delegation": _DIRECT,
         "instructions": (
             "Organize fictional public records request text for intake staff. Extract only stated requester details, "
@@ -413,7 +463,7 @@ TEMPLATES.update({
         "description": "Compare a fictional grant report with supplied award terms and evidence before staff review.",
         "input": "Paste labeled award terms, the draft report and the evidence supplied for each reported result.",
         "output": "A requirement-by-requirement evidence table, unsupported claims, conflicts and reviewer questions.",
-        "limits": _TEXT_LIMITS + " It cannot certify compliance, approve costs, recover funds or submit a report.",
+        "limits": _TEXT_LIMITS + " It can't certify compliance, approve costs or submit a report.",
         "delegation": _DIRECT,
         "instructions": (
             "Check a fictional grant report against only the supplied award terms and labeled evidence. Return one "
@@ -440,7 +490,7 @@ TEMPLATES.update({
         "description": "Turn fictional program notes and measures into an evidence-linked briefing for staff.",
         "input": "Paste labeled program notes, stated measures, results and unresolved questions.",
         "output": "A concise briefing, measure table, caveats and draft questions for the program owner.",
-        "limits": _TEXT_LIMITS + " It cannot validate outcomes, allocate funding or make policy decisions.",
+        "limits": _TEXT_LIMITS + " It can't validate outcomes, allocate funding or make policy decisions.",
         "delegation": _DIRECT,
         "instructions": (
             "Prepare a briefing from fictional community program material. Separate planned activities, reported "
@@ -461,11 +511,11 @@ TEMPLATES.update({
         "id": "customer-support-brief",
         "category": _PRIVATE,
         "model_profile": "reasoning",
-        "label": "Customer support handoff writer",
-        "description": "Turn fictional support tickets into a sourced handoff with unresolved questions and a reply draft.",
-        "input": "Paste labeled ticket messages, product notes and any response policy you want applied.",
-        "output": "A timeline, confirmed facts, unresolved issues, next-step options and an unsent customer reply.",
-        "limits": _TEXT_LIMITS + " It cannot access an account, issue credits, change service or contact a customer.",
+        "label": "Support ticket handoff",
+        "description": "Turns a support ticket into a handoff note for the next person, plus a draft reply.",
+        "input": "Paste the ticket messages, any internal notes and the support policy you follow.",
+        "output": "A timeline, what's confirmed, what's still open, suggested next steps and a draft reply.",
+        "limits": _TEXT_LIMITS + " It can't open accounts, issue credits or contact the customer.",
         "delegation": _DIRECT,
         "instructions": (
             "Create a handoff from fictional customer support ticket text. Preserve the timeline, distinguish customer "
@@ -473,13 +523,16 @@ TEMPLATES.update({
             "next steps and write a response labeled UNSENT DRAFT. Do not access accounts, promise resolution dates, "
             "issue credits, change service, assign fault or claim a message was sent."
         ),
-        "example_request": "Create an agent that summarizes a fictional customer support ticket and drafts a handoff reply.",
+        "example_request": "Create an agent that turns a customer support ticket into a handoff note and drafts a reply.",
         "sample_input": (
-            "Prepare a handoff for this fictional customer support ticket.\n\n"
+            (
+            "I'm handing this ticket to the next shift. Write a handoff note and a reply to the customer.\n"
+            "\n"
             "Ticket T1, 09:10: Customer says export job EX-44 has shown Processing since yesterday.\n"
             "Agent note N1, 09:35: Status screenshot shows Processing; no service logs were checked.\n"
-            "Product note P1: Escalate after four hours only when a job start timestamp is confirmed. "
-            "The start timestamp is not supplied."
+            "Product note P1: Escalate after four hours only when a job start timestamp is confirmed. The start "
+            "timestamp is not supplied."
+        )
         ),
         "tools": [],
     },
@@ -487,11 +540,11 @@ TEMPLATES.update({
         "id": "cash-application-reviewer",
         "category": _PRIVATE,
         "model_profile": "extraction",
-        "label": "Cash application reviewer",
-        "description": "Match fictional remittance details to open invoices and isolate amounts that need review.",
-        "input": "Paste labeled remittance advice, payment totals and an open-invoice list with customer references.",
-        "output": "A proposed match table, arithmetic, unmatched amounts and questions for finance staff.",
-        "limits": _TEXT_LIMITS + " It cannot post cash, change a ledger, issue refunds or decide a write-off.",
+        "label": "Payment matcher",
+        "description": "Matches a customer payment to open invoices and flags any amount that doesn't fit.",
+        "input": "Paste the remittance advice, the payment total and your list of open invoices.",
+        "output": "Suggested matches with the math, amounts that don't match and questions for the finance team.",
+        "limits": _TEXT_LIMITS + " It can't post payments, change the ledger, issue refunds or write off balances.",
         "delegation": _DIRECT,
         "instructions": (
             "Compare fictional remittance advice with a supplied open-invoice list. Preserve identifiers and amounts, "
@@ -499,12 +552,15 @@ TEMPLATES.update({
             "between ambiguous invoices. Return questions for finance staff and use null for absent references. "
             "Do not post cash, modify a ledger, issue a refund, approve a write-off or claim reconciliation is final."
         ),
-        "example_request": "Create an agent that reviews fictional remittance advice against open receivables.",
+        "example_request": "Create an agent that matches customer remittance advice to open receivables.",
         "sample_input": (
-            "Review this fictional remittance against open receivables and show the math.\n\n"
-            "Remittance R-88: Payment total $1,450. References INV-101 for $1,000 and INV-104 for $400. "
-            "No reference is supplied for the remaining amount.\n"
+            (
+            "Match this customer payment to our open invoices and show the math.\n"
+            "\n"
+            "Remittance R-88: Payment total $1,450. References INV-101 for $1,000 and INV-104 for $400. No "
+            "reference is supplied for the remaining amount.\n"
             "Open invoices: INV-101 $1,000; INV-104 $450; INV-140 $50."
+        )
         ),
         "tools": [],
     },
@@ -513,10 +569,13 @@ TEMPLATES.update({
         "category": _PRIVATE,
         "model_profile": "reasoning",
         "label": "Maintenance work order planner",
-        "description": "Convert fictional maintenance notes into a bounded work plan and safety questions for review.",
-        "input": "Paste labeled work order notes, asset guidance and site constraints.",
-        "output": "A problem summary, evidence-linked plan, missing safety details and an unsent technician brief.",
-        "limits": _TEXT_LIMITS + " It cannot diagnose equipment, dispatch staff, authorize shutdowns or control machinery.",
+        "description": "Turns maintenance notes into a work plan and asks the safety questions first.",
+        "input": "Paste the work order, shift notes and any equipment guidance or site rules.",
+        "output": (
+            "A summary of the problem, a step-by-step plan, missing safety details and a draft brief for the "
+            "technician."
+        ),
+        "limits": _TEXT_LIMITS + " It can't diagnose equipment, dispatch staff, approve a shutdown or control machinery.",
         "delegation": _DIRECT,
         "instructions": (
             "Prepare a plan from fictional maintenance work order notes and supplied asset guidance. Separate observed "
@@ -525,13 +584,16 @@ TEMPLATES.update({
             "UNSENT DRAFT. Do not diagnose equipment, direct hazardous work, dispatch staff, authorize a shutdown, "
             "change a schedule or claim that machinery was controlled."
         ),
-        "example_request": "Create an agent that plans a fictional maintenance work order from notes and asset guidance.",
+        "example_request": "Create an agent that plans maintenance work orders from technician notes.",
         "sample_input": (
-            "Plan this fictional maintenance work order without diagnosing the equipment.\n\n"
+            (
+            "Help me plan this work order. Don't guess at the cause; tell me what we need to check first.\n"
+            "\n"
             "Work order WO-72: Conveyor C-4 makes an intermittent scraping sound near the end roller.\n"
             "Shift note S1: Sound was heard twice during unloaded operation. No vibration reading was taken.\n"
-            "Asset guide G1: Before inspection, confirm lockout authorization and inspect guards for visible contact. "
-            "No lockout authorization or site contact is supplied."
+            "Asset guide G1: Before inspection, confirm lockout authorization and inspect guards for visible "
+            "contact. No lockout authorization or site contact is supplied."
+        )
         ),
         "tools": [],
     },
@@ -544,10 +606,10 @@ TEMPLATES.update({
         "category": _PRIVATE,
         "model_profile": "reasoning",
         "label": "Contract playbook checker",
-        "description": "Compare fictional contract clauses with your negotiation playbook and flag where they fall outside it.",
-        "input": "Paste labeled contract clauses and a playbook with preferred, fallback and unacceptable positions.",
-        "output": "A clause-by-clause table against the playbook, missing clauses and questions for legal counsel.",
-        "limits": _TEXT_LIMITS + " It cannot give legal advice, negotiate, accept terms or sign a contract.",
+        "description": "Compares contract clauses with your negotiation playbook and flags where they fall outside it.",
+        "input": "Paste the contract clauses and your playbook's preferred, fallback and unacceptable positions.",
+        "output": "A clause-by-clause comparison with your playbook, missing clauses and questions for legal counsel.",
+        "limits": _TEXT_LIMITS + " It doesn't give legal advice, negotiate, accept terms or sign anything.",
         "delegation": _DIRECT,
         "instructions": (
             "You compare fictional contract clauses with a supplied negotiation playbook. For each playbook item, "
@@ -557,15 +619,20 @@ TEMPLATES.update({
             "SUGGESTION FOR COUNSEL REVIEW. List questions for legal counsel. Do not give legal advice, judge "
             "enforceability, decide whether to sign, accept or reject terms, or claim anything was negotiated or sent."
         ),
-        "example_request": "Create an agent that checks fictional contract clauses against our negotiation playbook.",
+        "example_request": "Create an agent that checks contract clauses against our negotiation playbook.",
         "sample_input": (
-            "Check this fictional contract against our playbook. Cite the labels. All text is made up.\n\n"
-            "Playbook PB-1 Liability cap: preferred 12 months of fees; fallback up to 24 months; unlimited is not acceptable.\n"
+            (
+            "Does this contract fit our negotiation playbook? Go clause by clause.\n"
+            "\n"
+            "Playbook PB-1 Liability cap: preferred 12 months of fees; fallback up to 24 months; unlimited is not "
+            "acceptable.\n"
             "Playbook PB-2 Payment terms: preferred net 45; fallback net 30.\n"
-            "Playbook PB-3 Governing law: preferred Example State (fictional).\n\n"
+            "Playbook PB-3 Governing law: preferred Example State.\n"
+            "\n"
             "Contract C-1, section 4.2: Supplier liability is capped at 36 months of fees.\n"
             "Contract C-1, section 6.1: Invoices are payable net 30.\n"
             "No governing law clause is supplied."
+        )
         ),
         "tools": [],
     },
@@ -574,10 +641,10 @@ TEMPLATES.update({
         "category": _PRIVATE,
         "model_profile": "reasoning",
         "label": "RFP answer drafter",
-        "description": "Draft answers to fictional RFP or security questionnaire questions using only approved product facts.",
-        "input": "Paste labeled questions and the approved product facts the answers may use.",
-        "output": "Draft answers with source facts, a support level for each and a list of questions for subject-matter experts.",
-        "limits": _TEXT_LIMITS + " It cannot submit a response, commit to prices or dates, or claim certifications.",
+        "description": "Drafts answers to RFP and security questionnaire questions using only your approved facts.",
+        "input": "Paste the questions and the approved product facts the answers can use.",
+        "output": "Draft answers with their source facts, how well each is supported and questions for your experts.",
+        "limits": _TEXT_LIMITS + " It can't submit a response, commit to prices or dates, or claim certifications.",
         "delegation": _DIRECT,
         "instructions": (
             "You draft answers to fictional request for proposal (RFP) or security questionnaire questions. Use only "
@@ -587,15 +654,20 @@ TEMPLATES.update({
             "contractual commitments, and never soften a fact into a broader claim. Label the full answer set "
             "UNSENT DRAFT. Do not submit anything or claim a response was sent."
         ),
-        "example_request": "Create an agent that drafts answers to fictional RFP questions from approved product facts.",
+        "example_request": "Create an agent that drafts RFP answers from our approved product facts.",
         "sample_input": (
-            "Draft answers to these fictional RFP questions using only our approved facts. All text is made up.\n\n"
+            (
+            "Draft answers to these RFP questions using only our approved facts.\n"
+            "\n"
             "Q1: Does the product support single sign-on with SAML?\n"
             "Q2: Where is customer data stored?\n"
-            "Q3: Do you hold ISO 27001 certification?\n\n"
+            "Q3: Do you hold ISO 27001 certification?\n"
+            "\n"
             "Fact F1: Supports SAML 2.0 single sign-on on the Business and Enterprise plans.\n"
-            "Fact F2: Customer data is stored in the region the customer chooses: United States or European Union.\n"
+            "Fact F2: Customer data is stored in the region the customer chooses: United States or European "
+            "Union.\n"
             "No approved fact covers certifications."
+        )
         ),
         "tools": [],
     },
@@ -604,14 +676,16 @@ TEMPLATES.update({
         "category": _PRIVATE,
         "model_profile": "tool_calling",
         "label": "Expense report checker",
-        "description": "Check a fictional expense report against the travel rules and the approved trip before reimbursement.",
-        "input": "Paste a fictional expense report with its policy ID, trip ID and itemized lines.",
-        "output": "A line-by-line check with the math, items that need receipts or an explanation, and an unsent note.",
+        "description": "Checks an expense report against your travel rules and the approved trip before reimbursement.",
+        "input": "Paste the expense report with its policy ID, trip ID and line items.",
+        "output": "A line-by-line check with the math, items that need a receipt or explanation, and a draft note.",
         "limits": (
-            "Uses your supplied text and two fixed, simulated lookups. It cannot approve, reject or reimburse "
-            "expenses, change a report or contact the employee. Use fictional examples and check its answer."
+            (
+            "Uses the text you give it and two built-in sample lookups. It can't approve, reject or reimburse "
+            "expenses, change a report or contact the employee."
+        )
         ),
-        "delegation": _lookups("fictional travel rules and an approved trip"),
+        "delegation": _lookups("your travel rules and the approved trip"),
         "instructions": (
             "You help a fictional finance reviewer check an expense report before reimbursement. Call "
             "lookup_expense_policy with the policy ID on the report, then lookup_trip_request with the trip ID. "
@@ -625,21 +699,24 @@ TEMPLATES.update({
             "exception or claim a message was sent. If asked to approve or pay, say that a finance approver "
             "decides."
         ),
-        "example_request": "Create an agent that checks fictional employee expense reports and receipts before reimbursement.",
+        "example_request": "Create an agent that checks employee expense reports and receipts before reimbursement.",
         "sample_input": (
-            "Check this fictional expense report. Use the lookups, show the math and draft a note to the employee. "
-            "All data is made up.\n\n"
-            "EXPENSE REPORT ER-DEMO-118 - Employee: Jordan Lee (fictional)\n"
+            (
+            "Check this expense report before I approve it, show the math and draft a note to the employee about "
+            "anything that's missing.\n"
+            "\n"
+            "EXPENSE REPORT ER-DEMO-118 - Employee: Jordan Lee\n"
             "Policy: POL-DEMO-TRAVEL | Trip: TRIP-DEMO-4410\n"
             "Line 1: Hotel, 2 nights x $260.00 = $520.00, receipt attached\n"
             "Line 2: Dinner 2027-05-10, $96.00 including $18.00 wine, receipt attached\n"
             "Line 3: Rideshare 2027-05-11, $34.00, no receipt\n"
             "Line 4: Lunch 2027-05-13, $22.00, no receipt\n"
             "Report total: $672.00"
+        )
         ),
         "tools": [
-            _tool("lookup_expense_policy", "Read fixed fictional travel and expense rules"),
-            _tool("lookup_trip_request", "Read a fixed fictional approved trip request"),
+            _tool("lookup_expense_policy", "Looks up the sample travel and expense rules"),
+            _tool("lookup_trip_request", "Looks up the sample approved trip"),
         ],
     },
     "incident-timeline-writer": {
@@ -647,10 +724,10 @@ TEMPLATES.update({
         "category": _PRIVATE,
         "model_profile": "reasoning",
         "label": "IT incident timeline writer",
-        "description": "Turn fictional alerts, chat notes and tickets into a sourced incident timeline and stakeholder update.",
-        "input": "Paste labeled, timestamped alert, chat and ticket excerpts from a fictional incident.",
-        "output": "A timeline, stated impact, open questions, facts kept apart from guesses and an unsent stakeholder update.",
-        "limits": _TEXT_LIMITS + " It cannot run commands, change systems, declare a root cause or close an incident.",
+        "description": "Turns alerts, chat messages and tickets into an incident timeline and a stakeholder update.",
+        "input": "Paste the alerts, chat messages and ticket notes from the incident, with their timestamps.",
+        "output": "A timeline, the stated impact, facts kept apart from guesses, open questions and a draft update.",
+        "limits": _TEXT_LIMITS + " It can't run commands, change systems, name a root cause or close an incident.",
         "delegation": _DIRECT,
         "instructions": (
             "You build an incident timeline from fictional alert, chat and ticket excerpts. Keep the original "
@@ -664,14 +741,17 @@ TEMPLATES.update({
             "set severity, assign blame, close the incident or say service is restored unless a source says so. "
             "Leave root cause and severity to the incident commander."
         ),
-        "example_request": "Create an agent that builds a timeline and stakeholder update from fictional incident notes.",
+        "example_request": "Create an agent that builds a timeline and stakeholder update from incident notes.",
         "sample_input": (
-            "Build a timeline and a stakeholder update from these fictional incident notes. All text is made up.\n\n"
+            (
+            "Put together a timeline and a short update for stakeholders from these incident notes.\n"
+            "\n"
             "A1 14:02 UTC Alert: checkout API error rate 12% (threshold 2%).\n"
             "C1 14:06 UTC On-call chat: Rolled back deployment 7.4.1 at 14:05.\n"
             "C2 14:11 UTC On-call chat: Error rate back under 1%. Maybe it was the cache?\n"
             "T1 14:20 UTC Ticket: A customer reports failed payments between 13:55 and 14:08 UTC.\n"
             "No count of affected customers is supplied."
+        )
         ),
         "tools": [],
     },
@@ -680,10 +760,13 @@ TEMPLATES.update({
         "category": _PRIVATE,
         "model_profile": "reasoning",
         "label": "Customer feedback theme finder",
-        "description": "Group fictional customer feedback into themes with counts, quotes and items that fit nowhere.",
-        "input": "Paste labeled customer feedback items, such as survey comments or support notes.",
-        "output": "A theme table with item counts and labels, representative quotes, outliers and questions for the product team.",
-        "limits": _TEXT_LIMITS + " It cannot identify individuals, contact customers or set product priorities.",
+        "description": "Groups customer feedback into themes, with counts, example quotes and anything that doesn't fit.",
+        "input": "Paste the feedback, such as survey comments or support notes, one item per line.",
+        "output": (
+            "Themes with counts and the items in each, an example quote per theme, outliers and questions for the "
+            "product team."
+        ),
+        "limits": _TEXT_LIMITS + " It can't identify people, contact customers or set product priorities.",
         "delegation": _DIRECT,
         "instructions": (
             "You group fictional customer feedback into themes. Give each theme a short name, the labels of the "
@@ -693,14 +776,17 @@ TEMPLATES.update({
             "or claim a trend. Do not infer who a customer is or any personal traits, contact customers, or decide "
             "product priorities or roadmap changes."
         ),
-        "example_request": "Create an agent that groups fictional customer feedback into themes with counts and quotes.",
+        "example_request": "Create an agent that groups customer feedback into themes with counts and quotes.",
         "sample_input": (
-            "Group this fictional customer feedback into themes with counts and quotes. All text is made up.\n\n"
+            (
+            "Group this customer feedback into themes, with counts and a quote for each.\n"
+            "\n"
             "F1: Export to CSV takes forever on large reports.\n"
             "F2: Love the new dashboard colors.\n"
             "F3: CSV export timed out twice this week.\n"
             "F4: I can't find where to change my billing email.\n"
             "F5: The dashboard looks great, but export is still slow."
+        )
         ),
         "tools": [],
     },
@@ -709,14 +795,16 @@ TEMPLATES.update({
         "category": _PRIVATE,
         "model_profile": "tool_calling",
         "label": "Order delay helper",
-        "description": "Explain where a fictional delayed order is, from order and shipment records, and draft a reply.",
-        "input": "Paste a fictional customer message that includes the order number.",
-        "output": "Order and shipment status with sources, items not yet shipped, questions for staff and an unsent reply.",
+        "description": "Finds out where a late order is from the order and shipping records, and drafts a reply.",
+        "input": "Paste the customer's message, including the order number.",
+        "output": "Where each item is, with sources, anything not yet shipped, questions for staff and a draft reply.",
         "limits": (
-            "Uses your supplied text and two fixed, simulated lookups. It cannot refund, credit, cancel or reship "
-            "an order, promise a delivery date or contact a carrier. Use fictional examples and check its answer."
+            (
+            "Uses the text you give it and two built-in sample lookups. It can't refund, cancel or reship an "
+            "order, promise a delivery date or contact the carrier."
+        )
         ),
-        "delegation": _lookups("a fictional order and its shipment tracking"),
+        "delegation": _lookups("the order and its shipping status"),
         "instructions": (
             "You help fictional customer service staff answer a question about a delayed order. Call lookup_order "
             "with the order number in the message, then lookup_shipment with the same number. Summarize what was "
@@ -728,22 +816,42 @@ TEMPLATES.update({
             "labeled UNSENT DRAFT. " + _LOOKUP_RULES + " Never issue or promise a refund, credit, cancellation or "
             "reshipment, promise a delivery date, or claim the carrier or customer was contacted."
         ),
-        "example_request": "Create an agent that explains a fictional delayed customer order and drafts a reply.",
+        "example_request": "Create an agent that explains where a late customer order is and drafts a reply.",
         "sample_input": (
-            "A fictional customer wrote in. Use the lookups, explain where the order is and draft a reply. "
-            "All data is made up.\n\n"
-            "Message: Hi, my order ORD-DEMO-3307 was supposed to arrive on June 6 and it still isn't here. "
-            "Where is it? I want a refund. - A. Chen (fictional)"
+            (
+            "A customer just wrote in about a late order. Where is it, and can you draft a reply?\n"
+            "\n"
+            "Message: Hi, my order ORD-DEMO-3307 was supposed to arrive on June 6 and it still isn't here. Where "
+            "is it? I want a refund. - A. Chen"
+        )
         ),
         "tools": [
-            _tool("lookup_order", "Read a fixed fictional customer order"),
-            _tool("lookup_shipment", "Read fixed fictional shipment tracking for an order"),
+            _tool("lookup_order", "Looks up a sample customer order"),
+            _tool("lookup_shipment", "Looks up shipping status for a sample order"),
         ],
     },
 })
 
+# Retired jobs stay loadable so agents already created from them keep working, but the library no
+# longer lists, previews, matches or creates them.
+RETIRED_TEMPLATES = frozenset({"public-records-intake", "grant-reporting-checker", "community-program-brief"})
+
+# Library order: everyday business jobs first, then specialist healthcare and public-sector jobs.
+LIBRARY_ORDER = (
+    "supplier-invoice-reviewer", "expense-report-checker", "order-delay-helper", "customer-support-brief",
+    "customer-feedback-themes", "document-analyst", "document-intake", "criteria-checker",
+    "contract-playbook-checker", "rfp-answer-drafter", "incident-timeline-writer", "cash-application-reviewer",
+    "maintenance-work-order-planner", "workflow-coordinator", "casework-assistant", "medical-bill-reviewer",
+    "insurance-preapproval-helper", "benefits-renewal-helper",
+)
+
+
+def is_listed(template_id):
+    return template_id in TEMPLATES and template_id not in RETIRED_TEMPLATES
+
+
 SECTORS = (
-    {"id": "cross-sector", "label": "Cross-sector"},
+    {"id": "cross-sector", "label": "Any sector"},
     {"id": "public", "label": "Healthcare and public sector"},
     {"id": "private", "label": "Private sector"},
 )
@@ -769,12 +877,12 @@ TASKS = (
     {"id": "triage", "label": "Triage"},
 )
 READINESS_LEVELS = (
-    {"id": "reviewed", "label": "Reviewed", "description": "Reviewed definition with deterministic contract and runtime tests."},
-    {"id": "sample", "label": "In progress", "description": "Still in progress: deterministic contract tests and fictional acceptance cases pass, but it is not yet validated live. Try it with fictional data and validate it with customer policies before use."},
+    {"id": "reviewed", "label": "Reviewed", "description": "Its instructions have been reviewed and it passes the automated checks."},
+    {"id": "sample", "label": "In progress", "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."},
 )
 TOOL_MODES = (
-    {"id": "none", "label": "No tools", "description": "Uses only text supplied in the request."},
-    {"id": "simulated", "label": "Simulated tools", "description": "Uses only included read-only fictional fixture lookups."},
+    {"id": "none", "label": "Text only", "description": "Works only from the text you give it."},
+    {"id": "simulated", "label": "Sample lookups", "description": "Looks up sample records that come with the Lab. It can't change anything."},
 )
 
 _PROFILE_HINTS = {
@@ -794,88 +902,88 @@ def _metadata(sector, industry, tasks, summary, expected_behavior, human_decisio
 
 TEMPLATE_METADATA = {
     "document-analyst": _metadata("cross-sector", "general-operations", ["summarize", "review"],
-        "Explain supplied documents, compare stated changes and surface questions for staff.",
+        "Explains documents in plain language, shows what changed and lists questions for staff.",
         "References supplied labels, separates stated changes from implications and asks for missing material.",
         "A person interprets obligations and decides what action to take.", ["documents", "policy", "comparison"], readiness="reviewed"),
     "criteria-checker": _metadata("cross-sector", "general-operations", ["review"],
-        "Compare a submission with a supplied checklist and surface gaps or conflicts.",
+        "Checks a submission against a checklist and points out anything missing or conflicting.",
         "Returns one result per supplied criterion with evidence, gaps, conflicts and focused questions.",
         "A person decides compliance, acceptance, scoring and any award.", ["checklist", "criteria", "requirements"], readiness="reviewed"),
     "document-intake": _metadata("cross-sector", "general-operations", ["extract"],
-        "Extract requested fields from supplied forms or invoices without filling gaps.",
+        "Pulls the fields you ask for from forms or invoices, and leaves missing ones blank.",
         "Preserves stated values and labels, uses null for missing fields and identifies inconsistencies.",
         "A person validates extracted data and decides whether to update a record.", ["forms", "invoice", "fields"], readiness="reviewed"),
     "casework-assistant": _metadata("public", "government-services", ["summarize", "draft"],
-        "Turn supplied case notes into a sourced summary and focused follow-up questions.",
+        "Turns case notes into a short summary with sources and follow-up questions.",
         "Preserves timelines and conflicts, separates supplied rules and labels any message as an unsent draft.",
         "A person decides eligibility, liability, enforcement and any case action.", ["casework", "timeline", "follow-up"], readiness="reviewed"),
     "workflow-coordinator": _metadata("cross-sector", "general-operations", ["plan", "triage"],
-        "Use simulated request and service lookups to prepare a reviewable next-step plan.",
-        "Labels fixture results as simulated, preserves identifiers and reports lookup failures instead of guessing.",
+        "Looks up a service request and suggests next steps for a person to approve.",
+        "Says which details came from the sample lookups, keeps request numbers and reports a failed lookup instead of guessing.",
         "A person approves and executes any workflow or system change.", ["workflow", "request", "service"], readiness="reviewed"),
     "medical-bill-reviewer": _metadata("public", "health-administration", ["review", "draft"],
-        "Compare a fictional bill with an insurer statement and show likely discrepancies.",
-        "Uses simulated plan data, shows arithmetic and labels the dispute letter as an unsent draft.",
+        "Compares a medical bill with the insurer's statement and points out likely errors.",
+        "Checks the sample plan data, shows the math and labels the dispute letter as an unsent draft.",
         "A person confirms the amount, disputes the bill and makes payment decisions.", ["medical bill", "insurer", "dispute"], readiness="reviewed"),
     "insurance-preapproval-helper": _metadata("public", "health-administration", ["review", "triage"],
-        "Check a fictional pre-approval packet for missing or outdated paperwork.",
-        "Uses simulated rules and facility status, computes stated date windows and avoids judging medical need.",
+        "Checks an insurance pre-approval request for missing or out-of-date paperwork.",
+        "Checks the sample insurer rules and facility, works out the date windows and never judges medical need.",
         "Clinical and insurer staff decide medical necessity and approval.", ["insurance", "preapproval", "paperwork"], readiness="reviewed"),
     "benefits-renewal-helper": _metadata("public", "government-services", ["review", "draft"],
-        "Check fictional benefits renewal paperwork against simulated proof rules.",
+        "Checks a benefits renewal for missing proof and drafts a follow-up.",
         "Keeps missing proof separate from eligibility and drafts only an unsent follow-up.",
         "A caseworker decides eligibility, benefit amount and case action.", ["benefits", "renewal", "proof"], readiness="reviewed"),
     "supplier-invoice-reviewer": _metadata("cross-sector", "procurement", ["review", "draft"],
-        "Compare a fictional invoice with simulated order and delivery records.",
+        "Matches a supplier invoice with the order and delivery records.",
         "Shows line-level matches and arithmetic, flags damaged items and drafts an unsent supplier email.",
         "Finance and procurement staff decide payment, holds and supplier action.", ["invoice", "purchase order", "delivery"], readiness="reviewed"),
     "public-records-intake": _metadata("public", "government-services", ["extract", "triage", "draft"],
-        "Organize a fictional public records request and draft clarification questions.",
+        "Organizes a public records request and drafts questions to clarify it.",
         "Quotes scope terms, uses null for missing fields and does not make disclosure decisions.",
         "A records officer decides deadlines, exemptions, fees and release.", ["public records", "intake", "scope"]),
     "grant-reporting-checker": _metadata("public", "government-services", ["review"],
-        "Find unsupported claims and missing evidence in a fictional grant report.",
+        "Finds claims in a grant report that aren't backed by evidence.",
         "Checks each supplied term, cites evidence and treats gaps as questions rather than noncompliance.",
         "A grant officer decides compliance, accepts reports and takes funding action.", ["grant", "reporting", "evidence"]),
     "community-program-brief": _metadata("public", "government-services", ["summarize", "review"],
-        "Build an evidence-linked briefing from fictional community program notes.",
+        "Writes a briefing from community program notes, with a source for every number.",
         "Cites numeric claims, separates targets from results and avoids unsupported causal conclusions.",
         "Program staff validate outcomes and make policy or funding decisions.", ["community program", "outcomes", "briefing"]),
     "customer-support-brief": _metadata("private", "customer-operations", ["summarize", "triage", "draft"],
-        "Create a sourced handoff from fictional customer support tickets.",
+        "Writes a handoff note from support tickets so the next person can pick up.",
         "Separates customer claims from confirmed notes and labels the reply as an unsent draft.",
         "Support staff decide account changes, credits, escalation and communication.", ["customer support", "ticket", "handoff"]),
     "cash-application-reviewer": _metadata("private", "finance", ["extract", "review"],
-        "Match fictional remittance details to open invoices and isolate exceptions.",
+        "Matches a customer payment to open invoices and flags any amount that doesn't fit.",
         "Shows arithmetic and labels matches exact, partial, ambiguous or unmatched without forcing a choice.",
         "Finance staff validate matches and decide posting, refunds and write-offs.", ["remittance", "receivables", "cash application"]),
     "maintenance-work-order-planner": _metadata("private", "field-operations", ["plan", "triage", "draft"],
-        "Turn fictional maintenance notes into a bounded plan and safety questions.",
+        "Turns maintenance notes into a work plan and asks the safety questions first.",
         "Separates observations from possible causes and requires missing safety details before inspection.",
         "Qualified staff diagnose equipment and authorize dispatch, isolation and shutdown.", ["maintenance", "work order", "safety"]),
     "contract-playbook-checker": _metadata("private", "legal-operations", ["review"],
-        "Check fictional contract clauses against a negotiation playbook and flag deviations.",
+        "Checks contract clauses against your negotiation playbook and flags differences.",
         "Labels each clause against the preferred and fallback positions, reports missing clauses and gives no legal advice.",
         "Legal counsel decides negotiation positions, acceptance and signature.", ["contract", "clause", "playbook", "legal"]),
     "rfp-answer-drafter": _metadata("private", "sales", ["draft", "review"],
-        "Draft RFP and security questionnaire answers from approved facts only.",
+        "Drafts RFP and security questionnaire answers using only approved facts.",
         "Cites a fact for every answer, marks uncovered questions NEEDS SME and never invents certifications or commitments.",
         "Sales and subject-matter experts approve every answer, price and commitment before submission.",
         ["rfp", "proposal", "questionnaire", "security"]),
     "expense-report-checker": _metadata("private", "finance", ["review", "draft"],
-        "Check a fictional expense report against simulated travel rules and the approved trip.",
-        "Uses simulated policy and trip lookups, shows arithmetic per line and asks only for missing receipts or explanations.",
+        "Checks an expense report against travel rules and the approved trip.",
+        "Checks the sample travel rules and trip, shows the math for each line and asks only for missing receipts or explanations.",
         "A finance approver decides reimbursement, policy exceptions and any follow-up.", ["expense", "travel", "receipts", "reimbursement"]),
     "incident-timeline-writer": _metadata("private", "it-operations", ["summarize", "draft"],
-        "Build a sourced timeline and stakeholder update from fictional incident notes.",
+        "Builds an incident timeline and a stakeholder update from incident notes.",
         "Keeps timestamps and sources, separates facts from guesses and never declares a root cause or closure.",
         "The incident commander decides severity, root cause, communication and closure.", ["incident", "outage", "timeline", "postmortem"]),
     "customer-feedback-themes": _metadata("private", "customer-operations", ["summarize", "triage"],
-        "Group fictional customer feedback into themes with counts and quotes.",
+        "Groups customer feedback into themes, with counts and example quotes.",
         "Counts only supplied items, quotes each theme, lists outliers and avoids trend or percentage claims.",
         "Product owners decide priorities, roadmap changes and customer follow-up.", ["feedback", "survey", "themes", "voice of customer"]),
     "order-delay-helper": _metadata("private", "retail", ["triage", "draft"],
-        "Explain a fictional delayed order from simulated order and tracking records.",
+        "Explains where a late order is and drafts a reply to the customer.",
         "Cites each lookup, treats carrier dates as estimates, flags unshipped items and drafts an unsent reply.",
         "Customer service staff decide refunds, credits, cancellations and reshipment.", ["order", "shipment", "delivery", "tracking"]),
 }
@@ -954,9 +1062,13 @@ def model_profile(profile_id):
     return {"id": profile_id, **MODEL_PROFILES[profile_id]}
 
 
+def _listed():
+    return [TEMPLATES[key] for key in LIBRARY_ORDER]
+
+
 def _facet(values, field):
     counts = {item["id"]: 0 for item in values}
-    for metadata in TEMPLATE_METADATA.values():
+    for metadata in (TEMPLATE_METADATA[key] for key in LIBRARY_ORDER):
         selected = metadata[field]
         for identifier in selected if isinstance(selected, list) else [selected]:
             counts[identifier] += 1
@@ -972,11 +1084,11 @@ def catalog_facets():
         "tool_modes": [
             {**item, "count": sum(
                 (bool(template["tools"]) if item["id"] == "simulated" else not template["tools"])
-                for template in TEMPLATES.values()
+                for template in _listed()
             )}
             for item in TOOL_MODES
             if any((bool(template["tools"]) if item["id"] == "simulated" else not template["tools"])
-                   for template in TEMPLATES.values())
+                   for template in _listed())
         ],
     }
 
@@ -988,8 +1100,8 @@ def list_templates():
     readiness = {item["id"]: item for item in READINESS_LEVELS}
     tool_modes = {item["id"]: item for item in TOOL_MODES}
     result = []
-    for identifier, template in TEMPLATES.items():
-        metadata = TEMPLATE_METADATA[identifier]
+    for identifier in LIBRARY_ORDER:
+        template, metadata = TEMPLATES[identifier], TEMPLATE_METADATA[identifier]
         profile = template["model_profile"]
         mode = "simulated" if template["tools"] else "none"
         result.append({
@@ -1018,8 +1130,8 @@ def list_templates():
                 "package_format": "agent-bundle-v1",
                 "sample_name": None,
                 "description": (
-                    "Create and publish the agent, then export its saved ready record "
-                    "with the matching runtime source."
+                    "Create the agent in the Lab, then download its saved setup. It has everything "
+                    "needed to run it as a hosted agent in your own Foundry project."
                 ),
             },
             "keywords": list(metadata["keywords"]),
@@ -1033,11 +1145,11 @@ def prepare_draft(goal, template_id=None):
     goal = goal.strip()
     if template_id is None:
         text = goal.casefold()
-        candidates = [key for key, matcher in _MATCHERS.items() if _matches(matcher, text)]
+        candidates = [key for key, matcher in _MATCHERS.items() if is_listed(key) and _matches(matcher, text)]
         if len(candidates) != 1:
             raise TemplateRequiredError(candidates)
         template_id = candidates[0]
-    if not isinstance(template_id, str) or template_id not in TEMPLATES:
+    if not isinstance(template_id, str) or not is_listed(template_id):
         raise ValueError("Unknown prepared template")
     template = TEMPLATES[template_id]
     instructions = template["instructions"] + "\n\nTask described by the user:\n" + goal
@@ -1047,3 +1159,7 @@ def prepare_draft(goal, template_id=None):
         "template_id": template_id, "name": template["label"], "instructions": instructions,
         "goal": goal, "source": "template", "sample_input": template["sample_input"],
     }
+
+
+if set(LIBRARY_ORDER) != set(TEMPLATES) - RETIRED_TEMPLATES or len(LIBRARY_ORDER) != len(set(LIBRARY_ORDER)):
+    raise RuntimeError("LIBRARY_ORDER must list every active template exactly once")
