@@ -19,7 +19,6 @@ try {
         Copy-Item (Join-Path $PSScriptRoot "frontend/$pattern") (Join-Path $stage "frontend")
     }
     Copy-Item (Join-Path $PSScriptRoot "frontend/src") (Join-Path $stage "frontend/src") -Recurse
-    Copy-Item (Join-Path $PSScriptRoot "frontend/public") (Join-Path $stage "frontend/public") -Recurse
     if ($Private) {
         Get-Command docker -ErrorAction Stop | Out-Null
         $loginServer = & az acr show --subscription $Subscription --name $Registry --query loginServer --output tsv --only-show-errors

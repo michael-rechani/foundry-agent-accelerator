@@ -75,14 +75,6 @@ selection and clipboard feedback; it never invokes an agent or writes records.
 | `theme.ts`, `ThemePicker.tsx`                                | Load, validate, save, and apply the **Appearance** choice, and render its header menu.                                                                                         |
 | `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`      | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement.                                  |
 
-`public/preview/` is a static preview of the redesigned Lab, served at
-`/preview/`, for [#77](https://github.com/michael-rechani/foundry-agent-accelerator/issues/77).
-It uses Fluent 2 colors with light and dark themes, reads the Agent library
-from `/api/agent-templates` (with a bundled snapshot as a fallback), and
-shows a recorded Supplier invoice reviewer answer and acceptance results. It
-sends no chat requests and isn't linked from the Lab. Regenerate
-`preview-data.js` when the library changes.
-
 Keep purpose, input, output, how-it-works, and limits in the registry, not
 hard-coded by agent ID in React. **Developer setup details** distinguishes the
 Lab's display and receipt metadata from runtime instructions and tools.
