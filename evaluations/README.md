@@ -649,6 +649,18 @@ times come from a direct run on a local machine, and the tab says so. Every
 scorecard shows **Waiting for a person** until someone reads the answers.
 `test_scorecards.py` fails if the Lab's copy drifts from the evidence.
 
+After a person has read an agent's answers, record it:
+
+```powershell
+python scorecards.py signoff --reviewer "Their Name" --all          # or name agents instead of --all
+```
+
+That writes `evidence/signoffs.json` with the reviewer,
+the date and a fingerprint of the answers they read, then regenerates the Lab's
+copy. The tab then shows **Signed off** with their name and the date. If an
+answer changes later, `scorecards.py` fails until someone reads that agent's
+answers again. Don't run `signoff` on someone else's behalf.
+
 Each scorecard case also carries the request it sent (`input`). The **Take it to
 Foundry** tab turns those into a JSONL file for a Foundry evaluation: one row per
 case, with the request in `query` and the case ID, category and rubric as extra

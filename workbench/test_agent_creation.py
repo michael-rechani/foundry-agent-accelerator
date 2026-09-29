@@ -175,7 +175,7 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(cards), 18)
         for card in cards.values():
             self.assertEqual(card["summary"]["cases"], len(card["cases"]))
-            self.assertFalse(card["signed_off"])
+            self.assertEqual(card["signed_off"], card["signed_off_by"] is not None)
         self.assertEqual(self.store.rows, {})
         self.assertEqual(self.publisher.calls, [])
         self.gateway.review.assert_not_awaited()
