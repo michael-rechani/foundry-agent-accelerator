@@ -40,10 +40,10 @@ install browser system dependencies with `npx playwright install --with-deps chr
 ## App structure
 
 `src/ChatWorkspace.tsx` owns conversation and view state for the library's
-**Browse**, **Ready to chat**, **Made in this Lab**, and **Guided demos** tabs,
+**Browse**, **Ready to chat**, **Made in this Lab**, **Guided demos**, and **Add-ons** tabs,
 **Create agent**, **Chat**, **Document reviews**, **Performance**, **Request
 log**, and **Shared history**. `ChatSidebar.tsx` groups them into four
-sections: **Agent library**, **Try it**, **Measure**, and **Activity**.
+sections: **Agent library**, **Try it**, **Measure**, and **Activity**. `AddOns.tsx` renders the preview-only **Add-ons** tab from the fixed list in `add-on-catalog.ts`; it makes no API calls.
 **Measure** and **Activity** appear only with **Under the hood** on
 (`under-the-hood.ts`); elements marked `hood-only` are hidden otherwise.
 `ChatTopbar.tsx` shows the breadcrumb from `navigation.ts`. The

@@ -17,6 +17,7 @@ FastAPI backend and shared Azure Cosmos DB storage.
 | --- | --- |
 | Agent library | The opening page. Browse agent definitions by sector, industry, task, readiness, and tool mode; compare a sample example with expected behavior; create, test, and export. |
 | Guided demos | Three sample customer stories with expected findings and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
+| Add-ons | A preview of optional tools and skills an agent could connect to later, such as knowledge search or a calculator. It shows what each would do, cost and need. Nothing is built or turned on. |
 | Agent creation | **Create agent** prepares instructions from reviewed templates. Publication is a separate operator-protected action. **Chat does not create or configure agents.** |
 | Prebuilt agents | The prebuilt agents remain available. **Checklist and case helper** is the default visible prebuilt agent. |
 | Document reviews | **Document reviews** saves one structured check per checklist item and keeps the original text beside the result. |
@@ -38,7 +39,7 @@ FastAPI backend and shared Azure Cosmos DB storage.
 
 ## Pages
 
-The sidebar groups the Lab's pages into four sections, in this order: **Agent library**, **Try it**, **Measure**, and **Activity**. Every agent lives under **Agent library** > **All agents**, which has tabs for **Browse**, **Ready to chat**, **Made in this Lab** (when creation is on), and **Guided demos**.
+The sidebar groups the Lab's pages into four sections, in this order: **Agent library**, **Try it**, **Measure**, and **Activity**. Every agent lives under **Agent library** > **All agents**, which has tabs for **Browse**, **Ready to chat**, **Made in this Lab** (when creation is on), **Guided demos**, and **Add-ons**.
 
 The Lab opens in a plain customer view. Turn on **Under the hood** at the bottom of the sidebar to show models, token counts, execution details, setup commands, and the **Measure** and **Activity** sections. The choice is saved in this browser. A breadcrumb in the top bar shows the current section and page.
 
@@ -51,6 +52,7 @@ With **Under the hood** on, the Lab also links into Microsoft Foundry: **Open pr
 | Agent library | **Create agent** | Describe a job, pick a library template, edit the name and instructions, and publish a new Foundry hosted agent on the [model that suits the job](../docs/agent-creation.md#how-the-lab-picks-a-model). Shown only when the server advertises creation; actual publication needs operator enablement. |
 | Agent library | **All agents** > **Made in this Lab** | Follow publication progress, open a ready agent in **Chat**, or delete an agent with the operator key. Shown only when creation is on. |
 | Agent library | **All agents** > **Guided demos** | Start with application evidence, invoice discrepancies, or case notes. Read an illustrative story, copy its sample input, or load it into an enabled matching agent. |
+| Agent library | **All agents** > **Add-ons** | See which optional tools and skills an agent could use later, what each would cost and need, and how it stays safe. A preview only: every add-on shows as **Not available yet**. |
 | Try it | **Chat** | Talk with a prebuilt or created agent, or try a library agent instantly as a preview. Switch agents from the name in the Chat header. An example task only fills in your message; you choose when to send it. |
 | Try it | **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. Not in the sidebar or Chat: open a saved-review link or `/#reviews`. |
 | Try it | **Shared history** | Reopen chats that anyone saved. Saved chats are shared and kept for 30 days. |
@@ -174,7 +176,7 @@ control and they do not check that submitted data is sample data.
 ## Conversations
 
 **All agents** > **Browse** is the initial view. Bookmark `/#chat` to start in Chat, `/#agents` for **Ready to chat**, `/#reviews` for **Document reviews**,
-`/#demos` for **Guided demos**, `/#performance`, `/#logs`, or `/#create` for the
+`/#demos` for **Guided demos**, `/#addons` for **Add-ons**, `/#performance`, `/#logs`, or `/#create` for the
 creator when its capability is advertised. A valid saved-review
 URL still opens its review directly, including after a reload. No publication or
 model invocation happens merely by entering a view.
@@ -188,6 +190,7 @@ data contract and deployment checks. You don't need it to use **Chat**.
 | --- | --- | --- |
 | **Browse** | Lists every agent definition from `GET /api/agent-templates` with server-derived filters and live counts. | Readiness and tool mode come from the catalog; nothing claims a connected customer system. **Expected behavior** is an acceptance description, not a recorded model response. Export downloads a ready saved record for `bundle.py export-created`; there is no one-click cross-environment deployment. **Take it to Foundry** also offers two downloads built in the browser, with nothing created in the Lab: an agent definition (the body of Foundry's create-agent-version call for a prompt agent, with a placeholder for your own model deployment) and, for agents with test results, a JSONL file of their test requests for a Foundry evaluation. **Test results** shows recorded acceptance results from `GET /api/agent-scorecards`: answer checks passed, median response time, model cost per answer at list prices, and whether a person has signed off. Case IDs, token counts and check notes appear under the hood. |
 | **Guided demos** | Shows sample stories and loads a sample into an enabled matching agent. | Expected findings are illustrative. Hidden, failed, and unavailable agents are not selectable; samples are never automatically sent. |
+| **Add-ons** | Lists six planned add-ons (knowledge search, conversation memory, document extraction, notifications, code interpreter and web search) from a fixed list in `src/add-on-catalog.ts`. | Preview only. It makes no API call, saves nothing and turns nothing on. Every add-on is off by default, private, keyless and needs its cost shown first. Web search also needs explicit data-handling approval. Service names, billing meters and the roadmap issue appear under the hood. |
 | **New chat** | Starts a new Chat draft for the selected agent. | It doesn't create an agent or submit a starter prompt. |
 | **Create agent** | Prepares a setup from a reviewed template and, when enabled, lets an operator publish it. | Preparation is deterministic template assembly, not a model-designed agent. |
 | **Made in this Lab** | Lists agents published from the Lab's creation flow. | Ready agents can be selected in **Chat**. |

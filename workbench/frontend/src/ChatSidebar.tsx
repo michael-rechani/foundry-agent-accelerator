@@ -15,6 +15,7 @@ import { libraryViews } from './navigation'
 export type View =
   | 'library'
   | 'explore'
+  | 'addons'
   | 'chat'
   | 'catalog'
   | 'performance'
@@ -41,6 +42,7 @@ const sectionOf: Record<View, Section> = {
   reviews: 'test',
   history: 'test',
   explore: 'library',
+  addons: 'library',
   library: 'library',
   catalog: 'library',
   create: 'library',

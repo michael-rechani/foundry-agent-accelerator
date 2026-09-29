@@ -28,6 +28,7 @@ import type { Measurement } from './performance-stats'
 import { RequestLog } from './RequestLog'
 import { AgentLibrary, type ReadyAgent } from './AgentLibrary'
 import { ExploreDemos, DemoRunGuide } from './ExploreDemos'
+import { AddOns } from './AddOns'
 import { useLibraryCatalog } from './library-catalog-client'
 import { isPreviewId, previewAgents } from './library-catalog'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
@@ -45,6 +46,7 @@ const hashViews: Record<string, View> = {
   '#library': 'library',
   '#agents': 'catalog',
   '#demos': 'explore',
+  '#addons': 'addons',
   '#reviews': 'reviews',
   '#performance': 'performance',
   '#logs': 'log',
@@ -700,6 +702,7 @@ export default function ChatWorkspace() {
             onUse={(item) => newChat(item.id)}
           />
         )}
+        {view === 'addons' && <AddOns />}
         {view === 'explore' ? (
           config && (
             <ExploreDemos
@@ -721,6 +724,7 @@ export default function ChatWorkspace() {
             />
           )
         ) : view === 'reviews' ||
+          view === 'addons' ||
           view === 'library' ||
           view === 'create' ||
           view === 'created' ? null : view === 'log' ? (

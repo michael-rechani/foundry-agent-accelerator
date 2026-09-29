@@ -200,6 +200,7 @@ test('the library is the landing view and groups navigation into four sections',
     /^Ready to chat\s*1$/,
     /^Made in this Lab\s*0$/,
     'Guided demos',
+    'Add-ons',
   ])
   await expect(navigation(page).getByRole('button')).toHaveText([
     'All agents',
@@ -269,6 +270,68 @@ test('the library is the landing view and groups navigation into four sections',
       }),
     ).toHaveAttribute('aria-current', 'page')
   }
+})
+
+test('the Add-ons tab previews what an agent could connect to without calling anything', async ({
+  page,
+}) => {
+  const state = await setup(page)
+  await page
+    .getByRole('navigation', { name: 'Agent library' })
+    .getByRole('button', { name: 'Add-ons' })
+    .click()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Add-ons an agent could use' }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', {
+      name: 'All agents',
+    }),
+  ).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('note')).toContainText('A preview only.')
+
+  const cards = page.locator('.addon-card')
+  await expect(cards.getByRole('heading', { level: 2 })).toHaveText([
+    'Knowledge search',
+    'Conversation memory',
+    'Document extraction',
+    'Notifications',
+    'Code interpreter',
+    'Web search',
+  ])
+  await expect(cards.getByText('Not available yet')).toHaveCount(6)
+  for (const heading of [
+    'What it would cost',
+    'What it would need',
+    'Keeping it safe',
+  ])
+    await expect(cards.getByRole('heading', { name: heading })).toHaveCount(6)
+  await expect(page.locator('.library-badge.caution')).toHaveText(
+    'Needs data-handling approval first',
+  )
+  await expect(
+    page.getByRole('heading', { name: /Rules every add-on would follow/ }),
+  ).toBeVisible()
+
+  await expect(cards.first().getByText('Azure AI Search')).toBeVisible()
+  await expect(cards.first()).toContainText('Add-ons roadmap (#54)')
+
+  expect(state.chat).toHaveLength(0)
+  expect(state.creations).toBe(0)
+  expect(state.drafts).toBe(0)
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true)
+
+  await page.goto('/#library')
+  await page.reload()
+  await page.goto('/#addons')
+  await page.reload()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Add-ons an agent could use' }),
+  ).toBeVisible()
 })
 
 test('browse, filter and search the catalog with live counts', async ({
