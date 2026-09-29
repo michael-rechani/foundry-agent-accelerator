@@ -9,6 +9,7 @@ import {
   ScrollText,
   type LucideIcon,
 } from 'lucide-react'
+import { FoundryLink } from './FoundryLink'
 import { libraryViews } from './navigation'
 
 export type View =
@@ -57,6 +58,7 @@ export function ChatSidebar({
   historyBusy,
   requestCount,
   hood,
+  foundryPortal,
   onNewChat,
   onView,
   onHistory,
@@ -70,6 +72,7 @@ export function ChatSidebar({
   historyBusy: boolean
   requestCount: number
   hood: boolean
+  foundryPortal?: string | null
   onNewChat: () => void
   onView: (view: View) => void
   onHistory: () => void
@@ -199,6 +202,11 @@ export function ChatSidebar({
           ))}
       </nav>
       <div className="sidebar-footer">
+        {hood && foundryPortal && (
+          <FoundryLink href={foundryPortal}>
+            Open project in Foundry
+          </FoundryLink>
+        )}
         <label className="hood-switch">
           <span>
             Under the hood

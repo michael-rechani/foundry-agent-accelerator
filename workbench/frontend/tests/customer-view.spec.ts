@@ -10,6 +10,12 @@ const catalog = JSON.parse(
     'utf8',
   ),
 )
+const scorecards = JSON.parse(
+  await readFile(
+    new URL('../../agent_scorecards.json', import.meta.url),
+    'utf8',
+  ),
+)
 const support = (catalog.templates as LibraryTemplate[]).find(
   (item) => item.id === 'customer-support-brief',
 )!
@@ -20,7 +26,7 @@ const invoice = (catalog.templates as LibraryTemplate[]).find(
 // Start without the stored switch, as a first-time visitor would.
 test.use({ storageState: { cookies: [], origins: [] } })
 
-async function setup(page: Page) {
+async function setup(page: Page, overrides: Partial<Config> = {}) {
   const config: Config = {
     title: 'Foundry Agent Lab',
     mode: 'private',
@@ -34,11 +40,14 @@ async function setup(page: Page) {
     retention_days: 30,
     history_enabled: false,
     reviews_enabled: false,
+    ...overrides,
   }
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path === '/api/config') return route.fulfill({ json: config })
     if (path === '/api/agent-templates') return route.fulfill({ json: catalog })
+    if (path === '/api/agent-scorecards')
+      return route.fulfill({ json: scorecards })
     return route.fulfill({ json: { error: 'not_found' }, status: 404 })
   })
   await page.goto('/')
@@ -104,6 +113,50 @@ test('the customer view hides technical details until Under the hood is on', asy
   ).toBe('0')
 })
 
+const portal =
+  'https://ai.azure.com/nextgen/r/2gTvLTQRRlqW0WfHU1ZyCg,rg-lab,,lab-account,lab-project'
+
+test('Foundry links appear only under the hood', async ({ page }) => {
+  await setup(page, { foundry_portal: portal })
+  const projectLink = page.getByRole('link', {
+    name: /Open project in Foundry/,
+  })
+  await expect(projectLink).toHaveCount(0)
+
+  await hoodSwitch(page).check()
+  await expect(projectLink).toHaveAttribute('href', portal)
+  await expect(projectLink).toHaveAttribute('target', '_blank')
+  await expect(projectLink).toHaveAttribute('rel', 'noopener noreferrer')
+
+  await navigation(page).getByRole('button', { name: 'Performance' }).click()
+  await expect(page.locator('.foundry-note').getByRole('link')).toHaveAttribute(
+    'href',
+    portal,
+  )
+  await navigation(page)
+    .getByRole('button', { name: /^Request log/ })
+    .click()
+  await expect(page.locator('.foundry-note').getByRole('link')).toHaveAttribute(
+    'href',
+    portal,
+  )
+
+  await navigation(page).getByRole('button', { name: 'Chat' }).click()
+  await page.getByText('About this agent').click()
+  await page.getByText('Developer setup details').click()
+  const runtime = page.locator('.catalog-runtime')
+  await expect(runtime.getByRole('link').first()).toHaveAttribute(
+    'href',
+    `${portal}/build/agents/${guidedReview.agent}/build`,
+  )
+  await expect(runtime.getByRole('link')).toHaveCount(
+    1 + Object.keys(guidedReview.tools).length,
+  )
+
+  await hoodSwitch(page).uncheck()
+  await expect(page.getByRole('link', { name: /Foundry/ })).toHaveCount(0)
+})
+
 test('breadcrumbs link back to the library from its tabs', async ({
   page,
 }, testInfo) => {
@@ -148,4 +201,67 @@ test('an agent page leads with plain actions and keeps setup details under the h
     'true',
   )
   await expect(page.getByRole('tabpanel')).toContainText(invoice.sample_input)
+})
+
+test('test results read plainly and keep case details under the hood', async ({
+  page,
+}) => {
+  const benefits = (catalog.templates as LibraryTemplate[]).find(
+    (item) => item.id === 'benefits-renewal-helper',
+  )!
+  const card = scorecards.scorecards.find(
+    (item: { template_id: string }) => item.template_id === benefits.id,
+  )
+  const passed = card.summary.passed
+  await setup(page)
+  await page
+    .locator('.library-card')
+    .filter({ hasText: benefits.label })
+    .click()
+  await page.getByRole('tab', { name: 'Test results' }).click()
+  const panel = page.getByRole('tabpanel')
+  expect(
+    await page
+      .getByRole('tablist', { name: 'Agent details' })
+      .evaluate((list) => list.scrollWidth <= list.clientWidth),
+  ).toBe(true)
+  await expect(panel.getByRole('heading', { level: 2 })).toHaveText(
+    'How it did on its test cases',
+  )
+  await expect(panel).toContainText('September 27, 2026')
+  await expect(panel.locator('.scorecard-facts > div')).toHaveText([
+    new RegExp(`Answer checks\\s*${passed} of 5 passed`),
+    /Typical response\s*\d+\.\d s/,
+    /Model cost per answer\s*(Under 1?|About \d+?)/,
+    /Sign-off\s*Waiting for a person/,
+  ])
+  const cases = panel
+    .getByRole('list', { name: 'Test cases' })
+    .locator(':scope > li')
+  await expect(cases).toHaveCount(5)
+  await expect(cases.filter({ hasText: 'Passed' })).toHaveCount(passed)
+  await expect(cases.filter({ hasText: 'Needs a look' })).toHaveCount(
+    5 - passed,
+  )
+  await expect(cases.first()).toContainText(card.cases[0].goal)
+  await expect(panel).not.toContainText(/fictional|made[- ]up/i)
+  await expect(panel.locator('.scorecard-case-detail').first()).toBeHidden()
+  await expect(panel.locator('.scorecard-notes').first()).toBeHidden()
+
+  await hoodSwitch(page).check()
+  await expect(panel.locator('.scorecard-case-detail').first()).toContainText(
+    card.cases[0].id,
+  )
+  await expect(panel.locator('.scorecard-notes').first()).toBeVisible()
+  await expect(panel).toContainText(`Model ${card.model}.`)
+  await hoodSwitch(page).uncheck()
+})
+
+test('agents without a recorded run say so on Test results', async ({
+  page,
+}) => {
+  await setup(page)
+  await page.locator('.library-card').filter({ hasText: support.label }).click()
+  await page.getByRole('tab', { name: 'Test results' }).click()
+  await expect(page.getByRole('tabpanel')).toContainText('No test results yet')
 })

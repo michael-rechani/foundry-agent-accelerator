@@ -47,9 +47,9 @@ describe('answer steps', () => {
     const handoff = receipt('inspect_application', 'application-review-agent')
     assert.equal(
       plainStep(current, handoff, {
-        'application-review-agent': 'Application checker',
+        'application-review-agent': 'Checklist reviewer',
       }),
-      'Asked the Application checker',
+      'Asked the Checklist reviewer',
     )
     assert.equal(
       plainStep(current, handoff),

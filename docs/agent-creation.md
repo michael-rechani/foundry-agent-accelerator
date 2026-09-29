@@ -234,6 +234,15 @@ definitions. Current tool modes are only `Text only` and `Sample lookups`;
 neither means a customer system is connected. Cost and latency are relative
 model-profile hints, not prices or performance guarantees.
 
+`GET /api/agent-scorecards` serves each template's recorded test results
+(`schema_version: 1`), kept separate so the catalog response stays unchanged.
+The file behind it, `workbench/agent_scorecards.json`, is generated offline by
+[`evaluations/scorecards.py`](../evaluations/scorecards.py) from recorded
+acceptance answers, response times and token counts. The endpoint never calls a
+model or storage. Templates without a recorded run have no scorecard. Each case
+includes the request that was sent, which the library's **Take it to Foundry**
+tab turns into a downloadable evaluation file.
+
 Only `main.py`, `demo_tools.py`, and `requirements.txt` enter the deterministic
 ZIP package. Prompts cannot upload source, install dependencies, select
 endpoints, change the model, or register tools. Hosted allocation is fixed at

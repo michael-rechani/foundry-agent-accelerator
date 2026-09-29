@@ -31,7 +31,7 @@ When direct access is enabled, the Lab calls this agent **Case notes
 summarizer**. Paste labeled case notes and any rules you want it to consider.
 The agent returns a summary, missing or contradictory details, and questions to
 ask next. It works directly without calling other agents or external tools. The
-**Application and case helper** can call this same specialist on your behalf.
+**Checklist and case helper** can call this same specialist on your behalf.
 
 Chat normally returns prose sections. A request with explicit checklist items
 and a structured review schema uses that format instead. This does not create a
@@ -91,6 +91,6 @@ dependency, and operator rollout steps before enabling it.
 ## Related content
 
 - [Hosted agents](../README.md)
-- [Application and case helper](../review-coordinator-agent/README.md)
-- [Application checker](../application-review-agent/README.md)
+- [Checklist and case helper](../review-coordinator-agent/README.md)
+- [Checklist reviewer](../application-review-agent/README.md)
 - [Evaluations](../../evaluations/README.md)

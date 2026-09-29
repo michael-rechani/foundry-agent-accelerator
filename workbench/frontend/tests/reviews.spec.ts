@@ -163,7 +163,7 @@ async function setup(
   })
   await page.goto('/#chat')
   await expect(page.locator('.agent-picker')).toContainText(
-    'Application and case helper',
+    'Checklist and case helper',
   )
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
   await expect(navigation.getByRole('button').first()).toHaveText('All agents')
@@ -308,7 +308,7 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   await expect(page.getByLabel('Checklist, one item per line')).toHaveValue('')
   await expect(page.getByLabel('Document 1', { exact: true })).toHaveValue('')
   await expect(page.locator('.review-form-bar')).toContainText(
-    'Agent doing this check: Application and case helper',
+    'Agent doing this check: Checklist and case helper',
   )
   await expect(page.locator('.review-form-bar')).toContainText(
     "Uses the Lab's default agent, not your Chat selection",

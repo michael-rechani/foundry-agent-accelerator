@@ -8,6 +8,7 @@ export function AgentCatalog({
   query,
   loaded,
   creation,
+  foundryPortal,
   disabled,
   onQuery,
   onCreate,
@@ -18,6 +19,7 @@ export function AgentCatalog({
   query: string
   loaded: boolean
   creation?: CreationCapability
+  foundryPortal?: string | null
   disabled: boolean
   onQuery: (query: string) => void
   onCreate: () => void
@@ -42,7 +44,7 @@ export function AgentCatalog({
         <summary>Sample scope and status</summary>
         <p>
           Checklist reviews and case notes summaries are available. Automated
-          tests use simulated responses, so check live answers yourself.
+          tests don&apos;t call the live model, so check live answers yourself.
           Comparing proposals with requirements is in preview and reuses the
           checklist reviewer.
         </p>
@@ -104,7 +106,7 @@ export function AgentCatalog({
                 {item.guidance.limits}
               </p>
             )}
-            <AgentRuntime agent={item} />
+            <AgentRuntime agent={item} foundryPortal={foundryPortal} />
             <button
               className="catalog-select"
               disabled={disabled}

@@ -1,0 +1,29 @@
+{
+  "currency": "USD",
+  "unit": "1M tokens",
+  "retrieved_on": "2026-09-28",
+  "source": "https://prices.azure.com/api/retail/prices",
+  "region": "northcentralus",
+  "deployment_type": "Global Standard",
+  "price_type": "Consumption",
+  "models": {
+    "gpt-4.1": {
+      "input": 2.0,
+      "cached_input": 0.5,
+      "output": 8.0,
+      "meters": ["gpt 4.1 Inp glbl Tokens", "gpt 4.1 cached Inp glbl Tokens", "gpt 4.1 Outp glbl Tokens"]
+    },
+    "gpt-5.4": {
+      "input": 2.5,
+      "cached_input": 0.25,
+      "output": 15.0,
+      "meters": ["5.4 inp Gl 1M Tokens", "5.4 cd inp Gl 1M Tokens", "5.4 opt Gl 1M Tokens"]
+    },
+    "gpt-5.4-mini": {
+      "input": 0.75,
+      "cached_input": 0.075,
+      "output": 4.5,
+      "meters": ["5.4 mini Inp Gl 1M Tokens", "5.4 mini cd Inp Gl 1M Tokens", "5.4 mini Opt Gl 1M Tokens"]
+    }
+  }
+}

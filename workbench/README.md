@@ -18,7 +18,7 @@ FastAPI backend and shared Azure Cosmos DB storage.
 | Agent library | The opening page. Browse agent definitions by sector, industry, task, readiness, and tool mode; compare a sample example with expected behavior; create, test, and export. |
 | Guided demos | Three sample customer stories with expected findings and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
 | Agent creation | **Create agent** prepares instructions from reviewed templates. Publication is a separate operator-protected action. **Chat does not create or configure agents.** |
-| Prebuilt agents | The prebuilt agents remain available. **Application and case helper** is the default visible prebuilt agent. |
+| Prebuilt agents | The prebuilt agents remain available. **Checklist and case helper** is the default visible prebuilt agent. |
 | Document reviews | **Document reviews** saves one structured check per checklist item and keeps the original text beside the result. |
 | Data boundary | Use sample data only. The Lab doesn't connect to customer systems or perform business writes. |
 | Access model | The current private Lab has no end-user Microsoft Entra ID sign-in or per-user authorization. |
@@ -42,6 +42,8 @@ The sidebar groups the Lab's pages into four sections, in this order: **Agent li
 
 The Lab opens in a plain customer view. Turn on **Under the hood** at the bottom of the sidebar to show models, token counts, execution details, setup commands, and the **Measure** and **Activity** sections. The choice is saved in this browser. A breadcrumb in the top bar shows the current section and page.
 
+With **Under the hood** on, the Lab also links into Microsoft Foundry: **Open project in Foundry** in the sidebar, **Open in Foundry** next to each agent and specialist in **Developer setup details** and **How I got this**, and a project link on **Performance** and **Request log** for traces and monitoring across every session. The links need `WORKBENCH_FOUNDRY_PROJECT_ID`, the project's Azure resource ID; `workbench/infra` sets it from `foundry_account_name` and `foundry_project_name`. The Lab builds the portal address the same way the Azure Developer CLI does (`https://ai.azure.com/nextgen/r/...`). Opening a link needs a Foundry sign-in with access to the project. Library previews run on the model directly, so they have no Foundry agent to link to. Without the setting, or in local preview mode, no Foundry links appear.
+
 | Section | Page | What you do there |
 | --- | --- | --- |
 | Agent library | **All agents** > **Browse** | Filter the [agent library](../docs/agent-creation.md#what-a-participant-can-do) by sector, industry, task, readiness, and tools. Each entry shows what it needs, what you get, what it can't do, who decides, an example with sample data, and the expected behavior. From an entry you can create the agent, open a ready one in **Chat** with the example as an unsent draft, or download its saved record for export. |
@@ -52,7 +54,7 @@ The Lab opens in a plain customer view. Turn on **Under the hood** at the bottom
 | Try it | **Chat** | Talk with a prebuilt or created agent, or try a library agent instantly as a preview. Switch agents from the name in the Chat header. An example task only fills in your message; you choose when to send it. |
 | Try it | **Document reviews** | Check pasted documents against a checklist and get one saved, quoted result for each item. Not in the sidebar or Chat: open a saved-review link or `/#reviews`. |
 | Try it | **Shared history** | Reopen chats that anyone saved. Saved chats are shared and kept for 30 days. |
-| Measure | **Performance** | See completed and unsuccessful requests, average and 90th-percentile response time, a per-agent benchmark with average tokens, and **Token usage and cost** for this browser session. Enter your own per-1M-token rates for an estimate; the Lab ships no prices. |
+| Measure | **Performance** | See completed and unsuccessful requests, average and 90th-percentile response time, recent requests, and **Token usage and cost** for this browser session. To compare agents, use each agent's **Test results** in the library. Enter your own per-1M-token rates for an estimate; the Lab ships no prices. |
 | Activity | **Request log** | See each live request from this browser tab with its time, agent, outcome, elapsed time, reported tokens, and a copyable reference that matches the server's `request_id` log entry. |
 
 **Chat** can't change an agent's instructions, tools, or model; that's a
@@ -184,7 +186,7 @@ data contract and deployment checks. You don't need it to use **Chat**.
 
 | UI label | What it does | Important limits |
 | --- | --- | --- |
-| **Browse** | Lists every agent definition from `GET /api/agent-templates` with server-derived filters and live counts. | Readiness and tool mode come from the catalog; nothing claims a connected customer system. **Expected behavior** is an acceptance description, not a recorded model response. Export downloads a ready saved record for `bundle.py export-created`; there is no one-click cross-environment deployment. |
+| **Browse** | Lists every agent definition from `GET /api/agent-templates` with server-derived filters and live counts. | Readiness and tool mode come from the catalog; nothing claims a connected customer system. **Expected behavior** is an acceptance description, not a recorded model response. Export downloads a ready saved record for `bundle.py export-created`; there is no one-click cross-environment deployment. **Take it to Foundry** also offers two downloads built in the browser, with nothing created in the Lab: an agent definition (the body of Foundry's create-agent-version call for a prompt agent, with a placeholder for your own model deployment) and, for agents with test results, a JSONL file of their test requests for a Foundry evaluation. **Test results** shows recorded acceptance results from `GET /api/agent-scorecards`: answer checks passed, median response time, model cost per answer at list prices, and whether a person has signed off. Case IDs, token counts and check notes appear under the hood. |
 | **Guided demos** | Shows sample stories and loads a sample into an enabled matching agent. | Expected findings are illustrative. Hidden, failed, and unavailable agents are not selectable; samples are never automatically sent. |
 | **New chat** | Starts a new Chat draft for the selected agent. | It doesn't create an agent or submit a starter prompt. |
 | **Create agent** | Prepares a setup from a reviewed template and, when enabled, lets an operator publish it. | Preparation is deterministic template assembly, not a model-designed agent. |
@@ -195,7 +197,7 @@ data contract and deployment checks. You don't need it to use **Chat**.
 | **Document reviews** | Saves and runs checklist-based reviews. | Chat messages and review results don't copy between views automatically. |
 | **Shared history** | Lists, reopens, and deletes saved conversations. | Everyone with workspace access can read, modify, and delete saved conversations. |
 | **Ready to chat** | Lists only enabled prebuilt agents and ready created agents. | Hidden agents can't be invoked directly through the Lab API. |
-| **Performance** | Shows browser-session request counts, average and 90th-percentile latency, a per-agent benchmark, and reported token totals with an optional estimate from rates you enter. | It excludes local preview calls, clears on refresh, and isn't a fleet-wide metric or model-quality score. Replies without reported tokens are counted as **Not reported**, never zero. Rates stay in this browser; the estimate prices cached input at the full rate and isn't invoiced spend. |
+| **Performance** | Shows browser-session request counts, average and 90th-percentile latency, recent requests, and reported token totals with an optional estimate from rates you enter. | It excludes local preview calls, clears on refresh, and isn't a fleet-wide metric or model-quality score. Replies without reported tokens are counted as **Not reported**, never zero. Rates stay in this browser; the estimate prices cached input at the full rate and isn't invoiced spend. |
 | **Token counts** | Each reply shows its reported tokens next to its elapsed time, with input, cached, output, and reasoning counts under **Execution details**. Library previews add up every model call in their tool loop. | Counts come from the answering agent's response; a coordinator's count may not include the specialists it calls. Saved chats keep the counts as stored, unverified values. |
 | **Request log** | Lists this tab's live requests with outcome, elapsed time, and the server `request_id` reference. | It doesn't store message text, excludes local preview calls, and clears on refresh. It isn't the server log. |
 
@@ -203,9 +205,9 @@ data contract and deployment checks. You don't need it to use **Chat**.
 
 | Agent or entry | Availability | Behavior |
 | --- | --- | --- |
-| **Application and case helper** (`customer-review`, formerly Guided review) | Default visible prebuilt agent. | A coordinator. It hands the task to the **Application checker** or **Case notes summarizer** specialist, then returns the findings. |
-| **Application and case helper (base setup)** (`review-coordinator`, formerly Review planning) | Visible only when enabled. | A developer variant of the coordinator. It uses the same specialists through different tool names and does not add capabilities. |
-| **Application checker** | Visible only when enabled. | The application specialist on its own. It does the check itself and calls no other agents. |
+| **Checklist and case helper** (`customer-review`, formerly Guided review) | Default visible prebuilt agent. | A coordinator. It hands the task to the **Checklist reviewer** or **Case notes summarizer** specialist, then returns the findings. |
+| **Checklist and case helper (base setup)** (`review-coordinator`, formerly Review planning) | Visible only when enabled. | A developer variant of the coordinator. It uses the same specialists through different tool names and does not add capabilities. |
+| **Checklist reviewer** | Visible only when enabled. | The application specialist on its own. It does the check itself and calls no other agents. |
 | **Case notes summarizer** | Visible only when enabled. | The case-notes specialist on its own. It writes the summary itself and calls no other agents. |
 | Ready created agents | Listed under **Ready to chat** and managed under **Made in this Lab**. | They can be selected in **Chat** after publication is ready. |
 
@@ -223,7 +225,7 @@ enabled entries.
 tool bindings, and configuration sources. These details describe configured
 capabilities, not observed execution. Each answer has a collapsed **How I got
 this** panel. Its steps come only from the answer's receipts, in plain words
-such as **Asked the Application checker** or **Looked up the purchase order**,
+such as **Asked the Checklist reviewer** or **Looked up the purchase order**,
 followed by **Wrote the answer**. Each step is **Confirmed**, **Not confirmed**,
 or **Saved earlier** (reopened from shared history and not checked again). A
 step asks another agent only when the receipt targets a different agent; a

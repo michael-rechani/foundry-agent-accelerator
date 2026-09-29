@@ -116,7 +116,10 @@ export function ChatTopbar({
                     ? 'Library preview: the Lab runs this definition on its model with sample lookups only. Nothing is published, and preview chats are not saved.'
                     : 'This agent already has a published setup. Your message gives it a task; it does not change its tools or permanent instructions.'}
                 </p>
-                <AgentRuntime agent={agent} />
+                <AgentRuntime
+                  agent={agent}
+                  foundryPortal={isPreview ? null : config?.foundry_portal}
+                />
                 <button
                   className="inline-link"
                   onClick={() => onView('catalog')}

@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -9,7 +10,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -30,6 +31,9 @@ MAX_HISTORY_TURNS = 10
 MAX_REUSED_SESSIONS = 512
 THREAD = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\Z")
 HISTORY_TIMEOUT_MS = 45000
+FOUNDRY_PROJECT_ID = re.compile(
+    r"/subscriptions/([0-9a-fA-F-]{36})/resourceGroups/([A-Za-z0-9._()-]{1,90})"
+    r"/providers/Microsoft\.CognitiveServices/accounts/([A-Za-z0-9-]{2,64})/projects/([A-Za-z0-9_-]{1,64})\Z")
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
     "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
@@ -59,6 +63,7 @@ class Settings:
     session_reuse_seconds: float = 600
     library_preview: bool = True
     budget_alerts: bool = False
+    foundry_project_id: str = ""
 
     @classmethod
     def from_env(cls):
@@ -77,7 +82,8 @@ class Settings:
                visible_agents=visible_agents, default_agent=os.getenv("WORKBENCH_DEFAULT_AGENT") or None,
                title=os.getenv("WORKBENCH_TITLE", "Foundry Agent Lab"), creation=CreationSettings.from_env(),
                session_reuse_seconds=float(os.getenv("WORKBENCH_SESSION_REUSE_SECONDS", "600")),
-               library_preview=library_preview == "true", budget_alerts=budget_alerts == "true")
+               library_preview=library_preview == "true", budget_alerts=budget_alerts == "true",
+               foundry_project_id=os.getenv("WORKBENCH_FOUNDRY_PROJECT_ID", ""))
 
     def validate(self):
         if not isinstance(self.title, str) or not self.title.strip() or len(self.title) > 80 or any(ord(char) < 32 for char in self.title):
@@ -94,6 +100,21 @@ class Settings:
             raise ValueError("Library preview enablement must be a boolean")
         if type(self.budget_alerts) is not bool:
             raise ValueError("Budget alert status must be a boolean")
+        if not isinstance(self.foundry_project_id, str):
+            raise ValueError("Foundry project ID must be a string")
+        if self.foundry_project_id:
+            match = FOUNDRY_PROJECT_ID.fullmatch(self.foundry_project_id)
+            try:
+                valid = bool(match) and str(UUID(match.group(1))) == match.group(1).lower()
+            except ValueError:
+                valid = False
+            if not valid:
+                raise ValueError("WORKBENCH_FOUNDRY_PROJECT_ID must be a Foundry project resource ID")
+            parsed = urlparse(self.endpoint)
+            if (self.mode == "private" and
+                    ((parsed.hostname or "").lower() != f"{match.group(3).lower()}.services.ai.azure.com"
+                     or parsed.path != f"/api/projects/{match.group(4)}")):
+                raise ValueError("WORKBENCH_FOUNDRY_PROJECT_ID must name the project in FOUNDRY_PROJECT_ENDPOINT")
         if self.library_preview_enabled and not DEPLOYMENT_NAME.fullmatch(self.creation.model):
             raise ValueError("Library previews need an existing model deployment name")
         if not self.hosts or any("*" in host or "/" in host for host in self.hosts):
@@ -114,6 +135,16 @@ class Settings:
                 raise ValueError("Private mode requires a Foundry project endpoint")
         elif any(host not in {"localhost", "127.0.0.1"} for host in self.hosts):
             raise ValueError("Preview mode is restricted to localhost")
+
+    @property
+    def foundry_portal(self):
+        """Foundry portal URL for the project, in the form the Azure Developer CLI prints."""
+        match = FOUNDRY_PROJECT_ID.fullmatch(self.foundry_project_id or "")
+        if self.mode != "private" or not match:
+            return None
+        subscription, group, account, project = match.groups()
+        encoded = base64.urlsafe_b64encode(UUID(subscription).bytes).decode().rstrip("=")
+        return f"https://ai.azure.com/nextgen/r/{encoded},{group},,{account},{project}"
 
     @property
     def library_preview_enabled(self):
@@ -538,7 +569,8 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
             "reviews_enabled": settings.mode == "private" and history_store is not None,
             "agent_creation": created_agents.capabilities(),
             "library_preview": settings.library_preview_capability(),
-            "budget_alerts": settings.mode == "private" and settings.budget_alerts}
+            "budget_alerts": settings.mode == "private" and settings.budget_alerts,
+            "foundry_portal": settings.foundry_portal}
 
     application.add_api_route("/api/reviews", chat.admit, methods=["POST"])
     application.include_router(history_router(settings, registry, history_store, created_agents))

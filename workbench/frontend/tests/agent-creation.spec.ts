@@ -487,7 +487,7 @@ test('creation is the entry point with nine honest jobs in two groups and usable
     page
       .getByRole('region', { name: 'Healthcare and public sector' })
       .locator('.creation-template small'),
-  ).toHaveText(Array(4).fill('Simulated read-only lookups'))
+  ).toHaveText(Array(4).fill('Sample read-only lookups'))
   await expect(
     page
       .getByRole('combobox', { name: 'Prepared template', exact: true })
@@ -930,7 +930,7 @@ test('local preview prepares all nine templates but cannot publish or load saved
     if (template.tools.length) {
       await expect(page.locator('.creation-tool-list li')).toHaveCount(2)
       await expect(page.locator('.creation-tool-list')).toContainText(
-        'SIMULATED',
+        '(sample data)',
       )
       if (template.id === 'medical-bill-reviewer')
         await illustrativeScreenshot(

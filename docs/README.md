@@ -66,7 +66,7 @@ For developers who change agents, evaluate quality, or extend the architecture.
 | **Prebuilt agents** | The agents a developer publishes from [`hosted-agents/`](../hosted-agents/). See [agent names](#agent-names). |
 | **Created agents** | Agents published from the Lab's **Create agent** page. They appear under **All agents** > **Made in this Lab**. |
 | **Coordinator** | An agent that receives your request, asks one specialist to do the work, and returns the findings. |
-| **Specialist** | An agent that the coordinator calls as a tool, such as the application checker. |
+| **Specialist** | An agent that the coordinator calls as a tool, such as the checklist reviewer. |
 | **Platform infrastructure** | The Azure resources in the [`terraform/`](../terraform/) root. The Lab, Bastion, and monitoring each have their own Terraform root and state. |
 | **Operator** | The person who deploys and administers Azure resources and the Lab, and who confirms agent publication. |
 | **Developer** | The person who changes agent code or instructions and publishes new prebuilt agent versions. |
@@ -82,13 +82,13 @@ for the agent or its traces in the Foundry portal.
 
 | Lab display name | Lab catalog ID | Foundry agent name | Source |
 | --- | --- | --- | --- |
-| **Application and case helper** (default) | `customer-review` | `customer-review-coordinator` | [`review-coordinator-agent/`](../hosted-agents/review-coordinator-agent/) with the [evidence-review profile](../hosted-agents/review-coordinator-agent/profiles/evidence-review.example.json) |
-| **Application and case helper (base setup)** | `review-coordinator` | `review-coordinator-agent` | [`review-coordinator-agent/`](../hosted-agents/review-coordinator-agent/) |
-| **Application checker** | `application-review` | `application-review-agent` | [`application-review-agent/`](../hosted-agents/application-review-agent/) |
+| **Checklist and case helper** (default) | `customer-review` | `customer-review-coordinator` | [`review-coordinator-agent/`](../hosted-agents/review-coordinator-agent/) with the [evidence-review profile](../hosted-agents/review-coordinator-agent/profiles/evidence-review.example.json) |
+| **Checklist and case helper (base setup)** | `review-coordinator` | `review-coordinator-agent` | [`review-coordinator-agent/`](../hosted-agents/review-coordinator-agent/) |
+| **Checklist reviewer** | `application-review` | `application-review-agent` | [`application-review-agent/`](../hosted-agents/application-review-agent/) |
 | **Case notes summarizer** | `case-review` | `case-review-agent` | [`case-review-agent/`](../hosted-agents/case-review-agent/) |
 | Not listed in the Lab | Not applicable | `basic-responses-agent` (default name) | [`basic-responses-agent/`](../hosted-agents/basic-responses-agent/) |
 
-The Lab shows only **Application and case helper** by default. Operators can
+The Lab shows only **Checklist and case helper** by default. Operators can
 show the others with the `visible_agents` setting described in the
 [Lab guide](../workbench/README.md).
 

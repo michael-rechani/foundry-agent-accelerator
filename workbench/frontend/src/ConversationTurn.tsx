@@ -18,6 +18,8 @@ import {
   type ReceiptState,
 } from './answer-steps'
 import type { Turn } from './conversation-types'
+import { FoundryLink } from './FoundryLink'
+import { foundryAgentUrl } from './foundry-links'
 import { usageDetail, usageLabel } from './token-usage'
 
 const receiptLabels: Record<ReceiptState, string> = {
@@ -47,11 +49,16 @@ const stepIcons = {
 function AnswerSteps({
   turn,
   agentLabels,
+  foundryPortal,
+  agentName,
 }: {
   turn: Turn
   agentLabels?: Record<string, string>
+  foundryPortal?: string | null
+  agentName?: string
 }) {
   const usage = usageLabel(turn.result.usage)
+  const agentUrl = foundryAgentUrl(foundryPortal, agentName)
   return (
     <details className="answer-steps">
       <summary>
@@ -83,6 +90,16 @@ function AnswerSteps({
                     <>
                       {' \u2192 '}
                       <code>{receipt.agent}</code>
+                      {foundryPortal && (
+                        <>
+                          {' '}
+                          <FoundryLink
+                            href={foundryAgentUrl(foundryPortal, receipt.agent)}
+                          >
+                            Open in Foundry
+                          </FoundryLink>
+                        </>
+                      )}
                     </>
                   )}
                 </small>
@@ -101,7 +118,7 @@ function AnswerSteps({
             Wrote the answer
             <small className="hood-only">
               {(turn.result.elapsed_ms / 1000).toFixed(1)} s total
-              {usage && ` ? ${usage}`}
+              {usage && ` \u00b7 ${usage}`}
             </small>
           </span>
         </li>
@@ -109,6 +126,13 @@ function AnswerSteps({
       {turn.result.receipts.length === 0 && (
         <p className="answer-steps-note">
           No lookups or other agents were recorded for this answer.
+        </p>
+      )}
+      {agentUrl && (
+        <p className="answer-steps-note hood-only">
+          <FoundryLink href={agentUrl}>
+            See this agent&apos;s traces in Foundry
+          </FoundryLink>
         </p>
       )}
     </details>
@@ -135,11 +159,15 @@ export function ConversationTurn({
   turn,
   label,
   agentLabels,
+  foundryPortal,
+  agentName,
   onCopy,
 }: {
   turn: Turn
   label?: string
   agentLabels?: Record<string, string>
+  foundryPortal?: string | null
+  agentName?: string
   onCopy: (text: string) => void
 }) {
   return (
@@ -165,7 +193,12 @@ export function ConversationTurn({
           </span>
         </div>
         <Markdown text={turn.result.text} />
-        <AnswerSteps turn={turn} agentLabels={agentLabels} />
+        <AnswerSteps
+          turn={turn}
+          agentLabels={agentLabels}
+          foundryPortal={foundryPortal}
+          agentName={agentName}
+        />
         <div className="response-tools">
           <button
             className="chat-icon"

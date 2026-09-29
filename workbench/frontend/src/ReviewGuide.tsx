@@ -74,7 +74,7 @@ export function ReviewGuide({ retentionDays }: { retentionDays: number }) {
       </p>
       <p>
         Requirements and proposal review is in preview and uses the same
-        Application checker specialist. It cannot fetch documents or change a
+        Checklist reviewer specialist. It cannot fetch documents or change a
         business system.
       </p>
     </details>

@@ -271,6 +271,7 @@ resource "azurerm_container_app" "this" {
             WORKBENCH_ALLOWED_HOSTS          = local.hostname
             WORKBENCH_ORIGINS                = "https://${local.hostname}"
             FOUNDRY_PROJECT_ENDPOINT         = "https://${var.foundry_account_name}.services.ai.azure.com/api/projects/${var.foundry_project_name}"
+            WORKBENCH_FOUNDRY_PROJECT_ID     = local.project_id
             AZURE_CLIENT_ID                  = azurerm_user_assigned_identity.this.client_id
           },
           length(var.agent_creation_models) == 0 ? {} : {

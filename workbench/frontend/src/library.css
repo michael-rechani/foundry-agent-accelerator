@@ -426,6 +426,18 @@
   gap: 14px;
   margin-bottom: 14px;
 }
+.library-stack {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-width: 0;
+}
+.library-download {
+  margin-top: 14px;
+}
+.library-download .library-muted {
+  margin-top: 6px;
+}
 .library-panel {
   min-width: 0;
   padding: 17px;
@@ -509,6 +521,78 @@
 .library-steps li + li {
   margin-top: 6px;
 }
+.scorecard-heading h2 {
+  margin: 0 0 4px;
+  font: 600 16px/1.4 var(--font);
+  color: var(--text);
+}
+.scorecard-heading .library-muted {
+  margin: 0 0 14px;
+}
+.scorecard-cases {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.scorecard-cases > li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.scorecard-cases > li > svg {
+  margin-top: 2px;
+}
+.scorecard-cases > li.passed > svg {
+  color: var(--success-fg);
+}
+.scorecard-cases > li.review > svg {
+  color: var(--warning-fg);
+}
+.scorecard-case-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+.scorecard-case-title strong {
+  font-size: 14px;
+}
+.scorecard-cases p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.scorecard-cases .scorecard-case-detail {
+  font-size: 12px;
+  color: var(--muted);
+}
+.scorecard-case-detail code {
+  font: 11px var(--mono);
+}
+.scorecard-notes {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.scorecard .library-muted svg {
+  vertical-align: -2px;
+}
+.scorecard-empty {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.scorecard-empty p {
+  margin: 0;
+}
 @media (max-width: 1050px) {
   .library-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -531,6 +615,12 @@
   .library-columns,
   .library-facts {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .library-tabs {
+    gap: 0;
+  }
+  .library-tabs button {
+    padding: 10px 9px;
   }
   .library-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));

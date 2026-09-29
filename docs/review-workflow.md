@@ -75,7 +75,7 @@ for everyone with Lab access and that backup retention is separate:
    text, not file uploads, fetched URLs, or Search retrieval.
 1. Choose **Create shared review** to save the record, then **Run review** to
    call its agent. The form names the agent doing the check. The default
-   **Application and case helper** selects its existing specialist tools; no
+   **Checklist and case helper** selects its existing specialist tools; no
    agent is created, configured, or deployed.
 1. Read **Results** beside **Original text**.
 1. If **More information needed** appears, enter the requested details and choose

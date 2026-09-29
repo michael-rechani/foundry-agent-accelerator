@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { validPortal } from './foundry-links'
 import { requestJson } from './request'
 
 export type Agent = {
@@ -34,6 +35,7 @@ export type Config = {
   agent_creation?: CreationCapability
   library_preview?: LibraryPreviewCapability
   budget_alerts?: boolean
+  foundry_portal?: string | null
 }
 
 export type LibraryPreviewCapability = {
@@ -160,6 +162,8 @@ function parseConfig(value: unknown): Config {
     (config.mode === 'preview' && config.library_preview?.enabled) ||
     (config.budget_alerts !== undefined &&
       typeof config.budget_alerts !== 'boolean') ||
+    (config.foundry_portal !== undefined &&
+      !validPortal(config.foundry_portal)) ||
     ![
       config.max_characters,
       config.max_request_bytes,

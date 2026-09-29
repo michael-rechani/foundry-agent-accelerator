@@ -112,7 +112,7 @@ to that same coordinator.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/agent-collaboration-dark.svg">
-  <img alt="Default agent collaboration in four numbered steps: you ask in the Lab with supplied evidence; in Foundry Agent Service, the Application and case helper calls one specialist, the Application checker or the Case notes summarizer; the coordinator returns findings with a tool record; and a person checks the answer against the evidence" src="images/agent-collaboration.svg">
+  <img alt="Default agent collaboration in four numbered steps: you ask in the Lab with supplied evidence; in Foundry Agent Service, the Checklist and case helper calls one specialist, the Checklist reviewer or the Case notes summarizer; the coordinator returns findings with a tool record; and a person checks the answer against the evidence" src="images/agent-collaboration.svg">
 </picture>
 
 [View full size](images/agent-collaboration.svg) · [Edit the SVG template](images/agent-collaboration.template.svg) · [Request and result example](agent-profiles.md#example-handoff)
@@ -135,9 +135,9 @@ behavior.
 Steps 2 and 3 in the diagram are the request and response stages of the
 **same agent**. The blue service boundary is logical hosting, not a virtual
 network. The specialist boxes represent custom code, not separate Microsoft
-products. The diagram shows the Lab's default **Application and case helper**,
+products. The diagram shows the Lab's default **Checklist and case helper**,
 which uses the example profile's `inspect_application` and `inspect_case`
-tools. **Application and case helper (base setup)** uses `review_application`
+tools. **Checklist and case helper (base setup)** uses `review_application`
 and `review_case` with the same specialist targets. These are two
 configurations of the same review capabilities, not
 separate planning and review features. Profiles can change tool names and
@@ -205,7 +205,7 @@ capabilities before adding a custom orchestration layer.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/lab-components-dark.svg">
-  <img alt="Lab components and connections: the browser runs the React web app over same-origin HTTPS to the Lab's internal Container App, where the FastAPI request boundary validates requests, application routes handle chat, history, reviews, and agent creation, and FoundryGateway calls the Application and case helper in Microsoft Foundry with a managed identity. The coordinator calls the Application checker or Case notes summarizer, and both use the configured model deployment. The routes read and write application records in Azure Cosmos DB. Foundry's platform dependencies are Storage, Cosmos DB, Azure AI Search, and Key Vault." src="images/lab-components.svg">
+  <img alt="Lab components and connections: the browser runs the React web app over same-origin HTTPS to the Lab's internal Container App, where the FastAPI request boundary validates requests, application routes handle chat, history, reviews, and agent creation, and FoundryGateway calls the Checklist and case helper in Microsoft Foundry with a managed identity. The coordinator calls the Checklist reviewer or Case notes summarizer, and both use the configured model deployment. The routes read and write application records in Azure Cosmos DB. Foundry's platform dependencies are Storage, Cosmos DB, Azure AI Search, and Key Vault." src="images/lab-components.svg">
 </picture>
 
 [View full size](images/lab-components.svg) · [Edit the SVG template](images/lab-components.template.svg)

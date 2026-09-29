@@ -18,6 +18,14 @@ import {
   Wrench,
 } from 'lucide-react'
 import { creationRequest } from './agent-creation-client'
+import { FoundryLink } from './FoundryLink'
+import { foundryAgentUrl } from './foundry-links'
+import {
+  agentDefinition,
+  definitionFileName,
+  evaluationFileName,
+  evaluationLines,
+} from './foundry-handoff'
 import {
   facetKeys,
   filterTemplates,
@@ -27,6 +35,8 @@ import {
   type Selection,
 } from './library-catalog'
 import type { LibraryCatalogState } from './library-catalog-client'
+import { ScorecardPanel } from './ScorecardPanel'
+import { useScorecards, type ScorecardsState } from './scorecards-client'
 import type { Agent, CreationCapability } from './workspace-config'
 import './library.css'
 
@@ -44,7 +54,7 @@ const tones: Record<string, string> = {
   simulated: 'info',
   'connected-required': 'caution',
 }
-type Tab = 'overview' | 'test' | 'export'
+type Tab = 'overview' | 'test' | 'results' | 'export'
 
 export type ReadyAgent = { agent: Agent; recordId: string }
 
@@ -54,6 +64,7 @@ export function AgentLibrary({
   capability,
   readyAgentFor,
   previewFor,
+  foundryPortal,
   busy,
   onCreate,
   onTest,
@@ -64,6 +75,7 @@ export function AgentLibrary({
   capability?: CreationCapability
   readyAgentFor: (templateId: string) => ReadyAgent | undefined
   previewFor: (templateId: string) => Agent | undefined
+  foundryPortal?: string | null
   busy: boolean
   onCreate: (templateId: string) => void
   onTest: (agent: Agent, input: string) => void
@@ -85,6 +97,9 @@ export function AgentLibrary({
     [catalog, query, selection],
   )
   const open = catalog?.templates.find((item) => item.id === openId)
+  const scorecards = useScorecards(
+    active && !!open && (tab === 'results' || tab === 'export'),
+  )
   const previewsOn = !!catalog?.templates.some((item) => previewFor(item.id))
   const filtered = !!query.trim() || facetKeys.some((key) => selection[key])
 
@@ -126,7 +141,9 @@ export function AgentLibrary({
         <LibraryDetail
           template={open}
           tab={tab}
+          scorecards={scorecards}
           capability={capability}
+          foundryPortal={foundryPortal}
           ready={readyAgentFor(open.id)}
           preview={previewFor(open.id)}
           busy={busy}
@@ -320,10 +337,21 @@ function LibraryCard({
   )
 }
 
+function saveFile(name: string, text: string, type: string) {
+  const url = URL.createObjectURL(new Blob([text], { type }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = name
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 function LibraryDetail({
   template,
   tab,
+  scorecards,
   capability,
+  foundryPortal,
   ready,
   preview,
   busy,
@@ -336,7 +364,9 @@ function LibraryDetail({
 }: {
   template: LibraryTemplate
   tab: Tab
+  scorecards: ScorecardsState
   capability?: CreationCapability
+  foundryPortal?: string | null
   ready?: ReadyAgent
   preview?: Agent
   busy: boolean
@@ -350,6 +380,7 @@ function LibraryDetail({
   const tabs: [Tab, string][] = [
     ['overview', 'Overview'],
     ['test', 'Try it'],
+    ['results', 'Test results'],
     ['export', 'Take it to Foundry'],
   ]
   const runnable = template.tool_mode.id !== 'connected-required'
@@ -379,16 +410,11 @@ function LibraryDetail({
   async function downloadRecord(id: string) {
     try {
       const record = await creationRequest(`agents/${id}`)
-      const url = URL.createObjectURL(
-        new Blob([JSON.stringify(record, null, 2)], {
-          type: 'application/json',
-        }),
+      saveFile(
+        `${template.id}-record.json`,
+        JSON.stringify(record, null, 2),
+        'application/json',
       )
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${template.id}-record.json`
-      link.click()
-      URL.revokeObjectURL(url)
       onNotice('Saved record downloaded. Use it with the export command below.')
     } catch (problem) {
       onNotice(
@@ -397,6 +423,29 @@ function LibraryDetail({
           : 'The saved record could not be downloaded.',
       )
     }
+  }
+
+  const testCases = scorecards.scorecards?.scorecards.find(
+    (card) => card.template_id === template.id,
+  )?.cases
+
+  function downloadDefinition() {
+    saveFile(
+      definitionFileName(template.id),
+      JSON.stringify(agentDefinition(template), null, 2) + '\n',
+      'application/json',
+    )
+    onNotice('Agent definition downloaded.')
+  }
+
+  function downloadTestCases() {
+    if (!testCases) return
+    saveFile(
+      evaluationFileName(template.id),
+      evaluationLines(testCases),
+      'application/x-ndjson',
+    )
+    onNotice('Test requests downloaded.')
   }
 
   return (
@@ -437,10 +486,8 @@ function LibraryDetail({
         <div className="library-progress" role="note">
           <Construction size={18} aria-hidden="true" />
           <p>
-            <strong>In progress. </strong>
-            It passes the automated checks, but a person hasn&apos;t signed off
-            on its live answers yet. Try it with sample data; answers may
-            change.
+            <strong>In progress. </strong>A person hasn&apos;t signed off on its
+            test answers yet. Try it with sample data; answers may change.
           </p>
         </div>
       )}
@@ -617,7 +664,7 @@ function LibraryDetail({
               </div>
               <p className="library-muted">
                 {preview
-                  ? 'Opens Chat with this example ready to send. Nothing happens until you press Send, which calls the model and has a small cost. Preview chats aren?t saved.'
+                  ? 'Opens Chat with this example ready to send. Nothing happens until you press Send, which calls the model and has a small cost. Preview chats aren\u2019t saved.'
                   : ready
                     ? `Uses ${ready.agent.label}. Opens Chat with this example ready to send. Nothing happens until you press Send, which calls the model and has a small cost.`
                     : creationNote}
@@ -645,42 +692,118 @@ function LibraryDetail({
             </section>
           </div>
         )}
+        {tab === 'results' && (
+          <ScorecardPanel templateId={template.id} state={scorecards} />
+        )}
         {tab === 'export' && (
           <div className="library-columns">
-            <section className="library-panel">
-              <h2>Get the package</h2>
-              <p>{template.export.description}</p>
-              <p className="library-muted hood-only">
-                Format {template.export.package_format}. Target: a Microsoft
-                Foundry hosted agent in a project you control.
-              </p>
-              {!template.export.exportable ? (
-                <p className="library-muted">
-                  Export is not available for this agent yet.
+            <div className="library-stack">
+              <section className="library-panel">
+                <h2>Start in your Foundry project</h2>
+                <p>
+                  Download the setup and the test requests, then use them in a
+                  Foundry project you control. Nothing is created until you do.
                 </p>
-              ) : ready ? (
-                <button
-                  type="button"
-                  className="library-primary"
-                  onClick={() => void downloadRecord(ready.recordId)}
-                >
-                  <Download size={16} /> Download saved record
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="library-primary"
-                  disabled={!capability || busy}
-                  onClick={onCreate}
-                >
-                  Create this agent first <ArrowRight size={16} />
-                </button>
-              )}
-            </section>
+                <div className="library-download">
+                  <button
+                    type="button"
+                    className="library-secondary"
+                    onClick={downloadDefinition}
+                  >
+                    <Download size={16} /> Download agent definition
+                  </button>
+                  <p className="library-muted">
+                    Instructions and settings for a Foundry prompt agent. Add
+                    your own model deployment.
+                  </p>
+                </div>
+                <div className="library-download">
+                  {testCases ? (
+                    <>
+                      <button
+                        type="button"
+                        className="library-secondary"
+                        onClick={downloadTestCases}
+                      >
+                        <Download size={16} /> Download test requests
+                      </button>
+                      <p className="library-muted">
+                        {testCases.length} requests for a Foundry evaluation,
+                        each with what a good answer shows.
+                      </p>
+                    </>
+                  ) : scorecards.error ? (
+                    <>
+                      <p className="library-muted">
+                        The test requests did not load.
+                      </p>
+                      <button
+                        type="button"
+                        className="library-secondary"
+                        onClick={scorecards.retry}
+                      >
+                        <RefreshCw size={14} /> Try again
+                      </button>
+                    </>
+                  ) : scorecards.scorecards ? (
+                    <p className="library-muted">
+                      This agent has no test requests yet.
+                    </p>
+                  ) : (
+                    <p className="library-muted" role="status">
+                      Checking for test requests...
+                    </p>
+                  )}
+                </div>
+              </section>
+              <section className="library-panel">
+                <h2>Or get the full hosted-agent package</h2>
+                <p>{template.export.description}</p>
+                <p className="library-muted hood-only">
+                  Format {template.export.package_format}. Target: a Microsoft
+                  Foundry hosted agent in a project you control.
+                </p>
+                {!template.export.exportable ? (
+                  <p className="library-muted">
+                    Export is not available for this agent yet.
+                  </p>
+                ) : ready ? (
+                  <button
+                    type="button"
+                    className="library-primary"
+                    onClick={() => void downloadRecord(ready.recordId)}
+                  >
+                    <Download size={16} /> Download saved record
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="library-primary"
+                    disabled={!capability || busy}
+                    onClick={onCreate}
+                  >
+                    Create this agent first <ArrowRight size={16} />
+                  </button>
+                )}
+                {ready && foundryPortal && (
+                  <p className="library-muted hood-only">
+                    <FoundryLink
+                      href={foundryAgentUrl(foundryPortal, ready.agent.agent)}
+                    >
+                      Open this agent in Foundry
+                    </FoundryLink>
+                  </p>
+                )}
+              </section>
+            </div>
             <section className="library-panel">
               <h2>Set it up in your Foundry project</h2>
               <ol className="library-steps">
                 <li>Provide a model deployment in your own Foundry project.</li>
+                <li>
+                  Create a prompt agent from the definition file, or paste its
+                  instructions into the agent builder.
+                </li>
                 <li>
                   Review the instructions, limits and acceptance cases with your
                   policy owners.
@@ -689,6 +812,12 @@ function LibraryDetail({
                   <li>
                     Replace the sample lookups with reviewed connectors to your
                     own systems.
+                  </li>
+                )}
+                {testCases && (
+                  <li>
+                    Run the test requests as a Foundry evaluation and read each
+                    answer against what a good answer shows.
                   </li>
                 )}
                 <li className="hood-only">
