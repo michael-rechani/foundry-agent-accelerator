@@ -117,8 +117,8 @@ export function ScorecardPanel({
               {card.signed_off ? 'Signed off' : 'Waiting for a person'}
             </strong>
             <span>
-              {card.signed_off
-                ? 'A person has read these answers.'
+              {card.signed_off && card.signed_off_by && card.signed_off_on
+                ? `Read by ${card.signed_off_by} on ${formatDate(card.signed_off_on)}.`
                 : "A person reads every answer before it's marked ready."}
             </span>
           </dd>

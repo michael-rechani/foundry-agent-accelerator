@@ -40,6 +40,25 @@ describe('agent scorecards', () => {
     assert.throws(() => parseScorecards(copy), /could not be read/)
   })
 
+  it('shows who signed off, and rejects a sign-off that names no one', () => {
+    const signed = structuredClone(raw)
+    Object.assign(signed.scorecards[0], {
+      signed_off: true,
+      signed_off_by: 'Pat Reviewer',
+      signed_off_on: '2026-09-30',
+    })
+    assert.equal(
+      parseScorecards(signed).scorecards[0].signed_off_by,
+      'Pat Reviewer',
+    )
+    const anonymous = structuredClone(signed)
+    anonymous.scorecards[0].signed_off_by = null
+    assert.throws(() => parseScorecards(anonymous), /could not be read/)
+    const stray = structuredClone(raw)
+    stray.scorecards[0].signed_off_by = 'Pat Reviewer'
+    assert.throws(() => parseScorecards(stray), /could not be read/)
+  })
+
   it('rejects repeated templates and unknown schemas', () => {
     const copy = structuredClone(raw)
     copy.scorecards.push(copy.scorecards[0])

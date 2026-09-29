@@ -16,6 +16,8 @@
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "benefits-renewal-helper-sample",
@@ -96,6 +98,8 @@
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "casework-assistant-sample",
@@ -176,6 +180,8 @@
       "model": "gpt-5.4-mini",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "cash-application-reviewer-sample-partial-match",
@@ -256,6 +262,8 @@
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "contract-playbook-checker-sample",
@@ -336,6 +344,8 @@
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "criteria-checker-sample",
@@ -419,6 +429,8 @@
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "customer-feedback-themes-sample",
@@ -499,6 +511,8 @@
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "customer-support-brief-export-limit-handoff",
@@ -579,6 +593,8 @@
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "document-analyst-sample",
@@ -659,6 +675,8 @@
       "model": "gpt-5.4-mini",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "document-intake-supply-request-complete",
@@ -739,6 +757,8 @@
       "model": "gpt-4.1",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "expense-report-checker-sample",
@@ -824,6 +844,8 @@
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "incident-timeline-writer-sample",
@@ -904,6 +926,8 @@
       "model": "gpt-4.1",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "insurance-preapproval-helper-sample-checklist",
@@ -984,6 +1008,8 @@
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "maintenance-work-order-planner-sample-scrape",
@@ -1064,6 +1090,8 @@
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "medical-bill-reviewer-supported-share",
@@ -1144,6 +1172,8 @@
       "model": "gpt-4.1",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "order-delay-helper-sample",
@@ -1224,6 +1254,8 @@
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "rfp-answer-drafter-sample",
@@ -1306,6 +1338,8 @@
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "supplier-invoice-reviewer-sample",
@@ -1386,6 +1420,8 @@
       "model": "gpt-4.1",
       "answers_from": "direct",
       "signed_off": false,
+      "signed_off_by": null,
+      "signed_off_on": null,
       "cases": [
         {
           "id": "workflow-coordinator-grounded-access",

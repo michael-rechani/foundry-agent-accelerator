@@ -21,7 +21,8 @@ class ScorecardTests(unittest.TestCase):
             summary = card["summary"]
             self.assertEqual(summary["cases"], len(card["cases"]))
             self.assertEqual(summary["passed"], sum(item["passed"] for item in card["cases"]))
-            self.assertFalse(card["signed_off"])
+            self.assertEqual(card["signed_off"], card["signed_off_by"] is not None)
+            self.assertEqual(card["signed_off"], card["signed_off_on"] is not None)
             for item in card["cases"]:
                 self.assertEqual(item["passed"], not item["notes"])
                 self.assertGreater(item["cost_usd"], 0)
@@ -48,6 +49,43 @@ class ScorecardTests(unittest.TestCase):
             replaced = card((("first", first), ("second", second)))
             self.assertTrue(replaced["cases"][0]["passed"])
             self.assertEqual(replaced["answers_from"], "second")
+
+    def test_a_sign_off_covers_only_the_answers_the_reviewer_read(self):
+        case_id = "document-analyst-sample"
+        metric = {"model": "gpt-5.4", "seconds": 1.0, "input_tokens": 10, "cached_tokens": 0, "output_tokens": 5}
+        with tempfile.TemporaryDirectory() as folder:
+            def write(name, records):
+                path = Path(folder) / name
+                path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+                return path
+
+            read = write("read.jsonl", [{"case_id": case_id, "text": "Notice 1 and Notice 2 differ. What is the date?"}])
+            changed = write("changed.jsonl", [{"case_id": case_id, "text": "A different answer."}])
+            metrics = write("metrics.jsonl", [{"case_id": case_id, **metric}])
+            signoffs = Path(folder) / "signoffs.json"
+            options = {"metrics_path": metrics, "signoffs_path": signoffs}
+            runs = (("run", read),)
+
+            self.assertFalse(scorecards.build(runs=runs, **options)["scorecards"][0]["signed_off"])
+            scorecards.record_signoff("Pat Reviewer", "2026-09-30", ["document-analyst"], path=signoffs, runs=runs)
+            card = scorecards.build(runs=runs, **options)["scorecards"][0]
+            self.assertEqual((card["signed_off"], card["signed_off_by"], card["signed_off_on"]),
+                             (True, "Pat Reviewer", "2026-09-30"))
+            with self.assertRaisesRegex(ValueError, "read them again"):
+                scorecards.build(runs=(("run", changed),), **options)
+
+    def test_a_sign_off_needs_a_named_reviewer_a_real_date_and_a_known_agent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "signoffs.json"
+            for reviewer, date, agents in (
+                ("", "2026-09-30", ["document-analyst"]),
+                ("Pat Reviewer", "30/09/2026", ["document-analyst"]),
+                ("Pat Reviewer", "2026-09-30", ["no-such-agent"]),
+                ("Pat Reviewer", "2026-09-30", []),
+            ):
+                with self.assertRaises(ValueError):
+                    scorecards.record_signoff(reviewer, date, agents, path=path)
+            self.assertFalse(path.exists())
 
     def test_the_recorded_answers_come_from_one_direct_run(self):
         cards = scorecards.build()["scorecards"]
