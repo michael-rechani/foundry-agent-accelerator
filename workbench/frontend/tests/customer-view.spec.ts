@@ -30,10 +30,11 @@ async function setup(
   page: Page,
   overrides: Partial<Config> = {},
   withoutResultsFor?: string,
+  results = scorecards,
 ) {
   const served = {
-    ...scorecards,
-    scorecards: scorecards.scorecards.filter(
+    ...results,
+    scorecards: results.scorecards.filter(
       (card: { template_id: string }) => card.template_id !== withoutResultsFor,
     ),
   }
@@ -215,16 +216,19 @@ test('an agent page leads with plain actions and keeps setup details under the h
 test('test results read plainly and keep case details under the hood', async ({
   page,
 }) => {
-  // Pick an agent with at least one answer that needs a look, so the notes show.
-  const card = scorecards.scorecards.find(
-    (item: { cases: { passed: boolean }[] }) =>
-      item.cases.some((entry) => !entry.passed),
-  )
+  // Every recorded answer may pass, so give one agent an answer that needs a look and shows notes.
+  const withMiss = structuredClone(scorecards)
+  const card = withMiss.scorecards[0]
+  card.cases[0].passed = false
+  card.cases[0].notes = ["missing 'item 1'"]
+  card.summary.passed = card.cases.filter(
+    (entry: { passed: boolean }) => entry.passed,
+  ).length
   const benefits = (catalog.templates as LibraryTemplate[]).find(
     (item) => item.id === card.template_id,
   )!
   const passed = card.summary.passed
-  await setup(page)
+  await setup(page, {}, undefined, withMiss)
   await page
     .locator('.library-card')
     .filter({ hasText: benefits.label })

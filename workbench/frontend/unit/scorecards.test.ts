@@ -31,12 +31,12 @@ describe('agent scorecards', () => {
 
   it('rejects a passed case that still has notes', () => {
     const copy = structuredClone(raw)
-    const card = copy.scorecards.find(
-      (entry: { cases: { passed: boolean }[] }) =>
-        entry.cases.some((item) => !item.passed),
-    )
-    card.cases.find((item: { passed: boolean }) => !item.passed).passed = true
-    card.summary.passed += 1
+    const card = copy.scorecards[0]
+    card.cases[0].passed = true
+    card.cases[0].notes = ["missing 'item 1'"]
+    card.summary.passed = card.cases.filter(
+      (item: { passed: boolean }) => item.passed,
+    ).length
     assert.throws(() => parseScorecards(copy), /could not be read/)
   })
 
