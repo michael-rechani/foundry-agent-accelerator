@@ -655,7 +655,7 @@ After a person has read an agent's answers, record it:
 python scorecards.py signoff --reviewer "Their Name" --all          # or name agents instead of --all
 ```
 
-That writes [evidence/signoffs.json](evidence/signoffs.json) with the reviewer,
+That writes `evidence/signoffs.json` with the reviewer,
 the date and a fingerprint of the answers they read, then regenerates the Lab's
 copy. The tab then shows **Signed off** with their name and the date. If an
 answer changes later, `scorecards.py` fails until someone reads that agent's
