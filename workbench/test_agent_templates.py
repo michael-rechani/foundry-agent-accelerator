@@ -316,6 +316,19 @@ class TemplateTests(unittest.TestCase):
         self.assertEqual(len(result["goal"]), 1200)
         self.assertLessEqual(len(result["instructions"]), 6000)
 
+    def test_every_listed_agent_answers_in_the_same_four_parts_and_names_who_decides(self):
+        headings = ["Result", "Why", "What to check", "Next step"]
+        for template in list_templates():
+            with self.subTest(identifier=template["id"]):
+                text = template["instructions"]
+                positions = [text.index(heading + " (") if heading != "Next step" else text.index("Next step (")
+                             for heading in headings]
+                self.assertEqual(positions, sorted(positions))
+                self.assertTrue(text.endswith(template["human_decision"]))
+        for identifier in RETIRED_TEMPLATES:
+            with self.subTest(identifier=identifier):
+                self.assertNotIn("Format every answer", TEMPLATES[identifier]["instructions"])
+
     def test_only_lookup_jobs_have_tools_and_they_are_simulated(self):
         for identifier, template in TEMPLATES.items():
             with self.subTest(identifier=identifier):
@@ -336,7 +349,7 @@ class TemplateTests(unittest.TestCase):
             template = TEMPLATES[identifier]
             with self.subTest(identifier=identifier):
                 self.assertIn("UNSENT DRAFT", template["instructions"])
-                self.assertIn("simulated lookups", template["instructions"])
+                self.assertIn("sample lookups", template["instructions"])
                 self.assertRegex(
                     template["instructions"],
                     r"(?i)\b(never|do not) (judge|decide|approve)",

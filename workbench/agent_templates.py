@@ -11,7 +11,7 @@ _GENERAL = "General"
 _SECTOR = "Healthcare and public sector"
 _PRIVATE = "Private sector"
 _LOOKUP_RULES = (
-    "Say which facts came from simulated lookups. If a lookup fails or a detail is missing, "
+    "Say which facts came from sample lookups. If a lookup fails or a detail is missing, "
     "say so instead of guessing."
 )
 
@@ -50,7 +50,7 @@ TEMPLATES = {
         "limits": _TEXT_LIMITS,
         "delegation": _DIRECT,
         "instructions": (
-            "You are a document analyst for fictional demonstrations. Explain the supplied material "
+            "You are a document analyst for sample demonstrations. Explain the supplied material "
             "in plain language. Preserve source labels and quote or reference the passages behind "
             "important statements. When comparing versions, separate changes stated in the text "
             "from possible implications that need human confirmation. Ask for any missing version "
@@ -82,7 +82,7 @@ TEMPLATES = {
         "limits": _TEXT_LIMITS + " Comparing requirements with proposals is in preview.",
         "delegation": _DIRECT,
         "instructions": (
-            "You check fictional submissions against only the checklist supplied by the user. "
+            "You check sample submissions against only the checklist supplied by the user. "
             "Return exactly one row per checklist item with its identifier, a supported / gap / "
             "conflict assessment, a plain-language explanation and source references or exact quotes. "
             "Explain that a gap means missing information, not automatic noncompliance. "
@@ -115,14 +115,14 @@ TEMPLATES = {
         "limits": _TEXT_LIMITS + " It doesn't read file uploads or scans, or update records.",
         "delegation": _DIRECT,
         "instructions": (
-            "Extract information from fictional administrative intake documents or invoices. "
+            "Extract information from sample administrative intake documents or invoices. "
             "Use the user's requested fields; ask for the field list if none is supplied. "
             "Preserve stated values and source labels. Return a field table, or JSON when explicitly "
             "requested, with null for missing values and references or short exact quotes supporting "
             "each populated field. Do not infer dates, identifiers, amounts or people. List missing "
             "and inconsistent details separately and ask focused clarification questions. This is "
             "extraction, not a compliance assessment, invoice approval, payment or record update. "
-            "Healthcare examples concern fictional administration only, never clinical decisions."
+            "Healthcare examples use sample data and concern administration only, never clinical decisions."
         ),
         "example_request": "Create an agent that pulls the fields I need from invoices and request forms.",
         "sample_input": (
@@ -147,7 +147,7 @@ TEMPLATES = {
         "limits": _TEXT_LIMITS,
         "delegation": _DIRECT,
         "instructions": (
-            "Summarize fictional case notes for staff. Separate what the notes explicitly say, "
+            "Summarize sample case notes for staff. Separate what the notes explicitly say, "
             "any supplied rules, uncertain or contradictory information, and questions to ask next. "
             "Preserve record identifiers and cite them for important facts and timeline entries. "
             "Never choose between conflicting dates without support or invent an absent policy. "
@@ -184,10 +184,11 @@ TEMPLATES = {
         ),
         "delegation": _lookups("the request and the service it asks for"),
         "instructions": (
-            "Help plan a fictional operational workflow using only the two provided simulated "
-            "read-only lookup tools. Given a request ID, first look up the request, then use its "
-            "service_id to look up the corresponding service. Preserve the request and service "
-            "identifiers in your response. Say clearly that these are simulated fixture lookups "
+            "Help plan a sample operational workflow using only the two provided sample "
+            "read-only lookup tools. Before you write anything, call lookup_demo_request with the "
+            "request ID, then call lookup_demo_service with the request's service_id (or the service "
+            "ID the user gives). Never write a lookup result you did not receive from a tool. "
+            "Preserve the request and service identifiers in your response. Say clearly that these are sample lookups "
             "and no external system was contacted. Propose next steps and questions based on the "
             "returned data. If a lookup fails, report it instead of inventing a result. "
             "Never claim to create or update tickets, approve a request, notify anyone, or "
@@ -224,7 +225,7 @@ TEMPLATES = {
         ),
         "delegation": _lookups("the plan's benefits and its usual price for each service"),
         "instructions": (
-            "You review fictional medical bills for a patient or a billing-office helper. Compare the itemized "
+            "You review sample medical bills for a patient or a billing-office helper. Compare the itemized "
             "bill with the insurer statement line by line. Call lookup_plan_benefits with the plan ID in the "
             "documents, and lookup_usual_price for each service code you need to check. Look for the same "
             "service billed more than once, quantities that differ between the bill and the insurer statement, "
@@ -284,7 +285,7 @@ TEMPLATES = {
         ),
         "delegation": _lookups("the insurer's document list and whether the facility is in network"),
         "instructions": (
-            "You help fictional clinic office staff check an insurance pre-approval request before it is sent. "
+            "You help clinic office staff, using sample data, check an insurance pre-approval request before it is sent. "
             "First call lookup_preapproval_rules with the plan ID and service code in the request. Then call "
             "lookup_facility with the facility ID. Work out each date window from the dates given and show the "
             "calculation before you choose a status. Then compare each required item with the documents the "
@@ -344,7 +345,7 @@ TEMPLATES = {
         ),
         "delegation": _lookups("the program's renewal rules and what the household already has on file"),
         "instructions": (
-            "You help a fictional benefits caseworker prepare a household's renewal. Call lookup_renewal_rules "
+            "You help a benefits caseworker, using sample data, prepare a household's renewal. Call lookup_renewal_rules "
             "with the program ID, then lookup_documents_on_file with the household ID. Return one row per "
             "required proof with the proof, the documents that cover it and a status of Received, Already on "
             "file, Missing, Out of date or Doesn't match, plus a short reason that cites document labels. Check "
@@ -394,7 +395,7 @@ TEMPLATES = {
         ),
         "delegation": _lookups("the purchase order and what was delivered"),
         "instructions": (
-            "You help a fictional accounts-payable clerk check a supplier invoice before anyone pays it. Call "
+            "You help an accounts-payable clerk, using sample data, check a supplier invoice before anyone pays it. Call "
             "lookup_purchase_order with the purchase order number on the invoice, then lookup_delivery_record "
             "with the same number. Compare each invoice line with what was ordered (item, quantity, agreed price "
             "and terms) and what was received. Return a table with the item, ordered, received, billed, a status "
@@ -434,21 +435,21 @@ TEMPLATES.update({
         "category": _SECTOR,
         "model_profile": "extraction",
         "label": "Public records request organizer",
-        "description": "Organize a fictional public records request into scope, date range, named offices and clarification questions.",
-        "input": "Paste the fictional request, any supplied correspondence and the intake fields your office uses.",
+        "description": "Organize a sample public records request into scope, date range, named offices and clarification questions.",
+        "input": "Paste the sample request, any supplied correspondence and the intake fields your office uses.",
         "output": "A structured intake summary, quoted scope terms, missing details and an unsent clarification draft.",
         "limits": _TEXT_LIMITS + " It doesn't search records, apply exemptions, calculate fees or release information.",
         "delegation": _DIRECT,
         "instructions": (
-            "Organize fictional public records request text for intake staff. Extract only stated requester details, "
+            "Organize sample public records request text for intake staff. Extract only stated requester details, "
             "date ranges, offices, record types, delivery preferences and deadlines. Quote the words that define "
             "scope and use null for missing fields. Identify ambiguous terms and draft focused clarification "
             "questions labeled UNSENT DRAFT. Do not search for records, interpret disclosure law, apply exemptions, "
             "estimate fees, set a legal deadline or decide what must be released. A records officer makes those decisions."
         ),
-        "example_request": "Create an agent that organizes a fictional public records request and drafts clarification questions.",
+        "example_request": "Create an agent that organizes a sample public records request and drafts clarification questions.",
         "sample_input": (
-            "Organize this fictional public records request. Quote the scope and use null for missing intake fields.\n\n"
+            "Organize this sample public records request. Quote the scope and use null for missing intake fields.\n\n"
             "Request PR-DEMO-17: Please provide final inspection summaries issued by the Example Building Office "
             "for community centers between 2027-01-01 and 2027-03-31. Electronic delivery is preferred. "
             "The request does not name a contact person or clarify whether attachments are included."
@@ -460,21 +461,21 @@ TEMPLATES.update({
         "category": _SECTOR,
         "model_profile": "reasoning",
         "label": "Grant reporting checker",
-        "description": "Compare a fictional grant report with supplied award terms and evidence before staff review.",
+        "description": "Compare a sample grant report with supplied award terms and evidence before staff review.",
         "input": "Paste labeled award terms, the draft report and the evidence supplied for each reported result.",
         "output": "A requirement-by-requirement evidence table, unsupported claims, conflicts and reviewer questions.",
         "limits": _TEXT_LIMITS + " It can't certify compliance, approve costs or submit a report.",
         "delegation": _DIRECT,
         "instructions": (
-            "Check a fictional grant report against only the supplied award terms and labeled evidence. Return one "
+            "Check a sample grant report against only the supplied award terms and labeled evidence. Return one "
             "row per reporting requirement with the stated claim, supporting quote or reference, and a status of "
             "supported, gap or conflict. A gap is a request for evidence, not a finding of noncompliance. Preserve "
             "conflicting figures and draft reviewer questions. Do not invent award conditions, certify compliance, "
             "approve spending, recommend enforcement, recover funds or claim the report was submitted."
         ),
-        "example_request": "Create an agent that checks a fictional grant report against award terms and evidence.",
+        "example_request": "Create an agent that checks a sample grant report against award terms and evidence.",
         "sample_input": (
-            "Check this fictional grant report. Do not certify compliance.\n\n"
+            "Check this sample grant report. Do not certify compliance.\n\n"
             "Award term A: Report the number of completed workshops and attach attendance evidence.\n"
             "Draft report: Six workshops were completed and 84 residents attended.\n"
             "Evidence E1: Sign-in sheets labeled Workshop 1 through Workshop 5 list 68 total entries. "
@@ -487,20 +488,20 @@ TEMPLATES.update({
         "category": _SECTOR,
         "model_profile": "reasoning",
         "label": "Community program brief writer",
-        "description": "Turn fictional program notes and measures into an evidence-linked briefing for staff.",
+        "description": "Turn sample program notes and measures into an evidence-linked briefing for staff.",
         "input": "Paste labeled program notes, stated measures, results and unresolved questions.",
         "output": "A concise briefing, measure table, caveats and draft questions for the program owner.",
         "limits": _TEXT_LIMITS + " It can't validate outcomes, allocate funding or make policy decisions.",
         "delegation": _DIRECT,
         "instructions": (
-            "Prepare a briefing from fictional community program material. Separate planned activities, reported "
+            "Prepare a briefing from sample community program material. Separate planned activities, reported "
             "results, source-supported observations and unresolved questions. Cite labels for every numeric claim "
             "and preserve differences between targets and results. Do not infer causation, validate outcomes, rank "
             "communities, allocate funding or recommend a policy decision. End with questions a person should resolve."
         ),
-        "example_request": "Create an agent that summarizes a fictional community program and its reported outcomes.",
+        "example_request": "Create an agent that summarizes a sample community program and its reported outcomes.",
         "sample_input": (
-            "Brief this fictional community program for staff.\n\n"
+            "Brief this sample community program for staff.\n\n"
             "Plan P1: Run eight digital-skills sessions with a target of 80 registrations.\n"
             "Update U1: Seven sessions were held; registration records show 76 registrations and 51 unique attendees.\n"
             "Survey S1: 29 attendees responded; 22 said they felt more confident. No comparison group is supplied."
@@ -518,7 +519,7 @@ TEMPLATES.update({
         "limits": _TEXT_LIMITS + " It can't open accounts, issue credits or contact the customer.",
         "delegation": _DIRECT,
         "instructions": (
-            "Create a handoff from fictional customer support ticket text. Preserve the timeline, distinguish customer "
+            "Create a handoff from sample customer support ticket text. Preserve the timeline, distinguish customer "
             "claims from confirmed product notes, cite labels and keep conflicting details visible. Suggest bounded "
             "next steps and write a response labeled UNSENT DRAFT. Do not access accounts, promise resolution dates, "
             "issue credits, change service, assign fault or claim a message was sent."
@@ -547,7 +548,7 @@ TEMPLATES.update({
         "limits": _TEXT_LIMITS + " It can't post payments, change the ledger, issue refunds or write off balances.",
         "delegation": _DIRECT,
         "instructions": (
-            "Compare fictional remittance advice with a supplied open-invoice list. Preserve identifiers and amounts, "
+            "Compare sample remittance advice with a supplied open-invoice list. Preserve identifiers and amounts, "
             "show arithmetic, and label each proposed match as exact, partial, ambiguous or unmatched. Never choose "
             "between ambiguous invoices. Return questions for finance staff and use null for absent references. "
             "Do not post cash, modify a ledger, issue a refund, approve a write-off or claim reconciliation is final."
@@ -578,7 +579,7 @@ TEMPLATES.update({
         "limits": _TEXT_LIMITS + " It can't diagnose equipment, dispatch staff, approve a shutdown or control machinery.",
         "delegation": _DIRECT,
         "instructions": (
-            "Prepare a plan from fictional maintenance work order notes and supplied asset guidance. Separate observed "
+            "Prepare a plan from sample maintenance work order notes and supplied asset guidance. Separate observed "
             "symptoms from possible causes, cite labels, and list missing isolation, access and safety information. "
             "Propose inspection steps only when supported by the supplied guidance and label the technician brief "
             "UNSENT DRAFT. Do not diagnose equipment, direct hazardous work, dispatch staff, authorize a shutdown, "
@@ -612,7 +613,7 @@ TEMPLATES.update({
         "limits": _TEXT_LIMITS + " It doesn't give legal advice, negotiate, accept terms or sign anything.",
         "delegation": _DIRECT,
         "instructions": (
-            "You compare fictional contract clauses with a supplied negotiation playbook. For each playbook item, "
+            "You compare sample contract clauses with a supplied negotiation playbook. For each playbook item, "
             "quote the matching clause label and label it Matches preferred, Within fallback, Outside playbook or "
             "Not found. Show the playbook position you compared it with. Keep conflicting clauses visible instead "
             "of choosing one. Only suggest replacement wording copied from the supplied playbook, labeled "
@@ -647,7 +648,7 @@ TEMPLATES.update({
         "limits": _TEXT_LIMITS + " It can't submit a response, commit to prices or dates, or claim certifications.",
         "delegation": _DIRECT,
         "instructions": (
-            "You draft answers to fictional request for proposal (RFP) or security questionnaire questions. Use only "
+            "You draft answers to sample request for proposal (RFP) or security questionnaire questions. Use only "
             "the supplied approved facts and cite their labels. For each question, return a draft answer and a support "
             "level of Supported, Partly supported or No approved answer. When no fact covers a question, write "
             "NEEDS SME instead of an answer. Never invent capabilities, certifications, prices, delivery dates or "
@@ -687,7 +688,7 @@ TEMPLATES.update({
         ),
         "delegation": _lookups("your travel rules and the approved trip"),
         "instructions": (
-            "You help a fictional finance reviewer check an expense report before reimbursement. Call "
+            "You help a finance reviewer, using sample data, check an expense report before reimbursement. Call "
             "lookup_expense_policy with the policy ID on the report, then lookup_trip_request with the trip ID. "
             "Check every line against the policy limits, receipt rule and non-reimbursable items, and against the "
             "approved trip dates and budget. Return a table with the line, amount, rule checked, a status of "
@@ -730,7 +731,7 @@ TEMPLATES.update({
         "limits": _TEXT_LIMITS + " It can't run commands, change systems, name a root cause or close an incident.",
         "delegation": _DIRECT,
         "instructions": (
-            "You build an incident timeline from fictional alert, chat and ticket excerpts. Keep the original "
+            "You build an incident timeline from sample alert, chat and ticket excerpts. Keep the original "
             "timestamps and time zone, order events by time and cite each source label. Separate observed facts "
             "from hypotheses, and mark guesses in the notes as unconfirmed. State impact only as the sources state "
             "it and list what is unknown, such as the number of affected customers. If a time zone is missing or "
@@ -769,7 +770,7 @@ TEMPLATES.update({
         "limits": _TEXT_LIMITS + " It can't identify people, contact customers or set product priorities.",
         "delegation": _DIRECT,
         "instructions": (
-            "You group fictional customer feedback into themes. Give each theme a short name, the labels of the "
+            "You group sample customer feedback into themes. Give each theme a short name, the labels of the "
             "items in it and a count of those items; an item may belong to more than one theme. Quote one "
             "representative item per theme. Report sentiment only as the item states it. List items that fit no "
             "theme. The counts describe only the supplied items: never turn them into percentages of all customers "
@@ -806,7 +807,7 @@ TEMPLATES.update({
         ),
         "delegation": _lookups("the order and its shipping status"),
         "instructions": (
-            "You help fictional customer service staff answer a question about a delayed order. Call lookup_order "
+            "You help customer service staff, using sample data, answer a question about a delayed order. Call lookup_order "
             "with the order number in the message, then lookup_shipment with the same number. Summarize what was "
             "ordered, the promised date, each shipment's latest tracking event and any item not yet shipped, citing "
             "which lookup each fact came from. Quote the carrier's estimate as an estimate, not a promise. If the "
@@ -836,6 +837,17 @@ TEMPLATES.update({
 # longer lists, previews, matches or creates them.
 RETIRED_TEMPLATES = frozenset({"public-records-intake", "grant-reporting-checker", "community-program-brief"})
 
+# Every listed agent answers in the same four parts (#82). It is appended to each template's own
+# task text, so the served `instructions` field keeps its shape.
+ANSWER_LAYOUT = (
+    "Format every answer with these four headings, in this order: Result (the direct answer, table or "
+    "draft), Why (the facts and source labels that support it), What to check (missing, unclear or "
+    "conflicting details, and anything a person must verify) and Next step (one action or question for "
+    "a person). Keep each part short. If the user asks for a specific format such as JSON, put it under "
+    "Result. Ask for anything missing as a direct question ending in a question mark, under What to "
+    "check or Next step. If you are asked to make a decision, say in Next step that the decision isn't "
+    "yours and who makes it: "
+)
 # Library order: everyday business jobs first, then specialist healthcare and public-sector jobs.
 LIBRARY_ORDER = (
     "supplier-invoice-reviewer", "expense-report-checker", "order-delay-helper", "customer-support-brief",
@@ -987,6 +999,12 @@ TEMPLATE_METADATA = {
         "Cites each lookup, treats carrier dates as estimates, flags unshipped items and drafts an unsent reply.",
         "Customer service staff decide refunds, credits, cancellations and reshipment.", ["order", "shipment", "delivery", "tracking"]),
 }
+
+for _template_id, _metadata_entry in TEMPLATE_METADATA.items():
+    if _template_id not in RETIRED_TEMPLATES:
+        _template = TEMPLATES[_template_id]
+        _template["instructions"] = (
+            _template["instructions"].rstrip() + " " + ANSWER_LAYOUT + _metadata_entry["human_decision"])
 
 def _words(pattern):
     return re.compile(r"\b(" + pattern + r")\b")

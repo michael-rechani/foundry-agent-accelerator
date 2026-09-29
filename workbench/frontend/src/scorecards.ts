@@ -19,7 +19,7 @@ export type Scorecard = {
   template_id: string
   tested_on: string
   model: string
-  answers_from: 'lab' | 'rerun' | 'mixed'
+  answers_from: 'lab' | 'direct' | 'mixed'
   signed_off: boolean
   summary: {
     cases: number
@@ -89,7 +89,7 @@ function validScorecard(item: unknown): item is Scorecard {
     text(item.template_id) &&
     /^\d{4}-\d{2}-\d{2}$/.test(String(item.tested_on)) &&
     text(item.model) &&
-    ['lab', 'rerun', 'mixed'].includes(String(item.answers_from)) &&
+    ['lab', 'direct', 'mixed'].includes(String(item.answers_from)) &&
     typeof item.signed_off === 'boolean' &&
     Array.isArray(cases) &&
     cases.length > 0 &&

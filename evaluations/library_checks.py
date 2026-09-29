@@ -1,7 +1,7 @@
 """Offline acceptance checks for agent-library templates.
 
-The cases in library-cases.json are fictional. This module validates them against the
-catalog and simulated fixtures, prints their inputs, and scores recorded answers. It never
+The cases in library-cases.json use sample data. This module validates them against the
+catalog and sample fixtures, prints their inputs, and scores recorded answers. It never
 calls a model or the Lab; scoring works on answers you already have.
 """
 from __future__ import annotations
@@ -144,9 +144,9 @@ def validate_cases(data):
         if bool(case.get("use_sample_input")) == bool(case.get("input")):
             errors.append(prefix + "use exactly one of input or use_sample_input")
         text = case_input(case) if case.get("use_sample_input") or case.get("input") else ""
-        # Hand-written inputs must say they are fictional; catalog sample inputs are reviewed sample data.
-        if case.get("input") and "fictional" not in text.lower():
-            errors.append(prefix + "input must say it is fictional")
+        # Hand-written inputs must say they are sample data; catalog sample inputs are reviewed sample data.
+        if case.get("input") and "sample" not in text.lower():
+            errors.append(prefix + "input must say it is sample data")
         if not str(case.get("rubric", "")).strip():
             errors.append(prefix + "rubric is required")
         checks = case.get("checks")

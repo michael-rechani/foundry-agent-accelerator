@@ -171,7 +171,8 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body["schema_version"], 1)
         cards = {card["template_id"]: card for card in body["scorecards"]}
         self.assertIn("supplier-invoice-reviewer", cards)
-        self.assertNotIn("customer-support-brief", cards)
+        self.assertIn("customer-support-brief", cards)
+        self.assertEqual(len(cards), 18)
         for card in cards.values():
             self.assertEqual(card["summary"]["cases"], len(card["cases"]))
             self.assertFalse(card["signed_off"])

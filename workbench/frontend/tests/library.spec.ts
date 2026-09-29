@@ -72,8 +72,16 @@ async function setup(
     hash?: string
     catalogFailure?: boolean
     portal?: boolean
+    withoutResultsFor?: string
   } = {},
 ) {
+  const served = {
+    ...scorecards,
+    scorecards: scorecards.scorecards.filter(
+      (card: { template_id: string }) =>
+        card.template_id !== options.withoutResultsFor,
+    ),
+  }
   const config: Config = {
     title: 'Foundry Agent Lab',
     mode: options.preview ? 'preview' : 'private',
@@ -132,7 +140,7 @@ async function setup(
     }
     if (path === '/api/agent-scorecards') {
       if (state.failScorecards) return respond({ error: 'agents_busy' }, 429)
-      return respond(scorecards)
+      return respond(served)
     }
     if (path === '/api/agents' && method === 'GET')
       return respond({ items: record ? [record] : [], limit: 5 })
@@ -533,7 +541,7 @@ test('take it to Foundry downloads the definition and test requests without crea
 test('an agent without test results still offers its definition', async ({
   page,
 }) => {
-  await setup(page)
+  await setup(page, { withoutResultsFor: support.id })
   await openAgent(page, support.label)
   await page.getByRole('tab', { name: 'Take it to Foundry' }).click()
   const panel = page.getByRole('tabpanel')

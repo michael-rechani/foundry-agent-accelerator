@@ -44,7 +44,7 @@ class RuntimeTests(unittest.TestCase):
                 tools = create_demo_tools(identifier, "lab-demo-fictional")
                 self.assertEqual(len(tools), 2 if identifier in SAMPLE_LOOKUPS else 0)
                 self.assertTrue(all("read" in tool.__doc__.lower() for tool in tools))
-                self.assertTrue(all("SIMULATED" in tool.__doc__ for tool in tools))
+                self.assertTrue(all("SAMPLE DATA" in tool.__doc__ for tool in tools))
 
     def test_every_identifier_in_each_sample_resolves_to_a_simulated_receipt(self):
         for template, calls in SAMPLE_LOOKUPS.items():
@@ -59,7 +59,7 @@ class RuntimeTests(unittest.TestCase):
                     seen.append(result["output"])
                     self.assertEqual((result["status"], result["agent"], result["simulation"]),
                                      ("succeeded", "lab-demo-fictional", True))
-                    self.assertTrue(result["output"].startswith("SIMULATED read-only fixture lookup."))
+                    self.assertTrue(result["output"].startswith("SAMPLE read-only lookup."))
                     self.assertIn(arguments[-1], result["output"])
                     self.assertIn("Example only", result["output"])
                     self.assertEqual(tools[name](*[f"  {item.lower()} " for item in arguments]), tools[name](*arguments))
@@ -71,7 +71,7 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(result["status"], "succeeded")
             self.assertEqual(result["agent"], "lab-demo-fictional")
             self.assertTrue(result["simulation"])
-            self.assertIn("SIMULATED", result["output"])
+            self.assertIn("SAMPLE", result["output"])
             self.assertIn("No external system was contacted or changed", result["output"])
             self.assertIn(identifier, result["output"])
         self.assertIn("SVC-DEMO-ACCESS", json.loads(request("REQ-101"))["output"])
@@ -107,7 +107,7 @@ class RuntimeTests(unittest.TestCase):
         ):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 read_configuration({**config, **values})
-        self.assertIn("SIMULATED", DEMO_POLICY)
+        self.assertIn("SAMPLE DATA", DEMO_POLICY)
         self.assertIn("not an executed action", DEMO_POLICY)
 
     def test_real_sdk_agent_uses_fixed_policy_and_template_tool_set(self):

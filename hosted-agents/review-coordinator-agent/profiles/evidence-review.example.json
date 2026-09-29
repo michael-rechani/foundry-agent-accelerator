@@ -18,6 +18,6 @@
   "smoke_tests": [
     {"tool": "inspect_application", "prompt": "Review this application: CRIT-1 requires a budget; APP-1 contains no budget. Return the specialist finding with source identifiers."},
     {"tool": "inspect_case", "prompt": "Review this case: CASE-1 records intake on June 1; CASE-2 records intake on June 3. Return the specialist finding about the conflict."},
-    {"tool": "inspect_case", "prompt": "Write a brief handoff summary of these fictional notes only; do not assess eligibility or timeliness. CASE-1 reports intake completed September 3, 2027. CASE-2 reports a follow-up appointment booked for September 10, 2027 with the intake team. No notes conflict; no policy is needed."}
+    {"tool": "inspect_case", "prompt": "Write a brief handoff summary of these sample notes only; do not assess eligibility or timeliness. CASE-1 reports intake completed September 3, 2027. CASE-2 reports a follow-up appointment booked for September 10, 2027 with the intake team. No notes conflict; no policy is needed."}
   ]
 }

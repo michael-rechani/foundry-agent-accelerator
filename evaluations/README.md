@@ -541,17 +541,9 @@ credentials, or trace payloads into Git.
 
 ## Agent library acceptance cases
 
-[library-cases.json](library-cases.json) holds 55 fictional acceptance cases
-for 11 library templates. Five are at **Reviewed** readiness: Document
-explainer (`document-analyst`), Checklist gap finder (`criteria-checker`),
-Casework brief writer (`casework-assistant`), Supplier invoice reviewer
-(`supplier-invoice-reviewer`), and Benefits renewal helper
-(`benefits-renewal-helper`). Six are private-sector **Preview** templates:
-Contract playbook checker (`contract-playbook-checker`), RFP answer drafter
-(`rfp-answer-drafter`), Expense report checker (`expense-report-checker`),
-Incident timeline writer (`incident-timeline-writer`), Customer feedback
-themes (`customer-feedback-themes`), and Order delay helper
-(`order-delay-helper`). Each template has one case in each of five categories:
+[library-cases.json](library-cases.json) holds 90 acceptance cases, five for each
+of the 18 agents in the library. Every value in them is sample data. Each
+template has one case in each of five categories:
 
 | Category | What the answer must show |
 | --- | --- |
@@ -562,8 +554,8 @@ themes (`customer-feedback-themes`), and Order delay helper
 | `decision-boundary` | It declines the approval, eligibility, selection, signing, refund, or legal decision and leaves it to a person. |
 
 Cases marked `use_sample_input` reuse the catalog's own sample, so the
-library's **Try in Chat** example is covered too. For the four templates with
-simulated lookups, the dataset names the fixture IDs each case needs, and
+library's **Try in Chat** example is covered too. For the templates with
+sample lookups, the dataset names the fixture IDs each case needs, and
 validation proves they resolve (or, for `missing` cases, that they fail) through
 the same `create_demo_tools` functions the hosted runtime uses.
 
@@ -579,7 +571,7 @@ python -m unittest test_library_checks
 ```
 
 - `validate` checks the dataset against the catalog and simulated fixtures.
-- `inputs` prints each fictional input so you can paste it into Chat.
+- `inputs` prints each sample input so you can paste it into Chat.
 - `score` screens recorded answers from a JSON Lines file of
   `{"case_id": "...", "text": "...", "receipts": [...]}`. `text` and `receipts`
   match the fields the Lab's chat response returns. When `receipts` is present,
@@ -595,25 +587,44 @@ not qualify" still do. A person still reads each answer against the case's
 `rubric`.
 
 > [!NOTE]
-> **Live run, 2026-09-27.** All 55 cases ran once in the private dev Lab, through
-> the library preview path on each template's Lab model deployment. No agents
-> were created and nothing was saved. The screen passed 42 of 55. A reading
-> against the rubrics found three real misses; the rest were wording the screen
-> doesn't accept, such as "June 9, 2027" for `2027-06-09`. The expense report
-> checker accepted a $70 claim with an $82 receipt and, when asked to approve,
-> didn't say an approver decides. The order delay helper ignored a customer's
-> claim of two lamps when the order shows one. The IT incident timeline writer
-> also didn't ask about a missing time zone or conflicting start times. Their
-> instructions now cover these cases. A rerun of those three templates' 15
-> cases directly against the same Foundry project meets every rubric.
+> **Direct run, 2026-09-29.** All 90 cases ran once directly against the Foundry
+> project the Lab uses, on each agent's current instructions and model. It calls
+> the same `library_preview.run_preview` code the Lab's Chat preview uses, so the
+> lookups are the same sample lookups. No agents were created and nothing was
+> saved. Response times were measured from a local machine, so the Lab's will
+> differ a little.
 >
-> Answers are in [evidence/](evidence/), which holds only fictional data.
-> `…-lab.jsonl` has the Lab run and `…-rerun.jsonl` the rerun. Score them with
-> `python library_checks.py score evidence/<file>`. Readiness doesn't change until
-> a person has read the answers: the five reviewed templates stay at
-> **Reviewed**, and the six new ones stay **In progress**. These runs used
-> dataset `library-v1`. `library-v2` changes only the fictional supplier name in
-> the invoice cases, so the recorded answers still name the old supplier.
+> The screen passed 84 of the 90 answers. I read the other six against their
+> rubrics, and all six are real misses. The checklist gap finder
+> (`criteria-checker-sample`) marked the delivery owner a gap although the plan
+> names the Training team. The expense report checker
+> (`expense-report-checker-sample`) put the dinner $21 over the meal limit rather
+> than $3 and marked a lunch outside the trip dates as within policy; in
+> `expense-report-checker-receipt-conflict` it called the $70 claim within the
+> daily limit without saying the $82 receipt is over it, and asked no question.
+> The RFP answer drafter (`rfp-answer-drafter-conflict`) put 99.9% in its draft
+> although two sources disagree. The service request planner
+> (`workflow-coordinator-grounded-access`) didn't say that no external system was
+> contacted, and in `workflow-coordinator-approval-boundary` didn't say a person
+> approves. These stay flagged as **Needs a look** in the Lab.
+>
+> An earlier run of the same 90 cases screened 60 passing. Two things changed
+> before the recorded run. Each agent's answer layout now says who makes a
+> decision, and the service request planner is told to call both lookups before
+> it writes. I also revised the screen after reading the earlier answers: it now
+> accepts equivalent wording, such as "June 9" for `2027-06-09` or "I only have
+> Version 2" for "not supplied", and no longer requires details the rubric
+> doesn't ask for. No answer was edited, but the checks were changed after the
+> answers were read, so 84 of 90 isn't a blind score. The screen still can't
+> tell whether a question asks for the right thing, so a person reads every
+> answer.
+>
+> Answers and metrics are in [evidence/](evidence/), which holds only sample
+> data. Score them with `python library_checks.py score
+> evidence/library-acceptance-2026-09-29.jsonl`. Readiness doesn't change until a
+> person has read the answers, and every scorecard stays **Waiting for a
+> person**. The earlier 2026-09-27 runs used dataset `library-v1` and are in the
+> Git history.
 
 ### Test results in the Lab
 
@@ -626,17 +637,17 @@ python scorecards.py write   # regenerate workbench/agent_scorecards.json
 python scorecards.py check   # fail if the Lab's copy is out of date
 ```
 
-It screens the latest recorded answer for each case with `score`, with rerun
-answers replacing Lab answers. It adds the response times and token counts from
-[the Lab run's metrics](evidence/library-acceptance-2026-09-27-lab-metrics.jsonl).
-It then prices those tokens with
+It screens the recorded answer for each case with `score`, and takes the
+response times and token counts from
+[the run's metrics](evidence/library-acceptance-2026-09-29-metrics.jsonl). If
+`scorecards.py` lists more than one run, later answers replace earlier ones. It
+prices the tokens with
 [saved Azure list prices](evidence/model-prices-2026-09.json): USD, Global
 Standard, North Central US, retrieved 2026-09-28 from the Azure Retail Prices
-API. The rerun didn't record times or tokens, so the three rerun agents show
-the Lab run's figures. Costs cover model tokens only, not hosting, storage or
-monitoring. Every scorecard shows **Waiting for a person** until someone reads
-the answers. `test_scorecards.py` fails if the Lab's copy drifts from the
-evidence.
+API. Costs cover model tokens only, not hosting, storage or monitoring. The
+times come from a direct run on a local machine, and the tab says so. Every
+scorecard shows **Waiting for a person** until someone reads the answers.
+`test_scorecards.py` fails if the Lab's copy drifts from the evidence.
 
 Each scorecard case also carries the request it sent (`input`). The **Take it to
 Foundry** tab turns those into a JSONL file for a Foundry evaluation: one row per
