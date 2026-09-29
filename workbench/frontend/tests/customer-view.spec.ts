@@ -220,6 +220,11 @@ test('test results read plainly and keep case details under the hood', async ({
     .click()
   await page.getByRole('tab', { name: 'Test results' }).click()
   const panel = page.getByRole('tabpanel')
+  expect(
+    await page
+      .getByRole('tablist', { name: 'Agent details' })
+      .evaluate((list) => list.scrollWidth <= list.clientWidth),
+  ).toBe(true)
   await expect(panel.getByRole('heading', { level: 2 })).toHaveText(
     'How it did on its test cases',
   )
