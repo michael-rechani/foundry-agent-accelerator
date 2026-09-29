@@ -26,7 +26,17 @@ const invoice = (catalog.templates as LibraryTemplate[]).find(
 // Start without the stored switch, as a first-time visitor would.
 test.use({ storageState: { cookies: [], origins: [] } })
 
-async function setup(page: Page, overrides: Partial<Config> = {}) {
+async function setup(
+  page: Page,
+  overrides: Partial<Config> = {},
+  withoutResultsFor?: string,
+) {
+  const served = {
+    ...scorecards,
+    scorecards: scorecards.scorecards.filter(
+      (card: { template_id: string }) => card.template_id !== withoutResultsFor,
+    ),
+  }
   const config: Config = {
     title: 'Foundry Agent Lab',
     mode: 'private',
@@ -46,8 +56,7 @@ async function setup(page: Page, overrides: Partial<Config> = {}) {
     const path = new URL(route.request().url()).pathname
     if (path === '/api/config') return route.fulfill({ json: config })
     if (path === '/api/agent-templates') return route.fulfill({ json: catalog })
-    if (path === '/api/agent-scorecards')
-      return route.fulfill({ json: scorecards })
+    if (path === '/api/agent-scorecards') return route.fulfill({ json: served })
     return route.fulfill({ json: { error: 'not_found' }, status: 404 })
   })
   await page.goto('/')
@@ -206,12 +215,14 @@ test('an agent page leads with plain actions and keeps setup details under the h
 test('test results read plainly and keep case details under the hood', async ({
   page,
 }) => {
-  const benefits = (catalog.templates as LibraryTemplate[]).find(
-    (item) => item.id === 'benefits-renewal-helper',
-  )!
+  // Pick an agent with at least one answer that needs a look, so the notes show.
   const card = scorecards.scorecards.find(
-    (item: { template_id: string }) => item.template_id === benefits.id,
+    (item: { cases: { passed: boolean }[] }) =>
+      item.cases.some((entry) => !entry.passed),
   )
+  const benefits = (catalog.templates as LibraryTemplate[]).find(
+    (item) => item.id === card.template_id,
+  )!
   const passed = card.summary.passed
   await setup(page)
   await page
@@ -228,7 +239,7 @@ test('test results read plainly and keep case details under the hood', async ({
   await expect(panel.getByRole('heading', { level: 2 })).toHaveText(
     'How it did on its test cases',
   )
-  await expect(panel).toContainText('September 27, 2026')
+  await expect(panel).toContainText('September 29, 2026')
   await expect(panel.locator('.scorecard-facts > div')).toHaveText([
     new RegExp(`Answer checks\\s*${passed} of 5 passed`),
     /Typical response\s*\d+\.\d s/,
@@ -260,7 +271,7 @@ test('test results read plainly and keep case details under the hood', async ({
 test('agents without a recorded run say so on Test results', async ({
   page,
 }) => {
-  await setup(page)
+  await setup(page, {}, support.id)
   await page.locator('.library-card').filter({ hasText: support.label }).click()
   await page.getByRole('tab', { name: 'Test results' }).click()
   await expect(page.getByRole('tabpanel')).toContainText('No test results yet')

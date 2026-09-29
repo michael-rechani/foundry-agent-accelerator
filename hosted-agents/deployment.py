@@ -112,7 +112,7 @@ def create_package(source_directory: Path, destination: Path) -> None:
 
 
 KNOWLEDGE_CHECK_PROMPT = (
-    "Call search_policy_guidance exactly once to look up fictional guidance "
+    "Call search_policy_guidance exactly once to look up sample guidance "
     "about missing evidence in a synthetic case, then summarize what was "
     "retrieved with source_id citations or state that nothing matched. Do not "
     "make an eligibility decision."

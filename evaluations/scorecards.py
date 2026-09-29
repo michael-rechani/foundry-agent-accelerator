@@ -20,15 +20,13 @@ from library_checks import CASES_PATH, case_input, load_cases, score
 HERE = Path(__file__).resolve().parent
 EVIDENCE = HERE / "evidence"
 OUTPUT = HERE.parent / "workbench" / "agent_scorecards.json"
-TESTED_ON = "2026-09-27"
-ANSWERS_DATASET = "library-v1"
-# Later runs replace earlier answers for the same case. Response times and tokens come only
-# from the Lab run; the rerun called Foundry directly and didn't record them.
-RUNS = (
-    ("lab", EVIDENCE / "library-acceptance-2026-09-27-lab.jsonl"),
-    ("rerun", EVIDENCE / "library-acceptance-2026-09-27-rerun.jsonl"),
-)
-METRICS = EVIDENCE / "library-acceptance-2026-09-27-lab-metrics.jsonl"
+TESTED_ON = "2026-09-29"
+ANSWERS_DATASET = "library-v3"
+# Later runs replace earlier answers for the same case. The direct run sent each case with the
+# template's current instructions straight to the Lab's Foundry project and timed it from the
+# machine that ran it, so its times can differ slightly from the live Lab.
+RUNS = (("direct", EVIDENCE / "library-acceptance-2026-09-29.jsonl"),)
+METRICS = EVIDENCE / "library-acceptance-2026-09-29-metrics.jsonl"
 PRICES = EVIDENCE / "model-prices-2026-09.json"
 
 
@@ -85,7 +83,7 @@ def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PR
 
     for card in scorecards.values():
         runs_used = card["answers_from"]
-        card["answers_from"] = "rerun" if runs_used == {"rerun"} else "lab" if runs_used == {"lab"} else "mixed"
+        card["answers_from"] = next(iter(runs_used)) if len(runs_used) == 1 else "mixed"
         items = card["cases"]
         card["summary"] = {
             "cases": len(items),

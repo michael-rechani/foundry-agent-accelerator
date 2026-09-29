@@ -202,7 +202,7 @@ _SHIPMENTS = {
 def _lookup(records, identifier):
     key = identifier.strip().upper() if isinstance(identifier, str) else None
     if key not in records:
-        raise ValueError("Unknown fictional demo identifier; use an identifier from the supplied example")
+        raise ValueError("Unknown sample identifier; use an identifier from the supplied example")
     return deepcopy(records[key])
 
 
@@ -215,66 +215,66 @@ def create_demo_tools(template_id, agent_name):
     def receipt(record):
         return json.dumps({
             "status": "succeeded", "agent": agent_name, "simulation": True,
-            "output": "SIMULATED read-only fixture lookup. No external system was contacted or changed.\n"
+            "output": "SAMPLE read-only lookup. No external system was contacted or changed.\n"
                       + json.dumps(record, sort_keys=True),
         })
 
     def lookup_demo_request(request_id: str) -> str:
-        """Read a fixed fictional request by ID. SIMULATED, read-only; never opens or updates a ticket."""
+        """Read a fixed sample request by ID. SAMPLE DATA, read-only; never opens or updates a ticket."""
         return receipt(_lookup(_REQUESTS, request_id))
 
     def lookup_demo_service(service_id: str) -> str:
-        """Read a fixed fictional service by ID. SIMULATED, read-only; no connected systems or approval actions."""
+        """Read a fixed sample service by ID. SAMPLE DATA, read-only; no connected systems or approval actions."""
         return receipt(_lookup(_SERVICES, service_id))
 
     def lookup_plan_benefits(plan_id: str) -> str:
-        """Read a fixed fictional health plan's benefits and billing rules by plan ID. SIMULATED, read-only; never contacts an insurer."""
+        """Read a fixed sample health plan's benefits and billing rules by plan ID. SAMPLE DATA, read-only; never contacts an insurer."""
         return receipt(_lookup(_PLANS, plan_id))
 
     def lookup_usual_price(service_code: str) -> str:
-        """Read the fictional plan's usual allowed price for one service code. SIMULATED, read-only; not a real price list."""
+        """Read the sample plan's usual allowed price for one service code. SAMPLE DATA, read-only; not a real price list."""
         return receipt(_lookup(_USUAL_PRICES, service_code))
 
     def lookup_preapproval_rules(plan_id: str, service_code: str) -> str:
-        """Read a fixed fictional insurer's pre-approval document list for a plan ID and service code. SIMULATED, read-only; never submits a request."""
+        """Read a fixed sample insurer's pre-approval document list for a plan ID and service code. SAMPLE DATA, read-only; never submits a request."""
         if not isinstance(plan_id, str) or not isinstance(service_code, str):
-            raise ValueError("Unknown fictional demo identifier; use an identifier from the supplied example")
+            raise ValueError("Unknown sample identifier; use an identifier from the supplied example")
         return receipt(_lookup(_PREAPPROVAL_RULES, plan_id.strip() + "/" + service_code.strip()))
 
     def lookup_facility(facility_id: str) -> str:
-        """Read a fixed fictional facility's network status by facility ID. SIMULATED, read-only; no external directory."""
+        """Read a fixed sample facility's network status by facility ID. SAMPLE DATA, read-only; no external directory."""
         return receipt(_lookup(_FACILITIES, facility_id))
 
     def lookup_renewal_rules(program_id: str) -> str:
-        """Read a fixed fictional benefits program's renewal proof rules by program ID. SIMULATED, read-only; never decides eligibility."""
+        """Read a fixed sample benefits program's renewal proof rules by program ID. SAMPLE DATA, read-only; never decides eligibility."""
         return receipt(_lookup(_RENEWAL_RULES, program_id))
 
     def lookup_documents_on_file(household_id: str) -> str:
-        """Read which fictional proofs a household already has on file by household ID. SIMULATED, read-only; never changes a record."""
+        """Read which sample proofs a household already has on file by household ID. SAMPLE DATA, read-only; never changes a record."""
         return receipt(_lookup(_ON_FILE, household_id))
 
     def lookup_purchase_order(po_number: str) -> str:
-        """Read a fixed fictional purchase order by PO number. SIMULATED, read-only; never changes an order."""
+        """Read a fixed sample purchase order by PO number. SAMPLE DATA, read-only; never changes an order."""
         return receipt(_lookup(_PURCHASE_ORDERS, po_number))
 
     def lookup_delivery_record(po_number: str) -> str:
-        """Read what the fictional buyer recorded as delivered for a PO number. SIMULATED, read-only; never changes a record."""
+        """Read what the sample buyer recorded as delivered for a PO number. SAMPLE DATA, read-only; never changes a record."""
         return receipt(_lookup(_DELIVERIES, po_number))
 
     def lookup_expense_policy(policy_id: str) -> str:
-        """Read fixed fictional travel and expense rules by policy ID. SIMULATED, read-only; never approves a claim."""
+        """Read fixed sample travel and expense rules by policy ID. SAMPLE DATA, read-only; never approves a claim."""
         return receipt(_lookup(_EXPENSE_POLICIES, policy_id))
 
     def lookup_trip_request(trip_id: str) -> str:
-        """Read a fixed fictional approved trip request by trip ID. SIMULATED, read-only; never changes a record."""
+        """Read a fixed sample approved trip request by trip ID. SAMPLE DATA, read-only; never changes a record."""
         return receipt(_lookup(_TRIPS, trip_id))
 
     def lookup_order(order_id: str) -> str:
-        """Read a fixed fictional customer order by order ID. SIMULATED, read-only; never refunds or changes an order."""
+        """Read a fixed sample customer order by order ID. SAMPLE DATA, read-only; never refunds or changes an order."""
         return receipt(_lookup(_ORDERS, order_id))
 
     def lookup_shipment(order_id: str) -> str:
-        """Read fixed fictional shipment tracking for an order ID. SIMULATED, read-only; never contacts a carrier."""
+        """Read fixed sample shipment tracking for an order ID. SAMPLE DATA, read-only; never contacts a carrier."""
         return receipt(_lookup(_SHIPMENTS, order_id))
 
     return {

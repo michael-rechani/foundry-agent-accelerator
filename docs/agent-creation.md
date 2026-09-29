@@ -234,12 +234,18 @@ definitions. Current tool modes are only `Text only` and `Sample lookups`;
 neither means a customer system is connected. Cost and latency are relative
 model-profile hints, not prices or performance guarantees.
 
+Every listed agent's instructions end with the same answer layout: **Result**,
+**Why**, **What to check** and **Next step**, then who makes any decision the
+agent is asked to make. The layout is appended in `agent_templates.py`, so the
+served `instructions` field keeps its shape.
+
 `GET /api/agent-scorecards` serves each template's recorded test results
 (`schema_version: 1`), kept separate so the catalog response stays unchanged.
 The file behind it, `workbench/agent_scorecards.json`, is generated offline by
 [`evaluations/scorecards.py`](../evaluations/scorecards.py) from recorded
 acceptance answers, response times and token counts. The endpoint never calls a
-model or storage. Templates without a recorded run have no scorecard. Each case
+model or storage. All 18 listed templates have a scorecard; a template without a
+recorded run would show no results. Each case
 includes the request that was sent, which the library's **Take it to Foundry**
 tab turns into a downloadable evaluation file.
 

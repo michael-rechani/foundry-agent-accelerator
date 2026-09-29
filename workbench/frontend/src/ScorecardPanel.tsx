@@ -18,6 +18,13 @@ import {
 } from './scorecards'
 import { formatTokens } from './token-usage'
 
+const ANSWER_SOURCES = {
+  lab: 'Answers were recorded in the Lab.',
+  direct:
+    'Answers, response times and token counts were recorded by running the agent’s current instructions against the Lab’s Foundry project, so times can differ slightly from the live Lab.',
+  mixed: 'Answers were recorded in more than one run.',
+}
+
 export function ScorecardPanel({
   templateId,
   state,
@@ -161,15 +168,13 @@ export function ScorecardPanel({
       </p>
       <p className="library-muted hood-only">
         <CalendarCheck size={13} aria-hidden="true" /> Model {card.model}.{' '}
-        {card.answers_from === 'lab'
-          ? 'Answers were recorded in the Lab.'
-          : 'Answers come from a rerun after its instructions were updated; response times and token counts are from the earlier Lab run.'}{' '}
-        Answers were recorded with dataset {scorecards.answers_dataset} and
-        checked with {scorecards.checks_dataset} (
-        <code>evaluations/library-cases.json</code>). Costs count model tokens
-        only, at {prices.currency} list prices for {prices.deployment_type} in{' '}
-        {prices.region}, retrieved {formatDate(prices.retrieved_on)}. Hosting,
-        storage and monitoring aren&apos;t included.
+        {ANSWER_SOURCES[card.answers_from]} Answers were recorded with dataset{' '}
+        {scorecards.answers_dataset} and checked with{' '}
+        {scorecards.checks_dataset} (<code>evaluations/library-cases.json</code>
+        ). Costs count model tokens only, at {prices.currency} list prices for{' '}
+        {prices.deployment_type} in {prices.region}, retrieved{' '}
+        {formatDate(prices.retrieved_on)}. Hosting, storage and monitoring
+        aren&apos;t included.
       </p>
     </section>
   )

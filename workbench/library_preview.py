@@ -78,7 +78,7 @@ def run_tool(functions, call):
     if (function is None or not isinstance(arguments, dict)
             or set(arguments) != set(inspect.signature(function).parameters)
             or any(not isinstance(value, str) for value in arguments.values())):
-        return json.dumps({"status": "failed", "error": "Invalid simulated lookup call"})
+        return json.dumps({"status": "failed", "error": "Invalid sample lookup call"})
     try:
         return function(**arguments)
     except ValueError as problem:
