@@ -6,10 +6,9 @@ import {
   MessageSquare,
 } from 'lucide-react'
 
-import { benchmarks, percentile, type Measurement } from './performance-stats'
+import { percentile, type Measurement } from './performance-stats'
 import { FoundryLink } from './FoundryLink'
 import { TokenCost } from './TokenCost'
-import { formatTokens } from './token-usage'
 
 const seconds = (value: number) => `${(value / 1000).toFixed(1)}s`
 
@@ -35,7 +34,6 @@ export function PerformanceView({
     completed.map((item) => item.duration),
     0.9,
   )
-  const rows = benchmarks(measurements)
   return (
     <main className="secondary-view">
       <div className="section-heading">
@@ -84,65 +82,6 @@ export function PerformanceView({
           </strong>
         </div>
       </div>
-      <h2 className="request-heading" id="benchmark-heading">
-        Benchmark by agent
-      </h2>
-      {rows.length ? (
-        <div className="request-table-wrap">
-          <table className="request-table" aria-labelledby="benchmark-heading">
-            <thead>
-              <tr>
-                <th scope="col">Agent</th>
-                <th scope="col">Requests</th>
-                <th scope="col">Median</th>
-                <th scope="col">90th percentile</th>
-                <th scope="col">Slowest</th>
-                <th scope="col">Unsuccessful</th>
-                <th scope="col">Avg tokens</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.agentId}>
-                  <th scope="row">
-                    {row.agent}
-                    {rows.some(
-                      (other) =>
-                        other.agent === row.agent &&
-                        other.agentId !== row.agentId,
-                    ) && <small className="table-id"> {row.agentId}</small>}
-                  </th>
-                  <td>{row.requests}</td>
-                  <td>{row.median === null ? '—' : seconds(row.median)}</td>
-                  <td>{row.p90 === null ? '—' : seconds(row.p90)}</td>
-                  <td>{row.slowest === null ? '—' : seconds(row.slowest)}</td>
-                  <td>{row.unsuccessful}</td>
-                  <td>
-                    {row.averageTokens === null
-                      ? 'Not reported'
-                      : formatTokens(row.averageTokens)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="table-note">
-            Compare agents with the same sample input for a fair benchmark.
-            Small samples vary widely. For repeatable quality checks, run the
-            acceptance cases in <code>evaluations/</code>.
-          </p>
-        </div>
-      ) : (
-        <div className="metrics-empty">
-          <Activity size={30} strokeWidth={1.2} />
-          <h2>No live requests yet</h2>
-          <span>
-            {preview
-              ? 'Local preview makes no model calls, so nothing is measured.'
-              : 'Send a message in Chat to start measuring.'}
-          </span>
-        </div>
-      )}
       <TokenCost
         usages={measurements
           .filter((item) => item.outcome === 'completed')
@@ -180,8 +119,21 @@ export function PerformanceView({
           </button>
         </div>
       ) : (
-        <p className="table-note">Nothing measured yet.</p>
+        <div className="metrics-empty">
+          <Activity size={30} strokeWidth={1.2} />
+          <h2>No live requests yet</h2>
+          <span>
+            {preview
+              ? 'Local preview makes no model calls, so nothing is measured.'
+              : 'Send a message in Chat to start measuring.'}
+          </span>
+        </div>
       )}
+      <p className="table-note">
+        To compare agents, open one in the Agent library and choose{' '}
+        <strong>Test results</strong>. It shows how the agent did on its
+        recorded test cases, with typical response time and model cost.
+      </p>
     </main>
   )
 }

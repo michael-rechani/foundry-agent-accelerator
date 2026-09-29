@@ -615,6 +615,29 @@ not qualify" still do. A person still reads each answer against the case's
 > dataset `library-v1`. `library-v2` changes only the fictional supplier name in
 > the invoice cases, so the recorded answers still name the old supplier.
 
+### Test results in the Lab
+
+Each library agent's **Test results** tab comes from
+[scorecards.py](scorecards.py). It's offline, like `library_checks.py`:
+
+```powershell
+cd evaluations
+python scorecards.py write   # regenerate workbench/agent_scorecards.json
+python scorecards.py check   # fail if the Lab's copy is out of date
+```
+
+It screens the latest recorded answer for each case with `score`, with rerun
+answers replacing Lab answers. It adds the response times and token counts from
+[the Lab run's metrics](evidence/library-acceptance-2026-09-27-lab-metrics.jsonl).
+It then prices those tokens with
+[saved Azure list prices](evidence/model-prices-2026-09.json): USD, Global
+Standard, North Central US, retrieved 2026-09-28 from the Azure Retail Prices
+API. The rerun didn't record times or tokens, so the three rerun agents show
+the Lab run's figures. Costs cover model tokens only, not hosting, storage or
+monitoring. Every scorecard shows **Waiting for a person** until someone reads
+the answers. `test_scorecards.py` fails if the Lab's copy drifts from the
+evidence.
+
 ## Related content
 
 - [Hosted agents](../hosted-agents/README.md)

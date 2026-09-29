@@ -1000,9 +1000,6 @@ test('replies show reported tokens and Performance estimates cost from user rate
     /Output tokens\s*300/,
     /Estimated cost\s*Add your rates/,
   ])
-  await expect(
-    page.getByRole('table', { name: 'Benchmark by agent' }),
-  ).toContainText('1,500')
   await cost.getByLabel('Input rate per 1M tokens').fill('2')
   await cost.getByLabel('Output rate per 1M tokens').fill('8')
   await cost.getByRole('button', { name: 'Use rates' }).click()

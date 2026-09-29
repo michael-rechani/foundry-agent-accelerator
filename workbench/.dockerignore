@@ -11,6 +11,8 @@
 !agent_publisher.py
 !agent_package.py
 !agent_templates.py
+!agent_scorecards.py
+!agent_scorecards.json
 !library_preview.py
 !agent_runtime/
 agent_runtime/*

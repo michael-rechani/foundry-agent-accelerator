@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from pydantic import Field, ValidationError, field_validator
 
 from agent_publisher import FoundryPublisher, PublicationError, resource_name, runtime_package
+from agent_scorecards import SCORECARDS
 from agent_templates import (
     MODEL_PROFILES, TEMPLATES, TemplateRequiredError, catalog_facets, is_listed, list_templates,
     model_profile, prepare_draft,
@@ -143,6 +144,7 @@ class AgentCreations:
         self.recent = deque()
         self.router = APIRouter()
         self.router.add_api_route("/api/agent-templates", self.templates, methods=["GET"])
+        self.router.add_api_route("/api/agent-scorecards", self.scorecards, methods=["GET"])
         self.router.add_api_route("/api/agent-drafts", self.draft, methods=["POST"])
         self.router.add_api_route("/api/agents", self.collection, methods=["GET", "POST"])
         self.router.add_api_route("/api/agents/{identifier}", self.detail, methods=["GET", "DELETE"])
@@ -219,6 +221,10 @@ class AgentCreations:
             "facets": catalog_facets(),
             "draft_mode": "template",
         }
+
+    async def scorecards(self, request: Request):
+        rejection = self.admit(request)
+        return rejection if rejection is not None else SCORECARDS
 
     async def draft(self, request: Request):
         rejection = self.admit(request)

@@ -319,6 +319,7 @@ test('details state limits, human decisions and never claim a recorded answer', 
   await expect(tabs.getByRole('tab')).toHaveText([
     'Overview',
     'Try it',
+    'Test results',
     'Take it to Foundry',
   ])
   await expect(tabs.getByRole('tab', { name: 'Overview' })).toHaveAttribute(
@@ -377,7 +378,7 @@ test('creating from the library preselects the template without preparing or pub
   expect(state.creations).toBe(0)
 })
 
-test('a created agent opens in Chat as a draft and its request is logged and benchmarked', async ({
+test('a created agent opens in Chat as a draft and its request is logged and measured', async ({
   page,
   context,
 }, testInfo) => {
@@ -425,8 +426,11 @@ test('a created agent opens in Chat as a draft and its request is logged and ben
     .click()
   await expect(page.locator('.metric-strip-4 > div')).toHaveCount(4)
   await expect(
-    page.getByRole('table', { name: 'Benchmark by agent' }),
+    page.getByRole('table', { name: 'Recent requests' }),
   ).toContainText('Support handoff helper')
+  await expect(page.locator('.table-note').last()).toContainText(
+    'choose Test results',
+  )
   await illustrativeScreenshot(page, testInfo, 'performance.png')
 })
 

@@ -27,6 +27,8 @@ import {
   type Selection,
 } from './library-catalog'
 import type { LibraryCatalogState } from './library-catalog-client'
+import { ScorecardPanel } from './ScorecardPanel'
+import { useScorecards, type ScorecardsState } from './scorecards-client'
 import type { Agent, CreationCapability } from './workspace-config'
 import './library.css'
 
@@ -44,7 +46,7 @@ const tones: Record<string, string> = {
   simulated: 'info',
   'connected-required': 'caution',
 }
-type Tab = 'overview' | 'test' | 'export'
+type Tab = 'overview' | 'test' | 'results' | 'export'
 
 export type ReadyAgent = { agent: Agent; recordId: string }
 
@@ -85,6 +87,7 @@ export function AgentLibrary({
     [catalog, query, selection],
   )
   const open = catalog?.templates.find((item) => item.id === openId)
+  const scorecards = useScorecards(active && !!open && tab === 'results')
   const previewsOn = !!catalog?.templates.some((item) => previewFor(item.id))
   const filtered = !!query.trim() || facetKeys.some((key) => selection[key])
 
@@ -126,6 +129,7 @@ export function AgentLibrary({
         <LibraryDetail
           template={open}
           tab={tab}
+          scorecards={scorecards}
           capability={capability}
           ready={readyAgentFor(open.id)}
           preview={previewFor(open.id)}
@@ -323,6 +327,7 @@ function LibraryCard({
 function LibraryDetail({
   template,
   tab,
+  scorecards,
   capability,
   ready,
   preview,
@@ -336,6 +341,7 @@ function LibraryDetail({
 }: {
   template: LibraryTemplate
   tab: Tab
+  scorecards: ScorecardsState
   capability?: CreationCapability
   ready?: ReadyAgent
   preview?: Agent
@@ -350,6 +356,7 @@ function LibraryDetail({
   const tabs: [Tab, string][] = [
     ['overview', 'Overview'],
     ['test', 'Try it'],
+    ['results', 'Test results'],
     ['export', 'Take it to Foundry'],
   ]
   const runnable = template.tool_mode.id !== 'connected-required'
@@ -437,10 +444,8 @@ function LibraryDetail({
         <div className="library-progress" role="note">
           <Construction size={18} aria-hidden="true" />
           <p>
-            <strong>In progress. </strong>
-            It passes the automated checks, but a person hasn&apos;t signed off
-            on its live answers yet. Try it with sample data; answers may
-            change.
+            <strong>In progress. </strong>A person hasn&apos;t signed off on its
+            test answers yet. Try it with sample data; answers may change.
           </p>
         </div>
       )}
@@ -617,7 +622,7 @@ function LibraryDetail({
               </div>
               <p className="library-muted">
                 {preview
-                  ? 'Opens Chat with this example ready to send. Nothing happens until you press Send, which calls the model and has a small cost. Preview chats aren?t saved.'
+                  ? 'Opens Chat with this example ready to send. Nothing happens until you press Send, which calls the model and has a small cost. Preview chats aren\u2019t saved.'
                   : ready
                     ? `Uses ${ready.agent.label}. Opens Chat with this example ready to send. Nothing happens until you press Send, which calls the model and has a small cost.`
                     : creationNote}
@@ -644,6 +649,9 @@ function LibraryDetail({
               </p>
             </section>
           </div>
+        )}
+        {tab === 'results' && (
+          <ScorecardPanel templateId={template.id} state={scorecards} />
         )}
         {tab === 'export' && (
           <div className="library-columns">

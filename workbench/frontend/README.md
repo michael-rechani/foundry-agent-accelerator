@@ -61,21 +61,22 @@ The view components split out of them are presentational and receive values
 and callbacks as props. `ExploreDemos.tsx` additionally owns its local story
 selection and clipboard feedback; it never invokes an agent or writes records.
 
-| File                                                         | Role                                                                                                                                                                           |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ChatSidebar.tsx`, `ChatTopbar.tsx`                          | Render the view navigation and the Chat header, agent picker, and save/export actions.                                                                                         |
-| `ChatWelcome.tsx`, `ChatComposer.tsx`                        | Render the new-chat prompts and the message composer with its conversation limits.                                                                                             |
-| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx` | Render the **Shared history**, **Ready to chat**, and **Performance** views.                                                                                                   |
-| `AgentLibrary.tsx`, `library-catalog.ts`, `library.css`      | Render **Browse**. `library-catalog.ts` strictly validates `/api/agent-templates` (`schema_version` 1) and filters with live facet counts.                                     |
-| `RequestLog.tsx`, `performance-stats.ts`                     | Render the **Request log** and compute per-agent median, 90th-percentile, slowest timings, and average tokens.                                                                 |
-| `TokenCost.tsx`, `token-usage.ts`                            | Render **Token usage and cost** in Performance. Parse reported token counts, total them without treating missing counts as zero, and estimate cost from rates the user enters. |
-| `history-client.ts`                                          | Handles bounded history requests.                                                                                                                                              |
-| `request.ts`                                                 | Handles transport-independent cancellation.                                                                                                                                    |
-| `workspace-config.ts`                                        | Validates public configuration and handles bootstrap timeouts and retry.                                                                                                       |
-| `ContinueDialog.tsx`                                         | Previews carry-over context before resetting the conversation. It never invokes an agent.                                                                                      |
-| `AgentGuide.tsx`                                             | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Ready to chat** cards.                                           |
-| `theme.ts`, `ThemePicker.tsx`                                | Load, validate, save, and apply the **Appearance** choice, and render its header menu.                                                                                         |
-| `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`      | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement.                                  |
+| File                                                          | Role                                                                                                                                                                           |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ChatSidebar.tsx`, `ChatTopbar.tsx`                           | Render the view navigation and the Chat header, agent picker, and save/export actions.                                                                                         |
+| `ChatWelcome.tsx`, `ChatComposer.tsx`                         | Render the new-chat prompts and the message composer with its conversation limits.                                                                                             |
+| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx`  | Render the **Shared history**, **Ready to chat**, and **Performance** views.                                                                                                   |
+| `AgentLibrary.tsx`, `library-catalog.ts`, `library.css`       | Render **Browse**. `library-catalog.ts` strictly validates `/api/agent-templates` (`schema_version` 1) and filters with live facet counts.                                     |
+| `ScorecardPanel.tsx`, `scorecards.ts`, `scorecards-client.ts` | Render an agent's **Test results** tab. `scorecards.ts` strictly validates `/api/agent-scorecards` (`schema_version` 1) and formats times and costs in plain language.         |
+| `RequestLog.tsx`, `performance-stats.ts`                      | Render the **Request log** and compute the 90th-percentile response time for **Performance**.                                                                                  |
+| `TokenCost.tsx`, `token-usage.ts`                             | Render **Token usage and cost** in Performance. Parse reported token counts, total them without treating missing counts as zero, and estimate cost from rates the user enters. |
+| `history-client.ts`                                           | Handles bounded history requests.                                                                                                                                              |
+| `request.ts`                                                  | Handles transport-independent cancellation.                                                                                                                                    |
+| `workspace-config.ts`                                         | Validates public configuration and handles bootstrap timeouts and retry.                                                                                                       |
+| `ContinueDialog.tsx`                                          | Previews carry-over context before resetting the conversation. It never invokes an agent.                                                                                      |
+| `AgentGuide.tsx`                                              | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Ready to chat** cards.                                           |
+| `theme.ts`, `ThemePicker.tsx`                                 | Load, validate, save, and apply the **Appearance** choice, and render its header menu.                                                                                         |
+| `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`       | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement.                                  |
 
 Keep purpose, input, output, how-it-works, and limits in the registry, not
 hard-coded by agent ID in React. **Developer setup details** distinguishes the
@@ -142,10 +143,13 @@ production assets first.
 catalog. It covers the four-section navigation and hash links, filters with
 live counts, search and the empty state, detail tabs and honest labels, template
 preselection without preparing or publishing, opening a ready agent in Chat as
-an unsent draft, the request log reference, the per-agent benchmark, record
-download for export, preview and retry states, and light and dark contrast.
-`unit/library-catalog.test.ts` and `unit/performance-stats.test.ts` cover the
-pure catalog and timing logic.
+an unsent draft, the request log reference, recent requests on Performance,
+record download for export, preview and retry states, and light and dark contrast.
+`tests/customer-view.spec.ts` routes `/api/agent-scorecards` to the served
+`workbench/agent_scorecards.json` and covers the **Test results** tab.
+`unit/library-catalog.test.ts`, `unit/scorecards.test.ts` and
+`unit/performance-stats.test.ts` cover the pure catalog, scorecard and timing
+logic.
 
 ## Showcase and presenter coverage
 

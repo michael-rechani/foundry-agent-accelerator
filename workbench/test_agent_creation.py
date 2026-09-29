@@ -164,6 +164,23 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.publisher.calls, [])
         self.gateway.review.assert_not_awaited()
 
+    async def test_scorecards_serve_recorded_results_without_storage_or_models(self):
+        response = await self.client.get("/api/agent-scorecards")
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body["schema_version"], 1)
+        cards = {card["template_id"]: card for card in body["scorecards"]}
+        self.assertIn("supplier-invoice-reviewer", cards)
+        self.assertNotIn("customer-support-brief", cards)
+        for card in cards.values():
+            self.assertEqual(card["summary"]["cases"], len(card["cases"]))
+            self.assertFalse(card["signed_off"])
+        self.assertEqual(self.store.rows, {})
+        self.assertEqual(self.publisher.calls, [])
+        self.gateway.review.assert_not_awaited()
+        blocked = await self.client.get("/api/agent-scorecards", headers={"x-workbench-request": ""})
+        self.assertEqual(blocked.status_code, 403)
+
     async def test_slow_setup_upload_never_starts_publication(self):
         async def stalled(request):
             await asyncio.Event().wait()

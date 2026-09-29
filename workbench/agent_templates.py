@@ -877,8 +877,8 @@ TASKS = (
     {"id": "triage", "label": "Triage"},
 )
 READINESS_LEVELS = (
-    {"id": "reviewed", "label": "Reviewed", "description": "Its instructions have been reviewed and it passes the automated checks."},
-    {"id": "sample", "label": "In progress", "description": "It passes the automated checks on sample cases, but a person hasn't signed off on its live answers yet. Try it with sample data, and check it against your own policies before real use."},
+    {"id": "reviewed", "label": "Reviewed", "description": "Its instructions have been reviewed and its setup passes the Lab's validation."},
+    {"id": "sample", "label": "In progress", "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."},
 )
 TOOL_MODES = (
     {"id": "none", "label": "Text only", "description": "Works only from the text you give it."},
