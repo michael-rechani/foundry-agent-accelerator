@@ -426,6 +426,18 @@
   gap: 14px;
   margin-bottom: 14px;
 }
+.library-stack {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-width: 0;
+}
+.library-download {
+  margin-top: 14px;
+}
+.library-download .library-muted {
+  margin-top: 6px;
+}
 .library-panel {
   min-width: 0;
   padding: 17px;

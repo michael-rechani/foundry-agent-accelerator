@@ -638,6 +638,14 @@ monitoring. Every scorecard shows **Waiting for a person** until someone reads
 the answers. `test_scorecards.py` fails if the Lab's copy drifts from the
 evidence.
 
+Each scorecard case also carries the request it sent (`input`). The **Take it to
+Foundry** tab turns those into a JSONL file for a Foundry evaluation: one row per
+case, with the request in `query` and the case ID, category and rubric as extra
+columns. The rows follow Foundry's [evaluation dataset
+schema](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluation-dataset-schema)
+for a run where Foundry generates the answers. They haven't been imported into a
+Foundry project yet.
+
 ## Related content
 
 - [Hosted agents](../hosted-agents/README.md)

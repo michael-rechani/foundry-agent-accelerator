@@ -15,7 +15,7 @@ import statistics
 import sys
 from pathlib import Path
 
-from library_checks import CASES_PATH, load_cases, score
+from library_checks import CASES_PATH, case_input, load_cases, score
 
 HERE = Path(__file__).resolve().parent
 EVIDENCE = HERE / "evidence"
@@ -75,7 +75,7 @@ def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PR
             raise ValueError(f"{case['id']}: mixed models for {case['template_id']}")
         card["answers_from"].add(run)
         card["cases"].append({
-            "id": case["id"], "category": case["category"], "goal": case["rubric"],
+            "id": case["id"], "category": case["category"], "goal": case["rubric"], "input": case_input(case),
             "passed": passed, "notes": failures, "seconds": measured["seconds"],
             "input_tokens": measured["input_tokens"], "cached_tokens": measured["cached_tokens"],
             "output_tokens": measured["output_tokens"],

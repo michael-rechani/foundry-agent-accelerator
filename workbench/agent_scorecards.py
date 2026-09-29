@@ -25,6 +25,8 @@ def load_scorecards(path=PATH):
         cases = card.get("cases")
         if not isinstance(cases, list) or not cases or any(item.get("category") not in CATEGORIES for item in cases):
             raise ValueError(f"agent_scorecards.json: {template_id} needs categorized cases")
+        if any(not str(item.get("input", "")).strip() for item in cases):
+            raise ValueError(f"agent_scorecards.json: {template_id} has a case without its request")
         if card.get("summary", {}).get("passed") != sum(bool(item.get("passed")) for item in cases):
             raise ValueError(f"agent_scorecards.json: {template_id} summary doesn't match its cases")
     return data

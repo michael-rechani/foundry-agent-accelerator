@@ -675,6 +675,7 @@ export default function ChatWorkspace() {
             previewFor={(templateId) =>
               previewList.find((item) => item.id === `library-${templateId}`)
             }
+            foundryPortal={isPreview ? null : config?.foundry_portal}
             busy={busy || historyBusy}
             onOpen={setLibraryDetail}
             onCreate={(id) => {

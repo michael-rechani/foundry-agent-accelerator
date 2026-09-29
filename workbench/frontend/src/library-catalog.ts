@@ -18,6 +18,7 @@ export type LibraryTemplate = {
   limits: string
   delegation: string
   example_request: string
+  instructions: string
   sample_input: string
   expected_behavior: string
   human_decision: string
@@ -93,6 +94,7 @@ function validTemplate(item: unknown): item is LibraryTemplate {
       'input',
       'output',
       'limits',
+      'instructions',
       'sample_input',
       'expected_behavior',
       'human_decision',

@@ -5,6 +5,7 @@ export type ScorecardCase = {
   id: string
   category: string
   goal: string
+  input: string
   passed: boolean
   notes: string[]
   seconds: number
@@ -69,6 +70,7 @@ function validCase(item: unknown): item is ScorecardCase {
     text(item.category) &&
     item.category in categoryTitles &&
     text(item.goal) &&
+    text(item.input) &&
     typeof item.passed === 'boolean' &&
     Array.isArray(item.notes) &&
     item.notes.every(text) &&

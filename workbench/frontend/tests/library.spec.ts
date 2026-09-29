@@ -11,9 +11,17 @@ const catalog = JSON.parse(
     'utf8',
   ),
 )
+const scorecards = JSON.parse(
+  await readFile(
+    new URL('../../agent_scorecards.json', import.meta.url),
+    'utf8',
+  ),
+)
 const templates: LibraryTemplate[] = catalog.templates
 const support = templates.find((item) => item.id === 'customer-support-brief')!
 const runtimeHash = 'a'.repeat(64)
+const portal =
+  'https://ai.azure.com/nextgen/r/2gTvLTQRRlqW0WfHU1ZyCg,rg-lab,,lab-account,lab-project'
 
 function readyRecord(template: LibraryTemplate): CreatedAgent {
   const id = 'created-12345678-1234-4234-9234-123456789abc'
@@ -63,6 +71,7 @@ async function setup(
     preview?: boolean
     hash?: string
     catalogFailure?: boolean
+    portal?: boolean
   } = {},
 ) {
   const config: Config = {
@@ -78,6 +87,7 @@ async function setup(
     retention_days: 30,
     history_enabled: false,
     reviews_enabled: false,
+    foundry_portal: options.portal ? portal : null,
     agent_creation: {
       enabled: !options.preview,
       storage_enabled: !options.preview,
@@ -105,6 +115,7 @@ async function setup(
     creations: 0,
     catalogRequests: 0,
     failCatalog: !!options.catalogFailure,
+    failScorecards: false,
   }
   await page.route('**/api/**', async (route) => {
     const request = route.request()
@@ -118,6 +129,10 @@ async function setup(
       expect(request.headers()['x-workbench-request']).toBe('1')
       if (state.failCatalog) return respond({ error: 'agents_busy' }, 429)
       return respond(catalog)
+    }
+    if (path === '/api/agent-scorecards') {
+      if (state.failScorecards) return respond({ error: 'agents_busy' }, 429)
+      return respond(scorecards)
     }
     if (path === '/api/agents' && method === 'GET')
       return respond({ items: record ? [record] : [], limit: 5 })
@@ -454,6 +469,113 @@ test('export downloads the saved ready record needed by export-created', async (
   await expect(page.getByRole('status')).toContainText(
     'Saved record downloaded.',
   )
+})
+
+test('take it to Foundry downloads the definition and test requests without creating anything', async ({
+  page,
+}) => {
+  const state = await setup(page)
+  const agent = templates.find((item) => item.id === 'casework-assistant')!
+  await openAgent(page, agent.label)
+  await page.getByRole('tab', { name: 'Take it to Foundry' }).click()
+  const panel = page.getByRole('tabpanel')
+
+  const definitionDownload = page.waitForEvent('download')
+  await panel.getByRole('button', { name: 'Download agent definition' }).click()
+  const definitionFile = await definitionDownload
+  expect(definitionFile.suggestedFilename()).toBe(
+    'casework-assistant.foundry-agent.json',
+  )
+  const definition = JSON.parse(
+    await readFile(await definitionFile.path(), 'utf8'),
+  )
+  expect(definition.definition).toEqual({
+    kind: 'prompt',
+    model: '<your-model-deployment>',
+    instructions: agent.instructions,
+    tools: [],
+  })
+  expect(definition.metadata.library_agent).toBe(agent.id)
+  await expect(page.getByRole('status')).toContainText(
+    'Agent definition downloaded.',
+  )
+
+  const cases = scorecards.scorecards.find(
+    (card: { template_id: string }) => card.template_id === agent.id,
+  ).cases
+  await expect(panel).toContainText(
+    `${cases.length} requests for a Foundry evaluation`,
+  )
+  const casesDownload = page.waitForEvent('download')
+  await panel.getByRole('button', { name: 'Download test requests' }).click()
+  const casesFile = await casesDownload
+  expect(casesFile.suggestedFilename()).toBe(
+    'casework-assistant.foundry-test-cases.jsonl',
+  )
+  const rows = (await readFile(await casesFile.path(), 'utf8'))
+    .trimEnd()
+    .split('\n')
+    .map((line) => JSON.parse(line))
+  expect(rows).toHaveLength(cases.length)
+  expect(rows[0]).toEqual({
+    query: cases[0].input,
+    case_id: cases[0].id,
+    category: cases[0].category,
+    expected_behavior: cases[0].goal,
+  })
+  await expect(page.getByRole('status')).toContainText(
+    'Test requests downloaded.',
+  )
+  expect(state.creations).toBe(0)
+  expect(state.drafts).toBe(0)
+})
+
+test('an agent without test results still offers its definition', async ({
+  page,
+}) => {
+  await setup(page)
+  await openAgent(page, support.label)
+  await page.getByRole('tab', { name: 'Take it to Foundry' }).click()
+  const panel = page.getByRole('tabpanel')
+  await expect(panel).toContainText('This agent has no test requests yet.')
+  await expect(
+    panel.getByRole('button', { name: 'Download test requests' }),
+  ).toHaveCount(0)
+  await expect(
+    panel.getByRole('button', { name: 'Download agent definition' }),
+  ).toBeEnabled()
+})
+
+test('test requests that fail to load can be retried', async ({ page }) => {
+  const state = await setup(page)
+  state.failScorecards = true
+  await openAgent(page, 'Case summary writer')
+  await page.getByRole('tab', { name: 'Take it to Foundry' }).click()
+  const panel = page.getByRole('tabpanel')
+  await expect(panel).toContainText('The test requests did not load.')
+  await expect(
+    panel.getByRole('button', { name: 'Download agent definition' }),
+  ).toBeEnabled()
+  state.failScorecards = false
+  await panel.getByRole('button', { name: 'Try again' }).click()
+  await expect(
+    panel.getByRole('button', { name: 'Download test requests' }),
+  ).toBeEnabled()
+})
+
+test('a created agent links to Foundry only under the hood', async ({
+  page,
+}) => {
+  await setup(page, { ready: true, portal: true })
+  await openAgent(page, support.label)
+  await page.getByRole('tab', { name: 'Take it to Foundry' }).click()
+  const link = page.getByRole('link', { name: /Open this agent in Foundry/ })
+  await expect(link).toHaveAttribute(
+    'href',
+    `${portal}/build/agents/lab-demo-12345678123442349234123456789abc/build`,
+  )
+  await page.getByRole('switch', { name: /Under the hood/ }).uncheck()
+  await expect(link).toBeHidden()
 })
 
 test('preview explains that nothing is published and catalog failures can be retried', async ({
