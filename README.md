@@ -221,12 +221,12 @@ Bastion and the jumpbox are optional; API Management isn't shown.*
 
 ### Agents working together
 
-The default **Application and case helper** coordinates the prebuilt
+The default **Checklist and case helper** coordinates the prebuilt
 specialists. You still check the returned findings against the source.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-collaboration-dark.svg">
-  <img alt="Default agent collaboration in four numbered steps: you ask in the Lab with supplied evidence; in Foundry Agent Service, the Application and case helper calls one specialist, the Application checker or the Case notes summarizer; the coordinator returns findings with a tool record; and a person checks the answer against the evidence" src="docs/images/agent-collaboration.svg">
+  <img alt="Default agent collaboration in four numbered steps: you ask in the Lab with supplied evidence; in Foundry Agent Service, the Checklist and case helper calls one specialist, the Checklist reviewer or the Case notes summarizer; the coordinator returns findings with a tool record; and a person checks the answer against the evidence" src="docs/images/agent-collaboration.svg">
 </picture>
 
 1. **You ask in the Lab.** Its backend calls the coordinator agent in Foundry by

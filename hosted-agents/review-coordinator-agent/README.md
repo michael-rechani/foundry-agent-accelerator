@@ -1,8 +1,8 @@
-# Application and case helper
+# Checklist and case helper
 
-[Home](../../README.md) / [Hosted agents](../README.md) / Application and case helper
+[Home](../../README.md) / [Hosted agents](../README.md) / Checklist and case helper
 
-Use the Application and case helper to route supplied review material to the
+Use the Checklist and case helper to route supplied review material to the
 application or case specialist. The coordinator returns specialist findings for
 human review; it does not approve, deny, rank, or fabricate a specialist result.
 The default profile is published in Microsoft Foundry as
@@ -13,7 +13,7 @@ The default profile is published in Microsoft Foundry as
 
 | Field | Details |
 | --- | --- |
-| Lab display name | **Application and case helper** by default; **Application and case helper (base setup)** for the base runtime. |
+| Lab display name | **Checklist and case helper** by default; **Checklist and case helper (base setup)** for the base runtime. |
 | Lab catalog ID | `customer-review` by default; `review-coordinator` for the base runtime. |
 | Foundry agent name | `customer-review-coordinator` for the example profile; `review-coordinator-agent` for the base runtime. |
 | What it does | Selects the application or case specialist, forwards the complete request, and returns the specialist findings. |
@@ -21,8 +21,8 @@ The default profile is published in Microsoft Foundry as
 
 ## How the coordinator behaves
 
-The base runtime appears in the Lab as **Application and case helper (base
-setup)**. The default visible **Application and case helper** uses the
+The base runtime appears in the Lab as **Checklist and case helper (base
+setup)**. The default visible **Checklist and case helper** uses the
 [example profile](profiles/evidence-review.example.json) and the
 `customer-review-coordinator` Foundry agent name. The profile binds
 `inspect_application` and `inspect_case` to the same specialists that the base
@@ -34,7 +34,7 @@ specialists is not business-request triage. There are no ticket, notification,
 external-action, or simulated human-approval tools here.
 
 Give the coordinator an application and checklist, or case notes with any
-relevant rules. It picks the matching specialist so the application checker can
+relevant rules. It picks the matching specialist so the checklist reviewer can
 build a checklist table or the case agent can summarize notes. The coordinator
 uses both specialists only when requested, and returns their findings, document
 references, and follow-up questions. Chat uses these preconfigured agents; it
@@ -141,7 +141,7 @@ tests, rollback behavior, and pinned dependencies, use the
 ## Related content
 
 - [Hosted agents](../README.md)
-- [Application checker](../application-review-agent/README.md)
+- [Checklist reviewer](../application-review-agent/README.md)
 - [Case notes summarizer](../case-review-agent/README.md)
 - [Coordinator profiles](../../docs/agent-profiles.md)
 - [Evaluations](../../evaluations/README.md)

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="860" viewBox="0 0 1600 860" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
   <title id="title">How the review agents collaborate</title>
-  <desc id="desc">A person asks a question in the Lab with supplied evidence (step 1). In Microsoft Foundry Agent Service, the Application and case helper coordinator calls one specialist, or both only if asked, sending the full request, evidence and source IDs (step 2). The Application checker (inspect_application) checks criteria and evidence; the Case notes summarizer (inspect_case) finds gaps and conflicts. Each returns a completed, nonempty result. The coordinator returns findings plus a tool record to the Lab (step 3). The Lab checks the tool records and a person checks the evidence; there is no automatic approval, denial or external action (step 4). If a request is unclear the coordinator asks for details; if a call fails it reports the failure.</desc>
+  <desc id="desc">A person asks a question in the Lab with supplied evidence (step 1). In Microsoft Foundry Agent Service, the Checklist and case helper coordinator calls one specialist, or both only if asked, sending the full request, evidence and source IDs (step 2). The Checklist reviewer (inspect_application) checks criteria and evidence; the Case notes summarizer (inspect_case) finds gaps and conflicts. Each returns a completed, nonempty result. The coordinator returns findings plus a tool record to the Lab (step 3). The Lab checks the tool records and a person checks the evidence; there is no automatic approval, denial or external action (step 4). If a request is unclear the coordinator asks for details; if a call fails it reports the failure.</desc>
   <defs>
     <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0 0L10 5L0 10z" fill="#0078d4"/>
@@ -57,7 +57,7 @@
   <text x="654" y="162" class="name">Microsoft Foundry Agent Service</text>
   <text x="654" y="186" class="small">Reached through a private endpoint. Every agent uses the configured model deployment.</text>
   <rect x="650" y="300" width="340" height="380" rx="10" fill="#fff" stroke="#0078d4" stroke-width="2"/>
-  <text x="666" y="336" class="name">Application and case helper</text>
+  <text x="666" y="336" class="name">Checklist and case helper</text>
   <text x="666" y="360" class="small">Coordinator agent</text>
   <text x="666" y="394" class="detail">Calls one specialist;</text>
   <text x="666" y="420" class="detail">both only if asked</text>
@@ -70,7 +70,7 @@
   <text x="682" y="620" class="detail">Failed call?</text>
   <text x="682" y="646" class="detail">It reports the failure.</text>
   <rect x="1200" y="260" width="336" height="150" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
-  <text x="1216" y="296" class="name">Application checker</text>
+  <text x="1216" y="296" class="name">Checklist reviewer</text>
   <text x="1216" y="320" class="small">Specialist agent</text>
   <text x="1216" y="354" class="mono">inspect_application</text>
   <text x="1216" y="382" class="detail">Checks criteria + evidence</text>

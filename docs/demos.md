@@ -19,9 +19,9 @@ Status values use the definitions in [terms used in these guides](README.md#term
 | Scenario | Status | Lab agent or task to pick | What you'll check |
 | --- | --- | --- | --- |
 | [Create and try a baseline agent](#create-and-try-a-baseline-agent) | **Available** | **Create agent**, then **All agents** > **Made in this Lab** and **Chat** | A prepared template becomes a small Foundry agent, then a person checks its sample output. |
-| [Casework assistance](#casework-assistance) | **Available** | **Application and case helper** with **Summarize case notes**; optional direct **Case notes summarizer** if enabled | The answer keeps known facts, missing evidence, and conflicting case notes separate. |
-| [Application completeness](#application-completeness) | **Available** | **Application and case helper** with **Check against a checklist**; optional direct **Application checker** if enabled | The answer compares supplied evidence with a checklist without approving or denying the application. |
-| [Requirements and proposal review](#requirements-and-proposal-review) | **Preview** | **Application and case helper** with **Compare a proposal (preview)** | The answer separates product claims, supported requirements, gaps, and conflicts without selecting a vendor. |
+| [Casework assistance](#casework-assistance) | **Available** | **Checklist and case helper** with **Summarize case notes**; optional direct **Case notes summarizer** if enabled | The answer keeps known facts, missing evidence, and conflicting case notes separate. |
+| [Application completeness](#application-completeness) | **Available** | **Checklist and case helper** with **Check against a checklist**; optional direct **Checklist reviewer** if enabled | The answer compares supplied evidence with a checklist without approving or denying the application. |
+| [Requirements and proposal review](#requirements-and-proposal-review) | **Preview** | **Checklist and case helper** with **Compare a proposal (preview)** | The answer separates product claims, supported requirements, gaps, and conflicts without selecting a vendor. |
 
 For a service-request workflow, publish the **Service request planner** template
 from [Create and try a baseline agent](#create-and-try-a-baseline-agent). It uses
@@ -60,7 +60,7 @@ Before inviting participants:
   bindings, and visibility controls. Do not expose all agents just for a demo.
 - Do not provision resources or change permissions to improvise a demo. Local
   source edits do not update an already deployed agent or Lab image.
-- The default **Application and case helper** uses the existing coordinator
+- The default **Checklist and case helper** uses the existing coordinator
   profile and its two review specialists. Direct application or case chat is
   possible only if an operator has explicitly enabled that catalog entry.
   Proposal review reuses application review, not a third specialist.
@@ -149,7 +149,7 @@ promised.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-chat-start-dark.png">
-  <img alt="Illustrative UI test of an empty Chat with mocked APIs: the Application and case helper explains what you give it and what you get, with example tasks to review an application, summarize case notes, or compare a proposal" src="images/screenshots/lab-chat-start.png">
+  <img alt="Illustrative UI test of an empty Chat with mocked APIs: the Checklist and case helper explains what you give it and what you get, with example tasks to review an application, summarize case notes, or compare a proposal" src="images/screenshots/lab-chat-start.png">
 </picture>
 
 *Illustrative UI test with mocked APIs, not a live model result.* ·
@@ -169,7 +169,7 @@ availability, not a live validation claim.
 **Question:** Can the assistant help a staff member see what is known and what
 needs clarification without making a case decision?
 
-**Run:** choose **Summarize case notes** in **Application and case helper**, or
+**Run:** choose **Summarize case notes** in **Checklist and case helper**, or
 paste the complete [casework input and prompt](demo-inputs/casework.txt). If
 direct casework chat is visible as **Case notes summarizer**, it uses the same
 case agent. Do not request an application review too.
@@ -206,9 +206,9 @@ The input is a sample permit application, not a regulatory rules engine.
 **Question:** Can the assistant help a reviewer distinguish supplied evidence,
 gaps, and conflicts without approving or denying an application?
 
-**Run:** choose **Check against a checklist** in **Application and case helper**, or
+**Run:** choose **Check against a checklist** in **Checklist and case helper**, or
 paste [application.txt](demo-inputs/application.txt). An explicitly enabled
-direct **Application checker** entry uses the same specialist.
+direct **Checklist reviewer** entry uses the same specialist.
 
 | Checklist item | Good result | Supporting labels |
 | --- | --- | --- |
@@ -251,7 +251,7 @@ and help a person find gaps against a proposal checklist without
 selecting a vendor?
 
 **Run in chat:** choose **Compare a proposal (preview)** in
-**Application and case helper**, or paste [requirements.txt](demo-inputs/requirements.txt).
+**Checklist and case helper**, or paste [requirements.txt](demo-inputs/requirements.txt).
 The coordinator should use its application-review tool, not its case-review tool.
 The sample asks about comma-separated values (CSV) export and single sign-on
 (SSO).
@@ -274,7 +274,7 @@ Paste each checklist item on its own line; the workspace numbers them as
 **Checklist item 1** to **3**. Paste each evidence text into its own document
 field (**Document 1** to **3**), keeping the **Product sheet**, **Admin guide**
 and **Brochure** labels. The API still uses the IDs `CRIT-n` and `SRC-n`.
-Use the compatible default **Application and case helper**; a direct **Chat**
+Use the compatible default **Checklist and case helper**; a direct **Chat**
 entry is not automatically a supported structured-review endpoint.
 
 Choose **Create shared review**, then **Run review**. The same findings map to

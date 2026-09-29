@@ -225,7 +225,7 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
   const state = await workspace(page)
   await expect(
     page.getByRole('heading', {
-      name: 'Application and case helper',
+      name: 'Checklist and case helper',
       exact: true,
     }),
   ).toBeVisible()
@@ -257,7 +257,7 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
   const switcher = page.getByRole('dialog', { name: 'Choose an agent' })
   await expect(switcher).toBeVisible()
   await expect(
-    switcher.getByRole('button', { name: /Application and case helper/ }),
+    switcher.getByRole('button', { name: /Checklist and case helper/ }),
   ).toHaveAttribute('aria-current', 'true')
   await page.keyboard.press('Escape')
   await expect(switcher).toHaveCount(0)
@@ -273,7 +273,7 @@ test('default helper explains its job and offers example tasks without auto-send
 }, testInfo) => {
   const state = await workspace(page, { config: { agents: [guidedReview] } })
   await expect(page.locator('.agent-picker')).toHaveText(
-    'Application and case helper',
+    'Checklist and case helper',
   )
   await expect(page.locator('.chat-welcome')).not.toContainText(
     'You are using an existing agent, not creating one',
@@ -311,7 +311,7 @@ test('default helper explains its job and offers example tasks without auto-send
   await expect(page.locator('.catalog-agent')).toHaveCount(1)
   await expect(
     page.getByRole('heading', {
-      name: 'Application and case helper',
+      name: 'Checklist and case helper',
       exact: true,
     }),
   ).toBeVisible()
@@ -502,9 +502,9 @@ test('catalog uses customer names while retaining runtime targets and scenario s
   ])
   await openReadyAgents(page)
   await expect(page.locator('.catalog-agent h2')).toHaveText([
-    'Application and case helper',
-    'Application and case helper (base setup)',
-    'Application checker',
+    'Checklist and case helper',
+    'Checklist and case helper (base setup)',
+    'Checklist reviewer',
     'Case notes summarizer',
   ])
   await expect(page.locator('.category-label')).toHaveText([
@@ -532,7 +532,7 @@ test('catalog uses customer names while retaining runtime targets and scenario s
   await expect(
     page.locator('.catalog-agent').filter({
       has: page.getByRole('heading', {
-        name: 'Application and case helper (base setup)',
+        name: 'Checklist and case helper (base setup)',
         exact: true,
       }),
     }),
@@ -572,7 +572,7 @@ test('catalog uses customer names while retaining runtime targets and scenario s
   }
   await page.getByRole('textbox', { name: 'Search agents' }).fill('case notes')
   await expect(page.locator('.catalog-agent h2')).toHaveText([
-    'Application and case helper',
+    'Checklist and case helper',
     'Case notes summarizer',
   ])
   expect(

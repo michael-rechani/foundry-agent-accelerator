@@ -1,8 +1,8 @@
-# Application checker
+# Checklist reviewer
 
-[Home](../../README.md) / [Hosted agents](../README.md) / Application checker
+[Home](../../README.md) / [Hosted agents](../README.md) / Checklist reviewer
 
-Use the Application checker to compare supplied application or proposal material
+Use the Checklist reviewer to compare supplied application or proposal material
 with explicit criteria. The agent returns grounded findings for a human
 reviewer; it does not approve, deny, score, rank, or recommend an outcome.
 It is published in Microsoft Foundry as `application-review-agent`.
@@ -11,7 +11,7 @@ It is published in Microsoft Foundry as `application-review-agent`.
 
 | Field | Details |
 | --- | --- |
-| Lab display name | **Application checker** |
+| Lab display name | **Checklist reviewer** |
 | Lab catalog ID | `application-review` |
 | Foundry agent name | `application-review-agent` |
 | What it does | Compares supplied material with supplied criteria and reports supported, missing, or unclear evidence. |
@@ -31,11 +31,11 @@ doesn't mean a live quality pass has been completed. Missing evidence means
 Use the [repeatable demo](../../docs/demos.md#application-completeness) for
 inputs, expected findings, a failure case, and reset instructions.
 
-When direct access is enabled, the Lab calls this agent **Application checker**.
+When direct access is enabled, the Lab calls this agent **Checklist reviewer**.
 Paste a checklist and labeled application text. Expect a table showing what is
 included, missing, or unclear; references to the documents; and follow-up
 questions. The specialist works directly without calling other agents or
-external tools. The **Application and case helper** can also call this same
+external tools. The **Checklist and case helper** can also call this same
 specialist on your behalf.
 
 Chat normally returns prose sections. **Document reviews** supplies a result
@@ -107,7 +107,7 @@ python deploy.py
 ## Related content
 
 - [Hosted agents](../README.md)
-- [Application and case helper](../review-coordinator-agent/README.md)
+- [Checklist and case helper](../review-coordinator-agent/README.md)
 - [Case notes summarizer](../case-review-agent/README.md)
 - [Document reviews](../../docs/review-workflow.md)
 - [Evaluations](../../evaluations/README.md)

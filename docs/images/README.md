@@ -129,7 +129,7 @@ configurable. Keep optional API Management and its subnet out of this view.
 When a subnet or address default changes in Terraform, update the view.
 
 The collaboration view shows the Lab's default setup: **Application and case
-helper** with the **Application checker** and **Case notes summarizer**
+helper** with the **Checklist reviewer** and **Case notes summarizer**
 specialists. Its numbered steps match the root README. Steps 2 and 3 are stages
 of one coordinator agent, not separate agents. Keep the one-specialist default,
 clarification and failure behavior, and human-review boundary aligned with the

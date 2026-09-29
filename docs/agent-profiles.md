@@ -48,9 +48,9 @@ entries.
 
 | Display name | Unchanged catalog ID | Runtime configuration source |
 | --- | --- | --- |
-| **Application and case helper** | `customer-review` | [Example coordinator profile](../hosted-agents/review-coordinator-agent/profiles/evidence-review.example.json), published as `customer-review-coordinator`. |
-| **Application and case helper (base setup)** | `review-coordinator` | [Base instructions](../hosted-agents/review-coordinator-agent/instructions.md) and [runtime defaults](../hosted-agents/review-coordinator-agent/main.py), published as `review-coordinator-agent`. |
-| **Application checker** | `application-review` | [Application instructions](../hosted-agents/application-review-agent/instructions.md) and that specialist's deployment. |
+| **Checklist and case helper** | `customer-review` | [Example coordinator profile](../hosted-agents/review-coordinator-agent/profiles/evidence-review.example.json), published as `customer-review-coordinator`. |
+| **Checklist and case helper (base setup)** | `review-coordinator` | [Base instructions](../hosted-agents/review-coordinator-agent/instructions.md) and [runtime defaults](../hosted-agents/review-coordinator-agent/main.py), published as `review-coordinator-agent`. |
+| **Checklist reviewer** | `application-review` | [Application instructions](../hosted-agents/application-review-agent/instructions.md) and that specialist's deployment. |
 | **Case notes summarizer** | `case-review` | [Case instructions](../hosted-agents/case-review-agent/instructions.md) and that specialist's deployment. |
 
 The two coordinator entries offer the **same application and case review jobs**.
@@ -304,7 +304,7 @@ follow the [private deployment runbook](private-deployment.md).
 ## Related content
 
 - [Hosted agents](../hosted-agents/README.md)
-- [Application and case helper](../hosted-agents/review-coordinator-agent/README.md)
+- [Checklist and case helper](../hosted-agents/review-coordinator-agent/README.md)
 - [Extension guide](architecture-assessment.md)
 - [Governed review API](apim-review-api.md)
 - [Evaluations](../evaluations/README.md)

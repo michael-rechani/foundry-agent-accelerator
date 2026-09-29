@@ -1,14 +1,14 @@
 [
   {
     "id": "customer-review",
-    "label": "Application and case helper",
+    "label": "Checklist and case helper",
     "category": "Coordinator: hands off to specialists",
     "description": "Check a document against your checklist, or turn case notes into a clear summary.",
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
       "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
       "limits": "It only reads what you supply. It cannot look up missing documents, change business systems or decide whether to approve something. Requirements and proposal review is in preview.",
-      "delegation": "It hands your task to a specialist agent (Application checker or Case notes summarizer), then returns their findings in one reply. It uses both only if you ask for both, and may first ask what you need.",
+      "delegation": "It hands your task to a specialist agent (Checklist reviewer or Case notes summarizer), then returns their findings in one reply. It uses both only if you ask for both, and may first ask what you need.",
       "configuration": "Instructions and specialist tools: hosted-agents\\review-coordinator-agent\\profiles\\evidence-review.example.json. Publish a new coordinator version with this profile to change runtime behavior."
     },
     "agent": "customer-review-coordinator",
@@ -22,14 +22,14 @@
   },
   {
     "id": "review-coordinator",
-    "label": "Application and case helper (base setup)",
+    "label": "Checklist and case helper (base setup)",
     "category": "Coordinator: developer variant",
-    "description": "Does the same jobs as Application and case helper, with the same two specialists. Only the developer setup differs; it does not add capabilities.",
+    "description": "Does the same jobs as Checklist and case helper, with the same two specialists. Only the developer setup differs; it does not add capabilities.",
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
       "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
       "limits": "It only reads what you supply. It cannot look up missing documents, change business systems or decide whether to approve something. Requirements and proposal review is in preview.",
-      "delegation": "It hands your task to the same specialists (Application checker or Case notes summarizer). It uses one unless you ask for both; what you can accomplish is the same as Application and case helper.",
+      "delegation": "It hands your task to the same specialists (Checklist reviewer or Case notes summarizer). It uses one unless you ask for both; what you can accomplish is the same as Checklist and case helper.",
       "configuration": "Base instructions: hosted-agents\\review-coordinator-agent\\instructions.md. Tools: main.py in that directory, with deployed SPECIALIST_CONFIG taking precedence over legacy agent-name settings. Publish a new agent version to change runtime behavior."
     },
     "agent": "review-coordinator-agent",
@@ -41,7 +41,7 @@
   },
   {
     "id": "application-review",
-    "label": "Application checker",
+    "label": "Checklist reviewer",
     "category": "Specialist: works on its own",
     "description": "Check a document against your checklist and point out missing information or statements that disagree.",
     "guidance": {

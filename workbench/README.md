@@ -18,7 +18,7 @@ FastAPI backend and shared Azure Cosmos DB storage.
 | Agent library | The opening page. Browse agent definitions by sector, industry, task, readiness, and tool mode; compare a sample example with expected behavior; create, test, and export. |
 | Guided demos | Three sample customer stories with expected findings and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
 | Agent creation | **Create agent** prepares instructions from reviewed templates. Publication is a separate operator-protected action. **Chat does not create or configure agents.** |
-| Prebuilt agents | The prebuilt agents remain available. **Application and case helper** is the default visible prebuilt agent. |
+| Prebuilt agents | The prebuilt agents remain available. **Checklist and case helper** is the default visible prebuilt agent. |
 | Document reviews | **Document reviews** saves one structured check per checklist item and keeps the original text beside the result. |
 | Data boundary | Use sample data only. The Lab doesn't connect to customer systems or perform business writes. |
 | Access model | The current private Lab has no end-user Microsoft Entra ID sign-in or per-user authorization. |
@@ -205,9 +205,9 @@ data contract and deployment checks. You don't need it to use **Chat**.
 
 | Agent or entry | Availability | Behavior |
 | --- | --- | --- |
-| **Application and case helper** (`customer-review`, formerly Guided review) | Default visible prebuilt agent. | A coordinator. It hands the task to the **Application checker** or **Case notes summarizer** specialist, then returns the findings. |
-| **Application and case helper (base setup)** (`review-coordinator`, formerly Review planning) | Visible only when enabled. | A developer variant of the coordinator. It uses the same specialists through different tool names and does not add capabilities. |
-| **Application checker** | Visible only when enabled. | The application specialist on its own. It does the check itself and calls no other agents. |
+| **Checklist and case helper** (`customer-review`, formerly Guided review) | Default visible prebuilt agent. | A coordinator. It hands the task to the **Checklist reviewer** or **Case notes summarizer** specialist, then returns the findings. |
+| **Checklist and case helper (base setup)** (`review-coordinator`, formerly Review planning) | Visible only when enabled. | A developer variant of the coordinator. It uses the same specialists through different tool names and does not add capabilities. |
+| **Checklist reviewer** | Visible only when enabled. | The application specialist on its own. It does the check itself and calls no other agents. |
 | **Case notes summarizer** | Visible only when enabled. | The case-notes specialist on its own. It writes the summary itself and calls no other agents. |
 | Ready created agents | Listed under **Ready to chat** and managed under **Made in this Lab**. | They can be selected in **Chat** after publication is ready. |
 
@@ -225,7 +225,7 @@ enabled entries.
 tool bindings, and configuration sources. These details describe configured
 capabilities, not observed execution. Each answer has a collapsed **How I got
 this** panel. Its steps come only from the answer's receipts, in plain words
-such as **Asked the Application checker** or **Looked up the purchase order**,
+such as **Asked the Checklist reviewer** or **Looked up the purchase order**,
 followed by **Wrote the answer**. Each step is **Confirmed**, **Not confirmed**,
 or **Saved earlier** (reopened from shared history and not checked again). A
 step asks another agent only when the receipt targets a different agent; a

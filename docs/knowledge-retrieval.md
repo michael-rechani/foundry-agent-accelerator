@@ -96,7 +96,7 @@ already have an "Applicable supplied policy" section, and its fictional
 scenarios often lack policy text. The tool is described as a lookup for
 fictional policy and guidance passages that the answer can cite by `source_id`.
 
-The **Application checker** (`application-review-agent`) isn't changed. It must
+The **Checklist reviewer** (`application-review-agent`) isn't changed. It must
 review against the criteria supplied in the request, and retrieved guidance
 could blur that boundary. Enabling it there is an
 [open decision](#open-decisions). The coordinator isn't changed either.
@@ -322,7 +322,7 @@ is used in demos, add and run:
 
 - Run a staging comparison with the Foundry Azure AI Search tool or a toolbox,
   and decide whether its identity model is acceptable.
-- Whether the Application checker should also get retrieval.
+- Whether the Checklist reviewer should also get retrieval.
 - How to surface specialist tool receipts through the coordinator.
 - Whether retrieval-enabled portable bundles are needed.
 - Who owns the index, the fictional document set, and its update process.

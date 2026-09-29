@@ -93,9 +93,9 @@ Keep the three responsibilities distinct:
 
 | Agent | Useful task and required input | Result a person can use | Capability boundary |
 | --- | --- | --- | --- |
-| Application checker | Compare supplied application or proposal text with an explicit checklist. Ask for either if missing. | One cited row per item, budget calculations where relevant, and specific questions for incomplete or ambiguous evidence. | No invented criteria, external verification, approval, scoring, or business writes. |
+| Checklist reviewer | Compare supplied application or proposal text with an explicit checklist. Ask for either if missing. | One cited row per item, budget calculations where relevant, and specific questions for incomplete or ambiguous evidence. | No invented criteria, external verification, approval, scoring, or business writes. |
 | Case notes summarizer | Summarize supplied notes; use policy only when supplied and needed for the question. | Attributed facts, unresolved dates or conflicting notes, and focused staff questions. A basic summary does not require policy. | No inferred deadlines, unsupported reconciliation, eligibility decisions, or system updates. |
-| Application and case helper | Select the appropriate specialist for a review; explain needed inputs without specialist execution. | The complete specialist findings, not another review or a serialized receipt. | Routing is model-directed. It adds inference work; use a directly enabled specialist for a known single task. |
+| Checklist and case helper | Select the appropriate specialist for a review; explain needed inputs without specialist execution. | The complete specialist findings, not another review or a serialized receipt. | Routing is model-directed. It adds inference work; use a directly enabled specialist for a known single task. |
 
 These are supplied-evidence assistants, not autonomous case-management systems.
 Adding retrieval or write tools would change their permissions, data boundary,
