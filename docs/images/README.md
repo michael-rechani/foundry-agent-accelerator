@@ -260,7 +260,8 @@ The screenshots in `screenshots/` come from the Lab's browser tests. The tests
 replace the backend with mocked API responses, so the images show real UI
 layout but not live model answers or saved records. Each image carries the
 **ILLUSTRATIVE UI TEST** watermark in its lower-right corner, or in the empty
-lower-left sidebar for desktop privacy captures so no notice is obscured; keep it visible
+lower-left sidebar, above the **Under the hood** switch, for desktop chat and privacy
+captures so no notice or control is obscured; keep it visible
 and say "illustrative" in the caption and alt text wherever you use one.
 
 | Screenshot | Shows | Test output | Used in |

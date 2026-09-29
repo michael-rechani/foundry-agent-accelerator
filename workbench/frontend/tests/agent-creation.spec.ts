@@ -73,32 +73,32 @@ const templates: AgentTemplate[] = [
   [
     'document-intake',
     'Form field extractor',
-    'Extract stated fields from fictional administrative forms or invoices.',
+    'Extract stated fields from sample administrative forms or invoices.',
   ],
   [
     'casework-assistant',
     'Case summary writer',
-    'Summarize fictional case notes and draft follow-up questions.',
+    'Summarize sample case notes and draft follow-up questions.',
   ],
   [
     'workflow-coordinator',
     'Service request planner',
-    'Plan a fictional service request using simulated, read-only lookups.',
+    'Plan a sample service request using sample read-only lookups.',
   ],
   [
     'medical-bill-reviewer',
     'Medical bill reviewer',
-    'Check a fictional hospital bill against the insurer statement.',
+    'Check a sample hospital bill against the insurer statement.',
   ],
   [
     'insurance-preapproval-helper',
     'Insurance pre-approval helper',
-    'Check a fictional pre-approval request has every required document.',
+    'Check a sample pre-approval request has every required document.',
   ],
   [
     'benefits-renewal-helper',
     'Benefits renewal helper',
-    'Sort fictional renewal paperwork and flag what is missing.',
+    'Sort sample renewal paperwork and flag what is missing.',
   ],
   [
     'supplier-invoice-reviewer',

@@ -9,14 +9,14 @@ customer endorsements, or proof that an agent is ready for production.
 
 ## In this guide
 
-- [Find what?s missing](#find-whats-missing)
+- [Find what's missing](#find-whats-missing)
 - [Catch what does not add up](#catch-what-does-not-add-up)
 - [Turn scattered notes into a brief](#turn-scattered-notes-into-a-brief)
 - [Present without hiding the boundaries](#present-without-hiding-the-boundaries)
 - [One foundation. Repeatable agent releases.](#one-foundation-repeatable-agent-releases)
 - [Related content](#related-content)
 
-## Find what?s missing
+## Find what's missing
 
 **Question:** Can a reviewer see which project details need clarification
 before signing off?
