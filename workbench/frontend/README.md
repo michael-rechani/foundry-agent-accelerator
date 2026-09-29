@@ -50,7 +50,9 @@ sections: **Agent library**, **Try it**, **Measure**, and **Activity**.
 library is one sidebar entry, **All
 agents**; `LibraryTabs.tsx` switches between its tabs. Reply rendering,
 including the **How I got this** steps and collapsed execution details, lives in
-`ConversationTurn.tsx`; plain step wording comes from `answer-steps.ts`. `WaitingIndicator.tsx` owns the elapsed timer so it
+`ConversationTurn.tsx`; plain step wording comes from `answer-steps.ts`. Foundry
+portal links (`foundry-links.ts`, `FoundryLink.tsx`) are built from the
+`foundry_portal` config value and shown only under the hood. `WaitingIndicator.tsx` owns the elapsed timer so it
 does not rerender the transcript.
 
 State, effects, and request handlers stay in the three workspace components

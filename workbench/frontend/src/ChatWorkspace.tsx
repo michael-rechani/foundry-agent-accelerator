@@ -582,6 +582,7 @@ export default function ChatWorkspace() {
         historyBusy={historyBusy}
         requestCount={measurements.length}
         hood={hood}
+        foundryPortal={config?.foundry_portal}
         onNewChat={() => newChat()}
         onView={setView}
         onHistory={() => void listHistory()}
@@ -725,6 +726,7 @@ export default function ChatWorkspace() {
           <RequestLog
             measurements={measurements}
             preview={config?.mode !== 'private'}
+            foundryPortal={config?.foundry_portal}
             onCopy={(text) => void copy(text, 'Reference copied.')}
           />
         ) : view === 'history' ? (
@@ -793,6 +795,8 @@ export default function ChatWorkspace() {
                       turn={turn}
                       label={agent?.label}
                       agentLabels={agentLabels}
+                      foundryPortal={isPreview ? null : config?.foundry_portal}
+                      agentName={agent?.agent}
                       onCopy={copy}
                     />
                   ))}
@@ -854,6 +858,7 @@ export default function ChatWorkspace() {
             query={query}
             loaded={!!config}
             creation={config?.agent_creation}
+            foundryPortal={config?.foundry_portal}
             disabled={busy || historyBusy}
             onQuery={setQuery}
             onCreate={() => setView('create')}
@@ -864,6 +869,7 @@ export default function ChatWorkspace() {
             measurements={measurements}
             preview={config?.mode !== 'private'}
             budgetAlerts={config?.budget_alerts === true}
+            foundryPortal={config?.foundry_portal}
             onLog={() => setView('log')}
           />
         )}

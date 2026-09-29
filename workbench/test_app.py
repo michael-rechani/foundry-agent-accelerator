@@ -628,6 +628,21 @@ class LibraryPreviewTests(unittest.TestCase):
         with patch.dict("os.environ", {"WORKBENCH_BUDGET_ALERTS_ENABLED": "true"}):
             self.assertIs(Settings.from_env().budget_alerts, True)
 
+    def test_foundry_portal_link_is_built_from_the_project_resource_id(self):
+        self.assertIsNone(self.client.get("/api/config").json()["foundry_portal"])
+        project = ("/subscriptions/da04ef2d-3411-465a-96d1-67c75356720a/resourceGroups/rg-lab"
+                   "/providers/Microsoft.CognitiveServices/accounts/example/projects/test")
+        linked = replace(self.settings, foundry_project_id=project)
+        self.assertEqual(TestClient(create_app(linked, self.gateway)).get("/api/config").json()["foundry_portal"],
+                         "https://ai.azure.com/nextgen/r/2gTvLTQRRlqW0WfHU1ZyCg,rg-lab,,example,test")
+        self.assertIsNone(replace(linked, mode="preview", hosts=("localhost",), origins=("http://localhost",)).foundry_portal)
+        for invalid in (project.replace("/projects/test", "/projects/other"), project.replace("example", "another"),
+                        project.replace("da04ef2d-3411", "not-a-guid-0000"), project + "/extra", "https://ai.azure.com"):
+            with self.assertRaisesRegex(ValueError, "WORKBENCH_FOUNDRY_PROJECT_ID"):
+                create_app(replace(self.settings, foundry_project_id=invalid), self.gateway)
+        with patch.dict("os.environ", {"WORKBENCH_FOUNDRY_PROJECT_ID": project}):
+            self.assertEqual(Settings.from_env().foundry_project_id, project)
+
 
 class LibraryPreviewGatewayTests(unittest.IsolatedAsyncioTestCase):
     async def test_preview_calls_the_profile_model_directly(self):

@@ -20,7 +20,7 @@ const invoice = (catalog.templates as LibraryTemplate[]).find(
 // Start without the stored switch, as a first-time visitor would.
 test.use({ storageState: { cookies: [], origins: [] } })
 
-async function setup(page: Page) {
+async function setup(page: Page, overrides: Partial<Config> = {}) {
   const config: Config = {
     title: 'Foundry Agent Lab',
     mode: 'private',
@@ -34,6 +34,7 @@ async function setup(page: Page) {
     retention_days: 30,
     history_enabled: false,
     reviews_enabled: false,
+    ...overrides,
   }
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname
@@ -102,6 +103,50 @@ test('the customer view hides technical details until Under the hood is on', asy
       localStorage.getItem('ai-foundry-lab-under-the-hood'),
     ),
   ).toBe('0')
+})
+
+const portal =
+  'https://ai.azure.com/nextgen/r/2gTvLTQRRlqW0WfHU1ZyCg,rg-lab,,lab-account,lab-project'
+
+test('Foundry links appear only under the hood', async ({ page }) => {
+  await setup(page, { foundry_portal: portal })
+  const projectLink = page.getByRole('link', {
+    name: /Open project in Foundry/,
+  })
+  await expect(projectLink).toHaveCount(0)
+
+  await hoodSwitch(page).check()
+  await expect(projectLink).toHaveAttribute('href', portal)
+  await expect(projectLink).toHaveAttribute('target', '_blank')
+  await expect(projectLink).toHaveAttribute('rel', 'noopener noreferrer')
+
+  await navigation(page).getByRole('button', { name: 'Performance' }).click()
+  await expect(page.locator('.foundry-note').getByRole('link')).toHaveAttribute(
+    'href',
+    portal,
+  )
+  await navigation(page)
+    .getByRole('button', { name: /^Request log/ })
+    .click()
+  await expect(page.locator('.foundry-note').getByRole('link')).toHaveAttribute(
+    'href',
+    portal,
+  )
+
+  await navigation(page).getByRole('button', { name: 'Chat' }).click()
+  await page.getByText('About this agent').click()
+  await page.getByText('Developer setup details').click()
+  const runtime = page.locator('.catalog-runtime')
+  await expect(runtime.getByRole('link').first()).toHaveAttribute(
+    'href',
+    `${portal}/build/agents/${guidedReview.agent}/build`,
+  )
+  await expect(runtime.getByRole('link')).toHaveCount(
+    1 + Object.keys(guidedReview.tools).length,
+  )
+
+  await hoodSwitch(page).uncheck()
+  await expect(page.getByRole('link', { name: /Foundry/ })).toHaveCount(0)
 })
 
 test('breadcrumbs link back to the library from its tabs', async ({

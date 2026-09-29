@@ -42,6 +42,8 @@ The sidebar groups the Lab's pages into four sections, in this order: **Agent li
 
 The Lab opens in a plain customer view. Turn on **Under the hood** at the bottom of the sidebar to show models, token counts, execution details, setup commands, and the **Measure** and **Activity** sections. The choice is saved in this browser. A breadcrumb in the top bar shows the current section and page.
 
+With **Under the hood** on, the Lab also links into Microsoft Foundry: **Open project in Foundry** in the sidebar, **Open in Foundry** next to each agent and specialist in **Developer setup details** and **How I got this**, and a project link on **Performance** and **Request log** for traces and monitoring across every session. The links need `WORKBENCH_FOUNDRY_PROJECT_ID`, the project's Azure resource ID; `workbench/infra` sets it from `foundry_account_name` and `foundry_project_name`. The Lab builds the portal address the same way the Azure Developer CLI does (`https://ai.azure.com/nextgen/r/...`). Opening a link needs a Foundry sign-in with access to the project. Library previews run on the model directly, so they have no Foundry agent to link to. Without the setting, or in local preview mode, no Foundry links appear.
+
 | Section | Page | What you do there |
 | --- | --- | --- |
 | Agent library | **All agents** > **Browse** | Filter the [agent library](../docs/agent-creation.md#what-a-participant-can-do) by sector, industry, task, readiness, and tools. Each entry shows what it needs, what you get, what it can't do, who decides, an example with sample data, and the expected behavior. From an entry you can create the agent, open a ready one in **Chat** with the example as an unsent draft, or download its saved record for export. |

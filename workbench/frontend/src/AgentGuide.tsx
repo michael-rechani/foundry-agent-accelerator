@@ -1,3 +1,5 @@
+import { FoundryLink } from './FoundryLink'
+import { foundryAgentUrl } from './foundry-links'
 import type { Agent, CreationCapability } from './workspace-config'
 
 export function AgentGuide({
@@ -36,7 +38,14 @@ export function AgentGuide({
   )
 }
 
-export function AgentRuntime({ agent }: { agent: Agent }) {
+export function AgentRuntime({
+  agent,
+  foundryPortal,
+}: {
+  agent: Agent
+  foundryPortal?: string | null
+}) {
+  const agentUrl = foundryAgentUrl(foundryPortal, agent.agent)
   return (
     <details className="catalog-runtime hood-only">
       <summary>Developer setup details</summary>
@@ -53,6 +62,12 @@ export function AgentRuntime({ agent }: { agent: Agent }) {
           <dt>Runtime agent</dt>
           <dd>
             <code>{agent.agent}</code>
+            {agentUrl && (
+              <>
+                {' '}
+                <FoundryLink href={agentUrl}>Open in Foundry</FoundryLink>
+              </>
+            )}
           </dd>
         </div>
       </dl>
@@ -61,9 +76,18 @@ export function AgentRuntime({ agent }: { agent: Agent }) {
         {Object.entries(agent.tools).map(([tool, target]) => (
           <li key={tool}>
             <code>{tool}</code> to <code>{target}</code>
+            {foundryPortal && (
+              <>
+                {' '}
+                <FoundryLink href={foundryAgentUrl(foundryPortal, target)}>
+                  Open in Foundry
+                </FoundryLink>
+              </>
+            )}
           </li>
         ))}
       </ul>
+      {agentUrl && <p>Open it in Foundry to see its traces and monitoring.</p>}
       <p>
         Configured targets, not execution proof. Check response execution
         details and receipts; stored receipts are not reverified.

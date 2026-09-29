@@ -1,4 +1,5 @@
 import { Copy, ScrollText } from 'lucide-react'
+import { FoundryLink } from './FoundryLink'
 import type { Measurement } from './performance-stats'
 import { usageLabel } from './token-usage'
 
@@ -12,10 +13,12 @@ const outcomes: Record<Measurement['outcome'], string> = {
 export function RequestLog({
   measurements,
   preview,
+  foundryPortal,
   onCopy,
 }: {
   measurements: Measurement[]
   preview: boolean
+  foundryPortal?: string | null
   onCopy: (text: string) => void
 }) {
   const entries = [...measurements].reverse()
@@ -29,6 +32,16 @@ export function RequestLog({
           text is not recorded here, and the log clears when the page reloads.
         </p>
       </div>
+      {foundryPortal && (
+        <p className="foundry-note">
+          For the full trace of every request, including other browsers and
+          earlier sessions,{' '}
+          <FoundryLink href={foundryPortal}>
+            open the project in Foundry
+          </FoundryLink>
+          .
+        </p>
+      )}
       {entries.length ? (
         <div className="request-table-wrap">
           <table className="request-table request-log" aria-label="Request log">

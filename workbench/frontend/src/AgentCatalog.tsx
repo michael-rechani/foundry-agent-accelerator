@@ -8,6 +8,7 @@ export function AgentCatalog({
   query,
   loaded,
   creation,
+  foundryPortal,
   disabled,
   onQuery,
   onCreate,
@@ -18,6 +19,7 @@ export function AgentCatalog({
   query: string
   loaded: boolean
   creation?: CreationCapability
+  foundryPortal?: string | null
   disabled: boolean
   onQuery: (query: string) => void
   onCreate: () => void
@@ -104,7 +106,7 @@ export function AgentCatalog({
                 {item.guidance.limits}
               </p>
             )}
-            <AgentRuntime agent={item} />
+            <AgentRuntime agent={item} foundryPortal={foundryPortal} />
             <button
               className="catalog-select"
               disabled={disabled}

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 
 import { benchmarks, percentile, type Measurement } from './performance-stats'
+import { FoundryLink } from './FoundryLink'
 import { TokenCost } from './TokenCost'
 import { formatTokens } from './token-usage'
 
@@ -16,11 +17,13 @@ export function PerformanceView({
   measurements,
   preview,
   budgetAlerts = false,
+  foundryPortal,
   onLog,
 }: {
   measurements: Measurement[]
   preview: boolean
   budgetAlerts?: boolean
+  foundryPortal?: string | null
   onLog: () => void
 }) {
   const completed = measurements.filter((item) => item.outcome === 'completed')
@@ -43,6 +46,15 @@ export function PerformanceView({
           are not a load test or a quality score.
         </p>
       </div>
+      {foundryPortal && (
+        <p className="foundry-note">
+          For monitoring across every session and user,{' '}
+          <FoundryLink href={foundryPortal}>
+            open the project in Foundry
+          </FoundryLink>
+          .
+        </p>
+      )}
       <div className="metric-strip metric-strip-4">
         <div>
           <MessageSquare size={18} />
