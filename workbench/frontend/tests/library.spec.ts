@@ -252,6 +252,10 @@ test('the library is the landing view and groups navigation into four sections',
     tabs.getByRole('button', { name: 'Guided demos' }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(
+    page.getByRole('heading', { name: 'Want a version of your own?' }),
+  ).toBeVisible()
+  await expect(page.getByText(/Terraform|Verified Modules/)).toHaveCount(0)
+  await expect(
     navigation(page).getByRole('button', { name: 'All agents' }),
   ).toHaveAttribute('aria-current', 'page')
   for (const [hash, name] of [
