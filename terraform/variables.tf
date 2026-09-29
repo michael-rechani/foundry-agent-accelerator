@@ -359,14 +359,25 @@ variable "enable_agent_service" {
   default     = true
 }
 
+variable "ai_search_sku" {
+  type        = string
+  description = "Tier for the Agent Service AI Search service: basic or standard. Azure can't change the tier of an existing service in place, so changing this replaces the service and any search indexes in it."
+  default     = "standard"
+
+  validation {
+    condition     = contains(["basic", "standard"], var.ai_search_sku)
+    error_message = "Use basic or standard for the AI Search tier."
+  }
+}
+
 variable "ai_search_replica_count" {
   type        = number
-  description = "Replicas for the Agent Service AI Search service. Each replica is billed as a full search unit. One replica has no availability SLA; use two for a read SLA or three for a read-write SLA."
+  description = "Replicas for the Agent Service AI Search service. Each replica is billed as a full search unit. One replica has no availability SLA; use two for a read SLA or three for a read-write SLA. The basic tier allows up to 3 replicas."
   default     = 1
 
   validation {
-    condition     = var.ai_search_replica_count >= 1 && var.ai_search_replica_count <= 12 && floor(var.ai_search_replica_count) == var.ai_search_replica_count
-    error_message = "Use a whole number of AI Search replicas from 1 to 12."
+    condition     = var.ai_search_replica_count >= 1 && var.ai_search_replica_count <= (var.ai_search_sku == "basic" ? 3 : 12) && floor(var.ai_search_replica_count) == var.ai_search_replica_count
+    error_message = "Use a whole number of AI Search replicas from 1 to 12, or from 1 to 3 on the basic tier."
   }
 }
 
