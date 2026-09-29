@@ -123,7 +123,7 @@ export function CreationSetupReview({
           {template.tools.map((tool) => (
             <li key={tool.name}>
               <code>{tool.name}</code> - {tool.description}
-              {tool.simulated ? ' (SIMULATED)' : ''}
+              {tool.simulated ? ' (sample data)' : ''}
             </li>
           ))}
         </ul>

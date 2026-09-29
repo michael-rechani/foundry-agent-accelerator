@@ -63,7 +63,7 @@
     "category": "Specialist: works on its own",
     "description": "Turn case notes into a summary, point out missing or contradictory details, and suggest follow-up questions.",
     "guidance": {
-      "input": "Paste fictional case notes and any rules you want it to consider. Label the notes so you can check references.",
+      "input": "Paste sample case notes and any rules you want it to consider. Label the notes so you can check references.",
       "output": "A summary of what the notes say, any relevant supplied rules, details to check and questions to ask next.",
       "limits": "It does not find missing records, invent rules, decide eligibility or liability, or update a system. A person checks the documents and makes decisions.",
       "delegation": "It writes the summary itself. It does not call other agents or use external tools.",

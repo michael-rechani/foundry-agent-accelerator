@@ -112,7 +112,7 @@ export function CreationTaskForm({
                       </span>
                       <small className="creation-chip creation-chip-tools">
                         {item.tools.length
-                          ? 'Simulated read-only lookups'
+                          ? 'Sample read-only lookups'
                           : 'Supplied text; no tools'}
                       </small>
                     </span>

@@ -520,7 +520,7 @@ test('catalog uses customer names while retaining runtime targets and scenario s
   ])
   await page.locator('.catalog-status > summary').click()
   await expect(page.locator('.catalog-status')).toContainText(
-    'Automated tests use simulated responses, so check live answers yourself.',
+    "Automated tests don't call the live model, so check live answers yourself.",
   )
   await expect(page.locator('.catalog-status')).toContainText(
     'Comparing proposals with requirements is in preview',

@@ -44,7 +44,7 @@ export function AgentCatalog({
         <summary>Sample scope and status</summary>
         <p>
           Checklist reviews and case notes summaries are available. Automated
-          tests use simulated responses, so check live answers yourself.
+          tests don&apos;t call the live model, so check live answers yourself.
           Comparing proposals with requirements is in preview and reuses the
           checklist reviewer.
         </p>
