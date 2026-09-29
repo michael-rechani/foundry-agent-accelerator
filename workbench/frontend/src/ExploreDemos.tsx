@@ -170,16 +170,16 @@ export function ExploreDemos({
       </div>
       <div className="demo-next">
         <div>
-          <h2>One foundation. Repeatable agent releases.</h2>
+          <h2>Want a version of your own?</h2>
           <p>
-            Terraform and Azure Verified Modules prepare the private
-            environment. Agent code, instructions, and versions can evolve
-            independently.
+            Try any agent in the library with sample data first. Then make your
+            own copy and change its instructions. Publishing a copy needs
+            operator approval.
           </p>
         </div>
         {config.agent_creation && (
           <button className="inline-link" onClick={() => onCreate()}>
-            Explore all agent templates <ArrowRight size={17} />
+            Make your own agent <ArrowRight size={17} />
           </button>
         )}
       </div>
