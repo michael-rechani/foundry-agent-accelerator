@@ -130,6 +130,21 @@ run "reject_invalid_ai_search_replica_count" {
   expect_failures = [var.ai_search_replica_count]
 }
 
+run "reject_unknown_ai_search_sku" {
+  command = plan
+  variables { ai_search_sku = "free" }
+  expect_failures = [var.ai_search_sku]
+}
+
+run "reject_too_many_basic_ai_search_replicas" {
+  command = plan
+  variables {
+    ai_search_sku           = "basic"
+    ai_search_replica_count = 4
+  }
+  expect_failures = [var.ai_search_replica_count]
+}
+
 run "reject_missing_vm_credential" {
   command = plan
   variables { enable_jumpbox = true }

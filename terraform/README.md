@@ -427,6 +427,15 @@ replica by default (`ai_search_replica_count = 1`), which has no availability
 SLA. Each extra replica is billed as a full search unit. Set it to 2 for a read
 SLA or 3 for a read-write SLA. Changing it scales the service in place.
 
+The service uses the `standard` tier by default. Set `ai_search_sku = "basic"`
+to pay about a third as much when no agent uses knowledge search or vector
+stores. Azure can't change the tier of an existing search service in place, so
+changing `ai_search_sku` replaces the service, its private endpoint and its role
+assignments, and it deletes any indexes. The service keeps its name, so the
+project's connection and capability host stay valid. Before switching, confirm
+the service has no indexes and the project has no vector stores. The service
+stays private: public network access is off and it uses Microsoft Entra ID only.
+
 Configure a pre-created backend as described in [State](#state). Authenticate
 before running Terraform; keep credentials out of configuration. Preserve
 existing values and state ownership.
