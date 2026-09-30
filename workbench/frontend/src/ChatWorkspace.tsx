@@ -813,7 +813,12 @@ export default function ChatWorkspace() {
                   )}
                 </div>
               )}
-              {busy && <WaitingIndicator label={agent?.label} />}
+              {busy && (
+                <WaitingIndicator
+                  label={agent?.label}
+                  expects={agent?.guidance?.output}
+                />
+              )}
               {error && (
                 <div className="chat-error" role="alert">
                   <CircleAlert size={19} />

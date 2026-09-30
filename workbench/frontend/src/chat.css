@@ -1553,16 +1553,29 @@ p {
   cursor: pointer;
 }
 .chat-waiting {
-  display: flex;
-  gap: 10px;
-  align-items: center;
   font-size: 12px;
   padding: 12px 6px;
   color: var(--muted);
 }
-.chat-waiting > span:last-child {
+.chat-waiting-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.chat-waiting-row > span:last-child {
   margin-left: auto;
   font: 10px var(--mono);
+}
+.chat-waiting-note {
+  margin: 8px 0 0 28px;
+  line-height: 1.6;
+}
+.chat-waiting-note strong {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .spin {
   animation: chat-spin 1.5s linear infinite;

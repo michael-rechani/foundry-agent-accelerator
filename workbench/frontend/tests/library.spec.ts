@@ -73,6 +73,8 @@ async function setup(
     catalogFailure?: boolean
     portal?: boolean
     withoutResultsFor?: string
+    libraryPreview?: boolean
+    stallChat?: boolean
   } = {},
 ) {
   const served = {
@@ -96,6 +98,15 @@ async function setup(
     history_enabled: false,
     reviews_enabled: false,
     foundry_portal: options.portal ? portal : null,
+    ...(options.libraryPreview
+      ? {
+          library_preview: {
+            enabled: true,
+            reason: null,
+            agent: 'lab-preview-agent',
+          },
+        }
+      : {}),
     agent_creation: {
       enabled: !options.preview,
       storage_enabled: !options.preview,
@@ -156,6 +167,7 @@ async function setup(
     if (path === '/api/reviews') {
       const body = request.postDataJSON()
       state.chat.push(body)
+      if (options.stallChat) return
       return respond({
         request_id: 'fictional-request-0001',
         status: 'completed',
@@ -767,6 +779,27 @@ test('preview explains that nothing is published and catalog failures can be ret
     .getByRole('button', { name: /^Request log/ })
     .click()
   await expect(page.locator('.secondary-view')).toContainText(/preview/i)
+})
+
+test('a library preview says what the agent will return while the answer is on its way', async ({
+  page,
+}) => {
+  await page.clock.install()
+  const state = await setup(page, { libraryPreview: true, stallChat: true })
+  await openAgent(page, support.label)
+  await page.getByRole('tab', { name: 'Try it' }).click()
+  await page.getByRole('button', { name: 'Try it now in Chat' }).click()
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toHaveValue(support.sample_input)
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect.poll(() => state.chat.length).toBe(1)
+  expect(state.chat[0].agent_id).toBe(`library-${support.id}`)
+  const waiting = page.getByRole('status').filter({ hasText: 'Awaiting' })
+  await expect(waiting).toContainText(support.label)
+  await expect(waiting).toContainText('What you get')
+  await expect(waiting).toContainText(support.output)
+  await expect(waiting).not.toContainText('Still working')
 })
 
 for (const mode of ['light', 'dark'] as const)
