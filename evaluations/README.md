@@ -379,8 +379,9 @@ Prompt version is operator-attested, not remotely proven. If
 `AGENT_INSTRUCTIONS` is explicitly present in the deployed environment, only its
 hash is recorded; otherwise `prompt_override_sha256` is `null`, not a hash of an
 assumed local default. A selected runtime-configuration hash also detects
-changes to model, instruction override, and specialist-binding, timeout, or
-concurrency settings without dumping their contents. It is not a complete
+changes to model, instruction override, specialist-binding, timeout, or
+concurrency settings, and to any `KNOWLEDGE_*` retrieval settings the deployed
+version has, without dumping their contents. It is not a complete
 deployed-code provenance check. An omitted candidate label, prompt version, or
 conditions label is `null`. Absent model/version/publisher metadata is also
 `null`; mandatory agent versions and deployment names must still be verified.
@@ -483,8 +484,10 @@ For a valid comparison, hold these fixed and retain both receipts:
 2. Judge deployment/model/version, specialist versions unless they are the
    explicit candidate variable, project/region, runtime dependencies, tool
    bindings, and retrieval inputs. This suite supplies inline synthetic
-   evidence, not a retrieval corpus. Verify model versions separately when
-   inventory is missing them; `null` does not establish equivalence.
+   evidence, not a retrieval corpus, and it has no retrieval cases yet. A
+   version's `KNOWLEDGE_*` retrieval settings are part of its configuration
+   hash, so a change to them shows up there. Verify model versions separately
+   when inventory is missing them; `null` does not establish equivalence.
 3. Run conditions: sequential calls, one fresh conversation per case, no client
    retries, response storage/streaming disabled, and the same timeouts. The
    receipt records these settings. The runner does not override agent

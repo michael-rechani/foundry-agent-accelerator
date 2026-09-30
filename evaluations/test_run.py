@@ -282,6 +282,32 @@ class InventoryTests(unittest.TestCase):
         self.environment["SPECIALIST_CONFIG"] = "different-profile"
         self.assertNotEqual(candidate["configuration_sha256"], run.agent_identity(self.project, "candidate")["configuration_sha256"])
 
+    def test_fingerprint_without_retrieval_settings_keeps_its_existing_digest(self):
+        self.environment.update({"UNRELATED": "ignored", "MY_KNOWLEDGE_NOTE": "ignored", "knowledge_index": "ignored"})
+        identity = run.agent_identity(self.project, "candidate")
+        self.assertEqual(
+            identity["configuration_sha256"],
+            "92fbed250798612054d65e3f925c00e007ab7c98b33f59c1b4bc2fbfb65677b7",
+        )
+
+    def test_retrieval_settings_change_the_fingerprint_without_being_recorded(self):
+        baseline = run.agent_identity(self.project, "candidate")["configuration_sha256"]
+        keys = (
+            "KNOWLEDGE_RETRIEVAL_ENABLED", "KNOWLEDGE_SEARCH_ENDPOINT", "KNOWLEDGE_SEARCH_INDEX",
+            "KNOWLEDGE_TOP_K", "KNOWLEDGE_SELECT_FIELDS", "KNOWLEDGE_ID_FIELD",
+        )
+        for key in keys:
+            with self.subTest(key=key):
+                self.environment[key] = "retrieval-marker-one"
+                first = run.agent_identity(self.project, "candidate")
+                self.environment[key] = "retrieval-marker-two"
+                second = run.agent_identity(self.project, "candidate")
+                self.assertNotEqual(baseline, first["configuration_sha256"])
+                self.assertNotEqual(first["configuration_sha256"], second["configuration_sha256"])
+                self.assertNotIn("retrieval-marker", json.dumps([first, second]))
+                del self.environment[key]
+                self.assertEqual(baseline, run.agent_identity(self.project, "candidate")["configuration_sha256"])
+
     def test_inventory_must_match_the_actual_downstream_project(self):
         endpoint = "https://example.services.ai.azure.com/api/projects/test"
         self.environment["FOUNDRY_PROJECT_ENDPOINT"] = "https://example.services.ai.azure.com/api/projects/other"
