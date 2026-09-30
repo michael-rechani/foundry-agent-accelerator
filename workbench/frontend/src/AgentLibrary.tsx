@@ -292,7 +292,8 @@ function LibraryLoading() {
         </div>
         <div>
           <div className="library-results-head">
-            <div className="library-bar library-bar-count" />
+            <h2 className="library-bar-count">&nbsp;</h2>
+            <span>&nbsp;</span>
           </div>
           <ul className="library-grid">
             {Array.from({ length: 6 }, (_, card) => (

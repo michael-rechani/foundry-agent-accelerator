@@ -239,10 +239,22 @@
 .library-bar-row {
   margin: 11px 9px;
 }
+/* The same heading and span as the real results head, holding blank text, so
+   the head is as tall as the real one in any font. The bar is drawn inside. */
 .library-bar-count {
+  position: relative;
   width: 110px;
+}
+.library-bar-count::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
   height: 14px;
-  margin: 3px 0 4px;
+  margin-top: -7px;
+  border-radius: 4px;
+  background: var(--line);
 }
 .library-placeholder {
   flex: 1;
