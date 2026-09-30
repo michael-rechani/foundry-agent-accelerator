@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -114,7 +114,7 @@ export function AgentLibrary({
 
   return (
     <main className="secondary-view library-view">
-      {(error || !catalog) && (
+      {error && (
         <div className="section-heading">
           <h1>Agent library</h1>
         </div>
@@ -128,7 +128,7 @@ export function AgentLibrary({
           </button>
         </div>
       ) : !catalog ? (
-        <p role="status">Loading the agent library...</p>
+        <LibraryLoading />
       ) : open ? (
         <LibraryDetail
           template={open}
@@ -152,14 +152,7 @@ export function AgentLibrary({
         />
       ) : (
         <>
-          <header className="library-hero">
-            <p className="library-eyebrow">Agent library</p>
-            <h1>Find an agent for the job</h1>
-            <p>
-              Each agent does one job. Try it with sample inputs, see what it
-              needs and what it leaves to a person, then take it to your own
-              Microsoft Foundry project.
-            </p>
+          <LibraryHero>
             <ol className="library-path" aria-label="How the library works">
               <li>
                 <span>1</span>Pick an agent
@@ -176,7 +169,7 @@ export function AgentLibrary({
                 <span>4</span>Take it to Foundry
               </li>
             </ol>
-          </header>
+          </LibraryHero>
           <div className="library-layout">
             <aside className="library-filters" aria-label="Library filters">
               <label className="library-search">
@@ -246,6 +239,79 @@ export function AgentLibrary({
         </>
       )}
     </main>
+  )
+}
+
+function LibraryHero({ children }: { children: ReactNode }) {
+  return (
+    <header className="library-hero">
+      <p className="library-eyebrow">Agent library</p>
+      <h1>Find an agent for the job</h1>
+      <p>
+        Each agent does one job. Try it with sample inputs, see what it needs
+        and what it leaves to a person, then take it to your own Microsoft
+        Foundry project.
+      </p>
+      {children}
+    </header>
+  )
+}
+
+// Grey shapes in the same places as the real page, so nothing jumps when the
+// agents arrive. They do not animate, which keeps a remote desktop quiet.
+function LibraryLoading() {
+  return (
+    <>
+      <p role="status" className="visually-hidden">
+        Loading the agent library...
+      </p>
+      <LibraryHero>
+        <ol className="library-path" aria-hidden="true">
+          {[1, 2, 3, 4].map((step) => (
+            <li key={step}>
+              <span>{step}</span>
+              <div className="library-bar library-bar-step" />
+            </li>
+          ))}
+        </ol>
+      </LibraryHero>
+      <div className="library-layout" aria-hidden="true">
+        <div className="library-filters">
+          <div className="library-search">
+            <Search size={16} />
+            <div className="library-bar library-bar-search" />
+          </div>
+          {[3, 5, 2, 3].map((rows, group) => (
+            <div key={group} className="library-placeholder-group">
+              <div className="library-bar library-bar-legend" />
+              {Array.from({ length: rows }, (_, row) => (
+                <div key={row} className="library-bar library-bar-row" />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div>
+          <div className="library-results-head">
+            <h2 className="library-bar-count">&nbsp;</h2>
+            <span>&nbsp;</span>
+          </div>
+          <ul className="library-grid">
+            {Array.from({ length: 6 }, (_, card) => (
+              <li key={card}>
+                <div className="library-placeholder">
+                  <div className="library-bar library-bar-kicker" />
+                  <div className="library-bar library-bar-title" />
+                  <div className="library-bar library-bar-line" />
+                  <div className="library-bar library-bar-line" />
+                  <div className="library-bar library-bar-line library-bar-short" />
+                  <div className="library-bar library-bar-pills" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </>
   )
 }
 
