@@ -117,6 +117,10 @@ export default function ChatWorkspace() {
   const previewList = previewCapability?.enabled
     ? previewAgents(library.catalog, previewCapability.agent)
     : []
+  const previewFor = (templateId: string) =>
+    previewList.find((item) => item.id === `library-${templateId}`)
+  const previewsLoading =
+    !!previewCapability?.enabled && !library.catalog && !library.error
   const [draft, setDraft] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
   const [pending, setPending] = useState('')
@@ -382,6 +386,7 @@ export default function ChatWorkspace() {
       scenario,
       availableAgents,
       createdAgents.records,
+      previewFor,
     )
     if (!target) {
       setNotice(
@@ -674,9 +679,7 @@ export default function ChatWorkspace() {
             library={library}
             capability={config.agent_creation}
             readyAgentFor={readyAgentFor}
-            previewFor={(templateId) =>
-              previewList.find((item) => item.id === `library-${templateId}`)
-            }
+            previewFor={previewFor}
             foundryPortal={isPreview ? null : config?.foundry_portal}
             busy={busy || historyBusy}
             onOpen={setLibraryDetail}
@@ -709,7 +712,8 @@ export default function ChatWorkspace() {
               config={config}
               agents={availableAgents}
               created={createdAgents.records}
-              loadingAgents={createdAgents.loading}
+              previewFor={previewFor}
+              loadingAgents={createdAgents.loading || previewsLoading}
               agentError={createdAgents.error}
               busy={busy || historyBusy}
               onLoad={loadDemo}

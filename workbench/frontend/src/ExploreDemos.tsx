@@ -14,6 +14,7 @@ import {
   type DemoScenario,
 } from './demo-scenarios'
 import type { CreatedAgent } from './agent-creation-client'
+import { isPreviewId } from './library-catalog'
 import type { Agent, Config } from './workspace-config'
 import './showcase.css'
 
@@ -23,6 +24,7 @@ export function ExploreDemos({
   config,
   agents,
   created,
+  previewFor,
   loadingAgents,
   agentError,
   busy,
@@ -33,6 +35,7 @@ export function ExploreDemos({
   config: Config
   agents: Agent[]
   created: CreatedAgent[]
+  previewFor: (templateId: string) => Agent | undefined
   loadingAgents: boolean
   agentError: string
   busy: boolean
@@ -42,7 +45,8 @@ export function ExploreDemos({
 }) {
   const [selected, setSelected] = useState(demoScenarios[0])
   const [copyStatus, setCopyStatus] = useState('')
-  const agent = agentForDemo(selected, agents, created)
+  const agent = agentForDemo(selected, agents, created, previewFor)
+  const preview = !!agent && isPreviewId(agent.id)
 
   async function copyInput() {
     try {
@@ -124,11 +128,13 @@ export function ExploreDemos({
           </div>
           <p className="demo-execution-note">
             {agent
-              ? `Uses ${agent.label}. Loading only fills the composer; you choose when to Send.`
+              ? `Uses ${preview ? `the ${agent.label} library preview` : agent.label}. Loading only fills the composer; you choose when to Send.`
               : 'This story is available to read now. Using its template requires preparing and publishing an agent; nothing is created automatically.'}{' '}
             {config.mode === 'preview'
               ? 'Local preview makes no model calls and saves no records.'
-              : 'Sending invokes Foundry and can incur costs. Saved records are shared.'}
+              : preview
+                ? 'Sending calls the model and can incur costs. Preview chats are not saved.'
+                : 'Sending invokes Foundry and can incur costs. Saved records are shared.'}
           </p>
           <p className="demo-example-label">
             <FlaskConical size={16} aria-hidden="true" />
@@ -158,7 +164,7 @@ export function ExploreDemos({
             <pre>{selected.input}</pre>
           </details>
           {loadingAgents && (
-            <p role="status">Checking created-agent availability...</p>
+            <p role="status">Checking which agents are available...</p>
           )}
           {agentError && (
             <p className="demo-error" role="alert">
