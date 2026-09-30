@@ -382,7 +382,7 @@ registry/builds, and existing network resources, so it is not the total Lab bill
 | History operations | Four concurrent requests and 60 requests/minute. History operations, including uploads and SDK retries, have a 35-second server deadline. Uploads also have a five-second deadline. The browser waits up to 45 seconds. |
 | Created-agent APIs | Four concurrent requests and 120 requests/minute. New publication and deletion run one at a time. |
 | Created-agent count | At most five nondeleted hosted agents by default, including unconfirmed or failed attempts. Each uses 0.5 CPU / 1 GiB and can incur hosted runtime/build costs as well as model charges. |
-| Uploads and rejections | All JSON-reading endpoints use one streamed body reader with a five-second upload deadline: 32 KiB for agent setups, 64 KiB for chat/document reviews, and 512 KiB for saved conversations. It counts actual bytes, including chunked uploads, before adding each chunk to its buffer or parsing JSON. Oversized uploads return HTTP 413; slow uploads return HTTP 408. Rate-limit rejections return HTTP 429 with `Retry-After: 60`. Responses are size-bounded. |
+| Uploads and rejections | All JSON-reading endpoints use one streamed body reader with a five-second upload deadline: 32 KiB for agent setups, 64 KiB for chat/document reviews, and 512 KiB for saved conversations. It counts actual bytes, including chunked uploads, before adding each chunk to its buffer or parsing JSON. Oversized uploads return HTTP 413; slow uploads return HTTP 408. Rate-limit rejections return HTTP 429 with `Retry-After: 60`. A chat request whose model deployment is at its own limit also returns 429 `busy`, with the model's `Retry-After` hint kept between 1 and 60 seconds. Responses are size-bounded. |
 
 These admission limits are process-local. Do not increase workers or replicas
 without distributed controls. Reused agent sessions are also process-local; with
@@ -808,8 +808,10 @@ The model deployment's capacity also limits spend. On Standard and Global
 Standard deployments, each capacity unit is 1,000 tokens per minute, and the
 Foundry configuration in `terraform/` sets it. Requests over the limit return
 HTTP 429 instead of running. For example, capacity 10 limits a deployment to
-10,000 tokens per minute. The Lab's Performance page lists which Lab actions
-are billable.
+10,000 tokens per minute. When a chat request hits that limit, the Lab answers
+`busy` (HTTP 429, with a `Retry-After` of 1 to 60 seconds) and asks the visitor
+to wait a minute; it doesn't report a connection problem. The Lab's Performance
+page lists which Lab actions are billable.
 
 ### Browser caching
 
