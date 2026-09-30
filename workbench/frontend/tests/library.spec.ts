@@ -76,6 +76,7 @@ async function setup(
     withoutResultsFor?: string
     libraryPreview?: boolean
     stallChat?: boolean
+    slowCatalog?: boolean
   } = {},
 ) {
   const served = {
@@ -129,6 +130,12 @@ async function setup(
   const record = options.ready
     ? { ...readyRecord(support), runtime_hash: runtimeHash }
     : null
+  let releaseCatalog = () => {}
+  const catalogGate = options.slowCatalog
+    ? new Promise<void>((resolve) => {
+        releaseCatalog = resolve
+      })
+    : null
   const state = {
     chat: [] as { agent_id: string; input: string }[],
     drafts: 0,
@@ -136,6 +143,7 @@ async function setup(
     catalogRequests: 0,
     failCatalog: !!options.catalogFailure,
     failScorecards: false,
+    releaseCatalog,
   }
   await page.route('**/api/**', async (route) => {
     const request = route.request()
@@ -148,6 +156,7 @@ async function setup(
       state.catalogRequests++
       expect(request.headers()['x-workbench-request']).toBe('1')
       if (state.failCatalog) return respond({ error: 'agents_busy' }, 429)
+      if (catalogGate) await catalogGate
       return respond(catalog)
     }
     if (path === '/api/agent-scorecards') {
@@ -287,6 +296,40 @@ test('the library is the landing view and groups navigation into four sections',
       }),
     ).toHaveAttribute('aria-current', 'page')
   }
+})
+
+test('grey placeholder cards hold the place of the agents while the library loads', async ({
+  page,
+}) => {
+  const state = await setup(page, { slowCatalog: true })
+  const placeholders = page.locator('.library-placeholder')
+  const cards = page.locator('.library-card')
+  const status = page.getByText('Loading the agent library...')
+  await expect(status).toBeAttached()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Find an agent for the job' }),
+  ).toBeVisible()
+  await expect(placeholders).toHaveCount(6)
+  await expect(cards).toHaveCount(0)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  const waiting = (await placeholders.first().boundingBox())!
+  const head = (await page.locator('.library-results-head').boundingBox())!
+
+  state.releaseCatalog()
+  await expect(cards).toHaveCount(templates.length)
+  await expect(placeholders).toHaveCount(0)
+  await expect(status).toHaveCount(0)
+  const arrived = (await cards.first().boundingBox())!
+  const arrivedHead = (await page
+    .locator('.library-results-head')
+    .boundingBox())!
+  // The first card lands where its placeholder was, so the page does not jump.
+  for (const edge of ['x', 'y', 'width'] as const)
+    expect(Math.abs(arrived[edge] - waiting[edge]), edge).toBeLessThanOrEqual(1)
+  expect(
+    Math.abs(arrivedHead.height - head.height),
+    'head',
+  ).toBeLessThanOrEqual(1)
 })
 
 test('the Add-ons tab previews what an agent could connect to without calling anything', async ({
