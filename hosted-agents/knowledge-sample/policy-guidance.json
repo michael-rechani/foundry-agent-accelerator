@@ -1,0 +1,65 @@
+{
+  "version": "sample-v1",
+  "documents": [
+    {
+      "id": "POL-EVID-001",
+      "title": "Missing evidence",
+      "section": "1.1",
+      "content": "Missing evidence: when a case note refers to a document, statement, or record that was not supplied, list it under missing information and name the note that mentions it. Do not assume the item exists, do not guess what it says, and do not treat its absence as a finding about the person or the outcome. Ask authorized staff whether it can be provided."
+    },
+    {
+      "id": "POL-EVID-002",
+      "title": "Conflicting statements",
+      "section": "1.2",
+      "content": "When two notes disagree about the same fact, report both statements side by side with their note identifiers. Do not choose one, blend them, or explain the difference away. If a later note clearly resolves the disagreement, name the note that does."
+    },
+    {
+      "id": "POL-DATE-001",
+      "title": "Dates and deadlines",
+      "section": "2.1",
+      "content": "Report dates exactly as they appear in the notes. A relative phrase such as next Friday has no calendar date unless the note gives a date to count from. Flag that uncertainty and ask for the explicit date instead of calculating one."
+    },
+    {
+      "id": "POL-ID-001",
+      "title": "Names and identifiers",
+      "section": "2.2",
+      "content": "Use case, note, and person identifiers exactly as supplied. Do not invent identifiers, treat two people with similar names as the same person, or add details that are not in the notes. If an identifier is absent, say so."
+    },
+    {
+      "id": "POL-CONT-001",
+      "title": "Contact attempts",
+      "section": "3.1",
+      "content": "Record each contact attempt the notes describe, with its date and method as written. Do not describe a person as unresponsive or uncooperative unless a note says so in those words. Give a number of attempts only when the notes state it or list them."
+    },
+    {
+      "id": "POL-FOLLOW-001",
+      "title": "Follow-up questions",
+      "section": "3.2",
+      "content": "Write follow-up questions for authorized staff in neutral wording, one question for each gap. Ask only for what is needed to complete the requested task. If no gap remains, write None identified instead of adding questions."
+    },
+    {
+      "id": "POL-ESC-001",
+      "title": "Urgent concerns",
+      "section": "4.1",
+      "content": "If a note describes an immediate safety concern or a deadline that is about to pass, put it first in the summary and recommend prompt review by authorized staff. Do not judge how serious the concern is or decide what action to take."
+    },
+    {
+      "id": "POL-NOPOL-001",
+      "title": "No policy supplied",
+      "section": "4.2",
+      "content": "A summary does not require policy text. When the request includes no policy, write No policy supplied and continue with the summary. Do not invent policy, cite policy that was not supplied, or describe this sample guidance as an organization's rules."
+    },
+    {
+      "id": "POL-FORM-001",
+      "title": "Summary wording",
+      "section": "5.1",
+      "content": "Keep the summary to facts the notes state, attributed to the note that states them. Separate what the notes report from what has been verified. Do not determine eligibility, liability, or any other outcome; an authorized person makes the final decision."
+    },
+    {
+      "id": "POL-PRIV-001",
+      "title": "Personal details",
+      "section": "5.2",
+      "content": "Include only the personal details needed for the requested task and leave out the rest. Do not infer protected characteristics from the notes."
+    }
+  ]
+}

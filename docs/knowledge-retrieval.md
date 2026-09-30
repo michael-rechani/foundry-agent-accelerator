@@ -10,9 +10,11 @@ evaluation outputs are unchanged. No Azure resources, Terraform, indexes, or
 evaluation datasets are changed by this work.
 
 > [!IMPORTANT]
-> **Status: designed and unit-tested only.** No index exists, no role is
-> assigned, and no retrieval-enabled version has been deployed or evaluated.
-> Nothing in this guide is evidence that retrieval works in a live environment.
+> **Status: designed and unit-tested only.** A sample document set and an index
+> script are in the repository, but nobody has run the script against Azure. No
+> index exists, no role is assigned, and no retrieval-enabled version has been
+> deployed or evaluated. Nothing in this guide is evidence that retrieval works
+> in a live environment.
 
 ## In this guide
 
@@ -25,7 +27,8 @@ evaluation datasets are changed by this work.
 - [Identity and RBAC](#identity-and-rbac)
 - [Private networking](#private-networking)
 - [Index schema](#index-schema)
-- [Indexing fictional documents](#indexing-fictional-documents)
+- [Sample documents and the index script](#sample-documents-and-the-index-script)
+- [Shared Search cautions](#shared-search-cautions)
 - [Receipts in the Lab](#receipts-in-the-lab)
 - [Evaluation additions](#evaluation-additions)
 - [Cost](#cost)
@@ -205,7 +208,7 @@ See the [permissions reference](permissions.md) for all current assignments.
 | Who | Role | Scope | When |
 | --- | --- | --- | --- |
 | `case-review-agent` hosted-agent runtime identity (its `instance_identity.principal_id`) | **Search Index Data Reader** (`1407120a-92aa-4202-b7e9-c0e197c71c8f`) | The single approved index: `.../searchServices/<service>/indexes/<index>` | Before publishing a retrieval-enabled version. |
-| Operator or indexing identity that loads the fictional documents | Search Index Data Contributor, and Search Service Contributor to create the index | The index, and the service for creation | Only while indexing; remove afterward. |
+| The person who runs the [index script](#sample-documents-and-the-index-script), signed in with their own account | **Search Service Contributor** (reads the index definition, creates or deletes the index) and **Search Index Data Contributor** (lists, loads, and deletes passages) | The Search service. The index doesn't exist yet when `load` creates it, so the data role can't be scoped to it for that first run. | Only while running `load` or `remove`. Remove both roles afterward. |
 
 - Search Index Data Reader can query indexes but can't load documents, change
   definitions, or read admin keys.
@@ -216,6 +219,18 @@ See the [permissions reference](permissions.md) for all current assignments.
   the retrieval smoke check fails closed without it.
 - This design doesn't change the project identity's existing Contributor roles,
   which the Foundry Agent Service needs for its own use of the backing Search.
+- **What each script command needs.** `plan` never contacts Azure. `load` and
+  `remove` need both operator roles, because they read the index definition
+  first and then list and write passages. `verify` reads the definition and the
+  passages, so it needs Search Service Contributor plus a data role. Search
+  Index Data Reader alone can't read an index definition, so `verify` with only
+  that role stops with an access error. The script has never run against Azure,
+  so the first approved run confirms these requirements.
+- Search Service Contributor is a privileged role. Per
+  [Microsoft Learn](https://learn.microsoft.com/azure/search/search-security-rbac#role-descriptions),
+  it can also retrieve admin and query API keys through the control plane. Keys
+  are disabled on this service, but give the role to a named person for the
+  shortest time needed.
 
 ## Private networking
 
@@ -232,10 +247,17 @@ Verify this in staging before relying on it: the retrieval smoke check proves
 DNS, network, and RBAC together. If you use a different Search service, it needs
 its own private endpoint and DNS link; don't enable public access.
 
+Run the [index script](#sample-documents-and-the-index-script) from a machine
+that can reach the private endpoint, such as the jumpbox or a private runner.
+From the public internet it fails because public access is off. Don't open
+public access to run it.
+
 ## Index schema
 
-Use a **dedicated index** for fictional guidance, not an index used by Foundry
-features. The default settings expect:
+Use a **dedicated index** for sample guidance, not an index used by Foundry
+features. The default settings expect the schema below. The
+[index script](#sample-documents-and-the-index-script) creates exactly this
+schema, with every field a string and none sortable or facetable:
 
 | Field | Type | Attributes | Purpose |
 | --- | --- | --- | --- |
@@ -243,27 +265,98 @@ features. The default settings expect:
 | `title` | `Edm.String` | Searchable, retrievable | Document title. |
 | `section` | `Edm.String` | Searchable, retrievable | Section or clause number. |
 | `content` | `Edm.String` | Searchable, retrievable | Passage text, chunked to 2,000 characters or fewer. |
-| `version` | `Edm.String` | Filterable, retrievable | Guidance version for freshness checks. Not selected by default. |
+| `version` | `Edm.String` | Filterable, retrievable | Guidance version for freshness checks. Not selected by default. The script writes the set's version, such as `sample-v1`, on every passage and uses the `sample-` prefix to recognize the passages it loaded. |
 
 No vector fields, semantic configuration, or embedding model are needed for the
 simple query type. Adding vector or semantic search is a later change.
 
-## Indexing fictional documents
+## Sample documents and the index script
 
-Indexing is an operator task outside this repository's runtime:
+The repository includes a small sample guidance set and a script that loads it.
+The passages are fictional demo text, not customer, staff, or real policy text.
 
-1. Write fictional guidance only, clearly labeled as fictional. Don't use
-   customer, staff, or real policy text.
-2. Chunk each document into passages of 2,000 characters or fewer and give each
-   passage a stable, unique `id`.
-3. Create the index and upload documents from the private network with a
-   temporary contributor identity. Use the Search REST API or
-   `azure-search-documents`; no indexer or data source is required for a small
-   fixed set.
-4. Review and approve the document set before exposing it to the agent. Record
-   the document version.
+- [`knowledge-sample/policy-guidance.json`](../hosted-agents/knowledge-sample/policy-guidance.json)
+  is version `sample-v1`: ten short passages, each with an `id`, `title`,
+  `section`, and `content` well under the 2,000-character limit. They cover
+  missing evidence, conflicting statements, dates, names and identifiers,
+  contact attempts, follow-up questions, urgent concerns, missing policy text,
+  summary wording, and personal details. `POL-EVID-001` answers the deploy smoke
+  check's query "missing evidence", and the script refuses a set without it.
+- [`knowledge_index.py`](../hosted-agents/knowledge_index.py) plans, loads,
+  verifies, and removes that set in one dedicated index. It uses the Python
+  standard library, the limits in `knowledge_retrieval.py`, and
+  `azure-identity`. It doesn't need the Search SDK.
 
-This repository doesn't include indexing code or fictional guidance documents.
+Run it from the repository root with the deployment environment's interpreter
+from [Prepare the selected sample](../hosted-agents/README.md#3-prepare-the-selected-sample),
+which already has `azure-identity`. Pass the endpoint and index name, or set
+`KNOWLEDGE_SEARCH_ENDPOINT` and `KNOWLEDGE_SEARCH_INDEX`:
+
+```powershell
+& $python hosted-agents/knowledge_index.py plan --endpoint https://<service>.search.windows.net --index <index>
+```
+
+| Command | What it does | Changes Azure? |
+| --- | --- | --- |
+| `plan` | Lists the passages, the set's version and digest, and what `load` would do. | No. It never contacts Azure or asks for a credential. |
+| `load --confirm` | Creates the index if it's missing, uploads the passages, deletes sample passages that are no longer in the set, then runs `verify`. | Yes. Creates an index and writes passages. |
+| `verify [--wait SECONDS]` | Checks the schema, every passage against the set, and that the query "missing evidence" returns `POL-EVID-001`. `--wait` retries while indexing catches up. | No. It only reads. |
+| `remove --confirm [--keep-index]` | Deletes the index, or only its passages with `--keep-index`. | Yes. Deletes data. |
+
+The script enforces these rules, and offline tests with a fake Search service
+cover each one:
+
+- **Nothing changes without `--confirm`.** `load` and `remove` without it print
+  what to do and exit with code 2 before contacting Azure.
+- **Dedicated sample index only.** Before changing an existing index, it reads
+  the definition and lists the documents. It stops without changing anything if
+  the schema differs, the index holds more than 100 documents, or any document's
+  `version` doesn't start with `sample-`. An index that holds anything else is
+  left alone.
+- **Stale sample passages only.** `load` deletes only sample passages that are
+  missing from the current set.
+- **Bounded and keyless.** It talks only to the validated
+  `https://<service>.search.windows.net` endpoint, signs in with
+  `DefaultAzureCredential` (for example after `az login`) and never uses keys,
+  waits at most 30 seconds per request, reads at most 1 MB per response, and
+  prints short, cleaned error messages without tokens.
+- **Indexing lag is expected.** New passages take a moment to become
+  searchable, so `load` retries `verify` for about 30 seconds.
+- **Clear exit codes.** `0` is success. `1` is a failure: a refusal, a Search
+  error, a sign-in or network problem, or a failed check. `2` is a usage or
+  settings problem, an invalid sample set, or a missing `--confirm`.
+
+To change a passage, edit the file, raise the version (for example `sample-v2`),
+get the new set approved, and run `load --confirm` again. Record the version and
+the digest that `plan` and `verify` print with the approval.
+
+Running `load` or `remove` against Azure changes shared data. It needs the
+approvals in [Operator rollout](#operator-rollout).
+
+## Shared Search cautions
+
+The Agent Service Search service backs Foundry features, so treat it as shared
+data and a shared cost:
+
+- **Inventory first.** Before creating an index, list the existing indexes and
+  the project's vector stores, who owns each, and how each would be rebuilt or
+  removed. Pick an index name that isn't in use, and stop if anything is
+  unexpected.
+- **A tier change deletes indexes.** Changing `ai_search_sku` replaces the
+  service and deletes its indexes. Confirm that no index or vector store is in
+  use, including this one, before any tier change. See
+  [Configure inputs and state](../terraform/README.md#1-configure-inputs-and-state).
+- **One replica has no availability SLA.** A retrieval check that fails once
+  may be a brief outage, not a design fault. Don't add replicas for this pilot
+  without a cost review.
+- **Keep the pilot index small.** Ten short passages stay well within the
+  service's existing capacity.
+- **No user uploads.** The Lab has no sign-in, so it can't keep one person's
+  documents private from another visitor. Only the reviewed sample set belongs
+  in the index.
+- **People approve the writes.** Creating or loading an index changes shared
+  data, so get explicit approval first, as listed in
+  [Operator rollout](#operator-rollout).
 
 ## Receipts in the Lab
 
@@ -312,29 +405,42 @@ is used in demos, add and run:
 
 ## Operator rollout
 
-1. Get approval for the fictional document set, index name, and the case
-   agent's access.
-2. From the private network, create the dedicated index and upload the fictional
-   documents with a temporary contributor identity. Remove that access afterward.
-3. Find the `case-review-agent` runtime `instance_identity.principal_id` and
+Every step that creates, loads, or removes data, assigns a role, or publishes
+needs explicit approval first.
+
+1. Take a read-only inventory of the Search service: its indexes, the project's
+   vector stores, who owns each, and how each would be rebuilt or removed. Stop
+   if anything is unexpected. See [Shared Search cautions](#shared-search-cautions).
+2. Get approval for the sample set (its version and digest from `plan`), the
+   index name, the temporary operator roles, and the case agent's access.
+3. From the private network, run `plan`, then `load --confirm` as the approved
+   operator. It creates the dedicated index, uploads the passages, and ends with
+   `verify`; confirm it reports the approved version and digest. Remove the
+   temporary operator roles afterward. See
+   [Sample documents and the index script](#sample-documents-and-the-index-script).
+4. Find the `case-review-agent` runtime `instance_identity.principal_id` and
    assign **Search Index Data Reader** scoped to the index.
-4. Install the knowledge dependency in the deployment environment:
+5. Install the knowledge dependency in the deployment environment:
    `pip install -r requirements.txt -r requirements-knowledge.txt`.
-5. Set `KNOWLEDGE_RETRIEVAL_ENABLED=true`, `KNOWLEDGE_SEARCH_ENDPOINT`, and
+6. Set `KNOWLEDGE_RETRIEVAL_ENABLED=true`, `KNOWLEDGE_SEARCH_ENDPOINT`, and
    `KNOWLEDGE_SEARCH_INDEX`, then run `python deploy.py` from
    `hosted-agents/case-review-agent`. Do this in a quiet window: the new version
    takes 100% of traffic before its smoke checks run. The retrieval smoke check
    must pass (at least one passage for the query "missing evidence"). If it
    fails, the script attempts a rollback; confirm the route yourself afterward.
-6. Add the Lab binding described in [Receipts in the Lab](#receipts-in-the-lab),
+7. Add the Lab binding described in [Receipts in the Lab](#receipts-in-the-lab),
    then run the [evaluation additions](#evaluation-additions).
-7. To turn retrieval off, redeploy with the flag unset or `false`, or route back
-   to the previous version. Remove the role assignment when it's no longer needed.
+8. To turn retrieval off, redeploy with the flag unset or `false`, or route back
+   to the previous version. Remove the role assignment when it's no longer
+   needed. If nothing else uses the sample index, `remove --confirm` deletes it,
+   which needs the temporary operator roles again.
 
 ## Not done
 
 - No Terraform or Azure changes, including role assignments and networking.
-- No index, documents, indexer, data source, or Search connection created.
+- No index, indexer, data source, or Search connection created. The sample
+  passages and the script that loads them are in the repository, but nobody has
+  run the script against Azure.
 - No deployment of a retrieval-enabled version and no live verification.
 - No change to the case agent's `main.py`, `requirements.txt`, or
   `instructions.md`, the application agent, the coordinator, or bundles.
@@ -350,7 +456,7 @@ is used in demos, add and run:
 - Whether the Checklist reviewer should also get retrieval.
 - How to surface specialist tool receipts through the coordinator.
 - Whether retrieval-enabled portable bundles are needed.
-- Who owns the index, the fictional document set, and its update process.
+- Who owns the index, the sample document set, and its update process.
 - Whether to use the Agent Service Search service or a separate one for
   retrieval indexes.
 - Whether to reduce the project identity's Contributor roles. That's out of
@@ -377,8 +483,10 @@ Checked in September 2026.
   network injection, the `privatelink.search.windows.net` zone, and bring-your-own
   Search.
 - [Azure AI Search RBAC](https://learn.microsoft.com/azure/search/search-security-rbac):
-  Search Index Data Reader is read-only, and data roles can be scoped to one
-  index.
+  Search Index Data Reader is read-only, data roles can be scoped to one index,
+  Search Service Contributor manages index definitions and can retrieve keys
+  but can't load or query documents, and Search Index Data Contributor loads and
+  queries documents but can't change definitions.
 - [`agent-framework-foundry` 1.13.1](https://pypi.org/project/agent-framework-foundry/1.13.1/):
   `get_azure_ai_search_tool` and `FoundryToolbox`, experimental Foundry tools.
 - [`agent-framework-azure-ai-search`](https://pypi.org/project/agent-framework-azure-ai-search/)

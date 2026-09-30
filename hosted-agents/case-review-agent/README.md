@@ -84,7 +84,9 @@ python deploy.py
 fictional guidance in an approved Azure AI Search index. It's controlled by
 `KNOWLEDGE_RETRIEVAL_ENABLED`, which is **off by default**. With the flag unset
 or `false`, the published agent is unchanged: no tools, the same instructions,
-and the same dependencies. The lookup isn't deployed or evaluated. Read the
+and the same dependencies. The lookup isn't deployed or evaluated. A sample
+guidance set and an [index script](../knowledge_index.py) are included, but
+nobody has run the script against Azure. Read the
 [knowledge retrieval design](../../docs/knowledge-retrieval.md) for identity,
 networking, the extra [`requirements-knowledge.txt`](requirements-knowledge.txt)
 dependency, and operator rollout steps before enabling it.
