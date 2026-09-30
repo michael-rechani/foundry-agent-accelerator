@@ -134,6 +134,32 @@
   font: 11px var(--mono);
   color: var(--muted);
 }
+.library-facet-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.library-facet-chevron {
+  flex: none;
+  color: var(--muted);
+}
+.library-facet[data-open] {
+  color: var(--text);
+}
+.library-facet[data-open] .library-facet-chevron {
+  transform: rotate(90deg);
+}
+.library-facet-children {
+  display: grid;
+  gap: 2px;
+  margin: 2px 0 6px 15px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+.library-facet[data-nested] {
+  font-size: 12.5px;
+}
 .library-clear,
 .library-empty button,
 .library-error button,

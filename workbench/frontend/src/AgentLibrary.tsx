@@ -30,23 +30,18 @@ import {
   facetKeys,
   filterTemplates,
   liveFacets,
+  toggleFacet,
   type FacetKey,
   type LibraryTemplate,
   type Selection,
 } from './library-catalog'
 import type { LibraryCatalogState } from './library-catalog-client'
+import { FacetGroups } from './LibraryFilters'
 import { ScorecardPanel } from './ScorecardPanel'
 import { useScorecards, type ScorecardsState } from './scorecards-client'
 import type { Agent, CreationCapability } from './workspace-config'
 import './library.css'
 
-const facetLabels: Record<FacetKey, string> = {
-  sectors: 'Sector',
-  industries: 'Industry',
-  tasks: 'Task',
-  readiness: 'Readiness',
-  tool_modes: 'Works with',
-}
 const tones: Record<string, string> = {
   reviewed: 'good',
   'tested-live': 'good',
@@ -106,10 +101,7 @@ export function AgentLibrary({
   if (!active) return null
 
   function toggle(key: FacetKey, id: string) {
-    setSelection((current) => ({
-      ...current,
-      [key]: current[key] === id ? undefined : id,
-    }))
+    setSelection((current) => toggleFacet(current, key, id))
   }
 
   function show(id: string) {
@@ -197,26 +189,12 @@ export function AgentLibrary({
                   onChange={(event) => setQuery(event.target.value)}
                 />
               </label>
-              {facets.map((group) => (
-                <fieldset key={group.key}>
-                  <legend>{facetLabels[group.key]}</legend>
-                  {group.items.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className="library-facet"
-                      aria-pressed={selection[group.key] === item.id}
-                      data-empty={item.count ? undefined : 'true'}
-                      onClick={() => toggle(group.key, item.id)}
-                    >
-                      <span>{item.label}</span>
-                      <small aria-label={`${item.count} agents`}>
-                        {item.count}
-                      </small>
-                    </button>
-                  ))}
-                </fieldset>
-              ))}
+              <FacetGroups
+                catalog={catalog}
+                facets={facets}
+                selection={selection}
+                onToggle={toggle}
+              />
               {filtered && (
                 <button
                   type="button"

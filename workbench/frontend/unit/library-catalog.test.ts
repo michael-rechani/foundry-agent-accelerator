@@ -2,12 +2,15 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { describe, it } from 'node:test'
 import {
+  fieldGroups,
   filterTemplates,
   isPreviewId,
   liveFacets,
+  openSector,
   parseCatalog,
   previewAgent,
   previewAgents,
+  toggleFacet,
 } from '../src/library-catalog.ts'
 
 const raw = JSON.parse(
@@ -80,6 +83,100 @@ describe('agent library catalog', () => {
       readiness.items.reduce((total, item) => total + item.count, 0),
       filterTemplates(catalog, '', { sectors: 'public' }).length,
     )
+  })
+})
+
+describe('sector and industry as one filter', () => {
+  const counts = (
+    facets: ReturnType<typeof liveFacets>,
+    key: 'sectors' | 'industries',
+  ) =>
+    facets.find((group) => group.key === key)!.items.map((item) => item.count)
+
+  it('lets one choice replace the other, and choosing it again clears it', () => {
+    const sector = toggleFacet({}, 'sectors', 'public')
+    assert.equal(sector.sectors, 'public')
+    const industry = toggleFacet(sector, 'industries', 'finance')
+    assert.equal(industry.sectors, undefined)
+    assert.equal(industry.industries, 'finance')
+    const again = toggleFacet(industry, 'sectors', 'private')
+    assert.equal(again.industries, undefined)
+    assert.equal(again.sectors, 'private')
+    const cleared = toggleFacet(again, 'sectors', 'private')
+    assert.equal(cleared.sectors, undefined)
+    assert.equal(cleared.industries, undefined)
+  })
+
+  it('leaves the other filters alone and does not change its input', () => {
+    const before = { sectors: 'public', tasks: 'review' }
+    const after = toggleFacet(before, 'industries', 'finance')
+    assert.deepEqual(before, { sectors: 'public', tasks: 'review' })
+    assert.equal(after.tasks, 'review')
+    assert.equal(toggleFacet(before, 'readiness', 'reviewed').sectors, 'public')
+  })
+
+  it('does not let one narrow the other but still applies the rest', () => {
+    const catalog = parseCatalog(raw)
+    const all = liveFacets(catalog, '', {})
+    for (const selection of [
+      { sectors: 'public' },
+      { industries: 'finance' },
+    ]) {
+      const narrowed = liveFacets(catalog, '', selection)
+      assert.deepEqual(counts(narrowed, 'sectors'), counts(all, 'sectors'))
+      assert.deepEqual(
+        counts(narrowed, 'industries'),
+        counts(all, 'industries'),
+      )
+    }
+    const review = filterTemplates(catalog, '', { tasks: 'review' }).length
+    const reviewing = liveFacets(catalog, '', {
+      sectors: 'public',
+      tasks: 'review',
+    })
+    for (const key of ['sectors', 'industries'] as const)
+      assert.equal(
+        counts(reviewing, key).reduce((total, count) => total + count, 0),
+        review,
+      )
+  })
+
+  it('lists every industry once, under the sector its agents belong to', () => {
+    const catalog = parseCatalog(raw)
+    const groups = fieldGroups(
+      catalog,
+      catalog.facets.sectors,
+      catalog.facets.industries,
+    )
+    assert.deepEqual(
+      groups.map((group) => group.sector.id),
+      catalog.facets.sectors.map((item) => item.id),
+    )
+    assert.deepEqual(
+      groups.flatMap((group) => group.industries.map((item) => item.id)).sort(),
+      catalog.facets.industries.map((item) => item.id).sort(),
+    )
+    for (const group of groups)
+      for (const industry of group.industries)
+        assert.ok(
+          catalog.templates.some(
+            (item) =>
+              item.sector.id === group.sector.id &&
+              item.industry.id === industry.id,
+          ),
+        )
+  })
+
+  it('opens the chosen sector, or the sector of the chosen industry', () => {
+    const catalog = parseCatalog(raw)
+    assert.equal(openSector(catalog, {}), undefined)
+    assert.equal(openSector(catalog, { sectors: 'public' }), 'public')
+    assert.equal(openSector(catalog, { industries: 'finance' }), 'private')
+    assert.equal(
+      openSector(catalog, { industries: 'procurement' }),
+      'cross-sector',
+    )
+    assert.equal(openSector(catalog, { industries: 'nothing' }), undefined)
   })
 })
 
