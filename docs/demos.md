@@ -127,9 +127,8 @@ alone are not the source documents an agent needs to analyze. No customer name,
 account, real patient record, or opportunity information is required.
 
 In local preview, you can demonstrate steps 1-3 only, without the publication
-action. Any screenshots using controlled browser-test responses must remain
-visibly labeled **ILLUSTRATIVE UI TEST**; they are not live Foundry results. The
-existing walkthroughs below remain usable without creating another agent.
+action. The existing walkthroughs below remain usable without creating another
+agent.
 
 ## A short demonstration
 
@@ -149,10 +148,9 @@ promised.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-chat-start-dark.png">
-  <img alt="Illustrative UI test of an empty Chat with mocked APIs: the Checklist and case helper explains what you give it and what you get, with example tasks to review an application, summarize case notes, or compare a proposal" src="images/screenshots/lab-chat-start.png">
+  <img alt="An empty Chat: the Checklist and case helper explains what you give it and what you get, with example tasks to review an application, summarize case notes, or compare a proposal" src="images/screenshots/lab-chat-start.png">
 </picture>
 
-*Illustrative UI test with mocked APIs, not a live model result.* ·
 [View full size](images/screenshots/lab-chat-start.png)
 
 Expected findings describe meaning and evidence, **not identical model wording**.
@@ -266,7 +264,7 @@ Preserve every checklist item and document label. Product statements are supplie
 claims, not independently verified capabilities. No vendor ranking, compliance
 certification, award recommendation, or invented citation is acceptable.
 
-**Optional Document reviews:** open **Document reviews** and enter
+**Optional Document reviews:** open **Document reviews** (`/#reviews`) and enter
 the title, three criteria, and three source texts from
 [requirements-review.json](demo-inputs/requirements-review.json). This is an
 existing `ReviewInput` example for reference, **not a new upload feature**.

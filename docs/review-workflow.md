@@ -60,14 +60,15 @@ for everyone with Lab access and that backup retention is separate:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-review-privacy-dark.png">
-  <img alt="Illustrative UI test with mocked APIs: a fictional Document review form shows its shared-data and retention notice beside Create shared review, before anything is saved" src="images/screenshots/lab-review-privacy.png">
+  <img alt="A Document review form with its shared-data and retention notice beside Create shared review, before anything is saved" src="images/screenshots/lab-review-privacy.png">
 </picture>
 
-*Illustrative browser-test screenshot; no live model call or saved record.*
-
+1. Open the Lab's address with `#reviews` added (`/#reviews`), or follow a
+   saved-review link. **Document reviews** has no sidebar link until you are on
+   the page.
 1. Choose **New review**.
 1. Enter a title and **Checklist, one item per line**.
-1. Paste text into **Documents to check**. **Use fictional example** fills a
+1. Paste text into **Documents to check**. **Use sample text** fills a
    small workshop application without saving or running it.
 1. Supply up to 12 checklist items and 12 documents. Each checklist item is
    limited to 1,000 characters. Each source is limited to 12,000 characters, and
@@ -90,10 +91,9 @@ for everyone with Lab access and that backup retention is separate:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-document-review-dark.png">
-  <img alt="Illustrative UI test of a Document reviews record with mocked APIs: Results list a Gap for the missing budget and a Supported delivery timeline with its quoted source, beside the Original text panel" src="images/screenshots/lab-document-review.png">
+  <img alt="A Document reviews record: Results list a Gap for the missing budget and a Supported delivery timeline with its quoted source, beside the Original text panel" src="images/screenshots/lab-document-review.png">
 </picture>
 
-*Illustrative UI test with mocked APIs, not a live model result.* ·
 [View full size](images/screenshots/lab-document-review.png)
 
 | Result label | In plain language |

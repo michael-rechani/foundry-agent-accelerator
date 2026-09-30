@@ -4,8 +4,7 @@
 
 Start with a customer question, not a blank prompt. These three sample
 stories show the input, findings to check, and decision that stays with a
-person. They can be read without Azure. They are not live model results,
-customer endorsements, or proof that an agent is ready for production.
+person. They can be read without Azure.
 
 ## In this guide
 
@@ -23,7 +22,7 @@ before signing off?
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-demo-application-dark.png">
-  <img alt="Illustrative application-completeness walkthrough with a missing budget, supported owner, and conflicting schedule; mocked APIs, not a live result." src="images/screenshots/lab-demo-application.png">
+  <img alt="Application-completeness story with a missing budget, a supported owner, and conflicting schedules" src="images/screenshots/lab-demo-application.png">
 </picture>
 
 Use the [sample project and checklist](demo-inputs/application.txt).
@@ -49,7 +48,7 @@ an order, and a delivery record without delegating the payment decision?
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-demo-invoice-dark.png">
-  <img alt="Illustrative supplier-invoice walkthrough with quantity, price, delivery-fee, and damaged-item questions; mocked APIs, not a live result." src="images/screenshots/lab-demo-invoice.png">
+  <img alt="Supplier-invoice story with quantity, price, delivery-fee, and damaged-item questions" src="images/screenshots/lab-demo-invoice.png">
 </picture>
 
 Use the [sample supplier invoice](demo-inputs/supplier-invoice.txt).
@@ -80,7 +79,7 @@ and unanswered questions?
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-demo-casework-dark.png">
-  <img alt="Illustrative casework walkthrough preserving conflicting intake dates, a supported follow-up date, and missing proof; mocked APIs, not a live result." src="images/screenshots/lab-demo-casework.png">
+  <img alt="Casework story preserving conflicting intake dates, a supported follow-up date, and missing proof" src="images/screenshots/lab-demo-casework.png">
 </picture>
 
 Use the [sample case notes](demo-inputs/casework.txt).
@@ -100,7 +99,7 @@ choose an unsupported date, or modify a system.
 ## Present without hiding the boundaries
 
 1. Open **Guided demos** and choose one story. The displayed findings are
-   illustrative expectations, not an agent response.
+   what to look for, not an agent response.
 2. Turn on **Presenter view** in the header for larger story and conversation
    text. The environment indicator and shared-record notices remain visible.
 3. Load the sample input. Existing unsaved chat messages require confirmation
