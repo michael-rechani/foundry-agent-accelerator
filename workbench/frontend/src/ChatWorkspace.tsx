@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Check, CircleAlert, LoaderCircle, RefreshCw, X } from 'lucide-react'
 import './chat.css'
 import { useHistoryClient } from './history-client'
+import { preloadMarkdown } from './markdown-loader'
 import { ConversationTurn } from './ConversationTurn'
 import type { Turn } from './conversation-types'
 import { requestJson } from './request'
@@ -262,6 +263,7 @@ export default function ChatWorkspace() {
     const measurementId = crypto.randomUUID()
     controller.current = abort
     setBusy(true)
+    void preloadMarkdown()
     setError('')
     setNotice('')
     setPending(question)

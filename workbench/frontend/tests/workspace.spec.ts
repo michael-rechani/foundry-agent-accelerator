@@ -34,6 +34,7 @@ async function workspace(
     config?: Partial<Config>
     receipts?: Receipt[]
     usage?: unknown
+    answer?: string
   } = {},
 ) {
   const config: Config = {
@@ -105,7 +106,7 @@ async function workspace(
           config.agents.find((item) => item.id === config.default_agent) ??
           agent
         ).agent,
-        text: 'Section 1 is missing a budget.',
+        text: options.answer ?? 'Section 1 is missing a budget.',
         elapsed_ms: 1000,
         ...(options.usage !== undefined ? { usage: options.usage } : {}),
         receipts: options.receipts ?? [
@@ -935,6 +936,36 @@ test('while waiting, Chat says what the agent returns and reassures after a long
   ).toHaveCount(1)
 })
 
+test('the answer formatter loads on the first Send and formats the answer', async ({
+  page,
+}) => {
+  const scripts: string[] = []
+  page.on('request', (request) => {
+    const path = new URL(request.url()).pathname
+    if (/\/assets\/MarkdownText-[\w-]+\.js$/.test(path)) scripts.push(path)
+  })
+  await workspace(page, {
+    answer:
+      '**Budget missing.**\n\n| Item | Status |\n| --- | --- |\n| Budget | Missing |',
+  })
+  expect(scripts).toHaveLength(0)
+  await send(page)
+  const answer = page.locator('.message-markdown').first()
+  await expect(answer.locator('strong')).toHaveText('Budget missing.')
+  await expect(answer.locator('table tbody tr')).toHaveCount(1)
+  expect(scripts).toHaveLength(1)
+})
+
+test('the answer stays readable if the formatter cannot load', async ({
+  page,
+}) => {
+  await page.route('**/assets/MarkdownText-*.js', (route) => route.abort())
+  await workspace(page, { answer: 'Budget missing in Section 1.' })
+  await send(page)
+  await expect(page.locator('.message-markdown pre').first()).toHaveText(
+    'Budget missing in Section 1.',
+  )
+})
 test('stop waiting does not automatically retry', async ({ page }) => {
   const state = await workspace(page, { stalledReview: true })
   await page.getByRole('textbox', { name: 'Message' }).fill('Synthetic request')
