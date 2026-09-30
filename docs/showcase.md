@@ -52,14 +52,16 @@ an order, and a delivery record without delegating the payment decision?
 </picture>
 
 Use the [sample supplier invoice](demo-inputs/supplier-invoice.txt).
-This scenario requires a ready created **Supplier invoice reviewer**, whose
-two fixed tools return the sample purchase order and delivery record for
+This scenario uses a ready created **Supplier invoice reviewer**. If none is
+ready and the Lab has library previews on, it uses the library preview of the
+same template instead, and preview chats are not saved. Either way, the two
+fixed tools return the sample purchase order and delivery record for
 `PO-DEMO-2210`. They do not contact a finance system.
 
-Without a matching ready agent, **Guided demos** lets you read and copy the
-example and points you to the appropriate template. Preparing the template does
-not publish it. Publication still requires the operator key, explicit cost
-approval, and the existing [creation prerequisites](agent-creation.md).
+With neither, **Guided demos** lets you read and copy the example and points
+you to the appropriate template. Preparing the template does not publish it.
+Publication still requires the operator key, explicit cost approval, and the
+existing [creation prerequisites](agent-creation.md).
 
 | Source | Expected finding | Human follow-up |
 | --- | --- | --- |
