@@ -38,13 +38,20 @@ no model calls. This is a sample, not an official Microsoft product.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/lab-tour-dark.svg">
-  <img alt="Illustrative UI test with mocked APIs: Explore demos, prepare an agent, try Chat, and prepare a Document review, with shared-data notices before sending or saving. No live model results or saved records." src="docs/images/lab-tour.svg">
+  <img alt="Tour of the Foundry Agent Lab in four steps: Guided demos, Create agent, Chat, and Document reviews, with shared-data notices before anything is sent or saved." src="docs/images/lab-tour.svg">
 </picture>
 
-**Explore demos → Create agent → Chat → Document reviews**
+**Guided demos → Create agent → Chat → Document reviews**
 
-*The tour follows your GitHub theme. These are illustrative UI tests with
-mocked APIs; nothing was published, sent, or saved.*
+1. **Guided demos:** pick a sample story and load its input.
+2. **Create agent:** prepare an agent from a reviewed template.
+3. **Chat:** talk with an agent. An example only fills the message box; you
+   choose when to send it.
+4. **Document reviews:** paste a checklist and document text to get one saved,
+   quoted result for each checklist item. It isn't in the sidebar: open `/#reviews`
+   on the Lab's address, or a saved-review link.
+
+*The tour follows your GitHub theme.*
 
 [Open the full tour](docs/images/lab-tour.svg) ·
 [Create agent screenshot](docs/images/screenshots/lab-create-agent.png) ·
@@ -106,8 +113,7 @@ The invoice story needs a ready **Supplier invoice reviewer** created from its
 template. It uses simulated lookups, not a finance integration.
 
 [Watch all three stories](docs/images/scenario-tour.svg) ·
-[Dark theme](docs/images/scenario-tour-dark.svg). These are sample
-walkthroughs, not guaranteed answers or measured business results.
+[Dark theme](docs/images/scenario-tour-dark.svg)
 
 ## What you can show
 
@@ -125,8 +131,9 @@ walkthroughs, not guaranteed answers or measured business results.
 
 ### Review and improve
 
-- **[Grounded answers](docs/review-workflow.md):** in **Document reviews**,
-  every result quotes your text; quotes that don't match are rejected.
+- **[Grounded answers](docs/review-workflow.md):** in **Document reviews**
+  (open `/#reviews`), every result quotes your text; quotes that don't match
+  are rejected.
 - **[Tracing](terraform/monitoring/README.md):** compare response times by agent
   in **Performance**, copy a request reference from **Request log**, and view
   optional agent traces in the Foundry portal.
@@ -145,7 +152,8 @@ The Lab opens on the **Agent library**; **Chat** remains one click away. The
 sidebar groups its pages into four sections: **Agent library** (every agent,
 under **Browse**, **Ready to chat**, **Made in this Lab**, **Guided
 demos**, and **Add-ons**), **Try it** (Chat and Shared history), **Measure** (response times,
-tokens, and cost), and **Activity** (the request log). See the
+tokens, and cost), and **Activity** (the request log). **Document reviews** has no
+sidebar link; open `/#reviews` or a saved-review link. See the
 [Lab guide](workbench/README.md#pages).
 
 ---

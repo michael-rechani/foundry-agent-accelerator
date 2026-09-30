@@ -261,8 +261,7 @@ replace the backend with mocked API responses, so the images show real UI
 layout but not live model answers or saved records. Each image carries the
 **ILLUSTRATIVE UI TEST** watermark in its lower-right corner, or in the empty
 lower-left sidebar, above the **Under the hood** switch, for desktop chat and privacy
-captures so no notice or control is obscured; keep it visible
-and say "illustrative" in the caption and alt text wherever you use one.
+captures so no notice or control is obscured; keep it visible.
 
 | Screenshot | Shows | Test output | Used in |
 | --- | --- | --- | --- |
@@ -273,8 +272,8 @@ and say "illustrative" in the caption and alt text wherever you use one.
 | [lab-review-privacy.png](screenshots/lab-review-privacy.png) / [dark](screenshots/lab-review-privacy-dark.png) | The fictional new-review form, scrolled to its shared-data and retention notice before **Create shared review** | `review-privacy.png` / `review-privacy-dark.png` | README tour, [review workflow](../review-workflow.md#workflow) |
 | [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page with its templates in two groups and the full sidebar | `creation-start.png` | [README tour](#readme-tour) and its full-size link, [agent creation](../agent-creation.md#what-a-participant-can-do) |
 | [lab-create-agent-dark.png](screenshots/lab-create-agent-dark.png) | The same page in the **Dark** theme with the Foundry accent and one template selected | `creation-start-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
-| [lab-demo-application.png](screenshots/lab-demo-application.png) / [dark](screenshots/lab-demo-application-dark.png) | Application completeness story in **Explore demos** | `demo-application.png` / `demo-application-dark.png` | README and scenario tours, [showcase](../showcase.md) |
-| [lab-demo-invoice.png](screenshots/lab-demo-invoice.png) / [dark](screenshots/lab-demo-invoice-dark.png) | Supplier invoice story with clearly illustrative findings | `demo-invoice.png` / `demo-invoice-dark.png` | Scenario tour and showcase |
+| [lab-demo-application.png](screenshots/lab-demo-application.png) / [dark](screenshots/lab-demo-application-dark.png) | Application completeness story in **Guided demos** | `demo-application.png` / `demo-application-dark.png` | README and scenario tours, [showcase](../showcase.md) |
+| [lab-demo-invoice.png](screenshots/lab-demo-invoice.png) / [dark](screenshots/lab-demo-invoice-dark.png) | Supplier invoice story with sample findings | `demo-invoice.png` / `demo-invoice-dark.png` | Scenario tour and showcase |
 | [lab-demo-casework.png](screenshots/lab-demo-casework.png) / [dark](screenshots/lab-demo-casework-dark.png) | Casework story preserving facts, disagreements, and human decisions | `demo-casework.png` / `demo-casework-dark.png` | Scenario tour and showcase |
 
 To refresh them, run the desktop browser tests, then the asset refresh script:

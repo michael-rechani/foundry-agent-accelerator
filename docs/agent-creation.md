@@ -62,10 +62,9 @@ job uses and whether it has simulated lookups.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-create-agent-dark.png">
-  <img alt="Illustrative UI test of the Create agent page with mocked APIs: three numbered steps, nine template cards in two groups, each with an icon, a model chip and a tools label, and a job description box" src="images/screenshots/lab-create-agent.png">
+  <img alt="The Create agent page: three numbered steps, nine template cards in two groups, each with an icon, a model chip and a tools label, and a job description box" src="images/screenshots/lab-create-agent.png">
 </picture>
 
-*Illustrative UI test with mocked APIs; nothing was published.* ·
 [View full size](images/screenshots/lab-create-agent.png)
 
 | Stage | What happens | What does not happen |
@@ -100,8 +99,7 @@ uses the existing Lab default agent, not whichever created agent is in **Chat**.
 There is no automatic transfer between the two.
 
 The local disconnected preview supports draft preparation only. It cannot
-publish, persist a created agent, or produce a live model answer. Browser-test
-screenshots with mocked APIs must be visibly labeled as illustrative.
+publish, persist a created agent, or produce a live model answer.
 
 ## How the Lab picks a model
 
