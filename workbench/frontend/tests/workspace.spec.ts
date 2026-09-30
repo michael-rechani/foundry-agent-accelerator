@@ -27,6 +27,7 @@ async function workspace(
     conflict?: boolean
     stalledHistory?: boolean
     stalledReview?: boolean
+    busyReview?: boolean
     gatewayError?: boolean
     preview?: boolean
     startup?: 'stalled' | 'invalid' | 'invalid-guidance' | 'failed'
@@ -84,6 +85,12 @@ async function workspace(
     if (path === '/api/reviews') {
       state.requests.push(request.postDataJSON())
       if (options.stalledReview) return
+      if (options.busyReview)
+        return route.fulfill({
+          status: 429,
+          headers: { 'Retry-After': '12' },
+          json: { error: 'busy', request_id: 'request-busy' },
+        })
       if (options.gatewayError)
         return route.fulfill({
           status: 502,
@@ -914,6 +921,24 @@ test('stop waiting does not automatically retry', async ({ page }) => {
   await expect.poll(() => state.requests.length).toBe(1)
   await page.getByRole('button', { name: 'Stop waiting' }).click()
   await expect(page.getByRole('alert')).toContainText('Stopped waiting')
+  await expect(page.getByRole('textbox', { name: 'Message' })).toHaveValue(
+    'Synthetic request',
+  )
+  expect(state.requests).toHaveLength(1)
+})
+
+test('a busy model asks the visitor to wait instead of blaming the connection', async ({
+  page,
+}) => {
+  const state = await workspace(page, { busyReview: true })
+  await page.getByRole('textbox', { name: 'Message' }).fill('Synthetic request')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText(
+    'The Lab is busy right now. Wait a minute, then try again.',
+  )
+  await expect(alert).toContainText('Reference: request-busy')
+  await expect(alert).not.toContainText(/connectivity|managed-identity/i)
   await expect(page.getByRole('textbox', { name: 'Message' })).toHaveValue(
     'Synthetic request',
   )

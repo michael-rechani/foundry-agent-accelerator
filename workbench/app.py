@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -339,6 +340,15 @@ class FoundryGateway:
             await credential.close()
 
 
+def retry_after_seconds(problem):
+    """Seconds to wait after a model rate limit: its Retry-After hint, kept between 1 and 60, else 60."""
+    headers = getattr(getattr(problem, "response", None), "headers", None) or {}
+    try:
+        return min(60, max(1, math.ceil(float(headers.get("retry-after")))))
+    except (AttributeError, TypeError, ValueError, OverflowError):
+        return 60
+
+
 class ChatReviews:
     """Stateless chat turns: POST /api/reviews admission, validation, and one bounded Foundry Responses call."""
 
@@ -351,12 +361,16 @@ class ChatReviews:
         while self.recent and self.recent[0] <= now - 60:
             self.recent.popleft()
         if self.slots.locked() or len(self.recent) >= 20:
-            request.state.error_code = "busy"
-            return JSONResponse({"error": "busy", "request_id": request.state.request_id},
-                                status_code=429, headers={"Retry-After": "60"})
+            return self.busy(request)
         self.recent.append(now)
         async with self.slots:
             return await self.execute(request)
+
+    @staticmethod
+    def busy(request, retry_after=60):
+        request.state.error_code = "busy"
+        return JSONResponse({"error": "busy", "request_id": request.state.request_id},
+                            status_code=429, headers={"Retry-After": str(retry_after)})
 
     @staticmethod
     def error(request, status, code):
@@ -437,6 +451,8 @@ class ChatReviews:
             return self.error(request, 504, "timeout")
         except Exception as problem:
             record_request_failure(request, problem, "foundry")
+            if getattr(problem, "status_code", None) == 429:
+                return self.busy(request, retry_after_seconds(problem))
             return self.error(request, 502, "backend_unavailable")
 
 

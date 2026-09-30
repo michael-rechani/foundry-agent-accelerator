@@ -82,7 +82,7 @@ changing configuration or credentials.
 | --- | --- | --- |
 | The Lab won't load its configuration. | Bootstrap deadline and settings | [Configuration loading](../workbench/README.md#configuration-loading) |
 | A chat stops waiting, times out, or a save is rejected. | Request limits and ETag checks | [Limits and request behavior](../workbench/README.md#limits-and-request-behavior), [failure and capacity boundaries](architecture.md#failure-and-capacity-boundaries) |
-| Requests return HTTP 429. | Process-local admission limits | [Storage and cost](../workbench/README.md#storage-and-cost) |
+| Requests return HTTP 429. | Process-local admission limits, or the model deployment at its own limit | [Storage and cost](../workbench/README.md#storage-and-cost) |
 | A follow-up starts cold after a restart, delay, or overlapping request. | Process-local session lease/cache | [Agent session reuse](../workbench/README.md#agent-session-reuse) |
 | `/api/health/dependencies` returns 503. | Foundry or Cosmos access | [Diagnostics and caching](../workbench/README.md#diagnostics-and-caching) |
 | A review stays **running** or shows **Interrupted**. | Review recovery window | [Recover an interrupted review](review-workflow.md#recover-an-interrupted-review) |

@@ -14,6 +14,16 @@ from agent_creation import CreationSettings
 from app import FoundryGateway, Settings, cache_policy, create_app, execution_receipts, load_agents
 
 
+class RateLimitError(Exception):
+    """Stands in for the model client's rate-limit error, which carries the HTTP status and response headers."""
+
+    status_code = 429
+
+    def __init__(self, headers=None):
+        super().__init__("rate limited")
+        self.response = SimpleNamespace(headers=headers if headers is not None else {})
+
+
 class WorkbenchTests(unittest.TestCase):
     def setUp(self):
         self.gateway = AsyncMock()
@@ -246,6 +256,40 @@ class WorkbenchTests(unittest.TestCase):
         self.gateway.review.side_effect = None
         self.gateway.review.return_value = ("failed", "text", [])
         self.assertEqual(self.client.post("/api/reviews", json=self.body, headers=self.headers).status_code, 502)
+
+    def test_model_rate_limit_is_busy_with_a_bounded_retry_hint(self):
+        cases = [({"retry-after": "12"}, "12"), ({"retry-after": "1.2"}, "2"), ({"retry-after": "0"}, "1"),
+                 ({"retry-after": "900"}, "60"), ({"retry-after": "soon"}, "60"), ({"retry-after": "nan"}, "60"),
+                 ({"retry-after": "inf"}, "60"), ({}, "60"), (None, "60")]
+        for headers, expected in cases:
+            with self.subTest(headers=headers):
+                self.gateway.review.side_effect = RateLimitError(headers)
+                response = self.client.post("/api/reviews", json=self.body, headers=self.headers)
+                self.assertEqual(response.status_code, 429)
+                self.assertEqual(response.json()["error"], "busy")
+                self.assertEqual(response.json()["request_id"], response.headers["X-Correlation-ID"])
+                self.assertEqual(response.headers["Retry-After"], expected)
+
+    def test_model_rate_limit_is_logged_as_busy_without_content(self):
+        self.gateway.review.side_effect = RateLimitError({"retry-after": "5"})
+        with self.assertLogs("uvicorn.error", level="INFO") as captured:
+            self.client.post("/api/reviews", json={**self.body, "input": "private customer prompt"}, headers=self.headers)
+        event = json.loads(captured.records[-1].getMessage())
+        self.assertEqual((event["status"], event["outcome"]), (429, "busy"))
+        self.assertEqual((event["dependency"], event["error_type"]), ("foundry", "RateLimitError"))
+        self.assertEqual(captured.records[-1].levelname, "INFO")
+        self.assertNotIn("private", " ".join(captured.output))
+
+    def test_other_model_errors_stay_backend_unavailable(self):
+        for status in (401, 500, None):
+            with self.subTest(status=status):
+                failure = RateLimitError({"retry-after": "5"})
+                failure.status_code = status
+                self.gateway.review.side_effect = failure
+                response = self.client.post("/api/reviews", json=self.body, headers=self.headers)
+                self.assertEqual(response.status_code, 502)
+                self.assertEqual(response.json()["error"], "backend_unavailable")
+                self.assertNotIn("Retry-After", response.headers)
 
     def test_review_rate_limit_precedes_body_validation(self):
         with patch("app.time.monotonic", return_value=100):

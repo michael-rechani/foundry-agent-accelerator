@@ -54,7 +54,7 @@ const hashViews: Record<string, View> = {
 
 const errors: Record<string, string> = {
   preview_only: 'Foundry is not connected. No agent was invoked.',
-  busy: 'The workbench is at capacity. Try again shortly.',
+  busy: 'The Lab is busy right now. Wait a minute, then try again.',
   timeout:
     'The request timed out. Remote work may still finish; check before retrying.',
   backend_unavailable:
