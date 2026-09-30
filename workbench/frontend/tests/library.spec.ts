@@ -504,6 +504,65 @@ test('sector and industry are one list that opens a sector to show its industrie
   await expect(facet(publicLabel)).toHaveAttribute('aria-pressed', 'false')
 })
 
+test('the filter panel fits a short window and scrolls inside itself', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 720 })
+  await setup(page)
+  const panel = page.locator('.library-filters')
+  const search = page.getByRole('searchbox', { name: 'Search agents' })
+  const clear = page.getByRole('button', { name: 'Clear filters' })
+  const priv = catalog.facets.sectors.find(
+    (item: { id: string }) => item.id === 'private',
+  ).label
+  await page
+    .locator('.library-facet')
+    .filter({ has: page.getByText(priv, { exact: true }) })
+    .click()
+  await page
+    .locator('.library-view')
+    .evaluate((view) => view.scrollTo({ top: 300 }))
+
+  const box = (await panel.boundingBox())!
+  expect(box.y).toBeGreaterThanOrEqual(0)
+  expect(box.y + box.height).toBeLessThanOrEqual(720)
+  expect(await panel.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
+    true,
+  )
+  const facet = (await page.locator('.library-facet').first().boundingBox())!
+  expect(facet.x - box.x).toBeGreaterThanOrEqual(5)
+
+  await panel.evaluate((el) => el.scrollTo({ top: el.scrollHeight }))
+  await expect(clear).toBeInViewport({ ratio: 1 })
+  await panel.evaluate((el) => el.scrollTo({ top: 0 }))
+  await expect(search).toBeInViewport({ ratio: 1 })
+
+  await panel.evaluate((el) => el.scrollTo({ top: el.scrollHeight }))
+  await clear.click()
+  await expect(page.locator('.library-card')).toHaveCount(templates.length)
+})
+
+test('the filter panel does not scroll when the window is tall enough', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1200 })
+  await setup(page)
+  const panel = page.locator('.library-filters')
+  const priv = catalog.facets.sectors.find(
+    (item: { id: string }) => item.id === 'private',
+  ).label
+  await page
+    .locator('.library-facet')
+    .filter({ has: page.getByText(priv, { exact: true }) })
+    .click()
+  await expect(
+    page.getByRole('button', { name: 'Clear filters' }),
+  ).toBeVisible()
+  expect(await panel.evaluate((el) => el.scrollHeight <= el.clientHeight)).toBe(
+    true,
+  )
+})
+
 test('details state limits, human decisions and never claim a recorded answer', async ({
   page,
 }) => {

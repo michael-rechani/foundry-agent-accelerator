@@ -70,6 +70,18 @@
   display: grid;
   gap: 18px;
 }
+@media (min-width: 1051px) {
+  /* Keep the panel inside a short window: it scrolls on its own instead of
+     running off the bottom. The padding leaves room for focus rings. */
+  .library-filters {
+    top: -6px;
+    margin: -6px;
+    padding: 6px;
+    max-height: calc(100dvh - 160px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+}
 .library-search {
   display: flex;
   align-items: center;
