@@ -316,6 +316,8 @@ def agent_identity(
         "SPECIALIST_CONFIG", "APPLICATION_REVIEW_AGENT_NAME", "CASE_REVIEW_AGENT_NAME",
         "SPECIALIST_TIMEOUT_SECONDS", "SPECIALIST_MAX_CONCURRENCY", "SPECIALIST_SESSION_REUSE_SECONDS",
     )}
+    # Retrieval settings join the fingerprint only when present, so agents without them keep their digests.
+    configuration.update({key: value for key, value in environment.items() if key.startswith("KNOWLEDGE_")})
     return {
         "name": name, "version": routed_version, "model": model_identity(project, model),
         "prompt_override_sha256": digest(instructions) if instructions is not None else None,

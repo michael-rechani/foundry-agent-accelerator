@@ -14,7 +14,8 @@ evaluation datasets are changed by this work.
 > script are in the repository, but nobody has run the script against Azure. No
 > index exists, no role is assigned, and no retrieval-enabled version has been
 > deployed or evaluated. Nothing in this guide is evidence that retrieval works
-> in a live environment.
+> in a live environment. The live proof and the approvals it needs are tracked in
+> [#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122).
 
 ## In this guide
 
@@ -374,23 +375,42 @@ tool bindings in [`agents.json`](../workbench/agents.json).
   output. The answer's citations are the only trace. Surfacing nested receipts
   is an [open decision](#open-decisions).
 
-`agents.json` isn't changed by this work.
+`agents.json` isn't changed by this work. When a retrieval-enabled version is
+deployed, update three things together so the Lab describes what is live:
+
+- The case-review entry's `tools` binding, as above.
+- The entry's `configuration` text, which today ends "This runtime has no
+  tools." and would be wrong once the agent can look up guidance.
+- The Knowledge search card on the Lab's Add-ons tab.
 
 ## Evaluation additions
 
-The offline dataset and runner aren't changed. Before a retrieval-enabled version
-is used in demos, add and run:
+The live dataset isn't changed, and it has no retrieval cases yet. The runner
+has one change: [`evaluations/run.py`](../evaluations/run.py) now includes any
+`KNOWLEDGE_*` settings in the configuration digest of the version it evaluates,
+so the digest changes when retrieval is turned on, pointed at a different index,
+or given different options. Agents without those settings keep their existing
+digests, and runs record only the hash, never the setting values.
 
-- Cases where a supplied fictional passage should be retrieved and cited by
-  `source_id`, and cases where nothing matches.
+Before a retrieval-enabled version is used in demos, add and run these live
+cases. They need a person-approved, loaded index and the customer flow chosen in
+[#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122),
+because through the coordinator only the answer's citations are visible:
+
+- A question that one sample passage answers must be answered and cite that
+  passage's `source_id`, one of the ten in
+  [`policy-guidance.json`](../hosted-agents/knowledge-sample/policy-guidance.json).
+  A question that nothing matches must say no guidance was found.
 - A lookup-failure case that must say no guidance is available.
 - Prompt-injection passages in the index that try to change format, tools, or
   the decision boundary.
 - Checks that supplied facts and retrieved guidance stay separate, and that no
-  `source_id` is invented.
-- Recording the `KNOWLEDGE_*` settings in the live evaluation's configuration
-  digest. [`evaluations/run.py`](../evaluations/run.py) doesn't include them
-  today, and adding them would change digests for existing agents.
+  `source_id` is invented. Nothing in the runtime checks for an invented
+  `source_id`, so this case depends on a person reading the answer.
+
+Offline tests already cover how the code handles an injected passage, no
+match, a lookup failure, and a cited paraphrase; the live cases show whether
+the model behaves the same way.
 
 ## Cost
 
@@ -428,8 +448,9 @@ needs explicit approval first.
    takes 100% of traffic before its smoke checks run. The retrieval smoke check
    must pass (at least one passage for the query "missing evidence"). If it
    fails, the script attempts a rollback; confirm the route yourself afterward.
-7. Add the Lab binding described in [Receipts in the Lab](#receipts-in-the-lab),
-   then run the [evaluation additions](#evaluation-additions).
+7. Update the Lab as described in [Receipts in the Lab](#receipts-in-the-lab):
+   the case-review `tools` binding, its `configuration` text, and the Add-ons
+   card. Then run the [evaluation additions](#evaluation-additions).
 8. To turn retrieval off, redeploy with the flag unset or `false`, or route back
    to the previous version. Remove the role assignment when it's no longer
    needed. If nothing else uses the sample index, `remove --confirm` deletes it,
@@ -444,8 +465,10 @@ needs explicit approval first.
 - No deployment of a retrieval-enabled version and no live verification.
 - No change to the case agent's `main.py`, `requirements.txt`, or
   `instructions.md`, the application agent, the coordinator, or bundles.
-- No Lab configuration change in `agents.json`.
-- No evaluation dataset or runner change.
+- No Lab configuration change in `agents.json` or the Add-ons card.
+- No evaluation dataset change and no retrieval cases yet. The runner's
+  fingerprint change, described in [Evaluation additions](#evaluation-additions),
+  is the only evaluation change.
 - No Foundry Azure AI Search tool, toolbox, or context provider integration.
 - No vector, hybrid, or semantic search, and no document-level authorization.
 
@@ -461,8 +484,8 @@ needs explicit approval first.
   retrieval indexes.
 - Whether to reduce the project identity's Contributor roles. That's out of
   scope here and may affect Foundry Agent Service.
-- Which evaluation cases to add, and whether to include `KNOWLEDGE_*` settings
-  in evaluation digests.
+- Which customer flow proves retrieval first, and so which live evaluation cases
+  to add. See [#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122).
 
 ## Sources
 
