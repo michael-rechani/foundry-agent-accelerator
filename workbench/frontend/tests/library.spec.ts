@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import type { CreatedAgent } from '../src/agent-creation-client'
+import { demoScenarios } from '../src/demo-scenarios'
 import type { LibraryTemplate } from '../src/library-catalog'
 import type { Config } from '../src/workspace-config'
 import { guidedReview, illustrativeScreenshot } from './fixtures'
@@ -800,6 +801,57 @@ test('a library preview says what the agent will return while the answer is on i
   await expect(waiting).toContainText('What you get')
   await expect(waiting).toContainText(support.output)
   await expect(waiting).not.toContainText('Still working')
+})
+
+test('with library previews on, the invoice guided demo runs as a library preview', async ({
+  page,
+}) => {
+  const invoice = demoScenarios.find((item) => item.id === 'invoice')!
+  const state = await setup(page, { libraryPreview: true, hash: '#demos' })
+  await page
+    .getByRole('navigation', { name: 'Demo scenarios' })
+    .getByRole('button', { name: /Supplier invoice review/ })
+    .click()
+  const note = page.locator('.demo-execution-note')
+  await expect(note).toContainText(
+    `Uses the ${invoice.templateLabel} library preview.`,
+  )
+  await expect(note).toContainText('Preview chats are not saved.')
+  await expect(
+    page.getByRole('button', { name: `Choose ${invoice.templateLabel}` }),
+  ).toHaveCount(0)
+  await page.getByRole('button', { name: 'Load sample input' }).click()
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toHaveValue(invoice.input)
+  await expect(page.locator('.agent-picker')).toContainText(
+    invoice.templateLabel,
+  )
+  expect(state.chat).toEqual([])
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect.poll(() => state.chat.length).toBe(1)
+  expect(state.chat[0]).toMatchObject({
+    agent_id: 'library-supplier-invoice-reviewer',
+    input: invoice.input,
+  })
+})
+
+test('without library previews, the invoice guided demo still offers to create the agent', async ({
+  page,
+}) => {
+  const invoice = demoScenarios.find((item) => item.id === 'invoice')!
+  const state = await setup(page, { hash: '#demos' })
+  await page
+    .getByRole('navigation', { name: 'Demo scenarios' })
+    .getByRole('button', { name: /Supplier invoice review/ })
+    .click()
+  await expect(
+    page.getByRole('button', { name: `Choose ${invoice.templateLabel}` }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Load sample input' }),
+  ).toHaveCount(0)
+  expect(state.chat).toEqual([])
 })
 
 for (const mode of ['light', 'dark'] as const)

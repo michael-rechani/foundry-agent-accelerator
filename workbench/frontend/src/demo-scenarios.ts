@@ -142,10 +142,14 @@ We don't have a written policy for this. What does a person need to check next?`
   },
 ]
 
+// A configured agent wins, then a ready agent made from the template. The
+// library preview is the last resort: it runs the template on the Lab's model
+// but is not hosted and its chats are not saved.
 export function agentForDemo(
   scenario: DemoScenario,
   agents: Agent[],
   created: CreatedAgent[],
+  previewFor: (templateId: string) => Agent | undefined = () => undefined,
 ): Agent | undefined {
   for (const id of scenario.catalogIds) {
     const agent = agents.find((item) => item.id === id)
@@ -157,7 +161,8 @@ export function agentForDemo(
       item.status === 'ready' &&
       item.agent !== null,
   )
-  return record?.agent
+  const ready = record?.agent
     ? agents.find((item) => item.id === record.agent?.id)
     : undefined
+  return ready ?? previewFor(scenario.templateId)
 }

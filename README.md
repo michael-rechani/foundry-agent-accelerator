@@ -109,8 +109,9 @@ findings to look for and a decision that stays with a person.
 | [Catch what does not add up](docs/showcase.md#catch-what-does-not-add-up) | Billed quantities and prices that differ from the purchase order. | Resolve damaged items and determine what to pay. |
 | [Turn scattered notes into a brief](docs/showcase.md#turn-scattered-notes-into-a-brief) | Supported facts, conflicting dates, and missing evidence. | Verify the authoritative record and determine the next steps. |
 
-The invoice story needs a ready **Supplier invoice reviewer** created from its
-template. It uses simulated lookups, not a finance integration.
+The invoice story runs on a ready **Supplier invoice reviewer** created from its
+template or, when the Lab has library previews on, on the library preview of
+that template. Either way it uses simulated lookups, not a finance integration.
 
 [Watch all three stories](docs/images/scenario-tour.svg) ·
 [Dark theme](docs/images/scenario-tour-dark.svg)
