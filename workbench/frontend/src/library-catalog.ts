@@ -60,6 +60,22 @@ export const facetKeys: FacetKey[] = [
   'tool_modes',
 ]
 
+// Every industry sits inside one sector, so the two filters are one choice:
+// picking either replaces the other, and neither narrows the other's counts.
+export const fieldKeys: FacetKey[] = ['sectors', 'industries']
+
+export function toggleFacet(
+  selection: Selection,
+  key: FacetKey,
+  id: string,
+): Selection {
+  const next: Selection = { ...selection }
+  if (fieldKeys.includes(key))
+    for (const field of fieldKeys) next[field] = undefined
+  next[key] = selection[key] === id ? undefined : id
+  return next
+}
+
 const levels = ['lower', 'medium', 'higher']
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -230,16 +246,29 @@ export function filterTemplates(
   return catalog.templates.filter((item) => matches(item, query, selection))
 }
 
+export type LiveFacet = { key: FacetKey; items: Facet[] }
+
 // Counts reflect every other active filter, so each option shows how many
-// results selecting it would produce. Server order is kept for stability.
+// results selecting it would produce. Sector and industry count as one filter.
+// Server order is kept for stability.
 export function liveFacets(
   catalog: LibraryCatalog,
   query: string,
   selection: Selection,
-) {
+): LiveFacet[] {
+  const withoutField: Selection = {
+    ...selection,
+    sectors: undefined,
+    industries: undefined,
+  }
   return facetKeys.map((key) => {
     const pool = catalog.templates.filter((item) =>
-      matches(item, query, selection, key),
+      matches(
+        item,
+        query,
+        fieldKeys.includes(key) ? withoutField : selection,
+        key,
+      ),
     )
     return {
       key,
@@ -251,6 +280,35 @@ export function liveFacets(
       })),
     }
   })
+}
+
+export type FieldGroup = { sector: Facet; industries: Facet[] }
+
+// Lists each industry under the sector its agents belong to.
+export function fieldGroups(
+  catalog: LibraryCatalog,
+  sectors: Facet[],
+  industries: Facet[],
+): FieldGroup[] {
+  return sectors.map((sector) => ({
+    sector,
+    industries: industries.filter((industry) =>
+      catalog.templates.some(
+        (item) =>
+          item.sector.id === sector.id && item.industry.id === industry.id,
+      ),
+    ),
+  }))
+}
+
+// The sector whose industries are shown: the chosen sector, or the sector
+// that holds the chosen industry.
+export function openSector(catalog: LibraryCatalog, selection: Selection) {
+  if (selection.sectors) return selection.sectors
+  const industry = selection.industries
+  if (!industry) return undefined
+  return catalog.templates.find((item) => item.industry.id === industry)?.sector
+    .id
 }
 
 export const previewPrefix = 'library-'

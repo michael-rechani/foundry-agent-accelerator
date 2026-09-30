@@ -347,8 +347,7 @@ test('browse, filter and search the catalog with live counts', async ({
   await expect(results).toHaveText(`${templates.length} agents`)
   await expect(cards).toHaveCount(templates.length)
   await expect(page.locator('.library-filters legend')).toHaveText([
-    'Sector',
-    'Industry',
+    'Sector and industry',
     'Task',
     'Readiness',
     'Works with',
@@ -395,6 +394,76 @@ test('browse, filter and search the catalog with live counts', async ({
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true)
+})
+
+test('sector and industry are one list that opens a sector to show its industries', async ({
+  page,
+}) => {
+  await setup(page)
+  const cards = page.locator('.library-card')
+  const facet = (name: string) =>
+    page
+      .locator('.library-facet')
+      .filter({ has: page.getByText(name, { exact: true }) })
+  const inSector = (id: string) =>
+    templates.filter((item) => item.sector.id === id)
+  const industriesIn = (id: string) => [
+    ...new Set(inSector(id).map((item) => item.industry.label)),
+  ]
+  const priv = catalog.facets.sectors.find(
+    (item: { id: string }) => item.id === 'private',
+  ).label
+  const publicLabel = catalog.facets.sectors.find(
+    (item: { id: string }) => item.id === 'public',
+  ).label
+  const privateIndustries = industriesIn('private')
+  const chosen = inSector('private').find(
+    (item) => item.industry.id === 'finance',
+  )!.industry
+
+  await expect(page.locator('.library-filters legend')).toHaveCount(4)
+  await expect(page.locator('.library-facet[data-nested]')).toHaveCount(0)
+  await expect(facet(chosen.label)).toHaveCount(0)
+  await expect(facet(priv)).toHaveAttribute('aria-expanded', 'false')
+
+  await facet(priv).click()
+  await expect(facet(priv)).toHaveAttribute('aria-pressed', 'true')
+  await expect(facet(priv)).toHaveAttribute('aria-expanded', 'true')
+  const industries = page.getByRole('group', {
+    name: `Industries in ${priv}`,
+  })
+  await expect(industries.locator('.library-facet')).toHaveCount(
+    privateIndustries.length,
+  )
+  await expect(cards).toHaveCount(inSector('private').length)
+  await expect(facet(publicLabel)).toHaveAttribute('aria-expanded', 'false')
+
+  await facet(chosen.label).click()
+  const financeCount = templates.filter(
+    (item) => item.industry.id === chosen.id,
+  ).length
+  await expect(facet(chosen.label)).toHaveAttribute('aria-pressed', 'true')
+  await expect(facet(priv)).toHaveAttribute('aria-pressed', 'false')
+  await expect(facet(priv)).toHaveAttribute('aria-expanded', 'true')
+  await expect(cards).toHaveCount(financeCount)
+  for (const card of await cards.all())
+    await expect(card).toContainText(chosen.label)
+  await expect(
+    page.getByRole('heading', { level: 2, name: /agents?$/ }),
+  ).toHaveText(`${financeCount} ${financeCount === 1 ? 'agent' : 'agents'}`)
+
+  await facet(publicLabel).click()
+  await expect(facet(publicLabel)).toHaveAttribute('aria-pressed', 'true')
+  await expect(facet(chosen.label)).toHaveCount(0)
+  await expect(cards).toHaveCount(inSector('public').length)
+  await expect(
+    page.getByRole('group', { name: `Industries in ${publicLabel}` }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: 'Clear filters' }).click()
+  await expect(page.locator('.library-facet[data-nested]')).toHaveCount(0)
+  await expect(cards).toHaveCount(templates.length)
+  await expect(facet(publicLabel)).toHaveAttribute('aria-pressed', 'false')
 })
 
 test('details state limits, human decisions and never claim a recorded answer', async ({
