@@ -396,6 +396,31 @@ test('browse, filter and search the catalog with live counts', async ({
   ).toBe(true)
 })
 
+test('the search hint fits inside the search box', async ({ page }) => {
+  await setup(page)
+  const search = page.getByRole('searchbox', { name: 'Search agents' })
+  await expect(search).toBeVisible()
+  const { hint, room } = await search.evaluate((input: HTMLInputElement) => {
+    const style = getComputedStyle(input)
+    const probe = document.createElement('span')
+    probe.textContent = input.placeholder
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre'
+    probe.style.font = style.font
+    input.parentElement!.append(probe)
+    const hint = probe.getBoundingClientRect().width
+    probe.remove()
+    return {
+      hint,
+      room:
+        input.clientWidth -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight),
+    }
+  })
+  expect(hint).toBeGreaterThan(0)
+  expect(hint).toBeLessThanOrEqual(room)
+})
+
 test('sector and industry are one list that opens a sector to show its industries', async ({
   page,
 }) => {

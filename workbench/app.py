@@ -16,6 +16,7 @@ from uuid import UUID, uuid4
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from history import CosmosHistory, history_router
 from review_runs import ReviewRuns
@@ -539,6 +540,9 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
 
     application = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     application.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.hosts))
+    # Registered before security_headers, which re-streams every response as chunks: compressing inside it
+    # keeps minimum_size and Content-Length correct and leaves empty responses (304, HEAD) uncompressed.
+    application.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 
     @application.middleware("http")
     async def security_headers(request, call_next):
