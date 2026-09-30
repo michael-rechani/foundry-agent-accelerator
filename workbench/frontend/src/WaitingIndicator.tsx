@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react'
 import { LoaderCircle } from 'lucide-react'
 
-export function WaitingIndicator({ label }: { label?: string }) {
+const slowAfterSeconds = 20
+
+export function WaitingIndicator({
+  label,
+  expects,
+}: {
+  label?: string
+  expects?: string
+}) {
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
     const started = Date.now()
@@ -13,9 +21,22 @@ export function WaitingIndicator({ label }: { label?: string }) {
   }, [])
   return (
     <div className="chat-waiting" role="status">
-      <LoaderCircle size={18} className="spin" />
-      <span>Awaiting {label}</span>
-      <span>{elapsed}s</span>
+      <div className="chat-waiting-row">
+        <LoaderCircle size={18} className="spin" />
+        <span>Awaiting {label}</span>
+        <span aria-hidden="true">{elapsed}s</span>
+      </div>
+      {expects && (
+        <p className="chat-waiting-note">
+          <strong>What you get</strong> {expects}
+        </p>
+      )}
+      {elapsed >= slowAfterSeconds && (
+        <p className="chat-waiting-note">
+          Still working. Answers usually take a few seconds, but the first one
+          after a quiet period can take about a minute.
+        </p>
+      )}
     </div>
   )
 }
