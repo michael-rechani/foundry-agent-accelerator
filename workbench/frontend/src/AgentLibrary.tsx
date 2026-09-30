@@ -185,7 +185,7 @@ export function AgentLibrary({
                 <input
                   type="search"
                   value={query}
-                  placeholder="Search by job, team or keyword"
+                  placeholder="Search by job or keyword"
                   onChange={(event) => setQuery(event.target.value)}
                 />
               </label>

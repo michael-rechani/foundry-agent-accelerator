@@ -56,6 +56,25 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(response.json()["usage"], {"input_tokens": 40, "output_tokens": 10, "total_tokens": 50,
                                                     "cached_tokens": None, "reasoning_tokens": 0})
 
+    def test_large_responses_are_compressed_and_keep_their_headers(self):
+        accept = {**self.headers, "Accept-Encoding": "gzip"}
+        compressed = self.client.get("/api/agent-templates", headers=accept)
+        plain = self.client.get("/api/agent-templates", headers={**self.headers, "Accept-Encoding": "identity"})
+        self.assertEqual(compressed.status_code, 200)
+        self.assertEqual(compressed.headers["content-encoding"], "gzip")
+        self.assertIn("accept-encoding", compressed.headers["vary"].lower())
+        self.assertNotIn("content-encoding", plain.headers)
+        self.assertLess(int(compressed.headers["content-length"]) * 3, len(plain.content))
+        self.assertEqual(compressed.json(), plain.json())
+        self.assertEqual(compressed.headers["cache-control"], "no-store")
+        self.assertIn("frame-ancestors 'none'", compressed.headers["content-security-policy"])
+        self.assertIn("x-correlation-id", compressed.headers)
+
+    def test_small_responses_are_not_compressed(self):
+        response = self.client.get("/healthz", headers={"Accept-Encoding": "gzip"})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("content-encoding", response.headers)
+
     def test_public_configuration_matches_request_limits(self):
         config = self.client.get("/api/config").json()
         self.assertEqual(config["default_agent"], "customer-review")

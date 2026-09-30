@@ -816,8 +816,9 @@ page lists which Lab actions are billable.
 ### Browser caching
 
 API responses remain `no-store`. HTML revalidates, and fingerprinted static
-assets use immutable caching. No transcript data is written to browser
-persistent storage. The elapsed timer renders independently of the conversation
+assets use immutable caching. Responses over 1 KB are gzip-compressed when the
+browser accepts it. No transcript data is written to browser persistent
+storage. The elapsed timer renders independently of the conversation
 transcript.
 
 Before real user data, add validated user identity, owner-scoped authorization
