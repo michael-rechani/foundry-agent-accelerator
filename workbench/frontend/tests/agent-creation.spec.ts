@@ -38,7 +38,7 @@ const templateProfiles: Record<string, string> = {
   'casework-assistant': 'reasoning',
   'workflow-coordinator': 'tool_calling',
   'medical-bill-reviewer': 'reasoning',
-  'insurance-preapproval-helper': 'tool_calling',
+  'insurance-preapproval-helper': 'reasoning',
   'benefits-renewal-helper': 'reasoning',
   'supplier-invoice-reviewer': 'reasoning',
 }

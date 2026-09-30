@@ -563,6 +563,10 @@
 .scorecard-case-title strong {
   font-size: 14px;
 }
+.scorecard-cases .scorecard-case-runs {
+  font-size: 12px;
+  color: var(--muted);
+}
 .scorecard-cases p {
   margin: 4px 0 0;
   font-size: 13px;

@@ -6,6 +6,8 @@ export type ScorecardCase = {
   category: string
   goal: string
   input: string
+  runs: number
+  runs_passed: number
   passed: boolean
   notes: string[]
   seconds: number
@@ -26,6 +28,9 @@ export type Scorecard = {
   summary: {
     cases: number
     passed: number
+    runs_per_case: number
+    runs: number
+    runs_passed: number
     median_seconds: number
     average_cost_usd: number
   }
@@ -65,6 +70,10 @@ function amount(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
 }
 
+function count(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
 function validCase(item: unknown): item is ScorecardCase {
   return (
     isObject(item) &&
@@ -73,7 +82,12 @@ function validCase(item: unknown): item is ScorecardCase {
     item.category in categoryTitles &&
     text(item.goal) &&
     text(item.input) &&
+    count(item.runs) &&
+    item.runs >= 1 &&
+    count(item.runs_passed) &&
+    item.runs_passed <= item.runs &&
     typeof item.passed === 'boolean' &&
+    item.passed === (item.runs_passed === item.runs) &&
     Array.isArray(item.notes) &&
     item.notes.every(text) &&
     item.passed === (item.notes.length === 0) &&
@@ -102,6 +116,12 @@ function validScorecard(item: unknown): item is Scorecard {
     cases.every(validCase) &&
     summary.cases === cases.length &&
     summary.passed === cases.filter((entry) => entry.passed).length &&
+    count(summary.runs_per_case) &&
+    summary.runs_per_case >= 1 &&
+    summary.runs === cases.reduce((total, entry) => total + entry.runs, 0) &&
+    summary.runs === cases.length * summary.runs_per_case &&
+    summary.runs_passed ===
+      cases.reduce((total, entry) => total + entry.runs_passed, 0) &&
     amount(summary.median_seconds) &&
     amount(summary.average_cost_usd)
   )
@@ -135,6 +155,15 @@ export function formatDate(iso: string) {
     year: 'numeric',
     timeZone: 'UTC',
   })
+}
+
+// "5 of 5 answers passed": one answer per run of a test case.
+export function formatAnswersPassed(passed: number, runs: number) {
+  return `${passed} of ${runs} ${runs === 1 ? 'answer' : 'answers'} passed`
+}
+
+export function formatTimes(runs: number) {
+  return runs === 1 ? 'once' : `${runs} times`
 }
 
 export function formatSeconds(value: number) {

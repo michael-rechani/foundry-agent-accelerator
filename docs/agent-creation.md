@@ -112,9 +112,9 @@ prompt can't change it.
 
 | Kind of work | Templates | What the model needs to do |
 | --- | --- | --- |
-| **Reasoning** | Document explainer, Checklist gap finder, Casework brief writer, Medical bill reviewer, Benefits renewal helper, Supplier invoice reviewer | Compare sources step by step and keep gaps and conflicts visible |
-| **Fast extraction** | Form and invoice extractor | Copy stated values into a fixed structure, where speed and cost matter more than deep reasoning |
-| **Tool calling** | Service request planner, Insurance pre-approval helper | Call lookup tools in the right order and report exactly what they return |
+| **Reasoning** | Document explainer, Checklist gap finder, Case summary writer, Medical bill reviewer, Insurance pre-approval helper, Benefits renewal helper, Supplier invoice reviewer, Support ticket handoff, Customer feedback theme finder, Contract playbook checker, RFP answer drafter, IT incident timeline writer, Maintenance work order planner | Compare sources step by step and keep gaps and conflicts visible |
+| **Fast extraction** | Form field extractor, Payment matcher | Copy stated values into a fixed structure, where speed and cost matter more than deep reasoning |
+| **Tool calling** | Service request planner, Expense report checker, Order delay helper | Call lookup tools in the right order and report exactly what they return |
 
 The review step shows the chosen deployment and the reason for it. Any kind of
 work without its own deployment uses the default one, so a Lab with a single
@@ -245,7 +245,12 @@ The file behind it, `workbench/agent_scorecards.json`, is generated offline by
 [`evaluations/scorecards.py`](../evaluations/scorecards.py) from recorded
 acceptance answers, response times and token counts. The endpoint never calls a
 model or storage. All 18 listed templates have a scorecard; a template without a
-recorded run would show no results. Each case
+recorded run would show no results. Every case is recorded several times, and it
+passes only when every run passes, so each case carries `runs` and `runs_passed`
+and each summary carries `runs_per_case`, `runs` and `runs_passed`. Each recorded
+answer also carries a fingerprint of the instructions its agent had when it ran.
+The build fails when an agent's instructions change afterwards, so the results
+can't describe instructions the Lab no longer uses. Each case
 includes the request that was sent, which the library's **Take it to Foundry**
 tab turns into a downloadable evaluation file.
 

@@ -570,7 +570,7 @@ python library_checks.py score answers.jsonl
 python -m unittest test_library_checks
 ```
 
-- `validate` checks the dataset against the catalog and simulated fixtures.
+- `validate` checks the dataset against the catalog and the sample lookups.
 - `inputs` prints each sample input so you can paste it into Chat.
 - `score` screens recorded answers from a JSON Lines file of
   `{"case_id": "...", "text": "...", "receipts": [...]}`. `text` and `receipts`
@@ -581,56 +581,81 @@ Scoring is a conservative screen, not a grade. It checks required labels,
 figures, and questions, and flags prohibited claims such as approvals,
 eligibility or legal determinations, vendor selections, scores, advice to sign,
 reimbursements, refunds, delivery promises, incident closures, and claimed
-actions like "I sent the email". Refusals, conditions, and quoted text in the
-same sentence don't count as claims, but negative determinations such as "does
-not qualify" still do. A person still reads each answer against the case's
-`rubric`.
+actions like "I sent the email". A case can also list wrong facts to catch, such
+as a day count or an amount that doesn't add up. Each one is judged per table
+row or sentence, so a correct figure elsewhere in the answer doesn't excuse a
+wrong one. Refusals, hedges, promises, questions, and quoted text in the same
+sentence don't count as claims, and neither does a list under a lead-in such as
+"These aren't approved:". Negative determinations such as "does not qualify"
+still do. Written dates such as "June 9" match `2027-06-09`. Passing the screen
+doesn't mean an answer is right. A person still reads each answer against the
+case's `rubric`.
 
 > [!NOTE]
-> **Direct run, 2026-09-29.** All 90 cases ran directly against the Foundry
-> project the Lab uses, on each agent's instructions and model at the time. It calls
-> the same `library_preview.run_preview` code the Lab's Chat preview uses, so the
-> lookups are the same sample lookups. No agents were created and nothing was
-> saved. Response times were measured from a local machine, so the Lab's will
-> differ a little.
+> **Five direct runs per case, 2026-09-29.** Every case ran five times (450
+> answers) directly against the Foundry project the Lab uses, on each agent's
+> current instructions and model. It calls the same `library_preview.run_preview`
+> code the Lab's Chat preview uses, so the lookups are the same sample lookups.
+> No agents were created and nothing was saved. Response times were measured
+> from a local machine, so the Lab's will differ a little.
 >
-> The screen passed 84 of the 90 answers. I read the other six against their
-> rubrics, and all six were real misses: the checklist gap finder marked the
-> delivery owner a gap although the plan names the Training team, the expense
-> report checker put a dinner $21 over the meal limit rather than $3 and marked
-> a lunch outside the trip dates as within policy, the RFP answer drafter put
-> 99.9% in its draft although two sources disagree, and the service request
-> planner didn't say that no external system was contacted or that a person
-> approves.
+> **Why five runs.** One run can pass by luck. A single run of these cases
+> screened 90 of 90, yet live re-runs then showed agents stating a wrong date
+> and counting the same dollars twice. A case now passes only when all five of
+> its runs pass.
 >
-> **Fixes and re-run.** I rewrote the instructions of those four agents (the
-> checklist gap finder, expense report checker, RFP answer drafter and service
-> request planner) in [agent_templates.py](../workbench/agent_templates.py) and
-> re-ran all 20 of their cases, not only the six that missed, with the new
-> instructions. The 70 cases of the other agents keep their earlier answers,
-> because their instructions didn't change. The recorded answers screen 90 of
-> 90. That isn't a blind score. I changed the instructions after reading
-> earlier answers, and the model's answers vary from run to run: a repeat run
-> partway through screened 19 of 20, and the expense report checker needed several
-> tries before it subtracted the wine before checking the meal limit and
-> marked the lunch outside the trip dates. I didn't loosen the checks. A person
-> still reads every answer, and the earlier pre-read of the six misses no
-> longer applies.
+> **What the first full set found.** On the instructions the agents had then,
+> 428 of the 450 answers passed. Seven agents had misses, and the insurance
+> pre-approval helper failed 11 of its 25. Most misses were things left out: the
+> "unsent draft" label, a follow-up question or a source reference. Three were
+> wrong. The expense report checker said an expense "should be reimbursed", the
+> support ticket handoff ignored a request for a $25 credit, and the insurance
+> pre-approval helper gave a wrong start date for its 60-day window and wrong
+> day counts.
 >
-> An earlier run of the same 90 cases screened 60 passing. Two things changed
-> before the recorded run. Each agent's answer layout now says who makes a
-> decision, and the service request planner is told to call both lookups before
-> it writes. I also revised the screen after reading the earlier answers: it now
-> accepts equivalent wording, such as "June 9" for `2027-06-09` or "I only have
-> Version 2" for "not supplied", and no longer requires details the rubric
-> doesn't ask for. No answer was edited. The screen still can't tell whether a
-> question asks for the right thing, so a person reads every answer.
+> **What changed.** Nine agents' instructions changed in
+> [agent_templates.py](../workbench/agent_templates.py). Seven changed after that
+> first set: the form field extractor, service request planner, insurance
+> pre-approval helper, support ticket handoff, payment matcher, expense report
+> checker and customer feedback theme finder. Two changed just before it, after
+> live re-runs found a double-counted amount and a wrong date: the supplier
+> invoice reviewer and the order delay helper. I re-ran all 25 answers of every
+> changed agent, not only the ones that missed. The other nine agents' instructions
+> didn't change, so their answers come from the first set. All 450 recorded
+> answers now pass the screen.
 >
-> Answers and metrics are in [evidence/](evidence/), which holds only sample
-> data. Score them with `python library_checks.py score
-> evidence/library-acceptance-2026-09-29.jsonl`. Readiness doesn't change until a
-> person has read the answers, and every scorecard stays **Waiting for a
-> person**. The earlier 2026-09-27 runs used dataset `library-v1` and are in the
+> **Insurance pre-approval helper.** On gpt-4.1 (the Tool calling profile) it
+> still got 23 of 25 after two rounds of instruction changes. Two answers
+> counted 75 days between two dates instead of 74, and a third passed the screen
+> while contradicting itself about the window. On gpt-5.4 (the Reasoning
+> profile) all 25 runs counted correctly, so the agent now uses Reasoning.
+>
+> **Not a blind score.** I changed instructions and checks after reading
+> answers, so 450 of 450 isn't a blind result. Three checks got stricter: a
+> double-counted invoice, an expense outside the trip dates, and a wrong day
+> count. Thirteen were widened to accept wording a person would accept, such as
+> "in-network" for "in network", "I can't give the customer a credit" for "can't
+> issue", and "plan benefits lookup" for "plan lookup". I widened a check only
+> when a correct recorded answer failed it for being too literal, and each
+> change has a test that a wrong answer still fails. I never loosened a check to
+> pass a wrong answer. The screen still can't tell whether a question asks for
+> the right thing, so a person reads every answer.
+>
+> **Fingerprints.** Every recorded answer carries a SHA-256 fingerprint of the
+> instructions its agent had when it ran, and `scorecards.py` refuses to build
+> when an agent's current instructions don't match. Answers from the first
+> set, which were recorded before rows carried a fingerprint, were stamped with
+> the instructions in force when that set started, and only for agents whose
+> instructions haven't changed since. After you change an agent's instructions,
+> record its 25 answers again. [#104](https://github.com/michael-rechani/foundry-agent-accelerator/issues/104)
+> tracks a command for that.
+>
+> The answers, metrics and repeat runs are in [evidence/](evidence/), which holds
+> only sample data. Score the first run with `python library_checks.py score
+> evidence/library-acceptance-2026-09-29.jsonl`, and the other four runs the same
+> way from `evidence/library-repeat-2026-09-29.jsonl`. Every scorecard still says
+> **Waiting for a person**, because nobody has signed off on the answers. Earlier
+> single-run answers, and the 2026-09-27 runs on dataset `library-v1`, are in the
 > Git history.
 
 ### Test results in the Lab
@@ -644,17 +669,23 @@ python scorecards.py write   # regenerate workbench/agent_scorecards.json
 python scorecards.py check   # fail if the Lab's copy is out of date
 ```
 
-It screens the recorded answer for each case with `score`, and takes the
-response times and token counts from
-[the run's metrics](evidence/library-acceptance-2026-09-29-metrics.jsonl). If
-`scorecards.py` lists more than one run, later answers replace earlier ones. It
-prices the tokens with
+It screens the recorded answer for each case with `score`, takes the response
+times and token counts from
+[the run's metrics](evidence/library-acceptance-2026-09-29-metrics.jsonl), and
+adds the other four runs of each case from
+[the repeat file](evidence/library-repeat-2026-09-29.jsonl). A case passes only
+when all five of its runs pass, and the tab shows how many of an agent's runs
+passed. The answer a person reads is run 1. The repeats are screened but not
+read. An agent's median time and average cost cover all 25 of its runs. It prices
+the tokens with
 [saved Azure list prices](evidence/model-prices-2026-09.json): USD, Global
 Standard, North Central US, retrieved 2026-09-28 from the Azure Retail Prices
 API. Costs cover model tokens only, not hosting, storage or monitoring. The
 times come from a direct run on a local machine, and the tab says so. Every
 scorecard shows **Waiting for a person** until someone reads the answers.
-`test_scorecards.py` fails if the Lab's copy drifts from the evidence.
+`scorecards.py` also fails if an agent's instructions changed after its answers
+were recorded. `test_scorecards.py` fails if the Lab's copy drifts from the
+evidence, or if an agent marked **Reviewed** has a run that missed its checks.
 
 After a person has read an agent's answers, record it:
 

@@ -11,17 +11,19 @@ import {
 import type { ScorecardsState } from './scorecards-client'
 import {
   categoryTitles,
+  formatAnswersPassed,
   formatCostPerAnswer,
   formatDate,
   formatExactCost,
   formatSeconds,
+  formatTimes,
 } from './scorecards'
 import { formatTokens } from './token-usage'
 
 const ANSWER_SOURCES = {
   lab: 'Answers were recorded in the Lab.',
   direct:
-    'Answers, response times and token counts were recorded by running the agent’s current instructions against the Lab’s Foundry project, so times can differ slightly from the live Lab.',
+    'Answers, response times and token counts were recorded by running the agent’s current instructions against the Lab’s Foundry project, so times can differ slightly from the live Lab. The first answer to each request is the recorded one a person reads. The repeat answers are checked automatically.',
   mixed: 'Answers were recorded in more than one run.',
 }
 
@@ -63,15 +65,18 @@ export function ScorecardPanel({
     )
   const { summary } = card
   const { prices } = scorecards
-  const allPassed = summary.passed === summary.cases
+  const allPassed = summary.runs_passed === summary.runs
+  const missed = summary.cases - summary.passed
   return (
     <section className="scorecard" aria-labelledby="scorecard-title">
       <div className="scorecard-heading">
         <h2 id="scorecard-title">How it did on its test cases</h2>
         <p className="library-muted">
           Tested on {formatDate(card.tested_on)} with sample data. Each case
-          sends the agent a sample request and checks the answer for the facts,
-          questions and limits it should show.
+          sends the agent a sample request {formatTimes(summary.runs_per_case)}
+          and checks every answer for the facts, questions and limits it should
+          show. The same request can get a different answer each time, so a case
+          only passes when every answer passes.
         </p>
       </div>
       <dl className="library-facts scorecard-facts">
@@ -81,12 +86,12 @@ export function ScorecardPanel({
           </dt>
           <dd>
             <strong>
-              {summary.passed} of {summary.cases} passed
+              {formatAnswersPassed(summary.runs_passed, summary.runs)}
             </strong>
             <span>
               {allPassed
-                ? 'Every answer met its checks.'
-                : `${summary.cases - summary.passed} ${summary.cases - summary.passed === 1 ? 'answer needs' : 'answers need'} a person to look.`}
+                ? `${summary.cases} test cases, each asked ${formatTimes(summary.runs_per_case)}. Every answer met its checks.`
+                : `${missed} of ${summary.cases} test ${missed === 1 ? 'case has' : 'cases have'} an answer that missed a check, so a person needs to look.`}
             </span>
           </dd>
         </div>
@@ -119,7 +124,7 @@ export function ScorecardPanel({
             <span>
               {card.signed_off && card.signed_off_by && card.signed_off_on
                 ? `Read by ${card.signed_off_by} on ${formatDate(card.signed_off_on)}.`
-                : "A person reads every answer before it's marked ready."}
+                : "A person reads the recorded answer to every test case before it's marked ready."}
             </span>
           </dd>
         </div>
@@ -139,6 +144,9 @@ export function ScorecardPanel({
                   className={`library-badge ${item.passed ? 'good' : 'caution'}`}
                 >
                   {item.passed ? 'Passed' : 'Needs a look'}
+                </span>
+                <span className="scorecard-case-runs">
+                  {formatAnswersPassed(item.runs_passed, item.runs)}
                 </span>
               </div>
               <p>{item.goal}</p>
@@ -161,10 +169,12 @@ export function ScorecardPanel({
         ))}
       </ul>
       <p className="library-muted">
-        <strong>Needs a look</strong> means the answer missed at least one
-        automatic check, such as a required figure or a follow-up question. Some
-        of these are wording the check doesn&apos;t recognize, so a person reads
-        the answer against its goal.
+        <strong>Needs a look</strong> means at least one answer missed an
+        automatic check, such as a required figure, a follow-up question or a
+        claim the sample data doesn&apos;t support. Some of these are wording
+        the check doesn&apos;t recognize, so a person reads the answer against
+        its goal. Passing the checks isn&apos;t a promise that every answer is
+        right, which is why a person still reads the recorded answers.
       </p>
       <p className="library-muted hood-only">
         <CalendarCheck size={13} aria-hidden="true" /> Model {card.model}.{' '}
