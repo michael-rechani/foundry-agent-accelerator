@@ -139,7 +139,7 @@ class TemplateTests(unittest.TestCase):
             "document-intake": "extraction",
             "workflow-coordinator": "tool_calling",
             "medical-bill-reviewer": "reasoning",
-            "insurance-preapproval-helper": "tool_calling",
+            "insurance-preapproval-helper": "reasoning",
             "benefits-renewal-helper": "reasoning",
             "supplier-invoice-reviewer": "reasoning",
             "public-records-intake": "extraction",

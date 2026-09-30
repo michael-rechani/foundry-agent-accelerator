@@ -239,14 +239,25 @@ test('test results read plainly and keep case details under the hood', async ({
   const withMiss = structuredClone(scorecards)
   const card = withMiss.scorecards[0]
   card.cases[0].passed = false
-  card.cases[0].notes = ["missing 'item 1'"]
+  card.cases[0].runs_passed = card.cases[0].runs - 1
+  card.cases[0].notes = ["Run 3: missing 'item 1'"]
   card.summary.passed = card.cases.filter(
     (entry: { passed: boolean }) => entry.passed,
   ).length
+  card.summary.runs_passed = card.cases.reduce(
+    (total: number, entry: { runs_passed: number }) =>
+      total + entry.runs_passed,
+    0,
+  )
   const benefits = (catalog.templates as LibraryTemplate[]).find(
     (item) => item.id === card.template_id,
   )!
-  const passed = card.summary.passed
+  const {
+    passed,
+    runs,
+    runs_passed: runsPassed,
+    runs_per_case: each,
+  } = card.summary
   await setup(page, {}, undefined, withMiss)
   await page
     .locator('.library-card')
@@ -263,8 +274,12 @@ test('test results read plainly and keep case details under the hood', async ({
     'How it did on its test cases',
   )
   await expect(panel).toContainText('September 29, 2026')
+  await expect(panel).toContainText(`a sample request ${each} times`)
+  await expect(panel).toContainText(
+    `${5 - passed} of 5 test ${5 - passed === 1 ? 'case has' : 'cases have'} an answer that missed a check`,
+  )
   await expect(panel.locator('.scorecard-facts > div')).toHaveText([
-    new RegExp(`Answer checks\\s*${passed} of 5 passed`),
+    new RegExp(`Answer checks\\s*${runsPassed} of ${runs} answers passed`),
     /Typical response\s*\d+\.\d s/,
     /Model cost per answer\s*(Under 1?|About \d+?)/,
     /Sign-off\s*Waiting for a person/,
@@ -273,11 +288,14 @@ test('test results read plainly and keep case details under the hood', async ({
     .getByRole('list', { name: 'Test cases' })
     .locator(':scope > li')
   await expect(cases).toHaveCount(5)
-  await expect(cases.filter({ hasText: 'Passed' })).toHaveCount(passed)
+  await expect(cases.filter({ hasText: /Passed/ })).toHaveCount(passed)
   await expect(cases.filter({ hasText: 'Needs a look' })).toHaveCount(
     5 - passed,
   )
   await expect(cases.first()).toContainText(card.cases[0].goal)
+  await expect(cases.first()).toContainText(
+    `${card.cases[0].runs_passed} of ${card.cases[0].runs} answers passed`,
+  )
   await expect(panel).not.toContainText(/fictional|made[- ]up/i)
   await expect(panel.locator('.scorecard-case-detail').first()).toBeHidden()
   await expect(panel.locator('.scorecard-notes').first()).toBeHidden()

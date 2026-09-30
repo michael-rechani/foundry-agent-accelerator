@@ -27,8 +27,19 @@ def load_scorecards(path=PATH):
             raise ValueError(f"agent_scorecards.json: {template_id} needs categorized cases")
         if any(not str(item.get("input", "")).strip() for item in cases):
             raise ValueError(f"agent_scorecards.json: {template_id} has a case without its request")
-        if card.get("summary", {}).get("passed") != sum(bool(item.get("passed")) for item in cases):
+        summary = card.get("summary", {})
+        if summary.get("passed") != sum(bool(item.get("passed")) for item in cases):
             raise ValueError(f"agent_scorecards.json: {template_id} summary doesn't match its cases")
+        for item in cases:
+            runs, runs_passed = item.get("runs"), item.get("runs_passed")
+            if (not all(isinstance(value, int) and not isinstance(value, bool) for value in (runs, runs_passed))
+                    or not 0 <= runs_passed <= runs or runs < 1
+                    or bool(item.get("passed")) != (runs_passed == runs)):
+                raise ValueError(f"agent_scorecards.json: {template_id} has a case whose run counts don't add up")
+        if (summary.get("runs") != sum(item["runs"] for item in cases)
+                or summary.get("runs_passed") != sum(item["runs_passed"] for item in cases)
+                or summary.get("runs") != summary.get("cases", 0) * summary.get("runs_per_case", 0)):
+            raise ValueError(f"agent_scorecards.json: {template_id} summary doesn't match its runs")
     return data
 
 

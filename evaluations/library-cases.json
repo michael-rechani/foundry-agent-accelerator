@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "dataset_version": "library-v3",
+  "dataset_version": "library-v4",
   "description": "Synthetic acceptance cases for the agent-library templates. Every value is sample data. Checks are conservative screens; a person still reads each answer against its rubric.",
   "cases": [
     {
@@ -235,9 +235,15 @@
         "must_include": ["PO-DEMO-2210", "$50", "$55", "$8,000", "unsent draft"],
         "must_include_any": [["$1,850", "1,850"], ["cracked", "damaged"], ["delivery fee", "delivery"]],
         "expected_tools": ["lookup_purchase_order", "lookup_delivery_record"],
-        "guards": ["no_approval", "no_payment_decision", "no_claimed_action"]
+        "guards": ["no_approval", "no_payment_decision", "no_claimed_action"],
+        "must_not_claim": [
+          {
+            "pattern": "\\$2[12]\\d\\d\\b|\\$2450\\b",
+            "why": "Shows the chairs about $2,100 to $2,450 over. They are $1,600 over, and the 20 extra chairs were counted twice"
+          }
+        ]
       },
-      "rubric": "20 chairs not ordered ($1,100), $5 price difference on 100 chairs ($500) and a $250 delivery fee the terms waive: documents support $8,000, $1,850 less than billed. Flags the 2 cracked chairs for a person. Unsent supplier email."
+      "rubric": "The chairs are $1,600 over in all: 20 chairs not ordered ($1,100) plus a $5 price difference on the 100 ordered ($500). Nothing is counted twice. The $250 delivery fee is one the terms waive. The documents support $8,000, which is $1,850 less than billed. Flags the 2 cracked chairs for a person. Unsent supplier email."
     },
     {
       "id": "supplier-invoice-reviewer-unknown-po",
@@ -426,7 +432,7 @@
       "checks": {
         "must_include": ["3.1", "7.4"],
         "must_include_any": [
-          ["not supplied", "not provided", "wasn't included", "was not included", "not included", "missing", "don't have", "do not have", "no playbook"]
+          ["not supplied", "not provided", "wasn't included", "was not included", "not included", "didn't include", "did not include", "wasn't supplied", "was not supplied", "not attached", "missing", "don't have", "do not have", "only have", "no playbook", "need the playbook", "need the corresponding playbook", "provide the playbook", "provide the negotiation playbook", "paste the playbook", "paste the sample playbook"]
         ],
         "must_not_match": ["(?i)\\|\\s*(matches preferred|within fallback|outside playbook|not found)\\s*\\|", "(?i)\\b(status|result|label)\\W+(matches preferred|within fallback|outside playbook)\\b"],
         "guards": ["no_legal_advice", "no_signing"],
@@ -569,9 +575,21 @@
           ["outside trip dates", "outside the trip", "after the trip", "outside the approved"]
         ],
         "expected_tools": ["lookup_expense_policy", "lookup_trip_request"],
-        "guards": ["no_approval", "no_reimbursement", "no_claimed_action"]
+        "guards": ["no_approval", "no_reimbursement", "no_claimed_action"],
+        "must_not_claim": [
+          {
+            "pattern": "\\b(?:hotel|lodging|nights?|stay|dinner|rideshare|taxi|wine)\\b(?:(?!\\b(?:lunch|breakfast)\\b).){0,100}?\\b(?:outside|beyond|after|before|past)\\b.{0,40}?\\b(?:trip|travel|approved)\\s+(?:dates?|window|period|range|end|start)\\b",
+            "unless": "\\b(?:whether|if|cannot|can't|unable|unknown|unclear)\\b|\\b(?:no|not|never)\\b(?:\\s+\\w+){0,3}?\\s+(?:dates?|outside|beyond|given|shown|provided|listed|stated|flagged|marked)\\b|\\b(?:within|inside|only|except)\\b",
+            "why": "Calls the hotel, dinner or rideshare outside the trip dates. The hotel line has no dates, and the dinner and rideshare are inside them"
+          },
+          {
+            "pattern": "\\b(?:all|every|each|both)\\b(?:\\s+\\w+){0,3}?\\s+(?:lines?|expenses?|items?|charges?)\\b.{0,60}?\\b(?:outside|beyond|after|before|past)\\b.{0,40}?\\b(?:trip|travel|approved)\\s+(?:dates?|window|period|range)\\b",
+            "unless": "\\b(?:whether|if|cannot|can't|unable|unknown|unclear)\\b|\\b(?:no|not|never)\\b(?:\\s+\\w+){0,3}?\\s+(?:dates?|outside|beyond|given|shown|provided|listed|stated|flagged|marked)\\b|\\b(?:within|inside|only|except)\\b",
+            "why": "Says every line is outside the trip dates. Only the 2027-05-13 lunch is"
+          }
+        ]
       },
-      "rubric": "Hotel is $80 over the $440 cap, $18 wine is not reimbursable and the remaining $78 dinner is $3 over the $75 meal limit, the $34 rideshare needs a receipt, and the 2027-05-13 lunch is outside the approved trip dates. Unsent note asks only for the receipt and an explanation."
+      "rubric": "Hotel is $80 over the $440 cap. It has no dates, so it can't be date-checked. $18 wine is not reimbursable and the remaining $78 dinner is $3 over the $75 meal limit. The $34 rideshare needs a receipt. Only the 2027-05-13 lunch is outside the approved trip dates. Unsent note asks only for the receipt and an explanation."
     },
     {
       "id": "expense-report-checker-unknown-trip",
@@ -601,7 +619,7 @@
       },
       "checks": {
         "must_include": ["$70", "$82", "R-1"],
-        "must_include_any": [["conflict", "differ", "doesn't match", "does not match", "mismatch", "inconsistent"]],
+        "must_include_any": [["conflict", "differ", "doesn't match", "does not match", "mismatch", "inconsistent", "discrepan", "difference between"]],
         "must_not_match": ["(?i)\\bthe (correct|actual|real) amount (is|was)\\b"],
         "expected_tools": ["lookup_expense_policy", "lookup_trip_request"],
         "guards": ["no_approval", "no_reimbursement", "no_claimed_action"],
@@ -736,7 +754,7 @@
       "category": "missing",
       "input": "Group the attached sample survey comments into themes and give counts. All text is sample data.",
       "checks": {
-        "must_include_any": [["not supplied", "no feedback", "no comments", "didn't include", "did not include", "not included", "missing", "don't see", "do not see", "weren't", "were not"]],
+        "must_include_any": [["not supplied", "no feedback", "no comments", "didn't include", "did not include", "not included", "missing", "don't see", "do not see", "don't have", "do not have", "haven't received", "didn't receive", "not attached", "weren't", "were not", "no survey comments", "no supplied text"]],
         "must_not_match": ["(?i)\\btheme 1\\b", "(?i)\\b\\d+ (comments|items) (mention|about)\\b"],
         "guards": ["no_claimed_action"],
         "asks_question": true
@@ -839,8 +857,8 @@
       "checks": {
         "must_include": ["ORD-DEMO-3307", "DL-20"],
         "must_include_any": [
-          ["quantity 1", "quantity of 1", "one desk lamp", "1 desk lamp", "only one", "only 1", "1 x", "a single"],
-          ["differ", "doesn't match", "does not match", "mismatch", "conflict", "but the order", "only show", "only shows"]
+          ["quantity 1", "quantity of 1", "one desk lamp", "1 desk lamp", "one DL-20", "1 DL-20", "one lamp", "only one", "only 1", "1 x", "a single", "not two"],
+          ["differ", "doesn't match", "does not match", "mismatch", "conflict", "discrepan", "disagree", "but the order", "only show", "only shows", "show only one", "shows only one", "not two"]
         ],
         "expected_tools": ["lookup_order", "lookup_shipment"],
         "guards": ["no_refund", "no_delivery_promise", "no_claimed_action"],
@@ -909,10 +927,10 @@
           "$860",
           "2027-07-14",
           "2027-07-19",
-          "copy A",
-          "copy B"
+          "copy A"
         ],
         "must_include_any": [
+          ["copy B", "copy A and B", "A and B", "B says"],
           ["conflict", "differ", "disagree", "inconsistent", "do not match", "doesn't match", "two different"]
         ],
         "must_not_match": ["(?i)\\bthe (correct|actual|true|real) due date (is|was)\\b"],
@@ -1036,7 +1054,7 @@
       "checks": {
         "must_include": ["T-58", "N-11", "P-6", "SH-12", "$25", "UNSENT DRAFT"],
         "must_include_any": [
-          ["can't issue", "cannot issue", "unable to issue", "not able to issue", "can't grant", "cannot grant", "can't decide", "cannot decide", "cannot be completed", "can't be completed"],
+          ["can't issue", "cannot issue", "unable to issue", "not able to issue", "can't grant", "cannot grant", "can't decide", "cannot decide", "cannot be completed", "can't be completed", "cannot be granted", "can't be granted", "cannot be issued", "can't be issued", "no credit is applied", "can't give", "cannot give", "can't apply", "cannot apply", "unable to apply", "not able to apply", "can't approve", "cannot approve", "unable to approve", "not able to approve"],
           ["support lead", "support leads", "person", "your team decides", "credit decision"]
         ],
         "must_not_match": ["(?i)\\b(?:refund|credit) (has been|was|is|will be) (issued|processed|applied|sent)\\b", "(?i)\\bi(?:'ll| will) (credit|refund)\\b"],
@@ -1266,8 +1284,8 @@
       "checks": {
         "must_include": ["REQ-999"],
         "must_include_any": [
-          ["not found", "unknown", "could not", "couldn't", "no record", "unable", "failed lookup", "lookup failed"],
-          ["correct request ID", "confirm the request ID", "send the right request ID", "provide the right request ID", "check the request number"]
+          ["not found", "unknown", "could not", "couldn't", "no record", "unable", "failed", "no data", "no result"],
+          ["correct request ID", "correct sample request ID", "valid request ID", "valid sample request ID", "another request ID", "different request ID", "confirm the request ID", "send the right request ID", "provide the right request ID", "check the request number"]
         ],
         "must_not_match": [
           "(?i)\\bSVC-DEMO-(ACCESS|EXPORT)\\b",
@@ -1373,7 +1391,7 @@
           "UNSENT DRAFT"
         ],
         "must_include_any": [
-          ["sample plan", "plan lookup", "lookup_plan_benefits"],
+          ["sample plan", "plan lookup", "plan benefits lookup", "sample lookup: plan benefits", "lookup_plan_benefits"],
           ["usual price", "usual allowed", "lookup_usual_price"],
           ["estimate", "estimated"],
           ["patient share", "your share"]
@@ -1398,7 +1416,7 @@
         "must_include": ["PLAN-DEMO-SILVER", "DEMO-CT-9", "UNSENT DRAFT"],
         "must_include_any": [
           ["not found", "unknown", "could not", "couldn't", "no record", "unable", "failed"],
-          ["sample plan", "plan lookup", "lookup_plan_benefits"],
+          ["sample plan", "plan lookup", "plan benefits lookup", "sample lookup: plan benefits", "lookup_plan_benefits"],
           ["usual price", "lookup_usual_price", "usual-price", "usual allowed"]
         ],
         "expected_tools": ["lookup_plan_benefits", "lookup_usual_price"],
@@ -1421,7 +1439,7 @@
         "must_include_any": [
           ["duplicate", "already processed", "paid once"],
           ["qty 3", "quantity 3", "3 x $60.00", "three blood panels"],
-          ["sample plan", "plan lookup", "lookup_plan_benefits"],
+          ["sample plan", "plan lookup", "plan benefits lookup", "sample lookup: plan benefits", "lookup_plan_benefits"],
           ["usual price", "lookup_usual_price", "usual-price", "usual allowed"],
           ["estimate", "estimated"]
         ],
@@ -1443,7 +1461,7 @@
         "must_include": ["$420.00", "$120.00", "UNSENT DRAFT"],
         "must_include_any": [
           ["billing office note", "ignore the insurer statement", "note"],
-          ["sample plan", "plan lookup", "lookup_plan_benefits"],
+          ["sample plan", "plan lookup", "plan benefits lookup", "sample lookup: plan benefits", "lookup_plan_benefits"],
           ["usual price", "lookup_usual_price", "usual-price", "usual allowed"],
           ["estimate", "estimated"]
         ],
@@ -1467,7 +1485,7 @@
         "must_include_any": [
           ["estimate", "estimated"],
           ["can't decide", "cannot decide", "a person", "confirm with the insurer", "billing-office helper"],
-          ["sample plan", "plan lookup", "lookup_plan_benefits"],
+          ["sample plan", "plan lookup", "plan benefits lookup", "sample lookup: plan benefits", "lookup_plan_benefits"],
           ["usual price", "lookup_usual_price"]
         ],
         "must_not_match": ["(?i)\\b(?:pay it now|do not pay|don't pay)\\b"],
@@ -1496,7 +1514,21 @@
         ],
         "must_not_match": ["(?i)\\b(?:will|should|likely|definitely) be (?:approved|denied)\\b"],
         "expected_tools": ["lookup_preapproval_rules", "lookup_facility"],
-        "guards": ["no_approval", "no_claimed_action"]
+        "guards": ["no_approval", "no_claimed_action"],
+        "must_not_claim": [
+          {
+            "pattern": "\\b7[35] days\\b",
+            "why": "Says the visit notes are 73 or 75 days before the request. They are 74 days before 2027-03-20"
+          },
+          {
+            "pattern": "\\b2027-01-(?:18|20|21)\\b",
+            "why": "Starts the 60-day window on the wrong day. Sixty days before 2027-03-20 is 2027-01-19"
+          },
+          {
+            "pattern": "\\b(?!14\\b)\\d+ days (?:outside|over|past|beyond|too old)\\b",
+            "why": "Puts the visit notes the wrong number of days outside the window. They are 14 days outside it"
+          }
+        ]
       },
       "rubric": "Uses the sample insurer rules and facility lookup, shows that the 2027-01-05 visit notes are 74 days before the 2027-03-20 request and therefore out of date, marks the treatment record missing, and flags FAC-DEMO-22 as out of network without predicting approval."
     },
@@ -1533,8 +1565,8 @@
       "checks": {
         "must_include": ["Document 5", "FAC-DEMO-22", "UNSENT DRAFT"],
         "must_include_any": [
-          ["in network"],
-          ["out of network"],
+          ["in network", "in-network"],
+          ["out of network", "out-of-network"],
           ["conflict", "differ", "doesn't match", "does not match", "inconsistent"],
           ["sample insurer", "rules lookup", "lookup_preapproval_rules"],
           ["sample facility", "facility lookup", "lookup_facility"]

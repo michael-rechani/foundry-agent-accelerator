@@ -4,13 +4,21 @@ Offline only: it screens answers already in evidence/ with library_checks, adds 
 response times and token counts, and prices those tokens with a saved list-price table. The
 Lab serves the result from workbench/agent_scorecards.json.
 
+Each case has one recorded answer (run 1, the one a person reads) and, in the repeat file, more
+runs of the same request. A case passes only when every run passes, because a model that gets a
+case right once can still get it wrong the next time.
+
+Every recorded answer carries a fingerprint of the instructions its agent had when it was run. The
+build fails if the Lab's instructions for an agent have changed since, so the test results can't
+describe instructions the Lab no longer uses.
+
     python scorecards.py write   # regenerate the Lab's copy
     python scorecards.py check   # fail if the Lab's copy is out of date
     python scorecards.py signoff --reviewer "Name" --all   # record that a person read the answers
 
 Run `signoff` only after a person has read the answers. It writes evidence/signoffs.json, which
-ties each sign-off to a fingerprint of the answers that were read. If an answer changes later, the
-build fails until someone reads the answers again.
+ties each sign-off to a fingerprint of the recorded answers that were read. If a recorded answer
+changes later, the build fails until someone reads the answers again.
 """
 from __future__ import annotations
 
@@ -23,20 +31,23 @@ import statistics
 import sys
 from pathlib import Path
 
-from library_checks import CASES_PATH, case_input, load_cases, score
+from library_checks import CASES_PATH, TEMPLATES, case_input, load_cases, score
 
 HERE = Path(__file__).resolve().parent
 EVIDENCE = HERE / "evidence"
 OUTPUT = HERE.parent / "workbench" / "agent_scorecards.json"
 TESTED_ON = "2026-09-29"
-ANSWERS_DATASET = "library-v3"
+ANSWERS_DATASET = "library-v4"
 # Later runs replace earlier answers for the same case. The direct run sent each case with the
 # template's current instructions straight to the Lab's Foundry project and timed it from the
 # machine that ran it, so its times can differ slightly from the live Lab.
 RUNS = (("direct", EVIDENCE / "library-acceptance-2026-09-29.jsonl"),)
 METRICS = EVIDENCE / "library-acceptance-2026-09-29-metrics.jsonl"
+# Runs 2 and up of the same cases, each row carrying its own answer and metrics.
+REPEATS = EVIDENCE / "library-repeat-2026-09-29.jsonl"
 PRICES = EVIDENCE / "model-prices-2026-09.json"
 SIGNOFFS = EVIDENCE / "signoffs.json"
+METRIC_KEYS = ("seconds", "input_tokens", "cached_tokens", "output_tokens")
 
 
 def _lines(path):
@@ -60,6 +71,53 @@ def load_answers(cases, runs):
                 raise ValueError(f"{path.name}: unknown case_id {record['case_id']!r}")
             answers[record["case_id"]] = (run, record)
     return answers
+
+
+def load_repeats(path, cases):
+    """Runs 2 and up of each case: {case_id: {run number: row}}. A missing file means no repeats."""
+    repeats = {}
+    if path is None or not Path(path).exists():
+        return repeats
+    name = Path(path).name
+    for record in _lines(path):
+        case_id, run = record.get("case_id"), record.get("run")
+        if case_id not in cases:
+            raise ValueError(f"{name}: unknown case_id {case_id!r}")
+        if isinstance(run, bool) or not isinstance(run, int) or run < 2:
+            raise ValueError(f"{name}: {case_id} needs a run number of 2 or more, not {run!r}")
+        if run in repeats.setdefault(case_id, {}):
+            raise ValueError(f"{name}: {case_id} has run {run} more than once")
+        repeats[case_id][run] = record
+    return repeats
+
+
+def _measured(record, where):
+    """The model and metrics of one run, checked so a bad row can't silently skew the averages."""
+    if not str(record.get("model", "")).strip():
+        raise ValueError(f"{where}: no model recorded")
+    for key in METRIC_KEYS:
+        value = record.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+            raise ValueError(f"{where}: {key} must be a number of 0 or more, not {value!r}")
+    return record
+
+
+def _whole_number(value):
+    return int(value + 0.5)
+
+
+def instructions_digest(template_id):
+    """Fingerprint of the instructions the Lab serves for an agent."""
+    return hashlib.sha256(TEMPLATES[template_id]["instructions"].encode("utf-8")).hexdigest()
+
+
+def _check_fingerprint(record, case, run):
+    recorded = record.get("instructions_sha256")
+    if not recorded:
+        raise ValueError(f"{case['id']} run {run}: no instructions fingerprint was recorded with this answer")
+    if recorded != instructions_digest(case["template_id"]):
+        raise ValueError(f"{case['id']} run {run}: the instructions of {case['template_id']} changed after this "
+                         "answer was recorded; run its test cases again")
 
 
 def template_digests(cases, answers):
@@ -124,7 +182,8 @@ def record_signoff(reviewer, reviewed_on, template_ids, path=SIGNOFFS, cases_pat
     return sorted(template_ids)
 
 
-def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PRICES, signoffs_path=SIGNOFFS):
+def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PRICES, signoffs_path=SIGNOFFS,
+          repeats_path=REPEATS, verify_instructions=True):
     data = load_cases(cases_path)
     prices = json.loads(Path(prices_path).read_text(encoding="utf-8"))
     cases = {case["id"]: case for case in data["cases"]}
@@ -133,29 +192,51 @@ def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PR
     missing = sorted(set(answers) - set(metrics))
     if missing:
         raise ValueError("no recorded metrics for " + ", ".join(missing))
+    repeats = load_repeats(repeats_path, cases)
+    stray = sorted(set(repeats) - set(answers))
+    if stray:
+        raise ValueError("repeat runs for cases with no recorded answer: " + ", ".join(stray))
 
     scorecards = {}
     for case in data["cases"]:
         if case["id"] not in answers:
             continue
         run, record = answers[case["id"]]
-        measured = metrics[case["id"]]
-        passed, failures = score(case, record.get("text", ""), record.get("receipts"))
+        measured = _measured(metrics[case["id"]], f"{case['id']} run 1")
+        attempts = [(1, record, measured)] + [
+            (number, row, _measured(row, f"{case['id']} run {number}"))
+            for number, row in sorted(repeats.get(case["id"], {}).items())]
+        results = []
+        for number, answer, metric in attempts:
+            if verify_instructions:
+                _check_fingerprint(answer, case, number)
+            if metric["model"] != measured["model"]:
+                raise ValueError(f"{case['id']}: run {number} used a different model from run 1")
+            passed, failures = score(case, answer.get("text", ""), answer.get("receipts"))
+            cost = token_cost(prices, metric["model"], metric["input_tokens"], metric["cached_tokens"],
+                              metric["output_tokens"])
+            results.append({"run": number, "passed": passed, "failures": failures, "cost": cost, "metric": metric})
         card = scorecards.setdefault(case["template_id"], {
             "template_id": case["template_id"], "tested_on": TESTED_ON, "model": measured["model"],
             "answers_from": set(), "signed_off": False, "signed_off_by": None, "signed_off_on": None,
-            "cases": [],
+            "cases": [], "run_seconds": [], "run_costs": [],
         })
         if measured["model"] != card["model"]:
             raise ValueError(f"{case['id']}: mixed models for {case['template_id']}")
         card["answers_from"].add(run)
+        card["run_seconds"] += [item["metric"]["seconds"] for item in results]
+        card["run_costs"] += [item["cost"] for item in results]
+        passing = sum(item["passed"] for item in results)
+        prefix = "Run {}: " if len(results) > 1 else ""
         card["cases"].append({
             "id": case["id"], "category": case["category"], "goal": case["rubric"], "input": case_input(case),
-            "passed": passed, "notes": failures, "seconds": measured["seconds"],
-            "input_tokens": measured["input_tokens"], "cached_tokens": measured["cached_tokens"],
-            "output_tokens": measured["output_tokens"],
-            "cost_usd": round(token_cost(prices, measured["model"], measured["input_tokens"],
-                                         measured["cached_tokens"], measured["output_tokens"]), 6),
+            "runs": len(results), "runs_passed": passing, "passed": passing == len(results),
+            "notes": [prefix.format(item["run"]) + note for item in results for note in item["failures"]],
+            "seconds": round(statistics.median(item["metric"]["seconds"] for item in results), 1),
+            "input_tokens": _whole_number(statistics.fmean(item["metric"]["input_tokens"] for item in results)),
+            "cached_tokens": _whole_number(statistics.fmean(item["metric"]["cached_tokens"] for item in results)),
+            "output_tokens": _whole_number(statistics.fmean(item["metric"]["output_tokens"] for item in results)),
+            "cost_usd": round(statistics.fmean(item["cost"] for item in results), 6),
         })
 
     signoffs = load_signoffs(signoffs_path)
@@ -177,11 +258,18 @@ def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PR
         runs_used = card["answers_from"]
         card["answers_from"] = next(iter(runs_used)) if len(runs_used) == 1 else "mixed"
         items = card["cases"]
+        run_counts = {item["runs"] for item in items}
+        if len(run_counts) != 1:
+            raise ValueError(f"{card['template_id']}: every case needs the same number of runs")
+        run_seconds, run_costs = card.pop("run_seconds"), card.pop("run_costs")
         card["summary"] = {
             "cases": len(items),
             "passed": sum(item["passed"] for item in items),
-            "median_seconds": round(statistics.median(item["seconds"] for item in items), 1),
-            "average_cost_usd": round(statistics.fmean(item["cost_usd"] for item in items), 6),
+            "runs_per_case": run_counts.pop(),
+            "runs": sum(item["runs"] for item in items),
+            "runs_passed": sum(item["runs_passed"] for item in items),
+            "median_seconds": round(statistics.median(run_seconds), 1),
+            "average_cost_usd": round(statistics.fmean(run_costs), 6),
         }
     return {
         "schema_version": 1,

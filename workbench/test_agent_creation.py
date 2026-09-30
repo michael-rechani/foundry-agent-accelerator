@@ -468,7 +468,7 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
         templates = {item["id"]: item for item in (await self.client.get("/api/agent-templates")).json()["templates"]}
         expected = {
             "document-intake": "fast-model", "workflow-coordinator": "tool-model", "criteria-checker": "test-model",
-            "medical-bill-reviewer": "test-model", "insurance-preapproval-helper": "tool-model",
+            "medical-bill-reviewer": "test-model", "insurance-preapproval-helper": "test-model",
         }
         for template_id, model in expected.items():
             with self.subTest(template_id=template_id):
