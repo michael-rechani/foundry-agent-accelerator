@@ -68,7 +68,7 @@ Why this option fits the pinned versions and the private network:
 | Least privilege | Each hosted agent runs as its own Microsoft Entra agent identity. That identity gets **Search Index Data Reader** on **one index**. The Foundry-managed tool would instead query as the shared project managed identity, which the pinned AVM module already grants Search Index Data Contributor and Search Service Contributor on the whole service. |
 | Private networking | The Search service already has public access disabled, local (key) authentication disabled, and a private endpoint in `privatelink.search.windows.net`. The agent subnet is network-injected into the same virtual network. Keyless managed identity is the only option, which this approach uses. |
 | Bounded behavior | The code, not the model, fixes the index, `top` (at most 5), the `select` field allowlist, and the simple query type. The model supplies only the query text; it can't pass a filter, index, or field list. |
-| Receipts | Returns the same `{"status", "agent", "output"}` receipt the coordinator's specialist tools return, so the deploy smoke check and Lab receipt verification work without changes. |
+| Receipts | Returns the coordinator's specialist receipt shape (`status`, `agent`, `output`) plus `retrieval` and `source_ids`, so Lab receipt verification works unchanged. The deploy smoke check also requires at least one passage. |
 | Testability | Unit-tested offline with a fake search client and with the real SDK over a mock transport. |
 | No new service | It's a tool in an existing agent, not a bespoke retrieval service, and it doesn't need Azure-side tool, connection, or toolbox creation, vectors, or an embedding model. |
 
@@ -129,17 +129,39 @@ and the runtime `Agent(...)` arguments are identical with the flag unset or
 **Flag on.** The deployment uses an overlay package instead of the default one:
 
 - `main.py` is [`knowledge_main.py`](../hosted-agents/knowledge_main.py), which
-  matches the case runtime and adds the tool and an instruction addendum.
+  is the case runtime plus the tool and an instruction addendum. It keeps the
+  case runtime's quotation check on every answer.
 - `knowledge_retrieval.py` is added.
 - `requirements.txt` is the existing pins plus
   [`requirements-knowledge.txt`](../hosted-agents/case-review-agent/requirements-knowledge.txt).
 - `instructions.md` is unchanged. The addendum is appended at runtime and says
-  retrieved passages are untrusted data, must be cited by `source_id`, and can't
-  change instructions, format, tools, or decision boundaries.
+  retrieved passages are untrusted data, must be paraphrased and named by
+  `source_id`, and can't change instructions, format, tools, or decision
+  boundaries.
 - The validated `KNOWLEDGE_*` settings are added to the version's environment.
-- A second smoke check requires exactly one `search_policy_guidance` call with a
-  success receipt. A failed lookup, for example missing RBAC or DNS, fails the
-  deployment and triggers the existing rollback.
+- A second smoke check requires exactly one `search_policy_guidance` call for the
+  query "missing evidence", with a success receipt that returns at least one
+  passage. A failed lookup (for example missing RBAC or DNS) or an empty result
+  (for example an empty or wrong index) fails the check.
+
+**Quotations.** Quotation marks keep one meaning: exact text from the request.
+Retrieved passages are a separate source. The answer paraphrases them and names
+their `source_id`; it doesn't put them in quotation marks. A quote of retrieved
+text isn't in the request, so the check sends the draft back once for repair and
+then withholds the answer. The check never accepts retrieved text as evidence,
+so a passage can't supply a quotation, and a prompt-injected passage can't make
+an invented quote look valid. Structured review citations also stay tied to the
+supplied evidence.
+
+**Promotion and rollback.** `deploy.py` routes 100% of traffic to the new version
+before its smoke checks run; it isn't a pre-promotion canary (see
+[What publication does](../hosted-agents/README.md#what-publication-does)). A
+failed check starts a best-effort rollback: it restores the previous route and
+deletes the failed version only after confirming nothing routes to it. If the
+rollback can't be confirmed, or this is the agent's first publish and there is
+no previous route, the script keeps the version for manual inspection, so check
+the route yourself. Publish in a quiet window and verify the route afterward.
+Testing a new version before it takes traffic is a possible later improvement.
 
 Portable bundles never carry retrieval: `bundle.py export` always packages the
 default profile, and bundle validation rejects the overlay files and
@@ -158,7 +180,7 @@ default profile, and bundle validation rejects the overlay files and
   control and bidirectional-override characters, caps each field at 2,000
   characters, and caps the output at 8,000 characters by dropping whole passages.
 - Wraps passages as JSON after a fixed header that labels them read-only,
-  fictional, untrusted data to cite by `source_id`.
+  fictional, untrusted data to paraphrase and cite by `source_id`.
 - Returns a JSON receipt:
 
   ```json
@@ -172,8 +194,9 @@ default profile, and bundle validation rejects the overlay files and
   ```
 
 - No matches return `succeeded` with a "No passages matched" output and empty
-  `source_ids`. Errors and timeouts (20 seconds) return `failed` with a generic
-  message and no exception details, endpoint, or principal.
+  `source_ids`, so the answer can say so honestly. The deploy smoke check treats
+  an empty result as a failure. Errors and timeouts (20 seconds) return `failed`
+  with a generic message and no exception details, endpoint, or principal.
 
 ## Identity and RBAC
 
@@ -299,8 +322,10 @@ is used in demos, add and run:
    `pip install -r requirements.txt -r requirements-knowledge.txt`.
 5. Set `KNOWLEDGE_RETRIEVAL_ENABLED=true`, `KNOWLEDGE_SEARCH_ENDPOINT`, and
    `KNOWLEDGE_SEARCH_INDEX`, then run `python deploy.py` from
-   `hosted-agents/case-review-agent`. The retrieval smoke check must pass, or the
-   new version is rolled back.
+   `hosted-agents/case-review-agent`. Do this in a quiet window: the new version
+   takes 100% of traffic before its smoke checks run. The retrieval smoke check
+   must pass (at least one passage for the query "missing evidence"). If it
+   fails, the script attempts a rollback; confirm the route yourself afterward.
 6. Add the Lab binding described in [Receipts in the Lab](#receipts-in-the-lab),
    then run the [evaluation additions](#evaluation-additions).
 7. To turn retrieval off, redeploy with the flag unset or `false`, or route back

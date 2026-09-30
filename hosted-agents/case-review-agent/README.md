@@ -46,8 +46,9 @@ without demanding policy or inventing a deadline.
 The default supplied-text runtime checks quotations before releasing output,
 with one bounded repair attempt and an explicit error if the check still fails.
 Streaming output is buffered for that check. It verifies literal excerpts, not
-the truth of a note. This supplied-text check does not apply to the optional
-retrieval-enabled runtime, whose sources come from a separate tool boundary.
+the truth of a note. The optional retrieval-enabled runtime keeps the same
+check. Retrieved guidance is paraphrased and cited by `source_id`, not quoted,
+so quotation marks still mean exact text from the request.
 
 ## Data and decision boundaries
 

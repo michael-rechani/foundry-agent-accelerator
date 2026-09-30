@@ -47,7 +47,7 @@ async def main() -> None:
                 model=model_deployment,
                 credential=credential,
                 allow_preview=True,
-                middleware=[quotation_middleware()] if settings is None else [],
+                middleware=[quotation_middleware()],
             ),
             name=agent_name,
             instructions=instructions,

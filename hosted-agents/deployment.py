@@ -112,10 +112,9 @@ def create_package(source_directory: Path, destination: Path) -> None:
 
 
 KNOWLEDGE_CHECK_PROMPT = (
-    "Call search_policy_guidance exactly once to look up sample guidance "
-    "about missing evidence in a synthetic case, then summarize what was "
-    "retrieved with source_id citations or state that nothing matched. Do not "
-    "make an eligibility decision."
+    'Call search_policy_guidance exactly once with the query "missing evidence", '
+    "then summarize in your own words what it returned and cite each source_id. "
+    "Do not use quotation marks. Do not make an eligibility decision."
 )
 
 
@@ -211,6 +210,15 @@ def verify_delegation(response, expected_tool: str, expected_agent: str | None =
         or not result["output"].strip()
     ):
         raise RuntimeError("Specialist result is not a success receipt")
+    # A lookup that matched nothing is an honest success receipt, but it proves nothing about the index.
+    if result.get("retrieval") is True:
+        source_ids = result.get("source_ids")
+        if (
+            not isinstance(source_ids, list)
+            or not source_ids
+            or not all(isinstance(source_id, str) and source_id.strip() for source_id in source_ids)
+        ):
+            raise RuntimeError("Retrieval result returned no passages")
 
     if expected_agent is not None and result["agent"] != expected_agent:
         raise RuntimeError("Specialist result came from an unexpected agent")
