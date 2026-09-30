@@ -9,8 +9,7 @@ import {
   MessageSquare,
   UserCheck,
 } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { useEffect, useState } from 'react'
 import {
   plainStep,
   receiptState,
@@ -20,6 +19,7 @@ import {
 import type { Turn } from './conversation-types'
 import { FoundryLink } from './FoundryLink'
 import { foundryAgentUrl } from './foundry-links'
+import { loadedMarkdown, preloadMarkdown } from './markdown-loader'
 import { usageDetail, usageLabel } from './token-usage'
 
 const receiptLabels: Record<ReceiptState, string> = {
@@ -140,17 +140,27 @@ function AnswerSteps({
 }
 
 function Markdown({ text }: { text: string }) {
+  const [Formatter, setFormatter] = useState(loadedMarkdown)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    if (Formatter) return
+    let current = true
+    void preloadMarkdown().then((found) => {
+      if (!current) return
+      if (found) setFormatter(() => found)
+      else setFailed(true)
+    })
+    return () => {
+      current = false
+    }
+  }, [Formatter])
   return (
     <div className="message-markdown">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          a: ({ children }) => <span className="source-link">{children}</span>,
-          img: ({ alt }) => <span>{alt}</span>,
-        }}
-      >
-        {text}
-      </ReactMarkdown>
+      {Formatter ? (
+        <Formatter text={text} />
+      ) : failed ? (
+        <pre>{text}</pre>
+      ) : null}
     </div>
   )
 }
