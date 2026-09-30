@@ -73,7 +73,7 @@ export function ScorecardPanel({
         <h2 id="scorecard-title">How it did on its test cases</h2>
         <p className="library-muted">
           Tested on {formatDate(card.tested_on)} with sample data. Each case
-          sends the agent a sample request {formatTimes(summary.runs_per_case)}
+          sends the agent a sample request {formatTimes(summary.runs_per_case)}{' '}
           and checks every answer for the facts, questions and limits it should
           show. The same request can get a different answer each time, so a case
           only passes when every answer passes.

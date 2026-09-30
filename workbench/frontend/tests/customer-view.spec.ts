@@ -274,7 +274,9 @@ test('test results read plainly and keep case details under the hood', async ({
     'How it did on its test cases',
   )
   await expect(panel).toContainText('September 29, 2026')
-  await expect(panel).toContainText(`a sample request ${each} times`)
+  await expect(panel).toContainText(
+    `a sample request ${each} times and checks every answer`,
+  )
   await expect(panel).toContainText(
     `${5 - passed} of 5 test ${5 - passed === 1 ? 'case has' : 'cases have'} an answer that missed a check`,
   )
