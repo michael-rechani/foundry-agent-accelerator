@@ -105,16 +105,19 @@ class ScorecardTests(unittest.TestCase):
                 self.assertEqual(item["runs"], RUNS_PER_CASE, item["id"])
                 self.assertEqual(item["passed"], item["runs_passed"] == item["runs"], item["id"])
 
-    def test_an_agent_marked_reviewed_passed_every_run_of_every_case(self):
+    def test_an_agent_is_marked_reviewed_only_after_a_person_signed_off_and_every_run_passed(self):
         cards = {card["template_id"]: card for card in scorecards.build()["scorecards"]}
-        reviewed = sorted(key for key, value in TEMPLATE_METADATA.items()
-                          if key in TEMPLATES and key not in RETIRED_TEMPLATES and value["readiness"] == "reviewed")
-        self.assertTrue(reviewed)
-        for template_id in reviewed:
-            summary = cards[template_id]["summary"]
+        listed = sorted(key for key in TEMPLATE_METADATA if key in TEMPLATES and key not in RETIRED_TEMPLATES)
+        self.assertTrue(listed)
+        for template_id in listed:
+            card = cards[template_id]
+            summary = card["summary"]
+            earned = card["signed_off"] and summary["runs_passed"] == summary["runs"]
             self.assertEqual(
-                summary["runs_passed"], summary["runs"],
-                f"{template_id} is marked Reviewed but missed a check in a repeat run; fix it or mark it In progress")
+                TEMPLATE_METADATA[template_id]["readiness"] == "reviewed", earned,
+                f"{template_id}: mark it Reviewed in agent_templates.py exactly when a person has signed off "
+                f"its answers and every run passed (signed off: {card['signed_off']}, "
+                f"runs passed: {summary['runs_passed']} of {summary['runs']})")
 
     def test_a_case_passes_only_when_every_run_passes(self):
         good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"

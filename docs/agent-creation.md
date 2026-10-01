@@ -28,10 +28,11 @@ agent-management service.
 The Create page lists the Lab's 18 templates in three groups, named the same as
 the sectors in the **Agent library**: **Works in any sector** (five jobs),
 **Healthcare and public sector** (four jobs), and **Private sector** (nine
-jobs). The tables below describe the first two groups. The nine private-sector
-templates are marked **In progress**: they pass offline contract and acceptance
-tests but aren't yet validated live. Open the **Agent library** to see what
-each one does. The fictional examples in the healthcare and public-sector group
+jobs). The tables below describe the first two groups. Every template is
+marked **In progress** until a person has read its recorded test answers and
+signed off (see **Test results** in the **Agent library**). They pass offline
+contract and acceptance tests but aren't yet validated live. Open the **Agent
+library** to see what each one does. The fictional examples in the healthcare and public-sector group
 suit public-sector, healthcare-operations, and independent software vendor
 (ISV) conversations without reproducing any customer's work or implementation
 claims. Healthcare examples cover paperwork only, not clinical advice or real
@@ -232,9 +233,12 @@ decision, search keywords, and export status. Facet counts are derived rather
 than maintained separately.
 
 Readiness and runtime hints are bounded labels, not service-level claims.
-`Sample` means the definition has deterministic contract tests but still needs
-customer policy review. `Reviewed` identifies the earlier reviewed Lab
-definitions. Current tool modes are only `Text only` and `Sample lookups`;
+`In progress` (the `sample` level) means the definition has deterministic
+contract tests and recorded answers that pass the automatic checks, but a
+person hasn't signed those answers off, and it still needs customer policy
+review. `Reviewed` means a person has signed off the recorded answers and
+every run passed; `evaluations/test_scorecards.py` fails if the label and the
+recorded sign-offs disagree. Current tool modes are only `Text only` and `Sample lookups`;
 neither means a customer system is connected. Cost and latency are relative
 model-profile hints, not prices or performance guarantees.
 
