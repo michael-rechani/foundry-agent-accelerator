@@ -7,7 +7,7 @@
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
       "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
-      "limits": "It only reads what you supply. It cannot look up missing documents, change business systems or decide whether to approve something. Requirements and proposal review is in preview.",
+      "limits": "It works from what you supply. The one exception is a sample pilot: the case notes specialist can look up ten approved sample policy passages and name the one it used. It cannot search your own documents, look up missing documents, change business systems or decide whether to approve something. Requirements and proposal review is in preview.",
       "delegation": "It hands your task to a specialist agent (Checklist reviewer or Case notes summarizer), then returns their findings in one reply. It uses both only if you ask for both, and may first ask what you need.",
       "configuration": "Instructions and specialist tools: hosted-agents\\review-coordinator-agent\\profiles\\evidence-review.example.json. Publish a new coordinator version with this profile to change runtime behavior."
     },
@@ -28,7 +28,7 @@
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
       "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
-      "limits": "It only reads what you supply. It cannot look up missing documents, change business systems or decide whether to approve something. Requirements and proposal review is in preview.",
+      "limits": "It works from what you supply. The one exception is a sample pilot: the case notes specialist can look up ten approved sample policy passages and name the one it used. It cannot search your own documents, look up missing documents, change business systems or decide whether to approve something. Requirements and proposal review is in preview.",
       "delegation": "It hands your task to the same specialists (Checklist reviewer or Case notes summarizer). It uses one unless you ask for both; what you can accomplish is the same as Checklist and case helper.",
       "configuration": "Base instructions: hosted-agents\\review-coordinator-agent\\instructions.md. Tools: main.py in that directory, with deployed SPECIALIST_CONFIG taking precedence over legacy agent-name settings. Publish a new agent version to change runtime behavior."
     },
@@ -65,9 +65,9 @@
     "guidance": {
       "input": "Paste sample case notes and any rules you want it to consider. Label the notes so you can check references.",
       "output": "A summary of what the notes say, any relevant supplied rules, details to check and questions to ask next.",
-      "limits": "It does not find missing records, invent rules, decide eligibility or liability, or update a system. A person checks the documents and makes decisions.",
-      "delegation": "It writes the summary itself. It does not call other agents or use external tools.",
-      "configuration": "Instructions: hosted-agents\\case-review-agent\\instructions.md, packaged by deploy.py in that directory. Publish a new agent version to apply changes. This runtime has no tools."
+      "limits": "It does not find missing records, invent rules, decide eligibility or liability, or update a system. Its policy lookup is a sample pilot of ten approved passages, and it says so if nothing matches or the lookup fails. A person checks the documents and makes decisions.",
+      "delegation": "It writes the summary itself and does not call other agents. Its only tool is a read-only lookup of the ten approved sample policy passages, used when that helps.",
+      "configuration": "Instructions: hosted-agents\\case-review-agent\\instructions.md, packaged by deploy.py in that directory. Publish a new agent version to apply changes. The sample policy lookup is added only when deploy.py runs with KNOWLEDGE_RETRIEVAL_ENABLED=true (see docs\\knowledge-retrieval.md); it is not a tool binding here, so the Lab shows no receipt for it."
     },
     "agent": "case-review-agent",
     "tools": {},

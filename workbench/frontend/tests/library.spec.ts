@@ -486,6 +486,9 @@ test('the Add-ons tab previews what an agent could connect to without calling an
     }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('note')).toContainText('A preview only.')
+  await expect(page.getByRole('note')).toContainText(
+    'Knowledge search, already runs as a small sample pilot',
+  )
 
   const cards = page.locator('.addon-card')
   await expect(cards.getByRole('heading', { level: 2 })).toHaveText([
@@ -496,7 +499,11 @@ test('the Add-ons tab previews what an agent could connect to without calling an
     'Code interpreter',
     'Web search',
   ])
-  await expect(cards.getByText('Not available yet')).toHaveCount(6)
+  await expect(cards.getByText('Not available yet')).toHaveCount(5)
+  await expect(cards.getByText('Sample pilot')).toHaveCount(1)
+  await expect(cards.first().getByText('Sample pilot')).toBeVisible()
+  await expect(cards.getByText('In the Lab today')).toHaveCount(1)
+  await expect(cards.first()).toContainText('ten approved sample passages')
   for (const heading of [
     'What it would cost',
     'What it would need',

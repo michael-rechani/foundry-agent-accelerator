@@ -221,8 +221,10 @@ The model deployment is used by configured agents. The Lab calls a named agent
 endpoint, not a browser-selected model endpoint. Coordinator and specialist
 boxes represent custom Python applications, not additional Microsoft products.
 Key Vault is the home for necessary secrets, not a transcript store or a service
-that the browser reads. Azure AI Search is a required platform dependency here,
-but no Search retrieval tool is connected to the reference review workflow.
+that the browser reads. Azure AI Search is a required platform dependency here.
+The reference review workflow has no Search retrieval tool unless you turn on the
+optional [policy guidance lookup](knowledge-retrieval.md), which the dev Lab runs
+as a small sample pilot.
 
 ### Code ownership
 

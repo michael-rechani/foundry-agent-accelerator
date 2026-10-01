@@ -41,9 +41,10 @@ export function AddOns() {
       <div className="library-decision" role="note">
         <Info size={18} aria-hidden="true" />
         <p>
-          <strong>A preview only. </strong>None of these are available in the
-          Lab yet. Nothing on this page turns anything on, sends data or costs
-          money. Add-ons are built in Microsoft Foundry, so an agent you take
+          <strong>A preview only. </strong>Nothing on this page turns anything
+          on, sends data or costs money. One add-on, Knowledge search, already
+          runs as a small sample pilot in the Lab. The others are not available
+          yet. Add-ons are built in Microsoft Foundry, so an agent you take
           there can connect to them.
         </p>
       </div>
@@ -77,7 +78,9 @@ function AddOnCard({ addOn }: { addOn: AddOn }) {
       <span className="library-kicker">
         <Icon size={15} aria-hidden="true" />
         <span className="library-badges">
-          <span className="library-badge">Not available yet</span>
+          <span className="library-badge">
+            {addOn.pilot ? 'Sample pilot' : 'Not available yet'}
+          </span>
           {addOn.approval && (
             <span className="library-badge caution">{addOn.approval}</span>
           )}
@@ -89,6 +92,12 @@ function AddOnCard({ addOn }: { addOn: AddOn }) {
         <strong>For example: </strong>
         {addOn.example}
       </p>
+      {addOn.pilot && (
+        <p className="addon-example">
+          <strong>In the Lab today: </strong>
+          {addOn.pilot}
+        </p>
+      )}
       <h3>What it would cost</h3>
       <ul>
         {addOn.cost.map((line) => (

@@ -1,5 +1,6 @@
-// Add-ons an agent could connect to later. This is a preview catalogue: nothing
-// here is built or turned on, so it makes no calls and costs nothing.
+// Add-ons an agent could connect to later. This is a preview catalogue: the page
+// makes no calls and costs nothing. An add-on with `pilot` set also runs as a
+// small sample in the Lab; the page itself still turns nothing on.
 // Uses erasable TypeScript only so `node --test` can import it directly.
 
 export type AddOnIcon =
@@ -11,6 +12,8 @@ export type AddOn = {
   icon: AddOnIcon
   summary: string
   example: string
+  // Set only when a small sample version already runs in the Lab.
+  pilot?: string
   cost: string[]
   needs: string[]
   safety: string
@@ -40,21 +43,24 @@ export const addOns: AddOn[] = [
     summary:
       'Lets an agent answer from your own documents, not only from what it already knows.',
     example:
-      'A grant reviewer asks what the policy says about travel. The agent finds the right pages and quotes them.',
+      'A grant reviewer asks what the policy says about travel. The agent finds the right passage and names where it came from.',
+    pilot:
+      'Ask Checklist and case helper to use the sample policy guidance when it summarizes case notes. It looks up ten approved sample passages and names the one it used. Your own documents cannot be added yet.',
     cost: [
       'The search service is billed by the hour while it runs. The price depends on its size.',
       'Ranking results by meaning and preparing documents for search add small extra charges.',
+      'The pilot runs on the search service the platform already has, so it adds no new hourly charge.',
     ],
     needs: [
       'A search service on the private network.',
       'Your documents, kept in storage you control.',
     ],
     safety:
-      'Only the documents you add can be searched. Access would use a managed identity, not keys.',
+      'Only documents added on purpose can be searched, and access is read-only through a managed identity, not keys.',
     service: 'Azure AI Search',
     billing:
       'Search units per hour by tier, plus semantic ranker and embedding calls.',
-    note: 'The dev platform already has a Basic search service (#76). Try that first, and decide the tier before anything larger.',
+    note: "The pilot (#122) runs on the dev platform's Basic search service (#76) with one index of ten sample passages. Decide the tier before anything larger.",
   },
   {
     id: 'conversation-memory',
