@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import type { Config } from '../src/workspace-config'
 import type { CreatedAgent } from '../src/agent-creation-client'
 import { demoScenarios } from '../src/demo-scenarios'
-import { guidedReview, illustrativeScreenshot } from './fixtures'
+import { docsScreenshot, guidedReview, screenshot } from './fixtures'
 
 const invoice = demoScenarios.find((item) => item.id === 'invoice')!
 
@@ -156,7 +156,7 @@ test('exploration is read-only and every scenario has an honest customer story',
     await expect(page.locator('.demo-story h2')).toHaveText(scenario.title)
     await expect(page.locator('.demo-story')).toContainText(scenario.decision)
     await expect(
-      page.getByText('Illustrative walkthrough, not a live model result'),
+      page.getByText('Example walkthrough, not a live model result'),
     ).toBeVisible()
     await page.locator('.demo-input summary').click()
     await expect(page.locator('.demo-input pre')).toHaveText(scenario.input)
@@ -165,9 +165,9 @@ test('exploration is read-only and every scenario has an honest customer story',
       .locator('.demo-explorer')
       .evaluate((element) => element.scrollTo({ top: 0 }))
     await page.emulateMedia({ colorScheme: 'light' })
-    await illustrativeScreenshot(page, testInfo, `demo-${scenario.id}.png`)
+    await docsScreenshot(page, testInfo, `demo-${scenario.id}.png`)
     await page.emulateMedia({ colorScheme: 'dark' })
-    await illustrativeScreenshot(page, testInfo, `demo-${scenario.id}-dark.png`)
+    await docsScreenshot(page, testInfo, `demo-${scenario.id}-dark.png`)
     expect(state.writes).toEqual([])
   }
   await expect(page.locator('body')).not.toContainText('EXPERIMENTAL')
@@ -236,7 +236,7 @@ test('presenter controls keep environment and human-review boundaries visible', 
     page.getByText('No user sign-in. Saved records are shared.'),
   ).toBeVisible()
   await page.locator('.lab-info > summary').click()
-  await illustrativeScreenshot(page, testInfo, 'presenter-view.png')
+  await screenshot(page, testInfo, 'presenter-view.png')
   page.once('dialog', (dialog) => dialog.accept())
   await page
     .getByRole('button', { name: 'Start fresh with this example' })

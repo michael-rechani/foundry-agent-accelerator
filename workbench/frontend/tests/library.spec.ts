@@ -4,7 +4,7 @@ import type { CreatedAgent } from '../src/agent-creation-client'
 import { demoScenarios } from '../src/demo-scenarios'
 import type { LibraryTemplate } from '../src/library-catalog'
 import type { Config } from '../src/workspace-config'
-import { guidedReview, illustrativeScreenshot } from './fixtures'
+import { docsScreenshot, guidedReview, screenshot } from './fixtures'
 
 const catalog = JSON.parse(
   await readFile(
@@ -564,7 +564,7 @@ test('browse, filter and search the catalog with live counts', async ({
   await expect(cards).toHaveCount(publicCount)
   for (const card of await cards.all())
     await expect(card).toContainText('Healthcare and public sector')
-  await illustrativeScreenshot(page, testInfo, 'library-filtered.png')
+  await screenshot(page, testInfo, 'library-filtered.png')
 
   await page.getByRole('searchbox', { name: 'Search agents' }).fill('renewal')
   await expect(cards).toHaveCount(1)
@@ -855,7 +855,7 @@ test('a created agent opens in Chat as a draft and its request is logged and mea
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
     'fictional-request-0001',
   )
-  await illustrativeScreenshot(page, testInfo, 'request-log.png')
+  await screenshot(page, testInfo, 'request-log.png')
 
   await navigation(page)
     .getByRole('button', { name: 'Performance', exact: true })
@@ -867,7 +867,7 @@ test('a created agent opens in Chat as a draft and its request is logged and mea
   await expect(page.locator('.table-note').last()).toContainText(
     'choose Test results',
   )
-  await illustrativeScreenshot(page, testInfo, 'performance.png')
+  await screenshot(page, testInfo, 'performance.png')
 })
 
 test('export downloads the saved ready record needed by export-created', async ({
@@ -1137,5 +1137,81 @@ for (const mode of ['light', 'dark'] as const)
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true)
-    await illustrativeScreenshot(page, testInfo, `library-detail-${mode}.png`)
+    await screenshot(page, testInfo, `library-detail-${mode}.png`)
+  })
+
+// The README and docs pictures: the plain view a first-time visitor sees.
+const tourAgent = templates.find(
+  (item) => item.id === 'supplier-invoice-reviewer',
+)!
+
+for (const mode of ['light', 'dark'] as const)
+  test(`the library tour shows Browse, Test results and Take it to Foundry in ${mode} mode`, async ({
+    page,
+  }, testInfo) => {
+    const suffix = mode === 'dark' ? '-dark' : ''
+    await page.addInitScript((mode) => {
+      localStorage.setItem(
+        'ai-foundry-lab-theme',
+        JSON.stringify({ mode, accent: 'foundry' }),
+      )
+    }, mode)
+    const state = await setup(page)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
+    await expect(page.locator('.library-card')).toHaveCount(templates.length)
+    await expect(page.getByRole('region', { name: 'Start here' })).toBeVisible()
+    await docsScreenshot(page, testInfo, `library-browse${suffix}.png`)
+
+    await openAgent(page, tourAgent.label)
+    const tabs = page.getByRole('tablist', { name: 'Agent details' })
+    const panel = page.getByRole('tabpanel')
+    await tabs.getByRole('tab', { name: 'Test results' }).click()
+    await expect(panel).toContainText('25 of 25 answers passed')
+    await expect(panel).toContainText('Waiting for a person')
+    await docsScreenshot(page, testInfo, `library-test-results${suffix}.png`)
+
+    await tabs.getByRole('tab', { name: 'Take it to Foundry' }).click()
+    await expect(
+      panel.getByRole('button', { name: 'Download agent definition' }),
+    ).toBeEnabled()
+    await docsScreenshot(page, testInfo, `library-take-to-foundry${suffix}.png`)
+    // Looking around sends nothing and makes nothing.
+    expect(state.chat).toHaveLength(0)
+    expect(state.drafts).toBe(0)
+    expect(state.creations).toBe(0)
+  })
+
+for (const mode of ['light', 'dark'] as const)
+  test(`the Create agent page offers every library template in three groups in ${mode} mode`, async ({
+    page,
+  }, testInfo) => {
+    await page.addInitScript((mode) => {
+      localStorage.setItem(
+        'ai-foundry-lab-theme',
+        JSON.stringify({ mode, accent: 'foundry' }),
+      )
+    }, mode)
+    const state = await setup(page, { hash: '#create' })
+    await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
+    const cards = page.locator('.creation-template')
+    await expect(cards).toHaveCount(templates.length)
+    await expect(page.locator('.creation-template-group h2')).toHaveText([
+      'Works in any sector',
+      'Private sector',
+      'Healthcare and public sector',
+    ])
+    if (mode === 'dark') {
+      await cards.nth(1).click()
+      await expect(page.locator('.creation-template-check')).toHaveCount(1)
+    }
+    await page.evaluate(() => {
+      document.querySelector('.creation-workspace')!.scrollTop = 0
+    })
+    await docsScreenshot(
+      page,
+      testInfo,
+      `library-create-agent${mode === 'dark' ? '-dark' : ''}.png`,
+    )
+    expect(state.drafts).toBe(0)
+    expect(state.creations).toBe(0)
   })

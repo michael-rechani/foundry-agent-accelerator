@@ -33,7 +33,7 @@ explicit `.ts` extensions. `unit/` sits outside `tests/` so Playwright ignores i
 configuration, including nullability and implicit types.
 `npm test` builds production assets and starts an isolated preview server on
 `127.0.0.1:4174`. Playwright tests run at desktop and mobile sizes with
-fictional, intercepted APIs. They use no Azure resources or credentials.
+mocked APIs that return sample data. They use no Azure resources or credentials.
 Screenshots and failure traces are written to ignored `test-results/`. On Linux,
 install browser system dependencies with `npx playwright install --with-deps chromium`.
 
@@ -153,6 +153,9 @@ live counts, search and the empty state, detail tabs and honest labels, template
 preselection without preparing or publishing, opening a ready agent in Chat as
 an unsent draft, the request log reference, recent requests on Performance,
 record download for export, preview and retry states, and light and dark contrast.
+It also takes the pictures for the README tour: browsing the library, an agent's
+**Test results**, **Take it to Foundry**, and the **Create agent** page with all
+the library's templates.
 `tests/customer-view.spec.ts` routes `/api/agent-scorecards` to the served
 `workbench/agent_scorecards.json` and covers the **Test results** tab.
 `unit/library-catalog.test.ts`, `unit/scorecards.test.ts` and
@@ -187,10 +190,13 @@ findings, and guidance. Polling and resume stay in `ReviewWorkspace.tsx`.
 
 The visible **Local preview** state means no model calls or persistence.
 `tests/fixtures.ts` reads the real catalog rather than duplicating it. The
-screenshots used for the clarity walkthrough are watermarked as illustrative
-API-mocked UI tests, not live model output or saved Cosmos records. The example
-task, review findings, and dark template card tests also write `-dark`
-screenshots for the animated README tour. The copies used in the docs live in
+documentation screenshots come from API-mocked browser tests with sample data,
+not live model output or saved Cosmos records, and carry no watermark. Their
+`docsScreenshot` helper turns **Under the hood** off for the capture, so the
+pictures show the plain view a customer sees, and puts it back afterwards; the
+test setup turns it on by default. The library tour, **Create agent**, chat,
+review, and guided-demo tests also write `-dark` screenshots for the animated
+README tours. The copies used in the docs live in
 [`docs/images/screenshots/`](../../docs/images/README.md#lab-screenshots).
 
 The UI uses system fonts, and Markdown rendering is local. Do not add browser Azure credentials,

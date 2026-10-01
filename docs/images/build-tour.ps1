@@ -6,19 +6,21 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# The README tours: illustrative Lab screenshots that crossfade inside a
-# minimal window frame. Each step names its light and dark screenshot. Label
-# widths are the average of Segoe UI and Arial at 20px semibold; textLength keeps
-# every label inside its pill whichever system font renders it.
+# The README tours: Lab screenshots from automated browser tests, shown with
+# sample data. They crossfade inside a minimal window frame. Each step names its
+# light and dark screenshot. Label widths are the average of Segoe UI and Arial
+# at 20px semibold; textLength keeps every label inside its pill whichever
+# system font renders it.
 $steps = if ($Tour -eq 'scenarios') { @(
     [ordered]@{ Label = 'Find missing evidence'; Width = 200; Light = 'lab-demo-application.png'; Dark = 'lab-demo-application-dark.png' }
     [ordered]@{ Label = 'Check an invoice'; Width = 155; Light = 'lab-demo-invoice.png'; Dark = 'lab-demo-invoice-dark.png' }
     [ordered]@{ Label = 'Prepare a case brief'; Width = 185; Light = 'lab-demo-casework.png'; Dark = 'lab-demo-casework-dark.png' }
 ) } else { @(
-    [ordered]@{ Label = 'Explore demos'; Width = 137; Light = 'lab-demo-application.png'; Dark = 'lab-demo-application-dark.png' }
-    [ordered]@{ Label = 'Create an agent'; Width = 147; Light = 'lab-create-agent.png'; Dark = 'lab-create-agent-dark.png' }
+    [ordered]@{ Label = 'Browse agents'; Width = 136; Light = 'lab-library.png'; Dark = 'lab-library-dark.png' }
+    [ordered]@{ Label = 'Test results'; Width = 106; Light = 'lab-test-results.png'; Dark = 'lab-test-results-dark.png' }
     [ordered]@{ Label = 'Chat with it'; Width = 106; Light = 'lab-chat-start.png'; Dark = 'lab-chat-start-dark.png' }
-    [ordered]@{ Label = 'Review documents'; Width = 175; Light = 'lab-review-privacy.png'; Dark = 'lab-review-privacy-dark.png' }
+    [ordered]@{ Label = 'Take it to Foundry'; Width = 168; Light = 'lab-take-to-foundry.png'; Dark = 'lab-take-to-foundry-dark.png' }
+    [ordered]@{ Label = 'Create an agent'; Width = 147; Light = 'lab-create-agent.png'; Dark = 'lab-create-agent-dark.png' }
 ) }
 $tourName = if ($Tour -eq 'scenarios') { 'scenario-tour' } else { 'lab-tour' }
 
@@ -37,11 +39,15 @@ $themes = [ordered]@{
     }
 }
 
-$title = 'Illustrative UI test of the Foundry Agent Lab with mocked APIs'
-$description = if ($Tour -eq 'scenarios') {
-    'Three illustrative customer walkthroughs from browser tests with mocked APIs: missing application evidence, supplier invoice discrepancies, and a casework brief. Expected findings are examples, not live model results. Nothing was published, sent, or saved.'
+$title = if ($Tour -eq 'scenarios') {
+    'Foundry Agent Lab: three example walkthroughs with sample data'
 } else {
-    'Four illustrative screenshots from browser tests with mocked APIs: Explore demos, Create agent, Chat with its shared-data notice, and the Document reviews form explaining shared storage before saving. Nothing was published, sent, or saved; these are not live model results.'
+    'Foundry Agent Lab: a tour of the agent library with sample data'
+}
+$description = if ($Tour -eq 'scenarios') {
+    'Three example customer walkthroughs from automated browser tests, shown with sample data: missing application evidence, supplier invoice discrepancies, and a casework brief. Expected findings are examples, not live model results. Nothing was published, sent, or saved.'
+} else {
+    'Five screenshots from automated browser tests, shown with sample data: browsing the agent library, one agent''s recorded test results, the Chat page, the Take it to Foundry steps, and the Create agent page. They are not live model results. Nothing was published, sent, or saved.'
 }
 
 # Each frame holds for $frameSeconds, including a $fadeSeconds crossfade into
@@ -212,7 +218,7 @@ function New-Tour([string]$Name, [Collections.IDictionary]$Theme, [string[]]$Fra
         $lines += "  <circle cx=`"$($windowX + $offset)`" cy=`"$barCenter`" r=`"6`"/>"
     }
     $lines += '</g>'
-    $lines += "<text x=`"$($windowX + $imageWidth / 2)`" y=`"$(Format-Number ($barCenter + 5))`" font-size=`"15`" fill=`"$($Theme.Muted)`" text-anchor=`"middle`">Foundry Agent Lab &#183; illustrative UI test with mocked APIs</text>"
+    $lines += "<text x=`"$($windowX + $imageWidth / 2)`" y=`"$(Format-Number ($barCenter + 5))`" font-size=`"15`" fill=`"$($Theme.Muted)`" text-anchor=`"middle`">Foundry Agent Lab &#183; sample data</text>"
     for ($i = 0; $i -lt $steps.Count; $i++) {
         $step = $steps[$i]
         $pillWidth = ($textX - $pillX) + $step.Width + 18
@@ -246,9 +252,12 @@ function Test-Tour([string]$Content, [string]$Name) {
         throw "The $Name tour must embed every image."
     }
     if ($markup -match 'url\((?!#)|@import') { throw "The $Name tour must not load external resources." }
-    if ($validated.DocumentElement['title'].InnerText -notmatch 'Illustrative UI test' -or
-        $validated.DocumentElement['desc'].InnerText -notmatch 'mocked APIs') {
-        throw "The $Name tour must say it is an illustrative UI test with mocked APIs."
+    # The pictures come from browser tests, so say so and say they are not live.
+    if ($validated.DocumentElement['title'].InnerText -notmatch 'Foundry Agent Lab' -or
+        $validated.DocumentElement['title'].InnerText -notmatch 'sample data' -or
+        $validated.DocumentElement['desc'].InnerText -notmatch 'automated browser tests' -or
+        $validated.DocumentElement['desc'].InnerText -notmatch 'not live model results') {
+        throw "The $Name tour must say it shows sample data from automated browser tests, not live model results."
     }
 }
 

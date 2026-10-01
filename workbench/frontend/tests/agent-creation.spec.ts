@@ -8,7 +8,7 @@ import {
 } from '../src/agent-creation-client'
 import type { Config } from '../src/workspace-config'
 import type { Turn } from '../src/conversation-types'
-import { guidedReview, illustrativeScreenshot } from './fixtures'
+import { guidedReview, screenshot } from './fixtures'
 
 const operatorKey = 'fictional-test-key-not-a-real-secret-1234567890'
 const sample =
@@ -535,7 +535,7 @@ test('creation is the entry point with nine honest jobs in two groups and usable
   ).toBe(true)
   expect(state.posts).toHaveLength(0)
   expect(state.chat).toHaveLength(0)
-  await illustrativeScreenshot(page, testInfo, 'creation-start.png')
+  await screenshot(page, testInfo, 'creation-start.png')
 })
 
 test('template selection preserves custom input and brings the next step into view', async ({
@@ -784,7 +784,7 @@ test('template cards stay legible in dark mode for every accent', async ({
     ;(document.activeElement as HTMLElement | null)?.blur()
   })
   await page.mouse.move(0, 0)
-  await illustrativeScreenshot(page, testInfo, 'creation-start-dark.png')
+  await screenshot(page, testInfo, 'creation-start-dark.png')
 })
 
 test('ambiguous descriptions require a template and preparation creates no agent', async ({
@@ -842,7 +842,7 @@ test('publishes reviewed setup, uses its real ID in chat, saves and restores his
   await page
     .getByRole('region', { name: 'Review agent setup' })
     .scrollIntoViewIfNeeded()
-  await illustrativeScreenshot(page, testInfo, 'creation-setup.png')
+  await screenshot(page, testInfo, 'creation-setup.png')
   await page
     .getByRole('button', { name: 'Create in Foundry', exact: true })
     .click()
@@ -857,7 +857,7 @@ test('publishes reviewed setup, uses its real ID in chat, saves and restores his
   await page
     .getByRole('heading', { name: 'Policy notice helper', exact: true })
     .scrollIntoViewIfNeeded()
-  await illustrativeScreenshot(page, testInfo, 'creation-ready.png')
+  await screenshot(page, testInfo, 'creation-ready.png')
   await page.getByRole('button', { name: 'Try in Chat', exact: true }).click()
   await expect(page.locator('.agent-picker')).toContainText(
     'Policy notice helper',
@@ -887,7 +887,7 @@ test('publishes reviewed setup, uses its real ID in chat, saves and restores his
       ),
     },
   ])
-  await illustrativeScreenshot(page, testInfo, 'creation-chat.png')
+  await screenshot(page, testInfo, 'creation-chat.png')
   const downloadEvent = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export conversation' }).click()
   const download = await downloadEvent
@@ -939,11 +939,7 @@ test('local preview prepares all nine templates but cannot publish or load saved
         '(sample data)',
       )
       if (template.id === 'medical-bill-reviewer')
-        await illustrativeScreenshot(
-          page,
-          testInfo,
-          'creation-preview-tools.png',
-        )
+        await screenshot(page, testInfo, 'creation-preview-tools.png')
     } else
       await expect(
         page.getByText('No tools or external integrations.', { exact: true }),

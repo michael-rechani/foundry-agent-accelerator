@@ -138,7 +138,7 @@ export function ExploreDemos({
           </p>
           <p className="demo-example-label">
             <FlaskConical size={16} aria-hidden="true" />
-            Illustrative walkthrough, not a live model result
+            Example walkthrough, not a live model result
           </p>
           <div className="demo-evidence">
             <h3>What to look for</h3>

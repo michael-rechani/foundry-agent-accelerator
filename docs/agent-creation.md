@@ -59,16 +59,16 @@ patient data.
 | **Benefits renewal helper** | A family's fictional renewal form and supporting paperwork | What's missing, too old, or doesn't match, what's already on file, and a friendly draft note to the family. It doesn't decide eligibility. |
 
 The Medical bill reviewer, Insurance pre-approval helper, and Benefits renewal
-helper each use two fixed, simulated, read-only lookups (for example, plan
+helper each use two fixed, sample, read-only lookups (for example, plan
 benefits and usual prices for the medical bill reviewer). The lookup data is
-made up for the demo.
+sample data for the demo.
 
 Each template card shows the [model profile](#how-the-lab-picks-a-model) the
-job uses and whether it has simulated lookups.
+job uses and whether it has sample lookups.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-create-agent-dark.png">
-  <img alt="The Create agent page: three numbered steps, nine template cards in two groups, each with an icon, a model chip and a tools label, and a job description box" src="images/screenshots/lab-create-agent.png">
+  <img alt="The Create agent page: three numbered steps, then template cards in sector groups, each with an icon, a short description, a model chip and a tools label" src="images/screenshots/lab-create-agent.png">
 </picture>
 
 [View full size](images/screenshots/lab-create-agent.png)

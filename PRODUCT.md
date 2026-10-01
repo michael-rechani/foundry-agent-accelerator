@@ -27,7 +27,8 @@ production-ready business application.
 
 The private Azure deployment supports model calls and shared saved records.
 Local preview supports exploration without model execution or persistence.
-Browser-test artwork uses explicitly labeled mocked APIs, not live results.
+Screenshots and tour artwork come from automated browser tests with sample
+data, not live results.
 
 ## Capabilities and Constraints
 

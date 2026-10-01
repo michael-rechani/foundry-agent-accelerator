@@ -257,22 +257,29 @@ links keep pointing to the light SVG and the template.
 ## Lab screenshots
 
 The screenshots in `screenshots/` come from the Lab's browser tests. The tests
-replace the backend with mocked API responses, so the images show real UI
-layout but not live model answers or saved records. Each image carries the
-**ILLUSTRATIVE UI TEST** watermark in its lower-right corner, or in the empty
-lower-left sidebar, above the **Under the hood** switch, for desktop chat and privacy
-captures so no notice or control is obscured; keep it visible.
+replace the backend with mocked API responses that return sample data, so the
+images show the real layout but not live model answers or saved records. The
+pictures carry no watermark: this page and the tours' `<title>` and `<desc>` say
+that they come from automated browser tests with sample data.
+
+The tests take them in the customer view, with **Under the hood** off, which is
+the plain view a customer sees. The `docsScreenshot` helper in
+`workbench/frontend/tests/fixtures.ts` turns that switch off for the capture and
+puts it back afterwards, so every test still runs with it on.
 
 | Screenshot | Shows | Test output | Used in |
 | --- | --- | --- | --- |
-| [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide, example tasks, and inline shared-data notice | `demo-starters.png` | [README tour](#readme-tour), [demo guide](../demos.md#a-short-demonstration) |
+| [lab-library.png](screenshots/lab-library.png) / [dark](screenshots/lab-library-dark.png) | The **Agent library** on **Browse**: the **Start here** examples, the filters, and the first agent cards | `library-browse.png` / `library-browse-dark.png` | [README tour](#readme-tour) |
+| [lab-test-results.png](screenshots/lab-test-results.png) / [dark](screenshots/lab-test-results-dark.png) | The **Test results** tab of the Supplier invoice reviewer: answers passed, typical response, model cost per answer, and **Waiting for a person** | `library-test-results.png` / `library-test-results-dark.png` | README tour |
+| [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide, example tasks, and inline shared-data notice | `demo-starters.png` | README tour, [demo guide](../demos.md#a-short-demonstration) |
 | [lab-chat-start-dark.png](screenshots/lab-chat-start-dark.png) | The same **Chat** with the **System** theme and a dark color scheme | `demo-starters-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
+| [lab-take-to-foundry.png](screenshots/lab-take-to-foundry.png) / [dark](screenshots/lab-take-to-foundry-dark.png) | The **Take it to Foundry** tab: the agent-definition and test-request downloads, and the steps for setting it up in your own project | `library-take-to-foundry.png` / `library-take-to-foundry-dark.png` | README tour |
+| [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page: its three steps and the library's templates in sector groups, with the customer sidebar | `library-create-agent.png` | README tour and its full-size link, [agent creation](../agent-creation.md#what-a-participant-can-do) |
+| [lab-create-agent-dark.png](screenshots/lab-create-agent-dark.png) | The same page in the **Dark** theme with one template selected | `library-create-agent-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
 | [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [Review workflow](../review-workflow.md#workflow) |
 | [lab-document-review-dark.png](screenshots/lab-document-review-dark.png) | The same review with the **System** theme and a dark color scheme | `review-findings-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
-| [lab-review-privacy.png](screenshots/lab-review-privacy.png) / [dark](screenshots/lab-review-privacy-dark.png) | The fictional new-review form, scrolled to its shared-data and retention notice before **Create shared review** | `review-privacy.png` / `review-privacy-dark.png` | README tour, [review workflow](../review-workflow.md#workflow) |
-| [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page with its templates in two groups and the full sidebar | `creation-start.png` | [README tour](#readme-tour) and its full-size link, [agent creation](../agent-creation.md#what-a-participant-can-do) |
-| [lab-create-agent-dark.png](screenshots/lab-create-agent-dark.png) | The same page in the **Dark** theme with the Foundry accent and one template selected | `creation-start-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
-| [lab-demo-application.png](screenshots/lab-demo-application.png) / [dark](screenshots/lab-demo-application-dark.png) | Application completeness story in **Guided demos** | `demo-application.png` / `demo-application-dark.png` | README and scenario tours, [showcase](../showcase.md) |
+| [lab-review-privacy.png](screenshots/lab-review-privacy.png) / [dark](screenshots/lab-review-privacy-dark.png) | The new-review form with sample text, scrolled to its shared-data and retention notice before **Create shared review** | `review-privacy.png` / `review-privacy-dark.png` | [Review workflow](../review-workflow.md#workflow) |
+| [lab-demo-application.png](screenshots/lab-demo-application.png) / [dark](screenshots/lab-demo-application-dark.png) | Application completeness story in **Guided demos** | `demo-application.png` / `demo-application-dark.png` | Scenario tour, [showcase](../showcase.md) |
 | [lab-demo-invoice.png](screenshots/lab-demo-invoice.png) / [dark](screenshots/lab-demo-invoice-dark.png) | Supplier invoice story with sample findings | `demo-invoice.png` / `demo-invoice-dark.png` | Scenario tour and showcase |
 | [lab-demo-casework.png](screenshots/lab-demo-casework.png) / [dark](screenshots/lab-demo-casework-dark.png) | Casework story preserving facts, disagreements, and human decisions | `demo-casework.png` / `demo-casework-dark.png` | Scenario tour and showcase |
 
@@ -290,41 +297,42 @@ cd ../..
 The tests write 1440 x 1000 PNGs under `test-results/`, which Git ignores.
 The refresh script requires exactly one desktop result per selected source and
 validates every selected PNG before replacing documentation images. By default
-it refreshes all fourteen images. For a focused UI change, run the relevant
+it refreshes all twenty images. For a focused UI change, run the relevant
 desktop tests and refresh just the affected light/dark pairs:
 
 ```powershell
-./docs/images/refresh-screenshots.ps1 -Names lab-chat-start.png,lab-chat-start-dark.png,lab-review-privacy.png,lab-review-privacy-dark.png
+./docs/images/refresh-screenshots.ps1 -Names lab-library.png,lab-library-dark.png,lab-test-results.png,lab-test-results-dark.png
 ```
 
 Use `-TestResultsDirectory` for an isolated test copy. The script rebuilds both
 tours from the selected new frames plus unchanged committed frames; unchanged
-scenario artwork should stay byte-identical. Do not crop out the watermark or
-substitute mobile screenshots. The review findings images remain separate from
+scenario artwork should stay byte-identical. Do not crop the screenshots or
+substitute mobile ones. The review findings images remain separate from
 the pre-save form so the walkthrough still shows both stages.
 
 ## README tour
 
 The root README opens with [lab-tour.svg](lab-tour.svg), or
 [lab-tour-dark.svg](lab-tour-dark.svg) for readers using GitHub's dark theme.
-Each tour crossfades between four Lab screenshots, about four seconds each,
+The tour crossfades between five Lab screenshots, about four seconds each,
 and loops:
 
 | Step | Light frame | Dark frame |
 | --- | --- | --- |
-| 1 · Explore demos | `lab-demo-application.png` | `lab-demo-application-dark.png` |
-| 2 · Create an agent | `lab-create-agent.png` | `lab-create-agent-dark.png` |
+| 1 · Browse agents | `lab-library.png` | `lab-library-dark.png` |
+| 2 · Test results | `lab-test-results.png` | `lab-test-results-dark.png` |
 | 3 · Chat with it | `lab-chat-start.png` | `lab-chat-start-dark.png` |
-| 4 · Review documents | `lab-review-privacy.png` | `lab-review-privacy-dark.png` |
+| 4 · Take it to Foundry | `lab-take-to-foundry.png` | `lab-take-to-foundry-dark.png` |
+| 5 · Create an agent | `lab-create-agent.png` | `lab-create-agent-dark.png` |
 
 [scenario-tour.svg](scenario-tour.svg) and its [dark variant](scenario-tour-dark.svg)
 use the application, invoice, and casework screenshots as three separate
 customer stories. The root README links to them from its story table rather
-than embedding them, because their first frame repeats the Lab tour's. They
+than embedding them, so its opening screen stays a single tour. They
 share the same accessible frame and reduced-motion behavior.
 
 A minimal window bar above the frames names the current step and shows a
-progress bar, so nothing covers the screenshots or their watermark. Both SVGs
+progress bar, so nothing covers the screenshots. Both SVGs
 are generated, so do not edit them by hand. The frames are copies of the
 screenshots, so after you refresh any tour frame, rebuild both tours and commit
 the screenshots and SVGs together:
@@ -339,12 +347,13 @@ The SVGs have no scripts or external references, because GitHub shows README
 SVGs as images. The build fails if a screenshot is missing or is not 1440 x 1000
 desktop test output, and reruns give byte-identical files. Keep each SVG under
 about 1.3 MB, and do not recompress the frames as JPEG,
-which blurs the watermark and UI text.
+which blurs UI text.
 
 For readers who turn on reduced motion in their operating system, the SVGs'
 `prefers-reduced-motion: reduce` rules stop every animation and show only the
-first frame, **Explore demos** (or the application story), with its step label. The SVG `<title>` and
-`<desc>` say that the tour is an illustrative UI test with mocked APIs, and the
+first frame, **Browse agents** (or the application story in the scenario tour),
+with its step label. The SVG `<title>` and `<desc>` say that the tour shows
+sample data from automated browser tests, not live model results, and the
 README alt text describes the full sequence.
 
 ## Visual review checklist
