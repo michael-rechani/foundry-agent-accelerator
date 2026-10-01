@@ -549,7 +549,7 @@ class RowFileTests(Scratch):
         lr.append_line(path, "two")
         self.assertEqual(path.read_bytes(), b"one\ntwo\n")
 
-    def test_files_are_written_together_into_new_folders_too(self):
+    def test_files_are_written_into_new_folders_too(self):
         first, second = self.root / "a.jsonl", self.root / "new" / "deeper" / "b.jsonl"
         lr.write_atomic([(first, b"A\n"), (second, b"B\n")])
         self.assertEqual((first.read_bytes(), second.read_bytes()), (b"A\n", b"B\n"))

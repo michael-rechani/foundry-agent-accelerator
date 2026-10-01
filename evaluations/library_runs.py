@@ -127,7 +127,9 @@ def project(row, keys):
 
 
 def write_atomic(updates):
-    """Replace files all at once: write each next to its target first, then swap them in."""
+    """Write each file in full beside its target first, then swap them in one after another.
+
+    A failed write changes nothing. A failed swap leaves the files already swapped new and the rest old."""
     pending = []
     try:
         for path, data in updates:

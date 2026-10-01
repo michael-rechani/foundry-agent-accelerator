@@ -12,7 +12,7 @@
 
 Build, deploy, and explore agents on **Microsoft Foundry** (formerly Azure AI
 Foundry). The Lab is a customer demo and workshop experience backed by reusable
-code: publish agents from reviewed templates, chat with them, and explore
+code: publish agents from built-in templates, chat with them, and explore
 prebuilt agents working as a team.
 
 Start with a practical question. Find what is missing from an application,
@@ -44,7 +44,7 @@ no model calls. This is a sample, not an official Microsoft product.
 **Guided demos → Create agent → Chat → Document reviews**
 
 1. **Guided demos:** pick a sample story and load its input.
-2. **Create agent:** prepare an agent from a reviewed template.
+2. **Create agent:** prepare an agent from a built-in template.
 3. **Chat:** talk with an agent. An example only fills the message box; you
    choose when to send it.
 4. **Document reviews:** paste a checklist and document text to get one saved,
@@ -120,7 +120,7 @@ that template. Either way it uses simulated lookups, not a finance integration.
 
 ### Build and run
 
-- **[Hosted agents](docs/agent-creation.md):** choose a reviewed template in
+- **[Hosted agents](docs/agent-creation.md):** choose a built-in template in
   **Create agent** and publish it as a new agent.
 - **[Model choice](docs/agent-creation.md#how-the-lab-picks-a-model):** use a
   template's selected model for reasoning, fast extraction, or tool calling.

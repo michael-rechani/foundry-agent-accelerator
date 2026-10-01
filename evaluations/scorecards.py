@@ -67,10 +67,15 @@ def token_cost(prices, model, input_tokens, cached_tokens, output_tokens):
 def load_answers(cases, runs):
     answers = {}
     for run, path in runs:
+        seen = set()
         for record in _lines(path):
-            if record["case_id"] not in cases:
-                raise ValueError(f"{path.name}: unknown case_id {record['case_id']!r}")
-            answers[record["case_id"]] = (run, record)
+            case_id = record["case_id"]
+            if case_id not in cases:
+                raise ValueError(f"{path.name}: unknown case_id {case_id!r}")
+            if case_id in seen:
+                raise ValueError(f"{path.name}: {case_id} has an answer more than once")
+            seen.add(case_id)
+            answers[case_id] = (run, record)
     return answers
 
 
@@ -197,7 +202,11 @@ def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PR
     prices = json.loads(Path(prices_path).read_text(encoding="utf-8"))
     cases = {case["id"]: case for case in data["cases"]}
     answers = load_answers(cases, runs)
-    metrics = {record["case_id"]: record for record in _lines(metrics_path)}
+    metrics = {}
+    for record in _lines(metrics_path):
+        if record["case_id"] in metrics:
+            raise ValueError(f"{Path(metrics_path).name}: {record['case_id']} has a metrics row more than once")
+        metrics[record["case_id"]] = record
     missing = sorted(set(answers) - set(metrics))
     if missing:
         raise ValueError("no recorded metrics for " + ", ".join(missing))

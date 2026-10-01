@@ -22,7 +22,7 @@ const templates: LibraryTemplate[] = catalog.templates
 const support = templates.find((item) => item.id === 'customer-support-brief')!
 const runtimeHash = 'a'.repeat(64)
 const portal =
-  'https://ai.azure.com/nextgen/r/2gTvLTQRRlqW0WfHU1ZyCg,rg-lab,,lab-account,lab-project'
+  'https://ai.azure.com/nextgen/r/qqqqqru7TMyN3e7u7u7u7g,rg-lab,,lab-account,lab-project'
 
 function readyRecord(template: LibraryTemplate): CreatedAgent {
   const id = 'created-12345678-1234-4234-9234-123456789abc'
