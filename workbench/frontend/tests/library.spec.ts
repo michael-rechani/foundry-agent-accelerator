@@ -49,7 +49,7 @@ function readyRecord(template: LibraryTemplate): CreatedAgent {
       id,
       agent: runtime,
       label: 'Support handoff helper',
-      category: 'Created in this Lab',
+      category: 'Made in this Lab',
       description: template.description,
       tools: {},
       prompts: [{ label: 'Try the sample', text: template.sample_input }],
@@ -313,6 +313,9 @@ test('the Ready to chat and Made in this Lab pages explain their counts at 1 and
   )
   await expect(intro).not.toContainText('as previews')
   await tabs.getByRole('button', { name: /^Made in this Lab/ }).click()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Made in this Lab' }),
+  ).toBeVisible()
   await expect(
     page.getByRole('heading', { name: 'Nothing made in this Lab yet' }),
   ).toBeVisible()

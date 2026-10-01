@@ -261,7 +261,7 @@ class AgentCreations:
     def catalog_agent(self, document):
         template = document["template"]
         return {
-            "id": document["id"], "label": document["name"], "category": "Created in this Lab",
+            "id": document["id"], "label": document["name"], "category": "Made in this Lab",
             "description": template["description"], "agent": document["runtime_name"],
             "tools": {tool["name"]: document["runtime_name"] for tool in template["tools"]},
             "prompts": [{"label": "Try the sample", "text": template["sample_input"]}],
@@ -269,7 +269,7 @@ class AgentCreations:
                 "input": template["input"], "output": template["output"],
                 "limits": template["limits"], "delegation": template["delegation"],
                 "configuration": (
-                    "This agent uses the saved setup in Created agents, published as a named Foundry hosted version. "
+                    "This agent uses the saved setup under Made in this Lab, published as a named Foundry hosted version. "
                     "Task instructions were chosen before creation; tools and runtime code come from the reviewed "
                     "Lab template. A chat message does not edit the deployed setup."
                 ),

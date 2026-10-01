@@ -359,7 +359,7 @@ export function useCreatedAgents(capability?: CreationCapability) {
             setError(
               problem instanceof Error
                 ? problem.message
-                : 'Created agents could not be loaded.',
+                : 'Agents made in this Lab could not be loaded.',
             )
         })
         .finally(() => {

@@ -9,7 +9,7 @@ import {
   MessageSquare,
   UserCheck,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type RefObject } from 'react'
 import {
   plainStep,
   receiptState,
@@ -171,6 +171,7 @@ export function ConversationTurn({
   agentLabels,
   foundryPortal,
   agentName,
+  answerRef,
   onCopy,
 }: {
   turn: Turn
@@ -178,6 +179,7 @@ export function ConversationTurn({
   agentLabels?: Record<string, string>
   foundryPortal?: string | null
   agentName?: string
+  answerRef?: RefObject<HTMLElement | null>
   onCopy: (text: string) => void
 }) {
   return (
@@ -186,7 +188,7 @@ export function ConversationTurn({
         <span className="message-author">You</span>
         <p>{turn.question}</p>
       </article>
-      <article className="assistant-message">
+      <article ref={answerRef} className="assistant-message">
         <div className="assistant-heading">
           <span className="agent-avatar">
             <GitBranch size={16} />

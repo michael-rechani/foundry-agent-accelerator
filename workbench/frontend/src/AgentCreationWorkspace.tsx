@@ -339,11 +339,11 @@ export function AgentCreationWorkspace({
     <main ref={workspace} className="creation-workspace" hidden={!active}>
       <div className="creation-heading">
         <div>
-          <h1>{view === 'create' ? 'Create an agent' : 'Created agents'}</h1>
+          <h1>{view === 'create' ? 'Create an agent' : 'Made in this Lab'}</h1>
           <p>
             {view === 'create'
               ? 'Start from a prepared template, describe the job, review the setup, then create a real Foundry agent to try. Use sample data only.'
-              : 'Agents created in this shared Lab. Everyone with access can read their setups and use ready agents.'}
+              : 'Agents made in this shared Lab. Everyone with access can read their setups and use ready agents.'}
           </p>
         </div>
         {view === 'created' && (

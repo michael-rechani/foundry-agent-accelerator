@@ -111,7 +111,7 @@ export function CreatedAgentDetail({
   return (
     <section className="creation-detail" aria-label="Created agent details">
       <button className="inline-link" onClick={onBack}>
-        Back to created agents
+        Back to Made in this Lab
       </button>
       <h2>{record.name}</h2>
       <div className="creation-actions">

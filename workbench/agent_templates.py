@@ -8,7 +8,8 @@ _TEXT_LIMITS = (
 )
 _DIRECT = "Works on its own from the text you give it. It doesn't call other agents or tools."
 # These are also the library's sector names (see SECTORS), so the Create page headings and the
-# library filter always agree.
+# library filter agree. The Create page lists its groups in the order the jobs first appear in
+# LIBRARY_ORDER; SECTORS keeps that same order (a test checks it).
 _ANY = "Works in any sector"
 _SECTOR = "Healthcare and public sector"
 _PRIVATE = "Private sector"
@@ -934,8 +935,8 @@ def is_listed(template_id):
 
 SECTORS = (
     {"id": "cross-sector", "label": _ANY},
-    {"id": "public", "label": _SECTOR},
     {"id": "private", "label": _PRIVATE},
+    {"id": "public", "label": _SECTOR},
 )
 INDUSTRIES = (
     {"id": "general-operations", "label": "General operations"},
