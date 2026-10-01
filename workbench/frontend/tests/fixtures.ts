@@ -9,36 +9,36 @@ export const guidedReview = registry.find(
   (item) => item.id === 'customer-review',
 )!
 
-export async function illustrativeScreenshot(
+export async function screenshot(
   page: Page,
   testInfo: TestInfo,
   filename: string,
-  watermark: 'corner' | 'sidebar' = 'corner',
 ) {
-  await page.evaluate((watermark) => {
-    const label = document.createElement('div')
-    label.dataset.illustrativeScreenshot = 'true'
-    label.textContent =
-      'ILLUSTRATIVE UI TEST - mocked APIs; no live model results or saved records'
-    label.style.cssText =
-      'position:fixed;bottom:8px;right:8px;z-index:1000;max-width:calc(100vw - 16px);padding:8px 12px;border-radius:4px;background:#242424;color:white;font:11px/1.5 sans-serif;pointer-events:none'
-    if (watermark === 'sidebar' && innerWidth >= 1000) {
-      label.style.right = 'auto'
-      label.style.left = '8px'
-      label.style.bottom = '104px'
-      label.style.maxWidth = '200px'
-    }
-    document.body.append(label)
-  }, watermark)
+  await page.screenshot({
+    path: testInfo.outputPath(filename),
+    fullPage: true,
+    animations: 'disabled',
+  })
+}
+
+// README and docs pictures show the plain view a first-time visitor sees.
+// Desktop specs start with Under the hood on, so switch it off for the picture
+// and back on afterwards.
+export async function docsScreenshot(
+  page: Page,
+  testInfo: TestInfo,
+  filename: string,
+) {
+  if (testInfo.project.name !== 'desktop')
+    return screenshot(page, testInfo, filename)
+  const hood = page.getByRole('switch', { name: /Under the hood/ })
+  const wasOn = await hood.isChecked()
+  if (wasOn) await hood.uncheck()
+  await page.evaluate(() => (document.activeElement as HTMLElement)?.blur())
+  await page.mouse.move(0, 0)
   try {
-    await page.screenshot({
-      path: testInfo.outputPath(filename),
-      fullPage: true,
-      animations: 'disabled',
-    })
+    await screenshot(page, testInfo, filename)
   } finally {
-    await page
-      .locator('[data-illustrative-screenshot]')
-      .evaluate((element) => element.remove())
+    if (wasOn) await hood.check()
   }
 }

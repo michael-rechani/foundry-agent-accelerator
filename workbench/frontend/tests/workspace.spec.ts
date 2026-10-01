@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import type { Receipt, Turn } from '../src/conversation-types'
 import type { Config } from '../src/workspace-config'
-import { guidedReview, illustrativeScreenshot, registry } from './fixtures'
+import { docsScreenshot, guidedReview, registry, screenshot } from './fixtures'
 const agent = {
   ...guidedReview,
   prompts: [
@@ -303,14 +303,9 @@ test('default helper explains its job and offers example tasks without auto-send
     'Help me get started',
   ])
   await expect(page.locator('#chat-privacy')).toBeInViewport({ ratio: 1 })
-  await illustrativeScreenshot(page, testInfo, 'demo-starters.png', 'sidebar')
+  await docsScreenshot(page, testInfo, 'demo-starters.png')
   await page.emulateMedia({ colorScheme: 'dark' })
-  await illustrativeScreenshot(
-    page,
-    testInfo,
-    'demo-starters-dark.png',
-    'sidebar',
-  )
+  await docsScreenshot(page, testInfo, 'demo-starters-dark.png')
   await page.emulateMedia({ colorScheme: 'light' })
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   for (const prompt of guidedReview.prompts) {
@@ -620,7 +615,7 @@ test('agent guidance remains inspectable without reconfiguring the runtime', asy
     }),
   ).toBe(true)
   expect(state.requests).toHaveLength(0)
-  await illustrativeScreenshot(page, testInfo, 'agent-guide.png')
+  await screenshot(page, testInfo, 'agent-guide.png')
   await summary.focus()
   await summary.press('Escape')
   await expect(guide).toBeHidden()
@@ -666,7 +661,7 @@ test('configuration guidance separates UI settings from deployed agent behavior'
     expect(
       (await page.locator('.catalog-agent').boundingBox())!.width,
     ).toBeGreaterThanOrEqual(500)
-  await illustrativeScreenshot(page, testInfo, 'configuration-guide.png')
+  await screenshot(page, testInfo, 'configuration-guide.png')
   expect(state.requests).toHaveLength(0)
 })
 

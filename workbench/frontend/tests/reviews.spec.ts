@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { Review } from '../src/review-client'
 import type { Agent } from '../src/workspace-config'
-import { guidedReview, illustrativeScreenshot, registry } from './fixtures'
+import { docsScreenshot, guidedReview, registry, screenshot } from './fixtures'
 
 async function setup(
   page: Page,
@@ -217,7 +217,7 @@ test('navigation is labelled and conversation actions stay in Chat', async ({
   await expect(
     page.getByRole('button', { name: 'Export conversation' }),
   ).toHaveCount(0)
-  await illustrativeScreenshot(page, testInfo, 'reviews-navigation.png')
+  await screenshot(page, testInfo, 'reviews-navigation.png')
   const navigation = page.getByRole('navigation', { name: 'Workspace' })
   for (const label of [
     'Chat',
@@ -332,14 +332,9 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   await expect(
     page.getByRole('button', { name: 'Create shared review' }),
   ).toBeInViewport({ ratio: 1 })
-  await illustrativeScreenshot(page, testInfo, 'review-privacy.png', 'sidebar')
+  await docsScreenshot(page, testInfo, 'review-privacy.png')
   await page.emulateMedia({ colorScheme: 'dark' })
-  await illustrativeScreenshot(
-    page,
-    testInfo,
-    'review-privacy-dark.png',
-    'sidebar',
-  )
+  await docsScreenshot(page, testInfo, 'review-privacy-dark.png')
   await page.emulateMedia({ colorScheme: 'light' })
   await page.getByRole('button', { name: 'Create shared review' }).click()
   await expect(
@@ -527,9 +522,9 @@ test('review, inspect evidence, clarify, resume, reopen and preserve snapshots',
   await expect(page.locator('.review-disclaimer')).toContainText(
     'They do not approve applications or make business decisions',
   )
-  await illustrativeScreenshot(page, testInfo, 'review-findings.png')
+  await docsScreenshot(page, testInfo, 'review-findings.png')
   await page.emulateMedia({ colorScheme: 'dark' })
-  await illustrativeScreenshot(page, testInfo, 'review-findings-dark.png')
+  await docsScreenshot(page, testInfo, 'review-findings-dark.png')
   await page.emulateMedia({ colorScheme: 'light' })
   await page
     .getByLabel('More information', { exact: true })
@@ -671,7 +666,7 @@ test('preview accepts a synthetic draft but never executes', async ({
   await expect(page.getByLabel('Review title')).toHaveValue(
     'Community workshop application',
   )
-  await illustrativeScreenshot(page, testInfo, 'review-draft.png')
+  await screenshot(page, testInfo, 'review-draft.png')
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
