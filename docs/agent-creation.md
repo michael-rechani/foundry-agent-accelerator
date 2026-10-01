@@ -25,37 +25,41 @@ agent-management service.
 **Describe the job -> prepare a setup -> review and confirm -> create in Foundry
 -> try it in Chat.**
 
-Nine templates are shown in two groups. The **General** group covers
-everyday document jobs. The **Healthcare and public sector** group covers four
-common paperwork jobs: checking a hospital bill, preparing an insurance
-pre-approval request, sorting a benefits renewal, and checking a supplier
-invoice. Their fictional examples suit public-sector, healthcare-operations,
-and independent software vendor (ISV) conversations without reproducing any
-customer's work or implementation claims. Healthcare examples cover paperwork
-only, not clinical advice or real patient data.
+The Create page lists the Lab's 18 templates in three groups, named the same as
+the sectors in the **Agent library**: **Works in any sector** (five jobs),
+**Healthcare and public sector** (four jobs), and **Private sector** (nine
+jobs). The tables below describe the first two groups. The nine private-sector
+templates are marked **In progress**: they pass offline contract and acceptance
+tests but aren't yet validated live. Open the **Agent library** to see what
+each one does. The fictional examples in the healthcare and public-sector group
+suit public-sector, healthcare-operations, and independent software vendor
+(ISV) conversations without reproducing any customer's work or implementation
+claims. Healthcare examples cover paperwork only, not clinical advice or real
+patient data.
 
-**General**
+**Works in any sector**
 
 | Template | You give it | You get back |
 | --- | --- | --- |
 | **Document explainer** | Policy, notice, or product text | A sourced summary, changes, and open questions |
 | **Checklist gap finder** | Your checklist and a document | Supported items, missing information, and conflicts. It doesn't make an approval decision. |
-| **Form and invoice extractor** | A fictional form or invoice and the fields to pull out | A field table with source references and unknown values called out |
-| **Casework brief writer** | Fictional case notes | A summary, unresolved inconsistencies, and follow-up questions |
+| **Form field extractor** | A fictional form or invoice and the fields to pull out | A field table with source references and unknown values called out |
 | **Service request planner** | A fictional request and service identifiers | Read-only **simulated** lookup results and proposed next steps. It doesn't carry out business actions. |
+| **Supplier invoice reviewer** | A fictional supplier invoice and the purchase order number | A line-by-line comparison of what was ordered, delivered, and billed, and the amount the documents support. It doesn't approve payment. |
 
 **Healthcare and public sector**
 
 | Template | You give it | You get back |
 | --- | --- | --- |
+| **Case summary writer** | Fictional case notes and any messages | A summary, a timeline, anything that conflicts or is missing, and draft follow-up questions |
 | **Medical bill reviewer** | A fictional hospital bill and the insurer's statement for the same visit | Likely mistakes (math errors, duplicate charges, amounts above the plan's allowed price) with the math shown, an estimate of what the documents support owing, and an unsent dispute letter. It doesn't contact anyone or pay or refuse the bill. |
 | **Insurance pre-approval helper** | A fictional pre-approval request packet | Each required document marked present, missing, or out of date, plus a network check and a draft note to the ordering office. It doesn't approve or submit the request. |
 | **Benefits renewal helper** | A family's fictional renewal form and supporting paperwork | What's missing, too old, or doesn't match, what's already on file, and a friendly draft note to the family. It doesn't decide eligibility. |
-| **Supplier invoice reviewer** | A fictional supplier invoice and the purchase order number | A line-by-line comparison of what was ordered, delivered, and billed, and the amount the documents support. It doesn't approve payment. |
 
-Each healthcare and public-sector template uses two fixed, simulated,
-read-only lookups (for example, plan benefits and usual prices for the medical
-bill reviewer). The lookup data is made up for the demo.
+The Medical bill reviewer, Insurance pre-approval helper, and Benefits renewal
+helper each use two fixed, simulated, read-only lookups (for example, plan
+benefits and usual prices for the medical bill reviewer). The lookup data is
+made up for the demo.
 
 Each template card shows the [model profile](#how-the-lab-picks-a-model) the
 job uses and whether it has simulated lookups.
@@ -70,7 +74,7 @@ job uses and whether it has simulated lookups.
 | Stage | What happens | What does not happen |
 | --- | --- | --- |
 | Prepare a draft | The Lab uses deterministic templates and the supplied description. | It does not ask a model to design an agent, save a resource, or spend model tokens. An ambiguous description asks for a template instead of guessing. |
-| Review setup | You can edit the display name and task instructions before creation. | Tools and runtime policy are fixed by the selected template and cannot be added by a prompt. The first four General templates have no tools, and no template uses specialist delegation. |
+| Review setup | You can edit the display name and task instructions before creation. | Tools and runtime policy are fixed by the selected template and cannot be added by a prompt. Eleven of the 18 templates have no tools, and no template uses specialist delegation. |
 | Create in Foundry | Explicit creation publishes a new generated `lab-demo-...` named agent using the Foundry software development kit (SDK). Progress represents actual application stages. | Progress is not a timer pretending to be deployment progress. |
 | Try the agent | Ready means the hosted version is active and its Responses route was checked. Send the fictional sample in **Chat** to observe its first actual answer and check quality yourself. | No hidden billable model smoke test runs. |
 
@@ -84,6 +88,8 @@ lookups each:
 | Insurance pre-approval helper | `lookup_preapproval_rules`, `lookup_facility` |
 | Benefits renewal helper | `lookup_renewal_rules`, `lookup_documents_on_file` |
 | Supplier invoice reviewer | `lookup_purchase_order`, `lookup_delivery_record` |
+| Expense report checker (private sector) | `lookup_expense_policy`, `lookup_trip_request` |
+| Order delay helper (private sector) | `lookup_order`, `lookup_shipment` |
 
 They can propose next steps and draft letters or notes, but can't open a ticket,
 approve a request or payment, decide eligibility, send a message, or connect to
@@ -361,7 +367,8 @@ source availability, enabled configuration, and observed execution in the
 One private dev environment ran a live check with the pinned SDK.
 Three templates, each on a different model deployment (`gpt-5.4`,
 `gpt-5.4-mini`, and `gpt-4.1`), were published, answered a sample review, and
-were deleted. In a second pass, the four healthcare and public-sector templates
+were deleted. In a second pass, the Medical bill reviewer, Insurance pre-approval
+helper, Benefits renewal helper, and Supplier invoice reviewer templates
 were published the same way. Each called its simulated lookups, the Lab
 verified every tool call, each answer found the main problems planted in its
 fictional sample, and all four agents were deleted. That shows the flow can

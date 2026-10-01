@@ -494,6 +494,9 @@ test('creation is the entry point with nine honest jobs in two groups and usable
       .locator('optgroup'),
   ).toHaveCount(2)
   await expect(page.locator('.creation-heading')).toContainText(
+    'Start from a prepared template',
+  )
+  await expect(page.locator('.creation-heading')).not.toContainText(
     'healthcare-administration',
   )
   await expect(page.locator('.creation-steps li')).toHaveText([
