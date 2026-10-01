@@ -12,8 +12,10 @@
 
 Build, deploy, and explore agents on **Microsoft Foundry** (formerly Azure AI
 Foundry). The Lab is a customer demo and workshop experience backed by reusable
-code: publish agents from built-in templates, chat with them, and explore
-prebuilt agents working as a team.
+code: browse a library of sample agents, read how each one did on its test
+cases, try one with sample data, and take it to your own Microsoft Foundry. You
+can also publish agents from the same templates and explore prebuilt agents
+working as a team.
 
 Start with a practical question. Find what is missing from an application,
 check what does not add up on an invoice, or clarify a caseworker's next step.
@@ -38,20 +40,26 @@ no model calls. This is a sample, not an official Microsoft product.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/lab-tour-dark.svg">
-  <img alt="Tour of the Foundry Agent Lab in four steps: Guided demos, Create agent, Chat, and Document reviews, with shared-data notices before anything is sent or saved." src="docs/images/lab-tour.svg">
+  <img alt="Tour of the Foundry Agent Lab in five steps: browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template. Every screen shows sample data." src="docs/images/lab-tour.svg">
 </picture>
 
-**Guided demos → Create agent → Chat → Document reviews**
+**Browse agents → Test results → Chat → Take it to Foundry → Create agent**
 
-1. **Guided demos:** pick a sample story and load its input.
-2. **Create agent:** prepare an agent from a built-in template.
+1. **Browse agents:** the agent library lists every sample agent, and **Start
+   here** offers three ready-made examples.
+2. **Test results:** read how an agent did on its recorded test cases: how many
+   answers passed, how long it took, what it cost, and whether a person has
+   signed it off yet.
 3. **Chat:** talk with an agent. An example only fills the message box; you
    choose when to send it.
-4. **Document reviews:** paste a checklist and document text to get one saved,
-   quoted result for each checklist item. It isn't in the sidebar: open `/#reviews`
-   on the Lab's address, or a saved-review link.
+4. **Take it to Foundry:** download the agent definition and its test requests,
+   then follow the steps to create it in your own Microsoft Foundry. There is
+   no one-click move between environments.
+5. **Create agent:** prepare an agent from one of the library's templates. It
+   stays off until an operator turns it on.
 
-*The tour follows your GitHub theme.*
+*The tour follows your GitHub theme. The screenshots come from automated
+browser tests with sample data. They are not a live model run.*
 
 [Open the full tour](docs/images/lab-tour.svg) ·
 [Create agent screenshot](docs/images/screenshots/lab-create-agent.png) ·
@@ -72,6 +80,11 @@ Choose the path that fits your session:
 - **Explore without deploying.** Read the [showcase and presenter guide](docs/showcase.md)
   for sample inputs, expected findings, and the questions a person must
   resolve. No Azure environment is needed to read the walkthroughs.
+
+- **Browse the agent library.** In a deployed Lab, look through the sample
+  agents, what each one leaves to a person, and how it did on its recorded test
+  cases. Browsing, reading test results, and downloading an agent definition make
+  no model calls; trying an agent does. See the [Lab guide](workbench/README.md#pages).
 
 - **Create your own agent.** Follow [Create and try a baseline agent](docs/agent-creation.md).
   You need an operator-enabled Lab, one or more model deployments, and cost approval.
@@ -111,7 +124,8 @@ findings to look for and a decision that stays with a person.
 
 The invoice story runs on a ready **Supplier invoice reviewer** created from its
 template or, when the Lab has library previews on, on the library preview of
-that template. Either way it uses simulated lookups, not a finance integration.
+that template. Either way it uses built-in lookups with sample data, not a
+finance integration.
 
 [Watch all three stories](docs/images/scenario-tour.svg) ·
 [Dark theme](docs/images/scenario-tour-dark.svg)
@@ -127,7 +141,7 @@ that template. Either way it uses simulated lookups, not a finance integration.
 - **[Agents working together](hosted-agents/README.md):** ask the **Application
   and case helper** in Chat to hand a task to a specialist.
 - **[Tool calling](docs/agent-creation.md#what-a-participant-can-do):** try
-  simulated, read-only lookups in the **Service request planner** or the
+  read-only lookups with sample data in the **Service request planner** or the
   healthcare and public-sector templates.
 
 ### Review and improve
@@ -150,11 +164,12 @@ onto private networks. Services use managed identities, not API keys.
 creates Azure resources that cost money.
 
 The Lab opens on the **Agent library**; **Chat** remains one click away. The
-sidebar groups its pages into four sections: **Agent library** (every agent,
-under **Browse**, **Ready to chat**, **Made in this Lab**, **Guided
-demos**, and **Add-ons**), **Try it** (Chat and Shared history), **Measure** (response times,
-tokens, and cost), and **Activity** (the request log). **Document reviews** has no
-sidebar link; open `/#reviews` or a saved-review link. See the
+sidebar has **Agent library** (**All agents**, plus **Create agent** when
+creation is on) and **Try it** (Chat and Shared history). **Measure** (response
+times, tokens, and cost) and **Activity** (the request log) appear when you turn
+on **Under the hood**. **All agents** has tabs for **Browse**, **Ready to chat**,
+**Made in this Lab**, **Guided demos**, and **Add-ons**. **Document reviews** has
+no sidebar link; open `/#reviews` or a saved-review link. See the
 [Lab guide](workbench/README.md#pages).
 
 ---
@@ -365,10 +380,16 @@ To deploy from a separate private machine, use the
 
 - **No business systems.** Agents work only with the text you supply. They don't
   connect to customer systems or Microsoft 365, and every template lookup tool
-  uses made-up, read-only data.
+  uses sample, read-only data.
 
 - **People decide.** A matching quote shows where text came from, not that it's
   true. Missing evidence is a request for more information, not a rejection.
+
+- **Test results are recorded evidence, not a guarantee.** Each library agent
+  was asked five test cases, five times each, with sample data. A case passes
+  only if every answer for it passes. An agent shows **Waiting for a person**
+  until someone reads the recorded answers and signs off; the test runner never
+  records a sign-off. See [evaluations](evaluations/README.md).
 
 - **Access is by network, not by user.** The Lab has no sign-in. It accepts
   traffic only from the private admin network, such as the jumpbox reached
@@ -452,7 +473,7 @@ sizes. A docs check rebuilds every diagram from its template and fails if the
 committed SVGs differ, then checks that every relative link, image, and heading
 anchor in the Markdown resolves.
 
-The checks use simulated service responses. They don't call live agents or
+The checks use mocked service responses. They don't call live agents or
 create Azure resources.
 
 <details>

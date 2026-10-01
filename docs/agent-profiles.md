@@ -81,8 +81,8 @@ separately own the visible entries, default agent, and title. Neither selection
 nor prompt editing is an administrative control.
 
 The new templates do not modify these profiles or specialist bindings. Document
-explainer, Checklist gap finder, Form and invoice extractor, and Case notes
-summarizer are single-agent supplied-text jobs without tools. Service request
+explainer, Checklist gap finder, Form field extractor, and Case summary
+writer are single-agent supplied-text jobs without tools. Service request
 planner, Medical bill reviewer, Insurance pre-approval helper, Benefits renewal
 helper, and Supplier invoice reviewer each have two local fictional-data
 lookups, not specialist delegation or live integration. The
