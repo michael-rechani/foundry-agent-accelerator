@@ -978,6 +978,30 @@ test('incorrect operator key preserves editable setup and does not claim success
   expect(state.posts).toHaveLength(2)
 })
 
+test('a refused create request explains itself even when the setup is taller than the window', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 709, height: 560 })
+  const state = await setup(page)
+  await prepare(page)
+  const workspace = page.locator('main.creation-workspace')
+  expect(
+    await workspace.evaluate((main) => main.scrollHeight > main.clientHeight),
+  ).toBe(true)
+  await authorize(page, 'too-short')
+  const create = page.getByRole('button', {
+    name: 'Create in Foundry',
+    exact: true,
+  })
+  await create.scrollIntoViewIfNeeded()
+  await create.click()
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('at least 32 characters')
+  await expect(alert).toBeInViewport()
+  await expect(page.getByLabel('Operator key', { exact: true })).toBeFocused()
+  expect(state.posts).toHaveLength(0)
+})
+
 for (const rejection of [400, 413]) {
   test(`rejected setup (${rejection}) stays editable rather than locking an unaccepted operation`, async ({
     page,
