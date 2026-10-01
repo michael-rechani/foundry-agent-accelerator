@@ -933,7 +933,12 @@ test('while waiting, Chat says what the agent returns and reassures after a long
   await expect(waiting).not.toContainText('Still working')
   await page.clock.runFor(20001)
   await expect(waiting).toContainText('Still working')
-  await expect(waiting).toContainText('can take about a minute')
+  await expect(waiting).toContainText(
+    'Some answers take 30 seconds to a minute, especially the first one in a new chat.',
+  )
+  await expect(waiting).toContainText(
+    'Follow-up questions in the same chat usually take a few seconds.',
+  )
   await expect(waiting).toContainText(agent.guidance!.output)
   await expect(
     waiting.locator('[aria-hidden="true"]').filter({ hasText: /^\d+s$/ }),

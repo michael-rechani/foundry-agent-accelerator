@@ -753,7 +753,11 @@ before you add `--yes`.
 `az login` or any other `DefaultAzureCredential` source that can call the
 project's model deployments, and give the project's URL with `--endpoint` or
 `FOUNDRY_PROJECT_ENDPOINT`
-(`https://<account>.services.ai.azure.com/api/projects/<project>`). Each agent
+(`https://<account>.services.ai.azure.com/api/projects/<project>`). On a machine
+that could sign in more than one way, set
+`AZURE_TOKEN_CREDENTIALS=AzureCliCredential` so the runner uses the `az login`
+identity and no other (azure-identity 1.23 or later; `requirements.txt` pins
+1.25.3). Each agent
 runs on the deployment for its model profile, taken from the first of these that
 names one: `--model` (one deployment for every agent named), `--models` (JSON,
 like `{"reasoning": "gpt-5.4"}`), the Lab's `WORKBENCH_AGENT_CREATION_MODELS`,

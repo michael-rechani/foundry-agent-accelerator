@@ -1,37 +1,16 @@
 import { useRef } from 'react'
 import {
   ArrowRight,
-  Bot,
   Brain,
-  CalendarClock,
   Check,
   Cpu,
-  FileText,
-  ListChecks,
   LoaderCircle,
-  NotebookPen,
-  PackageCheck,
-  Route,
-  ScanText,
-  ShieldCheck,
-  Stethoscope,
   Wrench,
   Zap,
   type LucideIcon,
 } from 'lucide-react'
+import { agentIcons, fallbackAgentIcon } from './agent-icons'
 import { groupTemplates, type AgentTemplate } from './agent-creation-client'
-
-const templateIcons: Record<string, LucideIcon> = {
-  'document-analyst': FileText,
-  'criteria-checker': ListChecks,
-  'document-intake': ScanText,
-  'casework-assistant': NotebookPen,
-  'workflow-coordinator': Route,
-  'medical-bill-reviewer': Stethoscope,
-  'insurance-preapproval-helper': ShieldCheck,
-  'benefits-renewal-helper': CalendarClock,
-  'supplier-invoice-reviewer': PackageCheck,
-}
 
 const profileIcons: Record<string, LucideIcon> = {
   reasoning: Brain,
@@ -74,7 +53,7 @@ export function CreationTaskForm({
             <h2>{category}</h2>
             <div className="creation-templates">
               {items.map((item) => {
-                const Icon = templateIcons[item.id] ?? Bot
+                const Icon = agentIcons[item.id] ?? fallbackAgentIcon
                 const ProfileIcon = profileIcons[item.model_profile.id] ?? Cpu
                 const selected = templateId === item.id
                 return (

@@ -298,6 +298,14 @@ test('test results read plainly and keep case details under the hood', async ({
   await expect(cases.first()).toContainText(
     `${card.cases[0].runs_passed} of ${card.cases[0].runs} answers passed`,
   )
+  // The ring and dots only draw the counts the sentences already state.
+  await expect(panel.locator('.scorecard-ring')).toHaveAttribute(
+    'data-state',
+    'some',
+  )
+  const missed = cases.first().locator('.scorecard-dots')
+  await expect(missed.locator('.pass')).toHaveCount(card.cases[0].runs_passed)
+  await expect(missed.locator('.miss')).toHaveCount(1)
   await expect(panel).not.toContainText(/fictional|made[- ]up/i)
   await expect(panel.locator('.scorecard-case-detail').first()).toBeHidden()
   await expect(panel.locator('.scorecard-notes').first()).toBeHidden()
@@ -309,6 +317,44 @@ test('test results read plainly and keep case details under the hood', async ({
   await expect(panel.locator('.scorecard-notes').first()).toBeVisible()
   await expect(panel).toContainText(`Model ${card.model}.`)
   await hoodSwitch(page).uncheck()
+})
+
+test('a ring and one dot per answer repeat the written counts without adding words', async ({
+  page,
+}) => {
+  const card = scorecards.scorecards[0]
+  const agent = (catalog.templates as LibraryTemplate[]).find(
+    (item) => item.id === card.template_id,
+  )!
+  await setup(page)
+  await page.locator('.library-card').filter({ hasText: agent.label }).click()
+  await page.getByRole('tab', { name: 'Test results' }).click()
+  const panel = page.getByRole('tabpanel')
+  await expect(panel).toContainText(
+    `${card.summary.runs_passed} of ${card.summary.runs} answers passed`,
+  )
+  const ring = panel.locator('.scorecard-ring')
+  await expect(ring).toHaveCount(1)
+  await expect(ring).toHaveAttribute('aria-hidden', 'true')
+  await expect(ring).toHaveAttribute(
+    'data-state',
+    card.summary.runs_passed === card.summary.runs ? 'all' : 'some',
+  )
+  await expect(ring).toHaveText('')
+  const rows = panel
+    .getByRole('list', { name: 'Test cases' })
+    .locator(':scope > li')
+  await expect(rows).toHaveCount(card.cases.length)
+  for (const [index, entry] of card.cases.entries()) {
+    await expect(rows.nth(index)).toContainText(entry.goal)
+    const dots = rows.nth(index).locator('.scorecard-dots')
+    await expect(dots).toHaveAttribute('aria-hidden', 'true')
+    await expect(dots.locator('span')).toHaveCount(entry.runs)
+    await expect(dots.locator('.pass')).toHaveCount(entry.runs_passed)
+    await expect(dots.locator('.miss')).toHaveCount(
+      entry.runs - entry.runs_passed,
+    )
+  }
 })
 
 test('agents without a recorded run say so on Test results', async ({

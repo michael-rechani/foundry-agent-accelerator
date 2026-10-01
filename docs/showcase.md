@@ -114,6 +114,15 @@ choose an unsupported date, or modify a system.
    confirmation. It never deletes shared history, changes infrastructure, or
    stops a deployed agent. Record failures rather than hiding them.
 
+Plan for the first wait. A hosted agent starts when a new chat sends its first
+message, so that first answer takes about 30 seconds (31 and 34 seconds were
+measured on 1 October 2026). Each new chat starts its own agent, so opening a
+chat ahead of time does not speed up the next one. Talk through the expected
+findings from the **Demo guide** while it loads, then ask follow-up questions in
+the same chat: those usually answer in a few seconds, because the Lab keeps a
+chat's agent session for up to 10 minutes. After 20 seconds, Chat shows a note
+that says the same thing.
+
 Presenter view is a browser-session display preference, not a different
 security mode. The Lab still has no individual user sign-in; everyone with
 access shares saved records. Use sample data only.

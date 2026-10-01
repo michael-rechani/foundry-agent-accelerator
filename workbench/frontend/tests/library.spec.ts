@@ -358,22 +358,31 @@ test('grey placeholder cards hold the place of the agents while the library load
   const state = await setup(page, { slowCatalog: true })
   const placeholders = page.locator('.library-placeholder')
   const cards = page.locator('.library-card')
+  const startPlaceholders = page.locator('.library-start-placeholder')
+  const startCards = page.locator('.library-start-card')
+  const startFirst = page.locator('.library-start-list > li').first()
   const status = page.getByText('Loading the agent library...')
   await expect(status).toBeAttached()
   await expect(
     page.getByRole('heading', { level: 1, name: 'Find an agent for the job' }),
   ).toBeVisible()
   await expect(placeholders).toHaveCount(6)
+  await expect(startPlaceholders).toHaveCount(demoScenarios.length)
   await expect(cards).toHaveCount(0)
+  await expect(startCards).toHaveCount(0)
   await expect(page.getByRole('alert')).toHaveCount(0)
   const waiting = (await placeholders.first().boundingBox())!
+  const startWaiting = (await startFirst.boundingBox())!
   const head = (await page.locator('.library-results-head').boundingBox())!
 
   state.releaseCatalog()
   await expect(cards).toHaveCount(templates.length)
   await expect(placeholders).toHaveCount(0)
+  await expect(startPlaceholders).toHaveCount(0)
+  await expect(startCards).toHaveCount(demoScenarios.length)
   await expect(status).toHaveCount(0)
   const arrived = (await cards.first().boundingBox())!
+  const startArrived = (await startFirst.boundingBox())!
   const arrivedHead = (await page
     .locator('.library-results-head')
     .boundingBox())!
@@ -381,12 +390,83 @@ test('grey placeholder cards hold the place of the agents while the library load
   // Only the desktop layout is compared; the stacked layout at the mobile width
   // is not lined up this closely.
   if (testInfo.project.name !== 'desktop') return
+  for (const edge of ['x', 'y', 'width', 'height'] as const)
+    expect(
+      Math.abs(startArrived[edge] - startWaiting[edge]),
+      `start ${edge}`,
+    ).toBeLessThanOrEqual(1)
   for (const edge of ['x', 'y', 'width'] as const)
     expect(Math.abs(arrived[edge] - waiting[edge]), edge).toBeLessThanOrEqual(1)
   expect(
     Math.abs(arrivedHead.height - head.height),
     'head',
   ).toBeLessThanOrEqual(1)
+})
+
+test('every agent card carries an icon that is only decoration', async ({
+  page,
+}) => {
+  await setup(page)
+  const cards = page.locator('.library-card')
+  await expect(cards).toHaveCount(templates.length)
+  const icons = cards.locator('.library-card-icon')
+  await expect(icons).toHaveCount(templates.length)
+  for (const icon of await icons.all()) {
+    await expect(icon).toHaveAttribute('aria-hidden', 'true')
+    await expect(icon.locator('svg')).toHaveCount(1)
+    await expect(icon).toHaveText('')
+  }
+})
+
+test('Start here offers the three ready-made examples and steps aside while searching', async ({
+  page,
+}) => {
+  const state = await setup(page)
+  const start = page.getByRole('region', { name: 'Start here' })
+  const options = start.getByRole('button')
+  await expect(start.getByRole('heading', { level: 2 })).toHaveText(
+    'Start here',
+  )
+  await expect(options).toHaveCount(demoScenarios.length)
+  for (const [index, scenario] of demoScenarios.entries()) {
+    const option = options.nth(index)
+    await expect(option).toContainText(scenario.title)
+    await expect(option).toContainText(scenario.description)
+    await expect(option).toContainText(scenario.templateLabel)
+    await expect(option.locator('.library-card-icon svg')).toHaveCount(1)
+  }
+
+  const search = page.getByRole('searchbox', { name: 'Search agents' })
+  await search.fill('renewal')
+  await expect(page.locator('.library-card')).toHaveCount(1)
+  await expect(start).toHaveCount(0)
+  await search.fill('')
+  await expect(start).toBeVisible()
+  await page
+    .locator('.library-facet')
+    .filter({
+      has: page.getByText('Healthcare and public sector', { exact: true }),
+    })
+    .click()
+  await expect(start).toHaveCount(0)
+  await page.getByRole('button', { name: 'Clear filters' }).click()
+  await expect(start).toBeVisible()
+
+  await options.first().click()
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: demoScenarios[0].templateLabel,
+      exact: true,
+    }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Try it with an example' }),
+  ).toBeVisible()
+  // Opening an example only goes to the agent's page; nothing is sent or made.
+  expect(state.chat).toHaveLength(0)
+  expect(state.creations).toBe(0)
+  expect(state.drafts).toBe(0)
 })
 
 test('the Add-ons tab previews what an agent could connect to without calling anything', async ({
