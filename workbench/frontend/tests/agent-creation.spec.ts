@@ -170,7 +170,7 @@ function recordFor(
             id,
             agent: runtime,
             label: payload.name,
-            category: 'Created in this Lab',
+            category: 'Made in this Lab',
             description: template.description,
             tools: Object.fromEntries(
               template.tools.map((tool) => [tool.name, runtime]),
@@ -438,6 +438,9 @@ async function navigate(page: Page, name: string) {
       .getByRole('navigation', { name: 'Agent library' })
       .getByRole('button', { name: /^Made in this Lab/ })
       .click()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Made in this Lab' }),
+    ).toBeVisible()
     return
   }
   await workspace.getByRole('button', { name, exact: true }).click()
@@ -1146,7 +1149,7 @@ test('deletion stays available with creation disabled and requires confirmation 
   expect(state.record!.instructions).toBe('')
   expect(state.deletes).toBe(1)
   expect(state.posts).toHaveLength(0)
-  await page.getByRole('button', { name: 'Back to created agents' }).click()
+  await page.getByRole('button', { name: 'Back to Made in this Lab' }).click()
   await expect(page.locator('.created-agent-list')).toHaveCount(0)
 })
 

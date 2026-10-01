@@ -149,6 +149,8 @@ export default function ChatWorkspace() {
   const controller = useRef<AbortController | null>(null)
   const editor = useRef<HTMLTextAreaElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
+  const latestAnswer = useRef<HTMLElement>(null)
+  const lastScroll = useRef({ busy: false, turns: 0 })
   const isPreview = isPreviewId(selected)
   const agent = (isPreview ? previewList : availableAgents).find(
     (item) => item.id === selected,
@@ -231,8 +233,13 @@ export default function ChatWorkspace() {
 
   useEffect(() => {
     if (view !== 'chat') return
+    const before = lastScroll.current
+    lastScroll.current = { busy, turns: turns.length }
+    const answered = before.busy && !busy && turns.length > before.turns
     if (activeDemo && !turns.length && !busy)
       bottom.current?.parentElement?.scrollTo({ top: 0 })
+    else if (answered && latestAnswer.current)
+      latestAnswer.current.scrollIntoView({ block: 'start' })
     else bottom.current?.scrollIntoView({ block: 'end' })
   }, [turns, busy, view, activeDemo])
 
@@ -808,6 +815,9 @@ export default function ChatWorkspace() {
                       agentLabels={agentLabels}
                       foundryPortal={isPreview ? null : config?.foundry_portal}
                       agentName={agent?.agent}
+                      answerRef={
+                        index === turns.length - 1 ? latestAnswer : undefined
+                      }
                       onCopy={copy}
                     />
                   ))}

@@ -25,10 +25,11 @@ agent-management service.
 **Describe the job -> prepare a setup -> review and confirm -> create in Foundry
 -> try it in Chat.**
 
-The Create page lists the Lab's 18 templates in three groups, named the same as
-the sectors in the **Agent library**: **Works in any sector** (five jobs),
-**Healthcare and public sector** (four jobs), and **Private sector** (nine
-jobs). The tables below describe the first two groups. Every template is
+The Create page lists the Lab's 18 templates in three groups, named and ordered
+the same as the sectors in the **Agent library**: **Works in any sector** (five
+jobs), **Private sector** (nine jobs), and **Healthcare and public sector**
+(four jobs). The tables below describe the **Works in any sector** and
+**Healthcare and public sector** groups. Every template is
 marked **In progress** until a person has read its recorded test answers and
 signed off (see **Test results** in the **Agent library**). They pass offline
 contract and acceptance tests but aren't yet validated live. Open the **Agent

@@ -1313,6 +1313,7 @@ p {
 }
 .assistant-message {
   padding: 0 6px;
+  scroll-margin-top: 16px;
   animation: arrive 0.24s ease-out both;
 }
 .assistant-heading {

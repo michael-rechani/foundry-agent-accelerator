@@ -35,6 +35,7 @@ async function workspace(
     receipts?: Receipt[]
     usage?: unknown
     answer?: string
+    answers?: string[]
   } = {},
 ) {
   const config: Config = {
@@ -106,7 +107,10 @@ async function workspace(
           config.agents.find((item) => item.id === config.default_agent) ??
           agent
         ).agent,
-        text: options.answer ?? 'Section 1 is missing a budget.',
+        text:
+          options.answers?.[state.requests.length - 1] ??
+          options.answer ??
+          'Section 1 is missing a budget.',
         elapsed_ms: 1000,
         ...(options.usage !== undefined ? { usage: options.usage } : {}),
         receipts: options.receipts ?? [
@@ -965,6 +969,42 @@ test('the answer stays readable if the formatter cannot load', async ({
   await expect(page.locator('.message-markdown pre').first()).toHaveText(
     'Budget missing in Section 1.',
   )
+})
+
+test('a long answer opens at its start while a short one stays fully in view', async ({
+  page,
+}) => {
+  const long = [
+    '# Long sample answer',
+    ...Array.from(
+      { length: 60 },
+      (_, index) => `Line ${index + 1} of the sample answer.`,
+    ),
+  ].join('\n\n')
+  await workspace(page, { answers: ['Section 1 is missing a budget.', long] })
+  const answers = page.locator('.assistant-message')
+  await send(page)
+  await expect(answers).toHaveCount(1)
+  await expect(answers.last()).toBeInViewport({ ratio: 1 })
+
+  await send(page, 'Review a second synthetic request')
+  await expect(answers).toHaveCount(2)
+  const gap = () =>
+    page.evaluate(() => {
+      const top = (selector: string) => {
+        const found = document.querySelectorAll(selector)
+        return found[found.length - 1].getBoundingClientRect().top
+      }
+      return Math.round(top('.assistant-message') - top('.conversation-scroll'))
+    })
+  await expect.poll(gap).toBeGreaterThanOrEqual(0)
+  await expect.poll(gap).toBeLessThanOrEqual(24)
+  await expect(
+    page.getByRole('heading', { name: 'Long sample answer' }),
+  ).toBeInViewport()
+  await expect(
+    page.getByText('Line 60 of the sample answer.', { exact: true }),
+  ).not.toBeInViewport()
 })
 test('stop waiting does not automatically retry', async ({ page }) => {
   const state = await workspace(page, { stalledReview: true })

@@ -97,12 +97,12 @@ all-scenarios demonstration.
 | [Application completeness](../docs/demos.md#application-completeness) | **Available** | The source and walkthrough are included. This is not a live-validation claim. |
 | [Requirements and proposal review](../docs/demos.md#requirements-and-proposal-review) | **Preview** | This reuses the application agent and the existing criteria-and-evidence workflow. It doesn't add another agent. |
 
-The creation jobs are grouped on the page by sector, using the same three names
-as the **Agent library**. **Works in any sector:** Document explainer,
-Checklist gap finder, Form field extractor, Service request planner, and
-Supplier invoice reviewer. **Healthcare and public sector:** Case summary
-writer, Medical bill reviewer, Insurance pre-approval helper, and Benefits
-renewal helper. **Private sector:** nine jobs. Every job is marked
+The creation jobs are grouped on the page by sector, using the same three names,
+in the same order, as the **Agent library**. **Works in any sector:** Document
+explainer, Checklist gap finder, Form field extractor, Service request planner,
+and Supplier invoice reviewer. **Private sector:** nine jobs. **Healthcare and
+public sector:** Case summary writer, Medical bill reviewer, Insurance
+pre-approval helper, and Benefits renewal helper. Every job is marked
 **In progress** until a person signs off its recorded test answers: they pass
 offline contract and acceptance tests but aren't yet validated live. Seven jobs
 each have two **simulated read-only**
@@ -215,7 +215,7 @@ data contract and deployment checks. You don't need it to use **Chat**.
 | **Case notes summarizer** | Visible only when enabled. | The case-notes specialist on its own. It writes the summary itself and calls no other agents. |
 | Ready created agents | Listed under **Ready to chat** and managed under **Made in this Lab**. | They can be selected in **Chat** after publication is ready. |
 
-Each catalog card is marked **Prebuilt agent** or **Created in this Lab**. Its
+Each catalog card is marked **Prebuilt agent** or **Made in this Lab**. Its
 **Developer setup details** name its role: **Coordinator: hands off to
 specialists**, **Coordinator: developer variant**, or **Specialist: works on its
 own**. If agent creation isn't turned on, the catalog says so and offers only the

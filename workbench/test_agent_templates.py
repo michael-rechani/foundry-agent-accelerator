@@ -130,6 +130,13 @@ class TemplateTests(unittest.TestCase):
             {sector["label"] for sector in catalog_facets()["sectors"]},
         )
 
+    def test_create_page_lists_sectors_in_the_library_filter_order(self):
+        groups = []
+        for item in list_templates():
+            if item["category"] not in groups:
+                groups.append(item["category"])
+        self.assertEqual(groups, [sector["label"] for sector in catalog_facets()["sectors"]])
+
     def test_retired_jobs_stay_loadable_but_cannot_be_matched_or_chosen(self):
         for identifier in RETIRED_TEMPLATES:
             with self.subTest(identifier=identifier):

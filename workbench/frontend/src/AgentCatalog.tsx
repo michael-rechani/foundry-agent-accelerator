@@ -111,7 +111,7 @@ export function AgentCatalog({
               </span>
               <span className="catalog-kind">
                 {item.id.startsWith('created-')
-                  ? 'Created in this Lab'
+                  ? 'Made in this Lab'
                   : 'Prebuilt agent'}
               </span>
             </div>

@@ -1308,14 +1308,14 @@
         "count": 5
       },
       {
-        "id": "public",
-        "label": "Healthcare and public sector",
-        "count": 4
-      },
-      {
         "id": "private",
         "label": "Private sector",
         "count": 9
+      },
+      {
+        "id": "public",
+        "label": "Healthcare and public sector",
+        "count": 4
       }
     ],
     "industries": [
