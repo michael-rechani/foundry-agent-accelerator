@@ -63,3 +63,70 @@ run "lab_identity_permissions" {
     error_message = "Cosmos Data Contributor must cover only the shared Lab container, not the account or Foundry memory."
   }
 }
+
+run "operator_key_verifier_grant_is_off_by_default" {
+  command = plan
+  plan_options {
+    target = [azurerm_role_assignment.creation_key_verifier]
+  }
+  assert {
+    condition     = length(azurerm_role_assignment.creation_key_verifier) == 0
+    error_message = "The Lab must not grant Key Vault access unless the secret's resource ID is set."
+  }
+}
+
+run "operator_key_verifier_grant_reads_only_that_secret" {
+  command = plan
+  variables {
+    agent_creation_key_secret_id          = "https://vault-permissions.vault.azure.net/secrets/creation-key-verifier"
+    agent_creation_key_secret_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-permissions/providers/Microsoft.KeyVault/vaults/vault-permissions/secrets/creation-key-verifier"
+  }
+  plan_options {
+    target = [azurerm_role_assignment.creation_key_verifier]
+  }
+  assert {
+    condition = (
+      length(azurerm_role_assignment.creation_key_verifier) == 1 &&
+      azurerm_role_assignment.creation_key_verifier[0].role_definition_id == "/subscriptions/00000000-0000-0000-0000-000000000003/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6" &&
+      azurerm_role_assignment.creation_key_verifier[0].scope == "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-permissions/providers/Microsoft.KeyVault/vaults/vault-permissions/secrets/creation-key-verifier" &&
+      azurerm_role_assignment.creation_key_verifier[0].principal_id == "00000000-0000-0000-0000-000000000004" &&
+      azurerm_role_assignment.creation_key_verifier[0].description == "Foundry Lab agent creation"
+    )
+    error_message = "Key Vault Secrets User must cover only the operator-key verifier secret, for the Lab identity."
+  }
+}
+
+run "operator_key_verifier_grant_rejects_a_different_secret" {
+  command = plan
+  variables {
+    agent_creation_key_secret_id          = "https://vault-permissions.vault.azure.net/secrets/creation-key-verifier"
+    agent_creation_key_secret_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-permissions/providers/Microsoft.KeyVault/vaults/vault-permissions/secrets/another-secret"
+  }
+  plan_options {
+    target = [azurerm_role_assignment.creation_key_verifier]
+  }
+  expect_failures = [azurerm_role_assignment.creation_key_verifier]
+}
+
+run "operator_key_verifier_grant_needs_the_secret_uri" {
+  command = plan
+  variables {
+    agent_creation_key_secret_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-permissions/providers/Microsoft.KeyVault/vaults/vault-permissions/secrets/creation-key-verifier"
+  }
+  plan_options {
+    target = [azurerm_role_assignment.creation_key_verifier]
+  }
+  expect_failures = [azurerm_role_assignment.creation_key_verifier]
+}
+
+run "operator_key_verifier_resource_id_must_name_a_secret" {
+  command = plan
+  variables {
+    agent_creation_key_secret_id          = "https://vault-permissions.vault.azure.net/secrets/creation-key-verifier"
+    agent_creation_key_secret_resource_id = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-permissions/providers/Microsoft.KeyVault/vaults/vault-permissions"
+  }
+  plan_options {
+    target = [azurerm_role_assignment.creation_key_verifier]
+  }
+  expect_failures = [var.agent_creation_key_secret_resource_id]
+}
