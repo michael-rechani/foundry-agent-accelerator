@@ -645,13 +645,13 @@ case's `rubric`.
 > the right thing, so a person reads every answer.
 >
 > **Fingerprints.** Every recorded answer carries a SHA-256 fingerprint of the
-> instructions its agent had when it ran, and `scorecards.py` refuses to build
-> when an agent's current instructions don't match. Answers from the first
-> set, which were recorded before rows carried a fingerprint, were stamped with
-> the instructions in force when that set started, and only for agents whose
-> instructions haven't changed since. After you change an agent's instructions,
-> record its 25 answers again. [#104](https://github.com/michael-rechani/foundry-agent-accelerator/issues/104)
-> tracks a command for that.
+> instructions its agent had when it ran and the date it was recorded, and
+> `scorecards.py` refuses to build when an agent's current instructions don't
+> match. Answers from the first set, which were recorded before rows carried a
+> fingerprint, were stamped with the instructions in force when that set
+> started, and only for agents whose instructions haven't changed since. After
+> you change an agent's instructions, record its 25 answers again with
+> [library_runs.py](#record-an-agents-test-answers-again).
 >
 > The answers, metrics and repeat runs are in [evidence/](evidence/), which holds
 > only sample data. Score the first run with `python library_checks.py score
@@ -687,7 +687,8 @@ API. Costs cover model tokens only, not hosting, storage or monitoring. The
 times come from a direct run on a local machine, and the tab says so. Every
 scorecard shows **Waiting for a person** until someone reads the answers.
 `scorecards.py` also fails if an agent's instructions changed after its answers
-were recorded. `test_scorecards.py` fails if the Lab's copy drifts from the
+were recorded; [library_runs.py](#record-an-agents-test-answers-again) records
+them again. `test_scorecards.py` fails if the Lab's copy drifts from the
 evidence, or if an agent's **Reviewed** label doesn't match it: an agent is
 marked **Reviewed** exactly when a person has signed off its answers and every
 run passed.
@@ -717,6 +718,91 @@ columns. The rows follow Foundry's [evaluation dataset
 schema](https://learn.microsoft.com/azure/foundry/observability/how-to/evaluation-dataset-schema)
 for a run where Foundry generates the answers. They haven't been imported into a
 Foundry project yet.
+
+### Record an agent's test answers again
+
+When you change an agent's instructions in
+[agent_templates.py](../workbench/agent_templates.py), its recorded answers no
+longer describe it, and `scorecards.py` refuses to build until they're recorded
+again. [library_runs.py](library_runs.py) finds those agents and records them:
+
+```powershell
+cd evaluations
+python library_runs.py status                                      # offline, free
+python library_runs.py record --templates document-analyst         # offline, free: shows the plan
+python library_runs.py record --templates document-analyst --yes   # billable: records them
+```
+
+- `status` lists each agent as **current**, **stale** (its rows came from other
+  instructions), **incomplete** or **missing**, and exits 0 only when all are
+  current. It needs no network.
+- `record` without `--yes` prints the plan and sends nothing: the runs, the
+  model for each agent, the tokens, cost and time its last recording took, and
+  the pacing.
+- `record --yes` sends each of an agent's cases to Foundry five times, through
+  the same `library_preview.run_preview` code the Lab's Chat preview uses, so the
+  answers are the ones the Lab gives. It creates no agent and stores nothing in
+  Foundry.
+
+`record --yes` calls Foundry and costs money. Going by the last recording, an
+agent's 25 runs cost about 3 to 55 cents and take at least 2 to 11 minutes at
+the default pacing; the plan shows the figures first. Get the owner's approval
+before you add `--yes`.
+
+**What it needs.** Install `evaluations/requirements.txt`, sign in with
+`az login` or any other `DefaultAzureCredential` source that can call the
+project's model deployments, and give the project's URL with `--endpoint` or
+`FOUNDRY_PROJECT_ENDPOINT`
+(`https://<account>.services.ai.azure.com/api/projects/<project>`). Each agent
+runs on the deployment for its model profile, taken from the first of these that
+names one: `--model` (one deployment for every agent named), `--models` (JSON,
+like `{"reasoning": "gpt-5.4"}`), the Lab's `WORKBENCH_AGENT_CREATION_MODELS`,
+its `WORKBENCH_AGENT_CREATION_MODEL`, or the model of the agent's last
+recording.
+
+**Pacing and retries.** Each deployment is held to 10,000 tokens and 10 requests
+a minute, the limits of a capacity-10 deployment. For one with more quota, pass
+`--limits` like `{"gpt-5.4": {"tokens": 30000, "requests": 30}}`; a number you
+leave out stays at its default. A 429 waits as long as Foundry asks, or 60
+seconds if it doesn't say. A timeout, dropped connection or server error waits 2
+seconds, then 4, 8 and so on up to 30. A request is tried up to six times before
+the recording stops.
+
+**Interrupted?** Each finished run is saved at once in
+`evaluations/results/library-runs/<agent>.jsonl`, which Git ignores. Run the same
+command again and it picks up where it stopped, without sending the finished
+runs again. Saved runs from other instructions or another model are dropped.
+
+**What changes.** Only when all of an agent's runs are saved does it replace that
+agent's rows, and no one else's, in the three files in [evidence/](evidence/).
+The files are written together, so a failure leaves the old ones. Every new row
+carries the instructions' fingerprint (`instructions_sha256`) and the date it was
+recorded (`recorded_on`), and the Lab's test date for an agent is the latest of
+those dates. Rows from two versions of an agent's instructions never mix. Agents
+are saved one at a time, so a later failure never undoes an earlier agent.
+
+It refuses to run when `CI` or `GITHUB_ACTIONS` is set, so CI never calls
+Foundry. `test_library_runs.py` covers the planning, the row replacement and the
+pacing with a fake Foundry and no network. Run one recording at a time: two at
+once would share the same quota and could overwrite each other's rows.
+
+**Then:**
+
+```powershell
+python scorecards.py write   # rebuild the Lab's copy of the results
+```
+
+A sign-off covers the exact answers a person read, so an agent that had one stops
+building ("the answers changed after the sign-off") until a person reads the new
+answers and signs off again. `library_runs.py` never records a sign-off. Until
+that's done, set the agent's `readiness` in `TEMPLATE_METADATA` back to `sample`
+if it says `reviewed`. The Lab shows the new results after the next deploy.
+
+Exit codes: `status` returns 0 when every agent is current, 1 when some need
+recording and 2 when it can't read the evidence or an agent has no cases.
+`record` returns 0 when everything is saved, 1 when a run was cut short (what's
+saved is kept), 2 when nothing was sent (no `--yes`, CI, a bad option or no
+endpoint) and 130 after Ctrl+C.
 
 ## Related content
 

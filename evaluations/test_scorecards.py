@@ -7,6 +7,7 @@ import scorecards
 from agent_templates import RETIRED_TEMPLATES, TEMPLATE_METADATA, TEMPLATES
 
 RUNS_PER_CASE = 5
+RECORDED_ON = "2026-09-29"
 PRICES = json.loads(scorecards.PRICES.read_text(encoding="utf-8"))
 
 
@@ -16,6 +17,17 @@ class ScorecardTests(unittest.TestCase):
             scorecards.OUTPUT.read_text(encoding="utf-8"), scorecards.render(scorecards.build()),
             "Run: python evaluations/scorecards.py write",
         )
+
+    def test_an_agents_test_date_is_the_latest_date_recorded_on_its_rows(self):
+        self.assertFalse(hasattr(scorecards, "TESTED_ON"), "dates come from the recorded rows, not a constant")
+        template_of = {case["id"]: case["template_id"] for case in scorecards.load_cases()["cases"]}
+        latest = {}
+        for path in (scorecards.ANSWERS, scorecards.METRICS, scorecards.REPEATS):
+            for row in scorecards._lines(path):
+                template_id = template_of[row["case_id"]]
+                latest[template_id] = max(latest.get(template_id, ""), row["recorded_on"])
+        cards = scorecards.build()["scorecards"]
+        self.assertEqual({card["template_id"]: card["tested_on"] for card in cards}, latest)
 
     def test_every_recorded_case_has_a_result_and_a_summary(self):
         result = scorecards.build()
@@ -33,16 +45,18 @@ class ScorecardTests(unittest.TestCase):
 
     def test_later_runs_replace_earlier_answers(self):
         case_id = "document-analyst-sample"
-        metric = {"model": "gpt-5.4", "seconds": 1.0, "input_tokens": 10, "cached_tokens": 0, "output_tokens": 5}
+        metric = {"model": "gpt-5.4", "seconds": 1.0, "input_tokens": 10, "cached_tokens": 0, "output_tokens": 5,
+                  "recorded_on": RECORDED_ON}
         with tempfile.TemporaryDirectory() as folder:
             def write(name, records):
                 path = Path(folder) / name
                 path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
                 return path
 
-            first = write("first.jsonl", [{"case_id": case_id, "text": "Nothing useful."}])
+            first = write("first.jsonl", [{"case_id": case_id, "text": "Nothing useful.", "recorded_on": RECORDED_ON}])
             second = write("second.jsonl", [{
-                "case_id": case_id, "text": "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"}])
+                "case_id": case_id, "recorded_on": RECORDED_ON,
+                "text": "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"}])
             metrics = write("metrics.jsonl", [{"case_id": case_id, **metric}])
 
             def card(runs):
@@ -57,15 +71,18 @@ class ScorecardTests(unittest.TestCase):
 
     def test_a_sign_off_covers_only_the_answers_the_reviewer_read(self):
         case_id = "document-analyst-sample"
-        metric = {"model": "gpt-5.4", "seconds": 1.0, "input_tokens": 10, "cached_tokens": 0, "output_tokens": 5}
+        metric = {"model": "gpt-5.4", "seconds": 1.0, "input_tokens": 10, "cached_tokens": 0, "output_tokens": 5,
+                  "recorded_on": RECORDED_ON}
         with tempfile.TemporaryDirectory() as folder:
             def write(name, records):
                 path = Path(folder) / name
                 path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
                 return path
 
-            read = write("read.jsonl", [{"case_id": case_id, "text": "Notice 1 and Notice 2 differ. What is the date?"}])
-            changed = write("changed.jsonl", [{"case_id": case_id, "text": "A different answer."}])
+            read = write("read.jsonl", [{"case_id": case_id, "recorded_on": RECORDED_ON,
+                                         "text": "Notice 1 and Notice 2 differ. What is the date?"}])
+            changed = write("changed.jsonl", [{"case_id": case_id, "recorded_on": RECORDED_ON,
+                                               "text": "A different answer."}])
             metrics = write("metrics.jsonl", [{"case_id": case_id, **metric}])
             signoffs = Path(folder) / "signoffs.json"
             options = {"metrics_path": metrics, "signoffs_path": signoffs, "repeats_path": None,
@@ -184,6 +201,51 @@ class ScorecardTests(unittest.TestCase):
                 scorecards.build(**{**unstamped, "verify_instructions": True})
             self.assertTrue(scorecards.build(**unstamped)["scorecards"])
 
+    def test_metrics_must_come_from_the_instructions_the_answer_did(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        current = scorecards.instructions_digest("document-analyst")
+        with tempfile.TemporaryDirectory() as folder:
+            self.assertTrue(scorecards.build(**self.evidence(folder, good, [(2, good)], digest=current))["scorecards"])
+            for message, change in (
+                ("run 1: the instructions of document-analyst changed after this metrics row",
+                 {"instructions_sha256": "0" * 64}),
+                ("run 1: no instructions fingerprint was recorded with this metrics row",
+                 {"instructions_sha256": None}),
+            ):
+                with self.subTest(message), self.assertRaisesRegex(ValueError, message):
+                    scorecards.build(**self.evidence(folder, good, [(2, good)], digest=current, metric_changes=change))
+
+    def test_a_stale_answer_points_to_the_command_that_records_it_again(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        with tempfile.TemporaryDirectory() as folder:
+            evidence = self.evidence(folder, good, [(2, good)], digest="0" * 64)
+            with self.assertRaisesRegex(
+                    ValueError, r"library_runs\.py record --templates document-analyst --yes"):
+                scorecards.build(**evidence)
+
+    def test_every_row_needs_a_real_recorded_date(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        with tempfile.TemporaryDirectory() as folder:
+            for date in (None, "", "29/09/2026", "2026-9-29", "2026-02-30", 20260929):
+                for name, options, message in (
+                    ("answer", {"answer_changes": {"recorded_on": date}}, "run 1 answer: no recorded date"),
+                    ("metrics", {"metric_changes": {"recorded_on": date}}, "run 1 metrics: no recorded date"),
+                    ("repeat", {"changes": {"recorded_on": date}}, "run 2: no recorded date"),
+                ):
+                    with self.subTest(name=name, date=date), self.assertRaisesRegex(ValueError, message):
+                        scorecards.build(**self.evidence(folder, good, [(2, good)], **options))
+
+    def test_the_test_date_is_the_latest_row_date_of_the_agent(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        with tempfile.TemporaryDirectory() as folder:
+            repeats = [(2, good, {"recorded_on": "2026-10-02"}), (3, good, {"recorded_on": "2026-09-30"})]
+            card = scorecards.build(**self.evidence(folder, good, repeats))["scorecards"][0]
+            self.assertEqual(card["tested_on"], "2026-10-02")
+            card = scorecards.build(**self.evidence(
+                folder, good, [(2, good)], answer_changes={"recorded_on": "2026-10-05"},
+                metric_changes={"recorded_on": "2026-10-04"}))["scorecards"][0]
+            self.assertEqual(card["tested_on"], "2026-10-05")
+
     def test_the_digest_follows_the_instructions_text(self):
         self.assertEqual(len(scorecards.instructions_digest("document-analyst")), 64)
         self.assertNotEqual(scorecards.instructions_digest("document-analyst"),
@@ -203,10 +265,12 @@ class ScorecardTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "same number of runs"):
                 scorecards.build(**evidence)
 
-    def evidence(self, folder, recorded, repeats, changes=None, second_case=False, digest=None):
+    def evidence(self, folder, recorded, repeats, changes=None, second_case=False, digest=None,
+                 answer_changes=None, metric_changes=None):
         """Temporary evidence for document-analyst-sample: a recorded answer plus (run, text[, metric]) repeats.
 
-        Rows carry no instructions fingerprint, and the build doesn't check it, unless a digest is given."""
+        Rows carry no instructions fingerprint, and the build doesn't check it, unless a digest is given.
+        changes, answer_changes and metric_changes edit the repeat, answer and metrics rows."""
         changes = changes or {}
         case_id = "document-analyst-sample"
 
@@ -215,11 +279,13 @@ class ScorecardTests(unittest.TestCase):
             path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
             return path
 
-        metric = {"model": "gpt-5.4", "seconds": 1.0, "input_tokens": 10, "cached_tokens": 0, "output_tokens": 5}
-        answers = [{"case_id": case_id, "text": recorded}]
+        metric = {"model": "gpt-5.4", "seconds": 1.0, "input_tokens": 10, "cached_tokens": 0, "output_tokens": 5,
+                  "recorded_on": RECORDED_ON}
+        answers = [{"case_id": case_id, "text": recorded, "recorded_on": RECORDED_ON}]
         metrics = [{"case_id": case_id, **metric}]
         if second_case:
-            answers.append({"case_id": "document-analyst-missing-version", "text": recorded})
+            answers.append({"case_id": "document-analyst-missing-version", "text": recorded,
+                            "recorded_on": RECORDED_ON})
             metrics.append({"case_id": "document-analyst-missing-version", **metric})
         rows = []
         for entry in repeats:
@@ -230,8 +296,12 @@ class ScorecardTests(unittest.TestCase):
             row.update(changes)
             rows.append(row)
         if digest:
-            for answer in answers:
-                answer["instructions_sha256"] = digest
+            for row in answers + metrics:
+                row["instructions_sha256"] = digest
+        for row in answers:
+            row.update(answer_changes or {})
+        for row in metrics:
+            row.update(metric_changes or {})
         return {"runs": (("run", write("answers.jsonl", answers)),), "metrics_path": write("metrics.jsonl", metrics),
                 "repeats_path": write("repeats.jsonl", rows) if rows else None,
                 "signoffs_path": Path(folder) / "none.json", "verify_instructions": bool(digest)}

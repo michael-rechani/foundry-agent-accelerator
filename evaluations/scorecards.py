@@ -8,9 +8,10 @@ Each case has one recorded answer (run 1, the one a person reads) and, in the re
 runs of the same request. A case passes only when every run passes, because a model that gets a
 case right once can still get it wrong the next time.
 
-Every recorded answer carries a fingerprint of the instructions its agent had when it was run. The
-build fails if the Lab's instructions for an agent have changed since, so the test results can't
-describe instructions the Lab no longer uses.
+Every recorded row carries a fingerprint of the instructions its agent had when it was run, and the
+date it was recorded. The build fails if the Lab's instructions for an agent have changed since, so
+the test results can't describe instructions the Lab no longer uses; library_runs.py re-records an
+agent's answers. An agent's test date is the latest date on its rows.
 
     python scorecards.py write   # regenerate the Lab's copy
     python scorecards.py check   # fail if the Lab's copy is out of date
@@ -36,12 +37,12 @@ from library_checks import CASES_PATH, TEMPLATES, case_input, load_cases, score
 HERE = Path(__file__).resolve().parent
 EVIDENCE = HERE / "evidence"
 OUTPUT = HERE.parent / "workbench" / "agent_scorecards.json"
-TESTED_ON = "2026-09-29"
 ANSWERS_DATASET = "library-v4"
+ANSWERS = EVIDENCE / "library-acceptance-2026-09-29.jsonl"
 # Later runs replace earlier answers for the same case. The direct run sent each case with the
 # template's current instructions straight to the Lab's Foundry project and timed it from the
 # machine that ran it, so its times can differ slightly from the live Lab.
-RUNS = (("direct", EVIDENCE / "library-acceptance-2026-09-29.jsonl"),)
+RUNS = (("direct", ANSWERS),)
 METRICS = EVIDENCE / "library-acceptance-2026-09-29-metrics.jsonl"
 # Runs 2 and up of the same cases, each row carrying its own answer and metrics.
 REPEATS = EVIDENCE / "library-repeat-2026-09-29.jsonl"
@@ -111,13 +112,21 @@ def instructions_digest(template_id):
     return hashlib.sha256(TEMPLATES[template_id]["instructions"].encode("utf-8")).hexdigest()
 
 
-def _check_fingerprint(record, case, run):
+def _check_fingerprint(record, case, run, what="answer"):
     recorded = record.get("instructions_sha256")
     if not recorded:
-        raise ValueError(f"{case['id']} run {run}: no instructions fingerprint was recorded with this answer")
+        raise ValueError(f"{case['id']} run {run}: no instructions fingerprint was recorded with this {what}")
     if recorded != instructions_digest(case["template_id"]):
         raise ValueError(f"{case['id']} run {run}: the instructions of {case['template_id']} changed after this "
-                         "answer was recorded; run its test cases again")
+                         f"{what} was recorded; record its test answers again with: "
+                         f"python evaluations/library_runs.py record --templates {case['template_id']} --yes")
+
+
+def _recorded_on(record, where):
+    value = record.get("recorded_on")
+    if not isinstance(value, str) or not _valid_date(value):
+        raise ValueError(f"{where}: no recorded date; every row needs recorded_on as YYYY-MM-DD")
+    return value
 
 
 def template_digests(cases, answers):
@@ -206,6 +215,10 @@ def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PR
         attempts = [(1, record, measured)] + [
             (number, row, _measured(row, f"{case['id']} run {number}"))
             for number, row in sorted(repeats.get(case["id"], {}).items())]
+        dates = [_recorded_on(record, f"{case['id']} run 1 answer"), _recorded_on(measured, f"{case['id']} run 1 metrics")]
+        dates += [_recorded_on(row, f"{case['id']} run {number}") for number, row, _ in attempts[1:]]
+        if verify_instructions:
+            _check_fingerprint(measured, case, 1, "metrics row")
         results = []
         for number, answer, metric in attempts:
             if verify_instructions:
@@ -217,13 +230,14 @@ def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PR
                               metric["output_tokens"])
             results.append({"run": number, "passed": passed, "failures": failures, "cost": cost, "metric": metric})
         card = scorecards.setdefault(case["template_id"], {
-            "template_id": case["template_id"], "tested_on": TESTED_ON, "model": measured["model"],
+            "template_id": case["template_id"], "tested_on": "", "model": measured["model"],
             "answers_from": set(), "signed_off": False, "signed_off_by": None, "signed_off_on": None,
             "cases": [], "run_seconds": [], "run_costs": [],
         })
         if measured["model"] != card["model"]:
             raise ValueError(f"{case['id']}: mixed models for {case['template_id']}")
         card["answers_from"].add(run)
+        card["tested_on"] = max(card["tested_on"], *dates)
         card["run_seconds"] += [item["metric"]["seconds"] for item in results]
         card["run_costs"] += [item["cost"] for item in results]
         passing = sum(item["passed"] for item in results)
