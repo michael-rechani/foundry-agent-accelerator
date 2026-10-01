@@ -144,11 +144,13 @@ and single worker/replica. Before enabling, complete these checks.
    (`azurerm_role_assignment.foundry` in
    [`workbench/infra/main.tf`](../workbench/infra/main.tf)). Microsoft Learn's
    deployment guide asks for Foundry Project Manager to publish, and Learn's
-   pages disagree on whether Foundry User is enough. Neither has been tested
-   here; see
+   pages disagree on whether Foundry User is enough. Foundry User alone hasn't
+   been tested here, and the dev Lab identity also got Foundry Project Manager
+   by hand; see
    [Foundry User and Foundry Project Manager](permissions.md#foundry-user-and-foundry-project-manager).
-   This feature does not grant roles or alter existing identities or
-   permissions.
+   Creation doesn't grant roles or alter existing identities or permissions.
+   The only role Lab Terraform can add for it is the optional Key Vault grant
+   in step 4.
 1. Create a strong, randomly generated operator key of at least 32 characters,
    preferably through an approved password manager. Store only its lowercase
    SHA-256 UTF-8 verifier in an existing Azure Key Vault secret. Give the raw
@@ -166,15 +168,20 @@ and single worker/replica. Before enabling, complete these checks.
      tool_calling = "gpt-4.1"
    }
    agent_creation_key_secret_id = "https://your-vault.vault.azure.net/secrets/lab-creation-key-verifier"
+   # Optional: have Lab Terraform give the Lab identity Key Vault Secrets User on that one secret.
+   # agent_creation_key_secret_resource_id = "/subscriptions/<subscription ID>/resourceGroups/<vault resource group>/providers/Microsoft.KeyVault/vaults/your-vault/secrets/lab-creation-key-verifier"
    ```
 
    Use deployment names that exist in your Foundry project; these are
    examples. `agent_creation_models` is optional.
 
-   The secret must contain the **verifier**, not the raw key. Key Vault access
-   for the existing Lab identity must already be provisioned by the environment
-   owner. The optional reference creates no vault, secret, role assignment, or
-   model deployment.
+   The secret must contain the **verifier**, not the raw key. The Lab identity
+   needs Key Vault Secrets User on that one secret. Either the environment owner
+   provisions it, or you set `agent_creation_key_secret_resource_id` and Lab
+   Terraform assigns it. If that assignment already exists, [import it
+   first](permissions.md#adopt-the-key-vault-grant). The reference creates no
+   vault, secret, or model deployment, and no role assignment unless you set the
+   resource ID.
 1. Rebuild the Lab image so it includes the reviewed runtime bundle, then use
    the existing approved deployment process. The source-code and test changes do
    not perform a deployment or permission change by themselves.
@@ -348,7 +355,7 @@ ContainerAppConsoleLogs
 | Code | What it means | What to do |
 | --- | --- | --- |
 | `model_unavailable` | The template's model deployment doesn't exist in the Foundry project. Nothing was uploaded. | Deploy the model or change `agent_creation_models`. Then delete the failed record and create the agent again. |
-| `operator_permissions_required` | Foundry returned 401 or 403 to the Lab's managed identity. | Review the identity's role on the Foundry project. The Lab never grants roles itself. |
+| `operator_permissions_required` | Foundry returned 401 or 403 to the Lab's managed identity. | Review the identity's role on the Foundry project. The Lab never grants roles itself. Whether Foundry User alone is enough isn't confirmed; see [Test whether the Lab needs Foundry Project Manager](permissions.md#test-whether-the-lab-needs-foundry-project-manager). |
 | `runtime_failed` | The hosted version was built but didn't become active. | Check `service_error` in the log and open the version in the Foundry portal. `CodeError` means the uploaded package was rejected. For example, Foundry reports "No Python dependency manifest found" when the ZIP entries have no regular-file mode bits. Delete the record, then create the agent again. |
 | `publication_timeout` or `publication_unconfirmed` | The Lab couldn't confirm the outcome. Foundry work may still be running. | Select **Refresh status**, then **Resume setup** on the same record. Don't start a new creation. |
 | `resource_changed` | The Foundry agent, its versions, or its route no longer match this record, often after a change made outside the Lab. | Inspect the agent in Foundry with an operator. The Lab stops making automatic changes. |

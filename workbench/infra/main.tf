@@ -89,10 +89,19 @@ variable "agent_creation_models" {
 variable "agent_creation_key_secret_id" {
   type        = string
   default     = null
-  description = "Existing Key Vault secret URI containing the lowercase SHA-256 operator-key verifier, never the raw key. Its access must be provisioned separately."
+  description = "Existing Key Vault secret URI containing the lowercase SHA-256 operator-key verifier, never the raw key. Its access must be provisioned separately unless agent_creation_key_secret_resource_id is set."
   validation {
     condition     = var.agent_creation_key_secret_id == null ? true : can(regex("^https://[A-Za-z0-9-]+\\.vault\\.azure\\.net/secrets/[A-Za-z0-9-]+(/[A-Za-z0-9]+)?$", var.agent_creation_key_secret_id))
     error_message = "Use an existing Key Vault secret URI."
+  }
+}
+variable "agent_creation_key_secret_resource_id" {
+  type        = string
+  default     = null
+  description = "Optional Azure resource ID of the Key Vault secret that agent_creation_key_secret_id points to. When set, Terraform gives the Lab identity Key Vault Secrets User on only that secret. Leave it null if the environment owner provisions that access separately."
+  validation {
+    condition     = var.agent_creation_key_secret_resource_id == null ? true : can(regex("^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[A-Za-z0-9._()-]+/providers/Microsoft\\.KeyVault/vaults/[A-Za-z0-9-]+/secrets/[A-Za-z0-9-]+$", var.agent_creation_key_secret_resource_id))
+    error_message = "Use the Azure resource ID of an existing Key Vault secret."
   }
 }
 variable "name" {
@@ -164,6 +173,26 @@ resource "azurerm_role_assignment" "foundry" {
   scope              = local.project_id
   role_definition_id = "/subscriptions/${var.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/53ca6127-db72-4b80-b1b0-d745d6d5456d"
   principal_id       = azurerm_user_assigned_identity.this.principal_id
+}
+# Key Vault Secrets User: lets the Container App resolve its Key Vault reference
+# to the operator-key verifier. It covers that one secret only. The variable is
+# optional so an environment owner can still provision this access separately.
+resource "azurerm_role_assignment" "creation_key_verifier" {
+  count              = var.agent_creation_key_secret_resource_id == null ? 0 : 1
+  scope              = var.agent_creation_key_secret_resource_id
+  role_definition_id = "/subscriptions/${var.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6"
+  principal_id       = azurerm_user_assigned_identity.this.principal_id
+  description        = "Foundry Lab agent creation"
+  lifecycle {
+    precondition {
+      condition = try(
+        [for part in regex("^https://([A-Za-z0-9-]+)\\.vault\\.azure\\.net/secrets/([A-Za-z0-9-]+)", var.agent_creation_key_secret_id) : lower(part)] ==
+        [for part in regex("/vaults/([A-Za-z0-9-]+)/secrets/([A-Za-z0-9-]+)$", var.agent_creation_key_secret_resource_id) : lower(part)],
+        false,
+      )
+      error_message = "Set agent_creation_key_secret_id, and make agent_creation_key_secret_resource_id the resource ID of that same vault and secret."
+    }
+  }
 }
 
 resource "azurerm_container_app_environment" "this" {
@@ -313,7 +342,7 @@ resource "azurerm_container_app" "this" {
       }
     }
   }
-  depends_on = [azurerm_role_assignment.pull, azurerm_role_assignment.foundry, azurerm_cosmosdb_sql_role_assignment.history]
+  depends_on = [azurerm_role_assignment.pull, azurerm_role_assignment.foundry, azurerm_role_assignment.creation_key_verifier, azurerm_cosmosdb_sql_role_assignment.history]
 }
 
 output "registry_name" { value = azurerm_container_registry.this.name }
