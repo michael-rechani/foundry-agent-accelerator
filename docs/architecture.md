@@ -100,7 +100,7 @@ you need to answer:
 ## Agent collaboration
 
 The diagrams in this section describe the existing coordinator. Created agents
-published from the Lab use the [reviewed template runtime](agent-creation.md#configuration-ownership):
+published from the Lab use the [built-in template runtime](agent-creation.md#configuration-ownership):
 four supplied-text jobs have no tools, and the workflow job has only two
 simulated read-only lookups. They do not silently delegate to these review
 specialists.

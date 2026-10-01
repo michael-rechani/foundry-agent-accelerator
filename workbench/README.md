@@ -18,7 +18,7 @@ FastAPI backend and shared Azure Cosmos DB storage.
 | Agent library | The opening page. Browse agent definitions by sector or industry (one list), task, readiness, and tool mode; compare a sample example with expected behavior; create, test, and export. |
 | Guided demos | Three sample customer stories with expected findings and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
 | Add-ons | A preview of optional tools and skills an agent could connect to later, such as knowledge search or a calculator. It shows what each would do, cost and need. Nothing is built or turned on. |
-| Agent creation | **Create agent** prepares instructions from reviewed templates. Publication is a separate operator-protected action. **Chat does not create or configure agents.** |
+| Agent creation | **Create agent** prepares instructions from built-in templates. Publication is a separate operator-protected action. **Chat does not create or configure agents.** |
 | Prebuilt agents | The prebuilt agents remain available. **Checklist and case helper** is the default visible prebuilt agent. |
 | Document reviews | **Document reviews** saves one structured check per checklist item and keeps the original text beside the result. |
 | Data boundary | Use sample data only. The Lab doesn't connect to customer systems or perform business writes. |
@@ -193,7 +193,7 @@ data contract and deployment checks. You don't need it to use **Chat**.
 | **Guided demos** | Shows sample stories and loads a sample into an enabled matching agent, or into its library preview when the Lab has previews on. | Expected findings are illustrative. Hidden, failed, and unavailable agents are not selectable; samples are never automatically sent. |
 | **Add-ons** | Lists six planned add-ons (knowledge search, conversation memory, document extraction, notifications, code interpreter and web search) from a fixed list in `src/add-on-catalog.ts`. | Preview only. It makes no API call, saves nothing and turns nothing on. Every add-on is off by default, private, keyless and needs its cost shown first. Web search also needs explicit data-handling approval. Service names, billing meters and the roadmap issue appear under the hood. |
 | **New chat** | Starts a new Chat draft for the selected agent. | It doesn't create an agent or submit a starter prompt. |
-| **Create agent** | Prepares a setup from a reviewed template and, when enabled, lets an operator publish it. | Preparation is deterministic template assembly, not a model-designed agent. |
+| **Create agent** | Prepares a setup from a built-in template and, when enabled, lets an operator publish it. | Preparation is deterministic template assembly, not a model-designed agent. |
 | **Made in this Lab** | Lists agents published from the Lab's creation flow. | Ready agents can be selected in **Chat**. |
 | **Chat** | Sends a message to the selected prebuilt agent, ready created agent, or library preview. | A chat prompt doesn't edit tools, instructions, or runtime configuration. |
 | **Agent switcher** | Opens from the agent name in the Chat header. Search and switch between **Ready agents** and **Library previews** without leaving Chat, or choose **Browse the full library**. | Switching keeps your unsent draft. Agents marked **In progress** pass offline tests but aren't validated live. |

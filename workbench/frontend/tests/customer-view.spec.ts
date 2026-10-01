@@ -124,7 +124,7 @@ test('the customer view hides technical details until Under the hood is on', asy
 })
 
 const portal =
-  'https://ai.azure.com/nextgen/r/2gTvLTQRRlqW0WfHU1ZyCg,rg-lab,,lab-account,lab-project'
+  'https://ai.azure.com/nextgen/r/qqqqqru7TMyN3e7u7u7u7g,rg-lab,,lab-account,lab-project'
 
 test('add-on technical details stay hidden until Under the hood is on', async ({
   page,

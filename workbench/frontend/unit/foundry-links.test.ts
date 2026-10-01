@@ -3,7 +3,7 @@ import { describe, it } from 'node:test'
 import { foundryAgentUrl, validPortal } from '../src/foundry-links.ts'
 
 const portal =
-  'https://ai.azure.com/nextgen/r/2gTvLTQRRlqW0WfHU1ZyCg,rg-lab,,lab-account,lab-project'
+  'https://ai.azure.com/nextgen/r/qqqqqru7TMyN3e7u7u7u7g,rg-lab,,lab-account,lab-project'
 
 describe('Foundry links', () => {
   it('accepts only the Foundry portal project prefix', () => {

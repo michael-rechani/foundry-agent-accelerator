@@ -31,7 +31,7 @@ Browser-test artwork uses explicitly labeled mocked APIs, not live results.
 
 ## Capabilities and Constraints
 
-- Create agents from reviewed templates only after explicit operator and cost
+- Create agents from built-in templates only after explicit operator and cost
   confirmation. Preparing a setup is not publication.
 - Chat with configured agents; review supplied documents against criteria.
 - Keep fictional inputs, expected findings, and actual model responses distinct.
@@ -51,7 +51,7 @@ benchmarks, customer endorsements, or production claims.
 
 ## Evidence on Hand
 
-The repository includes fictional scenarios in `docs/demo-inputs/`, reviewed
+The repository includes fictional scenarios in `docs/demo-inputs/`, built-in
 templates in `workbench/agent_templates.py`, simulated lookup records in
 `workbench/agent_runtime/demo_tools.py`, and editable architecture artwork in
 `docs/images/`. Expected findings are examples to check, not measured outcomes.
@@ -80,7 +80,7 @@ keyboard access, responsive layouts, accessible contrast and reduced motion.
 
 LifeOS Skills is an inspiration for discoverability, not a design or content
 template. Create original visual language, agent definitions and workflows.
-Build on the existing reviewed templates, creation lifecycle and portable
+Build on the existing templates, creation lifecycle and portable
 bundles rather than introducing a parallel catalog or deployment system.
 
 This is a direction, not a claim that customer isolation, arbitrary agent

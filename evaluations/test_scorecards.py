@@ -187,6 +187,25 @@ class ScorecardTests(unittest.TestCase):
                 with self.subTest(name), self.assertRaisesRegex(ValueError, message):
                     scorecards.build(**self.evidence(folder, good, repeats, changes))
 
+    def test_a_case_has_one_answer_and_one_metrics_row_in_a_file(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        with tempfile.TemporaryDirectory() as folder:
+            for name, message in (("answers.jsonl", "has an answer more than once"),
+                                  ("metrics.jsonl", "has a metrics row more than once")):
+                evidence = self.evidence(folder, good, [])
+                path = Path(folder) / name
+                path.write_text(path.read_text(encoding="utf-8") * 2, encoding="utf-8")
+                with self.subTest(name), self.assertRaisesRegex(ValueError, f"{name}: document-analyst-sample {message}"):
+                    scorecards.build(**evidence)
+            # A sign-off covers the exact answers a person read, so an ambiguous file can't be signed off.
+            evidence = self.evidence(folder, good, [])
+            answers, signoffs = Path(folder) / "answers.jsonl", Path(folder) / "signed.json"
+            answers.write_text(answers.read_text(encoding="utf-8") * 2, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "answers.jsonl: document-analyst-sample has an answer more than once"):
+                scorecards.record_signoff("Pat Reviewer", "2026-09-30", ["document-analyst"], path=signoffs,
+                                          runs=evidence["runs"])
+            self.assertFalse(signoffs.exists())
+
     def test_answers_must_come_from_the_instructions_the_lab_serves(self):
         good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
         current = scorecards.instructions_digest("document-analyst")

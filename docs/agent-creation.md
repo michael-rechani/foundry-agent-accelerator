@@ -2,7 +2,7 @@
 
 [Home](../README.md) / [Docs](README.md) / [Demo guide](demos.md) / Agent creation
 
-The Lab can prepare a task setup from a reviewed template, publish a real named
+The Lab can prepare a task setup from a built-in template, publish a real named
 Microsoft Foundry hosted agent after operator confirmation, and open that agent
 in **Chat**. This guide is for operators and demo leads who need to enable and
 try the feature without overstating what it does. The result is a small

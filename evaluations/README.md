@@ -227,7 +227,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Evaluation dependency check failed' }
 if ($LASTEXITCODE -ne 0) { throw 'Evaluation contract tests failed' }
 ```
 
-This environment pins Projects SDK **2.6.1** and OpenAI **3.19.0**, the same
+This environment pins Projects SDK **2.6.1** and OpenAI **3.19.2**, the same
 versions as the deployment and Lab environments. OpenAI 3 sends requests through
 `httpx2`, which checks TLS certificates against the operating-system trust store
 instead of `certifi`. The hand-authored rubric
@@ -415,7 +415,7 @@ Timeouts before a response cannot provide response usage or completion timing.
 ## SDK contract evidence, not service assumptions
 
 [The offline SDK transport tests](test_sdk_contract.py) exercise the pinned
-Projects 2.6.1 and OpenAI 3.19.0 clients with synthetic HTTP responses. They
+Projects 2.6.1 and OpenAI 3.19.2 clients with synthetic HTTP responses. They
 check native evaluator serialization, inline evaluation/run requests, paginated
 results, inventory deserialization, and receipt metadata. In particular:
 
@@ -775,7 +775,10 @@ runs again. Saved runs from other instructions or another model are dropped.
 
 **What changes.** Only when all of an agent's runs are saved does it replace that
 agent's rows, and no one else's, in the three files in [evidence/](evidence/).
-The files are written together, so a failure leaves the old ones. Every new row
+Each file is first written in full beside the original, so a failed write (a
+full disk, say) changes nothing. The three are then swapped in one after
+another. If a swap fails part-way, the saved runs are kept and the same command
+finishes the job without calling Foundry again. Every new row
 carries the instructions' fingerprint (`instructions_sha256`) and the date it was
 recorded (`recorded_on`), and the Lab's test date for an agent is the latest of
 those dates. Rows from two versions of an agent's instructions never mix. Agents
