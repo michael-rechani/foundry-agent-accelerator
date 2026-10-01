@@ -242,6 +242,38 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(failures[0]["error_type"], "RuntimeError")
         self.assertGreaterEqual(failures[0]["elapsed_ms"], 0)
 
+    def test_foundry_failure_reports_which_step_was_slow(self):
+        async def stalled(agents, timings):
+            timings.update(stage="read", token_ms=41, read_ms=5003)
+            raise TimeoutError("secret dependency details")
+
+        self.gateway.check.side_effect = stalled
+        with self.assertLogs("uvicorn.error", level="INFO") as logs:
+            with TestClient(create_app(self.settings, self.gateway, AsyncMock())) as client:
+                self.assertEqual(client.get("/api/health/dependencies").status_code, 503)
+        events = [json.loads(record.getMessage()) for record in logs.records]
+        failure = next(event for event in events if event["event"] == "workbench_dependency_failed")
+        self.assertEqual((failure["dependency"], failure["error_type"]), ("foundry", "TimeoutError"))
+        self.assertEqual((failure["stage"], failure["token_ms"], failure["read_ms"]), ("read", 41, 5003))
+        self.assertGreaterEqual(failure["elapsed_ms"], 0)
+        self.assertNotIn("secret", " ".join(logs.output))
+
+    def test_dependency_heartbeat_logs_how_long_each_probe_took(self):
+        async def check(agents, timings):
+            timings.update(stage="read", token_ms=12, read_ms=290)
+
+        self.gateway.check.side_effect = check
+        with self.assertLogs("uvicorn.error", level="INFO") as logs:
+            with TestClient(create_app(self.settings, self.gateway, AsyncMock())) as client:
+                response = client.get("/api/health/dependencies")
+        self.assertEqual(response.json(), {"status": "ready", "foundry": "ready", "cosmos": "ready"})
+        events = [json.loads(record.getMessage()) for record in logs.records]
+        heartbeat = next(event for event in events if event["event"] == "workbench_dependencies")
+        self.assertEqual((heartbeat["foundry_token_ms"], heartbeat["foundry_read_ms"]), (12, 290))
+        self.assertGreaterEqual(heartbeat["foundry_ms"], 0)
+        self.assertGreaterEqual(heartbeat["cosmos_ms"], 0)
+        self.assertNotIn("stage", heartbeat)
+
     def test_rejects_unapproved_browser_requests(self):
         for headers in ({}, {**self.headers, "Origin": "https://evil.example"},
                         {**self.headers, "Sec-Fetch-Site": "cross-site"}):
@@ -438,6 +470,58 @@ class FoundryGatewayTests(unittest.IsolatedAsyncioTestCase):
         credential.close.assert_awaited_once()
         await gateway.close()
         pool.aclose.assert_awaited_once()
+
+    @staticmethod
+    def check_gateway(token_error=None, read_error=None):
+        credential, project = MagicMock(), MagicMock()
+        credential.__aenter__ = AsyncMock(return_value=credential)
+        credential.__aexit__ = AsyncMock(return_value=None)
+        project.__aenter__ = AsyncMock(return_value=project)
+        project.__aexit__ = AsyncMock(return_value=None)
+        credential.get_token = AsyncMock(side_effect=token_error)
+        project.agents.get = AsyncMock(side_effect=read_error)
+        modules = {
+            "azure.ai.projects.aio": SimpleNamespace(AIProjectClient=MagicMock(return_value=project)),
+            "azure.identity.aio": SimpleNamespace(ManagedIdentityCredential=MagicMock(return_value=credential)),
+        }
+        settings = Settings("private", "https://example.services.ai.azure.com/api/projects/test",
+                            ("testserver",), ("https://testserver",))
+        return FoundryGateway(settings), credential, project, patch.dict(sys.modules, modules)
+
+    async def test_check_times_the_sign_in_and_the_agent_reads_separately(self):
+        gateway, credential, project, modules = self.check_gateway()
+        timings = {}
+        with modules:
+            await gateway.check([{"agent": "one"}, {"agent": "two"}], timings)
+        credential.get_token.assert_awaited_once_with("https://ai.azure.com/.default")
+        self.assertEqual([call.args for call in project.agents.get.await_args_list], [("one",), ("two",)])
+        self.assertEqual(timings["stage"], "read")
+        self.assertGreaterEqual(timings["token_ms"], 0)
+        self.assertGreaterEqual(timings["read_ms"], 0)
+
+    async def test_check_names_the_step_that_failed(self):
+        gateway, _, project, modules = self.check_gateway(read_error=RuntimeError("stalled"))
+        timings = {}
+        with modules, self.assertRaises(RuntimeError):
+            await gateway.check([{"agent": "one"}], timings)
+        self.assertEqual(timings["stage"], "read")
+        self.assertIn("token_ms", timings)
+        self.assertIn("read_ms", timings)
+
+        gateway, _, project, modules = self.check_gateway(token_error=RuntimeError("no token"))
+        timings = {}
+        with modules, self.assertRaises(RuntimeError):
+            await gateway.check([{"agent": "one"}], timings)
+        self.assertEqual(timings["stage"], "token")
+        self.assertIn("token_ms", timings)
+        self.assertNotIn("read_ms", timings)
+        project.agents.get.assert_not_awaited()
+
+    async def test_check_works_without_a_timings_dict(self):
+        gateway, _, project, modules = self.check_gateway()
+        with modules:
+            await gateway.check([{"agent": "one"}])
+        project.agents.get.assert_awaited_once_with("one")
 
     def session_gateway(self, responses, reuse_seconds=600):
         openai_client = MagicMock()

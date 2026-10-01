@@ -7,7 +7,7 @@ import os
 import re
 import time
 from collections import deque
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
@@ -31,6 +31,7 @@ LOGGER = logging.getLogger("uvicorn.error")
 MAX_CHARACTERS = 60000
 MAX_HISTORY_TURNS = 10
 MAX_REUSED_SESSIONS = 512
+FOUNDRY_SCOPE = "https://ai.azure.com/.default"
 THREAD = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\Z")
 HISTORY_TIMEOUT_MS = 45000
 FOUNDRY_PROJECT_ID = re.compile(
@@ -249,22 +250,39 @@ def execution_receipts(output, bindings):
     return receipts
 
 
+@contextmanager
+def timed_step(timings, stage):
+    """Record the step in progress and, even if it fails or is cancelled, how long it ran."""
+    timings["stage"] = stage
+    started = time.monotonic()
+    try:
+        yield
+    finally:
+        timings[f"{stage}_ms"] = round((time.monotonic() - started) * 1000)
+
+
 class FoundryGateway:
     def __init__(self, settings):
         self.settings = settings
         self._credential = self._project = self._http_client = None
         self._sessions = {}
 
-    async def check(self, agents):
+    async def check(self, agents, timings=None):
+        """Sign in, then read each agent. `timings` gets the step in progress and each step's duration (ms)."""
         from azure.ai.projects.aio import AIProjectClient
         from azure.identity.aio import ManagedIdentityCredential
 
+        timings = {} if timings is None else timings
         async with ManagedIdentityCredential(client_id=os.getenv("AZURE_CLIENT_ID")) as credential, AIProjectClient(
             endpoint=self.settings.endpoint, credential=credential, allow_preview=True,
             connection_timeout=5, read_timeout=5, retry_total=0,
         ) as project:
-            for agent in agents:
-                await project.agents.get(agent["agent"])
+            # The client asks for the same scope, so the read below reuses this token and is timed on its own.
+            with timed_step(timings, "token"):
+                await credential.get_token(FOUNDRY_SCOPE)
+            with timed_step(timings, "read"):
+                for agent in agents:
+                    await project.agents.get(agent["agent"])
 
     def _review_project(self):
         if self._project is None:
@@ -465,26 +483,32 @@ class DependencyMonitor:
         self.status = {"status": "disabled" if settings.mode == "preview" else "starting"}
 
     @staticmethod
-    async def check(operation, dependency):
+    async def check(operation, dependency, timings):
+        """Run one probe. `timings` gets elapsed_ms plus anything the probe records, such as Foundry's steps."""
         started = time.monotonic()
         try:
             async with asyncio.timeout(15):
                 await operation()
-            return "ready"
         except Exception as problem:
+            timings["elapsed_ms"] = round((time.monotonic() - started) * 1000)
             LOGGER.warning(json.dumps({"event": "workbench_dependency_failed", "dependency": dependency,
-                "error_type": type(problem).__name__,
-                "elapsed_ms": round((time.monotonic() - started) * 1000)}))
+                                       "error_type": type(problem).__name__, **timings}))
             return "unavailable"
+        timings["elapsed_ms"] = round((time.monotonic() - started) * 1000)
+        return "ready"
 
     async def probe(self):
+        foundry_timings, cosmos_timings = {}, {}
         foundry, cosmos = await asyncio.gather(
-            self.check(lambda: self.gateway.check(self.agents), "foundry"),
-            self.check(self.history_store.check, "cosmos") if self.history_store is not None else asyncio.sleep(0, result="disabled"),
+            self.check(lambda: self.gateway.check(self.agents, foundry_timings), "foundry", foundry_timings),
+            self.check(self.history_store.check, "cosmos", cosmos_timings) if self.history_store is not None else asyncio.sleep(0, result="disabled"),
         )
         self.status.update(status="ready" if foundry == "ready" and cosmos in {"ready", "disabled"} else "degraded",
                            foundry=foundry, cosmos=cosmos)
-        LOGGER.info(json.dumps({"event": "workbench_dependencies", **self.status}))
+        durations = {"foundry_ms": foundry_timings.get("elapsed_ms"), "foundry_token_ms": foundry_timings.get("token_ms"),
+                     "foundry_read_ms": foundry_timings.get("read_ms"), "cosmos_ms": cosmos_timings.get("elapsed_ms")}
+        LOGGER.info(json.dumps({"event": "workbench_dependencies", **self.status,
+                                **{name: value for name, value in durations.items() if value is not None}}))
 
     async def monitor(self, stopped):
         while not stopped.is_set():

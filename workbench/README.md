@@ -724,13 +724,26 @@ Every minute the backend checks configured Foundry agents without generating
 responses and performs an empty-result Cosmos query. Results are cached at
 `/api/health/dependencies`; failures return 503 without exception details.
 Failed probes emit `workbench_dependency_failed` with the dependency,
-exception class, and probe duration. They have no request ID because they run
+exception class, and probe duration (`elapsed_ms`). A failed Foundry probe also
+says which step it was in (`stage`: `token` for the managed-identity sign-in,
+`read` for reading the agents) and how long each step ran (`token_ms`,
+`read_ms`), so a stall can be placed before or after sign-in. Each successful
+`workbench_dependencies` heartbeat logs the same timings as `foundry_ms`,
+`foundry_token_ms`, `foundry_read_ms`, and `cosmos_ms`, so slow-but-passing
+checks are visible too. These fields are not in the
+`/api/health/dependencies` response. Probes have no request ID because they run
 outside a browser request. Use the response's `X-Correlation-ID` to find a
 failed API request's `workbench_request` event; never collect submitted text
 or operator keys to diagnose it.
 `/healthz` remains process-only, so dependency outages do not cause restart
 loops. These checks verify access, not model-generation quality or full Cosmos
 CRUD.
+
+Foundry probes have been seen failing in bursts of about 3 to 45 minutes.
+Foundry's own request log showed those reads held about 35 seconds and then
+answered with HTTP 408, so the stall was inside Foundry rather than in this
+app's connection or sign-in. The probe's 5-second read limit is deliberate: it
+reports a stall as soon as it starts. See issue #126 for the evidence.
 
 Azure Monitor raises alerts for five failures/throttles in five minutes, three
 degraded dependency samples in five minutes, and no heartbeat in 15 minutes.
