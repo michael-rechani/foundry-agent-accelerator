@@ -307,6 +307,14 @@
 .creation-error svg {
   margin-top: 3px;
 }
+/* A long setup puts the key and Create button far below the heading, so a
+   refusal stays pinned where the person is looking. */
+.creation-error-pinned {
+  position: sticky;
+  top: 8px;
+  z-index: 2;
+  box-shadow: 0 6px 16px var(--shadow-soft);
+}
 .creation-setup-heading {
   display: flex;
   justify-content: space-between;

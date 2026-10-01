@@ -375,7 +375,7 @@ export function AgentCreationWorkspace({
         )}
       </div>
       {error && (
-        <div className="creation-error" role="alert">
+        <div className="creation-error creation-error-pinned" role="alert">
           <CircleAlert size={18} />
           <p>{error}</p>
         </div>
