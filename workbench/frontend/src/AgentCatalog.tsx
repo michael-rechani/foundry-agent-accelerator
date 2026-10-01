@@ -2,12 +2,23 @@ import { ArrowRight, FileCheck2, GitBranch, Search } from 'lucide-react'
 import { AgentGuide, AgentRuntime, ConfigurationGuide } from './AgentGuide'
 import type { Agent, CreationCapability } from './workspace-config'
 
+const sendNote =
+  'Each agent does one job, and nothing is sent until you press Send.'
+
+// The count is the same one the "Ready to chat" tab shows.
+function readySummary(count: number | null) {
+  if (count === null) return sendNote
+  if (!count) return 'No agents are ready to chat yet.'
+  return `${count} ${count === 1 ? 'agent is' : 'agents are'} ready to chat. ${sendNote}`
+}
+
 export function AgentCatalog({
   agents,
   selected,
   query,
   loaded,
   creation,
+  previewsOn,
   foundryPortal,
   disabled,
   onQuery,
@@ -19,6 +30,7 @@ export function AgentCatalog({
   query: string
   loaded: boolean
   creation?: CreationCapability
+  previewsOn: boolean
   foundryPortal?: string | null
   disabled: boolean
   onQuery: (query: string) => void
@@ -30,13 +42,21 @@ export function AgentCatalog({
       .toLowerCase()
       .includes(query.toLowerCase()),
   )
+  const tail = !loaded
+    ? ''
+    : previewsOn
+      ? 'Library agents can be tried as previews from Browse.'
+      : creation?.enabled
+        ? 'To try another library agent, open Browse and make your own copy.'
+        : ''
   return (
     <main className="secondary-view">
       <div className="section-heading">
         <h1>Choose an agent</h1>
         <p>
-          Pick an agent to start a chat. Each one does one job, and nothing is
-          sent until you press Send.
+          {[readySummary(loaded ? agents.length : null), tail]
+            .filter(Boolean)
+            .join(' ')}
         </p>
       </div>
       <ConfigurationGuide creation={creation} onCreate={onCreate} />
@@ -118,7 +138,7 @@ export function AgentCatalog({
           </article>
         ))}
       </div>
-      {loaded && !matches.length && (
+      {loaded && !!agents.length && !matches.length && (
         <p className="no-data">No matching agents</p>
       )}
     </main>

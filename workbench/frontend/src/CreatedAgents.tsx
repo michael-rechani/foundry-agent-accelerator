@@ -66,13 +66,13 @@ export function CreatedAgentList({
   ) : (
     !error && (
       <div className="creation-empty">
-        <h2>No created agents yet</h2>
+        <h2>Nothing made in this Lab yet</h2>
         <p>
-          Prepare a task setup first. It appears here only after the server has
-          saved a creation request.
+          Agents you create from a library template appear here, with their
+          status. Once one is ready, it also shows up under Ready to chat.
         </p>
         <button className="creation-primary" onClick={onCreate}>
-          Prepare an agent
+          Create an agent
         </button>
       </div>
     )

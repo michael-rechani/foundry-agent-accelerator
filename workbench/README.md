@@ -97,17 +97,17 @@ all-scenarios demonstration.
 | [Application completeness](../docs/demos.md#application-completeness) | **Available** | The source and walkthrough are included. This is not a live-validation claim. |
 | [Requirements and proposal review](../docs/demos.md#requirements-and-proposal-review) | **Preview** | This reuses the application agent and the existing criteria-and-evidence workflow. It doesn't add another agent. |
 
-The creation jobs are grouped on the page. **General:** Document
-explainer, Checklist gap finder, Form and invoice extractor, Case notes
-summarizer, and Service request planner. **Healthcare and public sector:**
-Medical bill reviewer, Insurance pre-approval helper, Benefits renewal helper,
-Supplier invoice reviewer, Public records intake, Grant reporting checker, and
-Community program brief. **Private sector:** nine jobs. The three newest
-public-sector jobs and all nine private-sector jobs are marked **In progress**:
-they pass offline contract and acceptance tests but aren't yet validated live.
-The first four General jobs use supplied text only. The Service request
-planner, the four reviewed healthcare and public-sector jobs, and two private-sector
-jobs each have two **simulated read-only** lookups.
+The creation jobs are grouped on the page by sector, using the same three names
+as the **Agent library**. **Works in any sector:** Document explainer,
+Checklist gap finder, Form field extractor, Service request planner, and
+Supplier invoice reviewer. **Healthcare and public sector:** Case summary
+writer, Medical bill reviewer, Insurance pre-approval helper, and Benefits
+renewal helper. **Private sector:** nine jobs. The nine private-sector jobs are
+marked **In progress**: they pass offline contract and acceptance tests but
+aren't yet validated live. Seven jobs each have two **simulated read-only**
+lookups: the Service request planner, the Supplier invoice reviewer, the
+Medical bill reviewer, the Insurance pre-approval helper, the Benefits renewal
+helper, and two private-sector jobs. The other eleven use supplied text only.
 None connects to customer systems or performs business writes. See [Create and try a baseline Microsoft Foundry agent](../docs/agent-creation.md).
 
 > [!IMPORTANT]

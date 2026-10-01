@@ -7,7 +7,9 @@ _TEXT_LIMITS = (
     "or make legal, medical, eligibility or payment decisions."
 )
 _DIRECT = "Works on its own from the text you give it. It doesn't call other agents or tools."
-_GENERAL = "General"
+# These are also the library's sector names (see SECTORS), so the Create page headings and the
+# library filter always agree.
+_ANY = "Works in any sector"
 _SECTOR = "Healthcare and public sector"
 _PRIVATE = "Private sector"
 _LOOKUP_RULES = (
@@ -41,7 +43,7 @@ MODEL_PROFILES = {
 TEMPLATES = {
     "document-analyst": {
         "id": "document-analyst",
-        "category": _GENERAL,
+        "category": _ANY,
         "model_profile": "reasoning",
         "label": "Document explainer",
         "description": "Explains a document in plain language, shows what changed and lists questions to ask.",
@@ -73,7 +75,7 @@ TEMPLATES = {
     },
     "criteria-checker": {
         "id": "criteria-checker",
-        "category": _GENERAL,
+        "category": _ANY,
         "model_profile": "reasoning",
         "label": "Checklist gap finder",
         "description": "Compares a document with your checklist and shows what's covered, missing or unclear.",
@@ -109,7 +111,7 @@ TEMPLATES = {
     },
     "document-intake": {
         "id": "document-intake",
-        "category": _GENERAL,
+        "category": _ANY,
         "model_profile": "extraction",
         "label": "Form field extractor",
         "description": "Pulls the fields you ask for out of forms or invoices, and leaves blanks instead of guessing.",
@@ -145,7 +147,7 @@ TEMPLATES = {
     },
     "casework-assistant": {
         "id": "casework-assistant",
-        "category": _GENERAL,
+        "category": _SECTOR,
         "model_profile": "reasoning",
         "label": "Case summary writer",
         "description": "Turns case notes into a clear summary, a timeline and useful follow-up questions.",
@@ -177,7 +179,7 @@ TEMPLATES = {
     },
     "workflow-coordinator": {
         "id": "workflow-coordinator",
-        "category": _GENERAL,
+        "category": _ANY,
         "model_profile": "tool_calling",
         "label": "Service request planner",
         "description": "Looks up a service request and suggests next steps for a person to approve.",
@@ -412,7 +414,7 @@ TEMPLATES = {
     },
     "supplier-invoice-reviewer": {
         "id": "supplier-invoice-reviewer",
-        "category": _GENERAL,
+        "category": _ANY,
         "model_profile": "reasoning",
         "label": "Supplier invoice reviewer",
         "description": "Compares what was ordered, delivered and billed, and shows what the documents support paying.",
@@ -931,9 +933,9 @@ def is_listed(template_id):
 
 
 SECTORS = (
-    {"id": "cross-sector", "label": "Any sector"},
-    {"id": "public", "label": "Healthcare and public sector"},
-    {"id": "private", "label": "Private sector"},
+    {"id": "cross-sector", "label": _ANY},
+    {"id": "public", "label": _SECTOR},
+    {"id": "private", "label": _PRIVATE},
 )
 INDUSTRIES = (
     {"id": "general-operations", "label": "General operations"},

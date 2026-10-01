@@ -116,9 +116,19 @@ class TemplateTests(unittest.TestCase):
         )
         self.assertEqual(
             {key for key, item in TEMPLATES.items() if item["category"] == "Healthcare and public sector"},
-            (SECTOR_JOBS - {"supplier-invoice-reviewer"}) | RETIRED_TEMPLATES,
+            (SECTOR_JOBS - {"supplier-invoice-reviewer"}) | {"casework-assistant"} | RETIRED_TEMPLATES,
         )
         self.assertEqual(sum(item["count"] for item in catalog_facets()["sectors"]), 18)
+
+    def test_create_page_groups_use_the_library_sector_names(self):
+        listed = list_templates()
+        for item in listed:
+            with self.subTest(identifier=item["id"]):
+                self.assertEqual(item["category"], item["sector"]["label"])
+        self.assertEqual(
+            {item["category"] for item in listed},
+            {sector["label"] for sector in catalog_facets()["sectors"]},
+        )
 
     def test_retired_jobs_stay_loadable_but_cannot_be_matched_or_chosen(self):
         for identifier in RETIRED_TEMPLATES:

@@ -4,7 +4,7 @@
   "templates": [
     {
       "id": "supplier-invoice-reviewer",
-      "category": "General",
+      "category": "Works in any sector",
       "model_profile": {
         "id": "reasoning",
         "label": "Reasoning",
@@ -34,7 +34,7 @@
       "summary": "Matches a supplier invoice with the order and delivery records.",
       "sector": {
         "id": "cross-sector",
-        "label": "Any sector"
+        "label": "Works in any sector"
       },
       "industry": {
         "id": "procurement",
@@ -381,7 +381,7 @@
     },
     {
       "id": "document-analyst",
-      "category": "General",
+      "category": "Works in any sector",
       "model_profile": {
         "id": "reasoning",
         "label": "Reasoning",
@@ -400,7 +400,7 @@
       "summary": "Explains documents in plain language, shows what changed and lists questions for staff.",
       "sector": {
         "id": "cross-sector",
-        "label": "Any sector"
+        "label": "Works in any sector"
       },
       "industry": {
         "id": "general-operations",
@@ -449,7 +449,7 @@
     },
     {
       "id": "document-intake",
-      "category": "General",
+      "category": "Works in any sector",
       "model_profile": {
         "id": "extraction",
         "label": "Fast extraction",
@@ -468,7 +468,7 @@
       "summary": "Pulls the fields you ask for from forms or invoices, and leaves missing ones blank.",
       "sector": {
         "id": "cross-sector",
-        "label": "Any sector"
+        "label": "Works in any sector"
       },
       "industry": {
         "id": "general-operations",
@@ -513,7 +513,7 @@
     },
     {
       "id": "criteria-checker",
-      "category": "General",
+      "category": "Works in any sector",
       "model_profile": {
         "id": "reasoning",
         "label": "Reasoning",
@@ -532,7 +532,7 @@
       "summary": "Checks a submission against a checklist and points out anything missing or conflicting.",
       "sector": {
         "id": "cross-sector",
-        "label": "Any sector"
+        "label": "Works in any sector"
       },
       "industry": {
         "id": "general-operations",
@@ -917,7 +917,7 @@
     },
     {
       "id": "workflow-coordinator",
-      "category": "General",
+      "category": "Works in any sector",
       "model_profile": {
         "id": "tool_calling",
         "label": "Tool calling",
@@ -947,7 +947,7 @@
       "summary": "Looks up a service request and suggests next steps for a person to approve.",
       "sector": {
         "id": "cross-sector",
-        "label": "Any sector"
+        "label": "Works in any sector"
       },
       "industry": {
         "id": "general-operations",
@@ -996,7 +996,7 @@
     },
     {
       "id": "casework-assistant",
-      "category": "General",
+      "category": "Healthcare and public sector",
       "model_profile": {
         "id": "reasoning",
         "label": "Reasoning",
@@ -1304,7 +1304,7 @@
     "sectors": [
       {
         "id": "cross-sector",
-        "label": "Any sector",
+        "label": "Works in any sector",
         "count": 5
       },
       {

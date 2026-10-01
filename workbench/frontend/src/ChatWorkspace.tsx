@@ -874,6 +874,7 @@ export default function ChatWorkspace() {
             query={query}
             loaded={!!config}
             creation={config?.agent_creation}
+            previewsOn={!!config?.library_preview?.enabled}
             foundryPortal={config?.foundry_portal}
             disabled={busy || historyBusy}
             onQuery={setQuery}

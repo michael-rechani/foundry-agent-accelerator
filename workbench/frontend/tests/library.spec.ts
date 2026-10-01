@@ -298,6 +298,57 @@ test('the library is the landing view and groups navigation into four sections',
   }
 })
 
+test('the Ready to chat and Made in this Lab pages explain their counts at 1 and 0', async ({
+  page,
+}) => {
+  await setup(page)
+  const tabs = page.getByRole('navigation', { name: 'Agent library' })
+  await tabs.getByRole('button', { name: /^Ready to chat/ }).click()
+  const intro = page
+    .getByRole('heading', { level: 1, name: 'Choose an agent' })
+    .locator('xpath=..')
+  await expect(intro).toContainText('1 agent is ready to chat.')
+  await expect(intro).toContainText(
+    'To try another library agent, open Browse and make your own copy.',
+  )
+  await expect(intro).not.toContainText('as previews')
+  await tabs.getByRole('button', { name: /^Made in this Lab/ }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Nothing made in this Lab yet' }),
+  ).toBeVisible()
+  await expect(
+    page.getByText('also shows up under Ready to chat'),
+  ).toBeVisible()
+  await page
+    .getByRole('button', { name: 'Create an agent', exact: true })
+    .click()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Create an agent' }),
+  ).toBeVisible()
+})
+
+test('the Ready to chat page counts created agents and points to the previews', async ({
+  page,
+}) => {
+  await setup(page, { ready: true, libraryPreview: true })
+  const tabs = page.getByRole('navigation', { name: 'Agent library' })
+  await expect(tabs.getByRole('button', { name: /^Ready to chat/ })).toHaveText(
+    /^Ready to chat\s*2$/,
+  )
+  await expect(
+    tabs.getByRole('button', { name: /^Made in this Lab/ }),
+  ).toHaveText(/^Made in this Lab\s*1$/)
+  await tabs.getByRole('button', { name: /^Ready to chat/ }).click()
+  const intro = page
+    .getByRole('heading', { level: 1, name: 'Choose an agent' })
+    .locator('xpath=..')
+  await expect(intro).toContainText('2 agents are ready to chat.')
+  await expect(intro).toContainText(
+    'Library agents can be tried as previews from Browse.',
+  )
+  await expect(intro).not.toContainText('make your own copy')
+})
+
 test('grey placeholder cards hold the place of the agents while the library loads', async ({
   page,
 }, testInfo) => {
