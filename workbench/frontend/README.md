@@ -141,7 +141,14 @@ production assets first.
 `tests/library.spec.ts` routes `/api/agent-templates` to
 `tests/agent-templates.fixture.json`, which
 `workbench/test_frontend_catalog_fixture.py` keeps identical to the served
-catalog. It covers the four-section navigation and hash links, filters with
+catalog. After a catalog change, regenerate it from `workbench` and format it:
+
+```powershell
+python -c "import json; from pathlib import Path; from agent_templates import catalog_facets, list_templates; Path('frontend/tests/agent-templates.fixture.json').write_text(json.dumps({'schema_version': 1, 'draft_mode': 'template', 'templates': list_templates(), 'facets': catalog_facets()}, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')"
+npm --prefix frontend run format
+```
+
+The spec covers the four-section navigation and hash links, filters with
 live counts, search and the empty state, detail tabs and honest labels, template
 preselection without preparing or publishing, opening a ready agent in Chat as
 an unsent draft, the request log reference, recent requests on Performance,

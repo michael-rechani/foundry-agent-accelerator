@@ -688,7 +688,9 @@ times come from a direct run on a local machine, and the tab says so. Every
 scorecard shows **Waiting for a person** until someone reads the answers.
 `scorecards.py` also fails if an agent's instructions changed after its answers
 were recorded. `test_scorecards.py` fails if the Lab's copy drifts from the
-evidence, or if an agent marked **Reviewed** has a run that missed its checks.
+evidence, or if an agent's **Reviewed** label doesn't match it: an agent is
+marked **Reviewed** exactly when a person has signed off its answers and every
+run passed.
 
 After a person has read an agent's answers, record it:
 
@@ -701,6 +703,12 @@ the date and a fingerprint of the answers they read, then regenerates the Lab's
 copy. The tab then shows **Signed off** with their name and the date. If an
 answer changes later, `scorecards.py` fails until someone reads that agent's
 answers again. Don't run `signoff` on someone else's behalf.
+
+The library's **Reviewed** label comes from `workbench/agent_templates.py`, not
+from the sign-off file, so every agent shows **In progress** until you also add
+`readiness="reviewed"` to its entry in `TEMPLATE_METADATA` and regenerate
+[the frontend's catalog fixture](../workbench/frontend/README.md#library-performance-and-log-coverage).
+`test_scorecards.py` names any agent whose label and sign-off disagree.
 
 Each scorecard case also carries the request it sent (`input`). The **Take it to
 Foundry** tab turns those into a JSONL file for a Foundry evaluation: one row per

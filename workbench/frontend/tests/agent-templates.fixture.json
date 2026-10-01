@@ -51,9 +51,9 @@
         }
       ],
       "readiness": {
-        "id": "reviewed",
-        "label": "Reviewed",
-        "description": "Its instructions have been reviewed, its setup passes the Lab's validation, and every run of its test cases met the Lab's checks."
+        "id": "sample",
+        "label": "In progress",
+        "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "simulated",
@@ -417,9 +417,9 @@
         }
       ],
       "readiness": {
-        "id": "reviewed",
-        "label": "Reviewed",
-        "description": "Its instructions have been reviewed, its setup passes the Lab's validation, and every run of its test cases met the Lab's checks."
+        "id": "sample",
+        "label": "In progress",
+        "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -481,9 +481,9 @@
         }
       ],
       "readiness": {
-        "id": "reviewed",
-        "label": "Reviewed",
-        "description": "Its instructions have been reviewed, its setup passes the Lab's validation, and every run of its test cases met the Lab's checks."
+        "id": "sample",
+        "label": "In progress",
+        "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -545,9 +545,9 @@
         }
       ],
       "readiness": {
-        "id": "reviewed",
-        "label": "Reviewed",
-        "description": "Its instructions have been reviewed, its setup passes the Lab's validation, and every run of its test cases met the Lab's checks."
+        "id": "sample",
+        "label": "In progress",
+        "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -964,9 +964,9 @@
         }
       ],
       "readiness": {
-        "id": "reviewed",
-        "label": "Reviewed",
-        "description": "Its instructions have been reviewed, its setup passes the Lab's validation, and every run of its test cases met the Lab's checks."
+        "id": "sample",
+        "label": "In progress",
+        "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "simulated",
@@ -1032,9 +1032,9 @@
         }
       ],
       "readiness": {
-        "id": "reviewed",
-        "label": "Reviewed",
-        "description": "Its instructions have been reviewed, its setup passes the Lab's validation, and every run of its test cases met the Lab's checks."
+        "id": "sample",
+        "label": "In progress",
+        "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "none",
@@ -1111,9 +1111,9 @@
         }
       ],
       "readiness": {
-        "id": "reviewed",
-        "label": "Reviewed",
-        "description": "Its instructions have been reviewed, its setup passes the Lab's validation, and every run of its test cases met the Lab's checks."
+        "id": "sample",
+        "label": "In progress",
+        "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "simulated",
@@ -1190,9 +1190,9 @@
         }
       ],
       "readiness": {
-        "id": "reviewed",
-        "label": "Reviewed",
-        "description": "Its instructions have been reviewed, its setup passes the Lab's validation, and every run of its test cases met the Lab's checks."
+        "id": "sample",
+        "label": "In progress",
+        "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "simulated",
@@ -1269,9 +1269,9 @@
         }
       ],
       "readiness": {
-        "id": "reviewed",
-        "label": "Reviewed",
-        "description": "Its instructions have been reviewed, its setup passes the Lab's validation, and every run of its test cases met the Lab's checks."
+        "id": "sample",
+        "label": "In progress",
+        "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "tool_mode": {
         "id": "simulated",
@@ -1409,16 +1409,10 @@
     ],
     "readiness": [
       {
-        "id": "reviewed",
-        "label": "Reviewed",
-        "description": "Its instructions have been reviewed, its setup passes the Lab's validation, and every run of its test cases met the Lab's checks.",
-        "count": 9
-      },
-      {
         "id": "sample",
         "label": "In progress",
         "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use.",
-        "count": 9
+        "count": 18
       }
     ],
     "tool_modes": [
