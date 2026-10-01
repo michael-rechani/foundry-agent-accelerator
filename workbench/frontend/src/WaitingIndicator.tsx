@@ -33,8 +33,9 @@ export function WaitingIndicator({
       )}
       {elapsed >= slowAfterSeconds && (
         <p className="chat-waiting-note">
-          Still working. Answers usually take a few seconds, but the first one
-          after a quiet period can take about a minute.
+          Still working. Some answers take 30 seconds to a minute, especially
+          the first one in a new chat. Follow-up questions in the same chat
+          usually take a few seconds.
         </p>
       )}
     </div>
