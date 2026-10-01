@@ -166,6 +166,16 @@ export function formatTimes(runs: number) {
   return runs === 1 ? 'once' : `${runs} times`
 }
 
+const MAX_ANSWER_DOTS = 10
+
+// One dot per answer, passes first. A scorecard says how many answers passed,
+// not which ones, so the order carries no meaning. A case asked more often than
+// the row can show gets no dots; its sentence still says it all.
+export function answerDots(passed: number, runs: number): boolean[] {
+  if (!Number.isInteger(runs) || runs < 1 || runs > MAX_ANSWER_DOTS) return []
+  return Array.from({ length: runs }, (_, index) => index < passed)
+}
+
 export function formatSeconds(value: number) {
   return `${value.toFixed(1)} s`
 }

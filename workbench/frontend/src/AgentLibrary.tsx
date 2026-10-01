@@ -18,6 +18,8 @@ import {
   Wrench,
 } from 'lucide-react'
 import { creationRequest } from './agent-creation-client'
+import { agentIcons, fallbackAgentIcon } from './agent-icons'
+import { demoScenarios } from './demo-scenarios'
 import { FoundryLink } from './FoundryLink'
 import { foundryAgentUrl } from './foundry-links'
 import {
@@ -201,40 +203,45 @@ export function AgentLibrary({
                 </button>
               )}
             </aside>
-            <section aria-labelledby="library-results">
-              <div className="library-results-head" aria-live="polite">
-                <h2 id="library-results">
-                  {results.length} {results.length === 1 ? 'agent' : 'agents'}
-                </h2>
-                <span>of {catalog.templates.length} in the library</span>
-              </div>
-              {results.length ? (
-                <ul className="library-grid">
-                  {results.map((item) => (
-                    <li key={item.id}>
-                      <LibraryCard
-                        template={item}
-                        ready={!!readyAgentFor(item.id)}
-                        onOpen={() => show(item.id)}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="library-empty">
-                  <p>No agents match these filters.</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuery('')
-                      setSelection({})
-                    }}
-                  >
-                    Clear filters
-                  </button>
-                </div>
+            <div>
+              {!filtered && (
+                <StartHere templates={catalog.templates} onOpen={show} />
               )}
-            </section>
+              <section aria-labelledby="library-results">
+                <div className="library-results-head" aria-live="polite">
+                  <h2 id="library-results">
+                    {results.length} {results.length === 1 ? 'agent' : 'agents'}
+                  </h2>
+                  <span>of {catalog.templates.length} in the library</span>
+                </div>
+                {results.length ? (
+                  <ul className="library-grid">
+                    {results.map((item) => (
+                      <li key={item.id}>
+                        <LibraryCard
+                          template={item}
+                          ready={!!readyAgentFor(item.id)}
+                          onOpen={() => show(item.id)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="library-empty">
+                    <p>No agents match these filters.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuery('')
+                        setSelection({})
+                      }}
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                )}
+              </section>
+            </div>
           </div>
         </>
       )}
@@ -291,6 +298,28 @@ function LibraryLoading() {
           ))}
         </div>
         <div>
+          <section className="library-start">
+            <div className="library-start-head">
+              <h2 className="library-bar-count">&nbsp;</h2>
+              <span>&nbsp;</span>
+            </div>
+            <ul className="library-start-list">
+              {demoScenarios.map((scenario) => (
+                <li key={scenario.id}>
+                  <div className="library-start-placeholder">
+                    <div className="library-bar library-bar-icon" />
+                    <div className="library-bar library-bar-title" />
+                    <div className="library-bar-text">
+                      <div className="library-bar library-bar-line" />
+                      <div className="library-bar library-bar-line" />
+                      <div className="library-bar library-bar-line library-bar-short" />
+                    </div>
+                    <div className="library-bar library-bar-foot" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
           <div className="library-results-head">
             <h2 className="library-bar-count">&nbsp;</h2>
             <span>&nbsp;</span>
@@ -300,7 +329,10 @@ function LibraryLoading() {
               <li key={card}>
                 <div className="library-placeholder">
                   <div className="library-bar library-bar-kicker" />
-                  <div className="library-bar library-bar-title" />
+                  <div className="library-card-head">
+                    <div className="library-bar library-bar-icon" />
+                    <div className="library-bar library-bar-title" />
+                  </div>
                   <div className="library-bar library-bar-line" />
                   <div className="library-bar library-bar-line" />
                   <div className="library-bar library-bar-line library-bar-short" />
@@ -343,6 +375,16 @@ function Badges({ template }: { template: LibraryTemplate }) {
   )
 }
 
+// The tile is decoration; the agent's name beside it says everything.
+function AgentIcon({ id }: { id: string }) {
+  const Icon = agentIcons[id] ?? fallbackAgentIcon
+  return (
+    <span className="library-card-icon" aria-hidden="true">
+      <Icon size={20} strokeWidth={1.8} />
+    </span>
+  )
+}
+
 function LibraryCard({
   template,
   ready,
@@ -363,7 +405,10 @@ function LibraryCard({
         <span className="library-sector-dot" aria-hidden="true" />
         {template.sector.label} · {template.industry.label}
       </span>
-      <strong>{template.label}</strong>
+      <span className="library-card-head">
+        <AgentIcon id={template.id} />
+        <strong>{template.label}</strong>
+      </span>
       <span className="library-summary">{template.summary}</span>
       <span className="library-decides">
         <UserCheck size={13} aria-hidden="true" />
@@ -378,6 +423,49 @@ function LibraryCard({
         )}
       </span>
     </button>
+  )
+}
+
+// Three agents with a ready-made example, taken from the guided demos so the
+// two never drift apart. A card opens the agent's page, where "Try it with an
+// example" sits.
+function StartHere({
+  templates,
+  onOpen,
+}: {
+  templates: LibraryTemplate[]
+  onOpen: (templateId: string) => void
+}) {
+  const featured = demoScenarios.filter((scenario) =>
+    templates.some((item) => item.id === scenario.templateId),
+  )
+  if (!featured.length) return null
+  return (
+    <section className="library-start" aria-labelledby="library-start">
+      <div className="library-start-head">
+        <h2 id="library-start">Start here</h2>
+        <span>Open one, then press Try it with an example.</span>
+      </div>
+      <ul className="library-start-list">
+        {featured.map((scenario) => (
+          <li key={scenario.id}>
+            <button
+              type="button"
+              className="library-start-card"
+              onClick={() => onOpen(scenario.templateId)}
+            >
+              <AgentIcon id={scenario.templateId} />
+              <strong>{scenario.title}</strong>
+              <span className="library-start-text">{scenario.description}</span>
+              <span className="library-start-foot">
+                <span>{scenario.templateLabel}</span>
+                <ArrowRight size={16} aria-hidden="true" />
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

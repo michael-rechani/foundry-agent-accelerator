@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { describe, it } from 'node:test'
 import {
+  answerDots,
   categoryTitles,
   formatAnswersPassed,
   formatCostPerAnswer,
@@ -132,5 +133,24 @@ describe('agent scorecards', () => {
 
   it('formats the test date without shifting time zones', () => {
     assert.equal(formatDate('2026-09-27'), 'September 27, 2026')
+  })
+
+  it('draws one dot per answer, passes first, and none for too many answers', () => {
+    assert.deepEqual(answerDots(5, 5), [true, true, true, true, true])
+    assert.deepEqual(answerDots(3, 5), [true, true, true, false, false])
+    assert.deepEqual(answerDots(0, 2), [false, false])
+    assert.equal(answerDots(10, 10).length, 10)
+    assert.deepEqual(answerDots(11, 11), [])
+    assert.deepEqual(answerDots(0, 0), [])
+    assert.deepEqual(answerDots(1, 1.5), [])
+  })
+
+  it('draws as many dots as the recorded answers, and as many filled as passed', () => {
+    for (const card of parseScorecards(raw).scorecards)
+      for (const item of card.cases) {
+        const dots = answerDots(item.runs_passed, item.runs)
+        assert.equal(dots.length, item.runs)
+        assert.equal(dots.filter(Boolean).length, item.runs_passed)
+      }
   })
 })

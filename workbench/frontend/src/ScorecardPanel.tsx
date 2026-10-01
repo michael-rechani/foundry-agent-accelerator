@@ -1,5 +1,6 @@
 import {
   CalendarCheck,
+  Check,
   CircleCheck,
   Clock3,
   Eye,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react'
 import type { ScorecardsState } from './scorecards-client'
 import {
+  answerDots,
   categoryTitles,
   formatAnswersPassed,
   formatCostPerAnswer,
@@ -25,6 +27,33 @@ const ANSWER_SOURCES = {
   direct:
     'Answers, response times and token counts were recorded by running the agent’s current instructions against the Lab’s Foundry project, so times can differ slightly from the live Lab. The first answer to each request is the recorded one a person reads. The repeat answers are checked automatically.',
   mixed: 'Answers were recorded in more than one run.',
+}
+
+// A drawing of the sentence beside it, so it stays out of the reading order.
+function AnswerRing({ passed, runs }: { passed: number; runs: number }) {
+  const all = runs > 0 && passed === runs
+  const share = runs > 0 ? Math.min(passed / runs, 1) : 0
+  return (
+    <span
+      className="scorecard-ring"
+      data-state={all ? 'all' : 'some'}
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 36 36" focusable="false">
+        <circle className="scorecard-ring-track" cx="18" cy="18" r="15" />
+        <circle
+          className="scorecard-ring-fill"
+          cx="18"
+          cy="18"
+          r="15"
+          pathLength="100"
+          strokeDasharray={`${Math.floor(share * 100)} 100`}
+          transform="rotate(-90 18 18)"
+        />
+      </svg>
+      {all && <Check size={16} strokeWidth={2.5} />}
+    </span>
+  )
 }
 
 export function ScorecardPanel({
@@ -84,7 +113,8 @@ export function ScorecardPanel({
           <dt>
             <ListChecks size={15} aria-hidden="true" /> Answer checks
           </dt>
-          <dd>
+          <dd className="scorecard-checks">
+            <AnswerRing passed={summary.runs_passed} runs={summary.runs} />
             <strong>
               {formatAnswersPassed(summary.runs_passed, summary.runs)}
             </strong>
@@ -147,6 +177,11 @@ export function ScorecardPanel({
                 </span>
                 <span className="scorecard-case-runs">
                   {formatAnswersPassed(item.runs_passed, item.runs)}
+                </span>
+                <span className="scorecard-dots" aria-hidden="true">
+                  {answerDots(item.runs_passed, item.runs).map((ok, index) => (
+                    <span key={index} className={ok ? 'pass' : 'miss'} />
+                  ))}
                 </span>
               </div>
               <p>{item.goal}</p>
