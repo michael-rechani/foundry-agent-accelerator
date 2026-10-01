@@ -466,8 +466,9 @@ path.
 The case agent has an optional, read-only policy guidance lookup over Azure AI
 Search behind `KNOWLEDGE_RETRIEVAL_ENABLED`, which is off by default. With the
 flag off, packages, bundles, and published agents are unchanged. A sample
-guidance set and an index script are included, but nobody has run the script
-against Azure. See the [knowledge retrieval design](../docs/knowledge-retrieval.md).
+guidance set and an index script are included, and a small sample pilot has run
+in the dev environment since 2026-10-01. It isn't a finished evaluation. See the
+[knowledge retrieval design](../docs/knowledge-retrieval.md).
 
 Responses remains the Lab contract. Invocations for webhooks, batch payloads, or
 custom streaming would need a separately justified adapter and validation, not a

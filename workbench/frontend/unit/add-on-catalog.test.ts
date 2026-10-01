@@ -9,6 +9,7 @@ const everyText = () =>
       item.name,
       item.summary,
       item.example,
+      item.pilot ?? '',
       ...item.cost,
       ...item.needs,
       item.safety,
@@ -53,6 +54,19 @@ describe('add-ons catalogue', () => {
         item.id === 'web-search',
         `${item.id} approval`,
       )
+  })
+
+  it('marks only knowledge search as a sample pilot already in the Lab', () => {
+    for (const item of addOns)
+      assert.equal(
+        Boolean(item.pilot),
+        item.id === 'knowledge-search',
+        `${item.id} pilot`,
+      )
+    const pilot = addOns[0].pilot ?? ''
+    assert.match(pilot, /Checklist and case helper/)
+    assert.match(pilot, /ten approved sample passages/)
+    assert.match(pilot, /own documents cannot be added yet/)
   })
 
   it('states the shared rules', () => {
