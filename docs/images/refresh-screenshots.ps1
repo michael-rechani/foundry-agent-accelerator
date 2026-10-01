@@ -5,8 +5,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $sources = [ordered]@{
-    'lab-create-agent.png' = 'creation-start.png'
-    'lab-create-agent-dark.png' = 'creation-start-dark.png'
+    'lab-library.png' = 'library-browse.png'
+    'lab-library-dark.png' = 'library-browse-dark.png'
+    'lab-test-results.png' = 'library-test-results.png'
+    'lab-test-results-dark.png' = 'library-test-results-dark.png'
+    'lab-take-to-foundry.png' = 'library-take-to-foundry.png'
+    'lab-take-to-foundry-dark.png' = 'library-take-to-foundry-dark.png'
+    'lab-create-agent.png' = 'library-create-agent.png'
+    'lab-create-agent-dark.png' = 'library-create-agent-dark.png'
     'lab-chat-start.png' = 'demo-starters.png'
     'lab-chat-start-dark.png' = 'demo-starters-dark.png'
     'lab-document-review.png' = 'review-findings.png'
