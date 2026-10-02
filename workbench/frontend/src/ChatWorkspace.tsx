@@ -10,6 +10,7 @@ import { WaitingIndicator } from './WaitingIndicator'
 import { useWorkspaceConfig, type Agent } from './workspace-config'
 import { ContinueDialog } from './ContinueDialog'
 import { ReviewWorkspace } from './ReviewWorkspace'
+import { reviewIdFromHash } from './review-client'
 import { AgentCreationWorkspace } from './AgentCreationWorkspace'
 import {
   creationRequest,
@@ -53,6 +54,9 @@ const hashViews: Record<string, View> = {
   '#logs': 'log',
 }
 
+const viewForHash = (hash: string): View | null =>
+  reviewIdFromHash(hash) ? 'reviews' : (hashViews[hash] ?? null)
+
 const errors: Record<string, string> = {
   preview_only: 'Foundry is not connected. No agent was invoked.',
   busy: 'The Lab is busy right now. Wait a minute, then try again.',
@@ -86,15 +90,11 @@ export default function ChatWorkspace() {
   const [selectedId, setSelected] = useState('')
   const selected = selectedId || config?.default_agent || ''
   const [selectedView, setView] = useState<View | null>(() =>
-    /^#review-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(
-      window.location.hash,
-    )
-      ? 'reviews'
-      : (hashViews[window.location.hash] ?? null),
+    viewForHash(window.location.hash),
   )
   useEffect(() => {
     const follow = () => {
-      const next = hashViews[window.location.hash]
+      const next = viewForHash(window.location.hash)
       if (next) setView(next)
     }
     window.addEventListener('hashchange', follow)

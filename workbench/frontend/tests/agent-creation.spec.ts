@@ -965,7 +965,10 @@ test('incorrect operator key preserves editable setup and does not claim success
     .getByRole('button', { name: 'Create in Foundry', exact: true })
     .click()
   await expect(page.getByRole('alert')).toContainText(
-    'Enter a valid operator key',
+    'That operator key was not accepted, so nothing was created or changed.',
+  )
+  await expect(page.getByRole('alert')).toContainText(
+    'ask the Lab operator for the key',
   )
   await expect(page.getByLabel('Agent name', { exact: true })).toBeEnabled()
   await expect(page.getByLabel('Task instructions')).toBeEnabled()
@@ -976,6 +979,31 @@ test('incorrect operator key preserves editable setup and does not claim success
     .click()
   await expect(page.locator('.creation-status')).toHaveText('Ready to try')
   expect(state.posts).toHaveLength(2)
+})
+
+test('the operator key box says in plain words what the key is and who to ask', async ({
+  page,
+}) => {
+  await setup(page)
+  await prepare(page)
+  const box = page.locator('.creation-key')
+  await expect(box).toContainText(
+    'A shared password for whoever runs this Lab.',
+  )
+  await expect(box).toContainText('create or delete a real agent in Foundry')
+  await expect(box).toContainText('costs money')
+  await expect(box).toContainText('Ask the Lab operator for it.')
+  await expect(box).not.toContainText(/vault|secret/i)
+  await expect(
+    page.getByLabel('Operator key', { exact: true }),
+  ).toHaveAttribute('type', 'password')
+  await authorize(page, 'too-short')
+  await page
+    .getByRole('button', { name: 'Create in Foundry', exact: true })
+    .click()
+  await expect(page.getByRole('alert')).toContainText(
+    'Ask the Lab operator if you do not have it.',
+  )
 })
 
 test('a refused create request explains itself even when the setup is taller than the window', async ({

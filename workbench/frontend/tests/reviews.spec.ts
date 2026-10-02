@@ -386,6 +386,154 @@ async function create(page: Page) {
   ).toBeVisible()
 }
 
+const sampleTitle = 'Community workshop application'
+
+async function followLink(page: Page, hash: string) {
+  await page.evaluate((link) => {
+    window.location.hash = link
+  }, hash)
+}
+
+async function expectReviewOpen(page: Page) {
+  await expect(
+    page.getByRole('heading', { name: sampleTitle, exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Run review', exact: true }),
+  ).toBeVisible()
+}
+
+test('a review link followed after the Lab has loaded opens the review', async ({
+  page,
+}) => {
+  const state = await setup(page)
+  await create(page)
+  const link = '#' + state.document!.id
+  const navigation = page.getByRole('navigation', { name: 'Workspace' })
+
+  await page.getByRole('button', { name: 'Back to reviews' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Document reviews', exact: true }),
+  ).toBeVisible()
+  await followLink(page, link)
+  await expectReviewOpen(page)
+
+  await page.getByRole('button', { name: 'Back to reviews' }).click()
+  await navigation.getByRole('button', { name: 'Chat', exact: true }).click()
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toBeVisible()
+  await followLink(page, link)
+  await expect(
+    navigation.getByRole('button', {
+      name: 'Document reviews',
+      exact: true,
+    }),
+  ).toHaveAttribute('aria-current', 'page')
+  await expectReviewOpen(page)
+})
+
+test('back and forward move between a review link and Chat', async ({
+  page,
+}) => {
+  const state = await setup(page)
+  await create(page)
+  const navigation = page.getByRole('navigation', { name: 'Workspace' })
+  const chat = navigation.getByRole('button', { name: 'Chat', exact: true })
+  const reviews = navigation.getByRole('button', {
+    name: 'Document reviews',
+    exact: true,
+  })
+  await page.goto('/#chat')
+  await expect(chat).toHaveAttribute('aria-current', 'page')
+
+  await page.goBack()
+  await expect(reviews).toHaveAttribute('aria-current', 'page')
+  await expectReviewOpen(page)
+  expect(await page.evaluate(() => window.location.hash)).toBe(
+    '#' + state.document!.id,
+  )
+
+  await page.goForward()
+  await expect(chat).toHaveAttribute('aria-current', 'page')
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toBeVisible()
+
+  await page.goBack()
+  await expect(reviews).toHaveAttribute('aria-current', 'page')
+  await expectReviewOpen(page)
+})
+
+test('following a review link asks before discarding a review that is being written', async ({
+  page,
+}) => {
+  const state = await setup(page)
+  await create(page)
+  const link = '#' + state.document!.id
+  await page.getByRole('button', { name: 'Back to reviews' }).click()
+  await page.getByRole('button', { name: 'New review', exact: true }).click()
+  await page.getByLabel('Review title').fill('Half-written fictional review')
+
+  const asked: string[] = []
+  page.once('dialog', (dialog) => {
+    asked.push(dialog.message())
+    void dialog.dismiss()
+  })
+  await followLink(page, link)
+  await expect
+    .poll(() => asked)
+    .toEqual(['Discard unsaved review information?'])
+  await expect(page.getByLabel('Review title')).toHaveValue(
+    'Half-written fictional review',
+  )
+  await expect
+    .poll(() => page.evaluate(() => window.location.hash))
+    .toBe('#reviews')
+
+  page.once('dialog', (dialog) => void dialog.accept())
+  await followLink(page, link)
+  await expectReviewOpen(page)
+  await expect(page.getByLabel('Review title')).toHaveCount(0)
+})
+
+test('a review link followed from another page asks before discarding a review that is being written', async ({
+  page,
+}) => {
+  const state = await setup(page)
+  await create(page)
+  const link = '#' + state.document!.id
+  const navigation = page.getByRole('navigation', { name: 'Workspace' })
+  const chat = navigation.getByRole('button', { name: 'Chat', exact: true })
+  await page.getByRole('button', { name: 'Back to reviews' }).click()
+  await page.getByRole('button', { name: 'New review', exact: true }).click()
+  await page.getByLabel('Review title').fill('Half-written fictional review')
+  await chat.click()
+  await expect(chat).toHaveAttribute('aria-current', 'page')
+
+  const asked: string[] = []
+  page.once('dialog', (dialog) => {
+    asked.push(dialog.message())
+    void dialog.dismiss()
+  })
+  await followLink(page, link)
+  await expect
+    .poll(() => asked)
+    .toEqual(['Discard unsaved review information?'])
+  await expect(page.getByLabel('Review title')).toHaveValue(
+    'Half-written fictional review',
+  )
+  await expect
+    .poll(() => page.evaluate(() => window.location.hash))
+    .toBe('#reviews')
+
+  await chat.click()
+  page.once('dialog', (dialog) => void dialog.accept())
+  await followLink(page, link)
+  await expectReviewOpen(page)
+  await expect(page.getByLabel('Review title')).toHaveCount(0)
+})
+
 async function interrupt(page: Page) {
   const state = await setup(page)
   await create(page)

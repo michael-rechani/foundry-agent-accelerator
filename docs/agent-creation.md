@@ -156,6 +156,23 @@ and single worker/replica. Before enabling, complete these checks.
    SHA-256 UTF-8 verifier in an existing Azure Key Vault secret. Give the raw
    key separately to approved operators; do not commit it or put it in
    Terraform.
+
+   In the Lab, the **Operator key** box describes the key as a shared password
+   for whoever runs the Lab. It is not a personal sign-in; whoever has it can
+   create and delete real agents in Foundry.
+
+   The dev Lab also keeps the raw key in the Key Vault secret
+   `lab-creation-operator-key`, created together with the verifier. An owner
+   with read access to that secret can copy it without displaying it, paste it
+   into the **Operator key** box, then clear the clipboard:
+
+   ```powershell
+   az keyvault secret show --vault-name <vault> --name lab-creation-operator-key --query value -o tsv | Set-Clipboard
+   # Paste into the Operator key box, then clear the clipboard:
+   Set-Clipboard -Value ' '
+   ```
+
+   The Lab identity cannot read that secret; it can read only the verifier.
 1. If using Lab Terraform, configure these nonsecret inputs through the normal
    reviewed rollout:
 

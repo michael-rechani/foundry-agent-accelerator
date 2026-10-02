@@ -66,7 +66,7 @@ const messages: Record<string, string> = {
   invalid_setup:
     'Check the name, task instructions and input lengths. Tools, models and endpoints cannot be supplied here.',
   operator_access_required:
-    'Enter a valid operator key. No new publication was authorized.',
+    'That operator key was not accepted, so nothing was created or changed. Check it, or ask the Lab operator for the key.',
   model_unavailable:
     'The model deployment chosen for this template does not exist in the Foundry project. Nothing was uploaded; ask an operator to check the model settings.',
   operator_permissions_required:
@@ -86,7 +86,7 @@ const messages: Record<string, string> = {
   agent_not_ready:
     'This agent is not ready to chat. Check its saved publication status.',
   agent_not_resumable:
-    'This operation cannot resume as setup. Refresh it and check whether deletion is in progress.',
+    'This operation cannot resume as setup. Refresh it and check whether it is being deleted or was already deleted.',
   agent_operation_running:
     'This agent already has an operation in progress. Refresh its status; do not submit another creation.',
   publication_failed:

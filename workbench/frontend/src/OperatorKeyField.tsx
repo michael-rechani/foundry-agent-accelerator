@@ -21,6 +21,11 @@ export function OperatorKeyField({
         />
       </label>
       <p>
+        A shared password for whoever runs this Lab. It lets you create or
+        delete a real agent in Foundry, which changes the shared project and
+        costs money. Ask the Lab operator for it.
+      </p>
+      <p>
         Kept in memory for this view only, never sent to the model or saved with
         the agent.
       </p>
