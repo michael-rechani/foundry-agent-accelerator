@@ -53,6 +53,8 @@ For developers who change agents, evaluate quality, or extend the architecture.
 | [Optional integrations](optional-integrations.md) | Review integration paths that sit outside the core demo. |
 | [Knowledge retrieval design](knowledge-retrieval.md) | Review the flag-gated, read-only Azure AI Search lookup for the case agent. It's off by default; a small sample pilot has run in the dev Lab since 2026-10-01. |
 | [Staff workflow assistant](staff-workflow-assistant.md) | Read a proposed agent definition. It isn't implemented. |
+| [Agent drafts](agent-drafts/README.md) | Read documentation-only definitions for public-sector and healthcare agents. None is implemented. |
+| [Lab frontend](../workbench/frontend/README.md) | Run, test, and rebuild the React app and its catalog snapshot. |
 | [Architecture artwork](images/README.md) | Edit and rebuild the diagrams. |
 
 ## Terms used in these guides

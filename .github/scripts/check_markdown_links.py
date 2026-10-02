@@ -25,6 +25,8 @@ EXPLICIT_ANCHOR = re.compile(r"<a\s[^>]*?\b(?:id|name)=[\"']([^\"']+)[\"']", re.
 INLINE_CODE = re.compile(r"(`+)(?:(?!\1).)+?\1")
 INLINE_LINK = re.compile(r"!?\[(?:[^\[\]]|\[[^\[\]]*\])*\]\(\s*(<[^>]*>|[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)")
 REFERENCE_DEF = re.compile(r"^\s{0,3}\[[^\]]+\]:\s*(<[^>]*>|\S+)")
+REFERENCE_LABEL = re.compile(r"^\s{0,3}\[([^\]]+)\]:")
+REFERENCE_USE = re.compile(r"(?<![\w\]])!?\[((?:[^\[\]]|\[[^\[\]]*\])+)\]\[([^\]]*)\]")
 HTML_ATTR = re.compile(r"\b(href|src|srcset)=[\"']([^\"']+)[\"']", re.IGNORECASE)
 
 
@@ -103,6 +105,26 @@ def targets(line: str) -> list[str]:
     return [t[1:-1] if t.startswith("<") and t.endswith(">") else t for t in found]
 
 
+def normalize_label(label: str) -> str:
+    return " ".join(label.split()).casefold()
+
+
+def undefined_references(lines: list[tuple[int, str]]) -> list[tuple[int, str]]:
+    """Return (line number, label) for [text][label] and [label][] uses with no [label]: definition."""
+    defined = set()
+    for _, line in lines:
+        match = REFERENCE_LABEL.match(line)
+        if match:
+            defined.add(normalize_label(match.group(1)))
+    missing = []
+    for number, line in lines:
+        for text, explicit in REFERENCE_USE.findall(line):
+            label = explicit or text
+            if normalize_label(label) not in defined:
+                missing.append((number, label))
+    return missing
+
+
 def check_target(root: Path, source: Path, target: str) -> str | None:
     if not target or EXTERNAL.match(target) or target.startswith("//"):
         return None
@@ -131,11 +153,15 @@ def main() -> int:
     problems = []
     files = tracked_markdown(root)
     for source in files:
-        for number, line in prose_lines(source.read_text(encoding="utf-8")):
+        name = source.relative_to(root).as_posix()
+        lines = prose_lines(source.read_text(encoding="utf-8"))
+        for number, line in lines:
             for target in targets(line):
                 problem = check_target(root, source, target)
                 if problem:
-                    problems.append(f"{source.relative_to(root).as_posix()}:{number}: {problem}")
+                    problems.append(f"{name}:{number}: {problem}")
+        for number, label in undefined_references(lines):
+            problems.append(f"{name}:{number}: undefined reference: [{label}]")
     for problem in problems:
         print(problem)
     print(f"Checked {len(files)} Markdown files: {len(problems)} broken link(s).")

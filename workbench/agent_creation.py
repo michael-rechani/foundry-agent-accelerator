@@ -378,6 +378,8 @@ class AgentCreations:
         if identifier in self.tasks:
             return self.error(request, 409, "agent_operation_running")
         if document["status"] == "deleted":
+            if resume:
+                return self.error(request, 409, "agent_not_resumable")
             return self.public(document)
         if resume and (self.effective_status(document) not in {"interrupted", "failed"}
                        or document["operation"] == "delete"):

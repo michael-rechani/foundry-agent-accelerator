@@ -53,6 +53,15 @@ class MarkdownLinkCheckTests(unittest.TestCase):
             ["guide.md#guide", "images/a.svg", "images/a.svg", "images/a-dark.svg", "images/b-dark.svg"],
         )
 
+    def test_undefined_reference_labels_are_reported(self):
+        lines = checker.prose_lines(
+            "See [the guide][Guide-Ref], [Other][], and ![diagram][img].\n"
+            "Not a link: array[0][1] and [text][].\n\n"
+            "[guide-ref]: https://example.com/guide\n"
+            "[other]: other.md\n"
+        )
+        self.assertEqual(checker.undefined_references(lines), [(1, "img"), (2, "text")])
+
     def test_code_is_not_checked(self):
         lines = checker.prose_lines("`[x](missing.md)`\n```\n[y](missing.md)\n```\n[z](ok.md)\n")
         self.assertEqual(lines, [(1, ""), (5, "[z](ok.md)")])

@@ -366,6 +366,22 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.create()).status_code, 200)
         self.assertEqual([operation for operation, _ in self.publisher.calls], ["create", "delete"])
 
+    async def test_resume_cannot_reopen_a_deleted_agent_but_repeated_deletion_is_idempotent(self):
+        record = await self.ready()
+        path = "/api/agents/" + record["id"]
+        self.publisher.done.clear()
+        await self.client.delete(path, headers={**self.operator, "If-Match": record["_etag"]})
+        await asyncio.wait_for(self.publisher.done.wait(), 1)
+        deleted = (await self.client.get(path)).json()
+        headers = {**self.operator, "If-Match": deleted["_etag"]}
+        resumed = await self.client.post(path + "/resume", headers=headers)
+        self.assertEqual(resumed.status_code, 409, resumed.text)
+        self.assertEqual(resumed.json()["error"], "agent_not_resumable")
+        repeated = await self.client.delete(path, headers=headers)
+        self.assertEqual(repeated.status_code, 200, repeated.text)
+        self.assertEqual(repeated.json()["status"], "deleted")
+        self.assertEqual((await self.client.get(path)).json()["status"], "deleted")
+        self.assertEqual([operation for operation, _ in self.publisher.calls], ["create", "delete"])
     async def test_creation_disable_keeps_read_chat_and_operator_deletion_available(self):
         record = await self.ready()
         disabled = replace(self.settings, creation=replace(self.settings.creation, enabled=False))
