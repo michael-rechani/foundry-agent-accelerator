@@ -77,6 +77,7 @@ async function setup(
     libraryPreview?: boolean
     stallChat?: boolean
     slowCatalog?: boolean
+    withoutCreation?: boolean
   } = {},
 ) {
   const served = {
@@ -109,23 +110,27 @@ async function setup(
           },
         }
       : {}),
-    agent_creation: {
-      enabled: !options.preview,
-      storage_enabled: !options.preview,
-      management_enabled: !options.preview,
-      reason: options.preview ? 'local_preview' : null,
-      requires_operator_key: true,
-      max_agents: 5,
-      publication_timeout_seconds: 600,
-      model: options.preview ? null : 'demo-model',
-      models: options.preview
-        ? null
-        : {
-            reasoning: 'demo-reasoning-model',
-            extraction: 'demo-fast-model',
-            tool_calling: 'demo-model',
+    ...(options.withoutCreation
+      ? {}
+      : {
+          agent_creation: {
+            enabled: !options.preview,
+            storage_enabled: !options.preview,
+            management_enabled: !options.preview,
+            reason: options.preview ? 'local_preview' : null,
+            requires_operator_key: true,
+            max_agents: 5,
+            publication_timeout_seconds: 600,
+            model: options.preview ? null : 'demo-model',
+            models: options.preview
+              ? null
+              : {
+                  reasoning: 'demo-reasoning-model',
+                  extraction: 'demo-fast-model',
+                  tool_calling: 'demo-model',
+                },
           },
-    },
+        }),
   }
   const record = options.ready
     ? { ...readyRecord(support), runtime_hash: runtimeHash }
@@ -786,8 +791,11 @@ test('details state limits, human decisions and never claim a recorded answer', 
     `bundle.py export-created --record ${support.id}-record.json`,
   )
   await expect(
-    panel.getByRole('button', { name: 'Create this agent first' }),
+    panel.getByRole('button', { name: 'Create this agent to get the package' }),
   ).toBeEnabled()
+  await expect(panel).toContainText(
+    'Nothing is created until you confirm on the last step.',
+  )
 
   await page.getByRole('button', { name: 'Back to all agents' }).click()
   await expect(page.locator('.library-card')).toHaveCount(templates.length)
@@ -1035,7 +1043,10 @@ test('a library preview says what the agent will return while the answer is on i
   const state = await setup(page, { libraryPreview: true, stallChat: true })
   await openAgent(page, support.label)
   await page.getByRole('tab', { name: 'Try it' }).click()
-  await page.getByRole('button', { name: 'Try it now in Chat' }).click()
+  await page
+    .getByRole('tabpanel')
+    .getByRole('button', { name: 'Try it in Chat' })
+    .click()
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toHaveValue(support.sample_input)
@@ -1047,6 +1058,85 @@ test('a library preview says what the agent will return while the answer is on i
   await expect(waiting).toContainText('What you get')
   await expect(waiting).toContainText(support.output)
   await expect(waiting).not.toContainText('Still working')
+})
+
+test('a library preview offers to create that agent and opens Create with it chosen', async ({
+  page,
+}) => {
+  const state = await setup(page, { libraryPreview: true })
+  await openAgent(page, support.label)
+  await page.getByRole('button', { name: 'Try it in Chat' }).click()
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toHaveValue(support.sample_input)
+  // A preview can't be saved, so Create takes the place of the Save button.
+  await expect(
+    page.getByRole('button', { name: 'Save to shared history' }),
+  ).toHaveCount(0)
+  await page
+    .getByRole('button', { name: 'Create this agent', exact: true })
+    .click()
+  await expect(
+    page.getByRole('heading', { name: 'Create an agent', exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.locator('.creation-template[aria-pressed="true"]'),
+  ).toContainText(support.label)
+  await expect(
+    page.getByRole('textbox', { name: 'What should the agent help with?' }),
+  ).toHaveValue(support.example_request)
+  // Moving between the pages sends, prepares and creates nothing.
+  expect(state.chat).toHaveLength(0)
+  expect(state.drafts).toBe(0)
+  expect(state.creations).toBe(0)
+})
+
+test('Chat tells you it cannot create agents and points to Create agent', async ({
+  page,
+}) => {
+  const state = await setup(page)
+  await navigation(page)
+    .getByRole('button', { name: 'Chat', exact: true })
+    .click()
+  const welcome = page.locator('.chat-welcome')
+  await expect(welcome).toContainText("Chat can't make one.")
+  await expect(
+    page.getByRole('button', { name: 'Create this agent', exact: true }),
+  ).toHaveCount(0)
+  await welcome.getByRole('button', { name: 'Open Create agent' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Create an agent', exact: true }),
+  ).toBeVisible()
+  expect(state.chat).toHaveLength(0)
+  expect(state.drafts).toBe(0)
+  expect(state.creations).toBe(0)
+})
+
+test('without agent creation, Chat shows no Create pointer or button', async ({
+  page,
+}) => {
+  await setup(page, { libraryPreview: true, withoutCreation: true })
+  await navigation(page)
+    .getByRole('button', { name: 'Chat', exact: true })
+    .click()
+  await expect(page.locator('.chat-welcome')).toBeVisible()
+  await expect(page.locator('.chat-welcome')).not.toContainText(
+    "Chat can't make one.",
+  )
+  await navigation(page)
+    .getByRole('button', { name: 'All agents', exact: true })
+    .click()
+  await openAgent(page, support.label)
+  await page.getByRole('button', { name: 'Try it in Chat' }).click()
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toHaveValue(support.sample_input)
+  await expect(
+    page.getByRole('button', { name: 'Create this agent', exact: true }),
+  ).toHaveCount(0)
+  const save = page.getByRole('button', { name: 'Save to shared history' })
+  await expect(save).toBeDisabled()
+  await expect(save).toHaveAttribute('title', "Preview chats can't be saved.")
 })
 
 test('with library previews on, the invoice guided demo runs as a library preview', async ({

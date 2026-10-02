@@ -444,7 +444,7 @@ function StartHere({
     <section className="library-start" aria-labelledby="library-start">
       <div className="library-start-head">
         <h2 id="library-start">Start here</h2>
-        <span>Open one, then press Try it with an example.</span>
+        <span>Open one to try it with an example.</span>
       </div>
       <ul className="library-start-list">
         {featured.map((scenario) => (
@@ -529,6 +529,7 @@ function LibraryDetail({
     else if (runnable && ready) onTest(ready.agent, template.sample_input)
     else onTab('test')
   }
+  const opensChat = runnable && !!(preview || ready)
 
   async function copySample() {
     try {
@@ -604,7 +605,8 @@ function LibraryDetail({
           disabled={busy}
           onClick={tryIt}
         >
-          <MessageSquare size={16} /> Try it with an example
+          <MessageSquare size={16} />{' '}
+          {opensChat ? 'Try it in Chat' : 'Try it with an example'}
         </button>
         <button
           type="button"
@@ -762,7 +764,7 @@ function LibraryDetail({
                     disabled={busy}
                     onClick={() => onTest(preview, template.sample_input)}
                   >
-                    <MessageSquare size={16} /> Try it now in Chat
+                    <MessageSquare size={16} /> Try it in Chat
                   </button>
                 ) : null}
                 {runnable && ready ? (
@@ -908,14 +910,22 @@ function LibraryDetail({
                     <Download size={16} /> Download saved record
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    className="library-primary"
-                    disabled={!capability || busy}
-                    onClick={onCreate}
-                  >
-                    Create this agent first <ArrowRight size={16} />
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="library-primary"
+                      disabled={!capability || busy}
+                      onClick={onCreate}
+                    >
+                      Create this agent to get the package{' '}
+                      <ArrowRight size={16} />
+                    </button>
+                    <p className="library-muted">
+                      {capability
+                        ? 'Opens Create agent with this template. Nothing is created until you confirm on the last step.'
+                        : creationNote}
+                    </p>
+                  </>
                 )}
                 {ready && foundryPortal && (
                   <p className="library-muted hood-only">

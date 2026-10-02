@@ -3,6 +3,7 @@ import {
   ChevronRight,
   Info,
   LoaderCircle,
+  Plus,
   Presentation,
   Save,
 } from 'lucide-react'
@@ -34,6 +35,7 @@ export function ChatTopbar({
   onChoose,
   onSave,
   onExport,
+  onCreateThis,
 }: {
   view: View
   detail?: string
@@ -55,6 +57,9 @@ export function ChatTopbar({
   onChoose: (id: string) => void
   onSave: () => void
   onExport: () => void
+  // Only for a library preview where creating agents is possible. It takes
+  // the place of Save, which a preview never offers.
+  onCreateThis?: () => void
 }) {
   return (
     <header className="chat-topbar">
@@ -185,23 +190,35 @@ export function ChatTopbar({
         )}
         {view === 'chat' && (
           <>
-            <button
-              className="topbar-button"
-              title={saveNote || 'Save to shared history'}
-              aria-label="Save to shared history"
-              aria-describedby={
-                config?.mode === 'private' ? 'chat-privacy' : undefined
-              }
-              disabled={saveDisabled}
-              onClick={onSave}
-            >
-              {saving ? (
-                <LoaderCircle size={17} className="spin" />
-              ) : (
-                <Save size={16} />
-              )}
-              <span>Save</span>
-            </button>
+            {onCreateThis ? (
+              <button
+                className="topbar-button topbar-accent"
+                title="Preview chats can't be saved. Create this agent to save chats and take it to Foundry. Nothing is created until the last step."
+                aria-label="Create this agent"
+                onClick={onCreateThis}
+              >
+                <Plus size={16} />
+                <span>Create this agent</span>
+              </button>
+            ) : (
+              <button
+                className="topbar-button"
+                title={saveNote || 'Save to shared history'}
+                aria-label="Save to shared history"
+                aria-describedby={
+                  config?.mode === 'private' ? 'chat-privacy' : undefined
+                }
+                disabled={saveDisabled}
+                onClick={onSave}
+              >
+                {saving ? (
+                  <LoaderCircle size={17} className="spin" />
+                ) : (
+                  <Save size={16} />
+                )}
+                <span>Save</span>
+              </button>
+            )}
             <button
               className="topbar-button"
               title="Export conversation"

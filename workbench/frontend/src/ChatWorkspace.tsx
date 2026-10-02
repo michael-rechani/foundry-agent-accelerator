@@ -32,7 +32,11 @@ import { AgentLibrary, type ReadyAgent } from './AgentLibrary'
 import { ExploreDemos, DemoRunGuide } from './ExploreDemos'
 import { AddOns } from './AddOns'
 import { useLibraryCatalog } from './library-catalog-client'
-import { isPreviewId, previewAgents } from './library-catalog'
+import {
+  isPreviewId,
+  previewAgents,
+  previewTemplateId,
+} from './library-catalog'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
 import { parseUsage } from './token-usage'
 import { hoodViews, loadUnderTheHood, saveUnderTheHood } from './under-the-hood'
@@ -152,6 +156,7 @@ export default function ChatWorkspace() {
   const latestAnswer = useRef<HTMLElement>(null)
   const lastScroll = useRef({ busy: false, turns: 0 })
   const isPreview = isPreviewId(selected)
+  const previewTemplate = previewTemplateId(selected)
   const agent = (isPreview ? previewList : availableAgents).find(
     (item) => item.id === selected,
   )
@@ -438,6 +443,14 @@ export default function ChatWorkspace() {
     resetConversation(target.id, input)
   }
 
+  function createFromTemplate(templateId: string) {
+    setRequestedTemplate((current) => ({
+      id: templateId,
+      key: (current?.key ?? 0) + 1,
+    }))
+    setView('create')
+  }
+
   async function listHistory(more = false) {
     if (historyBusy) return
     setView('history')
@@ -623,11 +636,7 @@ export default function ChatWorkspace() {
           switchDisabled={busy || historyBusy}
           isPreview={isPreview}
           saving={historyBusy}
-          saveNote={
-            isPreview
-              ? "Preview chats can't be saved. Create this agent from the Library to save conversations."
-              : undefined
-          }
+          saveNote={isPreview ? "Preview chats can't be saved." : undefined}
           saveDisabled={
             isPreview ||
             !config?.history_enabled ||
@@ -645,6 +654,11 @@ export default function ChatWorkspace() {
           }}
           onSave={() => void saveChat()}
           onExport={download}
+          onCreateThis={
+            agent && previewTemplate && config?.agent_creation
+              ? () => createFromTemplate(previewTemplate)
+              : undefined
+          }
         />
 
         {!config && (
@@ -692,13 +706,7 @@ export default function ChatWorkspace() {
             foundryPortal={isPreview ? null : config?.foundry_portal}
             busy={busy || historyBusy}
             onOpen={setLibraryDetail}
-            onCreate={(id) => {
-              setRequestedTemplate((current) => ({
-                id,
-                key: (current?.key ?? 0) + 1,
-              }))
-              setView('create')
-            }}
+            onCreate={createFromTemplate}
             onTest={testFromLibrary}
           />
         )}
@@ -803,6 +811,11 @@ export default function ChatWorkspace() {
                       setActiveDemo(null)
                       editor.current?.focus()
                     }}
+                    onCreateAgent={
+                      !isPreview && config?.agent_creation
+                        ? () => setView('create')
+                        : undefined
+                    }
                   />
                 )
               ) : (

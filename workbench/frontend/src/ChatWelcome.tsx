@@ -13,12 +13,14 @@ export function ChatWelcome({
   isPreview,
   inProgress = false,
   onPrompt,
+  onCreateAgent,
 }: {
   agent?: Agent
   config: Config | null
   isPreview: boolean
   inProgress?: boolean
   onPrompt: (text: string) => void
+  onCreateAgent?: () => void
 }) {
   return (
     <div className="chat-welcome">
@@ -78,6 +80,15 @@ export function ChatWelcome({
           {config?.mode === 'preview'
             ? 'Local preview: examples fill the message box. No model calls or saved records.'
             : 'An example fills the message box so you can edit it. Nothing is sent until you press Send.'}
+        </p>
+      )}
+      {agent && onCreateAgent && (
+        <p className="welcome-hint welcome-create">
+          Want a new agent? Chat can&apos;t make one.{' '}
+          <button type="button" className="inline-link" onClick={onCreateAgent}>
+            Open Create agent
+          </button>{' '}
+          to build one from a template.
         </p>
       )}
     </div>
