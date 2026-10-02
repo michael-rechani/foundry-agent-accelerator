@@ -307,18 +307,25 @@
   font-size: 12px;
   color: var(--muted);
 }
+/* A fixed height, so this is the same size as the grey placeholder
+   (.library-bar-switch) whatever font the browser falls back to. */
 .library-view-switch {
   display: inline-flex;
-  align-items: center;
+  align-items: stretch;
   gap: 4px;
+  box-sizing: border-box;
+  height: 38px;
   padding: 3px;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   background: var(--surface);
 }
 .library-view-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 64px;
-  padding: 7px 10px;
+  padding: 0 10px;
   border-radius: 6px;
   background: transparent;
   color: var(--text-secondary);
