@@ -686,6 +686,10 @@ test('appearance follows the device by default and applies saved choices everywh
 test('header panels open one at a time so none is hidden behind another', async ({
   page,
 }) => {
+  // Wide windows move the agent guide to a right-hand column, so use the
+  // narrower layout where the header holds all three panels.
+  if ((page.viewportSize()?.width ?? 0) >= 1000)
+    await page.setViewportSize({ width: 900, height: 900 })
   await setup(page)
   await page
     .getByRole('navigation')
@@ -713,7 +717,7 @@ test('header panels open one at a time so none is hidden behind another', async 
   await expect(appearance).toBeHidden()
   expect(await onTop(lab)).toBe(true)
 
-  await page.getByText('About this agent', { exact: true }).click()
+  await page.locator('.agent-about > summary').click()
   await expect(guide).toBeInViewport()
   await expect(lab).toBeHidden()
   expect(await onTop(guide)).toBe(true)

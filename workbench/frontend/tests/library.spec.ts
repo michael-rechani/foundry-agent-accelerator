@@ -211,16 +211,16 @@ async function openAgent(page: Page, label: string) {
   ).toBeVisible()
 }
 
-test('the library is the landing view and groups navigation into four sections', async ({
+test('the library is the landing view and groups navigation into three sections', async ({
   page,
 }) => {
   await setup(page)
   await expect(
-    navigation(page).getByRole('button', { name: 'All agents' }),
+    navigation(page).getByRole('button', { name: /^All agents/ }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(
     navigation(page).getByRole('group').locator('.nav-section-label'),
-  ).toHaveText(['Agent library', 'Try it', 'Measure', 'Activity'])
+  ).toHaveText(['Agent library', 'Try it', 'Operations'])
   const tabs = page.getByRole('navigation', { name: 'Agent library' })
   await expect(tabs.getByRole('button')).toHaveText([
     'Browse',
@@ -230,10 +230,11 @@ test('the library is the landing view and groups navigation into four sections',
     'Add-ons',
   ])
   await expect(navigation(page).getByRole('button')).toHaveText([
-    'All agents',
+    /^All agents\s*\d*$/,
     'Create agent',
     'Chat',
-    'Shared history',
+    /^Shared history/,
+    'Overview',
     'Performance',
     /^Request log/,
   ])
@@ -246,14 +247,15 @@ test('the library is the landing view and groups navigation into four sections',
     page.getByRole('heading', { level: 1, name: 'Choose an agent' }),
   ).toBeVisible()
   await expect(
-    navigation(page).getByRole('button', { name: 'All agents' }),
+    navigation(page).getByRole('button', { name: /^All agents/ }),
   ).toHaveAttribute('aria-current', 'page')
   await tabs.getByRole('button', { name: 'Browse' }).click()
   for (const [name, heading] of [
     ['Chat', null],
     [/^Request log/, 'Request log'],
     ['Performance', 'Performance'],
-    ['All agents', 'Find an agent for the job'],
+    ['Overview', 'Operations'],
+    [/^All agents/, 'Find an agent for the job'],
   ] as const) {
     await navigation(page)
       .getByRole('button', { name, exact: typeof name === 'string' })
@@ -266,7 +268,9 @@ test('the library is the landing view and groups navigation into four sections',
       await expect(
         page.getByRole('textbox', { name: 'Message', exact: true }),
       ).toBeVisible()
-    await expect(tabs).toHaveCount(name === 'All agents' ? 1 : 0)
+    await expect(tabs).toHaveCount(
+      heading === 'Find an agent for the job' ? 1 : 0,
+    )
   }
   await tabs.getByRole('button', { name: 'Guided demos' }).click()
   await expect(
@@ -283,12 +287,13 @@ test('the library is the landing view and groups navigation into four sections',
   ).toBeVisible()
   await expect(page.getByText(/Terraform|Verified Modules/)).toHaveCount(0)
   await expect(
-    navigation(page).getByRole('button', { name: 'All agents' }),
+    navigation(page).getByRole('button', { name: /^All agents/ }),
   ).toHaveAttribute('aria-current', 'page')
   for (const [hash, name] of [
-    ['#library', 'All agents'],
-    ['#agents', 'All agents'],
-    ['#demos', 'All agents'],
+    ['#library', /^All agents/],
+    ['#agents', /^All agents/],
+    ['#demos', /^All agents/],
+    ['#operations', 'Overview'],
     ['#performance', 'Performance'],
     ['#logs', /^Request log/],
   ] as const) {
@@ -599,6 +604,116 @@ test('browse, filter and search the catalog with live counts', async ({
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true)
+})
+
+test('the library switches between cards and a list and remembers the choice', async ({
+  page,
+}) => {
+  const state = await setup(page, { ready: true })
+  const view = page.getByRole('group', { name: 'View', exact: true })
+  const cardsButton = view.getByRole('button', { name: 'Cards' })
+  const listButton = view.getByRole('button', { name: 'List' })
+  const cards = page.locator('.library-card')
+  const table = page.getByRole('table', {
+    name: 'Agents matching the current filters',
+  })
+  const rows = table.locator('tbody tr')
+  const results = page.getByRole('heading', { level: 2, name: /agents?$/ })
+  const stored = () =>
+    page.evaluate(() => localStorage.getItem('foundry-lab-library-view'))
+
+  await expect(cardsButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(listButton).toHaveAttribute('aria-pressed', 'false')
+  await expect(cards).toHaveCount(templates.length)
+  await expect(table).toHaveCount(0)
+
+  await listButton.click()
+  await expect(listButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(cardsButton).toHaveAttribute('aria-pressed', 'false')
+  await expect(cards).toHaveCount(0)
+  await expect(rows).toHaveCount(templates.length)
+  await expect(results).toHaveText(`${templates.length} agents`)
+  await expect(table.getByRole('columnheader')).toHaveText([
+    'Agent',
+    'Job',
+    'Sector',
+    'Readiness',
+    'Action',
+  ])
+  expect(await stored()).toBe('list')
+  // The one agent that is ready offers Chat; the rest open their page.
+  const row = rows.filter({ hasText: support.label })
+  await expect(row).toContainText(support.sector.label)
+  await expect(row.getByRole('button', { name: 'Try in Chat' })).toBeVisible()
+  await expect(
+    table.getByRole('button', { name: 'Open', exact: true }),
+  ).toHaveCount(templates.length - 1)
+
+  // Search and the filter menus work in the list too.
+  const search = page.getByRole('searchbox', { name: 'Search agents' })
+  await search.fill('renewal')
+  await expect(rows).toHaveCount(1)
+  await expect(rows.first()).toContainText('Benefits renewal helper')
+  await expect(results).toHaveText('1 agent')
+  await search.fill('')
+  await expect(rows).toHaveCount(templates.length)
+  const strip = page.locator('.library-filter-strip')
+  await expect(strip.locator('.library-filter-menu > summary')).toHaveText([
+    'Sector and industry',
+    'Task',
+    'Readiness',
+    'Works with',
+  ])
+  const publicCount = templates.filter(
+    (item) => item.sector.id === 'public',
+  ).length
+  await strip.locator('.library-filter-menu > summary').first().click()
+  await strip
+    .locator('.library-facet')
+    .filter({
+      has: page.getByText('Healthcare and public sector', { exact: true }),
+    })
+    .click()
+  await expect(rows).toHaveCount(publicCount)
+  await expect(results).toHaveText(`${publicCount} agents`)
+  await expect(
+    strip.locator('.library-filter-menu > summary strong'),
+  ).toHaveText('Healthcare and public sector')
+  await page.keyboard.press('Escape')
+  await strip.getByRole('button', { name: 'Clear filters' }).click()
+  await expect(rows).toHaveCount(templates.length)
+
+  // Opening an agent and coming back keeps the list.
+  await row.getByRole('button', { name: support.label }).click()
+  await expect(
+    page.getByRole('heading', { level: 1, name: support.label, exact: true }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Back to all agents' }).click()
+  await expect(rows).toHaveCount(templates.length)
+
+  // Try in Chat loads the sample and sends nothing.
+  await row.getByRole('button', { name: 'Try in Chat' }).click()
+  const editor = page.getByRole('textbox', { name: 'Message', exact: true })
+  await expect(editor).toHaveValue(support.sample_input)
+  expect(state.chat).toHaveLength(0)
+  // An unsent draft would make the reload below ask before leaving.
+  await editor.fill('')
+
+  await navigation(page)
+    .getByRole('button', { name: /^All agents/ })
+    .click()
+  await page.reload()
+  await expect(listButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(rows).toHaveCount(templates.length)
+  await cardsButton.click()
+  await expect(cards).toHaveCount(templates.length)
+  await expect(table).toHaveCount(0)
+  expect(await stored()).toBe('cards')
+  await page.reload()
+  await expect(cardsButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(cards).toHaveCount(templates.length)
+  expect(state.drafts).toBe(0)
+  expect(state.creations).toBe(0)
 })
 
 test('the search hint fits inside the search box', async ({ page }) => {
@@ -1091,6 +1206,37 @@ test('a library preview offers to create that agent and opens Create with it cho
   expect(state.creations).toBe(0)
 })
 
+test('on a wide screen the side column offers to create a previewed agent', async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name === 'mobile',
+    'The side column needs a wide window',
+  )
+  const state = await setup(page, { libraryPreview: true })
+  await openAgent(page, support.label)
+  await page.getByRole('button', { name: 'Try it in Chat' }).click()
+  const aside = page.getByRole('complementary', { name: 'Agent details' })
+  await expect(aside.locator('.aside-kind')).toHaveText('Library preview')
+  await expect(aside).toContainText('Nothing is created until the last step.')
+  // A preview can't be saved, so Create takes the place of the Save button.
+  await expect(
+    aside.getByRole('button', { name: 'Save to shared history' }),
+  ).toHaveCount(0)
+  await aside
+    .getByRole('button', { name: 'Create this agent', exact: true })
+    .click()
+  await expect(
+    page.getByRole('heading', { name: 'Create an agent', exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.locator('.creation-template[aria-pressed="true"]'),
+  ).toContainText(support.label)
+  expect(state.chat).toHaveLength(0)
+  expect(state.drafts).toBe(0)
+  expect(state.creations).toBe(0)
+})
+
 test('Chat tells you it cannot create agents and points to Create agent', async ({
   page,
 }) => {
@@ -1124,7 +1270,7 @@ test('without agent creation, Chat shows no Create pointer or button', async ({
     "Chat can't make one.",
   )
   await navigation(page)
-    .getByRole('button', { name: 'All agents', exact: true })
+    .getByRole('button', { name: /^All agents/ })
     .click()
   await openAgent(page, support.label)
   await page.getByRole('button', { name: 'Try it in Chat' }).click()

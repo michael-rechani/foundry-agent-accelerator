@@ -20,10 +20,16 @@ type Document = {
   updated_at: string
   turns: Turn[]
 }
+type HealthReply = { status?: number; body?: unknown; html?: boolean }
+const healthy: HealthReply = {
+  body: { status: 'ready', foundry: 'ready', cosmos: 'ready' },
+}
 
 async function workspace(
   page: Page,
   options: {
+    // One reply for every check, or one per check with the last repeated.
+    health?: HealthReply | HealthReply[]
     conflict?: boolean
     stalledHistory?: boolean
     stalledReview?: boolean
@@ -54,6 +60,7 @@ async function workspace(
   }
   const state = {
     configRequests: 0,
+    healthRequests: 0,
     document: null as Document | null,
     requests: [] as {
       history: { role: string; content: string }[]
@@ -83,6 +90,18 @@ async function workspace(
           return respond({ error: 'unavailable' }, 503)
       }
       return respond(config)
+    }
+    if (path === '/api/health/dependencies') {
+      state.healthRequests++
+      const replies = [options.health ?? healthy].flat()
+      const reply = replies[Math.min(state.healthRequests, replies.length) - 1]
+      if (reply.html)
+        return route.fulfill({
+          status: reply.status ?? 502,
+          contentType: 'text/html',
+          body: '<html><body>Bad Gateway</body></html>',
+        })
+      return respond(reply.body, reply.status ?? 200)
     }
     if (path === '/api/reviews') {
       state.requests.push(request.postDataJSON())
@@ -190,6 +209,27 @@ async function openReadyAgents(page: Page) {
     .getByRole('button', { name: /^Ready to chat/ })
     .click()
 }
+
+async function openOverview(page: Page) {
+  await page
+    .getByRole('navigation', { name: 'Workspace' })
+    .getByRole('button', { name: 'Overview', exact: true })
+    .click()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Operations' }),
+  ).toBeVisible()
+}
+
+const serviceStatus = (page: Page, service: string) =>
+  page
+    .locator('.operations-services tbody tr')
+    .filter({
+      has: page.getByRole('rowheader', { name: service, exact: true }),
+    })
+    .locator('.operations-status')
+
+const labStatus = (page: Page) =>
+  page.locator('.metric-strip-4 > div').first().locator('strong')
 
 test('shared privacy notice is visible before sending or saving', async ({
   page,
@@ -593,6 +633,10 @@ test('catalog uses customer names while retaining runtime targets and scenario s
 test('agent guidance remains inspectable without reconfiguring the runtime', async ({
   page,
 }, testInfo) => {
+  // Wide windows show the guide in a right-hand column; this covers the
+  // header pop-up used below 1000px.
+  if ((page.viewportSize()?.width ?? 0) >= 1000)
+    await page.setViewportSize({ width: 900, height: 900 })
   const state = await workspace(page)
   const summary = page.locator('.agent-about > summary')
   const guide = page.getByRole('complementary', {
@@ -623,6 +667,184 @@ test('agent guidance remains inspectable without reconfiguring the runtime', asy
   await summary.click()
   await expect(guide).toContainText(agent.guidance!.output)
   expect(state.requests).toHaveLength(1)
+})
+
+test('on a wide screen the agent details sit beside the conversation', async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name === 'mobile',
+    'The side column needs a wide window',
+  )
+  const state = await workspace(page, {
+    usage: { input_tokens: 1200, output_tokens: 300, total_tokens: 1500 },
+  })
+  const nav = page.getByRole('navigation', { name: 'Workspace' })
+  const aside = page.getByRole('complementary', { name: 'Agent details' })
+  const detail = (name: string) =>
+    aside
+      .locator('.aside-rows > div')
+      .filter({ has: page.getByText(name, { exact: true }) })
+  await expect(aside.getByRole('heading', { level: 2 })).toHaveText([
+    'About this agent',
+    'This conversation',
+    'Next steps',
+  ])
+  await expect(aside).toContainText(agent.description)
+  await expect(aside).toContainText(agent.guidance!.input)
+  await expect(aside).toContainText(agent.guidance!.output)
+  // The pop-up in the top bar gives way to the column.
+  await expect(page.locator('.agent-about > summary')).toBeHidden()
+  await expect(detail('Replies')).toContainText('0 / 11')
+  await expect(detail('Last reply took')).toHaveCount(0)
+  await expect(detail('Characters')).toBeVisible()
+  await expect(
+    aside.getByRole('button', { name: 'Export conversation' }),
+  ).toBeDisabled()
+
+  await send(page)
+  await expect(detail('Replies')).toContainText('1 / 11')
+  await expect(detail('Last reply took')).toContainText('1.0 s')
+  await expect(detail('Tokens')).toContainText('1,200 in · 300 out')
+  // Token counts and limits stay under the hood; the reply time doesn't.
+  const hood = page.getByRole('switch', { name: /Under the hood/ })
+  await hood.uncheck()
+  await expect(detail('Tokens')).toBeHidden()
+  await expect(detail('Characters')).toBeHidden()
+  await expect(detail('Last reply took')).toBeVisible()
+  await hood.check()
+  await expect(detail('Tokens')).toBeVisible()
+  await expect(
+    aside.getByRole('button', { name: 'Export conversation' }),
+  ).toBeEnabled()
+  await aside.getByRole('button', { name: 'Save to shared history' }).click()
+  await expect.poll(() => state.saves.length).toBe(1)
+
+  await aside.locator('.aside-more > summary').click()
+  const more = aside.locator('.aside-more-body .agent-guide')
+  await expect(more).toBeVisible()
+  await expect(more).toContainText(agent.guidance!.limits)
+  await expect(more).toContainText(agent.guidance!.delegation)
+  await screenshot(page, testInfo, 'chat-aside.png')
+
+  await nav.getByRole('button', { name: 'Performance', exact: true }).click()
+  await expect(aside).toBeHidden()
+  await nav.getByRole('button', { name: 'Chat', exact: true }).click()
+  await expect(aside).toBeVisible()
+  await page.setViewportSize({ width: 900, height: 900 })
+  await expect(aside).toBeHidden()
+  await expect(page.locator('.agent-about > summary')).toBeVisible()
+})
+
+test('Operations Overview shows service health, when it was checked and re-checks on request', async ({
+  page,
+}, testInfo) => {
+  await page.clock.install()
+  const state = await workspace(page)
+  const nav = page.getByRole('navigation', { name: 'Workspace' })
+  expect(state.healthRequests).toBe(0)
+  await openOverview(page)
+  for (const service of ['Lab', 'Foundry connection', 'History store'])
+    await expect(serviceStatus(page, service)).toHaveText('Ready')
+  await expect(labStatus(page)).toHaveText('Ready')
+  await expect(page.locator('.operations-actions .micro-label')).toHaveText(
+    /^Status as of \d{1,2}:\d{2}/,
+  )
+  await expect(
+    page.getByText(
+      'The Lab re-checks itself every minute, so this can be up to a minute behind.',
+    ),
+  ).toBeVisible()
+  await screenshot(page, testInfo, 'operations-overview.png')
+  expect(state.healthRequests).toBe(1)
+
+  // Coming back inside the minute re-uses the last answer.
+  await nav.getByRole('button', { name: 'Performance', exact: true }).click()
+  await openOverview(page)
+  await expect(serviceStatus(page, 'Foundry connection')).toHaveText('Ready')
+
+  const refresh = page.getByRole('button', { name: 'Refresh', exact: true })
+  await refresh.click()
+  await expect.poll(() => state.healthRequests).toBe(2)
+  await expect(refresh).toBeEnabled()
+  expect(state.healthRequests).toBe(2)
+
+  // Opening it again after a minute asks again.
+  await page.clock.runFor(61_000)
+  await nav.getByRole('button', { name: 'Performance', exact: true }).click()
+  await openOverview(page)
+  await expect.poll(() => state.healthRequests).toBe(3)
+})
+
+for (const item of [
+  {
+    name: 'a service needs attention',
+    options: {
+      health: {
+        status: 503,
+        body: { status: 'degraded', foundry: 'unavailable', cosmos: 'ready' },
+      },
+    },
+    overall: 'Needs attention',
+    foundry: 'Needs attention',
+    history: 'Ready',
+  },
+  {
+    name: 'the Lab is still starting',
+    options: { health: { status: 503, body: { status: 'starting' } } },
+    overall: 'Starting',
+    foundry: 'Starting',
+    history: 'Starting',
+  },
+  {
+    name: 'a preview has no live connections',
+    options: {
+      preview: true,
+      health: { status: 503, body: { status: 'disabled' } },
+    },
+    overall: 'Preview only',
+    foundry: 'Off',
+    history: 'Off',
+  },
+  {
+    name: 'the answer cannot be read',
+    options: { health: { status: 502, html: true } },
+    overall: "Couldn't check",
+    foundry: "Couldn't check",
+    history: "Couldn't check",
+  },
+] satisfies {
+  name: string
+  options: Parameters<typeof workspace>[1]
+  overall: string
+  foundry: string
+  history: string
+}[])
+  test(`Operations Overview says so when ${item.name}`, async ({ page }) => {
+    await workspace(page, item.options)
+    await openOverview(page)
+    await expect(labStatus(page)).toHaveText(item.overall)
+    await expect(serviceStatus(page, 'Lab')).toHaveText('Ready')
+    await expect(serviceStatus(page, 'Foundry connection')).toHaveText(
+      item.foundry,
+    )
+    await expect(serviceStatus(page, 'History store')).toHaveText(item.history)
+  })
+
+test('Refresh on Operations Overview recovers after a failed check', async ({
+  page,
+}) => {
+  const state = await workspace(page, {
+    health: [{ status: 502, html: true }, healthy],
+  })
+  await openOverview(page)
+  await expect(serviceStatus(page, 'Foundry connection')).toHaveText(
+    "Couldn't check",
+  )
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click()
+  await expect(serviceStatus(page, 'Foundry connection')).toHaveText('Ready')
+  await expect(labStatus(page)).toHaveText('Ready')
+  expect(state.healthRequests).toBe(2)
 })
 
 test('configuration guidance separates UI settings from deployed agent behavior', async ({
@@ -814,9 +1036,7 @@ test('save, reopen, follow up, update and delete shared history', async ({
   await page.getByRole('button', { name: 'Save to shared history' }).click()
   await expect(page.getByText('Saved / shared', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'New chat', exact: true }).click()
-  await page
-    .getByRole('button', { name: 'Shared history', exact: true })
-    .click()
+  await page.getByRole('button', { name: /^Shared history/ }).click()
   await page.locator('.saved-open').click()
   const storedSteps = await openSteps(page)
   await expect(storedSteps.locator('.answer-step-state')).toHaveText([
@@ -843,9 +1063,7 @@ test('save, reopen, follow up, update and delete shared history', async ({
   expect(state.updates).toEqual(['v1'])
   expect(state.saves[1].turns.every((turn) => !('stored' in turn))).toBeTruthy()
   await page.getByRole('button', { name: 'New chat', exact: true }).click()
-  await page
-    .getByRole('button', { name: 'Shared history', exact: true })
-    .click()
+  await page.getByRole('button', { name: /^Shared history/ }).click()
   page.once('dialog', (dialog) => dialog.accept())
   await page
     .getByRole('button', { name: 'Delete Review synthetic APP-1' })
@@ -882,9 +1100,7 @@ test('history timeout releases controls without losing the draft', async ({
   await page.clock.install()
   await workspace(page, { stalledHistory: true })
   await page.getByRole('textbox', { name: 'Message' }).fill('Keep this draft')
-  await page
-    .getByRole('button', { name: 'Shared history', exact: true })
-    .click()
+  await page.getByRole('button', { name: /^Shared history/ }).click()
   await expect(page.getByText('Loading history...')).toBeVisible()
   await page.clock.runFor(45001)
   await expect(page.getByRole('status')).toContainText(

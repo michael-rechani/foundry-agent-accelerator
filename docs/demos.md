@@ -64,7 +64,8 @@ Before inviting participants:
   profile and its two review specialists. Direct application or case chat is
   possible only if an operator has explicitly enabled that catalog entry.
   Proposal review reuses application review, not a third specialist.
-- **About this agent** explains what to paste, what the agent returns, and how it
+- **About this agent** (in the Chat header, or the right-hand column on a wide
+  screen) explains what to paste, what the agent returns, and how it
   works. **All agents** > **Ready to chat** selects an existing setup. The separate **Create agent** flow
   prepares and, with explicit operator confirmation, publishes a new agent.
 - A starter is just an example task and message. Developer configuration and

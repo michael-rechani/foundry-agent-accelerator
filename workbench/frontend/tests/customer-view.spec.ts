@@ -83,9 +83,8 @@ test('the customer view hides technical details until Under the hood is on', asy
     'Agent library',
     'Try it',
   ])
-  await expect(
-    navigation(page).getByRole('button', { name: 'Performance' }),
-  ).toHaveCount(0)
+  for (const name of ['Overview', 'Performance'])
+    await expect(navigation(page).getByRole('button', { name })).toHaveCount(0)
 
   await page.locator('.library-card').filter({ hasText: support.label }).click()
   await expect(
@@ -98,9 +97,13 @@ test('the customer view hides technical details until Under the hood is on', asy
   await expect(navigation(page).locator('.nav-section-label')).toHaveText([
     'Agent library',
     'Try it',
-    'Measure',
-    'Activity',
+    'Operations',
   ])
+  await expect(
+    navigation(page)
+      .getByRole('group', { name: 'Operations' })
+      .getByRole('button'),
+  ).toHaveText(['Overview', 'Performance', /^Request log/])
 
   await page.reload()
   await expect(hoodSwitch(page)).toBeChecked()
@@ -108,10 +111,10 @@ test('the customer view hides technical details until Under the hood is on', asy
   await navigation(page).getByRole('button', { name: 'Performance' }).click()
   await expect(
     page.getByRole('navigation', { name: 'Breadcrumb' }),
-  ).toContainText(/Measure\s*Performance/)
+  ).toContainText(/Operations\s*Performance/)
   await hoodSwitch(page).uncheck()
   await expect(
-    navigation(page).getByRole('button', { name: 'All agents' }),
+    navigation(page).getByRole('button', { name: /^All agents/ }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(
     navigation(page).getByRole('button', { name: 'Performance' }),
@@ -171,9 +174,16 @@ test('Foundry links appear only under the hood', async ({ page }) => {
   )
 
   await navigation(page).getByRole('button', { name: 'Chat' }).click()
-  await page.getByText('About this agent').click()
-  await page.getByText('Developer setup details').click()
-  const runtime = page.locator('.catalog-runtime')
+  // Wide windows keep the agent's details in a right-hand column and narrow
+  // ones in a pop-up from the Chat header.
+  const wide = (page.viewportSize()?.width ?? 0) >= 1000
+  await page
+    .locator(wide ? '.aside-more > summary' : '.agent-about > summary')
+    .click()
+  const runtime = page.locator(
+    wide ? '.chat-aside .catalog-runtime' : '.agent-about .catalog-runtime',
+  )
+  await runtime.getByText('Developer setup details').click()
   await expect(runtime.getByRole('link').first()).toHaveAttribute(
     'href',
     `${portal}/build/agents/${guidedReview.agent}/build`,

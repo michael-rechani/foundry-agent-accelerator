@@ -165,9 +165,9 @@ creates Azure resources that cost money.
 
 The Lab opens on the **Agent library**; **Chat** remains one click away. The
 sidebar has **Agent library** (**All agents**, plus **Create agent** when
-creation is on) and **Try it** (Chat and Shared history). **Measure** (response
-times, tokens, and cost) and **Activity** (the request log) appear when you turn
-on **Under the hood**. **All agents** has tabs for **Browse**, **Ready to chat**,
+creation is on) and **Try it** (Chat and Shared history). **Operations** (a
+health overview, response times, tokens, cost, and the request log) appears when
+you turn on **Under the hood**. **All agents** has tabs for **Browse**, **Ready to chat**,
 **Made in this Lab**, **Guided demos**, and **Add-ons**. **Document reviews** has
 no sidebar link; open `/#reviews` or a saved-review link. See the
 [Lab guide](workbench/README.md#pages).

@@ -20,6 +20,7 @@ export const crumbs: Record<View, [string, string]> = {
   chat: ['Try it', 'Chat'],
   reviews: ['Try it', 'Document reviews'],
   history: ['Try it', 'Shared history'],
-  performance: ['Measure', 'Performance'],
-  log: ['Activity', 'Request log'],
+  operations: ['Operations', 'Overview'],
+  performance: ['Operations', 'Performance'],
+  log: ['Operations', 'Request log'],
 }
