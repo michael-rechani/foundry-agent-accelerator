@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowDownToLine,
   ArrowLeft,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import type { Config } from './workspace-config'
 import {
+  reviewIdFromHash,
   reviewRequest,
   type Review,
   type ReviewItem,
@@ -68,6 +69,44 @@ export function ReviewWorkspace({
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
+  const latest = useRef<{ dirty: boolean; openId?: string }>({ dirty })
+  useEffect(() => {
+    latest.current = { dirty, openId: creating ? undefined : selected?.id }
+  })
+
+  function select(document: Review) {
+    setSelected(document)
+    setRunIndex(-1)
+    setSourceId('SRC-1')
+    setTab('findings')
+  }
+
+  function openLinked(identifier: string, signal: AbortSignal) {
+    const { dirty: unsaved, openId } = latest.current
+    if (
+      identifier !== openId &&
+      unsaved &&
+      !window.confirm('Discard unsaved review information?')
+    ) {
+      window.history.replaceState(null, '', openId ? '#' + openId : '#reviews')
+      return
+    }
+    void reviewRequest('/' + identifier, 'GET', undefined, undefined, signal)
+      .then((document: Review) => {
+        if (identifier === latest.current.openId) {
+          setSelected(document)
+          return
+        }
+        select(document)
+        setCreating(false)
+        setAdditional('')
+        setError('')
+      })
+      .catch((problem) => {
+        if (!signal.aborted) setError(problem.message)
+      })
+  }
+
   useEffect(() => {
     if (!enabled || !active) return
     const controller = new AbortController()
@@ -80,21 +119,26 @@ export function ReviewWorkspace({
       .catch((problem) => {
         if (!controller.signal.aborted) setError(problem.message)
       })
-    const identifier = window.location.hash.slice(1)
-    if (/^review-[0-9a-f-]{36}$/.test(identifier)) {
-      void reviewRequest(
-        '/' + identifier,
-        'GET',
-        undefined,
-        undefined,
-        controller.signal,
-      )
-        .then(setSelected)
-        .catch((problem) => {
-          if (!controller.signal.aborted) setError(problem.message)
-        })
-    }
+    const identifier = reviewIdFromHash(window.location.hash)
+    if (identifier) openLinked(identifier, controller.signal)
     return () => controller.abort()
+  }, [enabled, active])
+
+  useEffect(() => {
+    if (!enabled || !active) return
+    let request: AbortController | undefined
+    const follow = () => {
+      const identifier = reviewIdFromHash(window.location.hash)
+      if (!identifier) return
+      request?.abort()
+      request = new AbortController()
+      openLinked(identifier, request.signal)
+    }
+    window.addEventListener('hashchange', follow)
+    return () => {
+      window.removeEventListener('hashchange', follow)
+      request?.abort()
+    }
   }, [enabled, active])
 
   useEffect(() => {
@@ -149,10 +193,7 @@ export function ReviewWorkspace({
   }
 
   function accept(document: Review) {
-    setSelected(document)
-    setRunIndex(-1)
-    setSourceId('SRC-1')
-    setTab('findings')
+    select(document)
     setItems((previous) => [
       document,
       ...previous.filter((item) => item.id !== document.id),

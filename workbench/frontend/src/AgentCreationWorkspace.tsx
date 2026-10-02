@@ -320,7 +320,7 @@ export function AgentCreationWorkspace({
     const key = keyField.current?.value || ''
     if (key.length < 32) {
       setError(
-        'Enter the operator key (at least 32 characters) before changing a Foundry resource.',
+        'Enter the operator key (at least 32 characters) to create or delete a real agent. Ask the Lab operator if you do not have it.',
       )
       keyField.current?.focus()
       return null

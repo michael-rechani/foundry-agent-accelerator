@@ -34,6 +34,10 @@ export type Review = {
 }
 export type ReviewItem = Pick<Review, 'id' | 'title' | 'status' | 'updated_at'>
 
+const reviewLink = /^#(review-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/
+export const reviewIdFromHash = (hash: string) =>
+  reviewLink.exec(hash)?.[1] ?? null
+
 export const statuses: Record<string, string> = {
   draft: 'Ready to run',
   running: 'Running',
