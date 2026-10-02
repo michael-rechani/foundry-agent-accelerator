@@ -328,6 +328,10 @@ export function isPreviewId(id: string) {
   return id.startsWith(previewPrefix)
 }
 
+export function previewTemplateId(id: string) {
+  return isPreviewId(id) ? id.slice(previewPrefix.length) : undefined
+}
+
 // A library preview runs the template's own instructions and simulated tools
 // on the Lab's model, without publishing anything. The server re-derives the
 // binding from the ID; nothing here is trusted beyond display.

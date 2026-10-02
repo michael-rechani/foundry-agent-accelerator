@@ -886,6 +886,9 @@ p {
 .chat-welcome .welcome-hint {
   margin-top: 14px;
 }
+.chat-welcome .welcome-hint.welcome-create {
+  margin-top: 6px;
+}
 .agent-switcher {
   position: relative;
   min-width: 0;
@@ -1032,6 +1035,10 @@ p {
 }
 .topbar-button:disabled {
   opacity: 0.55;
+}
+.topbar-accent {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .composer-continue {
   display: inline-flex;

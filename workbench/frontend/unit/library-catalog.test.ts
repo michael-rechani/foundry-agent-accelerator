@@ -10,6 +10,7 @@ import {
   parseCatalog,
   previewAgent,
   previewAgents,
+  previewTemplateId,
   toggleFacet,
 } from '../src/library-catalog.ts'
 
@@ -228,6 +229,13 @@ describe('library previews', () => {
     }
     assert.deepEqual(previewAgents(connected, 'lab-library-preview'), [])
     assert.equal(isPreviewId('customer-review'), false)
+  })
+
+  it('recovers the template from a preview id and ignores other agents', () => {
+    const [first] = previewAgents(parseCatalog(raw), 'lab-library-preview')
+    assert.equal(previewTemplateId(first.id), parseCatalog(raw).templates[0].id)
+    assert.equal(previewTemplateId('customer-review'), undefined)
+    assert.equal(previewTemplateId('created-abc'), undefined)
   })
 
   it('fills an empty delegation and clips long guidance', () => {
