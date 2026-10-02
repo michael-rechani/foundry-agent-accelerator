@@ -122,7 +122,8 @@ Fluent-inspired CSS, not the Fluent UI component library. Neutral surfaces and
 blue actions are shared across creation, **Chat**, **Document reviews**,
 history, **Agent library**, performance, and the request log. Playwright covers desktop and mobile
 workflows. The Python backend uses FastAPI, Pydantic validation, and async Azure
-SDKs for Foundry and Cosmos DB.
+SDKs for Foundry and Cosmos DB. To build or test the UI, see the
+[frontend guide](frontend/README.md).
 
 ## Access
 

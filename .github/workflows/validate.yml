@@ -8,8 +8,14 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request cancels its superseded run. Every push to main keeps its own group so its checks always finish.
+concurrency:
+  group: validate-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   secrets:
+    timeout-minutes: 10
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,6 +35,7 @@ jobs:
 
   python-tests:
     name: python (${{ matrix.python-version }})
+    timeout-minutes: 20
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -103,6 +110,7 @@ jobs:
   python:
     needs: python-tests
     if: ${{ always() }}
+    timeout-minutes: 5
     runs-on: ubuntu-24.04
     steps:
       - name: Require every Python version to pass
@@ -115,6 +123,7 @@ jobs:
           fi
 
   evaluations:
+    timeout-minutes: 15
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -133,6 +142,7 @@ jobs:
         run: python evaluations/run.py
 
   docs:
+    timeout-minutes: 10
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -154,6 +164,7 @@ jobs:
         run: python .github/scripts/check_markdown_links.py
 
   terraform:
+    timeout-minutes: 20
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -205,6 +216,7 @@ jobs:
           ./workbench/test-private-checks.ps1
 
   workbench-frontend:
+    timeout-minutes: 25
     runs-on: ubuntu-24.04
     container: node:24.21.0-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4
     steps:

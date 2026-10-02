@@ -128,7 +128,7 @@ than its private endpoint. Model names are examples; deployments are
 configurable. Keep optional API Management and its subnet out of this view.
 When a subnet or address default changes in Terraform, update the view.
 
-The collaboration view shows the Lab's default setup: **Application and case
+The collaboration view shows the Lab's default setup: **Checklist and case
 helper** with the **Checklist reviewer** and **Case notes summarizer**
 specialists. Its numbered steps match the root README. Steps 2 and 3 are stages
 of one coordinator agent, not separate agents. Keep the one-specialist default,

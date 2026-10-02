@@ -12,10 +12,7 @@ def default_profile() -> AgentProfile:
         source_directory=SOURCE_DIRECTORY,
         name="basic-responses-agent",
         description="Python SDK deployment of the basic Responses agent.",
-        instructions=(
-            "You are a concise assistant. Use only information available to "
-            "you and clearly identify uncertainty."
-        ),
+        instructions=(SOURCE_DIRECTORY / "instructions.md").read_text(encoding="utf-8"),
         smoke_test_prompt=(
             "Reply with a short confirmation that the hosted agent is ready."
         ),

@@ -32,7 +32,7 @@ no model calls. This is a sample, not an official Microsoft product.
 [Deploy to Azure](#deploy-to-azure) ·
 [Scope and limitations](#scope-and-limitations) ·
 [What's included](#whats-included) · [Documentation](#documentation) ·
-[Automated checks](#automated-checks)
+[Automated checks](#automated-checks) · [Related content](#related-content)
 
 ---
 
@@ -138,7 +138,7 @@ finance integration.
   **Create agent** and publish it as a new agent.
 - **[Model choice](docs/agent-creation.md#how-the-lab-picks-a-model):** use a
   template's selected model for reasoning, fast extraction, or tool calling.
-- **[Agents working together](hosted-agents/README.md):** ask the **Application
+- **[Agents working together](hosted-agents/README.md):** ask the **Checklist
   and case helper** in Chat to hand a task to a specialist.
 - **[Tool calling](docs/agent-creation.md#what-a-participant-can-do):** try
   read-only lookups with sample data in the **Service request planner** or the

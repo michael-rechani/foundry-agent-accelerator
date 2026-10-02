@@ -1,10 +1,15 @@
 import asyncio
 import os
+from pathlib import Path
 
 from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
 from agent_framework_foundry_hosting import ResponsesHostServer
 from azure.identity import DefaultAzureCredential
+
+DEFAULT_INSTRUCTIONS = (Path(__file__).parent / "instructions.md").read_text(
+    encoding="utf-8"
+)
 
 
 async def main() -> None:
@@ -25,10 +30,7 @@ async def main() -> None:
                 allow_preview=True,
             ),
             name=os.getenv("AGENT_NAME", "basic-responses-agent"),
-            instructions=os.getenv(
-                "AGENT_INSTRUCTIONS",
-                "You are a concise and helpful assistant.",
-            ),
+            instructions=os.getenv("AGENT_INSTRUCTIONS", DEFAULT_INSTRUCTIONS),
             default_options={"store": store_responses},
         )
 
