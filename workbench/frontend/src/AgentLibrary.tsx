@@ -42,6 +42,7 @@ import { FacetGroups, FacetMenus } from './LibraryFilters'
 import { LibraryList } from './LibraryList'
 import { ScorecardPanel } from './ScorecardPanel'
 import { useScorecards, type ScorecardsState } from './scorecards-client'
+import { tabKeyDown } from './tab-keys'
 import type { Agent, CreationCapability } from './workspace-config'
 import './library.css'
 
@@ -684,6 +685,7 @@ function LibraryDetail({
     ['results', 'Test results'],
     ['export', 'Take it to Foundry'],
   ]
+  const tabIds = tabs.map(([id]) => id)
   const runnable = template.tool_mode.id !== 'connected-required'
   const creationNote = !capability
     ? 'Agent creation is not available in this Lab.'
@@ -809,7 +811,9 @@ function LibraryDetail({
             id={`library-tab-${id}`}
             aria-selected={tab === id}
             aria-controls="library-tabpanel"
+            tabIndex={tab === id ? 0 : -1}
             onClick={() => onTab(id)}
+            onKeyDown={(event) => tabKeyDown(event, tabIds, id, onTab)}
           >
             {label}
           </button>

@@ -7,8 +7,16 @@ import {
   type Source,
 } from './review-client'
 import { ReviewResults } from './ReviewResults'
+import { tabKeyDown } from './tab-keys'
 
 type Tab = 'findings' | 'evidence' | 'activity'
+
+const tabLabels: Record<Tab, string> = {
+  findings: 'Results',
+  evidence: 'Original text',
+  activity: 'Run details',
+}
+const tabIds = Object.keys(tabLabels) as Tab[]
 
 function RunActivity({ run }: { run?: Run }) {
   return (
@@ -153,20 +161,19 @@ export function ReviewDetail({
         </div>
       )}
       <div className="review-tabs" role="tablist" aria-label="Review detail">
-        {(['findings', 'evidence', 'activity'] as const).map((name) => (
+        {tabIds.map((name) => (
           <button
             key={name}
+            type="button"
             role="tab"
+            id={`review-tab-${name}`}
             aria-selected={tab === name}
+            aria-controls="review-tabpanel"
+            tabIndex={tab === name ? 0 : -1}
             onClick={() => onTab(name)}
+            onKeyDown={(event) => tabKeyDown(event, tabIds, name, onTab)}
           >
-            {
-              {
-                findings: 'Results',
-                evidence: 'Original text',
-                activity: 'Run details',
-              }[name]
-            }
+            {tabLabels[name]}
           </button>
         ))}
         {!!review.runs.length && (
@@ -187,7 +194,12 @@ export function ReviewDetail({
           </label>
         )}
       </div>
-      <div className={`review-detail detail-${tab}`}>
+      <div
+        className={`review-detail detail-${tab}`}
+        id="review-tabpanel"
+        role="tabpanel"
+        aria-labelledby={`review-tab-${tab}`}
+      >
         <section
           className="review-findings"
           aria-label={tab === 'activity' ? 'Run activity' : 'Review results'}

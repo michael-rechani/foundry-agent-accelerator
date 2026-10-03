@@ -57,6 +57,7 @@ export function ThemePicker() {
   }
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape bubbles up from the summary and controls inside this disclosure.
     <details
       className="theme-menu"
       name="topbar-panel"

@@ -224,6 +224,7 @@ export function ChatSidebar({
           </span>
           <input
             type="checkbox"
+            // oxlint-disable-next-line jsx-a11y/role-has-required-aria-props -- A native checkbox already exposes its checked state to the switch role.
             role="switch"
             checked={hood}
             onChange={(event) => onHood(event.currentTarget.checked)}

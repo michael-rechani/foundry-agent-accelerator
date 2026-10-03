@@ -100,6 +100,7 @@ export function ChatTopbar({
             onBrowse={() => onView('library')}
           />
           {agent && (
+            // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape bubbles up from the summary and controls inside this disclosure.
             <details
               className="agent-about"
               name="topbar-panel"
@@ -147,6 +148,7 @@ export function ChatTopbar({
           <Presentation size={18} />
         </button>
         {config?.mode === 'private' ? (
+          // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape bubbles up from the summary and controls inside this disclosure.
           <details
             className="lab-info"
             name="topbar-panel"
