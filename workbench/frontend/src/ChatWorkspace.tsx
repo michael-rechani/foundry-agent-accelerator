@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { Check, CircleAlert, LoaderCircle, RefreshCw, X } from 'lucide-react'
 import './chat.css'
 import { useHistoryClient } from './history-client'
@@ -21,6 +27,7 @@ import { ChatSidebar, type View } from './ChatSidebar'
 import { libraryViews } from './navigation'
 import { LibraryTabs } from './LibraryTabs'
 import { ChatTopbar } from './ChatTopbar'
+import { ChatAside } from './ChatAside'
 import { ChatWelcome } from './ChatWelcome'
 import { ChatComposer } from './ChatComposer'
 import { HistoryView, type SavedChat } from './HistoryView'
@@ -28,6 +35,11 @@ import { AgentCatalog } from './AgentCatalog'
 import { PerformanceView } from './PerformanceView'
 import type { Measurement } from './performance-stats'
 import { RequestLog } from './RequestLog'
+import { OperationsView } from './OperationsView'
+import {
+  parseDependencyHealth,
+  type DependencyHealthSnapshot,
+} from './dependency-health'
 import { AgentLibrary, type ReadyAgent } from './AgentLibrary'
 import { ExploreDemos, DemoRunGuide } from './ExploreDemos'
 import { AddOns } from './AddOns'
@@ -53,6 +65,7 @@ const hashViews: Record<string, View> = {
   '#agents': 'catalog',
   '#demos': 'explore',
   '#addons': 'addons',
+  '#operations': 'operations',
   '#reviews': 'reviews',
   '#performance': 'performance',
   '#logs': 'log',
@@ -138,6 +151,7 @@ export default function ChatWorkspace() {
   const [dirty, setDirty] = useState(false)
   const [historyBusy, setHistoryBusy] = useState(false)
   const [savedChats, setSavedChats] = useState<SavedChat[]>([])
+  const [historyLoaded, setHistoryLoaded] = useState(false)
   const [cursor, setCursor] = useState<string | null>(null)
   const [continuing, setContinuing] = useState(false)
   const [presenting, setPresenting] = useState(false)
@@ -149,8 +163,11 @@ export default function ChatWorkspace() {
     key: number
   } | null>(null)
   const [thread, setThread] = useState(newThread)
+  const [dependencyHealth, setDependencyHealth] =
+    useState<DependencyHealthSnapshot | null>(null)
   const historyRequest = useHistoryClient(config?.history_timeout_ms)
   const controller = useRef<AbortController | null>(null)
+  const dependencyCheck = useRef<Promise<void> | null>(null)
   const editor = useRef<HTMLTextAreaElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
   const latestAnswer = useRef<HTMLElement>(null)
@@ -223,6 +240,20 @@ export default function ChatWorkspace() {
       )
     : 0
   const unsaved = dirty || !!draft || busy
+  const libraryCount = library.catalog?.templates.length
+  const showAside = view === 'chat' && !!agent && !presenting
+  const saveDisabled =
+    isPreview ||
+    !config?.history_enabled ||
+    !turns.length ||
+    busy ||
+    historyBusy ||
+    !dirty
+  const saveNote = isPreview ? "Preview chats can't be saved." : undefined
+  const createThis =
+    agent && previewTemplate && config?.agent_creation
+      ? () => createFromTemplate(previewTemplate)
+      : undefined
 
   useEffect(() => {
     if (!unsaved) return
@@ -236,6 +267,59 @@ export default function ChatWorkspace() {
 
   useEffect(() => () => controller.current?.abort(), [])
 
+  const loadDependencyHealth = useCallback(
+    async (force = false) => {
+      const cached = dependencyHealth
+      if (dependencyCheck.current) return dependencyCheck.current
+      if (
+        !force &&
+        cached &&
+        Date.now() - cached.checkedAt < 60_000 &&
+        (cached.data || cached.error)
+      )
+        return
+      setDependencyHealth((current) => ({
+        checkedAt: current?.checkedAt ?? 0,
+        data: current?.data ?? null,
+        error: false,
+        loading: true,
+      }))
+      const abort = new AbortController()
+      dependencyCheck.current = requestJson(
+        '/api/health/dependencies',
+        {
+          method: 'GET',
+          headers: { 'X-Workbench-Request': '1' },
+        },
+        abort.signal,
+      )
+        .then(({ data }) => {
+          const parsed = parseDependencyHealth(data)
+          // A gateway error page or an unreadable body isn't a health report.
+          if (parsed.status === 'unknown') throw new Error('Unreadable report')
+          setDependencyHealth({
+            checkedAt: Date.now(),
+            data: parsed,
+            error: false,
+            loading: false,
+          })
+        })
+        .catch(() => {
+          setDependencyHealth({
+            checkedAt: Date.now(),
+            data: null,
+            error: true,
+            loading: false,
+          })
+        })
+        .finally(() => {
+          dependencyCheck.current = null
+        })
+      return dependencyCheck.current
+    },
+    [dependencyHealth],
+  )
+
   useEffect(() => {
     if (view !== 'chat') return
     const before = lastScroll.current
@@ -247,6 +331,14 @@ export default function ChatWorkspace() {
       latestAnswer.current.scrollIntoView({ block: 'start' })
     else bottom.current?.scrollIntoView({ block: 'end' })
   }, [turns, busy, view, activeDemo])
+
+  useEffect(() => {
+    if (view !== 'operations') return
+    const timer = window.setTimeout(() => {
+      void loadDependencyHealth()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [loadDependencyHealth, view])
 
   useLayoutEffect(() => {
     const resize = () => {
@@ -463,6 +555,7 @@ export default function ChatWorkspace() {
       setSavedChats((previous) =>
         more ? [...previous, ...data.items] : data.items,
       )
+      setHistoryLoaded(true)
       setCursor(data.cursor)
     } catch (problem) {
       setNotice(
@@ -600,7 +693,7 @@ export default function ChatWorkspace() {
 
   return (
     <div
-      className={`chat-app${config?.agent_creation ? ' has-creation' : ''}${presenting ? ' presenter-view' : ''}${hood ? ' under-the-hood' : ''}`}
+      className={`chat-app${config?.agent_creation ? ' has-creation' : ''}${presenting ? ' presenter-view' : ''}${hood ? ' under-the-hood' : ''}${showAside ? ' chat-has-aside' : ''}`}
     >
       <ChatSidebar
         title={config?.title}
@@ -609,6 +702,8 @@ export default function ChatWorkspace() {
         historyEnabled={!!config?.history_enabled}
         busy={busy}
         historyBusy={historyBusy}
+        libraryCount={libraryCount}
+        historyCount={historyLoaded ? savedChats.length : undefined}
         requestCount={measurements.length}
         hood={hood}
         foundryPortal={config?.foundry_portal}
@@ -618,7 +713,11 @@ export default function ChatWorkspace() {
         onHood={(on) => {
           setHood(on)
           saveUnderTheHood(on)
-          if (!on && (hoodViews as readonly View[]).includes(view))
+          if (
+            !on &&
+            ((hoodViews as readonly View[]).includes(view) ||
+              view === 'operations')
+          )
             setView('library')
         }}
       />
@@ -636,15 +735,8 @@ export default function ChatWorkspace() {
           switchDisabled={busy || historyBusy}
           isPreview={isPreview}
           saving={historyBusy}
-          saveNote={isPreview ? "Preview chats can't be saved." : undefined}
-          saveDisabled={
-            isPreview ||
-            !config?.history_enabled ||
-            !turns.length ||
-            busy ||
-            historyBusy ||
-            !dirty
-          }
+          saveNote={saveNote}
+          saveDisabled={saveDisabled}
           exportDisabled={!turns.length && !draft}
           presenting={presenting}
           onPresent={() => setPresenting((value) => !value)}
@@ -654,11 +746,7 @@ export default function ChatWorkspace() {
           }}
           onSave={() => void saveChat()}
           onExport={download}
-          onCreateThis={
-            agent && previewTemplate && config?.agent_creation
-              ? () => createFromTemplate(previewTemplate)
-              : undefined
-          }
+          onCreateThis={createThis}
         />
 
         {!config && (
@@ -708,6 +796,9 @@ export default function ChatWorkspace() {
             onOpen={setLibraryDetail}
             onCreate={createFromTemplate}
             onTest={testFromLibrary}
+            onOpenCreate={
+              config.agent_creation ? () => setView('create') : undefined
+            }
           />
         )}
         {config?.agent_creation && (
@@ -748,7 +839,18 @@ export default function ChatWorkspace() {
           view === 'addons' ||
           view === 'library' ||
           view === 'create' ||
-          view === 'created' ? null : view === 'log' ? (
+          view === 'created' ? null : view === 'operations' ? (
+          <OperationsView
+            measurements={measurements}
+            sampleCount={libraryCount}
+            readyCount={availableAgents.length}
+            createdCount={createdAgents.records.length}
+            foundryPortal={config?.foundry_portal}
+            health={dependencyHealth}
+            onRefreshHealth={() => void loadDependencyHealth(true)}
+            onLog={() => setView('log')}
+          />
+        ) : view === 'log' ? (
           <RequestLog
             measurements={measurements}
             preview={config?.mode !== 'private'}
@@ -768,128 +870,149 @@ export default function ChatWorkspace() {
             onMore={() => void listHistory(true)}
           />
         ) : view === 'chat' ? (
-          <main className="conversation-view">
-            {selected.startsWith('created-') &&
-              !agent &&
-              !createdAgents.loading && (
-                <p className="creation-error" role="alert">
-                  {createdAgents.error ||
-                    'The selected created agent is unavailable or no longer ready. Choose another agent; your local messages are preserved.'}
-                </p>
-              )}
-            {isPreview &&
-              !agent &&
-              (library.error || !previewCapability?.enabled) && (
-                <p className="creation-error" role="alert">
-                  {previewNote ||
-                    'This library preview is unavailable. Choose another agent.'}
-                </p>
-              )}
-            <div className="conversation-scroll" aria-label="Conversation">
-              {activeDemo && (
-                <DemoRunGuide
-                  scenario={activeDemo}
-                  presenting={presenting}
-                  busy={busy || historyBusy}
-                  onFresh={() => loadDemo(activeDemo)}
-                  onClose={() => setActiveDemo(null)}
-                />
-              )}
-              {!turns.length && !pending ? (
-                activeDemo ? null : (
-                  <ChatWelcome
-                    agent={agent}
-                    config={config}
-                    isPreview={isPreview}
-                    inProgress={
-                      !!previewOptions.find(
-                        (item) => item.agent.id === selected,
-                      )?.inProgress
-                    }
-                    onPrompt={(text) => {
-                      setDraft(text)
-                      setActiveDemo(null)
-                      editor.current?.focus()
-                    }}
-                    onCreateAgent={
-                      !isPreview && config?.agent_creation
-                        ? () => setView('create')
-                        : undefined
-                    }
+          <div className="conversation-layout">
+            <main className="conversation-view">
+              {selected.startsWith('created-') &&
+                !agent &&
+                !createdAgents.loading && (
+                  <p className="creation-error" role="alert">
+                    {createdAgents.error ||
+                      'The selected created agent is unavailable or no longer ready. Choose another agent; your local messages are preserved.'}
+                  </p>
+                )}
+              {isPreview &&
+                !agent &&
+                (library.error || !previewCapability?.enabled) && (
+                  <p className="creation-error" role="alert">
+                    {previewNote ||
+                      'This library preview is unavailable. Choose another agent.'}
+                  </p>
+                )}
+              <div className="conversation-scroll" aria-label="Conversation">
+                {activeDemo && (
+                  <DemoRunGuide
+                    scenario={activeDemo}
+                    presenting={presenting}
+                    busy={busy || historyBusy}
+                    onFresh={() => loadDemo(activeDemo)}
+                    onClose={() => setActiveDemo(null)}
                   />
-                )
-              ) : (
-                <div className="message-list">
-                  {turns.map((turn, index) => (
-                    <ConversationTurn
-                      key={`${turn.result.request_id}-${index}`}
-                      turn={turn}
-                      label={agent?.label}
-                      agentLabels={agentLabels}
-                      foundryPortal={isPreview ? null : config?.foundry_portal}
-                      agentName={agent?.agent}
-                      answerRef={
-                        index === turns.length - 1 ? latestAnswer : undefined
+                )}
+                {!turns.length && !pending ? (
+                  activeDemo ? null : (
+                    <ChatWelcome
+                      agent={agent}
+                      config={config}
+                      isPreview={isPreview}
+                      inProgress={
+                        !!previewOptions.find(
+                          (item) => item.agent.id === selected,
+                        )?.inProgress
                       }
-                      onCopy={copy}
+                      onPrompt={(text) => {
+                        setDraft(text)
+                        setActiveDemo(null)
+                        editor.current?.focus()
+                      }}
+                      onCreateAgent={
+                        !isPreview && config?.agent_creation
+                          ? () => setView('create')
+                          : undefined
+                      }
                     />
-                  ))}
-                  {pending && (
-                    <article className="user-message">
-                      <span className="message-author">You</span>
-                      <p>{pending}</p>
-                    </article>
-                  )}
-                </div>
-              )}
-              {busy && (
-                <WaitingIndicator
-                  label={agent?.label}
-                  expects={agent?.guidance?.output}
-                />
-              )}
-              {error && (
-                <div className="chat-error" role="alert">
-                  <CircleAlert size={19} />
-                  <p>{error}</p>
-                  <button
-                    className="chat-icon"
-                    aria-label="Dismiss error"
-                    onClick={() => {
-                      setError('')
-                      setPending('')
-                    }}
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              )}
-              <div ref={bottom} />
-            </div>
-            <ChatComposer
-              editor={editor}
-              agent={agent}
-              config={config}
-              draft={draft}
-              busy={busy}
-              historyBusy={historyBusy}
-              turnCount={turns.length}
-              characters={characters}
-              requestBytes={requestBytes}
-              contextUsage={contextUsage}
-              limitReasons={limitReasons}
-              saved={!!saved}
-              dirty={dirty}
-              isPreview={isPreview}
-              onDraft={(value) => {
-                setDraft(value)
-                if (!busy) setPending('')
-              }}
-              onSubmit={() => void submit()}
-              onStop={() => controller.current?.abort()}
-              onContinue={() => setContinuing(true)}
-            />
-          </main>
+                  )
+                ) : (
+                  <div className="message-list">
+                    {turns.map((turn, index) => (
+                      <ConversationTurn
+                        key={`${turn.result.request_id}-${index}`}
+                        turn={turn}
+                        label={agent?.label}
+                        agentLabels={agentLabels}
+                        foundryPortal={
+                          isPreview ? null : config?.foundry_portal
+                        }
+                        agentName={agent?.agent}
+                        answerRef={
+                          index === turns.length - 1 ? latestAnswer : undefined
+                        }
+                        onCopy={copy}
+                      />
+                    ))}
+                    {pending && (
+                      <article className="user-message">
+                        <span className="message-author">You</span>
+                        <p>{pending}</p>
+                      </article>
+                    )}
+                  </div>
+                )}
+                {busy && (
+                  <WaitingIndicator
+                    label={agent?.label}
+                    expects={agent?.guidance?.output}
+                  />
+                )}
+                {error && (
+                  <div className="chat-error" role="alert">
+                    <CircleAlert size={19} />
+                    <p>{error}</p>
+                    <button
+                      className="chat-icon"
+                      aria-label="Dismiss error"
+                      onClick={() => {
+                        setError('')
+                        setPending('')
+                      }}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+                <div ref={bottom} />
+              </div>
+              <ChatComposer
+                editor={editor}
+                agent={agent}
+                config={config}
+                draft={draft}
+                busy={busy}
+                historyBusy={historyBusy}
+                turnCount={turns.length}
+                characters={characters}
+                requestBytes={requestBytes}
+                contextUsage={contextUsage}
+                limitReasons={limitReasons}
+                saved={!!saved}
+                dirty={dirty}
+                isPreview={isPreview}
+                onDraft={(value) => {
+                  setDraft(value)
+                  if (!busy) setPending('')
+                }}
+                onSubmit={() => void submit()}
+                onStop={() => controller.current?.abort()}
+                onContinue={() => setContinuing(true)}
+              />
+            </main>
+            {showAside && agent && (
+              <ChatAside
+                agent={agent}
+                config={config}
+                isPreview={isPreview}
+                turns={turns}
+                characters={characters}
+                saving={historyBusy}
+                saveDisabled={saveDisabled}
+                saveNote={saveNote}
+                exportDisabled={!turns.length && !draft}
+                onCatalog={() => setView('catalog')}
+                onSave={() => void saveChat()}
+                onExport={download}
+                onCreateThis={createThis}
+              />
+            )}
+          </div>
         ) : view === 'catalog' ? (
           <AgentCatalog
             agents={availableAgents}

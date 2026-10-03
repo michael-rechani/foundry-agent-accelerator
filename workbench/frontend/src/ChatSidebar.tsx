@@ -18,6 +18,7 @@ export type View =
   | 'addons'
   | 'chat'
   | 'catalog'
+  | 'operations'
   | 'performance'
   | 'log'
   | 'history'
@@ -25,7 +26,7 @@ export type View =
   | 'create'
   | 'created'
 
-export type Section = 'test' | 'library' | 'performance' | 'logging'
+export type Section = 'test' | 'library' | 'operations'
 
 type Item = {
   view: View
@@ -47,8 +48,9 @@ const sectionOf: Record<View, Section> = {
   catalog: 'library',
   create: 'library',
   created: 'library',
-  performance: 'performance',
-  log: 'logging',
+  operations: 'operations',
+  performance: 'operations',
+  log: 'operations',
 }
 
 export function ChatSidebar({
@@ -58,6 +60,8 @@ export function ChatSidebar({
   historyEnabled,
   busy,
   historyBusy,
+  libraryCount,
+  historyCount,
   requestCount,
   hood,
   foundryPortal,
@@ -72,6 +76,8 @@ export function ChatSidebar({
   historyEnabled: boolean
   busy: boolean
   historyBusy: boolean
+  libraryCount?: number
+  historyCount?: number
   requestCount: number
   hood: boolean
   foundryPortal?: string | null
@@ -94,6 +100,7 @@ export function ChatSidebar({
           view: 'library',
           label: 'All agents',
           icon: BookOpen,
+          count: libraryCount,
           current: libraryViews.includes(view),
         },
         ...(creationEnabled
@@ -120,22 +127,19 @@ export function ChatSidebar({
           view: 'history',
           label: 'Shared history',
           icon: History,
+          count: historyCount,
           enabled: historyEnabled && !historyBusy,
           onSelect: onHistory,
         },
       ],
     },
     {
-      id: 'performance',
-      label: 'Measure',
-      hood: true,
-      items: [{ view: 'performance', label: 'Performance', icon: Activity }],
-    },
-    {
-      id: 'logging',
-      label: 'Activity',
+      id: 'operations',
+      label: 'Operations',
       hood: true,
       items: [
+        { view: 'operations', label: 'Overview', icon: Activity },
+        { view: 'performance', label: 'Performance', icon: Activity },
         {
           view: 'log',
           label: 'Request log',

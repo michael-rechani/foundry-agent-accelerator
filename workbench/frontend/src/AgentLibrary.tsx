@@ -38,7 +38,8 @@ import {
   type Selection,
 } from './library-catalog'
 import type { LibraryCatalogState } from './library-catalog-client'
-import { FacetGroups } from './LibraryFilters'
+import { FacetGroups, FacetMenus } from './LibraryFilters'
+import { LibraryList } from './LibraryList'
 import { ScorecardPanel } from './ScorecardPanel'
 import { useScorecards, type ScorecardsState } from './scorecards-client'
 import type { Agent, CreationCapability } from './workspace-config'
@@ -52,8 +53,41 @@ const tones: Record<string, string> = {
   'connected-required': 'caution',
 }
 type Tab = 'overview' | 'test' | 'results' | 'export'
+type LibraryViewMode = 'cards' | 'list'
 
 export type ReadyAgent = { agent: Agent; recordId: string }
+
+const libraryViewStorageKey = 'foundry-lab-library-view'
+
+function readLibraryView(): LibraryViewMode {
+  if (typeof window === 'undefined') return 'cards'
+  try {
+    return window.localStorage.getItem(libraryViewStorageKey) === 'list'
+      ? 'list'
+      : 'cards'
+  } catch {
+    return 'cards'
+  }
+}
+
+function storesOpenChat(
+  template: LibraryTemplate,
+  preview?: Agent,
+  ready?: ReadyAgent,
+) {
+  return template.tool_mode.id !== 'connected-required' && !!(preview || ready)
+}
+
+function runTemplateChat(
+  template: LibraryTemplate,
+  preview: Agent | undefined,
+  ready: ReadyAgent | undefined,
+  onTest: (agent: Agent, input: string) => void,
+) {
+  if (template.tool_mode.id === 'connected-required') return
+  if (preview) onTest(preview, template.sample_input)
+  else if (ready) onTest(ready.agent, template.sample_input)
+}
 
 export function AgentLibrary({
   active,
@@ -64,6 +98,7 @@ export function AgentLibrary({
   foundryPortal,
   busy,
   onCreate,
+  onOpenCreate,
   onTest,
   onOpen,
 }: {
@@ -75,6 +110,7 @@ export function AgentLibrary({
   foundryPortal?: string | null
   busy: boolean
   onCreate: (templateId: string) => void
+  onOpenCreate?: () => void
   onTest: (agent: Agent, input: string) => void
   onOpen?: (label: string) => void
 }) {
@@ -84,6 +120,7 @@ export function AgentLibrary({
   const [openId, setOpenId] = useState('')
   const [tab, setTab] = useState<Tab>('overview')
   const [notice, setNotice] = useState('')
+  const [viewMode, setViewMode] = useState<LibraryViewMode>(readLibraryView)
 
   const results = useMemo(
     () => (catalog ? filterTemplates(catalog, query, selection) : []),
@@ -112,6 +149,18 @@ export function AgentLibrary({
     setNotice('')
     onOpen?.(catalog?.templates.find((item) => item.id === id)?.label ?? '')
     document.querySelector('.library-view')?.scrollTo({ top: 0 })
+  }
+
+  function setLibraryView(next: LibraryViewMode) {
+    setViewMode(next)
+    try {
+      window.localStorage.setItem(libraryViewStorageKey, next)
+    } catch {}
+  }
+
+  function clearFilters() {
+    setQuery('')
+    setSelection({})
   }
 
   return (
@@ -161,88 +210,170 @@ export function AgentLibrary({
               </li>
               <li>
                 <span>2</span>
-                {previewsOn ? 'Try it in Chat' : 'Make your own copy'}
+                {previewsOn ? (
+                  'Try it in Chat'
+                ) : (
+                  <CreateStepLink onOpenCreate={onOpenCreate} />
+                )}
               </li>
               <li>
                 <span>3</span>
-                {previewsOn ? 'Make your own copy' : 'Try it with sample data'}
+                {previewsOn ? (
+                  <CreateStepLink onOpenCreate={onOpenCreate} />
+                ) : (
+                  'Try it with sample data'
+                )}
               </li>
               <li>
                 <span>4</span>Take it to Foundry
               </li>
             </ol>
           </LibraryHero>
-          <div className="library-layout">
-            <aside className="library-filters" aria-label="Library filters">
-              <label className="library-search">
-                <Search size={16} aria-hidden="true" />
-                <span className="visually-hidden">Search agents</span>
-                <input
-                  type="search"
-                  value={query}
-                  placeholder="Search by job or keyword"
-                  onChange={(event) => setQuery(event.target.value)}
+          {viewMode === 'cards' ? (
+            <div className="library-layout">
+              <aside className="library-filters" aria-label="Library filters">
+                <label className="library-search">
+                  <Search size={16} aria-hidden="true" />
+                  <span className="visually-hidden">Search agents</span>
+                  <input
+                    type="search"
+                    value={query}
+                    placeholder="Search by job or keyword"
+                    onChange={(event) => setQuery(event.target.value)}
+                  />
+                </label>
+                <FacetGroups
+                  catalog={catalog}
+                  facets={facets}
+                  selection={selection}
+                  onToggle={toggle}
                 />
-              </label>
-              <FacetGroups
-                catalog={catalog}
-                facets={facets}
-                selection={selection}
-                onToggle={toggle}
-              />
-              {filtered && (
-                <button
-                  type="button"
-                  className="library-clear"
-                  onClick={() => {
-                    setQuery('')
-                    setSelection({})
-                  }}
-                >
-                  Clear filters
-                </button>
-              )}
-            </aside>
-            <div>
-              {!filtered && (
-                <StartHere templates={catalog.templates} onOpen={show} />
-              )}
-              <section aria-labelledby="library-results">
+                {filtered && (
+                  <button
+                    type="button"
+                    className="library-clear"
+                    onClick={clearFilters}
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </aside>
+              <div>
+                {!filtered && (
+                  <StartHere templates={catalog.templates} onOpen={show} />
+                )}
+                <section aria-labelledby="library-results">
+                  <div className="library-results-toolbar">
+                    <div className="library-results-head" aria-live="polite">
+                      <h2 id="library-results">
+                        {results.length}{' '}
+                        {results.length === 1 ? 'agent' : 'agents'}
+                      </h2>
+                      <span>of {catalog.templates.length} in the library</span>
+                    </div>
+                    <LibraryViewSwitch
+                      viewMode={viewMode}
+                      onChange={setLibraryView}
+                    />
+                  </div>
+                  {results.length ? (
+                    <ul className="library-grid">
+                      {results.map((item) => (
+                        <li key={item.id}>
+                          <LibraryCard
+                            template={item}
+                            ready={!!readyAgentFor(item.id)}
+                            onOpen={() => show(item.id)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="library-empty">
+                      <p>No agents match these filters.</p>
+                      <button type="button" onClick={clearFilters}>
+                        Clear filters
+                      </button>
+                    </div>
+                  )}
+                </section>
+              </div>
+            </div>
+          ) : (
+            <section
+              className="library-list-shell"
+              aria-labelledby="library-results"
+            >
+              <div
+                className="library-filter-strip"
+                aria-label="Library filters"
+              >
+                <label className="library-search">
+                  <Search size={16} aria-hidden="true" />
+                  <span className="visually-hidden">Search agents</span>
+                  <input
+                    type="search"
+                    value={query}
+                    placeholder="Search by job or keyword"
+                    onChange={(event) => setQuery(event.target.value)}
+                  />
+                </label>
+                <FacetMenus
+                  catalog={catalog}
+                  facets={facets}
+                  selection={selection}
+                  onToggle={toggle}
+                />
+                {filtered && (
+                  <button
+                    type="button"
+                    className="library-clear"
+                    onClick={clearFilters}
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+              <div className="library-results-toolbar">
                 <div className="library-results-head" aria-live="polite">
                   <h2 id="library-results">
                     {results.length} {results.length === 1 ? 'agent' : 'agents'}
                   </h2>
                   <span>of {catalog.templates.length} in the library</span>
                 </div>
-                {results.length ? (
-                  <ul className="library-grid">
-                    {results.map((item) => (
-                      <li key={item.id}>
-                        <LibraryCard
-                          template={item}
-                          ready={!!readyAgentFor(item.id)}
-                          onOpen={() => show(item.id)}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="library-empty">
-                    <p>No agents match these filters.</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuery('')
-                        setSelection({})
-                      }}
-                    >
-                      Clear filters
-                    </button>
-                  </div>
-                )}
-              </section>
-            </div>
-          </div>
+                <LibraryViewSwitch
+                  viewMode={viewMode}
+                  onChange={setLibraryView}
+                />
+              </div>
+              {results.length ? (
+                <LibraryList
+                  templates={results}
+                  onOpen={show}
+                  actionFor={(template) => {
+                    const preview = previewFor(template.id)
+                    const ready = readyAgentFor(template.id)
+                    const opensChat = storesOpenChat(template, preview, ready)
+                    return {
+                      disabled: opensChat && busy,
+                      label: opensChat ? 'Try in Chat' : 'Open',
+                      onClick: () =>
+                        opensChat
+                          ? runTemplateChat(template, preview, ready, onTest)
+                          : show(template.id),
+                    }
+                  }}
+                />
+              ) : (
+                <div className="library-empty">
+                  <p>No agents match these filters.</p>
+                  <button type="button" onClick={clearFilters}>
+                    Clear filters
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
         </>
       )}
     </main>
@@ -255,12 +386,47 @@ function LibraryHero({ children }: { children: ReactNode }) {
       <p className="library-eyebrow">Agent library</p>
       <h1>Find an agent for the job</h1>
       <p>
-        Each agent does one job. Try it with sample inputs, see what it needs
-        and what it leaves to a person, then take it to your own Microsoft
-        Foundry project.
+        Pick an agent, try it with sample inputs, see what it needs and what it
+        leaves to a person, then take it to your Microsoft Foundry project.
       </p>
       {children}
     </header>
+  )
+}
+
+function CreateStepLink({ onOpenCreate }: { onOpenCreate?: () => void }) {
+  if (!onOpenCreate) return <>Make your own copy</>
+  return (
+    <button type="button" className="library-path-link" onClick={onOpenCreate}>
+      Make your own copy
+    </button>
+  )
+}
+
+function LibraryViewSwitch({
+  viewMode,
+  onChange,
+}: {
+  viewMode: LibraryViewMode
+  onChange: (viewMode: LibraryViewMode) => void
+}) {
+  return (
+    <div className="library-view-switch" role="group" aria-label="View">
+      <button
+        type="button"
+        aria-pressed={viewMode === 'cards'}
+        onClick={() => onChange('cards')}
+      >
+        Cards
+      </button>
+      <button
+        type="button"
+        aria-pressed={viewMode === 'list'}
+        onClick={() => onChange('list')}
+      >
+        List
+      </button>
+    </div>
   )
 }
 
@@ -320,9 +486,12 @@ function LibraryLoading() {
               ))}
             </ul>
           </section>
-          <div className="library-results-head">
-            <h2 className="library-bar-count">&nbsp;</h2>
-            <span>&nbsp;</span>
+          <div className="library-results-toolbar" aria-hidden="true">
+            <div className="library-results-head">
+              <h2 className="library-bar-count">&nbsp;</h2>
+              <span>&nbsp;</span>
+            </div>
+            <div className="library-bar library-bar-switch" />
           </div>
           <ul className="library-grid">
             {Array.from({ length: 6 }, (_, card) => (
@@ -525,11 +694,10 @@ function LibraryDetail({
         : 'Publishing is not enabled here. You can still prepare and review a setup.'
 
   function tryIt() {
-    if (runnable && preview) onTest(preview, template.sample_input)
-    else if (runnable && ready) onTest(ready.agent, template.sample_input)
+    if (opensChat) runTemplateChat(template, preview, ready, onTest)
     else onTab('test')
   }
-  const opensChat = runnable && !!(preview || ready)
+  const opensChat = storesOpenChat(template, preview, ready)
 
   async function copySample() {
     try {

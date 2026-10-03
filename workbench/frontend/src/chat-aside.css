@@ -1,0 +1,186 @@
+/* The Chat screen's side column. Narrow windows keep the top bar's buttons and
+   the "About this agent" pop-up, so nothing below 1000px changes. */
+.conversation-layout {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.conversation-layout > .conversation-view {
+  min-width: 0;
+}
+
+.chat-aside {
+  display: none;
+}
+
+@media (min-width: 1000px) {
+  .chat-app.chat-has-aside .chat-topbar .agent-about,
+  .chat-app.chat-has-aside .chat-topbar .topbar-button {
+    display: none;
+  }
+
+  /* The side column already lists what to give the agent and what comes back. */
+  .chat-app.chat-has-aside .chat-welcome .agent-guide-compact {
+    display: none;
+  }
+
+  .chat-app.chat-has-aside .chat-aside {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 0 0 clamp(260px, 22vw, 320px);
+    min-height: 0;
+    padding: 16px;
+    overflow-y: auto;
+    border-left: 1px solid var(--line);
+    background: var(--bg);
+  }
+}
+
+.aside-panel {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.aside-panel h2 {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.aside-panel p {
+  color: var(--muted);
+}
+
+.aside-kind {
+  width: fit-content;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.aside-kind.preview {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.aside-panel .agent-guide {
+  gap: 10px;
+  margin: 4px 0;
+  line-height: 1.55;
+}
+
+.aside-panel .agent-guide-compact {
+  grid-template-columns: minmax(0, 1fr);
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.aside-more > summary {
+  width: fit-content;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.aside-more-body {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.aside-more-body .agent-guide {
+  margin: 0;
+}
+
+.aside-panel .catalog-runtime {
+  font-size: 12px;
+}
+
+.aside-panel .inline-link {
+  width: fit-content;
+  font-size: 12px;
+  text-align: left;
+}
+
+.aside-rows {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.aside-rows > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aside-rows dt {
+  color: var(--muted);
+}
+
+.aside-rows dd {
+  margin: 0;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.aside-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.aside-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.aside-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.aside-button.primary {
+  border-color: var(--accent-fill);
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+
+.aside-button.primary:hover:not(:disabled) {
+  border-color: var(--accent-fill-hover);
+  background: var(--accent-fill-hover);
+  color: var(--on-accent);
+}
+
+.aside-link {
+  width: fit-content;
+  font-size: 12px;
+}

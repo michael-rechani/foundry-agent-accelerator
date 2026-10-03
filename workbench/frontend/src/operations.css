@@ -1,0 +1,167 @@
+/* The Operations page reuses the Performance page's tables and tiles. These
+   rules only tighten spacing so the page reads at a glance. */
+.operations-view > * {
+  max-width: 1160px;
+}
+
+.operations-view .metric-strip {
+  margin-top: 22px;
+}
+
+/* Top-align each tile so a two-line note doesn't push its number out of line
+   with the other tiles. */
+.operations-view .metric-strip > div {
+  align-content: start;
+  gap: 8px;
+  padding-block: 18px;
+}
+
+.operations-view .metric-strip small {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.operations-view .request-heading {
+  margin: 0;
+}
+
+.operations-view .request-table {
+  margin-top: 10px;
+}
+
+.operations-view .request-table td,
+.operations-view .request-table th {
+  padding: 9px 10px;
+}
+
+.operations-view .table-note {
+  margin-top: 8px;
+}
+
+.operations-view .inline-link {
+  font-size: 12px;
+}
+
+.operations-section {
+  margin-top: 26px;
+}
+
+.operations-heading-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.operations-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.operations-services tbody th {
+  font-weight: 600;
+}
+
+.operations-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+
+.operations-status.ready {
+  background: var(--success-bg);
+  color: var(--success-fg);
+}
+
+.operations-status.starting {
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+}
+
+.operations-status.attention,
+.operations-status.failed {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+
+.operations-status.off {
+  background: var(--surface-hover);
+  color: var(--muted);
+}
+
+.operations-empty {
+  margin-top: 12px;
+}
+
+/* Recent requests beside the Foundry pointers; stacked in a narrow window. */
+.operations-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(260px, 2fr);
+  gap: 0 32px;
+  align-items: start;
+  margin-top: 26px;
+}
+
+.operations-columns > * {
+  margin-top: 0;
+}
+
+.operations-panel {
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  display: grid;
+  gap: 10px;
+}
+
+.operations-panel p,
+.operations-panel li {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.operations-panel ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 20px;
+}
+
+.operations-panel li {
+  display: grid;
+  gap: 1px;
+}
+
+.operations-panel li strong {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.operations-panel li span {
+  color: var(--text-secondary);
+}
+
+.operations-panel p {
+  margin: 0;
+}
+
+.operations-panel .table-note {
+  margin: 0;
+}
+
+@media (max-width: 1100px) {
+  .operations-columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 26px 0;
+  }
+}
