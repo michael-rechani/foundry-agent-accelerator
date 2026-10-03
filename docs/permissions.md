@@ -159,7 +159,9 @@ used that vault.
 - **Reading one secret.** To read a single secret, such as a legacy
   `jumpbox-admin-password`, grant Key Vault Secrets User at secret scope
   instead. The `jumpbox_key_vault_name` and `jumpbox_admin_password_secret_name`
-  outputs are `null` unless `jumpbox_admin_secret` is set.
+  outputs are `null` unless `jumpbox_admin_secret` is set. They're marked
+  sensitive so plan and apply output doesn't print them; read one with
+  `terraform -chdir=terraform output -raw jumpbox_key_vault_name`.
 
 ### Grants made by hand in the dev Lab
 
