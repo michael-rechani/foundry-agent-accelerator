@@ -1,13 +1,26 @@
 import asyncio
+import hashlib
 import json
+import re
 import unittest
+from copy import deepcopy
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
 
+from agent_publisher import resource_name
+from agent_templates import TEMPLATES
 from app import Settings, create_app
+from history import CosmosHistory
+
+CREATED_AGENT_FIELDS = {
+    "id", "kind", "project", "name", "template_id", "instructions", "runtime_name", "version", "status", "stage",
+    "created_at", "updated_at", "_etag", "error", "events", "operation", "model", "runtime_hash", "model_profile",
+    "template",
+}
 
 
 class HistoryTests(unittest.TestCase):
@@ -168,6 +181,139 @@ class HistoryTests(unittest.TestCase):
                 self.assertEqual((await client.get("/api/conversations", headers=self.headers)).status_code, 200)
 
         asyncio.run(scenario())
+
+
+class FakeContainer:
+    """Applies the created-agent query's filter, ordering, and field list as Cosmos does, and refuses any other query."""
+
+    def __init__(self, rows):
+        self.rows = {row["id"]: row for row in rows}
+        self.queries = []
+        self.revision = 0
+
+    def query_items(self, query, parameters=None, partition_key=None, max_item_count=None):
+        self.queries.append((query, parameters))
+        match = re.fullmatch(r"SELECT (.+) FROM c WHERE (.+) ORDER BY c\.updated_at DESC", query)
+        assert match, query
+        fields = [field.strip() for field in match[1].split(",")]
+        assert all(re.fullmatch(r"c\.[a-z_]+", field) for field in fields), match[1]
+        values = {parameter["name"]: parameter["value"] for parameter in parameters or []}
+        conditions = {
+            "c.kind = 'created-agent'": lambda row: row.get("kind") == "created-agent",
+            "c.project = @project": lambda row: row.get("project") == values["@project"],
+        }
+        assert partition_key == "shared"
+        tests = [conditions[condition] for condition in match[2].split(" AND ")]
+        rows = sorted((row for row in self.rows.values() if all(test(row) for test in tests)),
+                      key=lambda row: row["updated_at"], reverse=True)
+
+        async def results():
+            for row in rows:
+                yield {field[2:]: deepcopy(row[field[2:]]) for field in fields if field[2:] in row}
+
+        return results()
+
+    async def read_item(self, identifier, partition_key):
+        if identifier not in self.rows:
+            raise CosmosHttpResponseError(status_code=404)
+        return deepcopy(self.rows[identifier])
+
+    async def create_item(self, document):
+        self.revision += 1
+        self.rows[document["id"]] = {**deepcopy(document), "_etag": f'"{self.revision}"'}
+        return deepcopy(self.rows[document["id"]])
+
+    async def replace_item(self, identifier, document, etag, match_condition):
+        if (await self.read_item(identifier, "shared"))["_etag"] != etag:
+            raise CosmosHttpResponseError(status_code=412)
+        return await self.create_item(document)
+
+
+ENDPOINT = "https://example.services.ai.azure.com/api/projects/test"
+MINE = hashlib.sha256(ENDPOINT.encode()).hexdigest()
+THEIRS = hashlib.sha256(b"https://other.services.ai.azure.com/api/projects/other").hexdigest()
+
+
+def created_agent(project, number, updated_at, *, kind="created-agent", status="ready"):
+    identifier = f"created-{UUID(int=number)}"
+    template = {key: deepcopy(TEMPLATES["document-analyst"][key]) for key in (
+        "id", "label", "description", "input", "output", "limits", "delegation", "sample_input", "tools")}
+    return {
+        "id": identifier, "kind": kind, "workspace": "shared", "project": project, "template_id": template["id"],
+        "name": f"Fictional helper {number}", "instructions": "Analyze only fictional supplied text.",
+        "setup_hash": "a" * 64, "runtime_hash": "b" * 64, "runtime_name": resource_name(identifier),
+        "model": "test-model", "model_profile": {"id": "standard"}, "template": template, "version": "1",
+        "publication_started": True, "status": status, "stage": status, "operation": "create",
+        "created_at": updated_at, "updated_at": updated_at, "error": None, "events": [], "ttl": -1,
+        "_etag": f'"{number}"', "_ts": 1,
+    }
+
+
+class CreatedAgentQueryTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.rows = [
+            created_agent(MINE, 1, "2026-01-01T00:00:00+00:00"),
+            created_agent(THEIRS, 2, "2026-01-02T00:00:00+00:00"),
+            created_agent(MINE, 3, "2026-01-03T00:00:00+00:00", status="failed"),
+            created_agent(THEIRS, 4, "2026-01-04T00:00:00+00:00"),
+            created_agent(MINE, 5, "2026-01-05T00:00:00+00:00", kind="deleted-agent", status="deleted"),
+        ]
+        self.container = FakeContainer(self.rows)
+        self.store = CosmosHistory.__new__(CosmosHistory)
+        self.store.container = self.container
+        self.headers = {"X-Workbench-Request": "1", "Origin": "https://testserver"}
+
+    def make_client(self):
+        settings = Settings("private", ENDPOINT, ("testserver",), ("https://testserver",))
+        return AsyncClient(transport=ASGITransport(app=create_app(settings, AsyncMock(), self.store, AsyncMock())),
+                           base_url="https://testserver")
+
+    async def test_each_project_gets_only_its_own_agents_newest_first(self):
+        mine = await self.store.list_created_agents(MINE)
+        self.assertEqual([item["id"] for item in mine], [self.rows[2]["id"], self.rows[0]["id"]])
+        self.assertEqual({item["project"] for item in mine}, {MINE})
+        theirs = await self.store.list_created_agents(THEIRS)
+        self.assertEqual([item["id"] for item in theirs], [self.rows[3]["id"], self.rows[1]["id"]])
+        self.assertEqual(await self.store.list_created_agents("unknown"), [])
+
+    async def test_project_is_a_query_parameter_and_only_needed_fields_are_selected(self):
+        items = await self.store.list_created_agents(MINE)
+        query, parameters = self.container.queries[0]
+        self.assertEqual(parameters, [{"name": "@project", "value": MINE}])
+        self.assertIn("c.project = @project", query)
+        self.assertNotIn(MINE, query)
+        self.assertNotIn("*", query)
+        self.assertEqual(set(items[0]), CREATED_AGENT_FIELDS)
+        for unused in ("setup_hash", "workspace", "publication_started", "ttl", "_ts"):
+            self.assertNotIn(unused, items[0])
+
+    async def test_agents_api_lists_only_the_callers_agents_from_the_selected_fields(self):
+        async with self.make_client() as client:
+            response = await client.get("/api/agents", headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual({item["id"]: item["status"] for item in response.json()["items"]},
+                         {self.rows[0]["id"]: "ready", self.rows[2]["id"]: "failed"})
+        self.assertEqual(len(self.container.queries), 1)
+
+    async def test_conversation_of_a_republished_agent_updates_once_it_is_ready_again(self):
+        agent = self.rows[0]
+        body = {"agent_id": agent["id"], "turns": [{"question": "Summarize APP-1", "result": {
+            "request_id": "request", "agent": agent["runtime_name"], "text": "Missing budget",
+            "elapsed_ms": 1000, "receipts": []}}]}
+        async with self.make_client() as client:
+            saved = (await client.post("/api/conversations", json=body, headers=self.headers)).json()
+            path = f"/api/conversations/{saved['id']}"
+            update = {**self.headers, "If-Match": saved["_etag"]}
+            body["turns"].append({**body["turns"][0], "question": "And APP-2?"})
+
+            self.container.rows[agent["id"]].update(status="creating", operation="resume", version=None)
+            self.assertEqual((await client.put(path, json=body, headers=update)).status_code, 404)
+
+            self.container.rows[agent["id"]].update(status="ready", version="2")
+            response = await client.put(path, json=body, headers=update)
+            self.assertEqual(response.status_code, 200)
+            self.assertNotEqual(response.json()["_etag"], saved["_etag"])
+            self.assertEqual(len((await client.get(path, headers=self.headers)).json()["turns"]), 2)
 
 
 if __name__ == "__main__":
