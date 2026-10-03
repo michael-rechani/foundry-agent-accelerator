@@ -122,15 +122,32 @@ def case_input(case):
     return case["input"]
 
 
-def validate_cases(data):
+def _metadata_errors(data):
     errors = []
-    if data.get("schema_version") != 1:
+    version = data.get("schema_version")
+    if isinstance(version, bool) or version != 1:
         errors.append("schema_version must be 1")
+    for key in ("dataset_version", "description"):
+        value = data.get(key)
+        if key not in data:
+            errors.append(f"{key} is required")
+        elif not isinstance(value, str) or not value.strip():
+            errors.append(f"{key} must be a non-empty string, not {value!r}")
+    return errors
+
+
+def validate_cases(data):
+    if not isinstance(data, dict):
+        return ["the cases file must be a JSON object"]
+    errors = _metadata_errors(data)
     cases = data.get("cases")
     if not isinstance(cases, list) or not cases:
         return errors + ["cases must be a non-empty list"]
     seen, coverage = set(), {}
     for case in cases:
+        if not isinstance(case, dict):
+            errors.append(f"every case must be an object, not {case!r}")
+            continue
         cid = case.get("id")
         prefix = f"{cid}: "
         if not isinstance(cid, str) or not cid:
@@ -146,6 +163,9 @@ def validate_cases(data):
         if case.get("category") not in CATEGORIES:
             errors.append(prefix + "unknown category")
         coverage.setdefault(case["template_id"], set()).add(case.get("category"))
+        if "input" in case and not isinstance(case["input"], str):
+            errors.append(prefix + f"input must be text, not {case['input']!r}")
+            continue
         if bool(case.get("use_sample_input")) == bool(case.get("input")):
             errors.append(prefix + "use exactly one of input or use_sample_input")
         text = case_input(case) if case.get("use_sample_input") or case.get("input") else ""
@@ -196,14 +216,23 @@ def validate_cases(data):
 
 def _fixture_problems(case, tool_names):
     problems = []
-    lookups = {**case.get("fixtures", {}), **case.get("missing_fixtures", {})}
+    groups = {key: case.get(key, {}) for key in ("fixtures", "missing_fixtures")}
+    for key, group in groups.items():
+        if not isinstance(group, dict):
+            problems.append(f"{key} must map tool names to ids, not {group!r}")
+    if problems:
+        return problems
+    lookups = [(name, identifier, key == "fixtures") for key, group in groups.items()
+               for name, identifier in group.items()]
     if not lookups:
         return problems
-    if set(lookups) - tool_names:
+    if {name for name, _, _ in lookups} - tool_names:
         return ["fixtures name tools the template does not offer"]
     tools = {tool.__name__: tool for tool in create_demo_tools(case["template_id"], "acceptance-check")}
-    for name, identifier in lookups.items():
-        should_exist = name in case.get("fixtures", {})
+    for name, identifier, should_exist in lookups:
+        if not isinstance(identifier, str) or not identifier.strip():
+            problems.append(f"{name} fixture id must be a non-empty string, not {identifier!r}")
+            continue
         try:
             result = json.loads(tools[name](identifier))
             found = result.get("status") == "succeeded"

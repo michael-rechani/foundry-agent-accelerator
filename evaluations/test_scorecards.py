@@ -11,6 +11,15 @@ RECORDED_ON = "2026-09-29"
 PRICES = json.loads(scorecards.PRICES.read_text(encoding="utf-8"))
 
 
+def cases_file(folder, case_ids):
+    """A cases file holding only these cases, so a test can record answers for just those."""
+    data = scorecards.load_cases()
+    data["cases"] = [case for case in data["cases"] if case["id"] in case_ids]
+    path = Path(folder) / "cases.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return path
+
+
 class ScorecardTests(unittest.TestCase):
     def test_the_labs_copy_matches_the_recorded_evidence(self):
         self.assertEqual(
@@ -60,8 +69,8 @@ class ScorecardTests(unittest.TestCase):
             metrics = write("metrics.jsonl", [{"case_id": case_id, **metric}])
 
             def card(runs):
-                return scorecards.build(runs=runs, metrics_path=metrics, repeats_path=None,
-                                        verify_instructions=False)["scorecards"][0]
+                return scorecards.build(cases_path=cases_file(folder, {case_id}), runs=runs, metrics_path=metrics,
+                                        repeats_path=None, verify_instructions=False)["scorecards"][0]
 
             self.assertFalse(card((("first", first),))["cases"][0]["passed"])
             self.assertEqual(card((("first", first),))["answers_from"], "first")
@@ -85,8 +94,8 @@ class ScorecardTests(unittest.TestCase):
                                                "text": "A different answer."}])
             metrics = write("metrics.jsonl", [{"case_id": case_id, **metric}])
             signoffs = Path(folder) / "signoffs.json"
-            options = {"metrics_path": metrics, "signoffs_path": signoffs, "repeats_path": None,
-                       "verify_instructions": False}
+            options = {"cases_path": cases_file(folder, {case_id}), "metrics_path": metrics,
+                       "signoffs_path": signoffs, "repeats_path": None, "verify_instructions": False}
             runs = (("run", read),)
 
             self.assertFalse(scorecards.build(runs=runs, **options)["scorecards"][0]["signed_off"])
@@ -186,6 +195,25 @@ class ScorecardTests(unittest.TestCase):
             for name, repeats, changes, message in cases:
                 with self.subTest(name), self.assertRaisesRegex(ValueError, message):
                     scorecards.build(**self.evidence(folder, good, repeats, changes))
+
+    def test_a_case_with_no_recorded_answer_fails_the_build_instead_of_vanishing(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        unanswered = {"document-analyst-missing-version", "criteria-checker-sample"}
+        with tempfile.TemporaryDirectory() as folder:
+            evidence = self.evidence(folder, good, [])
+            self.assertEqual(len(scorecards.build(**evidence)["scorecards"][0]["cases"]), 1)
+            evidence["cases_path"] = cases_file(folder, {"document-analyst-sample"} | unanswered)
+            with self.assertRaises(ValueError) as caught:
+                scorecards.build(**evidence)
+            message = str(caught.exception)
+            self.assertTrue(message.startswith("no recorded answer for "), message)
+            for case_id in unanswered:
+                self.assertIn(case_id, message)
+            self.assertNotIn("document-analyst-sample", message)
+            # The full dataset with answers for one case reports the 89 that have none.
+            del evidence["cases_path"]
+            with self.assertRaisesRegex(ValueError, "no recorded answer for .*document-analyst-missing-version"):
+                scorecards.build(**evidence)
 
     def test_a_case_has_one_answer_and_one_metrics_row_in_a_file(self):
         good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
@@ -321,7 +349,9 @@ class ScorecardTests(unittest.TestCase):
             row.update(answer_changes or {})
         for row in metrics:
             row.update(metric_changes or {})
-        return {"runs": (("run", write("answers.jsonl", answers)),), "metrics_path": write("metrics.jsonl", metrics),
+        referenced = {row["case_id"] for row in answers + rows}
+        return {"cases_path": cases_file(folder, referenced),
+                "runs": (("run", write("answers.jsonl", answers)),), "metrics_path": write("metrics.jsonl", metrics),
                 "repeats_path": write("repeats.jsonl", rows) if rows else None,
                 "signoffs_path": Path(folder) / "none.json", "verify_instructions": bool(digest)}
 
