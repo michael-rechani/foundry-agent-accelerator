@@ -10,6 +10,26 @@ $buildTestState = @{
 }
 $testDigest = 'example.azurecr.io/workbench@sha256:' + ('a' * 64)
 $testImageId = 'c' * 64
+. (Join-Path $PSScriptRoot 'image-context.ps1')
+
+# Every workbench module that app.py imports, directly or through another module.
+function Get-LocalModuleClosure {
+    $seen = [System.Collections.Generic.HashSet[string]]::new()
+    $queue = [System.Collections.Generic.Queue[string]]::new()
+    $queue.Enqueue('app')
+    while ($queue.Count) {
+        $name = $queue.Dequeue()
+        if (-not $seen.Add($name)) { continue }
+        foreach ($line in Get-Content -LiteralPath (Join-Path $PSScriptRoot "$name.py")) {
+            $imported = if ($line -match '^\s*from\s+(\w+)') { $Matches[1] }
+            elseif ($line -match '^\s*import\s+(.+)$') { $Matches[1] -split ',' | ForEach-Object { ($_.Trim() -split '[\s.]')[0] } }
+            foreach ($module in $imported) {
+                if ($module -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot "$module.py"))) { $queue.Enqueue($module) }
+            }
+        }
+    }
+    $seen
+}
 
 function az {
     $operation = "az $($args[0]) $($args[1])"
@@ -47,9 +67,12 @@ function docker {
     switch ($operation) {
         'docker build' {
             $stage = $args[-1]
-            $expected = @('Dockerfile', '.dockerignore', 'requirements.txt', 'app.py', 'history.py', 'reviews.py', 'review_runs.py', 'request_guard.py', 'agents.json', 'agent_creation.py', 'agent_publisher.py', 'agent_package.py', 'agent_templates.py', 'agent_scorecards.py', 'agent_scorecards.json', 'library_preview.py', 'agent_runtime', 'frontend')
+            $expected = @(Get-ImageContextFile $PSScriptRoot) + @('agent_runtime', 'frontend')
             $actual = @(Get-ChildItem -LiteralPath $stage -Force | Select-Object -ExpandProperty Name)
             if (Compare-Object $expected $actual) { throw 'Unexpected build context contents' }
+            foreach ($module in Get-LocalModuleClosure) {
+                if (!(Test-Path (Join-Path $stage "$module.py"))) { throw "Build context is missing $module.py, which app.py imports" }
+            }
             if (!(Test-Path (Join-Path $stage 'frontend/src'))) { throw 'Frontend source not staged' }
             if (Test-Path (Join-Path $stage 'frontend/public')) { throw 'Unexpected frontend public files staged' }
             $runtimeFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'agent_runtime') -Force | Select-Object -ExpandProperty Name)
@@ -58,6 +81,9 @@ function docker {
         'docker run' {
             if ($args[-1] -notmatch 'os.getuid\(\) != 0') { throw 'Missing non-root validation' }
             if ($args[-1] -notmatch 'agent_publisher.runtime_package\(\)') { throw 'Missing hosted runtime package validation' }
+            if ($args[-1] -notmatch "import_module\(m\.stem\) for m in sorted\(Path\('\.'\)\.glob\('\*\.py'\)\)") {
+                throw 'Image validation must import every module in the image'
+            }
             if ($args[-1].Contains('"') -or $args[-1] -notmatch "Path\('agents.json'\)" -or
                 $args[-1] -notmatch "Path\('static/index.html'\)") {
                 throw 'Image validation command must preserve Python literals through Windows native argument passing'

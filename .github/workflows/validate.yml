@@ -85,7 +85,7 @@ jobs:
           python -m pip install pip-audit==2.10.1
           python -m pip_audit --progress-spinner off
       - name: Compile Python sources
-        run: python -m compileall -q cost-comparison hosted-agents workbench/app.py workbench/history.py workbench/reviews.py workbench/review_runs.py workbench/request_guard.py workbench/agent_creation.py workbench/agent_publisher.py workbench/agent_package.py workbench/agent_templates.py workbench/agent_scorecards.py workbench/library_preview.py workbench/agent_runtime workbench/verify_private.py
+        run: python -m compileall -q cost-comparison hosted-agents workbench -x '[\\/]node_modules[\\/]'
       - name: Test cost calculator
         run: python cost-comparison/test_calculator.py
       - name: Test deployment packaging

@@ -533,8 +533,14 @@ configuration.
 
 ### 4. Build and select an immutable image
 
-`build.ps1 -Private` stages only allowlisted source files, excluding local
-dependencies, state, plans, and environment files. The Premium Azure Container
+`build.ps1 -Private` stages only the files `.dockerignore` allows, excluding local
+dependencies, state, plans, and environment files. Every top-level `*.py` module
+ships except tests and `verify_private.py`, so adding a module needs no edit to
+the Dockerfile, `build.ps1`, `test-build.ps1` or the CI compile step. Add a
+pattern to `.dockerignore` only to keep a file out of the image or to ship a new
+data file. `test_image_context.py` fails if a module that `app.py` imports isn't
+in the image, and the build imports every module in the finished image before it
+pushes. The Premium Azure Container
 Registry (ACR) has public access and admin credentials disabled. The private
 build uses the local Linux Docker engine on the current authorized
 private-network runner, such as a jumpbox or continuous integration (CI) agent.
