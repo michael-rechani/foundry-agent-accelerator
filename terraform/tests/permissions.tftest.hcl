@@ -61,6 +61,10 @@ override_data {
 
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000003"
+  # Runs that enable a public piece also record its approval; the gate itself is tested in platform.tftest.hcl.
+  approve_public_api_management    = true
+  approve_jumpbox_egress_public_ip = true
+  approve_jumpbox_admin_account    = true
 }
 
 run "default_foundry_permissions" {

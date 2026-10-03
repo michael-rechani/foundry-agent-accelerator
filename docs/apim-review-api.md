@@ -9,9 +9,10 @@ doesn't require a different client URL.
 
 > [!IMPORTANT]
 > APIM is currently disabled to avoid idle capacity charges. The Terraform module
-> and policy are retained. To redeploy, set `enable_api_management = true` in
-> local configuration, review the plan and current networking and cost
-> requirements, and apply from the private runner. Basic and Basic v2 don't
+> and policy are retained. To redeploy, set `enable_api_management = true` and
+> `approve_public_api_management = true` in local configuration, review the plan
+> and current networking and cost requirements, and apply from the private
+> runner. The gateway is publicly reachable, so approve that exposure first. Basic and Basic v2 don't
 > support this private backend connection. If Azure retains the deleted service
 > name, review soft-delete recovery before reusing it. Don't purge recovery data
 > automatically.
@@ -51,6 +52,7 @@ control and protect any plan or state files that include these values.
 | Variable or field | Purpose and validation |
 | --- | --- |
 | `enable_api_management` | Creates a one-unit Standard v2 APIM gateway. Defaults to `false`. |
+| `approve_public_api_management` | Explicit approval for the publicly reachable gateway. Defaults to `false`; Terraform refuses to plan with `enable_api_management = true` until it is `true`. |
 | `api_management_location` | Azure region for APIM and its virtual network (VNet) integration subnet. Defaults to `westus`; allowed values are `westus`, `westus3`, `southcentralus`, and `northcentralus`. When APIM is enabled, it must equal `jumpbox_location` for the shared management VNet region. |
 | `api_management_subnet_address_prefixes` | Address prefixes for the dedicated APIM VNet integration subnet. Defaults to `["10.43.1.0/24"]`. |
 | `api_management_publisher_email` | Publisher email. Required when APIM is enabled and validated as an email address. |
@@ -92,6 +94,7 @@ enable APIM just to use the internal Lab.
 
    ```hcl
    enable_api_management = true
+   approve_public_api_management = true
    api_management_publisher_email = "<approved-publisher-email>"
    review_api = {
      audience                  = "<dedicated-api-audience>"

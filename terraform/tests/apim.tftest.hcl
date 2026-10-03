@@ -31,6 +31,10 @@ override_module {
 
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000003"
+  # Runs that enable a public piece also record its approval; the gate itself is tested in platform.tftest.hcl.
+  approve_public_api_management    = true
+  approve_jumpbox_egress_public_ip = true
+  approve_jumpbox_admin_account    = true
 }
 
 run "apim_off_by_default" {
@@ -48,6 +52,16 @@ run "apim_off_by_default" {
     condition     = output.api_management_name == null && output.api_management_id == null && output.api_management_gateway_url == null
     error_message = "The API Management outputs must be null while the gateway is disabled."
   }
+}
+
+run "reject_unapproved_public_gateway" {
+  command = plan
+  variables {
+    enable_api_management          = true
+    api_management_publisher_email = "owner@example.com"
+    approve_public_api_management  = false
+  }
+  expect_failures = [var.approve_public_api_management]
 }
 
 run "apim_network_when_enabled" {

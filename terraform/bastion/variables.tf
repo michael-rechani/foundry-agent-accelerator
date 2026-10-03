@@ -34,6 +34,17 @@ variable "subnet_address_prefix" {
   }
 }
 
+variable "approve_bastion_public_ip" {
+  type        = bool
+  description = "Explicit approval for the static public IPv4 address that Standard Bastion requires. Must be true to plan or apply this stack."
+  default     = false
+
+  validation {
+    condition     = var.approve_bastion_public_ip
+    error_message = "Standard Bastion needs a static public IP. Set approve_bastion_public_ip = true only after approving it."
+  }
+}
+
 variable "tags" {
   type        = map(string)
   description = "Tags for the Bastion host and public IP. Preserve existing tags during adoption."

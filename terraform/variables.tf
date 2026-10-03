@@ -103,12 +103,34 @@ variable "enable_management_network" {
 
 variable "enable_jumpbox" {
   type        = bool
-  description = "Creates a private Windows jumpbox for administering private Foundry resources."
+  description = "Creates a private Windows jumpbox for administering private Foundry resources. It adds a static public IP for outbound access and a local administrator account, so approve_jumpbox_egress_public_ip = true and approve_jumpbox_admin_account = true are also required."
   default     = false
 
   validation {
     condition     = !var.enable_jumpbox || var.jumpbox_existing_os_disk != null || var.jumpbox_admin_secret != null
     error_message = "A new jumpbox requires a pinned jumpbox_admin_secret. Supply jumpbox_existing_os_disk only when adopting an existing VM."
+  }
+}
+
+variable "approve_jumpbox_egress_public_ip" {
+  type        = bool
+  description = "Explicit approval for the static public IP address that gives the jumpbox outbound internet access through a NAT gateway. The VM has no inbound public address. Required when enable_jumpbox is true."
+  default     = false
+
+  validation {
+    condition     = var.approve_jumpbox_egress_public_ip || !var.enable_jumpbox
+    error_message = "enable_jumpbox creates a static public IP for outbound access. Set approve_jumpbox_egress_public_ip = true only after approving it."
+  }
+}
+
+variable "approve_jumpbox_admin_account" {
+  type        = bool
+  description = "Explicit approval for the local Windows administrator account on the jumpbox. Required when enable_jumpbox is true."
+  default     = false
+
+  validation {
+    condition     = var.approve_jumpbox_admin_account || !var.enable_jumpbox
+    error_message = "enable_jumpbox creates a local administrator account on the VM. Set approve_jumpbox_admin_account = true only after approving it."
   }
 }
 
@@ -210,8 +232,19 @@ variable "jumpbox_auto_shutdown" {
 
 variable "enable_api_management" {
   type        = bool
-  description = "Creates a Standard v2 API Management gateway for governed client access to agent APIs."
+  description = "Creates a Standard v2 API Management gateway for governed client access to agent APIs. The gateway and its management plane are publicly reachable, so approve_public_api_management = true is also required."
   default     = false
+}
+
+variable "approve_public_api_management" {
+  type        = bool
+  description = "Explicit approval for a publicly reachable API Management gateway (External network mode, public management plane). Required when enable_api_management is true."
+  default     = false
+
+  validation {
+    condition     = var.approve_public_api_management || !var.enable_api_management
+    error_message = "enable_api_management creates a publicly reachable gateway. Set approve_public_api_management = true only after approving public exposure."
+  }
 }
 
 variable "api_management_location" {
