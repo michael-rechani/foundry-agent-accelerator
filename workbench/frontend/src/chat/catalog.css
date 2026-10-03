@@ -1,0 +1,160 @@
+/* Secondary views: section headings, configuration guide, and agent catalog. */
+.secondary-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: 36px 32px;
+  background: var(--bg);
+}
+.section-heading h1 {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 600;
+}
+.section-heading p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.configuration-guide,
+.catalog-status {
+  margin: 16px 0;
+  max-width: 900px;
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.configuration-guide > summary,
+.catalog-status > summary {
+  color: var(--accent);
+  cursor: pointer;
+  width: fit-content;
+}
+.configuration-sources {
+  margin-top: 14px;
+}
+.configuration-sources > summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.configuration-guide p,
+.catalog-status p {
+  margin-top: 10px;
+  color: var(--muted);
+}
+.configuration-guide dl {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0;
+}
+.configuration-guide code {
+  font: 11px var(--mono);
+}
+.catalog-search {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  max-width: 430px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--muted);
+  margin: 30px 0;
+}
+.catalog-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 12px;
+}
+.catalog-search:focus-within {
+  outline: 2px solid var(--accent);
+}
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  max-width: 1140px;
+}
+.catalog-agent {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 24px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  max-width: 540px;
+}
+.catalog-agent-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 25px;
+  gap: 15px;
+}
+.catalog-avatar {
+  width: 49px;
+  height: 49px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+}
+.category-label {
+  font: 9px var(--mono);
+  color: var(--muted);
+}
+.catalog-agent h2 {
+  font-size: 18px;
+  margin-bottom: 10px;
+  overflow-wrap: anywhere;
+}
+.catalog-agent p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.9;
+}
+.catalog-runtime {
+  margin: 20px 0;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.catalog-runtime summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.catalog-runtime dl {
+  margin: 12px 0;
+}
+.catalog-runtime dt {
+  color: var(--muted);
+}
+.catalog-runtime dd {
+  margin: 0 0 8px;
+}
+.catalog-runtime code {
+  font: 11px var(--mono);
+}
+.catalog-runtime ul {
+  padding-left: 18px;
+  margin: 8px 0;
+}
+.catalog-runtime .agent-config-source {
+  margin: 12px 0;
+}
+.catalog-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 700;
+  border-top: 1px solid var(--line);
+  padding: 17px 0 0;
+  margin-top: auto;
+}

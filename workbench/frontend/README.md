@@ -85,8 +85,8 @@ Lab's display and receipt metadata from runtime instructions and tools.
 
 ## Themes and colors
 
-Every color comes from a token in the `:root` block at the top of
-`src/chat.css`. Each token is a `light-dark()` pair, so **System** follows the
+Every color comes from a token in the `:root` block in
+`src/chat/tokens.css`. Each token is a `light-dark()` pair, so **System** follows the
 device with no script. `main.tsx` applies the saved choice before the first
 render by setting `data-theme` (`system`, `light`, or `dark`), `data-accent`
 (`foundry`, `orchid`, or `lagoon`), and `data-look` (`classic`, `aurora`, or
@@ -98,7 +98,10 @@ choice from before looks existed keeps its theme and accent and opens in
 Classic.
 
 A look is a stylesheet that restyles the same markup. **Classic** is the base
-`chat.css`. `src/look-aurora.css` and `src/look-console.css` are scoped to
+`chat.css`, which imports the feature files in `src/chat/` in a fixed order
+(later files override earlier ones, so keep that order). Vite inlines those
+imports at build time, so the built CSS is one file with no `@import`.
+`src/look-aurora.css` and `src/look-console.css` are scoped to
 `:root[data-look='aurora']` and `:root[data-look='console']` and are imported
 last in `main.tsx`, so they win the cascade without `!important`. They load no
 fonts or images and use no `@import`, which keeps them inside the content

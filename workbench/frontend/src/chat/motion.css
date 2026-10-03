@@ -1,0 +1,53 @@
+/* Entrance motion, toast, and spinner keyframes. */
+.chat-welcome > * {
+  animation: arrive 0.35s ease-out both;
+}
+.chat-welcome h1 {
+  animation-delay: 0.06s;
+}
+.chat-welcome p {
+  animation-delay: 0.1s;
+}
+.chat-welcome .prompt-options {
+  animation-delay: 0.14s;
+}
+.catalog-agent {
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.catalog-agent:hover {
+  border-color: var(--accent-line);
+  box-shadow: 0 4px 12px var(--shadow-soft);
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.chat-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 92%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--inverse-bg);
+  color: var(--on-inverse);
+  border-radius: 5px;
+  padding: 10px 15px;
+  font-size: 12px;
+  box-shadow: 0 4px 20px var(--shadow);
+}
+@keyframes chat-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

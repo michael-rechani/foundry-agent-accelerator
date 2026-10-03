@@ -1,0 +1,75 @@
+/* Performance metric strip and request table. */
+.metric-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  margin-top: 34px;
+}
+.metric-strip > div {
+  padding: 25px 20px;
+  border-right: 1px solid var(--line);
+  display: grid;
+  gap: 12px;
+}
+.metric-strip > div:first-child {
+  padding-left: 0;
+}
+.metric-strip > div:last-child {
+  border: 0;
+}
+.metric-strip svg {
+  color: var(--accent);
+}
+.metric-strip span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.metric-strip strong {
+  font-size: 24px;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.request-heading {
+  margin-top: 35px;
+  font-size: 15px;
+}
+.request-table-wrap {
+  overflow-x: auto;
+}
+.request-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 20px;
+}
+.request-table td,
+.request-table th {
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  padding: 15px 10px;
+}
+.request-table th {
+  font-size: 10px;
+  color: var(--muted);
+}
+.metrics-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 17px;
+  padding: 65px 20px;
+  color: var(--muted);
+}
+.metrics-empty h2 {
+  font-size: 16px;
+  font-weight: 500;
+}
+.metrics-empty span {
+  font-size: 11px;
+}
+.no-data {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 30px 0;
+}

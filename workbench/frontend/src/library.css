@@ -1,4 +1,4 @@
-/* Agent library. Colors come only from the theme tokens in chat.css. */
+/* Agent library. Colors come only from the theme tokens in chat/tokens.css. */
 .library-view {
   padding-top: 28px;
 }

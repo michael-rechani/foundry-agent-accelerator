@@ -1,0 +1,97 @@
+/* Fluent 2 design tokens. Each token holds its light and dark value. The
+   System theme follows the device; the Light and Dark themes pin
+   color-scheme on the root element. */
+:root {
+  color-scheme: light dark;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: 0;
+  --font:
+    'Segoe UI Variable Text', 'Segoe UI', -apple-system, BlinkMacSystemFont,
+    Roboto, 'Helvetica Neue', sans-serif;
+  --bg: light-dark(#fafafa, #1f1f1f);
+  --bg-deep: light-dark(#f0f0f0, #141414);
+  --surface: light-dark(#ffffff, #292929);
+  --surface-subtle: light-dark(#f5f5f5, #2e2e2e);
+  --surface-hover: light-dark(#f0f0f0, #3d3d3d);
+  --surface-sunken: light-dark(#f5f5f5, #1a1a1a);
+  --text: light-dark(#242424, #ffffff);
+  --text-secondary: light-dark(#424242, #d6d6d6);
+  --muted: light-dark(#616161, #adadad);
+  --line: light-dark(#e0e0e0, #3d3d3d);
+  --line-strong: light-dark(#d1d1d1, #666666);
+  --field-line: light-dark(#616161, #adadad);
+  --shadow: light-dark(#00000024, #00000070);
+  --shadow-soft: light-dark(#0000001f, #0000003d);
+  --backdrop: light-dark(#00000066, #000000a6);
+  --inverse-bg: light-dark(#292929, #ffffff);
+  --on-inverse: light-dark(#ffffff, #242424);
+  --success-fg: light-dark(#0e700e, #54b054);
+  --success-bg: light-dark(#f1faf1, #052505);
+  --success-strong: light-dark(#107c10, #54b054);
+  --success-dot: light-dark(#107c10, #54b054);
+  --success-line: light-dark(#9fd89f, #107c10);
+  --warning-fg: light-dark(#bc4b09, #faa06b);
+  --warning-bg: light-dark(#fff9f5, #411200);
+  --warning-soft: light-dark(#fffcfa, #2b0c00);
+  --warning-line: light-dark(#fdcfb4, #8a3707);
+  --warning-strong: light-dark(#bc4b09, #faa06b);
+  --warning-dot: light-dark(#f7630c, #f7630c);
+  --danger-fg: light-dark(#b10e1c, #dc626d);
+  --danger-bg: light-dark(#fdf3f4, #3b0509);
+  --danger-soft: light-dark(#fdf6f7, #2a0306);
+  --danger-line: light-dark(#eeacb2, #6e0811);
+  --danger: light-dark(#c50f1f, #dc626d);
+  --danger-action: light-dark(#c50f1f, #dc626d);
+  --on-danger: light-dark(#ffffff, #000000);
+  --info-fg: light-dark(#115ea3, #479ef5);
+  --info-bg: light-dark(#ebf3fc, #082338);
+  --neutral-fg: light-dark(#424242, #d6d6d6);
+  --neutral-bg: light-dark(#f5f5f5, #333333);
+  --accent: light-dark(#0f6cbd, #479ef5);
+  --accent-hover: light-dark(#115ea3, #62abf5);
+  --accent-fill: light-dark(#0f6cbd, #115ea3);
+  --accent-fill-hover: light-dark(#115ea3, #0f6cbd);
+  --on-accent: #ffffff;
+  --accent-soft: light-dark(#ebf3fc, #082338);
+  --accent-line: light-dark(#b4d6fa, #0f548c);
+  --accent-strong: light-dark(#0c3b5e, #b4d6fa);
+  --accent-tint: light-dark(#f5f9fe, #0c1a26);
+  --accent-2: light-dark(#2886de, #0f6cbd);
+  --accent-glow: light-dark(#0f6cbd26, #479ef533);
+  --teal: var(--accent);
+  --mono: 'Cascadia Mono', Consolas, 'Courier New', monospace;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+:root[data-accent='orchid'] {
+  --accent: light-dark(#a8237f, #f07bc6);
+  --accent-hover: light-dark(#8c1c6a, #f59bd4);
+  --accent-fill: light-dark(#a8237f, #8c1c6a);
+  --accent-fill-hover: light-dark(#8c1c6a, #a8237f);
+  --accent-soft: light-dark(#fbebf5, #381530);
+  --accent-line: light-dark(#eebadc, #6e2b5b);
+  --accent-strong: light-dark(#5c1047, #ffd9f0);
+  --accent-tint: light-dark(#fcf3f8, #1c1219);
+  --accent-2: light-dark(#6d44d6, #6d44d6);
+  --accent-glow: light-dark(#a8237f26, #f07bc633);
+}
+:root[data-accent='lagoon'] {
+  --accent: light-dark(#0a7a74, #3cc8bb);
+  --accent-hover: light-dark(#07625d, #6ad7cd);
+  --accent-fill: light-dark(#0a7a74, #07625d);
+  --accent-fill-hover: light-dark(#07625d, #0a7a74);
+  --accent-soft: light-dark(#e5f5f3, #0f2e2c);
+  --accent-line: light-dark(#a5dbd5, #205b56);
+  --accent-strong: light-dark(#06433f, #c7f1ec);
+  --accent-tint: light-dark(#eff8f7, #0f1c1b);
+  --accent-2: light-dark(#1a8ec4, #1a6f96);
+  --accent-glow: light-dark(#0a7a7426, #3cc8bb33);
+}

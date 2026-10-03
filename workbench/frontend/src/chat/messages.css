@@ -1,0 +1,118 @@
+/* Message list, user and assistant messages, and rendered Markdown. */
+.message-list,
+.chat-waiting,
+.chat-error {
+  max-width: 780px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.turn {
+  padding-bottom: 28px;
+}
+.user-message {
+  max-width: 88%;
+  margin: 14px 0 28px auto;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 7px;
+  padding: 15px 19px;
+  overflow-wrap: anywhere;
+}
+.message-author {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+.user-message p {
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.85;
+}
+.assistant-message {
+  padding: 0 6px;
+  scroll-margin-top: 16px;
+  animation: arrive 0.24s ease-out both;
+}
+.assistant-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 17px;
+  font-size: 12px;
+}
+.assistant-heading .agent-avatar {
+  width: 29px;
+  height: 29px;
+}
+.assistant-heading > span:last-child {
+  margin-left: auto;
+  font: 9px var(--mono);
+  color: var(--muted);
+}
+.message-markdown {
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.message-markdown h1 {
+  font-size: 23px;
+  line-height: 1.5;
+}
+.message-markdown h2 {
+  font-size: 19px;
+  line-height: 1.6;
+  margin: 18px 0 12px;
+}
+.message-markdown h3 {
+  font-size: 14px;
+  margin: 20px 0 10px;
+}
+.message-markdown p {
+  margin: 10px 0;
+}
+.message-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 11px;
+  margin: 16px 0;
+}
+.message-markdown th,
+.message-markdown td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.message-markdown th {
+  background: var(--surface-sunken);
+}
+.message-markdown pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--surface-sunken);
+  padding: 14px;
+}
+.message-markdown code {
+  font: 11px/1.8 var(--mono);
+}
+.source-link {
+  color: var(--teal);
+}
+.response-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 12px 0 5px;
+}
+.review-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary, var(--muted));
+}

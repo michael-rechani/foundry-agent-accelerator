@@ -1,0 +1,41 @@
+/* Saved chats and history. */
+.saved-list {
+  margin-top: 30px;
+}
+.saved-list article {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+.saved-open {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  padding: 12px 0;
+}
+.saved-open span {
+  min-width: 0;
+}
+.saved-open strong {
+  display: block;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.saved-open small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.history-more {
+  background: var(--surface-sunken);
+  padding: 10px 16px;
+  margin-top: 20px;
+  border-radius: 5px;
+}

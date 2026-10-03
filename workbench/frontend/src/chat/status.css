@@ -1,0 +1,49 @@
+/* Waiting and error states. */
+.chat-waiting {
+  font-size: 12px;
+  padding: 12px 6px;
+  color: var(--muted);
+}
+.chat-waiting-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.chat-waiting-row > span:last-child {
+  margin-left: auto;
+  font: 10px var(--mono);
+}
+.chat-waiting-note {
+  margin: 8px 0 0 28px;
+  line-height: 1.6;
+}
+.chat-waiting-note strong {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.spin {
+  animation: chat-spin 1.5s linear infinite;
+}
+.chat-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 15px;
+  border: 1px solid var(--danger-line);
+  border-radius: 5px;
+  background: var(--danger-soft);
+  color: var(--danger-fg);
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.chat-error > svg {
+  margin-top: 3px;
+}
+.chat-error p {
+  flex: 1;
+  min-width: 0;
+}
