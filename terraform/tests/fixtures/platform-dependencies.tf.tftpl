@@ -1,5 +1,7 @@
-# Copied alongside the root configuration by test-platform-validation.ps1;
-# this fragment is not a standalone Terraform module.
+# Superseded: test-platform-validation.ps1 no longer copies this fragment. It now tests the real
+# main.tf, network.tf, apim.tf and review-api.tf, with the module stubs in ./foundry and ./api-management.
+# Kept only because terraform/README.md still links it; delete it when that README section is updated.
+# This fragment is not a standalone Terraform module.
 locals {
   private_dns_zones      = { storage_blob = "privatelink.blob.core.windows.net" }
   jumpbox_admin_password = "synthetic-offline-fixture-only"
