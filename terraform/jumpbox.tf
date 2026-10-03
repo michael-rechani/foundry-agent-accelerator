@@ -105,7 +105,7 @@ resource "azapi_resource" "jumpbox" {
             dataDisks          = []
             imageReference = {
               offer = "WindowsServer", publisher = "MicrosoftWindowsServer"
-              sku   = "2025-datacenter-azure-edition", version = "latest"
+              sku   = "2025-datacenter-azure-edition", version = var.jumpbox_image_version
             }
             osDisk = {
               name       = var.jumpbox_existing_os_disk == null ? "vm-jumpbox-${local.name_suffix}-os" : var.jumpbox_existing_os_disk.name

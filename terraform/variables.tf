@@ -216,6 +216,17 @@ variable "jumpbox_vm_size" {
   default     = "Standard_B2s"
 }
 
+variable "jumpbox_image_version" {
+  type        = string
+  description = "Version of the Windows Server 2025 Datacenter Azure Edition image for a jumpbox built FromImage: latest, or an exact version such as 26100.2894.250113. The default keeps today's behavior. To pin, set it to the VM's current exactVersion (az vm show --query storageProfile.imageReference.exactVersion) and review a plan first, because Azure can reject or replace a VM whose image reference changes. Ignored when jumpbox_existing_os_disk.create_option is Attach, which omits the image."
+  default     = "latest"
+
+  validation {
+    condition     = var.jumpbox_image_version == "latest" || can(regex("^[0-9]+\\.[0-9]+\\.[0-9]+$", var.jumpbox_image_version))
+    error_message = "jumpbox_image_version must be latest or an exact version such as 26100.2894.250113."
+  }
+}
+
 variable "jumpbox_auto_shutdown" {
   type = object({
     time     = optional(string, "0300")

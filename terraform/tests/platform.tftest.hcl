@@ -269,6 +269,50 @@ run "jumpbox_shutdown_opt_out" {
   }
 }
 
+run "jumpbox_image_version_defaults_to_latest" {
+  command = plan
+  variables {
+    enable_jumpbox = true
+    jumpbox_existing_os_disk = {
+      id                   = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-platform-test-12345/providers/Microsoft.Compute/disks/existing-os"
+      name                 = "existing-os"
+      storage_account_type = "StandardSSD_LRS"
+    }
+  }
+  assert {
+    condition     = azapi_resource.jumpbox[0].body.properties.storageProfile.imageReference.version == "latest"
+    error_message = "The jumpbox image version must stay latest unless jumpbox_image_version is set."
+  }
+}
+
+run "jumpbox_image_version_pinned" {
+  command = plan
+  variables {
+    enable_jumpbox = true
+    jumpbox_existing_os_disk = {
+      id                   = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-platform-test-12345/providers/Microsoft.Compute/disks/existing-os"
+      name                 = "existing-os"
+      storage_account_type = "StandardSSD_LRS"
+    }
+    jumpbox_image_version = "26100.2894.250113"
+  }
+  assert {
+    condition = (
+      azapi_resource.jumpbox[0].body.properties.storageProfile.imageReference.version == "26100.2894.250113" &&
+      azapi_resource.jumpbox[0].body.properties.storageProfile.imageReference.sku == "2025-datacenter-azure-edition"
+    )
+    error_message = "A pinned jumpbox_image_version must reach the image reference without changing the SKU."
+  }
+}
+
+run "reject_invalid_image_version" {
+  command = plan
+  variables {
+    jumpbox_image_version = "2025"
+  }
+  expect_failures = [var.jumpbox_image_version]
+}
+
 run "reject_invalid_shutdown_time" {
   command = plan
   variables {

@@ -215,6 +215,15 @@ VM's configuration. Use `create_option = "Attach"` for a VM booting a retained
 specialized Windows disk; this omits the image and OS provisioning profile and
 retains the disk's existing login.
 
+A new VM uses the newest Windows Server 2025 image, because `jumpbox_image_version`
+defaults to `latest`. To stop a later image from changing what a rebuild produces,
+set it to an exact version. For a VM that already exists, use the version it runs
+now, which `az vm show --query storageProfile.imageReference.exactVersion` reads
+without changing anything. Review a plan first. Azure can reject or replace a VM
+whose image reference changes, and the VM has `prevent_destroy`, so stop if the
+plan shows anything beyond that one value. The input is ignored for
+`create_option = "Attach"`, which omits the image.
+
 Leave `jumpbox_admin_secret` null to leave credentials under external Key Vault
 administration and omit the VMAccessAgent extension. If an extension is already
 tracked, reconcile its ownership before changing this input. Do not bypass its
