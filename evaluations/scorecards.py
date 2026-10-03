@@ -28,12 +28,12 @@ import argparse
 import datetime
 import hashlib
 import json
-import re
 import statistics
 import sys
 from pathlib import Path
 
 from library_checks import CASES_PATH, TEMPLATES, case_input, load_cases, score
+from library_rules import is_int, is_number, valid_date
 
 HERE = Path(__file__).resolve().parent
 EVIDENCE = HERE / "evidence"
@@ -90,7 +90,7 @@ def load_repeats(path, cases):
         case_id, run = record.get("case_id"), record.get("run")
         if case_id not in cases:
             raise ValueError(f"{name}: unknown case_id {case_id!r}")
-        if isinstance(run, bool) or not isinstance(run, int) or run < 2:
+        if not is_int(run) or run < 2:
             raise ValueError(f"{name}: {case_id} needs a run number of 2 or more, not {run!r}")
         if run in repeats.setdefault(case_id, {}):
             raise ValueError(f"{name}: {case_id} has run {run} more than once")
@@ -104,7 +104,7 @@ def _measured(record, where):
         raise ValueError(f"{where}: no model recorded")
     for key in METRIC_KEYS:
         value = record.get(key)
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        if not is_number(value) or value < 0:
             raise ValueError(f"{where}: {key} must be a number of 0 or more, not {value!r}")
     return record
 
@@ -130,7 +130,7 @@ def _check_fingerprint(record, case, run, what="answer"):
 
 def _recorded_on(record, where):
     value = record.get("recorded_on")
-    if not isinstance(value, str) or not _valid_date(value):
+    if not isinstance(value, str) or not valid_date(value):
         raise ValueError(f"{where}: no recorded date; every row needs recorded_on as YYYY-MM-DD")
     return value
 
@@ -147,15 +147,6 @@ def template_digests(cases, answers):
     }
 
 
-def _valid_date(value):
-    value = str(value)
-    try:
-        datetime.date.fromisoformat(value)
-    except ValueError:
-        return False
-    return re.fullmatch(r"\d{4}-\d{2}-\d{2}", value) is not None
-
-
 def load_signoffs(path):
     path = Path(path)
     if not path.exists():
@@ -166,7 +157,7 @@ def load_signoffs(path):
     signoffs = {}
     for item in data.get("signoffs", []):
         template_id = item.get("template_id")
-        if (not str(item.get("reviewer", "")).strip() or not _valid_date(item.get("reviewed_on"))
+        if (not str(item.get("reviewer", "")).strip() or not valid_date(item.get("reviewed_on"))
                 or not item.get("answers_sha256") or template_id in signoffs):
             raise ValueError(f"{path.name}: invalid or repeated sign-off for {template_id!r}")
         signoffs[template_id] = item
@@ -177,7 +168,7 @@ def record_signoff(reviewer, reviewed_on, template_ids, path=SIGNOFFS, cases_pat
     reviewer = reviewer.strip()
     if not reviewer:
         raise ValueError("A named reviewer is required")
-    if not _valid_date(reviewed_on):
+    if not valid_date(reviewed_on):
         raise ValueError("The review date must look like 2026-09-30")
     cases = {case["id"]: case for case in load_cases(cases_path)["cases"]}
     digests = template_digests(cases, load_answers(cases, runs))

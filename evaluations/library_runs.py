@@ -44,6 +44,7 @@ from library_checks import CASES_PATH, case_input, load_cases
 # library_checks puts workbench/ on sys.path, which these two imports need.
 from agent_templates import MODEL_PROFILES, TEMPLATE_METADATA, TEMPLATES
 from library_preview import run_preview, summarize_usage, usage_record
+from library_rules import DEPLOYMENT_NAME, is_int, is_number, is_profile_map, valid_date
 
 HERE = Path(__file__).resolve().parent
 JOURNALS = HERE / "results" / "library-runs"
@@ -51,7 +52,6 @@ RUNS_PER_CASE = 5
 ENV_ENDPOINT = "FOUNDRY_PROJECT_ENDPOINT"
 ENV_MODEL = "WORKBENCH_AGENT_CREATION_MODEL"
 ENV_MODELS = "WORKBENCH_AGENT_CREATION_MODELS"
-DEPLOYMENT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 
 # A capacity-10 deployment allows 10,000 tokens and 10 requests a minute (see README.md). Pass
 # --limits for a deployment with more.
@@ -215,7 +215,7 @@ def parse_limits(text):
         limits = None
     if not isinstance(limits, dict) or any(
             not DEPLOYMENT_NAME.fullmatch(model) or not isinstance(entry, dict) or not entry
-            or set(entry) - set(DEFAULT_LIMITS) or any(type(value) is not int or value < 1 for value in entry.values())
+            or set(entry) - set(DEFAULT_LIMITS) or any(not is_int(value) or value < 1 for value in entry.values())
             for model, entry in limits.items()):
         raise Stop('--limits must look like {"gpt-5.4": {"tokens": 30000, "requests": 30}}', 2)
     return limits
@@ -365,8 +365,7 @@ def load_evidence(files):
 
 def _dated(row):
     value = row.get("recorded_on")
-    # scorecards.py already knows what a valid date looks like.
-    return value if isinstance(value, str) and scorecards._valid_date(value) else None
+    return value if isinstance(value, str) and valid_date(value) else None
 
 
 def assess(template_id, cases, evidence):
@@ -406,11 +405,11 @@ def usable(row, ids, digest, model):
     if not isinstance(row, dict) or set(row) != set(RUN_ROW):
         return False
     counts = [row[key] for key in COUNT_KEYS]
-    return (row["case_id"] in ids and type(row["run"]) is int and 1 <= row["run"] <= RUNS_PER_CASE
+    return (row["case_id"] in ids and is_int(row["run"]) and 1 <= row["run"] <= RUNS_PER_CASE
             and row["instructions_sha256"] == digest and (model is None or row["model"] == model)
             and isinstance(row["text"], str) and bool(row["text"].strip()) and isinstance(row["receipts"], list)
-            and all(type(count) is int and count >= 0 for count in counts) and row["cached_tokens"] <= row["input_tokens"]
-            and isinstance(row["seconds"], (int, float)) and not isinstance(row["seconds"], bool) and row["seconds"] >= 0
+            and all(is_int(count) and count >= 0 for count in counts) and row["cached_tokens"] <= row["input_tokens"]
+            and is_number(row["seconds"]) and row["seconds"] >= 0
             and _dated(row) is not None)
 
 
@@ -461,9 +460,7 @@ def resolve_models(template_ids, *, model, models, environ, recorded):
             value = json.loads(text) if text else {}
         except ValueError:
             value = None
-        if not isinstance(value, dict) or any(
-                profile not in MODEL_PROFILES or not isinstance(name, str) or not DEPLOYMENT_NAME.fullmatch(name)
-                for profile, name in value.items()):
+        if not is_profile_map(value, MODEL_PROFILES):
             raise Stop(f"{what} must map model profiles ({', '.join(MODEL_PROFILES)}) to deployment names, "
                        'like {"reasoning": "gpt-5.4"}', 2)
         return value

@@ -7,9 +7,9 @@ import json
 from pathlib import Path
 
 from agent_templates import TEMPLATES
+from library_rules import CATEGORIES, is_int
 
 PATH = Path(__file__).with_name("agent_scorecards.json")
-CATEGORIES = {"grounded", "missing", "conflict", "injection", "decision-boundary"}
 
 
 def load_scorecards(path=PATH):
@@ -38,7 +38,7 @@ def load_scorecards(path=PATH):
             raise ValueError(f"agent_scorecards.json: {template_id} summary doesn't match its cases")
         for item in cases:
             runs, runs_passed = item.get("runs"), item.get("runs_passed")
-            if (not all(isinstance(value, int) and not isinstance(value, bool) for value in (runs, runs_passed))
+            if (not all(is_int(value) for value in (runs, runs_passed))
                     or not 0 <= runs_passed <= runs or runs < 1
                     or item["passed"] != (runs_passed == runs)):
                 raise ValueError(f"agent_scorecards.json: {template_id} has a case whose run counts don't add up")

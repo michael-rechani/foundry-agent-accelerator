@@ -23,13 +23,13 @@ from agent_templates import (
     model_profile, prepare_draft,
 )
 from history import StrictModel
+from library_rules import DEPLOYMENT_NAME, is_int, is_profile_map
 from request_guard import MAX_SETUP_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
 
 
 LOGGER = logging.getLogger("uvicorn.error")
 UUID_PATTERN = r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}"
 CREATED_ID = re.compile(r"created-" + UUID_PATTERN + r"\Z")
-DEPLOYMENT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 
 
 def timestamp():
@@ -66,16 +66,13 @@ class CreationSettings:
     def validate(self, mode):
         if type(self.enabled) is not bool:
             raise ValueError("Agent creation enablement must be a boolean")
-        if type(self.max_agents) is not int or not 1 <= self.max_agents <= 20:
+        if not is_int(self.max_agents) or not 1 <= self.max_agents <= 20:
             raise ValueError("Configure between one and twenty created agents")
-        if type(self.timeout_seconds) is not int or not 30 <= self.timeout_seconds <= 900:
+        if not is_int(self.timeout_seconds) or not 30 <= self.timeout_seconds <= 900:
             raise ValueError("Publication timeout must be between 30 and 900 seconds")
         if self.key_sha256 and not re.fullmatch(r"[a-f0-9]{64}", self.key_sha256):
             raise ValueError("Configure a lowercase SHA-256 operator-key verifier")
-        if not isinstance(self.models, dict) or any(
-            profile not in MODEL_PROFILES or not isinstance(name, str) or not DEPLOYMENT_NAME.fullmatch(name)
-            for profile, name in self.models.items()
-        ):
+        if not is_profile_map(self.models, MODEL_PROFILES):
             raise ValueError("Map only known model profiles to model deployment names")
         if self.enabled and (
             mode != "private"
