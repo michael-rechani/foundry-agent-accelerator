@@ -1,29 +1,15 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
-import { readFile } from 'node:fs/promises'
-import type { Review } from '../src/review-client'
-import { themeStorageKey } from '../src/theme'
-import type { Config } from '../src/workspace-config'
+import { type Locator, type Page, expect, test } from '@playwright/test'
 import { guidedReview, registry } from './fixtures'
+import { seedAppearance } from './helpers/appearance'
+import { catalog, scorecards, support } from './helpers/catalog'
+import { labConfig } from './helpers/lab-config'
+import { mockApi } from './helpers/mock-api'
+import { type Review } from '../src/review-client'
 
 // Keyboard use of the Agent library tabs, the review tabs and the agent
 // switcher, checked in every Look. Only mocked local requests are used.
 const looks = ['classic', 'aurora', 'console'] as const
 
-const catalog = JSON.parse(
-  await readFile(
-    new URL('./agent-templates.fixture.json', import.meta.url),
-    'utf8',
-  ),
-)
-const scorecards = JSON.parse(
-  await readFile(
-    new URL('../../agent_scorecards.json', import.meta.url),
-    'utf8',
-  ),
-)
-const template = catalog.templates.find(
-  (item: { id: string }) => item.id === 'customer-support-brief',
-)
 const caseHelper = registry.find((item) => item.id === 'case-review')!
 
 const reviewId = 'review-12345678-1234-1234-1234-123456789abc'
@@ -66,32 +52,15 @@ const review: Review = {
 }
 
 async function open(page: Page, look: (typeof looks)[number], hash = '') {
-  const config: Config = {
-    title: 'Foundry Agent Lab',
-    mode: 'private',
-    agents: [guidedReview, caseHelper],
-    default_agent: guidedReview.id,
-    max_characters: 60000,
-    max_request_bytes: 65536,
-    max_history_turns: 10,
-    review_timeout_ms: 190000,
-    history_timeout_ms: 45000,
-    retention_days: 30,
-    history_enabled: false,
-    reviews_enabled: true,
-  }
-  await page.addInitScript(
-    ([key, value]) => localStorage.setItem(key, value),
-    [
-      themeStorageKey,
-      JSON.stringify({ mode: 'light', accent: 'foundry', look }),
-    ],
-  )
-  await page.route('**/api/**', async (route) => {
-    const path = new URL(route.request().url()).pathname
-    const respond = (json: unknown, status = 200) =>
-      route.fulfill({ json, status })
-    if (path === '/api/config') return respond(config)
+  await seedAppearance(page, { mode: 'light', accent: 'foundry', look })
+  await mockApi(page, ({ path, respond }) => {
+    if (path === '/api/config')
+      return respond(
+        labConfig({
+          agents: [guidedReview, caseHelper],
+          reviews_enabled: true,
+        }),
+      )
     if (path === '/api/agent-templates') return respond(catalog)
     if (path === '/api/agent-scorecards') return respond(scorecards)
     if (path === '/api/agents') return respond({ items: [], limit: 5 })
@@ -162,10 +131,10 @@ for (const look of looks) {
     await open(page, look)
     await page
       .locator('.library-card')
-      .filter({ hasText: template.label })
+      .filter({ hasText: support.label })
       .click()
     await expect(
-      page.getByRole('heading', { level: 1, name: template.label }),
+      page.getByRole('heading', { level: 1, name: support.label }),
     ).toBeVisible()
     await checkTabs(
       page.getByRole('tablist', { name: 'Agent details' }),

@@ -1,197 +1,13 @@
-import { expect, test, type Page } from '@playwright/test'
-import type { Review } from '../src/review-client'
-import type { Agent } from '../src/workspace-config'
+import { expect, test } from '@playwright/test'
 import { docsScreenshot, guidedReview, registry, screenshot } from './fixtures'
-
-async function setup(
-  page: Page,
-  preview = false,
-  agents: Agent[] = [guidedReview],
-) {
-  const state = {
-    document: null as Review | null,
-    executions: 0,
-    recoveries: 0,
-    conflict: false,
-    pollFailure: null as 'network' | 'rate-limit' | null,
-    runningReads: 0,
-    chatRequests: 0,
-    creations: [] as Pick<
-      Review,
-      'title' | 'agent_id' | 'criteria' | 'evidence'
-    >[],
-  }
-  await page.route('**/api/**', async (route) => {
-    const request = route.request()
-    const path = new URL(request.url()).pathname
-    if (path === '/api/config')
-      return route.fulfill({
-        json: {
-          title: 'Foundry Agent Lab',
-          mode: preview ? 'preview' : 'private',
-          reviews_enabled: !preview,
-          history_enabled: !preview,
-          default_agent: 'customer-review',
-          retention_days: 30,
-          max_characters: 60000,
-          max_request_bytes: 65536,
-          max_history_turns: 10,
-          review_timeout_ms: 190000,
-          history_timeout_ms: 45000,
-          agents,
-        },
-      })
-    if (path === '/api/review-runs' && request.method() === 'POST') {
-      state.creations.push(request.postDataJSON())
-      state.document = {
-        ...request.postDataJSON(),
-        id: 'review-12345678-1234-1234-1234-123456789abc',
-        status: 'draft',
-        runs: [],
-        _etag: '1',
-        updated_at: '2026-09-06T00:00:00Z',
-      }
-      return route.fulfill({ status: 201, json: state.document })
-    }
-    if (path === '/api/review-runs')
-      return route.fulfill({
-        json: { items: state.document ? [state.document] : [], cursor: null },
-      })
-    if (path === '/api/reviews') {
-      state.chatRequests++
-      return route.fulfill({
-        status: 400,
-        json: { error: 'unexpected_chat_request' },
-      })
-    }
-    const document = state.document
-    if (!document)
-      return route.fulfill({ status: 404, json: { error: 'not_found' } })
-    if (path.endsWith('/execute') || path.endsWith('/resume')) {
-      const recovering = path.endsWith('/resume')
-      if (state.conflict)
-        return route.fulfill({ status: 409, json: { error: 'review_changed' } })
-      expect(request.headers()['if-match']).toBe(document._etag)
-      const previous = document.runs.at(-1)
-      if (recovering) {
-        expect(request.postDataJSON()).toEqual({ confirm_cost: true })
-        expect(document.status).toBe('interrupted')
-        expect(document.runs.length).toBeLessThan(4)
-        state.recoveries++
-      }
-      state.executions++
-      document.status = 'running'
-      document._etag = String(Number(document._etag) + 1)
-      document.runs.push({
-        id: 'run-' + state.executions,
-        started_at: document.updated_at,
-        input: recovering
-          ? structuredClone(previous!.input)
-          : {
-              criteria: [...document.criteria],
-              evidence: structuredClone(document.evidence),
-            },
-        events: [
-          {
-            name: recovering ? 'review_recovery_requested' : 'review_started',
-            at: document.updated_at,
-          },
-        ],
-        ...(recovering ? { resumed_from: previous!.id } : {}),
-      })
-      return route.fulfill({ status: 202, json: document })
-    }
-    if (path.endsWith('/evidence')) {
-      expect(request.headers()['if-match']).toBe(document._etag)
-      document.evidence.push(request.postDataJSON())
-      document.status = 'draft'
-      document._etag = String(Number(document._etag) + 1)
-      return route.fulfill({ json: document })
-    }
-    if (document.status === 'running') {
-      if (state.pollFailure) {
-        const failure = state.pollFailure
-        state.pollFailure = null
-        return failure === 'network'
-          ? route.abort('failed')
-          : route.fulfill({ status: 429, json: { error: 'reviews_busy' } })
-      }
-      if (state.runningReads > 0) {
-        state.runningReads--
-        return route.fulfill({ json: document })
-      }
-      document.status = state.executions === 1 ? 'waiting_input' : 'completed'
-      const run = document.runs.at(-1)!
-      run.elapsed_ms = 1234
-      run.result = {
-        summary: 'Application evidence reviewed.',
-        findings: [
-          {
-            criterion_id: 'CRIT-1',
-            assessment: state.executions === 1 ? 'gap' : 'supported',
-            explanation:
-              state.executions === 1
-                ? 'Budget is missing.'
-                : 'Budget supplied.',
-            citations:
-              state.executions === 1
-                ? []
-                : [{ source_id: 'SRC-2', quote: 'Budget: $100.' }],
-          },
-          {
-            criterion_id: 'CRIT-2',
-            assessment: 'supported',
-            explanation: 'A delivery timeline is stated.',
-            citations: [
-              {
-                source_id: 'SRC-1',
-                quote: 'Twelve weekly workshops beginning October 1.',
-              },
-            ],
-          },
-        ],
-        questions:
-          state.executions === 1 ? ['What is the project budget?'] : [],
-      }
-      run.events.push(
-        { name: 'citations_checked', at: document.updated_at },
-        { name: document.status, at: document.updated_at },
-      )
-      document._etag = String(Number(document._etag) + 1)
-    }
-    return route.fulfill({ json: document })
-  })
-  await page.goto('/#chat')
-  await expect(page.locator('.agent-picker')).toContainText(
-    'Checklist and case helper',
-  )
-  const navigation = page.getByRole('navigation', { name: 'Workspace' })
-  await expect(navigation.getByRole('button').first()).toHaveText('All agents')
-  await expect(
-    navigation.getByRole('button', { name: 'Chat', exact: true }),
-  ).toHaveAttribute('aria-current', 'page')
-  await expect(
-    page.getByRole('textbox', { name: 'Message', exact: true }),
-  ).toBeVisible()
-  await expect(
-    navigation.getByRole('button', { name: 'Document reviews' }),
-  ).toHaveCount(0)
-  await expect(page.locator('.chat-review-link')).toHaveCount(0)
-  await page.goto('/#reviews')
-  await page.reload()
-  await expect(
-    navigation.getByRole('button', { name: 'Document reviews', exact: true }),
-  ).toHaveAttribute('aria-current', 'page')
-  await expect(
-    page.getByRole('heading', { name: 'Document reviews', exact: true }),
-  ).toBeVisible()
-  return state
-}
+import { expectFitsViewport } from './helpers/layout'
+import { followLink, libraryNav, workspaceNav } from './helpers/navigation'
+import { create, expectReviewOpen, openReviews } from './helpers/reviews-lab'
 
 test('navigation is labelled and conversation actions stay in Chat', async ({
   page,
 }, testInfo) => {
-  await setup(page, true)
+  await openReviews(page, true)
   await expect(page.getByText('Local preview', { exact: true })).toBeVisible()
   await expect(
     page.getByRole('heading', { name: 'Review storage unavailable' }),
@@ -218,7 +34,7 @@ test('navigation is labelled and conversation actions stay in Chat', async ({
     page.getByRole('button', { name: 'Export conversation' }),
   ).toHaveCount(0)
   await screenshot(page, testInfo, 'reviews-navigation.png')
-  const navigation = page.getByRole('navigation', { name: 'Workspace' })
+  const navigation = workspaceNav(page)
   for (const label of [
     'Chat',
     'Document reviews',
@@ -242,17 +58,13 @@ test('navigation is labelled and conversation actions stay in Chat', async ({
       ),
     })
   }
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true)
+  await expectFitsViewport(page)
 })
 
 test('review guide explains findings, storage and human decision boundaries', async ({
   page,
 }) => {
-  const state = await setup(page)
+  const state = await openReviews(page)
   const guide = page.locator('.review-guide')
   await guide.locator('summary').click()
   await expect(guide.locator('dt')).toHaveText(['Supported', 'Gap', 'Conflict'])
@@ -283,11 +95,10 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   page,
 }, testInfo) => {
   const caseAgent = registry.find((item) => item.id === 'case-review')!
-  const state = await setup(page, false, [guidedReview, caseAgent])
-  const navigation = page.getByRole('navigation', { name: 'Workspace' })
+  const state = await openReviews(page, false, [guidedReview, caseAgent])
+  const navigation = workspaceNav(page)
   await navigation.getByRole('button', { name: 'All agents' }).click()
-  await page
-    .getByRole('navigation', { name: 'Agent library' })
+  await libraryNav(page)
     .getByRole('button', { name: /^Ready to chat/ })
     .click()
   await page
@@ -361,13 +172,11 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
 test('invalid review links fall back to the library without opening a review', async ({
   page,
 }) => {
-  await setup(page)
+  await openReviews(page)
   await page.goto('/#review-not-a-valid-id')
   await page.reload()
   await expect(
-    page
-      .getByRole('navigation', { name: 'Workspace' })
-      .getByRole('button', { name: 'All agents', exact: true }),
+    workspaceNav(page).getByRole('button', { name: 'All agents', exact: true }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(
     page.getByRole('heading', { level: 1, name: /library|job that needs/i }),
@@ -377,39 +186,13 @@ test('invalid review links fall back to the library without opening a review', a
   ).toHaveCount(0)
 })
 
-async function create(page: Page) {
-  await page.getByRole('button', { name: 'New review', exact: true }).click()
-  await page.getByRole('button', { name: 'Use sample text' }).click()
-  await page.getByRole('button', { name: 'Create shared review' }).click()
-  await expect(
-    page.getByRole('button', { name: 'Run review', exact: true }),
-  ).toBeVisible()
-}
-
-const sampleTitle = 'Community workshop application'
-
-async function followLink(page: Page, hash: string) {
-  await page.evaluate((link) => {
-    window.location.hash = link
-  }, hash)
-}
-
-async function expectReviewOpen(page: Page) {
-  await expect(
-    page.getByRole('heading', { name: sampleTitle, exact: true }),
-  ).toBeVisible()
-  await expect(
-    page.getByRole('button', { name: 'Run review', exact: true }),
-  ).toBeVisible()
-}
-
 test('a review link followed after the Lab has loaded opens the review', async ({
   page,
 }) => {
-  const state = await setup(page)
+  const state = await openReviews(page)
   await create(page)
   const link = '#' + state.document!.id
-  const navigation = page.getByRole('navigation', { name: 'Workspace' })
+  const navigation = workspaceNav(page)
 
   await page.getByRole('button', { name: 'Back to reviews' }).click()
   await expect(
@@ -436,9 +219,9 @@ test('a review link followed after the Lab has loaded opens the review', async (
 test('back and forward move between a review link and Chat', async ({
   page,
 }) => {
-  const state = await setup(page)
+  const state = await openReviews(page)
   await create(page)
-  const navigation = page.getByRole('navigation', { name: 'Workspace' })
+  const navigation = workspaceNav(page)
   const chat = navigation.getByRole('button', { name: 'Chat', exact: true })
   const reviews = navigation.getByRole('button', {
     name: 'Document reviews',
@@ -468,7 +251,7 @@ test('back and forward move between a review link and Chat', async ({
 test('following a review link asks before discarding a review that is being written', async ({
   page,
 }) => {
-  const state = await setup(page)
+  const state = await openReviews(page)
   await create(page)
   const link = '#' + state.document!.id
   await page.getByRole('button', { name: 'Back to reviews' }).click()
@@ -500,10 +283,10 @@ test('following a review link asks before discarding a review that is being writ
 test('a review link followed from another page asks before discarding a review that is being written', async ({
   page,
 }) => {
-  const state = await setup(page)
+  const state = await openReviews(page)
   await create(page)
   const link = '#' + state.document!.id
-  const navigation = page.getByRole('navigation', { name: 'Workspace' })
+  const navigation = workspaceNav(page)
   const chat = navigation.getByRole('button', { name: 'Chat', exact: true })
   await page.getByRole('button', { name: 'Back to reviews' }).click()
   await page.getByRole('button', { name: 'New review', exact: true }).click()
@@ -532,292 +315,4 @@ test('a review link followed from another page asks before discarding a review t
   await followLink(page, link)
   await expectReviewOpen(page)
   await expect(page.getByLabel('Review title')).toHaveCount(0)
-})
-
-async function interrupt(page: Page) {
-  const state = await setup(page)
-  await create(page)
-  state.runningReads = 100
-  await page.getByRole('button', { name: 'Run review', exact: true }).click()
-  await expect(page.getByText('Running', { exact: true })).toBeVisible()
-  state.document!.status = 'interrupted'
-  state.document!.runs[0].error = 'execution_interrupted'
-  state.document!.runs[0].events.push({
-    name: 'interrupted',
-    at: state.document!.updated_at,
-  })
-  state.document!._etag = '3'
-  await page.reload()
-  await expect(
-    page.getByRole('button', { name: 'Recover review' }),
-  ).toBeVisible()
-  return state
-}
-
-test('interrupted recovery requires consent, uses saved input and preserves history', async ({
-  page,
-}, testInfo) => {
-  const state = await interrupt(page)
-  const original = structuredClone(state.document!.runs[0])
-  await expect(page.locator('.review-next-step')).toContainText(
-    'recovery may incur another model charge',
-  )
-  await page.getByRole('button', { name: 'Refresh reviews' }).click()
-  expect(state.recoveries).toBe(0)
-  page.once('dialog', async (dialog) => {
-    expect(dialog.message()).toContain('may incur another model charge')
-    await dialog.dismiss()
-  })
-  await page.getByRole('button', { name: 'Recover review' }).click()
-  expect(state.executions).toBe(1)
-  expect(state.document!.runs).toEqual([original])
-  await page.screenshot({
-    path: testInfo.outputPath('review-recovery.png'),
-    fullPage: true,
-  })
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true)
-  page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: 'Recover review' }).click()
-  await expect(page.getByText('Running', { exact: true })).toBeVisible()
-  await expect(
-    page.getByRole('button', { name: 'Recover review' }),
-  ).toHaveCount(0)
-  expect(state.recoveries).toBe(1)
-  expect(state.document!.runs[0]).toEqual(original)
-  expect(state.document!.runs[1].input).toEqual(original.input)
-  expect(state.document!.runs[1].resumed_from).toBe(original.id)
-  state.runningReads = 0
-  await expect(page.getByText('Results saved', { exact: true })).toBeVisible()
-  await page.reload()
-  await page.getByRole('tab', { name: 'Run details' }).click()
-  await expect(
-    page.getByText('Recovery requested using saved input'),
-  ).toBeVisible()
-  await page.getByLabel('Run version').selectOption('0')
-  await expect(page.getByText('Run error: execution_interrupted')).toBeVisible()
-  expect(state.executions).toBe(2)
-})
-
-test('recovery conflicts preserve input and never silently resubmit', async ({
-  page,
-}) => {
-  const state = await interrupt(page)
-  const original = structuredClone(state.document)
-  state.conflict = true
-  page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: 'Recover review' }).click()
-  await expect(
-    page.getByRole('alert').filter({ hasText: 'This review changed' }),
-  ).toBeVisible()
-  expect(state.document).toEqual(original)
-  await page.getByRole('button', { name: 'Refresh reviews' }).click()
-  expect(state.recoveries).toBe(0)
-  expect(state.executions).toBe(1)
-})
-
-test('recovery is unavailable after the four-run limit or a saved failure', async ({
-  page,
-}) => {
-  const state = await interrupt(page)
-  state.document!.runs = Array.from({ length: 4 }, (_, index) => ({
-    ...structuredClone(state.document!.runs[0]),
-    id: `run-${index + 1}`,
-  }))
-  await page.getByRole('button', { name: 'Refresh reviews' }).click()
-  await expect(page.locator('.review-next-step')).toContainText(
-    'four-run limit has been reached',
-  )
-  await expect(
-    page.getByRole('button', { name: 'Recover review' }),
-  ).toHaveCount(0)
-  await expect(
-    page.getByRole('button', { name: 'Export review' }),
-  ).toBeEnabled()
-  state.document!.status = 'failed'
-  state.document!.runs = state.document!.runs.slice(0, 1)
-  await page.getByRole('button', { name: 'Refresh reviews' }).click()
-  await expect(
-    page.getByRole('button', { name: 'Recover review' }),
-  ).toHaveCount(0)
-  expect(state.recoveries).toBe(0)
-})
-
-test('review, inspect evidence, clarify, resume, reopen and preserve snapshots', async ({
-  page,
-}, testInfo) => {
-  const state = await setup(page)
-  await create(page)
-  await expect(page.locator('.review-next-step')).toContainText(
-    'Checklist and documents saved; no results yet',
-  )
-  expect(state.executions).toBe(0)
-  await page.getByRole('button', { name: 'Run review', exact: true }).click()
-  await expect(
-    page.getByRole('heading', { name: 'More information needed' }),
-  ).toBeVisible()
-  await page.getByRole('button', { name: 'Document 1' }).click()
-  await expect(
-    page.getByRole('complementary', { name: 'Original text' }),
-  ).toContainText('Twelve weekly workshops')
-  await page.getByRole('tab', { name: 'Results' }).click()
-  await expect(page.locator('.review-disclaimer')).toContainText(
-    'they do not prove those documents are true',
-  )
-  await expect(page.locator('.review-disclaimer')).toContainText(
-    'They do not approve applications or make business decisions',
-  )
-  await docsScreenshot(page, testInfo, 'review-findings.png')
-  await page.emulateMedia({ colorScheme: 'dark' })
-  await docsScreenshot(page, testInfo, 'review-findings-dark.png')
-  await page.emulateMedia({ colorScheme: 'light' })
-  await page
-    .getByLabel('More information', { exact: true })
-    .fill('Budget: $100.')
-  await page.getByRole('button', { name: 'Save added information' }).click()
-  expect(state.executions).toBe(1)
-  await expect(page.locator('.review-next-step')).toContainText(
-    'saved but not checked yet',
-  )
-  await page.getByRole('tab', { name: 'Original text', exact: true }).click()
-  await page.getByLabel('Document', { exact: true }).selectOption('SRC-2')
-  await expect(
-    page.getByRole('complementary', { name: 'Original text' }),
-  ).toContainText('Budget: $100.')
-  await page.getByRole('button', { name: 'Review again' }).click()
-  await expect(page.getByText('Results saved', { exact: true })).toBeVisible()
-  await page.reload()
-  await expect(
-    page
-      .getByRole('navigation', { name: 'Workspace' })
-      .getByRole('button', { name: 'Document reviews', exact: true }),
-  ).toHaveAttribute('aria-current', 'page')
-  await expect(
-    page.getByRole('heading', { name: 'Community workshop application' }),
-  ).toBeVisible()
-  await page.getByLabel('Run version').selectOption({ value: '0' })
-  await page.getByRole('tab', { name: 'Original text', exact: true }).click()
-  await expect(
-    page.getByLabel('Document', { exact: true }).locator('option'),
-  ).toHaveCount(1)
-  await page.getByLabel('Run version').selectOption({ value: '1' })
-  await expect(
-    page.getByLabel('Document', { exact: true }).locator('option'),
-  ).toHaveCount(2)
-  await page.getByRole('tab', { name: 'Run details' }).click()
-  await expect(page.getByText('Quotes matched to your documents')).toBeVisible()
-  expect(state.executions).toBe(2)
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true)
-})
-
-for (const failure of ['network', 'rate-limit'] as const) {
-  test(`refresh restarts polling after ${failure} without another execution`, async ({
-    page,
-  }) => {
-    const state = await setup(page)
-    await create(page)
-    state.pollFailure = failure
-    state.runningReads = 1
-    await page.getByRole('button', { name: 'Run review', exact: true }).click()
-    await expect(page.getByRole('alert')).toBeVisible()
-    await page.getByRole('button', { name: 'Refresh reviews' }).click()
-    await expect(page.getByRole('alert')).toHaveCount(0)
-    await expect(
-      page.getByRole('heading', { name: 'More information needed' }),
-    ).toBeVisible()
-    expect(state.executions).toBe(1)
-    expect(state.runningReads).toBe(0)
-  })
-}
-
-test('inbox counts reflect loaded records and status filters', async ({
-  page,
-}, testInfo) => {
-  const state = await setup(page)
-  await expect(
-    page.getByRole('heading', { name: 'No reviews yet' }),
-  ).toBeVisible()
-  await expect(page.locator('.review-overview dd')).toHaveText([
-    '0',
-    '0',
-    '0',
-    '0',
-  ])
-  await create(page)
-  await page.getByRole('button', { name: 'Run review', exact: true }).click()
-  await expect(
-    page.getByRole('heading', { name: 'More information needed' }),
-  ).toBeVisible()
-  await page.getByRole('button', { name: 'Back to reviews' }).click()
-  await expect(page.locator('.overview-all dd')).toHaveText('1')
-  await expect(page.locator('.overview-waiting_input dd')).toHaveText('1')
-  await expect(page.locator('.overview-running dd')).toHaveText('0')
-  await expect(page.locator('.overview-completed dd')).toHaveText('0')
-  await page
-    .getByLabel('Review status', { exact: true })
-    .selectOption('completed')
-  await expect(
-    page.getByRole('heading', { name: 'No matching reviews' }),
-  ).toBeVisible()
-  await page
-    .getByLabel('Review status', { exact: true })
-    .selectOption('waiting_input')
-  await expect(page.locator('.review-row')).toHaveCount(1)
-  await expect(page.locator('.review-row')).toContainText(state.document!.title)
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true)
-  expect(
-    await page.evaluate(
-      () =>
-        document
-          .getAnimations()
-          .filter((animation) => animation.playState === 'running').length,
-    ),
-  ).toBe(0)
-  await page.screenshot({
-    path: testInfo.outputPath('review-inbox.png'),
-    fullPage: true,
-  })
-})
-
-test('conflict preserves review and never silently resubmits', async ({
-  page,
-}) => {
-  const state = await setup(page)
-  await create(page)
-  state.conflict = true
-  await page.getByRole('button', { name: 'Run review', exact: true }).click()
-  await expect(page.getByRole('alert')).toContainText('This review changed')
-  expect(state.executions).toBe(0)
-})
-
-test('preview accepts a synthetic draft but never executes', async ({
-  page,
-}, testInfo) => {
-  await setup(page, true)
-  await page.getByRole('button', { name: 'New review', exact: true }).click()
-  await page.getByRole('button', { name: 'Use sample text' }).click()
-  await expect(
-    page.getByRole('button', { name: 'Create shared review' }),
-  ).toBeDisabled()
-  await expect(page.getByLabel('Review title')).toHaveValue(
-    'Community workshop application',
-  )
-  await screenshot(page, testInfo, 'review-draft.png')
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true)
 })

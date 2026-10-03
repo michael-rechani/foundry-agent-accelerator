@@ -1,9 +1,12 @@
-import { expect, test, type Page } from '@playwright/test'
+import { type Page, expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import type { Config } from '../src/workspace-config'
-import type { CreatedAgent } from '../src/agent-creation-client'
-import { demoScenarios } from '../src/demo-scenarios'
 import { docsScreenshot, guidedReview, screenshot } from './fixtures'
+import { labConfig, modeFor } from './helpers/lab-config'
+import { expectFitsViewport } from './helpers/layout'
+import { mockApi } from './helpers/mock-api'
+import { libraryNav, openLibraryTab } from './helpers/navigation'
+import { type CreatedAgent } from '../src/agent-creation-client'
+import { demoScenarios } from '../src/demo-scenarios'
 
 const invoice = demoScenarios.find((item) => item.id === 'invoice')!
 
@@ -36,7 +39,7 @@ function invoiceRecord(status: CreatedAgent['status']): CreatedAgent {
   }
 }
 
-async function setup(
+async function openShowcase(
   page: Page,
   options: {
     preview?: boolean
@@ -45,21 +48,14 @@ async function setup(
     failedList?: boolean
   } = {},
 ) {
-  const config: Config = {
-    title: 'Foundry Agent Lab',
-    mode: options.preview ? 'preview' : 'private',
+  const config = labConfig({
+    mode: modeFor(options.preview),
     agents: [
       options.hidden
         ? { ...guidedReview, id: 'custom-unrelated-agent' }
         : guidedReview,
     ],
     default_agent: options.hidden ? 'custom-unrelated-agent' : guidedReview.id,
-    max_characters: 60000,
-    max_request_bytes: 65536,
-    max_history_turns: 10,
-    review_timeout_ms: 190000,
-    history_timeout_ms: 45000,
-    retention_days: 30,
     history_enabled: !options.preview,
     reviews_enabled: !options.preview,
     ...(options.record || options.failedList
@@ -75,7 +71,7 @@ async function setup(
           },
         }
       : {}),
-  }
+  })
   const state = {
     writes: [] as {
       path: string
@@ -87,38 +83,30 @@ async function setup(
       }
     }[],
   }
-  await page.route('**/api/**', async (route) => {
-    const request = route.request()
-    const path = new URL(request.url()).pathname
-    if (request.method() !== 'GET')
+  await mockApi(page, ({ request, path, method, respond }) => {
+    if (method !== 'GET')
       state.writes.push({ path, body: request.postDataJSON() })
-    if (path === '/api/config') return route.fulfill({ json: config })
+    if (path === '/api/config') return respond(config)
     if (path === '/api/agents')
-      return route.fulfill({
-        status: options.failedList ? 503 : 200,
-        json: options.failedList
-          ? { error: 'agents_unavailable' }
-          : { items: options.record ? [options.record] : [], cursor: null },
-      })
+      return options.failedList
+        ? respond({ error: 'agents_unavailable' }, 503)
+        : respond({
+            items: options.record ? [options.record] : [],
+            cursor: null,
+          })
     if (path === '/api/agent-templates')
-      return route.fulfill({ json: { draft_mode: 'template', templates: [] } })
-    if (path === '/api/review-runs')
-      return route.fulfill({ json: { items: [], cursor: null } })
+      return respond({ draft_mode: 'template', templates: [] })
+    if (path === '/api/review-runs') return respond({ items: [], cursor: null })
     if (path === '/api/reviews')
-      return route.fulfill({
-        json: {
-          request_id: 'fictional-showcase-response',
-          status: 'completed',
-          agent: guidedReview.agent,
-          text: 'Illustrative test reply: Checklist item 1 has no supplied budget.',
-          elapsed_ms: 100,
-          receipts: [],
-        },
+      return respond({
+        request_id: 'fictional-showcase-response',
+        status: 'completed',
+        agent: guidedReview.agent,
+        text: 'Illustrative test reply: Checklist item 1 has no supplied budget.',
+        elapsed_ms: 100,
+        receipts: [],
       })
-    return route.fulfill({
-      status: 404,
-      json: { error: 'unexpected_test_request' },
-    })
+    return respond({ error: 'unexpected_test_request' }, 404)
   })
   await page.goto('/#demos')
   await expect(
@@ -127,26 +115,12 @@ async function setup(
   return state
 }
 
-// Guided demos is a tab inside the Agent library.
-async function openDemos(page: Page) {
-  await page
-    .getByRole('navigation', { name: 'Workspace' })
-    .getByRole('button', { name: 'All agents' })
-    .click()
-  await page
-    .getByRole('navigation', { name: 'Agent library' })
-    .getByRole('button', { name: 'Guided demos' })
-    .click()
-}
-
 test('exploration is read-only and every scenario has an honest customer story', async ({
   page,
 }, testInfo) => {
-  const state = await setup(page)
+  const state = await openShowcase(page)
   await expect(
-    page
-      .getByRole('navigation', { name: 'Agent library' })
-      .getByRole('button', { name: 'Guided demos' }),
+    libraryNav(page).getByRole('button', { name: 'Guided demos' }),
   ).toHaveAttribute('aria-current', 'page')
   for (const scenario of demoScenarios) {
     await page
@@ -171,29 +145,25 @@ test('exploration is read-only and every scenario has an honest customer story',
     expect(state.writes).toEqual([])
   }
   await expect(page.locator('body')).not.toContainText('EXPERIMENTAL')
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true)
+  await expectFitsViewport(page)
 })
 
 test('loading a demo preserves unsaved work until confirmed and never auto-sends', async ({
   page,
 }) => {
-  const state = await setup(page)
+  const state = await openShowcase(page)
   await page.getByRole('button', { name: 'Go straight to Chat' }).click()
   await page
     .getByRole('textbox', { name: 'Message', exact: true })
     .fill('Keep my existing draft')
-  await openDemos(page)
+  await openLibraryTab(page, 'Guided demos')
   page.once('dialog', (dialog) => dialog.dismiss())
   await page.getByRole('button', { name: 'Load sample input' }).click()
   await page.getByRole('button', { name: 'Go straight to Chat' }).click()
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toHaveValue('Keep my existing draft')
-  await openDemos(page)
+  await openLibraryTab(page, 'Guided demos')
   page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Load sample input' }).click()
   await expect(
@@ -221,7 +191,7 @@ test('loading a demo preserves unsaved work until confirmed and never auto-sends
 test('presenter controls keep environment and human-review boundaries visible', async ({
   page,
 }, testInfo) => {
-  const state = await setup(page)
+  const state = await openShowcase(page)
   const presenter = page.getByRole('button', { name: 'Presenter view' })
   await presenter.click()
   await expect(presenter).toHaveAttribute('aria-pressed', 'true')
@@ -249,7 +219,7 @@ test('presenter controls keep environment and human-review boundaries visible', 
 test('preview and hidden agents never become a simulated live connection', async ({
   page,
 }) => {
-  const state = await setup(page, { preview: true, hidden: true })
+  const state = await openShowcase(page, { preview: true, hidden: true })
   await expect(page.getByText('Local preview', { exact: true })).toBeVisible()
   await expect(
     page.getByText('Local preview makes no model calls and saves no records.'),
@@ -267,7 +237,7 @@ for (const status of ['ready', 'failed'] as const) {
   test(`invoice story only uses an explicitly ready created agent (${status})`, async ({
     page,
   }) => {
-    const state = await setup(page, { record: invoiceRecord(status) })
+    const state = await openShowcase(page, { record: invoiceRecord(status) })
     await page
       .getByRole('navigation', { name: 'Demo scenarios' })
       .getByRole('button', { name: /Supplier invoice review/ })
@@ -295,7 +265,7 @@ for (const status of ['ready', 'failed'] as const) {
 test('agent storage failures remain explicit while the walkthrough is usable', async ({
   page,
 }) => {
-  await setup(page, { failedList: true })
+  await openShowcase(page, { failedList: true })
   await expect(page.locator('.demo-error')).toContainText(
     'storage is unavailable',
   )

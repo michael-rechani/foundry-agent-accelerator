@@ -1,5 +1,7 @@
-import { expect, test, type Page } from '@playwright/test'
-import { guidedReview } from './fixtures'
+import { type Page, expect, test } from '@playwright/test'
+import { labConfig } from './helpers/lab-config'
+import { mockApi } from './helpers/mock-api'
+import { followLink } from './helpers/navigation'
 
 const unknownReview = '#review-aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
 const notFoundMessage =
@@ -10,32 +12,17 @@ async function mockLab(
   missing: { status: number; body: string; contentType: string },
 ) {
   const lookups: string[] = []
-  await page.route('**/api/**', async (route) => {
-    const path = new URL(route.request().url()).pathname
+  await mockApi(page, async ({ route, path, respond }) => {
     if (path === '/api/config')
-      return route.fulfill({
-        json: {
-          title: 'Foundry Agent Lab',
-          mode: 'private',
-          reviews_enabled: true,
-          history_enabled: true,
-          default_agent: 'customer-review',
-          retention_days: 30,
-          max_characters: 60000,
-          max_request_bytes: 65536,
-          max_history_turns: 10,
-          review_timeout_ms: 190000,
-          history_timeout_ms: 45000,
-          agents: [guidedReview],
-        },
-      })
-    if (path === '/api/review-runs')
-      return route.fulfill({ json: { items: [], cursor: null } })
+      return respond(
+        labConfig({ reviews_enabled: true, history_enabled: true }),
+      )
+    if (path === '/api/review-runs') return respond({ items: [], cursor: null })
     if (path.startsWith('/api/review-runs/')) {
       lookups.push(path)
       return route.fulfill(missing)
     }
-    return route.fulfill({ status: 404, json: { error: 'not_found' } })
+    return respond({ error: 'not_found' }, 404)
   })
   return lookups
 }
@@ -73,9 +60,7 @@ test('a review link followed after the Lab has loaded says so in plain words', a
   ).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
 
-  await page.evaluate((link) => {
-    window.location.hash = link
-  }, unknownReview)
+  await followLink(page, unknownReview)
 
   await expect(
     page.getByRole('alert').filter({ hasText: notFoundMessage }),
