@@ -573,7 +573,10 @@ python library_checks.py score answers.jsonl
 python -m unittest test_library_checks
 ```
 
-- `validate` checks the dataset against the catalog and the sample lookups.
+- `validate` checks the dataset against the catalog and the sample lookups. It
+  reports, rather than raises on, missing or wrong-typed top-level fields
+  (`schema_version`, `dataset_version`, `description`) and fixture IDs that aren't
+  non-empty strings.
 - `inputs` prints each sample input so you can paste it into Chat.
 - `score` screens recorded answers from a JSON Lines file of
   `{"case_id": "...", "text": "...", "receipts": [...]}`. `text` and `receipts`
@@ -688,7 +691,9 @@ times come from a direct run on a local machine, and the tab says so. Every
 scorecard shows **Waiting for a person** until someone reads the answers.
 `scorecards.py` also fails if an agent's instructions changed after its answers
 were recorded; [library_runs.py](#record-an-agents-test-answers-again) records
-them again. `test_scorecards.py` fails if the Lab's copy drifts from the
+them again. It also fails if any case has no recorded answer, so a new case
+can't drop out of the results unnoticed. `test_scorecards.py` fails if the
+Lab's copy drifts from the
 evidence, or if an agent's **Reviewed** label doesn't match it: an agent is
 marked **Reviewed** exactly when a person has signed off its answers and every
 run passed.

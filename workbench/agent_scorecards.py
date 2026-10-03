@@ -18,23 +18,29 @@ def load_scorecards(path=PATH):
         raise ValueError("agent_scorecards.json has an unsupported shape")
     seen = set()
     for card in data["scorecards"]:
-        template_id = card.get("template_id")
-        if template_id not in TEMPLATES or template_id in seen:
+        template_id = card.get("template_id") if isinstance(card, dict) else None
+        if not isinstance(template_id, str) or template_id not in TEMPLATES or template_id in seen:
             raise ValueError(f"agent_scorecards.json: unknown or repeated template {template_id!r}")
         seen.add(template_id)
         cases = card.get("cases")
-        if not isinstance(cases, list) or not cases or any(item.get("category") not in CATEGORIES for item in cases):
+        if (not isinstance(cases, list) or not cases or not all(isinstance(item, dict) for item in cases)
+                or any(item.get("category") not in CATEGORIES for item in cases)):
             raise ValueError(f"agent_scorecards.json: {template_id} needs categorized cases")
         if any(not str(item.get("input", "")).strip() for item in cases):
             raise ValueError(f"agent_scorecards.json: {template_id} has a case without its request")
+        # bool("false") is True, so a quoted or numeric value would otherwise count as a pass.
+        for item in cases:
+            if not isinstance(item.get("passed"), bool):
+                raise ValueError(f"agent_scorecards.json: {template_id} case {item.get('id')!r} needs passed "
+                                 f"to be true or false, not {item.get('passed')!r}")
         summary = card.get("summary", {})
-        if summary.get("passed") != sum(bool(item.get("passed")) for item in cases):
+        if not isinstance(summary, dict) or summary.get("passed") != sum(item["passed"] for item in cases):
             raise ValueError(f"agent_scorecards.json: {template_id} summary doesn't match its cases")
         for item in cases:
             runs, runs_passed = item.get("runs"), item.get("runs_passed")
             if (not all(isinstance(value, int) and not isinstance(value, bool) for value in (runs, runs_passed))
                     or not 0 <= runs_passed <= runs or runs < 1
-                    or bool(item.get("passed")) != (runs_passed == runs)):
+                    or item["passed"] != (runs_passed == runs)):
                 raise ValueError(f"agent_scorecards.json: {template_id} has a case whose run counts don't add up")
         if (summary.get("runs") != sum(item["runs"] for item in cases)
                 or summary.get("runs_passed") != sum(item["runs_passed"] for item in cases)

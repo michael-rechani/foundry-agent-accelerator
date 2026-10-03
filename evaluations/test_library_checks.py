@@ -455,6 +455,71 @@ class DatasetTests(unittest.TestCase):
         broken["cases"][0]["checks"]["expected_tools"] = ["lookup_purchase_order"]
         self.assertIn("expected_tools not offered", "\n".join(lc.validate_cases(broken)))
 
+    def test_validation_reports_a_non_string_fixture_id_instead_of_raising(self):
+        for value in (2210, None, True, ["PO-DEMO-2210"], {"id": "PO-DEMO-2210"}, "", "  "):
+            for key in ("fixtures", "missing_fixtures"):
+                broken = json.loads(json.dumps(DATA))
+                case = next(c for c in broken["cases"] if c["id"] == "supplier-invoice-reviewer-unknown-po")
+                case[key] = {"lookup_purchase_order": value}
+                with self.subTest(key=key, value=value):
+                    errors = lc.validate_cases(broken)
+                    self.assertTrue(
+                        any(error.startswith("supplier-invoice-reviewer-unknown-po: lookup_purchase_order fixture id "
+                                             "must be a non-empty string") for error in errors), errors)
+
+    def test_validation_reports_fixture_groups_that_are_not_objects(self):
+        for value in ([], "PO-DEMO-2210", 5, None):
+            broken = json.loads(json.dumps(DATA))
+            case = next(c for c in broken["cases"] if c["id"] == "supplier-invoice-reviewer-unknown-po")
+            case["missing_fixtures"] = value
+            with self.subTest(value=value):
+                errors = "\n".join(lc.validate_cases(broken))
+                self.assertIn("missing_fixtures must map tool names to ids", errors)
+
+    def test_validation_reports_input_that_is_not_text_instead_of_raising(self):
+        for value in (["Sample text"], 5, {"text": "Sample"}):
+            broken = json.loads(json.dumps(DATA))
+            case = next(c for c in broken["cases"] if c.get("input"))
+            case["input"] = value
+            with self.subTest(value=value):
+                self.assertIn(f"{case['id']}: input must be text", "\n".join(lc.validate_cases(broken)))
+
+    def test_validation_reports_cases_that_are_not_objects(self):
+        broken = json.loads(json.dumps(DATA))
+        broken["cases"].append("not a case")
+        self.assertIn("every case must be an object", "\n".join(lc.validate_cases(broken)))
+
+    def test_validation_requires_top_level_metadata(self):
+        self.assertEqual(lc.validate_cases({}), ["schema_version must be 1", "dataset_version is required",
+                                                  "description is required", "cases must be a non-empty list"])
+        for key in ("schema_version", "dataset_version", "description"):
+            broken = json.loads(json.dumps(DATA))
+            del broken[key]
+            with self.subTest(missing=key):
+                errors = lc.validate_cases(broken)
+                self.assertEqual(len(errors), 1, errors)
+                self.assertIn(key, errors[0])
+
+    def test_validation_rejects_wrong_typed_top_level_metadata(self):
+        wrong = {
+            "schema_version": (2, "1", 1.5, True, None, [1]),
+            "dataset_version": (1, None, True, ["library-v4"], "", "   "),
+            "description": (7, None, ["text"], "", "   "),
+        }
+        for key, values in wrong.items():
+            for value in values:
+                broken = json.loads(json.dumps(DATA))
+                broken[key] = value
+                with self.subTest(key=key, value=value):
+                    errors = lc.validate_cases(broken)
+                    self.assertEqual(len(errors), 1, errors)
+                    self.assertIn(key, errors[0])
+
+    def test_validation_rejects_a_cases_file_that_is_not_an_object(self):
+        for value in ([], "text", 1, None):
+            with self.subTest(value=value):
+                self.assertEqual(lc.validate_cases(value), ["the cases file must be a JSON object"])
+
     def test_sample_cases_use_catalog_sample_input(self):
         case = CASES["benefits-renewal-helper-sample"]
         self.assertEqual(lc.case_input(case), lc.TEMPLATES["benefits-renewal-helper"]["sample_input"])
@@ -756,6 +821,19 @@ class CliTests(unittest.TestCase):
         code, out, _ = self.run_cli("validate")
         self.assertEqual(code, 0)
         self.assertIn("90 cases valid across 18 templates", out)
+
+    def test_validate_reports_bad_metadata_and_a_non_string_fixture_id(self):
+        broken = json.loads(json.dumps(DATA))
+        del broken["dataset_version"]
+        case = next(c for c in broken["cases"] if c["id"] == "supplier-invoice-reviewer-unknown-po")
+        case["missing_fixtures"] = {"lookup_purchase_order": 9999}
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "cases.json"
+            path.write_text(json.dumps(broken), encoding="utf-8")
+            code, _, err = self.run_cli("--cases", str(path), "validate")
+        self.assertEqual(code, 1)
+        self.assertIn("dataset_version is required", err)
+        self.assertIn("lookup_purchase_order fixture id must be a non-empty string, not 9999", err)
 
     def test_inputs_filter_by_template(self):
         code, out, _ = self.run_cli("inputs", "--template", "criteria-checker")

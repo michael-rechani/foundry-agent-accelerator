@@ -5,8 +5,9 @@ response times and token counts, and prices those tokens with a saved list-price
 Lab serves the result from workbench/agent_scorecards.json.
 
 Each case has one recorded answer (run 1, the one a person reads) and, in the repeat file, more
-runs of the same request. A case passes only when every run passes, because a model that gets a
-case right once can still get it wrong the next time.
+runs of the same request. The build fails if any case has no recorded answer, so a new case can't
+drop out of the scorecards unnoticed. A case passes only when every run passes, because a model
+that gets a case right once can still get it wrong the next time.
 
 Every recorded row carries a fingerprint of the instructions its agent had when it was run, and the
 date it was recorded. The build fails if the Lab's instructions for an agent have changed since, so
@@ -214,11 +215,13 @@ def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PR
     stray = sorted(set(repeats) - set(answers))
     if stray:
         raise ValueError("repeat runs for cases with no recorded answer: " + ", ".join(stray))
+    unanswered = [case_id for case_id in cases if case_id not in answers]
+    if unanswered:
+        raise ValueError("no recorded answer for " + ", ".join(unanswered) + "; every case needs one before the "
+                         "scorecards can be built (record them with library_runs.py, which is billable)")
 
     scorecards = {}
     for case in data["cases"]:
-        if case["id"] not in answers:
-            continue
         run, record = answers[case["id"]]
         measured = _measured(metrics[case["id"]], f"{case['id']} run 1")
         attempts = [(1, record, measured)] + [
