@@ -59,6 +59,7 @@ Retain this layout on the private runner:
 hosted-agents/
   deployment.py
   review_output.py
+  hosted_runtime.py
   review-coordinator-agent/
     deploy.py
     main.py

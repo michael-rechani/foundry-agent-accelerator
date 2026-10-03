@@ -235,8 +235,9 @@ Terraform plan or a dry run. Require successful activation and all smoke checks.
 The deployer packages `main.py`, `requirements.txt`, and the sample's reviewed
 instructions and `configuration.py` when present into a deterministic ZIP with
 portable regular-file permissions. Review agents also include the shared
-`review_output.py` quotation and result-preservation middleware. Stage that file
-beside `deployment.py` when deploying source rather than a portable bundle.
+`review_output.py` quotation and result-preservation middleware and the shared
+`hosted_runtime.py` start-up. Stage both files beside `deployment.py` when
+deploying source rather than a portable bundle.
 Before upload it checks the model and
 specialists and snapshots the existing route. Existing routes must use explicit
 versions: a symbolic `@latest` route or an unrouted existing agent requires
@@ -424,7 +425,8 @@ evaluation.
 To test the agent locally before deployment, install `requirements.txt` in a
 separate virtual environment, set the same two environment variables, run
 `python main.py`, and send a Responses request to
-`http://localhost:8088/responses`.
+`http://localhost:8088/responses`. The review agents import `review_output.py`
+and `hosted_runtime.py` from this folder, so put this folder on `PYTHONPATH` first.
 
 ## Roll back and recover
 

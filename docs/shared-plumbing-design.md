@@ -207,7 +207,14 @@ until the others match. Merging the endpoint copies later is optional.
 
 ### Where it is today
 
-Five `main()` functions do the same job:
+Status: done. `hosted_runtime.py` is in place and the case-review,
+application-review and coordinator agents and `knowledge_main.py` use it.
+`hosted-agents/test_startup.py` also builds each package and starts it with only
+its own files importable. The basic-responses agent stays separate, for the reason
+under "Left separate on purpose". This section keeps the original design for the
+record, and the code block below shows the final signatures.
+
+Five `main()` functions did the same job:
 `hosted-agents/{basic-responses,case-review,application-review,review-coordinator}-agent/main.py`
 and `hosted-agents/knowledge_main.py`. The last one is packaged as `main.py` when
 `KNOWLEDGE_RETRIEVAL_ENABLED=true`. Each one:
@@ -223,12 +230,12 @@ and `hosted-agents/knowledge_main.py`. The last one is packaged as `main.py` whe
 They differ in three ways: middleware (none, `quotation_middleware()` or
 `passthrough_middleware(bindings)`), tools (none, knowledge lookups or the
 coordinator's specialist calls) and the credential (the coordinator uses the
-async one). Each now has a start-up test. The coordinator's is
-`review-coordinator-agent/test_main.py`. The basic-responses, case-review and
+async one). Each now has a start-up test. The basic-responses, case-review and
 application-review agents share `hosted-agents/test_startup.py`, which pins the
 settings error, the defaults, the `AGENT_NAME` and `AGENT_INSTRUCTIONS`
-overrides, the `AGENT_STORE_RESPONSES` rule and the middleware. `knowledge_main.py`
-is covered next to the retrieval tests in `test_knowledge_retrieval.py`.
+overrides, the `AGENT_STORE_RESPONSES` rule and the middleware. The same file
+starts the coordinator from its built package. `knowledge_main.py` is covered
+next to the retrieval tests in `test_knowledge_retrieval.py`.
 
 The `deploy.py` files are already thin: each builds an `AgentProfile(...)` and
 calls `deployment.run(...)`. What is left is data (name, description, smoke-test
@@ -243,22 +250,35 @@ the coordinator needs the async one and the knowledge agent needs the credential
 to build its tools.
 
 ```python
-def foundry_settings(environ=os.environ) -> tuple[str, str]    # endpoint, model; same RuntimeError text
-def build_agent(credential, *, default_name, default_instructions,
-                middleware=(), tools=(), environ=os.environ) -> Agent
+class AgentSettings(NamedTuple): endpoint, model, name, instructions, store_responses
+def agent_settings(default_name, default_instructions, environ=None) -> AgentSettings
+    # same RuntimeError text; runs before any credential is opened
+def build_agent(credential, settings, *, middleware=(), tools=()) -> Agent
 async def serve(agent) -> None                                 # ResponsesHostServer(agent).run_async()
 ```
 
-`build_agent` passes `tools` only when there are some, because `knowledge_main.py`
-today leaves the argument out when the knowledge flag is off. After the change a
-`main.py` is about a dozen lines.
+`build_agent` passes `middleware` and `tools` only when there are some, because the
+basic agent has no middleware and `knowledge_main.py` leaves `tools` out when the
+knowledge flag is off. `knowledge_main.py` builds its tools from the credential, so
+it reads the settings first, adds the knowledge addendum to `settings.instructions`
+and passes the tools in. After the change a `main.py` is about a dozen lines.
 
-Shipping it means three edits to the package lists, all in the same pull request:
-`create_package` and `knowledge_package` in `hosted-agents/deployment.py`, and
-the allowed-file set in `validate_archive` in `hosted-agents/bundle.py`.
-`hosted-agents/test_deployment.py` and `test_bundle.py` already check those lists.
+Shipping it meant one list and one limit, in the same pull request. `SHARED_FILES`
+in `hosted-agents/deployment.py` lists the files beside `deployment.py` that a
+review sample imports (`review_output.py` and `hosted_runtime.py`), and
+`create_package` and `knowledge_package` both ship them. `bundle.py` allows the
+same names through `PACKAGE_FILES`, which also sets the entry limit that
+`zip_contents` enforces; that limit was a hard-coded 5 and a sixth file in the
+coordinator package would have failed every export. Old bundles that lack
+`hosted_runtime.py` still validate, because the file is allowed, not required.
 
 ### Left separate on purpose
+
+`hosted-agents/basic-responses-agent/main.py` keeps its own start-up. Its job is to
+be the smallest working hosted agent, one file you can read top to bottom, and its
+package stays at `main.py`, `requirements.txt` and `instructions.md`. Moving the
+start-up into a second file would cost that for a gain of about fifteen lines.
+`test_startup.py` still pins its behaviour to the same contract.
 
 `workbench/agent_runtime/main.py` stays as it is. It is the runtime for agents
 created in the Lab and is a different codebase: it reads its settings through its

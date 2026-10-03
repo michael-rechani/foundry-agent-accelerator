@@ -61,8 +61,24 @@ class DeploymentPackageTests(unittest.TestCase):
             with ZipFile(destination) as archive:
                 self.assertEqual(
                     set(archive.namelist()),
-                    {"main.py", "requirements.txt", "instructions.md", "configuration.py", "review_output.py"},
+                    {"main.py", "requirements.txt", "instructions.md", "configuration.py", "review_output.py",
+                     "hosted_runtime.py"},
                 )
+
+    def test_review_samples_ship_their_shared_files_and_basic_responses_stays_standalone(self) -> None:
+        shared = Path(__file__).parent
+        for name in ("case-review-agent", "application-review-agent", "review-coordinator-agent"):
+            with self.subTest(agent=name), tempfile.TemporaryDirectory() as temporary:
+                destination = Path(temporary) / "agent.zip"
+                create_package(shared / name, destination)
+                with ZipFile(destination) as archive:
+                    for file in ("review_output.py", "hosted_runtime.py"):
+                        self.assertEqual(archive.read(file), (shared / file).read_bytes())
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "agent.zip"
+            create_package(shared / "basic-responses-agent", destination)
+            with ZipFile(destination) as archive:
+                self.assertEqual(set(archive.namelist()), {"main.py", "requirements.txt", "instructions.md"})
 
     def test_demo_agents_package_the_reviewed_scenario_instructions(self) -> None:
         for name in ("case-review-agent", "application-review-agent"):

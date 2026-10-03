@@ -146,6 +146,14 @@ class BundleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported files"):
             bundle.validate_manifest(manifest, code)
 
+    def test_every_shared_file_travels_in_a_bundle_and_one_more_file_is_refused(self):
+        _, code, _ = self.write_bundle("review-coordinator-agent")
+        files = bundle.zip_contents(code)
+        self.assertEqual(set(files), bundle.PACKAGE_FILES)
+        self.assertEqual(files["hosted_runtime.py"], (bundle.HERE / "hosted_runtime.py").read_bytes())
+        with self.assertRaisesRegex(ValueError, "excessive"):
+            bundle.zip_contents(bundle.zip_bytes({**files, "extra.py": b"pass"}))
+
     def test_traversal_symlinks_duplicate_entries_and_oversized_sources_are_rejected(self):
         for name, mode in (("../main.py", stat.S_IFREG), ("folder\\main.py", stat.S_IFREG), ("main.py", stat.S_IFLNK)):
             output = io.BytesIO()

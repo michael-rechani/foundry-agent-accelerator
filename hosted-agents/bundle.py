@@ -14,13 +14,15 @@ from pathlib import Path
 from urllib.parse import urlparse
 from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile, ZipInfo
 
-from deployment import AgentProfile, create_package, deploy, parse_args
+from deployment import SHARED_FILES, AgentProfile, create_package, deploy, parse_args
 
 
 HERE = Path(__file__).resolve().parent
 SAMPLES = ("basic-responses-agent", "application-review-agent", "case-review-agent", "review-coordinator-agent")
 MAX_BYTES = 2 * 1024 * 1024
 MAX_FILE_BYTES = 256 * 1024
+# Every file a source-built package may hold; a Lab-created package holds main.py, requirements.txt and demo_tools.py.
+PACKAGE_FILES = {"main.py", "requirements.txt", "instructions.md", "configuration.py", *SHARED_FILES}
 NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_-]{0,63}")
 MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 SHA256 = re.compile(r"[a-f0-9]{64}")
@@ -62,7 +64,7 @@ def zip_contents(content, *, max_file_bytes=MAX_FILE_BYTES):
     with ZipFile(io.BytesIO(content)) as archive:
         entries = archive.infolist()
         names = [entry.filename for entry in entries]
-        if len(entries) > 5 or len(set(names)) != len(names):
+        if len(entries) > len(PACKAGE_FILES) or len(set(names)) != len(names):
             raise ValueError("Archive has duplicate or excessive entries")
         if sum(entry.file_size for entry in entries) > MAX_BYTES:
             raise ValueError("Expanded archive exceeds the 2 MiB bundle limit")
@@ -119,7 +121,7 @@ def validate_archive(manifest, code):
         raise ValueError("Runtime archive hash does not match the manifest")
     files = zip_contents(code)
     required = {"main.py", "requirements.txt"}
-    allowed = required | {"instructions.md", "configuration.py", "review_output.py"}
+    allowed = PACKAGE_FILES
     if manifest["kind"] == "lab-created":
         required = allowed = required | {"demo_tools.py"}
     if not required <= files.keys() <= allowed:

@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 SOURCE_FILES = ("main.py", "requirements.txt")
 OPTIONAL_SOURCE_FILES = ("instructions.md", "configuration.py")
 REVIEW_SAMPLES = {"application-review-agent", "case-review-agent", "review-coordinator-agent"}
+# Files beside deployment.py that a review sample's main.py imports, so they ship inside its package.
+SHARED_FILES = ("review_output.py", "hosted_runtime.py")
 # The same choices as evaluations/run.py. A version create is not safe to replay, so a stalled
 # call fails in about 90 seconds and the rollback below runs, instead of retrying with SDK defaults.
 FOUNDRY_CLIENT_OPTIONS = {"allow_preview": True, "retry_total": 0, "connection_timeout": 30, "read_timeout": 60}
@@ -111,7 +113,8 @@ def create_package(source_directory: Path, destination: Path) -> None:
             if source.is_file():
                 zip_entry(archive, name, source.read_bytes())
         if source_directory.name in REVIEW_SAMPLES:
-            zip_entry(archive, "review_output.py", (Path(__file__).parent / "review_output.py").read_bytes())
+            for name in SHARED_FILES:
+                zip_entry(archive, name, (Path(__file__).parent / name).read_bytes())
 
 
 KNOWLEDGE_CHECK_PROMPT = (
@@ -136,7 +139,7 @@ def knowledge_package(source_directory: Path) -> bytes:
         "main.py": (shared / "knowledge_main.py").read_bytes(),
         "requirements.txt": ("\n".join(requirements) + "\n").encode("utf-8"),
         "knowledge_retrieval.py": (shared / "knowledge_retrieval.py").read_bytes(),
-        "review_output.py": (shared / "review_output.py").read_bytes(),
+        **{name: (shared / name).read_bytes() for name in SHARED_FILES},
     }
     if (source_directory / "instructions.md").is_file():
         files["instructions.md"] = (source_directory / "instructions.md").read_bytes()
