@@ -274,11 +274,17 @@ the first-deployment order and what's still unconfirmed.
 
 Set `enable_api_management = true` and provide
 `api_management_publisher_email` to create a one-unit Standard v2 Azure API
-Management service in West US. APIM uses a dedicated delegated subnet in the
-management virtual network and reaches private agent backends across the global
-peering connection. Its system-assigned managed identity receives Foundry User
-on the primary project, so APIM policies can use Microsoft Entra ID
-authentication instead of storing Foundry keys.
+Management service. Its region comes from `api_management_location`, which
+defaults to West US (`westus`). The variable's validation in `variables.tf`
+allows only West US (`westus`), West US 3 (`westus3`), South Central US
+(`southcentralus`), and North Central US (`northcentralus`). The value must
+also equal `jumpbox_location`; see
+[Optional administration resources](#optional-administration-resources). APIM
+uses a dedicated delegated subnet in the management virtual network and reaches
+private agent backends across the global peering connection. Its
+system-assigned managed identity receives Foundry User on the primary project,
+so APIM policies can use Microsoft Entra ID authentication instead of storing
+Foundry keys.
 
 APIM is the governed client-facing entry point for APIs that are explicitly
 published there. APIM provides a stable endpoint for authentication, quotas,
