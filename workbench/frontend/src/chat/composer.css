@@ -1,0 +1,248 @@
+/* Composer, context budget, continue dialog, and send button. */
+.composer-continue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.composer-continue:hover:not(:disabled) {
+  background: var(--surface-subtle);
+  color: var(--accent);
+}
+.composer-area {
+  width: 100%;
+  max-width: 880px;
+  align-self: center;
+  padding: 12px 28px 21px;
+}
+.composer {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  box-shadow:
+    0 4px 16px var(--shadow-soft),
+    0 1px 2px var(--shadow-soft);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.composer:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.composer textarea {
+  display: block;
+  min-height: 96px;
+  max-height: min(240px, 25dvh);
+  overflow-y: auto;
+  border: 0;
+  border-radius: 7px;
+  width: 100%;
+  resize: none;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  padding: 18px 20px 10px;
+  font-size: 13px;
+  line-height: 1.75;
+}
+.composer textarea::placeholder {
+  color: var(--muted);
+}
+.composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 12px 11px 20px;
+}
+.composer-toolbar > span,
+.composer-toolbar > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.composer-toolbar > div {
+  gap: 13px;
+}
+.composer-details {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+.composer-privacy {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.save-state {
+  margin-left: auto;
+  padding-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.context-budget {
+  min-width: 0;
+  font: 10px/1.6 var(--mono);
+  color: var(--muted);
+}
+.context-budget summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  width: fit-content;
+  padding: 3px 0;
+}
+.context-budget summary::before {
+  content: '+';
+}
+.context-budget[open] summary::before {
+  content: '-';
+}
+.context-budget summary span {
+  min-width: 4ch;
+  text-align: right;
+}
+.context-budget dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 6px 0 0;
+}
+.context-budget dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.context-budget dd {
+  margin: 0;
+}
+.context-budget.near-limit {
+  color: var(--danger-fg);
+}
+.composer-area {
+  flex-shrink: 0;
+}
+.config-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background: var(--warning-soft);
+  color: var(--warning-fg);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.config-status span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.config-status button,
+.continue-dialog footer button {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  background: var(--surface-sunken);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.continue-dialog {
+  width: min(640px, calc(100% - 24px));
+  max-height: calc(100dvh - 32px);
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--text);
+  background: var(--surface);
+}
+.continue-dialog::backdrop {
+  background: var(--backdrop);
+}
+.continue-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.continue-dialog h2 {
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.continue-dialog label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.continue-dialog textarea {
+  width: 100%;
+  height: min(300px, 38dvh);
+  resize: vertical;
+  max-height: 45dvh;
+  border: 1px solid var(--field-line);
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 16px;
+  line-height: 1.6;
+  background: var(--surface);
+  color: var(--text);
+}
+.continue-dialog p {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--warning-fg);
+}
+.continue-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+.continue-dialog footer .primary-action {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+.send-button {
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  border-radius: 5px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.send-button:hover {
+  background: var(--accent-fill-hover);
+}
+.send-button.stop {
+  background: var(--danger-action);
+  color: var(--on-danger);
+}
+.over-limit {
+  border-color: var(--danger);
+}
+.composer-warning {
+  font-size: 11px;
+  color: var(--danger-fg);
+  margin-top: 10px;
+}

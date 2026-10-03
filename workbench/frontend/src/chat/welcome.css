@@ -1,0 +1,134 @@
+/* Welcome screen and starter prompts. */
+.chat-welcome {
+  max-width: 730px;
+  margin: auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 0;
+}
+.chat-welcome h1 {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+.chat-welcome p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.prompt-options {
+  display: flex;
+  gap: 9px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+.prompt-options button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 13px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: left;
+}
+.prompt-options button:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.prompt-options button > svg:last-child {
+  color: var(--muted);
+}
+.prompt-options button > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.prompt-options button strong {
+  font-weight: 650;
+  color: var(--text);
+}
+.prompt-options button small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.chat-welcome .prompt-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  width: 100%;
+  margin-top: 10px;
+}
+.welcome-kind {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: 11px;
+  font-weight: 650;
+}
+.welcome-kind.preview {
+  background: var(--info-bg);
+  color: var(--info-fg);
+}
+.progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border: 1px dashed var(--warning-fg);
+  border-radius: 999px;
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+  font-size: 11px;
+  font-weight: 650;
+  vertical-align: middle;
+}
+.welcome-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.welcome-tags .welcome-kind {
+  margin-bottom: 0;
+}
+.welcome-tags .progress-pill {
+  margin-left: 0;
+}
+.chat-welcome .welcome-preview-note {
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--accent-line);
+  border-radius: 6px;
+  background: var(--accent-tint);
+  color: var(--text-secondary);
+  text-align: left;
+}
+.welcome-examples-title {
+  align-self: flex-start;
+  margin-top: 22px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.chat-welcome .welcome-hint {
+  margin-top: 14px;
+}
+.chat-welcome .welcome-hint.welcome-create {
+  margin-top: 6px;
+}

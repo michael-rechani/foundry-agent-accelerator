@@ -1,0 +1,127 @@
+/* Performance and request log additions. These must stay after the responsive overrides. */
+.metric-strip-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.request-table tbody th {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text);
+}
+.table-note {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  max-width: 760px;
+}
+.table-note code {
+  font: 11px var(--mono);
+}
+.rate-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin-top: 18px;
+}
+.rate-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.rate-form input {
+  width: 180px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+.rate-form button[type='submit'] {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  min-height: 36px;
+}
+.rate-form button[type='submit']:disabled {
+  opacity: 0.5;
+}
+.cost-heading {
+  margin-top: 26px;
+  font-size: 13px;
+}
+.cost-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.cost-list strong {
+  color: inherit;
+  font-weight: 600;
+}
+.receipt-details .usage-detail {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.log-outcome {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+}
+.log-outcome.completed {
+  background: var(--success-bg);
+  color: var(--success-fg);
+}
+.log-outcome.failed,
+.log-outcome.timed-out {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+.log-outcome.stopped {
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+}
+.log-reference {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+}
+.log-reference:hover {
+  background: var(--accent-soft);
+}
+.log-reference code {
+  font: 11px var(--mono);
+}
+@media (max-width: 650px) {
+  .metric-strip-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metric-strip-4 > div:nth-child(3) {
+    padding-left: 0;
+  }
+  .metric-strip-4 > div:nth-child(2) {
+    border-right: 0;
+  }
+}
+.table-id {
+  color: var(--muted);
+  font: 400 11px var(--mono);
+}

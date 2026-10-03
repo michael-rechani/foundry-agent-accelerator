@@ -1,0 +1,44 @@
+/* Receipt details. */
+.receipt-details {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.receipt-details > summary {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  cursor: pointer;
+  padding: 3px 0 9px;
+}
+.receipt-details > summary > span {
+  margin-left: 5px;
+  background: var(--surface-sunken);
+  padding: 2px 5px;
+  border-radius: 3px;
+  font: 9px var(--mono);
+}
+.receipt-details code {
+  display: block;
+  font: 9px var(--mono);
+  overflow-wrap: anywhere;
+  margin: 10px 0;
+}
+.receipt {
+  border-left: 2px solid var(--line-strong);
+  padding: 5px 0 5px 13px;
+  margin-top: 15px;
+}
+.receipt > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.receipt > div > span {
+  margin-left: auto;
+}
+.receipt summary {
+  cursor: pointer;
+}

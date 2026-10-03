@@ -1,0 +1,49 @@
+/* Top bar and breadcrumbs. */
+.chat-topbar {
+  position: relative;
+  min-height: 72px;
+  padding: 8px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.topbar-crumbs {
+  min-width: 0;
+}
+.topbar-crumbs ol {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--muted);
+}
+.topbar-crumbs li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.topbar-crumbs li[aria-current] {
+  color: var(--text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar-crumbs button {
+  padding: 2px 4px;
+  margin: 0 -4px;
+  border-radius: 4px;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+}
+.topbar-crumbs button:hover {
+  text-decoration: underline;
+}

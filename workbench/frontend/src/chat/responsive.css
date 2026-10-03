@@ -1,0 +1,237 @@
+/* Responsive and reduced-motion overrides. These must stay after the rules they override. */
+@media (max-width: 1050px) {
+  .chat-app {
+    grid-template-columns: 196px minmax(0, 1fr);
+  }
+  .chat-sidebar {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .chat-brand {
+    font-size: 23px;
+    gap: 9px;
+  }
+  .chat-welcome h1 {
+    font-size: 24px;
+  }
+  .prompt-options {
+    flex-direction: column;
+    width: min(100%, 330px);
+    gap: 7px;
+    margin-top: 24px;
+  }
+  .prompt-options button > svg:last-child {
+    margin-left: auto;
+  }
+}
+@media (max-width: 650px) {
+  .chat-app {
+    display: flex;
+    flex-direction: column;
+  }
+  .chat-sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 10px 12px 0;
+    gap: 10px;
+    flex-shrink: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .chat-brand {
+    padding: 0;
+    flex: 1;
+    min-width: 0;
+  }
+  .chat-brand > svg {
+    width: 23px;
+  }
+  .chat-brand > span {
+    font-size: 15px;
+  }
+  .chat-sidebar nav small {
+    display: none;
+  }
+  .chat-brand > .brand-mark {
+    display: inline-grid;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+  }
+  .new-chat {
+    margin: 0;
+    padding: 7px 9px;
+    min-height: 34px;
+    font-size: 11px;
+    gap: 5px;
+  }
+  .chat-sidebar nav {
+    display: flex;
+    gap: 2px;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .nav-section {
+    display: flex;
+    gap: 2px;
+    padding-left: 6px;
+    border-left: 1px solid var(--line);
+  }
+  .nav-section:first-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .nav-section-label {
+    display: none;
+  }
+  .chat-sidebar nav button {
+    flex: 0 0 auto;
+    min-width: 70px;
+    max-width: 92px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    padding: 6px 4px;
+    height: 64px;
+    min-height: 0;
+    font-size: 10px;
+    line-height: 1.3;
+    text-align: center;
+    border-radius: 4px 4px 0 0;
+  }
+  .chat-sidebar nav button[aria-current] {
+    box-shadow: inset 0 -3px 0 var(--accent);
+  }
+  .chat-sidebar nav span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .chat-workspace {
+    flex: 1;
+  }
+  .chat-topbar {
+    padding: 8px 17px;
+    min-height: 64px;
+  }
+  .topbar-crumbs li:first-child,
+  .sidebar-footer small {
+    display: none;
+  }
+  .sidebar-footer {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .lab-info-panel,
+  .theme-panel {
+    right: 17px;
+  }
+  .theme-panel {
+    /* The tab strip sits above the top bar here, so the panel starts lower. */
+    max-height: calc(100dvh - 232px);
+  }
+  .agent-info-panel {
+    left: 17px;
+    max-width: calc(100% - 34px);
+    padding: 16px;
+  }
+  .agent-guide-compact {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+  .topbar-actions {
+    gap: 8px;
+  }
+  .topbar-button {
+    padding: 0 8px;
+  }
+  .topbar-button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .agent-switcher-panel {
+    width: calc(100vw - 34px);
+  }
+  .agent-picker {
+    font-size: 12px;
+  }
+  .conversation-scroll {
+    padding: 0 14px 12px;
+  }
+  .chat-welcome {
+    padding: 15px 5px;
+  }
+  .chat-welcome h1 {
+    font-size: 22px;
+  }
+  .chat-welcome p {
+    font-size: 11px;
+  }
+  .prompt-options {
+    margin-top: 20px;
+  }
+  .prompt-options button {
+    padding: 11px;
+  }
+  .composer-area {
+    padding: 8px 13px 12px;
+  }
+  .composer textarea {
+    padding: 12px 14px 4px;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .composer-toolbar {
+    padding-left: 13px;
+  }
+  .composer-toolbar > span {
+    font-size: 10px;
+  }
+  .user-message {
+    max-width: 95%;
+    padding: 13px;
+  }
+  .user-message p,
+  .message-markdown {
+    font-size: 12px;
+  }
+  .secondary-view {
+    padding: 28px 19px;
+  }
+  .library-switch {
+    padding: 0 12px;
+  }
+  .section-heading h1 {
+    font-size: 22px;
+  }
+  .agent-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .metric-strip > div {
+    padding: 19px 10px;
+  }
+  .metric-strip strong {
+    font-size: 19px;
+  }
+  .metric-strip span {
+    font-size: 10px;
+  }
+  .receipt > div > span {
+    margin-left: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

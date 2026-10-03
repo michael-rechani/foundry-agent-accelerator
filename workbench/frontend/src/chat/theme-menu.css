@@ -1,0 +1,127 @@
+/* Theme menu: Look, theme, and accent pickers. */
+.theme-menu {
+  flex-shrink: 0;
+}
+.theme-menu > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.theme-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.theme-menu[open] > summary {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.theme-panel {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 8px);
+  right: 32px;
+  width: 300px;
+  max-width: calc(100vw - 34px);
+  /* Stays inside a short window; the choices scroll instead of running off. */
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow:
+    0 16px 40px -12px var(--shadow),
+    0 2px 6px var(--shadow-soft);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  animation: arrive 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.theme-panel fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.theme-panel legend {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--text);
+  font-weight: 700;
+}
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.theme-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 4px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s,
+    color 0.15s;
+}
+.theme-option input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.theme-option:hover {
+  border-color: var(--accent-line);
+  color: var(--text);
+}
+.theme-option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--accent-strong);
+}
+.theme-option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.theme-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 1px #ffffff40,
+    0 2px 6px -2px var(--shadow);
+}
+.theme-swatch-foundry {
+  background: linear-gradient(
+    135deg,
+    light-dark(#0f6cbd, #4da3f0),
+    light-dark(#3a96dd, #8fd0ff)
+  );
+}
+.theme-swatch-orchid {
+  background: linear-gradient(
+    135deg,
+    light-dark(#a8237f, #f07bc6),
+    light-dark(#6d44d6, #b9a0ff)
+  );
+}
+.theme-swatch-lagoon {
+  background: linear-gradient(
+    135deg,
+    light-dark(#0a7a74, #3cc8bb),
+    light-dark(#1a8ec4, #7ccfff)
+  );
+}
+.theme-panel > p {
+  color: var(--muted);
+  font-size: 11px;
+}
