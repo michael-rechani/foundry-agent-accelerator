@@ -181,7 +181,7 @@ class AgentCreations:
     def error(self, request, status, code, **extra):
         request.state.error_code = code
         return JSONResponse(
-            {"error": code, **extra}, status_code=status,
+            {"error": code, "request_id": request.state.request_id, **extra}, status_code=status,
             headers={"Retry-After": "60"} if status == 429 else None,
         )
 
