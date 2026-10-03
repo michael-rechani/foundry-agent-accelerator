@@ -12,6 +12,7 @@ person. They can be read without Azure.
 - [Catch what does not add up](#catch-what-does-not-add-up)
 - [Turn scattered notes into a brief](#turn-scattered-notes-into-a-brief)
 - [Present without hiding the boundaries](#present-without-hiding-the-boundaries)
+- [Present from the jump box](#present-from-the-jump-box)
 - [One foundation. Repeatable agent releases.](#one-foundation-repeatable-agent-releases)
 - [Related content](#related-content)
 
@@ -131,6 +132,33 @@ The root URL opens the **Agent library**. Presenters can bookmark `/#demos` to
 open **Guided demos** directly, or `/#chat`
 or `/#create`; the latter requires the creation capability. Valid saved-review
 deep links continue to open their review directly.
+
+## Present from the jump box
+
+Today an operator presents the Lab; customers don't open it themselves. The Lab
+only answers requests from the jump box, so connect to the jump box, open the Lab
+there, and share your screen. See
+[Who uses the Lab today](ingress-access.md#who-uses-the-lab-today).
+
+Before the customer joins:
+
+1. Open the Lab and check that the **Shared lab** details name the environment
+   you expect.
+2. Choose one story and have its sample input ready. Use fictional data only.
+3. Expect about 30 seconds for the first answer in each new chat. Opening a chat
+   ahead of time doesn't speed up the next one, so there is nothing to warm up.
+   See "Plan for the first wait" above.
+
+After the customer leaves:
+
+1. Open **Saved conversations** and delete each chat you saved during the
+   session (the delete button, then confirm). Saved chats are shared with everyone
+   who can open the Lab, and they otherwise stay for 30 days. **Start fresh** only
+   clears the messages on your screen.
+2. Reviews can't be deleted in the Lab. They expire 30 days after their last
+   update, so use sample content only.
+3. Leave created agents alone unless the owner asks. An operator deletes them with
+   the operator key.
 
 ## One foundation. Repeatable agent releases.
 

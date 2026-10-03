@@ -18,6 +18,9 @@ proposal.
 Engagements focus on demonstration and technical validation. Integration with
 customer systems and production deployment require separate scoping and agreement.
 
+Customers don't open the Lab themselves today. An operator presents it from the
+jump box; see [Present from the jump box](showcase.md#present-from-the-jump-box).
+
 ## Run context
 
 | Field | Fill in |
