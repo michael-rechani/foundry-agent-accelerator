@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import {
   Check,
   ChevronDown,
@@ -36,6 +36,8 @@ export function AgentSwitcher({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const root = useRef<HTMLDivElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
   const search = useRef<HTMLInputElement>(null)
   const panelId = useId()
 
@@ -64,25 +66,46 @@ export function AgentSwitcher({
   function choose(id: string) {
     setOpen(false)
     setQuery('')
+    trigger.current?.focus()
     onChoose(id)
+  }
+
+  // The panel is a dialog: Escape closes it and gives focus back to the
+  // trigger, and Tab and Shift+Tab wrap inside it instead of leaving. The
+  // wrapper only receives the keys that bubble up from the trigger and panel.
+  function keyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!open) return
+    if (event.key === 'Escape') {
+      event.stopPropagation()
+      setOpen(false)
+      trigger.current?.focus()
+      return
+    }
+    if (event.key !== 'Tab' || !panel.current) return
+    const stops = panel.current.querySelectorAll<HTMLElement>(
+      'input:not(:disabled), button:not(:disabled)',
+    )
+    const first = stops[0]
+    const last = stops[stops.length - 1]
+    const active = document.activeElement
+    const inside = active !== panel.current && panel.current.contains(active)
+    if (event.shiftKey ? active === first || !inside : active === last) {
+      event.preventDefault()
+      const target = event.shiftKey ? last : first
+      target.focus()
+    }
   }
 
   return (
     <div
       className="agent-switcher"
       ref={root}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape' && open) {
-          event.stopPropagation()
-          setOpen(false)
-          root.current
-            ?.querySelector<HTMLButtonElement>('.agent-picker')
-            ?.focus()
-        }
-      }}
+      role="presentation"
+      onKeyDown={keyDown}
     >
       <button
         type="button"
+        ref={trigger}
         className="agent-picker"
         title="Choose an agent"
         aria-haspopup="dialog"
@@ -98,8 +121,11 @@ export function AgentSwitcher({
         <div
           className="agent-switcher-panel"
           id={panelId}
+          ref={panel}
           role="dialog"
+          aria-modal="true"
           aria-label="Choose an agent"
+          tabIndex={-1}
         >
           <label className="agent-switcher-search">
             <Search size={15} aria-hidden="true" />
