@@ -225,7 +225,7 @@ See the [permissions reference](permissions.md) for all current assignments.
 
 | Who | Role | Scope | When |
 | --- | --- | --- | --- |
-| `case-review-agent` hosted-agent runtime identity (its `instance_identity.principal_id`) | **Search Index Data Reader** (`1407120a-92aa-4202-b7e9-c0e197c71c8f`) | The single approved index: `.../searchServices/<service>/indexes/<index>` | Before publishing a retrieval-enabled version. |
+| `case-review-agent` hosted-agent runtime identity (its `instance_identity.principal_id`) | **Search Index Data Reader** (`1407120a-92aa-4202-b7e9-c0e197c71c8f`) | The single approved index: `.../searchServices/<service>/indexes/<index>` | Before publishing a retrieval-enabled version. Terraform can assign it: see [Knowledge search access](../terraform/README.md#knowledge-search-access). |
 | The person who runs the [index script](#sample-documents-and-the-index-script), signed in with their own account | **Search Service Contributor** (reads the index definition, creates or deletes the index) and **Search Index Data Contributor** (lists, loads, and deletes passages) | The Search service. The index doesn't exist yet when `load` creates it, so the data role can't be scoped to it for that first run. | Only while running `load` or `remove`. Remove both roles afterward. |
 
 - Search Index Data Reader can query indexes but can't load documents, change
@@ -541,7 +541,7 @@ Some live cases hadn't run, and no person had reviewed the recorded answers.
 | Approved sample set | Version `sample-v1`, ten passages, digest `c7d68e26c329e8b0`. |
 | Index `lab-sample-policy-guidance` | `load --confirm` created it and uploaded the ten passages, and its `verify` step passed, including the "missing evidence" query. It ran from a machine with private network access, with both temporary operator roles in place. That first approved run didn't test whether either role alone would have been enough. |
 | Temporary operator roles | Search Service Contributor and Search Index Data Contributor were removed straight after the load. |
-| Case agent access | Search Index Data Reader, scoped to the one index, for the case agent's runtime identity. It stays while retrieval is on. It isn't in Terraform yet. |
+| Case agent access | Search Index Data Reader, scoped to the one index, for the case agent's runtime identity. It stays while retrieval is on. Made by hand. Terraform can now declare it (`knowledge_search_access`), but the dev Lab's grant isn't imported yet. |
 | Case agent version 8 | Published with the flag on. Both deploy smoke checks passed, including the `search_policy_guidance` lookup, so DNS, network, and RBAC work together. Version 7, without the lookup, stays published as the rollback. The application agent and both coordinators weren't changed. |
 | Lab descriptions | `agents.json` and the Add-ons tab describe the pilot. See [Receipts in the Lab](#receipts-in-the-lab). |
 
@@ -575,10 +575,13 @@ cases listed in [Evaluation additions](#evaluation-additions):
 
 **Open at 2026-10-01.**
 
-- **No Terraform for the pilot.** The index, the Search Index Data Reader
-  assignment, and the retrieval-enabled version were made by hand. Add the
-  assignment to Terraform and its tests before anything depends on the pilot
+- **The dev Lab's grant isn't in Terraform state yet.** The index, the Search
+  Index Data Reader assignment, and the retrieval-enabled version were made by
+  hand. Platform Terraform now declares the assignment and tests it, off by
+  default (`knowledge_search_access`). Importing the dev Lab's existing grant
+  changes shared Terraform state, so it waits for approval
   ([#143](https://github.com/michael-rechani/foundry-agent-accelerator/issues/143)).
+  See [Adopt the knowledge-search grant](permissions.md#adopt-the-knowledge-search-grant).
 - **Two live cases haven't run.** A failed lookup needs a deliberate fault. A
   poisoned passage needs an extra passage in the shared index. Each needs
   approval.

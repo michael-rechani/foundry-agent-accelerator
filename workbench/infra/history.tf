@@ -3,6 +3,12 @@ variable "cosmos_account_name" {
   description = "Name of the existing Cosmos DB account that holds the Lab's history database and container. The Lab identity gets data access to that container only."
 }
 
+variable "index_project_path" {
+  type        = bool
+  description = "Index the /project path of the conversations container, so listing created agents reads only the caller's documents (#188). Off by default because it changes the indexing policy of a shared container: Cosmos DB reindexes online with no downtime, but the one-time reindex uses some of the container's 400 RU/s. Set it to true when you approve applying that change."
+  default     = false
+}
+
 locals {
   cosmos_account_id = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.DocumentDB/databaseAccounts/${var.cosmos_account_name}"
   cosmos_endpoint   = "https://${var.cosmos_account_name}.documents.azure.com:443/"
@@ -34,6 +40,12 @@ resource "azurerm_cosmosdb_sql_container" "history" {
     included_path { path = "/agent_id/?" }
     included_path { path = "/updated_at/?" }
     included_path { path = "/kind/?" }
+    dynamic "included_path" {
+      for_each = var.index_project_path ? ["/project/?"] : []
+      content {
+        path = included_path.value
+      }
+    }
     excluded_path { path = "/*" }
   }
 }

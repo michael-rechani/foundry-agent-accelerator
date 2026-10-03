@@ -65,3 +65,7 @@ output "resource_id" {
 output "ai_foundry_project_system_identity_principal_id" {
   value = { primary = "00000000-0000-0000-0000-000000000004" }
 }
+
+output "ai_search_id" {
+  value = { for key, definition in var.ai_search_definition : key => "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-platform-test-12345/providers/Microsoft.Search/searchServices/search-platform-test" }
+}

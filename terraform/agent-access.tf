@@ -42,3 +42,15 @@ resource "azapi_resource" "coordinator_agent_consumer" {
     }
   }
 }
+
+# Search Index Data Reader on one index: the case-review agent can query it but not load documents,
+# change the index or read keys. Scoping to the index, not the service, is deliberate (#143).
+resource "azurerm_role_assignment" "knowledge_search_reader" {
+  count = var.knowledge_search_access == null ? 0 : 1
+
+  principal_id       = lower(var.knowledge_search_access.principal_id)
+  principal_type     = "ServicePrincipal"
+  role_definition_id = "/subscriptions/${var.subscription_id}/providers/Microsoft.Authorization/roleDefinitions/1407120a-92aa-4202-b7e9-c0e197c71c8f"
+  scope              = "${module.ai_foundry.ai_search_id["agent"]}/indexes/${var.knowledge_search_access.index_name}"
+  description        = "Knowledge search pilot (#122)"
+}

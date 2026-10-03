@@ -67,7 +67,7 @@ only. It uses the existing private Cosmos endpoint and no account keys.
 | Storage area | Configuration |
 | --- | --- |
 | Cosmos DB container | 400 RU/s dedicated throughput and default 30-day TTL. |
-| Indexing | Review support adds a record-type index alongside agent ID and update time. Apply this additive index before deploying the review-enabled image. Transcript and evidence bodies are not indexed. |
+| Indexing | Review support adds a record-type index alongside agent ID and update time. Apply this additive index before deploying the review-enabled image. Transcript and evidence bodies are not indexed. Listing created agents filters on the project, which isn't indexed yet, so Cosmos DB reads every created-agent record to answer it and its request-unit cost grows with total usage. Set `index_project_path = true` in the Lab's variables to index `/project/?`. It's off by default because it changes a shared container: Cosmos DB reindexes online with no downtime, and the one-time reindex uses some of the 400 RU/s ([#188](https://github.com/michael-rechani/foundry-agent-accelerator/issues/188)). |
 | Lists and reads | Chat and review lists are paged in batches of 20. Point reads load a selected record. |
 | Created-agent records | Use the existing record-type index and override TTL, because a billable runtime must not lose its registry entry by expiry. Confirmed deletion removes the saved name and instructions and retains a minimal idempotency tombstone. See [Publication, recovery, and deletion](agent-creation.md#publication-recovery-and-deletion). |
 

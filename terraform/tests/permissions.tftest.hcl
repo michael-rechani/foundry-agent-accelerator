@@ -42,6 +42,7 @@ override_module {
     ai_foundry_id                                   = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-permissions/providers/Microsoft.CognitiveServices/accounts/foundry-permissions"
     ai_foundry_project_id                           = { primary = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-permissions/providers/Microsoft.CognitiveServices/accounts/foundry-permissions/projects/project-permissions" }
     ai_foundry_project_system_identity_principal_id = { primary = "00000000-0000-0000-0000-000000000004" }
+    ai_search_id                                    = { agent = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-permissions/providers/Microsoft.Search/searchServices/search-permissions" }
   }
 }
 
@@ -143,4 +144,95 @@ run "explicit_deployer_and_optional_identities" {
     )
     error_message = "The optional runner receives Foundry Project Manager only on the project."
   }
+}
+
+run "knowledge_search_grant_is_off_by_default" {
+  command = plan
+  plan_options {
+    target = [azurerm_role_assignment.knowledge_search_reader]
+  }
+  assert {
+    condition     = length(azurerm_role_assignment.knowledge_search_reader) == 0
+    error_message = "No Search grant may exist unless knowledge_search_access is set."
+  }
+}
+
+run "knowledge_search_grant_reads_only_the_one_index" {
+  command = plan
+  variables {
+    knowledge_search_access = {
+      principal_id = "00000000-0000-0000-0000-00000000000A"
+    }
+  }
+  plan_options {
+    target = [azurerm_role_assignment.knowledge_search_reader]
+  }
+  assert {
+    condition = (
+      length(azurerm_role_assignment.knowledge_search_reader) == 1 &&
+      azurerm_role_assignment.knowledge_search_reader[0].principal_id == "00000000-0000-0000-0000-00000000000a" &&
+      azurerm_role_assignment.knowledge_search_reader[0].principal_type == "ServicePrincipal" &&
+      azurerm_role_assignment.knowledge_search_reader[0].role_definition_id == "/subscriptions/00000000-0000-0000-0000-000000000003/providers/Microsoft.Authorization/roleDefinitions/1407120a-92aa-4202-b7e9-c0e197c71c8f" &&
+      azurerm_role_assignment.knowledge_search_reader[0].scope == "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-permissions/providers/Microsoft.Search/searchServices/search-permissions/indexes/lab-sample-policy-guidance"
+    )
+    error_message = "The pilot grant must be Search Index Data Reader on the one pilot index, not the Search service."
+  }
+}
+
+run "knowledge_search_grant_uses_the_named_index" {
+  command = plan
+  variables {
+    knowledge_search_access = {
+      principal_id = "00000000-0000-0000-0000-00000000000a"
+      index_name   = "other-index"
+    }
+  }
+  plan_options {
+    target = [azurerm_role_assignment.knowledge_search_reader]
+  }
+  assert {
+    condition     = endswith(azurerm_role_assignment.knowledge_search_reader[0].scope, "/indexes/other-index")
+    error_message = "index_name must set the grant's scope."
+  }
+}
+
+run "knowledge_search_grant_rejects_a_service_name_as_the_principal" {
+  command = plan
+  variables {
+    knowledge_search_access = {
+      principal_id = "case-review-agent"
+    }
+  }
+  plan_options {
+    target = [azurerm_role_assignment.knowledge_search_reader]
+  }
+  expect_failures = [var.knowledge_search_access]
+}
+
+run "knowledge_search_grant_rejects_a_path_as_the_index" {
+  command = plan
+  variables {
+    knowledge_search_access = {
+      principal_id = "00000000-0000-0000-0000-00000000000a"
+      index_name   = "../service"
+    }
+  }
+  plan_options {
+    target = [azurerm_role_assignment.knowledge_search_reader]
+  }
+  expect_failures = [var.knowledge_search_access]
+}
+
+run "knowledge_search_grant_needs_the_agent_service" {
+  command = plan
+  variables {
+    enable_agent_service = false
+    knowledge_search_access = {
+      principal_id = "00000000-0000-0000-0000-00000000000a"
+    }
+  }
+  plan_options {
+    target = [azurerm_role_assignment.knowledge_search_reader]
+  }
+  expect_failures = [var.knowledge_search_access]
 }
