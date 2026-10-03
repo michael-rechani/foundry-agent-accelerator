@@ -739,9 +739,13 @@ says which step it was in (`stage`: `token` for the managed-identity sign-in,
 `foundry_token_ms`, `foundry_read_ms`, and `cosmos_ms`, so slow-but-passing
 checks are visible too. These fields are not in the
 `/api/health/dependencies` response. Probes have no request ID because they run
-outside a browser request. Use the response's `X-Correlation-ID` to find a
+outside a browser request. Every error body from the chat, history, agent, and
+review APIs carries the same `request_id` as the `X-Correlation-ID` header. Use it to find a
 failed API request's `workbench_request` event; never collect submitted text
-or operator keys to diagnose it.
+or operator keys to diagnose it. A review that ends `agent_unavailable` also logs
+`review_execution_error` with the exception class (`error_type`), so a code bug
+is distinguishable from an outage. `review_execution` is logged only after the
+final save succeeds; otherwise `review_persistence_failed` is logged instead.
 `/healthz` remains process-only, so dependency outages do not cause restart
 loops. These checks verify access, not model-generation quality or full Cosmos
 CRUD.

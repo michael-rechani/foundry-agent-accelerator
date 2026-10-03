@@ -70,7 +70,7 @@ class ReviewRuns:
 
     def error(self, request, status, code):
         request.state.error_code = code
-        return JSONResponse({"error": code}, status_code=status,
+        return JSONResponse({"error": code, "request_id": request.state.request_id}, status_code=status,
                             headers={"Retry-After": "60"} if status == 429 else None)
 
     async def handle(self, request: Request, identifier: str | None = None, action: str | None = None):
@@ -240,7 +240,10 @@ class ReviewRuns:
         except (ValueError, ValidationError):
             document["status"] = "failed"
             run["error"] = "invalid_agent_result"
-        except Exception:
+        except Exception as problem:
+            # The type separates a code bug from a real outage; the message may hold submitted content or URLs.
+            LOGGER.error(json.dumps({"event": "review_execution_error", "review_id": document["id"],
+                                     "error_type": type(problem).__name__}))
             document["status"] = "failed"
             run["error"] = "agent_unavailable"
         finally:
@@ -249,10 +252,12 @@ class ReviewRuns:
             document["updated_at"] = timestamp()
             try:
                 await self.storage(self.store.replace(document, document["_etag"]))
-            except Exception:
-                LOGGER.warning(json.dumps({"event": "review_persistence_failed", "review_id": document["id"]}))
-            finally:
+            except Exception as problem:
+                LOGGER.warning(json.dumps({"event": "review_persistence_failed", "review_id": document["id"],
+                                           "error_type": type(problem).__name__}))
+            else:
                 LOGGER.info(json.dumps({"event": "review_execution", "review_id": document["id"],
                                         "status": document["status"], "elapsed_ms": run["elapsed_ms"]}))
+            finally:
                 self.tasks.pop(document["id"], None)
                 self.slots.release()

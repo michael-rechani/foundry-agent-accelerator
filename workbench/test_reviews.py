@@ -456,10 +456,72 @@ class ReviewLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("review_persistence_failed", captured.output[0])
         self.assertEqual(await self.store.get(document["id"]), saved)
 
+    def logged_events(self, captured):
+        return [json.loads(record.getMessage()) for record in captured.records if record.getMessage().startswith("{")]
+
+    async def test_execution_event_is_logged_after_the_final_persist(self):
+        document = await self.draft()
+        self.gateway.review.return_value = ("completed", json.dumps(self.result), self.output)
+        with self.assertLogs("uvicorn.error", level="INFO") as captured:
+            saved = await self.run_direct(document)
+        self.assertEqual(saved["status"], "waiting_input")
+        events = self.logged_events(captured)
+        self.assertEqual([event["event"] for event in events], ["review_execution"])
+        self.assertEqual(events[0]["status"], "waiting_input")
+
+    async def test_failed_final_persist_logs_a_failure_instead_of_a_success_event(self):
+        document = await self.draft()
+        self.gateway.review.return_value = ("completed", json.dumps(self.result), self.output)
+        self.store.replace = AsyncMock(side_effect=RuntimeError("https://private-account.example/secret"))
+        controller = self.controller()
+        for _ in range(4):
+            await controller.slots.acquire()
+        document["status"] = "running"
+        document["runs"].append({"id": "attempt", "events": [], "input": deepcopy(self.body)})
+        with self.assertLogs("uvicorn.error", level="INFO") as captured:
+            await controller.execute(document)
+        events = self.logged_events(captured)
+        self.assertEqual(events, [{"event": "review_persistence_failed", "review_id": document["id"],
+                                   "error_type": "RuntimeError"}])
+        self.assertNotIn("private-account", "".join(captured.output))
+        self.assertFalse(controller.slots.locked())
+        self.assertEqual(controller.tasks, {})
+
+    async def test_unexpected_gateway_exception_is_logged_by_type_without_its_message(self):
+        document = await self.draft()
+        self.gateway.review.side_effect = KeyError("https://private-account.example/secret")
+        with self.assertLogs("uvicorn.error", level="INFO") as captured:
+            saved = await self.run_direct(document)
+        self.assertEqual(saved["status"], "failed")
+        self.assertEqual(saved["runs"][-1]["error"], "agent_unavailable")
+        events = self.logged_events(captured)
+        self.assertEqual(events[0], {"event": "review_execution_error", "review_id": document["id"],
+                                     "error_type": "KeyError"})
+        self.assertEqual([event["event"] for event in events[1:]], ["review_execution"])
+        self.assertNotIn("private-account", "".join(captured.output))
+
+    async def test_error_bodies_carry_the_request_id(self):
+        valid = "review-" + "0" * 8 + "-0000-0000-0000-" + "0" * 12
+        for response, status, code in [
+            (await self.client.get("/api/review-runs/not-a-review"), 400, "invalid_review"),
+            (await self.client.get("/api/review-runs", headers={"Origin": "https://other.example"}), 403, "request_not_allowed"),
+            (await self.client.get(f"/api/review-runs/{valid}"), 404, "not_found"),
+        ]:
+            with self.subTest(code=code):
+                self.assertEqual(response.status_code, status, response.text)
+                self.assertEqual(response.json(), {"error": code, "request_id": response.headers["X-Correlation-ID"]})
+                self.assertTrue(response.json()["request_id"])
+
     async def test_recovery_respects_shared_capacity_and_rate_limits(self):
         document = await self.interrupted_review()
         controller = self.controller()
         app = FastAPI()
+
+        @app.middleware("http")
+        async def request_id(request, call_next):
+            request.state.request_id = "test-request"
+            return await call_next(request)
+
         app.include_router(controller.router)
         async with AsyncClient(transport=ASGITransport(app=app), base_url="https://testserver",
                                headers=self.headers) as client:
@@ -468,6 +530,7 @@ class ReviewLifecycleTests(unittest.IsolatedAsyncioTestCase):
             response = await self.resume(document, client=client)
             self.assertEqual(response.status_code, 429)
             self.assertEqual(response.headers["Retry-After"], "60")
+            self.assertEqual(response.json(), {"error": "busy", "request_id": "test-request"})
             for _ in range(4):
                 controller.slots.release()
             controller.recent.extend([asyncio.get_running_loop().time()] * 20)

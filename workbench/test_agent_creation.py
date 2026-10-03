@@ -197,6 +197,24 @@ class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.store.rows, {})
         self.assertEqual(self.publisher.calls, [])
 
+    async def test_error_bodies_carry_the_request_id(self):
+        cases = [
+            (await self.client.post("/api/agent-drafts", json={"goal": "Help with this generic review."}),
+             400, "template_required"),
+            (await self.client.post("/api/agents", json=self.body), 403, "operator_access_required"),
+            (await self.client.get("/api/agents/not-an-agent"), 404, "agent_not_found"),
+            (await self.client.get("/api/agents", headers={"Origin": "https://untrusted.test"}),
+             403, "request_not_allowed"),
+        ]
+        for response, status, code in cases:
+            with self.subTest(code=code):
+                self.assertEqual(response.status_code, status, response.text)
+                body = response.json()
+                self.assertEqual(body["error"], code)
+                self.assertTrue(body["request_id"])
+                self.assertEqual(body["request_id"], response.headers["X-Correlation-ID"])
+        self.assertIn("candidates", cases[0][0].json())
+
     async def test_ambiguous_and_invalid_drafts_are_explicit(self):
         response = await self.client.post("/api/agent-drafts", json={"goal": "Help with this generic review."})
         self.assertEqual(response.status_code, 400)
