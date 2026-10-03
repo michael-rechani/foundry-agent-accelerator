@@ -16,6 +16,11 @@ mock_provider "azurerm" {
       id = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-permissions"
     }
   }
+  mock_resource "azurerm_network_security_group" {
+    defaults = {
+      id = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-permissions/providers/Microsoft.Network/networkSecurityGroups/gateway"
+    }
+  }
   mock_resource "azurerm_network_interface" {
     defaults = {
       id = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-permissions/providers/Microsoft.Network/networkInterfaces/runner"
