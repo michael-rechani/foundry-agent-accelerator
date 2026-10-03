@@ -114,6 +114,14 @@ class HistoryTests(CapturedLabLogs, unittest.TestCase):
             self.assertEqual(request(target).status_code, 403, (method, target))
             self.assertEqual(request(target, headers={**lab_header, "Origin": "https://evil.example"}).status_code, 403)
 
+    def test_cosmos_errors_keep_their_status_and_code(self):
+        for failure, status, code in [(404, 404, "conversation_not_found"), (412, 409, "conversation_changed"),
+                                      (409, 503, "history_unavailable"), (500, 503, "history_unavailable")]:
+            with self.subTest(failure=failure):
+                self.store.get.side_effect = CosmosHttpResponseError(status_code=failure)
+                response = self.client.get(f"/api/conversations/{self.identifier}", headers=self.headers)
+                self.assertEqual((response.status_code, response.json()["error"]), (status, code))
+
     def test_errors_are_sanitized_and_conflicts_preserved(self):
         self.store.get.side_effect = CosmosHttpResponseError(status_code=412, message="secret")
         response = self.client.get(f"/api/conversations/{self.identifier}", headers=self.headers)

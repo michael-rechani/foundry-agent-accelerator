@@ -455,6 +455,15 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()["error"], "agents_unavailable")
 
+    async def test_cosmos_errors_keep_their_status_and_code(self):
+        created = await self.ready()
+        for failure, status, code in [(404, 404, "agent_not_found"), (409, 409, "agent_changed"), (412, 409, "agent_changed"),
+                                      (500, 503, "agents_unavailable")]:
+            with self.subTest(failure=failure):
+                self.store.get = AsyncMock(side_effect=CosmosHttpResponseError(status_code=failure))
+                response = await self.client.get("/api/agents/" + created["id"])
+                self.assertEqual((response.status_code, response.json()["error"]), (status, code))
+
     async def test_no_remote_mutation_when_initial_record_save_fails(self):
         self.store.create = AsyncMock(side_effect=CosmosHttpResponseError(status_code=503))
         response = await self.create()

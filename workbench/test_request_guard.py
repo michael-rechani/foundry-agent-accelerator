@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from request_guard import (
     BodyReadTimeout, MAX_CONVERSATION_BYTES, MAX_REQUEST_BYTES, MAX_SETUP_BYTES,
-    RateGate, RequestRejected, api_error, is_json, read_bounded_body, read_json_body, record_request_failure,
+    RateGate, RequestRejected, api_error, cosmos_failure, is_json, read_bounded_body, read_json_body, record_request_failure,
 )
 from log_capture import CapturedLabLogs
 
@@ -93,6 +93,36 @@ class AdmissionHelperTests(unittest.TestCase):
         self.assertEqual(response.headers["retry-after"], "60")
         self.assertEqual(response.body, b'{"error":"agents_busy","request_id":"abc","reason":"slots"}')
         self.assertEqual(api_error(request, 429, "busy", retry_after=7).headers["retry-after"], "7")
+
+
+class CosmosFailureTests(unittest.TestCase):
+    NAMES = {"missing": "gone", "changed": "moved", "unavailable": "down"}
+
+    def answer(self, status, **options):
+        request = SimpleNamespace(state=SimpleNamespace(request_id="abc"))
+        problem = SimpleNamespace(status_code=status)
+        with patch("request_guard.record_request_failure") as record:
+            response = cosmos_failure(request, problem, **self.NAMES, **options)
+        return response.status_code, request.state.error_code, record.called
+
+    def test_not_found_and_a_version_conflict_get_their_own_codes_without_a_failure_record(self):
+        self.assertEqual(self.answer(404), (404, "gone", False))
+        self.assertEqual(self.answer(412), (409, "moved", False))
+
+    def test_a_create_conflict_is_only_a_conflict_when_the_router_says_so(self):
+        self.assertEqual(self.answer(409), (503, "down", True))
+        self.assertEqual(self.answer(409, conflicts=(409, 412)), (409, "moved", False))
+        self.assertEqual(self.answer(412, conflicts=(409, 412)), (409, "moved", False))
+
+    def test_anything_else_is_a_503_and_is_recorded(self):
+        for status in (400, 401, 403, 429, 500, 503, None):
+            with self.subTest(status=status):
+                self.assertEqual(self.answer(status), (503, "down", True))
+
+    def test_the_failure_record_names_cosmos_and_the_error_type_only(self):
+        request = SimpleNamespace(state=SimpleNamespace(request_id="abc"))
+        cosmos_failure(request, RuntimeError("secret"), **self.NAMES)
+        self.assertEqual(request.state.failure, {"error_type": "RuntimeError", "dependency": "cosmos"})
 
 
 if __name__ == "__main__":
