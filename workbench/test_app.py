@@ -281,6 +281,12 @@ class WorkbenchTests(CapturedLabLogs, unittest.TestCase):
             self.assertEqual(self.client.post("/api/reviews", json=self.body, headers=headers).status_code, 403)
         self.gateway.review.assert_not_called()
 
+    def test_missing_origin_is_accepted_only_with_the_lab_header(self):
+        response = self.client.post("/api/reviews", json=self.body, headers={"X-Workbench-Request": "1"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.post("/api/reviews", json=self.body).status_code, 403)
+        self.assertEqual(self.gateway.review.call_count, 1)
+
     def test_rejects_invalid_and_oversized_requests(self):
         for body in ({**self.body, "agent_id": "arbitrary-agent"}, {**self.body, "store": True},
                      {**self.body, "input": " "}, {**self.body, "input": 12}, []):
