@@ -5,8 +5,6 @@ import json
 import logging
 import os
 import re
-import time
-from collections import deque
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -25,7 +23,7 @@ from agent_templates import (
     model_profile, prepare_draft,
 )
 from history import StrictModel
-from request_guard import BodyReadTimeout, MAX_SETUP_BYTES, api_error, is_json, read_bounded_body, record_request_failure, request_allowed
+from request_guard import MAX_SETUP_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
 
 
 LOGGER = logging.getLogger("uvicorn.error")
@@ -140,8 +138,7 @@ class AgentCreations:
         self.tasks = {}
         self.operation_slot = asyncio.Semaphore(1)
         self.mutation_lock = asyncio.Lock()
-        self.read_slots = asyncio.Semaphore(4)
-        self.recent = deque()
+        self.read_gate = RateGate(120, 4)
         self.router = APIRouter()
         self.router.add_api_route("/api/agent-templates", self.templates, methods=["GET"])
         self.router.add_api_route("/api/agent-scorecards", self.scorecards, methods=["GET"])
@@ -184,12 +181,8 @@ class AgentCreations:
     def admit(self, request):
         if not request_allowed(request, self.settings.origins):
             return self.error(request, 403, "request_not_allowed")
-        now = time.monotonic()
-        while self.recent and self.recent[0] <= now - 60:
-            self.recent.popleft()
-        if len(self.recent) >= 120 or self.read_slots.locked():
+        if not self.read_gate.try_admit():
             return self.error(request, 429, "agents_busy")
-        self.recent.append(now)
         return None
 
     def authorize(self, request, *, creating):
@@ -204,9 +197,7 @@ class AgentCreations:
         return None
 
     async def body(self, request, model):
-        if not is_json(request):
-            raise ValueError("JSON required")
-        body = await read_bounded_body(request, MAX_SETUP_BYTES)
+        body = await read_json_body(request, MAX_SETUP_BYTES, wrong_type=(400, "invalid_setup"))
         return model.model_validate_json(body)
 
     async def templates(self, request: Request):
@@ -227,17 +218,15 @@ class AgentCreations:
         if rejection is not None:
             return rejection
         try:
-            async with self.read_slots:
+            async with self.read_gate.slots:
                 data = await self.body(request, DraftInput)
                 return prepare_draft(data.goal, data.template_id)
         except TemplateRequiredError as problem:
             return self.error(request, 400, "template_required", candidates=problem.candidates)
         except (ValidationError, ValueError):
             return self.error(request, 400, "invalid_setup")
-        except OverflowError:
-            return self.error(request, 413, "request_too_large")
-        except TimeoutError:
-            return self.error(request, 408, "request_timeout")
+        except RequestRejected as problem:
+            return self.error(request, problem.status, problem.code)
 
     def owned(self, document):
         return (
@@ -329,20 +318,18 @@ class AgentCreations:
             if rejection is not None:
                 return rejection
         try:
-            async with self.read_slots, asyncio.timeout(35):
+            async with self.read_gate.slots, asyncio.timeout(35):
                 return await self.dispatch(request, identifier, resume)
         except (ValidationError, ValueError):
             return self.error(request, 400, "invalid_setup")
-        except OverflowError:
-            return self.error(request, 413, "request_too_large")
+        except RequestRejected as problem:
+            return self.error(request, problem.status, problem.code)
         except CosmosHttpResponseError as problem:
             if problem.status_code not in {404, 409, 412}:
                 record_request_failure(request, problem, "cosmos")
             return self.error(request, 404 if problem.status_code == 404 else 409 if problem.status_code in {409, 412} else 503,
                               "agent_not_found" if problem.status_code == 404 else
                               "agent_changed" if problem.status_code in {409, 412} else "agents_unavailable")
-        except BodyReadTimeout:
-            return self.error(request, 408, "request_timeout")
         except TimeoutError as problem:
             record_request_failure(request, problem, "cosmos")
             return self.error(request, 504, "agents_timeout")

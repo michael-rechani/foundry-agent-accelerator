@@ -3,7 +3,6 @@ import json
 import logging
 import re
 import time
-from collections import deque
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -13,7 +12,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from request_guard import BodyReadTimeout, MAX_REQUEST_BYTES, api_error, is_json, read_bounded_body, record_request_failure, request_allowed
+from request_guard import MAX_REQUEST_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
 from reviews import Evidence, ReviewInput, review_prompt, validate_result
 
 LOGGER = logging.getLogger("uvicorn.error")
@@ -29,16 +28,15 @@ def timestamp():
 
 
 class ReviewRuns:
-    def __init__(self, settings, registry, store, gateway, receipts, slots, recent):
+    def __init__(self, settings, registry, store, gateway, receipts, model_gate):
         self.settings, self.registry, self.store = settings, registry, store
-        self.gateway, self.receipts, self.slots, self.recent = gateway, receipts, slots, recent
+        self.gateway, self.receipts, self.model_gate = gateway, receipts, model_gate
         self.tasks = {}
         self.router = APIRouter()
         self.router.add_api_route("/api/review-runs", self.handle, methods=["GET", "POST"])
         self.router.add_api_route("/api/review-runs/{identifier}", self.handle, methods=["GET"])
         self.router.add_api_route("/api/review-runs/{identifier}/{action}", self.handle, methods=["POST"])
-        self.requests = deque()
-        self.read_slots = asyncio.Semaphore(4)
+        self.read_gate = RateGate(120, 4)
 
     async def close(self):
         tasks = list(self.tasks.values())
@@ -81,25 +79,20 @@ class ReviewRuns:
         if action not in {None, "execute", "resume", "evidence"}:
             return self.error(request, 404, "not_found")
         now = time.monotonic()
-        while self.requests and self.requests[0] <= now - 60:
-            self.requests.popleft()
-        if len(self.requests) >= 120 or self.read_slots.locked():
+        if not self.read_gate.try_admit(now):
             return self.error(request, 429, "reviews_busy")
-        self.requests.append(now)
         try:
-            async with self.read_slots, asyncio.timeout(35):
+            async with self.read_gate.slots, asyncio.timeout(35):
                 return await self.dispatch(request, identifier, action, now)
         except (ValidationError, ValueError):
             return self.error(request, 400, "invalid_review")
-        except OverflowError:
-            return self.error(request, 413, "request_too_large")
+        except RequestRejected as problem:
+            return self.error(request, problem.status, problem.code)
         except CosmosHttpResponseError as problem:
             if problem.status_code not in {404, 412}:
                 record_request_failure(request, problem, "cosmos")
             return self.error(request, 404 if problem.status_code == 404 else 409 if problem.status_code == 412 else 503,
                               "not_found" if problem.status_code == 404 else "review_changed" if problem.status_code == 412 else "reviews_unavailable")
-        except BodyReadTimeout:
-            return self.error(request, 408, "request_timeout")
         except TimeoutError as problem:
             record_request_failure(request, problem, "cosmos")
             return self.error(request, 504, "reviews_timeout")
@@ -119,17 +112,12 @@ class ReviewRuns:
             return self.error(request, 409, "review_changed")
         body = None
         if action != "execute":
-            if not is_json(request):
-                return self.error(request, 415, "json_required")
-            body = await self.read_body(request)
+            body = await read_json_body(request, MAX_REQUEST_BYTES)
         if action in {"execute", "resume"}:
             return await self.start(request, identifier, document, body, now, recovering=action == "resume")
         if action == "evidence":
             return await self.add_evidence(request, document, body)
         return await self.create(request, body)
-
-    async def read_body(self, request):
-        return await read_bounded_body(request, MAX_REQUEST_BYTES)
 
     async def list_page(self, request):
         cursor = request.query_params.get("cursor")
@@ -164,12 +152,9 @@ class ReviewRuns:
         snapshot, previous = self.snapshot(request, identifier, document, body, recovering)
         if isinstance(snapshot, JSONResponse):
             return snapshot
-        while self.recent and self.recent[0] <= now - 60:
-            self.recent.popleft()
-        if self.slots.locked() or len(self.recent) >= 20:
+        if not self.model_gate.try_admit(now):
             return self.error(request, 429, "busy")
-        self.recent.append(now)
-        await self.slots.acquire()
+        await self.model_gate.slots.acquire()
         try:
             if recovering:
                 previous["error"] = "execution_interrupted"
@@ -189,7 +174,7 @@ class ReviewRuns:
             saved = await self.store.replace(document, document["_etag"])
             self.tasks[identifier] = asyncio.create_task(self.execute(saved))
         except BaseException:
-            self.slots.release()
+            self.model_gate.slots.release()
             raise
         return JSONResponse(self.public(saved), status_code=202)
 
@@ -258,4 +243,4 @@ class ReviewRuns:
                                         "status": document["status"], "elapsed_ms": run["elapsed_ms"]}))
             finally:
                 self.tasks.pop(document["id"], None)
-                self.slots.release()
+                self.model_gate.slots.release()

@@ -89,7 +89,8 @@ class HistoryTests(CapturedLabLogs, unittest.TestCase):
     def test_cross_origin_invalid_and_oversize_are_rejected(self):
         self.assertEqual(self.client.post("/api/conversations", json=self.body).status_code, 403)
         self.assertEqual(self.client.post("/api/conversations", json={**self.body, "agent_id": "case-review"}, headers=self.headers).status_code, 400)
-        self.assertEqual(self.client.post("/api/conversations", content="x" * 524289, headers={**self.headers, "Content-Type": "application/json"}).status_code, 413)
+        oversize = self.client.post("/api/conversations", content="x" * 524289, headers={**self.headers, "Content-Type": "application/json"})
+        self.assertEqual((oversize.status_code, oversize.json()["error"]), (413, "conversation_too_large"))
         self.store.create.assert_not_called()
 
     def test_json_content_type_matches_the_other_routers(self):
@@ -146,14 +147,14 @@ class HistoryTests(CapturedLabLogs, unittest.TestCase):
 
     def test_history_rate_limit_blocks_store_and_expires(self):
         self.store.list.return_value = {"items": [], "cursor": None}
-        with patch("history.monotonic", return_value=100):
+        with patch("request_guard.time.monotonic", return_value=100):
             for _ in range(60):
                 self.assertEqual(self.client.get("/api/conversations", headers=self.headers).status_code, 200)
             response = self.client.get("/api/conversations", headers=self.headers)
         self.assertEqual(response.status_code, 429)
         self.assertEqual(response.headers["Retry-After"], "60")
         self.assertEqual(self.store.list.await_count, 60)
-        with patch("history.monotonic", return_value=161):
+        with patch("request_guard.time.monotonic", return_value=161):
             self.assertEqual(self.client.get("/api/conversations", headers=self.headers).status_code, 200)
 
     def test_history_deadline_cancels_store_and_releases_capacity(self):

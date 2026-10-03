@@ -6,7 +6,6 @@ import math
 import os
 import re
 import time
-from collections import deque
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -22,7 +21,7 @@ from history import CosmosHistory, history_router
 from review_runs import ReviewRuns
 from agent_creation import CREATED_ID, DEPLOYMENT_NAME, AgentCreations, CreationSettings
 from library_preview import PREVIEW_AGENT, PREVIEW_ID, preview_agent, run_preview, summarize_usage, usage_record
-from request_guard import MAX_REQUEST_BYTES, api_error, is_json, read_bounded_body, record_request_failure, request_allowed
+from request_guard import MAX_REQUEST_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
 
 
 ROOT = Path(__file__).resolve().parent
@@ -371,18 +370,14 @@ def retry_after_seconds(problem):
 class ChatReviews:
     """Stateless chat turns: POST /api/reviews admission, validation, and one bounded Foundry Responses call."""
 
-    def __init__(self, settings, registry, gateway, created_agents, slots, recent):
+    def __init__(self, settings, registry, gateway, created_agents, gate):
         self.settings, self.registry, self.gateway = settings, registry, gateway
-        self.created_agents, self.slots, self.recent = created_agents, slots, recent
+        self.created_agents, self.gate = created_agents, gate
 
     async def admit(self, request: Request):
-        now = time.monotonic()
-        while self.recent and self.recent[0] <= now - 60:
-            self.recent.popleft()
-        if self.slots.locked() or len(self.recent) >= 20:
+        if not self.gate.try_admit():
             return self.busy(request)
-        self.recent.append(now)
-        async with self.slots:
+        async with self.gate.slots:
             return await self.execute(request)
 
     @staticmethod
@@ -395,14 +390,10 @@ class ChatReviews:
 
     async def read_json(self, request):
         """Return (data, None) for a bounded JSON body, or (None, error response)."""
-        if not is_json(request):
-            return None, self.error(request, 415, "json_required")
         try:
-            body = await read_bounded_body(request, MAX_REQUEST_BYTES)
-        except OverflowError:
-            return None, self.error(request, 413, "request_too_large")
-        except TimeoutError:
-            return None, self.error(request, 408, "request_timeout")
+            body = await read_json_body(request, MAX_REQUEST_BYTES)
+        except RequestRejected as problem:
+            return None, self.error(request, problem.status, problem.code)
         try:
             return json.loads(body), None
         except (ValueError, UnicodeError):
@@ -526,15 +517,14 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
     if default_agent not in registry:
         raise ValueError("WORKBENCH_DEFAULT_AGENT must name a visible agent")
     gateway = gateway or FoundryGateway(settings)
-    slots = asyncio.Semaphore(4)
-    recent = deque()
+    model_gate = RateGate(20, 4)
     cosmos_endpoint = os.getenv("WORKBENCH_COSMOS_ENDPOINT")
     if settings.mode == "private" and cosmos_endpoint and history_store is None:
         history_store = CosmosHistory(cosmos_endpoint)
 
-    review_runs = ReviewRuns(settings, registry, history_store, gateway, execution_receipts, slots, recent)
+    review_runs = ReviewRuns(settings, registry, history_store, gateway, execution_receipts, model_gate)
     created_agents = AgentCreations(settings, history_store, publisher)
-    chat = ChatReviews(settings, registry, gateway, created_agents, slots, recent)
+    chat = ChatReviews(settings, registry, gateway, created_agents, model_gate)
     dependencies = DependencyMonitor(settings, gateway, agents, history_store)
 
     @asynccontextmanager
