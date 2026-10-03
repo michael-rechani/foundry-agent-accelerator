@@ -72,9 +72,10 @@ resources. Publishing is opt-in, costs money, and needs the
 **Appearance:** the palette button at the right of the header sets the theme to
 **System** (follows your device, the default), **Light**, or **Dark**, with a
 **Foundry**, **Orchid**, or **Lagoon** accent, and a **Look**: **Classic** (the
-default), **Aurora** (glass panels over a soft glow) or **Console** (flat,
-near-black, with monospace labels). The choices apply at once and are saved in
-this browser only; they aren't shared with other users or saved with chats.
+default), **Aurora** (glass panels over a soft glow) or **Console** (flat
+panels and monospace labels, near-black in dark mode). The choices apply at
+once and are saved in this browser only; they aren't shared with other users or
+saved with chats.
 
 **Presenter view:** the presentation button in the header enlarges story and
 Chat text for this browser session. A loaded scenario has a compact **Demo

@@ -106,12 +106,14 @@ security policy. A new look is one more stylesheet scoped the same way, one more
 entry in `looks` in `theme.ts`, and its icon in `ThemePicker.tsx`.
 
 Use the tokens in new styles rather than hex values, so every theme, accent, and
-look keeps working. Text tokens meet WCAG AA (4.5:1) on their surfaces and
-borders and dots meet 3:1, in every combination of look, light or dark, and
-accent; `tests/agent-creation.spec.ts` checks this on the rendered page. Check
-new color pairs in both modes and in each look. The content security policy
-blocks inline scripts, so a device in one mode briefly shows that mode's
-background before the script applies a pinned opposite theme.
+look keeps working. Text, link, and button colors meet WCAG AA (4.5:1) on the
+surfaces they sit on, and form-field borders and the accent line meet 3:1, in
+every combination of look, light or dark, and accent;
+`tests/agent-creation.spec.ts` checks these pairs on the rendered page. Status
+dots and decorative borders aren't covered, so don't rely on them alone to carry
+meaning. Check new color pairs in both modes and in each look. The content
+security policy blocks inline scripts, so a device in one mode briefly shows
+that mode's background before the script applies a pinned opposite theme.
 
 ## Agent creation UI
 
