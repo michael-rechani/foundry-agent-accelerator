@@ -12,7 +12,7 @@ variable "monitor_private_link_scope_name" {
 
 variable "private_monitoring_enabled" {
   type        = bool
-  description = "Enable after the workspace association and private query path are verified."
+  description = "Keeps the Lab's Log Analytics workspace private. The default is true: public ingestion and public queries are disabled and the workspace is reached only through the private link scope. Setting it to false turns on public network access for both ingestion and queries (sign-in is still required and local authentication stays off). Don't set it to false without the environment owner's approval. Leave it true once the workspace association and the private query path are verified."
   default     = true
 }
 

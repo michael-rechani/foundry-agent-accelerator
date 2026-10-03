@@ -1,4 +1,7 @@
-variable "cosmos_account_name" { type = string }
+variable "cosmos_account_name" {
+  type        = string
+  description = "Name of the existing Cosmos DB account that holds the Lab's history database and container. The Lab identity gets data access to that container only."
+}
 
 locals {
   cosmos_account_id = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.DocumentDB/databaseAccounts/${var.cosmos_account_name}"
