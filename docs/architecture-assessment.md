@@ -128,7 +128,7 @@ migration.
 ### A small implemented improvement: alert delivery
 
 The Lab can now
-[create an optional email action group with Terraform](../workbench/README.md#terraform-managed-alert-delivery)
+[create an optional email action group with Terraform](lab-diagnostics.md#terraform-managed-alert-delivery)
 instead of requiring every notification group to be created elsewhere. It can
 also continue to reference existing groups, or use both. Defaults stay unchanged:
 no recipients, no extra action group, and no public ingress. These are

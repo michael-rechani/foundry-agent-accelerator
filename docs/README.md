@@ -18,6 +18,8 @@ For anyone using the Lab with fictional data. You don't need Azure permissions.
 | [Demo guide](demos.md) | Pick a scenario, copy its fictional input, and compare the answer with the expected findings. |
 | [Create and try a baseline agent](agent-creation.md) | Prepare an agent from a template and, in an operator-enabled Lab, publish and chat with it. |
 | [Document reviews](review-workflow.md) | Check pasted document text against your checklist and save the results. |
+| [Lab pages and access](lab-pages-and-access.md) | See what each Lab page does, the demonstration scenarios, and who can reach the Lab. |
+| [Lab chat, saving, and limits](lab-conversations.md) | Learn how the agent catalog, saved conversations, retention, and request limits work. |
 | [Demo handoff](demo-handoff.md) | Record what you tried, what worked, and what to do next. |
 
 ### Deploy and operate
@@ -27,7 +29,10 @@ For operators who deploy Azure resources and keep the environment running.
 | Guide | Use it to |
 | --- | --- |
 | [Infrastructure](../terraform/README.md) | Deploy the platform infrastructure with Terraform and manage its state. |
-| [The Lab](../workbench/README.md) | Deploy, configure, and run the browser app. |
+| [The Lab](../workbench/README.md) | Run the browser app locally and find the Lab reference pages. |
+| [Deploy the Lab](lab-deployment.md) | Follow the seven-step Terraform, image build, and verification runbook. |
+| [Lab configuration, storage, and cost](lab-configuration-and-cost.md) | See where each Lab setting comes from, what Cosmos DB holds, and what it costs. |
+| [Lab diagnostics, alerts, and caching](lab-diagnostics.md) | Check session reuse, request and dependency logs, budget alerts, and browser caching. |
 | [Hosted agents](../hosted-agents/README.md) | Publish, test, and roll back the prebuilt agents. |
 | [Private deployment runbook](private-deployment.md) | Publish agent updates from a separate machine inside the private network. |
 | [Credentials and protected state](credentials.md) | Keep credentials in Key Vault, scan every commit, and protect Terraform state. |
@@ -49,7 +54,11 @@ For developers who change agents, evaluate quality, or extend the architecture.
 | [Extension guide](architecture-assessment.md) | Add new agent examples without rebuilding the platform. |
 | [Shared plumbing design](shared-plumbing-design.md) | See where request admission, validation rules, hosted-agent start-up and per-agent metadata should live, and the order to move them. |
 | [Coordinator profiles](agent-profiles.md) | Point the coordinator at different instructions and specialists. |
-| [Evaluations](../evaluations/README.md) | Test answer quality offline, or run an approved live evaluation in Foundry. |
+| [Evaluations](../evaluations/README.md) | Test answer quality offline, or find the live evaluation reference pages. |
+| [Evaluation test cases and acceptance](evaluation-test-cases.md) | Read the evaluation profiles, the cases in each, and what every case expects. |
+| [Run an approved live evaluation](evaluation-live-run.md) | Prepare staging, run explicitly, and understand costs, retention, and interrupted runs. |
+| [Evaluation SDK contract, comparison, and tracing](evaluation-sdk-comparison-tracing.md) | See what the offline SDK tests establish, compare candidates, and set up tracing. |
+| [Agent library scorecards](library-scorecards.md) | Read the library's acceptance cases, the Lab's **Test results** tab, and the sign-off workflow. |
 | [Cost comparison](../cost-comparison/README.md) | Compare Azure GPU VM costs with Foundry hosted-agent costs. |
 | [Optional integrations](optional-integrations.md) | Review integration paths that sit outside the core demo. |
 | [Knowledge retrieval design](knowledge-retrieval.md) | Review the flag-gated, read-only Azure AI Search lookup for the case agent. It's off by default; a small sample pilot has run in the dev Lab since 2026-10-01. |

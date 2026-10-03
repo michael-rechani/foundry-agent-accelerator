@@ -262,7 +262,7 @@ cost acknowledgement, and the four-run limit.
 
 ### 2. Review and deploy the intended image
 
-Follow the [Lab deployment steps](../workbench/README.md#deployment): configure
+Follow the [Lab deployment steps](lab-deployment.md#deployment): configure
 the correct state, build an immutable image, review a saved Terraform plan, then
 apply and clean up that plan. Keep platform infrastructure and Lab state
 separate. Normal root Terraform source is publishable; state, backups, secrets,

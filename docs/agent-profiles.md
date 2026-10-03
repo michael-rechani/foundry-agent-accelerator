@@ -76,7 +76,7 @@ acceptance checks under the existing deployment process.
 getting-started guidance, starters, the Lab's endpoint map, and the expected
 receipt map. It does **not** register tools or change agent instructions.
 Rebuild and redeploy the Lab for those changes, and keep its map aligned with
-the runtime. [Lab settings](../workbench/README.md#workspace-configuration)
+the runtime. [Lab settings](lab-configuration-and-cost.md#workspace-configuration)
 separately own the visible entries, default agent, and title. Neither selection
 nor prompt editing is an administrative control.
 

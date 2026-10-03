@@ -84,7 +84,7 @@ Choose the path that fits your session:
 - **Browse the agent library.** In a deployed Lab, look through the sample
   agents, what each one leaves to a person, and how it did on its recorded test
   cases. Browsing, reading test results, and downloading an agent definition make
-  no model calls; trying an agent does. See the [Lab guide](workbench/README.md#pages).
+  no model calls; trying an agent does. See the [Lab guide](docs/lab-pages-and-access.md#pages).
 
 - **Create your own agent.** Follow [Create and try a baseline agent](docs/agent-creation.md).
   You need an operator-enabled Lab, one or more model deployments, and cost approval.
@@ -170,7 +170,7 @@ health overview, response times, tokens, cost, and the request log) appears when
 you turn on **Under the hood**. **All agents** has tabs for **Browse**, **Ready to chat**,
 **Made in this Lab**, **Guided demos**, and **Add-ons**. **Document reviews** has
 no sidebar link; open `/#reviews` or a saved-review link. See the
-[Lab guide](workbench/README.md#pages).
+[Lab guide](docs/lab-pages-and-access.md#pages).
 
 ---
 
@@ -356,7 +356,7 @@ for version, import, and dependency-install failures.
 2. **Prebuilt agents:** publish and test them from
    [`hosted-agents/`](hosted-agents/README.md).
 
-3. **The Lab:** deploy [`workbench/`](workbench/README.md#deployment), which has
+3. **The Lab:** deploy [`workbench/`](docs/lab-deployment.md#deployment), which has
    its own Terraform state.
 
 4. **Optional:** add [Bastion](terraform/bastion/README.md),
@@ -389,7 +389,7 @@ To deploy from a separate private machine, use the
   was asked five test cases, five times each, with sample data. A case passes
   only if every answer for it passes. An agent shows **Waiting for a person**
   until someone reads the recorded answers and signs off; the test runner never
-  records a sign-off. See [evaluations](evaluations/README.md).
+  records a sign-off. See [agent library scorecards](docs/library-scorecards.md).
 
 - **Access is by network, not by user.** The Lab has no sign-in. It accepts
   traffic only from the private admin network, such as the jumpbox reached

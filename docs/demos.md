@@ -69,7 +69,7 @@ Before inviting participants:
   works. **All agents** > **Ready to chat** selects an existing setup. The separate **Create agent** flow
   prepares and, with explicit operator confirmation, publishes a new agent.
 - A starter is just an example task and message. Developer configuration and
-  deployment are explained separately in [Lab settings](../workbench/README.md#workspace-configuration).
+  deployment are explained separately in [Lab settings](lab-configuration-and-cost.md#workspace-configuration).
 - Verify the selected prompt behavior in an approved staging environment first.
   A deployer smoke pass verifies invocation and delegation, not answer quality.
   Use the [Foundry evaluation suite](../evaluations/README.md) for quality gates.
