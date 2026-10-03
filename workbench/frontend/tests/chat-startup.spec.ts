@@ -54,13 +54,13 @@ test('configured title, default agent, prompts and character limits drive the UI
   }
   const state = await openWorkspace(page, {
     config: {
-      title: 'AI Foundry Test Lab',
+      title: 'Foundry Agent Test Lab',
       agents: [agent, specialist],
       default_agent: specialist.id,
       max_characters: 6,
     },
   })
-  await expect(page).toHaveTitle('AI Foundry Test Lab')
+  await expect(page).toHaveTitle('Foundry Agent Test Lab')
   await page.getByRole('button', { name: 'Check a date' }).click()
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   await expect(editor).toHaveValue('CASE-1')

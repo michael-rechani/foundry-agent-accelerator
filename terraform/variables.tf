@@ -289,7 +289,7 @@ variable "api_management_publisher_email" {
 variable "api_management_publisher_name" {
   type        = string
   description = "Name shown as the API Management service publisher."
-  default     = "AI Foundry Platform"
+  default     = "Foundry Agent Accelerator"
 }
 
 check "api_management_management_network" {

@@ -25,7 +25,7 @@ export function agentDefinition(
   >,
 ) {
   const metadata: Record<string, string> = {
-    source: 'AI Foundry Lab agent library',
+    source: 'Foundry Agent Lab agent library',
     library_agent: template.id,
     who_decides: clip(template.human_decision),
   }

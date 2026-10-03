@@ -56,7 +56,7 @@ control and protect any plan or state files that include these values.
 | `api_management_location` | Azure region for APIM and its virtual network (VNet) integration subnet. Defaults to `westus`; allowed values are `westus`, `westus3`, `southcentralus`, and `northcentralus`. When APIM is enabled, it must equal `jumpbox_location` for the shared management VNet region. |
 | `api_management_subnet_address_prefixes` | Address prefixes for the dedicated APIM VNet integration subnet. Defaults to `["10.43.1.0/24"]`. |
 | `api_management_publisher_email` | Publisher email. Required when APIM is enabled and validated as an email address. |
-| `api_management_publisher_name` | Publisher name shown by APIM. Defaults to `AI Foundry Platform`. |
+| `api_management_publisher_name` | Publisher name shown by APIM. Defaults to `Foundry Agent Accelerator`. |
 | `review_api` | Optional coordinator API authorization object. Defaults to `null`, which leaves the API unpublished. Requires `enable_api_management = true` when set. |
 | `review_api.audience` | Dedicated Microsoft Entra ID API audience. Terraform accepts a GUID or `api://GUID`; it rejects a general Azure audience. |
 | `review_api.allowed_caller_object_ids` | Nonempty set of approved caller principal object IDs. For app-only callers, use the tenant's service principal object ID, not the application ID. For delegated access, use the user's object ID. |
