@@ -8,16 +8,17 @@ summarizer (`case-review-agent`). The code ships behind the
 off, the published agent, its tools and instructions, portable bundles, and
 evaluation outputs are unchanged. The repository's Terraform, evaluation
 datasets, and default case agent files aren't changed by this work. The one live
-pilot was set up by hand, as the [pilot run record](#pilot-run-record) shows.
+pilot was set up by hand, as the [pilot results](#pilot-results-2026-10-01)
+show.
 
 > [!IMPORTANT]
-> **Status: a small sample pilot has run in the dev Lab since 2026-10-01. It
-> isn't a finished evaluation.** An index of ten fictional passages exists,
-> version 8 of the case agent has the lookup on, and the Lab's Add-ons tab says
-> so. Some live cases weren't run, and no person has reviewed the recorded
-> answers yet. See the [pilot run record](#pilot-run-record) and
-> [Not done](#not-done). The remaining work is tracked in
-> [#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122).
+> **Status: a small sample pilot, not a finished evaluation.** This guide
+> describes the design and its decisions. Dated measurements and the gaps found
+> in the pilot are in [Pilot results (2026-10-01)](#pilot-results-2026-10-01).
+> Current status and open work are tracked in
+> [#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122),
+> and the wider add-ons roadmap in
+> [#54](https://github.com/michael-rechani/foundry-agent-accelerator/issues/54).
 
 ## In this guide
 
@@ -36,9 +37,9 @@ pilot was set up by hand, as the [pilot run record](#pilot-run-record) shows.
 - [Evaluation additions](#evaluation-additions)
 - [Cost](#cost)
 - [Operator rollout](#operator-rollout)
-- [Pilot run record](#pilot-run-record)
 - [Not done](#not-done)
 - [Open decisions](#open-decisions)
+- [Pilot results (2026-10-01)](#pilot-results-2026-10-01)
 - [Sources](#sources)
 - [Related content](#related-content)
 
@@ -228,9 +229,9 @@ See the [permissions reference](permissions.md) for all current assignments.
   first and then list and write passages. `verify` reads the definition and the
   passages, so it needs Search Service Contributor plus a data role. Search
   Index Data Reader alone can't read an index definition, so `verify` with only
-  that role stops with an access error. The first approved run, on 2026-10-01,
-  worked with both roles in place; it didn't test whether either role alone
-  would have been enough.
+  that role stops with an access error. The pilot's approved run worked with
+  both roles in place; it didn't test whether either role alone would have been
+  enough (see [Pilot results](#pilot-results-2026-10-01)).
 - Search Service Contributor is a privileged role. Per
   [Microsoft Learn](https://learn.microsoft.com/azure/search/search-security-rbac#role-descriptions),
   it can also retrieve admin and query API keys through the control plane. Keys
@@ -249,9 +250,10 @@ The existing platform already provides the path. This design doesn't change it.
   hosted-agent egress is expected to resolve and reach the private endpoint.
 
 Verify this in staging before relying on it: the retrieval smoke check proves
-DNS, network, and RBAC together. It passed in the dev environment on
-2026-10-01. If you use a different Search service, it needs its own private
-endpoint and DNS link; don't enable public access.
+DNS, network, and RBAC together. The dev environment's result is in
+[Pilot results](#pilot-results-2026-10-01). If you use a different Search
+service, it needs its own private endpoint and DNS link; don't enable public
+access.
 
 Run the [index script](#sample-documents-and-the-index-script) from a machine
 that can reach the private endpoint, such as the jumpbox or a private runner.
@@ -396,34 +398,30 @@ live:
 
 ## Evaluation additions
 
-The live dataset isn't changed, and it has no retrieval cases yet. The runner
+This design doesn't change the live evaluation dataset. The runner
 has one change: [`evaluations/run.py`](../evaluations/run.py) now includes any
 `KNOWLEDGE_*` settings in the configuration digest of the version it evaluates,
 so the digest changes when retrieval is turned on, pointed at a different index,
 or given different options. Agents without those settings keep their existing
 digests, and runs record only the hash, never the setting values.
 
-A retrieval-enabled version now runs in the dev Lab, so these live cases still
-need to be added to the dataset and run. They need a person-approved, loaded
-index and the customer flow chosen in
+A retrieval-enabled version needs these live cases added to the dataset and run.
+They need a person-approved, loaded index and the customer flow chosen in
 [#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122),
-because through the coordinator only the answer's citations are visible. The
-[pilot run record](#pilot-run-record) says what was tried by hand so far:
+because through the coordinator only the answer's citations are visible. What
+was tried by hand, and what hasn't run, is in
+[Pilot results](#pilot-results-2026-10-01):
 
 - A question that one sample passage answers must be answered and cite that
   passage's `source_id`, one of the ten in
   [`policy-guidance.json`](../hosted-agents/knowledge-sample/policy-guidance.json).
-  A question that nothing matches must say no guidance was found. _Tried by hand
-  on 2026-10-01 and answered as expected. Not in the dataset._
-- A lookup-failure case that must say no guidance is available. _Not run._
+  A question that nothing matches must say no guidance was found.
+- A lookup-failure case that must say no guidance is available.
 - Prompt-injection passages in the index that try to change format, tools, or
-  the decision boundary. _Not run. It needs an extra passage in the shared
-  index._
+  the decision boundary. This needs an extra passage in the shared index.
 - Checks that supplied facts and retrieved guidance stay separate, and that no
   `source_id` is invented. Nothing in the runtime checks for an invented
-  `source_id`, so this case depends on a person reading the answer. _A script
-  compared the cited IDs in the direct answers with the approved set. No person
-  has read the answers yet._
+  `source_id`, so this case depends on a person reading the answer.
 
 Offline tests already cover how the code handles an injected passage, no
 match, a lookup failure, and a cited paraphrase; the live cases show whether
@@ -432,8 +430,8 @@ the model behaves the same way.
 ## Cost
 
 - Uses the existing Agent Service Search service. No new Search service or tier
-  change. The 2026-10-01 pilot added no hourly charge; its live checks used a
-  few cents of model use.
+  change, so no new hourly charge. The dev pilot's live-check cost is in
+  [Pilot results](#pilot-results-2026-10-01).
 - A small dedicated index adds storage within the service's existing capacity.
   Simple keyword queries don't use semantic ranker or vector billing.
 - Each lookup adds model tokens for the retrieved passages, at most 8,000
@@ -444,8 +442,8 @@ the model behaves the same way.
 ## Operator rollout
 
 Every step that creates, loads, or removes data, assigns a role, or publishes
-needs explicit approval first. The [pilot run record](#pilot-run-record) shows
-how these steps ran on 2026-10-01.
+needs explicit approval first. The [pilot results](#pilot-results-2026-10-01)
+show how these steps ran in the dev Lab.
 
 1. Take a read-only inventory of the Search service: its indexes, the project's
    vector stores, who owns each, and how each would be rebuilt or removed. Stop
@@ -476,54 +474,16 @@ how these steps ran on 2026-10-01.
    needed. If nothing else uses the sample index, `remove --confirm` deletes it,
    which needs the temporary operator roles again.
 
-## Pilot run record
-
-A sample pilot ran in the dev environment on 2026-10-01, after the written
-go-ahead on
-[#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122#issuecomment-5940369558).
-It used the platform's existing Search service, so it added no new resource.
-Every Azure step below was made by hand, not by Terraform.
-
-| Step | What happened |
-| --- | --- |
-| Read-only inventory | The Search service is Basic with one replica, reachable only privately, and sign-in only. The chosen index name was unused. The Agent Service's own index was left alone. |
-| Approved sample set | Version `sample-v1`, ten passages, digest `c7d68e26c329e8b0`. |
-| Index `lab-sample-policy-guidance` | `load --confirm` created it and uploaded the ten passages, and its `verify` step passed, including the "missing evidence" query. It ran from a machine with private network access, with both temporary operator roles in place. |
-| Temporary operator roles | Search Service Contributor and Search Index Data Contributor were removed straight after the load. |
-| Case agent access | Search Index Data Reader, scoped to the one index, for the case agent's runtime identity. It stays while retrieval is on. It isn't in Terraform yet. |
-| Case agent version 8 | Published with the flag on. Both deploy smoke checks passed, including the `search_policy_guidance` lookup, so DNS, network, and RBAC work together. Version 7, without the lookup, stays published as the rollback. The application agent and both coordinators weren't changed. |
-| Lab descriptions | `agents.json` and the Add-ons tab describe the pilot. See [Receipts in the Lab](#receipts-in-the-lab). |
-
-The live checks used fictional input only:
-
-| Check | Where | Result |
-| --- | --- | --- |
-| A question one passage answers | The case agent, directly | One lookup. The answer paraphrased the passage and cited `POL-EVID-001`, and every cited ID was in the approved set. |
-| A question nothing matches ("staff parking permit") | The case agent, directly | One lookup. The search still returned three loosely related passages, because it matches any query word. The answer said that no passage defined the rule. |
-| A question one passage answers | The Lab's chat, Checklist and case helper | Answered in about 35 seconds. It paraphrased the passage, named it as sample guidance `POL-EVID-001`, and showed "Asked another agent". Nothing was saved. |
-| The "Summarize case notes" example | The Lab's chat | Answered in about 34 seconds. It quoted the notes exactly, showed both conflicting dates, and said no policy was supplied. It made no lookup and named no `POL-*` source, which is right because the notes say no written policy exists. |
-| Application logs | Log Analytics, 21:07 to 21:23 UTC | Every request returned 200 and completed. No errors, warnings, or secrets. |
-
-The agent that ran the checks read these answers. No person has reviewed them
-yet, so the pilot isn't signed off.
-
 ## Not done
 
-- **No Terraform for the pilot.** The index, the Search Index Data Reader
-  assignment, and the retrieval-enabled version were made by hand. Add the
-  assignment to Terraform and its tests before anything depends on the pilot.
-- **Two live cases haven't run.** A failed lookup needs a deliberate fault. A
-  poisoned passage needs an extra passage in the shared index. Each needs
-  approval.
-- **The document Reviews flow hasn't been tried with the lookup on.** It saves a
-  review record to shared storage, so it needs approval.
-- **No person has reviewed the recorded answers.** Don't treat the pilot as
-  signed off.
+This lists what the design deliberately leaves out. Gaps found in the pilot and
+open work are in [Pilot results](#pilot-results-2026-10-01) and tracked in
+[#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122).
+
 - No change to the default case agent files, the application agent, the
   coordinators' instructions, or bundles.
-- No evaluation dataset change and no retrieval cases yet. The runner's
-  fingerprint change, described in [Evaluation additions](#evaluation-additions),
-  is the only evaluation change.
+- No evaluation dataset change. The runner's fingerprint change, described in
+  [Evaluation additions](#evaluation-additions), is the only evaluation change.
 - No Foundry Azure AI Search tool, toolbox, or context provider integration.
 - No vector, hybrid, or semantic search, and no document-level authorization.
 - No search over a visitor's own documents. The Lab has no sign-in to keep them
@@ -545,6 +505,76 @@ yet, so the pilot isn't signed off.
   it, through the coordinator. Decide that, and whether to check the document
   Reviews flow too, before customers see it. See
   [#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122).
+
+## Pilot results (2026-10-01)
+
+This section is a dated snapshot, not part of the design. It records one sample
+pilot in the dev environment on 2026-10-01 and doesn't update itself. For current
+status and open work, see
+[#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122).
+
+The pilot ran after the written go-ahead on
+[#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122#issuecomment-5940369558).
+It used the platform's existing Search service, so it added no new resource.
+Every Azure step below was made by hand, not by Terraform.
+
+**Where it stood on 2026-10-01.** An index of ten fictional passages existed,
+version 8 of the case agent had the lookup on, and the Lab's Add-ons tab said so.
+Some live cases hadn't run, and no person had reviewed the recorded answers.
+
+| Step | What happened |
+| --- | --- |
+| Read-only inventory | The Search service is Basic with one replica, reachable only privately, and sign-in only. The chosen index name was unused. The Agent Service's own index was left alone. |
+| Approved sample set | Version `sample-v1`, ten passages, digest `c7d68e26c329e8b0`. |
+| Index `lab-sample-policy-guidance` | `load --confirm` created it and uploaded the ten passages, and its `verify` step passed, including the "missing evidence" query. It ran from a machine with private network access, with both temporary operator roles in place. That first approved run didn't test whether either role alone would have been enough. |
+| Temporary operator roles | Search Service Contributor and Search Index Data Contributor were removed straight after the load. |
+| Case agent access | Search Index Data Reader, scoped to the one index, for the case agent's runtime identity. It stays while retrieval is on. It isn't in Terraform yet. |
+| Case agent version 8 | Published with the flag on. Both deploy smoke checks passed, including the `search_policy_guidance` lookup, so DNS, network, and RBAC work together. Version 7, without the lookup, stays published as the rollback. The application agent and both coordinators weren't changed. |
+| Lab descriptions | `agents.json` and the Add-ons tab describe the pilot. See [Receipts in the Lab](#receipts-in-the-lab). |
+
+The live checks used fictional input only:
+
+| Check | Where | Result |
+| --- | --- | --- |
+| A question one passage answers | The case agent, directly | One lookup. The answer paraphrased the passage and cited `POL-EVID-001`, and every cited ID was in the approved set. |
+| A question nothing matches ("staff parking permit") | The case agent, directly | One lookup. The search still returned three loosely related passages, because it matches any query word. The answer said that no passage defined the rule. |
+| A question one passage answers | The Lab's chat, Checklist and case helper | Answered in about 35 seconds. It paraphrased the passage, named it as sample guidance `POL-EVID-001`, and showed "Asked another agent". Nothing was saved. |
+| The "Summarize case notes" example | The Lab's chat | Answered in about 34 seconds. It quoted the notes exactly, showed both conflicting dates, and said no policy was supplied. It made no lookup and named no `POL-*` source, which is right because the notes say no written policy exists. |
+| Application logs | Log Analytics, 21:07 to 21:23 UTC | Every request returned 200 and completed. No errors, warnings, or secrets. |
+
+The agent that ran the checks read these answers. No person has reviewed them
+yet, so the pilot isn't signed off.
+
+**Cost.** The pilot added no hourly charge. Its live checks used a few cents of
+model use.
+
+**Evaluation cases.** The live dataset has no retrieval cases yet. Against the
+cases listed in [Evaluation additions](#evaluation-additions):
+
+- A question that one sample passage answers, and a question nothing matches:
+  tried by hand and answered as expected. Not in the dataset.
+- A lookup failure: not run.
+- Prompt-injection passages: not run. It needs an extra passage in the shared
+  index.
+- Separate supplied facts and retrieved guidance, and no invented `source_id`: a
+  script compared the cited IDs in the direct answers with the approved set. No
+  person has read the answers yet.
+
+**Open at 2026-10-01.**
+
+- **No Terraform for the pilot.** The index, the Search Index Data Reader
+  assignment, and the retrieval-enabled version were made by hand. Add the
+  assignment to Terraform and its tests before anything depends on the pilot
+  ([#143](https://github.com/michael-rechani/foundry-agent-accelerator/issues/143)).
+- **Two live cases haven't run.** A failed lookup needs a deliberate fault. A
+  poisoned passage needs an extra passage in the shared index. Each needs
+  approval.
+- **The document Reviews flow hasn't been tried with the lookup on.** It saves a
+  review record to shared storage, so it needs approval.
+- **No person has reviewed the recorded answers.** Don't treat the pilot as
+  signed off
+  ([#87](https://github.com/michael-rechani/foundry-agent-accelerator/issues/87)).
+- **No retrieval cases in the evaluation dataset yet.**
 
 ## Sources
 
