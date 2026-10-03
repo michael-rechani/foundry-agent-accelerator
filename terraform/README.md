@@ -291,6 +291,32 @@ See
 [coordinator agent access](../docs/permissions.md#coordinator-agent-access) for
 the first-deployment order and what's still unconfirmed.
 
+## Knowledge search access
+
+`knowledge_search_access` is off by default. When set, Terraform assigns Search
+Index Data Reader to the case-review agent's runtime identity on one index of
+the Agent Service Search service, not on the service. Retrieval is off by
+default, so an environment that doesn't use the
+[knowledge-search pilot](../docs/knowledge-retrieval.md) doesn't need it. As with
+the coordinator, Foundry creates the identity when the agent is first deployed,
+so copy the `Agent identity principal ID` that the hosted-agent deployer prints
+for `case-review-agent`:
+
+```hcl
+knowledge_search_access = {
+  principal_id = "<case-review agent identity principal ID>"
+  # Optional. Defaults to the pilot's index.
+  index_name = "lab-sample-policy-guidance"
+}
+```
+
+Terraform doesn't create the index; the
+[index script](../docs/knowledge-retrieval.md#sample-documents-and-the-index-script)
+does, so run it first. It needs `enable_agent_service = true`. An environment
+that already has the grant made by hand must
+[import it](../docs/permissions.md#adopt-the-knowledge-search-grant) before you
+set the variable.
+
 ## API Management gateway
 
 Set `enable_api_management = true` and provide

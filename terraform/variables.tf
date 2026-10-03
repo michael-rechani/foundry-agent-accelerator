@@ -352,6 +352,30 @@ variable "coordinator_agent_access" {
   }
 }
 
+variable "knowledge_search_access" {
+  type = object({
+    principal_id = string
+    index_name   = optional(string, "lab-sample-policy-guidance")
+  })
+  description = "Opt-in Search Index Data Reader grant for the knowledge-search pilot (#143). Set principal_id to the case-review agent's instance_identity.principal_id, which the hosted-agent deployer prints. The grant covers the one index named by index_name on the Agent Service Search service, not the service. Null creates no grant. The index itself isn't managed here; the index script creates it first."
+  default     = null
+
+  validation {
+    condition     = var.knowledge_search_access == null ? true : can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", var.knowledge_search_access.principal_id))
+    error_message = "knowledge_search_access.principal_id must be a principal GUID, not an application or client ID."
+  }
+
+  validation {
+    condition     = var.knowledge_search_access == null ? true : can(regex("^[a-z0-9][a-z0-9-]{0,127}$", var.knowledge_search_access.index_name))
+    error_message = "knowledge_search_access.index_name must be a Search index name: lowercase letters, digits and dashes, starting with a letter or digit."
+  }
+
+  validation {
+    condition     = var.knowledge_search_access == null ? true : var.enable_agent_service
+    error_message = "knowledge_search_access needs enable_agent_service = true, because the Search service it scopes to comes with the Agent Service."
+  }
+}
+
 variable "model_deployment" {
   type = object({
     deployment_name = string
