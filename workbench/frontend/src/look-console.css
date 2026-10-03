@@ -388,10 +388,7 @@
 :root[data-look='console'] .library-list-wrap {
   border-color: var(--line-strong);
 }
-:root[data-look='console']
-  :is(.library-list-table, .request-table, .operations-table)
-  thead
-  th {
+:root[data-look='console'] :is(.library-list-table, .request-table) thead th {
   font: 600 10px/1.6 var(--mono);
   letter-spacing: 0.12em;
   text-transform: uppercase;

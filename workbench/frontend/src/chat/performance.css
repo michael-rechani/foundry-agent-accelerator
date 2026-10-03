@@ -121,7 +121,3 @@
     border-right: 0;
   }
 }
-.table-id {
-  color: var(--muted);
-  font: 400 11px var(--mono);
-}

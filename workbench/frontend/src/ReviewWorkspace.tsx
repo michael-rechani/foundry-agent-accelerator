@@ -18,6 +18,7 @@ import { ReviewGuide, ReviewIntro } from './ReviewGuide'
 import { ReviewForm } from './ReviewForm'
 import { ReviewDetail } from './ReviewDetail'
 import { ReviewInbox } from './ReviewInbox'
+import { saveFile } from './save-file'
 import './reviews.css'
 
 export function ReviewWorkspace({
@@ -315,16 +316,11 @@ export function ReviewWorkspace({
   }
 
   function download() {
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(selected, null, 2)], {
-        type: 'application/json',
-      }),
+    saveFile(
+      `${selected?.id}.json`,
+      JSON.stringify(selected, null, 2),
+      'application/json',
     )
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${selected?.id}.json`
-    link.click()
-    URL.revokeObjectURL(url)
   }
 
   return (

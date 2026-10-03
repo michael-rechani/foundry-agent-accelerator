@@ -1,4 +1,5 @@
 import type { Turn } from './conversation-types'
+import { saveFile } from './save-file'
 import type { Agent, Config } from './workspace-config'
 
 // What a request would weigh, against the limits the Lab reports.
@@ -62,14 +63,9 @@ export function exportConversation(
   turns: Turn[],
   draft: string,
 ) {
-  const url = URL.createObjectURL(
-    new Blob([JSON.stringify({ agent: agent?.agent, turns, draft }, null, 2)], {
-      type: 'application/json',
-    }),
+  saveFile(
+    'foundry-conversation.json',
+    JSON.stringify({ agent: agent?.agent, turns, draft }, null, 2),
+    'application/json',
   )
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'foundry-conversation.json'
-  link.click()
-  URL.revokeObjectURL(url)
 }
