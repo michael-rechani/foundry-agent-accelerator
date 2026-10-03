@@ -47,6 +47,7 @@ For developers who change agents, evaluate quality, or extend the architecture.
 | --- | --- |
 | [Architecture](architecture.md) | Understand the components, data flows, and trust boundaries. |
 | [Extension guide](architecture-assessment.md) | Add new agent examples without rebuilding the platform. |
+| [Shared plumbing design](shared-plumbing-design.md) | See where request admission, validation rules, hosted-agent start-up and per-agent metadata should live, and the order to move them. |
 | [Coordinator profiles](agent-profiles.md) | Point the coordinator at different instructions and specialists. |
 | [Evaluations](../evaluations/README.md) | Test answer quality offline, or run an approved live evaluation in Foundry. |
 | [Cost comparison](../cost-comparison/README.md) | Compare Azure GPU VM costs with Foundry hosted-agent costs. |
