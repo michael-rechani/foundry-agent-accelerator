@@ -25,6 +25,29 @@ PROFILE_MAPS = {
 }
 
 
+class EvidenceRowTests(unittest.TestCase):
+    def test_the_writer_and_the_reader_use_the_one_set_of_keys(self):
+        self.assertIs(library_runs.ANSWER_ROW, library_rules.ANSWER_ROW)
+        self.assertIs(library_runs.METRICS_ROW, library_rules.METRICS_ROW)
+        self.assertIs(library_runs.RUN_ROW, library_rules.RUN_ROW)
+        self.assertIs(library_runs.COUNT_KEYS, library_rules.COUNT_KEYS)
+        self.assertIs(scorecards.METRIC_KEYS, library_rules.METRIC_KEYS)
+
+    def test_the_keys_the_reader_measures_are_in_every_row_that_carries_a_run(self):
+        self.assertTrue(set(library_rules.METRIC_KEYS) <= set(library_rules.METRICS_ROW))
+        self.assertTrue(set(library_rules.METRIC_KEYS) <= set(library_rules.RUN_ROW))
+        self.assertTrue(set(library_rules.COUNT_KEYS) <= set(library_rules.METRIC_KEYS))
+        self.assertTrue({"recorded_on", "instructions_sha256", "case_id"} <= set(library_rules.ANSWER_ROW))
+
+    def test_every_row_in_the_recorded_evidence_has_exactly_those_keys_in_that_order(self):
+        for path, keys in ((scorecards.ANSWERS, library_rules.ANSWER_ROW), (scorecards.METRICS, library_rules.METRICS_ROW),
+                           (scorecards.REPEATS, library_rules.RUN_ROW)):
+            rows = scorecards._lines(path)
+            self.assertTrue(rows, path.name)
+            for row in rows:
+                self.assertEqual(tuple(row), keys, f"{path.name}: {row.get('case_id')}")
+
+
 class OneCopyTests(unittest.TestCase):
     def test_the_categories_are_one_set(self):
         self.assertIs(agent_scorecards.CATEGORIES, library_rules.CATEGORIES)

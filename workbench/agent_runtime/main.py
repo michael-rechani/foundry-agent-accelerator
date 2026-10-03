@@ -33,7 +33,8 @@ def read_configuration(environment=None):
         raise ValueError("Unsupported demo template")
     parsed = urlparse(environment["FOUNDRY_PROJECT_ENDPOINT"])
     if (parsed.scheme != "https" or not (parsed.hostname or "").endswith(".services.ai.azure.com")
-            or parsed.username or parsed.port not in (None, 443) or parsed.query or parsed.fragment
+            or parsed.username or parsed.password or parsed.port not in (None, 443)
+            or parsed.params or parsed.query or parsed.fragment
             or not re.fullmatch(r"/api/projects/[A-Za-z0-9_-]+", parsed.path)):
         raise ValueError("A Foundry project endpoint is required")
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", environment["FOUNDRY_MODEL_NAME"]):
