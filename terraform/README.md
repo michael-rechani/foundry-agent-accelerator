@@ -601,7 +601,7 @@ controls. Before production use:
   landing-zone hub, firewall, DNS resolver, and on-premises routing design.
 - Send diagnostics to a centrally managed Log Analytics workspace.
 - Configure and test alert notification delivery and backup/restore procedures.
-  The Lab can [reuse notification groups or create an optional email group](../workbench/README.md#terraform-managed-alert-delivery)
+  The Lab can [reuse notification groups or create an optional email group](../docs/lab-diagnostics.md#terraform-managed-alert-delivery)
   through its own Terraform stack.
 - Add user authorization and owner-scoped history before using confidential data.
 - Replace process-local limits with shared admission control before scaling out.

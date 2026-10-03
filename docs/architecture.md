@@ -319,7 +319,7 @@ controls are process-local and require one worker and one replica. Dependency
 probes are cached, bounded, and separate from process liveness. Logs contain
 request metadata, not prompts or transcripts. Action groups are needed for
 delivered notifications: the Lab can reuse existing groups or
-[create an opt-in email group with Terraform](../workbench/README.md#terraform-managed-alert-delivery).
+[create an opt-in email group with Terraform](lab-diagnostics.md#terraform-managed-alert-delivery).
 No recipients are configured by default.
 
 The Lab's Premium Azure Container Registry (ACR) has a private endpoint and

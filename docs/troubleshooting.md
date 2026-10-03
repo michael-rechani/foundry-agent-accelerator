@@ -62,10 +62,10 @@ changing configuration or credentials.
 
 | Symptom | Likely area | Where to look |
 | --- | --- | --- |
-| `AuthorizationFailed` persists on a VM runner after a new role grant. | Cached managed identity token | [Lab prerequisites](../workbench/README.md#1-confirm-prerequisites-and-state-ownership) |
-| A Lab plan wants to recreate existing resources. | Lab state key and ownership | [Lab prerequisites](../workbench/README.md#1-confirm-prerequisites-and-state-ownership) |
-| The image build, push, or pull by digest fails. | Private registry access from the runner | [Build and select an immutable image](../workbench/README.md#4-build-and-select-an-immutable-image) |
-| The apply succeeds, but the private check fails. | Agent, Cosmos, or HTTPS path | [Verify the deployed application](../workbench/README.md#7-verify-the-deployed-application) |
+| `AuthorizationFailed` persists on a VM runner after a new role grant. | Cached managed identity token | [Lab prerequisites](lab-deployment.md#1-confirm-prerequisites-and-state-ownership) |
+| A Lab plan wants to recreate existing resources. | Lab state key and ownership | [Lab prerequisites](lab-deployment.md#1-confirm-prerequisites-and-state-ownership) |
+| The image build, push, or pull by digest fails. | Private registry access from the runner | [Build and select an immutable image](lab-deployment.md#4-build-and-select-an-immutable-image) |
+| The apply succeeds, but the private check fails. | Agent, Cosmos, or HTTPS path | [Verify the deployed application](lab-deployment.md#7-verify-the-deployed-application) |
 
 ## Create an agent
 
@@ -80,11 +80,11 @@ changing configuration or credentials.
 
 | Symptom | Likely area | Where to look |
 | --- | --- | --- |
-| The Lab won't load its configuration. | Bootstrap deadline and settings | [Configuration loading](../workbench/README.md#configuration-loading) |
-| A chat stops waiting, times out, or a save is rejected. | Request limits and ETag checks | [Limits and request behavior](../workbench/README.md#limits-and-request-behavior), [failure and capacity boundaries](architecture.md#failure-and-capacity-boundaries) |
-| Requests return HTTP 429. | Process-local admission limits, or the model deployment at its own limit | [Storage and cost](../workbench/README.md#storage-and-cost) |
-| A follow-up starts cold after a restart, delay, or overlapping request. | Process-local session lease/cache | [Agent session reuse](../workbench/README.md#agent-session-reuse) |
-| `/api/health/dependencies` returns 503. | Foundry or Cosmos access | [Diagnostics and caching](../workbench/README.md#diagnostics-and-caching) |
+| The Lab won't load its configuration. | Bootstrap deadline and settings | [Configuration loading](lab-conversations.md#configuration-loading) |
+| A chat stops waiting, times out, or a save is rejected. | Request limits and ETag checks | [Limits and request behavior](lab-conversations.md#limits-and-request-behavior), [failure and capacity boundaries](architecture.md#failure-and-capacity-boundaries) |
+| Requests return HTTP 429. | Process-local admission limits, or the model deployment at its own limit | [Storage and cost](lab-configuration-and-cost.md#storage-and-cost) |
+| A follow-up starts cold after a restart, delay, or overlapping request. | Process-local session lease/cache | [Agent session reuse](lab-diagnostics.md#agent-session-reuse) |
+| `/api/health/dependencies` returns 503. | Foundry or Cosmos access | [Diagnostics and caching](lab-diagnostics.md#diagnostics-and-caching) |
 | A review stays **running** or shows **Interrupted**. | Review recovery window | [Recover an interrupted review](review-workflow.md#recover-an-interrupted-review) |
 | A review state or next action is unclear. | Review lifecycle | [Review states](review-workflow.md#review-states) |
 
@@ -101,7 +101,7 @@ changing configuration or credentials.
 
 | Symptom | Likely area | Where to look |
 | --- | --- | --- |
-| The Lab URL doesn't open from your own browser. | Private network access | [Access](../workbench/README.md#access) |
+| The Lab URL doesn't open from your own browser. | Private network access | [Access](lab-pages-and-access.md#access) |
 | A Bastion plan wants to recreate the host or duplicate the subnet or IP. | Bastion import and state | [Bastion troubleshooting](../terraform/bastion/README.md#troubleshooting) |
 | A Bastion session works, but the VM can't reach Foundry. | VM DNS and routing | [Bastion troubleshooting](../terraform/bastion/README.md#troubleshooting) |
 | A gateway returns `502` or `504`, chat fails through the edge, or sign-in loops. | Application Gateway or Front Door setup | [Ingress troubleshooting](ingress-access.md#troubleshooting) |
