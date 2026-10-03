@@ -203,6 +203,17 @@ class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(response.json()["evidence"]), 2)
         self.assertEqual(len(response.json()["runs"][0]["input"]["evidence"]), 1)
 
+    async def test_json_content_type_matches_the_other_routers(self):
+        content = json.dumps(self.body)
+        response = await self.client.post("/api/review-runs", content=content,
+                                          headers={"Content-Type": "Application/JSON ; charset=utf-8"})
+        self.assertEqual(response.status_code, 201, response.text)
+        for value in ("text/plain", "application/jsonp"):
+            with self.subTest(value=value):
+                response = await self.client.post("/api/review-runs", content=content, headers={"Content-Type": value})
+                self.assertEqual((response.status_code, response.json()["error"]), (415, "json_required"))
+        self.assertEqual(len(self.store.documents), 1)
+
     async def test_oversized_review_body_is_rejected_before_storage(self):
         response = await self.client.post("/api/review-runs", content=b"{" + b" " * 65536 + b"}",
                                           headers={"Content-Type": "application/json"})

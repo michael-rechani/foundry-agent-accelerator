@@ -1,5 +1,7 @@
 import asyncio
 
+from fastapi.responses import JSONResponse
+
 
 MAX_REQUEST_BYTES = 65536
 MAX_CONVERSATION_BYTES = 524288
@@ -35,4 +37,18 @@ def request_allowed(request, origins):
         request.headers.get("x-workbench-request") == "1"
         and request.headers.get("sec-fetch-site") != "cross-site"
         and request.headers.get("origin") in (None, *origins)
+    )
+
+
+def is_json(request):
+    """True for an application/json body; media types are case-insensitive and may carry parameters."""
+    return request.headers.get("content-type", "").split(";")[0].strip().lower() == "application/json"
+
+
+def api_error(request, status, code, *, retry_after=None, **extra):
+    """Build the API's error body and record its code for the request log. The correlation header comes from the app's middleware."""
+    request.state.error_code = code
+    return JSONResponse(
+        {"error": code, "request_id": request.state.request_id, **extra}, status_code=status,
+        headers=None if retry_after is None else {"Retry-After": str(retry_after)},
     )

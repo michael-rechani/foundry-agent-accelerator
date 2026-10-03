@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from request_guard import (
     BodyReadTimeout, MAX_CONVERSATION_BYTES, MAX_REQUEST_BYTES, MAX_SETUP_BYTES,
-    read_bounded_body, record_request_failure,
+    api_error, is_json, read_bounded_body, record_request_failure,
 )
 from log_capture import CapturedLabLogs
 
@@ -66,6 +66,33 @@ class BodyTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         request = SimpleNamespace(state=SimpleNamespace())
         record_request_failure(request, RuntimeError("sensitive body, token, and endpoint"), "foundry")
         self.assertEqual(request.state.failure, {"error_type": "RuntimeError", "dependency": "foundry"})
+
+
+class AdmissionHelperTests(unittest.TestCase):
+    def test_json_content_type_is_case_insensitive_and_ignores_parameters(self):
+        for value in ("application/json", "Application/JSON", " application/json ; charset=utf-8", "APPLICATION/JSON;charset=UTF-8"):
+            with self.subTest(value=value):
+                self.assertTrue(is_json(SimpleNamespace(headers={"content-type": value})))
+
+    def test_other_or_missing_content_types_are_not_json(self):
+        for headers in ({}, {"content-type": ""}, {"content-type": "text/plain"}, {"content-type": "application/jsonp"},
+                        {"content-type": "application/json-seq"}, {"content-type": "multipart/form-data; boundary=application/json"}):
+            with self.subTest(headers=headers):
+                self.assertFalse(is_json(SimpleNamespace(headers=headers)))
+
+    def test_error_body_status_and_logged_code(self):
+        request = SimpleNamespace(state=SimpleNamespace(request_id="abc"))
+        response = api_error(request, 415, "json_required")
+        self.assertEqual((response.status_code, response.body), (415, b'{"error":"json_required","request_id":"abc"}'))
+        self.assertEqual(request.state.error_code, "json_required")
+        self.assertNotIn("retry-after", response.headers)
+
+    def test_retry_after_and_extra_fields_are_added_only_when_given(self):
+        request = SimpleNamespace(state=SimpleNamespace(request_id="abc"))
+        response = api_error(request, 429, "agents_busy", retry_after=60, reason="slots")
+        self.assertEqual(response.headers["retry-after"], "60")
+        self.assertEqual(response.body, b'{"error":"agents_busy","request_id":"abc","reason":"slots"}')
+        self.assertEqual(api_error(request, 429, "busy", retry_after=7).headers["retry-after"], "7")
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from request_guard import BodyReadTimeout, MAX_REQUEST_BYTES, read_bounded_body, record_request_failure, request_allowed
+from request_guard import BodyReadTimeout, MAX_REQUEST_BYTES, api_error, is_json, read_bounded_body, record_request_failure, request_allowed
 from reviews import Evidence, ReviewInput, review_prompt, validate_result
 
 LOGGER = logging.getLogger("uvicorn.error")
@@ -69,9 +69,7 @@ class ReviewRuns:
         return result
 
     def error(self, request, status, code):
-        request.state.error_code = code
-        return JSONResponse({"error": code, "request_id": request.state.request_id}, status_code=status,
-                            headers={"Retry-After": "60"} if status == 429 else None)
+        return api_error(request, status, code, retry_after=60 if status == 429 else None)
 
     async def handle(self, request: Request, identifier: str | None = None, action: str | None = None):
         if not request_allowed(request, self.settings.origins):
@@ -121,7 +119,7 @@ class ReviewRuns:
             return self.error(request, 409, "review_changed")
         body = None
         if action != "execute":
-            if request.headers.get("content-type", "").split(";")[0] != "application/json":
+            if not is_json(request):
                 return self.error(request, 415, "json_required")
             body = await self.read_body(request)
         if action in {"execute", "resume"}:

@@ -62,8 +62,9 @@ or rebases on it.
 `MAX_REQUEST_BYTES`, `MAX_CONVERSATION_BYTES`, `MAX_SETUP_BYTES`,
 `BodyReadTimeout`, `read_bounded_body(request, limit)`,
 `record_request_failure(request, problem, dependency)` and
-`request_allowed(request, origins)`. All four routers import them. What each
-router still repeats is the glue around them:
+`request_allowed(request, origins)`. Admission A added `is_json(request)` and
+`api_error(request, status, code, *, retry_after=None, **extra)`. All four
+routers import them. What each router still repeats is the glue around them:
 
 | Router | Busy check | Busy code | Error body has `request_id` | Check order |
 | --- | --- | --- | --- | --- |
@@ -74,9 +75,10 @@ router still repeats is the glue around them:
 
 Smaller differences that the helper has to keep, or change on purpose:
 
-- The content-type test is `.split(";")[0].strip().lower()` in `app.py` and
-  `agent_creation.py`, but `.split(";")[0]` with no strip or lowercase in
-  `history.py` and `review_runs.py`.
+- The content-type test used to be `.split(";")[0].strip().lower()` in `app.py`
+  and `agent_creation.py`, but `.split(";")[0]` with no strip or lowercase in
+  `history.py` and `review_runs.py`. All four now call `is_json`, which uses the
+  first rule (see [What would change behaviour](#what-would-change-behaviour)).
 - A wrong content type is 415 `json_required` in three routers, but a 400
   `invalid_setup` in `agent_creation.py`.
 - Too much data is `conversation_too_large` in `history.py` and
@@ -93,6 +95,10 @@ The browser maps these codes to messages (`history-client.ts`,
 contract. Every helper takes the code as a parameter.
 
 ### Shared home: `workbench/request_guard.py`
+
+Status: `is_json` and `api_error` are in place and the four routers use them
+(Admission A). `RateGate`, `RequestRejected` and `read_json_body` are not built
+yet.
 
 Extend the file all four routers already import. It is already in every module
 list and has `workbench/test_request_guard.py`, so this adds no new module. The
@@ -216,9 +222,12 @@ and `hosted-agents/knowledge_main.py`. The last one is packaged as `main.py` whe
 They differ in three ways: middleware (none, `quotation_middleware()` or
 `passthrough_middleware(bindings)`), tools (none, knowledge lookups or the
 coordinator's specialist calls) and the credential (the coordinator uses the
-async one). Only the coordinator has a start-up test today
-(`review-coordinator-agent/test_main.py`); the other four `main()` functions
-have none.
+async one). Each now has a start-up test. The coordinator's is
+`review-coordinator-agent/test_main.py`. The basic-responses, case-review and
+application-review agents share `hosted-agents/test_startup.py`, which pins the
+settings error, the defaults, the `AGENT_NAME` and `AGENT_INSTRUCTIONS`
+overrides, the `AGENT_STORE_RESPONSES` rule and the middleware. `knowledge_main.py`
+is covered next to the retrieval tests in `test_knowledge_retrieval.py`.
 
 The `deploy.py` files are already thin: each builds an `AgentProfile(...)` and
 calls `deployment.run(...)`. What is left is data (name, description, smoke-test
