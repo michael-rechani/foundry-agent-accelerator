@@ -8,6 +8,7 @@ import {
 } from '../src/agent-creation-client'
 import type { Config } from '../src/workspace-config'
 import type { Turn } from '../src/conversation-types'
+import { accents, looks } from '../src/theme'
 import { guidedReview, screenshot } from './fixtures'
 
 const operatorKey = 'fictional-test-key-not-a-real-secret-1234567890'
@@ -610,6 +611,7 @@ test('appearance follows the device by default and applies saved choices everywh
   const root = page.locator('html')
   await expect(root).toHaveAttribute('data-theme', 'system')
   await expect(root).toHaveAttribute('data-accent', 'foundry')
+  await expect(root).toHaveAttribute('data-look', 'classic')
   expect(await computed(page, '.chat-topbar', 'background-color')).toBe(
     lightSurface,
   )
@@ -633,6 +635,7 @@ test('appearance follows the device by default and applies saved choices everywh
   ).toBe(true)
   await expect(page.getByRole('radio', { name: 'System' })).toBeChecked()
   await expect(page.getByRole('radio', { name: 'Foundry' })).toBeChecked()
+  await expect(page.getByRole('radio', { name: 'Classic' })).toBeChecked()
 
   await page.getByRole('radio', { name: 'Dark' }).check()
   await expect(root).toHaveAttribute('data-theme', 'dark')
@@ -649,7 +652,7 @@ test('appearance follows the device by default and applies saved choices everywh
     JSON.parse(
       (await page.evaluate((key) => localStorage.getItem(key), themeKey))!,
     ),
-  ).toEqual({ mode: 'dark', accent: 'orchid' })
+  ).toEqual({ mode: 'dark', accent: 'orchid', look: 'classic' })
   await page.keyboard.press('Escape')
   await expect(panel).toBeHidden()
   await expect(control).toBeFocused()
@@ -669,13 +672,19 @@ test('appearance follows the device by default and applies saved choices everywh
   await expect(page.getByRole('radio', { name: 'Orchid' })).toBeChecked()
 
   await page.evaluate((key) => {
-    const value = JSON.stringify({ mode: 'light', accent: 'lagoon' })
+    const value = JSON.stringify({
+      mode: 'light',
+      accent: 'lagoon',
+      look: 'console',
+    })
     localStorage.setItem(key, value)
     dispatchEvent(new StorageEvent('storage', { key, newValue: value }))
   }, themeKey)
   await expect(root).toHaveAttribute('data-theme', 'light')
   await expect(root).toHaveAttribute('data-accent', 'lagoon')
+  await expect(root).toHaveAttribute('data-look', 'console')
   await expect(page.getByRole('radio', { name: 'Lagoon' })).toBeChecked()
+  await expect(page.getByRole('radio', { name: 'Console' })).toBeChecked()
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -732,15 +741,276 @@ test('unreadable saved appearance falls back to the defaults', async ({
   page,
 }) => {
   await page.addInitScript((key) => {
-    localStorage.setItem(key, '{"mode":"neon","accent":42}')
+    localStorage.setItem(key, '{"mode":"neon","accent":42,"look":"neon"}')
   }, themeKey)
   await setup(page)
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'system')
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'foundry')
+  await expect(page.locator('html')).toHaveAttribute('data-look', 'classic')
   await page.evaluate((key) => localStorage.setItem(key, 'not json'), themeKey)
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'system')
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'foundry')
+  await expect(page.locator('html')).toHaveAttribute('data-look', 'classic')
+})
+
+test('an appearance saved before looks existed opens in Classic', async ({
+  page,
+}) => {
+  await page.addInitScript((key) => {
+    localStorage.setItem(key, '{"mode":"dark","accent":"orchid"}')
+  }, themeKey)
+  await setup(page)
+  const root = page.locator('html')
+  await expect(root).toHaveAttribute('data-theme', 'dark')
+  await expect(root).toHaveAttribute('data-accent', 'orchid')
+  await expect(root).toHaveAttribute('data-look', 'classic')
+  await page.getByTitle('Appearance', { exact: true }).click()
+  await expect(page.getByRole('radio', { name: 'Classic' })).toBeChecked()
+  await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked()
+  await expect(page.getByRole('radio', { name: 'Orchid' })).toBeChecked()
+})
+
+test('each look restyles the app at once and is remembered with the other choices', async ({
+  page,
+}) => {
+  await setup(page)
+  const root = page.locator('html')
+  const control = page.getByTitle('Appearance', { exact: true })
+  const lookToken = () =>
+    page.evaluate(() =>
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--look-glass')
+        .trim(),
+    )
+  const saved = async () =>
+    JSON.parse(
+      (await page.evaluate((key) => localStorage.getItem(key), themeKey))!,
+    )
+  const fits = () =>
+    page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+
+  await control.click()
+  await expect(
+    page.getByRole('group', { name: 'Look' }).getByRole('radio'),
+  ).toHaveCount(looks.length)
+  // A reload would clear this marker, so it proves a look changes in place.
+  await page.evaluate(() => (document.documentElement.dataset.marker = 'kept'))
+  expect(await lookToken()).toBe('')
+  expect(await computed(page, '.theme-panel', 'border-radius')).toBe('12px')
+
+  await page.getByRole('radio', { name: 'Aurora' }).check()
+  await expect(root).toHaveAttribute('data-look', 'aurora')
+  expect(await lookToken()).not.toBe('')
+  expect(await computed(page, '.theme-panel', 'border-radius')).toBe('14px')
+  expect(await saved()).toEqual({
+    mode: 'system',
+    accent: 'foundry',
+    look: 'aurora',
+  })
+  expect(await fits()).toBe(true)
+
+  await page.getByRole('radio', { name: 'Console' }).check()
+  await expect(root).toHaveAttribute('data-look', 'console')
+  expect(await lookToken()).toBe('')
+  expect(await computed(page, '.theme-panel', 'border-radius')).toBe('2px')
+  expect(await fits()).toBe(true)
+
+  await page.getByRole('radio', { name: 'Dark' }).check()
+  await page.getByRole('radio', { name: 'Lagoon' }).check()
+  await expect(root).toHaveAttribute('data-theme', 'dark')
+  await expect(root).toHaveAttribute('data-accent', 'lagoon')
+  await expect(root).toHaveAttribute('data-look', 'console')
+  await expect(root).toHaveAttribute('data-marker', 'kept')
+  expect(await saved()).toEqual({
+    mode: 'dark',
+    accent: 'lagoon',
+    look: 'console',
+  })
+
+  await page.reload()
+  await expect(root).toHaveAttribute('data-theme', 'dark')
+  await expect(root).toHaveAttribute('data-accent', 'lagoon')
+  await expect(root).toHaveAttribute('data-look', 'console')
+  await control.click()
+  await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked()
+  await expect(page.getByRole('radio', { name: 'Lagoon' })).toBeChecked()
+  await expect(page.getByRole('radio', { name: 'Console' })).toBeChecked()
+
+  await page.getByRole('radio', { name: 'Classic' }).check()
+  await expect(root).toHaveAttribute('data-look', 'classic')
+  expect(await lookToken()).toBe('')
+  expect(await computed(page, '.theme-panel', 'border-radius')).toBe('12px')
+  expect(await saved()).toEqual({
+    mode: 'dark',
+    accent: 'lagoon',
+    look: 'classic',
+  })
+})
+
+test('the appearance panel scrolls inside a short window so every look stays reachable', async ({
+  page,
+}) => {
+  await setup(page)
+  await page.setViewportSize({ width: page.viewportSize()!.width, height: 420 })
+  await page.getByTitle('Appearance', { exact: true }).click()
+  const panel = page.getByRole('complementary', {
+    name: 'Appearance settings',
+  })
+  await expect(panel).toBeInViewport()
+  expect(
+    await panel.evaluate((element) => {
+      const { top, bottom } = element.getBoundingClientRect()
+      return top >= 0 && bottom <= innerHeight
+    }),
+  ).toBe(true)
+  expect(
+    await panel.evaluate(
+      (element) => element.scrollHeight > element.clientHeight,
+    ),
+  ).toBe(true)
+  await page.getByRole('radio', { name: 'Console' }).check()
+  await expect(page.locator('html')).toHaveAttribute('data-look', 'console')
+  await expect(page.getByRole('radio', { name: 'Console' })).toBeInViewport()
+})
+
+test('every look keeps text, links and buttons readable in light and dark with each accent', async ({
+  page,
+}) => {
+  await setup(page)
+  const { checked, failures } = await page.evaluate(
+    ({ looks, accents }) => {
+      const tokens = [
+        'bg',
+        'bg-deep',
+        'surface',
+        'surface-subtle',
+        'surface-hover',
+        'surface-sunken',
+        'text',
+        'text-secondary',
+        'muted',
+        'accent',
+        'accent-hover',
+        'accent-strong',
+        'accent-soft',
+        'accent-tint',
+        'accent-fill',
+        'accent-fill-hover',
+        'on-accent',
+        'field-line',
+        'success-fg',
+      ]
+      type Color = [number, number, number, number]
+      const parse = (value: string): Color => {
+        const n = value.match(/[\d.]+/g)!.map(Number)
+        if (value.startsWith('color(srgb'))
+          return [n[0] * 255, n[1] * 255, n[2] * 255, n[3] ?? 1]
+        if (!value.startsWith('rgb')) throw new Error(`Unexpected ${value}`)
+        return [n[0], n[1], n[2], n[3] ?? 1]
+      }
+      const luminance = ([r, g, b]: Color) => {
+        const linear = (value: number) => {
+          const unit = value / 255
+          return unit <= 0.04045
+            ? unit / 12.92
+            : ((unit + 0.055) / 1.055) ** 2.4
+        }
+        return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+      }
+      const ratio = (a: Color, b: Color) => {
+        const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+        return (high + 0.05) / (low + 0.05)
+      }
+      const over = (front: Color, back: Color): Color => [
+        Math.round(front[0] * front[3] + back[0] * (1 - front[3])),
+        Math.round(front[1] * front[3] + back[1] * (1 - front[3])),
+        Math.round(front[2] * front[3] + back[2] * (1 - front[3])),
+        1,
+      ]
+      const probe = document.createElement('div')
+      document.body.append(probe)
+      const root = document.documentElement
+      const failures: string[] = []
+      let checked = 0
+      for (const look of looks)
+        for (const scheme of ['light', 'dark'])
+          for (const accent of accents) {
+            root.dataset.look = look
+            root.dataset.theme = scheme
+            root.dataset.accent = accent
+            const t: Record<string, Color> = {}
+            for (const name of tokens) {
+              probe.style.color = `var(--${name})`
+              t[name] = parse(getComputedStyle(probe).color)
+            }
+            const chip = over(t['accent-soft'], t.surface)
+            const tint = over(t['accent-tint'], t.bg)
+            const pairs: [string, Color, Color, number][] = [
+              ['text on bg', t.text, t.bg, 4.5],
+              ['text on bg-deep', t.text, t['bg-deep'], 4.5],
+              ['text on surface', t.text, t.surface, 4.5],
+              ['text on surface-subtle', t.text, t['surface-subtle'], 4.5],
+              ['text on surface-hover', t.text, t['surface-hover'], 4.5],
+              ['secondary on bg', t['text-secondary'], t.bg, 4.5],
+              ['secondary on bg-deep', t['text-secondary'], t['bg-deep'], 4.5],
+              ['secondary on surface', t['text-secondary'], t.surface, 4.5],
+              [
+                'secondary on hover',
+                t['text-secondary'],
+                t['surface-hover'],
+                4.5,
+              ],
+              ['muted on bg', t.muted, t.bg, 4.5],
+              ['muted on bg-deep', t.muted, t['bg-deep'], 4.5],
+              ['muted on surface', t.muted, t.surface, 4.5],
+              ['muted on surface-subtle', t.muted, t['surface-subtle'], 4.5],
+              ['muted on surface-hover', t.muted, t['surface-hover'], 4.5],
+              ['muted on surface-sunken', t.muted, t['surface-sunken'], 4.5],
+              ['accent on bg', t.accent, t.bg, 4.5],
+              ['accent on bg-deep', t.accent, t['bg-deep'], 4.5],
+              ['accent on surface', t.accent, t.surface, 4.5],
+              ['accent on surface-subtle', t.accent, t['surface-subtle'], 4.5],
+              ['accent on tinted card', t.accent, tint, 4.5],
+              ['accent-hover on bg', t['accent-hover'], t.bg, 4.5],
+              ['accent-strong on chip', t['accent-strong'], chip, 4.5],
+              ['accent on chip', t.accent, chip, 4.5],
+              ['button text', t['on-accent'], t['accent-fill'], 4.5],
+              [
+                'button text hover',
+                t['on-accent'],
+                t['accent-fill-hover'],
+                4.5,
+              ],
+              ['success on bg', t['success-fg'], t.bg, 4.5],
+              ['field border on surface', t['field-line'], t.surface, 3],
+              [
+                'field border on sunken',
+                t['field-line'],
+                t['surface-sunken'],
+                3,
+              ],
+              ['accent line on bg', t.accent, t.bg, 3],
+            ]
+            for (const [name, front, back, minimum] of pairs) {
+              checked++
+              const value = ratio(front, back)
+              if (value < minimum)
+                failures.push(
+                  `${look} ${scheme} ${accent}: ${name} ${value.toFixed(2)} < ${minimum}`,
+                )
+            }
+          }
+      probe.remove()
+      return { checked, failures }
+    },
+    {
+      looks: looks.map((item) => item.id),
+      accents: accents.map((item) => item.id),
+    },
+  )
+  expect(checked).toBe(looks.length * 2 * accents.length * 29)
+  expect(failures).toEqual([])
 })
 
 test('template cards stay legible in dark mode for every accent', async ({

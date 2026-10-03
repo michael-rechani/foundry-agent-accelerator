@@ -76,7 +76,7 @@ selection and clipboard feedback; it never invokes an agent or writes records.
 | `workspace-config.ts`                                         | Validates public configuration and handles bootstrap timeouts and retry.                                                                                                       |
 | `ContinueDialog.tsx`                                          | Previews carry-over context before resetting the conversation. It never invokes an agent.                                                                                      |
 | `AgentGuide.tsx`                                              | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Ready to chat** cards.                                           |
-| `theme.ts`, `ThemePicker.tsx`                                 | Load, validate, save, and apply the **Appearance** choice, and render its header menu.                                                                                         |
+| `theme.ts`, `ThemePicker.tsx`                                 | Load, validate, save, and apply the **Appearance** choice (theme, accent, and look), and render its header menu.                                                               |
 | `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`       | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement.                                  |
 
 Keep purpose, input, output, how-it-works, and limits in the registry, not
@@ -88,18 +88,30 @@ Lab's display and receipt metadata from runtime instructions and tools.
 Every color comes from a token in the `:root` block at the top of
 `src/chat.css`. Each token is a `light-dark()` pair, so **System** follows the
 device with no script. `main.tsx` applies the saved choice before the first
-render by setting `data-theme` (`system`, `light`, or `dark`) and `data-accent`
-(`foundry`, `orchid`, or `lagoon`) on `<html>`. **Light** and **Dark** pin
-`color-scheme`, and each accent overrides only the `--accent*` tokens. The
-choice is stored under `ai-foundry-lab-theme` in `localStorage`; unreadable
-values fall back to System and Foundry.
+render by setting `data-theme` (`system`, `light`, or `dark`), `data-accent`
+(`foundry`, `orchid`, or `lagoon`), and `data-look` (`classic`, `aurora`, or
+`console`) on `<html>`. **Light** and **Dark** pin `color-scheme`, and each
+accent overrides only the `--accent*` tokens. The choice is stored under
+`ai-foundry-lab-theme` in `localStorage`; unreadable values fall back to System,
+Foundry, and Classic, and each of the three is read on its own, so a saved
+choice from before looks existed keeps its theme and accent and opens in
+Classic.
 
-Use the tokens in new styles rather than hex values, so every theme and accent
-keeps working. Text tokens meet WCAG AA (4.5:1) on their surfaces in all six
-combinations, and borders and dots meet 3:1. Check new color pairs in both
-modes. The content security policy blocks inline scripts, so a device in one
-mode briefly shows that mode's background before the script applies a pinned
-opposite theme.
+A look is a stylesheet that restyles the same markup. **Classic** is the base
+`chat.css`. `src/look-aurora.css` and `src/look-console.css` are scoped to
+`:root[data-look='aurora']` and `:root[data-look='console']` and are imported
+last in `main.tsx`, so they win the cascade without `!important`. They load no
+fonts or images and use no `@import`, which keeps them inside the content
+security policy. A new look is one more stylesheet scoped the same way, one more
+entry in `looks` in `theme.ts`, and its icon in `ThemePicker.tsx`.
+
+Use the tokens in new styles rather than hex values, so every theme, accent, and
+look keeps working. Text tokens meet WCAG AA (4.5:1) on their surfaces and
+borders and dots meet 3:1, in every combination of look, light or dark, and
+accent; `tests/agent-creation.spec.ts` checks this on the rendered page. Check
+new color pairs in both modes and in each look. The content security policy
+blocks inline scripts, so a device in one mode briefly shows that mode's
+background before the script applies a pinned opposite theme.
 
 ## Agent creation UI
 
@@ -131,8 +143,9 @@ operator guide.
 `tests/agent-creation.spec.ts` covers template selection, preparation versus
 publication, operator confirmation, uncertain submissions and stable-ID retries,
 poll recovery, deletion, dynamic-agent chat/history, key lifetime, and mobile
-layout. It also covers the **Appearance** menu, saved and unreadable theme
-choices, and dark-mode card contrast for each accent. Its publication and answer fixtures are explicitly mocked. For a focused
+layout. It also covers the **Appearance** menu (theme, accent, and look), saved
+and unreadable choices, and text, link, and button contrast for every look in
+light and dark with each accent. Its publication and answer fixtures are explicitly mocked. For a focused
 check, run `npm test -- agent-creation.spec.ts`; this still builds the
 production assets first.
 

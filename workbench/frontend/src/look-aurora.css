@@ -1,0 +1,825 @@
+/* The Aurora look: a deep-space backdrop, frosted glass panels and soft glows.
+   Everything sits behind :root[data-look='aurora'], so Classic, the default, is
+   unchanged. It is imported after the other styles so its rules come last. */
+
+/* ---------- Colors: deep-space dark, frosted light ---------- */
+:root[data-look='aurora'] {
+  --font-display:
+    'Segoe UI Variable Display', 'Segoe UI Variable Text', 'Segoe UI',
+    -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  --bg: light-dark(#eef3fb, #060a14);
+  --bg-deep: light-dark(#e1eaf8, #03050c);
+  --surface: light-dark(#ffffff, #0d1425);
+  --surface-subtle: light-dark(#f1f5fc, #121b32);
+  --surface-hover: light-dark(#e4edfb, #1a2644);
+  --surface-sunken: light-dark(#e8effa, #070c19);
+  --text: light-dark(#0c1630, #f2f6ff);
+  --text-secondary: light-dark(#27365a, #d0dbf2);
+  --muted: light-dark(#4a5a7d, #9aabcc);
+  --line: light-dark(#d3dff2, #1d2a49);
+  --line-strong: light-dark(#b6c7e4, #34476f);
+  --field-line: light-dark(#4a5a7d, #8ea1c6);
+  --shadow: light-dark(#0b1b4a38, #000000b0);
+  --shadow-soft: light-dark(#0b1b4a1f, #00000066);
+  --backdrop: light-dark(#0b1b4a66, #02040bb3);
+  --accent: light-dark(#0a5fd0, #62d6ff);
+  --accent-hover: light-dark(#084bb0, #9be6ff);
+  --accent-fill: light-dark(#0a5fd0, #1463e0);
+  --accent-fill-hover: light-dark(#084bb0, #1f6aea);
+  --accent-soft: light-dark(#e3eeff, #62d6ff1f);
+  --accent-line: light-dark(#a9c8f5, #62d6ff59);
+  --accent-strong: light-dark(#06285f, #d6f4ff);
+  --accent-tint: light-dark(#f2f7ff, #62d6ff0d);
+  --accent-2: light-dark(#6d3df0, #9b7bff);
+  --accent-glow: light-dark(#0a5fd038, #62d6ff59);
+  --look-glass: light-dark(#ffffffa8, #0b1224b3);
+  --look-glass-strong: light-dark(#ffffffd9, #0b1224e6);
+  --look-sheen: light-dark(#ffffffb3, #62d6ff26);
+  --look-edge-a: light-dark(#7ba9ec, #62d6ff99);
+  --look-edge-b: light-dark(#b9a4f7, #9b7bff59);
+  --look-edge-c: light-dark(#d3dff2, #ffffff14);
+  --look-title-a: light-dark(#0a5fd0, #8fe3ff);
+  --look-title-b: light-dark(#6d3df0, #b9a6ff);
+  --look-fill-end: light-dark(#6d3df0, #6b43e6);
+  --look-bloom-a: light-dark(#7dd3fc66, #06b6d46b);
+  --look-bloom-b: light-dark(#c4b5fd80, #7c3aed70);
+  --look-bloom-c: light-dark(#93c5fd66, #2563eb5c);
+  --look-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  scrollbar-width: thin;
+  scrollbar-color: light-dark(#9db8e8, #34476f) transparent;
+}
+:root[data-look='aurora'][data-accent='orchid'] {
+  --accent: light-dark(#a21caf, #ff82dd);
+  --accent-hover: light-dark(#86168f, #ffa6e8);
+  --accent-fill: light-dark(#a21caf, #b81fa0);
+  --accent-fill-hover: light-dark(#86168f, #c52aae);
+  --accent-soft: light-dark(#fbe9fb, #ff82dd1f);
+  --accent-line: light-dark(#eab2ee, #ff82dd59);
+  --accent-strong: light-dark(#55095c, #ffe0f6);
+  --accent-tint: light-dark(#fdf3fd, #ff82dd0d);
+  --accent-2: light-dark(#6d3df0, #9b7bff);
+  --accent-glow: light-dark(#a21caf38, #ff82dd59);
+  --look-sheen: light-dark(#ffffffb3, #ff82dd26);
+  --look-edge-a: light-dark(#d98ae0, #ff82dd99);
+  --look-title-a: light-dark(#a21caf, #ffb0ec);
+  --look-bloom-a: light-dark(#f0abfc66, #d946ef52);
+  --look-bloom-c: light-dark(#a5b4fc66, #4f46e55c);
+}
+:root[data-look='aurora'][data-accent='lagoon'] {
+  --accent: light-dark(#09756a, #4ff0c8);
+  --accent-hover: light-dark(#075f54, #86f6d9);
+  --accent-fill: light-dark(#0a7a6c, #087a6c);
+  --accent-fill-hover: light-dark(#075f54, #0a8173);
+  --accent-soft: light-dark(#e1f6f2, #4ff0c81f);
+  --accent-line: light-dark(#a3dbd2, #4ff0c859);
+  --accent-strong: light-dark(#04423a, #d0fbef);
+  --accent-tint: light-dark(#effaf8, #4ff0c80d);
+  --accent-2: light-dark(#0a5fd0, #62b4ff);
+  --accent-glow: light-dark(#0a7a6c38, #4ff0c859);
+  --look-sheen: light-dark(#ffffffb3, #4ff0c826);
+  --look-edge-a: light-dark(#6fcabe, #4ff0c899);
+  --look-title-a: light-dark(#0a7a6c, #8ff5dd);
+  --look-title-b: light-dark(#0a5fd0, #8fc7ff);
+  --look-fill-end: light-dark(#0a5fd0, #1463e0);
+  --look-bloom-a: light-dark(#5eead466, #14b8a65c);
+  --look-bloom-b: light-dark(#93c5fd80, #0ea5e970);
+  --look-bloom-c: light-dark(#86efac59, #05966955);
+}
+
+/* ---------- Backdrop: soft aurora and a faint grid ---------- */
+:root[data-look='aurora'] body {
+  position: relative;
+  background: transparent;
+}
+:root[data-look='aurora'] body::before {
+  content: '';
+  position: fixed;
+  inset: -12vmax;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      46vmax 32vmax at 10% 6%,
+      var(--look-bloom-a),
+      transparent 70%
+    ),
+    radial-gradient(
+      44vmax 34vmax at 92% 2%,
+      var(--look-bloom-b),
+      transparent 70%
+    ),
+    radial-gradient(
+      56vmax 34vmax at 58% 112%,
+      var(--look-bloom-c),
+      transparent 70%
+    );
+}
+:root[data-look='aurora'] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      to right,
+      light-dark(#0a5fd00f, #8aa4ff12) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      light-dark(#0a5fd00f, #8aa4ff12) 1px,
+      transparent 1px
+    );
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(
+    ellipse 90% 70% at 50% 0%,
+    #000 10%,
+    transparent 78%
+  );
+  mask-image: radial-gradient(
+    ellipse 90% 70% at 50% 0%,
+    #000 10%,
+    transparent 78%
+  );
+}
+:root[data-look='aurora'] ::selection {
+  background: var(--accent-glow);
+}
+/* Let the aurora show through the page areas. */
+:root[data-look='aurora'] :is(.conversation-view, .secondary-view) {
+  background: transparent;
+}
+
+/* ---------- Sidebar ---------- */
+:root[data-look='aurora'] .chat-sidebar {
+  background: linear-gradient(
+    180deg,
+    light-dark(#ffffffbf, #0b1222cc),
+    light-dark(#eef4ffbf, #050813e6)
+  );
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  border-right-color: transparent;
+  box-shadow:
+    1px 0 0 light-dark(#b6c7e4, #6f8bff2e),
+    18px 0 48px -32px var(--accent-glow);
+  position: relative;
+  z-index: 2;
+}
+:root[data-look='aurora'] .chat-brand > .brand-mark {
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent-fill), var(--accent-2));
+  box-shadow:
+    inset 0 0 0 1px light-dark(#ffffff66, #ffffff40),
+    0 0 26px -4px var(--accent-glow);
+}
+:root[data-look='aurora'] .chat-brand > span {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+:root[data-look='aurora'] .new-chat {
+  background: light-dark(#ffffffb3, #ffffff0a);
+  border-color: var(--accent-line);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 light-dark(#ffffffcc, #ffffff14);
+}
+:root[data-look='aurora'] .new-chat:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 22px -8px var(--accent-glow);
+}
+:root[data-look='aurora'] .nav-section-label {
+  font: 600 10px/1.6 var(--mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+:root[data-look='aurora'] .chat-sidebar nav button {
+  border-radius: 8px;
+  transition:
+    background 0.18s var(--look-ease),
+    box-shadow 0.18s var(--look-ease);
+}
+:root[data-look='aurora'] .chat-sidebar nav button:hover:not([aria-current]) {
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+:root[data-look='aurora'] .chat-sidebar nav button[aria-current] {
+  background: linear-gradient(90deg, var(--accent-soft), transparent 90%);
+  box-shadow:
+    inset 2px 0 0 var(--accent),
+    0 0 26px -10px var(--accent-glow);
+}
+:root[data-look='aurora'] .chat-sidebar nav button[aria-current] > svg {
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+:root[data-look='aurora'] .chat-sidebar nav small {
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: light-dark(#ffffff99, #ffffff0d);
+  color: var(--text-secondary);
+  font: 10px/1.6 var(--mono);
+}
+
+/* ---------- Top bar and tabs ---------- */
+:root[data-look='aurora'] .chat-topbar {
+  z-index: 3;
+  background: light-dark(#ffffffb8, #080e1ccc);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+  border-bottom-color: transparent;
+}
+:root[data-look='aurora'] .chat-topbar::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent) 28%,
+    var(--accent-2) 72%,
+    transparent
+  );
+  opacity: 0.55;
+}
+:root[data-look='aurora'] .topbar-crumbs li[aria-current] {
+  font-family: var(--font-display);
+}
+:root[data-look='aurora'] .environment-badge {
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--success-line);
+  background: var(--success-bg);
+  color: var(--success-fg);
+}
+:root[data-look='aurora'] .environment-badge .status-dot {
+  background: var(--success-dot);
+  box-shadow: 0 0 10px var(--success-dot);
+}
+:root[data-look='aurora'] .chat-icon:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+:root[data-look='aurora'] .library-switch {
+  background: light-dark(#ffffff80, #0a1020a6);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom-color: var(--line);
+}
+:root[data-look='aurora'] .library-switch button[aria-current] {
+  border-color: var(--accent);
+  text-shadow: 0 0 18px var(--accent-glow);
+}
+:root[data-look='aurora'] .library-switch small {
+  border: 1px solid var(--line-strong);
+  background: light-dark(#ffffff99, #ffffff0d);
+}
+
+/* ---------- Library: headline, search, filters ---------- */
+:root[data-look='aurora'] .library-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+  font: 600 11px/1.6 var(--mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+:root[data-look='aurora'] .library-eyebrow::before {
+  content: '';
+  width: 22px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent));
+}
+:root[data-look='aurora'] .library-hero h1 {
+  width: fit-content;
+  max-width: 100%;
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  background: linear-gradient(
+    94deg,
+    light-dark(#0b1b3d, #ffffff) 0%,
+    var(--look-title-a) 52%,
+    var(--look-title-b) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+:root[data-look='aurora'] .library-search,
+:root[data-look='aurora'] .library-filter-menu summary {
+  background: var(--look-glass);
+  border-color: var(--line-strong);
+  border-radius: 10px;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+:root[data-look='aurora'] .library-search:focus-within,
+:root[data-look='aurora'] .library-filter-menu[open] summary {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 26px -8px var(--accent-glow);
+}
+:root[data-look='aurora'] .library-facet[aria-pressed='true'] {
+  background: linear-gradient(90deg, var(--accent-soft), transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+:root[data-look='aurora'] .library-facet small,
+:root[data-look='aurora'] .library-filter-menu summary strong {
+  font-family: var(--mono);
+}
+:root[data-look='aurora'] .library-filter-panel {
+  background: var(--look-glass-strong);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+  border-color: var(--accent-line);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px -24px var(--shadow);
+}
+
+/* ---------- Glass cards (library, starters, Chat examples) ---------- */
+:root[data-look='aurora']
+  :is(.library-card, .library-start-card, .prompt-options button) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 90% at 0% 0%, var(--accent-tint), transparent 60%),
+    linear-gradient(
+      165deg,
+      light-dark(#ffffffe0, #131d38c7),
+      light-dark(#f3f7ffe0, #0a1226c7)
+    );
+  box-shadow:
+    inset 0 1px 0 light-dark(#ffffffe6, #ffffff12),
+    0 14px 34px -22px var(--shadow);
+  transition:
+    transform 0.22s var(--look-ease),
+    box-shadow 0.22s var(--look-ease);
+}
+:root[data-look='aurora']
+  :is(.library-card, .library-start-card, .prompt-options button)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    140deg,
+    var(--look-edge-a),
+    var(--look-edge-b) 46%,
+    var(--look-edge-c)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  opacity: 0.7;
+  transition: opacity 0.22s var(--look-ease);
+}
+:root[data-look='aurora']
+  :is(.library-card, .library-start-card, .prompt-options button)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    112deg,
+    transparent 36%,
+    var(--look-sheen) 50%,
+    transparent 64%
+  );
+  transform: translateX(-130%);
+}
+:root[data-look='aurora']
+  :is(.library-card, .library-start-card, .prompt-options button):hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 light-dark(#ffffffe6, #ffffff1f),
+    0 22px 46px -22px var(--accent-glow),
+    0 0 0 1px var(--accent-line);
+}
+:root[data-look='aurora']
+  :is(
+    .library-card,
+    .library-start-card,
+    .prompt-options button
+  ):hover::before {
+  opacity: 1;
+}
+:root[data-look='aurora'] .library-start-card {
+  background:
+    radial-gradient(120% 100% at 0% 0%, var(--accent-soft), transparent 62%),
+    linear-gradient(
+      165deg,
+      light-dark(#ffffffe6, #14223fcc),
+      light-dark(#f1f6ffe6, #0a1429cc)
+    );
+}
+:root[data-look='aurora'] .library-card-icon {
+  border: 1px solid var(--accent-line);
+  border-radius: 10px;
+  background:
+    linear-gradient(145deg, var(--accent-soft), transparent),
+    light-dark(#ffffff, #0a1226);
+  box-shadow: 0 0 22px -8px var(--accent-glow);
+}
+:root[data-look='aurora'] .library-start-card .library-card-icon {
+  background:
+    linear-gradient(145deg, var(--accent-soft), transparent),
+    light-dark(#ffffff, #0a1226);
+}
+:root[data-look='aurora'] .library-kicker,
+:root[data-look='aurora'] .library-start-foot span {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+}
+:root[data-look='aurora'] .library-sector-dot {
+  box-shadow: 0 0 10px var(--sector);
+}
+:root[data-look='aurora'] .library-card strong,
+:root[data-look='aurora'] .library-start-card strong {
+  font-family: var(--font-display);
+}
+:root[data-look='aurora'] .library-badge {
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 28%, transparent);
+}
+:root[data-look='aurora'] .library-decides {
+  border-top-color: var(--line);
+}
+:root[data-look='aurora'] .library-start-head h2,
+:root[data-look='aurora'] .library-results-toolbar h2 {
+  font-family: var(--font-display);
+}
+:root[data-look='aurora'] .library-view-switch {
+  background: var(--look-glass);
+  border-color: var(--line-strong);
+  border-radius: 10px;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+:root[data-look='aurora'] .library-view-switch button {
+  border-radius: 7px;
+}
+:root[data-look='aurora'] .library-view-switch button[aria-pressed='true'] {
+  color: var(--accent-strong);
+  background: linear-gradient(135deg, var(--accent-soft), transparent 130%);
+  box-shadow:
+    inset 0 0 0 1px var(--accent-line),
+    0 0 20px -8px var(--accent-glow);
+}
+
+/* ---------- List view ---------- */
+:root[data-look='aurora'] .library-list-wrap {
+  background: var(--look-glass);
+  border-color: var(--line-strong);
+  border-radius: 14px;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+:root[data-look='aurora'] .library-list-table thead th {
+  font: 600 10px/1.6 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+:root[data-look='aurora'] .library-list-table tbody tr:hover {
+  background: linear-gradient(90deg, var(--accent-soft), transparent 70%);
+}
+
+/* ---------- Chat ---------- */
+:root[data-look='aurora'] .chat-welcome h1 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+:root[data-look='aurora'] .welcome-kind,
+:root[data-look='aurora'] .progress-pill,
+:root[data-look='aurora'] .aside-kind {
+  border-radius: 999px;
+  font-family: var(--mono);
+  letter-spacing: 0.02em;
+}
+:root[data-look='aurora'] :is(.welcome-kind, .aside-kind) {
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+:root[data-look='aurora'] .composer {
+  background: var(--look-glass-strong);
+  border-color: var(--line-strong);
+  border-radius: 14px;
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 light-dark(#ffffffe6, #ffffff12),
+    0 18px 44px -26px var(--shadow);
+}
+:root[data-look='aurora'] .composer:focus-within {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 38px -8px var(--accent-glow);
+}
+:root[data-look='aurora'] .send-button {
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--accent-fill), var(--look-fill-end));
+  box-shadow: 0 0 22px -6px var(--accent-glow);
+  transition:
+    transform 0.18s var(--look-ease),
+    box-shadow 0.18s var(--look-ease);
+}
+:root[data-look='aurora'] .send-button:hover:not(:disabled) {
+  background: linear-gradient(
+    135deg,
+    var(--accent-fill-hover),
+    var(--look-fill-end)
+  );
+  box-shadow: 0 0 30px -4px var(--accent-glow);
+  transform: translateY(-1px);
+}
+:root[data-look='aurora'] .send-button.stop {
+  background: var(--danger-action);
+  box-shadow: none;
+}
+:root[data-look='aurora'] .user-message {
+  border-radius: 14px 14px 4px 14px;
+  background: linear-gradient(135deg, var(--accent-soft), transparent 140%);
+  box-shadow: 0 12px 30px -22px var(--accent-glow);
+}
+:root[data-look='aurora'] .message-author {
+  font-family: var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+:root[data-look='aurora'] .assistant-heading .agent-avatar {
+  box-shadow: 0 0 20px -4px var(--accent-glow);
+}
+:root[data-look='aurora'] .assistant-heading > span:last-child {
+  font-size: 10px;
+}
+
+/* ---------- Chat side column ---------- */
+:root[data-look='aurora'] .aside-panel {
+  position: relative;
+  border-color: transparent;
+  border-radius: 14px;
+  background: var(--look-glass);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 light-dark(#ffffffe6, #ffffff12),
+    0 16px 40px -28px var(--shadow);
+}
+:root[data-look='aurora'] .aside-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    150deg,
+    var(--look-edge-a),
+    var(--look-edge-b) 45%,
+    var(--look-edge-c)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  opacity: 0.6;
+}
+:root[data-look='aurora'] .aside-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font: 600 10.5px/1.5 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+:root[data-look='aurora'] .aside-panel h2::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: none;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  transform: rotate(45deg);
+}
+:root[data-look='aurora'] .aside-rows dd {
+  font-family: var(--mono);
+}
+:root[data-look='aurora'] .aside-button {
+  border-radius: 9px;
+}
+:root[data-look='aurora'] .aside-button.primary,
+:root[data-look='aurora'] .review-primary,
+:root[data-look='aurora'] .creation-primary,
+:root[data-look='aurora'] .demo-primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent-fill), var(--look-fill-end));
+  box-shadow: 0 0 24px -8px var(--accent-glow);
+}
+:root[data-look='aurora'] .aside-button.primary:hover:not(:disabled),
+:root[data-look='aurora'] .review-primary:hover:not(:disabled),
+:root[data-look='aurora'] .creation-primary:hover:not(:disabled),
+:root[data-look='aurora'] .demo-primary:hover:not(:disabled) {
+  border-color: transparent;
+  background: linear-gradient(
+    135deg,
+    var(--accent-fill-hover),
+    var(--look-fill-end)
+  );
+  box-shadow: 0 0 32px -6px var(--accent-glow);
+}
+
+/* ---------- Operations: a telemetry feel ---------- */
+:root[data-look='aurora'] .operations-view .metric-strip {
+  border-radius: 14px;
+  border-color: var(--line-strong);
+  background: var(--look-glass);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+:root[data-look='aurora'] .operations-view .metric-strip > div {
+  position: relative;
+  background: transparent;
+}
+:root[data-look='aurora'] .operations-view .metric-strip > div::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--accent),
+    var(--accent-2),
+    transparent
+  );
+  opacity: 0.8;
+}
+:root[data-look='aurora'] .operations-view .metric-strip small {
+  font-family: var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+:root[data-look='aurora'] .operations-view .metric-strip strong,
+:root[data-look='aurora'] .operations-view .metric-strip b {
+  font-family: var(--mono);
+  letter-spacing: -0.02em;
+}
+:root[data-look='aurora'] .operations-panel,
+:root[data-look='aurora'] .operations-section {
+  border-radius: 14px;
+}
+:root[data-look='aurora'] .operations-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 30%, transparent);
+}
+:root[data-look='aurora'] .operations-status.ready::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 9px currentColor;
+}
+
+/* ---------- Switches and small touches ---------- */
+:root[data-look='aurora'] .hood-switch input:checked {
+  background: linear-gradient(135deg, var(--accent-fill), var(--accent-2));
+  border-color: transparent;
+  box-shadow: 0 0 18px -4px var(--accent-glow);
+}
+:root[data-look='aurora'] .theme-panel,
+:root[data-look='aurora'] .lab-info-panel,
+:root[data-look='aurora'] .agent-switcher-panel {
+  /* Solid on purpose: these panels sit inside the frosted top bar, where a
+     second blur cannot reach the page, so a see-through fill lets the cards
+     behind show through the controls. */
+  background: var(--surface);
+  border-color: var(--accent-line);
+  border-radius: 14px;
+  box-shadow: 0 28px 64px -26px var(--shadow);
+}
+
+/* ---------- Motion: only when the person has not asked for less ---------- */
+@keyframes look-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-2vmax, 1.5vmax, 0) scale(1.07);
+  }
+}
+@keyframes look-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-look='aurora'] body::before {
+    animation: look-drift 46s ease-in-out infinite alternate;
+  }
+  :root[data-look='aurora']
+    :is(
+      .library-card,
+      .library-start-card,
+      .prompt-options button
+    ):hover::after {
+    transform: translateX(130%);
+    transition: transform 0.85s var(--look-ease);
+  }
+  :root[data-look='aurora'] .environment-badge .status-dot,
+  :root[data-look='aurora'] .operations-status.ready::before {
+    animation: look-pulse 2.6s ease-in-out infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-look='aurora']
+    :is(.library-card, .library-start-card, .prompt-options button) {
+    transition: none;
+  }
+  :root[data-look='aurora']
+    :is(.library-card, .library-start-card, .prompt-options button):hover {
+    transform: none;
+  }
+}
+
+/* ---------- Fallbacks: no blur, more contrast, forced colors ---------- */
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  :root[data-look='aurora'] {
+    --look-glass: light-dark(#ffffff, #0d1425);
+    --look-glass-strong: light-dark(#ffffff, #0d1425);
+  }
+}
+@media (prefers-contrast: more) {
+  :root[data-look='aurora'] {
+    --look-glass: light-dark(#ffffff, #0d1425);
+    --look-glass-strong: light-dark(#ffffff, #0d1425);
+  }
+  :root[data-look='aurora'] body::before,
+  :root[data-look='aurora'] body::after {
+    display: none;
+  }
+  :root[data-look='aurora'] .library-hero h1 {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--text);
+  }
+}
+@media (forced-colors: active) {
+  :root[data-look='aurora'] body::before,
+  :root[data-look='aurora'] body::after,
+  :root[data-look='aurora'] .chat-topbar::after,
+  :root[data-look='aurora']
+    :is(.library-card, .library-start-card, .prompt-options button)::after {
+    display: none;
+  }
+  :root[data-look='aurora'] .library-hero h1 {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: CanvasText;
+  }
+  :root[data-look='aurora']
+    :is(.library-card, .library-start-card, .prompt-options button) {
+    border-color: CanvasText;
+  }
+}
