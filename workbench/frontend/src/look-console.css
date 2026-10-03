@@ -1,0 +1,556 @@
+/* The Console look: flat panels, hairline borders, square corners and small
+   monospace labels. It uses no blur, glow, gradient or animation, so it should
+   stay light to draw. Everything sits behind :root[data-look='console'], so
+   Classic, the default, is unchanged. It is imported after the other styles so
+   its rules come last. */
+
+/* ---------- Colors: near-black terminal, paper-and-ink light ---------- */
+:root[data-look='console'] {
+  --mono:
+    'Cascadia Mono', 'Cascadia Code', Consolas, 'SFMono-Regular', Menlo,
+    'Courier New', monospace;
+  --bg: light-dark(#f2f3f5, #0a0b0d);
+  --bg-deep: light-dark(#e8eaee, #060708);
+  --surface: light-dark(#ffffff, #0f1114);
+  --surface-subtle: light-dark(#f7f8fa, #13161a);
+  --surface-hover: light-dark(#eceef2, #1a1e24);
+  --surface-sunken: light-dark(#eceef1, #08090b);
+  --text: light-dark(#0d1116, #e7eaee);
+  --text-secondary: light-dark(#29303a, #c2c9d3);
+  --muted: light-dark(#556070, #8d97a6);
+  --line: light-dark(#d5d9df, #23272e);
+  --line-strong: light-dark(#b2b9c4, #3b424d);
+  --field-line: light-dark(#667282, #818c9b);
+  --shadow: light-dark(#0000002e, #000000b3);
+  --shadow-soft: transparent;
+  --backdrop: light-dark(#0d111680, #000000b3);
+  --on-accent: light-dark(#ffffff, #06090d);
+  --accent: light-dark(#0a58c2, #58a6ff);
+  --accent-hover: light-dark(#084aa3, #85bdff);
+  --accent-fill: light-dark(#0a58c2, #58a6ff);
+  --accent-fill-hover: light-dark(#084aa3, #85bdff);
+  --accent-soft: light-dark(#e4eefb, #58a6ff1f);
+  --accent-line: light-dark(#a9c6ee, #58a6ff4d);
+  --accent-strong: light-dark(#05326d, #d2e6ff);
+  --accent-tint: light-dark(#f1f6fd, #58a6ff0f);
+  --accent-2: light-dark(#0a58c2, #58a6ff);
+  --accent-glow: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: light-dark(#b2b9c4, #3b424d) transparent;
+}
+:root[data-look='console'][data-accent='orchid'] {
+  --accent: light-dark(#a3167a, #ff7ad9);
+  --accent-hover: light-dark(#850f63, #ffa3e5);
+  --accent-fill: light-dark(#a3167a, #ff7ad9);
+  --accent-fill-hover: light-dark(#850f63, #ffa3e5);
+  --accent-soft: light-dark(#fbe8f4, #ff7ad91f);
+  --accent-line: light-dark(#e9b4d6, #ff7ad94d);
+  --accent-strong: light-dark(#560a40, #ffdef4);
+  --accent-tint: light-dark(#fdf2f9, #ff7ad90f);
+  --accent-2: light-dark(#a3167a, #ff7ad9);
+  --accent-glow: transparent;
+}
+:root[data-look='console'][data-accent='lagoon'] {
+  --accent: light-dark(#09743f, #3fe0a0);
+  --accent-hover: light-dark(#07603a, #7aedbc);
+  --accent-fill: light-dark(#09743f, #3fe0a0);
+  --accent-fill-hover: light-dark(#07603a, #7aedbc);
+  --accent-soft: light-dark(#e2f5ea, #3fe0a01f);
+  --accent-line: light-dark(#a3d9bc, #3fe0a04d);
+  --accent-strong: light-dark(#04432a, #d3fbe7);
+  --accent-tint: light-dark(#f0faf4, #3fe0a00f);
+  --accent-2: light-dark(#09743f, #3fe0a0);
+  --accent-glow: transparent;
+}
+
+/* ---------- Shape: square corners, one thin accent line across the top ---------- */
+:root[data-look='console'][data-accent] *,
+:root[data-look='console'][data-accent] *::before,
+:root[data-look='console'][data-accent] *::after {
+  border-radius: 2px;
+}
+:root[data-look='console'] body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  height: 2px;
+  z-index: 50;
+  pointer-events: none;
+  background: var(--accent);
+}
+:root[data-look='console'] ::selection {
+  background: var(--accent-line);
+}
+
+/* ---------- Sidebar ---------- */
+:root[data-look='console'] .chat-sidebar {
+  background: var(--bg-deep);
+  border-right-color: var(--line);
+}
+:root[data-look='console'] .chat-brand > .brand-mark {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  box-shadow: none;
+}
+:root[data-look='console'] .chat-brand > span {
+  font: 700 15px/1.3 var(--mono);
+  letter-spacing: -0.01em;
+}
+:root[data-look='console'] .new-chat {
+  background: transparent;
+  border-color: var(--line-strong);
+  box-shadow: none;
+  font: 600 12px/1.4 var(--mono);
+}
+:root[data-look='console'] .new-chat:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+:root[data-look='console'] .nav-section-label {
+  font: 600 10.5px/1.6 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+:root[data-look='console'] .nav-section-label::before {
+  content: '// ';
+  content: '// ' / '';
+  color: var(--accent);
+}
+:root[data-look='console'] .chat-sidebar nav button {
+  min-height: 36px;
+  padding: 8px 12px;
+  font: 500 12.5px/1.4 var(--mono);
+  transition: none;
+}
+:root[data-look='console'] .chat-sidebar nav button:hover:not([aria-current]) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+:root[data-look='console'] .chat-sidebar nav button[aria-current] {
+  background: var(--surface-subtle);
+  color: var(--text);
+  box-shadow: inset 2px 0 0 var(--accent);
+  font-weight: 700;
+}
+:root[data-look='console'] .chat-sidebar nav small {
+  color: var(--muted);
+  font: 600 11px var(--mono);
+}
+:root[data-look='console']
+  :is(.chat-sidebar nav small, .library-switch small)::before {
+  content: '[';
+  content: '[' / '';
+}
+:root[data-look='console']
+  :is(.chat-sidebar nav small, .library-switch small)::after {
+  content: ']';
+  content: ']' / '';
+}
+
+/* ---------- Top bar and tabs ---------- */
+:root[data-look='console'] .chat-topbar {
+  background: var(--bg);
+  border-bottom-color: var(--line);
+}
+:root[data-look='console'] .topbar-crumbs ol {
+  font: 12px/1.4 var(--mono);
+}
+:root[data-look='console'] .topbar-crumbs li[aria-current] {
+  font-weight: 700;
+}
+:root[data-look='console'] .environment-badge {
+  gap: 8px;
+  padding: 5px 10px;
+  border: 1px solid var(--success-line);
+  background: transparent;
+  color: var(--success-fg);
+  font: 600 11px/1.4 var(--mono);
+}
+:root[data-look='console'] .chat-icon:hover {
+  background: var(--surface-hover);
+  color: var(--accent);
+}
+:root[data-look='console'] .library-switch {
+  background: var(--bg);
+  border-bottom-color: var(--line);
+}
+:root[data-look='console'] .library-switch button {
+  font: 600 12px/1.4 var(--mono);
+}
+:root[data-look='console'] .library-switch button[aria-current] {
+  border-color: var(--accent);
+  color: var(--text);
+}
+:root[data-look='console'] .library-switch small {
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 600 11px var(--mono);
+}
+
+/* ---------- Library: headline, search, filters ---------- */
+:root[data-look='console'] .library-eyebrow {
+  color: var(--accent);
+  font: 600 11px/1.6 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+:root[data-look='console'] .library-eyebrow::before {
+  content: '// ';
+  content: '// ' / '';
+  opacity: 0.6;
+}
+:root[data-look='console']
+  :is(
+    .library-hero h1,
+    .section-heading h1,
+    .creation-heading h1,
+    .review-heading h1,
+    .demo-introduction h1,
+    .library-detail h1,
+    .chat-welcome h1
+  ) {
+  font: 600 26px/1.25 var(--mono);
+  letter-spacing: -0.03em;
+}
+:root[data-look='console']
+  :is(
+    .library-hero h1,
+    .section-heading h1,
+    .creation-heading h1,
+    .review-heading h1,
+    .demo-introduction h1,
+    .library-detail h1,
+    .chat-welcome h1
+  )::before {
+  content: '> ';
+  content: '> ' / '';
+  color: var(--accent);
+}
+:root[data-look='console']
+  :is(
+    .library-hero h1,
+    .section-heading h1,
+    .creation-heading h1,
+    .review-heading h1,
+    .demo-introduction h1,
+    .library-detail h1,
+    .chat-welcome h1
+  )::after {
+  content: '';
+  display: inline-block;
+  width: 0.5em;
+  height: 0.95em;
+  margin-left: 0.3em;
+  vertical-align: -0.12em;
+  background: var(--accent);
+}
+:root[data-look='console'] .chat-welcome h1 {
+  font-size: 22px;
+}
+:root[data-look='console'] .request-heading {
+  font: 600 14px/1.4 var(--mono);
+  letter-spacing: -0.01em;
+}
+:root[data-look='console'] .request-heading::before {
+  content: '## ';
+  content: '## ' / '';
+  color: var(--accent);
+}
+@media (max-width: 700px) {
+  :root[data-look='console']
+    :is(
+      .library-hero h1,
+      .section-heading h1,
+      .creation-heading h1,
+      .review-heading h1,
+      .demo-introduction h1,
+      .library-detail h1,
+      .chat-welcome h1
+    ) {
+    font-size: 20px;
+  }
+}
+:root[data-look='console'] .library-path li {
+  font: 600 11.5px/1.4 var(--mono);
+}
+:root[data-look='console'] .library-path span {
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+:root[data-look='console'] .library-search,
+:root[data-look='console'] .library-filter-menu summary {
+  background: var(--surface-sunken);
+  border-color: var(--field-line);
+}
+:root[data-look='console'] .library-search:focus-within,
+:root[data-look='console'] .library-filter-menu[open] summary {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+:root[data-look='console'] .library-search input {
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+:root[data-look='console'] .library-filters legend {
+  font: 600 10.5px/1.6 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+:root[data-look='console'] .library-facet[aria-pressed='true'] {
+  background: var(--surface-subtle);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+:root[data-look='console'] .library-facet small,
+:root[data-look='console'] .library-filter-menu summary strong {
+  font-family: var(--mono);
+}
+:root[data-look='console'] .library-filter-panel {
+  border-color: var(--line-strong);
+  box-shadow: 0 12px 28px -8px var(--shadow);
+}
+:root[data-look='console']
+  :is(
+    .library-clear,
+    .library-secondary,
+    .library-empty button,
+    .library-error button
+  ) {
+  font: 600 12px/1.4 var(--mono);
+}
+
+/* ---------- Cards (library, starters, Chat examples) ---------- */
+:root[data-look='console']
+  :is(.library-card, .library-start-card, .prompt-options button) {
+  border-color: var(--line);
+  background: var(--surface);
+  box-shadow: none;
+  transition: none;
+}
+:root[data-look='console']
+  :is(.library-card, .library-start-card, .prompt-options button):hover {
+  border-color: var(--accent);
+  background: var(--surface-subtle);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+:root[data-look='console'] .library-start-card {
+  border-color: var(--accent-line);
+  background: var(--accent-tint);
+}
+:root[data-look='console'] .library-card-icon {
+  border: 1px solid var(--accent-line);
+  background: transparent;
+}
+:root[data-look='console'] .library-start-card .library-card-icon {
+  background: transparent;
+}
+:root[data-look='console'] .library-kicker {
+  font: 10px/1.5 var(--mono);
+}
+:root[data-look='console'] .library-start-foot span {
+  font: 10.5px/1.5 var(--mono);
+}
+:root[data-look='console'] .library-badge {
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+  background: transparent;
+  font: 600 10px/1.5 var(--mono);
+}
+:root[data-look='console'] .library-decides {
+  border-top-style: dashed;
+}
+:root[data-look='console']
+  :is(.library-start-head h2, .library-results-toolbar h2) {
+  font: 600 14px/1.4 var(--mono);
+}
+:root[data-look='console'] .library-view-switch {
+  border-color: var(--field-line);
+  background: var(--surface-sunken);
+}
+:root[data-look='console'] .library-view-switch button {
+  font: 600 11.5px/1.4 var(--mono);
+}
+:root[data-look='console'] .library-view-switch button[aria-pressed='true'] {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+
+/* ---------- List view ---------- */
+:root[data-look='console'] .library-list-wrap {
+  border-color: var(--line-strong);
+}
+:root[data-look='console']
+  :is(.library-list-table, .request-table, .operations-table)
+  thead
+  th {
+  font: 600 10px/1.6 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ---------- Chat ---------- */
+:root[data-look='console'] .welcome-kind,
+:root[data-look='console'] .progress-pill,
+:root[data-look='console'] .aside-kind {
+  font: 600 10.5px/1.5 var(--mono);
+}
+:root[data-look='console'] :is(.welcome-kind, .aside-kind) {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-secondary);
+}
+:root[data-look='console'] .progress-pill {
+  background: transparent;
+}
+:root[data-look='console'] .composer {
+  background: var(--surface);
+  border-color: var(--field-line);
+  box-shadow: none;
+  transition: none;
+}
+:root[data-look='console'] .composer:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+:root[data-look='console'] .composer textarea {
+  font: 13px/1.75 var(--mono);
+}
+:root[data-look='console'] .send-button {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  box-shadow: none;
+}
+:root[data-look='console'] .send-button:hover:not(:disabled) {
+  background: var(--accent-fill-hover);
+}
+:root[data-look='console'] .send-button.stop {
+  background: var(--danger-action);
+}
+:root[data-look='console'] .user-message {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  border-left: 2px solid var(--accent);
+}
+:root[data-look='console'] .message-author {
+  color: var(--accent);
+  font: 700 10px/1.4 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+:root[data-look='console'] .assistant-message {
+  animation: none;
+}
+:root[data-look='console'] .assistant-heading > span:last-child {
+  font-size: 10px;
+}
+
+/* ---------- Chat side column ---------- */
+:root[data-look='console'] .aside-panel {
+  border-color: var(--line);
+  background: var(--surface);
+  box-shadow: none;
+}
+:root[data-look='console'] .aside-panel h2 {
+  font: 600 10.5px/1.5 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+:root[data-look='console'] .aside-panel h2::before {
+  content: '## ';
+  content: '## ' / '';
+  color: var(--accent);
+}
+:root[data-look='console'] .aside-rows dd {
+  font-family: var(--mono);
+}
+:root[data-look='console'] .aside-button {
+  font: 600 12px/1.4 var(--mono);
+}
+:root[data-look='console']
+  :is(
+    .aside-button.primary,
+    .review-primary,
+    .creation-primary,
+    .demo-primary
+  ) {
+  border-color: var(--accent-fill);
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  box-shadow: none;
+}
+:root[data-look='console']
+  :is(
+    .aside-button.primary,
+    .review-primary,
+    .creation-primary,
+    .demo-primary
+  ):hover:not(:disabled) {
+  border-color: var(--accent-fill-hover);
+  background: var(--accent-fill-hover);
+}
+
+/* ---------- Operations: a status-bar feel ---------- */
+:root[data-look='console'] .operations-view .metric-strip {
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+:root[data-look='console'] .operations-view .metric-strip > div:first-child {
+  padding-left: 20px;
+}
+:root[data-look='console'] .operations-view .metric-strip span {
+  font: 600 10px/1.5 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+:root[data-look='console'] .operations-view .metric-strip strong {
+  font: 600 24px/1.2 var(--mono);
+  letter-spacing: -0.03em;
+}
+:root[data-look='console'] .operations-panel,
+:root[data-look='console'] .operations-section {
+  border-color: var(--line);
+}
+:root[data-look='console'] .operations-status {
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+  background: transparent;
+  font: 600 10.5px/1.5 var(--mono);
+}
+
+/* ---------- Switches, menus and small touches ---------- */
+:root[data-look='console'] .hood-switch input::after {
+  border-radius: 1px;
+}
+:root[data-look='console'] .hood-switch input,
+:root[data-look='console'] .hood-switch input::after {
+  transition: none;
+}
+:root[data-look='console']
+  :is(.theme-panel, .lab-info-panel, .agent-switcher-panel) {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  box-shadow: 0 12px 28px -8px var(--shadow);
+}
+
+/* ---------- More contrast, forced colors ---------- */
+@media (prefers-contrast: more) {
+  :root[data-look='console'] {
+    --muted: light-dark(#3a4452, #b9c2cf);
+    --line: light-dark(#8e97a5, #5a6370);
+    --line-strong: light-dark(#5f6a7a, #8a94a3);
+  }
+}
+@media (forced-colors: active) {
+  :root[data-look='console'] body::before,
+  :root[data-look='console']
+    :is(
+      .library-hero h1,
+      .section-heading h1,
+      .creation-heading h1,
+      .review-heading h1,
+      .demo-introduction h1,
+      .library-detail h1,
+      .chat-welcome h1
+    )::after {
+    display: none;
+  }
+}

@@ -23,27 +23,45 @@ afterEach(() => {
 })
 
 describe('parseTheme', () => {
-  it('accepts a saved mode and accent', () => {
-    assert.deepEqual(parseTheme('{"mode":"dark","accent":"lagoon"}'), {
-      mode: 'dark',
-      accent: 'lagoon',
-    })
+  it('accepts a saved mode, accent and look', () => {
+    assert.deepEqual(
+      parseTheme('{"mode":"dark","accent":"lagoon","look":"aurora"}'),
+      { mode: 'dark', accent: 'lagoon', look: 'aurora' },
+    )
+    assert.equal(parseTheme('{"look":"console"}').look, 'console')
   })
 
   it('replaces each unknown field independently', () => {
-    assert.deepEqual(parseTheme('{"mode":"sepia","accent":"orchid"}'), {
-      mode: defaultTheme.mode,
-      accent: 'orchid',
-    })
-    assert.deepEqual(parseTheme('{"mode":"light","accent":7}'), {
-      mode: 'light',
-      accent: defaultTheme.accent,
+    assert.deepEqual(
+      parseTheme('{"mode":"sepia","accent":"orchid","look":"console"}'),
+      { mode: defaultTheme.mode, accent: 'orchid', look: 'console' },
+    )
+    assert.deepEqual(
+      parseTheme('{"mode":"light","accent":7,"look":"aurora"}'),
+      { mode: 'light', accent: defaultTheme.accent, look: 'aurora' },
+    )
+    assert.deepEqual(
+      parseTheme('{"mode":"light","accent":"orchid","look":"neon"}'),
+      { mode: 'light', accent: 'orchid', look: defaultTheme.look },
+    )
+    assert.equal(parseTheme('{"look":["aurora"]}').look, defaultTheme.look)
+  })
+
+  it('opens a value saved before looks existed in Classic', () => {
+    assert.deepEqual(parseTheme('{"mode":"dark","accent":"lagoon"}'), {
+      mode: 'dark',
+      accent: 'lagoon',
+      look: 'classic',
     })
   })
 
   it('falls back for missing, malformed, or non-object values', () => {
     for (const value of [null, '', 'not json', '"dark"', 'null', '42'])
       assert.deepEqual(parseTheme(value), defaultTheme)
+  })
+
+  it('defaults to Classic', () => {
+    assert.equal(defaultTheme.look, 'classic')
   })
 })
 
@@ -54,9 +72,13 @@ describe('theme storage', () => {
       getItem: (key: string) => saved.get(key) ?? null,
       setItem: (key: string, value: string) => saved.set(key, value),
     })
-    saveTheme({ mode: 'light', accent: 'orchid' })
+    saveTheme({ mode: 'light', accent: 'orchid', look: 'console' })
     assert.ok(saved.has(themeStorageKey))
-    assert.deepEqual(loadTheme(), { mode: 'light', accent: 'orchid' })
+    assert.deepEqual(loadTheme(), {
+      mode: 'light',
+      accent: 'orchid',
+      look: 'console',
+    })
   })
 
   it('tolerates unavailable storage', () => {

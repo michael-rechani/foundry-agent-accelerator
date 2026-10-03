@@ -529,6 +529,9 @@ p {
   right: 32px;
   width: 300px;
   max-width: calc(100vw - 34px);
+  /* Stays inside a short window; the choices scroll instead of running off. */
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
   display: grid;
   gap: 18px;
   padding: 18px;
@@ -2061,6 +2064,10 @@ p {
   .lab-info-panel,
   .theme-panel {
     right: 17px;
+  }
+  .theme-panel {
+    /* The tab strip sits above the top bar here, so the panel starts lower. */
+    max-height: calc(100dvh - 232px);
   }
   .agent-info-panel {
     left: 17px;

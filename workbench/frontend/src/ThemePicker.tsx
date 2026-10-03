@@ -1,13 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
-import { Monitor, Moon, Palette, Sun, type LucideIcon } from 'lucide-react'
+import {
+  Monitor,
+  Moon,
+  Palette,
+  PanelLeft,
+  Sparkles,
+  Sun,
+  Terminal,
+  type LucideIcon,
+} from 'lucide-react'
 import {
   accents,
   applyTheme,
   loadTheme,
+  looks,
   parseTheme,
   saveTheme,
   themeModes,
   themeStorageKey,
+  type Look,
   type Theme,
   type ThemeMode,
 } from './theme'
@@ -16,6 +27,12 @@ const modeIcons: Record<ThemeMode, LucideIcon> = {
   system: Monitor,
   light: Sun,
   dark: Moon,
+}
+
+const lookIcons: Record<Look, LucideIcon> = {
+  classic: PanelLeft,
+  aurora: Sparkles,
+  console: Terminal,
 }
 
 export function ThemePicker() {
@@ -98,6 +115,27 @@ export function ThemePicker() {
                 {item.label}
               </label>
             ))}
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Look</legend>
+          <div className="theme-options">
+            {looks.map((item) => {
+              const Icon = lookIcons[item.id]
+              return (
+                <label key={item.id} className="theme-option">
+                  <input
+                    type="radio"
+                    name="theme-look"
+                    value={item.id}
+                    checked={theme.look === item.id}
+                    onChange={() => choose({ ...theme, look: item.id })}
+                  />
+                  <Icon size={18} aria-hidden="true" />
+                  {item.label}
+                </label>
+              )
+            })}
           </div>
         </fieldset>
         <p>Saved in this browser only.</p>
