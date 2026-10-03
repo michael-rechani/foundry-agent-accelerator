@@ -238,11 +238,16 @@ def parse_args(argv=None):
         for name in ("sample", "endpoint", "agent_name", "agent_version", "judge_model", "source_revision", "output"):
             if not getattr(args, name):
                 parser.error(f"--run requires --{name.replace('_', '-')}")
-        endpoint = urlsplit(args.endpoint)
+        try:
+            endpoint = urlsplit(args.endpoint)
+            port = endpoint.port
+        except ValueError:
+            endpoint = port = None
         if (
-            endpoint.scheme != "https" or not endpoint.hostname or endpoint.username or endpoint.password
-            or endpoint.query or endpoint.fragment or endpoint.port not in (None, 443)
-            or not re.fullmatch(r"/api/projects/[A-Za-z0-9_-]+", endpoint.path)
+            endpoint is None or endpoint.scheme != "https"
+            or not (endpoint.hostname or "").endswith(".services.ai.azure.com")
+            or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment
+            or port not in (None, 443) or not re.fullmatch(r"/api/projects/[A-Za-z0-9_-]+", endpoint.path)
         ):
             parser.error("--endpoint must be an HTTPS Foundry project URL without credentials, query or fragment")
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", args.agent_name):

@@ -133,7 +133,8 @@ class Settings:
         if self.mode == "private":
             parsed = urlparse(self.endpoint)
             if (parsed.scheme != "https" or not (parsed.hostname or "").endswith(".services.ai.azure.com")
-                    or parsed.port not in (None, 443) or parsed.username or parsed.query or parsed.fragment
+                    or parsed.port not in (None, 443) or parsed.username or parsed.password
+                    or parsed.params or parsed.query or parsed.fragment
                     or not re.fullmatch(r"/api/projects/[A-Za-z0-9_-]+", parsed.path)):
                 raise ValueError("Private mode requires a Foundry project endpoint")
         elif any(host not in {"localhost", "127.0.0.1"} for host in self.hosts):

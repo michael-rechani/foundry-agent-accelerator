@@ -44,7 +44,9 @@ from library_checks import CASES_PATH, case_input, load_cases
 # library_checks puts workbench/ on sys.path, which these two imports need.
 from agent_templates import MODEL_PROFILES, TEMPLATE_METADATA, TEMPLATES
 from library_preview import run_preview, summarize_usage, usage_record
-from library_rules import DEPLOYMENT_NAME, is_int, is_number, is_profile_map, valid_date
+from library_rules import (
+    ANSWER_ROW, COUNT_KEYS, DEPLOYMENT_NAME, METRICS_ROW, RUN_ROW, is_int, is_number, is_profile_map, valid_date,
+)
 
 HERE = Path(__file__).resolve().parent
 JOURNALS = HERE / "results" / "library-runs"
@@ -61,14 +63,8 @@ FIRST_ESTIMATE = 4_000
 MAX_ATTEMPTS = 6
 TRANSIENT_ERRORS = {"APIConnectionError", "APITimeoutError", "ServiceRequestError", "ServiceResponseError"}
 
-# The keys of each evidence file's rows, in the order the files already use. A saved run holds all
-# of them: the first run becomes an answer row and a metrics row, runs 2 and up become repeat rows.
-ANSWER_ROW = ("case_id", "text", "receipts", "instructions_sha256", "recorded_on")
-METRICS_ROW = ("case_id", "model", "seconds", "input_tokens", "cached_tokens", "output_tokens",
-               "instructions_sha256", "recorded_on")
-RUN_ROW = ("case_id", "run", "text", "receipts", "model", "seconds", "input_tokens", "cached_tokens",
-           "output_tokens", "instructions_sha256", "recorded_on")
-COUNT_KEYS = ("input_tokens", "cached_tokens", "output_tokens")
+# The evidence row keys (ANSWER_ROW, METRICS_ROW, RUN_ROW, COUNT_KEYS) come from workbench/library_rules.py,
+# so the rows this file writes are the rows scorecards.py reads.
 
 
 class Stop(Exception):
@@ -490,7 +486,8 @@ def validate_endpoint(value):
         port = parts.port
     except ValueError:
         parts = port = None
-    if (parts is None or parts.scheme != "https" or not parts.hostname or parts.username or parts.password
+    if (parts is None or parts.scheme != "https" or not (parts.hostname or "").endswith(".services.ai.azure.com")
+            or parts.username or parts.password
             or parts.query or parts.fragment or port not in (None, 443)
             or not re.fullmatch(r"/api/projects/[A-Za-z0-9_-]+", parts.path)):
         raise Stop("The endpoint must be an HTTPS Foundry project URL, like "

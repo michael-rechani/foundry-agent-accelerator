@@ -33,7 +33,7 @@ import sys
 from pathlib import Path
 
 from library_checks import CASES_PATH, TEMPLATES, case_input, load_cases, score
-from library_rules import is_int, is_number, valid_date
+from library_rules import METRIC_KEYS, is_int, is_number, valid_date
 
 HERE = Path(__file__).resolve().parent
 EVIDENCE = HERE / "evidence"
@@ -49,7 +49,6 @@ METRICS = EVIDENCE / "library-acceptance-2026-09-29-metrics.jsonl"
 REPEATS = EVIDENCE / "library-repeat-2026-09-29.jsonl"
 PRICES = EVIDENCE / "model-prices-2026-09.json"
 SIGNOFFS = EVIDENCE / "signoffs.json"
-METRIC_KEYS = ("seconds", "input_tokens", "cached_tokens", "output_tokens")
 
 
 def _lines(path):

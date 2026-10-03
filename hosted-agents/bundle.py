@@ -266,6 +266,19 @@ def export_created(record_path, runtime_directory=None):
     return make_bundle(profile, code, kind="lab-created", model=record["model"])
 
 
+def valid_project_endpoint(value):
+    """An HTTPS Foundry project URL. test_rule_copies.py checks that every copy of this rule agrees."""
+    try:
+        endpoint = urlparse(value)
+        port = endpoint.port
+    except ValueError:
+        return False
+    return (endpoint.scheme == "https" and (endpoint.hostname or "").endswith(".services.ai.azure.com")
+            and not endpoint.username and not endpoint.password and port in (None, 443)
+            and not endpoint.params and not endpoint.query and not endpoint.fragment
+            and re.fullmatch(r"/api/projects/[A-Za-z0-9_-]+", endpoint.path) is not None)
+
+
 def deployment_profile(manifest, code, name, mappings):
     manifest = deepcopy(manifest)
     manifest["name"] = name
@@ -346,10 +359,7 @@ def main(argv=None):
                 "specialists": sorted({check[2] for check in manifest["delegation_checks"]}),
             }, indent=2))
             return
-        endpoint = urlparse(args.endpoint)
-        if (endpoint.scheme != "https" or not (endpoint.hostname or "").endswith(".services.ai.azure.com")
-                or endpoint.username or endpoint.port not in (None, 443) or endpoint.query or endpoint.fragment
-                or not re.fullmatch(r"/api/projects/[A-Za-z0-9_-]+", endpoint.path)):
+        if not valid_project_endpoint(args.endpoint):
             raise ValueError("Supply the verified destination Foundry HTTPS project endpoint")
         if not MODEL.fullmatch(args.model):
             raise ValueError("Invalid destination model deployment name")

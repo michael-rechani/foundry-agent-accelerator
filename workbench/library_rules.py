@@ -12,6 +12,16 @@ import re
 CATEGORIES = frozenset({"grounded", "missing", "conflict", "injection", "decision-boundary"})
 DEPLOYMENT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 
+# The keys of each evidence file's rows, in the order the files already use. evaluations/library_runs.py
+# writes them and evaluations/scorecards.py reads them, so both import the one definition. A saved run
+# holds all of them: the first run becomes an answer row and a metrics row, runs 2 and up become repeat
+# rows.
+COUNT_KEYS = ("input_tokens", "cached_tokens", "output_tokens")
+METRIC_KEYS = ("seconds", *COUNT_KEYS)
+ANSWER_ROW = ("case_id", "text", "receipts", "instructions_sha256", "recorded_on")
+METRICS_ROW = ("case_id", "model", *METRIC_KEYS, "instructions_sha256", "recorded_on")
+RUN_ROW = ("case_id", "run", "text", "receipts", "model", *METRIC_KEYS, "instructions_sha256", "recorded_on")
+
 
 def is_int(value):
     """A real integer. True and False are not integers here (#166)."""

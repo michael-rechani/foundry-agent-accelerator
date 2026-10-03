@@ -167,8 +167,17 @@ copy and the recorded evidence disagree.
 Status: Validation A is done. `workbench/library_rules.py` holds the constants and
 checks below, and the five consumers import them. `evaluations/test_shared_rules.py`
 and `workbench/test_library_rules.py` assert that each consumer uses the one copy,
-and that the Lab and the recorder accept and refuse the same model maps. Validation B
-(the evidence row shapes and the drift-guard tests for the copies below) is next.
+and that the Lab and the recorder accept and refuse the same model maps.
+
+Validation B is done too. `ANSWER_ROW`, `METRICS_ROW`, `RUN_ROW`, `COUNT_KEYS` and
+`METRIC_KEYS` moved into the same module, so the writer (`library_runs.py`) and
+the reader (`scorecards.py`) can't disagree on a row's keys, and a test checks that
+every row in the recorded evidence has exactly those keys in that order. The copies
+below stay separate, and `workbench/test_rule_copies.py` feeds the same examples to
+all of them. Writing that test found three differences, which are now fixed: the
+two evaluation copies accepted any host and the three Lab and hosted copies
+accepted a URL with only a password (`https://:secret@...`) or with path
+parameters (`;x=1`).
 
 The code can only be shared in one direction. The Lab image contains only
 `workbench/`, while `evaluations/` already puts `workbench/` on `sys.path`
@@ -201,15 +210,16 @@ Some checks sit in code that ships as a standalone zip, which doesn't contain
 `workbench/`:
 
 - The Foundry project endpoint rule (https, `.services.ai.azure.com`,
-  `/api/projects/<name>`, no credentials, query or fragment, port 443) is in
+  `/api/projects/<name>`, no credentials, path parameters, query or fragment,
+  port 443) is in
   `hosted-agents/bundle.py`, `evaluations/library_runs.py`, `evaluations/run.py`,
   `workbench/agent_runtime/main.py` and `workbench/app.py`.
 - The agent-name pattern `[A-Za-z_][A-Za-z0-9_-]{0,63}` is in `app.py` and in
   `hosted-agents/review-coordinator-agent/configuration.py`.
 
-Don't force these into one file. Validation B adds a test for each that asserts
-the copies accept and reject the same examples, so a change in one place fails
-until the others match. Merging the endpoint copies later is optional.
+Don't force these into one file. `workbench/test_rule_copies.py` asserts that the
+copies accept and reject the same examples, so a change in one place fails until
+the others match. Merging the endpoint copies later is optional.
 
 ## 3. Hosted-agent start-up
 
