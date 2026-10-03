@@ -35,7 +35,7 @@ because they touch different folders.
 | 3 | Validation A: `workbench/library_rules.py` constants and small checks | #155, #166 | No |
 | 4 | Admission C: `read_json_body` in `request_guard.py` | Admission B | No |
 | 4 | Validation B: evidence row shapes and drift-guard tests | Validation A | No |
-| 5 | Admission D: Cosmos error table (only if the copies are still worth merging) | Admission C | No |
+| 5 | Admission D: `cosmos_failure` in `request_guard.py` | Admission C | No |
 | 5 | Metadata: one data file per library agent | [#165](https://github.com/michael-rechani/foundry-agent-accelerator/issues/165), and the `readiness="reviewed"` flips ([#87](https://github.com/michael-rechani/foundry-agent-accelerator/issues/87)) | No |
 
 The admission steps touch `app.py`, `history.py`, `agent_creation.py` and
@@ -83,9 +83,11 @@ Smaller differences that the helper has to keep, or change on purpose:
   `invalid_setup` in `agent_creation.py`.
 - Too much data is `conversation_too_large` in `history.py` and
   `request_too_large` elsewhere.
-- The Cosmos error mapping (404, 409 and 412 to a domain code, anything else to
-  a 503 plus `record_request_failure(..., "cosmos")`) is written out three times,
-  in `history.py`, `agent_creation.py` and `review_runs.py`.
+- The Cosmos error mapping (404, and a version conflict, to a domain code,
+  anything else to a 503 plus `record_request_failure(..., "cosmos")`) was written
+  out three times, in `history.py`, `agent_creation.py` and `review_runs.py`. The
+  conflict is 412 in `history.py` and `review_runs.py`, but 409 or 412 in
+  `agent_creation.py`, which creates records.
 - The `X-Correlation-ID` header already comes from the `security_headers`
   middleware in `app.py` for every `/api/` response, so only the body's
   `request_id` differs.
@@ -97,8 +99,9 @@ contract. Every helper takes the code as a parameter.
 ### Shared home: `workbench/request_guard.py`
 
 Status: `is_json` and `api_error` (Admission A), `RateGate` (Admission B) and
-`RequestRejected` with `read_json_body` (Admission C) are in place and the four
-routers use them. Only the optional Cosmos error table is left.
+`RequestRejected` with `read_json_body` (Admission C) and `cosmos_failure`
+(Admission D) are in place and the routers use them. All four admission steps are
+done.
 
 Extend the file all four routers already import. It is already in every module
 list and has `workbench/test_request_guard.py`, so this adds no new module. The
@@ -123,6 +126,10 @@ class RequestRejected(Exception):   # .status, .code
 async def read_json_body(request, limit, *, too_large="request_too_large",
                          wrong_type=(415, "json_required")) -> bytes
     # raises RequestRejected for wrong type, too large (413) or slow body (408)
+
+def cosmos_failure(request, problem, *, missing, changed, unavailable, conflicts=(412,)) -> JSONResponse
+    # 404 -> api_error 404 `missing`; a status in `conflicts` -> 409 `changed`;
+    # anything else -> record_request_failure(..., "cosmos") and 503 `unavailable`
 ```
 
 How each router uses it:
@@ -137,9 +144,12 @@ How each router uses it:
 - Each router's own JSON validation stays where it is. The validators differ
   and aren't repeated.
 
-Optional last step: `cosmos_status(error, table) -> (status, code)`, where
-`table` is that router's current 404, 409 and 412 mapping copied unchanged. Do it
-only if the three copies are still worth merging after the earlier steps.
+Admission D is `cosmos_failure`. It returns the response itself instead of a
+`(status, code)` pair, because all three callers wrapped that pair in
+`api_error` anyway. `agent_creation.py` passes `conflicts=(409, 412)` and the
+others keep the default. Each router has a test that pins its three codes, and
+`workbench/test_request_guard.py` covers the helper. The router tests passed
+unchanged against the old copies.
 
 Not chosen: a new `admission.py`. It would cost a module-list edit in four
 places for no benefit, and it would split the guard code across two files.

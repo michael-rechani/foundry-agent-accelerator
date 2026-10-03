@@ -24,7 +24,7 @@ from agent_templates import (
 )
 from history import StrictModel
 from library_rules import DEPLOYMENT_NAME, is_int, is_profile_map
-from request_guard import MAX_SETUP_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
+from request_guard import MAX_SETUP_BYTES, RateGate, RequestRejected, api_error, cosmos_failure, read_json_body, record_request_failure, request_allowed
 
 
 LOGGER = logging.getLogger("uvicorn.error")
@@ -322,11 +322,8 @@ class AgentCreations:
         except RequestRejected as problem:
             return self.error(request, problem.status, problem.code)
         except CosmosHttpResponseError as problem:
-            if problem.status_code not in {404, 409, 412}:
-                record_request_failure(request, problem, "cosmos")
-            return self.error(request, 404 if problem.status_code == 404 else 409 if problem.status_code in {409, 412} else 503,
-                              "agent_not_found" if problem.status_code == 404 else
-                              "agent_changed" if problem.status_code in {409, 412} else "agents_unavailable")
+            return cosmos_failure(request, problem, missing="agent_not_found", changed="agent_changed", unavailable="agents_unavailable",
+                                  conflicts=(409, 412))
         except TimeoutError as problem:
             record_request_failure(request, problem, "cosmos")
             return self.error(request, 504, "agents_timeout")

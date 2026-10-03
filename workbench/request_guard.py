@@ -56,6 +56,17 @@ def api_error(request, status, code, *, retry_after=None, **extra):
     )
 
 
+def cosmos_failure(request, problem, *, missing, changed, unavailable, conflicts=(412,)):
+    """Answer a Cosmos error: 404 is `missing`, a version conflict is `changed` (409), and anything else is logged and answered 503 `unavailable`."""
+    status = getattr(problem, "status_code", None)
+    if status == 404:
+        return api_error(request, 404, missing)
+    if status in conflicts:
+        return api_error(request, 409, changed)
+    record_request_failure(request, problem, "cosmos")
+    return api_error(request, 503, unavailable)
+
+
 class RateGate:
     """A request budget per window plus a cap on requests running at once; a full gate means a 429."""
 

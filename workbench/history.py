@@ -12,7 +12,7 @@ from azure.identity.aio import ManagedIdentityCredential
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from request_guard import MAX_CONVERSATION_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
+from request_guard import MAX_CONVERSATION_BYTES, RateGate, RequestRejected, api_error, cosmos_failure, read_json_body, record_request_failure, request_allowed
 
 
 class StrictModel(BaseModel):
@@ -164,10 +164,7 @@ class ConversationHistory:
         except ValidationError:
             return history_error(request, 400, "invalid_conversation")
         except CosmosHttpResponseError as problem:
-            if problem.status_code not in {404, 412}:
-                record_request_failure(request, problem, "cosmos")
-            return history_error(request, 404 if problem.status_code == 404 else 409 if problem.status_code == 412 else 503,
-                                 "conversation_not_found" if problem.status_code == 404 else "conversation_changed" if problem.status_code == 412 else "history_unavailable")
+            return cosmos_failure(request, problem, missing="conversation_not_found", changed="conversation_changed", unavailable="history_unavailable")
         except TimeoutError:
             raise
         except Exception as problem:

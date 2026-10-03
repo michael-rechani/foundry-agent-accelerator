@@ -12,7 +12,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from request_guard import MAX_REQUEST_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
+from request_guard import MAX_REQUEST_BYTES, RateGate, RequestRejected, api_error, cosmos_failure, read_json_body, record_request_failure, request_allowed
 from reviews import Evidence, ReviewInput, review_prompt, validate_result
 
 LOGGER = logging.getLogger("uvicorn.error")
@@ -89,10 +89,7 @@ class ReviewRuns:
         except RequestRejected as problem:
             return self.error(request, problem.status, problem.code)
         except CosmosHttpResponseError as problem:
-            if problem.status_code not in {404, 412}:
-                record_request_failure(request, problem, "cosmos")
-            return self.error(request, 404 if problem.status_code == 404 else 409 if problem.status_code == 412 else 503,
-                              "not_found" if problem.status_code == 404 else "review_changed" if problem.status_code == 412 else "reviews_unavailable")
+            return cosmos_failure(request, problem, missing="not_found", changed="review_changed", unavailable="reviews_unavailable")
         except TimeoutError as problem:
             record_request_failure(request, problem, "cosmos")
             return self.error(request, 504, "reviews_timeout")

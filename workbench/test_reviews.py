@@ -524,6 +524,15 @@ class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(response.json(), {"error": code, "request_id": response.headers["X-Correlation-ID"]})
                 self.assertTrue(response.json()["request_id"])
 
+    async def test_cosmos_errors_keep_their_status_and_code(self):
+        valid = "review-" + "0" * 8 + "-0000-0000-0000-" + "0" * 12
+        for failure, status, code in [(404, 404, "not_found"), (412, 409, "review_changed"),
+                                      (409, 503, "reviews_unavailable"), (500, 503, "reviews_unavailable")]:
+            with self.subTest(failure=failure):
+                self.store.get = AsyncMock(side_effect=CosmosHttpResponseError(status_code=failure))
+                response = await self.client.get(f"/api/review-runs/{valid}")
+                self.assertEqual((response.status_code, response.json()["error"]), (status, code))
+
     async def test_recovery_respects_shared_capacity_and_rate_limits(self):
         document = await self.interrupted_review()
         controller = self.controller()
