@@ -1,102 +1,41 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react'
-import { Check, CircleAlert, LoaderCircle, RefreshCw, X } from 'lucide-react'
+import { useState } from 'react'
 import './chat.css'
-import { useHistoryClient } from './history-client'
-import { preloadMarkdown } from './markdown-loader'
-import { ConversationTurn } from './ConversationTurn'
-import type { Turn } from './conversation-types'
-import { requestJson } from './request'
-import { WaitingIndicator } from './WaitingIndicator'
 import { useWorkspaceConfig, type Agent } from './workspace-config'
 import { ContinueDialog } from './ContinueDialog'
 import { ReviewWorkspace } from './ReviewWorkspace'
-import { reviewIdFromHash } from './review-client'
 import { AgentCreationWorkspace } from './AgentCreationWorkspace'
-import {
-  creationRequest,
-  parseCreatedAgent,
-  useCreatedAgents,
-} from './agent-creation-client'
+import { useCreatedAgents } from './agent-creation-client'
 import { ChatSidebar, type View } from './ChatSidebar'
 import { libraryViews } from './navigation'
 import { LibraryTabs } from './LibraryTabs'
 import { ChatTopbar } from './ChatTopbar'
-import { ChatAside } from './ChatAside'
-import { ChatWelcome } from './ChatWelcome'
-import { ChatComposer } from './ChatComposer'
-import { HistoryView, type SavedChat } from './HistoryView'
+import { ChatConfigStatus } from './ChatConfigStatus'
+import { ChatConversation } from './ChatConversation'
+import { ChatToast } from './ChatToast'
+import { HistoryView } from './HistoryView'
 import { AgentCatalog } from './AgentCatalog'
 import { PerformanceView } from './PerformanceView'
 import type { Measurement } from './performance-stats'
 import { RequestLog } from './RequestLog'
 import { OperationsView } from './OperationsView'
-import {
-  parseDependencyHealth,
-  type DependencyHealthSnapshot,
-} from './dependency-health'
 import { AgentLibrary, type ReadyAgent } from './AgentLibrary'
-import { ExploreDemos, DemoRunGuide } from './ExploreDemos'
+import { ExploreDemos } from './ExploreDemos'
 import { AddOns } from './AddOns'
-import { useLibraryCatalog } from './library-catalog-client'
-import {
-  isPreviewId,
-  previewAgents,
-  previewTemplateId,
-} from './library-catalog'
+import { isPreviewId, previewTemplateId } from './library-catalog'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
-import { parseUsage } from './token-usage'
 import { hoodViews, loadUnderTheHood, saveUnderTheHood } from './under-the-hood'
-type SavedVersion = { id: string; _etag: string }
-
-// Identifies one conversation so the server can reuse its warm agent session.
-const newThread = () =>
-  typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : undefined
-
-const hashViews: Record<string, View> = {
-  '#chat': 'chat',
-  '#create': 'create',
-  '#library': 'library',
-  '#agents': 'catalog',
-  '#demos': 'explore',
-  '#addons': 'addons',
-  '#operations': 'operations',
-  '#reviews': 'reviews',
-  '#performance': 'performance',
-  '#logs': 'log',
-}
-
-const viewForHash = (hash: string): View | null =>
-  reviewIdFromHash(hash) ? 'reviews' : (hashViews[hash] ?? null)
-
-const errors: Record<string, string> = {
-  preview_only: 'Foundry is not connected. No agent was invoked.',
-  busy: 'The Lab is busy right now. Wait a minute, then try again.',
-  timeout:
-    'The request timed out. Remote work may still finish; check before retrying.',
-  backend_unavailable:
-    'Foundry could not complete this request. Check private connectivity and managed-identity access.',
-  incomplete_response: 'The agent did not return a completed response.',
-  request_too_large:
-    'The conversation exceeds the request size limit. Start a new chat or shorten your message.',
-  invalid_request:
-    'The conversation was not accepted. Check its length and selected agent.',
-  request_not_allowed: 'This browser origin is not permitted.',
-  library_preview_disabled:
-    'Library previews are turned off in this Lab. Choose a ready agent, or create this one from the Library.',
-}
-
-const previewReasons: Record<string, string> = {
-  local_preview: 'Library previews need a connected Lab.',
-  not_enabled: 'Library previews are turned off in this Lab.',
-  model_not_configured:
-    'Library previews need a model deployment. Ask the Lab operator.',
-}
+import { chatLimits, exportConversation } from './chat-helpers'
+import { useChatHistory } from './use-chat-history'
+import { useChatSubmit } from './use-chat-submit'
+import { useChatView } from './use-chat-view'
+import {
+  useAutoGrowEditor,
+  useConversationScroll,
+  useUnsavedWarning,
+} from './use-chat-effects'
+import { useConversation } from './use-conversation'
+import { useDependencyHealth } from './use-dependency-health'
+import { useLibraryPreviews } from './use-library-previews'
 
 export default function ChatWorkspace() {
   const {
@@ -104,23 +43,9 @@ export default function ChatWorkspace() {
     error: configError,
     retry: retryConfig,
   } = useWorkspaceConfig()
-  const [selectedId, setSelected] = useState('')
-  const selected = selectedId || config?.default_agent || ''
-  const [selectedView, setView] = useState<View | null>(() =>
-    viewForHash(window.location.hash),
-  )
-  useEffect(() => {
-    const follow = () => {
-      const next = viewForHash(window.location.hash)
-      if (next) setView(next)
-    }
-    window.addEventListener('hashchange', follow)
-    return () => window.removeEventListener('hashchange', follow)
-  }, [])
-  const view =
-    selectedView === 'create' && config && !config.agent_creation
-      ? 'library'
-      : (selectedView ?? 'library')
+  const { view, setView } = useChatView(config)
+  const conversation = useConversation(config?.default_agent)
+  const { selected, draft, turns, busy, dirty, activeDemo } = conversation
   const createdAgents = useCreatedAgents(config?.agent_creation)
   const availableAgents: Agent[] = [
     ...(config?.agents || []),
@@ -128,50 +53,44 @@ export default function ChatWorkspace() {
       .map((record) => record.agent)
       .filter((item): item is Agent => item !== null),
   ]
-  const previewCapability = config?.library_preview
-  const library = useLibraryCatalog(
-    !!config && (view === 'library' || !!previewCapability?.enabled),
-  )
-  const previewList = previewCapability?.enabled
-    ? previewAgents(library.catalog, previewCapability.agent)
-    : []
-  const previewFor = (templateId: string) =>
-    previewList.find((item) => item.id === `library-${templateId}`)
-  const previewsLoading =
-    !!previewCapability?.enabled && !library.catalog && !library.error
-  const [draft, setDraft] = useState('')
-  const [turns, setTurns] = useState<Turn[]>([])
-  const [pending, setPending] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const {
+    library,
+    previewCapability,
+    previewList,
+    previewFor,
+    previewsLoading,
+    previewNote,
+    previewOptions,
+  } = useLibraryPreviews(config, view)
   const [notice, setNotice] = useState('')
   const [query, setQuery] = useState('')
   const [measurements, setMeasurements] = useState<Measurement[]>([])
-  const [saved, setSaved] = useState<SavedVersion | null>(null)
-  const [dirty, setDirty] = useState(false)
-  const [historyBusy, setHistoryBusy] = useState(false)
-  const [savedChats, setSavedChats] = useState<SavedChat[]>([])
-  const [historyLoaded, setHistoryLoaded] = useState(false)
-  const [cursor, setCursor] = useState<string | null>(null)
   const [continuing, setContinuing] = useState(false)
   const [presenting, setPresenting] = useState(false)
   const [hood, setHood] = useState(loadUnderTheHood)
   const [libraryDetail, setLibraryDetail] = useState('')
-  const [activeDemo, setActiveDemo] = useState<DemoScenario | null>(null)
   const [requestedTemplate, setRequestedTemplate] = useState<{
     id: string
     key: number
   } | null>(null)
-  const [thread, setThread] = useState(newThread)
-  const [dependencyHealth, setDependencyHealth] =
-    useState<DependencyHealthSnapshot | null>(null)
-  const historyRequest = useHistoryClient(config?.history_timeout_ms)
-  const controller = useRef<AbortController | null>(null)
-  const dependencyCheck = useRef<Promise<void> | null>(null)
-  const editor = useRef<HTMLTextAreaElement>(null)
-  const bottom = useRef<HTMLDivElement>(null)
-  const latestAnswer = useRef<HTMLElement>(null)
-  const lastScroll = useRef({ busy: false, turns: 0 })
+  const { dependencyHealth, loadDependencyHealth } = useDependencyHealth(view)
+  const {
+    historyBusy,
+    savedChats,
+    historyLoaded,
+    cursor,
+    listHistory,
+    saveChat,
+    openChat,
+    deleteChat,
+  } = useChatHistory({
+    config,
+    conversation,
+    availableAgents,
+    createdAgents,
+    setView,
+    setNotice,
+  })
   const isPreview = isPreviewId(selected)
   const previewTemplate = previewTemplateId(selected)
   const agent = (isPreview ? previewList : availableAgents).find(
@@ -180,65 +99,17 @@ export default function ChatWorkspace() {
   const agentLabels = Object.fromEntries(
     availableAgents.map((item) => [item.agent, item.label]),
   )
-  const previewNote = !previewCapability
-    ? ''
-    : !previewCapability.enabled
-      ? previewReasons[previewCapability.reason || ''] ||
-        'Library previews are unavailable.'
-      : library.error
-        ? 'The library did not load. Open the Library to retry.'
-        : !library.catalog
-          ? 'Loading library previews...'
-          : ''
   const readyOptions = availableAgents.map((item) => ({
     agent: item,
     detail: item.category,
   }))
-  const previewOptions = previewList.map((item) => {
-    const template = library.catalog?.templates.find(
-      (entry) => `library-${entry.id}` === item.id,
-    )
-    return {
-      agent: item,
-      detail: template
-        ? `Preview · ${template.sector.label} · ${template.industry.label}`
-        : 'Preview',
-      inProgress: template?.readiness.id === 'sample',
-    }
+  const limits = chatLimits({
+    config,
+    turns,
+    draft,
+    selected,
+    thread: conversation.thread,
   })
-  const history = turns.flatMap((turn) => [
-    { role: 'user', content: turn.question },
-    { role: 'assistant', content: turn.result.text },
-  ])
-  const characters =
-    history.reduce((total, message) => total + [...message.content].length, 0) +
-    [...draft].length
-  const payload = JSON.stringify({
-    agent_id: selected,
-    input: draft,
-    history,
-    thread,
-  })
-  const requestBytes = new TextEncoder().encode(payload).length
-  const limitReasons = config
-    ? [
-        characters > config.max_characters ? 'Character limit exceeded.' : '',
-        requestBytes > config.max_request_bytes
-          ? 'Request byte limit exceeded.'
-          : '',
-        turns.length > config.max_history_turns
-          ? 'Conversation turn limit reached.'
-          : '',
-      ].filter(Boolean)
-    : []
-  const exceedsLimit = limitReasons.length > 0
-  const contextUsage = config
-    ? Math.max(
-        characters / config.max_characters,
-        requestBytes / config.max_request_bytes,
-        turns.length / (config.max_history_turns + 1),
-      )
-    : 0
   const unsaved = dirty || !!draft || busy
   const libraryCount = library.catalog?.templates.length
   const showAside = view === 'chat' && !!agent && !presenting
@@ -255,212 +126,26 @@ export default function ChatWorkspace() {
       ? () => createFromTemplate(previewTemplate)
       : undefined
 
-  useEffect(() => {
-    if (!unsaved) return
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [unsaved])
-
-  useEffect(() => () => controller.current?.abort(), [])
-
-  const loadDependencyHealth = useCallback(
-    async (force = false) => {
-      const cached = dependencyHealth
-      if (dependencyCheck.current) return dependencyCheck.current
-      if (
-        !force &&
-        cached &&
-        Date.now() - cached.checkedAt < 60_000 &&
-        (cached.data || cached.error)
-      )
-        return
-      setDependencyHealth((current) => ({
-        checkedAt: current?.checkedAt ?? 0,
-        data: current?.data ?? null,
-        error: false,
-        loading: true,
-      }))
-      const abort = new AbortController()
-      dependencyCheck.current = requestJson(
-        '/api/health/dependencies',
-        {
-          method: 'GET',
-          headers: { 'X-Workbench-Request': '1' },
-        },
-        abort.signal,
-      )
-        .then(({ data }) => {
-          const parsed = parseDependencyHealth(data)
-          // A gateway error page or an unreadable body isn't a health report.
-          if (parsed.status === 'unknown') throw new Error('Unreadable report')
-          setDependencyHealth({
-            checkedAt: Date.now(),
-            data: parsed,
-            error: false,
-            loading: false,
-          })
-        })
-        .catch(() => {
-          setDependencyHealth({
-            checkedAt: Date.now(),
-            data: null,
-            error: true,
-            loading: false,
-          })
-        })
-        .finally(() => {
-          dependencyCheck.current = null
-        })
-      return dependencyCheck.current
-    },
-    [dependencyHealth],
+  useUnsavedWarning(unsaved)
+  const { bottom, latestAnswer } = useConversationScroll(
+    view,
+    busy,
+    turns,
+    activeDemo,
   )
-
-  useEffect(() => {
-    if (view !== 'chat') return
-    const before = lastScroll.current
-    lastScroll.current = { busy, turns: turns.length }
-    const answered = before.busy && !busy && turns.length > before.turns
-    if (activeDemo && !turns.length && !busy)
-      bottom.current?.parentElement?.scrollTo({ top: 0 })
-    else if (answered && latestAnswer.current)
-      latestAnswer.current.scrollIntoView({ block: 'start' })
-    else bottom.current?.scrollIntoView({ block: 'end' })
-  }, [turns, busy, view, activeDemo])
-
-  useEffect(() => {
-    if (view !== 'operations') return
-    const timer = window.setTimeout(() => {
-      void loadDependencyHealth()
-    }, 0)
-    return () => window.clearTimeout(timer)
-  }, [loadDependencyHealth, view])
-
-  useLayoutEffect(() => {
-    const resize = () => {
-      if (!editor.current) return
-      editor.current.style.height = 'auto'
-      editor.current.style.height = `${editor.current.scrollHeight}px`
-    }
-    resize()
-    window.addEventListener('resize', resize)
-    return () => window.removeEventListener('resize', resize)
-  }, [draft, view])
-
-  async function submit() {
-    if (
-      !config ||
-      !agent ||
-      !draft.trim() ||
-      busy ||
-      historyBusy ||
-      exceedsLimit
-    )
-      return
-    const question = draft
-    const abort = new AbortController()
-    const started = performance.now()
-    const measurementId = crypto.randomUUID()
-    controller.current = abort
-    setBusy(true)
-    void preloadMarkdown()
-    setError('')
-    setNotice('')
-    setPending(question)
-    const timeout = window.setTimeout(
-      () =>
-        abort.abort(
-          new DOMException('Review deadline exceeded', 'TimeoutError'),
-        ),
-      config.review_timeout_ms,
-    )
-    let serverTimedOut = false
-    let reference: string | undefined
-    try {
-      const { response, data } = await requestJson(
-        '/api/reviews',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Workbench-Request': '1',
-          },
-          body: payload,
-        },
-        abort.signal,
-      )
-      if (typeof data.request_id === 'string') reference = data.request_id
-      if (!response.ok) {
-        serverTimedOut = data.error === 'timeout'
-        throw new Error(
-          `${errors[data.error] || 'Request failed.'}${data.request_id ? ` Reference: ${data.request_id}` : ''}`,
-        )
-      }
-      const usage = parseUsage(data.usage)
-      setTurns((previous) => [
-        ...previous,
-        {
-          question,
-          result: { ...data, ...('usage' in data ? { usage } : {}) },
-        },
-      ])
-      setDirty(true)
-      setDraft('')
-      setPending('')
-      if (config?.mode === 'private')
-        setMeasurements((previous) => [
-          ...previous,
-          {
-            id: measurementId,
-            agent: agent.label,
-            agentId: agent.id,
-            outcome: 'completed',
-            duration: performance.now() - started,
-            at: Date.now(),
-            reference,
-            usage,
-          },
-        ])
-    } catch (problem) {
-      const timedOut =
-        serverTimedOut || abort.signal.reason?.name === 'TimeoutError'
-      const message = abort.signal.aborted
-        ? timedOut
-          ? 'Request timed out. Remote work may continue; no automatic retry was made.'
-          : 'Stopped waiting. Remote work may continue; no automatic retry was made.'
-        : problem instanceof Error
-          ? problem.message
-          : 'Request failed.'
-      setError(message)
-      if (config?.mode === 'private')
-        setMeasurements((previous) => [
-          ...previous,
-          {
-            id: measurementId,
-            agent: agent.label,
-            agentId: agent.id,
-            outcome: timedOut
-              ? 'timed-out'
-              : abort.signal.aborted
-                ? 'stopped'
-                : 'failed',
-            duration: performance.now() - started,
-            at: Date.now(),
-            reference,
-            message,
-          },
-        ])
-    } finally {
-      window.clearTimeout(timeout)
-      controller.current = null
-      setBusy(false)
-      editor.current?.focus()
-    }
-  }
+  const editor = useAutoGrowEditor(draft, view)
+  const { submit, stop } = useChatSubmit({
+    config,
+    agent,
+    conversation,
+    historyBusy,
+    exceedsLimit: limits.exceedsLimit,
+    payload: limits.payload,
+    editor,
+    setNotice,
+    onMeasure: (measurement) =>
+      setMeasurements((previous) => [...previous, measurement]),
+  })
 
   function newChat(agentId = selected) {
     if (busy || historyBusy) return
@@ -473,17 +158,9 @@ export default function ChatWorkspace() {
   }
 
   function resetConversation(agentId: string, initialDraft = '') {
-    setSelected(agentId)
-    setThread(newThread())
-    setTurns([])
-    setDraft(initialDraft)
-    setPending('')
-    setError('')
+    conversation.reset(agentId, initialDraft)
     setNotice('')
     setView('chat')
-    setSaved(null)
-    setDirty(false)
-    setActiveDemo(null)
   }
 
   function loadDemo(scenario: DemoScenario) {
@@ -508,7 +185,7 @@ export default function ChatWorkspace() {
     )
       return
     resetConversation(target.id, scenario.input)
-    setActiveDemo(scenario)
+    conversation.setActiveDemo(scenario)
   }
 
   function readyAgentFor(templateId: string): ReadyAgent | undefined {
@@ -543,131 +220,6 @@ export default function ChatWorkspace() {
     setView('create')
   }
 
-  async function listHistory(more = false) {
-    if (historyBusy) return
-    setView('history')
-    setHistoryBusy(true)
-    setNotice('')
-    try {
-      const data = await historyRequest(
-        more && cursor ? `?cursor=${encodeURIComponent(cursor)}` : '',
-      )
-      setSavedChats((previous) =>
-        more ? [...previous, ...data.items] : data.items,
-      )
-      setHistoryLoaded(true)
-      setCursor(data.cursor)
-    } catch (problem) {
-      setNotice(
-        problem instanceof Error ? problem.message : 'History unavailable.',
-      )
-    } finally {
-      setHistoryBusy(false)
-    }
-  }
-
-  async function saveChat() {
-    if (!turns.length || busy || historyBusy) return
-    setHistoryBusy(true)
-    try {
-      const data = await historyRequest(saved ? `/${saved.id}` : '', {
-        method: saved ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(saved ? { 'If-Match': saved._etag } : {}),
-        },
-        body: JSON.stringify({
-          agent_id: selected,
-          turns: turns.map(({ question, result }) => ({ question, result })),
-        }),
-      })
-      setSaved(data)
-      setDirty(false)
-      setNotice(
-        `Completed replies saved to shared history for ${config?.retention_days} days. Drafts are not saved.`,
-      )
-    } catch (problem) {
-      setNotice(problem instanceof Error ? problem.message : 'Save failed.')
-    } finally {
-      setHistoryBusy(false)
-    }
-  }
-
-  async function openChat(item: SavedChat) {
-    if (
-      busy ||
-      historyBusy ||
-      ((dirty || draft) &&
-        !window.confirm(
-          'Open this conversation and discard unsaved local messages?',
-        ))
-    )
-      return
-    setHistoryBusy(true)
-    try {
-      const data = await historyRequest(`/${item.id}`)
-      if (
-        !availableAgents.some((entry) => entry.id === data.agent_id) &&
-        data.agent_id.startsWith('created-')
-      ) {
-        const record = parseCreatedAgent(
-          await creationRequest(`agents/${data.agent_id}`),
-        )
-        if (!record.agent)
-          throw new Error(
-            'The saved conversation uses an agent that is no longer ready.',
-          )
-        createdAgents.update(record)
-      }
-      setSaved({ id: data.id, _etag: data._etag })
-      setSelected(data.agent_id)
-      setThread(newThread())
-      setTurns(data.turns.map((turn: Turn) => ({ ...turn, stored: true })))
-      setDirty(false)
-      setDraft('')
-      setPending('')
-      setError('')
-      setNotice('')
-      setView('chat')
-      setActiveDemo(null)
-    } catch (problem) {
-      setNotice(problem instanceof Error ? problem.message : 'Open failed.')
-    } finally {
-      setHistoryBusy(false)
-    }
-  }
-
-  async function deleteChat(item: SavedChat) {
-    if (
-      busy ||
-      historyBusy ||
-      !window.confirm(
-        'Delete this conversation from shared history for everyone?',
-      )
-    )
-      return
-    setHistoryBusy(true)
-    try {
-      const current = await historyRequest(`/${item.id}`)
-      await historyRequest(`/${item.id}`, {
-        method: 'DELETE',
-        headers: { 'If-Match': current._etag },
-      })
-      setSavedChats((previous) =>
-        previous.filter((chat) => chat.id !== item.id),
-      )
-      if (saved?.id === item.id) {
-        setSaved(null)
-        setDirty(turns.length > 0)
-      }
-      setNotice('Deleted from shared history.')
-    } catch (problem) {
-      setNotice(problem instanceof Error ? problem.message : 'Delete failed.')
-    } finally {
-      setHistoryBusy(false)
-    }
-  }
-
   async function copy(text: string, done = 'Response copied.') {
     try {
       await navigator.clipboard.writeText(text)
@@ -675,20 +227,6 @@ export default function ChatWorkspace() {
     } catch {
       setNotice('Clipboard unavailable. Select and copy the response manually.')
     }
-  }
-
-  function download() {
-    const url = URL.createObjectURL(
-      new Blob(
-        [JSON.stringify({ agent: agent?.agent, turns, draft }, null, 2)],
-        { type: 'application/json' },
-      ),
-    )
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'foundry-conversation.json'
-    link.click()
-    URL.revokeObjectURL(url)
   }
 
   return (
@@ -745,27 +283,12 @@ export default function ChatWorkspace() {
             if (id !== selected) newChat(id)
           }}
           onSave={() => void saveChat()}
-          onExport={download}
+          onExport={() => exportConversation(agent, turns, draft)}
           onCreateThis={createThis}
         />
 
         {!config && (
-          <div
-            className="config-status"
-            role={configError ? 'alert' : 'status'}
-          >
-            {configError ? (
-              <CircleAlert size={18} />
-            ) : (
-              <LoaderCircle size={18} className="spin" />
-            )}
-            <span>{configError || 'Loading workspace configuration...'}</span>
-            {configError && (
-              <button type="button" onClick={retryConfig}>
-                <RefreshCw size={16} /> Retry
-              </button>
-            )}
-          </div>
+          <ChatConfigStatus error={configError} onRetry={retryConfig} />
         )}
 
         {config && libraryViews.includes(view) && (
@@ -870,149 +393,56 @@ export default function ChatWorkspace() {
             onMore={() => void listHistory(true)}
           />
         ) : view === 'chat' ? (
-          <div className="conversation-layout">
-            <main className="conversation-view">
-              {selected.startsWith('created-') &&
-                !agent &&
-                !createdAgents.loading && (
-                  <p className="creation-error" role="alert">
-                    {createdAgents.error ||
-                      'The selected created agent is unavailable or no longer ready. Choose another agent; your local messages are preserved.'}
-                  </p>
-                )}
-              {isPreview &&
-                !agent &&
-                (library.error || !previewCapability?.enabled) && (
-                  <p className="creation-error" role="alert">
-                    {previewNote ||
-                      'This library preview is unavailable. Choose another agent.'}
-                  </p>
-                )}
-              <div className="conversation-scroll" aria-label="Conversation">
-                {activeDemo && (
-                  <DemoRunGuide
-                    scenario={activeDemo}
-                    presenting={presenting}
-                    busy={busy || historyBusy}
-                    onFresh={() => loadDemo(activeDemo)}
-                    onClose={() => setActiveDemo(null)}
-                  />
-                )}
-                {!turns.length && !pending ? (
-                  activeDemo ? null : (
-                    <ChatWelcome
-                      agent={agent}
-                      config={config}
-                      isPreview={isPreview}
-                      inProgress={
-                        !!previewOptions.find(
-                          (item) => item.agent.id === selected,
-                        )?.inProgress
-                      }
-                      onPrompt={(text) => {
-                        setDraft(text)
-                        setActiveDemo(null)
-                        editor.current?.focus()
-                      }}
-                      onCreateAgent={
-                        !isPreview && config?.agent_creation
-                          ? () => setView('create')
-                          : undefined
-                      }
-                    />
-                  )
-                ) : (
-                  <div className="message-list">
-                    {turns.map((turn, index) => (
-                      <ConversationTurn
-                        key={`${turn.result.request_id}-${index}`}
-                        turn={turn}
-                        label={agent?.label}
-                        agentLabels={agentLabels}
-                        foundryPortal={
-                          isPreview ? null : config?.foundry_portal
-                        }
-                        agentName={agent?.agent}
-                        answerRef={
-                          index === turns.length - 1 ? latestAnswer : undefined
-                        }
-                        onCopy={copy}
-                      />
-                    ))}
-                    {pending && (
-                      <article className="user-message">
-                        <span className="message-author">You</span>
-                        <p>{pending}</p>
-                      </article>
-                    )}
-                  </div>
-                )}
-                {busy && (
-                  <WaitingIndicator
-                    label={agent?.label}
-                    expects={agent?.guidance?.output}
-                  />
-                )}
-                {error && (
-                  <div className="chat-error" role="alert">
-                    <CircleAlert size={19} />
-                    <p>{error}</p>
-                    <button
-                      className="chat-icon"
-                      aria-label="Dismiss error"
-                      onClick={() => {
-                        setError('')
-                        setPending('')
-                      }}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                )}
-                <div ref={bottom} />
-              </div>
-              <ChatComposer
-                editor={editor}
-                agent={agent}
-                config={config}
-                draft={draft}
-                busy={busy}
-                historyBusy={historyBusy}
-                turnCount={turns.length}
-                characters={characters}
-                requestBytes={requestBytes}
-                contextUsage={contextUsage}
-                limitReasons={limitReasons}
-                saved={!!saved}
-                dirty={dirty}
-                isPreview={isPreview}
-                onDraft={(value) => {
-                  setDraft(value)
-                  if (!busy) setPending('')
-                }}
-                onSubmit={() => void submit()}
-                onStop={() => controller.current?.abort()}
-                onContinue={() => setContinuing(true)}
-              />
-            </main>
-            {showAside && agent && (
-              <ChatAside
-                agent={agent}
-                config={config}
-                isPreview={isPreview}
-                turns={turns}
-                characters={characters}
-                saving={historyBusy}
-                saveDisabled={saveDisabled}
-                saveNote={saveNote}
-                exportDisabled={!turns.length && !draft}
-                onCatalog={() => setView('catalog')}
-                onSave={() => void saveChat()}
-                onExport={download}
-                onCreateThis={createThis}
-              />
-            )}
-          </div>
+          <ChatConversation
+            config={config}
+            agent={agent}
+            conversation={conversation}
+            historyBusy={historyBusy}
+            isPreview={isPreview}
+            presenting={presenting}
+            showAside={showAside}
+            agentLabels={agentLabels}
+            agentNotice={
+              selected.startsWith('created-') &&
+              !agent &&
+              !createdAgents.loading
+                ? createdAgents.error ||
+                  'The selected created agent is unavailable or no longer ready. Choose another agent; your local messages are preserved.'
+                : ''
+            }
+            previewNotice={
+              isPreview &&
+              !agent &&
+              (library.error || !previewCapability?.enabled)
+                ? previewNote ||
+                  'This library preview is unavailable. Choose another agent.'
+                : ''
+            }
+            welcomeInProgress={
+              !!previewOptions.find((item) => item.agent.id === selected)
+                ?.inProgress
+            }
+            limits={limits}
+            editor={editor}
+            bottom={bottom}
+            latestAnswer={latestAnswer}
+            saveDisabled={saveDisabled}
+            saveNote={saveNote}
+            onFreshDemo={loadDemo}
+            onCopy={copy}
+            onCreateAgent={
+              !isPreview && config?.agent_creation
+                ? () => setView('create')
+                : undefined
+            }
+            onSubmit={() => void submit()}
+            onStop={stop}
+            onContinue={() => setContinuing(true)}
+            onCatalog={() => setView('catalog')}
+            onSave={() => void saveChat()}
+            onExport={() => exportConversation(agent, turns, draft)}
+            onCreateThis={createThis}
+          />
         ) : view === 'catalog' ? (
           <AgentCatalog
             agents={availableAgents}
@@ -1048,19 +478,7 @@ export default function ChatWorkspace() {
           }}
         />
       )}
-      {notice && (
-        <div className="chat-toast" role="status">
-          <Check size={16} />
-          {notice}
-          <button
-            className="chat-icon"
-            aria-label="Dismiss notification"
-            onClick={() => setNotice('')}
-          >
-            <X size={15} />
-          </button>
-        </div>
-      )}
+      {notice && <ChatToast notice={notice} onDismiss={() => setNotice('')} />}
     </div>
   )
 }
