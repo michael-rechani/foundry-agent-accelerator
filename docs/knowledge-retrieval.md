@@ -205,6 +205,10 @@ default profile, and bundle validation rejects the overlay files and
   `source_ids`, so the answer can say so honestly. The deploy smoke check treats
   an empty result as a failure. Errors and timeouts (20 seconds) return `failed`
   with a generic message and no exception details, endpoint, or principal.
+- The search client gives up on its own: 5 seconds to connect, 10 seconds for the
+  response, and no retries. A slow search request therefore ends before the
+  20-second deadline instead of running on in a worker thread after the tool has
+  already answered. Token acquisition has its own limits in the identity library.
 
 ## Identity and RBAC
 

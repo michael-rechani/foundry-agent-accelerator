@@ -258,6 +258,11 @@ retains the candidate for manual inspection.
 Serialize deployments of the same agent. The cleanup flow does not provide a
 distributed lock against concurrent promotions.
 
+The Foundry client allows 30 seconds to connect and 60 seconds for each response,
+with no automatic retries, so a stalled call fails in about 90 seconds instead
+of waiting for SDK defaults. A failed call after the version is created runs the
+rollback above. Inspect the route before you rerun the deployment.
+
 Run `python deploy.py --help` to override the agent name, supported runtime
 allocation, instructions, smoke-test prompt, or polling timeout.
 

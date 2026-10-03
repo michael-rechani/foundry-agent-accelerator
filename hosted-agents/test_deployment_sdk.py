@@ -1,5 +1,6 @@
 import hashlib
 import io
+import time
 import unittest
 from contextlib import redirect_stdout
 from copy import deepcopy
@@ -10,11 +11,13 @@ from unittest.mock import patch
 from deployment import AgentProfile, create_package, deploy
 
 try:
+    import requests
     from azure.ai.projects.models import (
         AgentEndpointConfig, AgentIdentity, EntraAuthorizationScheme, FixedRatioVersionSelectionRule, McpProtocolConfiguration,
         ProtocolConfiguration, ResponsesProtocolConfiguration, VersionSelector,
     )
-    from azure.core.exceptions import ResourceNotFoundError
+    from azure.core.credentials import AccessToken
+    from azure.core.exceptions import AzureError, ResourceNotFoundError
 except ImportError:
     SDK_AVAILABLE = False
 else:
@@ -35,6 +38,7 @@ class DeploymentSDKTests(unittest.TestCase):
             smoke_test_prompt=self.profile.smoke_test_prompt, poll_seconds=1, max_polls=1,
         )
         project = self.enterContext(patch("azure.ai.projects.AIProjectClient"))
+        self.project = project
         self.enterContext(patch("azure.identity.DefaultAzureCredential"))
         self.smoke = self.enterContext(patch("deployment.smoke_test"))
         self.client = project.return_value.__enter__.return_value
@@ -89,6 +93,16 @@ class DeploymentSDKTests(unittest.TestCase):
         self.assertEqual(uploaded["metadata"]["source_sha256"], uploaded["code_zip_sha256"])
         self.client.deployments.get.assert_called_once_with(name="model")
         self.client.agents.delete_version.assert_not_called()
+
+    def test_foundry_client_sets_explicit_timeouts_and_no_retries(self):
+        deploy(self.profile, self.args)
+        self.project.assert_called_once()
+        options = dict(self.project.call_args.kwargs)
+        self.assertEqual(options.pop("endpoint"), self.args.endpoint)
+        options.pop("credential")
+        self.assertEqual(options, {
+            "allow_preview": True, "retry_total": 0, "connection_timeout": 30, "read_timeout": 60,
+        })
 
     def test_first_deployment_pins_default_latest_route(self):
         self.missing = True
@@ -185,6 +199,53 @@ class DeploymentSDKTests(unittest.TestCase):
         )
         deploy(profile, self.args)
         self.assertEqual(self.uploaded, package.getvalue())
+
+
+@unittest.skipUnless(SDK_AVAILABLE, "Install requirements-deploy.txt for the real deployment SDK")
+class DeploymentTimeoutTests(unittest.TestCase):
+    class Credential:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def get_token(self, *scopes, **kwargs):
+            return AccessToken("test-only", int(time.time()) + 3600)
+
+    def deploy_against_failing_transport(self, error):
+        attempts = []
+
+        def failing(adapter, request, stream=False, timeout=None, **kwargs):
+            attempts.append(timeout)
+            raise error(request=request)
+
+        profile = AgentProfile(
+            Path(__file__).parent / "case-review-agent", "case-review-agent",
+            "Fictional review", "Review supplied fictional evidence.", "",
+        )
+        args = SimpleNamespace(
+            endpoint="https://fictional.services.ai.azure.com/api/projects/demo",
+            model="model", agent_name=profile.name, cpu="0.5", memory="1Gi",
+            runtime="python_3_14", instructions=profile.instructions,
+            smoke_test_prompt="", poll_seconds=1, max_polls=1,
+        )
+        with (
+            patch("azure.identity.DefaultAzureCredential", self.Credential),
+            patch("time.sleep"),
+            patch.object(requests.adapters.HTTPAdapter, "send", failing),
+            self.assertRaises(AzureError),
+        ):
+            deploy(profile, args)
+        return attempts
+
+    def test_a_stalled_foundry_call_fails_once_on_the_clients_own_deadline(self):
+        attempts = self.deploy_against_failing_transport(requests.exceptions.ReadTimeout)
+        self.assertEqual(attempts, [(30, 60)])
+
+    def test_a_failed_foundry_connection_is_not_retried(self):
+        attempts = self.deploy_against_failing_transport(requests.exceptions.ConnectionError)
+        self.assertEqual(attempts, [(30, 60)])
 
 
 if __name__ == "__main__":

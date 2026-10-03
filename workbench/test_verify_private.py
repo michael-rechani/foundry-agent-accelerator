@@ -5,9 +5,10 @@ from verify_private import CheckError, PrivateClient, verify
 
 
 class FakeClient:
-    def __init__(self, *, receipt=True, conflict=True, persisted=True, specialists=True):
+    def __init__(self, *, receipt=True, conflict=True, persisted=True, specialists=True, receipt_count=1):
         self.calls = []
         self.receipt = receipt
+        self.receipt_count = receipt_count
         self.conflict = conflict
         self.persisted = persisted
         self.specialists = specialists
@@ -25,7 +26,8 @@ class FakeClient:
             return {"status": "ready", "foundry": "ready", "cosmos": "ready"}
         if path == "/api/reviews":
             return {"status": "completed", "text": "Synthetic answer", "agent": "coordinator", "receipts": [
-                {"tool": "inspect", "agent": "specialist", "verified": True, "call_id": "one", "output": "Finding"}
+                {"tool": "inspect", "agent": "specialist", "verified": True, "call_id": str(number), "output": "Finding"}
+                for number in range(self.receipt_count)
             ] if self.receipt else []}
         if method == "POST":
             self.body = body
@@ -68,6 +70,10 @@ class PrivateVerificationTests(unittest.TestCase):
         with self.assertRaisesRegex(CheckError, "verified specialist"):
             verify(client, run_agent=True)
         self.assertIsNone(client.body)
+
+    def test_a_second_specialist_receipt_fails_the_single_review_prompt(self):
+        with self.assertRaisesRegex(CheckError, "one verified specialist"):
+            verify(FakeClient(receipt_count=2), run_agent=True)
 
     def test_plain_agent_does_not_claim_specialist_verification(self):
         checks = verify(FakeClient(receipt=False, specialists=False), run_agent=True)
