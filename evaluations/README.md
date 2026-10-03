@@ -620,7 +620,7 @@ case's `rubric`.
 > day counts.
 >
 > **What changed.** Nine agents' instructions changed in
-> [agent_templates.py](../workbench/agent_templates.py). Seven changed after that
+> [agent_templates](../workbench/agent_templates). Seven changed after that
 > first set: the form field extractor, service request planner, insurance
 > pre-approval helper, support ticket handoff, payment matcher, expense report
 > checker and customer feedback theme finder. Two changed just before it, after
@@ -710,9 +710,9 @@ copy. The tab then shows **Signed off** with their name and the date. If an
 answer changes later, `scorecards.py` fails until someone reads that agent's
 answers again. Don't run `signoff` on someone else's behalf.
 
-The library's **Reviewed** label comes from `workbench/agent_templates.py`, not
+The library's **Reviewed** label comes from `workbench/agent_templates/`, not
 from the sign-off file, so every agent shows **In progress** until you also add
-`readiness="reviewed"` to its entry in `TEMPLATE_METADATA` and regenerate
+`readiness="reviewed"` to its entry in its sector file's `METADATA` and regenerate
 [the frontend's catalog fixture](../workbench/frontend/README.md#library-performance-and-log-coverage).
 `test_scorecards.py` names any agent whose label and sign-off disagree.
 
@@ -727,7 +727,7 @@ Foundry project yet.
 ### Record an agent's test answers again
 
 When you change an agent's instructions in
-[agent_templates.py](../workbench/agent_templates.py), its recorded answers no
+[agent_templates](../workbench/agent_templates), its recorded answers no
 longer describe it, and `scorecards.py` refuses to build until they're recorded
 again. [library_runs.py](library_runs.py) finds those agents and records them:
 

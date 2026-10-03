@@ -15,6 +15,10 @@ agent_runtime/*
 !agent_runtime/main.py
 !agent_runtime/demo_tools.py
 !agent_runtime/requirements.txt
+# Packages ship by directory: add one here and in the Dockerfile and build.ps1.
+!agent_templates/
+agent_templates/*
+!agent_templates/*.py
 !frontend/
 !frontend/**
 frontend/node_modules/
