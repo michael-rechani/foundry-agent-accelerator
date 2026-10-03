@@ -6,6 +6,8 @@ import os
 import runpy
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -190,6 +192,33 @@ class ToolTests(unittest.TestCase):
         _, result, _, _ = run_tool(FakeSearchClient(error=error))
         self.assertEqual((result["status"], result["output"]), ("failed", kr.FAILED))
         self.assertNotIn("secret-endpoint-detail", json.dumps(result))
+
+    def test_a_slow_lookup_returns_a_failed_receipt_at_the_deadline(self):
+        release = threading.Event()
+
+        class SlowClient:
+            def search(self, **kwargs):
+                release.wait(5)
+                return iter([{"id": "POL-1", "content": "arrived too late"}])
+
+        [tool] = kr.create_knowledge_tools(
+            kr.read_settings(ENABLED), object(), "case-review-agent", lambda *_: SlowClient(),
+        )
+
+        async def call():
+            started = time.monotonic()
+            try:
+                return json.loads(await tool("slow")), time.monotonic() - started
+            finally:
+                release.set()
+
+        with patch.object(kr, "TIMEOUT_SECONDS", 0.05):
+            result, elapsed = asyncio.run(call())
+        self.assertEqual((result["status"], result["output"], result["source_ids"]), ("failed", kr.FAILED, []))
+        self.assertLess(elapsed, 2)
+
+    def test_client_timeouts_end_before_the_tool_deadline(self):
+        self.assertLess(kr.SEARCH_CONNECTION_TIMEOUT_SECONDS + kr.SEARCH_READ_TIMEOUT_SECONDS, kr.TIMEOUT_SECONDS)
 
     def test_invalid_queries_do_not_search(self):
         for query in ("", "   ", "q" * (kr.MAX_QUERY_CHARACTERS + 1)):
@@ -549,6 +578,44 @@ class SearchSDKContractTests(unittest.TestCase):
         self.assertEqual(body["select"], "id,title,section,content")
         self.assertEqual(body["queryType"], "simple")
         self.assertNotIn("filter", body)
+
+    def test_default_client_gives_up_by_itself_so_the_worker_thread_ends(self):
+        def stalled(adapter, request):
+            raise requests.exceptions.ReadTimeout(request=request)
+
+        def unavailable(adapter, request):
+            body = b"{}"
+            raw = urllib3.response.HTTPResponse(
+                body=io.BytesIO(body), status=503, preload_content=False,
+                headers={"Content-Type": "application/json", "Content-Length": str(len(body))},
+            )
+            return adapter.build_response(request, raw)
+
+        for name, failure in (("read timeout", stalled), ("503 response", unavailable)):
+            with self.subTest(failure=name):
+                attempts, threads = self.run_failing_lookup(failure)
+                self.assertEqual(attempts, [(kr.SEARCH_CONNECTION_TIMEOUT_SECONDS, kr.SEARCH_READ_TIMEOUT_SECONDS)])
+                self.assertFalse(any(thread.is_alive() for thread in threads))
+
+    def run_failing_lookup(self, failure):
+        class Credential:
+            def get_token(self, *scopes, **kwargs):
+                return AccessToken("test-only-token", 4102444800)
+
+        attempts = []
+        threads = []
+
+        def failing(adapter, request, stream=False, timeout=None, **kwargs):
+            attempts.append(timeout)
+            threads.append(threading.current_thread())
+            return failure(adapter, request)
+
+        settings = kr.read_settings(ENABLED)
+        [tool] = kr.create_knowledge_tools(settings, Credential(), "case-review-agent")
+        with patch("time.sleep"), patch.object(requests.adapters.HTTPAdapter, "send", failing):
+            result = json.loads(asyncio.run(tool("evidence")))
+        self.assertEqual((result["status"], result["output"]), ("failed", kr.FAILED))
+        return attempts, threads
 
 
 if __name__ == "__main__":

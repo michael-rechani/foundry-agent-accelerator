@@ -32,6 +32,10 @@ MAX_QUERY_CHARACTERS = 500
 MAX_FIELD_CHARACTERS = 2000
 MAX_OUTPUT_CHARACTERS = 8000
 TIMEOUT_SECONDS = 20
+# asyncio.timeout cannot stop the worker thread running the search. The client must give up on its
+# own first, with no retries, so the thread ends before the deadline instead of piling up in the pool.
+SEARCH_CONNECTION_TIMEOUT_SECONDS = 5
+SEARCH_READ_TIMEOUT_SECONDS = 10
 FIELD_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
 INDEX_NAME = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,126}[a-z0-9])?")
 UNTRUSTED_HEADER = (
@@ -152,6 +156,9 @@ def default_client_factory(settings: KnowledgeSettings, credential: Any):
         endpoint=settings.endpoint,
         index_name=settings.index_name,
         credential=credential,
+        retry_total=0,
+        connection_timeout=SEARCH_CONNECTION_TIMEOUT_SECONDS,
+        read_timeout=SEARCH_READ_TIMEOUT_SECONDS,
     )
 
 

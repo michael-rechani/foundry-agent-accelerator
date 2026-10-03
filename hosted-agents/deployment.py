@@ -21,6 +21,9 @@ if TYPE_CHECKING:
 SOURCE_FILES = ("main.py", "requirements.txt")
 OPTIONAL_SOURCE_FILES = ("instructions.md", "configuration.py")
 REVIEW_SAMPLES = {"application-review-agent", "case-review-agent", "review-coordinator-agent"}
+# The same choices as evaluations/run.py. A version create is not safe to replay, so a stalled
+# call fails in about 90 seconds and the rollback below runs, instead of retrying with SDK defaults.
+FOUNDRY_CLIENT_OPTIONS = {"allow_preview": True, "retry_total": 0, "connection_timeout": 30, "read_timeout": 60}
 
 
 @dataclass(frozen=True)
@@ -375,7 +378,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
         with (
             package_path.open("rb") as package,
             DefaultAzureCredential() as credential,
-            AIProjectClient(endpoint=args.endpoint, credential=credential, allow_preview=True) as client,
+            AIProjectClient(endpoint=args.endpoint, credential=credential, **FOUNDRY_CLIENT_OPTIONS) as client,
         ):
             verify_specialist_endpoints(client, profile, args.agent_name)
             client.deployments.get(name=args.model)

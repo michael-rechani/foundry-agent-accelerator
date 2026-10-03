@@ -85,6 +85,8 @@ def verify(client, *, check_storage=False, run_agent=False):
         require(result.get("agent") == agent["agent"], "Response did not identify the configured agent")
         bindings, receipts = agent.get("tools", {}), result.get("receipts", [])
         if bindings:
+            # Exactly one call: the fixed prompt asks for a single application review, and the coordinator
+            # instructions and deployment.verify_delegation both require one specialist unless both are requested.
             require(len(receipts) == 1 and all(
                 receipt.get("verified") is True and receipt.get("call_id") and receipt.get("tool") in bindings
                 and receipt.get("agent") == bindings[receipt["tool"]]
