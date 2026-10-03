@@ -1,3 +1,5 @@
+import { readJson } from './request.ts'
+
 export type Source = { id: string; text: string }
 export type Finding = {
   criterion_id: string
@@ -57,6 +59,8 @@ export const eventNames: Record<string, string> = {
   interrupted: 'Execution interrupted',
 }
 const messages: Record<string, string> = {
+  not_found:
+    'That review could not be found. It may have been removed, or the link may be wrong.',
   request_timeout:
     'The upload took too long. Your draft is unchanged; check your connection before submitting again.',
   review_changed: 'This review changed. Refresh before continuing.',
@@ -91,7 +95,7 @@ export async function reviewRequest(
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   })
-  const data = await response.json()
+  const data = await readJson(response)
   if (!response.ok)
     throw new Error(
       messages[data.error] ||

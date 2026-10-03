@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { requestJson } from './request'
+import { requestJson } from './request.ts'
 
 const historyErrors: Record<string, string> = {
   request_timeout:
