@@ -25,7 +25,7 @@ from agent_templates import (
     model_profile, prepare_draft,
 )
 from history import StrictModel
-from request_guard import BodyReadTimeout, MAX_SETUP_BYTES, read_bounded_body, record_request_failure, request_allowed
+from request_guard import BodyReadTimeout, MAX_SETUP_BYTES, api_error, is_json, read_bounded_body, record_request_failure, request_allowed
 
 
 LOGGER = logging.getLogger("uvicorn.error")
@@ -179,11 +179,7 @@ class AgentCreations:
             return await operation
 
     def error(self, request, status, code, **extra):
-        request.state.error_code = code
-        return JSONResponse(
-            {"error": code, "request_id": request.state.request_id, **extra}, status_code=status,
-            headers={"Retry-After": "60"} if status == 429 else None,
-        )
+        return api_error(request, status, code, retry_after=60 if status == 429 else None, **extra)
 
     def admit(self, request):
         if not request_allowed(request, self.settings.origins):
@@ -208,7 +204,7 @@ class AgentCreations:
         return None
 
     async def body(self, request, model):
-        if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
+        if not is_json(request):
             raise ValueError("JSON required")
         body = await read_bounded_body(request, MAX_SETUP_BYTES)
         return model.model_validate_json(body)

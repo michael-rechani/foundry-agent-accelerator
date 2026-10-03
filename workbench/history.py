@@ -12,10 +12,9 @@ from azure.cosmos.aio import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
 from azure.identity.aio import ManagedIdentityCredential
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from request_guard import MAX_CONVERSATION_BYTES, read_bounded_body, record_request_failure, request_allowed
+from request_guard import MAX_CONVERSATION_BYTES, api_error, is_json, read_bounded_body, record_request_failure, request_allowed
 
 
 class StrictModel(BaseModel):
@@ -126,8 +125,7 @@ def unverified_turns(turns):
 
 
 def history_error(request, status, code):
-    request.state.error_code = code
-    return JSONResponse({"error": code, "request_id": request.state.request_id}, status_code=status)
+    return api_error(request, status, code)
 
 
 class ConversationHistory:
@@ -151,9 +149,7 @@ class ConversationHistory:
         while self.recent and now - self.recent[0] >= 60:
             self.recent.popleft()
         if self.semaphore.locked() or len(self.recent) >= 60:
-            request.state.error_code = "history_busy"
-            return JSONResponse({"error": "history_busy", "request_id": request.state.request_id},
-                                status_code=429, headers={"Retry-After": "60"})
+            return api_error(request, 429, "history_busy", retry_after=60)
         self.recent.append(now)
         async with self.semaphore:
             try:
@@ -161,8 +157,7 @@ class ConversationHistory:
                     return await self.execute(request, identifier)
             except TimeoutError as problem:
                 record_request_failure(request, problem, "cosmos")
-                request.state.error_code = "history_timeout"
-                return JSONResponse({"error": "history_timeout", "request_id": request.state.request_id}, status_code=504)
+                return api_error(request, 504, "history_timeout")
 
     async def execute(self, request: Request, identifier: str | None):
         if not request_allowed(request, self.settings.origins):
@@ -215,7 +210,7 @@ class ConversationHistory:
         return await self.store.list(identifiers, cursor)
 
     async def save_conversation(self, request, identifier, existing):
-        if request.headers.get("content-type", "").split(";")[0] != "application/json":
+        if not is_json(request):
             return history_error(request, 415, "json_required")
         try:
             body = await read_bounded_body(request, MAX_CONVERSATION_BYTES)

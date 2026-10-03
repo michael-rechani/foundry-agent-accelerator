@@ -92,6 +92,17 @@ class HistoryTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual(self.client.post("/api/conversations", content="x" * 524289, headers={**self.headers, "Content-Type": "application/json"}).status_code, 413)
         self.store.create.assert_not_called()
 
+    def test_json_content_type_matches_the_other_routers(self):
+        content = json.dumps(self.body)
+        for value in ("Application/JSON ; charset=utf-8", "application/json"):
+            with self.subTest(value=value):
+                response = self.client.post("/api/conversations", content=content, headers={**self.headers, "Content-Type": value})
+                self.assertEqual(response.status_code, 200, response.text)
+        for value in ("text/plain", "application/jsonp"):
+            with self.subTest(value=value):
+                response = self.client.post("/api/conversations", content=content, headers={**self.headers, "Content-Type": value})
+                self.assertEqual((response.status_code, response.json()["error"]), (415, "json_required"))
+
     def test_reads_and_deletes_without_origin_need_the_lab_header(self):
         self.store.list.return_value = {"items": [], "cursor": None}
         path = f"/api/conversations/{self.identifier}"

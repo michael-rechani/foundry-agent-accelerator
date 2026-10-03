@@ -22,7 +22,7 @@ from history import CosmosHistory, history_router
 from review_runs import ReviewRuns
 from agent_creation import CREATED_ID, DEPLOYMENT_NAME, AgentCreations, CreationSettings
 from library_preview import PREVIEW_AGENT, PREVIEW_ID, preview_agent, run_preview, summarize_usage, usage_record
-from request_guard import MAX_REQUEST_BYTES, read_bounded_body, record_request_failure, request_allowed
+from request_guard import MAX_REQUEST_BYTES, api_error, is_json, read_bounded_body, record_request_failure, request_allowed
 
 
 ROOT = Path(__file__).resolve().parent
@@ -387,20 +387,15 @@ class ChatReviews:
 
     @staticmethod
     def busy(request, retry_after=60):
-        request.state.error_code = "busy"
-        return JSONResponse({"error": "busy", "request_id": request.state.request_id},
-                            status_code=429, headers={"Retry-After": str(retry_after)})
+        return api_error(request, 429, "busy", retry_after=retry_after)
 
     @staticmethod
     def error(request, status, code):
-        request.state.error_code = code
-        request_id = request.state.request_id
-        return JSONResponse({"error": code, "request_id": request_id}, status_code=status,
-                            headers={"X-Correlation-ID": request_id})
+        return api_error(request, status, code)
 
     async def read_json(self, request):
         """Return (data, None) for a bounded JSON body, or (None, error response)."""
-        if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
+        if not is_json(request):
             return None, self.error(request, 415, "json_required")
         try:
             body = await read_bounded_body(request, MAX_REQUEST_BYTES)
