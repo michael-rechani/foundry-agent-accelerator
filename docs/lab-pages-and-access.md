@@ -154,6 +154,44 @@ The Lab has no permanent warning banner. The **Shared lab** details are
 available on desktop and mobile. They are informational; they are not an access
 control and they do not check that submitted data is sample data.
 
+### How the Lab checks where a request came from
+
+Every API call that reads or changes Lab data (chat, saved chats, reviews, and
+created agents) goes through one shared check,
+[`request_allowed`](../workbench/request_guard.py). It passes only when all of
+these hold:
+
+- The request carries `X-Workbench-Request: 1`. A page on another site can't add
+  a custom header without a CORS preflight, and the Lab never grants one. This
+  header is what stops cross-site browser requests.
+- `Sec-Fetch-Site` isn't `cross-site`.
+- If the request has an `Origin` header, it matches `WORKBENCH_ORIGINS`.
+
+A request with no `Origin` header is accepted when it passes the first two
+checks. **Decision (#168): keep that.** Requiring `Origin` wouldn't add
+protection, and it would cost something:
+
+- Browsers omit `Origin` on same-origin reads, so requiring it would break the
+  page's own `GET` calls. Requiring `Sec-Fetch-Site: same-origin` instead would
+  turn away any browser or script that doesn't send it.
+- Neither header identifies a person. A script on the private network can send
+  any `Origin` it likes, so requiring one adds nothing against it. Such a caller
+  must already be inside the approved source subnet, which today means the jump
+  box.
+
+Preview mode (`WORKBENCH_MODE=preview`) only accepts `localhost` and `127.0.0.1`
+as hosts and can't call Azure; it answers `preview_only`. Its origins must be
+well-formed and listed (the default is `http://127.0.0.1:8080` and
+`http://localhost:8080`), but they aren't limited to localhost. That is
+deliberate, because the host restriction and the missing Azure access already
+keep the preview server local.
+
+Revisit this if customers get to the Lab by another path (see
+[Application ingress options](ingress-access.md)) or if sign-in is added. The
+tests `test_missing_origin_is_accepted_only_with_the_lab_header` in
+`workbench/test_app.py` and `test_reads_and_deletes_without_origin_need_the_lab_header`
+in `workbench/test_history.py` fail if the guard changes.
+
 ## Related content
 
 - [The Lab](../workbench/README.md)

@@ -92,6 +92,16 @@ class HistoryTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual(self.client.post("/api/conversations", content="x" * 524289, headers={**self.headers, "Content-Type": "application/json"}).status_code, 413)
         self.store.create.assert_not_called()
 
+    def test_reads_and_deletes_without_origin_need_the_lab_header(self):
+        self.store.list.return_value = {"items": [], "cursor": None}
+        path = f"/api/conversations/{self.identifier}"
+        lab_header = {"X-Workbench-Request": "1", "If-Match": '"one"'}
+        for method, target in (("get", "/api/conversations"), ("get", path), ("delete", path)):
+            request = getattr(self.client, method)
+            self.assertEqual(request(target, headers=lab_header).status_code, 200, (method, target))
+            self.assertEqual(request(target).status_code, 403, (method, target))
+            self.assertEqual(request(target, headers={**lab_header, "Origin": "https://evil.example"}).status_code, 403)
+
     def test_errors_are_sanitized_and_conflicts_preserved(self):
         self.store.get.side_effect = CosmosHttpResponseError(status_code=412, message="secret")
         response = self.client.get(f"/api/conversations/{self.identifier}", headers=self.headers)
