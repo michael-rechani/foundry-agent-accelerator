@@ -365,26 +365,33 @@ After initializing the providers and modules, run from the repository root:
 ```
 
 Use `-TerraformCommand <path-to-terraform>` when the required version is not on
-PATH. The platform suite copies the account, naming, network, VM, and input
-configuration into an isolated directory, uses provider mocks, and excludes
-deployment state, backend settings, and tfvars. It checks region profiles,
-existing-name overrides, credential input requirements, management networking,
-retained-disk bodies, and credential-gated extension creation. A synthetic
-credential fixture replaces the ephemeral Key Vault boundary, which Terraform
-provider mocks do not support.
+PATH. The platform suite copies every root `*.tf` file and `policies/` into an
+isolated directory, so it tests the real `main.tf`, `network.tf`, `apim.tf`, and
+`review-api.tf`. It uses provider mocks and excludes deployment state, backend
+settings, and tfvars. It checks region profiles, existing-name overrides,
+credential input requirements, management networking, retained-disk bodies, and
+credential-gated extension creation.
 
 These checks do not test live secret retrieval, VM creation, or rotation. Run
 full `terraform validate` as well, and use the credential guide's disposable
 resource checks before relying on a new credential path.
 
-The [platform dependency fixture](tests/fixtures/platform-dependencies.tf.tftpl)
-is a configuration fragment, not a standalone module. The test runner copies it
-to `dependencies.tf` alongside `region-preferences.tf` and the other root
-sources; that is where `local.deployment_location` is declared. The `.tf.tftpl`
-suffix prevents editors from validating the fixture directory as an independent
-module. The runner checks the copied fixture's Terraform formatting before
-running the mocked tests, and continuous integration (CI) runs the same platform
-suite after initialization.
+Terraform's mock providers can't run ephemeral resources, so the runner swaps
+three pieces in its temporary copy only. Your root files aren't edited:
+
+- The Foundry registry module in `main.tf` becomes the stub in
+  [`tests/fixtures/foundry`](tests/fixtures/foundry/main.tf).
+- The API Management registry module in `apim.tf` becomes the stub in
+  [`tests/fixtures/api-management`](tests/fixtures/api-management/main.tf).
+- The ephemeral Key Vault secret read in `jumpbox-credentials.tf` becomes the
+  literal `synthetic-offline-fixture-only`.
+
+A swap that no longer matches its source fails the run, so a root file can't
+drift out of coverage unnoticed. The runner also fails when a copied file
+differs from its source, when a swap leaves an `ephemeral` block behind, when
+`main.tf`, `network.tf`, `apim.tf`, or `review-api.tf` has no matching
+`tests/<name>.tftest.hcl`, or when no test runs. Continuous integration (CI)
+runs the same platform suite after initialization.
 
 ### Downloaded-module deprecation notices
 
