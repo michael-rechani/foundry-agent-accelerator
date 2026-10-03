@@ -17,9 +17,9 @@ sys.path.insert(0, str(ROOT / "workbench"))
 sys.path.insert(0, str(ROOT / "workbench" / "agent_runtime"))
 from agent_templates import TEMPLATES  # noqa: E402
 from demo_tools import create_demo_tools  # noqa: E402
+from library_rules import CATEGORIES  # noqa: E402
 
 CASES_PATH = Path(__file__).with_name("library-cases.json")
-CATEGORIES = {"grounded", "missing", "conflict", "injection", "decision-boundary"}
 CHECK_KEYS = {"must_include", "must_include_any", "must_not_match", "must_not_claim", "guards", "asks_question",
               "expected_tools"}
 

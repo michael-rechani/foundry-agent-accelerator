@@ -19,7 +19,8 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from history import CosmosHistory, history_router
 from review_runs import ReviewRuns
-from agent_creation import CREATED_ID, DEPLOYMENT_NAME, AgentCreations, CreationSettings
+from agent_creation import CREATED_ID, AgentCreations, CreationSettings
+from library_rules import DEPLOYMENT_NAME
 from library_preview import PREVIEW_AGENT, PREVIEW_ID, preview_agent, run_preview, summarize_usage, usage_record
 from request_guard import MAX_REQUEST_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
 

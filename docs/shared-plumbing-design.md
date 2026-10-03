@@ -164,6 +164,12 @@ copy and the recorded evidence disagree.
 
 ### Shared home: a new `workbench/library_rules.py`
 
+Status: Validation A is done. `workbench/library_rules.py` holds the constants and
+checks below, and the five consumers import them. `evaluations/test_shared_rules.py`
+and `workbench/test_library_rules.py` assert that each consumer uses the one copy,
+and that the Lab and the recorder accept and refuse the same model maps. Validation B
+(the evidence row shapes and the drift-guard tests for the copies below) is next.
+
 The code can only be shared in one direction. The Lab image contains only
 `workbench/`, while `evaluations/` already puts `workbench/` on `sys.path`
 (`library_checks.py` lines 16 to 18). So the single source has to live in
@@ -171,15 +177,17 @@ The code can only be shared in one direction. The Lab image contains only
 
 It should be a new pure module, not `agent_scorecards.py`. Importing
 `agent_scorecards.py` loads and checks a 93 KB JSON file (18 scorecards), a side
-effect nobody wants just to read a regular expression. Because it is a new
-`workbench/` file, it waits for #155.
+effect nobody wants just to read a regular expression. #155 is closed, so a new
+`workbench/` module needs no edit to the `Dockerfile`, `build.ps1`, `test-build.ps1`
+or CI.
 
 ```python
 CATEGORIES = frozenset({"grounded", "missing", "conflict", "injection", "decision-boundary"})
 DEPLOYMENT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 def is_int(value) -> bool                    # real int, not bool
+def is_number(value) -> bool                 # int or float, not bool
 def valid_date(text) -> bool                 # moved from scorecards._valid_date
-def check_profile_map(profiles) -> dict      # the one profile -> deployment rule
+def is_profile_map(value, profiles) -> bool  # the one profile -> deployment rule
 # Validation B adds ANSWER_ROW, METRICS_ROW, RUN_ROW and METRIC_KEYS here.
 ```
 
