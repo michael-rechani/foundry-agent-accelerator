@@ -7,9 +7,10 @@ from request_guard import (
     BodyReadTimeout, MAX_CONVERSATION_BYTES, MAX_REQUEST_BYTES, MAX_SETUP_BYTES,
     read_bounded_body, record_request_failure,
 )
+from log_capture import CapturedLabLogs
 
 
-class BodyTests(unittest.IsolatedAsyncioTestCase):
+class BodyTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
     def request(self, chunks):
         async def stream():
             for chunk in chunks:

@@ -13,6 +13,7 @@ from httpx import ASGITransport, AsyncClient
 from agent_creation import AgentCreations, CreationSettings
 from agent_publisher import PublicationError
 from agent_templates import TEMPLATES
+from log_capture import CapturedLabLogs
 from app import Settings, create_app
 
 
@@ -96,7 +97,7 @@ class FakePublisher:
         await self.run("delete", document, progress)
 
 
-class AgentCreationTests(unittest.IsolatedAsyncioTestCase):
+class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.store = MemoryStore()
         self.publisher = FakePublisher(self.store)
