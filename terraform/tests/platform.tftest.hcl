@@ -305,6 +305,24 @@ run "jumpbox_image_version_pinned" {
   }
 }
 
+run "jumpbox_image_version_ignored_when_attaching_a_disk" {
+  command = plan
+  variables {
+    enable_jumpbox = true
+    jumpbox_existing_os_disk = {
+      id                   = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-platform-test-12345/providers/Microsoft.Compute/disks/existing-os"
+      name                 = "existing-os"
+      storage_account_type = "StandardSSD_LRS"
+      create_option        = "Attach"
+    }
+    jumpbox_image_version = "26100.2894.250113"
+  }
+  assert {
+    condition     = !contains(keys(azapi_resource.jumpbox[0].body.properties.storageProfile), "imageReference")
+    error_message = "A jump box that attaches its own disk has no image reference, so pinning a version must not add one or change the VM."
+  }
+}
+
 run "reject_invalid_image_version" {
   command = plan
   variables {

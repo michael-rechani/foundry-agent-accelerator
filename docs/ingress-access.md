@@ -24,6 +24,7 @@ browser doesn't receive Azure keys or need Foundry project permissions.
 
 - [Choose an ingress pattern](#choose-an-ingress-pattern)
 - [Current repository boundaries](#current-repository-boundaries)
+- [Who uses the Lab today](#who-uses-the-lab-today)
 - [Pattern A: Application Gateway WAF v2](#pattern-a-application-gateway-waf-v2)
 - [Pattern B: Front Door Premium with Private Link](#pattern-b-front-door-premium-with-private-link)
 - [Shared application and HTTP requirements](#shared-application-and-http-requirements)
@@ -96,6 +97,23 @@ gateway elsewhere in the VNet.
 > user or tenant ownership checks before exposing confidential records or
 > onboarding independent users. A WAF, private endpoint, or managed identity
 > doesn't supply those application authorization checks.
+
+### Who uses the Lab today
+
+**Decision (#103): an operator presents the Lab from the jump box. Customers
+don't use it themselves yet.**
+
+- The Lab's environment is internal with public network access disabled, and the
+  app only accepts the jump box's address, so a customer's browser can't reach
+  it. That is intended for now.
+- No public listener, Front Door, Application Gateway or IP allow rule is
+  planned. Each would be a separate approval of that specific resource.
+- Chat is capped at 20 turns a minute across all users, and 4 at once. That is
+  fine for one presenter and tight for a group.
+- To let customers use it themselves, first add end-user sign-in (Microsoft Entra
+  ID) and per-user ownership of saved records. Then choose Pattern A or B below.
+
+For the presenter's steps, see [Present from the jump box](showcase.md#present-from-the-jump-box).
 
 ### Private demonstration versus broader access
 

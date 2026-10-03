@@ -504,6 +504,13 @@ conversations, use the
 
 </details>
 
+## License and sharing
+
+This repository is private and has no open-source license, so no one has
+permission to copy, reuse or share it. It is a sample, not an official Microsoft
+product. If the owner decides to share it outside the team, add a `LICENSE` file
+first.
+
 <a id="references"></a>
 
 ## Related content
