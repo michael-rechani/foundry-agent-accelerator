@@ -143,7 +143,7 @@ class FakeSearch:
             self.hidden_searches -= 1
             documents = []
         else:
-            documents = self.match(index, payload["search"])
+            documents = self.match(index, payload["search"], payload.get("searchMode", "any"))
         value = [
             {"@search.score": 1.0, **{field: document[field] for field in selected if field in document}}
             for document in documents[: payload["top"]]
@@ -151,7 +151,7 @@ class FakeSearch:
         return self.reply(200, {"value": value})
 
     @staticmethod
-    def match(index, query):
+    def match(index, query, mode="any"):
         documents = sorted(index["docs"].values(), key=lambda document: document["id"])
         if query == "*":
             return documents
@@ -159,9 +159,9 @@ class FakeSearch:
         scored = []
         for document in documents:
             words = WORDS.findall(" ".join(document.get(field, "") for field in ("title", "section", "content")).lower())
-            score = sum(words.count(term) for term in terms)
-            if score:
-                scored.append((-score, document["id"], document))
+            counts = [words.count(term) for term in terms]
+            if all(counts) if mode == "all" else any(counts):
+                scored.append((-sum(counts), document["id"], document))
         return [document for _, _, document in sorted(scored, key=lambda item: item[:2])]
 
     def kinds(self):
@@ -809,9 +809,10 @@ class RetrievalContractTests(unittest.TestCase):
         def __init__(self, service):
             self.service = service
 
-        def search(self, *, search_text, top, select, query_type, include_total_count):
+        def search(self, *, search_text, search_mode, top, select, query_type, include_total_count):
             payload = {
                 "search": search_text,
+                "searchMode": search_mode,
                 "top": top,
                 "select": ",".join(select),
                 "queryType": query_type,
@@ -846,6 +847,23 @@ class RetrievalContractTests(unittest.TestCase):
         self.assertEqual(result["status"], "succeeded")
         self.assertEqual(result["source_ids"], [])
         self.assertEqual(result["output"], kr.NO_MATCH)
+
+    def test_query_with_one_matching_word_finds_nothing(self):
+        # "staff" appears in three passages, but none has all three words. The live check on 1 Oct 2026
+        # returned those three passages before the lookup required every word.
+        result = self.lookup(loaded(), "staff parking permit")
+        self.assertEqual(result["status"], "succeeded")
+        self.assertEqual(result["source_ids"], [])
+        self.assertEqual(result["output"], kr.NO_MATCH)
+
+    def test_reordered_words_still_find_the_passage(self):
+        result = self.lookup(loaded(), "evidence missing")
+        self.assertEqual(result["source_ids"], [ki.SMOKE_ID])
+
+    def test_a_synonym_for_a_passage_word_finds_nothing(self):
+        # The accepted cost of requiring every word: "proof" doesn't match "evidence".
+        result = self.lookup(loaded(), "missing proof")
+        self.assertEqual(result["source_ids"], [])
 
     def test_every_passage_fits_the_tool_limits(self):
         for document in CORPUS.documents:

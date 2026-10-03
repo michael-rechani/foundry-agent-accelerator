@@ -148,7 +148,7 @@ class ToolTests(unittest.TestCase):
         tool, result, factory_calls, credential = run_tool(client, "  missing income evidence  ")
         self.assertEqual(tool.__name__, "search_policy_guidance")
         self.assertEqual(client.calls, [{
-            "search_text": "missing income evidence", "top": 3,
+            "search_text": "missing income evidence", "search_mode": "all", "top": 3,
             "select": ["id", "title", "section", "content"], "query_type": "simple",
             "include_total_count": False,
         }])
@@ -577,6 +577,7 @@ class SearchSDKContractTests(unittest.TestCase):
         self.assertEqual(body["top"], 3)
         self.assertEqual(body["select"], "id,title,section,content")
         self.assertEqual(body["queryType"], "simple")
+        self.assertEqual(body["searchMode"], "all")
         self.assertNotIn("filter", body)
 
     def test_default_client_gives_up_by_itself_so_the_worker_thread_ends(self):

@@ -300,6 +300,7 @@ def check(admin: SearchAdmin, corpus: Corpus) -> list[str]:
     found = admin.search(
         {
             "search": SMOKE_QUERY,
+            "searchMode": "all",
             "top": kr.DEFAULT_TOP_K,
             "select": ",".join(kr.DEFAULT_SELECT_FIELDS),
             "queryType": "simple",
