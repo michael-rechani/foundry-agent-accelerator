@@ -96,9 +96,9 @@ contract. Every helper takes the code as a parameter.
 
 ### Shared home: `workbench/request_guard.py`
 
-Status: `is_json` and `api_error` are in place and the four routers use them
-(Admission A). `RateGate`, `RequestRejected` and `read_json_body` are not built
-yet.
+Status: `is_json` and `api_error` (Admission A), `RateGate` (Admission B) and
+`RequestRejected` with `read_json_body` (Admission C) are in place and the four
+routers use them. Only the optional Cosmos error table is left.
 
 Extend the file all four routers already import. It is already in every module
 list and has `workbench/test_request_guard.py`, so this adds no new module. The
@@ -115,8 +115,9 @@ def api_error(request, status, code, *, retry_after=None, **extra) -> JSONRespon
 
 class RateGate:
     def __init__(self, per_minute, concurrent=4, window_seconds=60.0): ...
-    def try_admit(self) -> bool   # prune old requests; False if full or all slots busy; else record
-    def slot(self)                # async context manager around the semaphore
+    slots: asyncio.Semaphore      # `async with gate.slots:`, or acquire() and release() across a background task
+    def try_admit(self, now=None) -> bool
+        # prune old requests; False if the window or every slot is full (counting nothing); else record
 
 class RequestRejected(Exception):   # .status, .code
 async def read_json_body(request, limit, *, too_large="request_too_large",

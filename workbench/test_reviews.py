@@ -1,6 +1,5 @@
 import json
 import asyncio
-from collections import deque
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -14,6 +13,7 @@ from httpx import ASGITransport, AsyncClient
 from reviews import ReviewInput, review_prompt, validate_result
 from app import Settings, create_app, execution_receipts
 from log_capture import CapturedLabLogs
+from request_guard import RateGate
 from review_runs import RECOVERY_GRACE_SECONDS, ReviewRuns
 
 
@@ -159,13 +159,13 @@ class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
 
     def controller(self):
         return ReviewRuns(self.settings, {"customer-review": {"agent": "customer-review-coordinator", "tools": {"inspect_application": "application-review-agent"}}},
-                          self.store, self.gateway, execution_receipts, asyncio.Semaphore(4), deque())
+                          self.store, self.gateway, execution_receipts, RateGate(20, 4))
 
     async def run_direct(self, document):
         controller = self.controller()
         document["status"] = "running"
         document["runs"].append({"id": "attempt", "events": [], "input": deepcopy(self.body)})
-        await controller.slots.acquire()
+        await controller.model_gate.slots.acquire()
         await controller.execute(document)
         return await self.store.get(document["id"])
 
@@ -287,7 +287,7 @@ class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.gateway.review.return_value = ("completed", json.dumps(self.result), self.output)
         self.store.replace = AsyncMock(side_effect=RuntimeError("unavailable"))
         controller = self.controller()
-        await controller.slots.acquire()
+        await controller.model_gate.slots.acquire()
         await controller.execute(document)
         response = await self.client.get('/api/review-runs/' + document["id"])
         self.assertEqual(response.json()["status"], "interrupted")
@@ -331,7 +331,7 @@ class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
 
         self.gateway.review.side_effect = blocked
         controller = self.controller()
-        await controller.slots.acquire()
+        await controller.model_gate.slots.acquire()
         controller.tasks[document["id"]] = asyncio.create_task(controller.execute(document))
         await asyncio.wait_for(entered.wait(), 2)
         await controller.close()
@@ -346,7 +346,7 @@ class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(recovered["runs"][0], original)
         self.assertEqual(recovered["status"], "waiting_input")
         self.assertFalse(controller.tasks)
-        self.assertEqual(controller.slots._value, 4)
+        self.assertEqual(controller.model_gate.slots._value, 4)
 
     async def test_recovery_requires_exact_confirmation_and_current_etag(self):
         document = await self.interrupted_review()
@@ -462,7 +462,7 @@ class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         await self.finish_tasks()
         saved = await self.store.get(document["id"])
         stale = self.controller()
-        await stale.slots.acquire()
+        await stale.model_gate.slots.acquire()
         with self.assertLogs("uvicorn.error", level="WARNING") as captured:
             await stale.execute(document)
         self.assertIn("review_persistence_failed", captured.output[0])
@@ -487,7 +487,7 @@ class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.store.replace = AsyncMock(side_effect=RuntimeError("https://private-account.example/secret"))
         controller = self.controller()
         for _ in range(4):
-            await controller.slots.acquire()
+            await controller.model_gate.slots.acquire()
         document["status"] = "running"
         document["runs"].append({"id": "attempt", "events": [], "input": deepcopy(self.body)})
         with self.assertLogs("uvicorn.error", level="INFO") as captured:
@@ -496,7 +496,7 @@ class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(events, [{"event": "review_persistence_failed", "review_id": document["id"],
                                    "error_type": "RuntimeError"}])
         self.assertNotIn("private-account", "".join(captured.output))
-        self.assertFalse(controller.slots.locked())
+        self.assertFalse(controller.model_gate.slots.locked())
         self.assertEqual(controller.tasks, {})
 
     async def test_unexpected_gateway_exception_is_logged_by_type_without_its_message(self):
@@ -538,14 +538,14 @@ class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="https://testserver",
                                headers=self.headers) as client:
             for _ in range(4):
-                await controller.slots.acquire()
+                await controller.model_gate.slots.acquire()
             response = await self.resume(document, client=client)
             self.assertEqual(response.status_code, 429)
             self.assertEqual(response.headers["Retry-After"], "60")
             self.assertEqual(response.json(), {"error": "busy", "request_id": "test-request"})
             for _ in range(4):
-                controller.slots.release()
-            controller.recent.extend([asyncio.get_running_loop().time()] * 20)
+                controller.model_gate.slots.release()
+            controller.model_gate.recent.extend([asyncio.get_running_loop().time()] * 20)
             self.assertEqual((await self.resume(document, client=client)).status_code, 429)
         self.assertEqual(await self.store.get(document["id"]), document)
         self.gateway.review.assert_not_called()

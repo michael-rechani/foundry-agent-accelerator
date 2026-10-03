@@ -1,9 +1,7 @@
 import asyncio
 import os
-from collections import deque
 from copy import deepcopy
 from datetime import datetime, timezone
-from time import monotonic
 from typing import Literal
 from uuid import uuid4
 
@@ -14,7 +12,7 @@ from azure.identity.aio import ManagedIdentityCredential
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from request_guard import MAX_CONVERSATION_BYTES, api_error, is_json, read_bounded_body, record_request_failure, request_allowed
+from request_guard import MAX_CONVERSATION_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
 
 
 class StrictModel(BaseModel):
@@ -133,8 +131,7 @@ class ConversationHistory:
 
     def __init__(self, settings, registry, store, created_agents=None):
         self.settings, self.registry, self.store, self.created_agents = settings, registry, store, created_agents
-        self.semaphore = asyncio.Semaphore(4)
-        self.recent = deque()
+        self.gate = RateGate(60, 4)
         self.router = APIRouter()
         self.router.add_api_route("/api/conversations", self.conversations, methods=["GET", "POST"])
         self.router.add_api_route("/api/conversations/{identifier}", self.conversations, methods=["GET", "PUT", "DELETE"])
@@ -145,13 +142,9 @@ class ConversationHistory:
         return await self.created_agents.resolve_agent(identifier) if self.created_agents is not None else None
 
     async def conversations(self, request: Request, identifier: str | None = None):
-        now = monotonic()
-        while self.recent and now - self.recent[0] >= 60:
-            self.recent.popleft()
-        if self.semaphore.locked() or len(self.recent) >= 60:
+        if not self.gate.try_admit():
             return api_error(request, 429, "history_busy", retry_after=60)
-        self.recent.append(now)
-        async with self.semaphore:
+        async with self.gate.slots:
             try:
                 async with asyncio.timeout(35):
                     return await self.execute(request, identifier)
@@ -170,8 +163,6 @@ class ConversationHistory:
             return await self.dispatch(request, identifier)
         except ValidationError:
             return history_error(request, 400, "invalid_conversation")
-        except OverflowError:
-            return history_error(request, 413, "conversation_too_large")
         except CosmosHttpResponseError as problem:
             if problem.status_code not in {404, 412}:
                 record_request_failure(request, problem, "cosmos")
@@ -210,12 +201,10 @@ class ConversationHistory:
         return await self.store.list(identifiers, cursor)
 
     async def save_conversation(self, request, identifier, existing):
-        if not is_json(request):
-            return history_error(request, 415, "json_required")
         try:
-            body = await read_bounded_body(request, MAX_CONVERSATION_BYTES)
-        except TimeoutError:
-            return history_error(request, 408, "request_timeout")
+            body = await read_json_body(request, MAX_CONVERSATION_BYTES, too_large="conversation_too_large")
+        except RequestRejected as problem:
+            return history_error(request, problem.status, problem.code)
         conversation = Conversation.model_validate_json(body)
         agent = await self.resolve(conversation.agent_id)
         if agent is None or any(turn.result.agent != agent["agent"] for turn in conversation.turns):
