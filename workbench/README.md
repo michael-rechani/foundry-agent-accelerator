@@ -431,6 +431,13 @@ npm --prefix workbench/frontend test
 Infrastructure initialization and validation are separate deployment steps. The
 local application checks do not require access to the remote state backend.
 
+Workbench test classes that exercise the app mix in `CapturedLabLogs` from
+`workbench/log_capture.py`. It collects the Lab's JSON log lines instead of
+printing them, so a clean run shows only the test summary. A failing test's
+report ends with a `Captured Lab log:` section, and `assertLogs("uvicorn.error")`
+still works in a test that checks a log line. Use the mixin in any new test class
+that drives the app or the gateway.
+
 ## Deployment
 
 Run the following steps from the repository root in one PowerShell session. Stop

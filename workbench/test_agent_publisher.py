@@ -15,6 +15,7 @@ from azure.ai.projects.models import (
 from azure.core.exceptions import ResourceNotFoundError
 
 from agent_publisher import FoundryPublisher, PublicationError, ownership, runtime_package, service_error_code
+from log_capture import CapturedLabLogs
 
 
 def endpoint(version="1", percentage=100):
@@ -81,7 +82,7 @@ class FakeDeployments:
         return SimpleNamespace(name=name)
 
 
-class PublisherTests(unittest.IsolatedAsyncioTestCase):
+class PublisherTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         _, digest = runtime_package()
         self.document = {

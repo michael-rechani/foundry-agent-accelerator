@@ -15,6 +15,7 @@ from agent_publisher import resource_name
 from agent_templates import TEMPLATES
 from app import Settings, create_app
 from history import CosmosHistory
+from log_capture import CapturedLabLogs
 
 CREATED_AGENT_FIELDS = {
     "id", "kind", "project", "name", "template_id", "instructions", "runtime_name", "version", "status", "stage",
@@ -23,7 +24,7 @@ CREATED_AGENT_FIELDS = {
 }
 
 
-class HistoryTests(unittest.TestCase):
+class HistoryTests(CapturedLabLogs, unittest.TestCase):
     def setUp(self):
         self.store = AsyncMock()
         self.store.list_created_agents.return_value = []

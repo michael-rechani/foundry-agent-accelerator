@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from agent_creation import CreationSettings
 from app import FoundryGateway, Settings, cache_policy, create_app, execution_receipts, load_agents
+from log_capture import CapturedLabLogs
 
 
 class RateLimitError(Exception):
@@ -24,7 +25,7 @@ class RateLimitError(Exception):
         self.response = SimpleNamespace(headers=headers if headers is not None else {})
 
 
-class WorkbenchTests(unittest.TestCase):
+class WorkbenchTests(CapturedLabLogs, unittest.TestCase):
     def setUp(self):
         self.gateway = AsyncMock()
         self.gateway.review.return_value = ("completed", "Finding APP-1", [])
@@ -437,7 +438,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertFalse(execution_receipts(output, {"inspect": "specialist"})[0]["verified"])
 
 
-class FoundryGatewayTests(unittest.IsolatedAsyncioTestCase):
+class FoundryGatewayTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
     async def test_reviews_reuse_one_credential_project_and_connection_pool(self):
         response = SimpleNamespace(status="completed", output_text="Finding", model_dump=lambda: {"output": []})
         openai_client = MagicMock()
@@ -707,7 +708,7 @@ class FoundryGatewayTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(call.kwargs["input"], prompt)
             self.assertFalse(call.kwargs["store"])
 
-class LibraryPreviewTests(unittest.TestCase):
+class LibraryPreviewTests(CapturedLabLogs, unittest.TestCase):
     def setUp(self):
         self.gateway = AsyncMock()
         self.gateway.review.return_value = ("completed", "Finding APP-1", [])
@@ -791,7 +792,7 @@ class LibraryPreviewTests(unittest.TestCase):
             self.assertEqual(Settings.from_env().foundry_project_id, project)
 
 
-class LibraryPreviewGatewayTests(unittest.IsolatedAsyncioTestCase):
+class LibraryPreviewGatewayTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
     async def test_preview_calls_the_profile_model_directly(self):
         response = SimpleNamespace(status="completed", output_text="Preview", model_dump=lambda **_: {"output": []})
         openai_client = MagicMock()

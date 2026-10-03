@@ -13,6 +13,7 @@ from httpx import ASGITransport, AsyncClient
 
 from reviews import ReviewInput, review_prompt, validate_result
 from app import Settings, create_app, execution_receipts
+from log_capture import CapturedLabLogs
 from review_runs import RECOVERY_GRACE_SECONDS, ReviewRuns
 
 
@@ -135,7 +136,7 @@ class ReviewStore:
                           for document in self.documents.values() if document["agent_id"] in agents], "cursor": None}
 
 
-class ReviewLifecycleTests(unittest.IsolatedAsyncioTestCase):
+class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.store = ReviewStore()
         self.gateway = AsyncMock()
