@@ -149,7 +149,7 @@ export function TokenCost({
         <code>cost-comparison/</code> in the repository.{' '}
         {budgetAlerts
           ? 'A monthly Azure budget on the Lab resource group emails alerts at 50%, 80% and 100% of the amount, and when spend is forecast to pass it. Budget alerts can arrive hours after the spend and don\u2019t stop anything.'
-          : 'Azure budget alerts aren\u2019t set up for this Lab. An operator can turn them on; see \u201cBudget alerts\u201d in workbench/README.md.'}
+          : 'Azure budget alerts aren\u2019t set up for this Lab. An operator can turn them on; see \u201cBudget alerts\u201d in docs/lab-diagnostics.md.'}
       </p>
     </section>
   )
