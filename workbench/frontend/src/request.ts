@@ -1,6 +1,6 @@
 // Proxies and gateways can return HTML or empty error bodies; callers then fall
 // back to their generic messages instead of surfacing a JSON parse error.
-async function readJson(response: Response) {
+export async function readJson(response: Response) {
   const text = await response.text()
   try {
     return JSON.parse(text)
