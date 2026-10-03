@@ -1013,6 +1013,136 @@ test('every look keeps text, links and buttons readable in light and dark with e
   expect(failures).toEqual([])
 })
 
+for (const look of ['aurora', 'console'] as const) {
+  test(`the ${look} look gives only the Shared lab badge its green treatment`, async ({
+    page,
+  }) => {
+    await page
+      .context()
+      .addInitScript(
+        ([key, value]) => localStorage.setItem(key, value),
+        [themeKey, JSON.stringify({ mode: 'light', accent: 'foundry', look })],
+      )
+    await setup(page)
+    const preview = await page.context().newPage()
+    await setup(preview, { preview: true })
+    const read = (target: Page, scheme: string) =>
+      target.evaluate((scheme) => {
+        document.documentElement.dataset.theme = scheme
+        const resolve = (name: string) => {
+          const probe = document.createElement('i')
+          probe.style.color = `var(--${name})`
+          document.body.append(probe)
+          const value = getComputedStyle(probe).color
+          probe.remove()
+          return value
+        }
+        const badge = document.querySelector('.environment-badge')!
+        const style = getComputedStyle(badge)
+        const dot = getComputedStyle(badge.querySelector('.status-dot')!)
+        return {
+          text: style.color,
+          border: style.borderTopColor,
+          dot: dot.backgroundColor,
+          glow: dot.boxShadow,
+          pulse: dot.animationName,
+          muted: resolve('muted'),
+          warning: resolve('warning-dot'),
+          success: resolve('success-fg'),
+          successDot: resolve('success-dot'),
+          successLine: resolve('success-line'),
+        }
+      }, scheme)
+
+    for (const scheme of ['light', 'dark']) {
+      const shared = await read(page, scheme)
+      expect(
+        { text: shared.text, border: shared.border, dot: shared.dot },
+        `${look} ${scheme}: Shared lab`,
+      ).toEqual({
+        text: shared.success,
+        border: shared.successLine,
+        dot: shared.successDot,
+      })
+      const local = await read(preview, scheme)
+      expect(
+        {
+          text: local.text,
+          dot: local.dot,
+          glow: local.glow,
+          pulse: local.pulse,
+        },
+        `${look} ${scheme}: Local preview`,
+      ).toEqual({
+        text: local.muted,
+        dot: local.warning,
+        glow: 'none',
+        pulse: 'none',
+      })
+      expect(local.border, `${look} ${scheme}: Local preview border`).not.toBe(
+        local.successLine,
+      )
+      if (look === 'aurora') {
+        expect(shared.glow).not.toBe('none')
+        expect(shared.pulse).toBe('look-pulse')
+      }
+    }
+  })
+}
+
+test('the Console look keeps the phone tab strip as Classic has it and styles the wide sidebar buttons', async ({
+  page,
+}) => {
+  await page
+    .context()
+    .addInitScript(
+      ([key, value]) => localStorage.setItem(key, value),
+      [
+        themeKey,
+        JSON.stringify({ mode: 'light', accent: 'foundry', look: 'console' }),
+      ],
+    )
+  await setup(page)
+  const phone = page.viewportSize()!.width <= 650
+  const { classic, current, mono } = await page.evaluate(() => {
+    const root = document.documentElement
+    const first = document.querySelector('.chat-sidebar nav button')!
+    const measure = (look: string) => {
+      root.dataset.look = look
+      const style = getComputedStyle(first)
+      return {
+        family: style.fontFamily,
+        weight: style.fontWeight,
+        size: style.fontSize,
+        lineHeight: style.lineHeight,
+        padding: style.padding,
+        minHeight: style.minHeight,
+        width: style.width,
+        height: style.height,
+      }
+    }
+    const classic = measure('classic')
+    const current = measure('console')
+    const probe = document.createElement('i')
+    probe.style.fontFamily = 'var(--mono)'
+    document.body.append(probe)
+    const mono = getComputedStyle(probe).fontFamily
+    probe.remove()
+    return { classic, current, mono }
+  })
+
+  if (phone) expect(current).toEqual(classic)
+  else
+    expect(current).toMatchObject({
+      family: mono,
+      weight: '500',
+      size: '12.5px',
+      lineHeight: '17.5px',
+      padding: '8px 12px',
+      minHeight: '36px',
+    })
+})
+
 test('template cards stay legible in dark mode for every accent', async ({
   page,
 }, testInfo) => {
