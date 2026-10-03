@@ -21,40 +21,66 @@ provider "azurerm" {
   subscription_id = var.subscription_id
 }
 
-variable "subscription_id" { type = string }
-variable "resource_group_name" { type = string }
-variable "workload_vnet_name" { type = string }
-variable "management_vnet_name" { type = string }
-variable "foundry_account_name" { type = string }
-variable "foundry_project_name" { type = string }
-variable "registry_name" { type = string }
+variable "subscription_id" {
+  type        = string
+  description = "ID of the Azure subscription that holds the platform resources and receives the Lab."
+}
+variable "resource_group_name" {
+  type        = string
+  description = "Existing resource group that holds the Lab resources."
+}
+variable "workload_vnet_name" {
+  type        = string
+  description = "Existing workload virtual network. The Lab subnet and the registry private endpoint go here."
+}
+variable "management_vnet_name" {
+  type        = string
+  description = "Existing management virtual network, linked to the registry private DNS zone so the jumpbox can reach the registry."
+}
+variable "foundry_account_name" {
+  type        = string
+  description = "Name of the existing Foundry account. The Lab calls its project endpoint."
+}
+variable "foundry_project_name" {
+  type        = string
+  description = "Name of the existing Foundry project. The Lab identity gets Foundry User on it."
+}
+variable "registry_name" {
+  type        = string
+  description = "Name of the container registry to create. It must be globally unique."
+}
 variable "private_registry_enabled" {
-  type    = bool
-  default = true
+  type        = bool
+  default     = true
+  description = "Reaches the registry through a private endpoint and private DNS zone, which needs the Premium tier. The default is true. When false, the registry is Basic with no private endpoint."
 }
 variable "registry_public_network_access_enabled" {
-  type    = bool
-  default = false
+  type        = bool
+  default     = false
+  description = "Whether the registry accepts connections from public networks. The default is false: only the private endpoint can reach it. Setting it to true exposes the registry's public endpoint to the internet. Sign-in is still required and the admin user stays off. Don't set it to true without the environment owner's approval."
 }
 variable "visible_agents" {
-  type    = list(string)
-  default = ["customer-review"]
+  type        = list(string)
+  default     = ["customer-review"]
+  description = "IDs of the agents from agents.json that the Lab shows to visitors."
   validation {
     condition     = length(var.visible_agents) > 0 && alltrue([for agent in var.visible_agents : contains([for configured in jsondecode(file("${path.module}/../agents.json")) : configured.id], agent)])
     error_message = "Select at least one configured workbench agent ID."
   }
 }
 variable "default_agent" {
-  type    = string
-  default = null
+  type        = string
+  default     = null
+  description = "ID of the visible agent the Lab opens first. Null means the first entry in visible_agents."
   validation {
     condition     = var.default_agent == null ? true : contains(var.visible_agents, var.default_agent)
     error_message = "The default agent must be visible in the workbench."
   }
 }
 variable "workspace_title" {
-  type    = string
-  default = "Foundry Agent Lab"
+  type        = string
+  default     = "Foundry Agent Lab"
+  description = "Title the Lab shows for itself. One to 80 printable characters."
   validation {
     condition     = length(trimspace(var.workspace_title)) > 0 && length(var.workspace_title) <= 80 && !can(regex("[[:cntrl:]]", var.workspace_title))
     error_message = "Use a workspace title of one to 80 printable characters."
@@ -63,7 +89,7 @@ variable "workspace_title" {
 variable "agent_creation_enabled" {
   type        = bool
   default     = false
-  description = "Opt in to operator-confirmed Foundry hosted-agent publication from reviewed templates."
+  description = "Opt in to operator-confirmed Foundry hosted-agent publication from built-in templates."
 }
 variable "agent_creation_model" {
   type        = string
@@ -105,12 +131,14 @@ variable "agent_creation_key_secret_resource_id" {
   }
 }
 variable "name" {
-  type    = string
-  default = "foundry-workbench"
+  type        = string
+  default     = "foundry-workbench"
+  description = "Name of the Lab Container App. It also prefixes the names of the Lab's identity, environment, subnet, workspace, and alerts."
 }
 variable "subnet_prefix" {
-  type    = string
-  default = "10.42.2.0/24"
+  type        = string
+  default     = "10.42.2.0/24"
+  description = "Address range of the delegated Container Apps subnet in the workload virtual network. It must not overlap another subnet."
 }
 data "azurerm_virtual_network" "workload" {
   name                = var.workload_vnet_name

@@ -75,7 +75,7 @@ Why this option fits the pinned versions and the private network:
 | Pinned versions | Works unchanged with `agent-framework-foundry==1.13.1`, `agent-framework-foundry-hosting==1.0.0b260918`, and `azure-identity==1.25.3` from [`requirements.txt`](../hosted-agents/case-review-agent/requirements.txt). The tool is a plain async function, the same pattern the coordinator uses for its specialist tools. |
 | Least privilege | Each hosted agent runs as its own Microsoft Entra agent identity. That identity gets **Search Index Data Reader** on **one index**. The Foundry-managed tool would instead query as the shared project managed identity, which the pinned AVM module already grants Search Index Data Contributor and Search Service Contributor on the whole service. |
 | Private networking | The Search service already has public access disabled, local (key) authentication disabled, and a private endpoint in `privatelink.search.windows.net`. The agent subnet is network-injected into the same virtual network. Keyless managed identity is the only option, which this approach uses. |
-| Bounded behavior | The code, not the model, fixes the index, `top` (at most 5), the `select` field allowlist, and the simple query type. The model supplies only the query text; it can't pass a filter, index, or field list. |
+| Bounded behavior | The code, not the model, fixes the index, `top` (at most 5), the `select` field allowlist, the simple query type, and that every query word must match. The model supplies only the query text; it can't pass a filter, index, or field list. |
 | Receipts | Returns the coordinator's specialist receipt shape (`status`, `agent`, `output`) plus `retrieval` and `source_ids`, so Lab receipt verification works unchanged. The deploy smoke check also requires at least one passage. |
 | Testability | Unit-tested offline with a fake search client and with the real SDK over a mock transport. |
 | No new service | It's a tool in an existing agent, not a bespoke retrieval service, and it doesn't need Azure-side tool, connection, or toolbox creation, vectors, or an embedding model. |
@@ -181,9 +181,18 @@ default profile, and bundle validation rejects the overlay files and
 
 - The query must be nonempty and at most 500 characters. Invalid queries return
   a failed receipt without calling Search.
-- Calls `search(search_text=query, top=KNOWLEDGE_TOP_K, select=<allowlist>,
-  query_type="simple", include_total_count=False)`. No filter, facets, vector,
-  semantic ranker, or write operations.
+- Calls `search(search_text=query, search_mode="all", top=KNOWLEDGE_TOP_K,
+  select=<allowlist>, query_type="simple", include_total_count=False)`. No filter,
+  facets, vector, semantic ranker, or write operations.
+- **Every query word must match.** `search_mode="all"` returns a passage only if
+  its title, section, and content together contain every word of the query, in any
+  order. Search drops common words such as "the" or "is" first. The tool
+  description tells the model to use two or three specific keywords. This keeps a
+  question the sample set doesn't cover, such as "staff parking permit", from
+  returning passages that only share one word like "staff". The cost is that a
+  synonym finds nothing: "missing proof" doesn't match "missing evidence". The
+  answer then says no guidance was found. Semantic or vector search would fix that
+  and is a later change.
 - Keeps only allowlisted fields, drops results without a string ID, removes
   control and bidirectional-override characters, caps each field at 2,000
   characters, and caps the output at 8,000 characters by dropping whole passages.
@@ -579,6 +588,11 @@ cases listed in [Evaluation additions](#evaluation-additions):
   signed off
   ([#87](https://github.com/michael-rechani/foundry-agent-accelerator/issues/87)).
 - **No retrieval cases in the evaluation dataset yet.**
+- **The lookup matched any query word.** Version 8 returned three passages for
+  "staff parking permit". The code now requires every word (see
+  [Tool contract](#tool-contract)), but version 8 keeps the old behavior until it
+  is republished, and rerunning that check against it needs approval
+  ([#144](https://github.com/michael-rechani/foundry-agent-accelerator/issues/144)).
 
 ## Sources
 
