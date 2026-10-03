@@ -1,90 +1,60 @@
-import { expect, test, type Page } from '@playwright/test'
-import { readFile } from 'node:fs/promises'
-import type { LibraryTemplate } from '../src/library-catalog'
-import type { Config } from '../src/workspace-config'
+import { type Page, expect, test } from '@playwright/test'
 import { guidedReview } from './fixtures'
-
-const catalog = JSON.parse(
-  await readFile(
-    new URL('./agent-templates.fixture.json', import.meta.url),
-    'utf8',
-  ),
-)
-const scorecards = JSON.parse(
-  await readFile(
-    new URL('../../agent_scorecards.json', import.meta.url),
-    'utf8',
-  ),
-)
-const support = (catalog.templates as LibraryTemplate[]).find(
-  (item) => item.id === 'customer-support-brief',
-)!
-const invoice = (catalog.templates as LibraryTemplate[]).find(
-  (item) => item.id === 'supplier-invoice-reviewer',
-)!
+import {
+  catalog,
+  invoice,
+  scorecards,
+  scorecardsWithout,
+  support,
+  templateById,
+} from './helpers/catalog'
+import { foundryPortal, labConfig } from './helpers/lab-config'
+import { mockApi } from './helpers/mock-api'
+import {
+  hoodSwitch,
+  libraryNav,
+  waitForLab,
+  workspaceNav,
+} from './helpers/navigation'
+import { type Config } from '../src/workspace-config'
 
 // Start without the stored switch, as a first-time visitor would.
 test.use({ storageState: { cookies: [], origins: [] } })
 
-async function setup(
+async function openCustomerView(
   page: Page,
   overrides: Partial<Config> = {},
   withoutResultsFor?: string,
   results = scorecards,
 ) {
-  const served = {
-    ...results,
-    scorecards: results.scorecards.filter(
-      (card: { template_id: string }) => card.template_id !== withoutResultsFor,
-    ),
-  }
-  const config: Config = {
-    title: 'Foundry Agent Lab',
-    mode: 'private',
-    agents: [guidedReview],
-    default_agent: guidedReview.id,
-    max_characters: 60000,
-    max_request_bytes: 65536,
-    max_history_turns: 10,
-    review_timeout_ms: 190000,
-    history_timeout_ms: 45000,
-    retention_days: 30,
-    history_enabled: false,
-    reviews_enabled: false,
-    ...overrides,
-  }
-  await page.route('**/api/**', async (route) => {
-    const path = new URL(route.request().url()).pathname
-    if (path === '/api/config') return route.fulfill({ json: config })
-    if (path === '/api/agent-templates') return route.fulfill({ json: catalog })
-    if (path === '/api/agent-scorecards') return route.fulfill({ json: served })
-    return route.fulfill({ json: { error: 'not_found' }, status: 404 })
+  const config = labConfig({ reviews_enabled: false, ...overrides })
+  const served = scorecardsWithout(withoutResultsFor, results)
+  await mockApi(page, ({ path, respond }) => {
+    if (path === '/api/config') return respond(config)
+    if (path === '/api/agent-templates') return respond(catalog)
+    if (path === '/api/agent-scorecards') return respond(served)
+    return respond({ error: 'not_found' }, 404)
   })
   await page.goto('/')
-  await expect(
-    page.getByRole('navigation', { name: 'Workspace' }),
-  ).toBeVisible()
+  await waitForLab(page)
 }
-
-const navigation = (page: Page) =>
-  page.getByRole('navigation', { name: 'Workspace' })
-const hoodSwitch = (page: Page) =>
-  page.getByRole('switch', { name: /Under the hood/ })
 
 test('the customer view hides technical details until Under the hood is on', async ({
   page,
 }) => {
-  await setup(page)
+  await openCustomerView(page)
   await expect(hoodSwitch(page)).not.toBeChecked()
   await expect(
     page.getByRole('navigation', { name: 'Breadcrumb' }),
   ).toContainText(/Agent library\s*Browse/)
-  await expect(navigation(page).locator('.nav-section-label')).toHaveText([
+  await expect(workspaceNav(page).locator('.nav-section-label')).toHaveText([
     'Agent library',
     'Try it',
   ])
   for (const name of ['Overview', 'Performance'])
-    await expect(navigation(page).getByRole('button', { name })).toHaveCount(0)
+    await expect(workspaceNav(page).getByRole('button', { name })).toHaveCount(
+      0,
+    )
 
   await page.locator('.library-card').filter({ hasText: support.label }).click()
   await expect(
@@ -94,13 +64,13 @@ test('the customer view hides technical details until Under the hood is on', asy
 
   await hoodSwitch(page).check()
   await expect(page.getByText('Model profile')).toBeVisible()
-  await expect(navigation(page).locator('.nav-section-label')).toHaveText([
+  await expect(workspaceNav(page).locator('.nav-section-label')).toHaveText([
     'Agent library',
     'Try it',
     'Operations',
   ])
   await expect(
-    navigation(page)
+    workspaceNav(page)
       .getByRole('group', { name: 'Operations' })
       .getByRole('button'),
   ).toHaveText(['Overview', 'Performance', /^Request log/])
@@ -108,16 +78,16 @@ test('the customer view hides technical details until Under the hood is on', asy
   await page.reload()
   await expect(hoodSwitch(page)).toBeChecked()
 
-  await navigation(page).getByRole('button', { name: 'Performance' }).click()
+  await workspaceNav(page).getByRole('button', { name: 'Performance' }).click()
   await expect(
     page.getByRole('navigation', { name: 'Breadcrumb' }),
   ).toContainText(/Operations\s*Performance/)
   await hoodSwitch(page).uncheck()
   await expect(
-    navigation(page).getByRole('button', { name: /^All agents/ }),
+    workspaceNav(page).getByRole('button', { name: /^All agents/ }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(
-    navigation(page).getByRole('button', { name: 'Performance' }),
+    workspaceNav(page).getByRole('button', { name: 'Performance' }),
   ).toHaveCount(0)
   expect(
     await page.evaluate(() =>
@@ -126,17 +96,11 @@ test('the customer view hides technical details until Under the hood is on', asy
   ).toBe('0')
 })
 
-const portal =
-  'https://ai.azure.com/nextgen/r/qqqqqru7TMyN3e7u7u7u7g,rg-lab,,lab-account,lab-project'
-
 test('add-on technical details stay hidden until Under the hood is on', async ({
   page,
 }) => {
-  await setup(page)
-  await page
-    .getByRole('navigation', { name: 'Agent library' })
-    .getByRole('button', { name: 'Add-ons' })
-    .click()
+  await openCustomerView(page)
+  await libraryNav(page).getByRole('button', { name: 'Add-ons' }).click()
   const first = page.locator('.addon-card').first()
   await expect(first).toContainText('Knowledge search')
   await expect(first).toContainText('What it would cost')
@@ -149,31 +113,31 @@ test('add-on technical details stay hidden until Under the hood is on', async ({
 })
 
 test('Foundry links appear only under the hood', async ({ page }) => {
-  await setup(page, { foundry_portal: portal })
+  await openCustomerView(page, { foundry_portal: foundryPortal })
   const projectLink = page.getByRole('link', {
     name: /Open project in Foundry/,
   })
   await expect(projectLink).toHaveCount(0)
 
   await hoodSwitch(page).check()
-  await expect(projectLink).toHaveAttribute('href', portal)
+  await expect(projectLink).toHaveAttribute('href', foundryPortal)
   await expect(projectLink).toHaveAttribute('target', '_blank')
   await expect(projectLink).toHaveAttribute('rel', 'noopener noreferrer')
 
-  await navigation(page).getByRole('button', { name: 'Performance' }).click()
+  await workspaceNav(page).getByRole('button', { name: 'Performance' }).click()
   await expect(page.locator('.foundry-note').getByRole('link')).toHaveAttribute(
     'href',
-    portal,
+    foundryPortal,
   )
-  await navigation(page)
+  await workspaceNav(page)
     .getByRole('button', { name: /^Request log/ })
     .click()
   await expect(page.locator('.foundry-note').getByRole('link')).toHaveAttribute(
     'href',
-    portal,
+    foundryPortal,
   )
 
-  await navigation(page).getByRole('button', { name: 'Chat' }).click()
+  await workspaceNav(page).getByRole('button', { name: 'Chat' }).click()
   // Wide windows keep the agent's details in a right-hand column and narrow
   // ones in a pop-up from the Chat header.
   const wide = (page.viewportSize()?.width ?? 0) >= 1000
@@ -186,7 +150,7 @@ test('Foundry links appear only under the hood', async ({ page }) => {
   await runtime.getByText('Developer setup details').click()
   await expect(runtime.getByRole('link').first()).toHaveAttribute(
     'href',
-    `${portal}/build/agents/${guidedReview.agent}/build`,
+    `${foundryPortal}/build/agents/${guidedReview.agent}/build`,
   )
   await expect(runtime.getByRole('link')).toHaveCount(
     1 + Object.keys(guidedReview.tools).length,
@@ -201,11 +165,8 @@ test('breadcrumbs link back to the library from its tabs', async ({
 }, testInfo) => {
   // Narrow screens show only the current page in the top bar.
   test.skip(testInfo.project.name === 'mobile')
-  await setup(page)
-  await page
-    .getByRole('navigation', { name: 'Agent library' })
-    .getByRole('button', { name: 'Guided demos' })
-    .click()
+  await openCustomerView(page)
+  await libraryNav(page).getByRole('button', { name: 'Guided demos' }).click()
   const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
   await expect(crumbs).toContainText(/Agent library\s*Guided demos/)
   await crumbs.getByRole('button', { name: 'Agent library' }).click()
@@ -215,7 +176,7 @@ test('breadcrumbs link back to the library from its tabs', async ({
 test('an agent page leads with plain actions and keeps setup details under the hood', async ({
   page,
 }) => {
-  await setup(page)
+  await openCustomerView(page)
   await expect(page.locator('.library-card').first()).toContainText(
     invoice.label,
   )
@@ -259,16 +220,14 @@ test('test results read plainly and keep case details under the hood', async ({
       total + entry.runs_passed,
     0,
   )
-  const benefits = (catalog.templates as LibraryTemplate[]).find(
-    (item) => item.id === card.template_id,
-  )!
+  const benefits = templateById(card.template_id)
   const {
     passed,
     runs,
     runs_passed: runsPassed,
     runs_per_case: each,
   } = card.summary
-  await setup(page, {}, undefined, withMiss)
+  await openCustomerView(page, {}, undefined, withMiss)
   await page
     .locator('.library-card')
     .filter({ hasText: benefits.label })
@@ -333,10 +292,8 @@ test('a ring and one dot per answer repeat the written counts without adding wor
   page,
 }) => {
   const card = scorecards.scorecards[0]
-  const agent = (catalog.templates as LibraryTemplate[]).find(
-    (item) => item.id === card.template_id,
-  )!
-  await setup(page)
+  const agent = templateById(card.template_id)
+  await openCustomerView(page)
   await page.locator('.library-card').filter({ hasText: agent.label }).click()
   await page.getByRole('tab', { name: 'Test results' }).click()
   const panel = page.getByRole('tabpanel')
@@ -370,7 +327,7 @@ test('a ring and one dot per answer repeat the written counts without adding wor
 test('agents without a recorded run say so on Test results', async ({
   page,
 }) => {
-  await setup(page, {}, support.id)
+  await openCustomerView(page, {}, support.id)
   await page.locator('.library-card').filter({ hasText: support.label }).click()
   await page.getByRole('tab', { name: 'Test results' }).click()
   await expect(page.getByRole('tabpanel')).toContainText('No test results yet')

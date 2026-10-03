@@ -36,6 +36,13 @@ configuration, including nullability and implicit types.
 mocked APIs that return sample data. They use no Azure resources or credentials.
 Screenshots and failure traces are written to ignored `test-results/`. On Linux,
 install browser system dependencies with `npx playwright install --with-deps chromium`.
+Specs share their setup through `tests/helpers/`: `mock-api.ts` answers every
+`/api/` request locally, `lab-config.ts` holds the baseline Lab configuration,
+`catalog.ts` the catalog and scorecard fixtures, and `navigation.ts`,
+`layout.ts` and `appearance.ts` the common page actions and checks. Each area
+adds one `*-lab.ts` module (`chat-lab.ts`, `library-lab.ts`, `reviews-lab.ts`,
+`creation-lab.ts`) that opens the Lab with the mocks that area needs. Add shared
+setup there rather than copying it into a spec.
 
 ## App structure
 
@@ -112,7 +119,7 @@ Use the tokens in new styles rather than hex values, so every theme, accent, and
 look keeps working. Text, link, and button colors meet WCAG AA (4.5:1) on the
 surfaces they sit on, and form-field borders and the accent line meet 3:1, in
 every combination of look, light or dark, and accent;
-`tests/agent-creation.spec.ts` checks these pairs on the rendered page. Status
+`tests/appearance-looks.spec.ts` checks these pairs on the rendered page. Status
 dots and decorative borders aren't covered, so don't rely on them alone to carry
 meaning. Check new color pairs in both modes and in each look. The content
 security policy blocks inline scripts, so a device in one mode briefly shows
@@ -145,19 +152,21 @@ in chat, exports, or persistent browser storage. Deletion requires explicit
 shared-impact confirmation. See the [Create and try a baseline Microsoft Foundry agent](../../docs/agent-creation.md)
 operator guide.
 
-`tests/agent-creation.spec.ts` covers template selection, preparation versus
-publication, operator confirmation, uncertain submissions and stable-ID retries,
-poll recovery, deletion, dynamic-agent chat/history, key lifetime, and mobile
-layout. It also covers the **Appearance** menu (theme, accent, and look), saved
-and unreadable choices, and text, link, and button contrast for every look in
-light and dark with each accent. Its publication and answer fixtures are explicitly mocked. For a focused
-check, run `npm test -- agent-creation.spec.ts`; this still builds the
+`tests/agent-creation.spec.ts` and `tests/agent-creation-recovery.spec.ts` cover
+template selection, preparation versus publication, operator confirmation,
+uncertain submissions and stable-ID retries, poll recovery, deletion,
+dynamic-agent chat/history, key lifetime, and mobile layout.
+`tests/appearance.spec.ts` and `tests/appearance-looks.spec.ts` cover the
+**Appearance** menu (theme, accent, and look), saved and unreadable choices, and
+text, link, and button contrast for every look in light and dark with each
+accent. Their publication and answer fixtures are explicitly mocked. For a
+focused check, run `npm test -- agent-creation`; this still builds the
 production assets first.
 
 ## Library, performance, and log coverage
 
-`tests/library.spec.ts` routes `/api/agent-templates` to
-`tests/agent-templates.fixture.json`, which
+The `tests/library*.spec.ts` specs route `/api/agent-templates` (through
+`tests/helpers/library-lab.ts`) to `tests/agent-templates.fixture.json`, which
 `workbench/test_frontend_catalog_fixture.py` keeps identical to the served
 catalog. After a catalog change, regenerate it from `workbench` and format it:
 
@@ -166,7 +175,7 @@ python -c "import json; from pathlib import Path; from agent_templates import ca
 npm --prefix frontend run format
 ```
 
-The spec covers the four-section navigation and hash links, filters with
+The specs cover the four-section navigation and hash links, filters with
 live counts, search and the empty state, detail tabs and honest labels, template
 preselection without preparing or publishing, opening a ready agent in Chat as
 an unsent draft, the request log reference, recent requests on Performance,
