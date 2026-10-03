@@ -10,17 +10,9 @@ import { foundryAgentUrl } from './foundry-links'
 import { FoundryLink } from './FoundryLink'
 import type { LibraryTemplate } from './library-catalog'
 import { creationNote, type ReadyAgent } from './library-helpers'
+import { saveFile } from './save-file'
 import type { ScorecardsState } from './scorecards-client'
 import type { CreationCapability } from './workspace-config'
-
-function saveFile(name: string, text: string, type: string) {
-  const url = URL.createObjectURL(new Blob([text], { type }))
-  const link = document.createElement('a')
-  link.href = url
-  link.download = name
-  link.click()
-  URL.revokeObjectURL(url)
-}
 
 export function LibraryExportTab({
   template,

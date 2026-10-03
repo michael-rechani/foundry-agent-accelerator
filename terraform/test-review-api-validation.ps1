@@ -28,6 +28,7 @@ try {
             "-chdir=$temporary", 'plan', '-input=false', '-refresh=false', '-no-color',
             '-var=subscription_id=00000000-0000-0000-0000-000000000000',
             '-var=api_management_publisher_email=owner@example.com',
+            '-var=approve_public_api_management=true',
             "-var=enable_api_management=$($case.Enabled)"
         )
         $variablesPath = Join-Path $temporary 'review-api.tfvars.json'

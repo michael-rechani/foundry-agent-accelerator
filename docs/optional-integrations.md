@@ -53,10 +53,12 @@ data were removed by the APIM cleanup.
 1. Review current pricing and private backend networking. The retained gateway
    uses Standard v2. Basic and Basic v2 can't reach this virtual network
    (VNet)-isolated backend.
-2. Supply non-secret local Terraform inputs:
+2. Approve the public gateway, then supply non-secret local Terraform inputs.
+   Terraform refuses to plan without `approve_public_api_management = true`:
 
    ```hcl
    enable_api_management          = true
+   approve_public_api_management  = true
    api_management_publisher_email = "platform-owner@example.com"
    ```
 

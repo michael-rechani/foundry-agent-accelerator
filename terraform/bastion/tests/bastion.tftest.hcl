@@ -10,10 +10,11 @@ override_data {
 }
 
 variables {
-  subscription_id      = "00000000-0000-0000-0000-000000000001"
-  resource_group_name  = "rg-example"
-  virtual_network_name = "vnet-example"
-  bastion_name         = "bastion-example"
+  subscription_id           = "00000000-0000-0000-0000-000000000001"
+  resource_group_name       = "rg-example"
+  virtual_network_name      = "vnet-example"
+  bastion_name              = "bastion-example"
+  approve_bastion_public_ip = true
 }
 
 run "standard_dedicated_host" {
@@ -39,6 +40,14 @@ run "standard_dedicated_host" {
     condition     = azapi_resource.bastion.body.properties.virtualNetwork == null && length(azapi_resource.bastion.body.properties.ipConfigurations) == 1
     error_message = "The Standard upgrade must replace Developer's VNet reference with a dedicated IP configuration."
   }
+}
+
+run "reject_unapproved_public_ip" {
+  command = plan
+  variables {
+    approve_bastion_public_ip = false
+  }
+  expect_failures = [var.approve_bastion_public_ip]
 }
 
 run "reject_small_subnet" {

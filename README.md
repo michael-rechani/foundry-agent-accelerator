@@ -215,8 +215,12 @@ carries configuration, not Azure permissions.*
 
 ### What runs in Azure
 
-Everything runs in one subscription on private networks. Services sign in with
-managed identities, not API keys.
+The core platform runs in one subscription on private networks. Services sign in
+with managed identities, not API keys. Three optional pieces add something
+public: the Bastion host's static public IP, the jump box's outbound IP, and the
+Azure API Management gateway. Each is off unless you turn it on, and each also needs an
+explicit `approve_*` Terraform input; see the
+[Terraform guide](terraform/README.md) before you do.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/azure-architecture-dark.svg">

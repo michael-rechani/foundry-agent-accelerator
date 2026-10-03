@@ -165,6 +165,16 @@ management virtual network (VNet), subnet, peering, and DNS links are defined in
 `enable_management_network = false` only when that network is not needed.
 Enabling the VM or APIM also enables the network.
 
+> [!IMPORTANT]
+> The VM adds two things that are reachable or credentialed outside the private
+> network: a static public IP address for outbound NAT egress (the VM has no
+> inbound public address) and a local Windows administrator account. Terraform
+> refuses to plan with `enable_jumpbox = true` until you approve each with
+> `approve_jumpbox_egress_public_ip = true` and
+> `approve_jumpbox_admin_account = true`. Set them only after that approval.
+> Existing deployments that already run the VM must set both once; doing so
+> changes no resources.
+
 An enabled VM shuts down and deallocates nightly at 03:00 UTC, without
 notifications. Set `jumpbox_auto_shutdown = { time = "1900", timezone =
 "Pacific Standard Time" }` to change the schedule, or `null` to remove it.
@@ -178,7 +188,9 @@ For dedicated browser-based access, the separate
 [Standard Bastion stack](bastion/README.md) can adopt an existing Developer host
 and upgrade it without changing the VM or platform resources. The Bastion root
 uses its own protected state key and incurs continuous Bastion charges. Applying
-this parent configuration does not enable Bastion.
+this parent configuration does not enable Bastion. The Bastion root requires
+`approve_bastion_public_ip = true` for the same reason: Standard Bastion needs a
+static public IP.
 
 For a new VM, pre-provision a strong Windows administrator password in an
 accessible Key Vault. Set `jumpbox_admin_secret` to the vault resource ID, secret
@@ -301,6 +313,13 @@ network access also remains enabled so Terraform and portal operations work
 without a separate private management endpoint.
 
 > [!IMPORTANT]
+> Because the gateway is public, Terraform refuses to plan with
+> `enable_api_management = true` until you also set
+> `approve_public_api_management = true`. Set it only after approving public
+> exposure for this gateway. Existing deployments that already run APIM must set
+> it once; doing so changes no resources.
+
+> [!IMPORTANT]
 > Standard v2 is billed continuously, even with no API traffic. Set
 > `enable_api_management = false` in environments that do not need the gateway.
 > Azure Managed Redis and APIM semantic caching are deliberately excluded because
@@ -398,6 +417,9 @@ environment           = "dev"
 location              = "northcentralus"
 enable_api_management = false
 ```
+
+Leave the `approve_*` inputs at their `false` defaults unless you are enabling
+the matching optional piece and have approved its public exposure.
 
 Review [all input defaults](variables.tf), especially model capacity, network
 ranges, and optional resources.

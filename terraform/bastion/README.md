@@ -18,7 +18,7 @@ Run commands in `terraform/bastion/`, not in the parent platform root.
 | Scale units | 2 |
 | Subnet | Dedicated `AzureBastionSubnet` |
 | Default subnet range | `10.43.1.0/26` |
-| Public IP | Static Standard public IP named `<bastion_name>-pip` |
+| Public IP | Static Standard public IP named `<bastion_name>-pip`; requires `approve_bastion_public_ip = true` |
 | Managed resources | Bastion host, subnet, and public IP only |
 | State example | `ai-foundry/bastion-dev.tfstate` |
 | Destruction guard | `prevent_destroy` on the Bastion host, subnet, and public IP |
@@ -40,6 +40,9 @@ intentionally prevents destruction.
 
 1. Copy `dev.tfvars.example` to ignored `dev.tfvars`.
 2. Supply the existing subscription, resource group, VNet, and Bastion names.
+   Standard Bastion needs a static public IP, so Terraform refuses to plan until
+   you set `approve_bastion_public_ip = true`. Set it only after approving that
+   public IP; it changes no resources for a host that already has one.
 3. Verify that the subnet range is unused and inside the VNet.
 4. Preserve any existing Bastion tags.
 5. Copy `backend.hcl.example` to ignored `backend.hcl`.

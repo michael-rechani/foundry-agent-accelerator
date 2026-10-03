@@ -62,10 +62,15 @@ portal links (`foundry-links.ts`, `FoundryLink.tsx`) are built from the
 `foundry_portal` config value and shown only under the hood. `WaitingIndicator.tsx` owns the elapsed timer so it
 does not rerender the transcript.
 
-State, effects, and request handlers stay in the three workspace components
-(`ChatWorkspace.tsx`, `AgentCreationWorkspace.tsx`, and `ReviewWorkspace.tsx`).
-The view components split out of them are presentational and receive values
-and callbacks as props. `ExploreDemos.tsx` additionally owns its local story
+The three workspace components (`ChatWorkspace.tsx`,
+`AgentCreationWorkspace.tsx`, and `ReviewWorkspace.tsx`) compose the feature
+hooks and route callbacks between views. Chat's state, effects, and request
+handlers live in `use-conversation.ts`, `use-chat-history.ts`,
+`use-chat-submit.ts`, `use-chat-effects.ts`, `use-chat-view.ts`, and
+`use-dependency-health.ts`. The view components split out of the workspaces are
+presentational and receive values and callbacks as props. `AgentLibrary.tsx`
+chooses between `LibraryBrowse.tsx` and `LibraryDetail.tsx`. `ExploreDemos.tsx`
+additionally owns its local story
 selection and clipboard feedback; it never invokes an agent or writes records.
 
 | File                                                          | Role                                                                                                                                                                           |

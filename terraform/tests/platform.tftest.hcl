@@ -28,7 +28,10 @@ override_module {
 }
 
 variables {
-  subscription_id = "00000000-0000-0000-0000-000000000003"
+  subscription_id                  = "00000000-0000-0000-0000-000000000003"
+  approve_public_api_management    = true
+  approve_jumpbox_egress_public_ip = true
+  approve_jumpbox_admin_account    = true
 }
 
 run "fresh_defaults" {
@@ -149,6 +152,52 @@ run "reject_missing_vm_credential" {
   command = plan
   variables { enable_jumpbox = true }
   expect_failures = [var.enable_jumpbox]
+}
+
+run "no_approval_needed_while_public_pieces_are_off" {
+  command = plan
+  variables {
+    approve_public_api_management    = false
+    approve_jumpbox_egress_public_ip = false
+    approve_jumpbox_admin_account    = false
+  }
+  assert {
+    condition = (
+      !var.enable_jumpbox && !var.enable_api_management &&
+      length(azurerm_public_ip.jumpbox_egress) == 0 &&
+      length(azapi_resource.jumpbox) == 0 &&
+      length(module.api_management) == 0
+    )
+    error_message = "With the optional pieces off, no public IP, administrator account or public gateway is planned and no approval is needed."
+  }
+}
+
+run "reject_unapproved_jumpbox_egress_public_ip" {
+  command = plan
+  variables {
+    enable_jumpbox                   = true
+    approve_jumpbox_egress_public_ip = false
+    jumpbox_existing_os_disk = {
+      id                   = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-platform-test-12345/providers/Microsoft.Compute/disks/existing-os"
+      name                 = "existing-os"
+      storage_account_type = "Standard_LRS"
+    }
+  }
+  expect_failures = [var.approve_jumpbox_egress_public_ip]
+}
+
+run "reject_unapproved_jumpbox_admin_account" {
+  command = plan
+  variables {
+    enable_jumpbox                = true
+    approve_jumpbox_admin_account = false
+    jumpbox_existing_os_disk = {
+      id                   = "/subscriptions/00000000-0000-0000-0000-000000000003/resourceGroups/rg-platform-test-12345/providers/Microsoft.Compute/disks/existing-os"
+      name                 = "existing-os"
+      storage_account_type = "Standard_LRS"
+    }
+  }
+  expect_failures = [var.approve_jumpbox_admin_account]
 }
 
 run "existing_vm_disk" {

@@ -15,13 +15,16 @@ try {
         @{ Name = 'enabled with blank email'; Enabled = 'true'; Email = ''; Valid = $false },
         @{ Name = 'enabled with malformed email'; Enabled = 'true'; Email = 'invalid'; Valid = $false },
         @{ Name = 'disabled with malformed email'; Enabled = 'false'; Email = 'invalid'; Valid = $false },
-        @{ Name = 'enabled with valid email'; Enabled = 'true'; Email = 'owner@example.com'; Valid = $true }
+        @{ Name = 'enabled with valid email'; Enabled = 'true'; Email = 'owner@example.com'; Valid = $true },
+        @{ Name = 'enabled without public exposure approval'; Enabled = 'true'; Email = 'owner@example.com'; Approved = 'false'; Valid = $false; Message = 'approve_public_api_management' },
+        @{ Name = 'disabled without public exposure approval'; Enabled = 'false'; Email = $null; Approved = 'false'; Valid = $true }
     )
     foreach ($case in $cases) {
         $arguments = @(
             "-chdir=$temporary", 'plan', '-input=false', '-refresh=false', '-no-color',
             '-var=subscription_id=00000000-0000-0000-0000-000000000000',
-            "-var=enable_api_management=$($case.Enabled)"
+            "-var=enable_api_management=$($case.Enabled)",
+            "-var=approve_public_api_management=$(if ($case.ContainsKey('Approved')) { $case.Approved } else { 'true' })"
         )
         if ($null -ne $case.Email) { $arguments += "-var=api_management_publisher_email=$($case.Email)" }
         $previousErrorActionPreference = $ErrorActionPreference
@@ -33,7 +36,8 @@ try {
             $ErrorActionPreference = $previousErrorActionPreference
         }
         if ($succeeded -ne $case.Valid) { throw "Unexpected result for $($case.Name): $result" }
-        if (!$case.Valid -and ($result -join "`n") -notmatch 'api_management_publisher_email must be a valid email') {
+        $expectedMessage = if ($case.ContainsKey('Message')) { $case.Message } else { 'api_management_publisher_email must be a valid email' }
+        if (!$case.Valid -and ($result -join "`n") -notmatch $expectedMessage) {
             throw "Unexpected validation failure for $($case.Name): $result"
         }
         Write-Output "PASS: $($case.Name)"
