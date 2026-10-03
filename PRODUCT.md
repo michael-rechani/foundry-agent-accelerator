@@ -53,7 +53,7 @@ benchmarks, customer endorsements, or production claims.
 ## Evidence on Hand
 
 The repository includes fictional scenarios in `docs/demo-inputs/`, built-in
-templates in `workbench/agent_templates.py`, simulated lookup records in
+templates in `workbench/agent_templates/`, simulated lookup records in
 `workbench/agent_runtime/demo_tools.py`, and editable architecture artwork in
 `docs/images/`. Expected findings are examples to check, not measured outcomes.
 

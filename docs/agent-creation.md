@@ -241,7 +241,7 @@ valid verifier configured to allow operator deletion while creation is disabled.
 
 | Source | Owns |
 | --- | --- |
-| [`agent_templates.py`](../workbench/agent_templates.py) | Job descriptions, prepared instructions, examples, conservative matching, fixed public tool metadata, and each template's kind of work |
+| [`agent_templates`](../workbench/agent_templates) | Job descriptions, prepared instructions, examples, conservative matching, fixed public tool metadata, and each template's kind of work |
 | [`agent_runtime`](../workbench/agent_runtime) | Reviewed runtime code, immutable policy, allowed tools, and pinned remote-build requirements |
 | [`agent_package.py`](../workbench/agent_package.py) | Deterministic runtime packaging shared by publication and the offline export CLI |
 | Creation request and saved record | Chosen template metadata snapshot, edited name/instructions, model deployment chosen for the template's kind of work, generated resource identity, and setup/runtime hashes |
@@ -269,7 +269,7 @@ model-profile hints, not prices or performance guarantees.
 
 Every listed agent's instructions end with the same answer layout: **Result**,
 **Why**, **What to check** and **Next step**, then who makes any decision the
-agent is asked to make. The layout is appended in `agent_templates.py`, so the
+agent is asked to make. The layout is appended in `agent_templates/catalog.py`, so the
 served `instructions` field keeps its shape.
 
 `GET /api/agent-scorecards` serves each template's recorded test results

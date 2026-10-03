@@ -325,7 +325,7 @@ deployments.
 
 | Setting | Authoritative source | How a change takes effect |
 | --- | --- | --- |
-| Job templates, draft defaults, example inputs, and fixed tool descriptions | [`agent_templates.py`](agent_templates.py) | Rebuild and redeploy the Lab; existing created agents do not change. |
+| Job templates, draft defaults, example inputs, and fixed tool descriptions | [`agent_templates/`](agent_templates) | Rebuild and redeploy the Lab; existing created agents do not change. |
 | Created-agent name and task instructions | Reviewed creation request saved in Cosmos DB | Operator-confirmed publication captures instructions in a new named hosted agent. Later chat prompts do not edit it. |
 | Created-agent runtime policy and allowed tools | [`agent_runtime`](agent_runtime), packaged by [`agent_publisher.py`](agent_publisher.py) | Reviewed source change and Lab rollout; existing published versions remain unchanged. |
 | Creation enablement, model, and operator-key verifier | Optional Lab Terraform inputs or server environment | Operator-managed rollout; not editable in the browser. |
@@ -538,8 +538,11 @@ dependencies, state, plans, and environment files. Every top-level `*.py` module
 ships except tests and `verify_private.py`, so adding a module needs no edit to
 the Dockerfile, `build.ps1`, `test-build.ps1` or the CI compile step. Add a
 pattern to `.dockerignore` only to keep a file out of the image or to ship a new
-data file. `test_image_context.py` fails if a module that `app.py` imports isn't
-in the image, and the build imports every module in the finished image before it
+data file. A package directory such as `agent_templates/` is the exception: it
+needs its own `COPY` line in the Dockerfile, a rule block in `.dockerignore` and a
+staging step in `build.ps1` (copy the `agent_runtime/` or `agent_templates/`
+pattern). `test_image_context.py` fails if a module or package that `app.py`
+imports isn't in the image, and the build imports every module in the finished image before it
 pushes. The Premium Azure Container
 Registry (ACR) has public access and admin credentials disabled. The private
 build uses the local Linux Docker engine on the current authorized

@@ -13,6 +13,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt && useradd --uid 10001 --create-home workbench
 COPY *.py *.json ./
 COPY agent_runtime/ ./agent_runtime/
+COPY agent_templates/ ./agent_templates/
 COPY --from=frontend /build/static ./static
 USER 10001
 EXPOSE 8080

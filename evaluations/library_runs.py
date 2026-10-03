@@ -680,7 +680,7 @@ def next_steps(items):
     say("  2. A person reads the new answers for: " + ids)
     say("     Then they run: python evaluations/scorecards.py signoff --reviewer \"Name\" " + ids)
     say("     This never records a sign-off. Until then, set the agent's readiness back to sample in")
-    say("     workbench/agent_templates.py if it says reviewed.")
+    say("     workbench/agent_templates/ if it says reviewed.")
     say("  3. The Lab shows the new results after the next deploy.")
 
 

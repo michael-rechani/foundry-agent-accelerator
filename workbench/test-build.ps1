@@ -12,7 +12,7 @@ $testDigest = 'example.azurecr.io/workbench@sha256:' + ('a' * 64)
 $testImageId = 'c' * 64
 . (Join-Path $PSScriptRoot 'image-context.ps1')
 
-# Every workbench module that app.py imports, directly or through another module.
+# Every workbench module or package that app.py imports, directly or through another module.
 function Get-LocalModuleClosure {
     $seen = [System.Collections.Generic.HashSet[string]]::new()
     $queue = [System.Collections.Generic.Queue[string]]::new()
@@ -20,11 +20,12 @@ function Get-LocalModuleClosure {
     while ($queue.Count) {
         $name = $queue.Dequeue()
         if (-not $seen.Add($name)) { continue }
-        foreach ($line in Get-Content -LiteralPath (Join-Path $PSScriptRoot "$name.py")) {
+        $source = if (Test-Path -LiteralPath (Join-Path $PSScriptRoot "$name.py")) { Join-Path $PSScriptRoot "$name.py" } else { Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot $name) -Filter '*.py' -Recurse | Select-Object -ExpandProperty FullName }
+        foreach ($line in Get-Content -LiteralPath $source) {
             $imported = if ($line -match '^\s*from\s+(\w+)') { $Matches[1] }
             elseif ($line -match '^\s*import\s+(.+)$') { $Matches[1] -split ',' | ForEach-Object { ($_.Trim() -split '[\s.]')[0] } }
             foreach ($module in $imported) {
-                if ($module -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot "$module.py"))) { $queue.Enqueue($module) }
+                if ($module -and ((Test-Path -LiteralPath (Join-Path $PSScriptRoot "$module.py")) -or (Test-Path -LiteralPath (Join-Path $PSScriptRoot "$module/__init__.py")))) { $queue.Enqueue($module) }
             }
         }
     }
@@ -67,16 +68,18 @@ function docker {
     switch ($operation) {
         'docker build' {
             $stage = $args[-1]
-            $expected = @(Get-ImageContextFile $PSScriptRoot) + @('agent_runtime', 'frontend')
+            $expected = @(Get-ImageContextFile $PSScriptRoot) + @('agent_runtime', 'agent_templates', 'frontend')
             $actual = @(Get-ChildItem -LiteralPath $stage -Force | Select-Object -ExpandProperty Name)
             if (Compare-Object $expected $actual) { throw 'Unexpected build context contents' }
             foreach ($module in Get-LocalModuleClosure) {
-                if (!(Test-Path (Join-Path $stage "$module.py"))) { throw "Build context is missing $module.py, which app.py imports" }
+                if (!(Test-Path (Join-Path $stage "$module.py")) -and !(Test-Path (Join-Path $stage "$module/__init__.py"))) { throw "Build context is missing $module, which app.py imports" }
             }
             if (!(Test-Path (Join-Path $stage 'frontend/src'))) { throw 'Frontend source not staged' }
             if (Test-Path (Join-Path $stage 'frontend/public')) { throw 'Unexpected frontend public files staged' }
             $runtimeFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'agent_runtime') -Force | Select-Object -ExpandProperty Name)
             if (Compare-Object @('main.py', 'demo_tools.py', 'requirements.txt') $runtimeFiles) { throw 'Unexpected hosted runtime bundle contents' }
+            $templateFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'agent_templates') -Force | Select-Object -ExpandProperty Name)
+            if (Compare-Object @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'agent_templates') -Filter '*.py' -Name) $templateFiles) { throw 'Unexpected agent templates package contents' }
         }
         'docker run' {
             if ($args[-1] -notmatch 'os.getuid\(\) != 0') { throw 'Missing non-root validation' }

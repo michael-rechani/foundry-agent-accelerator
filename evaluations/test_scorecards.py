@@ -141,7 +141,7 @@ class ScorecardTests(unittest.TestCase):
             earned = card["signed_off"] and summary["runs_passed"] == summary["runs"]
             self.assertEqual(
                 TEMPLATE_METADATA[template_id]["readiness"] == "reviewed", earned,
-                f"{template_id}: mark it Reviewed in agent_templates.py exactly when a person has signed off "
+                f"{template_id}: mark it Reviewed in agent_templates/ exactly when a person has signed off "
                 f"its answers and every run passed (signed off: {card['signed_off']}, "
                 f"runs passed: {summary['runs_passed']} of {summary['runs']})")
 
