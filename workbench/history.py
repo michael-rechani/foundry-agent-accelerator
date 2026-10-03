@@ -58,6 +58,15 @@ class Conversation(StrictModel):
     turns: list[Turn] = Field(min_length=1, max_length=11)
 
 
+# Selects exactly what AgentCreations.owned, public, and catalog_agent read; those rows are never written back.
+CREATED_AGENTS_QUERY = (
+    "SELECT c.id, c.kind, c.project, c.name, c.template_id, c.instructions, c.runtime_name, c.version, c.status, "
+    "c.stage, c.created_at, c.updated_at, c._etag, c.error, c.events, c.operation, c.model, c.runtime_hash, "
+    "c.model_profile, c.template FROM c "
+    "WHERE c.kind = 'created-agent' AND c.project = @project ORDER BY c.updated_at DESC"
+)
+
+
 class CosmosHistory:
     def __init__(self, endpoint):
         self.credential = ManagedIdentityCredential(client_id=os.getenv("AZURE_CLIENT_ID"))
@@ -91,9 +100,9 @@ class CosmosHistory:
 
     async def list_created_agents(self, project):
         items = self.container.query_items(
-            query="SELECT * FROM c WHERE c.kind = 'created-agent' ORDER BY c.updated_at DESC",
+            query=CREATED_AGENTS_QUERY, parameters=[{"name": "@project", "value": project}],
             partition_key="shared", max_item_count=20)
-        return [item async for item in items if item.get("project") == project]
+        return [item async for item in items]
 
     async def get(self, identifier):
         return await self.container.read_item(identifier, partition_key="shared")
