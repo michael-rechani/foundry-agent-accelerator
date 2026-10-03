@@ -36,7 +36,7 @@ because they touch different folders.
 | 4 | Admission C: `read_json_body` in `request_guard.py` | Admission B | No |
 | 4 | Validation B: evidence row shapes and drift-guard tests | Validation A | No |
 | 5 | Admission D: `cosmos_failure` in `request_guard.py` | Admission C | No |
-| 5 | Metadata: one data file per library agent | [#165](https://github.com/michael-rechani/foundry-agent-accelerator/issues/165), and the `readiness="reviewed"` flips ([#87](https://github.com/michael-rechani/foundry-agent-accelerator/issues/87)) | No |
+| 5 | Metadata: one data file per library agent ([#215](https://github.com/michael-rechani/foundry-agent-accelerator/issues/215)) | [#165](https://github.com/michael-rechani/foundry-agent-accelerator/issues/165), and the `readiness="reviewed"` flips ([#87](https://github.com/michael-rechani/foundry-agent-accelerator/issues/87)) | No |
 
 The admission steps touch `app.py`, `history.py`, `agent_creation.py` and
 `review_runs.py`, so they wait for #153 and for the `history.py` change in
@@ -316,6 +316,11 @@ most 65,536 bytes). Adding a shared file would change that package's hash and
 size limits for a gain of about ten lines.
 
 ## 4. Per-agent metadata
+
+Status: not started. The three other areas are done, and #164 is closed. This step
+is tracked in [#215](https://github.com/michael-rechani/foundry-agent-accelerator/issues/215)
+and comes after the `readiness="reviewed"` flips in #87, because those flips edit
+the same lines.
 
 ### Where it is today
 
