@@ -545,7 +545,7 @@ Some live cases hadn't run, and no person had reviewed the recorded answers.
 | Approved sample set | Version `sample-v1`, ten passages, digest `c7d68e26c329e8b0`. |
 | Index `lab-sample-policy-guidance` | `load --confirm` created it and uploaded the ten passages, and its `verify` step passed, including the "missing evidence" query. It ran from a machine with private network access, with both temporary operator roles in place. That first approved run didn't test whether either role alone would have been enough. |
 | Temporary operator roles | Search Service Contributor and Search Index Data Contributor were removed straight after the load. |
-| Case agent access | Search Index Data Reader, scoped to the one index, for the case agent's runtime identity. It stays while retrieval is on. Made by hand. Terraform can now declare it (`knowledge_search_access`), but the dev Lab's grant isn't imported yet. |
+| Case agent access | Search Index Data Reader, scoped to the one index, for the case agent's runtime identity. It stays while retrieval is on. Made by hand. It was imported into Terraform state on 2026-10-04 (`knowledge_search_access`, [#143](https://github.com/michael-rechani/foundry-agent-accelerator/issues/143)). |
 | Case agent version 8 | Published with the flag on. Both deploy smoke checks passed, including the `search_policy_guidance` lookup, so DNS, network, and RBAC work together. Version 7, without the lookup, stays published as the rollback. The application agent and both coordinators weren't changed. |
 | Lab descriptions | `agents.json` and the Add-ons tab describe the pilot. See [Receipts in the Lab](#receipts-in-the-lab). |
 
@@ -579,13 +579,15 @@ cases listed in [Evaluation additions](#evaluation-additions):
 
 **Open at 2026-10-01.**
 
-- **The dev Lab's grant isn't in Terraform state yet.** The index, the Search
+- **The dev Lab's grant wasn't in Terraform state.** The index, the Search
   Index Data Reader assignment, and the retrieval-enabled version were made by
-  hand. Platform Terraform now declares the assignment and tests it, off by
-  default (`knowledge_search_access`). Importing the dev Lab's existing grant
-  changes shared Terraform state, so it waits for approval
-  ([#143](https://github.com/michael-rechani/foundry-agent-accelerator/issues/143)).
-  See [Adopt the knowledge-search grant](permissions.md#adopt-the-knowledge-search-grant).
+  hand. Platform Terraform declares the assignment and tests it, off by default
+  (`knowledge_search_access`). **Resolved 2026-10-04:** the existing grant was
+  imported ([#143](https://github.com/michael-rechani/foundry-agent-accelerator/issues/143)).
+  The plan showed 1 to import and nothing to add, change or destroy, and a later
+  plan showed no changes. The index and the retrieval-enabled version are still
+  outside Terraform. See
+  [Adopt the knowledge-search grant](permissions.md#adopt-the-knowledge-search-grant).
 - **Two live cases haven't run.** A failed lookup needs a deliberate fault. A
   poisoned passage needs an extra passage in the shared index. Each needs
   approval.

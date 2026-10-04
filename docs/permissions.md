@@ -79,7 +79,7 @@ creates role assignments. The Lab never grants roles itself.
 | Jumpbox VM system-assigned identity | Foundry Project Manager | The Foundry project | [`terraform/jumpbox.tf`](../terraform/jumpbox.tf): `azurerm_role_assignment.jumpbox_foundry_project_manager`. Only when `enable_jumpbox = true`; the default is `false`. | The jumpbox can't publish hosted agents with its managed identity. The [private deployment runbook](private-deployment.md#1-confirm-prerequisites) requires this role at project scope. Recreating the VM changes the identity, so [reconcile role assignments](../terraform/README.md#optional-administration-resources) before the next apply. |
 | APIM system-assigned identity | Foundry User | The Foundry project | [`terraform/agent-access.tf`](../terraform/agent-access.tf): `azurerm_role_assignment.api_management_foundry_user`. Only when `enable_api_management = true`; the default is `false`. | The review API policy in [`review.xml.tftpl`](../terraform/policies/review.xml.tftpl) authenticates to the coordinator with this identity (`authentication-managed-identity`), so backend calls fail. `azurerm_api_management_api_policy.review` in [`terraform/review-api.tf`](../terraform/review-api.tf) depends on this assignment. See [API Management gateway](../terraform/README.md#api-management-gateway). |
 | Review coordinator's agent identity, from `coordinator_agent_access.principal_id` | Foundry Agent Consumer | Each specialist agent in `coordinator_agent_access.specialist_agents`, at `<project ID>/agents/<name>`. The default list is `application-review-agent` and `case-review-agent`. | [`terraform/agent-access.tf`](../terraform/agent-access.tf): `azapi_resource.coordinator_agent_consumer`. Only when `coordinator_agent_access` is set; the default is `null`. | Confirmed from source: `invoke_specialist` in [`review-coordinator-agent/main.py`](../hosted-agents/review-coordinator-agent/main.py) calls each specialist's agent endpoint with `DefaultAzureCredential`. Per Microsoft Learn, calling an agent endpoint needs `Microsoft.CognitiveServices/accounts/AIServices/endpoints/interact/action`, and Foundry Agent Consumer is the least-privilege built-in role for it ([agent interaction](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#agent-interaction)). Per Microsoft Learn, an agent-scope assignment applies only to that agent's endpoint ([agent-scope role assignments](https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry#agent-scope-role-assignments)). Whether calls fail without it isn't confirmed; see [coordinator agent access](#coordinator-agent-access). |
-| `case-review-agent` runtime identity, from `knowledge_search_access.principal_id` | Search Index Data Reader | The one index named by `knowledge_search_access.index_name` (default `lab-sample-policy-guidance`) on the Agent Service Search service, not the service | [`terraform/agent-access.tf`](../terraform/agent-access.tf): `azurerm_role_assignment.knowledge_search_reader`. Only when `knowledge_search_access` is set; the default is `null`. | Querying fictional policy guidance in the [knowledge-search pilot](knowledge-retrieval.md#identity-and-rbac). The retrieval smoke check fails closed without it. Retrieval is off by default, and an environment that keeps it off doesn't need this. The dev Lab's grant was made by hand on 2026-10-01; see [Knowledge search access](#knowledge-search-access). |
+| `case-review-agent` runtime identity, from `knowledge_search_access.principal_id` | Search Index Data Reader | The one index named by `knowledge_search_access.index_name` (default `lab-sample-policy-guidance`) on the Agent Service Search service, not the service | [`terraform/agent-access.tf`](../terraform/agent-access.tf): `azurerm_role_assignment.knowledge_search_reader`. Only when `knowledge_search_access` is set; the default is `null`. | Querying fictional policy guidance in the [knowledge-search pilot](knowledge-retrieval.md#identity-and-rbac). The retrieval smoke check fails closed without it. Retrieval is off by default, and an environment that keeps it off doesn't need this. The dev Lab's grant was made by hand on 2026-10-01 and imported into Terraform state on 2026-10-04; see [Knowledge search access](#knowledge-search-access). |
 | Lab user-assigned identity, `id-<name>` | AcrPull | The Lab's container registry | [`workbench/infra/main.tf`](../workbench/infra/main.tf): `azurerm_role_assignment.pull` | The Container App pulls its image with this identity (the `registry` block in `azurerm_container_app.this`); the registry admin account is disabled. |
 | Lab user-assigned identity | Foundry User | The Foundry project named by `foundry_account_name` and `foundry_project_name` | [`workbench/infra/main.tf`](../workbench/infra/main.tf): `azurerm_role_assignment.foundry` | The Lab calls Foundry with this identity, so chat, reviews, dependency checks, and created-agent publication fail. Publication reports [`operator_permissions_required`](agent-creation.md#troubleshooting) on a 401 or 403. Per Microsoft Learn, this role covers the agent calls that publication makes; see [Foundry User and Foundry Project Manager](#foundry-user-and-foundry-project-manager). |
 | Lab user-assigned identity, only when `agent_creation_key_secret_resource_id` is set | Key Vault Secrets User | The one operator-key verifier secret, not the whole vault | [`workbench/infra/main.tf`](../workbench/infra/main.tf): `azurerm_role_assignment.creation_key_verifier`. Only when `agent_creation_key_secret_resource_id` is set; the default is `null`. A precondition requires it to name the same vault and secret as `agent_creation_key_secret_id`. | Confirmed from source: the `agent-creation-key-verifier` secret in `azurerm_container_app.this` reads that secret with the Lab identity. Per Microsoft Learn, a Container App's managed identity needs Key Vault Secrets User to use a Key Vault reference ([Container Apps Key Vault references](https://learn.microsoft.com/azure/container-apps/manage-secrets#reference-secret-from-key-vault)). The dev Lab's grant was made by hand first; see [Grants made by hand in the dev Lab](#grants-made-by-hand-in-the-dev-lab). |
@@ -147,10 +147,12 @@ itself isn't a Terraform resource: `knowledge_index.py` creates it, and it has
 to exist before the grant is useful. See
 [Knowledge search access](../terraform/README.md#knowledge-search-access).
 
-The dev Lab already has this grant, made by hand on 2026-10-01 with the
-description `Knowledge search pilot (#122)`. Azure rejects a second copy of a
-role assignment, so [import it](#adopt-the-knowledge-search-grant) before you
-set the variable there.
+The dev Lab's grant was made by hand on 2026-10-01 with the description
+`Knowledge search pilot (#122)`, and imported into Terraform state on
+2026-10-04, so the dev platform variables now set `knowledge_search_access`.
+Azure rejects a second copy of a role assignment, so any other environment that
+already has the grant must [import it](#adopt-the-knowledge-search-grant) before
+it sets the variable.
 
 ### Deployer Key Vault access
 
@@ -259,7 +261,14 @@ state, not Azure.
 4. Run `terraform plan` on an otherwise unchanged platform. It must show
    `1 to import, 0 to add, 0 to change, 0 to destroy`. A replacement means the
    existing assignment differs from the one Terraform describes, for example in
-   its description or principal type. Stop and compare them.
+   its description or principal type. Stop and compare them. Any other change,
+   such as a resize of the jump box, also means stop: your saved variables are
+   out of date, so fix them to match what's live and plan again. The first dev
+   plan, on 2026-10-04, proposed a jump box resize and a role replacement
+   because the saved `jumpbox_vm_size` was older than the live size. It also
+   needed the two jump box approvals in
+   [`terraform/README.md`](../terraform/README.md#optional-administration-resources), because the saved
+   variables predated them.
 5. Apply the plan, then delete the import block. A later plan must show no
    changes.
 
