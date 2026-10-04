@@ -363,7 +363,8 @@ recorded sign-offs. The cost today is the number of edits, not unnoticed errors.
   byte-identical. The test `test_frontend_catalog_fixture.py` proves it.
 - **Sample lookup data:** stays in `agent_runtime/demo_tools.py`. That file ships
   inside the created agent's package and can't import anything from the Lab. The
-  existing `TEMPLATE_IDS` test remains the guard.
+  existing `TEMPLATE_IDS` test remains the guard. (Update, #225: `TEMPLATE_IDS` is
+  now generated; see the bullet on what a new agent touches under "Result".)
 - **Prebuilt hosted agents:** keep `agents.json` as the one entry per agent, and
   derive `REVIEW_SAMPLES` and `SAMPLES` from one list in `deployment.py`. YAML
   can't read it, so add a test that every `hosted-agents/*/main.py` folder is named
@@ -396,15 +397,20 @@ issue's checkbox to say so.
   Dropping it later changes the order of those `candidates`, so it needs its own
   decision and a test edit.
 - **A new agent still touches a few places, and the issue's checkbox is reworded
-  to say so.** A text-only agent is one file, its id in `TEMPLATE_IDS`, its cases
-  in `evaluations/library-cases.json` and a regenerated frontend snapshot. A
-  lookup agent also needs its sample records and functions in `demo_tools.py`.
-  `TEMPLATE_IDS` stays because `demo_tools.py` ships inside the created agent's
-  package and can't import the catalog. Its allowlist is what refuses an unknown
-  template id inside that agent, and loosening it would be a change in what the
-  hosted runtime accepts. `test_agent_templates.py` names the file to edit when
-  the two lists disagree, and its three hard-coded counts (21, 18, 18) now follow
-  the catalog.
+  to say so.** A text-only agent is one file, a run of
+  `python -m agent_templates.runtime_ids`, its cases in
+  `evaluations/library-cases.json` and a regenerated frontend snapshot. A lookup
+  agent also needs its sample records and functions in `demo_tools.py`.
+  **Update, #225:** `TEMPLATE_IDS` in `demo_tools.py` is now generated from
+  `agents/*.json` by that command, not kept by hand. It stays a literal inside
+  `demo_tools.py` because that file ships inside the created agent's package and
+  can't import the catalog. Its allowlist is what refuses an unknown template id
+  inside that agent, so the generated list holds the same 21 ids as before and the
+  package still holds exactly `main.py`, `demo_tools.py` and `requirements.txt`.
+  Written at the same width as the old hand list, it is byte-for-byte the same
+  text, so the package's `runtime_hash` does not change. `test_runtime_ids.py` fails
+  when the literal is stale, and `test_agent_templates.py` names the command to
+  run. Its three hard-coded counts (21, 18, 18) follow the catalog.
 - **Prebuilt hosted agents:** `deployment.PREBUILT_AGENTS` is the one list.
   `bundle.SAMPLES` and `deployment.REVIEW_SAMPLES` are derived from it, and
   `hosted-agents/test_prebuilt_agents.py` checks that every `hosted-agents/*/main.py`

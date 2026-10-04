@@ -64,10 +64,10 @@ class TemplateTests(unittest.TestCase):
         )
 
     def test_all_jobs_have_complete_bounded_guidance_and_examples(self):
-        # The hosted runtime keeps its own allowlist of ids it will build demo tools for, so an agent
-        # added under agent_templates/agents/ is also added to TEMPLATE_IDS in agent_runtime/demo_tools.py.
+        # The hosted runtime keeps its own allowlist of ids it will build demo tools for. It is generated from
+        # agent_templates/agents/, so a new agent file needs `python -m agent_templates.runtime_ids`.
         self.assertEqual(set(TEMPLATES), TEMPLATE_IDS,
-                         "Add or remove the agent's id in TEMPLATE_IDS in workbench/agent_runtime/demo_tools.py")
+                         "From the workbench directory run: python -m agent_templates.runtime_ids")
         fields = {
             "id",
             "category",
