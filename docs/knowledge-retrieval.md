@@ -40,6 +40,7 @@ show.
 - [Not done](#not-done)
 - [Open decisions](#open-decisions)
 - [Pilot results (2026-10-01)](#pilot-results-2026-10-01)
+- [Follow-up (2026-10-03)](#follow-up-2026-10-03)
 - [Sources](#sources)
 - [Related content](#related-content)
 
@@ -150,7 +151,10 @@ and the runtime `Agent(...)` arguments are identical with the flag unset or
 - A second smoke check requires exactly one `search_policy_guidance` call for the
   query "missing evidence", with a success receipt that returns at least one
   passage. A failed lookup (for example missing RBAC or DNS) or an empty result
-  (for example an empty or wrong index) fails the check.
+  (for example an empty or wrong index) fails the check. The model can also skip
+  the optional lookup, which fails the check on a good build. The script then
+  rolls back and deletes the new version. Confirm the route is back on the old
+  version, then run the deploy again.
 
 **Quotations.** Quotation marks keep one meaning: exact text from the request.
 Retrieved passages are a separate source. The answer paraphrases them and names
@@ -593,9 +597,37 @@ cases listed in [Evaluation additions](#evaluation-additions):
 - **No retrieval cases in the evaluation dataset yet.**
 - **The lookup matched any query word.** Version 8 returned three passages for
   "staff parking permit". The code now requires every word (see
-  [Tool contract](#tool-contract)), but version 8 keeps the old behavior until it
-  is republished, and rerunning that check against it needs approval
+  [Tool contract](#tool-contract)). Version 10, published on 2026-10-03, has the
+  fix. See [Follow-up (2026-10-03)](#follow-up-2026-10-03)
   ([#144](https://github.com/michael-rechani/foundry-agent-accelerator/issues/144)).
+
+## Follow-up (2026-10-03)
+
+This section is also a dated snapshot. It records the republish that the last open
+item above waited for, after written approval on
+[#144](https://github.com/michael-rechani/foundry-agent-accelerator/issues/144).
+It used the same index and made no change to Search, so it added no resource.
+
+The case agent was republished with the flag on as version 10. It carries the
+strict query matching and the explicit search timeouts added since version 8. The
+application agent and both coordinators weren't changed.
+
+| Step | What happened |
+| --- | --- |
+| First attempt, version 9 | The general smoke check passed. The lookup check failed because the response didn't hold exactly one `search_policy_guidance` call. The script moved traffic back to version 8 and deleted version 9. An inventory confirmed version 8 at 100%. |
+| Second attempt, version 10 | Both smoke checks passed. Version 10 has 100% of traffic. Version 8 stays published as the rollback. |
+
+| Check | Where | Result |
+| --- | --- | --- |
+| "staff parking permit", fictional input | The case agent, directly, 2 tries | One lookup each time, and it returned no passages. Version 8 returned three loosely related ones. |
+| "missing evidence", the deploy check's prompt | The case agent, directly, 11 tries on version 10 | One lookup that returned `POL-EVID-001` in 8 tries. No lookup in 3. Version 8 made one lookup in 3 of 3 tries, too few to tell the versions apart. |
+
+In the one no-lookup reply that was read, the text said guidance had been
+"retrieved" although no lookup ran. The lookup is optional, so the model may skip
+it (see [Receipts in the Lab](#receipts-in-the-lab)). It also means the deploy
+check can fail on a good build, as version 9 did. Making the model call the lookup
+reliably, and the deploy check tolerant of a skip, is
+[#219](https://github.com/michael-rechani/foundry-agent-accelerator/issues/219).
 
 ## Sources
 

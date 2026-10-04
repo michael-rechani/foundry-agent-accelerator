@@ -87,8 +87,9 @@ or `false`, the published agent is unchanged: no tools, the same instructions,
 and the same dependencies. A sample guidance set and an
 [index script](../knowledge_index.py) are included. On 2026-10-01 a small pilot
 ran in the dev environment: ten fictional passages in one index, and this agent
-at version 8 with the lookup on. It is a pilot, not a finished evaluation; some
-live cases haven't run. Read the
+at version 8 with the lookup on. On 2026-10-03 it was republished as version 10
+with strict query matching. It is a pilot, not a finished evaluation; some live
+cases haven't run. Read the
 [knowledge retrieval design](../../docs/knowledge-retrieval.md) for the pilot
 record, identity, networking, the extra
 [`requirements-knowledge.txt`](requirements-knowledge.txt) dependency, and
