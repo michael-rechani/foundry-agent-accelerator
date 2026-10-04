@@ -1,14 +1,16 @@
+import io
 import json
 import stat
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from zipfile import ZipFile
 
 from deployment import (
-    AgentProfile, cleanup_failed_version, create_package, smoke_test,
+    KNOWLEDGE_CHECK_PROMPT, AgentProfile, cleanup_failed_version, create_package, smoke_test,
     verify_delegation, verify_specialist_endpoints, concrete_route, verify_route,
 )
 
@@ -132,6 +134,114 @@ class DelegationTests(unittest.TestCase):
         verify_delegation(response, "review_application", "application-review-agent")
         with self.assertRaisesRegex(RuntimeError, "unexpected agent"):
             verify_delegation(response, "review_application", "different-agent")
+
+
+class LookupRetryTests(unittest.TestCase):
+    TOOL = "search_policy_guidance"
+    REPLY = "UNIQUE-REPLY-TEXT"
+    GOOD = {"status": "succeeded", "agent": "case-review-agent", "output": "passage", "retrieval": True,
+            "source_ids": ["POL-EVID-001"]}
+
+    def response(self, items=None, text=REPLY, status="completed"):
+        return SimpleNamespace(
+            status=status, output_text=text, model_dump=lambda: {"output": [] if items is None else items},
+        )
+
+    def lookup(self, receipt=None, tool=TOOL, call_id="call-1"):
+        items = [{"type": "function_call", "name": tool, "call_id": "call-1"}]
+        if receipt is not False:
+            items.append({"type": "function_call_output", "call_id": call_id,
+                          "output": json.dumps(self.GOOD if receipt is None else receipt)})
+        return self.response(items)
+
+    def run_check(self, *responses, tool=TOOL, agent=None):
+        client = MagicMock()
+        create = client.get_openai_client.return_value.__enter__.return_value.responses.create
+        create.side_effect = list(responses)
+        output = io.StringIO()
+        error = None
+        with redirect_stdout(output):
+            try:
+                smoke_test(client, "case-review-agent", KNOWLEDGE_CHECK_PROMPT, tool, agent)
+            except RuntimeError as raised:
+                error = raised
+        return create.call_count, output.getvalue(), error
+
+    def test_a_skipped_lookup_is_retried_once_and_the_retry_is_reported(self):
+        calls, output, error = self.run_check(self.response(), self.lookup())
+        self.assertIsNone(error)
+        self.assertEqual(calls, 2)
+        self.assertIn(f"Attempt 1 of 2 made no {self.TOOL} call; retrying once", output)
+        self.assertIn(f"Smoke test passed: {self.TOOL}", output)
+        self.assertNotIn(self.REPLY, output)
+
+    def test_a_first_attempt_lookup_passes_without_a_retry(self):
+        calls, output, error = self.run_check(self.lookup())
+        self.assertIsNone(error)
+        self.assertEqual(calls, 1)
+        self.assertNotIn("Attempt", output)
+
+    def test_two_skips_fail_with_the_existing_message_after_one_retry(self):
+        calls, output, error = self.run_check(self.response(), self.response(), self.lookup())
+        self.assertEqual(str(error), f"Expected exactly one {self.TOOL} tool call")
+        self.assertEqual(calls, 2)
+        self.assertIn("Attempt 1 of 2 made no", output)
+        self.assertIn("Attempt 2 of 2 made no", output)
+        self.assertEqual(output.count("retrying once"), 1)
+        self.assertNotIn("Smoke test passed", output)
+
+    def test_other_failures_are_not_retried(self):
+        two_calls = self.lookup()
+        two_calls = self.response(two_calls.model_dump()["output"] * 2)
+        failures = {
+            "wrong tool": self.lookup(tool="other_tool"),
+            "two calls": two_calls,
+            "no receipt": self.lookup(receipt=False),
+            "unmatched receipt": self.lookup(call_id="unrelated"),
+            "invalid receipt": self.lookup(receipt={"status": "failed"}),
+            "no passages": self.lookup({**self.GOOD, "source_ids": []}),
+            "not completed": self.response(status="failed"),
+            "empty reply": self.response(text=" "),
+        }
+        for name, first in failures.items():
+            with self.subTest(failure=name):
+                calls, output, error = self.run_check(first, self.lookup())
+                self.assertIsInstance(error, RuntimeError)
+                self.assertEqual(calls, 1)
+                self.assertNotIn("Attempt", output)
+                self.assertNotIn("retrying", output)
+
+    def test_wrong_agent_is_not_retried(self):
+        calls, _, error = self.run_check(self.lookup(), self.lookup(), agent="different-agent")
+        self.assertRegex(str(error), "unexpected agent")
+        self.assertEqual(calls, 1)
+
+    def test_only_the_lookup_check_gets_a_retry(self):
+        for tool, agent in (("review_application", "application-review-agent"), ("review_case", None)):
+            with self.subTest(tool=tool):
+                calls, output, error = self.run_check(self.response(), self.lookup(), tool=tool, agent=agent)
+                self.assertIsInstance(error, RuntimeError)
+                self.assertEqual(calls, 1)
+                self.assertNotIn("Attempt", output)
+
+    def test_a_retrieved_claim_without_a_lookup_is_flagged_without_printing_the_reply(self):
+        for text in ("Guidance was RETRIEVED: see POL-EVID-001.", "I retrieved the policy.", "I searched the index."):
+            with self.subTest(text=text):
+                _, output, error = self.run_check(self.response(text=text), self.lookup())
+                self.assertIsNone(error)
+                self.assertIn("Attempt 1's reply claims guidance was retrieved although no lookup ran", output)
+                self.assertNotIn(text, output)
+
+    def test_a_reply_that_makes_no_claim_is_not_flagged(self):
+        _, output, _ = self.run_check(self.response(text="Nothing to report."), self.lookup())
+        self.assertIn("made no", output)
+        self.assertNotIn("claims", output)
+
+    def test_a_claim_on_the_final_skipped_attempt_is_flagged_before_failing(self):
+        _, output, error = self.run_check(self.response(), self.response(text="Guidance retrieved."))
+        self.assertIsInstance(error, RuntimeError)
+        self.assertNotIn("Attempt 1's reply claims", output)
+        self.assertIn("Attempt 2's reply claims guidance was retrieved", output)
 
 
 class SpecialistPreflightTests(unittest.TestCase):

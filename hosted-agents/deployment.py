@@ -6,6 +6,7 @@ import io
 import json
 import math
 import os
+import re
 import stat
 import tempfile
 import time
@@ -191,9 +192,19 @@ def wait_until_active(
     raise TimeoutError(f"Agent version {version} did not become active")
 
 
+# Fixed words only; the reply text itself is never printed.
+RETRIEVED_CLAIM = re.compile(r"\b(?:retriev\w*|searched|looked up)\b", re.IGNORECASE)
+
+
+class NoToolCall(RuntimeError):
+    """The response made no tool call, so the model skipped the tool rather than misusing it."""
+
+
 def verify_delegation(response, expected_tool: str, expected_agent: str | None = None) -> None:
     items = response.model_dump().get("output", [])
     calls = [item for item in items if item.get("type") == "function_call"]
+    if not calls:
+        raise NoToolCall(f"Expected exactly one {expected_tool} tool call")
     if len(calls) != 1 or calls[0].get("name") != expected_tool or not calls[0].get("call_id"):
         raise RuntimeError(f"Expected exactly one {expected_tool} tool call")
     results = [
@@ -238,13 +249,28 @@ def smoke_test(
         print("Skipped hosted-agent smoke test")
         return
 
-    with client.get_openai_client(agent_name=agent_name, timeout=180, max_retries=0) as openai_client:
-        response = openai_client.responses.create(input=prompt, store=False)
+    from knowledge_retrieval import TOOL_NAME
 
-    if response.status != "completed" or not response.output_text.strip():
-        raise RuntimeError("Hosted-agent smoke test did not return a completed, nonempty response")
-    if expected_tool:
-        verify_delegation(response, expected_tool, expected_agent)
+    # The lookup is optional for the model, so a skipped call gets one more try. Nothing else is retried.
+    attempts = 2 if expected_tool == TOOL_NAME else 1
+    for attempt in range(1, attempts + 1):
+        with client.get_openai_client(agent_name=agent_name, timeout=180, max_retries=0) as openai_client:
+            response = openai_client.responses.create(input=prompt, store=False)
+
+        if response.status != "completed" or not response.output_text.strip():
+            raise RuntimeError("Hosted-agent smoke test did not return a completed, nonempty response")
+        try:
+            if expected_tool:
+                verify_delegation(response, expected_tool, expected_agent)
+            break
+        except NoToolCall:
+            if attempts > 1:
+                print(f"Attempt {attempt} of {attempts} made no {expected_tool} call"
+                      + ("; retrying once" if attempt < attempts else ""))
+                if RETRIEVED_CLAIM.search(response.output_text):
+                    print(f"Attempt {attempt}'s reply claims guidance was retrieved although no lookup ran")
+            if attempt == attempts:
+                raise
     print(f"Smoke test passed: {expected_tool or agent_name}")
 
 

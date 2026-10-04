@@ -152,9 +152,15 @@ and the runtime `Agent(...)` arguments are identical with the flag unset or
   query "missing evidence", with a success receipt that returns at least one
   passage. A failed lookup (for example missing RBAC or DNS) or an empty result
   (for example an empty or wrong index) fails the check. The model can also skip
-  the optional lookup, which fails the check on a good build. The script then
-  rolls back and deletes the new version. Confirm the route is back on the old
-  version, then run the deploy again.
+  the optional lookup. When the first attempt's response holds no tool call at
+  all, the check asks once more and prints that attempt 1 of 2 made no lookup. If
+  that reply's text claims guidance was "retrieved" (or similar), the script
+  prints that too, without printing the reply. If the second attempt also skips,
+  the check fails with the usual message. Every other failure still fails on the
+  first attempt with no retry: a different tool, more than one call, a missing or
+  invalid receipt, no passages, a response that isn't completed, or a reply from
+  the wrong agent. A failed check rolls back and deletes the new version. Confirm
+  the route is back on the old version, then run the deploy again.
 
 **Quotations.** Quotation marks keep one meaning: exact text from the request.
 Retrieved passages are a separate source. The answer paraphrases them and names
@@ -480,8 +486,9 @@ show how these steps ran in the dev Lab.
    `KNOWLEDGE_SEARCH_INDEX`, then run `python deploy.py` from
    `hosted-agents/case-review-agent`. Do this in a quiet window: the new version
    takes 100% of traffic before its smoke checks run. The retrieval smoke check
-   must pass (at least one passage for the query "missing evidence"). If it
-   fails, the script attempts a rollback; confirm the route yourself afterward.
+   must pass (at least one passage for the query "missing evidence"). It retries
+   once, and says so, if the model made no lookup. If it fails, the script
+   attempts a rollback; confirm the route yourself afterward.
 7. Update the Lab as described in [Receipts in the Lab](#receipts-in-the-lab):
    the case-review entry's `configuration`, `delegation`, and `limits` text, and
    the Add-ons card. Don't add a `tools` binding for an optional lookup. Then
@@ -630,6 +637,15 @@ it (see [Receipts in the Lab](#receipts-in-the-lab)). It also means the deploy
 check can fail on a good build, as version 9 did. Making the model call the lookup
 reliably, and the deploy check tolerant of a skip, is
 [#219](https://github.com/michael-rechani/foundry-agent-accelerator/issues/219).
+
+Since then, the deploy check retries once when the first attempt makes no lookup,
+and reports the retry (see [What the flag changes](#what-the-flag-changes)). That
+helps a good build get past a skip. It doesn't measure or reduce skips. The skip
+rate is still unknown. The only counts are the ones above: on version 10, a
+lookup in 8 of 11 direct tries and none in 3, and on version 8, a lookup in 3 of
+3. That is too few for a rate. Measuring it with live runs, and any change to the
+instructions or the tool description to make a skip rare, need a person's
+approval and stay open in [#219](https://github.com/michael-rechani/foundry-agent-accelerator/issues/219).
 
 ## Sources
 
