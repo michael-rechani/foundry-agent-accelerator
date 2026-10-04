@@ -317,10 +317,13 @@ message names the file.
    `definition_order`, which only the original 21 agents carry to keep the
    `template_required` candidates in their established order. To retire an agent,
    replace `order` with `"retired": true`.
-2. Add the id to `TEMPLATE_IDS` in `workbench/agent_runtime/demo_tools.py`. That file
-   ships inside the created agent's package and can't read the catalog, so it keeps
-   its own list of the ids it accepts. An agent that uses lookups also needs its
-   sample records and functions there.
+2. From the `workbench` directory, run `python -m agent_templates.runtime_ids`. It
+   rewrites `TEMPLATE_IDS` in `agent_runtime/demo_tools.py` from the agent files.
+   That file ships inside the created agent's package and can't read the catalog, so
+   it keeps its own list of the ids it accepts, and the command is the only thing
+   that edits it. `--check` reports a stale list without changing anything, and a
+   test runs it. An agent that uses lookups also needs its sample records and
+   functions in `demo_tools.py`.
 3. Add its acceptance cases to `evaluations/library-cases.json` (see
    [library scorecards](library-scorecards.md)).
 4. Regenerate the frontend's catalog snapshot with the command in
