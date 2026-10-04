@@ -64,7 +64,8 @@
   color: var(--accent);
   font: inherit;
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 .library-path-link:hover {
   color: var(--accent-strong);
@@ -163,7 +164,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
+  min-height: 38px;
   padding: 8px 12px;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
@@ -212,6 +213,7 @@
 }
 .library-facet {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
@@ -234,17 +236,25 @@
   color: var(--muted);
 }
 .library-facet small {
+  flex: none;
+  min-width: 2ch;
+  text-align: right;
   font: 11px var(--mono);
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
 .library-facet-label {
+  flex: 1;
   display: inline-flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
   align-items: center;
   gap: 5px;
   min-width: 0;
 }
 .library-facet-chevron {
   flex: none;
+  margin-left: auto;
   color: var(--muted);
 }
 .library-facet[data-open] {
@@ -301,6 +311,9 @@
 .library-results-head h2,
 .library-start-head h2 {
   font-size: 16px;
+}
+.library-start-head {
+  margin-bottom: 10px;
 }
 .library-results-head span,
 .library-start-head span {
@@ -590,7 +603,15 @@
   font-size: 11px;
   color: var(--muted);
 }
+/* One line, so card titles line up across a row in every Look. */
+.library-kicker-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .library-sector-dot {
+  flex: none;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -1225,6 +1246,17 @@
   }
   .library-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .library-path {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+  .library-path li {
+    padding: 0;
+  }
+  .library-path li + li::before {
+    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
