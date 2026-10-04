@@ -41,6 +41,7 @@ show.
 - [Open decisions](#open-decisions)
 - [Pilot results (2026-10-01)](#pilot-results-2026-10-01)
 - [Follow-up (2026-10-03)](#follow-up-2026-10-03)
+- [Follow-up (2026-10-04)](#follow-up-2026-10-04)
 - [Sources](#sources)
 - [Related content](#related-content)
 
@@ -639,13 +640,37 @@ reliably, and the deploy check tolerant of a skip, is
 [#219](https://github.com/michael-rechani/foundry-agent-accelerator/issues/219).
 
 Since then, the deploy check retries once when the first attempt makes no lookup,
-and reports the retry (see [What the flag changes](#what-the-flag-changes)). That
-helps a good build get past a skip. It doesn't measure or reduce skips. The skip
-rate is still unknown. The only counts are the ones above: on version 10, a
-lookup in 8 of 11 direct tries and none in 3, and on version 8, a lookup in 3 of
-3. That is too few for a rate. Measuring it with live runs, and any change to the
-instructions or the tool description to make a skip rare, need a person's
-approval and stay open in [#219](https://github.com/michael-rechani/foundry-agent-accelerator/issues/219).
+and reports the retry (see [What the flag changes](#what-the-flag-changes)). The
+skip rate was measured the next day, after approval. See
+[Follow-up (2026-10-04)](#follow-up-2026-10-04).
+
+## Follow-up (2026-10-04)
+
+This section is also a dated snapshot. It records the live runs that
+[#219](https://github.com/michael-rechani/foundry-agent-accelerator/issues/219)
+waited for, after approval. They used fictional input, made no change to Search
+or the index, and published no version. Each try was one billable model call.
+
+| Check | Where | Result |
+| --- | --- | --- |
+| "missing evidence", the deploy check's prompt, `store=False` | The case agent, directly, 20 tries on version 10, which held 100% of traffic | A lookup that returned a passage in 18 tries. No lookup in 2. Every try completed, and no other tool was called. |
+
+- **The rate.** Two skips in 20 is 10%. A 95% interval for that count is about 3%
+  to 30%. Added to the 11 tries recorded above (a lookup in 8, none in 3), it is 5
+  skips in 31 tries, 16%, with an interval of about 7% to 33%. The prompt already
+  says to call the lookup exactly once, and it was still skipped.
+- **The claim.** Neither of the two skipped replies in these runs matched the
+  words the deploy check watches for ("retrieved", "searched", "looked up"). Of
+  the five skips so far, only the one read on 2026-10-03 is known to have made
+  that claim, and two weren't read. The check keeps reporting a claim when it
+  sees one.
+- **The fix.** The retry-once in the deploy check stays as the fix. If each try
+  skipped independently, which these runs didn't test, two skips in a row would
+  happen about 1% to 3% of the time instead of 10% to 16%. A deploy where both
+  tries skip still fails and is rolled back as before. No change was made to the
+  instructions or the tool description. A candidate wording would need a republish
+  and a count of tries large enough to show a lower rate than this one. 20 tries
+  can't tell 10% from 5%.
 
 ## Sources
 
