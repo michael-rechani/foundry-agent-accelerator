@@ -20,7 +20,17 @@ if TYPE_CHECKING:
 
 SOURCE_FILES = ("main.py", "requirements.txt")
 OPTIONAL_SOURCE_FILES = ("instructions.md", "configuration.py")
-REVIEW_SAMPLES = {"application-review-agent", "case-review-agent", "review-coordinator-agent"}
+# Every prebuilt hosted agent under hosted-agents/ (a folder with a main.py), and whether its main.py imports
+# SHARED_FILES. bundle.py takes its --sample choices from here, and test_prebuilt_agents.py checks that
+# validate.yml and dependabot.yml name each one, so a new agent is added here and in those two files.
+PREBUILT_AGENTS = {
+    "basic-responses-agent": False,
+    "application-review-agent": True,
+    "case-review-agent": True,
+    "review-coordinator-agent": True,
+}
+SAMPLES = tuple(PREBUILT_AGENTS)
+REVIEW_SAMPLES = frozenset(name for name, uses_shared_files in PREBUILT_AGENTS.items() if uses_shared_files)
 # Files beside deployment.py that a review sample's main.py imports, so they ship inside its package.
 SHARED_FILES = ("review_output.py", "hosted_runtime.py")
 # The same choices as evaluations/run.py. A version create is not safe to replay, so a stalled

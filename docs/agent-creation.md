@@ -241,7 +241,7 @@ valid verifier configured to allow operator deletion while creation is disabled.
 
 | Source | Owns |
 | --- | --- |
-| [`agent_templates`](../workbench/agent_templates) | Job descriptions, prepared instructions, examples, conservative matching, fixed public tool metadata, and each template's kind of work |
+| [`agent_templates`](../workbench/agent_templates) | One JSON file per library agent in `agents/`: job description, prepared instructions, examples, conservative matching, fixed public tool metadata, each template's kind of work, its readiness and its place in the library |
 | [`agent_runtime`](../workbench/agent_runtime) | Reviewed runtime code, immutable policy, allowed tools, and pinned remote-build requirements |
 | [`agent_package.py`](../workbench/agent_package.py) | Deterministic runtime packaging shared by publication and the offline export CLI |
 | Creation request and saved record | Chosen template metadata snapshot, edited name/instructions, model deployment chosen for the template's kind of work, generated resource identity, and setup/runtime hashes |
@@ -299,6 +299,35 @@ Created-agent guidance, starter text, and expected tool receipts use the saved
 template snapshot, not whichever template definitions a later Lab image
 contains. The `created-<UUID>` identifier namespace belongs to saved created
 agents; prebuilt catalog entries cannot reuse it.
+
+### Add a library agent
+
+Each library agent is one JSON file, `workbench/agent_templates/agents/<id>.json`,
+and the file name is the agent's id. It holds the agent's `template` (label,
+description, instructions, example, sample input and any sample-lookup `tools`),
+its catalog `metadata` (sector, industry, tasks, summary, readiness and so on), the
+`match` patterns that choose it from a described task, and an `order` number for its
+place in the library. The Lab reads every file when it starts and refuses to start
+if one has a missing or unknown field, a repeated `order`, an id that isn't its file
+name, or a sector, industry, task, readiness or model profile it doesn't know. The
+message names the file.
+
+1. Copy a similar file in `agents/`, rename it to the new id and edit it. Give it an
+   `order` no other agent uses; the library lists agents in `order`. Leave out
+   `definition_order`, which only the original 21 agents carry to keep the
+   `template_required` candidates in their established order. To retire an agent,
+   replace `order` with `"retired": true`.
+2. Add the id to `TEMPLATE_IDS` in `workbench/agent_runtime/demo_tools.py`. That file
+   ships inside the created agent's package and can't read the catalog, so it keeps
+   its own list of the ids it accepts. An agent that uses lookups also needs its
+   sample records and functions there.
+3. Add its acceptance cases to `evaluations/library-cases.json` (see
+   [library scorecards](library-scorecards.md)).
+4. Regenerate the frontend's catalog snapshot with the command in
+   [the frontend README](../workbench/frontend/README.md#library-performance-and-log-coverage).
+
+The image build ships the new file by pattern, so nothing else needs an edit. The
+tests name any step that's missed.
 
 ## Publication, recovery, and deletion
 

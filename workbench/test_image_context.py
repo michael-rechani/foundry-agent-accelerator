@@ -132,6 +132,18 @@ class ImageContextTests(unittest.TestCase):
                 self.assertIn(f"{package}/", allowed, "Add this package to workbench/.dockerignore")
                 self.assertIn(f'"{package}"', script, "Stage this package in workbench/build.ps1")
 
+    def test_every_library_agent_file_is_allowed_by_dockerignore_and_staged_by_build_script(self):
+        rules = dockerignore_rules(ROOT)
+        files = sorted(path.name for path in (ROOT / "agent_templates" / "agents").glob("*.json"))
+        self.assertGreater(len(files), 1)
+        for name in files:
+            with self.subTest(file=name):
+                self.assertTrue(in_context(rules, f"agent_templates/agents/{name}"), "Allow library agent files in workbench/.dockerignore")
+        self.assertFalse(in_context(rules, "agent_templates/agents/notes.txt"))
+        self.assertFalse(in_context(rules, "agent_templates/agents/__pycache__/x.json"))
+        self.assertIn("agent_templates/agents/*.json", (ROOT / "build.ps1").read_text(encoding="utf-8"),
+                      "Stage library agent files in workbench/build.ps1")
+
 
 if __name__ == "__main__":
     unittest.main()

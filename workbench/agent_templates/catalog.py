@@ -1,7 +1,6 @@
 from copy import deepcopy
 
-from . import cross_sector, private_sector, public_sector
-from ._shared import _ANY, _PRIVATE, _SECTOR
+from ._loader import AGENTS_DIRECTORY, load_agents
 
 MODEL_PROFILES = {
     "reasoning": {
@@ -18,79 +17,13 @@ MODEL_PROFILES = {
     },
 }
 
-# The jobs themselves are written in the sector modules. TEMPLATES, TEMPLATE_METADATA and _MATCHERS keep
-# the one order the catalog has always had, because callers iterate them and take the first job that fits.
-_SECTOR_MODULES = (cross_sector, public_sector, private_sector)
-_DEFINITION_ORDER = (
-    "document-analyst",
-    "criteria-checker",
-    "document-intake",
-    "casework-assistant",
-    "workflow-coordinator",
-    "medical-bill-reviewer",
-    "insurance-preapproval-helper",
-    "benefits-renewal-helper",
-    "supplier-invoice-reviewer",
-    "public-records-intake",
-    "grant-reporting-checker",
-    "community-program-brief",
-    "customer-support-brief",
-    "cash-application-reviewer",
-    "maintenance-work-order-planner",
-    "contract-playbook-checker",
-    "rfp-answer-drafter",
-    "expense-report-checker",
-    "incident-timeline-writer",
-    "customer-feedback-themes",
-    "order-delay-helper",
-)
-
-
-def _in_definition_order(attribute):
-    merged = {}
-    for module in _SECTOR_MODULES:
-        merged.update(getattr(module, attribute))
-    names = [name for module in _SECTOR_MODULES for name in getattr(module, attribute)]
-    if sorted(names) != sorted(_DEFINITION_ORDER):
-        raise RuntimeError(f"Every job must be defined once in a sector module: {attribute}")
-    return {name: deepcopy(merged[name]) for name in _DEFINITION_ORDER}
-
-
-TEMPLATES = _in_definition_order("TEMPLATES")
-
-# Retired jobs stay loadable so agents already created from them keep working, but the library no
-# longer lists, previews, matches or creates them.
-RETIRED_TEMPLATES = frozenset({"public-records-intake", "grant-reporting-checker", "community-program-brief"})
-
-# Every listed agent answers in the same four parts (#82). It is appended to each template's own
-# task text, so the served `instructions` field keeps its shape.
-ANSWER_LAYOUT = (
-    "Format every answer with these four headings, in this order: Result (the direct answer, table or "
-    "draft), Why (the facts and source labels that support it), What to check (missing, unclear or "
-    "conflicting details, and anything a person must verify) and Next step (one action or question for "
-    "a person). Keep each part short. If the user asks for a specific format such as JSON, put it under "
-    "Result. Ask for anything missing as a direct question ending in a question mark, under What to "
-    "check or Next step. If you are asked to make a decision, say in Next step that the decision isn't "
-    "yours and who makes it: "
-)
-# Library order: everyday business jobs first, then specialist healthcare and public-sector jobs.
-LIBRARY_ORDER = (
-    "supplier-invoice-reviewer", "expense-report-checker", "order-delay-helper", "customer-support-brief",
-    "customer-feedback-themes", "document-analyst", "document-intake", "criteria-checker",
-    "contract-playbook-checker", "rfp-answer-drafter", "incident-timeline-writer", "cash-application-reviewer",
-    "maintenance-work-order-planner", "workflow-coordinator", "casework-assistant", "medical-bill-reviewer",
-    "insurance-preapproval-helper", "benefits-renewal-helper",
-)
-
-
-def is_listed(template_id):
-    return template_id in TEMPLATES and template_id not in RETIRED_TEMPLATES
-
-
+# These are also the Create page's group headings, so the Create page and the library filter agree.
+# The Create page lists its groups in the order the jobs first appear in LIBRARY_ORDER; SECTORS keeps
+# that same order (a test checks it).
 SECTORS = (
-    {"id": "cross-sector", "label": _ANY},
-    {"id": "private", "label": _PRIVATE},
-    {"id": "public", "label": _SECTOR},
+    {"id": "cross-sector", "label": "Works in any sector"},
+    {"id": "private", "label": "Private sector"},
+    {"id": "public", "label": "Healthcare and public sector"},
 )
 INDUSTRIES = (
     {"id": "general-operations", "label": "General operations"},
@@ -130,7 +63,35 @@ _PROFILE_HINTS = {
     "tool_calling": {"relative_cost": "medium", "relative_latency": "higher"},
 }
 
-TEMPLATE_METADATA = _in_definition_order("METADATA")
+# Every listed agent answers in the same four parts (#82). It is appended to each template's own
+# task text, so the served `instructions` field keeps its shape.
+ANSWER_LAYOUT = (
+    "Format every answer with these four headings, in this order: Result (the direct answer, table or "
+    "draft), Why (the facts and source labels that support it), What to check (missing, unclear or "
+    "conflicting details, and anything a person must verify) and Next step (one action or question for "
+    "a person). Keep each part short. If the user asks for a specific format such as JSON, put it under "
+    "Result. Ask for anything missing as a direct question ending in a question mark, under What to "
+    "check or Next step. If you are asked to make a decision, say in Next step that the decision isn't "
+    "yours and who makes it: "
+)
+
+# Each agent is one file in agents/. TEMPLATES, TEMPLATE_METADATA and _MATCHERS keep the order the
+# catalog has always had, because callers iterate them and take the first job that fits;
+# LIBRARY_ORDER is the order the library lists the agents in.
+_LIBRARY = load_agents(AGENTS_DIRECTORY, {
+    "sectors": {item["id"]: item["label"] for item in SECTORS},
+    "industries": {item["id"] for item in INDUSTRIES},
+    "tasks": {item["id"] for item in TASKS},
+    "readiness": {item["id"] for item in READINESS_LEVELS},
+    "model_profiles": set(MODEL_PROFILES),
+})
+TEMPLATES = _LIBRARY.templates
+TEMPLATE_METADATA = _LIBRARY.metadata
+_MATCHERS = _LIBRARY.matchers
+LIBRARY_ORDER = _LIBRARY.library_order
+# Retired jobs stay loadable so agents already created from them keep working, but the library no
+# longer lists, previews, matches or creates them.
+RETIRED_TEMPLATES = _LIBRARY.retired
 
 for _template_id, _metadata_entry in TEMPLATE_METADATA.items():
     if _template_id not in RETIRED_TEMPLATES:
@@ -138,8 +99,9 @@ for _template_id, _metadata_entry in TEMPLATE_METADATA.items():
         _template["instructions"] = (
             _template["instructions"].rstrip() + " " + ANSWER_LAYOUT + _metadata_entry["human_decision"])
 
-_MATCHERS = _in_definition_order("MATCHERS")
 
+def is_listed(template_id):
+    return template_id in TEMPLATES and template_id not in RETIRED_TEMPLATES
 
 def _matches(matcher, text):
     return all(pattern.search(text) for pattern in matcher)
@@ -253,6 +215,3 @@ def prepare_draft(goal, template_id=None):
         "goal": goal, "source": "template", "sample_input": template["sample_input"],
     }
 
-
-if set(LIBRARY_ORDER) != set(TEMPLATES) - RETIRED_TEMPLATES or len(LIBRARY_ORDER) != len(set(LIBRARY_ORDER)):
-    raise RuntimeError("LIBRARY_ORDER must list every active template exactly once")

@@ -79,7 +79,9 @@ function docker {
             $runtimeFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'agent_runtime') -Force | Select-Object -ExpandProperty Name)
             if (Compare-Object @('main.py', 'demo_tools.py', 'requirements.txt') $runtimeFiles) { throw 'Unexpected hosted runtime bundle contents' }
             $templateFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'agent_templates') -Force | Select-Object -ExpandProperty Name)
-            if (Compare-Object @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'agent_templates') -Filter '*.py' -Name) $templateFiles) { throw 'Unexpected agent templates package contents' }
+            if (Compare-Object (@(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'agent_templates') -Filter '*.py' -Name) + 'agents') $templateFiles) { throw 'Unexpected agent templates package contents' }
+            $agentFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'agent_templates/agents') -Force | Select-Object -ExpandProperty Name)
+            if (Compare-Object @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'agent_templates/agents') -Filter '*.json' -Name) $agentFiles) { throw 'Unexpected library agent files' }
         }
         'docker run' {
             if ($args[-1] -notmatch 'os.getuid\(\) != 0') { throw 'Missing non-root validation' }

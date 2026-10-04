@@ -1,11 +1,10 @@
 """Prepared agent templates for the Lab's library and Create page.
 
-Each sector module (`cross_sector`, `public_sector`, `private_sector`) defines its jobs: the
-template, its catalog metadata and its trigger-word matcher. `catalog` assembles them and serves
-the public surface re-exported here, so `from agent_templates import TEMPLATES` works as it
-always has.
+Each agent is one file in `agents/`: its template, its catalog metadata, its trigger-word matcher
+and its place in the library. `_loader` reads and checks them, `catalog` serves the result, and
+the public surface is re-exported here, so `from agent_templates import TEMPLATES` works as it
+always has. To add an agent, add one file (see docs/agent-creation.md).
 """
-
 from .catalog import (
     ANSWER_LAYOUT,
     INDUSTRIES,

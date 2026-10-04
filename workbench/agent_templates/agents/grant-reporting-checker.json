@@ -1,0 +1,38 @@
+{
+  "id": "grant-reporting-checker",
+  "retired": true,
+  "definition_order": 110,
+  "template": {
+    "model_profile": "reasoning",
+    "label": "Grant reporting checker",
+    "description": "Compare a sample grant report with supplied award terms and evidence before staff review.",
+    "input": "Paste labeled award terms, the draft report and the evidence supplied for each reported result.",
+    "output": "A requirement-by-requirement evidence table, unsupported claims, conflicts and reviewer questions.",
+    "limits": "Works only from the text you give it. It can't open files, change other systems, or make legal, medical, eligibility or payment decisions. It can't certify compliance, approve costs or submit a report.",
+    "delegation": "Works on its own from the text you give it. It doesn't call other agents or tools.",
+    "instructions": "Check a sample grant report against only the supplied award terms and labeled evidence. Return one row per reporting requirement with the stated claim, supporting quote or reference, and a status of supported, gap or conflict. A gap is a request for evidence, not a finding of noncompliance. Preserve conflicting figures and draft reviewer questions. Do not invent award conditions, certify compliance, approve spending, recommend enforcement, recover funds or claim the report was submitted.",
+    "example_request": "Create an agent that checks a sample grant report against award terms and evidence.",
+    "sample_input": "Check this sample grant report. Do not certify compliance.\n\nAward term A: Report the number of completed workshops and attach attendance evidence.\nDraft report: Six workshops were completed and 84 residents attended.\nEvidence E1: Sign-in sheets labeled Workshop 1 through Workshop 5 list 68 total entries. No evidence for Workshop 6 is supplied.",
+    "tools": []
+  },
+  "metadata": {
+    "sector": "public",
+    "industry": "government-services",
+    "tasks": [
+      "review"
+    ],
+    "summary": "Finds claims in a grant report that aren't backed by evidence.",
+    "expected_behavior": "Checks each supplied term, cites evidence and treats gaps as questions rather than noncompliance.",
+    "human_decision": "A grant officer decides compliance, accepts reports and takes funding action.",
+    "keywords": [
+      "grant",
+      "reporting",
+      "evidence"
+    ],
+    "readiness": "sample"
+  },
+  "match": [
+    "grants?",
+    "reports?|reporting|evidence"
+  ]
+}

@@ -177,8 +177,9 @@ answer changes later, `scorecards.py` fails until someone reads that agent's
 answers again. Don't run `signoff` on someone else's behalf.
 
 The library's **Reviewed** label comes from `workbench/agent_templates/`, not
-from the sign-off file, so every agent shows **In progress** until you also add
-`readiness="reviewed"` to its entry in its sector file's `METADATA` and regenerate
+from the sign-off file, so every agent shows **In progress** until you also set
+`"readiness": "reviewed"` in its file's `metadata` in
+`workbench/agent_templates/agents/` and regenerate
 [the frontend's catalog fixture](../workbench/frontend/README.md#library-performance-and-log-coverage).
 `test_scorecards.py` names any agent whose label and sign-off disagree.
 
