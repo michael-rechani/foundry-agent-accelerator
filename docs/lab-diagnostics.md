@@ -97,6 +97,54 @@ group as shown below. No group or recipient is added by default.
 Missing-heartbeat alerts also cover stalled ingestion or quota exhaustion, but
 cannot distinguish these from an application outage.
 
+#### Check the Foundry and Cosmos DB timings
+
+To see how the dependency checks behaved, query the Lab's Log Analytics
+workspace. The query is read-only and makes no model calls. The workspace is
+reachable only through Private Link and has public query access disabled, so run
+it from inside the private network, such as the jump box, signed in with Azure
+identity. Replace `<lab-container-app-name>` with the Lab container app's name.
+
+This query shows, per day, the failed checks (`workbench_dependency_failed`),
+the heartbeats (`workbench_dependencies`), and the p50, p95, and maximum
+Foundry check time in milliseconds (`foundry_ms`):
+
+```kusto
+ContainerAppConsoleLogs
+| where TimeGenerated > ago(8d)
+| where ContainerAppName == "<lab-container-app-name>"
+| where Log contains "workbench_dependenc"
+| extend p = parse_json(extract(@"(\{.*\})", 1, Log))
+| extend ev = tostring(p.event)
+| summarize failed = countif(ev == "workbench_dependency_failed"), heartbeats = countif(ev == "workbench_dependencies"), p50 = percentile(todouble(p.foundry_ms), 50), p95 = percentile(todouble(p.foundry_ms), 95), maxms = max(todouble(p.foundry_ms)) by day = bin(TimeGenerated, 1d)
+| order by day asc
+```
+
+Use `contains`, not `has`, for these event names. `has` doesn't split on
+underscores, so it silently returns no rows. The `p50`, `p95`, and `maxms`
+columns are empty for days before revision 0000038, because `foundry_ms` and the
+other timing fields exist only from that revision on.
+
+To list single checks instead, keep the query down to the `extend ev` line and
+replace the `summarize` and `order` lines. For checks over 5000 ms:
+
+```kusto
+| where todouble(p.foundry_ms) > 5000
+| project TimeGenerated, foundry_ms = todouble(p.foundry_ms), foundry_token_ms = todouble(p.foundry_token_ms), foundry_read_ms = todouble(p.foundry_read_ms)
+| order by TimeGenerated asc
+```
+
+For failed checks with their step and timings:
+
+```kusto
+| where ev == "workbench_dependency_failed"
+| project TimeGenerated, dependency = tostring(p.dependency), error_type = tostring(p.error_type), stage = tostring(p.stage), token_ms = todouble(p.token_ms), read_ms = todouble(p.read_ms), elapsed_ms = todouble(p.elapsed_ms)
+| order by TimeGenerated asc
+```
+
+Only failed Foundry checks have `stage`, `token_ms`, and `read_ms`; those columns
+are empty for Cosmos DB failures.
+
 ### Terraform-managed alert delivery
 
 Set `managed_alert_email_receivers` in your ignored Lab deployment inputs to
