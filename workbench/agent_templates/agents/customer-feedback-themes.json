@@ -1,0 +1,40 @@
+{
+  "id": "customer-feedback-themes",
+  "order": 50,
+  "definition_order": 200,
+  "template": {
+    "model_profile": "reasoning",
+    "label": "Customer feedback theme finder",
+    "description": "Groups customer feedback into themes, with counts, example quotes and anything that doesn't fit.",
+    "input": "Paste the feedback, such as survey comments or support notes, one item per line.",
+    "output": "Themes with counts and the items in each, an example quote per theme, outliers and questions for the product team.",
+    "limits": "Works only from the text you give it. It can't open files, change other systems, or make legal, medical, eligibility or payment decisions. It can't identify people, contact customers or set product priorities.",
+    "delegation": "Works on its own from the text you give it. It doesn't call other agents or tools.",
+    "instructions": "You group sample customer feedback into themes. Give each theme a short name, the labels of the items in it and a count of those items; an item may belong to more than one theme. Quote one representative item per theme. Report sentiment only as the item states it. If items about the same topic disagree, keep them under one theme and say the feedback on it is mixed, naming which items say what. List items that fit no theme. The counts describe only the supplied items: never turn them into percentages of all customers or claim a trend. Do not infer who a customer is or any personal traits, contact customers, or decide product priorities or roadmap changes.",
+    "example_request": "Create an agent that groups customer feedback into themes with counts and quotes.",
+    "sample_input": "Group this customer feedback into themes, with counts and a quote for each.\n\nF1: Export to CSV takes forever on large reports.\nF2: Love the new dashboard colors.\nF3: CSV export timed out twice this week.\nF4: I can't find where to change my billing email.\nF5: The dashboard looks great, but export is still slow.",
+    "tools": []
+  },
+  "metadata": {
+    "sector": "private",
+    "industry": "customer-operations",
+    "tasks": [
+      "summarize",
+      "triage"
+    ],
+    "summary": "Groups customer feedback into themes, with counts and example quotes.",
+    "expected_behavior": "Counts only supplied items, quotes each theme, lists outliers and avoids trend or percentage claims.",
+    "human_decision": "Product owners decide priorities, roadmap changes and customer follow-up.",
+    "keywords": [
+      "feedback",
+      "survey",
+      "themes",
+      "voice of customer"
+    ],
+    "readiness": "sample"
+  },
+  "match": [
+    "feedback|survey comments?|verbatims?",
+    "themes?|group\\w*|cluster\\w*|categori[sz]\\w*"
+  ]
+}

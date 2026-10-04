@@ -16,8 +16,9 @@ try {
     foreach ($name in @("main.py", "demo_tools.py", "requirements.txt")) {
         Copy-Item (Join-Path $PSScriptRoot "agent_runtime/$name") (Join-Path $stage "agent_runtime")
     }
-    New-Item -ItemType Directory -Path (Join-Path $stage "agent_templates") | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $stage "agent_templates/agents") -Force | Out-Null
     Copy-Item (Join-Path $PSScriptRoot "agent_templates/*.py") (Join-Path $stage "agent_templates")
+    Copy-Item (Join-Path $PSScriptRoot "agent_templates/agents/*.json") (Join-Path $stage "agent_templates/agents")
     foreach ($pattern in @("package.json", "package-lock.json", "index.html", "tsconfig*.json", "vite.config.ts")) {
         Copy-Item (Join-Path $PSScriptRoot "frontend/$pattern") (Join-Path $stage "frontend")
     }

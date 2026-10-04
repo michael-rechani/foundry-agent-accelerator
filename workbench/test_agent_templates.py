@@ -64,8 +64,10 @@ class TemplateTests(unittest.TestCase):
         )
 
     def test_all_jobs_have_complete_bounded_guidance_and_examples(self):
-        self.assertEqual(set(TEMPLATES), TEMPLATE_IDS)
-        self.assertEqual(len(TEMPLATES), 21)
+        # The hosted runtime keeps its own allowlist of ids it will build demo tools for, so an agent
+        # added under agent_templates/agents/ is also added to TEMPLATE_IDS in agent_runtime/demo_tools.py.
+        self.assertEqual(set(TEMPLATES), TEMPLATE_IDS,
+                         "Add or remove the agent's id in TEMPLATE_IDS in workbench/agent_runtime/demo_tools.py")
         fields = {
             "id",
             "category",
@@ -107,8 +109,8 @@ class TemplateTests(unittest.TestCase):
     def test_library_leads_with_everyday_business_jobs_and_hides_retired_ones(self):
         listed = [template["id"] for template in list_templates()]
         self.assertEqual(listed, list(LIBRARY_ORDER))
-        self.assertEqual(len(listed), 18)
         self.assertEqual(set(listed), set(TEMPLATES) - RETIRED_TEMPLATES)
+        self.assertEqual(len(listed), len(set(listed)))
         self.assertEqual(
             listed[:5],
             ["supplier-invoice-reviewer", "expense-report-checker", "order-delay-helper",
@@ -118,7 +120,7 @@ class TemplateTests(unittest.TestCase):
             {key for key, item in TEMPLATES.items() if item["category"] == "Healthcare and public sector"},
             (SECTOR_JOBS - {"supplier-invoice-reviewer"}) | {"casework-assistant"} | RETIRED_TEMPLATES,
         )
-        self.assertEqual(sum(item["count"] for item in catalog_facets()["sectors"]), 18)
+        self.assertEqual(sum(item["count"] for item in catalog_facets()["sectors"]), len(listed))
 
     def test_create_page_groups_use_the_library_sector_names(self):
         listed = list_templates()

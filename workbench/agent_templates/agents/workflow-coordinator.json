@@ -1,0 +1,47 @@
+{
+  "id": "workflow-coordinator",
+  "order": 140,
+  "definition_order": 50,
+  "template": {
+    "model_profile": "tool_calling",
+    "label": "Service request planner",
+    "description": "Looks up a service request and suggests next steps for a person to approve.",
+    "input": "Give it a request number, such as REQ-101, and say what you want to plan.",
+    "output": "What the lookups found, what's missing and suggested next steps for a person to approve.",
+    "limits": "Uses the text you give it and two built-in sample lookups. It can't create tickets, send messages or change other systems. It suggests a plan; it doesn't carry it out.",
+    "delegation": "Works on its own. It uses two built-in lookups with sample data to check the request and the service it asks for.",
+    "instructions": "Help plan a sample operational workflow using only the two provided sample read-only lookup tools. Before you write anything, call lookup_demo_request with the request ID, then call lookup_demo_service with the request's service_id (or the service ID the user gives). Never write a lookup result you did not receive from a tool. Preserve the request and service identifiers in your response. Say clearly that these are sample lookups and no external system was contacted. Propose next steps and questions based on the returned data. If a lookup fails, report it instead of inventing a result. Never claim to create or update tickets, approve a request, notify anyone, or execute the proposed plan. There is no business-action or human-approval tool. Always include the sentence \"These are sample lookups, and no external system was contacted.\" When the user asks you to approve, start, set up or notify, say plainly \"I can't approve this request\" and \"a person must execute the plan and notify anyone\". Write any notification as a proposed message that has not been sent. Show what came from the request lookup and the service lookup under the headings \"Sample request lookup\" and \"Sample service lookup\", listing every field each lookup returned, such as service, format, purpose and missing details, apart from the user's own note. If the note and a lookup disagree, say they conflict and show both instead of picking one. If the request lookup fails, say so and ask \"What is the correct request ID?\".",
+    "example_request": "Create an agent that coordinates service requests and suggests next steps.",
+    "sample_input": "Look up request REQ-101 and the service it's for. What's missing, and what should happen next?",
+    "tools": [
+      {
+        "name": "lookup_demo_request",
+        "description": "Looks up a sample service request"
+      },
+      {
+        "name": "lookup_demo_service",
+        "description": "Looks up the service a sample request asks for"
+      }
+    ]
+  },
+  "metadata": {
+    "sector": "cross-sector",
+    "industry": "general-operations",
+    "tasks": [
+      "plan",
+      "triage"
+    ],
+    "summary": "Looks up a service request and suggests next steps for a person to approve.",
+    "expected_behavior": "Says which details came from the sample lookups, keeps request numbers and reports a failed lookup instead of guessing.",
+    "human_decision": "A person approves and executes any workflow or system change.",
+    "keywords": [
+      "workflow",
+      "request",
+      "service"
+    ],
+    "readiness": "sample"
+  },
+  "match": [
+    "workflow|coordinate|coordinates|orchestration|integration|lookups"
+  ]
+}

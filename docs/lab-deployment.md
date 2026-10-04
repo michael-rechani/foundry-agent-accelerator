@@ -127,8 +127,11 @@ pattern to `.dockerignore` only to keep a file out of the image or to ship a new
 data file. A package directory such as `agent_templates/` is the exception: it
 needs its own `COPY` line in the Dockerfile, a rule block in `.dockerignore` and a
 staging step in `build.ps1` (copy the `agent_runtime/` or `agent_templates/`
-pattern). `test_image_context.py` fails if a module or package that `app.py`
-imports isn't in the image, and the build imports every module in the finished image before it
+pattern). `agent_templates/agents/` holds one JSON file per library agent, and its
+`.dockerignore` rules and `build.ps1` step ship every `*.json` file in it, so a new
+library agent needs no edit to either. `test_image_context.py` fails if a module or
+package that `app.py` imports isn't in the image, or a library agent file isn't let
+into it, and the build imports every module in the finished image before it
 pushes. The Premium Azure Container
 Registry (ACR) has public access and admin credentials disabled. The private
 build uses the local Linux Docker engine on the current authorized

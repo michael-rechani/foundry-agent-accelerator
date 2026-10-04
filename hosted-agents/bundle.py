@@ -14,11 +14,10 @@ from pathlib import Path
 from urllib.parse import urlparse
 from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile, ZipInfo
 
-from deployment import SHARED_FILES, AgentProfile, create_package, deploy, parse_args
+from deployment import SAMPLES, SHARED_FILES, AgentProfile, create_package, deploy, parse_args
 
 
 HERE = Path(__file__).resolve().parent
-SAMPLES = ("basic-responses-agent", "application-review-agent", "case-review-agent", "review-coordinator-agent")
 MAX_BYTES = 2 * 1024 * 1024
 MAX_FILE_BYTES = 256 * 1024
 # Every file a source-built package may hold; a Lab-created package holds main.py, requirements.txt and demo_tools.py.

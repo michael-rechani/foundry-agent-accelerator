@@ -16,9 +16,13 @@ agent_runtime/*
 !agent_runtime/demo_tools.py
 !agent_runtime/requirements.txt
 # Packages ship by directory: add one here and in the Dockerfile and build.ps1.
+# agent_templates/agents/ holds one JSON file per library agent, so a new agent needs no edit here.
 !agent_templates/
 agent_templates/*
 !agent_templates/*.py
+!agent_templates/agents/
+agent_templates/agents/*
+!agent_templates/agents/*.json
 !frontend/
 !frontend/**
 frontend/node_modules/
