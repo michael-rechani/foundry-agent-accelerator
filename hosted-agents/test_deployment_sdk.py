@@ -1,5 +1,6 @@
 import hashlib
 import io
+import json
 import time
 import unittest
 from contextlib import redirect_stdout
@@ -8,7 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from deployment import AgentProfile, create_package, deploy
+from deployment import KNOWLEDGE_CHECK_PROMPT, AgentProfile, create_package, deploy, smoke_test as real_smoke_test
 
 try:
     import requests
@@ -141,6 +142,60 @@ class DeploymentSDKTests(unittest.TestCase):
                 self.client.agents.delete_version.assert_called_once_with(
                     agent_name=self.profile.name, agent_version="2", force=True,
                 )
+
+    def run_with_lookup_check(self, *responses):
+        tool = "search_policy_guidance"
+        profile = AgentProfile(
+            self.profile.source_directory, self.profile.name, self.profile.description,
+            self.profile.instructions, self.profile.smoke_test_prompt, ((KNOWLEDGE_CHECK_PROMPT, tool),),
+        )
+        general = self.reply([])
+        create = self.client.get_openai_client.return_value.__enter__.return_value.responses.create
+        create.side_effect = [general, *responses]
+        self.smoke.side_effect = real_smoke_test
+        self.endpoint = deepcopy(self.original)
+        with redirect_stdout(io.StringIO()):
+            try:
+                deploy(profile, self.args)
+            except RuntimeError as error:
+                return create.call_count, error
+        return create.call_count, None
+
+    def reply(self, items):
+        return SimpleNamespace(status="completed", output_text="reply", model_dump=lambda: {"output": items})
+
+    def lookup(self, tool="search_policy_guidance"):
+        receipt = {"status": "succeeded", "agent": "case-review-agent", "output": "passage",
+                   "retrieval": True, "source_ids": ["POL-EVID-001"]}
+        return self.reply([
+            {"type": "function_call", "name": tool, "call_id": "call-1"},
+            {"type": "function_call_output", "call_id": "call-1", "output": json.dumps(receipt)},
+        ])
+
+    def assert_rolled_back_and_deleted(self):
+        self.assertEqual(self.endpoint, self.original)
+        self.client.agents.delete_version.assert_called_once_with(
+            agent_name=self.profile.name, agent_version="2", force=True,
+        )
+
+    def test_a_lookup_skipped_once_is_retried_and_the_new_version_stays_promoted(self):
+        calls, error = self.run_with_lookup_check(self.reply([]), self.lookup())
+        self.assertIsNone(error)
+        self.assertEqual(calls, 3)
+        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
+        self.client.agents.delete_version.assert_not_called()
+
+    def test_a_lookup_skipped_twice_rolls_back_and_deletes_the_new_version(self):
+        calls, error = self.run_with_lookup_check(self.reply([]), self.reply([]), self.lookup())
+        self.assertEqual(str(error), "Expected exactly one search_policy_guidance tool call")
+        self.assertEqual(calls, 3)
+        self.assert_rolled_back_and_deleted()
+
+    def test_a_wrong_tool_fails_on_the_first_attempt_and_rolls_back_and_deletes_the_new_version(self):
+        calls, error = self.run_with_lookup_check(self.lookup(tool="other_tool"), self.lookup())
+        self.assertIsInstance(error, RuntimeError)
+        self.assertEqual(calls, 2)
+        self.assert_rolled_back_and_deleted()
 
     def test_failed_first_deployment_retains_candidate_without_recovery_target(self):
         self.missing = True
