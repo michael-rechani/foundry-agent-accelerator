@@ -345,6 +345,13 @@ got Foundry Project Manager by hand on 2026-09-23; see
   project management and can assign only the Foundry User role
   ([Foundry User](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles/ai-machine-learning#foundry-user),
   [Foundry Project Manager](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles/ai-machine-learning#foundry-project-manager)).
+  The role definitions in Azure, read on 2026-10-04, agree. Both have
+  `Microsoft.CognitiveServices/*` as their only data action, with the same three
+  exclusions (`UserIdentityImpersonation` and two fine-tuning deployment
+  writes). Foundry Project Manager adds only control-plane actions: everything
+  under `accounts/projects/*`, role assignment write and delete, and all
+  Application Insights alert rule actions. Foundry User has one action it lacks,
+  `accounts/listkeys/action`, which the Lab doesn't use.
 - **What Foundry User covers.** Per Microsoft Learn, Foundry User at project
   scope can create agent versions, update endpoint routing, and call agent
   endpoints ([create a new agent version](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#create-a-new-agent-version),
@@ -369,6 +376,17 @@ publishing hosted agents. See [unconfirmed items](#unconfirmed-items).
 ### Test whether the Lab needs Foundry Project Manager
 
 **Status:** not run. [#128](https://github.com/michael-rechani/foundry-agent-accelerator/issues/128) tracks it.
+
+Everything checked without the key points to Foundry User being enough. The
+role definitions in Azure give both roles the same data actions (see above).
+Microsoft Learn lists Foundry User as able to create an agent at project scope
+and calls hosted-agent deployment a data plane operation, and Foundry Project
+Manager's role assignment right covers only the Foundry User role
+([hosted agent permissions](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#agent-creation)).
+Only a live create settles it, because nothing here exercises Foundry's own
+first-agent setup. A first attempt on 2026-10-04 stopped before it created
+anything: the key holder wasn't available, so the role was removed for about a
+minute and then assigned again with the same scope and description.
 
 The dev Lab identity got Foundry Project Manager by hand on 2026-09-23. While
 it holds that role, a test can't show whether Foundry User alone is enough. One
