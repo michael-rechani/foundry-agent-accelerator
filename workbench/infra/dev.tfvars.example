@@ -22,3 +22,10 @@ default_agent        = "customer-review"
 # model_limits = {
 #   "gpt-5.4" = { requests_per_minute = 100, tokens_per_minute = 10000 }
 # }
+
+# Optional: Azure Front Door Premium in front of the Lab, limited to your own public IP. Off by default, public, and
+# billed per profile (see docs/lab-configuration-and-cost.md). Keep your real address in ignored deployment inputs.
+# enable_front_door                = true
+# approve_public_front_door        = true
+# front_door_allowed_cidrs         = ["203.0.113.10/32"]
+# front_door_private_link_location = "centralus"

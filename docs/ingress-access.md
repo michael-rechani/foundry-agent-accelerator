@@ -8,12 +8,14 @@ pattern while keeping Microsoft Foundry, Azure Cosmos DB, and other platform
 dependencies private.
 
 > [!IMPORTANT]
-> This repository does **not** deploy Application Gateway or Front Door. This page
-> is design guidance only. Adopting either option requires separately reviewed
-> infrastructure, Domain Name System (DNS), certificate, application, and cost
-> changes. Following this guide doesn't change the private baseline. Check the
-> linked Microsoft guidance and regional feature availability before planning a
-> deployment.
+> This repository does **not** deploy Application Gateway. For Front Door, it
+> holds one opt-in, off-by-default Terraform draft that admits only your own IP
+> (see [Draft: Front Door limited to your own IP](#draft-front-door-limited-to-your-own-ip)).
+> Nothing is applied until you approve each public resource, and the private
+> baseline doesn't change. Anything beyond that draft requires separately
+> reviewed infrastructure, Domain Name System (DNS), certificate, application,
+> and cost changes. Check the linked Microsoft guidance and regional feature
+> availability before planning a deployment.
 
 Expose the Lab application, not every Foundry endpoint. The browser loads React
 and calls the same application's FastAPI routes. FastAPI uses managed identity to
@@ -106,8 +108,12 @@ don't use it themselves yet.**
 - The Lab's environment is internal with public network access disabled, and the
   app only accepts the jump box's address, so a customer's browser can't reach
   it. That is intended for now.
-- No public listener, Front Door, Application Gateway or IP allow rule is
-  planned. Each would be a separate approval of that specific resource.
+- No public listener, Front Door, Application Gateway or IP allow rule is on by
+  default. Each would be a separate approval of that specific resource. The one
+  exception in code is the off-by-default
+  [Front Door draft limited to your own IP](#draft-front-door-limited-to-your-own-ip)
+  ([#240](https://github.com/michael-rechani/foundry-agent-accelerator/issues/240)),
+  which stays unused until that issue is approved.
 - Chat is capped at 20 turns a minute across all users, and 4 at once, and each
   model deployment also has its own requests and tokens budget (see
   [Model limits](lab-configuration-and-cost.md#model-limits)). That is fine for one
@@ -248,6 +254,53 @@ Approve and verify the private connection before switching DNS or production
 traffic. An origin configuration that saves successfully isn't proof of
 connectivity. Front Door doesn't need Application Gateway in this direct pattern.
 
+### Draft: Front Door limited to your own IP
+
+[`workbench/infra/front-door.tf`](../workbench/infra/front-door.tf) implements
+Pattern B for one person, from their own machine. It uses the Azure Verified Module
+[`Azure/avm-res-cdn-profile/azurerm`](https://registry.terraform.io/modules/Azure/avm-res-cdn-profile/azurerm)
+(pinned to 0.1.9) beside the existing Lab Terraform. It is off by default, nothing
+has been applied, and it is tracked in
+[#240](https://github.com/michael-rechani/foundry-agent-accelerator/issues/240).
+It changes the [#103 decision](#who-uses-the-lab-today) only for that one approved
+path.
+
+| What | How |
+| --- | --- |
+| Switches | `enable_front_door` creates it. `approve_public_front_door` must also be true, because the endpoint name is publicly resolvable. Without both, nothing is created. |
+| Who gets in | The WAF runs in Prevention mode with one custom rule that blocks any client whose connecting address (`SocketAddr`) isn't in `front_door_allowed_cidrs`. Entries must be single hosts: `/32`, or `/128` for IPv6. At most 10 entries, and ranges, `0.0.0.0/0`, private, loopback, link-local, shared (CGNAT) and multicast addresses are rejected. `SocketAddr` is the address Front Door sees connecting, so a forged `X-Forwarded-For` header can't satisfy it. |
+| Path to the Lab | Front Door Premium, then Private Link (`managedEnvironments`) to the internal environment. The Lab's own hostname is sent as the host header, with certificate-name checks on and a `GET /healthz` probe over HTTPS. Responses may take up to 200 seconds, to cover the Lab's 180-second review deadline. |
+| Lab settings | The Front Door address is added to `WORKBENCH_ORIGINS` so the browser's origin check passes. `front_door_ingress_allow_cidrs` (private IPv4, `/16` or narrower, empty by default) adds ingress rules after the jump box rule. |
+| Region | Front Door Private Link doesn't support `northcentralus`. Set `front_door_private_link_location` (for example `centralus`) if the Lab is there. Null uses the environment's region. |
+| Your address | Put it in an untracked `.tfvars` file (`*.tfvars` is ignored). Don't commit it or add it to `dev.tfvars.example`. |
+| Offline checks | `workbench/infra/tests/front-door.tftest.hcl` runs under mock providers, so it needs no Azure access: the switches, every address rejection, the WAF rule and mode, the origin and Private Link settings, and the Lab's origin and ingress changes. |
+
+**Rollout order.** Don't skip the 403 check.
+
+1. Register the `Microsoft.Cdn` resource provider. Approve the public endpoint, the
+   Premium cost and your IP in [#240](https://github.com/michael-rechani/foundry-agent-accelerator/issues/240).
+2. Plan, and confirm only the Front Door resources and the Lab's ingress and origin
+   settings change. Apply.
+3. Before approving any Private Link connection, confirm the WAF is associated with
+   the endpoint and that a request from an address that isn't on the list gets 403.
+4. Approve the pending Private Link connection on the Container Apps environment.
+   Front Door can create more than one request, so approve each one that matches
+   the Front Door origin.
+5. Open the Front Door address from your machine. If it fails with the connection
+   approved, the `jumpbox-only` ingress rule is the likely cause, because Private
+   Link traffic doesn't arrive from the management subnet. Find the source range,
+   then set `front_door_ingress_allow_cidrs`. Never replace the rule with an
+   internet-wide allow.
+6. Record the measured source range and region in #240. To tear down, set
+   `enable_front_door = false` and apply.
+
+Still unverified, and settled during step 5: which source address the ingress sees
+for Private Link traffic, and whether the environment needs its own private endpoint
+for the Front Door link.
+
+The Lab has no end-user sign-in, so the IP rule is the only gate. Use fictional data
+only, and don't treat a single-IP WAF rule as a substitute for the sign-in described
+above before opening access to others.
 ## Shared application and HTTP requirements
 
 ### Hostnames, TLS, and sign-in
