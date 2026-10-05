@@ -213,9 +213,14 @@ The model deployment's capacity also limits spend. On Standard and Global
 Standard deployments, each capacity unit is 1,000 tokens per minute, and the
 Foundry configuration in `terraform/` sets it. Requests over the limit return
 HTTP 429 instead of running. For example, capacity 10 limits a deployment to
-10,000 tokens per minute. When a chat request hits that limit, the Lab answers
-`busy` (HTTP 429, with a `Retry-After` of 1 to 60 seconds) and asks the visitor
-to wait a minute; it doesn't report a connection problem. The Lab's Performance
+10,000 tokens per minute. The Lab tries to answer first: it checks each chat turn against that deployment's
+configured limit ([Model limits](lab-configuration-and-cost.md#model-limits)) and,
+when the turn would pass it, answers `busy` before calling the model. If the model
+rejects a request anyway, the Lab answers `busy` too. Either way it's HTTP 429
+with a `Retry-After` of 1 to 60 seconds, and it asks the visitor to wait a
+minute; it doesn't report a connection problem. A Lab-side refusal logs a
+`workbench_model_busy` event with the deployment, template and wait, and no
+prompt text. Look for it in the Lab logs to see which deployment is the busy one. The Lab's Performance
 page lists which Lab actions are billable.
 
 ### Browser caching

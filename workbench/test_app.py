@@ -798,6 +798,118 @@ class LibraryPreviewTests(CapturedLabLogs, unittest.TestCase):
             self.assertEqual(Settings.from_env().foundry_project_id, project)
 
 
+class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
+    """Chat turns are admitted per model deployment before any model call (#108)."""
+
+    LIMITS = {"reason-model": {"requests_per_minute": 100, "tokens_per_minute": 6000},
+              "test-model": {"requests_per_minute": 2, "tokens_per_minute": 100000}}
+    ANSWERS = {"document-analyst": 1000, "workflow-coordinator": 3000}
+
+    def setUp(self):
+        self.gateway = AsyncMock()
+        self.gateway.review.return_value = ("completed", "Finding APP-1", [])
+        self.gateway.preview.return_value = ("completed", "Preview answer", [])
+        self.settings = Settings("private", "https://example.services.ai.azure.com/api/projects/test",
+                                 ("testserver",), ("https://testserver",), model_limits=self.LIMITS,
+                                 creation=CreationSettings(False, "test-model", models={"reasoning": "reason-model"}))
+        self.now = 100.0
+        for patcher in (patch("app.measured_answer_tokens", return_value=self.ANSWERS),
+                        patch("model_budget.time", SimpleNamespace(monotonic=lambda: self.now))):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.client = TestClient(create_app(self.settings, self.gateway))
+        self.headers = {"X-Workbench-Request": "1", "Origin": "https://testserver"}
+
+    def chat(self, agent_id="library-document-analyst", client=None):
+        return (client or self.client).post("/api/reviews", json={"agent_id": agent_id, "input": "Summarize"},
+                                            headers=self.headers)
+
+    def fill_reason_model(self):
+        for _ in range(6):
+            self.assertEqual(self.chat().status_code, 200)
+
+    def test_turns_below_the_limit_are_answered(self):
+        self.fill_reason_model()
+        self.assertEqual(self.gateway.preview.await_count, 6)
+
+    def test_a_turn_over_the_limit_is_busy_before_any_model_call(self):
+        self.fill_reason_model()
+        response = self.chat()
+        self.assertEqual((response.status_code, response.json()["error"]), (429, "busy"))
+        self.assertEqual(response.headers["Retry-After"], "60")
+        self.assertEqual(response.json()["request_id"], response.headers["X-Correlation-ID"])
+        self.assertEqual(self.gateway.preview.await_count, 6)
+        self.gateway.review.assert_not_called()
+
+    def test_limits_are_per_deployment_so_a_busy_model_does_not_block_another(self):
+        self.fill_reason_model()
+        self.assertEqual(self.chat().status_code, 429)
+        for _ in range(2):
+            self.assertEqual(self.chat("library-workflow-coordinator").status_code, 200)
+        self.assertEqual(self.gateway.preview.call_args.args[0]["template_id"], "workflow-coordinator")
+        self.assertEqual(self.chat("library-workflow-coordinator").status_code, 429)
+        self.assertEqual(self.chat().status_code, 429)
+        self.assertEqual(self.gateway.preview.await_count, 8)
+
+    def test_counters_recover_after_the_window_and_the_hint_counts_down(self):
+        self.fill_reason_model()
+        self.now = 130
+        response = self.chat()
+        self.assertEqual((response.status_code, response.headers["Retry-After"]), (429, "30"))
+        self.now = 160
+        self.assertEqual(self.chat().status_code, 200)
+        self.assertEqual(self.gateway.preview.await_count, 7)
+
+    def test_invalid_requests_do_not_spend_a_models_budget(self):
+        for _ in range(5):
+            self.assertEqual(self.chat().status_code, 200)
+        self.assertEqual(self.chat("library-missing").status_code, 400)
+        self.assertEqual(self.client.post("/api/reviews", json={}, headers=self.headers).status_code, 400)
+        self.assertEqual(self.chat().status_code, 200)
+
+    def test_prebuilt_agents_whose_deployment_is_unknown_are_not_budgeted(self):
+        tiny = {name: {"requests_per_minute": 1, "tokens_per_minute": 1} for name in ("reason-model", "test-model")}
+        client = TestClient(create_app(replace(self.settings, model_limits=tiny), self.gateway))
+        for _ in range(5):
+            self.assertEqual(self.chat("customer-review", client).status_code, 200)
+        self.assertEqual(self.gateway.review.await_count, 5)
+
+    def test_no_limits_leaves_only_the_global_caps(self):
+        client = TestClient(create_app(replace(self.settings, model_limits={}), self.gateway))
+        for _ in range(8):
+            self.assertEqual(self.chat(client=client).status_code, 200)
+
+    def test_a_model_busy_answer_is_logged_without_content(self):
+        self.fill_reason_model()
+        with self.assertLogs("uvicorn.error", level="INFO") as captured:
+            self.client.post("/api/reviews", json={"agent_id": "library-document-analyst", "input": "private customer prompt"},
+                             headers=self.headers)
+        events = [json.loads(record.getMessage()) for record in captured.records]
+        busy = next(event for event in events if event["event"] == "workbench_model_busy")
+        self.assertEqual(busy, {"event": "workbench_model_busy", "deployment": "reason-model",
+                                "template_id": "document-analyst", "retry_after": 60})
+        self.assertEqual((events[-1]["status"], events[-1]["outcome"]), (429, "busy"))
+        self.assertNotIn("private", " ".join(captured.output))
+
+    def test_configuration_is_read_from_the_environment(self):
+        with patch.dict("os.environ", {"WORKBENCH_MODEL_LIMITS": json.dumps(self.LIMITS)}):
+            self.assertEqual(Settings.from_env().model_limits, self.LIMITS)
+        with patch.dict("os.environ", {"WORKBENCH_MODEL_LIMITS": ""}):
+            self.assertEqual(Settings.from_env().model_limits, {})
+        with patch.dict("os.environ", {"WORKBENCH_MODEL_LIMITS": "{not json"}):
+            with self.assertRaisesRegex(ValueError, "WORKBENCH_MODEL_LIMITS must be a JSON object"):
+                Settings.from_env()
+
+    def test_invalid_limits_stop_the_lab_from_starting_with_a_clear_message(self):
+        good = {"requests_per_minute": 10, "tokens_per_minute": 1000}
+        for limits in ([], {"bad name": good}, {"test-model": {"requests_per_minute": 10}},
+                       {"test-model": {**good, "tokens_per_minute": 0}}, {"test-model": {**good, "requests_per_minute": True}},
+                       {"test-model": {**good, "tokens_per_minute": "1000"}}):
+            with self.subTest(limits=limits):
+                with self.assertRaisesRegex(ValueError, "WORKBENCH_MODEL_LIMITS"):
+                    create_app(replace(self.settings, model_limits=limits), self.gateway)
+
+
 class LibraryPreviewGatewayTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
     async def test_preview_calls_the_profile_model_directly(self):
         response = SimpleNamespace(status="completed", output_text="Preview", model_dump=lambda **_: {"output": []})

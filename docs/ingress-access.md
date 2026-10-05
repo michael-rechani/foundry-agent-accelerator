@@ -108,8 +108,11 @@ don't use it themselves yet.**
   it. That is intended for now.
 - No public listener, Front Door, Application Gateway or IP allow rule is
   planned. Each would be a separate approval of that specific resource.
-- Chat is capped at 20 turns a minute across all users, and 4 at once. That is
-  fine for one presenter and tight for a group.
+- Chat is capped at 20 turns a minute across all users, and 4 at once, and each
+  model deployment also has its own requests and tokens budget (see
+  [Model limits](lab-configuration-and-cost.md#model-limits)). That is fine for one
+  presenter and tight for a group. How many people can use the Lab at once hasn't
+  been decided.
 - To let customers use it themselves, first add end-user sign-in (Microsoft Entra
   ID) and per-user ownership of saved records. Then choose Pattern A or B below.
 

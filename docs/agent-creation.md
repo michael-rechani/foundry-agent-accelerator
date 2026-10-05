@@ -214,6 +214,7 @@ For non-Terraform operators, the equivalent server configuration is:
 | --- | --- |
 | `WORKBENCH_AGENT_CREATION_ENABLED` | Exactly `true` to allow new publication/resume; defaults to `false` |
 | `WORKBENCH_AGENT_CREATION_MODEL` | Default existing model deployment, used for any kind of work without its own entry; not editable in the browser |
+| `WORKBENCH_MODEL_LIMITS` | Optional JSON object that maps each model deployment name to its `requests_per_minute` and `tokens_per_minute`, so the Lab answers busy before a chat turn would pass that deployment's limit. Set by `model_limits` in Terraform; see [Model limits](lab-configuration-and-cost.md#model-limits) |
 | `WORKBENCH_AGENT_CREATION_MODELS` | Optional JSON object that maps `reasoning`, `extraction`, and `tool_calling` to existing model deployments, for example `{"reasoning":"gpt-5.4","extraction":"gpt-5.4-mini"}` |
 | `WORKBENCH_CREATION_KEY_SHA256` | Lowercase, 64-character verifier from a secret reference; never the raw key |
 | `WORKBENCH_MAX_CREATED_AGENTS` | Defaults to 5; allowed range 1-20; failed/unconfirmed attempts still count |

@@ -291,7 +291,8 @@ class AgentCreations:
             raise
         if not self.owned(document) or document["status"] != "ready":
             return None
-        return self.catalog_agent(document)
+        # The budget needs the deployment and template; catalog_agent is also what the browser sees, so it stays unchanged.
+        return {**self.catalog_agent(document), "model": document.get("model"), "template_id": document.get("template_id")}
 
     async def resume(self, request: Request, identifier: str):
         return await self.handle(request, identifier, resume=True)

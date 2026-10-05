@@ -68,7 +68,7 @@ routers import them. What each router still repeats is the glue around them:
 
 | Router | Busy check | Busy code | Error body has `request_id` | Check order |
 | --- | --- | --- | --- | --- |
-| `app.py` `ChatReviews` | Shared 4-slot semaphore and 20 a minute | `busy` | Yes | Rate limit, origin, content type, body |
+| `app.py` `ChatReviews` | Shared 4-slot semaphore and 20 a minute, then a per-model budget (`model_budget.py`) after the agent is resolved | `busy` | Yes | Rate limit, origin, content type, body, agent, model budget |
 | `history.py` `ConversationHistory` | Own 4-slot semaphore, 60 a minute | `history_busy` | Yes | Rate limit, origin |
 | `agent_creation.py` `AgentCreations` | Own 4-slot semaphore, 120 a minute | `agents_busy` | No | Origin, rate limit |
 | `review_runs.py` `ReviewRuns` | Own read gate (120 a minute); `start` uses the shared chat gate | `reviews_busy`, `busy` | No | Origin, id check, rate limit |

@@ -89,10 +89,55 @@ registry/builds, and existing network resources, so it is not the total Lab bill
 | --- | --- |
 | Container Apps runtime | One warm 0.5-vCPU/1-GiB replica for responsiveness. Uvicorn limits connection/task concurrency to 32. |
 | Agent and review execution | At most four concurrent requests and 20 requests/minute, including rejected input. Admission occurs before reading bodies or calling dependencies. Agent execution retains its 180-second deadline. |
+| Per-model chat budget | Before a chat turn calls its model, the Lab checks that deployment's own limit and answers 429 `busy` if the turn would pass it. It counts requests and estimated tokens over a sliding minute. Each deployment has its own count, so a busy `gpt-5.4` doesn't block `gpt-4.1`. The limits come from the `model_limits` Terraform variable ([Model limits](#model-limits)). |
 | History operations | Four concurrent requests and 60 requests/minute. History operations, including uploads and SDK retries, have a 35-second server deadline. Uploads also have a five-second deadline. The browser waits up to 45 seconds. |
 | Created-agent APIs | Four concurrent requests and 120 requests/minute. New publication and deletion run one at a time. |
 | Created-agent count | At most five nondeleted hosted agents by default, including unconfirmed or failed attempts. Each uses 0.5 CPU / 1 GiB and can incur hosted runtime/build costs as well as model charges. |
-| Uploads and rejections | All JSON-reading endpoints use one streamed body reader with a five-second upload deadline: 32 KiB for agent setups, 64 KiB for chat/document reviews, and 512 KiB for saved conversations. It counts actual bytes, including chunked uploads, before adding each chunk to its buffer or parsing JSON. Oversized uploads return HTTP 413; slow uploads return HTTP 408. Rate-limit rejections return HTTP 429 with `Retry-After: 60`. A chat request whose model deployment is at its own limit also returns 429 `busy`, with the model's `Retry-After` hint kept between 1 and 60 seconds. Responses are size-bounded. |
+| Uploads and rejections | All JSON-reading endpoints use one streamed body reader with a five-second upload deadline: 32 KiB for agent setups, 64 KiB for chat/document reviews, and 512 KiB for saved conversations. It counts actual bytes, including chunked uploads, before adding each chunk to its buffer or parsing JSON. Oversized uploads return HTTP 413; slow uploads return HTTP 408. Rate-limit rejections return HTTP 429 with `Retry-After: 60`. A chat request that the Lab's per-model budget refuses, or that the model itself rejects as over its limit, also returns 429 `busy`, with a `Retry-After` hint kept between 1 and 60 seconds. Responses are size-bounded. |
+
+## Model limits
+
+Each model deployment has its own requests-per-minute and tokens-per-minute limit, and
+the tokens limit is usually the one that runs out first. The Lab's global cap of
+20 chat turns a minute doesn't know which model a turn uses, so it can say busy
+too late for a small deployment and too early for a large one. The per-model budget
+fixes that by checking the deployment the turn will use, before any model call.
+
+Set the limits with the `model_limits` Terraform variable, which the Lab reads from
+`WORKBENCH_MODEL_LIMITS`. The defaults are the dev tenant's published limits:
+
+| Deployment | Requests per minute | Tokens per minute |
+| --- | --- | --- |
+| `gpt-5.4` | 100 | 10,000 |
+| `gpt-4.1` | 50 | 50,000 |
+| `gpt-5.4-mini` | 10 | 10,000 |
+
+Replace them with your deployments' real limits and leave some headroom. Use `{}` to
+turn the per-model budget off, so only the global caps apply. Terraform only passes the
+numbers along. It doesn't request or change any Foundry quota.
+
+How a turn is counted:
+
+- A turn is admitted when the deployment has fewer requests than its limit in the last
+  minute and the estimated tokens of recent turns plus this one fit its tokens limit.
+  A refused turn counts toward nothing, and the answer tells the browser to try again
+  after the oldest recent turn leaves the minute.
+- The token estimate is per template: the largest tokens (input plus output) for one
+  case in that template's [scorecard](library-scorecards.md), which is conservative
+  because the average answer is smaller. A template without a scorecard uses the
+  largest estimate of any template.
+- A lone turn that is bigger than the tokens limit still runs when the deployment is
+  idle, so one large answer is never blocked forever.
+- The deployment is the one the template's work type maps to (`agent_creation_models`)
+  for a library preview, and the model saved with the record for a created agent.
+  Prebuilt agents and document-review runs don't have a known deployment here, so only
+  the global caps apply to them.
+- The counts are in memory, like every other admission limit here.
+
+Browsers show the same friendly try-again message for a Lab `busy` as for a model's
+own. The Lab's `workbench_model_busy` log event records the deployment, template and
+wait, never the prompt. How many people can use the Lab at the same time hasn't been
+decided, so these limits aren't tuned to a head count. They protect each model's limit.
 
 These admission limits are process-local. Do not increase workers or replicas
 without distributed controls. Reused agent sessions are also process-local; with

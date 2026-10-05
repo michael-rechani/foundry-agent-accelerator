@@ -20,8 +20,10 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from history import CosmosHistory, history_router
 from review_runs import ReviewRuns
 from agent_creation import CREATED_ID, AgentCreations, CreationSettings
+from agent_scorecards import SCORECARDS
 from library_rules import DEPLOYMENT_NAME
 from library_preview import PREVIEW_AGENT, PREVIEW_ID, preview_agent, run_preview, summarize_usage, usage_record
+from model_budget import ModelBudgets, measured_answer_tokens, validate_model_limits
 from request_guard import MAX_REQUEST_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
 
 
@@ -67,6 +69,7 @@ class Settings:
     library_preview: bool = True
     budget_alerts: bool = False
     foundry_project_id: str = ""
+    model_limits: dict = field(default_factory=dict)
 
     @classmethod
     def from_env(cls):
@@ -81,12 +84,16 @@ class Settings:
         budget_alerts = os.getenv("WORKBENCH_BUDGET_ALERTS_ENABLED", "false")
         if budget_alerts not in {"true", "false"}:
             raise ValueError("WORKBENCH_BUDGET_ALERTS_ENABLED must be true or false")
+        try:
+            model_limits = json.loads(os.getenv("WORKBENCH_MODEL_LIMITS") or "{}")
+        except json.JSONDecodeError as problem:
+            raise ValueError("WORKBENCH_MODEL_LIMITS must be a JSON object") from problem
         return cls(mode, endpoint, hosts, origins, Path(os.getenv("WORKBENCH_AGENTS_FILE", ROOT / "agents.json")),
                visible_agents=visible_agents, default_agent=os.getenv("WORKBENCH_DEFAULT_AGENT") or None,
                title=os.getenv("WORKBENCH_TITLE", "Foundry Agent Lab"), creation=CreationSettings.from_env(),
                session_reuse_seconds=float(os.getenv("WORKBENCH_SESSION_REUSE_SECONDS", "600")),
                library_preview=library_preview == "true", budget_alerts=budget_alerts == "true",
-               foundry_project_id=os.getenv("WORKBENCH_FOUNDRY_PROJECT_ID", ""))
+               foundry_project_id=os.getenv("WORKBENCH_FOUNDRY_PROJECT_ID", ""), model_limits=model_limits)
 
     def validate(self):
         if not isinstance(self.title, str) or not self.title.strip() or len(self.title) > 80 or any(ord(char) < 32 for char in self.title):
@@ -103,6 +110,7 @@ class Settings:
             raise ValueError("Library preview enablement must be a boolean")
         if type(self.budget_alerts) is not bool:
             raise ValueError("Budget alert status must be a boolean")
+        validate_model_limits(self.model_limits)
         if not isinstance(self.foundry_project_id, str):
             raise ValueError("Foundry project ID must be a string")
         if self.foundry_project_id:
@@ -372,9 +380,15 @@ def retry_after_seconds(problem):
 class ChatReviews:
     """Stateless chat turns: POST /api/reviews admission, validation, and one bounded Foundry Responses call."""
 
-    def __init__(self, settings, registry, gateway, created_agents, gate):
+    def __init__(self, settings, registry, gateway, created_agents, gate, budgets):
         self.settings, self.registry, self.gateway = settings, registry, gateway
-        self.created_agents, self.gate = created_agents, gate
+        self.created_agents, self.gate, self.budgets = created_agents, gate, budgets
+
+    def deployment_for(self, agent):
+        """The model deployment a turn will use, or None for a prebuilt agent whose deployment the Lab doesn't know."""
+        if agent.get("preview"):
+            return self.settings.creation.model_for(agent["model_profile"])
+        return agent.get("model")
 
     async def admit(self, request: Request):
         if not self.gate.try_admit():
@@ -432,6 +446,12 @@ class ChatReviews:
         agent, rejection = await self.resolve(request, data["agent_id"])
         if rejection is not None:
             return rejection
+        deployment, template_id = self.deployment_for(agent), agent.get("template_id")
+        wait = self.budgets.try_admit(deployment, template_id)
+        if wait:
+            LOGGER.info(json.dumps({"event": "workbench_model_busy", "deployment": deployment,
+                                    "template_id": template_id, "retry_after": wait}))
+            return self.busy(request, wait)
         return await self.respond(request, agent, prompt, data.get("thread"))
 
     async def respond(self, request, agent, prompt, thread=None):
@@ -520,13 +540,14 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
         raise ValueError("WORKBENCH_DEFAULT_AGENT must name a visible agent")
     gateway = gateway or FoundryGateway(settings)
     model_gate = RateGate(20, 4)
+    model_budgets = ModelBudgets(settings.model_limits, measured_answer_tokens(SCORECARDS))
     cosmos_endpoint = os.getenv("WORKBENCH_COSMOS_ENDPOINT")
     if settings.mode == "private" and cosmos_endpoint and history_store is None:
         history_store = CosmosHistory(cosmos_endpoint)
 
     review_runs = ReviewRuns(settings, registry, history_store, gateway, execution_receipts, model_gate)
     created_agents = AgentCreations(settings, history_store, publisher)
-    chat = ChatReviews(settings, registry, gateway, created_agents, model_gate)
+    chat = ChatReviews(settings, registry, gateway, created_agents, model_gate, model_budgets)
     dependencies = DependencyMonitor(settings, gateway, agents, history_store)
 
     @asynccontextmanager

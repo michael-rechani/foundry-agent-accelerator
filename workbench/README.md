@@ -28,6 +28,7 @@ the detail.
 | Document reviews | **Document reviews** saves one structured check per checklist item and keeps the original text beside the result. |
 | Data boundary | Use sample data only. The Lab doesn't connect to customer systems or perform business writes. |
 | Access model | The current private Lab has no end-user Microsoft Entra ID sign-in or per-user authorization. |
+| Chat limits | Four chat turns at once and 20 a minute across all users, plus a per-model-deployment requests and tokens budget (`WORKBENCH_MODEL_LIMITS`, set by the `model_limits` Terraform variable) that answers busy before the model's own limit does. See [Model limits](../docs/lab-configuration-and-cost.md#model-limits). |
 
 ## Local development
 
