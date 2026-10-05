@@ -1,7 +1,6 @@
 {
   "id": "grant-reporting-checker",
   "retired": true,
-  "definition_order": 110,
   "template": {
     "model_profile": "reasoning",
     "label": "Grant reporting checker",

@@ -388,14 +388,17 @@ issue's checkbox to say so.
   or model profile the catalog doesn't know, and says which file. The served
   catalog is unchanged: the snapshot's SHA-256 is the same before and after, and
   `test_frontend_catalog_fixture.py` passes with the snapshot untouched.
-- **`definition_order` stays, on purpose.** The catalog has two orders: the
-  library's display order (`order`) and the order the agents were first written in.
-  Callers iterate `TEMPLATES` and the matchers in the second one, and the
-  `template_required` answer lists its `candidates` in it, so replacing it with
-  `order` would reorder that answer. The 21 existing agents keep a
-  `definition_order` number, and a new agent leaves it out and sorts after them.
-  Dropping it later changes the order of those `candidates`, so it needs its own
-  decision and a test edit.
+- **`definition_order` is gone (#225).** The catalog used to have two orders: the
+  library's display order (`order`) and the order the agents were first written in
+  (`definition_order`). Callers iterated `TEMPLATES` and the matchers in the second
+  one, and the `template_required` answer listed its `candidates` in it. Now there
+  is one order. The tables follow `order`, with retired agents last by id, and
+  `candidates` come in the order the library lists the agents. The one visible
+  change: a task that matches both `document-intake` and `supplier-invoice-reviewer`
+  now lists `supplier-invoice-reviewer` first, because the library does. Nothing in
+  the Lab's front end reads that order, and the served library and the frontend
+  snapshot are unchanged. A file that still has a `definition_order` field is
+  refused as an unknown field.
 - **A new agent still touches a few places, and the issue's checkbox is reworded
   to say so.** A text-only agent is one file, a run of
   `python -m agent_templates.runtime_ids`, its cases in
@@ -408,7 +411,9 @@ issue's checkbox to say so.
   inside that agent, so the generated list holds the same 21 ids as before and the
   package still holds exactly `main.py`, `demo_tools.py` and `requirements.txt`.
   Written at the same width as the old hand list, it is byte-for-byte the same
-  text, so the package's `runtime_hash` does not change. `test_runtime_ids.py` fails
+  text, so the package's `runtime_hash` does not change. Ids already in the literal
+  keep their place and a new id goes last, so reordering the library, as dropping
+  `definition_order` did, doesn't move them either. `test_runtime_ids.py` fails
   when the literal is stale, and `test_agent_templates.py` names the command to
   run. Its three hard-coded counts (21, 18, 18) follow the catalog.
 - **Prebuilt hosted agents:** `deployment.PREBUILT_AGENTS` is the one list.

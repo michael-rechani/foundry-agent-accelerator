@@ -1,7 +1,6 @@
 {
   "id": "expense-report-checker",
   "order": 20,
-  "definition_order": 180,
   "template": {
     "model_profile": "tool_calling",
     "label": "Expense report checker",

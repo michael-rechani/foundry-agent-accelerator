@@ -1,7 +1,6 @@
 {
   "id": "customer-support-brief",
   "order": 40,
-  "definition_order": 130,
   "template": {
     "model_profile": "reasoning",
     "label": "Support ticket handoff",

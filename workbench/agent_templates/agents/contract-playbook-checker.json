@@ -1,7 +1,6 @@
 {
   "id": "contract-playbook-checker",
   "order": 90,
-  "definition_order": 160,
   "template": {
     "model_profile": "reasoning",
     "label": "Contract playbook checker",

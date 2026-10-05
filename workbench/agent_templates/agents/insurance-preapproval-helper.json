@@ -1,7 +1,6 @@
 {
   "id": "insurance-preapproval-helper",
   "order": 170,
-  "definition_order": 70,
   "template": {
     "model_profile": "reasoning",
     "label": "Insurance pre-approval helper",

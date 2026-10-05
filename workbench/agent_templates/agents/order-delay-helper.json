@@ -1,7 +1,6 @@
 {
   "id": "order-delay-helper",
   "order": 30,
-  "definition_order": 210,
   "template": {
     "model_profile": "tool_calling",
     "label": "Order delay helper",

@@ -1,7 +1,6 @@
 {
   "id": "supplier-invoice-reviewer",
   "order": 10,
-  "definition_order": 90,
   "template": {
     "model_profile": "reasoning",
     "label": "Supplier invoice reviewer",

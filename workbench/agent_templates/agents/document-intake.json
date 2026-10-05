@@ -1,7 +1,6 @@
 {
   "id": "document-intake",
   "order": 70,
-  "definition_order": 30,
   "template": {
     "model_profile": "extraction",
     "label": "Form field extractor",

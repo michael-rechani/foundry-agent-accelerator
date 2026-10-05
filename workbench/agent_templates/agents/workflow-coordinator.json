@@ -1,7 +1,6 @@
 {
   "id": "workflow-coordinator",
   "order": 140,
-  "definition_order": 50,
   "template": {
     "model_profile": "tool_calling",
     "label": "Service request planner",

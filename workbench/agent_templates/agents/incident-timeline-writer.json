@@ -1,7 +1,6 @@
 {
   "id": "incident-timeline-writer",
   "order": 110,
-  "definition_order": 190,
   "template": {
     "model_profile": "reasoning",
     "label": "IT incident timeline writer",

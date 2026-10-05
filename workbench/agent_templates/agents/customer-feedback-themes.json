@@ -1,7 +1,6 @@
 {
   "id": "customer-feedback-themes",
   "order": 50,
-  "definition_order": 200,
   "template": {
     "model_profile": "reasoning",
     "label": "Customer feedback theme finder",

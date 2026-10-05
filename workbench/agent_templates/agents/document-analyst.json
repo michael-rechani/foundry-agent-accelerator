@@ -1,7 +1,6 @@
 {
   "id": "document-analyst",
   "order": 60,
-  "definition_order": 10,
   "template": {
     "model_profile": "reasoning",
     "label": "Document explainer",

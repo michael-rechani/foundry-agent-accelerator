@@ -1,7 +1,6 @@
 {
   "id": "maintenance-work-order-planner",
   "order": 130,
-  "definition_order": 150,
   "template": {
     "model_profile": "reasoning",
     "label": "Maintenance work order planner",

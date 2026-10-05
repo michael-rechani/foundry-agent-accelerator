@@ -1,7 +1,6 @@
 {
   "id": "medical-bill-reviewer",
   "order": 160,
-  "definition_order": 60,
   "template": {
     "model_profile": "reasoning",
     "label": "Medical bill reviewer",
