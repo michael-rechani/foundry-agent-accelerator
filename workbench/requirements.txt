@@ -1,7 +1,7 @@
-fastapi==0.141.1
+fastapi==0.142.2
 uvicorn==0.54.0
 azure-ai-projects==2.6.1
-azure-identity==1.25.3
+azure-identity==1.26.0
 openai==3.20.0
 httpx==0.28.1
 azure-cosmos==4.17.1
