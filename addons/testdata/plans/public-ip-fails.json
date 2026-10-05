@@ -1,0 +1,84 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.16.4",
+  "planned_values": { "root_module": {} },
+  "resource_changes": [
+    {
+      "address": "module.knowledge_search.azurerm_public_ip.front_door",
+      "module_address": "module.knowledge_search",
+      "mode": "managed",
+      "type": "azurerm_public_ip",
+      "name": "front_door",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "allocation_method": "Static",
+          "location": "westus",
+          "name": "pip-example",
+          "sku": "Standard"
+        },
+        "after_unknown": {
+          "id": true,
+          "ip_address": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "module.knowledge_search.azapi_resource.prefix",
+      "module_address": "module.knowledge_search",
+      "mode": "managed",
+      "type": "azapi_resource",
+      "name": "prefix",
+      "provider_name": "registry.terraform.io/azure/azapi",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "name": "pip-prefix-example",
+          "parent_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example",
+          "type": "Microsoft.Network/publicIPPrefixes@2024-05-01",
+          "body": {
+            "properties": { "prefixLength": 31 },
+            "sku": { "name": "Standard" }
+          }
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "module.knowledge_search.azurerm_network_interface.worker",
+      "module_address": "module.knowledge_search",
+      "mode": "managed",
+      "type": "azurerm_network_interface",
+      "name": "worker",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "ip_configuration": [
+            {
+              "name": "internal",
+              "private_ip_address_allocation": "Dynamic",
+              "public_ip_address_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/publicIPAddresses/pip-example"
+            }
+          ],
+          "name": "nic-example"
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ]
+}

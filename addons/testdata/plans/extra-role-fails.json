@@ -1,0 +1,107 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.16.4",
+  "planned_values": { "root_module": {} },
+  "resource_changes": [
+    {
+      "address": "module.knowledge_search.azurerm_role_assignment.writer",
+      "module_address": "module.knowledge_search",
+      "mode": "managed",
+      "type": "azurerm_role_assignment",
+      "name": "writer",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "principal_id": "11111111-1111-1111-1111-111111111111",
+          "principal_type": "ServicePrincipal",
+          "role_definition_id": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleDefinitions/8ebe5a00-799e-43f5-93ac-243d3dce84a7",
+          "scope": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Search/searchServices/search-example/indexes/lab-sample-policy-guidance"
+        },
+        "after_unknown": {
+          "id": true,
+          "name": true,
+          "role_definition_name": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "module.knowledge_search.azurerm_role_assignment.reader_on_service",
+      "module_address": "module.knowledge_search",
+      "mode": "managed",
+      "type": "azurerm_role_assignment",
+      "name": "reader_on_service",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "principal_id": "11111111-1111-1111-1111-111111111111",
+          "principal_type": "ServicePrincipal",
+          "role_definition_id": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleDefinitions/1407120a-92aa-4202-b7e9-c0e197c71c8f",
+          "scope": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Search/searchServices/search-example"
+        },
+        "after_unknown": {
+          "id": true,
+          "name": true,
+          "role_definition_name": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "module.knowledge_search.azurerm_role_assignment.owner_on_subscription",
+      "module_address": "module.knowledge_search",
+      "mode": "managed",
+      "type": "azurerm_role_assignment",
+      "name": "owner_on_subscription",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "principal_id": "11111111-1111-1111-1111-111111111111",
+          "principal_type": "ServicePrincipal",
+          "role_definition_name": "Owner",
+          "scope": "/subscriptions/00000000-0000-0000-0000-000000000000"
+        },
+        "after_unknown": {
+          "id": true,
+          "name": true,
+          "role_definition_id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "module.knowledge_search.azurerm_role_assignment.reader_for_a_person",
+      "module_address": "module.knowledge_search",
+      "mode": "managed",
+      "type": "azurerm_role_assignment",
+      "name": "reader_for_a_person",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "principal_id": "22222222-2222-2222-2222-222222222222",
+          "principal_type": "User",
+          "role_definition_id": "/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.Authorization/roleDefinitions/1407120a-92aa-4202-b7e9-c0e197c71c8f",
+          "scope": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Search/searchServices/search-example/indexes/lab-sample-policy-guidance"
+        },
+        "after_unknown": {
+          "id": true,
+          "name": true,
+          "role_definition_name": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ]
+}

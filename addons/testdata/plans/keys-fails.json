@@ -1,0 +1,81 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.16.4",
+  "planned_values": { "root_module": {} },
+  "resource_changes": [
+    {
+      "address": "module.knowledge_search.azurerm_storage_account.documents",
+      "module_address": "module.knowledge_search",
+      "mode": "managed",
+      "type": "azurerm_storage_account",
+      "name": "documents",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "allow_nested_items_to_be_public": true,
+          "name": "stdocumentsexample",
+          "public_network_access_enabled": false,
+          "shared_access_key_enabled": true
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "module.knowledge_search.azurerm_container_registry.images",
+      "module_address": "module.knowledge_search",
+      "mode": "managed",
+      "type": "azurerm_container_registry",
+      "name": "images",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "admin_enabled": true,
+          "name": "acrexample",
+          "public_network_access_enabled": false
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "module.knowledge_search.azapi_resource.search_with_keys",
+      "module_address": "module.knowledge_search",
+      "mode": "managed",
+      "type": "azapi_resource",
+      "name": "search_with_keys",
+      "provider_name": "registry.terraform.io/azure/azapi",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "name": "search-keys",
+          "parent_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example",
+          "type": "Microsoft.Search/searchServices@2025-05-01",
+          "body": {
+            "properties": {
+              "authOptions": { "apiKeyOnly": {} },
+              "disableLocalAuth": false,
+              "publicNetworkAccess": "Disabled"
+            }
+          }
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ]
+}
