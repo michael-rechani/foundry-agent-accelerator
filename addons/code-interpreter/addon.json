@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "code-interpreter",
+  "name": "Code interpreter",
+  "order": 5,
+  "kind": "built-in-tool",
+  "tracking": [54],
+  "card": {
+    "icon": "calculator",
+    "summary": "Lets an agent run small calculations on the data you give it, instead of doing the arithmetic in its head.",
+    "example": "The agent totals the lines on an expense claim and shows its working.",
+    "cost": [
+      "Billed for each session the agent opens."
+    ],
+    "needs": [
+      "Nothing to set up in the Lab. It is a built-in Foundry tool."
+    ],
+    "safety": "It runs in a sandbox managed by Foundry and only sees the data it is given.",
+    "service": "Foundry Agent Service code interpreter tool",
+    "billing": "Per session.",
+    "note": "Prefer the tools Foundry already provides over rebuilding them in the Lab."
+  }
+}

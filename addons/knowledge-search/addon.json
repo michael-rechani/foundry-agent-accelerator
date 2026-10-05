@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "knowledge-search",
+  "name": "Knowledge search",
+  "order": 1,
+  "kind": "existing-service",
+  "tracking": [54, 121, 122],
+  "card": {
+    "icon": "search",
+    "summary": "Lets an agent answer from your own documents, not only from what it already knows.",
+    "example": "A grant reviewer asks what the policy says about travel. The agent finds the right passage and names where it came from.",
+    "pilot": "Ask Checklist and case helper to use the sample policy guidance when it summarizes case notes. It looks up ten approved sample passages and names the one it used. Your own documents cannot be added yet.",
+    "cost": [
+      "The search service is billed by the hour while it runs. The price depends on its size.",
+      "Ranking results by meaning and preparing documents for search add small extra charges.",
+      "The pilot runs on the search service the platform already has, so it adds no new hourly charge."
+    ],
+    "needs": [
+      "A search service on the private network.",
+      "Your documents, kept in storage you control."
+    ],
+    "safety": "Only documents added on purpose can be searched, and access is read-only through a managed identity, not keys.",
+    "service": "Azure AI Search",
+    "billing": "Search units per hour by tier, plus semantic ranker and embedding calls.",
+    "note": "The pilot (#122) runs on the dev platform's Basic search service (#76) with one index of ten sample passages. Decide the tier before anything larger."
+  }
+}

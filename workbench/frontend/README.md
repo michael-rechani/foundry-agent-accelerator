@@ -50,7 +50,7 @@ setup there rather than copying it into a spec.
 **Browse**, **Ready to chat**, **Made in this Lab**, **Guided demos**, and **Add-ons** tabs,
 **Create agent**, **Chat**, **Document reviews**, **Performance**, **Request
 log**, and **Shared history**. `ChatSidebar.tsx` groups them into four
-sections: **Agent library**, **Try it**, **Measure**, and **Activity**. `AddOns.tsx` renders the preview-only **Add-ons** tab from the fixed list in `add-on-catalog.ts`; it makes no API calls. An entry with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**.
+sections: **Agent library**, **Try it**, **Measure**, and **Activity**. `AddOns.tsx` renders the preview-only **Add-ons** tab from `add-on-catalog.json`, which `python addons/build_catalog.py --write` generates from the manifests in `addons/`; it makes no API calls. An entry with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**.
 **Measure** and **Activity** appear only with **Under the hood** on
 (`under-the-hood.ts`); elements marked `hood-only` are hidden otherwise.
 `ChatTopbar.tsx` shows the breadcrumb from `navigation.ts`. The
@@ -179,6 +179,8 @@ catalog. After a catalog change, regenerate it from `workbench` and format it:
 python -c "import json; from pathlib import Path; from agent_templates import catalog_facets, list_templates; Path('frontend/tests/agent-templates.fixture.json').write_text(json.dumps({'schema_version': 1, 'draft_mode': 'template', 'templates': list_templates(), 'facets': catalog_facets()}, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')"
 npm --prefix frontend run format
 ```
+
+The Add-ons tab reads `src/add-on-catalog.json`, which is generated from the add-on manifests in the repository's `addons` folder (see [Add-on package format](../../docs/addon-package-format.md)). After you change a manifest, run `python addons/build_catalog.py --write` from the repository root. CI fails if the file is out of date, and `tests/library.spec.ts` checks that the page lists every manifest in order.
 
 The specs cover the four-section navigation and hash links, filters with
 live counts, search and the empty state, detail tabs and honest labels, template

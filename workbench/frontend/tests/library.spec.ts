@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { templates } from './helpers/catalog'
+import { addOnManifests, templates } from './helpers/catalog'
 import { expectFitsViewport } from './helpers/layout'
 import { openLibrary } from './helpers/library-lab'
 import { libraryNav, workspaceNav } from './helpers/navigation'
@@ -333,4 +333,23 @@ test('the Add-ons tab previews what an agent could connect to without calling an
   await expect(
     page.getByRole('heading', { level: 1, name: 'Add-ons an agent could use' }),
   ).toBeVisible()
+})
+
+test('the Add-ons tab shows every add-on manifest in the repository, in order', async ({
+  page,
+}) => {
+  expect(addOnManifests.length).toBeGreaterThan(0)
+  await openLibrary(page)
+  await libraryNav(page).getByRole('button', { name: 'Add-ons' }).click()
+  const cards = page.locator('.addon-card')
+  await expect(cards.getByRole('heading', { level: 2 })).toHaveText(
+    addOnManifests.map((manifest) => manifest.name),
+  )
+  for (const [index, manifest] of addOnManifests.entries()) {
+    const card = cards.nth(index)
+    await expect(card).toContainText(manifest.card.summary)
+    await expect(card.getByText('Sample pilot')).toHaveCount(
+      manifest.card.pilot ? 1 : 0,
+    )
+  }
 })

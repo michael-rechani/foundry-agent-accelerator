@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "web-search",
+  "name": "Web search",
+  "order": 6,
+  "kind": "built-in-tool",
+  "tracking": [54],
+  "card": {
+    "icon": "web",
+    "summary": "Lets an agent look things up on the public internet.",
+    "example": "The agent checks a current public regulation before it answers.",
+    "cost": [
+      "Charged for each search by the search provider. The price has not been assessed yet."
+    ],
+    "needs": [
+      "Explicit approval of what may be sent outside your organization."
+    ],
+    "safety": "The questions the agent asks would leave your organization and go to a public search service.",
+    "approval": "Needs data-handling approval first",
+    "service": "Web grounding (public search service)",
+    "billing": "Per query. Not assessed."
+  }
+}

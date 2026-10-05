@@ -28,6 +28,7 @@ optional design guidance, not deployed resources or replacements for APIM policy
 | Core Lab-to-Foundry path | Included in the demo. No customer-system, M365, Copilot, or SharePoint integration is included. | Fictional inputs, private access, and human review of every finding. | [Demo guide](demos.md) |
 | Governed review API through APIM | Retained implementation, disabled by default, and removed from Azure in the current environment. | Standard v2 APIM, reviewed Terraform inputs, Microsoft Entra ID audience and allowlists, private backend connectivity, and live acceptance tests. | [Governed review API](apim-review-api.md) |
 | Search-backed retrieval for review agents | Backing Azure AI Search service is retained, but no retrieval tool is attached to the current review agents. | A knowledge source, index, permissions, tool binding or explicit retrieval code, citations, and relevance and security testing. | [Add Search-backed retrieval](#add-search-backed-retrieval) |
+| Add-ons for agents, such as knowledge search | Preview cards in the Lab's **Add-ons** tab, each described by a manifest in ddons/. No add-on has a deployment package yet. | A manifest that passes the repository check. A deployment also needs a person to approve a saved Terraform plan. | [Add-on package format](addon-package-format.md) |
 | Website ingress with Application Gateway or Front Door | Design guidance only. No gateway is deployed by this repository. | Separate gateway, Domain Name System (DNS), certificate, application-authentication, web application firewall (WAF), diagnostics, and cost approval. | [Application ingress options](ingress-access.md) |
 | Customer-system or M365/Copilot/SharePoint integration | Outside the core experience and not a promised deliverable. | Separate scope, agreement, architecture, data handling, identity, authorization, and production readiness plan. | [Scope and limitations](../README.md#scope-and-limitations) |
 
@@ -119,5 +120,6 @@ not a claim that the latest local Terraform changes have been published.
 - [Governed review API](apim-review-api.md)
 - [Extension guide](architecture-assessment.md)
 - [Knowledge retrieval design](knowledge-retrieval.md)
+- [Add-on package format](addon-package-format.md)
 - [Cost comparison](../cost-comparison/README.md)
 - [Infrastructure](../terraform/README.md)

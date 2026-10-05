@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "conversation-memory",
+  "name": "Conversation memory",
+  "order": 2,
+  "kind": "existing-service",
+  "tracking": [54],
+  "card": {
+    "icon": "memory",
+    "summary": "Lets an agent remember earlier conversations, so people do not have to repeat themselves.",
+    "example": "A returning person carries on with an earlier case without restating the details.",
+    "cost": [
+      "Billed for how much the database is used, either as reserved capacity or per request.",
+      "Stored conversations also add a storage charge."
+    ],
+    "needs": [
+      "A decision on how long conversations are kept.",
+      "A way to delete the history of anyone who asks."
+    ],
+    "safety": "It would store what people type, so it needs retention and deletion rules before it is used.",
+    "service": "Azure Cosmos DB",
+    "billing": "Provisioned or serverless request units, plus storage."
+  }
+}
