@@ -415,6 +415,7 @@ To deploy from a separate private machine, use the
 | [`hosted-agents/`](hosted-agents/) | Coordinator and specialist agents; scripts to publish, test, and roll back versions |
 | [`terraform/`](terraform/) | Private Foundry platform using Azure Verified Modules (AVM); optional Bastion and monitoring roots |
 | [`evaluations/`](evaluations/) | Test cases, offline checks, and optional live Foundry evaluations |
+| [`addons/`](addons/) | Optional add-on manifests, their checks, and the data behind the Lab's **Add-ons** tab |
 | [`docs/`](docs/) | Demo walkthroughs, sample inputs, architecture, and operations guides |
 | [`cost-comparison/`](cost-comparison/) | Azure GPU VM versus Foundry hosted-agent cost calculator |
 
@@ -461,6 +462,7 @@ To deploy from a separate private machine, use the
 - [Governed review API (APIM)](docs/apim-review-api.md)
 - [Application Gateway and Front Door](docs/ingress-access.md)
 - [Other integration options](docs/optional-integrations.md)
+- [Add-on package format](docs/addon-package-format.md)
 
 </details>
 

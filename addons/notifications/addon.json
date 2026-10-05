@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "notifications",
+  "name": "Notifications",
+  "order": 4,
+  "kind": "new-service",
+  "tracking": [54],
+  "card": {
+    "icon": "notifications",
+    "summary": "Lets an agent send a message once a person has approved it.",
+    "example": "The agent drafts an email to a vendor. A person reads it, then chooses Send.",
+    "cost": [
+      "Billed for each message sent, or for each step when the message goes through a workflow."
+    ],
+    "needs": [
+      "A sender address your organization owns.",
+      "A named person who approves every message."
+    ],
+    "safety": "The agent only drafts. A person must approve every send, and nothing goes out on its own.",
+    "service": "Azure Communication Services email, or Logic Apps",
+    "billing": "Per message, or per action for Logic Apps."
+  }
+}

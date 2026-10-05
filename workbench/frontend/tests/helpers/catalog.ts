@@ -1,3 +1,4 @@
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import type { LibraryTemplate } from '../../src/library-catalog'
 
@@ -14,6 +15,26 @@ export const scorecards = JSON.parse(
   ),
 )
 export const templates: LibraryTemplate[] = catalog.templates
+
+// The add-on manifests in the repository's addons folder, in the order the Add-ons tab lists them.
+const addOnsFolder = new URL('../../../../addons/', import.meta.url)
+export const addOnManifests: {
+  id: string
+  name: string
+  order: number
+  card: { summary: string; pilot?: string }
+}[] = readdirSync(addOnsFolder, { withFileTypes: true })
+  .filter(
+    (entry) =>
+      entry.isDirectory() &&
+      existsSync(new URL(`${entry.name}/addon.json`, addOnsFolder)),
+  )
+  .map((entry) =>
+    JSON.parse(
+      readFileSync(new URL(`${entry.name}/addon.json`, addOnsFolder), 'utf8'),
+    ),
+  )
+  .sort((a, b) => a.order - b.order)
 
 export const templateById = (id: string) =>
   templates.find((item) => item.id === id)!

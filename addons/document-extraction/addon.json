@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "document-extraction",
+  "name": "Document extraction",
+  "order": 3,
+  "kind": "new-service",
+  "tracking": [54],
+  "card": {
+    "icon": "documents",
+    "summary": "Lets an agent read scanned forms, receipts and PDFs, so it can work with the text and fields in them.",
+    "example": "An expense claim arrives as a photo of a receipt. The agent reads the date and the total from it.",
+    "cost": [
+      "Billed for each page that is read."
+    ],
+    "needs": [
+      "Example documents to test with.",
+      "A person checks anything the reader is unsure about."
+    ],
+    "safety": "It would read documents only inside your private network, and it would not keep them unless you decide it should.",
+    "service": "Azure AI Document Intelligence",
+    "billing": "Per page analyzed, by model."
+  }
+}

@@ -35,6 +35,22 @@ describe('add-ons catalogue', () => {
     )
   })
 
+  it('reads each add-on from the generated catalogue with a known icon', () => {
+    const icons = [
+      'search',
+      'memory',
+      'documents',
+      'notifications',
+      'calculator',
+      'web',
+    ]
+    assert.equal(new Set(addOns.map((item) => item.id)).size, addOns.length)
+    for (const item of addOns) {
+      assert.ok(icons.includes(item.icon), `${item.id} icon ${item.icon}`)
+      assert.ok(item.name, `${item.id} name`)
+    }
+  })
+
   it('shows cost, needs and safety for every add-on before anything is on', () => {
     for (const item of addOns) {
       assert.ok(item.cost.length > 0, `${item.id} needs a cost`)
