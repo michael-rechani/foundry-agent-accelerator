@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "add_on": "knowledge-search",
+  "cases": [
+    {
+      "id": "plan-grants-one-reader",
+      "summary": "A saved plan that only grants Search Index Data Reader on one index passes the plan check.",
+      "live": false,
+      "steps": [
+        "From the repository root, run: python addons/plan_check.py knowledge-search addons/testdata/plans/knowledge-search-passes.json"
+      ],
+      "expect": [
+        "The check exits 0 and says it approves nothing.",
+        "The same check on addons/testdata/plans/public-access-fails.json, keys-fails.json, public-ip-fails.json, extra-role-fails.json and unknown-value-fails.json exits 1 and names each address and rule."
+      ]
+    },
+    {
+      "id": "module-keeps-the-grant-narrow",
+      "summary": "The module's own tests prove the role, the principal type and the index scope are fixed.",
+      "live": false,
+      "steps": [
+        "In addons/knowledge-search/terraform, run: terraform init -backend=false",
+        "Run: terraform test"
+      ],
+      "expect": [
+        "Every run passes with mocked providers, and nothing is created.",
+        "A service ID that is already an index, a principal that isn't a GUID, and an index name with a path are rejected."
+      ]
+    },
+    {
+      "id": "answers-from-one-passage",
+      "summary": "With the grant, the case agent answers a question from one sample passage and cites it.",
+      "live": true,
+      "steps": [
+        "After the grant and the agent wiring are approved and applied, ask the case-review agent what to do when evidence is missing."
+      ],
+      "expect": [
+        "The answer follows the sample passage POL-EVID-001.",
+        "The answer cites POL-EVID-001 as its source and doesn't invent another source ID."
+      ]
+    },
+    {
+      "id": "no-match-says-no-guidance",
+      "summary": "A question that no sample passage answers says no guidance was found.",
+      "live": true,
+      "steps": [
+        "Ask the case-review agent a policy question that none of the ten sample passages covers."
+      ],
+      "expect": [
+        "The agent says no guidance was found.",
+        "The agent doesn't present general knowledge as the organization's policy."
+      ]
+    },
+    {
+      "id": "lookup-failure-says-no-guidance",
+      "summary": "When the lookup fails, the agent says no guidance is available instead of guessing.",
+      "live": true,
+      "steps": [
+        "In a test version, point KNOWLEDGE_SEARCH_INDEX at an index name that doesn't exist, then ask the same question as answers-from-one-passage."
+      ],
+      "expect": [
+        "The agent says no guidance is available.",
+        "The reply gives no source ID."
+      ]
+    }
+  ]
+}

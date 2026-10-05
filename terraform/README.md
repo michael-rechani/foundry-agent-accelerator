@@ -317,6 +317,10 @@ that already has the grant made by hand must
 [import it](../docs/permissions.md#adopt-the-knowledge-search-grant) before you
 set the variable.
 
+The [knowledge search add-on package](../addons/knowledge-search/DEPLOY.md) holds a draft module for the
+same grant, with a plan check and a runbook. It isn't wired into this root. Don't use both for the same
+index.
+
 ## API Management gateway
 
 Set `enable_api_management = true` and provide

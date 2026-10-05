@@ -207,6 +207,12 @@ jobs:
           terraform -chdir=workbench/infra init -backend=false
           terraform -chdir=workbench/infra validate
           terraform -chdir=workbench/infra test
+      - name: Validate and test the knowledge search add-on module without Azure
+        run: |
+          terraform -chdir=addons/knowledge-search/terraform fmt -check -recursive
+          terraform -chdir=addons/knowledge-search/terraform init -backend=false
+          terraform -chdir=addons/knowledge-search/terraform validate
+          terraform -chdir=addons/knowledge-search/terraform test
       - name: Test workbench deployment safeguards
         shell: pwsh
         run: ./workbench/test-deployment-inputs.ps1

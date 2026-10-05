@@ -4,7 +4,11 @@
   "name": "Knowledge search",
   "order": 1,
   "kind": "existing-service",
-  "tracking": [54, 121, 122],
+  "tracking": [
+    54,
+    121,
+    122
+  ],
   "card": {
     "icon": "search",
     "summary": "Lets an agent answer from your own documents, not only from what it already knows.",
@@ -23,5 +27,44 @@
     "service": "Azure AI Search",
     "billing": "Search units per hour by tier, plus semantic ranker and embedding calls.",
     "note": "The pilot (#122) runs on the dev platform's Basic search service (#76) with one index of ten sample passages. Decide the tier before anything larger."
+  },
+  "package": {
+    "runbook": "DEPLOY.md",
+    "bootstrap": "bootstrap.md",
+    "acceptance_case": "acceptance.json",
+    "terraform": {
+      "module": "terraform",
+      "resource_types": [
+        "azurerm_role_assignment"
+      ]
+    },
+    "approval": "person-approves-saved-plan",
+    "approval_gates": [
+      "billable-calls",
+      "shared-data"
+    ],
+    "roles": [
+      {
+        "role": "Search Index Data Reader",
+        "role_id": "1407120a-92aa-4202-b7e9-c0e197c71c8f",
+        "principal_type": "ServicePrincipal",
+        "scope": {
+          "type": "Microsoft.Search/searchServices",
+          "child": "indexes"
+        }
+      }
+    ],
+    "cost_lines": [
+      {
+        "name": "Search Index Data Reader role assignment",
+        "monthly_cost": 0,
+        "basis": "A role assignment has no charge. The add-on uses the platform's existing Search service, which the deployed budget already counts. Lookups add model tokens only when an agent uses them."
+      }
+    ],
+    "guardrails": {
+      "public_network_access": "disabled",
+      "local_auth": "disabled",
+      "public_ip": "none"
+    }
   }
 }

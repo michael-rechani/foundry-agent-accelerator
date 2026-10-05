@@ -71,6 +71,7 @@ updates:
       - /terraform/bastion
       - /terraform/monitoring
       - /workbench/infra
+      - /addons/knowledge-search/terraform
     schedule:
       interval: monthly
     groups:

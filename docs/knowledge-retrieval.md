@@ -513,6 +513,9 @@ open work are in [Pilot results](#pilot-results-2026-10-01) and tracked in
 - No vector, hybrid, or semantic search, and no document-level authorization.
 - No search over a visitor's own documents. The Lab has no sign-in to keep them
   private.
+- The grant isn't yet made by the [add-on package](../addons/knowledge-search/DEPLOY.md), a draft
+  that holds the same role assignment as a module with a plan check. The platform's
+  `knowledge_search_access` still makes it.
 
 ## Open decisions
 

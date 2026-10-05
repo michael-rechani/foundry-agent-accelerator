@@ -1,0 +1,63 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.16.4",
+  "planned_values": { "root_module": {} },
+  "resource_changes": [
+    {
+      "address": "module.knowledge_search.azurerm_search_service.copy",
+      "module_address": "module.knowledge_search",
+      "mode": "managed",
+      "type": "azurerm_search_service",
+      "name": "copy",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "allowed_ips": ["203.0.113.7"],
+          "local_authentication_enabled": false,
+          "location": "westus",
+          "name": "search-copy",
+          "public_network_access_enabled": true,
+          "sku": "basic"
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "module.knowledge_search.azapi_resource.search_by_arm",
+      "module_address": "module.knowledge_search",
+      "mode": "managed",
+      "type": "azapi_resource",
+      "name": "search_by_arm",
+      "provider_name": "registry.terraform.io/azure/azapi",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "name": "search-arm",
+          "parent_id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example",
+          "type": "Microsoft.Search/searchServices@2025-05-01",
+          "body": {
+            "properties": {
+              "publicNetworkAccess": "Enabled",
+              "networkRuleSet": {
+                "ipRules": [{ "value": "203.0.113.0/24" }]
+              }
+            },
+            "sku": { "name": "basic" }
+          }
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": {}
+      }
+    }
+  ]
+}

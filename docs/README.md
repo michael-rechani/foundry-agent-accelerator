@@ -61,7 +61,7 @@ For developers who change agents, evaluate quality, or extend the architecture.
 | [Agent library scorecards](library-scorecards.md) | Read the library's acceptance cases, the Lab's **Test results** tab, and the sign-off workflow. |
 | [Cost comparison](../cost-comparison/README.md) | Compare Azure GPU VM costs with Foundry hosted-agent costs. |
 | [Optional integrations](optional-integrations.md) | Review integration paths that sit outside the core demo. |
-| [Add-on package format](addon-package-format.md) | Read how an add-on is described, checked, and prepared for a person-approved Terraform deployment. It's a format and checks; no add-on is deployed from it yet. |
+| [Add-on package format](addon-package-format.md) | Read how an add-on is described, checked, and prepared for a person-approved Terraform deployment. It also covers the plan check and the draft knowledge search package. Nothing is deployed from it yet. |
 | [Knowledge retrieval design](knowledge-retrieval.md) | Review the flag-gated, read-only Azure AI Search lookup for the case agent. It's off by default; a small sample pilot has run in the dev Lab since 2026-10-01. |
 | [Staff workflow assistant](staff-workflow-assistant.md) | Read a proposed agent definition. It isn't implemented. |
 | [Agent drafts](agent-drafts/README.md) | Read documentation-only definitions for public-sector and healthcare agents. None is implemented. |
