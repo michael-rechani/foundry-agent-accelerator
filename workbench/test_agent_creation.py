@@ -434,6 +434,23 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
             self.assertEqual(config["default_agent"], "customer-review")
             self.assertNotIn(record["id"], [agent["id"] for agent in config["agents"]])
 
+    async def test_created_agent_turns_are_budgeted_on_the_model_saved_with_the_record(self):
+        record = await self.ready()
+        self.assertEqual(set(record["agent"]) & {"model", "template_id"}, set())
+        limits = {"test-model": {"requests_per_minute": 1, "tokens_per_minute": 100000}}
+        body = {"agent_id": record["id"], "input": "Fictional document."}
+        async with self.make_client(replace(self.settings, model_limits=limits)) as client:
+            first = await client.post("/api/reviews", json=body)
+            second = await client.post("/api/reviews", json=body)
+            self.assertEqual((first.status_code, second.status_code), (200, 429))
+            self.assertEqual(second.json()["error"], "busy")
+            self.assertTrue(1 <= int(second.headers["Retry-After"]) <= 60)
+            self.assertEqual(self.gateway.review.await_count, 1)
+            self.store.rows[record["id"]]["model"] = "other-model"
+            third = await client.post("/api/reviews", json=body)
+            self.assertEqual(third.status_code, 200)
+            self.assertEqual(self.gateway.review.await_count, 2)
+
     async def test_not_ready_hidden_foreign_or_forged_agents_cannot_be_invoked(self):
         record = await self.ready()
         for changes in ({"status": "creating"}, {"project": "foreign"},

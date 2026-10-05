@@ -277,7 +277,7 @@ is an immutable audit ledger.
 
 | Operation | Admission or deadline | Failure behavior |
 | --- | --- | --- |
-| Chat agent request | Four shared agent slots, 20 starts per minute, five-second upload, and up to 180-second agent call. | Invalid requests fail before invocation; a deadline returns timeout, not success. |
+| Chat agent request | Four shared agent slots, 20 starts per minute, a per-model-deployment requests and tokens budget, five-second upload, and up to 180-second agent call. | Invalid requests fail before invocation; a turn over its model's budget returns busy before any model call; a deadline returns timeout, not success. |
 | Structured review execution | Shares chat's agent slots and start budget; at most four runs per record. | Conditional start prevents competing execution; there is no automatic retry. |
 | Review record API | Four requests, 120 per minute, 35-second operation deadline, and five-second upload. | ETag conflicts return 409; failed polling can be resumed with **Refresh**. |
 | Chat history API | Four requests, 60 per minute, and 35-second operation deadline. | Conditional writes prevent silent overwrite; uncertain saves require checking history. |
@@ -312,7 +312,8 @@ credentials, and does not publish APIs through APIM. Cosmos DB permissions are
 container-scoped. Saved history is shared, not per-user private, and is not an
 audit trail. See the [Lab runbook](../workbench/README.md).
 
-Reviews admit four concurrent requests and 20 per minute; history separately
+Reviews admit four concurrent requests and 20 per minute, and each chat turn also
+fits its model deployment's own per-minute budget; history separately
 admits four and 60 per minute. Review uploads expire after five seconds, model
 calls after 180 seconds, and complete history operations after 35 seconds. These
 controls are process-local and require one worker and one replica. Dependency

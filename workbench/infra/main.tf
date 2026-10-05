@@ -130,6 +130,26 @@ variable "agent_creation_key_secret_resource_id" {
     error_message = "Use the Azure resource ID of an existing Key Vault secret."
   }
 }
+variable "model_limits" {
+  type = map(object({
+    requests_per_minute = number
+    tokens_per_minute   = number
+  }))
+  default = {
+    "gpt-5.4"      = { requests_per_minute = 100, tokens_per_minute = 10000 }
+    "gpt-4.1"      = { requests_per_minute = 50, tokens_per_minute = 50000 }
+    "gpt-5.4-mini" = { requests_per_minute = 10, tokens_per_minute = 10000 }
+  }
+  description = "The published requests-per-minute and tokens-per-minute limit of each model deployment the Lab's chat can reach, keyed by deployment name. The Lab answers busy (HTTP 429) before admitting a turn that would pass a deployment's limit, so people see its friendly message instead of the model's error. The defaults are the dev tenant's limits; replace them with your deployments' real limits, and leave some headroom. Deployments not listed here, and prebuilt agents, are limited only by the Lab's global caps. Use {} to turn this off. This sets no Foundry quota."
+  validation {
+    condition = alltrue([
+      for deployment, limit in var.model_limits :
+      can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", deployment)) &&
+      alltrue([for value in [limit.requests_per_minute, limit.tokens_per_minute] : value == floor(value) && value >= 1 && value <= 10000000])
+    ])
+    error_message = "Key each limit by an existing model deployment name, and give requests_per_minute and tokens_per_minute as whole numbers from 1 to 10000000."
+  }
+}
 variable "name" {
   type        = string
   default     = "foundry-workbench"
@@ -333,6 +353,9 @@ resource "azurerm_container_app" "this" {
           },
           length(var.agent_creation_models) == 0 ? {} : {
             WORKBENCH_AGENT_CREATION_MODELS = jsonencode(var.agent_creation_models)
+          },
+          length(var.model_limits) == 0 ? {} : {
+            WORKBENCH_MODEL_LIMITS = jsonencode(var.model_limits)
           },
           var.lab_budget == null ? {} : {
             WORKBENCH_BUDGET_ALERTS_ENABLED = "true"
