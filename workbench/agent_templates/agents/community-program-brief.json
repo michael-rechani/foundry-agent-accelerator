@@ -1,7 +1,6 @@
 {
   "id": "community-program-brief",
   "retired": true,
-  "definition_order": 120,
   "template": {
     "model_profile": "reasoning",
     "label": "Community program brief writer",

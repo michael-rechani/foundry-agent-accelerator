@@ -1,7 +1,6 @@
 {
   "id": "benefits-renewal-helper",
   "order": 180,
-  "definition_order": 80,
   "template": {
     "model_profile": "reasoning",
     "label": "Benefits renewal helper",

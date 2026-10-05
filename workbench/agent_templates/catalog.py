@@ -75,9 +75,9 @@ ANSWER_LAYOUT = (
     "yours and who makes it: "
 )
 
-# Each agent is one file in agents/. TEMPLATES, TEMPLATE_METADATA and _MATCHERS keep the order the
-# catalog has always had, because callers iterate them and take the first job that fits;
-# LIBRARY_ORDER is the order the library lists the agents in.
+# Each agent is one file in agents/. TEMPLATES, TEMPLATE_METADATA and _MATCHERS follow the library's order with
+# retired agents last, so the `template_required` candidates come in the order the library lists them;
+# LIBRARY_ORDER holds only the listed agents.
 _LIBRARY = load_agents(AGENTS_DIRECTORY, {
     "sectors": {item["id"]: item["label"] for item in SECTORS},
     "industries": {item["id"] for item in INDUSTRIES},

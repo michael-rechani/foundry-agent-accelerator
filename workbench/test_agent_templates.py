@@ -271,8 +271,8 @@ class TemplateTests(unittest.TestCase):
                 "document-intake",
             ],
             "Check a supplier invoice for me.": [
-                "document-intake",
                 "supplier-invoice-reviewer",
+                "document-intake",
             ],
         }
         for goal, candidates in expected.items():

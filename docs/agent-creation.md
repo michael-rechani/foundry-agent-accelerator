@@ -314,10 +314,10 @@ name, or a sector, industry, task, readiness or model profile it doesn't know. T
 message names the file.
 
 1. Copy a similar file in `agents/`, rename it to the new id and edit it. Give it an
-   `order` no other agent uses; the library lists agents in `order`. Leave out
-   `definition_order`, which only the original 21 agents carry to keep the
-   `template_required` candidates in their established order. To retire an agent,
-   replace `order` with `"retired": true`.
+   `order` no other agent uses; the library lists agents in `order`, and a task that
+   matches more than one agent's trigger words gets them as `template_required`
+   candidates in the same order. To retire an agent, replace `order` with
+   `"retired": true`.
 2. From the `workbench` directory, run `python -m agent_templates.runtime_ids`. It
    rewrites `TEMPLATE_IDS` in `agent_runtime/demo_tools.py` from the agent files.
    That file ships inside the created agent's package and can't read the catalog, so

@@ -1,5 +1,6 @@
 import contextlib
 import io
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -29,6 +30,22 @@ class RuntimeIdsTests(unittest.TestCase):
         longer = runtime_ids.updated(source, [*TEMPLATES, "a-new-text-only-agent"])
         self.assertIn('"a-new-text-only-agent",', longer)
         self.assertEqual(runtime_ids.updated(longer, TEMPLATES), source)
+
+    def test_ids_keep_their_place_when_the_library_order_changes(self):
+        source = runtime_ids.DEMO_TOOLS.read_bytes().decode("utf-8")
+        self.assertEqual(runtime_ids.updated(source, reversed(list(TEMPLATES))), source)
+        self.assertEqual(runtime_ids.updated(source, sorted(TEMPLATES)), source)
+
+    def test_a_removed_id_leaves_the_list_and_a_new_id_goes_last(self):
+        source = runtime_ids.DEMO_TOOLS.read_bytes().decode("utf-8")
+        first = next(iter(TEMPLATES))
+
+        def listed(text):
+            return re.findall(r'"([^"]+)"', runtime_ids._LITERAL.search(text).group(0))
+
+        without = runtime_ids.updated(source, [identifier for identifier in TEMPLATES if identifier != first])
+        self.assertNotIn(first, listed(without))
+        self.assertEqual(listed(runtime_ids.updated(without, TEMPLATES))[-1], first)
 
     def test_a_stale_list_fails_the_check_until_it_is_rewritten(self):
         with tempfile.TemporaryDirectory() as directory:

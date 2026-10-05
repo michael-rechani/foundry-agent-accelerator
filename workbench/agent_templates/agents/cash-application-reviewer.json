@@ -1,7 +1,6 @@
 {
   "id": "cash-application-reviewer",
   "order": 120,
-  "definition_order": 140,
   "template": {
     "model_profile": "extraction",
     "label": "Payment matcher",

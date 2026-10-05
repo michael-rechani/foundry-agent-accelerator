@@ -14,7 +14,7 @@ from typing import NamedTuple
 AGENTS_DIRECTORY = Path(__file__).resolve().parent / "agents"
 
 _ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
-_TOP_FIELDS = {"id", "order", "retired", "definition_order", "template", "metadata", "match"}
+_TOP_FIELDS = {"id", "order", "retired", "template", "metadata", "match"}
 _TEMPLATE_FIELDS = ("model_profile", "label", "description", "input", "output", "limits", "delegation",
                     "instructions", "example_request", "sample_input", "tools")
 _METADATA_FIELDS = ("sector", "industry", "tasks", "summary", "expected_behavior", "human_decision", "keywords",
@@ -37,7 +37,6 @@ class Library(NamedTuple):
 class _Agent(NamedTuple):
     id: str
     order: int | None
-    definition_order: int | None
     template: dict
     metadata: dict
     matcher: tuple
@@ -111,8 +110,6 @@ def _read(path, vocabulary):
         if retired == ("order" in document):
             raise ValueError("a listed agent needs an order, and a retired one has none")
         order = None if retired else _position(document["order"], "order")
-        definition_order = (_position(document["definition_order"], "definition_order")
-                            if "definition_order" in document else None)
 
         source = _object(document["template"], "template", _TEMPLATE_FIELDS)
         # Key order is part of the served catalog's shape; `id` and `category` come from the file name and sector.
@@ -139,7 +136,7 @@ def _read(path, vocabulary):
     except (OSError, ValueError, re.error) as problem:
         raise AgentFileError(f"{path.name}: {problem}") from problem
     template = {"id": identifier, "category": vocabulary["sectors"][metadata["sector"]], **template}
-    return _Agent(identifier, order, definition_order, template, metadata, matcher)
+    return _Agent(identifier, order, template, metadata, matcher)
 
 
 def _unique(agents, field):
@@ -158,15 +155,12 @@ def load_agents(directory, vocabulary):
         raise AgentFileError(f"No agent files in {directory}")
     agents = [_read(path, vocabulary) for path in paths]
     _unique(agents, "order")
-    _unique(agents, "definition_order")
-    # `definition_order` keeps the order that the catalog's tables and the trigger-word candidates have always had.
-    # An agent without one sorts after those that have one, in library order, with retired agents last.
-    definition = sorted(agents, key=lambda agent: (agent.definition_order or math.inf, agent.order or math.inf, agent.id))
-    listed = sorted((agent for agent in agents if agent.order is not None), key=lambda agent: agent.order)
+    # The tables, and so the trigger-word candidates, follow the library's order, with retired agents last.
+    ordered = sorted(agents, key=lambda agent: (agent.order or math.inf, agent.id))
     return Library(
-        templates={agent.id: agent.template for agent in definition},
-        metadata={agent.id: agent.metadata for agent in definition},
-        matchers={agent.id: agent.matcher for agent in definition},
-        library_order=tuple(agent.id for agent in listed),
+        templates={agent.id: agent.template for agent in ordered},
+        metadata={agent.id: agent.metadata for agent in ordered},
+        matchers={agent.id: agent.matcher for agent in ordered},
+        library_order=tuple(agent.id for agent in ordered if agent.order is not None),
         retired=frozenset(agent.id for agent in agents if agent.order is None),
     )

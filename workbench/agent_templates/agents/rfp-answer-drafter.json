@@ -1,7 +1,6 @@
 {
   "id": "rfp-answer-drafter",
   "order": 100,
-  "definition_order": 170,
   "template": {
     "model_profile": "reasoning",
     "label": "RFP answer drafter",

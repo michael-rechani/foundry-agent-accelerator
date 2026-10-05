@@ -1,7 +1,6 @@
 {
   "id": "casework-assistant",
   "order": 150,
-  "definition_order": 40,
   "template": {
     "model_profile": "reasoning",
     "label": "Case summary writer",

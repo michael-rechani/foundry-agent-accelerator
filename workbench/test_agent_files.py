@@ -69,6 +69,12 @@ class AgentFileTests(unittest.TestCase):
             document = json.loads((AGENTS_DIRECTORY / f"{identifier}.json").read_text(encoding="utf-8"))
             self.assertEqual(document["id"], identifier)
 
+    def test_the_catalog_tables_follow_the_library_order_with_retired_agents_last(self):
+        expected = [*LIBRARY_ORDER, *sorted(RETIRED_TEMPLATES)]
+        self.assertEqual(list(TEMPLATES), expected)
+        self.assertEqual(list(TEMPLATE_METADATA), expected)
+        self.assertEqual(list(_MATCHERS), expected)
+
     def test_a_file_becomes_a_template_its_metadata_and_a_matcher(self):
         self.write(agent())
         library = self.load()
@@ -97,16 +103,16 @@ class AgentFileTests(unittest.TestCase):
         self.assertEqual(library.library_order, ("first-agent", "last-agent"))
         self.assertEqual(library.retired, {"old-agent"})
         self.assertEqual(list(library.templates), ["first-agent", "last-agent", "old-agent"])
-
-    def test_definition_order_keeps_the_established_order_and_new_agents_follow(self):
-        self.write(agent("new-agent", order=10))
-        self.write(agent("old-b", order=20, definition_order=20))
-        self.write(agent("old-a", order=30, definition_order=10))
-        library = self.load()
-        self.assertEqual(list(library.templates), ["old-a", "old-b", "new-agent"])
         self.assertEqual(list(library.metadata), list(library.templates))
         self.assertEqual(list(library.matchers), list(library.templates))
-        self.assertEqual(library.library_order, ("new-agent", "old-b", "old-a"))
+
+    def test_retired_agents_follow_the_listed_ones_by_id(self):
+        for identifier in ("zeta-agent", "alpha-agent"):
+            retired = agent(identifier, retired=True)
+            del retired["order"]
+            self.write(retired)
+        self.write(agent("only-agent", order=50))
+        self.assertEqual(list(self.load().templates), ["only-agent", "alpha-agent", "zeta-agent"])
 
     def test_a_directory_without_agents_is_an_error(self):
         with self.assertRaisesRegex(AgentFileError, "No agent files"):
@@ -157,7 +163,7 @@ class AgentFileTests(unittest.TestCase):
             "retired is not a flag": (agent() | {"retired": "yes"}, "retired must be true"),
             "order is zero": (agent() | {"order": 0}, "order must be a whole number"),
             "order is a flag": (agent() | {"order": True}, "order must be a whole number"),
-            "definition order is text": (agent() | {"definition_order": "1"}, "definition_order must be a whole number"),
+            "dropped definition order": (agent() | {"definition_order": 1}, "unknown field definition_order"),
             "id is not a slug": (agent("Sample_Agent"), "id must be lowercase words"),
         }
         for name, (document, expected) in cases.items():
@@ -175,12 +181,9 @@ class AgentFileTests(unittest.TestCase):
                             name="sample-agent")
 
     def test_two_agents_cannot_share_a_place(self):
-        self.write(agent("one-agent", order=10, definition_order=1))
-        self.write(agent("two-agent", order=10, definition_order=2))
+        self.write(agent("one-agent", order=10))
+        self.write(agent("two-agent", order=10))
         with self.assertRaisesRegex(AgentFileError, r"two-agent.json: order 10 is already used by one-agent"):
-            self.load()
-        self.write(agent("two-agent", order=20, definition_order=1))
-        with self.assertRaisesRegex(AgentFileError, r"two-agent.json: definition_order 1 is already used by one-agent"):
             self.load()
 
     def test_adding_one_file_adds_an_agent_to_the_whole_catalog(self):

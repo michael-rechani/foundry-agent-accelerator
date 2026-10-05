@@ -1,7 +1,6 @@
 {
   "id": "criteria-checker",
   "order": 80,
-  "definition_order": 20,
   "template": {
     "model_profile": "reasoning",
     "label": "Checklist gap finder",

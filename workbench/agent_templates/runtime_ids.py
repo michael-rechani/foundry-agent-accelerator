@@ -7,7 +7,9 @@ generated, not edited by hand. From the `workbench` directory:
     python -m agent_templates.runtime_ids           # rewrite the literal from the catalog
     python -m agent_templates.runtime_ids --check   # exit 1 if it is out of date, changing nothing
 
-The rewrite changes only the literal, and leaves the file's line endings alone. A test runs the check.
+The rewrite changes only the literal, and leaves the file's line endings alone. Ids already in the literal keep
+their place and new ones are added at the end, so the file the package hash covers changes only when an id is
+added or removed. A test runs the check.
 """
 
 import re
@@ -31,12 +33,17 @@ def render(identifiers, newline="\n"):
 
 
 def updated(source, identifiers):
-    """`source` with its `TEMPLATE_IDS` statement written from `identifiers`."""
+    """`source` with its `TEMPLATE_IDS` statement written from `identifiers`. Ids already in the statement keep
+    their place and new ones follow, so adding or reordering library agents never moves the text the package hash
+    covers; only an id that is added or removed changes it."""
     found = _LITERAL.findall(source)
     if len(found) != 1:
         raise ValueError("demo_tools.py must hold exactly one 'TEMPLATE_IDS = frozenset({ ... })' statement")
     newline = "\r\n" if "\r\n" in found[0] else "\n"
-    return _LITERAL.sub(lambda _: render(identifiers, newline), source)
+    wanted = list(identifiers)
+    kept = [identifier for identifier in re.findall(r'"([^"]+)"', found[0]) if identifier in wanted]
+    ordered = kept + [identifier for identifier in wanted if identifier not in kept]
+    return _LITERAL.sub(lambda _: render(ordered, newline), source)
 
 
 def main(arguments, path=DEMO_TOOLS, identifiers=None):
