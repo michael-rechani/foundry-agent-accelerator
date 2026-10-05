@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { addOnRules, addOns } from '../src/add-on-catalog.ts'
+import {
+  addOnRules,
+  addOns,
+  codingAgentRequest,
+} from '../src/add-on-catalog.ts'
 
 const everyText = () =>
   [
@@ -94,6 +98,33 @@ describe('add-ons catalogue', () => {
     ])
       assert.match(rules, rule)
     assert.match(rules, /explicit approval/)
+  })
+
+  it('builds a request that drafts a package and never deploys', () => {
+    for (const item of addOns) {
+      const request = codingAgentRequest(item)
+      assert.ok(request.includes(`"${item.name}"`), `${item.id} name`)
+      assert.ok(request.includes(`addons/${item.id}/addon.json`), item.id)
+      for (const line of [...item.needs, ...item.cost])
+        assert.ok(request.includes(`- ${line}`), `${item.id}: ${line}`)
+      assert.match(request, /docs\/addon-package-format\.md/)
+      assert.match(request, /python addons\/check_addons\.py/)
+      assert.match(request, /Do not:/)
+      assert.match(request, /Run terraform apply, deploy anything/)
+      assert.match(request, /A person reviews and approves the saved plan/)
+      assert.match(request, /public network access, a public IP, keys/)
+    }
+  })
+
+  it('limits an add-on that needs approval to the approval request', () => {
+    for (const item of addOns)
+      assert.equal(
+        codingAgentRequest(item).includes(
+          'Draft the request for that approval only',
+        ),
+        Boolean(item.approval),
+        `${item.id} approval`,
+      )
   })
 
   it('uses the Lab wording: sample data, no invented brands', () => {
