@@ -393,12 +393,14 @@ issue's checkbox to say so.
   (`definition_order`). Callers iterated `TEMPLATES` and the matchers in the second
   one, and the `template_required` answer listed its `candidates` in it. Now there
   is one order. The tables follow `order`, with retired agents last by id, and
-  `candidates` come in the order the library lists the agents. The one visible
-  change: a task that matches both `document-intake` and `supplier-invoice-reviewer`
-  now lists `supplier-invoice-reviewer` first, because the library does. Nothing in
-  the Lab's front end reads that order, and the served library and the frontend
-  snapshot are unchanged. A file that still has a `definition_order` field is
-  refused as an unknown field.
+  `candidates` come in the order the library lists the agents. So `candidates`
+  changes order whenever a task matches several agents. For example,
+  `supplier-invoice-reviewer` now comes before `document-intake`, and
+  `expense-report-checker` before `document-analyst` or `criteria-checker`. The set
+  of candidates and the agent chosen for a task that matches one agent are the same
+  as before. Nothing in the Lab's front end reads that order, and the served library
+  and the frontend snapshot are unchanged. A file that still has a
+  `definition_order` field is refused as an unknown field.
 - **A new agent still touches a few places, and the issue's checkbox is reworded
   to say so.** A text-only agent is one file, a run of
   `python -m agent_templates.runtime_ids`, its cases in
