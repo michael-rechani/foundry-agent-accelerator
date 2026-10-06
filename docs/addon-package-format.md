@@ -228,6 +228,16 @@ check fails when the file is out of date, the way the
 [catalog snapshot](../workbench/frontend/README.md#library-performance-and-log-coverage)
 test does for the agent library.
 
+Each card also has a **Copy request for your coding agent** button, shown with
+Under the hood on. It copies a request built from the manifest: draft this
+add-on's package under `addons/<id>/` in a pull request, keep it private and
+keyless, run the check and tests, never run `terraform apply`, deploy, make a
+billable call or create anything public, and leave the saved plan for a person
+to approve. An add-on marked as needing approval gets a request for that
+approval only. The button copies text and calls nothing. The wording lives in
+`codingAgentRequest` in
+[`add-on-catalog.ts`](../workbench/frontend/src/add-on-catalog.ts).
+
 ## Add or change an add-on
 
 1. Add `addons/<id>/addon.json`, or edit the existing one.

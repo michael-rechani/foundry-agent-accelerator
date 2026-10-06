@@ -336,7 +336,7 @@ export default function ChatWorkspace() {
             onUse={(item) => newChat(item.id)}
           />
         )}
-        {view === 'addons' && <AddOns />}
+        {view === 'addons' && <AddOns onNotice={setNotice} />}
         {view === 'explore' ? (
           config && (
             <ExploreDemos

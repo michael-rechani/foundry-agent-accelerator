@@ -1,6 +1,7 @@
 import {
   Brain,
   Calculator,
+  Copy,
   Globe,
   Info,
   Mail,
@@ -12,6 +13,7 @@ import {
 import {
   addOnRules,
   addOns,
+  codingAgentRequest,
   type AddOn,
   type AddOnIcon,
 } from './add-on-catalog'
@@ -26,7 +28,7 @@ const icons: Record<AddOnIcon, LucideIcon> = {
   web: Globe,
 }
 
-export function AddOns() {
+export function AddOns({ onNotice }: { onNotice: (text: string) => void }) {
   return (
     <main className="secondary-view library-view" aria-label="Add-ons">
       <header className="library-hero">
@@ -62,7 +64,7 @@ export function AddOns() {
       <ul className="library-grid addon-grid" aria-label="Add-ons">
         {addOns.map((addOn) => (
           <li key={addOn.id}>
-            <AddOnCard addOn={addOn} />
+            <AddOnCard addOn={addOn} onNotice={onNotice} />
           </li>
         ))}
       </ul>
@@ -70,9 +72,24 @@ export function AddOns() {
   )
 }
 
-function AddOnCard({ addOn }: { addOn: AddOn }) {
+function AddOnCard({
+  addOn,
+  onNotice,
+}: {
+  addOn: AddOn
+  onNotice: (text: string) => void
+}) {
   const Icon = icons[addOn.icon]
   const titleId = `addon-${addOn.id}`
+
+  async function copyRequest() {
+    try {
+      await navigator.clipboard.writeText(codingAgentRequest(addOn))
+      onNotice('Request for your coding agent copied.')
+    } catch {
+      onNotice('Clipboard unavailable. Nothing was copied.')
+    }
+  }
   return (
     <article className="addon-card" aria-labelledby={titleId}>
       <span className="library-kicker">
@@ -132,6 +149,20 @@ function AddOnCard({ addOn }: { addOn: AddOn }) {
           <dd>Add-ons roadmap (#54)</dd>
         </div>
       </dl>
+      <div className="addon-request hood-only">
+        <button
+          type="button"
+          className="library-secondary"
+          onClick={copyRequest}
+        >
+          <Copy size={16} aria-hidden="true" /> Copy request for your coding
+          agent
+        </button>
+        <p className="library-muted">
+          Asks a coding agent to draft this add-on's package in a pull request.
+          Nothing is deployed, and a person approves any apply.
+        </p>
+      </div>
     </article>
   )
 }

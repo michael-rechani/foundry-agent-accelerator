@@ -1215,6 +1215,16 @@
   color: var(--text-secondary);
   overflow-wrap: anywhere;
 }
+.addon-request {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin-top: 4px;
+}
+.addon-request p {
+  margin: 0;
+  font-size: 12px;
+}
 @media (max-width: 1050px) {
   .library-layout {
     grid-template-columns: minmax(0, 1fr);

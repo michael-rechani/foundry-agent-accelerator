@@ -335,6 +335,32 @@ test('the Add-ons tab previews what an agent could connect to without calling an
   ).toBeVisible()
 })
 
+test('an add-on card copies a request for a coding agent and calls nothing', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  const state = await openLibrary(page)
+  await libraryNav(page).getByRole('button', { name: 'Add-ons' }).click()
+  const card = page.locator('.addon-card').nth(1)
+  await card
+    .getByRole('button', { name: /Copy request for your coding agent/ })
+    .click()
+  await expect(
+    page.getByText('Request for your coding agent copied.'),
+  ).toBeVisible()
+  const request = await page.evaluate(() => navigator.clipboard.readText())
+  const manifest = addOnManifests[1]
+  expect(request).toContain(`Draft the "${manifest.name}" add-on package`)
+  expect(request).toContain(`addons/${manifest.id}/addon.json`)
+  expect(request).toContain('docs/addon-package-format.md')
+  expect(request).toContain('Run terraform apply, deploy anything')
+  expect(request).toContain('A person reviews and approves the saved plan')
+  expect(state.chat).toHaveLength(0)
+  expect(state.creations).toBe(0)
+  expect(state.drafts).toBe(0)
+})
+
 test('the Add-ons tab shows every add-on manifest in the repository, in order', async ({
   page,
 }) => {

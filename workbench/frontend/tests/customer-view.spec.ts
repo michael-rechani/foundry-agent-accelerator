@@ -106,10 +106,16 @@ test('add-on technical details stay hidden until Under the hood is on', async ({
   await expect(first).toContainText('What it would cost')
   await expect(first.getByText('Azure AI Search')).toBeHidden()
   await expect(first.getByText('Add-ons roadmap (#54)')).toBeHidden()
+  await expect(
+    first.getByRole('button', { name: /Copy request for your coding agent/ }),
+  ).toBeHidden()
 
   await hoodSwitch(page).check()
   await expect(first.getByText('Azure AI Search')).toBeVisible()
   await expect(first.getByText('Add-ons roadmap (#54)')).toBeVisible()
+  await expect(
+    first.getByRole('button', { name: /Copy request for your coding agent/ }),
+  ).toBeVisible()
 })
 
 test('Foundry links appear only under the hood', async ({ page }) => {
