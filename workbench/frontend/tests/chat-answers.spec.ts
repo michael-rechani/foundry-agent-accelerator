@@ -10,7 +10,7 @@ test('while waiting, Chat says what the agent returns and reassures after a long
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect.poll(() => state.requests.length).toBe(1)
   const waiting = page.getByRole('status').filter({ hasText: 'Awaiting' })
-  await expect(waiting).toContainText('What you get')
+  await expect(waiting).toContainText('Expect:')
   await expect(waiting).toContainText(agent.guidance!.output)
   await expect(waiting).not.toContainText('Still working')
   await page.clock.runFor(20001)

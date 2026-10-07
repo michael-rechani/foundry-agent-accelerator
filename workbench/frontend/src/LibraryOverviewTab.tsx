@@ -54,9 +54,9 @@ export function LibraryOverviewTab({
       </dl>
       <div className="library-columns">
         <section className="library-panel">
-          <h2>What you give it</h2>
+          <h2>What to give it</h2>
           <p>{template.input}</p>
-          <h2>What you get back</h2>
+          <h2>What it returns</h2>
           <p>{template.output}</p>
           <h2>What a good answer does</h2>
           <p>{template.expected_behavior}</p>

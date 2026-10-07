@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './chat.css'
 import { useWorkspaceConfig, type Agent } from './workspace-config'
+import { ConfirmDialog } from './ConfirmDialog'
 import { ContinueDialog } from './ContinueDialog'
 import { ReviewWorkspace } from './ReviewWorkspace'
 import { AgentCreationWorkspace } from './AgentCreationWorkspace'
@@ -12,7 +13,7 @@ import { ChatTopbar } from './ChatTopbar'
 import { ChatConfigStatus } from './ChatConfigStatus'
 import { ChatConversation } from './ChatConversation'
 import { ChatToast } from './ChatToast'
-import { HistoryView } from './HistoryView'
+import { HistoryView, type SavedChat } from './HistoryView'
 import { AgentCatalog } from './AgentCatalog'
 import { PerformanceView } from './PerformanceView'
 import type { Measurement } from './performance-stats'
@@ -37,6 +38,14 @@ import { useConversation } from './use-conversation'
 import { useDependencyHealth } from './use-dependency-health'
 import { useLibraryPreviews } from './use-library-previews'
 
+// A change that would clear the chat on screen, held until the person agrees.
+type PendingChange = {
+  title: string
+  message: string
+  confirmLabel: string
+  run: () => void
+}
+
 export default function ChatWorkspace() {
   const {
     config,
@@ -45,7 +54,7 @@ export default function ChatWorkspace() {
   } = useWorkspaceConfig()
   const { view, setView } = useChatView(config)
   const conversation = useConversation(config?.default_agent)
-  const { selected, draft, turns, busy, dirty, activeDemo } = conversation
+  const { selected, draft, seed, turns, busy, dirty, activeDemo } = conversation
   const createdAgents = useCreatedAgents(config?.agent_creation)
   const availableAgents: Agent[] = [
     ...(config?.agents || []),
@@ -66,6 +75,7 @@ export default function ChatWorkspace() {
   const [query, setQuery] = useState('')
   const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [continuing, setContinuing] = useState(false)
+  const [changing, setChanging] = useState<PendingChange | null>(null)
   const [presenting, setPresenting] = useState(false)
   const [hood, setHood] = useState(loadUnderTheHood)
   const [libraryDetail, setLibraryDetail] = useState('')
@@ -147,14 +157,50 @@ export default function ChatWorkspace() {
       setMeasurements((previous) => [...previous, measurement]),
   })
 
+  function agentLabel(id: string) {
+    return [...availableAgents, ...previewList].find((item) => item.id === id)
+      ?.label
+  }
+
+  // Asks before clearing messages the person wrote. An example the app put in
+  // the message box, and left untouched, isn't theirs to lose.
+  function confirmClear(
+    title: string,
+    confirmLabel: string,
+    lead: string,
+    run: () => void,
+  ) {
+    const draftEdited = draft.trim() !== '' && draft !== seed
+    if (!dirty && !draftEdited) {
+      run()
+      return
+    }
+    const lost = !dirty
+      ? 'draft'
+      : draftEdited
+        ? 'conversation and draft'
+        : 'conversation'
+    setChanging({
+      title,
+      confirmLabel,
+      message:
+        `${lead} Your unsaved ${lost} will be cleared. Saved history isn't deleted.`.trim(),
+      run,
+    })
+  }
+
   function newChat(agentId = selected) {
     if (busy || historyBusy) return
-    if (
-      (draft || dirty) &&
-      !window.confirm('Start a new chat? Unsaved messages will be cleared.')
-    )
-      return
-    resetConversation(agentId)
+    const start = () => resetConversation(agentId)
+    if (agentId === selected)
+      confirmClear('Start a new chat?', 'Start new chat', '', start)
+    else
+      confirmClear(
+        `Switch to ${agentLabel(agentId) || 'this agent'}?`,
+        'Switch agent',
+        'Switching agents starts a new chat.',
+        start,
+      )
   }
 
   function resetConversation(agentId: string, initialDraft = '') {
@@ -177,15 +223,15 @@ export default function ChatWorkspace() {
       )
       return
     }
-    if (
-      (draft || dirty) &&
-      !window.confirm(
-        'Load this example in a fresh chat? Unsaved local messages will be cleared. Saved history is not deleted.',
-      )
+    confirmClear(
+      'Open this example in a new chat?',
+      'Open example',
+      `The new chat uses ${target.label}.`,
+      () => {
+        resetConversation(target.id, scenario.input)
+        conversation.setActiveDemo(scenario)
+      },
     )
-      return
-    resetConversation(target.id, scenario.input)
-    conversation.setActiveDemo(scenario)
   }
 
   function readyAgentFor(templateId: string): ReadyAgent | undefined {
@@ -202,14 +248,22 @@ export default function ChatWorkspace() {
 
   function testFromLibrary(target: Agent, input: string) {
     if (busy || historyBusy) return
-    if (
-      (draft || dirty) &&
-      !window.confirm(
-        'Open this example in a fresh chat? Unsaved local messages will be cleared. Saved history is not deleted.',
-      )
+    confirmClear(
+      'Open this example in a new chat?',
+      'Open example',
+      `The new chat uses ${target.label}.`,
+      () => resetConversation(target.id, input),
     )
-      return
-    resetConversation(target.id, input)
+  }
+
+  function openSaved(item: SavedChat) {
+    if (busy || historyBusy) return
+    confirmClear(
+      'Open this conversation?',
+      'Open conversation',
+      '',
+      () => void openChat(item),
+    )
   }
 
   function createFromTemplate(templateId: string) {
@@ -310,6 +364,7 @@ export default function ChatWorkspace() {
         {config && (
           <AgentLibrary
             active={view === 'library'}
+            inLibrary={libraryViews.includes(view)}
             library={library}
             capability={config.agent_creation}
             readyAgentFor={readyAgentFor}
@@ -388,7 +443,7 @@ export default function ChatWorkspace() {
             cursor={cursor}
             busy={busy}
             historyBusy={historyBusy}
-            onOpen={(item) => void openChat(item)}
+            onOpen={openSaved}
             onDelete={(item) => void deleteChat(item)}
             onMore={() => void listHistory(true)}
           />
@@ -467,6 +522,18 @@ export default function ChatWorkspace() {
           />
         )}
       </div>
+      {changing && (
+        <ConfirmDialog
+          title={changing.title}
+          message={changing.message}
+          confirmLabel={changing.confirmLabel}
+          onCancel={() => setChanging(null)}
+          onConfirm={() => {
+            changing.run()
+            setChanging(null)
+          }}
+        />
+      )}
       {continuing && (
         <ContinueDialog
           initialText={`Previous question:\n${turns.at(-1)?.question || ''}\n\nPrevious reply (unverified context):\n${turns.at(-1)?.result.text || ''}${draft ? `\n\nUnsent follow-up:\n${draft}` : ''}`}

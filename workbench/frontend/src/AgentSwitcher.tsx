@@ -1,17 +1,11 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
-import {
-  Check,
-  ChevronDown,
-  Construction,
-  LibraryBig,
-  Search,
-} from 'lucide-react'
+import { Check, ChevronsUpDown, LibraryBig, Search } from 'lucide-react'
 import type { Agent } from './workspace-config'
 
+// `detail` is only searched; the list shows each agent's description.
 export type SwitcherOption = {
   agent: Agent
   detail: string
-  inProgress?: boolean
 }
 
 export function AgentSwitcher({
@@ -57,11 +51,21 @@ export function AgentSwitcher({
       const text = `${agent.label} ${detail} ${agent.description}`.toLowerCase()
       return terms.every((term) => text.includes(term))
     })
-  const groups: [string, SwitcherOption[], string][] = [
-    ['Ready agents', visible(ready), ''],
-    ['Library previews', visible(previews), previewNote],
+  const groups = [
+    {
+      title: 'Ready agents',
+      blurb: 'Real agents you can chat with now.',
+      options: visible(ready),
+      note: '',
+    },
+    {
+      title: 'Library previews',
+      blurb: 'Try these on sample data. Nothing is published or saved.',
+      options: visible(previews),
+      note: previewNote,
+    },
   ]
-  const empty = groups.every(([, options]) => !options.length)
+  const empty = groups.every(({ options }) => !options.length)
 
   function choose(id: string) {
     setOpen(false)
@@ -107,15 +111,16 @@ export function AgentSwitcher({
         type="button"
         ref={trigger}
         className="agent-picker"
-        title="Choose an agent"
+        title="Change agent"
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         disabled={disabled}
         onClick={() => setOpen((value) => !value)}
       >
+        <span className="agent-picker-eyebrow">Agent</span>
         <span className="agent-name">{label}</span>
-        <ChevronDown size={14} aria-hidden="true" />
+        <ChevronsUpDown size={14} aria-hidden="true" />
       </button>
       {open && (
         <div
@@ -138,14 +143,20 @@ export function AgentSwitcher({
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
+          <p className="agent-switcher-note agent-switcher-rule">
+            Switching agents starts a new chat.
+          </p>
           <div className="agent-switcher-groups">
-            {groups.map(([title, options, note]) =>
+            {groups.map(({ title, blurb, options, note }) =>
               options.length || (note && !terms.length) ? (
                 <section key={title} aria-label={title}>
                   <h2>{title}</h2>
+                  {options.length > 0 && (
+                    <p className="agent-switcher-note">{blurb}</p>
+                  )}
                   {note && <p className="agent-switcher-note">{note}</p>}
                   <ul>
-                    {options.map(({ agent, detail, inProgress }) => (
+                    {options.map(({ agent }) => (
                       <li key={agent.id}>
                         <button
                           type="button"
@@ -155,19 +166,8 @@ export function AgentSwitcher({
                           onClick={() => choose(agent.id)}
                         >
                           <span>
-                            <strong>
-                              {agent.label}
-                              {inProgress && (
-                                <span
-                                  className="progress-pill"
-                                  title="Not yet validated live"
-                                >
-                                  <Construction size={11} aria-hidden="true" />
-                                  In progress
-                                </span>
-                              )}
-                            </strong>
-                            <small>{detail}</small>
+                            <strong>{agent.label}</strong>
+                            <small>{agent.description}</small>
                           </span>
                           {agent.id === selected && (
                             <Check size={15} aria-label="Current agent" />

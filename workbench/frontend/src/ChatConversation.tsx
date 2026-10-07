@@ -68,6 +68,7 @@ export function ChatConversation({
 }) {
   const {
     draft,
+    seed,
     turns,
     pending,
     busy,
@@ -79,7 +80,13 @@ export function ChatConversation({
     setPending,
     setError,
     setActiveDemo,
+    prefill,
   } = conversation
+  const draftMode = !draft.trim()
+    ? 'empty'
+    : draft === seed
+      ? 'example'
+      : 'typed'
   return (
     <div className="conversation-layout">
       <main className="conversation-view">
@@ -99,6 +106,7 @@ export function ChatConversation({
           agentLabels={agentLabels}
           isPreview={isPreview}
           inProgress={welcomeInProgress}
+          draftMode={draftMode}
           presenting={presenting}
           busy={busy}
           historyBusy={historyBusy}
@@ -111,10 +119,11 @@ export function ChatConversation({
           onFreshDemo={onFreshDemo}
           onCloseDemo={() => setActiveDemo(null)}
           onPrompt={(text) => {
-            setDraft(text)
+            prefill(text)
             setActiveDemo(null)
             editor.current?.focus()
           }}
+          onClearExample={() => prefill('')}
           onCreateAgent={onCreateAgent}
           onCopy={onCopy}
           onDismissError={() => {

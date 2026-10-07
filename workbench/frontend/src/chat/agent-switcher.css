@@ -4,6 +4,7 @@
   min-width: 0;
 }
 .agent-switcher .agent-picker[aria-expanded='true'] {
+  border-color: var(--accent);
   color: var(--accent);
 }
 .agent-switcher-panel {
@@ -97,8 +98,18 @@
   font-weight: 650;
 }
 .agent-switcher-groups li small {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--muted);
   font-size: 11px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.agent-switcher-rule {
+  margin: -2px 10px 6px;
+  padding: 0;
 }
 .agent-switcher-groups li svg {
   color: var(--accent);

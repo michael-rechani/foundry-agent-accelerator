@@ -11,6 +11,11 @@ import { AgentGuide, AgentRuntime } from './AgentGuide'
 import { AgentSwitcher, type SwitcherOption } from './AgentSwitcher'
 import type { View } from './ChatSidebar'
 import { crumbs, libraryViews } from './navigation'
+import {
+  createFromPreviewNote,
+  previewBlurb,
+  publishedBlurb,
+} from './library-helpers'
 import { ThemePicker } from './ThemePicker'
 import type { Agent, Config } from './workspace-config'
 
@@ -117,11 +122,7 @@ export function ChatTopbar({
                 <h2>{agent.label}</h2>
                 <p>{agent.description}</p>
                 <AgentGuide agent={agent} />
-                <p>
-                  {isPreview
-                    ? 'Library preview: the Lab runs this definition on its model with sample lookups only. Nothing is published, and preview chats are not saved.'
-                    : 'This agent already has a published setup. Your message gives it a task; it does not change its tools or permanent instructions.'}
-                </p>
+                <p>{isPreview ? previewBlurb : publishedBlurb}</p>
                 <AgentRuntime
                   agent={agent}
                   foundryPortal={isPreview ? null : config?.foundry_portal}
@@ -130,7 +131,7 @@ export function ChatTopbar({
                   className="inline-link"
                   onClick={() => onView('catalog')}
                 >
-                  Choosing or changing an agent
+                  Change agent
                 </button>
               </aside>
             </details>
@@ -195,7 +196,7 @@ export function ChatTopbar({
             {onCreateThis ? (
               <button
                 className="topbar-button topbar-accent"
-                title="Preview chats can't be saved. Create this agent to save chats and take it to Foundry. Nothing is created until the last step."
+                title={createFromPreviewNote}
                 aria-label="Create this agent"
                 onClick={onCreateThis}
               >

@@ -17,8 +17,8 @@ export function AgentGuide({
       </p>
     )
   const entries = [
-    ['What you give it', agent.guidance.input],
-    ['What you get', agent.guidance.output],
+    ['What to give it', agent.guidance.input],
+    ['What it returns', agent.guidance.output],
     ...(!compact
       ? [
           ['How it works', agent.guidance.delegation],
@@ -113,25 +113,24 @@ export function ConfigurationGuide({
 }) {
   return (
     <details className="configuration-guide">
-      <summary>Can I create or change an agent here?</summary>
+      <summary>Can I change an agent or make a new one?</summary>
       <p>
-        A starter is just an example task and message, not a new agent. Editing
-        a Chat message does not change the agent&apos;s permanent setup.
+        Chatting never changes an agent. Examples only fill the message box, and
+        editing your message doesn&apos;t change how the agent works.
       </p>
       <p>
         {creation
-          ? "Create agent lets you describe a job, choose a prepared template and edit the new agent's name and task instructions. An operator must enable and explicitly confirm real publication in Foundry. Preparing a setup alone creates no resource."
-          : "Agent creation isn't turned on in this Lab. You can use the existing agents and their example tasks."}
+          ? "Create agent lets you describe a job, start from a template, and edit the new agent's name and instructions. Preparing a setup creates nothing. Publishing it to Foundry has to be turned on and confirmed by an operator."
+          : "Agent creation isn't turned on in this Lab. You can use the existing agents and their examples."}
       </p>
       {creation && onCreate && (
         <button className="inline-link" onClick={onCreate}>
-          Prepare an agent setup
+          Create an agent
         </button>
       )}
       <p>
-        Tools, source access, runtime code and the model remain
-        developer/operator settings. Existing deployed agents are not edited in
-        place by this UI.
+        The people who run the Lab choose each agent&apos;s tools, data access
+        and model. You can&apos;t edit a published agent from here.
       </p>
       <details className="configuration-sources">
         <summary>For developers: files and deployment settings</summary>

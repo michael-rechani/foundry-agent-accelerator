@@ -157,15 +157,20 @@ test('loading a demo preserves unsaved work until confirmed and never auto-sends
     .getByRole('textbox', { name: 'Message', exact: true })
     .fill('Keep my existing draft')
   await openLibraryTab(page, 'Guided demos')
-  page.once('dialog', (dialog) => dialog.dismiss())
+  const confirm = page.getByRole('dialog', {
+    name: 'Open this example in a new chat?',
+  })
   await page.getByRole('button', { name: 'Load sample input' }).click()
+  await expect(confirm).toContainText('Your unsaved draft will be cleared.')
+  await confirm.getByRole('button', { name: 'Cancel' }).click()
+  await expect(confirm).toHaveCount(0)
   await page.getByRole('button', { name: 'Go straight to Chat' }).click()
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toHaveValue('Keep my existing draft')
   await openLibraryTab(page, 'Guided demos')
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Load sample input' }).click()
+  await confirm.getByRole('button', { name: 'Open example' }).click()
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toHaveValue(demoScenarios[0].input)
@@ -207,10 +212,11 @@ test('presenter controls keep environment and human-review boundaries visible', 
   ).toBeVisible()
   await page.locator('.lab-info > summary').click()
   await screenshot(page, testInfo, 'presenter-view.png')
-  page.once('dialog', (dialog) => dialog.accept())
+  // The example is untouched, so starting it again asks nothing.
   await page
     .getByRole('button', { name: 'Start fresh with this example' })
     .click()
+  await expect(page.locator('dialog.confirm-dialog')).toHaveCount(0)
   expect(state.writes).toEqual([])
   await presenter.click()
   await expect(presenter).toHaveAttribute('aria-pressed', 'false')
@@ -244,7 +250,7 @@ for (const status of ['ready', 'failed'] as const) {
       .click()
     if (status === 'ready') {
       await page.getByRole('button', { name: 'Load sample input' }).click()
-      await expect(page.locator('.agent-picker')).toHaveText(
+      await expect(page.locator('.agent-picker .agent-name')).toHaveText(
         'Fictional invoice helper',
       )
       await expect(

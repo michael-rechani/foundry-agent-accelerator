@@ -171,9 +171,9 @@ export function ChatComposer({
                   </dd>
                 </div>
                 <div>
-                  <dt>Replies</dt>
+                  <dt>Reply limit</dt>
                   <dd>
-                    {turnCount} / {config.max_history_turns + 1}
+                    {turnCount} of {config.max_history_turns + 1} used
                   </dd>
                 </div>
               </dl>

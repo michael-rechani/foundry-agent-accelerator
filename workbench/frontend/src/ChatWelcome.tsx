@@ -1,10 +1,30 @@
+import { useEffect, useRef } from 'react'
 import { ArrowRight, Construction, FlaskConical } from 'lucide-react'
 import { AgentGuide } from './AgentGuide'
+import { agentKind, inProgressNote, previewBlurb } from './library-helpers'
 import type { Agent, Config } from './workspace-config'
+
+// What is in the message box: nothing, an example the app put there, or the
+// person's own words.
+export type DraftMode = 'empty' | 'example' | 'typed'
 
 const snippet = (text: string) => {
   const flat = text.replace(/\s+/g, ' ').trim()
   return flat.length > 110 ? `${flat.slice(0, 107).trimEnd()}…` : flat
+}
+
+function welcomeHint(preview: boolean, draftMode: DraftMode) {
+  if (preview)
+    return draftMode === 'empty'
+      ? 'Local preview: examples fill the message box. No model calls or saved records.'
+      : draftMode === 'example'
+        ? 'Local preview: your example is in the message box. No model calls or saved records.'
+        : 'Local preview. No model calls or saved records.'
+  return draftMode === 'empty'
+    ? 'Pick an example to fill the message box, or type your own. Nothing is sent until you press Send.'
+    : draftMode === 'example'
+      ? 'Your example is in the message box below. Edit it if you like. Nothing is sent until you press Send.'
+      : 'Nothing is sent until you press Send.'
 }
 
 export function ChatWelcome({
@@ -12,28 +32,41 @@ export function ChatWelcome({
   config,
   isPreview,
   inProgress = false,
+  draftMode,
   onPrompt,
+  onClearExample,
   onCreateAgent,
 }: {
   agent?: Agent
   config: Config | null
   isPreview: boolean
   inProgress?: boolean
+  draftMode: DraftMode
   onPrompt: (text: string) => void
+  onClearExample?: () => void
   onCreateAgent?: () => void
 }) {
+  const canSwapExample =
+    draftMode === 'example' &&
+    (agent?.prompts.length ?? 0) > 1 &&
+    !!onClearExample
+  const options = useRef<HTMLDivElement>(null)
+  const refocusOptions = useRef(false)
+  // The link that cleared the example is gone, so hand focus to the examples.
+  useEffect(() => {
+    if (draftMode !== 'empty' || !refocusOptions.current) return
+    refocusOptions.current = false
+    options.current?.querySelector('button')?.focus()
+  }, [draftMode])
   return (
     <div className="chat-welcome">
       {agent && (
         <div className="welcome-tags">
           <span className={`welcome-kind${isPreview ? ' preview' : ''}`}>
-            {isPreview ? 'Library preview' : agent.category}
+            {agentKind(agent)}
           </span>
           {inProgress && (
-            <span
-              className="progress-pill"
-              title="Passes offline tests; not yet validated against a live model"
-            >
+            <span className="progress-pill" title={inProgressNote}>
               <Construction size={12} aria-hidden="true" /> In progress
             </span>
           )}
@@ -42,18 +75,11 @@ export function ChatWelcome({
       <h1>{agent?.label || 'Connecting to your workspace'}</h1>
       {agent && <p>{agent.description}</p>}
       {agent && <AgentGuide agent={agent} compact />}
-      {isPreview && (
-        <p className="welcome-preview-note">
-          This preview runs the library definition on the Lab&apos;s model with
-          sample lookups only. Nothing is published, and preview chats are not
-          saved. It calls the model directly rather than running as a hosted
-          agent, so test the created agent before handing it to a customer.
-        </p>
-      )}
-      {!!agent?.prompts.length && (
+      {isPreview && <p className="welcome-preview-note">{previewBlurb}</p>}
+      {draftMode === 'empty' && !!agent?.prompts.length && (
         <>
           <h2 className="welcome-examples-title">Start with an example</h2>
-          <div className="prompt-options">
+          <div className="prompt-options" ref={options}>
             {agent.prompts.map((prompt, index) => (
               <button
                 key={prompt.label}
@@ -77,18 +103,31 @@ export function ChatWelcome({
       )}
       {agent && (
         <p className="welcome-hint">
-          {config?.mode === 'preview'
-            ? 'Local preview: examples fill the message box. No model calls or saved records.'
-            : 'An example fills the message box so you can edit it. Nothing is sent until you press Send.'}
+          {welcomeHint(config?.mode === 'preview', draftMode)}
+          {canSwapExample && (
+            <>
+              {' '}
+              <button
+                type="button"
+                className="inline-link"
+                onClick={() => {
+                  refocusOptions.current = true
+                  onClearExample?.()
+                }}
+              >
+                Choose a different example
+              </button>
+            </>
+          )}
         </p>
       )}
       {agent && onCreateAgent && (
         <p className="welcome-hint welcome-create">
-          Want a new agent? Chat can&apos;t make one.{' '}
+          Need something else?{' '}
           <button type="button" className="inline-link" onClick={onCreateAgent}>
-            Open Create agent
+            Create an agent
           </button>{' '}
-          to build one from a template.
+          from a template.
         </p>
       )}
     </div>

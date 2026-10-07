@@ -106,7 +106,7 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
     .filter({
       has: page.getByRole('heading', { name: caseAgent.label, exact: true }),
     })
-    .getByRole('button', { name: 'Start chat' })
+    .getByRole('button', { name: 'Chat with this agent' })
     .click()
   const editor = page.getByRole('textbox', { name: 'Message', exact: true })
   await editor.fill('Fictional case notes only for Chat, not review evidence')
@@ -163,7 +163,9 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   expect(state.executions).toBe(0)
   expect(state.chatRequests).toBe(0)
   await navigation.getByRole('button', { name: 'Chat', exact: true }).click()
-  await expect(page.locator('.agent-picker')).toHaveText(caseAgent.label)
+  await expect(page.locator('.agent-picker .agent-name')).toHaveText(
+    caseAgent.label,
+  )
   await expect(editor).toHaveValue(
     'Fictional case notes only for Chat, not review evidence',
   )

@@ -76,7 +76,7 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
 
   await page
     .getByRole('banner')
-    .getByTitle('Choose an agent', { exact: true })
+    .getByTitle('Change agent', { exact: true })
     .click()
   const switcher = page.getByRole('dialog', { name: 'Choose an agent' })
   await expect(switcher).toBeVisible()
@@ -98,7 +98,7 @@ test('default helper explains its job and offers example tasks without auto-send
   const state = await openWorkspace(page, {
     config: { agents: [guidedReview] },
   })
-  await expect(page.locator('.agent-picker')).toHaveText(
+  await expect(page.locator('.agent-picker .agent-name')).toHaveText(
     'Checklist and case helper',
   )
   await expect(page.locator('.chat-welcome')).not.toContainText(
@@ -127,6 +127,17 @@ test('default helper explains its job and offers example tasks without auto-send
     await expect(editor).toHaveValue(prompt.text)
     await expect(editor).toBeFocused()
     expect(state.requests).toHaveLength(0)
+    // With an example in the message box the cards step aside. A link brings
+    // them back, so picking another never overwrites the box silently.
+    await expect(page.locator('.prompt-options')).toHaveCount(0)
+    await expect(page.locator('.welcome-hint')).toContainText(
+      'Your example is in the message box below.',
+    )
+    await page
+      .getByRole('button', { name: 'Choose a different example' })
+      .click()
+    await expect(editor).toHaveValue('')
+    await expect(page.locator('.prompt-options button').first()).toBeFocused()
   }
   await openLibraryTab(page, /^Ready to chat/)
   await expect(page.locator('.catalog-agent')).toHaveCount(1)

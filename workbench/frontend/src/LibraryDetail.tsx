@@ -10,6 +10,7 @@ import { Badges } from './LibraryBadges'
 import { LibraryExportTab } from './LibraryExportTab'
 import {
   inProgress,
+  inProgressNote,
   runTemplateChat,
   storesOpenChat,
   type LibraryTab,
@@ -107,8 +108,8 @@ export function LibraryDetail({
         <div className="library-progress" role="note">
           <Construction size={18} aria-hidden="true" />
           <p>
-            <strong>In progress. </strong>A person hasn&apos;t signed off on its
-            test answers yet. Try it with sample data; answers may change.
+            <strong>In progress. </strong>
+            {inProgressNote}
           </p>
         </div>
       )}

@@ -48,7 +48,7 @@ test('a library preview says what the agent will return while the answer is on i
   expect(state.chat[0].agent_id).toBe(`library-${support.id}`)
   const waiting = page.getByRole('status').filter({ hasText: 'Awaiting' })
   await expect(waiting).toContainText(support.label)
-  await expect(waiting).toContainText('What you get')
+  await expect(waiting).toContainText('Expect:')
   await expect(waiting).toContainText(support.output)
   await expect(waiting).not.toContainText('Still working')
 })
@@ -96,7 +96,9 @@ test('on a wide screen the side column offers to create a previewed agent', asyn
   await page.getByRole('button', { name: 'Try it in Chat' }).click()
   const aside = page.getByRole('complementary', { name: 'Agent details' })
   await expect(aside.locator('.aside-kind')).toHaveText('Library preview')
-  await expect(aside).toContainText('Nothing is created until the last step.')
+  await expect(aside).toContainText(
+    'Nothing is created until you confirm on the last step.',
+  )
   // A preview can't be saved, so Create takes the place of the Save button.
   await expect(
     aside.getByRole('button', { name: 'Save to shared history' }),
@@ -115,17 +117,17 @@ test('on a wide screen the side column offers to create a previewed agent', asyn
   expect(state.creations).toBe(0)
 })
 
-test('Chat tells you it cannot create agents and points to Create agent', async ({
+test('Chat points to Create an agent for something new and cannot create one itself', async ({
   page,
 }) => {
   const state = await openLibrary(page)
   await openChat(page)
   const welcome = page.locator('.chat-welcome')
-  await expect(welcome).toContainText("Chat can't make one.")
+  await expect(welcome).toContainText('Need something else?')
   await expect(
     page.getByRole('button', { name: 'Create this agent', exact: true }),
   ).toHaveCount(0)
-  await welcome.getByRole('button', { name: 'Open Create agent' }).click()
+  await welcome.getByRole('button', { name: 'Create an agent' }).click()
   await expect(
     page.getByRole('heading', { name: 'Create an agent', exact: true }),
   ).toBeVisible()
@@ -141,8 +143,13 @@ test('without agent creation, Chat shows no Create pointer or button', async ({
   await openChat(page)
   await expect(page.locator('.chat-welcome')).toBeVisible()
   await expect(page.locator('.chat-welcome')).not.toContainText(
-    "Chat can't make one.",
+    'Need something else?',
   )
+  await expect(
+    page
+      .locator('.chat-welcome')
+      .getByRole('button', { name: 'Create an agent' }),
+  ).toHaveCount(0)
   await workspaceNav(page)
     .getByRole('button', { name: /^All agents/ })
     .click()
