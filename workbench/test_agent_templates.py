@@ -400,7 +400,7 @@ class TemplateTests(unittest.TestCase):
                 self.assertEqual(public[identifier]["sector"]["id"], "private")
                 self.assertEqual(public[identifier]["readiness"], {"id": "sample", **{
                     key: value for key, value in READINESS_LEVELS[1].items() if key != "id"}})
-                self.assertEqual(public[identifier]["readiness"]["label"], "In progress")
+                self.assertEqual(public[identifier]["readiness"]["label"], "Not yet reviewed")
                 self.assertIn(prohibited, template["instructions"].lower())
                 self.assertIn(owner, public[identifier]["human_decision"].lower())
                 self.assertNotRegex(template["sample_input"], TEST_SCRIPT_WORDING)

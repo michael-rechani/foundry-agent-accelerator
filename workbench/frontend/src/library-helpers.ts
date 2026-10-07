@@ -6,7 +6,8 @@ export type LibraryViewMode = 'cards' | 'list'
 
 export type ReadyAgent = { agent: Agent; recordId: string }
 
-// One plain explanation of the "In progress" label, used wherever it appears.
+// One plain explanation of the "Not yet reviewed" label, used wherever it
+// appears.
 export const inProgressNote =
   "A person hasn't signed off on its test answers yet. Try it with sample data; answers may change."
 
@@ -30,6 +31,8 @@ export function agentKind(agent: Agent) {
       : 'Prebuilt agent'
 }
 
+// True for the `sample` readiness level, which the Lab labels "Not yet
+// reviewed" until a person signs off on the agent's test answers.
 export function inProgress(template: LibraryTemplate) {
   return template.readiness.id === 'sample'
 }

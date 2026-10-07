@@ -30,7 +30,7 @@ the same as the sectors in the **Agent library**: **Works in any sector** (five
 jobs), **Private sector** (nine jobs), and **Healthcare and public sector**
 (four jobs). The tables below describe the **Works in any sector** and
 **Healthcare and public sector** groups. Every template is
-marked **In progress** until a person has read its recorded test answers and
+marked **Not yet reviewed** until a person has read its recorded test answers and
 signed off (see **Test results** in the **Agent library**). They pass offline
 contract and acceptance tests but aren't yet validated live. Open the **Agent
 library** to see what each one does. The fictional examples in the healthcare and public-sector group
@@ -259,7 +259,7 @@ decision, search keywords, and export status. Facet counts are derived rather
 than maintained separately.
 
 Readiness and runtime hints are bounded labels, not service-level claims.
-`In progress` (the `sample` level) means the definition has deterministic
+`Not yet reviewed` (the `sample` level) means the definition has deterministic
 contract tests and recorded answers that pass the automatic checks, but a
 person hasn't signed those answers off, and it still needs customer policy
 review. `Reviewed` means a person has signed off the recorded answers and

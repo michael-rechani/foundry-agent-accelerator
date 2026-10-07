@@ -82,7 +82,7 @@ explainer, Checklist gap finder, Form field extractor, Service request planner,
 and Supplier invoice reviewer. **Private sector:** nine jobs. **Healthcare and
 public sector:** Case summary writer, Medical bill reviewer, Insurance
 pre-approval helper, and Benefits renewal helper. Every job is marked
-**In progress** until a person signs off its recorded test answers: they pass
+**Not yet reviewed** until a person signs off its recorded test answers: they pass
 offline contract and acceptance tests but aren't yet validated live. Seven jobs
 each have two **simulated read-only**
 lookups: the Service request planner, the Supplier invoice reviewer, the

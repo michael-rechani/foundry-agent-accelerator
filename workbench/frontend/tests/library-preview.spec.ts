@@ -53,6 +53,32 @@ test('a library preview says what the agent will return while the answer is on i
   await expect(waiting).not.toContainText('Still working')
 })
 
+test('a preview nobody has signed off yet says "Not yet reviewed" in the library and in Chat', async ({
+  page,
+}) => {
+  await openLibrary(page, { libraryPreview: true })
+  await openAgent(page, support.label)
+  const readiness = page.locator(
+    '.library-badge, .library-progress, .progress-pill',
+  )
+  await expect(
+    page.locator('.library-badge', { hasText: 'Not yet reviewed' }),
+  ).toHaveCount(1)
+  await expect(
+    page.getByRole('note').filter({ hasText: 'Not yet reviewed.' }),
+  ).toContainText("A person hasn't signed off on its test answers yet.")
+  await expect(readiness.filter({ hasText: /in progress/i })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Try it in Chat' }).click()
+  const pill = page.locator('.progress-pill')
+  await expect(pill).toHaveText('Not yet reviewed')
+  await expect(pill).toHaveAttribute(
+    'title',
+    /hasn't signed off on its test answers/,
+  )
+  await expect(readiness.filter({ hasText: /in progress/i })).toHaveCount(0)
+})
+
 test('a library preview offers to create that agent and opens Create with it chosen', async ({
   page,
 }) => {

@@ -1,4 +1,4 @@
-import { BadgeCheck, Construction } from 'lucide-react'
+import { BadgeCheck, CircleDashed } from 'lucide-react'
 import { inProgress } from './library-helpers'
 import type { LibraryTemplate } from './library-catalog'
 
@@ -11,7 +11,7 @@ const tones: Record<string, string> = {
 }
 
 function ReadinessBadge({ template }: { template: LibraryTemplate }) {
-  const Icon = inProgress(template) ? Construction : BadgeCheck
+  const Icon = inProgress(template) ? CircleDashed : BadgeCheck
   return (
     <span
       className={`library-badge ${tones[template.readiness.id] || ''}`}

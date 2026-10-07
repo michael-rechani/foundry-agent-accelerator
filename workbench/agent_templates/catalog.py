@@ -50,7 +50,7 @@ TASKS = (
 # evaluations/test_scorecards.py checks the marking against the recorded sign-offs.
 READINESS_LEVELS = (
     {"id": "reviewed", "label": "Reviewed", "description": "A person has signed off on its test answers, its setup passes the Lab's validation, and every run of its test cases met the Lab's checks."},
-    {"id": "sample", "label": "In progress", "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."},
+    {"id": "sample", "label": "Not yet reviewed", "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."},
 )
 TOOL_MODES = (
     {"id": "none", "label": "Text only", "description": "Works only from the text you give it."},
