@@ -263,6 +263,36 @@ run "private_ingress_ranges_are_accepted" {
     error_message = "Valid private ranges must reach the ingress after the jump box."
   }
 }
+run "front_door_private_link_range_is_accepted" {
+  command = plan
+  variables {
+    enable_front_door              = true
+    approve_public_front_door      = true
+    front_door_allowed_cidrs       = ["198.51.100.7/32"]
+    front_door_ingress_allow_cidrs = ["100.64.0.0/10"]
+  }
+  assert {
+    condition     = [for rule in azurerm_container_app.this[0].ingress[0].ip_security_restriction : rule.ip_address_range] == ["10.0.9.0/24", "100.64.0.0/10"]
+    error_message = "The shared address range Front Door's Private Link uses must reach the ingress after the jump box."
+  }
+}
+
+run "reject_a_range_broader_than_the_shared_address_space" {
+  command = plan
+  variables {
+    front_door_ingress_allow_cidrs = ["100.0.0.0/9"]
+  }
+  expect_failures = [var.front_door_ingress_allow_cidrs]
+}
+
+run "reject_a_public_range_next_to_the_shared_address_space" {
+  command = plan
+  variables {
+    front_door_ingress_allow_cidrs = ["100.128.0.0/10"]
+  }
+  expect_failures = [var.front_door_ingress_allow_cidrs]
+}
+
 run "reject_a_long_list" {
   command = plan
   variables {

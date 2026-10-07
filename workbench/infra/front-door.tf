@@ -76,7 +76,7 @@ variable "front_door_private_link_location" {
 variable "front_door_ingress_allow_cidrs" {
   type        = list(string)
   default     = []
-  description = "Private source ranges, besides the jump box, that the Lab's Container App ingress admits while Front Door is enabled. Which range Private Link traffic arrives from is confirmed during the first approved test, so this starts empty. Only private IPv4 ranges of /16 or narrower are accepted, so this can never become an internet-wide rule."
+  description = "Private source ranges, besides the jump box, that the Lab's Container App ingress admits while Front Door is enabled. Front Door's Private Link traffic reaches the app from the shared address space 100.64.0.0/10, not from the Lab's own network (measured in the first approved test, #240), so set this to [\"100.64.0.0/10\"]. Accepted: private IPv4 ranges of /16 or narrower, or 100.64.0.0/10 or narrower. Nothing public or broader is accepted, so this can never become an internet-wide rule."
 
   validation {
     condition = alltrue([
@@ -84,15 +84,19 @@ variable "front_door_ingress_allow_cidrs" {
       try(
         can(cidrhost(cidr, 0)) &&
         !strcontains(cidr, ":") &&
-        tonumber(split("/", cidr)[1]) >= 16 &&
         anytrue([
           for o in [[for part in split(".", cidrhost(cidr, 0)) : tonumber(part)]] :
-          o[0] == 10 || (o[0] == 172 && o[1] >= 16 && o[1] <= 31) || (o[0] == 192 && o[1] == 168)
+          (
+            tonumber(split("/", cidr)[1]) >= 16 &&
+            (o[0] == 10 || (o[0] == 172 && o[1] >= 16 && o[1] <= 31) || (o[0] == 192 && o[1] == 168))
+            ) || (
+            tonumber(split("/", cidr)[1]) >= 10 && o[0] == 100 && o[1] >= 64 && o[1] <= 127
+          )
         ]),
         false
       )
     ])
-    error_message = "Use private IPv4 ranges inside 10.0.0.0/8, 172.16.0.0/12, or 192.168.0.0/16, with a prefix of /16 or longer."
+    error_message = "Use private IPv4 ranges inside 10.0.0.0/8, 172.16.0.0/12, or 192.168.0.0/16 with a prefix of /16 or longer, or 100.64.0.0/10 or a narrower range inside it."
   }
 }
 
