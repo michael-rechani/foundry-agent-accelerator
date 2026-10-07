@@ -322,3 +322,58 @@ test('the filter panel does not scroll when the window is tall enough', async ({
     true,
   )
 })
+
+test('in a half-width window each filter list is only as tall as its rows', async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name === 'mobile',
+    'This checks a narrow desktop window',
+  )
+  await page.setViewportSize({ width: 1028, height: 952 })
+  await openLibrary(page)
+  const list = (legend: string) =>
+    page
+      .locator('.library-filters fieldset')
+      .filter({ has: page.locator('legend', { hasText: legend }) })
+  // Readiness has one row and Task has several. They share a row of the grid,
+  // and a list stretched to its neighbour would spread its rows apart.
+  const readiness = (await list('Readiness').boundingBox())!
+  const task = (await list('Task').boundingBox())!
+  expect(readiness.y).toBe(task.y)
+  expect(readiness.height).toBeLessThan(task.height / 2)
+  const row = (await list('Readiness').locator('.library-facet').boundingBox())!
+  expect(row.height).toBeLessThan(60)
+  await expectFitsViewport(page)
+})
+
+test('the steps under the heading wrap two by two in a narrow window', async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name === 'mobile',
+    'This checks a narrow desktop window',
+  )
+  await page.setViewportSize({ width: 900, height: 900 })
+  await openLibrary(page)
+  const steps = page.locator('.library-path li')
+  await expect(steps).toHaveCount(4)
+  const at = await steps.evaluateAll((items) =>
+    items.map((item) => {
+      const { x, y } = item.getBoundingClientRect()
+      return { x: Math.round(x), y: Math.round(y) }
+    }),
+  )
+  expect(at[1].y).toBe(at[0].y)
+  expect(at[3].y).toBe(at[2].y)
+  expect(at[2].y).toBeGreaterThan(at[0].y)
+  expect(at[2].x).toBe(at[0].x)
+  expect(at[3].x).toBe(at[1].x)
+  // A connector only joins steps on one row, so a wrapped row has none.
+  for (const index of [1, 2, 3])
+    expect(
+      await steps
+        .nth(index)
+        .evaluate((item) => getComputedStyle(item, '::before').display),
+    ).toBe('none')
+})
