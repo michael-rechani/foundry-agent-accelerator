@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { ArrowRight, Construction, FlaskConical } from 'lucide-react'
+import { ArrowRight, CircleDashed, FlaskConical } from 'lucide-react'
 import { AgentGuide } from './AgentGuide'
 import { agentKind, inProgressNote, previewBlurb } from './library-helpers'
 import type { Agent, Config } from './workspace-config'
@@ -67,7 +67,7 @@ export function ChatWelcome({
           </span>
           {inProgress && (
             <span className="progress-pill" title={inProgressNote}>
-              <Construction size={12} aria-hidden="true" /> In progress
+              <CircleDashed size={12} aria-hidden="true" /> Not yet reviewed
             </span>
           )}
         </div>

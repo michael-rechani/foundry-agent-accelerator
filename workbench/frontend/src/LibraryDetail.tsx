@@ -1,7 +1,7 @@
 import {
   ArrowLeft,
   ArrowRight,
-  Construction,
+  CircleDashed,
   MessageSquare,
   UserCheck,
 } from 'lucide-react'
@@ -106,9 +106,9 @@ export function LibraryDetail({
       </div>
       {inProgress(template) && (
         <div className="library-progress" role="note">
-          <Construction size={18} aria-hidden="true" />
+          <CircleDashed size={18} aria-hidden="true" />
           <p>
-            <strong>In progress. </strong>
+            <strong>Not yet reviewed. </strong>
             {inProgressNote}
           </p>
         </div>
