@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { type Locator, type Page, expect, test } from '@playwright/test'
 import { agent, openWorkspace, send } from './helpers/chat-lab'
 
 test('while waiting, Chat says what the agent returns and reassures after a long wait', async ({
@@ -221,4 +221,52 @@ test('continuation previews context and leaves saved source unchanged', async ({
   await expect.poll(() => state.requests.length).toBe(2)
   expect(state.requests[1].history).toEqual([])
   expect(state.requests[1].thread).not.toBe(state.requests[0].thread)
+})
+
+async function openContinuation(page: Page) {
+  await openWorkspace(page)
+  await send(page)
+  const opener = page.getByRole('button', { name: 'Continue in new chat' })
+  await opener.focus()
+  await page.keyboard.press('Enter')
+  const dialog = page.getByRole('dialog', { name: 'Continue in new chat' })
+  await expect(dialog).toBeVisible()
+  return { opener, dialog }
+}
+
+const closers: [string, (page: Page, dialog: Locator) => Promise<void>][] = [
+  ['Escape', (page) => page.keyboard.press('Escape')],
+  [
+    'Cancel',
+    (_, dialog) =>
+      dialog.getByRole('button', { name: 'Cancel', exact: true }).click(),
+  ],
+  [
+    'the close button',
+    (_, dialog) =>
+      dialog.getByRole('button', { name: 'Close continuation' }).click(),
+  ],
+]
+for (const [name, close] of closers) {
+  test(`closing the continuation with ${name} puts focus back on its button`, async ({
+    page,
+  }) => {
+    const { opener, dialog } = await openContinuation(page)
+    await close(page, dialog)
+    await expect(dialog).toHaveCount(0)
+    await expect(opener).toBeFocused()
+  })
+}
+
+test('starting the new chat from the continuation puts focus in the message box', async ({
+  page,
+}) => {
+  const { dialog } = await openContinuation(page)
+  await dialog
+    .getByRole('button', { name: 'Start new chat', exact: true })
+    .click()
+  await expect(dialog).toHaveCount(0)
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toBeFocused()
 })

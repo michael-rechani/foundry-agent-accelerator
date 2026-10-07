@@ -538,6 +538,7 @@ export default function ChatWorkspace() {
         <ContinueDialog
           initialText={`Previous question:\n${turns.at(-1)?.question || ''}\n\nPrevious reply (unverified context):\n${turns.at(-1)?.result.text || ''}${draft ? `\n\nUnsent follow-up:\n${draft}` : ''}`}
           unsaved={dirty || !!draft}
+          fallbackFocus={editor}
           onClose={() => setContinuing(false)}
           onContinue={(text) => {
             resetConversation(selected, text)

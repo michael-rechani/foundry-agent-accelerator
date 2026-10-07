@@ -137,6 +137,10 @@ Confirming starts an empty conversation with that draft. It doesn't submit the
 draft or alter saved history. Cancel preserves the original conversation. Save
 or export unsaved source messages first.
 
+With the keyboard, Cancel and Escape put focus back on the **Continue in new
+chat** button. Starting the new chat puts it in the message box, ready for the
+draft.
+
 ### Configuration loading
 
 Configuration loads with a 15-second bootstrap deadline and an explicit
