@@ -28,7 +28,7 @@ export function WaitingIndicator({
       </div>
       {expects && (
         <p className="chat-waiting-note">
-          <strong>What you get</strong> {expects}
+          <strong>Expect:</strong> {expects}
         </p>
       )}
       {elapsed >= slowAfterSeconds && (

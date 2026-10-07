@@ -10,29 +10,46 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  width: fit-content;
   min-width: 0;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 4px 10px 4px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
   text-align: left;
-  background: transparent;
-  padding: 6px 0;
+  background: var(--surface);
   font-size: 14px;
   font-weight: 650;
 }
+.agent-picker-eyebrow {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .agent-picker .agent-name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .agent-picker > svg {
+  flex-shrink: 0;
   color: var(--muted);
 }
 .agent-picker:hover:not(:disabled) {
+  border-color: var(--accent);
   color: var(--accent);
+}
+.agent-picker:disabled {
+  opacity: 0.55;
 }
 .agent-controls {
   min-width: 0;
-}
-.agent-picker {
-  max-width: 100%;
 }
 .agent-about > summary {
   font-size: 11px;

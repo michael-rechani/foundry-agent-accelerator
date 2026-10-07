@@ -1,6 +1,6 @@
 import type { RefObject } from 'react'
 import { CircleAlert, X } from 'lucide-react'
-import { ChatWelcome } from './ChatWelcome'
+import { ChatWelcome, type DraftMode } from './ChatWelcome'
 import type { Turn } from './conversation-types'
 import { ConversationTurn } from './ConversationTurn'
 import type { DemoScenario } from './demo-scenarios'
@@ -16,6 +16,7 @@ export function ChatMessages({
   agentLabels,
   isPreview,
   inProgress,
+  draftMode,
   presenting,
   busy,
   historyBusy,
@@ -28,6 +29,7 @@ export function ChatMessages({
   onFreshDemo,
   onCloseDemo,
   onPrompt,
+  onClearExample,
   onCreateAgent,
   onCopy,
   onDismissError,
@@ -37,6 +39,7 @@ export function ChatMessages({
   agentLabels: Record<string, string>
   isPreview: boolean
   inProgress: boolean
+  draftMode: DraftMode
   presenting: boolean
   busy: boolean
   historyBusy: boolean
@@ -49,6 +52,7 @@ export function ChatMessages({
   onFreshDemo: (scenario: DemoScenario) => void
   onCloseDemo: () => void
   onPrompt: (text: string) => void
+  onClearExample: () => void
   onCreateAgent?: () => void
   onCopy: (text: string) => void
   onDismissError: () => void
@@ -71,7 +75,9 @@ export function ChatMessages({
             config={config}
             isPreview={isPreview}
             inProgress={inProgress}
+            draftMode={draftMode}
             onPrompt={onPrompt}
+            onClearExample={onClearExample}
             onCreateAgent={onCreateAgent}
           />
         )

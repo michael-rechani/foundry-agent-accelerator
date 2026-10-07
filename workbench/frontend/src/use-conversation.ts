@@ -14,6 +14,9 @@ export function useConversation(defaultAgent: string | undefined) {
   const [selectedId, setSelected] = useState('')
   const selected = selectedId || defaultAgent || ''
   const [draft, setDraft] = useState('')
+  // The text the app put in the message box, so a draft the user never touched
+  // isn't counted as work they would lose.
+  const [seed, setSeed] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
   const [pending, setPending] = useState('')
   const [busy, setBusy] = useState(false)
@@ -28,11 +31,17 @@ export function useConversation(defaultAgent: string | undefined) {
     setThread(newThread())
     setTurns([])
     setDraft(initialDraft)
+    setSeed(initialDraft)
     setPending('')
     setError('')
     setSaved(null)
     setDirty(false)
     setActiveDemo(null)
+  }
+
+  function prefill(text: string) {
+    setDraft(text)
+    setSeed(text)
   }
 
   function restore(agentId: string, version: SavedVersion, stored: Turn[]) {
@@ -42,6 +51,7 @@ export function useConversation(defaultAgent: string | undefined) {
     setTurns(stored.map((turn) => ({ ...turn, stored: true })))
     setDirty(false)
     setDraft('')
+    setSeed('')
     setPending('')
     setError('')
     setActiveDemo(null)
@@ -50,6 +60,7 @@ export function useConversation(defaultAgent: string | undefined) {
   return {
     selected,
     draft,
+    seed,
     turns,
     pending,
     busy,
@@ -67,6 +78,7 @@ export function useConversation(defaultAgent: string | undefined) {
     setDirty,
     setActiveDemo,
     reset,
+    prefill,
     restore,
   }
 }

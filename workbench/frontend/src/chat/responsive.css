@@ -160,7 +160,10 @@
     width: calc(100vw - 34px);
   }
   .agent-picker {
-    font-size: 12px;
+    font-size: 13px;
+  }
+  .chat-topbar .agent-picker {
+    width: 100%;
   }
   .conversation-scroll {
     padding: 0 14px 12px;

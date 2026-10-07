@@ -165,7 +165,7 @@ for (const look of looks) {
   }) => {
     await open(page, look, '#chat')
     const trigger = page.locator('.agent-picker')
-    await expect(trigger).toHaveText(guidedReview.label)
+    await expect(trigger.locator('.agent-name')).toHaveText(guidedReview.label)
     const dialog = page.getByRole('dialog', { name: 'Choose an agent' })
     const stops = dialog.locator('input:not(:disabled), button:not(:disabled)')
     const focusedStop = async () =>
@@ -219,7 +219,7 @@ for (const look of looks) {
     ).toBeFocused()
     await page.keyboard.press('Enter')
     await expect(dialog).toHaveCount(0)
-    await expect(trigger).toHaveText(caseHelper.label)
+    await expect(trigger.locator('.agent-name')).toHaveText(caseHelper.label)
     await expect(trigger).toBeFocused()
 
     // Escape still works after clicking an inert part of the dialog.

@@ -27,8 +27,7 @@ export function useChatHistory({
   setView: (view: View) => void
   setNotice: (notice: string) => void
 }) {
-  const { selected, draft, turns, busy, saved, dirty, setSaved, setDirty } =
-    conversation
+  const { selected, turns, busy, saved, setSaved, setDirty } = conversation
   const [historyBusy, setHistoryBusy] = useState(false)
   const [savedChats, setSavedChats] = useState<SavedChat[]>([])
   const [historyLoaded, setHistoryLoaded] = useState(false)
@@ -86,15 +85,7 @@ export function useChatHistory({
   }
 
   async function openChat(item: SavedChat) {
-    if (
-      busy ||
-      historyBusy ||
-      ((dirty || draft) &&
-        !window.confirm(
-          'Open this conversation and discard unsaved local messages?',
-        ))
-    )
-      return
+    if (busy || historyBusy) return
     setHistoryBusy(true)
     try {
       const data = await historyRequest(`/${item.id}`)

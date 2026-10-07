@@ -3,6 +3,11 @@ import { AgentGuide, AgentRuntime } from './AgentGuide'
 import type { Turn } from './conversation-types'
 import { FoundryLink } from './FoundryLink'
 import { foundryAgentUrl } from './foundry-links'
+import {
+  createFromPreviewNote,
+  previewBlurb,
+  publishedBlurb,
+} from './library-helpers'
 import { formatTokens, totalUsage } from './token-usage'
 import type { Agent, Config } from './workspace-config'
 import './chat-aside.css'
@@ -68,14 +73,10 @@ export function ChatAside({
                 </div>
               </dl>
             )}
-            <p>
-              {isPreview
-                ? 'Library preview: the Lab runs this definition on its model with sample lookups only. Nothing is published, and preview chats are not saved.'
-                : 'This agent already has a published setup. Your message gives it a task; it does not change its tools or permanent instructions.'}
-            </p>
+            <p>{isPreview ? previewBlurb : publishedBlurb}</p>
             <AgentRuntime agent={agent} foundryPortal={portal} />
             <button type="button" className="inline-link" onClick={onCatalog}>
-              Choosing or changing an agent
+              Change agent
             </button>
           </div>
         </details>
@@ -86,9 +87,9 @@ export function ChatAside({
         <dl className="aside-rows">
           {config && (
             <div>
-              <dt>Replies</dt>
+              <dt>Reply limit</dt>
               <dd>
-                {turns.length} / {config.max_history_turns + 1}
+                {turns.length} of {config.max_history_turns + 1} used
               </dd>
             </div>
           )}
@@ -136,13 +137,13 @@ export function ChatAside({
               <button
                 type="button"
                 className="aside-button primary"
-                title="Preview chats can't be saved. Create this agent to save chats and take it to Foundry. Nothing is created until the last step."
+                title={createFromPreviewNote}
                 onClick={onCreateThis}
               >
                 <Plus size={16} />
                 Create this agent
               </button>
-              <p>Nothing is created until the last step.</p>
+              <p>Nothing is created until you confirm on the last step.</p>
             </>
           ) : (
             <button

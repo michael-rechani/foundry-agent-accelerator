@@ -220,6 +220,18 @@
   background: var(--accent-fill);
   color: var(--on-accent);
 }
+.confirm-dialog {
+  width: min(440px, calc(100% - 24px));
+}
+.confirm-dialog header {
+  margin-bottom: 10px;
+}
+.confirm-dialog p {
+  margin-top: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
 .send-button {
   display: grid;
   place-items: center;

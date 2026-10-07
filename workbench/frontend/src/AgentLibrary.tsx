@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CircleAlert, RefreshCw } from 'lucide-react'
 import {
   facetKeys,
@@ -22,6 +22,7 @@ export type { ReadyAgent }
 
 export function AgentLibrary({
   active,
+  inLibrary,
   library,
   capability,
   readyAgentFor,
@@ -34,6 +35,8 @@ export function AgentLibrary({
   onOpen,
 }: {
   active: boolean
+  // True on any library tab. Leaving them all puts this page back on Browse.
+  inLibrary: boolean
   library: LibraryCatalogState
   capability?: CreationCapability
   readyAgentFor: (templateId: string) => ReadyAgent | undefined
@@ -52,6 +55,21 @@ export function AgentLibrary({
   const [tab, setTab] = useState<LibraryTab>('overview')
   const [notice, setNotice] = useState('')
   const [viewMode, setLibraryView] = useLibraryViewMode()
+
+  // Coming back to "All agents" from Chat or another page shows the list, not
+  // the agent that happened to be open last time.
+  const [wasInLibrary, setWasInLibrary] = useState(inLibrary)
+  if (inLibrary !== wasInLibrary) {
+    setWasInLibrary(inLibrary)
+    if (!inLibrary) {
+      setOpenId('')
+      setTab('overview')
+      setNotice('')
+    }
+  }
+  useEffect(() => {
+    if (!inLibrary) onOpen?.('')
+  }, [inLibrary, onOpen])
 
   const results = useMemo(
     () => (catalog ? filterTemplates(catalog, query, selection) : []),

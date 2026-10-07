@@ -1,9 +1,9 @@
 import { ArrowRight, FileCheck2, GitBranch, Search } from 'lucide-react'
 import { AgentGuide, AgentRuntime, ConfigurationGuide } from './AgentGuide'
+import { agentKind } from './library-helpers'
 import type { Agent, CreationCapability } from './workspace-config'
 
-const sendNote =
-  'Each agent does one job, and nothing is sent until you press Send.'
+const sendNote = 'Nothing is sent until you press Send.'
 
 // The count is the same one the "Ready to chat" tab shows.
 function readySummary(count: number | null) {
@@ -109,11 +109,7 @@ export function AgentCatalog({
                   <FileCheck2 size={25} />
                 )}
               </span>
-              <span className="catalog-kind">
-                {item.id.startsWith('created-')
-                  ? 'Made in this Lab'
-                  : 'Prebuilt agent'}
-              </span>
+              <span className="catalog-kind">{agentKind(item)}</span>
             </div>
             <h2>{item.label}</h2>
             <p>{item.description}</p>
@@ -121,7 +117,7 @@ export function AgentCatalog({
             {item.guidance && (
               <p className="catalog-human-decision">
                 <strong className="catalog-guide-label">
-                  What stays with you
+                  What it won&apos;t do
                 </strong>
                 {item.guidance.limits}
               </p>
@@ -132,7 +128,7 @@ export function AgentCatalog({
               disabled={disabled}
               onClick={() => onChoose(item.id)}
             >
-              {item.id === selected ? 'Return to chat' : 'Start chat'}
+              {item.id === selected ? 'Return to chat' : 'Chat with this agent'}
               <ArrowRight size={17} />
             </button>
           </article>

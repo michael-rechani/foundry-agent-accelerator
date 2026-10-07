@@ -89,8 +89,15 @@ test('ready agents persist across reload and new-chat confirmation preserves uns
     .getByRole('textbox', { name: 'Message', exact: true })
     .fill('Keep this fictional unsent message')
   await openSaved(page)
-  page.once('dialog', (dialog) => dialog.dismiss())
+  const switchDialog = page.getByRole('dialog', {
+    name: 'Switch to Policy notice helper?',
+  })
   await page.getByRole('button', { name: 'Try in Chat', exact: true }).click()
+  await expect(switchDialog).toContainText(
+    'Switching agents starts a new chat. Your unsaved draft will be cleared.',
+  )
+  await switchDialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(switchDialog).toHaveCount(0)
   await expect(
     page.getByRole('region', { name: 'Created agent details' }),
   ).toBeVisible()
@@ -99,8 +106,8 @@ test('ready agents persist across reload and new-chat confirmation preserves uns
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toHaveValue('Keep this fictional unsent message')
   await navigate(page, 'Created agents')
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Try in Chat', exact: true }).click()
+  await switchDialog.getByRole('button', { name: 'Switch agent' }).click()
   await expect(page.locator('.agent-picker')).toContainText(
     'Policy notice helper',
   )

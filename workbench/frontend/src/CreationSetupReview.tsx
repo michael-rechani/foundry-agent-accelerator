@@ -62,11 +62,11 @@ export function CreationSetupReview({
       {template && (
         <dl className="creation-explanation">
           <div>
-            <dt>What you give it</dt>
+            <dt>What to give it</dt>
             <dd>{template.input}</dd>
           </div>
           <div>
-            <dt>What you get</dt>
+            <dt>What it returns</dt>
             <dd>{template.output}</dd>
           </div>
           <div>
@@ -74,7 +74,7 @@ export function CreationSetupReview({
             <dd>{template.delegation}</dd>
           </div>
           <div>
-            <dt>What it cannot do</dt>
+            <dt>What it won&apos;t do</dt>
             <dd>{template.limits}</dd>
           </div>
           <div>

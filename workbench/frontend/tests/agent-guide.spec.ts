@@ -171,7 +171,7 @@ test('on a wide screen the agent details sit beside the conversation', async ({
   await expect(aside).toContainText(agent.guidance!.output)
   // The pop-up in the top bar gives way to the column.
   await expect(page.locator('.agent-about > summary')).toBeHidden()
-  await expect(detail('Replies')).toContainText('0 / 11')
+  await expect(detail('Reply limit')).toContainText('0 of 11 used')
   await expect(detail('Last reply took')).toHaveCount(0)
   await expect(detail('Characters')).toBeVisible()
   await expect(
@@ -179,7 +179,7 @@ test('on a wide screen the agent details sit beside the conversation', async ({
   ).toBeDisabled()
 
   await send(page)
-  await expect(detail('Replies')).toContainText('1 / 11')
+  await expect(detail('Reply limit')).toContainText('1 of 11 used')
   await expect(detail('Last reply took')).toContainText('1.0 s')
   await expect(detail('Tokens')).toContainText('1,200 in · 300 out')
   // Token counts and limits stay under the hood; the reply time doesn't.
@@ -222,9 +222,7 @@ test('configuration guidance separates UI settings from deployed agent behavior'
   await expect(guide).toContainText(
     "Agent creation isn't turned on in this Lab",
   )
-  await expect(guide).toContainText(
-    'A starter is just an example task and message, not a new agent',
-  )
+  await expect(guide).toContainText('Examples only fill the message box')
   await expect(guide.locator('.configuration-sources dl')).toBeHidden()
   await guide.locator('.configuration-sources > summary').click()
   await expect(guide).toContainText('workbench\\agents.json')
