@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useModalDialog } from './use-modal-dialog'
 
 // A small in-app confirmation that names what is about to happen. Cancel takes
 // the initial focus so a stray Enter never discards a conversation.
@@ -16,17 +17,7 @@ export function ConfirmDialog({
   onCancel: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    const element = dialog.current!
-    // Browsers only hand focus back when a dialog closes while it is still in
-    // the page, and React has removed this one by then, so do it here.
-    const opener = document.activeElement
-    element.showModal()
-    return () => {
-      element.close()
-      if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
-    }
-  }, [])
+  useModalDialog(dialog)
   return (
     <dialog
       ref={dialog}

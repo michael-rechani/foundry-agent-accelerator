@@ -1,24 +1,25 @@
-import { useEffect, useRef, useState } from 'react'
+import { type RefObject, useRef, useState } from 'react'
 import { ArrowRight, X } from 'lucide-react'
+import { useModalDialog } from './use-modal-dialog'
 
 export function ContinueDialog({
   initialText,
   unsaved,
+  fallbackFocus,
   onClose,
   onContinue,
 }: {
   initialText: string
   unsaved: boolean
+  // Where focus lands once the button that opened this has gone, as it does
+  // when the new chat starts.
+  fallbackFocus?: RefObject<HTMLElement | null>
   onClose: () => void
   onContinue: (text: string) => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [text, setText] = useState(initialText)
-  useEffect(() => {
-    const element = dialog.current!
-    element.showModal()
-    return () => element.close()
-  }, [])
+  useModalDialog(dialog, fallbackFocus)
   return (
     <dialog
       ref={dialog}
