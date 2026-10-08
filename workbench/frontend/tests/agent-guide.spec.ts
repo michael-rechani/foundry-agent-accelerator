@@ -161,24 +161,21 @@ test('on a wide screen the agent details sit beside the conversation', async ({
     aside
       .locator('.aside-rows > div')
       .filter({ has: page.getByText(name, { exact: true }) })
+  await expect(aside).toHaveCount(0)
+  await expect(page.locator('.agent-about > summary')).toBeVisible()
+  await expect(page.locator('.chat-welcome .agent-guide')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Export conversation' }),
+  ).toBeDisabled()
+
+  await send(page)
   await expect(aside.getByRole('heading', { level: 2 })).toHaveText([
     'About this agent',
     'This conversation',
     'Next steps',
   ])
-  await expect(aside).toContainText(agent.description)
-  await expect(aside).toContainText(agent.guidance!.input)
-  await expect(aside).toContainText(agent.guidance!.output)
-  // The pop-up in the top bar gives way to the column.
   await expect(page.locator('.agent-about > summary')).toBeHidden()
-  await expect(detail('Reply limit')).toContainText('0 of 11 used')
-  await expect(detail('Last reply took')).toHaveCount(0)
-  await expect(detail('Characters')).toBeVisible()
-  await expect(
-    aside.getByRole('button', { name: 'Export conversation' }),
-  ).toBeDisabled()
-
-  await send(page)
+  await expect(aside.locator('.aside-more-body')).toBeHidden()
   await expect(detail('Reply limit')).toContainText('1 of 11 used')
   await expect(detail('Last reply took')).toContainText('1.0 s')
   await expect(detail('Tokens')).toContainText('1,200 in · 300 out')
@@ -193,15 +190,22 @@ test('on a wide screen the agent details sit beside the conversation', async ({
   await expect(
     aside.getByRole('button', { name: 'Export conversation' }),
   ).toBeEnabled()
+  await screenshot(page, testInfo, 'chat-aside-collapsed.png')
   await aside.getByRole('button', { name: 'Save to shared history' }).click()
   await expect.poll(() => state.saves.length).toBe(1)
 
-  await aside.locator('.aside-more > summary').click()
+  await aside.locator('.aside-about > summary').focus()
+  await page.keyboard.press('Enter')
   const more = aside.locator('.aside-more-body .agent-guide')
   await expect(more).toBeVisible()
+  await expect(aside).toContainText(agent.description)
+  await expect(more).toContainText(agent.guidance!.input)
+  await expect(more).toContainText(agent.guidance!.output)
   await expect(more).toContainText(agent.guidance!.limits)
   await expect(more).toContainText(agent.guidance!.delegation)
   await screenshot(page, testInfo, 'chat-aside.png')
+  await aside.locator('.aside-about > summary').click()
+  await expect(more).toBeHidden()
 
   await nav.getByRole('button', { name: 'Performance', exact: true }).click()
   await expect(aside).toBeHidden()
@@ -209,6 +213,11 @@ test('on a wide screen the agent details sit beside the conversation', async ({
   await expect(aside).toBeVisible()
   await page.setViewportSize({ width: 900, height: 900 })
   await expect(aside).toBeHidden()
+  await expect(page.locator('.agent-about > summary')).toBeVisible()
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.getByRole('button', { name: 'New chat', exact: true }).click()
+  await expect(aside).toHaveCount(0)
+  await expect(page.locator('.chat-welcome .agent-guide')).toBeVisible()
   await expect(page.locator('.agent-about > summary')).toBeVisible()
 })
 

@@ -102,7 +102,7 @@ pinned version.
 ## Which specialist uses it
 
 Only the **Case notes summarizer** (`case-review-agent`). Its instructions
-already have an "Applicable supplied policy" section, and its fictional
+include applicable supplied policy when the requested review needs it, and its fictional
 scenarios often lack policy text. The tool is described as a lookup for
 fictional policy and guidance passages that the answer can cite by `source_id`.
 

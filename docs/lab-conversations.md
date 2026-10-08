@@ -91,10 +91,25 @@ response execution details and receipts; stored receipts are not reverified.
 | **Summarize case notes** | Fills the composer with sample case notes to summarize. |
 | **Compare a proposal (preview)** | Fills the composer with a sample vendor proposal to compare with requirements. |
 | **Help me get started** | Asks what to supply and what the selected agent will do. It doesn't explain how to create an agent. |
-| **About this agent** | Stays available during a conversation: in the Chat header, or in the right-hand column in a wide window. It explains what to give the agent, what it returns, how it works, and what it won't do. |
+| **About this agent** | Available in the Chat header before the first reply and in narrow windows. After the first reply, wide windows show a right-hand column with a collapsed **About this agent** disclosure, conversation details, and save/export actions. It explains what to give the agent, what it returns, how it works, and what it won't do. |
 
 Starter prompts fill the composer without submitting. The user must choose
 **Send**.
+
+An empty chat keeps the example tasks and input/output guidance in the main
+column, without a duplicate agent-details column. Ordinary checklist replies
+lead with a short takeaway and one matrix row per supplied criterion, using
+**Met**, **Not demonstrated**, or **Unclear**. Missing evidence is not automatic
+noncompliance. Case replies keep source references beside the claims they
+support. Both include questions only when needed and retain the human decision
+boundary; structured document-review schemas are unchanged.
+
+Coordinator replies use **Checklist reviewer** or **Case notes summarizer**
+as the specialist label. Runtime names, tool bindings, and receipt verification
+remain unchanged and inspectable under **How I got this** and **Execution details**.
+Agent instruction and output-integrity changes take effect only after publishing
+a new agent version; rebuilding the Lab alone does not change deployed agents.
+The deployment and approval follow-up is tracked in #244.
 
 ### Saving, retention, and receipts
 

@@ -268,10 +268,13 @@ recorded sign-offs disagree. Current tool modes are only `Text only` and `Sample
 neither means a customer system is connected. Cost and latency are relative
 model-profile hints, not prices or performance guarantees.
 
-Every listed agent's instructions end with the same answer layout: **Result**,
+Most listed agents' instructions end with the same answer layout: **Result**,
 **Why**, **What to check** and **Next step**, then who makes any decision the
 agent is asked to make. The layout is appended in `agent_templates/catalog.py`, so the
 served `instructions` field keeps its shape.
+**Checklist gap finder** uses its own short takeaway and criterion matrix
+instead, with questions only for unresolved items. An explicitly requested
+structured schema takes precedence over that agent's prose layout.
 
 `GET /api/agent-scorecards` serves each template's recorded test results
 (`schema_version: 1`), kept separate so the catalog response stays unchanged.

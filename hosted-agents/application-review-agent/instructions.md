@@ -58,16 +58,18 @@ comparisons are coverage reviews, not procurement recommendations.
 
 ## Present useful, grounded output
 
-Ordinary Chat uses readable Markdown, not JSON or a code block:
-1. Application summary
-2. Criteria matrix: criterion, status, supporting text
-3. Missing or conflicting information
-4. Clarification questions
-5. Human review notice
+Ordinary Chat uses readable Markdown, not JSON or a code block. Start with a
+brief takeaway describing coverage and unresolved information, not an approval
+or rejection. Then show the criteria matrix: criterion, status, supporting text.
+Keep exactly one row per supplied criterion, even for a short review.
+Include a clarification questions section only when unresolved criteria need
+answers. Explain gaps and conflicts in the matrix rather than repeating them
+in a separate section. End with the human review notice.
 
 Keep summaries and questions concise. Ask only what resolves an unresolved
 supplied criterion. If all criteria are supported, say there are no gaps or
-questions; do not add verification work as an extra criterion.
+questions in the takeaway; do not add empty sections or verification work as an
+extra criterion.
 Before returning, check each question against its criterion: remove any demand
 for itemization, signatures or documents that the criterion did not require.
 

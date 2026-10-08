@@ -77,12 +77,31 @@ class PassthroughTests(unittest.TestCase):
         output = '| Item | Evidence |\n| --- | --- |\n| Budget | "1,500" |\n\nAsk for the remainder.'
         self.assertEqual(
             specialist_reply(tool_turn(output), self.bindings),
-            "Specialist: application-review-agent (via inspect_application)\n\n" + output,
+            "Specialist: Checklist reviewer\n\n" + output,
         )
 
     def test_structured_result_is_returned_byte_for_byte(self):
         output = '{ "summary": "Human review", "findings": [], "questions": [] }\n'
         self.assertEqual(specialist_reply(tool_turn(output), self.bindings), output)
+
+    def test_customer_labels_do_not_change_tool_bindings_or_receipts(self):
+        for tool in ("review_application", "inspect_application"):
+            messages = tool_turn(tool=tool)
+            original_receipt = messages[-1].contents[0].result
+            text = specialist_reply(messages, {tool: "application-review-agent"})
+            self.assertEqual(text, "Specialist: Checklist reviewer\n\nA readable finding.")
+            self.assertEqual(messages[-1].contents[0].result, original_receipt)
+            self.assertNotIn(tool, text)
+            self.assertNotIn("application-review-agent", text)
+
+    def test_custom_specialists_retain_their_configured_identity(self):
+        self.assertEqual(
+            specialist_reply(
+                tool_turn(tool="custom_review", agent="custom-specialist"),
+                {"custom_review": "custom-specialist"},
+            ),
+            "Specialist: custom-specialist\n\nA readable finding.",
+        )
 
     def test_old_results_are_not_reused_for_new_user_turn(self):
         self.assertIsNone(specialist_reply([*tool_turn(), message("user", "A new request")], self.bindings))
@@ -120,7 +139,7 @@ class PassthroughTests(unittest.TestCase):
         messages = [first[0], first[1], second[1], first[2], second[2]]
         text = specialist_reply(messages, self.bindings)
         self.assertIn("Application finding.", text)
-        self.assertIn("Specialist: case-review-agent (via inspect_case)\n\nCase finding.", text)
+        self.assertIn("Specialist: Case notes summarizer\n\nCase finding.", text)
         second[2].contents[0].result = json.dumps(
             {"status": "succeeded", "agent": "case-review-agent", "output": '{"summary":"case"}'}
         )

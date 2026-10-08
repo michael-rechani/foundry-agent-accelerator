@@ -21,11 +21,6 @@
     display: none;
   }
 
-  /* The side column already lists what to give the agent and what comes back. */
-  .chat-app.chat-has-aside .chat-welcome .agent-guide-compact {
-    display: none;
-  }
-
   .chat-app.chat-has-aside .chat-aside {
     position: relative;
     display: flex;
@@ -93,10 +88,15 @@
   background: transparent;
 }
 
-.aside-more > summary {
-  width: fit-content;
-  color: var(--accent);
+.aside-about > summary {
+  color: var(--text);
   cursor: pointer;
+}
+
+.aside-about > summary h2 {
+  display: inline;
+  padding: 0;
+  border: 0;
 }
 
 .aside-more-body {

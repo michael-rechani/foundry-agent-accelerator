@@ -121,6 +121,14 @@ test('on a wide screen the side column offers to create a previewed agent', asyn
   await openAgent(page, support.label)
   await page.getByRole('button', { name: 'Try it in Chat' }).click()
   const aside = page.getByRole('complementary', { name: 'Agent details' })
+  await expect(aside).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Create this agent', exact: true }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-message')).toHaveCount(1)
+  await expect(aside.locator('.aside-more-body')).toBeHidden()
+  await aside.locator('.aside-about > summary').click()
   await expect(aside.locator('.aside-kind')).toHaveText('Library preview')
   await expect(aside).toContainText(
     'Nothing is created until you confirm on the last step.',
@@ -138,7 +146,7 @@ test('on a wide screen the side column offers to create a previewed agent', asyn
   await expect(
     page.locator('.creation-template[aria-pressed="true"]'),
   ).toContainText(support.label)
-  expect(state.chat).toHaveLength(0)
+  expect(state.chat).toHaveLength(1)
   expect(state.drafts).toBe(0)
   expect(state.creations).toBe(0)
 })

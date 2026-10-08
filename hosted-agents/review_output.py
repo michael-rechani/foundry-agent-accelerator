@@ -6,6 +6,10 @@ import re
 
 
 LOGGER = logging.getLogger(__name__)
+SPECIALIST_LABELS = {
+    "application-review-agent": "Checklist reviewer",
+    "case-review-agent": "Case notes summarizer",
+}
 QUOTATION = re.compile(
     r'"([^"]+)"|\u201c([^\u201d]+)\u201d|'
     r"(?<!\w)'((?:[^'\n]|(?<=\w)'(?=\w))+)'(?!\w)|"
@@ -129,7 +133,7 @@ def specialist_reply(messages, bindings):
         try:
             json.loads(output)
         except ValueError:
-            return f"Specialist: {agent} (via {name})\n\n{output}"
+            return f"Specialist: {SPECIALIST_LABELS.get(agent, agent)}\n\n{output}"
         return output
     # Multiple schema results cannot be combined without changing the caller's schema.
     for _, _, output in outputs:
@@ -138,7 +142,10 @@ def specialist_reply(messages, bindings):
         except ValueError:
             continue
         raise ValueError("Multiple structured specialist results require separate reviews")
-    return "\n\n".join(f"Specialist: {agent} (via {name})\n\n{output}" for name, agent, output in outputs)
+    return "\n\n".join(
+        f"Specialist: {SPECIALIST_LABELS.get(agent, agent)}\n\n{output}"
+        for _, agent, output in outputs
+    )
 
 
 def as_stream(response):
