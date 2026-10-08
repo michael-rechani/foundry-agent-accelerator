@@ -268,13 +268,14 @@ recorded sign-offs disagree. Current tool modes are only `Text only` and `Sample
 neither means a customer system is connected. Cost and latency are relative
 model-profile hints, not prices or performance guarantees.
 
-Most listed agents' instructions end with the same answer layout: **Result**,
+Every listed agent's instructions end with the same answer layout: **Result**,
 **Why**, **What to check** and **Next step**, then who makes any decision the
 agent is asked to make. The layout is appended in `agent_templates/catalog.py`, so the
 served `instructions` field keeps its shape.
-**Checklist gap finder** uses its own short takeaway and criterion matrix
-instead, with questions only for unresolved items. An explicitly requested
-structured schema takes precedence over that agent's prose layout.
+The proposed task-sized layout and terminology alignment for **Checklist gap finder**
+are deferred until its sample answers can be re-recorded through the existing
+private Foundry endpoint; see [#244](https://github.com/michael-rechani/foundry-agent-accelerator/issues/244).
+Its current instructions and recorded evidence remain unchanged.
 
 `GET /api/agent-scorecards` serves each template's recorded test results
 (`schema_version: 1`), kept separate so the catalog response stays unchanged.

@@ -335,11 +335,9 @@ class TemplateTests(unittest.TestCase):
         self.assertEqual(len(result["goal"]), 1200)
         self.assertLessEqual(len(result["instructions"]), 6000)
 
-    def test_other_listed_agents_keep_the_shared_layout_and_name_who_decides(self):
+    def test_every_listed_agent_answers_in_the_same_four_parts_and_names_who_decides(self):
         headings = ["Result", "Why", "What to check", "Next step"]
         for template in list_templates():
-            if template["id"] == "criteria-checker":
-                continue
             with self.subTest(identifier=template["id"]):
                 text = template["instructions"]
                 positions = [text.index(heading + " (") if heading != "Next step" else text.index("Next step (")
@@ -349,18 +347,6 @@ class TemplateTests(unittest.TestCase):
         for identifier in RETIRED_TEMPLATES:
             with self.subTest(identifier=identifier):
                 self.assertNotIn("Format every answer", TEMPLATES[identifier]["instructions"])
-
-    def test_checklist_layout_is_not_overridden_by_the_shared_four_parts(self):
-        template = TEMPLATES["criteria-checker"]
-        instructions = template["instructions"]
-        self.assertIn("exactly one row per checklist item", instructions)
-        self.assertIn("Met / Not demonstrated / Unclear", instructions)
-        self.assertIn("supported / gap / conflict", instructions)
-        self.assertIn("structured result schema, follow it instead", instructions)
-        self.assertIn("authorized person", instructions)
-        self.assertNotIn("Format every answer", instructions)
-        draft = prepare_draft("Check this project plan against my checklist.", "criteria-checker")
-        self.assertTrue(draft["instructions"].startswith(instructions))
 
     def test_only_lookup_jobs_have_tools_and_they_are_simulated(self):
         for identifier, template in TEMPLATES.items():

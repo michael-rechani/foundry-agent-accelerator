@@ -63,8 +63,8 @@ _PROFILE_HINTS = {
     "tool_calling": {"relative_cost": "medium", "relative_latency": "higher"},
 }
 
-# Listed agents use the shared four-part layout (#82), except the checklist
-# checker whose own instructions preserve a criterion matrix and structured schemas.
+# Every listed agent answers in the same four parts (#82). It is appended to each template's own
+# task text, so the served `instructions` field keeps its shape.
 ANSWER_LAYOUT = (
     "Format every answer with these four headings, in this order: Result (the direct answer, table or "
     "draft), Why (the facts and source labels that support it), What to check (missing, unclear or "
@@ -94,7 +94,7 @@ LIBRARY_ORDER = _LIBRARY.library_order
 RETIRED_TEMPLATES = _LIBRARY.retired
 
 for _template_id, _metadata_entry in TEMPLATE_METADATA.items():
-    if _template_id not in RETIRED_TEMPLATES and _template_id != "criteria-checker":
+    if _template_id not in RETIRED_TEMPLATES:
         _template = TEMPLATES[_template_id]
         _template["instructions"] = (
             _template["instructions"].rstrip() + " " + ANSWER_LAYOUT + _metadata_entry["human_decision"])
