@@ -29,3 +29,6 @@ default_agent        = "customer-review"
 # approve_public_front_door        = true
 # front_door_allowed_cidrs         = ["203.0.113.10/32"]
 # front_door_private_link_location = "centralus"
+# Required with Front Door: Private Link traffic reaches the app from this shared range, so without it the origin
+# health probe is refused and Front Door reports 0% origin health (see docs/ingress-access.md).
+# front_door_ingress_allow_cidrs   = ["100.64.0.0/10"]
