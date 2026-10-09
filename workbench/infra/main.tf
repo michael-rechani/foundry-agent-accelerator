@@ -9,6 +9,11 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.81"
     }
+    # Needed by the Front Door AVM module (front-door.tf). Declared here so the offline tests can mock it.
+    modtm = {
+      source  = "azure/modtm"
+      version = "~> 0.3"
+    }
   }
 }
 
@@ -320,6 +325,15 @@ resource "azurerm_container_app" "this" {
       action           = "Allow"
       ip_address_range = data.azurerm_subnet.management.address_prefixes[0]
     }
+    # Only while Front Door is enabled, and only private ranges (see front-door.tf).
+    dynamic "ip_security_restriction" {
+      for_each = local.front_door_ingress_rules
+      content {
+        name             = ip_security_restriction.key
+        action           = "Allow"
+        ip_address_range = ip_security_restriction.value
+      }
+    }
     traffic_weight {
       latest_revision = true
       percentage      = 100
@@ -346,7 +360,7 @@ resource "azurerm_container_app" "this" {
             WORKBENCH_AGENT_CREATION_ENABLED = tostring(var.agent_creation_enabled)
             WORKBENCH_AGENT_CREATION_MODEL   = var.agent_creation_model
             WORKBENCH_ALLOWED_HOSTS          = local.hostname
-            WORKBENCH_ORIGINS                = "https://${local.hostname}"
+            WORKBENCH_ORIGINS                = join(",", compact(["https://${local.hostname}", local.front_door_endpoint_host == null ? "" : "https://${local.front_door_endpoint_host}"]))
             FOUNDRY_PROJECT_ENDPOINT         = "https://${var.foundry_account_name}.services.ai.azure.com/api/projects/${var.foundry_project_name}"
             WORKBENCH_FOUNDRY_PROJECT_ID     = local.project_id
             AZURE_CLIENT_ID                  = azurerm_user_assigned_identity.this.client_id

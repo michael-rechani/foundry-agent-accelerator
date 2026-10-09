@@ -85,6 +85,19 @@ estimate covers provisioned capacity, not usage-based serverless pricing. It
 excludes storage, backups, discounts, taxes, model tokens, Container Apps,
 registry/builds, and existing network resources, so it is not the total Lab bill.
 
+### Front Door (optional, off by default)
+
+Setting `enable_front_door` adds an Azure Front Door **Premium** profile, which
+Private Link origins require. The
+[Azure Retail Prices API](https://prices.azure.com/api/retail/prices) lists the
+Premium base fee at USD 330/month per profile in the standard zones, so the profile
+costs about `330 * 12 = USD 3,960/year` whether or not anyone uses it. Requests,
+data transfer, WAF custom-rule evaluation and the Private Link connection are
+billed on top. That is more than the Lab's other fixed costs, so turn it on only
+for an approved test window and set `enable_front_door = false` afterward. This is
+a list price, not a current quote. See
+[Draft: Front Door limited to your own IP](ingress-access.md#draft-front-door-limited-to-your-own-ip)
+and [#240](https://github.com/michael-rechani/foundry-agent-accelerator/issues/240).
 | Runtime area | Limit |
 | --- | --- |
 | Container Apps runtime | One warm 0.5-vCPU/1-GiB replica for responsiveness. Uvicorn limits connection/task concurrency to 32. |

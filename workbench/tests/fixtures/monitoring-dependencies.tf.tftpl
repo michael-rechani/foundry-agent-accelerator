@@ -2,13 +2,23 @@
 terraform {
   required_version = "~> 1.16.4"
   required_providers {
+    # Constraints mirror the merged ones in ../infra/.terraform.lock.hcl, which
+    # the Front Door module adds to. Keep them in step so a read-only init passes.
     azapi = {
       source  = "Azure/azapi"
-      version = "~> 2.12.0"
+      version = "~> 2.4, ~> 2.12.0"
     }
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.81"
+      version = "~> 4.0, ~> 4.81"
+    }
+    modtm = {
+      source  = "Azure/modtm"
+      version = "~> 0.3"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.5.0"
     }
   }
 }
