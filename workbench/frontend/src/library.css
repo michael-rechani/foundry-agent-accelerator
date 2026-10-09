@@ -1232,12 +1232,29 @@
   .library-filters {
     position: static;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    /* Each list is as tall as its own rows. Stretching to the tallest list
+       in the row spreads a short list out and floats its rows. */
+    align-items: start;
   }
   .library-search {
     grid-column: 1 / -1;
   }
   .library-facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1000px) {
+  /* Two by two, so a wrapped step never starts a row with a loose connector. */
+  .library-path {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+  .library-path li {
+    padding: 0;
+  }
+  .library-path li + li::before {
+    display: none;
   }
 }
 @media (max-width: 650px) {
@@ -1256,17 +1273,6 @@
   }
   .library-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .library-path {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 12px;
-  }
-  .library-path li {
-    padding: 0;
-  }
-  .library-path li + li::before {
-    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
