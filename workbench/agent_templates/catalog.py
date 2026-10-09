@@ -214,4 +214,3 @@ def prepare_draft(goal, template_id=None):
         "template_id": template_id, "name": template["label"], "instructions": instructions,
         "goal": goal, "source": "template", "sample_input": template["sample_input"],
     }
-

@@ -144,15 +144,9 @@ test('Foundry links appear only under the hood', async ({ page }) => {
   )
 
   await workspaceNav(page).getByRole('button', { name: 'Chat' }).click()
-  // Wide windows keep the agent's details in a right-hand column and narrow
-  // ones in a pop-up from the Chat header.
-  const wide = (page.viewportSize()?.width ?? 0) >= 1000
-  await page
-    .locator(wide ? '.aside-more > summary' : '.agent-about > summary')
-    .click()
-  const runtime = page.locator(
-    wide ? '.chat-aside .catalog-runtime' : '.agent-about .catalog-runtime',
-  )
+  await expect(page.locator('.chat-aside')).toHaveCount(0)
+  await page.locator('.agent-about > summary').click()
+  const runtime = page.locator('.agent-about .catalog-runtime')
   await runtime.getByText('Developer setup details').click()
   await expect(runtime.getByRole('link').first()).toHaveAttribute(
     'href',

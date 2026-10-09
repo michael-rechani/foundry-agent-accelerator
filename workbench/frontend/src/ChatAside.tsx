@@ -52,27 +52,16 @@ export function ChatAside({
   return (
     <aside className="chat-aside" aria-label="Agent details">
       <section className="aside-panel" aria-labelledby="aside-about">
-        <h2 id="aside-about">About this agent</h2>
-        <span className={`aside-kind${isPreview ? ' preview' : ''}`}>
-          {isPreview ? 'Library preview' : agent.category}
-        </span>
-        <p>{agent.description}</p>
-        <AgentGuide agent={agent} compact />
-        <details className="aside-more">
-          <summary>More about this agent</summary>
+        <details className="aside-about" key={agent.id}>
+          <summary>
+            <h2 id="aside-about">About this agent</h2>
+          </summary>
           <div className="aside-more-body">
-            {agent.guidance && (
-              <dl className="agent-guide">
-                <div>
-                  <dt>How it works</dt>
-                  <dd>{agent.guidance.delegation}</dd>
-                </div>
-                <div>
-                  <dt>What it won&apos;t do</dt>
-                  <dd>{agent.guidance.limits}</dd>
-                </div>
-              </dl>
-            )}
+            <span className={`aside-kind${isPreview ? ' preview' : ''}`}>
+              {isPreview ? 'Library preview' : agent.category}
+            </span>
+            <p>{agent.description}</p>
+            <AgentGuide agent={agent} />
             <p>{isPreview ? previewBlurb : publishedBlurb}</p>
             <AgentRuntime agent={agent} foundryPortal={portal} />
             <button type="button" className="inline-link" onClick={onCatalog}>
