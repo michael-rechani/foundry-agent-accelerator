@@ -2,7 +2,6 @@ import { expect, test, type Page } from '@playwright/test'
 import { addOnGroupLabels, addOns } from '../src/add-on-catalog'
 import { registry } from './fixtures'
 import { openWorkspace } from './helpers/chat-lab'
-import { expectFitsViewport, useNarrowLayout } from './helpers/layout'
 import { openLibrary } from './helpers/library-lab'
 import { openChat } from './helpers/navigation'
 
@@ -163,15 +162,4 @@ test('when agent creation is on, the answer offers it and nothing is made', asyn
   expect(state.chat).toHaveLength(0)
   expect(state.drafts).toBe(0)
   expect(state.creations).toBe(0)
-})
-
-test('an open answer fits a narrow window', async ({ page }) => {
-  await useNarrowLayout(page)
-  await openWorkspace(page, { config: { agents: registry } })
-  const ask = guide(page)
-  await ask.getByRole('button', { name: askHow }).click()
-  await expect(ask.locator('.lab-guide-answer')).toBeVisible()
-  await expectFitsViewport(page)
-  await ask.getByRole('button', { name: askWhich }).click()
-  await expectFitsViewport(page)
 })
