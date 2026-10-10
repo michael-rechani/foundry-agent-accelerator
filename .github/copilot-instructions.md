@@ -16,6 +16,12 @@ Approval of a rollout or deployment isn't approval to create a public resource.
 If the only path requires public exposure, stop and ask. Say what would be
 public, for how long, and what private alternatives exist.
 
+## No mobile support
+
+The Lab is a desktop web app. Do not design, build, test, screenshot or file
+issues for phone or narrow-window layouts, and do not add mobile checks to new
+tests. Leave existing mobile code and tests alone unless asked to change them.
+
 ## Track work you can't finish now as GitHub issues
 
 When work is deferred, blocked on approval, or out of scope for the current
