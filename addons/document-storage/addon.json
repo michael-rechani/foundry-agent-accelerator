@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "document-storage",
+  "name": "Document storage",
+  "order": 7,
+  "kind": "new-service",
+  "tracking": [54],
+  "card": {
+    "icon": "storage",
+    "group": "support",
+    "summary": "Gives an agent a private place to keep the files it works from, such as policies, forms and reports.",
+    "example": "A grant team keeps its policy PDFs in one place. Knowledge search and document extraction read them from there.",
+    "cost": [
+      "Billed for how much is stored each month, by how quickly the files need to be reached.",
+      "Reading and writing files adds a small charge each time."
+    ],
+    "needs": [
+      "A decision on which files go here and who may add them.",
+      "A rule for how long files are kept and how they are removed."
+    ],
+    "safety": "Files stay on the private network and are read through a managed identity, not keys. Only files added on purpose are stored.",
+    "service": "Azure Blob Storage",
+    "billing": "Per GB stored by access tier, plus per-operation charges.",
+    "note": "Knowledge search and document extraction both list your documents in storage you control as a need, so this is what they build on."
+  }
+}

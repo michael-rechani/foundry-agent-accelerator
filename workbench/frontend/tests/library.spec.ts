@@ -299,8 +299,12 @@ test('the Add-ons tab previews what an agent could connect to without calling an
     'Notifications',
     'Code interpreter',
     'Web search',
+    'Document storage',
+    'Response cache',
   ])
-  await expect(cards.getByText('Not available yet')).toHaveCount(5)
+  await expect(cards.getByText('Not available yet')).toHaveCount(7)
+  await expect(cards.getByText('Supports the agent')).toHaveCount(3)
+  await expect(cards.getByText('Lets an agent do more')).toHaveCount(5)
   await expect(cards.getByText('Sample pilot')).toHaveCount(1)
   await expect(cards.first().getByText('Sample pilot')).toBeVisible()
   await expect(cards.getByText('In the Lab today')).toHaveCount(1)
@@ -310,7 +314,7 @@ test('the Add-ons tab previews what an agent could connect to without calling an
     'What it would need',
     'Keeping it safe',
   ])
-    await expect(cards.getByRole('heading', { name: heading })).toHaveCount(6)
+    await expect(cards.getByRole('heading', { name: heading })).toHaveCount(8)
   await expect(page.locator('.library-badge.caution')).toHaveText(
     'Needs data-handling approval first',
   )

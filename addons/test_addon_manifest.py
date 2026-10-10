@@ -13,6 +13,7 @@ RUNBOOK = "# Deploy\n\nA person approves the saved plan.\n\n" + "".join(f"## {he
 def card(**changes):
     value = {
         "icon": "search",
+        "group": "abilities",
         "summary": "Lets an agent find things.",
         "example": "It finds a passage.",
         "cost": ["Billed by the hour."],
@@ -132,6 +133,7 @@ class ManifestShapeTests(TemporaryAddOns):
             ({"tracking": []}, "tracking must list"),
             ({"tracking": [54, 54]}, "tracking lists an issue twice"),
             ({"card": card(icon="robot")}, "unknown icon"),
+            ({"card": card(group="extras")}, "unknown group"),
             ({"card": card(cost=[])}, "card cost must be a non-empty list"),
             ({"card": card(needs=[1])}, "card needs entries must be non-empty text"),
             ({"card": card(approval="")}, "card approval must be non-empty text"),
@@ -243,8 +245,8 @@ class CatalogTests(TemporaryAddOns):
         self.add("second", manifest("second", name="Second", order=1))
         entries = json.loads(build_catalog.render(load_add_ons(self.root)))["add_ons"]
         self.assertEqual([entry["id"] for entry in entries], ["second", "first"])
-        self.assertEqual(list(entries[1]), ["id", "name", "icon", "summary", "example", "pilot", "cost", "needs",
-                                            "safety", "approval", "service", "billing", "note"])
+        self.assertEqual(list(entries[1]), ["id", "name", "icon", "group", "summary", "example", "pilot", "cost",
+                                            "needs", "safety", "approval", "service", "billing", "note"])
 
     def test_notices_a_stale_or_missing_catalog(self):
         self.add("sample")
@@ -290,8 +292,11 @@ class RepositoryManifestTests(unittest.TestCase):
         add_ons = load_add_ons(ADDONS_DIRECTORY)
         self.assertEqual([item.id for item in add_ons], ["knowledge-search", "conversation-memory",
                                                          "document-extraction", "notifications",
-                                                         "code-interpreter", "web-search"])
-        self.assertEqual([item.order for item in add_ons], list(range(1, 7)))
+                                                         "code-interpreter", "web-search",
+                                                         "document-storage", "response-cache"])
+        self.assertEqual([item.order for item in add_ons], list(range(1, 9)))
+        self.assertEqual([item.id for item in add_ons if item.card["group"] == "support"],
+                         ["conversation-memory", "document-storage", "response-cache"])
 
     def test_the_frontend_catalog_matches_the_manifests(self):
         self.assertTrue(build_catalog.is_current(load_add_ons(ADDONS_DIRECTORY), build_catalog.CATALOG_PATH),

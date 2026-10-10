@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
+  addOnGroupLabels,
   addOnRules,
   addOns,
   codingAgentRequest,
@@ -25,7 +26,7 @@ const everyText = () =>
   ].join('\n')
 
 describe('add-ons catalogue', () => {
-  it('lists the six planned add-ons once each', () => {
+  it('lists the eight planned add-ons once each', () => {
     assert.deepEqual(
       addOns.map((item) => item.id),
       [
@@ -35,6 +36,8 @@ describe('add-ons catalogue', () => {
         'notifications',
         'code-interpreter',
         'web-search',
+        'document-storage',
+        'response-cache',
       ],
     )
   })
@@ -47,12 +50,39 @@ describe('add-ons catalogue', () => {
       'notifications',
       'calculator',
       'web',
+      'cache',
+      'storage',
     ]
     assert.equal(new Set(addOns.map((item) => item.id)).size, addOns.length)
     for (const item of addOns) {
       assert.ok(icons.includes(item.icon), `${item.id} icon ${item.icon}`)
       assert.ok(item.name, `${item.id} name`)
     }
+  })
+
+  it('splits what an agent can do from what supports it', () => {
+    const supports = addOns
+      .filter((item) => item.group === 'support')
+      .map((item) => item.id)
+    assert.deepEqual(supports, [
+      'conversation-memory',
+      'document-storage',
+      'response-cache',
+    ])
+    for (const item of addOns)
+      assert.ok(
+        item.group === 'abilities' || item.group === 'support',
+        `${item.id} group`,
+      )
+    assert.equal(addOnGroupLabels.abilities, 'Lets an agent do more')
+    assert.equal(addOnGroupLabels.support, 'Supports the agent')
+  })
+
+  it('warns that a cache keeps what people asked, like memory does', () => {
+    const cache = addOns.find((item) => item.id === 'response-cache')
+    assert.ok(cache)
+    assert.match(cache.safety, /retention and deletion rules/)
+    assert.match(cache.needs.join(' '), /never be saved/)
   })
 
   it('shows cost, needs and safety for every add-on before anything is on', () => {

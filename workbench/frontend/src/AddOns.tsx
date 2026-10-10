@@ -3,14 +3,17 @@ import {
   Calculator,
   Copy,
   Globe,
+  HardDrive,
   Info,
   Mail,
   ScanText,
   Search,
   ShieldCheck,
+  Zap,
   type LucideIcon,
 } from 'lucide-react'
 import {
+  addOnGroupLabels,
   addOnRules,
   addOns,
   codingAgentRequest,
@@ -19,13 +22,15 @@ import {
 } from './add-on-catalog'
 import './library.css'
 
-const icons: Record<AddOnIcon, LucideIcon> = {
+const addOnIcons: Record<AddOnIcon, LucideIcon> = {
   search: Search,
   memory: Brain,
   documents: ScanText,
   notifications: Mail,
   calculator: Calculator,
   web: Globe,
+  cache: Zap,
+  storage: HardDrive,
 }
 
 export function AddOns({ onNotice }: { onNotice: (text: string) => void }) {
@@ -35,9 +40,9 @@ export function AddOns({ onNotice }: { onNotice: (text: string) => void }) {
         <p className="library-eyebrow">Agent library</p>
         <h1>Add-ons an agent could use</h1>
         <p>
-          An add-on gives an agent something extra to work with, such as your
-          own documents or a calculator. See what each one would do and what it
-          would cost before anything is built.
+          An add-on gives an agent something extra to work with or to run on,
+          such as your own documents, a cache or file storage. See what each one
+          would do and what it would cost before anything is built.
         </p>
       </header>
       <div className="library-decision" role="note">
@@ -46,8 +51,8 @@ export function AddOns({ onNotice }: { onNotice: (text: string) => void }) {
           <strong>A preview only. </strong>Nothing on this page turns anything
           on, sends data or costs money. One add-on, Knowledge search, already
           runs as a small sample pilot in the Lab. The others are not available
-          yet. Add-ons are built in Microsoft Foundry, so an agent you take
-          there can connect to them.
+          yet. Add-ons are set up in Azure and Microsoft Foundry rather than in
+          the Lab, so an agent you take there can connect to them.
         </p>
       </div>
       <section className="library-panel addon-rules" aria-labelledby="rules">
@@ -79,7 +84,7 @@ function AddOnCard({
   addOn: AddOn
   onNotice: (text: string) => void
 }) {
-  const Icon = icons[addOn.icon]
+  const Icon = addOnIcons[addOn.icon]
   const titleId = `addon-${addOn.id}`
 
   async function copyRequest() {
@@ -98,6 +103,7 @@ function AddOnCard({
           <span className="library-badge">
             {addOn.pilot ? 'Sample pilot' : 'Not available yet'}
           </span>
+          <span className="library-badge">{addOnGroupLabels[addOn.group]}</span>
           {addOn.approval && (
             <span className="library-badge caution">{addOn.approval}</span>
           )}

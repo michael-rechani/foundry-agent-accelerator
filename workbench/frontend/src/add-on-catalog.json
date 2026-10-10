@@ -5,6 +5,7 @@
       "id": "knowledge-search",
       "name": "Knowledge search",
       "icon": "search",
+      "group": "abilities",
       "summary": "Lets an agent answer from your own documents, not only from what it already knows.",
       "example": "A grant reviewer asks what the policy says about travel. The agent finds the right passage and names where it came from.",
       "pilot": "Ask Checklist and case helper to use the sample policy guidance when it summarizes case notes. It looks up ten approved sample passages and names the one it used. Your own documents cannot be added yet.",
@@ -26,6 +27,7 @@
       "id": "conversation-memory",
       "name": "Conversation memory",
       "icon": "memory",
+      "group": "support",
       "summary": "Lets an agent remember earlier conversations, so people do not have to repeat themselves.",
       "example": "A returning person carries on with an earlier case without restating the details.",
       "cost": [
@@ -44,6 +46,7 @@
       "id": "document-extraction",
       "name": "Document extraction",
       "icon": "documents",
+      "group": "abilities",
       "summary": "Lets an agent read scanned forms, receipts and PDFs, so it can work with the text and fields in them.",
       "example": "An expense claim arrives as a photo of a receipt. The agent reads the date and the total from it.",
       "cost": [
@@ -61,6 +64,7 @@
       "id": "notifications",
       "name": "Notifications",
       "icon": "notifications",
+      "group": "abilities",
       "summary": "Lets an agent send a message once a person has approved it.",
       "example": "The agent drafts an email to a vendor. A person reads it, then chooses Send.",
       "cost": [
@@ -78,6 +82,7 @@
       "id": "code-interpreter",
       "name": "Code interpreter",
       "icon": "calculator",
+      "group": "abilities",
       "summary": "Lets an agent run small calculations on the data you give it, instead of doing the arithmetic in its head.",
       "example": "The agent totals the lines on an expense claim and shows its working.",
       "cost": [
@@ -95,6 +100,7 @@
       "id": "web-search",
       "name": "Web search",
       "icon": "web",
+      "group": "abilities",
       "summary": "Lets an agent look things up on the public internet.",
       "example": "The agent checks a current public regulation before it answers.",
       "cost": [
@@ -107,6 +113,46 @@
       "approval": "Needs data-handling approval first",
       "service": "Web grounding (public search service)",
       "billing": "Per query. Not assessed."
+    },
+    {
+      "id": "document-storage",
+      "name": "Document storage",
+      "icon": "storage",
+      "group": "support",
+      "summary": "Gives an agent a private place to keep the files it works from, such as policies, forms and reports.",
+      "example": "A grant team keeps its policy PDFs in one place. Knowledge search and document extraction read them from there.",
+      "cost": [
+        "Billed for how much is stored each month, by how quickly the files need to be reached.",
+        "Reading and writing files adds a small charge each time."
+      ],
+      "needs": [
+        "A decision on which files go here and who may add them.",
+        "A rule for how long files are kept and how they are removed."
+      ],
+      "safety": "Files stay on the private network and are read through a managed identity, not keys. Only files added on purpose are stored.",
+      "service": "Azure Blob Storage",
+      "billing": "Per GB stored by access tier, plus per-operation charges.",
+      "note": "Knowledge search and document extraction both list your documents in storage you control as a need, so this is what they build on."
+    },
+    {
+      "id": "response-cache",
+      "name": "Response cache",
+      "icon": "cache",
+      "group": "support",
+      "summary": "Lets an agent reuse a saved answer when the same question comes in again, instead of asking the model each time.",
+      "example": "Many people ask the same policy question each week. The first answer is saved and the rest get it back straight away.",
+      "cost": [
+        "Billed by the hour for the size of cache that is running.",
+        "Each reused answer saves one model call, so the saving depends on how often the same question repeats."
+      ],
+      "needs": [
+        "A decision on how long a saved answer stays valid, so nobody gets an out-of-date answer.",
+        "A rule for what must never be saved, such as answers that include personal details."
+      ],
+      "safety": "It would store what people ask and what the agent replied, so it needs the same retention and deletion rules as conversation memory. A saved answer is only reused for people who are allowed to see it.",
+      "service": "Azure Managed Redis",
+      "billing": "Per hour by cache size and performance tier.",
+      "note": "Check the current Redis options before building, since Azure's older Redis tiers are being retired."
     }
   ]
 }

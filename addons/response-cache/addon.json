@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "response-cache",
+  "name": "Response cache",
+  "order": 8,
+  "kind": "new-service",
+  "tracking": [54],
+  "card": {
+    "icon": "cache",
+    "group": "support",
+    "summary": "Lets an agent reuse a saved answer when the same question comes in again, instead of asking the model each time.",
+    "example": "Many people ask the same policy question each week. The first answer is saved and the rest get it back straight away.",
+    "cost": [
+      "Billed by the hour for the size of cache that is running.",
+      "Each reused answer saves one model call, so the saving depends on how often the same question repeats."
+    ],
+    "needs": [
+      "A decision on how long a saved answer stays valid, so nobody gets an out-of-date answer.",
+      "A rule for what must never be saved, such as answers that include personal details."
+    ],
+    "safety": "It would store what people ask and what the agent replied, so it needs the same retention and deletion rules as conversation memory. A saved answer is only reused for people who are allowed to see it.",
+    "service": "Azure Managed Redis",
+    "billing": "Per hour by cache size and performance tier.",
+    "note": "Check the current Redis options before building, since Azure's older Redis tiers are being retired."
+  }
+}
