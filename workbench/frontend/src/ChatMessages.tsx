@@ -33,6 +33,9 @@ export function ChatMessages({
   onCreateAgent,
   onCopy,
   onDismissError,
+  agents,
+  onChooseAgent,
+  onAddOns,
 }: {
   config: Config | null
   agent?: Agent
@@ -56,6 +59,9 @@ export function ChatMessages({
   onCreateAgent?: () => void
   onCopy: (text: string) => void
   onDismissError: () => void
+  agents: Agent[]
+  onChooseAgent: (id: string) => void
+  onAddOns: () => void
 }) {
   return (
     <div className="conversation-scroll" aria-label="Conversation">
@@ -79,6 +85,9 @@ export function ChatMessages({
             onPrompt={onPrompt}
             onClearExample={onClearExample}
             onCreateAgent={onCreateAgent}
+            agents={agents}
+            onChooseAgent={onChooseAgent}
+            onAddOns={onAddOns}
           />
         )
       ) : (
