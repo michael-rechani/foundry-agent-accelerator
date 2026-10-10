@@ -8,12 +8,28 @@
 import catalog from './add-on-catalog.json' with { type: 'json' }
 
 export type AddOnIcon =
-  'search' | 'memory' | 'documents' | 'notifications' | 'calculator' | 'web'
+  | 'search'
+  | 'memory'
+  | 'documents'
+  | 'notifications'
+  | 'calculator'
+  | 'web'
+  | 'cache'
+  | 'storage'
+
+// "abilities" lets an agent do something more. "support" is what an agent runs on.
+export type AddOnGroup = 'abilities' | 'support'
+
+export const addOnGroupLabels: Record<AddOnGroup, string> = {
+  abilities: 'Lets an agent do more',
+  support: 'Supports the agent',
+}
 
 export type AddOn = {
   id: string
   name: string
   icon: AddOnIcon
+  group: AddOnGroup
   summary: string
   example: string
   // Set only when a small sample version already runs in the Lab.

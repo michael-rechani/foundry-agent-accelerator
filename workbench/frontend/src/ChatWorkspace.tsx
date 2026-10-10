@@ -498,6 +498,9 @@ export default function ChatWorkspace() {
             onSave={() => void saveChat()}
             onExport={() => exportConversation(agent, turns, draft)}
             onCreateThis={createThis}
+            agents={availableAgents}
+            onChooseAgent={newChat}
+            onAddOns={() => setView('addons')}
           />
         ) : view === 'catalog' ? (
           <AgentCatalog

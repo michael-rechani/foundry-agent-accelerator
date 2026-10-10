@@ -9,6 +9,7 @@
 @import './chat/theme-menu.css';
 @import './chat/agent-picker.css';
 @import './chat/welcome.css';
+@import './chat/lab-guide.css';
 @import './chat/agent-switcher.css';
 @import './chat/composer.css';
 @import './chat/messages.css';

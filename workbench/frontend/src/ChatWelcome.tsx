@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { ArrowRight, CircleDashed, FlaskConical } from 'lucide-react'
 import { AgentGuide } from './AgentGuide'
 import { agentKind, inProgressNote, previewBlurb } from './library-helpers'
+import { LabGuide } from './LabGuide'
 import type { Agent, Config } from './workspace-config'
 
 // What is in the message box: nothing, an example the app put there, or the
@@ -36,6 +37,9 @@ export function ChatWelcome({
   onPrompt,
   onClearExample,
   onCreateAgent,
+  agents,
+  onChooseAgent,
+  onAddOns,
 }: {
   agent?: Agent
   config: Config | null
@@ -45,6 +49,9 @@ export function ChatWelcome({
   onPrompt: (text: string) => void
   onClearExample?: () => void
   onCreateAgent?: () => void
+  agents?: Agent[]
+  onChooseAgent?: (id: string) => void
+  onAddOns?: () => void
 }) {
   const canSwapExample =
     draftMode === 'example' &&
@@ -129,6 +136,16 @@ export function ChatWelcome({
           </button>{' '}
           from a template.
         </p>
+      )}
+      {agent && agents && onChooseAgent && onAddOns && (
+        <LabGuide
+          key={agent.id}
+          agents={agents}
+          current={agent}
+          onChooseAgent={onChooseAgent}
+          onAddOns={onAddOns}
+          onCreateAgent={onCreateAgent}
+        />
       )}
     </div>
   )

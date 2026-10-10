@@ -1,0 +1,148 @@
+/* "Ask the Lab": two questions on the welcome screen with written answers. */
+.chat-welcome .lab-guide {
+  width: 100%;
+  margin-top: 22px;
+  text-align: left;
+}
+.lab-guide h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.lab-guide-questions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 9px;
+  margin-top: 10px;
+}
+.lab-guide-questions button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+}
+.lab-guide-questions button:hover,
+.lab-guide-questions button[aria-expanded='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.lab-guide-questions button > svg {
+  flex: none;
+  color: var(--muted);
+}
+.lab-guide-exchange {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.chat-welcome .lab-guide-bubble {
+  justify-self: end;
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 12px 12px 2px 12px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+}
+.lab-guide-answer {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+.lab-guide-answer h3 {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.lab-guide-answer h3:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.lab-guide-answer h4 {
+  margin: 12px 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+.chat-welcome .lab-guide-answer p {
+  margin-top: 8px;
+}
+.chat-welcome .lab-guide-answer h3 + p {
+  margin-top: 0;
+}
+.lab-guide-answer ul {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lab-guide-answer li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.lab-guide-answer li > span:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.lab-guide-answer li strong {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text);
+}
+.lab-guide-answer li small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.lab-guide-answer li button {
+  flex: none;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+}
+.lab-guide-answer li button:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.lab-guide-current,
+.lab-guide-status {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-size: 11px;
+  font-weight: 650;
+}
+.chat-welcome .lab-guide-note {
+  margin-top: 12px;
+  font-size: 11px;
+}

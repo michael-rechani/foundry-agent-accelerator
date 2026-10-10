@@ -7,6 +7,7 @@
   "tracking": [54],
   "card": {
     "icon": "documents",
+    "group": "abilities",
     "summary": "Lets an agent read scanned forms, receipts and PDFs, so it can work with the text and fields in them.",
     "example": "An expense claim arrives as a photo of a receipt. The agent reads the date and the total from it.",
     "cost": [

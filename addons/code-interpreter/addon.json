@@ -7,6 +7,7 @@
   "tracking": [54],
   "card": {
     "icon": "calculator",
+    "group": "abilities",
     "summary": "Lets an agent run small calculations on the data you give it, instead of doing the arithmetic in its head.",
     "example": "The agent totals the lines on an expense claim and shows its working.",
     "cost": [

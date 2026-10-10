@@ -37,6 +37,9 @@ export function ChatConversation({
   onSave,
   onExport,
   onCreateThis,
+  agents,
+  onChooseAgent,
+  onAddOns,
 }: {
   config: Config | null
   agent?: Agent
@@ -65,6 +68,9 @@ export function ChatConversation({
   onSave: () => void
   onExport: () => void
   onCreateThis?: () => void
+  agents: Agent[]
+  onChooseAgent: (id: string) => void
+  onAddOns: () => void
 }) {
   const {
     draft,
@@ -125,6 +131,9 @@ export function ChatConversation({
           }}
           onClearExample={() => prefill('')}
           onCreateAgent={onCreateAgent}
+          agents={agents}
+          onChooseAgent={onChooseAgent}
+          onAddOns={onAddOns}
           onCopy={onCopy}
           onDismissError={() => {
             setError('')

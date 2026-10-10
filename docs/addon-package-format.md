@@ -71,7 +71,7 @@ otherwise, and an unknown field is an error.
 | `order` | Position on the **Add-ons** tab, from 1. No two add-ons share one. |
 | `kind` | `built-in-tool` (a Foundry tool, nothing to deploy), `existing-service` (uses a service the platform already has), or `new-service` (needs a service the platform doesn't have yet). |
 | `tracking` | The issue numbers that follow the add-on. |
-| `card` | What the tab shows: `icon`, `summary`, `example`, `cost` (a list), `needs` (a list), `safety`, `service`, `billing`, and optionally `pilot`, `approval`, and `note`. An add-on with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**. |
+| `card` | What the tab shows: `icon`, `group`, `summary`, `example`, `cost` (a list), `needs` (a list), `safety`, `service`, `billing`, and optionally `pilot`, `approval`, and `note`. An add-on with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**. |
 | `package` | Optional. The [deployment package](#the-deployment-package). Leave it out until someone builds the add-on. |
 
 Add-ons without a `package` are previews: the card says what the add-on would
@@ -227,6 +227,12 @@ builds without the `addons` folder, and the page still makes no API call. The
 check fails when the file is out of date, the way the
 [catalog snapshot](../workbench/frontend/README.md#library-performance-and-log-coverage)
 test does for the agent library.
+
+Each card's `group` decides which heading it sits under and its badge:
+`abilities` (**Lets an agent do more**) for something the agent can do, and
+`support` (**Supports the agent**) for something it runs on, such as memory,
+storage or a cache. Chat's **Ask the Lab** answers read the same file, so a new
+add-on appears there with no other change.
 
 Each card also has a **Copy request for your coding agent** button, shown with
 Under the hood on. It copies a request built from the manifest: draft this

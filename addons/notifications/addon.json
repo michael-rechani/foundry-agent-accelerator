@@ -7,6 +7,7 @@
   "tracking": [54],
   "card": {
     "icon": "notifications",
+    "group": "abilities",
     "summary": "Lets an agent send a message once a person has approved it.",
     "example": "The agent drafts an email to a vendor. A person reads it, then chooses Send.",
     "cost": [
