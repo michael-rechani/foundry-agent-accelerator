@@ -16,6 +16,7 @@ Lab on your own machine without Azure, use
 - [5. Plan and review the image rollout](#5-plan-and-review-the-image-rollout)
 - [6. Apply the approved plan and clean up](#6-apply-the-approved-plan-and-clean-up)
 - [7. Verify the deployed application](#7-verify-the-deployed-application)
+- [Recover after a subscription suspension](#recover-after-a-subscription-suspension)
 
 ## Deployment
 
@@ -278,6 +279,52 @@ The private smoke test creates a sample test conversation, verifies agent
 invocation and Cosmos create/read/update/delete, and deletes the test
 conversation afterward. Browser tests use controlled API responses and do not
 replace this deployment check.
+
+## Recover after a subscription suspension
+
+If the subscription is disabled or put in a warned state, Azure suspends the
+Container Apps compute. Nothing in the repository changed, and the plan shows no
+drift. Look for these signs:
+
+- The Lab app and its environment report `Failed`, and revision calls return
+  `ManagedClusterSuspended`.
+- The app looks like a placeholder, with no replicas.
+- `az account show` still says `Enabled`. The CLI caches that value.
+
+Recover in this order. Don't taint, replace or destroy the app: it has
+`prevent_destroy`, and a replacement isn't needed.
+
+1. Read the live subscription state from Azure Resource Manager, not the CLI
+   cache, and wait until it is `Enabled`:
+
+   ```powershell
+   az rest --method get --url "https://management.azure.com/subscriptions/<subscription_id>?api-version=2022-12-01" --query state
+   ```
+
+1. Write the Container Apps environment and then the app once with no change, so
+   Azure re-evaluates them. The tags must equal `local.tags` in
+   `workbench/infra/main.tf` (`workload = "foundry-workbench"`,
+   `managed-by = "terraform"`), or Terraform shows drift afterward:
+
+   ```powershell
+   az rest --method patch --url "https://management.azure.com/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.App/managedEnvironments/<environment>?api-version=2024-03-01" --body '{"tags":{"workload":"foundry-workbench","managed-by":"terraform"}}'
+   az rest --method patch --url "https://management.azure.com/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.App/containerApps/<app>?api-version=2024-03-01" --body '{"tags":{"workload":"foundry-workbench","managed-by":"terraform"}}'
+   ```
+
+   If the environment stays `Failed`, repeat its write once. In the case this
+   section comes from, the environment needed two writes and the app one.
+
+1. Confirm the app's `provisioningState` is `Succeeded`, its `runningStatus` is
+   `Running`, and the active revision has one healthy replica at 100% of
+   traffic. Then run [step 7](#7-verify-the-deployed-application).
+1. If a Front Door is enabled, its endpoint can also be left disabled. See
+   [Operate and recover the draft Front Door](ingress-access.md#operate-and-recover-the-draft-front-door).
+
+The record of the first suspension is
+[#255](https://github.com/michael-rechani/foundry-agent-accelerator/issues/255).
+Apart from that, state and settings that stay out of the repository on purpose
+(`dev.tfvars`, `backend.hcl`, `image.auto.tfvars`, your allowed IP and the
+Terraform state) have to be backed up privately, because they aren't in Git.
 
 ## Related content
 

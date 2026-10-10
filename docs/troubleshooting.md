@@ -66,6 +66,7 @@ changing configuration or credentials.
 | A Lab plan wants to recreate existing resources. | Lab state key and ownership | [Lab prerequisites](lab-deployment.md#1-confirm-prerequisites-and-state-ownership) |
 | The image build, push, or pull by digest fails. | Private registry access from the runner | [Build and select an immutable image](lab-deployment.md#4-build-and-select-an-immutable-image) |
 | The apply succeeds, but the private check fails. | Agent, Cosmos, or HTTPS path | [Verify the deployed application](lab-deployment.md#7-verify-the-deployed-application) |
+| The Lab app shows `Failed`, revisions return `ManagedClusterSuspended`, or `az account show` says `Enabled` while Azure doesn't. | Subscription was suspended or warned | [Recover after a subscription suspension](lab-deployment.md#recover-after-a-subscription-suspension) |
 
 ## Create an agent
 
@@ -105,6 +106,7 @@ changing configuration or credentials.
 | A Bastion plan wants to recreate the host or duplicate the subnet or IP. | Bastion import and state | [Bastion troubleshooting](../terraform/bastion/README.md#troubleshooting) |
 | A Bastion session works, but the VM can't reach Foundry. | VM DNS and routing | [Bastion troubleshooting](../terraform/bastion/README.md#troubleshooting) |
 | A gateway returns `502` or `504`, chat fails through the edge, or sign-in loops. | Application Gateway or Front Door setup | [Ingress troubleshooting](ingress-access.md#troubleshooting) |
+| Front Door answers every path with `404 Page not found`, or a `403` from your own machine. | Endpoint left disabled, or the address Front Door sees | [Operate and recover the draft Front Door](ingress-access.md#operate-and-recover-the-draft-front-door) |
 | The governed review API rejects calls or fails its checks. | APIM authorization and backend | [Acceptance gates](apim-review-api.md#acceptance-gates) |
 
 ## Permissions

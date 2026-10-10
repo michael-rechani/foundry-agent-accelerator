@@ -313,6 +313,60 @@ for the Front Door link (it worked without one).
 The Lab has no end-user sign-in, so the IP rule is the only gate. Use fictional data
 only, and don't treat a single-IP WAF rule as a substitute for the sign-in described
 above before opening access to others.
+
+#### Operate and recover the draft Front Door
+
+**Test it.** From the machine whose address is in `front_door_allowed_cidrs`, with
+no VPN, open the Front Door address in a browser. From PowerShell, `GET /healthz`
+and `GET /api/config` return `200` with no extra header. Calls to the rest of
+`/api/*` also need the header `X-Workbench-Request: 1`, which the page sends.
+
+**Change the allowed address.** Edit the untracked `.tfvars`, plan from the private
+runner, confirm only the WAF rule changes, apply, then confirm the Lab loads. Each
+change is an IP allow-rule change and needs its own approval.
+
+**Two different 403s.**
+
+- Front Door's own page, "The request is blocked", means the WAF doesn't see the
+  client's address on the list. A VPN is the usual cause.
+- A JSON body of `{"error":"request_not_allowed", ...}` comes from the app's
+  request guard (`workbench/request_guard.py`). The request already passed the WAF
+  and lacked `X-Workbench-Request: 1`. `/api/config` isn't guarded.
+
+The address Front Door sees can differ from the one an IP-check site reports. A VPN,
+or a network that sends Microsoft-bound traffic out a different address, can cause
+it. The caller address on your own Azure Resource Manager writes in the activity log
+is a good proxy, because Resource Manager is also a Microsoft destination. The
+`FrontDoorWebApplicationFirewallLog` category records the address Front Door saw.
+Don't add Microsoft egress ranges to the allow-list to get around a 403: they're
+shared with other customers, so it would effectively make the Lab public.
+
+**After a subscription suspension.** A disabled or `Warned` subscription can leave
+the Front Door endpoint at `enabledState = Disabled`, even after the subscription
+is `Enabled` again and the Lab itself has recovered (see
+[Recover after a subscription suspension](lab-deployment.md#recover-after-a-subscription-suspension)).
+Front Door then answers every path with its own HTML `404 Page not found`. Terraform
+expects `Enabled`, so a plan from the private runner shows the drift. To restore it
+without a full apply, set only that property (the WAF, route and origin are not
+touched):
+
+```powershell
+az rest --method patch --url "https://management.azure.com/subscriptions/<subscription_id>/resourceGroups/<resource_group>/providers/Microsoft.Cdn/profiles/<profile>/afdEndpoints/<endpoint>?api-version=2024-02-01" --body '{"properties":{"enabledState":"Enabled"}}'
+```
+
+Before re-enabling, confirm the WAF policy is still in Prevention mode with its
+single allow-list rule and is attached to the endpoint. Then allow up to an hour
+for the edge to catch up: on 9 October 2026 the address went from `404`, to the
+WAF's `403`, to `200` over about 50 minutes. Confirm the origin with the
+`OriginHealthPercentage` metric.
+
+**Diagnostic setting created outside Terraform.** The setting
+`diag-front-door-240` sends the `FrontDoorHealthProbeLog`,
+`FrontDoorWebApplicationFirewallLog` and `FrontDoorAccessLog` categories of the
+Front Door profile to the Lab's Log Analytics workspace. It was created with the
+Azure CLI and isn't in `workbench/infra`, so a rebuilt Lab doesn't have it until
+you create it again. Tracked in
+[#256](https://github.com/michael-rechani/foundry-agent-accelerator/issues/256).
 ## Shared application and HTTP requirements
 
 ### Hostnames, TLS, and sign-in
