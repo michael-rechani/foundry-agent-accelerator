@@ -3,6 +3,8 @@
 #
 # The identity has no secret. GitHub proves who it is with a short-lived OIDC token,
 # and Azure accepts that token only for one environment of one repository.
+# If sign-in fails with "No matching federated identity record", the error shows the
+# subject GitHub presented; pass it as -FederatedSubject.
 # Its custom role can import an image into the registry and update the one Container
 # App. It cannot change registry networking, other apps, or role assignments.
 param(
@@ -13,6 +15,7 @@ param(
     [Parameter(Mandatory)][string]$ManagedIdentity,
     [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')][string]$Repository,
     [ValidatePattern('^[A-Za-z0-9_.-]+$')][string]$Environment = 'lab-deploy',
+    [string]$FederatedSubject,
     [string]$Name = 'gh-lab-image-deploy'
 )
 $ErrorActionPreference = 'Stop'
@@ -39,6 +42,15 @@ $principalId = Invoke-Az ad sp list --filter "appId eq '$clientId'" --query "[0]
 if (-not $principalId) { $principalId = Invoke-Az ad sp create --id $clientId --query id --output tsv }
 
 $subject = "repo:${Repository}:environment:${Environment}"
+# Newer repositories present an immutable subject that includes the owner and repository IDs.
+if (Get-Command gh -ErrorAction SilentlyContinue) {
+    $ids = & gh api "repos/$Repository" --jq '[.owner.login, .owner.id, .name, .id] | @tsv' 2>$null
+    if ($LASTEXITCODE -eq 0 -and $ids) {
+        $owner, $ownerId, $repoName, $repoId = "$ids" -split "`t"
+        $subject = "repo:$owner@$ownerId/$repoName@${repoId}:environment:${Environment}"
+    }
+}
+if ($FederatedSubject) { $subject = $FederatedSubject }
 $credentialName = "github-$Environment"
 $existing = Invoke-Az ad app federated-credential list --id $clientId --query "[?name=='$credentialName'].subject" --output tsv
 if ($existing -ne $subject) {

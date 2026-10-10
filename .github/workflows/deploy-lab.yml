@@ -59,6 +59,7 @@ jobs:
     environment: lab-deploy
     permissions:
       contents: read
+      packages: read
       id-token: write
     env:
       AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
