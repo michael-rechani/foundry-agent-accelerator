@@ -294,6 +294,9 @@ resource "azurerm_container_app" "this" {
   tags                         = local.tags
   lifecycle {
     prevent_destroy = true
+    # The "Deploy Lab image" workflow owns the running image after the first apply, so
+    # a later apply can't roll the app back to an older digest.
+    ignore_changes = [template[0].container[0].image]
     precondition {
       condition     = !var.agent_creation_enabled || (var.agent_creation_model != "" && var.agent_creation_key_secret_id != null)
       error_message = "Agent creation requires an existing model deployment and an operator-key verifier secret."
