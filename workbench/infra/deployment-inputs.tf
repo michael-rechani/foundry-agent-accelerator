@@ -8,7 +8,7 @@ variable "bootstrap_only" {
 variable "image_digest" {
   type        = string
   default     = null
-  description = "Immutable image digest. Required for every normal deployment."
+  description = "Immutable image digest the Container App starts with. Required for every normal deployment. Terraform ignores later image changes; the Deploy Lab image workflow rolls new images."
   validation {
     condition     = var.bootstrap_only || var.image_digest != null
     error_message = "image_digest is required unless bootstrap_only is explicitly true."

@@ -89,7 +89,8 @@ az storage blob download --auth-mode login --subscription '<state-subscription-i
 ```
 
 After a change to the inputs, upload the file again. A plan with only a new
-`image_digest` should show `1 to change, 0 to destroy`. The inputs can hold alert
+`image_digest` shows no change to the running image, because Terraform ignores it
+after the first apply (see "Deploy a new image from GitHub Actions"). The inputs can hold alert
 email addresses, so never commit them.
 
 ```powershell
@@ -169,7 +170,10 @@ reproducible build guarantee.
 
 Replace every placeholder and run from the approved private-network environment.
 Require a successful build, push, and verified pull. Record the returned digest
-and the prior recovery image. Set `image_digest` in local
+and the prior recovery image. Terraform only reads `image_digest` when it first
+creates the Container App, so for a new image on an existing Lab use the
+**Deploy Lab image** workflow instead of steps 5 and 6. For a first deploy, set
+`image_digest` in local
 `workbench/infra/image.auto.tfvars` using
 [image.auto.tfvars.example](../workbench/infra/image.auto.tfvars.example). Mutable tags are
 not accepted as deployment inputs.
@@ -298,10 +302,12 @@ with **Run workflow** on `main`. It:
 
 The run summary shows the new digest and the previous image to recover to.
 
-**Terraform still owns the image.** The workflow changes the running app, not
-Terraform state. Before the next `terraform apply`, set `image_digest` in
-`workbench/infra/image.auto.tfvars` to the digest in the run summary, or the apply
-rolls the app back to the old image.
+**The workflow owns the running image.** Terraform sets `image_digest` only when
+it first creates the Container App and ignores later image changes
+(`ignore_changes` on the container image). A `terraform apply` therefore never
+rolls the app back, and `image_digest` can be any valid digest when you apply
+other infrastructure changes. To see which image is running, read the latest run
+summary or the Container App's current revision.
 
 ### One-time setup for a new subscription
 
