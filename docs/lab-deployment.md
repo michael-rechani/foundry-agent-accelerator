@@ -16,6 +16,7 @@ Lab on your own machine without Azure, use
 - [5. Plan and review the image rollout](#5-plan-and-review-the-image-rollout)
 - [6. Apply the approved plan and clean up](#6-apply-the-approved-plan-and-clean-up)
 - [7. Verify the deployed application](#7-verify-the-deployed-application)
+- [Deploy a new image from GitHub Actions](#deploy-a-new-image-from-github-actions)
 - [Recover after a subscription suspension](#recover-after-a-subscription-suspension)
 
 ## Deployment
@@ -279,6 +280,54 @@ The private smoke test creates a sample test conversation, verifies agent
 invocation and Cosmos create/read/update/delete, and deletes the test
 conversation afterward. Browser tests use controlled API responses and do not
 replace this deployment check.
+
+## Deploy a new image from GitHub Actions
+
+The **Deploy Lab image** workflow (`.github/workflows/deploy-lab.yml`) ships the
+current `main` to a running Lab without a jumpbox. Run it from the Actions tab
+with **Run workflow** on `main`. It:
+
+1. Builds the image on a GitHub runner, checks it as its non-root user, and
+   pushes it to this repository's **private** GitHub package.
+2. Signs in to Azure with a short-lived GitHub token. No secret is stored.
+3. Imports the image into the private registry by digest. Registry import is
+   allowed for a registry with public access off, so nothing in Azure is made
+   public.
+4. Updates the Container App to the new digest, waits for the new revision to be
+   healthy, and restores the previous image if it isn't.
+
+The run summary shows the new digest and the previous image to recover to.
+
+**Terraform still owns the image.** The workflow changes the running app, not
+Terraform state. Before the next `terraform apply`, set `image_digest` in
+`workbench/infra/image.auto.tfvars` to the digest in the run summary, or the apply
+rolls the app back to the old image.
+
+### One-time setup for a new subscription
+
+Run this once, signed in as someone who can create an Entra app registration and
+assign roles on the resource group. It is safe to run again.
+
+```powershell
+./workbench/setup-deploy-identity.ps1 -Subscription '<subscription-id>' -ResourceGroup '<resource-group>' `
+  -Registry '<registry-name>' -ContainerApp '<container-app-name>' -ManagedIdentity '<app-identity-name>' `
+  -Repository '<owner>/<repository>'
+```
+
+The script creates an app registration whose only credential is a federated
+credential for the `lab-deploy` environment of your repository, plus a custom role
+that can import an image into the registry and update the one Container App. It
+cannot change registry networking, other resources, or role assignments.
+
+Then create a `lab-deploy` environment in the repository, limit its deployment
+branches to `main`, and add the variables the script prints as environment
+variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`,
+`AZURE_RESOURCE_GROUP`, `LAB_REGISTRY` and `LAB_CONTAINER_APP`. Keep them out of
+committed files. The workflow needs a private repository, so the image package
+stays private. Don't run it from a public repository.
+
+Use the jumpbox route in steps 4 to 6 when you need to change infrastructure, not
+just the image.
 
 ## Recover after a subscription suspension
 
