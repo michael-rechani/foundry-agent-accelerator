@@ -97,7 +97,8 @@ jobs:
           az containerapp update --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --image "$new_image" --output none
           ready=false
           for _ in $(seq 1 36); do
-            read -r latest ready_revision < <(az containerapp show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --query '[properties.latestRevisionName, properties.latestReadyRevisionName]' --output tsv)
+            latest="$(az containerapp show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --query 'properties.latestRevisionName' --output tsv)"
+            ready_revision="$(az containerapp show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --query 'properties.latestReadyRevisionName' --output tsv)"
             if [ "$latest" = "$ready_revision" ]; then
               running="$(az containerapp revision show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --revision "$latest" --query 'properties.runningState' --output tsv)"
               if [[ "$running" == Running* ]]; then ready=true; break; fi
