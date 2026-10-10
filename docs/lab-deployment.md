@@ -317,7 +317,10 @@ assign roles on the resource group. It is safe to run again.
 The script creates an app registration whose only credential is a federated
 credential for the `lab-deploy` environment of your repository, plus a custom role
 that can import an image into the registry and update the one Container App. It
-cannot change registry networking, other resources, or role assignments.
+cannot change registry networking, other resources, or role assignments. It reads
+the repository and owner IDs with `gh` because GitHub signs the token with a subject
+that includes them. If sign-in fails with "No matching federated identity record",
+rerun the script with the subject from the error as `-FederatedSubject`.
 
 Then create a `lab-deploy` environment in the repository, limit its deployment
 branches to `main`, and add the variables the script prints as environment
