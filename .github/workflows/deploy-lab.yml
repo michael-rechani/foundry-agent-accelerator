@@ -1,0 +1,119 @@
+name: Deploy Lab image
+
+# Builds the Lab image from main, copies it into the private registry by digest,
+# and rolls the Lab Container App to it. Start it by hand from the Actions tab.
+# One-time setup: workbench/setup-deploy-identity.ps1 (see docs/lab-deployment.md).
+#
+# The registry has no public access, so a hosted runner can't push to it. The image
+# goes to this repository's private GitHub package, and Azure imports it from there.
+# Nothing public is created, and Azure holds no stored secret for this workflow.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-lab
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      source: ${{ steps.image.outputs.source }}
+      tag: ${{ steps.image.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build, check and push the image
+        id: image
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repository="${GITHUB_REPOSITORY,,}"
+          tag="${GITHUB_SHA::12}-r${GITHUB_RUN_ID}"
+          image="ghcr.io/${repository}/workbench:${tag}"
+          echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          # .dockerignore is an allow-list, so this context matches what build.ps1 stages.
+          docker buildx build --platform linux/amd64 --provenance=false --sbom=false --pull \
+            --file workbench/Dockerfile --tag "$image" --load workbench
+          docker run --rm --platform linux/amd64 --entrypoint python "$image" -c "import importlib, os; from pathlib import Path; [importlib.import_module(m.stem) for m in sorted(Path('.').glob('*.py'))]; import agent_publisher; assert os.getuid() != 0; assert agent_publisher.runtime_package()[0]; assert Path('agents.json').read_text(); assert Path('static/index.html').read_text()"
+          docker push "$image"
+          source="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')"
+          [[ "$source" =~ @sha256:[a-f0-9]{64}$ ]] || { echo "Pushed image digest not found"; exit 1; }
+          echo "source=$source" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: build
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    environment: lab-deploy
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      LAB_REGISTRY: ${{ vars.LAB_REGISTRY }}
+      LAB_CONTAINER_APP: ${{ vars.LAB_CONTAINER_APP }}
+      IMAGE_SOURCE: ${{ needs.build.outputs.source }}
+      IMAGE_TAG: ${{ needs.build.outputs.tag }}
+    steps:
+      - name: Sign in to Azure with the GitHub token
+        run: |
+          set -euo pipefail
+          token="$(curl -sSf -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" | jq -r .value)"
+          echo "::add-mask::$token"
+          az login --service-principal --username "$AZURE_CLIENT_ID" --tenant "$AZURE_TENANT_ID" --federated-token "$token" --allow-no-subscriptions --output none
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+      - name: Copy the image into the private registry by digest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          az acr import --name "$LAB_REGISTRY" --source "$IMAGE_SOURCE" --image "workbench:${IMAGE_TAG}" \
+            --username "$GITHUB_ACTOR" --password "$GITHUB_TOKEN" --output none
+      - name: Roll the Container App to the new image
+        run: |
+          set -euo pipefail
+          digest="sha256:${IMAGE_SOURCE##*@sha256:}"
+          server="$(az acr show --name "$LAB_REGISTRY" --query loginServer --output tsv)"
+          new_image="${server}/workbench@${digest}"
+          previous="$(az containerapp show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --query 'properties.template.containers[0].image' --output tsv)"
+          echo "Previous image: $previous"
+          if [ "$previous" = "$new_image" ]; then echo "The Lab already runs this image."; exit 0; fi
+          az containerapp update --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --image "$new_image" --output none
+          ready=false
+          for _ in $(seq 1 36); do
+            read -r latest ready_revision < <(az containerapp show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --query '[properties.latestRevisionName, properties.latestReadyRevisionName]' --output tsv)
+            if [ "$latest" = "$ready_revision" ]; then
+              running="$(az containerapp revision show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --revision "$latest" --query 'properties.runningState' --output tsv)"
+              if [[ "$running" == Running* ]]; then ready=true; break; fi
+            fi
+            sleep 10
+          done
+          if [ "$ready" != true ]; then
+            echo "::error::The new revision did not become healthy. Restoring the previous image."
+            az containerapp update --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --image "$previous" --output none
+            exit 1
+          fi
+          {
+            echo "### Lab image deployed"
+            echo ""
+            echo "- Image digest: \`${digest}\`"
+            echo "- Previous image (recovery): \`${previous}\`"
+            echo ""
+            echo "Terraform still has the old digest. Before the next \`terraform apply\`, set \`image_digest\` in"
+            echo "\`workbench/infra/image.auto.tfvars\` to the digest above, or the apply will roll this back."
+          } >> "$GITHUB_STEP_SUMMARY"
