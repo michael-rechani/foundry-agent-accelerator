@@ -30,7 +30,7 @@ monitoring design before you extend or operate the sample.
 
 For every Azure service, subnet, and private endpoint on one page, with numbered
 request steps, see
-[Azure architecture at a glance](images/azure-architecture.svg).
+[Azure architecture at a glance](images/azure-architecture-dark.svg).
 
 ## In this guide
 
@@ -51,12 +51,9 @@ see the [extension guide](architecture-assessment.md).
 
 ## Implementation overview
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/foundry-overview-dark.svg">
-  <img alt="How the Lab handles a request: a person on an approved private network sends a request over HTTPS to the Lab in Container Apps (step 1), the Lab calls Foundry Agent Service with its managed identity (step 2), the coordinator and specialists return a result (step 3), and the Lab responds to the browser (step 4). Saving records to Azure Cosmos DB is a separate step 5: chats only when requested, review drafts and results saved by the server, and created-agent records. Optional API Management sits outside the default flow." src="images/foundry-overview.svg">
-</picture>
+<img alt="How the Lab handles a request: a person on an approved private network sends a request over HTTPS to the Lab in Container Apps (step 1), the Lab calls Foundry Agent Service with its managed identity (step 2), the coordinator and specialists return a result (step 3), and the Lab responds to the browser (step 4). Saving records to Azure Cosmos DB is a separate step 5: chats only when requested, review drafts and results saved by the server, and created-agent records. Optional API Management sits outside the default flow." src="images/foundry-overview-dark.svg">
 
-[View full size](images/foundry-overview.svg) · [Edit the SVG template](images/foundry-overview.template.svg)
+[View full size](images/foundry-overview-dark.svg) · [Edit the SVG template](images/foundry-overview.template.svg)
 
 The diagram uses [official Microsoft Azure architecture icons](images/README.md)
 in logical runtime and operations views. Boxes identify components, not physical
@@ -110,12 +107,9 @@ network of agents freely messaging each other. The coordinator owns the
 conversation. Specialists receive a complete request and return their findings
 to that same coordinator.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/agent-collaboration-dark.svg">
-  <img alt="Default agent collaboration in four numbered steps: you ask in the Lab with supplied evidence; in Foundry Agent Service, the Checklist and case helper calls one specialist, the Checklist reviewer or the Case notes summarizer; the coordinator returns findings with a tool record; and a person checks the answer against the evidence" src="images/agent-collaboration.svg">
-</picture>
+<img alt="Default agent collaboration in four numbered steps: you ask in the Lab with supplied evidence; in Foundry Agent Service, the Checklist and case helper calls one specialist, the Checklist reviewer or the Case notes summarizer; the coordinator returns findings with a tool record; and a person checks the answer against the evidence" src="images/agent-collaboration-dark.svg">
 
-[View full size](images/agent-collaboration.svg) · [Edit the SVG template](images/agent-collaboration.template.svg) · [Request and result example](agent-profiles.md#example-handoff)
+[View full size](images/agent-collaboration-dark.svg) · [Edit the SVG template](images/agent-collaboration.template.svg) · [Request and result example](agent-profiles.md#example-handoff)
 
 | Step | Responsibility | What crosses the boundary |
 | --- | --- | --- |
@@ -160,12 +154,9 @@ the specialist for each request. It differs in one important way: control never
 transfers. Specialists are called as tools, each result returns to the
 coordinator, and the coordinator writes the answer.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/orchestration-pattern-dark.svg">
-  <img alt="The Lab's coordinator compared with Microsoft's five orchestration patterns: sequential, group chat, and magentic are not used, concurrent is not the default, and handoff (routing) is the closest match. In the guide's handoff, control moves from agent to agent; in the Lab, specialists work as the coordinator's tools, every result comes back to it, and control stays with it. A person checks each answer." src="images/orchestration-pattern.svg">
-</picture>
+<img alt="The Lab's coordinator compared with Microsoft's five orchestration patterns: sequential, group chat, and magentic are not used, concurrent is not the default, and handoff (routing) is the closest match. In the guide's handoff, control moves from agent to agent; in the Lab, specialists work as the coordinator's tools, every result comes back to it, and control stays with it. A person checks each answer." src="images/orchestration-pattern-dark.svg">
 
-[View full size](images/orchestration-pattern.svg) · [Edit the SVG template](images/orchestration-pattern.template.svg)
+[View full size](images/orchestration-pattern-dark.svg) · [Edit the SVG template](images/orchestration-pattern.template.svg)
 
 The Lab doesn't use sequential, group chat, or magentic orchestration. When a
 user explicitly asks for both review types, the coordinator can call both
@@ -203,12 +194,9 @@ capabilities before adding a custom orchestration layer.
 
 ## Component interactions
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/lab-components-dark.svg">
-  <img alt="Lab components and connections: the browser runs the React web app over same-origin HTTPS to the Lab's internal Container App, where the FastAPI request boundary validates requests, application routes handle chat, history, reviews, and agent creation, and FoundryGateway calls the Checklist and case helper in Microsoft Foundry with a managed identity. The coordinator calls the Checklist reviewer or Case notes summarizer, and both use the configured model deployment. The routes read and write application records in Azure Cosmos DB. Foundry's platform dependencies are Storage, Cosmos DB, Azure AI Search, and Key Vault." src="images/lab-components.svg">
-</picture>
+<img alt="Lab components and connections: the browser runs the React web app over same-origin HTTPS to the Lab's internal Container App, where the FastAPI request boundary validates requests, application routes handle chat, history, reviews, and agent creation, and FoundryGateway calls the Checklist and case helper in Microsoft Foundry with a managed identity. The coordinator calls the Checklist reviewer or Case notes summarizer, and both use the configured model deployment. The routes read and write application records in Azure Cosmos DB. Foundry's platform dependencies are Storage, Cosmos DB, Azure AI Search, and Key Vault." src="images/lab-components-dark.svg">
 
-[View full size](images/lab-components.svg) · [Edit the SVG template](images/lab-components.template.svg)
+[View full size](images/lab-components-dark.svg) · [Edit the SVG template](images/lab-components.template.svg)
 
 Blue arrows carry application and agent calls. The dashed green arrow is the
 Lab's own record reads and writes in Cosmos DB. The gray platform connection is
@@ -242,12 +230,9 @@ as a small sample pilot.
 
 ## Chat and delegation
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/lab-request-flow-dark.svg">
-  <img alt="How a chat request flows, in eight numbered steps: the browser posts the message and bounded history to /api/reviews (1); after admission checks, FastAPI calls the Foundry coordinator with its managed identity and store=false (2); if a specialist is selected, the coordinator sends it the full request (3) and receives a completed result (4); the coordinator returns the final answer and tool outputs (5); and the Lab returns the answer with receipt status, without saving it (6). Later, only if the user saves, the browser posts to /api/conversations (7) and the Lab creates or conditionally updates the Cosmos DB record (8)." src="images/lab-request-flow.svg">
-</picture>
+<img alt="How a chat request flows, in eight numbered steps: the browser posts the message and bounded history to /api/reviews (1); after admission checks, FastAPI calls the Foundry coordinator with its managed identity and store=false (2); if a specialist is selected, the coordinator sends it the full request (3) and receives a completed result (4); the coordinator returns the final answer and tool outputs (5); and the Lab returns the answer with receipt status, without saving it (6). Later, only if the user saves, the browser posts to /api/conversations (7) and the Lab creates or conditionally updates the Cosmos DB record (8)." src="images/lab-request-flow-dark.svg">
 
-[View full size](images/lab-request-flow.svg) · [Edit the SVG template](images/lab-request-flow.template.svg)
+[View full size](images/lab-request-flow-dark.svg) · [Edit the SVG template](images/lab-request-flow.template.svg)
 
 Steps 1 to 6 follow one chat request. Steps 7 and 8 happen later, only if the
 user saves the chat. The browser sends the selected catalog ID, new message, bounded prior turns,
@@ -291,12 +276,9 @@ of the others.
 
 ## Operations
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/foundry-operations-dark.svg">
-  <img alt="Operate and protect the Lab in three independent lanes. Observe: Lab runtime metadata goes to Azure Monitor Log Analytics, and optional agent trace metadata goes from Foundry hosted agents to Application Insights. Build and publish: a private build runner pushes the image to Azure Container Registry, and the Lab pulls and runs the pinned image by digest. Protect state: Terraform reads and writes state in an existing Azure Blob Storage backend. Azure Key Vault holds only necessary secrets." src="images/foundry-operations.svg">
-</picture>
+<img alt="Operate and protect the Lab in three independent lanes. Observe: Lab runtime metadata goes to Azure Monitor Log Analytics, and optional agent trace metadata goes from Foundry hosted agents to Application Insights. Build and publish: a private build runner pushes the image to Azure Container Registry, and the Lab pulls and runs the pinned image by digest. Protect state: Terraform reads and writes state in an existing Azure Blob Storage backend. Azure Key Vault holds only necessary secrets." src="images/foundry-operations-dark.svg">
 
-[View full size](images/foundry-operations.svg) · [Edit the SVG template](images/foundry-operations.template.svg)
+[View full size](images/foundry-operations-dark.svg) · [Edit the SVG template](images/foundry-operations.template.svg)
 
 Each row is a separate operational path, not a sequence of deployment steps.
 Optional agent traces come from the Foundry hosted agents, through Application

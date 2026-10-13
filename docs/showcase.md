@@ -21,10 +21,7 @@ person. They can be read without Azure.
 **Question:** Can a reviewer see which project details need clarification
 before signing off?
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-demo-application-dark.png">
-  <img alt="Application-completeness story with a missing budget, a supported owner, and conflicting schedules" src="images/screenshots/lab-demo-application.png">
-</picture>
+<img alt="Application-completeness story with a missing budget, a supported owner, and conflicting schedules" src="images/screenshots/lab-demo-application-dark.png">
 
 Use the [sample project and checklist](demo-inputs/application.txt).
 In **Guided demos**, choose **Checklist review**, then **Load sample
@@ -47,10 +44,7 @@ and adversarial variations in the [demo guide](demos.md#application-completeness
 **Question:** Can an accounts-payable clerk find discrepancies across an invoice,
 an order, and a delivery record without delegating the payment decision?
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-demo-invoice-dark.png">
-  <img alt="Supplier-invoice story with quantity, price, delivery-fee, and damaged-item questions" src="images/screenshots/lab-demo-invoice.png">
-</picture>
+<img alt="Supplier-invoice story with quantity, price, delivery-fee, and damaged-item questions" src="images/screenshots/lab-demo-invoice-dark.png">
 
 Use the [sample supplier invoice](demo-inputs/supplier-invoice.txt).
 This scenario uses a ready created **Supplier invoice reviewer**. If none is
@@ -80,10 +74,7 @@ chairs as accepted or rejected when presenting an amount.
 **Question:** Can a caseworker separate reliable facts from conflicting records
 and unanswered questions?
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-demo-casework-dark.png">
-  <img alt="Casework story preserving conflicting intake dates, a supported follow-up date, and missing proof" src="images/screenshots/lab-demo-casework.png">
-</picture>
+<img alt="Casework story preserving conflicting intake dates, a supported follow-up date, and missing proof" src="images/screenshots/lab-demo-casework-dark.png">
 
 Use the [sample case notes](demo-inputs/casework.txt).
 Choose **Case notes summary** in **Guided demos**, then load the sample
@@ -162,10 +153,7 @@ After the customer leaves:
 
 ## One foundation. Repeatable agent releases.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/agent-release-journey-dark.svg">
-  <img alt="Agent release journey in six numbered steps. Private foundation, built with Terraform and Azure Verified Modules: review the plan, provision separate roots, and verify private access. A configuration handoff carries the project endpoint, model deployments, identity, and private connectivity to agent releases: package the agent, publish and verify a new hosted version, then route, review, and iterate. People approve infrastructure changes, publication costs, and business decisions." src="images/agent-release-journey.svg">
-</picture>
+<img alt="Agent release journey in six numbered steps. Private foundation, built with Terraform and Azure Verified Modules: review the plan, provision separate roots, and verify private access. A configuration handoff carries the project endpoint, model deployments, identity, and private connectivity to agent releases: package the agent, publish and verify a new hosted version, then route, review, and iterate. People approve infrastructure changes, publication costs, and business decisions." src="images/agent-release-journey-dark.svg">
 
 **Foundation (steps 1 to 3):** review Terraform plans, deploy the Azure Verified Modules-based
 platform and separate Lab root, then verify private access. Keep the existing
@@ -186,7 +174,7 @@ The prebuilt deployment CLI and operator-confirmed Lab publisher have different
 ownership and verification semantics. This diagram is their logical relationship,
 not a new universal pipeline or a guarantee of automatic rollback.
 
-[View full size](images/agent-release-journey.svg) ·
+[View full size](images/agent-release-journey-dark.svg) ·
 [Edit the SVG template](images/agent-release-journey.template.svg)
 
 ## Related content

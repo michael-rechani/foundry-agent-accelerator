@@ -38,10 +38,7 @@ no model calls. This is a sample, not an official Microsoft product.
 
 ## Take a tour
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/lab-tour-dark.svg">
-  <img alt="Tour of the Foundry Agent Lab in five steps: browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template. Every screen shows sample data." src="docs/images/lab-tour.svg">
-</picture>
+<img alt="Tour of the Foundry Agent Lab in five steps: browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template. Every screen shows sample data." src="docs/images/lab-tour-dark.svg">
 
 **Browse agents → Test results → Chat → Take it to Foundry → Create agent**
 
@@ -58,11 +55,11 @@ no model calls. This is a sample, not an official Microsoft product.
 5. **Create agent:** prepare an agent from one of the library's templates. It
    stays off until an operator turns it on.
 
-*The tour follows your GitHub theme. The screenshots come from automated
+*The screenshots come from automated
 browser tests with sample data. They are not a live model run.*
 
-[Open the full tour](docs/images/lab-tour.svg) ·
-[Create agent screenshot](docs/images/screenshots/lab-create-agent.png) ·
+[Open the full tour](docs/images/lab-tour-dark.svg) ·
+[Create agent screenshot](docs/images/screenshots/lab-create-agent-dark.png) ·
 [Browse all screenshots](docs/images/README.md#lab-screenshots)
 
 <a id="start-here"></a>
@@ -127,8 +124,7 @@ template or, when the Lab has library previews on, on the library preview of
 that template. Either way it uses built-in lookups with sample data, not a
 finance integration.
 
-[Watch all three stories](docs/images/scenario-tour.svg) ·
-[Dark theme](docs/images/scenario-tour-dark.svg)
+[Watch all three stories](docs/images/scenario-tour-dark.svg)
 
 ## What you can show
 
@@ -187,10 +183,7 @@ Terraform prepares the private foundation once. Agents are then released,
 verified, and revised on their own schedule, connected by an explicit
 configuration handoff.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-release-journey-dark.svg">
-  <img alt="Agent release journey in six numbered steps. Private foundation, built with Terraform and Azure Verified Modules: review the plan, provision separate roots, and verify private access. A configuration handoff carries the project endpoint, model deployments, identity, and private connectivity to agent releases: package the agent, publish and verify a new hosted version, then route, review, and iterate. People approve infrastructure changes, publication costs, and business decisions." src="docs/images/agent-release-journey.svg">
-</picture>
+<img alt="Agent release journey in six numbered steps. Private foundation, built with Terraform and Azure Verified Modules: review the plan, provision separate roots, and verify private access. A configuration handoff carries the project endpoint, model deployments, identity, and private connectivity to agent releases: package the agent, publish and verify a new hosted version, then route, review, and iterate. People approve infrastructure changes, publication costs, and business decisions." src="docs/images/agent-release-journey-dark.svg">
 
 1. **Review the plan.** Confirm permissions, quota, cost approval, and
    protected remote state.
@@ -208,7 +201,7 @@ configuration handoff.
 *A logical workflow. A code push doesn't deploy either workflow, and a bundle
 carries configuration, not Azure permissions.*
 
-[View full size](docs/images/agent-release-journey.svg) ·
+[View full size](docs/images/agent-release-journey-dark.svg) ·
 [Edit the SVG template](docs/images/agent-release-journey.template.svg) ·
 [Read the release journey](docs/showcase.md#one-foundation-repeatable-agent-releases) ·
 [Portable bundles](hosted-agents/README.md#portable-agent-bundles)
@@ -222,10 +215,7 @@ Azure API Management gateway. Each is off unless you turn it on, and each also n
 explicit `approve_*` Terraform input; see the
 [Terraform guide](terraform/README.md) before you do.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/azure-architecture-dark.svg">
-  <img alt="Azure architecture at a glance: one subscription and resource group hold an admin network, a private workload network, Microsoft Foundry, data services, and shared services. The admin network has subnets for optional Azure Bastion and an optional jumpbox and is peered with the workload network. The workload network has subnets for the Lab in an internal Azure Container Apps environment, the agent network delegated to Foundry, and one private endpoint for each service. Seven numbered steps follow a request from the presenter through Bastion, the jumpbox, and the Lab to Foundry Agent Service and Foundry Models, then through the agent network to Azure Cosmos DB, Azure Storage, and Azure AI Search" src="docs/images/azure-architecture.svg">
-</picture>
+<img alt="Azure architecture at a glance: one subscription and resource group hold an admin network, a private workload network, Microsoft Foundry, data services, and shared services. The admin network has subnets for optional Azure Bastion and an optional jumpbox and is peered with the workload network. The workload network has subnets for the Lab in an internal Azure Container Apps environment, the agent network delegated to Foundry, and one private endpoint for each service. Seven numbered steps follow a request from the presenter through Bastion, the jumpbox, and the Lab to Foundry Agent Service and Foundry Models, then through the agent network to Azure Cosmos DB, Azure Storage, and Azure AI Search" src="docs/images/azure-architecture-dark.svg">
 
 1. A presenter opens Azure Bastion from the Azure portal.
 2. Bastion opens a remote desktop session to the private jumpbox.
@@ -242,7 +232,7 @@ explicit `approve_*` Terraform input; see the
 *Logical view with Terraform default addresses, not a resource inventory.
 Bastion and the jumpbox are optional; API Management isn't shown.*
 
-[View full size](docs/images/azure-architecture.svg) ·
+[View full size](docs/images/azure-architecture-dark.svg) ·
 [Edit the SVG template](docs/images/azure-architecture.template.svg) ·
 [Architecture guide](docs/architecture.md) ·
 [Agent names](docs/README.md#agent-names)
@@ -252,10 +242,7 @@ Bastion and the jumpbox are optional; API Management isn't shown.*
 The default **Checklist and case helper** coordinates the prebuilt
 specialists. You still check the returned findings against the source.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-collaboration-dark.svg">
-  <img alt="Default agent collaboration in four numbered steps: you ask in the Lab with supplied evidence; in Foundry Agent Service, the Checklist and case helper calls one specialist, the Checklist reviewer or the Case notes summarizer; the coordinator returns findings with a tool record; and a person checks the answer against the evidence" src="docs/images/agent-collaboration.svg">
-</picture>
+<img alt="Default agent collaboration in four numbered steps: you ask in the Lab with supplied evidence; in Foundry Agent Service, the Checklist and case helper calls one specialist, the Checklist reviewer or the Case notes summarizer; the coordinator returns findings with a tool record; and a person checks the answer against the evidence" src="docs/images/agent-collaboration-dark.svg">
 
 1. **You ask in the Lab.** Its backend calls the coordinator agent in Foundry by
    using a managed identity.
@@ -269,7 +256,7 @@ specialists. You still check the returned findings against the source.
 *It calls one specialist by default, or both only if you ask. There is no
 automatic approval, denial, or external action.*
 
-[View full size](docs/images/agent-collaboration.svg) ·
+[View full size](docs/images/agent-collaboration-dark.svg) ·
 [Edit the SVG template](docs/images/agent-collaboration.template.svg) ·
 [Hosted agents](hosted-agents/README.md) ·
 [Which orchestration pattern is this?](docs/architecture.md#orchestration-pattern)
@@ -446,7 +433,7 @@ To deploy from a separate private machine, use the
 ### Architecture and security
 
 - [Architecture](docs/architecture.md)
-- [Azure architecture diagram](docs/images/azure-architecture.svg)
+- [Azure architecture diagram](docs/images/azure-architecture-dark.svg)
 - [Trust boundaries](docs/architecture.md#trust-boundaries)
 - [Diagrams and style guide](docs/images/README.md)
 

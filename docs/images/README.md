@@ -240,19 +240,19 @@ dark surfaces, so the dark variants add no backing tiles. If a new icon becomes
 hard to see, add a neutral light rounded tile behind every icon in that dark
 diagram through the build; do not recolor the icon.
 
-Embed both variants with a `<picture>` element. Paths are relative to the
+Documentation shows the dark variants only. Embed a diagram or screenshot with
+a plain `<img>` that points at the `-dark` file. Paths are relative to the
 Markdown file. Keep the alt text on the `<img>`, and leave a blank line before
 and after the block so the surrounding Markdown still renders:
 
 ```html
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-collaboration-dark.svg">
-  <img alt="Default agent collaboration: ..." src="docs/images/agent-collaboration.svg">
-</picture>
+<img alt="Default agent collaboration: ..." src="docs/images/agent-collaboration-dark.svg">
 ```
 
-Every diagram and screenshot embed uses this pattern. Full-size and template
-links keep pointing to the light SVG and the template.
+Every diagram and screenshot embed uses this pattern, and the full-size links
+point to the dark file too. The light `<name>.svg` and light screenshots are
+still generated and committed, so a light-theme embed can come back without
+rework; only the template link points to the template.
 
 ## Lab screenshots
 
@@ -272,13 +272,13 @@ puts it back afterwards, so every test still runs with it on.
 | [lab-library.png](screenshots/lab-library.png) / [dark](screenshots/lab-library-dark.png) | The **Agent library** on **Browse**: the **Start here** examples, the filters, and the first agent cards | `library-browse.png` / `library-browse-dark.png` | [README tour](#readme-tour) |
 | [lab-test-results.png](screenshots/lab-test-results.png) / [dark](screenshots/lab-test-results-dark.png) | The **Test results** tab of the Supplier invoice reviewer: answers passed, typical response, model cost per answer, and **Waiting for a person** | `library-test-results.png` / `library-test-results-dark.png` | README tour |
 | [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide, example tasks, the **Ask the Lab** questions, and inline shared-data notice | `demo-starters.png` | README tour, [demo guide](../demos.md#a-short-demonstration) |
-| [lab-chat-start-dark.png](screenshots/lab-chat-start-dark.png) | The same **Chat** with the **System** theme and a dark color scheme | `demo-starters-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
+| [lab-chat-start-dark.png](screenshots/lab-chat-start-dark.png) | The same **Chat** with the **System** theme and a dark color scheme | `demo-starters-dark.png` | README tour, [demo guide](../demos.md#a-short-demonstration) |
 | [lab-take-to-foundry.png](screenshots/lab-take-to-foundry.png) / [dark](screenshots/lab-take-to-foundry-dark.png) | The **Take it to Foundry** tab: the agent-definition and test-request downloads, and the steps for setting it up in your own project | `library-take-to-foundry.png` / `library-take-to-foundry-dark.png` | README tour |
 | [lab-addons.png](screenshots/lab-addons.png) / [dark](screenshots/lab-addons-dark.png) | The **Add-ons** tab: the preview-only notice, the rules every add-on follows, and cards marked **Lets an agent do more** or **Supports the agent** | `library-addons.png` / `library-addons-dark.png` | [Add-on package format](../addon-package-format.md) |
 | [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page: its three steps and the library's templates in sector groups, with the customer sidebar | `library-create-agent.png` | README tour and its full-size link, [agent creation](../agent-creation.md#what-a-participant-can-do) |
-| [lab-create-agent-dark.png](screenshots/lab-create-agent-dark.png) | The same page in the **Dark** theme with one template selected | `library-create-agent-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
+| [lab-create-agent-dark.png](screenshots/lab-create-agent-dark.png) | The same page in the **Dark** theme with one template selected | `library-create-agent-dark.png` | README tour and its full-size link, [agent creation](../agent-creation.md#what-a-participant-can-do) |
 | [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [Review workflow](../review-workflow.md#workflow) |
-| [lab-document-review-dark.png](screenshots/lab-document-review-dark.png) | The same review with the **System** theme and a dark color scheme | `review-findings-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
+| [lab-document-review-dark.png](screenshots/lab-document-review-dark.png) | The same review with the **System** theme and a dark color scheme | `review-findings-dark.png` | [Review workflow](../review-workflow.md#workflow) |
 | [lab-review-privacy.png](screenshots/lab-review-privacy.png) / [dark](screenshots/lab-review-privacy-dark.png) | The new-review form with sample text, scrolled to its shared-data and retention notice before **Create shared review** | `review-privacy.png` / `review-privacy-dark.png` | [Review workflow](../review-workflow.md#workflow) |
 | [lab-demo-application.png](screenshots/lab-demo-application.png) / [dark](screenshots/lab-demo-application-dark.png) | Application completeness story in **Guided demos** | `demo-application.png` / `demo-application-dark.png` | Scenario tour, [showcase](../showcase.md) |
 | [lab-demo-invoice.png](screenshots/lab-demo-invoice.png) / [dark](screenshots/lab-demo-invoice-dark.png) | Supplier invoice story with sample findings | `demo-invoice.png` / `demo-invoice-dark.png` | Scenario tour and showcase |
@@ -313,8 +313,8 @@ the pre-save form so the walkthrough still shows both stages.
 
 ## README tour
 
-The root README opens with [lab-tour.svg](lab-tour.svg), or
-[lab-tour-dark.svg](lab-tour-dark.svg) for readers using GitHub's dark theme.
+The root README opens with [lab-tour-dark.svg](lab-tour-dark.svg); the light
+[lab-tour.svg](lab-tour.svg) is still generated.
 The tour crossfades between five Lab screenshots, about four seconds each,
 and loops:
 
@@ -326,7 +326,8 @@ and loops:
 | 4 · Take it to Foundry | `lab-take-to-foundry.png` | `lab-take-to-foundry-dark.png` |
 | 5 · Create an agent | `lab-create-agent.png` | `lab-create-agent-dark.png` |
 
-[scenario-tour.svg](scenario-tour.svg) and its [dark variant](scenario-tour-dark.svg)
+[scenario-tour-dark.svg](scenario-tour-dark.svg) and its light
+[variant](scenario-tour.svg)
 use the application, invoice, and casework screenshots as three separate
 customer stories. The root README links to them from its story table rather
 than embedding them, so its opening screen stays a single tour. They
