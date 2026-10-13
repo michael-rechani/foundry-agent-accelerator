@@ -98,6 +98,16 @@ for an approved test window and set `enable_front_door = false` afterward. This 
 a list price, not a current quote. See
 [Draft: Front Door limited to your own IP](ingress-access.md#draft-front-door-limited-to-your-own-ip)
 and [#240](https://github.com/michael-rechani/foundry-agent-accelerator/issues/240).
+
+**Measured on the dev Lab (profile created 6 Oct 2026).** Azure Cost Management
+billed the Front Door service at about USD 10.65 a day from 8 to 11 Oct, which is
+`330 / 31` and matches the list price. The total from 6 to 12 Oct was USD 60.32,
+with the first and last days partial. Request and data-transfer charges were too
+small to show at this traffic. Front Door added about 55 ms to a chat call. The
+route took about 20 minutes to start answering, and origin health reached 100%
+within three minutes of allowing `100.64.0.0/10`. The profile stays billed until
+`enable_front_door = false` is applied.
+
 | Runtime area | Limit |
 | --- | --- |
 | Container Apps runtime | One warm 0.5-vCPU/1-GiB replica for responsiveness. Uvicorn limits connection/task concurrency to 32. |
