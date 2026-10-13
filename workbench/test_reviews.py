@@ -1,8 +1,10 @@
 import json
 import asyncio
 from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -558,6 +560,45 @@ class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await self.resume(document, client=client)).status_code, 429)
         self.assertEqual(await self.store.get(document["id"]), document)
         self.gateway.review.assert_not_called()
+
+    async def test_a_run_over_its_agents_model_budget_is_busy_before_any_model_call(self):
+        # A review run is a model call too, so it spends the budget of the deployment its agent declares (#232).
+        limits = {"review-model": {"requests_per_minute": 2, "tokens_per_minute": 10_000_000},
+                  "other-model": {"requests_per_minute": 1, "tokens_per_minute": 10_000_000}}
+        agents = json.loads((Path(__file__).parent / "agents.json").read_text(encoding="utf-8"))
+        agents[0]["model"] = "review-model"
+        self.gateway.review.return_value = ("completed", json.dumps({**self.result, "questions": []}), self.output)
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "agents.json"
+            path.write_text(json.dumps(agents), encoding="utf-8")
+            settings = replace(self.settings, agents_path=path, model_limits=limits)
+            async with AsyncClient(transport=ASGITransport(app=create_app(settings, self.gateway, self.store)),
+                                   base_url="https://testserver", headers=self.headers) as client:
+                started = []
+                for _ in range(3):
+                    document = await self.draft()
+                    response = await client.post(f'/api/review-runs/{document["id"]}/execute',
+                                                 headers={"If-Match": document["_etag"]})
+                    started.append(response)
+                await self.finish_tasks()
+        self.assertEqual([response.status_code for response in started], [202, 202, 429])
+        self.assertEqual(started[2].json()["error"], "busy")
+        self.assertTrue(1 <= int(started[2].headers["Retry-After"]) <= 60)
+        self.assertEqual(self.gateway.review.await_count, 2)
+
+    async def test_a_run_whose_agent_declares_no_model_is_not_budgeted(self):
+        limits = {"review-model": {"requests_per_minute": 1, "tokens_per_minute": 1}}
+        self.gateway.review.return_value = ("completed", json.dumps({**self.result, "questions": []}), self.output)
+        async with AsyncClient(transport=ASGITransport(app=create_app(
+                replace(self.settings, model_limits=limits), self.gateway, self.store)),
+                base_url="https://testserver", headers=self.headers) as client:
+            for _ in range(3):
+                document = await self.draft()
+                response = await client.post(f'/api/review-runs/{document["id"]}/execute',
+                                             headers={"If-Match": document["_etag"]})
+                self.assertEqual(response.status_code, 202)
+            await self.finish_tasks()
+        self.assertEqual(self.gateway.review.await_count, 3)
 
     async def test_unconfirmed_claim_waits_then_recovers_without_losing_history(self):
         document = await self.interrupted_review()

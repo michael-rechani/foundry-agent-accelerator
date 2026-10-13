@@ -28,9 +28,9 @@ def timestamp():
 
 
 class ReviewRuns:
-    def __init__(self, settings, registry, store, gateway, receipts, model_gate):
+    def __init__(self, settings, registry, store, gateway, receipts, model_gate, budgets=None):
         self.settings, self.registry, self.store = settings, registry, store
-        self.gateway, self.receipts, self.model_gate = gateway, receipts, model_gate
+        self.gateway, self.receipts, self.model_gate, self.budgets = gateway, receipts, model_gate, budgets
         self.tasks = {}
         self.router = APIRouter()
         self.router.add_api_route("/api/review-runs", self.handle, methods=["GET", "POST"])
@@ -151,6 +151,12 @@ class ReviewRuns:
             return snapshot
         if not self.model_gate.try_admit(now):
             return self.error(request, 429, "busy")
+        deployment = self.registry[document["agent_id"]].get("model")
+        wait = self.budgets.try_admit(deployment, None) if self.budgets is not None else 0
+        if wait:
+            LOGGER.info(json.dumps({"event": "workbench_model_busy", "deployment": deployment,
+                                    "template_id": None, "retry_after": wait}))
+            return api_error(request, 429, "busy", retry_after=wait)
         await self.model_gate.slots.acquire()
         try:
             if recovering:
