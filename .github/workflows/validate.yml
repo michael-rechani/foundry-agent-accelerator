@@ -14,6 +14,36 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # A pull request that changes only Markdown under docs/, docs images, or top-level Markdown skips the slow code jobs to save Actions minutes.
+  # Pushes to main and any other change run everything. Skipped jobs still satisfy required checks.
+  changes:
+    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.scope.outputs.code }}
+    steps:
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ -z "$PR_NUMBER" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename')
+          # Only prose and pictures qualify. Tests read docs/demo-inputs and the agents' instructions.md, so those still run everything.
+          if [ -z "$files" ] || printf '%s\n' "$files" | grep -qvE '(^docs/[^/]+\.md$|^docs/images/[^/]+\.(png|svg)$|^[^/]+\.md$)'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change: skipping the code jobs."
+          fi
+
   secrets:
     timeout-minutes: 10
     runs-on: ubuntu-24.04
@@ -35,6 +65,8 @@ jobs:
 
   python-tests:
     name: python (${{ matrix.python-version }})
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     timeout-minutes: 20
     runs-on: ubuntu-24.04
     strategy:
@@ -121,12 +153,14 @@ jobs:
         env:
           MATRIX_RESULT: ${{ needs.python-tests.result }}
         run: |
-          if [ "$MATRIX_RESULT" != "success" ]; then
+          if [ "$MATRIX_RESULT" != "success" ] && [ "$MATRIX_RESULT" != "skipped" ]; then
             echo "Python matrix did not succeed: $MATRIX_RESULT"
             exit 1
           fi
 
   evaluations:
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     timeout-minutes: 15
     runs-on: ubuntu-24.04
     steps:
@@ -168,6 +202,8 @@ jobs:
         run: python .github/scripts/check_markdown_links.py
 
   terraform:
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     timeout-minutes: 20
     runs-on: ubuntu-24.04
     steps:
@@ -226,6 +262,8 @@ jobs:
           ./workbench/test-private-checks.ps1
 
   workbench-frontend:
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     timeout-minutes: 25
     runs-on: ubuntu-24.04
     container: node:24.21.0-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4
