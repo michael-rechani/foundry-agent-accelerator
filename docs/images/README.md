@@ -271,9 +271,10 @@ puts it back afterwards, so every test still runs with it on.
 | --- | --- | --- | --- |
 | [lab-library.png](screenshots/lab-library.png) / [dark](screenshots/lab-library-dark.png) | The **Agent library** on **Browse**: the **Start here** examples, the filters, and the first agent cards | `library-browse.png` / `library-browse-dark.png` | [README tour](#readme-tour) |
 | [lab-test-results.png](screenshots/lab-test-results.png) / [dark](screenshots/lab-test-results-dark.png) | The **Test results** tab of the Supplier invoice reviewer: answers passed, typical response, model cost per answer, and **Waiting for a person** | `library-test-results.png` / `library-test-results-dark.png` | README tour |
-| [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide, example tasks, and inline shared-data notice | `demo-starters.png` | README tour, [demo guide](../demos.md#a-short-demonstration) |
+| [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide, example tasks, the **Ask the Lab** questions, and inline shared-data notice | `demo-starters.png` | README tour, [demo guide](../demos.md#a-short-demonstration) |
 | [lab-chat-start-dark.png](screenshots/lab-chat-start-dark.png) | The same **Chat** with the **System** theme and a dark color scheme | `demo-starters-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
 | [lab-take-to-foundry.png](screenshots/lab-take-to-foundry.png) / [dark](screenshots/lab-take-to-foundry-dark.png) | The **Take it to Foundry** tab: the agent-definition and test-request downloads, and the steps for setting it up in your own project | `library-take-to-foundry.png` / `library-take-to-foundry-dark.png` | README tour |
+| [lab-addons.png](screenshots/lab-addons.png) / [dark](screenshots/lab-addons-dark.png) | The **Add-ons** tab: the preview-only notice, the rules every add-on follows, and cards marked **Lets an agent do more** or **Supports the agent** | `library-addons.png` / `library-addons-dark.png` | [Add-on package format](../addon-package-format.md) |
 | [lab-create-agent.png](screenshots/lab-create-agent.png) | The **Create agent** page: its three steps and the library's templates in sector groups, with the customer sidebar | `library-create-agent.png` | README tour and its full-size link, [agent creation](../agent-creation.md#what-a-participant-can-do) |
 | [lab-create-agent-dark.png](screenshots/lab-create-agent-dark.png) | The same page in the **Dark** theme with one template selected | `library-create-agent-dark.png` | Everywhere the light image appears, for readers using GitHub's dark theme |
 | [lab-document-review.png](screenshots/lab-document-review.png) | A **Document reviews** record with a gap, a supported item, and its quoted source | `review-findings.png` | [Review workflow](../review-workflow.md#workflow) |
@@ -297,7 +298,7 @@ cd ../..
 The tests write 1440 x 1000 PNGs under `test-results/`, which Git ignores.
 The refresh script requires exactly one desktop result per selected source and
 validates every selected PNG before replacing documentation images. By default
-it refreshes all twenty images. For a focused UI change, run the relevant
+it refreshes all twenty-two images. For a focused UI change, run the relevant
 desktop tests and refresh just the affected light/dark pairs:
 
 ```powershell

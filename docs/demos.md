@@ -149,7 +149,7 @@ promised.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-chat-start-dark.png">
-  <img alt="An empty Chat: the Checklist and case helper explains what to give it and what it returns, with example tasks to review an application, summarize case notes, or compare a proposal" src="images/screenshots/lab-chat-start.png">
+  <img alt="An empty Chat: the Checklist and case helper explains what to give it and what it returns, with example tasks to review an application, summarize case notes, or compare a proposal, and an Ask the Lab section with two guide questions" src="images/screenshots/lab-chat-start.png">
 </picture>
 
 [View full size](images/screenshots/lab-chat-start.png)

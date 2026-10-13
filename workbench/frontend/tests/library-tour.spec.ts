@@ -4,6 +4,7 @@ import { seedAppearance } from './helpers/appearance'
 import { invoice, support, templates } from './helpers/catalog'
 import { expectFitsViewport } from './helpers/layout'
 import { openAgent, openLibrary } from './helpers/library-lab'
+import { libraryNav } from './helpers/navigation'
 
 for (const mode of ['light', 'dark'] as const)
   test(`library detail is readable in ${mode} mode`, async ({
@@ -73,6 +74,33 @@ for (const mode of ['light', 'dark'] as const)
     expect(state.chat).toHaveLength(0)
     expect(state.drafts).toBe(0)
     expect(state.creations).toBe(0)
+  })
+
+for (const mode of ['light', 'dark'] as const)
+  test(`the Add-ons tab shows both groups in ${mode} mode`, async ({
+    page,
+  }, testInfo) => {
+    await seedAppearance(page, { mode, accent: 'foundry' })
+    const state = await openLibrary(page)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
+    await libraryNav(page).getByRole('button', { name: 'Add-ons' }).click()
+    await expect(
+      page.getByRole('heading', {
+        level: 1,
+        name: 'Add-ons an agent could use',
+      }),
+    ).toBeVisible()
+    const cards = page.locator('.addon-card')
+    await expect(cards.getByText('Lets an agent do more').first()).toBeVisible()
+    await expect(cards.getByText('Supports the agent').first()).toBeVisible()
+    await docsScreenshot(
+      page,
+      testInfo,
+      `library-addons${mode === 'dark' ? '-dark' : ''}.png`,
+    )
+    expect(state.chat).toHaveLength(0)
+    expect(state.creations).toBe(0)
+    expect(state.drafts).toBe(0)
   })
 
 for (const mode of ['light', 'dark'] as const)
