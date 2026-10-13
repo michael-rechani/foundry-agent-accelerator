@@ -867,12 +867,53 @@ class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual(self.client.post("/api/reviews", json={}, headers=self.headers).status_code, 400)
         self.assertEqual(self.chat().status_code, 200)
 
-    def test_prebuilt_agents_whose_deployment_is_unknown_are_not_budgeted(self):
+    def test_prebuilt_agents_that_declare_no_model_are_not_budgeted(self):
         tiny = {name: {"requests_per_minute": 1, "tokens_per_minute": 1} for name in ("reason-model", "test-model")}
         client = TestClient(create_app(replace(self.settings, model_limits=tiny), self.gateway))
         for _ in range(5):
             self.assertEqual(self.chat("customer-review", client).status_code, 200)
         self.assertEqual(self.gateway.review.await_count, 5)
+
+    def declaring_client(self, directory, models):
+        """A client whose prebuilt agents declare a model deployment in agents.json (#232)."""
+        agents = json.loads((Path(__file__).parent / "agents.json").read_text(encoding="utf-8"))
+        for agent_id, model in models.items():
+            next(agent for agent in agents if agent["id"] == agent_id)["model"] = model
+        path = Path(directory) / "agents.json"
+        path.write_text(json.dumps(agents), encoding="utf-8")
+        return TestClient(create_app(replace(self.settings, agents_path=path,
+                                            visible_agents=("customer-review", "application-review", "case-review")), self.gateway))
+
+    def test_a_prebuilt_agent_that_declares_a_model_uses_that_deployments_budget(self):
+        with TemporaryDirectory() as directory:
+            client = self.declaring_client(directory, {"customer-review": "test-model", "application-review": "test-model",
+                                                       "case-review": "reason-model"})
+            self.assertEqual(self.chat("customer-review", client).status_code, 200)
+            self.assertEqual(self.chat("application-review", client).status_code, 200)
+            response = self.chat("customer-review", client)
+            self.assertEqual((response.status_code, response.json()["error"]), (429, "busy"))
+            self.assertEqual(self.gateway.review.await_count, 2)
+            self.assertEqual(self.chat("case-review", client).status_code, 200)
+            self.assertEqual(self.gateway.review.await_count, 3)
+            self.now += 61
+            self.assertEqual(self.chat("customer-review", client).status_code, 200)
+
+    def test_the_declared_model_is_not_shown_to_the_browser(self):
+        with TemporaryDirectory() as directory:
+            client = self.declaring_client(directory, {"customer-review": "test-model"})
+            self.assertTrue(all("model" not in agent for agent in client.get("/api/config").json()["agents"]))
+
+    def test_an_agent_model_must_be_a_deployment_name(self):
+        agent = self.client.get("/api/config").json()["agents"][0]
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "agents.json"
+            for model in (None, 7, "", "bad name", "-leading", "a" * 129, ["gpt-4.1"]):
+                with self.subTest(model=model):
+                    path.write_text(json.dumps([{**agent, "model": model}]), encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, "Invalid agent model deployment"):
+                        load_agents(path)
+            path.write_text(json.dumps([{**agent, "model": "gpt-4.1"}]), encoding="utf-8")
+            self.assertEqual(load_agents(path)[0]["model"], "gpt-4.1")
 
     def test_no_limits_leaves_only_the_global_caps(self):
         client = TestClient(create_app(replace(self.settings, model_limits={}), self.gateway))

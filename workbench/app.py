@@ -170,8 +170,10 @@ class Settings:
 
 def validate_agent(agent):
     required = {"id", "label", "category", "description", "agent", "tools"}
-    if not isinstance(agent, dict) or not required <= set(agent) or set(agent) - required - {"prompts", "guidance"}:
+    if not isinstance(agent, dict) or not required <= set(agent) or set(agent) - required - {"prompts", "guidance", "model"}:
         raise ValueError("Invalid agent configuration")
+    if "model" in agent and (not isinstance(agent["model"], str) or not DEPLOYMENT_NAME.fullmatch(agent["model"])):
+        raise ValueError("Invalid agent model deployment")
     for key in ("id", "agent"):
         if not isinstance(agent[key], str) or not NAME.fullmatch(agent[key]):
             raise ValueError("Invalid agent name")
@@ -385,7 +387,7 @@ class ChatReviews:
         self.created_agents, self.gate, self.budgets = created_agents, gate, budgets
 
     def deployment_for(self, agent):
-        """The model deployment a turn will use, or None for a prebuilt agent whose deployment the Lab doesn't know."""
+        """The model deployment a turn will use, or None for a prebuilt agent that doesn't declare one in agents.json."""
         if agent.get("preview"):
             return self.settings.creation.model_for(agent["model_profile"])
         return agent.get("model")
@@ -545,7 +547,7 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
     if settings.mode == "private" and cosmos_endpoint and history_store is None:
         history_store = CosmosHistory(cosmos_endpoint)
 
-    review_runs = ReviewRuns(settings, registry, history_store, gateway, execution_receipts, model_gate)
+    review_runs = ReviewRuns(settings, registry, history_store, gateway, execution_receipts, model_gate, model_budgets)
     created_agents = AgentCreations(settings, history_store, publisher)
     chat = ChatReviews(settings, registry, gateway, created_agents, model_gate, model_budgets)
     dependencies = DependencyMonitor(settings, gateway, agents, history_store)
@@ -612,7 +614,9 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
 
     @application.get("/api/config")
     async def configuration():
-        return {"mode": settings.mode, "title": settings.title, "agents": agents, "default_agent": default_agent,
+        return {"mode": settings.mode, "title": settings.title,
+            "agents": [{key: value for key, value in agent.items() if key != "model"} for agent in agents],
+            "default_agent": default_agent,
             "max_characters": MAX_CHARACTERS, "max_request_bytes": MAX_REQUEST_BYTES,
             "max_history_turns": MAX_HISTORY_TURNS,
             "review_timeout_ms": round(settings.timeout * 1000) + 10000,

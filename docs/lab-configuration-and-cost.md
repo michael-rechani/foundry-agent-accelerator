@@ -47,6 +47,7 @@ map aligned with the deployed profile; it isn't a second runtime tool registry.
 | Configuration item | Limit or behavior |
 | --- | --- |
 | Optional `guidance` in `agents.json` | Contains `input`, `output`, `limits`, `delegation`, and `configuration`. Each value must be a nonempty string up to 1,200 trimmed characters. These are presentation text only. Older catalogs without guidance still load with an explicit getting-started-guide-unavailable message. |
+| Optional `model` in `agents.json` | The model deployment name the agent's hosted runtime uses. The Lab only uses it to pick the per-model budget ([Model limits](#model-limits)); it doesn't change the hosted agent, and the browser never sees it. |
 | Optional `prompts` arrays | Accept up to six entries. Each entry has `label` up to 80 characters and `text` up to 4,000 characters. Starters use sample inputs and are never submitted just by selecting one. |
 | `visible_agents` | Controls direct access. Terraform validates IDs against `agents.json`, and the backend independently validates the deployed registry. |
 | `default_agent` | Must be visible. When omitted, the first `visible_agents` entry is selected. Locally, use `WORKBENCH_DEFAULT_AGENT`. |
@@ -112,7 +113,7 @@ within three minutes of allowing `100.64.0.0/10`. The profile stays billed until
 | --- | --- |
 | Container Apps runtime | One warm 0.5-vCPU/1-GiB replica for responsiveness. Uvicorn limits connection/task concurrency to 32. |
 | Agent and review execution | At most four concurrent requests and 20 requests/minute, including rejected input. Admission occurs before reading bodies or calling dependencies. Agent execution retains its 180-second deadline. |
-| Per-model chat budget | Before a chat turn calls its model, the Lab checks that deployment's own limit and answers 429 `busy` if the turn would pass it. It counts requests and estimated tokens over a sliding minute. Each deployment has its own count, so a busy `gpt-5.4` doesn't block `gpt-4.1`. The limits come from the `model_limits` Terraform variable ([Model limits](#model-limits)). |
+| Per-model chat budget | Before a chat turn or document-review run calls its model, the Lab checks that deployment's own limit and answers 429 `busy` if it would pass it. It counts requests and estimated tokens over a sliding minute. Each deployment has its own count, so a busy `gpt-5.4` doesn't block `gpt-4.1`. A prebuilt agent joins in when `agents.json` declares its `model`. The limits come from the `model_limits` Terraform variable ([Model limits](#model-limits)). |
 | History operations | Four concurrent requests and 60 requests/minute. History operations, including uploads and SDK retries, have a 35-second server deadline. Uploads also have a five-second deadline. The browser waits up to 45 seconds. |
 | Created-agent APIs | Four concurrent requests and 120 requests/minute. New publication and deletion run one at a time. |
 | Created-agent count | At most five nondeleted hosted agents by default, including unconfirmed or failed attempts. Each uses 0.5 CPU / 1 GiB and can incur hosted runtime/build costs as well as model charges. |
@@ -152,9 +153,15 @@ How a turn is counted:
 - A lone turn that is bigger than the tokens limit still runs when the deployment is
   idle, so one large answer is never blocked forever.
 - The deployment is the one the template's work type maps to (`agent_creation_models`)
-  for a library preview, and the model saved with the record for a created agent.
-  Prebuilt agents and document-review runs don't have a known deployment here, so only
-  the global caps apply to them.
+  for a library preview, the model saved with the record for a created agent, and the
+  optional `model` key on a prebuilt agent in `workbench/agents.json`. For example,
+  `"model": "gpt-4.1"` charges that agent's chat turns and document-review runs to
+  `gpt-4.1`. The Lab doesn't send `model` to the browser, and it must be a deployment
+  name. A prebuilt agent with no `model` key has no known deployment here, so only the
+  global caps apply to it.
+- A document-review run is budgeted the same way when it starts or resumes. It uses the
+  largest token estimate of any template, because a review isn't tied to one. A run the
+  budget refuses answers `busy` before any model call and counts toward nothing.
 - The counts are in memory, like every other admission limit here.
 
 Browsers show the same friendly try-again message for a Lab `busy` as for a model's
