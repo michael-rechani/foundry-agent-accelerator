@@ -109,6 +109,11 @@ route took about 20 minutes to start answering, and origin health reached 100%
 within three minutes of allowing `100.64.0.0/10`. The profile stays billed until
 `enable_front_door = false` is applied.
 
+**Decision (12 Oct 2026).** Front Door stays up on the dev Lab with no end date, so
+the roughly USD 10.65 a day (about USD 320 a month) is accepted. There is no
+scheduled teardown. If that changes, set `enable_front_door = false` and apply from
+the jump box.
+
 | Runtime area | Limit |
 | --- | --- |
 | Container Apps runtime | One warm 0.5-vCPU/1-GiB replica for responsiveness. Uvicorn limits connection/task concurrency to 32. |

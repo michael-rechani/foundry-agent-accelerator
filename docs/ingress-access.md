@@ -299,7 +299,9 @@ path.
    `FrontDoorHealthProbeLog` category: `HTTP 403` with `OriginError` means the
    app's ingress is refusing Front Door, not that the link is down.
 6. Open the Front Door address from your machine. Record the result and region
-   in #240. To tear down, set `enable_front_door = false` and apply.
+   in #240. To tear down, set `enable_front_door = false` and apply. On 12 Oct 2026
+   the decision was to keep Front Door up with no end date; see
+   [Storage and cost](lab-configuration-and-cost.md#storage-and-cost).
 
 **Measured.** The Lab's ingress sees Front Door's Private Link traffic from
 `100.64.0.0/10`, not from the Lab's own network (`10.42.0.0/16` was refused). The
