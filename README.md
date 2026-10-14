@@ -403,8 +403,8 @@ To deploy from a separate private machine, use the
 | Folder | What it contains |
 | --- | --- |
 | [`workbench/`](workbench/) | The Lab: React front end, FastAPI backend, browser tests, and its own Terraform |
-| [`hosted-agents/`](hosted-agents/) | Coordinator and specialist agents; scripts to publish, test, and roll back versions |
-| [`terraform/`](terraform/) | Private Foundry platform using Azure Verified Modules (AVM); optional Bastion and monitoring roots |
+| [`hosted-agents/`](hosted-agents/) | Coordinator and specialist agents. Scripts to publish, test, and roll back versions. |
+| [`terraform/`](terraform/) | Private Foundry platform using Azure Verified Modules (AVM). Optional Bastion and monitoring roots. |
 | [`evaluations/`](evaluations/) | Test cases, offline checks, and optional live Foundry evaluations |
 | [`addons/`](addons/) | Optional add-on manifests, their checks, and the data behind the Lab's **Add-ons** tab |
 | [`docs/`](docs/) | Demo walkthroughs, sample inputs, architecture, and operations guides |

@@ -177,8 +177,8 @@ fails until the module sets it from a value the plan knows. Use the JSON of a
 saved plan, not of the state: the check rejects input that has no
 `planned_values`.
 
-An azapi body shows only what the author wrote, not the service's defaults, so
-the check can't tell that an omitted setting is closed. Add an azapi type to
+An azapi body shows only what the author wrote. It leaves out the service's
+defaults, so the check can't tell that an omitted setting is closed. Add an azapi type to
 `resource_types` only after reading its defaults, and set the guarded
 properties in the body.
 

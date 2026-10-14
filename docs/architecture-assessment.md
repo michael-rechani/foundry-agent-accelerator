@@ -18,7 +18,7 @@ onboarding checklist.
 | Decision | Recommendation | Why it matters |
 | --- | --- | --- |
 | Demonstration scope | Start with one fictional scenario, expected findings, and a human-decision boundary. | Four scenarios don't require four independent agents. |
-| Agent type | Choose the least complex supported Foundry capability that meets the example requirement. | A hosted coordinator is useful for custom code and delegation, but it should not be the default for every agent. |
+| Agent type | Choose the least complex supported Foundry capability that meets the example requirement. | A hosted coordinator is useful for custom code and delegation, but it shouldn't be the default for every agent. |
 | Platform ownership | Keep infrastructure declarative and keep agent releases separate from Terraform. | The sample already has separate platform, Lab, Bastion, and monitoring roots with their own state. |
 | Data and identity | Validate permissions, retention, tracing content, and private connectivity before adopting a capability. | A working connection or public service feature doesn't prove this repository has validated it. |
 | Quality | Use reviewed inputs, expected outcomes, smoke checks, and versioned evaluation cases. | A nonempty answer alone doesn't pass. |
@@ -167,13 +167,13 @@ or integration.
 
 | Concern | What this repository has | What Foundry provides | Recommended boundary |
 | --- | --- | --- | --- |
-| Platform | Terraform, private networking, model deployment, managed identities, separate platform and Lab state. | Agent hosting, endpoints, identities, model access, and managed runtime lifecycle. | Keep Terraform for infrastructure and permissions; keep agent publication separate. |
+| Platform | Terraform, private networking, model deployment, managed identities, separate platform and Lab state. | Agent hosting, endpoints, identities, model access, and managed runtime lifecycle. | Keep Terraform for infrastructure and permissions. Keep agent publication separate. |
 | Agent implementation | Python hosted samples and a shared version deployer. | Prompt agents for configuration-led use cases; hosted agents for custom code; direct Responses calls for app-owned logic. | Choose the least complex supported type per example. Don't require a hosted coordinator for every agent. |
 | Invocation | The Lab calls configured named agent Responses endpoints by using managed identity. | Responses protocol and additional protocols for other client needs. | Keep Responses as the current Lab contract. Add an adapter only for a concrete example needing a different contract. |
-| Tools and knowledge | Custom specialist function tools; connected backing Search. An optional, flag-gated case-agent lookup is off by default and runs only as a small sample pilot in the dev Lab ([knowledge retrieval design](knowledge-retrieval.md)). | Managed tools, versioned toolboxes, Model Context Protocol (MCP) or OpenAPI integrations, and Search retrieval. | Prefer a supported native integration when permissions and private connectivity fit; keep domain-specific code in the agent. |
+| Tools and knowledge | Custom specialist function tools, plus connected backing Search. An optional, flag-gated case-agent lookup is off by default and runs only as a small sample pilot in the dev Lab ([knowledge retrieval design](knowledge-retrieval.md)). | Managed tools, versioned toolboxes, Model Context Protocol (MCP) or OpenAPI integrations, and Search retrieval. | Prefer a supported native integration when permissions and private connectivity fit. Keep domain-specific code in the agent. |
 | Conversation state | Explicitly saved shared Cosmos DB transcripts; bounded history resubmitted with `store=False`. | Managed conversations and sessions. | Preserve current behavior until retention and authorization are decided. Avoid silently enabling a second transcript store. |
 | Long-running work | Optional review records with local background tasks and interruption reporting. | Background Responses and separately configured resilient execution. | Evaluate native recovery first when an example needs it. Background acceptance alone isn't durable recovery or exactly-once side effects. |
-| Quality and diagnostics | Unit and browser tests, deployment smoke checks, opt-in fictional Foundry evaluations, metadata logs, and session timings. | Agent tracing, Application Insights integration, and evaluations. | Keep test cases and acceptance thresholds in source; use Foundry for evaluation and diagnostic analysis, not a new Lab dashboard. |
+| Quality and diagnostics | Unit and browser tests, deployment smoke checks, opt-in fictional Foundry evaluations, metadata logs, and session timings. | Agent tracing, Application Insights integration, and evaluations. | Keep test cases and acceptance thresholds in source. Use Foundry for evaluation and diagnostic analysis, not a new Lab dashboard. |
 | Customer access | Private Lab with shared records and no end-user sign-in. | Agent Entra identities, RBAC, supported publishing, and channel integrations. | Agent identity doesn't authorize individual Lab users. Add user authorization before confidential multi-user use. |
 
 The existing [component map](architecture.md#component-interactions) remains the
@@ -210,7 +210,7 @@ Reuse it only for examples that need that delegation pattern.
 | Area | Requirement |
 | --- | --- |
 | Sample onboarding | A new example can be deployed and demonstrated without editing the Lab's chat logic or unrelated platform resources. Reuse the deployer where compatible and configure catalog visibility by name. |
-| Quality | Use reviewed inputs, expected outcomes, and failure cases. Record dataset and agent/model versions with evaluation thresholds; a nonempty answer alone doesn't pass. |
+| Quality | Use reviewed inputs, expected outcomes, and failure cases. Record dataset and agent/model versions with evaluation thresholds. A nonempty answer alone doesn't pass. |
 | Tracing | A controlled request can be followed from Lab request ID to agent/tool execution through the private setup, with approved content capture. |
 | Reproducibility | Record source revision, dependencies, agent/model versions, tool bindings, and environment in non-secret deployment records. Preserve an identifiable recovery target. |
 | Workflow compatibility | Plain chat agents must not require review-specific JSON or specialist receipts. Offer evidence-review actions only for compatible agents. |
@@ -238,7 +238,7 @@ quality, live routing, permissions, trace collection, or production suitability.
 | Deployment and Lab clients | `azure-ai-projects==2.6.1`; `openai==3.19.2`. | Preserve the pinned pair and its offline transport tests. A newer public release isn't an instruction to upgrade without coordinated validation. |
 | Evaluation client | Separate environment with the same `azure-ai-projects==2.6.1`; `openai==3.19.2` pins. | Hand-authored rubric creation uses `.beta.evaluators`. Offline contracts are tested; live evaluation needs approval and private-project, permissions, region, and judge-model verification. |
 | Tracing | Operational metadata logs and private Azure Monitor connectivity. | Verify project-linked Application Insights server-side traces before claiming end-to-end trace coverage or adding client instrumentation. Content capture requires a specific review. |
-| Tools and retrieval | Custom specialist tools; Search connected, and used for retrieval only by the optional, off-by-default case-agent lookup (a small sample pilot in the dev Lab). `azure-search-documents==12.0.0` is pinned only for that lookup. | A Search connection alone isn't retrieval or document authorization. Native toolboxes and new integrations need their own identity and network validation. See the [knowledge retrieval design](knowledge-retrieval.md). |
+| Tools and retrieval | Custom specialist tools. Search is connected, and only the optional, off-by-default case-agent lookup uses it for retrieval (a small sample pilot in the dev Lab). `azure-search-documents==12.0.0` is pinned only for that lookup. | A Search connection alone isn't retrieval or document authorization. Native toolboxes and new integrations need their own identity and network validation. See the [knowledge retrieval design](knowledge-retrieval.md). |
 | Default model | GPT-4.1, with its version set in the [Terraform inputs](../terraform/variables.tf). | A configured model isn't a quality result. Compare alternatives against the same evaluation set before an approved change. |
 
 ## Public service and SDK guidance

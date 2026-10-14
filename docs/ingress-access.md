@@ -2,10 +2,9 @@
 
 [Home](../README.md) / [Docs](README.md) / [Architecture](architecture.md) / Application ingress
 
-Operators and architects can use this guide to plan Azure Application Gateway or
-Azure Front Door access to the Lab. It covers a reviewed ingress pattern that
-keeps Microsoft Foundry, Azure Cosmos DB, and other platform dependencies
-private.
+Planning Azure Application Gateway or Azure Front Door access to the Lab? This
+guide covers a reviewed ingress pattern that keeps Microsoft Foundry, Azure
+Cosmos DB, and other platform dependencies private.
 
 > [!IMPORTANT]
 > This repository does **not** deploy Application Gateway. For Front Door, it
@@ -133,7 +132,7 @@ access. That differs from signing users in to the application.
 
 | Mode | Requirements |
 | --- | --- |
-| Private shared demonstration | Trusted operators only, approved private routing, DNS, source restrictions, fictional inputs, and explicit acknowledgement that saved records are shared. No end-user login or per-user isolation is claimed. |
+| Private shared demonstration | Trusted operators only, approved private routing, DNS, source restrictions, fictional inputs, and a clear acknowledgement that saved records are shared. No end-user login or per-user isolation is claimed. |
 | Internet-facing or confidential multi-user application | Implement user authentication and server-side agent and record authorization before opening access. Select an identity provider appropriate to the audience. The current Lab doesn't implement this mode. |
 
 The **Shared lab** header control opens the shared-demo details across desktop
@@ -245,7 +244,7 @@ switch DNS or traffic:
       Application Gateway subnet rule, or replace the policy with an
       internet-wide allow rule to resolve a connectivity failure.
 - [ ] Configure routes, TLS, WAF, and probes. Route the website and `/api/*` to
-      the same intended origin, explicitly set the origin host header, keep TLS
+      the same intended origin, set the origin host header, keep TLS
       certificate-name validation enabled, and use HTTPS **GET** `/healthz`
       probes. Disable route caching initially. Bind and validate the custom
       frontend domain.
@@ -269,9 +268,9 @@ path.
 | What | How |
 | --- | --- |
 | Switches | `enable_front_door` creates it. `approve_public_front_door` must also be true, because the endpoint name is publicly resolvable. Without both, nothing is created. |
-| Who gets in | The WAF runs in Prevention mode with one custom rule that blocks any client whose connecting address (`SocketAddr`) isn't in `front_door_allowed_cidrs`. Entries must be single hosts: `/32`, or `/128` for IPv6. At most 10 entries, and ranges, `0.0.0.0/0`, private, loopback, link-local, shared (CGNAT) and multicast addresses are rejected. `SocketAddr` is the address Front Door sees connecting, so a forged `X-Forwarded-For` header can't satisfy it. |
+| Who gets in | The WAF runs in Prevention mode with one custom rule that blocks any client whose connecting address (`SocketAddr`) isn't in `front_door_allowed_cidrs`. Entries must be single hosts: `/32`, or `/128` for IPv6. There can be at most 10 entries. Ranges, `0.0.0.0/0`, and private, loopback, link-local, shared (CGNAT) and multicast addresses are rejected. `SocketAddr` is the address Front Door sees connecting, so a forged `X-Forwarded-For` header can't satisfy it. |
 | Path to the Lab | Front Door Premium, then Private Link (`managedEnvironments`) to the internal environment. The Lab's own hostname is sent as the host header, with certificate-name checks on and a `GET /healthz` probe over HTTPS. Responses may take up to 200 seconds, to cover the Lab's 180-second review deadline. |
-| Lab settings | The Front Door address is added to `WORKBENCH_ORIGINS` so the browser's origin check passes. `front_door_ingress_allow_cidrs` adds ingress rules after the jump box rule. Front Door's Private Link traffic arrives from the shared address space `100.64.0.0/10`, so set it to `["100.64.0.0/10"]` or the app answers Front Door's probes with 403. It's empty by default and accepts only private IPv4 ranges of `/16` or narrower, or `100.64.0.0/10` or narrower. |
+| Lab settings | The Front Door address is added to `WORKBENCH_ORIGINS` so the browser's origin check passes. `front_door_ingress_allow_cidrs` adds ingress rules after the jump box rule. Front Door's Private Link traffic arrives from the shared address space `100.64.0.0/10`. Set it to `["100.64.0.0/10"]` or the app answers Front Door's probes with 403. It's empty by default and accepts only private IPv4 ranges of `/16` or narrower, or `100.64.0.0/10` or narrower. |
 | Region | Front Door Private Link doesn't support `northcentralus`. Set `front_door_private_link_location` (for example `centralus`) if the Lab is there. Null uses the environment's region. |
 | Your address | Put it in an untracked `.tfvars` file (`*.tfvars` is ignored). Don't commit it or add it to `dev.tfvars.example`. |
 | Offline checks | `workbench/infra/tests/front-door.tftest.hcl` runs under mock providers, so it needs no Azure access: the switches, every address rejection, the WAF rule and mode, the origin and Private Link settings, and the Lab's origin and ingress changes. |
@@ -466,17 +465,17 @@ don't describe the result as ready for public or confidential multi-user access.
 
 | Check | Required result |
 | --- | --- |
-| DNS and TLS | Browser reaches the intended listener; the gateway resolves and reaches its private origin; certificates validate on both hops. |
+| DNS and TLS | Browser reaches the intended listener. The gateway resolves and reaches its private origin. Certificates validate on both hops. |
 | Origin isolation | Direct origin access from the public internet fails while the authorized edge path succeeds. Any retained private administrator bypass is documented, not presented as edge-only enforcement. |
 | Private-demo boundary | Only approved private sources can reach the app, public ingress remains closed, the **Shared lab** control exposes the shared-data details on desktop and mobile, and test inputs are fictional. This doesn't establish individual user identity or record isolation. |
 | Authentication for broader access | Anonymous access to protected application and API routes is denied; sign-in and sign-out use the correct public or private frontend domain without redirect loops. |
 | Authorization for broader access | A user can't access another user's records or invoke an unauthorized agent. This is an implementation gate, not current Lab behavior. |
-| Host and origin checks | Approved browser requests succeed; unapproved `Host` and `Origin` values remain rejected. Don't weaken these controls to pass a probe. |
+| Host and origin checks | Approved browser requests succeed. Unapproved `Host` and `Origin` values remain rejected. Don't weaken these controls to pass a probe. |
 | Frontend and chat | HTML and assets load, `/api/config` returns the approved catalog, and a fictional `POST /api/reviews` completes through the edge with expected specialist receipts where applicable. |
-| History and review records | Save, reopen, and update work through the edge; ETag conflicts remain conflicts and don't get cached or retried into duplicate operations. |
-| Long request and failure | A representative slow review completes within the reviewed budget; backend unavailability and timeouts produce observable failures, not false success or automatic `POST` replay. |
+| History and review records | Save, reopen, and update work through the edge. ETag conflicts remain conflicts and don't get cached or retried into duplicate operations. |
+| Long request and failure | A representative slow review completes within the reviewed budget. Backend unavailability and timeouts produce observable failures, not false success or automatic `POST` replay. |
 | Cache and logging | No API, authentication, or private data is cached or unexpectedly logged. Correlation IDs support tracing without transcript content. |
-| Health and WAF | The `GET` probe succeeds without model calls; representative valid requests pass and narrowly defined unwanted traffic is blocked. |
+| Health and WAF | The `GET` probe succeeds without model calls. Representative valid requests pass, and narrowly defined unwanted traffic is blocked. |
 
 ### Troubleshooting
 

@@ -60,7 +60,7 @@ existing [creation prerequisites](agent-creation.md).
 
 | Source | Expected finding | Human follow-up |
 | --- | --- | --- |
-| Line 1 / purchase order | 120 chairs at $55 were billed; 100 at $50 were ordered | Resolve quantity and price differences |
+| Line 1 / purchase order | 120 chairs at $55 were billed. 100 at $50 were ordered | Resolve quantity and price differences |
 | Line 3 / order terms | A $250 delivery fee conflicts with delivery being included | Clarify the fee |
 | Delivery record | Two received chairs have cracked seats | Decide how damage affects acceptance or payment |
 

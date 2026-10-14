@@ -26,7 +26,7 @@ extend or operate the sample.
 | Private network | Uses workload and management virtual networks, private endpoints, private DNS, and an approved source subnet. | Managed services are reached through private endpoints. Diagram boxes don't place those services inside a virtual network. |
 | Jumpbox and Bastion | The optional Windows jumpbox is reached through the separately managed Standard Azure Bastion host. | The jumpbox is optional platform Terraform. The separate Bastion root and state manage the Standard Bastion host. The jumpbox's outbound public IP and administrator account, and Bastion's public IP, each need their own `approve_*` input. |
 | Optional APIM gateway | Publishes a governed `POST /reviews/responses` target when `enable_api_management` and `review_api` are configured. | APIM is disabled by default. Outbound virtual network integration doesn't make the gateway private, so enabling it also needs `approve_public_api_management = true`. |
-| Monitoring | Platform and Lab logs use private Log Analytics paths; the monitoring root can connect a dedicated Application Insights resource for agent traces. | Logs contain request metadata, not prompts or transcripts. The project telemetry connection is opt-in. |
+| Monitoring | Platform and Lab logs use private Log Analytics paths. The monitoring root can connect a dedicated Application Insights resource for agent traces. | Logs contain request metadata, not prompts or transcripts. The project telemetry connection is opt-in. |
 
 For every Azure service, subnet, and private endpoint on one page, with numbered
 request steps, see
@@ -72,7 +72,7 @@ question:
 
 | View | Use it to understand | Scope |
 | --- | --- | --- |
-| [Agent creation](agent-creation.md) | How a prepared task setup becomes a named, usable Foundry agent. | Opt-in publication, shared registry, and recovery; no cloud creation in local preview. |
+| [Agent creation](agent-creation.md) | How a prepared task setup becomes a named, usable Foundry agent. | Opt-in publication, shared registry, and recovery. No cloud creation in local preview. |
 | [Agent collaboration](#agent-collaboration) | Who asks whom, what information is passed, and who checks the result. | Default coordinator and review specialists. |
 | [Orchestration pattern](#orchestration-pattern) | Which of Microsoft's agent orchestration patterns the coordinator resembles, and how it differs. | Default coordinator. |
 | [Component interactions](#component-interactions) | What runs where and which component owns each interaction. | Platform and application components. |
@@ -80,7 +80,7 @@ question:
 | [Review persistence and recovery](review-workflow.md#execution-and-persistence) | What is saved before execution and how clarification and interruptions behave. | Optional Document reviews workflow. |
 | [Operations](#operations) | How builds, monitoring, private access, and state are separated. | Platform configuration. |
 | [Terraform deployment](architecture-assessment.md#terraform-first-deployment) | What each stack owns and which Microsoft patterns fit. | Infrastructure and release ownership. |
-| [Optional APIM request](#review-request) | What an authorized gateway request would look like. | Target only; the gateway is not deployed. |
+| [Optional APIM request](#review-request) | What an authorized gateway request would look like. | Target only. The gateway isn't deployed. |
 
 ## Default data flows
 
@@ -114,7 +114,7 @@ to that same coordinator.
 | --- | --- | --- |
 | Ask | A person supplies the question and evidence in the Lab. The backend calls the configured named agent by using managed identity. | The new message and bounded conversation context. |
 | Delegate | The coordinator selects a specialist tool: `inspect_application` or `inspect_case` in the default setup. Its instructions allow both only when the user directly asks for both review types. | A text request containing the full task, supplied evidence, and source identifiers. |
-| Return | The specialist responds to the coordinator's tool call. The tool wrapper accepts only a completed, nonempty response. | A tool result containing `status`, `agent`, and `output`; the Responses protocol carries the matching `call_id`. |
+| Return | The specialist responds to the coordinator's tool call. The tool wrapper accepts only a completed, nonempty response. | A tool result containing `status`, `agent`, and `output`. The Responses protocol carries the matching `call_id`. |
 | Review | The Lab checks the tool record and displays the answer. A person verifies sources and decides what to do next. | Findings, source references, questions, and verification flags. These aren't an approval or a guarantee of truth. |
 
 The model picks the route from the configured tools. This isn't a deterministic
@@ -261,11 +261,11 @@ audit ledger.
 
 | Operation | Admission or deadline | Failure behavior |
 | --- | --- | --- |
-| Chat agent request | Four shared agent slots, 20 starts per minute, a per-model-deployment requests and tokens budget, five-second upload, and up to 180-second agent call. | Invalid requests fail before invocation; a turn over its model's budget returns busy before any model call; a deadline returns timeout, not success. |
-| Structured review execution | Shares chat's agent slots and start budget; at most four runs per record. | Conditional start prevents competing execution; there is no automatic retry. |
-| Review record API | Four requests, 120 per minute, 35-second operation deadline, and five-second upload. | ETag conflicts return 409; failed polling can be resumed with **Refresh**. |
-| Chat history API | Four requests, 60 per minute, and 35-second operation deadline. | Conditional writes prevent silent overwrite; uncertain saves require checking history. |
-| Specialist tools | Default four slots and 90-second deadline, including slot wait. | Local timeout releases resources; remote work may still finish. |
+| Chat agent request | Four shared agent slots, 20 starts per minute, a per-model-deployment requests and tokens budget, five-second upload, and up to 180-second agent call. | Invalid requests fail before invocation. A turn over its model's budget returns busy before any model call. A deadline returns timeout, not success. |
+| Structured review execution | Shares chat's agent slots and start budget; at most four runs per record. | Conditional start prevents competing execution. There's no automatic retry. |
+| Review record API | Four requests, 120 per minute, 35-second operation deadline, and five-second upload. | ETag conflicts return 409. Failed polling can be resumed with **Refresh**. |
+| Chat history API | Four requests, 60 per minute, and 35-second operation deadline. | Conditional writes prevent silent overwrite. Uncertain saves require checking history. |
+| Specialist tools | Default four slots and 90-second deadline, including slot wait. | Local timeout releases resources. Remote work may still finish. |
 
 All admission controls in the table are process-local. They aren't
 subscription-wide quotas or distributed locks. The Lab remains a one-worker,
@@ -336,10 +336,10 @@ it indiscriminately. See the [credential handling guide](credentials.md).
 | --- | --- | --- |
 | Browser to the Lab | Internal environment, approved source subnet allowlist, and same-origin request checks. | Add Microsoft Entra identity and owner-scoped history authorization before real user data. |
 | The Lab to Foundry and Cosmos DB | Managed identity, curated agents, container-scoped Cosmos DB role, and periodic dependency checks. | Approve data and backup retention before real data. |
-| Client to APIM (optional) | Not deployed; configuration is retained. | Redeploy the gateway and validate Entra issuer, audience, and authorized caller claims. |
-| APIM to Foundry (optional) | Not deployed; target uses virtual network integration and managed identity. | Verify private DNS, backend path, managed-identity policy, request limits, and correlation IDs. |
+| Client to APIM (optional) | Not deployed. Configuration is retained. | Redeploy the gateway and validate Entra issuer, audience, and authorized caller claims. |
+| APIM to Foundry (optional) | Not deployed. Target uses virtual network integration and managed identity. | Verify private DNS, backend path, managed-identity policy, request limits, and correlation IDs. |
 | Coordinator to specialists | Named Foundry endpoints with managed identity. | Profile-based bindings require a new deployment and per-tool target checks. |
-| Administration to private data plane | Authorized private connectivity and project-scoped deployment identity. | Inventory before mutation; serialize deployment per agent. |
+| Administration to private data plane | Authorized private connectivity and project-scoped deployment identity. | Inventory before mutation. Serialize deployment per agent. |
 | Terraform to Azure | Keyless ARM ownership and distinct remote state keys with Entra authentication and locking. | Preserve private backend connectivity and historical state retention. |
 
 The workload and management networks may be in different regions. If APIM is

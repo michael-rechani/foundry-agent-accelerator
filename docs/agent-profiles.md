@@ -25,7 +25,7 @@ Python. Profiles configure hosted agents in Microsoft Foundry.
 | Terraform platform | Foundry, model deployment, private networking, identities, observability, optional Azure API Management (APIM), and administration. | Only for different capacity, tools, regions, or isolation requirements. |
 | Hosted specialist | Runtime code, pinned dependencies, instructions, tool permissions, and Responses contract. | Yes, independently versioned. |
 | Coordinator profile | Coordinator name and instructions, allowed specialist bindings, and mandatory smoke prompts. | Yes, without editing coordinator Python. |
-| Client entry point | Authentication, caller authorization, request limits, and error contract. | Usually stable; APIM route remains unpublished. |
+| Client entry point | Authentication, caller authorization, request limits, and error contract. | Usually stable. The APIM route remains unpublished. |
 
 The existing review coordinator is the default sample, not a platform
 dependency. The profile mechanism doesn't need a graphical user interface (GUI),

@@ -198,11 +198,11 @@ admission control, so keep one worker and one replica.
 | State | Meaning | Allowed next action |
 | --- | --- | --- |
 | `draft` | Validated input, either newly created or extended with evidence | **Run review** or **Review again** with a matching ETag and remaining run budget |
-| `running` | Input snapshot saved and a matching local task exists, or the saved recovery window has not expired | Poll or reopen. Don't submit another start |
-| `waiting_input` (**Needs information**) | A validated, saved result asks for more information | Append evidence with a matching ETag, fewer than four runs, and room within content limits; returns to `draft` |
+| `running` | Input snapshot saved and a matching local task exists, or the saved recovery window hasn't expired | Poll or reopen. Don't submit another start |
+| `waiting_input` (**Needs information**) | A validated, saved result asks for more information | Append evidence with a matching ETag, fewer than four runs, and room within content limits. Returns to `draft` |
 | `completed` (**Results saved**) | Validated findings with no questions and a confirmed final write | Read or export |
-| `failed` | A saved failure such as timeout or invalid agent output | Read or export; no retry transition in this release |
-| `interrupted` | No matching local task after the recovery window, or a saved interruption; stored status may still be `running` | Explicit **Recover review** with cost confirmation, a matching ETag, saved run input, and remaining run budget; otherwise inspect or export |
+| `failed` | A saved failure such as timeout or invalid agent output | Read or export. No retry transition in this release |
+| `interrupted` | No matching local task after the recovery window, or a saved interruption. Stored status may still be `running` | Explicit **Recover review** with cost confirmation, a matching ETag, saved run input, and remaining run budget; otherwise inspect or export |
 
 Completed, failed, and interrupted records remain readable and exportable until
 expiry. Earlier run inputs remain snapshots when new evidence is appended. Each
@@ -217,9 +217,9 @@ result doesn't silently reuse or restart a prior call.
 | Worker durability | Execution is process-local, not a durable distributed worker. Keep one worker and one replica. A process restart or an unconfirmed final save exposes an interrupted run after the recovery window in both inbox and detail. Recovery reruns the saved input, and only when you ask for it. The review never retries the model automatically. An already accepted remote call may still complete and incur charges. |
 | Concurrency | ETag preconditions protect starts, recovery, and evidence updates from competing tabs. A persisted recovery window stops a new instance from immediately treating another instance's recent run as abandoned during rollout. It isn't a distributed lease or a guarantee that remote work stopped. After an uncertain create or update, refresh the inbox before repeating it. Creating a brand-new review isn't idempotent across repeated requests. |
 | Run budget | Each review permits at most four runs. Agent calls share Chat's four in-flight slots and 20-request/minute admission budget, with a maximum 180-second timeout. Review record operations have separate four-request concurrency, 120/minute admission, and 35-second deadlines. Input upload is limited to five seconds, 64 KiB JSON, and 30,000 content characters. Each source is at most 12,000 characters. |
-| Receipts | A coordinator result is accepted only with checked, correlated specialist receipts matching configured targets. Receipt metadata is stored server-side; browsers cannot submit findings, success flags, or run events. |
+| Receipts | A coordinator result is accepted only with checked, correlated specialist receipts matching configured targets. Receipt metadata is stored server-side; browsers can't submit findings, success flags, or run events. |
 | Timeline | Timeline entries are observed application milestones. Specialist receipt and citation checks happen after the response arrives, not as streamed specialist start events. No hidden reasoning or simulated progress is displayed. |
-| Human judgment | Exact quotes establish source-reference integrity, not factual truth or a quality score. Model findings require human review. The system does not approve, deny, rank people, or execute external business actions. |
+| Human judgment | Exact quotes establish source-reference integrity, not factual truth or a quality score. Model findings require human review. The system doesn't approve, deny, rank people, or execute external business actions. |
 
 ## Persistence
 

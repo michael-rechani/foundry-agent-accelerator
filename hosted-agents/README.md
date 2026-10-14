@@ -46,7 +46,7 @@ identity, scaling, session storage, observability, and version lifecycle.
 | --- | --- | --- |
 | [`basic-responses-agent/`](basic-responses-agent/) | Minimal Microsoft Agent Framework and Responses protocol baseline. | General-purpose demonstration only. |
 | [`case-review-agent/`](case-review-agent/) | Casework assistance, **Available**: cited summaries, missing or conflicting evidence, and staff questions. | Doesn't determine eligibility, liability, enforcement, or clinical status. |
-| [`application-review-agent/`](application-review-agent/) | Application completeness, **Available**; requirements and proposal review, **Preview**: compare supplied material with explicit criteria. | Missing evidence isn't automatic noncompliance. Doesn't score, rank, approve, deny, or recommend an outcome. |
+| [`application-review-agent/`](application-review-agent/) | Application completeness, **Available**; requirements and proposal review, **Preview**: compare supplied material with stated criteria. | Missing evidence isn't automatic noncompliance. Doesn't score, rank, approve, deny, or recommend an outcome. |
 | [`review-coordinator-agent/`](review-coordinator-agent/) | Route review requests to the application or case specialist. | Doesn't replace specialist review or make consequential decisions. |
 
 > [!NOTE]
@@ -448,8 +448,8 @@ and `hosted_runtime.py` from this folder, so put this folder on `PYTHONPATH` fir
 | Authentication failure | The local Azure session is missing or points to the wrong tenant or subscription. | Run `az login`, then verify tenant and subscription with `az account show`. |
 | Project or deployment not found | The endpoint or model deployment name is stale or from another environment. | Re-read both values with `terraform output -raw`. The model value is the deployment name, not merely a catalog model name. |
 | Remote build fails | Required source files or pinned packages are unavailable. | Confirm `main.py` and `requirements.txt` are present and that the pinned packages remain available. |
-| Version provisioning fails | The selected region cannot provision the hosted-agent version or model. | Review the reported version details and confirm hosted-agent and model availability in the selected region. |
-| Smoke test fails | The candidate route, specialist call, or runtime behavior failed verification. | From the private network, open **Agents > Traces** in the Foundry project, or query `AppDependencies` and `AppExceptions` by response ID in the linked Application Insights resource ([runbook](../terraform/monitoring/README.md#verification-and-portal-use)). Traces are metadata-only, so check status, timings and exception types rather than prompts. Also check endpoint routing. Candidates are retained when cleanup cannot confirm they are unrouted. |
+| Version provisioning fails | The selected region can't provision the hosted-agent version or model. | Review the reported version details and confirm hosted-agent and model availability in the selected region. |
+| Smoke test fails | The candidate route, specialist call, or runtime behavior failed verification. | From the private network, open **Agents > Traces** in the Foundry project, or query `AppDependencies` and `AppExceptions` by response ID in the linked Application Insights resource ([runbook](../terraform/monitoring/README.md#verification-and-portal-use)). Traces are metadata-only, so check status, timings and exception types rather than prompts. Also check endpoint routing. Candidates are retained when cleanup can't confirm they are unrouted. |
 
 ## Scenario selection and optional extensions
 

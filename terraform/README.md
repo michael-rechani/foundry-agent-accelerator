@@ -212,7 +212,7 @@ For an existing VM, set `enable_jumpbox = true` and preserve its disk ID, name,
 size, and storage type in `jumpbox_existing_os_disk` in ignored deployment
 inputs. The default `create_option = "FromImage"` preserves an image-provisioned
 VM's configuration. Use `create_option = "Attach"` for a VM booting a retained
-specialized Windows disk; this omits the image and OS provisioning profile and
+specialized Windows disk. This omits the image and OS provisioning profile and
 retains the disk's existing login.
 
 A new VM uses the newest Windows Server 2025 image, because `jumpbox_image_version`
@@ -246,7 +246,7 @@ backups.
 
 Earlier versions gave the deployer Key Vault Secrets Officer on the Agent
 Service Key Vault by default. To keep it, set
-`deployer_key_vault_secrets_officer = true`; the plan then shows no change.
+`deployer_key_vault_secrets_officer = true`. The plan then shows no change.
 Otherwise the next apply deletes that role assignment. It doesn't delete any
 secret. See [Deployer Key Vault access](../docs/permissions.md#deployer-key-vault-access).
 
@@ -345,7 +345,7 @@ isn't required. The configuration creates the service but doesn't publish a
 placeholder API. The opt-in coordinator API and policy are implemented. Enable
 them only after the backend and caller authorization are verified.
 
-Standard v2 is used because it supports outbound virtual network integration to
+The gateway uses Standard v2 because it supports outbound virtual network integration to
 the private backends. The gateway remains publicly reachable for clients, and
 the integration subnet isn't an inbound private endpoint. Management-plane
 public network access also remains enabled so Terraform and portal operations
@@ -464,7 +464,7 @@ location              = "northcentralus"
 enable_api_management = false
 ```
 
-Leave the `approve_*` inputs at their `false` defaults unless you are enabling
+Leave the `approve_*` inputs at their `false` defaults unless you're enabling
 the matching optional piece and have approved its public exposure.
 
 Review [all input defaults](variables.tf), especially model capacity, network
@@ -541,7 +541,7 @@ artifacts. Keep this PowerShell session open for the apply step.
 ### 4. Apply the approved plan
 
 A saved plan applies without another Terraform confirmation prompt. Run this
-block only after review; cleanup removes the disposable plan even if apply fails.
+block only after review. Cleanup removes the disposable plan even if apply fails.
 
 ```powershell
 try {
@@ -663,7 +663,7 @@ controls. Before production use:
 - Decide which backing services should have a separate platform owner. The AVM
   bring-your-own-resources (BYOR) path is already enabled with Agent Service:
   this root owns Cosmos and agent storage, while the AVM creates Search and Key
-  Vault. Moving resources to another state requires an explicit ownership
+  Vault.   Moving resources to another state requires an ownership
   migration, not another copy of the module.
 - Integrate the workload virtual network and private DNS zones with the
   landing-zone hub, firewall, DNS resolver, and on-premises routing design.

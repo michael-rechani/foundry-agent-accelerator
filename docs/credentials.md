@@ -93,12 +93,12 @@ login is verified. After a partial failure, inspect individual consumers before
 retrying with the same pinned version.
 
 For an existing VM whose credentials are administered separately, leave the
-secret reference null; Terraform then omits the VMAccessAgent extension. If an
+secret reference null. Terraform then omits the VMAccessAgent extension. If an
 extension is already tracked, reconcile its ownership before changing the
 reference. Don't bypass the destruction guard to remove a live extension.
 Specified disk inputs preserve the disk configuration. Set
 `jumpbox_existing_os_disk.create_option = "Attach"` when booting a retained
-specialized Windows disk; its existing credentials remain in effect. Restore the
+specialized Windows disk. Its existing credentials remain in effect. Restore the
 replacement system identity's required roles and reconcile Terraform state before
 the next apply.
 
@@ -120,7 +120,7 @@ arguments.
 | --- | --- | --- |
 | Terraform asks to recreate an existing service. | The root is pointing at empty or wrong state. | Stop and reconcile state ownership before planning again. |
 | Backend access fails from a local machine. | The state account requires private connectivity. | Use an authorized private-network path instead of reopening public or shared-key access. |
-| A VM credential update partially fails. | The VM and access extension update are not atomic. | Keep the prior vault version, inspect each consumer, and retry with the same pinned version. |
+| A VM credential update partially fails. | The VM and access extension updates aren't atomic. | Keep the prior vault version, inspect each consumer, and retry with the same pinned version. |
 | A scan finds an old secret in state or logs. | Historical copies still contain the value. | Protect the copies and rotate the exposed credential through the approved recovery process. |
 
 ## Related content

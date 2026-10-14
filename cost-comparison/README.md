@@ -83,8 +83,8 @@ assumptions must match the environment being evaluated.
 | --- | --- | --- |
 | Compute | Named GPU SKU rate, instance count, and running hours | Aggregate active and idle-timeout sandbox hours |
 | Storage | Managed disks | Persistent session storage |
-| Operations | Configurable labor estimate for patching and platform care | Managed runtime; no labor value is assumed by the calculator |
-| AI consumption | Included in GPU compute; optional external AI charges | Foundry model tokens and optional external AI charges |
+| Operations | Configurable labor estimate for patching and platform care | Managed runtime. The calculator assumes no labor value |
+| AI consumption | Included in GPU compute. Optional external AI charges | Foundry model tokens and optional external AI charges |
 | Additional platform | Architecture-specific dependencies beyond VM assumptions | Azure API Management (APIM), networking, project dependencies, and platform operations |
 
 The example retains Linux pay-as-you-go retail rates for East US 2 GPU classes:

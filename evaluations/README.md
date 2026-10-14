@@ -25,7 +25,7 @@ libraries.
 
 ## Offline and approved live modes
 
-| Mode | What it does | What it does not do |
+| Mode | What it does | What it doesn't do |
 | --- | --- | --- |
 | Offline, default | Validates the dataset schema, profile coverage, source identifiers, and local tests. | It doesn't invoke Azure, acquire credentials, mutate cloud resources, grade quality, or prove model performance. |
 | Approved live, with `--run` | Invokes routed staging agents, creates a native Foundry evaluator/evaluation/run, and gates every selected case through the rubric. | It doesn't publish agents, promote routes, run a production canary, estimate cost, or authorize a production release. |

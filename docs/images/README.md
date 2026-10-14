@@ -2,10 +2,9 @@
 
 [Home](../../README.md) / [Docs](../README.md) / Architecture artwork
 
-This page covers rebuilding the architecture diagrams, Lab screenshots, and
-README tour. The templates, generated SVGs, and Azure icons
-are part of the documentation contract, so update them together and keep the
-images readable at README width and on mobile.
+Rebuild steps for the architecture diagrams, Lab screenshots, and README tour
+live here. The templates, generated SVGs, and Azure icons belong together, so
+update them together and keep the images readable at README width and on mobile.
 
 ## At a glance
 
@@ -122,9 +121,9 @@ outside the networks, each linked to its private endpoint. Step 6 starts at
 Foundry Agent Service and runs through the agent subnet, because agents reach
 their data from there. Badges 1 to 7 follow one request and match the steps in
 the root README. Don't draw what Terraform doesn't create, such as network
-security groups or a firewall, and don't add paths the view omits on purpose,
-such as Lab logs, which reach Azure Monitor through diagnostic settings rather
-than its private endpoint. Model names are examples; deployments are
+security groups or a firewall. Don't add paths the view omits on purpose, such
+as Lab logs, which reach Azure Monitor through diagnostic settings rather
+than its private endpoint. Model names are examples, and deployments are
 configurable. Keep optional API Management and its subnet out of this view.
 When a subnet or address default changes in Terraform, update the view.
 
@@ -182,14 +181,14 @@ The diagrams use unmodified Microsoft Azure service icons from the
 official [Azure Architecture Center icon set](https://learn.microsoft.com/azure/architecture/icons/),
 release V24. The selected SVGs in `azure-icons/` are copied unchanged from
 [Microsoft's distribution](https://arch-center.azureedge.net/icons/Azure_Public_Service_Icons_V24.zip),
-which Microsoft updates in place; they match its July 2026 update. When you add
+which Microsoft updates in place. They match its July 2026 update. When you add
 an icon, copy it from the current download under a short lowercase name, such
 as `private-endpoints.svg`, and delete icons that no template references.
 
 Microsoft permits these icons in architectural diagrams, training materials, and
 documentation, and reserves other rights. Don't crop, recolor, distort, rotate,
 or repurpose product icons to represent custom applications. Product names
-accompany their icons; custom review agents use plain labeled cards inside the
+accompany their icons. Custom review agents use plain labeled cards inside the
 Foundry Agent Service boundary. Don't use the Azure logo as a service icon.
 
 ## Dark variants
@@ -203,7 +202,7 @@ the icons are identical in both variants. The `<title>` and `<desc>` text
 is never changed. `$darkPalette` in `build-architecture.ps1` is the single
 light-to-dark color map. The build fails if a template uses a hex color that
 the map doesn't cover, so add each new color to the map before you use it.
-Colors match as whole tokens, ignoring case; `#fff` and `#ffffff` are separate
+Colors match as whole tokens, ignoring case. `#fff` and `#ffffff` are separate
 entries.
 
 White has two roles. A white rectangle with no border, `stroke="none"`, or a

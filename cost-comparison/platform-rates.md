@@ -2,8 +2,8 @@
 
 [Home](../README.md) / [Cost comparison](README.md) / Platform rates
 
-This page explains the saved rate assumptions behind
-`scenario.deployed.json`. It's for operators and architects who need to copy the
+Here are the saved rate assumptions behind
+`scenario.deployed.json`, for operators and architects who need to copy the
 reference budget, refresh prices, or reconcile it with an approved scope.
 
 > [!IMPORTANT]
@@ -34,7 +34,7 @@ environment being evaluated.
 
 The saved rates came from the [Azure Retail Prices API](https://prices.azure.com/api/retail/prices),
 using USD consumption prices and the resource's region or Global meter region.
-They are planning assumptions, not current quotes or a measured bill. Refresh
+They're planning assumptions, not current quotes or a measured bill. Refresh
 them for your agreement and region before making a cost decision.
 
 | Resource | Exact product / meter | USD/hour | Assumed hours | Estimated month |
@@ -42,11 +42,11 @@ them for your agreement and region before making a cost decision.
 | One APIM Standard v2 unit | API Management / Standard v2 Unit | 0.9589 | 730 | $700.00 |
 
 Azure API Management (APIM) capacity in the original example is
-**$700.00/month**, before operational compute, disk, network address translation
-(NAT), public IP, private endpoints/DNS, transfer, project dependencies, hosted
-runtime, model tokens, tools, monitoring, operations labor, and applicable
-additional API calls. This is a partial planning baseline, not a minimum invoice
-or total platform cost.
+**$700.00/month**. That figure leaves out operational compute, disk, network
+address translation (NAT), public IP, private endpoints/DNS, transfer, project
+dependencies, hosted runtime, model tokens, tools, monitoring, operations labor,
+and applicable additional API calls. It's a partial planning baseline, not a
+minimum invoice or total platform cost.
 
 The reference environment's separately deployed Lab adds 400 RU/s of
 dedicated Cosmos container throughput. The North Central US public retail
@@ -54,7 +54,8 @@ dedicated Cosmos container throughput. The North Central US public retail
 `4 * 0.008 * 730 = USD 23.36/month`.
 The original comparison example includes this amount and unpriced Lab storage,
 backup, Container Apps, and registry/build entries. Its known platform subtotal
-is USD 765.41/month under these assumptions, still incomplete and not an invoice.
+is USD 765.41/month under these assumptions. That subtotal is still incomplete
+and isn't an invoice.
 The Foundry Cosmos entry excludes this Lab allocation to avoid double counting.
 
 The [reference scenario](scenario.deployed.json) adds itemized coverage for the
@@ -76,17 +77,17 @@ serviceName eq 'Virtual Machines' and armRegionName eq 'westus' and armSkuName e
 
 Select the exact products/meters in the table. Don't substitute APIM secondary
 units, workspace packs, self-hosted gateways, Linux virtual machines (VMs),
-Spot, or Low Priority rates. APIM call meters have tiers; estimate their
-charges separately from
-capacity using the applicable included allowance and billing rules.
+Spot, or Low Priority rates. APIM call meters have tiers, so estimate their
+charges separately from capacity, using the applicable included allowance and
+billing rules.
 
 ## Deployed budget
 
 This historical reference budget records APIM as disabled and assigns it zero
-capacity hours, reducing its steady-state monthly estimate by $700.00 to
-**$1,584.76**. That doesn't erase earlier accrued charges or establish present
+capacity hours. That reduces its steady-state monthly estimate by $700.00 to
+**$1,584.76**. It doesn't erase earlier accrued charges or establish present
 spend. The original comparison example above retains APIM assumptions for
-comparison; neither file automatically follows live deployment changes.
+comparison. Neither file automatically follows live deployment changes.
 Azure Container Registry (ACR) appears in the table as a retained budget item.
 
 | Item | Recorded unit rate | Budget quantity |
@@ -101,14 +102,14 @@ Azure Container Registry (ACR) appears in the table as a retained budget item.
 | Cosmos data and continuous 30-day backup | $0.25 and $0.20/GB | 10 GB each |
 | Container Apps active CPU | $0.000024/vCPU-second | 0.5 vCPU for 730 hours |
 | Container Apps memory | $0.000003/GiB-second | 1 GiB for 730 hours |
-| Container Apps requests | $0.40/million | One million; no shared free grant assumed |
+| Container Apps requests | $0.40/million | One million. No shared free grant assumed |
 | Premium ACR | $1.6666/day | 730 / 24 days |
 | Key Vault operations | $0.03/10,000 | 10,000 operations |
 | Log Analytics ingestion | $2.76/billable GB | 10 GB beyond shared free allowance |
 
 Cosmos sustained maximum throughput on all six autoscale containers adds
 $473.04/month. Cosmos storage and monitoring are each counted once across the
-platform and Lab; the separate hosted monitoring field is zero.
+platform and Lab. The separate hosted monitoring field is zero.
 
 Allowances cover private build VM time and excess registry storage ($5),
 Storage/disk operations including shared state ($10), cross-region peering ($3),

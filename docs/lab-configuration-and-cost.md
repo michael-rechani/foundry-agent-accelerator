@@ -37,7 +37,7 @@ existing deployments.
 | Foundry endpoint name and expected specialist receipts | `agent` and `tools` in [`agents.json`](../workbench/agents.json) | Rebuild and redeploy the Lab to point at a separately published, tested configuration. |
 | Coordinator instructions and real tools | Selected [coordinator profile](agent-profiles.md), or the base coordinator's instructions and runtime defaults | Publish and test a new coordinator version. Editing the Lab catalog doesn't change runtime tools. |
 | Specialist instructions | [Application instructions](../hosted-agents/application-review-agent/instructions.md) or [case instructions](../hosted-agents/case-review-agent/instructions.md), plus deployment configuration | Publish and test a new specialist version. |
-| Visible entries, default agent, and title | Lab Terraform inputs below; local equivalents are `WORKBENCH_*` environment settings | Reviewed Lab rollout, or restart the local server. |
+| Visible entries, default agent, and title | Lab Terraform inputs below. Local equivalents are `WORKBENCH_*` environment settings | Reviewed Lab rollout, or restart the local server. |
 
 Deployed agent versions capture instructions and environment settings.
 `AGENT_INSTRUCTIONS` overrides the runtime's default instruction file.

@@ -124,7 +124,7 @@ and again by the runtime inside the container.
 | `KNOWLEDGE_SEARCH_ENDPOINT` | None | Required when enabled. `https://<service>.search.windows.net` with no path, port, query, or credentials. |
 | `KNOWLEDGE_SEARCH_INDEX` | None | Required when enabled. 1 to 128 lowercase letters, digits, or dashes. |
 | `KNOWLEDGE_TOP_K` | `3` | Whole number from 1 to 5. |
-| `KNOWLEDGE_SELECT_FIELDS` | `id,title,section,content` | 1 to 8 unique field names; must include the ID field. |
+| `KNOWLEDGE_SELECT_FIELDS` | `id,title,section,content` | 1 to 8 unique field names. Must include the ID field. |
 | `KNOWLEDGE_ID_FIELD` | `id` | Field used as the citation `source_id`. |
 
 **Flag off (default).** `with_knowledge_retrieval` in

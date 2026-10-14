@@ -5,7 +5,7 @@
 The optional review API runs through Azure API Management (APIM). It exposes
 `POST /reviews/responses` and forwards each request to a named coordinator in
 the private Foundry project, so changing the selected agent doesn't require a
-different client URL. This page covers the inputs, prerequisites, steps, and
+different client URL. Below you'll find the inputs, prerequisites, steps, and
 acceptance gates for publishing it.
 
 > [!IMPORTANT]
@@ -62,7 +62,7 @@ control and protect any plan or state files that include these values.
 | `review_api.audience` | Dedicated Microsoft Entra ID API audience. Terraform accepts a GUID or `api://GUID`, and it rejects a general Azure audience. |
 | `review_api.allowed_caller_object_ids` | Nonempty set of approved caller principal object IDs. For app-only callers, use the tenant's service principal object ID, not the application ID. For delegated access, use the user's object ID. |
 | `review_api.allowed_client_app_ids` | Nonempty set of approved client application IDs. |
-| `review_api.agent_name` | Named coordinator endpoint. Defaults to `review-coordinator-agent`; use a valid named agent, not a URL or path. |
+| `review_api.agent_name` | Named coordinator endpoint. Defaults to `review-coordinator-agent`. Use a valid named agent, not a URL or path. |
 
 ## Publication prerequisites
 
@@ -162,8 +162,8 @@ streaming, or caller-supplied model or tool overrides in this initial contract.
 5. Replace caller authorization with APIM managed-identity authentication for
    `https://ai.azure.com`. Use the fixed named-agent backend and discard unmatched
    query parameters. No automatic retries or redirects are enabled.
-6. Wait up to 180 seconds for backend response headers. This is not a total
-   execution deadline and doesn't cancel remote work already accepted.
+6. Wait up to 180 seconds for backend response headers. This isn't a total
+   execution deadline, and it doesn't cancel remote work already accepted.
 7. Return the Responses body with `x-correlation-id` and
    `Cache-Control: no-store`.
 
@@ -193,8 +193,8 @@ platform-level errors outside this policy may use its native response format.
 
 HTTP 200 doesn't establish review correctness or specialist success. Clients must
 inspect Responses status and correlated tool receipts, and handle a clarifying
-question separately from a completed review. This gateway supplies no automatic business decision or record-level
-authorization.
+question separately from a completed review. This gateway supplies no automatic
+business decision or record-level authorization.
 
 ## Acceptance gates
 

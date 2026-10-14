@@ -54,7 +54,7 @@ instructions.
 
 ## 2. Stage the reviewed sources
 
-Retain this layout on the private runner:
+Keep this layout on the private runner:
 
 ```text
 hosted-agents/
@@ -107,7 +107,7 @@ $env:FOUNDRY_MODEL_NAME = '<verified-model-deployment-name>'
 
 Retrieve the two non-secret values with Terraform's `foundry_project_endpoint`
 and `model_deployment_name` outputs on the administrative machine. The runner
-does not need a copy of Terraform state. Use Python's full executable path if
+doesn't need a copy of Terraform state. Use Python's full executable path if
 the current process has a stale PATH after installation.
 
 ## 4. Inventory before mutation
@@ -156,13 +156,13 @@ if ($LASTEXITCODE -ne 0) { throw 'Coordinator deployment or verification failed'
 
 The deployer checks the model and specialists and snapshots the previous endpoint
 before creating an immutable version. After activation it verifies the endpoint
-hasn't changed, promotes the candidate while preserving authorization, and reads
+hasn't changed, promotes the candidate while preserving authorization. It reads
 the exact active route back before and after the general smoke test and both
 mandatory delegation checks. Clients may reach the candidate during testing.
 
 ## 6. Verify deployment and routing
 
-Require all of the following evidence before considering the update complete:
+Treat the update as complete only when you have all of this evidence:
 
 - New version becomes active.
 - Application and case delegation checks each report success.
@@ -177,7 +177,8 @@ a specialist call; the verifier checks correlated structured tool results.
 
 On failure, the deployer attempts previous-route restoration when promotion was
 attempted. It deletes the candidate only when a fresh route read confirms the
-candidate is not referenced. Unknown routes or failed restoration retain it.
+candidate isn't referenced. If the route is unknown or restoration fails, it
+keeps the candidate.
 
 Inspect the actual endpoint before retrying or deleting anything. Restore a
 known-good version under the same deployment lock, verify the route, then clean

@@ -16,7 +16,7 @@ ownership of those existing resources or change their network access.
 | State example | `ai-foundry/monitoring-dev.tfstate` |
 | Trace destination | Workspace-based Application Insights |
 | Workspace and network | Existing private Log Analytics workspace and AMPLS |
-| Trace content | Operation metadata only; no prompt, response, or sensitive tool content |
+| Trace content | Operation metadata only. No prompt, response, or sensitive tool content. |
 | Project connection | Controlled by `enable_project_connection` and disabled by default |
 | Portal path | **hosted-agents-dev > Agents > Traces** |
 
@@ -59,7 +59,7 @@ data while retaining operation metadata. Disabling statsbeat stops the exporter'
 own usage telemetry, including a virtual machine metadata probe that otherwise
 fails in the hosted container and appears as `requests.exceptions.ConnectionError`
 rows in `AppExceptions`. Versions published before this setting keep emitting
-those harmless rows until they are republished.
+those harmless rows until you republish them.
 
 These settings don't sanitize arbitrary application log messages, so keep those
 metadata-only too. `AGENT_STORE_RESPONSES=false` controls response persistence
@@ -160,8 +160,8 @@ terraform test
 ```
 
 The mock-provider tests check private access, Microsoft Entra ID authentication,
-scoped publishers, and opt-in connection creation. Live telemetry and content
-exclusion must also be verified after deployment.
+scoped publishers, and opt-in connection creation. Also verify live telemetry
+and content exclusion after deployment.
 
 ## Related content
 

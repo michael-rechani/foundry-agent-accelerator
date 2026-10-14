@@ -207,10 +207,10 @@ specialist/model calls for coordinator cases.
 | Receipt field | Meaning and limits |
 | --- | --- |
 | `response_received.response_time_seconds` | Measured client request round-trip, including hosted processing and any downstream work waited on. Not model-only latency, token throughput, or full evaluation duration. Retained even if subsequent structural checks fail. |
-| `response_received.token_usage` | Only the response's reported input/output/total counts; each absent count is `null`, never estimated from text. A returned coordinator count is **not verified to include all specialist/model calls**. No count is invented by subtraction. |
-| `evaluation_completed.native_results` | Native rubric name, normalized score and pass/fail for each case; rationales remain in Foundry. Scores aren't converted to an invented quality percentage. |
-| `evaluation_completed.native_evaluation_usage` | The completed native run's `per_model_usage`, when returned, including model, prompt/completion/total/cache counts and invocation count. Absent list or fields are `null`; a returned empty list remains empty and doesn't prove zero cost. Separate from agent collection, not a full stack total. |
-| `estimated_cost` | Always `null` in this runner. A separate estimate would require complete usage, pricing currency/date, deployment/model tier, cache treatment and judge/specialist coverage; tokens alone aren't a bill. |
+| `response_received.token_usage` | Only the response's reported input/output/total counts. Each absent count is `null`, never estimated from text. A returned coordinator count is **not verified to include all specialist/model calls**. No count is invented by subtraction. |
+| `evaluation_completed.native_results` | Native rubric name, normalized score and pass/fail for each case. Rationales remain in Foundry. Scores aren't converted to an invented quality percentage. |
+| `evaluation_completed.native_evaluation_usage` | The completed native run's `per_model_usage`, when returned, including model, prompt/completion/total/cache counts and invocation count. Absent list or fields are `null`. A returned empty list remains empty and doesn't prove zero cost. Separate from agent collection, not a full stack total. |
+| `estimated_cost` | Always `null` in this runner. A separate estimate would require complete usage, pricing currency/date, deployment/model tier, cache treatment and judge/specialist coverage. Tokens alone aren't a bill. |
 | `allocated_platform_cost` | Always `null` in this runner. Hosted compute, minimum replicas, networking, storage and monitoring are shared/time-based costs requiring a stated allocation basis, not observed per-request token cost. |
 
 Partial telemetry may still accompany a valid quality result, but it can't support

@@ -18,7 +18,7 @@ Run commands in `terraform/bastion/`, not in the parent platform root.
 | Scale units | 2 |
 | Subnet | Dedicated `AzureBastionSubnet` |
 | Default subnet range | `10.43.1.0/26` |
-| Public IP | Static Standard public IP named `<bastion_name>-pip`; requires `approve_bastion_public_ip = true` |
+| Public IP | Static Standard public IP named `<bastion_name>-pip`. Requires `approve_bastion_public_ip = true`. |
 | Managed resources | Bastion host, subnet, and public IP only |
 | State example | `ai-foundry/bastion-dev.tfstate` |
 | Destruction guard | `prevent_destroy` on the Bastion host, subnet, and public IP |

@@ -20,8 +20,8 @@ Status values use the definitions in [terms used in these guides](README.md#term
 | Scenario | Status | Lab agent or task to pick | What you'll check |
 | --- | --- | --- | --- |
 | [Create and try a baseline agent](#create-and-try-a-baseline-agent) | **Available** | **Create agent**, then **All agents** > **Made in this Lab** and **Chat** | A prepared template becomes a small Foundry agent, then a person checks its sample output. |
-| [Casework assistance](#casework-assistance) | **Available** | **Checklist and case helper** with **Summarize case notes**; optional direct **Case notes summarizer** if enabled | The answer keeps known facts, missing evidence, and conflicting case notes separate. |
-| [Application completeness](#application-completeness) | **Available** | **Checklist and case helper** with **Check against a checklist**; optional direct **Checklist reviewer** if enabled | The answer compares supplied evidence with a checklist without approving or denying the application. |
+| [Casework assistance](#casework-assistance) | **Available** | **Checklist and case helper** with **Summarize case notes**. Optional direct **Case notes summarizer** if enabled | The answer keeps known facts, missing evidence, and conflicting case notes separate. |
+| [Application completeness](#application-completeness) | **Available** | **Checklist and case helper** with **Check against a checklist**. Optional direct **Checklist reviewer** if enabled | The answer compares supplied evidence with a checklist without approving or denying the application. |
 | [Requirements and proposal review](#requirements-and-proposal-review) | **Preview** | **Checklist and case helper** with **Compare a proposal (preview)** | The answer separates product claims, supported requirements, gaps, and conflicts without selecting a vendor. |
 
 For a service-request workflow, publish the **Service request planner** template
@@ -109,14 +109,14 @@ created sample agent ready rather than promising instant deployment.
 
 | Audience / template | Example job description | What to demonstrate |
 | --- | --- | --- |
-| Any sector / Supplier invoice reviewer | Compare a sample furniture invoice with the purchase order and delivery record. | 20 extra chairs, a price increase, an unexpected delivery fee and damaged items flagged for a person to decide; no payment approval |
+| Any sector / Supplier invoice reviewer | Compare a sample furniture invoice with the purchase order and delivery record. | 20 extra chairs, a price increase, an unexpected delivery fee and damaged items flagged for a person to decide. No payment approval |
 | Any sector / Document explainer | Explain a sample service notice in plain language, cite the sections and list questions for staff. | Sourced explanation, not a legal interpretation or policy decision |
 | Any sector / Checklist gap finder | Compare a sample project application with the checklist I paste and flag anything missing or conflicting. | Item-by-item checking, not an award or eligibility decision |
-| Any sector / Form field extractor | Pull the request ID, requested supplies, dates and any blank fields from a sample supply request. | Fields copied as written, blanks left blank; no guessing |
-| Any sector / Service request planner | Use the sample request and service records to plan the review steps and list what a person must check. | Two read-only sample lookups and a step-by-step plan; no connected apps, writes or approvals |
+| Any sector / Form field extractor | Pull the request ID, requested supplies, dates and any blank fields from a sample supply request. | Fields copied as written, blanks left blank. No guessing |
+| Any sector / Service request planner | Use the sample request and service records to plan the review steps and list what a person must check. | Two read-only sample lookups and a step-by-step plan. No connected apps, writes or approvals |
 | Healthcare / Medical bill reviewer | Review a sample hospital bill against the insurer's statement and draft a dispute letter. | A math error, a duplicate X-ray, extra lab charges and prices above the plan's allowed amount, with the math shown and an unsent letter |
-| Healthcare / Insurance pre-approval helper | Check that a sample MRI pre-approval request has every document the insurer asks for. | Out-of-date visit notes, two missing documents and an out-of-network facility caught before staff send it; no approval prediction |
-| Public sector / Benefits renewal helper | Sort a family's sample food-assistance renewal paperwork and flag what's missing or doesn't match. | An old pay stub, a likely missing one, a household-size mismatch and a friendly draft note; the caseworker decides |
+| Healthcare / Insurance pre-approval helper | Check that a sample MRI pre-approval request has every document the insurer asks for. | Out-of-date visit notes, two missing documents and an out-of-network facility caught before staff send it. No approval prediction |
+| Public sector / Benefits renewal helper | Sort a family's sample food-assistance renewal paperwork and flag what's missing or doesn't match. | An old pay stub, a likely missing one, a household-size mismatch and a friendly draft note. The caseworker decides |
 | Public sector / Case summary writer | Summarize sample intake notes and draft follow-up questions without deciding eligibility or changing records. | Facts, conflicting notes and questions kept separate |
 
 These examples include independent software vendor (ISV) and software as a
@@ -207,7 +207,7 @@ the direct **Checklist reviewer** entry, it uses the same specialist.
 
 | Checklist item | Good result | Supporting labels |
 | --- | --- | --- |
-| Checklist item 1: supply a project budget | **Not demonstrated.** Ask for the missing budget. Absence isn't an automatic failure. Don't invent a budget citation. | Checklist item 1; no supporting budget source supplied |
+| Checklist item 1: supply a project budget | **Not demonstrated.** Ask for the missing budget. Absence isn't an automatic failure. Don't invent a budget citation. | Checklist item 1. No supporting budget source supplied |
 | Checklist item 2: identify the implementation owner | **Met**, limited to what the text states, not verified organizational authority. | Section 1 names the Facilities team |
 | Checklist item 3: provide a delivery schedule | **Unclear.** Preserve the conflicting schedules and ask which is current. | Sections 2 and 3 give different completion dates |
 
@@ -253,8 +253,8 @@ The sample asks about comma-separated values (CSV) export and single sign-on
 | Checklist item | Good finding | Evidence |
 | --- | --- | --- |
 | Checklist item 1: CSV export | **Met** against the supplied sample information, not a live product test. | The product sheet explicitly describes CSV export |
-| Checklist item 2: retain audit records for seven years | **Unclear** / conflicting retention statements; ask for authoritative documentation and applicable configuration/version. | The product sheet says seven years; the admin guide says thirty days |
-| Checklist item 3: SSO with documented supported protocols | **Not demonstrated**; flag unsupported SSO inference from marketing language and request protocol evidence. | The brochure only says "enterprise-ready"; no protocol evidence supplied |
+| Checklist item 2: retain audit records for seven years | **Unclear** / conflicting retention statements. Ask for authoritative documentation and applicable configuration/version. | The product sheet says seven years. The admin guide says thirty days |
+| Checklist item 3: SSO with documented supported protocols | **Not demonstrated**. Flag unsupported SSO inference from marketing language and request protocol evidence. | The brochure only says "enterprise-ready". No protocol evidence supplied |
 
 Preserve every checklist item and document label. Product statements are supplied
 claims, not independently verified capabilities. Don't accept a vendor ranking,
