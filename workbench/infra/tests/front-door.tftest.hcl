@@ -407,3 +407,34 @@ run "private_link_region_follows_the_environment_by_default" {
     error_message = "Without an explicit region, Private Link must use the environment's region."
   }
 }
+
+run "front_door_logs_go_to_the_lab_workspace" {
+  command = plan
+  variables {
+    enable_front_door         = true
+    approve_public_front_door = true
+    front_door_allowed_cidrs  = ["203.0.113.10/32"]
+  }
+  assert {
+    condition = (
+      length(azurerm_monitor_diagnostic_setting.front_door) == 1 &&
+      azurerm_monitor_diagnostic_setting.front_door[0].name == "diag-front-door-240"
+    )
+    error_message = "Front Door must have one diagnostic setting, under the name the live setting already has."
+  }
+  assert {
+    condition     = toset([for log in azurerm_monitor_diagnostic_setting.front_door[0].enabled_log : log.category]) == toset(["FrontDoorHealthProbeLog", "FrontDoorWebApplicationFirewallLog", "FrontDoorAccessLog"])
+    error_message = "Front Door must log health probes, WAF decisions and access, and nothing else."
+  }
+}
+
+run "front_door_logging_is_off_while_front_door_is_off" {
+  command = plan
+  variables {
+    import_front_door_diagnostic_setting = true
+  }
+  assert {
+    condition     = length(azurerm_monitor_diagnostic_setting.front_door) == 0
+    error_message = "No Front Door diagnostic setting may exist, or be imported, while Front Door is off."
+  }
+}

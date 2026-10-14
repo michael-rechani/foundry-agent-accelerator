@@ -362,13 +362,20 @@ for the edge to catch up: on 9 October 2026 the address went from `404`, to the
 WAF's `403`, to `200` over about 50 minutes. Confirm the origin with the
 `OriginHealthPercentage` metric.
 
-**Diagnostic setting created outside Terraform.** The setting
-`diag-front-door-240` sends the `FrontDoorHealthProbeLog`,
+**Front Door logging.** With `enable_front_door`, Terraform also creates the
+diagnostic setting `diag-front-door-240`. It sends the `FrontDoorHealthProbeLog`,
 `FrontDoorWebApplicationFirewallLog` and `FrontDoorAccessLog` categories of the
-Front Door profile to the Lab's Log Analytics workspace. It was created with the
-Azure CLI and isn't in `workbench/infra`, so a rebuilt Lab doesn't have it until
-you create it again. Tracked in
+Front Door profile to the Lab's Log Analytics workspace, so a rebuilt Lab gets the
+same logs. The workspace stays private. Don't enable public access to read them.
+
+The dev Lab's setting was first created with the Azure CLI (#240), so it already
+exists. To adopt it without an "already exists" error, set
+`import_front_door_diagnostic_setting = true` for one apply from the private
+runner, then set it back to `false`. The plan must show one import and no other
+change. If it shows anything else, stop and report. A new Lab doesn't need the
+flag. Tracked in
 [#256](https://github.com/michael-rechani/foundry-agent-accelerator/issues/256).
+
 ## Shared application and HTTP requirements
 
 ### Hostnames, TLS, and sign-in
