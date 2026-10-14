@@ -66,12 +66,9 @@ sample data for the demo.
 Each template card shows the [model profile](#how-the-lab-picks-a-model) the
 job uses and whether it has sample lookups.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-create-agent-dark.png">
-  <img alt="The Create agent page: three numbered steps, then template cards in sector groups, each with an icon, a short description, a model chip and a tools label" src="images/screenshots/lab-create-agent.png">
-</picture>
+<img alt="The Create agent page: three numbered steps, then template cards in sector groups, each with an icon, a short description, a model chip and a tools label" src="images/screenshots/lab-create-agent-dark.png">
 
-[View full size](images/screenshots/lab-create-agent.png)
+[View full size](images/screenshots/lab-create-agent-dark.png)
 
 | Stage | What happens | What does not happen |
 | --- | --- | --- |

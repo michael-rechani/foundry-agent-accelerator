@@ -14,7 +14,7 @@ function invoiceRecord(status: CreatedAgent['status']): CreatedAgent {
   const id = 'created-12345678-1234-4234-9234-123456789abc'
   return {
     id,
-    name: 'Fictional invoice helper',
+    name: 'Supplier invoice reviewer',
     template_id: invoice.templateId,
     instructions: 'Review fictional invoices using the fixed simulated tools.',
     runtime_name: 'lab-demo-12345678123442349234123456789abc',
@@ -31,7 +31,7 @@ function invoiceRecord(status: CreatedAgent['status']): CreatedAgent {
         ? {
             ...guidedReview,
             id,
-            label: 'Fictional invoice helper',
+            label: 'Supplier invoice reviewer',
             agent: 'lab-demo-12345678123442349234123456789abc',
             prompts: [{ label: 'Try the sample', text: invoice.input }],
           }
@@ -118,7 +118,9 @@ async function openShowcase(
 test('exploration is read-only and every scenario has an honest customer story', async ({
   page,
 }, testInfo) => {
-  const state = await openShowcase(page)
+  // A ready invoice agent keeps the invoice screenshot on its working state
+  // instead of the "no matching agent" notice.
+  const state = await openShowcase(page, { record: invoiceRecord('ready') })
   await expect(
     libraryNav(page).getByRole('button', { name: 'Guided demos' }),
   ).toHaveAttribute('aria-current', 'page')
@@ -251,7 +253,7 @@ for (const status of ['ready', 'failed'] as const) {
     if (status === 'ready') {
       await page.getByRole('button', { name: 'Load sample input' }).click()
       await expect(page.locator('.agent-picker .agent-name')).toHaveText(
-        'Fictional invoice helper',
+        'Supplier invoice reviewer',
       )
       await expect(
         page.getByRole('textbox', { name: 'Message', exact: true }),

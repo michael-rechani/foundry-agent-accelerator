@@ -147,12 +147,9 @@ promised.
 4. **Handoff (2 minutes):** record [what worked, what needs further validation,
    and the recommended next step](demo-handoff.md). Reset as described below.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-chat-start-dark.png">
-  <img alt="An empty Chat: the Checklist and case helper explains what to give it and what it returns, with example tasks to review an application, summarize case notes, or compare a proposal, and an Ask the Lab section with two guide questions" src="images/screenshots/lab-chat-start.png">
-</picture>
+<img alt="An empty Chat: the Checklist and case helper explains what to give it and what it returns, with example tasks to review an application, summarize case notes, or compare a proposal, and an Ask the Lab section with two guide questions" src="images/screenshots/lab-chat-start-dark.png">
 
-[View full size](images/screenshots/lab-chat-start.png)
+[View full size](images/screenshots/lab-chat-start-dark.png)
 
 Expected findings describe meaning and evidence, **not identical model wording**.
 An eloquent or fast response can still fail. If an answer invents sources, chooses

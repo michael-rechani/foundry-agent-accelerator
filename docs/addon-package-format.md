@@ -9,12 +9,9 @@ search. Each one is described by a manifest in
 package: a runbook, an acceptance case, a Terraform module, and the roles that
 module may grant.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-addons-dark.png">
-  <img alt="The Lab's Add-ons tab: a preview-only notice, the rules every add-on follows, and add-on cards marked either Lets an agent do more or Supports the agent, starting with Knowledge search as the sample pilot" src="images/screenshots/lab-addons.png">
-</picture>
+<img alt="The Lab's Add-ons tab: a preview-only notice, the rules every add-on follows, and add-on cards marked either Lets an agent do more or Supports the agent, starting with Knowledge search as the sample pilot" src="images/screenshots/lab-addons-dark.png">
 
-[View full size](images/screenshots/lab-addons.png)
+[View full size](images/screenshots/lab-addons-dark.png)
 
 > [!IMPORTANT]
 > **Nothing in `addons/` deploys anything, and no check contacts Azure.** The

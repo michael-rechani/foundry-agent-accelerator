@@ -58,10 +58,7 @@ agreement.
 Before creating a shared record, the form explains that its text will be saved
 for everyone with Lab access and that backup retention is separate:
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-review-privacy-dark.png">
-  <img alt="A Document review form with its shared-data and retention notice beside Create shared review, before anything is saved" src="images/screenshots/lab-review-privacy.png">
-</picture>
+<img alt="A Document review form with its shared-data and retention notice beside Create shared review, before anything is saved" src="images/screenshots/lab-review-privacy-dark.png">
 
 1. Open the Lab's address with `#reviews` added (`/#reviews`), or follow a
    saved-review link. **Document reviews** has no sidebar link until you are on
@@ -89,12 +86,9 @@ for everyone with Lab access and that backup retention is separate:
    snapshots and export the record as JSON. **Chat** remains a separate
    workspace view.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/screenshots/lab-document-review-dark.png">
-  <img alt="A Document reviews record: Results list a Gap for the missing budget and a Supported delivery timeline with its quoted source, beside the Original text panel" src="images/screenshots/lab-document-review.png">
-</picture>
+<img alt="A Document reviews record: Results list a Gap for the missing budget and a Supported delivery timeline with its quoted source, beside the Original text panel" src="images/screenshots/lab-document-review-dark.png">
 
-[View full size](images/screenshots/lab-document-review.png)
+[View full size](images/screenshots/lab-document-review-dark.png)
 
 | Result label | In plain language |
 | --- | --- |
@@ -127,12 +121,9 @@ This workflow is distinct from the chat request path in the
 [architecture guide](architecture.md). The background task below lives inside
 the FastAPI process; it is not a queue, separate worker service, or durable job.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/review-lifecycle-dark.svg">
-  <img alt="Document review lifecycle in eight numbered steps: create and validate a draft without a model call (1), start a run with If-Match from one of four runs (2), save a running snapshot of the input in Azure Cosmos DB before returning HTTP 202 (3), run the coordinator and specialists in Foundry Agent Service for up to 180 seconds (4), apply fail-closed checks to receipts, the JSON schema, and exact source quotes (5), and save the final result with the run's ETag (6). The inbox then shows completed, waiting_input, failed, or interrupted. Adding evidence (7) or recovering an interrupted run with cost confirmation (8) starts a new run from step 2." src="images/review-lifecycle.svg">
-</picture>
+<img alt="Document review lifecycle in eight numbered steps: create and validate a draft without a model call (1), start a run with If-Match from one of four runs (2), save a running snapshot of the input in Azure Cosmos DB before returning HTTP 202 (3), run the coordinator and specialists in Foundry Agent Service for up to 180 seconds (4), apply fail-closed checks to receipts, the JSON schema, and exact source quotes (5), and save the final result with the run's ETag (6). The inbox then shows completed, waiting_input, failed, or interrupted. Adding evidence (7) or recovering an interrupted run with cost confirmation (8) starts a new run from step 2." src="images/review-lifecycle-dark.svg">
 
-[View full size](images/review-lifecycle.svg) · [Edit the SVG template](images/review-lifecycle.template.svg)
+[View full size](images/review-lifecycle-dark.svg) · [Edit the SVG template](images/review-lifecycle.template.svg)
 
 1. **Create draft.** `POST /api/review-runs` validates the criteria and sources
    and saves a draft. No model is called.
