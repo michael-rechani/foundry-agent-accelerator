@@ -79,8 +79,9 @@ Full case-specific acceptance text lives beside each query in
   the latter includes original text and clarification together, not a tested
   multi-turn conversation.
   `application-missing-checklist` requires only a question for the user's
-  criteria, never an invented example checklist. The dataset is bounded to
-  32 cases; adding this regression doesn't remove earlier coverage.
+  criteria, never an invented example checklist. The runner accepts at most
+  32 cases, and the dataset has 31, so adding this regression doesn't remove
+  earlier coverage.
 - **Useful case summaries:** `case-relative-follow-up` must not turn "next
   Friday" in an undated note into a calendar date. `case-simple-summary` must
   summarize the notes without demanding policy or extra documents, and must
