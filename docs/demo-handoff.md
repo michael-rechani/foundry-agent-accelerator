@@ -2,9 +2,9 @@
 
 [Home](../README.md) / [Docs](README.md) / [Demo guide](demos.md) / Handoff
 
-Record one scenario from the demo guide here. Fill it in with observed evidence,
-remaining validation work, and the next owner. It isn't a customer
-implementation claim, a deployment approval, or a commercial proposal.
+Record one scenario from the demo guide here. Fill it in with what you
+observed, the validation work that remains, and the next owner. It isn't a
+customer implementation claim, a deployment approval, or a commercial proposal.
 
 ## Before you record
 
@@ -51,7 +51,7 @@ Illustrative examples, **not measured results from this repository change**:
 - The case summary retained both conflicting intake dates and asked a useful
   follow-up question.
 - The proposal matrix distinguished a product claim from supplied protocol
-  evidence, and did not recommend a vendor.
+  evidence, and didn't recommend a vendor.
 - The workflow template returned visibly simulated lookup data and proposed
   steps without claiming a ticket, approval or external integration ran.
 
@@ -98,10 +98,10 @@ Choose one evidence-based next step. Add an owner and an agreed validation goal.
 | [ ] | Repeat or improve the selected synthetic scenario against the same evaluation set when quality or safety checks failed. |  |  |
 | [ ] | Compare an approved model/prompt candidate when a specific gap warrants it. |  |  |
 | [ ] | Scope a separate feasibility/design activity for real data, integrations, production controls, or business-request triage. Don't imply these were built. |  |  |
-| [ ] | Stop or reconsider the approach if it does not address the selected need. |  |  |
+| [ ] | Stop or reconsider the approach if it doesn't address the selected need. |  |  |
 
-Sample code, setup guidance, and architecture/cost recommendations depend on
-scope. No next step here amounts to an integration agreement, production
+Sample code, setup guidance, and architecture and cost recommendations depend on
+scope. None of these next steps is an integration agreement, production
 approval, funding, or an officially approved Microsoft service offering.
 
 ## Closeout

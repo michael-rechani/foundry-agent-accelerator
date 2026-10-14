@@ -2,10 +2,10 @@
 
 [Home](../README.md) / [Docs](README.md) / [Architecture](architecture.md) / Extension guide
 
-You can add independent agent examples without rebuilding the platform. This
-guide helps you compare Foundry capabilities, check the Terraform, software
-development kit (SDK), and networking fit, and work through an onboarding
-checklist before you publish a new example.
+You can add independent agent examples without rebuilding the platform. Before
+you publish a new one, compare Foundry capabilities, check the Terraform,
+software development kit (SDK), and networking fit, and work through the
+onboarding checklist.
 
 > [!IMPORTANT]
 > This guide is optional engineering guidance. It is not an engagement
@@ -49,8 +49,7 @@ human approval.
 
 The primary path excludes live customer-system connections, Microsoft 365,
 Copilot, SharePoint integration, education knowledge assistants, and production
-deployment. Finish with the [evidence-based handoff](demo-handoff.md), not a
-production-readiness claim.
+deployment. Finish with the [evidence-based handoff](demo-handoff.md).
 
 ## Design principles
 
@@ -71,8 +70,8 @@ availability, and quota before enabling it.
 
 ## Terraform-first deployment
 
-Treat the Microsoft references as design guidance, not a replacement for the
-working foundation. This repository already uses the Foundry Azure Verified
+Treat the Microsoft references as design guidance for the working foundation.
+This repository already uses the Foundry Azure Verified
 Module (AVM), with AzureRM and AzAPI for the surrounding resources. Keep
 infrastructure declarative. Image builds, agent releases, and quality checks
 stay as separate delivery steps.
@@ -97,7 +96,7 @@ is the closest fit for this sample. For a separately scoped enterprise
 deployment, also consider the
 [AI landing-zone Terraform module](https://github.com/Azure/terraform-azurerm-avm-ptn-aiml-landing-zone)
 and [AI Gateway Terraform implementation](https://github.com/Azure/terraform-ai-gateway-landing-zone).
-They are alternatives to assess, not dependencies to add automatically.
+Assess them as alternatives, and don't add them automatically.
 
 The landing-zone project is marked preview and doesn't claim complete
 [Bicep/Terraform runtime parity](https://github.com/Azure/AI-Landing-Zones/blob/main/docs/terraform-parity.md).
@@ -133,21 +132,20 @@ operational alerts, not a new email tool for agents.
 
 ### Extensions to scope separately
 
-- **Private tracing:** verify project-linked Application Insights, agent support,
-  retention, and content-capture policy before adding resources or
+- For private tracing, verify project-linked Application Insights, agent
+  support, retention, and content-capture policy before adding resources or
   instrumentation. Log Analytics diagnostics alone don't prove end-to-end agent
   tracing.
-- **Enterprise networking:** agree who owns the hub, egress firewall, DNS,
+- For enterprise networking, agree who owns the hub, egress firewall, DNS,
   routes, and deployment runners before connecting this workload. Don't
   duplicate central services or enable a costly firewall only to match a
   reference diagram.
-- **Broader application access:** use the [ingress guide](ingress-access.md) for
-  a separately reviewed gateway. User authentication and record authorization
-  remain separate application work.
-- **Resilience or custom-model processing:** choose these for an actual
-  availability, recovery, or document-processing requirement. They add
-  resources, operating costs, and validation work, and this demo doesn't need
-  them first.
+- If you need broader application access, use the [ingress guide](ingress-access.md)
+  for a separately reviewed gateway. User authentication and record
+  authorization remain separate application work.
+- Choose resilience or custom-model processing only for an actual availability,
+  recovery, or document-processing requirement. They add resources, operating
+  costs, and validation work, and this demo doesn't need them first.
 
 ## Capability comparison
 
@@ -184,7 +182,7 @@ implementation reference.
 ## Boundaries to preserve
 
 - **Infrastructure:** network, identities, service dependencies, capacity, and
-  operational controls. Adding another agent should not require rebuilding the
+  operational controls. Adding another agent shouldn't require rebuilding the
   infrastructure unless the agent introduces new access, isolation, region, or
   capacity needs.
 - **Agent sample:** instructions, model choice, custom code when needed,
@@ -192,7 +190,7 @@ implementation reference.
 - **Delivery:** immutable versions, dependency preflight, approved promotion,
   verified invocation, and a recorded recovery target.
 - **Lab:** select an allowed agent, submit input, display its answer, and
-  optionally save or export the conversation. Agent internals should not dictate
+  optionally save or export the conversation. Agent internals shouldn't dictate
   the shell.
 - **Example-specific state:** review criteria, evidence snapshots, and findings
   belong to that example. Other agents don't need to emit the review JSON schema
@@ -204,9 +202,8 @@ receipt verification, not a universal registry for every Foundry tool. Preserve
 that distinction when adding retrieval or action agents.
 
 The [profile mechanism](agent-profiles.md) configures one coordinator pattern.
-It is neither a generic agent definition format nor a customer isolation
-boundary. Reuse it for examples that actually need that delegation pattern, not
-by default.
+It isn't a generic agent definition format or a customer isolation boundary.
+Reuse it only for examples that need that delegation pattern.
 
 ## Acceptance criteria for extensions
 
@@ -232,8 +229,7 @@ is opt-in on a staging stack. It doesn't change production routes.
 These are repository pins and implementation choices. They don't claim that
 every live combination has been validated in every region. Offline tests
 exercise fixtures, API contracts, and mocked transports. They don't prove model
-quality,
-live routing, permissions, trace collection, or production suitability.
+quality, live routing, permissions, trace collection, or production suitability.
 
 | Surface | Repository baseline | Evidence and remaining validation |
 | --- | --- | --- |
@@ -248,7 +244,7 @@ live routing, permissions, trace collection, or production suitability.
 ## Public service and SDK guidance
 
 Check these sources for service availability and compatibility. Public
-documentation is **not evidence that this repository has been tested
+documentation **doesn't show that this repository has been tested
 against every feature**. Support can differ by SDK operation, integration,
 region, and deployment path. Check the relevant source before changing a
 deployment or presenting a capability as supported.

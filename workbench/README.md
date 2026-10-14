@@ -5,8 +5,8 @@
 The Lab is the private browser app in `workbench/`. Use it to try the
 prebuilt agents, prepare reviewed agent setups, publish baseline Microsoft
 Foundry hosted agents when an operator enables creation, and save document
-reviews. This guide covers how to run, configure, deploy, operate, and validate
-the Lab without changing its safety boundaries.
+reviews. The sections below cover running, configuring, deploying, operating,
+and validating it.
 
 The UI title is **Foundry Agent Lab**. The private React/TypeScript UI uses a
 FastAPI backend and shared Azure Cosmos DB storage.

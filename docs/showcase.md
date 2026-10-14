@@ -25,8 +25,8 @@ before signing off?
 
 Use the [sample project and checklist](demo-inputs/application.txt).
 In **Guided demos**, choose **Checklist review**, then **Load sample
-input**. This chooses an enabled matching prebuilt agent, or a ready created
-**Checklist gap finder**. It only fills the composer. Inspect the text, then
+input**. This picks an enabled matching prebuilt agent, or a ready **Checklist
+gap finder** you created. It only fills the composer. Inspect the text, then
 send it yourself.
 
 | Source | Expected finding | Human follow-up |
@@ -54,7 +54,7 @@ fixed tools return the sample purchase order and delivery record for
 `PO-DEMO-2210`. They don't contact a finance system.
 
 With neither, **Guided demos** lets you read and copy the example and points
-you to the appropriate template. Preparing the template doesn't publish it.
+you to the matching template. Preparing the template doesn't publish it.
 Publication still requires the operator key, cost approval, and the
 existing [creation prerequisites](agent-creation.md).
 
@@ -116,9 +116,9 @@ the same chat. Those usually answer in a few seconds, because the Lab keeps a
 chat's agent session for up to 10 minutes. After 20 seconds, Chat shows a note
 that says the same thing.
 
-Presenter view is a browser-session display preference, not a different
-security mode. The Lab still has no individual user sign-in, and everyone with
-access shares saved records. Use sample data only.
+Presenter view only changes how the page looks in your browser session. It
+isn't a different security mode. The Lab still has no individual user sign-in,
+and everyone with access shares saved records.
 
 The root URL opens the **Agent library**. You can bookmark `/#demos` to
 open **Guided demos** directly, or `/#chat`
@@ -127,9 +127,9 @@ deep links continue to open their review directly.
 
 ## Present from the jump box
 
-Today an operator presents the Lab; customers don't open it themselves. The Lab
-only answers requests from the jump box, so connect to the jump box, open the Lab
-there, and share your screen. See
+Today an operator presents the Lab, and customers don't open it themselves. The
+Lab only answers requests from the jump box, so connect to the jump box, open
+the Lab there, and share your screen. See
 [Who uses the Lab today](ingress-access.md#who-uses-the-lab-today).
 
 Before the customer joins:
@@ -156,20 +156,20 @@ After the customer leaves:
 
 <img alt="Agent release journey in six numbered steps. Private foundation, built with Terraform and Azure Verified Modules: review the plan, provision separate roots, and verify private access. A configuration handoff carries the project endpoint, model deployments, identity, and private connectivity to agent releases: package the agent, publish and verify a new hosted version, then route, review, and iterate. People approve infrastructure changes, publication costs, and business decisions." src="images/agent-release-journey-dark.svg">
 
-**Foundation (steps 1 to 3):** review Terraform plans, deploy the Azure Verified Modules-based
-platform and separate Lab root, then verify private access. Keep the existing
-remote state boundaries. This isn't a new landing-zone module or a promise of
-one-click deployment.
+**Foundation (steps 1 to 3):** review the Terraform plans, deploy the Azure
+Verified Modules-based platform and the separate Lab root, then verify private
+access. Keep the existing remote state boundaries. This isn't a new
+landing-zone module or a promise of one-click deployment.
 
 **Configuration handoff:** supply the actual Foundry project endpoint, existing
 model deployment names, identities, and approved private connectivity. Portable
 bundles carry source and configuration, not Azure permissions, infrastructure,
 customer records, or saved conversations.
 
-**Agent releases (steps 4 to 6):** prepare a reviewed bundle, publish a new version, verify
-the appropriate runtime and route behavior, and check answers against the source.
-When a release needs correction, follow the documented guarded recovery or
-rollback path. Never imply that Terraform published it automatically.
+**Agent releases (steps 4 to 6):** prepare a reviewed bundle, publish a new
+version, verify the runtime and route behavior, and check answers against the
+source. When a release needs correction, follow the documented guarded recovery
+or rollback path. Never imply that Terraform published it automatically.
 
 The prebuilt deployment CLI and operator-confirmed Lab publisher have different
 ownership and verification semantics. The diagram shows their logical

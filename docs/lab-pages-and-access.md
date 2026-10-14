@@ -151,8 +151,8 @@ The **Shared lab** control in the header explains these limits on demand:
 | Created-agent setups | Everyone with workspace access can read the setups. | Publication and deletion require the shared operator key. This isn't per-user authorization. |
 
 The Lab has no permanent warning banner. The **Shared lab** details are
-available on desktop and mobile. They are informational. They aren't an access
-control, and they don't check that submitted data is sample data.
+available on desktop and mobile, but they're informational only. They don't
+control access, and they don't check that submitted data is sample data.
 
 ### How the Lab checks where a request came from
 

@@ -66,8 +66,8 @@ requests. It adds model work and another opportunity to alter findings. The
 runtime no longer asks the model to rewrite successful specialist output.
 Initial tool selection is still model-generated, so there's no guarantee of
 deterministic routing or a first-batch call count. Live acceptance must check
-the selected tool, the unchanged forwarded evidence and the usefulness of the
-findings, not just text equality. A direct specialist also avoids the
+the selected tool, the unchanged forwarded evidence, and whether the findings
+are useful. Text equality alone isn't enough. A direct specialist also avoids the
 coordinator's initial routing inference, though no fixed latency improvement is
 promised.
 

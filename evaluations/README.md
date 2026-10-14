@@ -2,7 +2,7 @@
 
 [Home](../README.md) / Evaluations
 
-Checks the review samples' quality without changing runtime dependencies,
+Checks the quality of the review samples without changing runtime dependencies,
 publishing agent versions, changing endpoint routes, or building a Lab
 dashboard. Offline validation checks dataset structure. Approved live evaluation
 checks an already deployed staging stack and records native Microsoft Foundry

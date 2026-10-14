@@ -81,14 +81,16 @@ nor prompt editing is an administrative control.
 
 The new templates don't modify these profiles or specialist bindings. Document
 explainer, Checklist gap finder, Form field extractor, and Case summary
-writer are single-agent supplied-text jobs without tools. Service request
-planner, Medical bill reviewer, Insurance pre-approval helper, Benefits renewal
-helper, and Supplier invoice reviewer each have two local fictional-data
-lookups. They don't use specialist delegation or live integration. The
-saved creation setup owns its task instructions. [`agent_runtime`](../workbench/agent_runtime)
-owns the immutable policy and tool allowlist. Each is published as its own
-generated `lab-demo-...` runtime name, and created-agent display names are
-independent of that name.
+writer are single-agent jobs that work on text you supply and use no tools.
+Service request planner, Medical bill reviewer, Insurance pre-approval helper,
+Benefits renewal helper, and Supplier invoice reviewer each have two local
+fictional-data lookups. None of them uses specialist delegation or live
+integration.
+
+The saved creation setup owns a template's task instructions.
+[`agent_runtime`](../workbench/agent_runtime) owns the immutable policy and tool
+allowlist. Each agent is published under its own generated `lab-demo-...`
+runtime name, and created-agent display names are independent of that name.
 
 ## Runtime flow
 
@@ -124,7 +126,7 @@ default roles and the distinction between agent output and human review.
 - The coordinator wraps successful output in a receipt containing `status`,
   `agent`, and `output`, correlated to the function call by `call_id`.
 - Default calls use a 90-second deadline, no transport retries, and a shared
-  four-call concurrency limit per coordinator process. Cancellation does not
+  four-call concurrency limit per coordinator process. Cancellation doesn't
   guarantee remote execution stops.
 
 This is an invocation contract. It isn't a structured findings schema or an
@@ -165,7 +167,7 @@ configured tool name, and the expected agent. The example profile below uses
 assume every profile uses the default tool name.
 
 > [!IMPORTANT]
-> Completed execution is not verified truth. The `output` field is text, not a
+> Completed execution isn't verified truth. The `output` field is text, not a
 > strict findings schema. Source references and factual claims still need
 > review.
 
@@ -182,11 +184,13 @@ as Markdown after its label. Tables, quotes, calculations and questions survive,
 and there's no synthesis model call. For one structured result it returns the
 original JSON text unchanged. Only successful receipts correlated to the current
 turn's allowlisted calls qualify. Failed or mismatched results fail with a clear
-error. Multiple structured results need separate reviews, since there's no
-combined schema. Runtime forwarding uses original user messages, not
-model-written evidence summaries, and checks final quotations against those
-originals. Tool selection still needs live checks. Unchanged evidence and
-deterministic output preservation don't make the content factually accurate.
+error.
+
+Multiple structured results need separate reviews, since there's no combined
+schema. Runtime forwarding uses original user messages, not model-written
+evidence summaries, and checks final quotations against those originals. Tool
+selection still needs live checks. Unchanged evidence and deterministic output
+preservation don't make the content factually accurate.
 
 | Situation | Expected handling |
 | --- | --- |
@@ -289,7 +293,7 @@ specialist graphs bounded and avoid coordinator-to-coordinator cycles.
 
 ## Isolation and remaining gates
 
-A profile is not an authorization or tenancy boundary. Use separate Foundry
+A profile isn't an authorization or tenancy boundary. Use separate Foundry
 projects and scoped identities for independent customer trust boundaries, and
 separate networks and resources where required. Don't let an end user select a
 profile, agent name, or record they aren't authorized to access.

@@ -83,14 +83,12 @@ award.
 > as review assistance for authorized people, not as a decision or action.
 
 In this sample the agent doesn't connect to a system of record. It treats
-application content as untrusted data and doesn't score, rank, approve, deny,
-or recommend an outcome. Read [`instructions.md`](instructions.md) for the
-complete behavioral boundary and [`example-request.md`](example-request.md) for
+application content as untrusted data. Read [`instructions.md`](instructions.md)
+for the complete behavioral boundary and [`example-request.md`](example-request.md) for
 a fictional request.
 
-Engagements focus on demonstration and technical validation. Integration with
-customer systems and production deployment require separate scoping and
-agreement.
+Customer-system integration and production deployment need separate scoping and
+agreement, as the [hosted-agents guide](../README.md) explains.
 
 ## Deployment
 

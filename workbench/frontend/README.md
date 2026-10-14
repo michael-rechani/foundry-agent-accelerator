@@ -28,7 +28,7 @@ Run `npm run format` to fix formatting that `npm run format:check` reports.
 `npm run test:unit` uses Node's built-in test runner and type stripping, with no
 extra dependencies, to test browser-independent modules in `src/` from `unit/`.
 Those modules must use erasable TypeScript syntax, and tests import them with
-explicit `.ts` extensions. `unit/` sits outside `tests/` so Playwright ignores it.
+`.ts` extensions. `unit/` sits outside `tests/` so Playwright ignores it.
 `npm run build` applies strict TypeScript checks to the application and Vite
 configuration, including nullability and implicit types.
 
@@ -52,7 +52,7 @@ setup there rather than copying it into a spec.
 **Browse**, **Ready to chat**, **Made in this Lab**, **Guided demos**, and **Add-ons** tabs,
 **Create agent**, **Chat**, **Document reviews**, **Performance**, **Request
 log**, and **Shared history**. `ChatSidebar.tsx` groups them into four
-sections: **Agent library**, **Try it**, **Measure**, and **Activity**. `AddOns.tsx` renders the preview-only **Add-ons** tab from `add-on-catalog.json`, which `python addons/build_catalog.py --write` generates from the manifests in `addons/`; it makes no API calls. An entry with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**.
+sections: **Agent library**, **Try it**, **Measure**, and **Activity**. `AddOns.tsx` renders the preview-only **Add-ons** tab from `add-on-catalog.json`, which `python addons/build_catalog.py --write` generates from the manifests in `addons/`. It makes no API calls. An entry with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**.
 **Measure** and **Activity** appear only with **Under the hood** on
 (`under-the-hood.ts`); elements marked `hood-only` are hidden otherwise.
 `ChatTopbar.tsx` shows the breadcrumb from `navigation.ts`. The
@@ -218,8 +218,8 @@ disclosure. The existing appearance storage key is unchanged by the rebrand.
 Checklist items map to API `criteria`; document text and added information map
 to `evidence`. UI labels don't change the data contract. A review's agent is
 the configured Lab default at creation, not the current **Chat** choice.
-Creating or adding information saves a record; **Run review** and
-**Review again** separately call the agent. Tests cover that separation and the
+Creating or adding information saves a record. **Run review** and
+**Review again** call the agent separately. Tests cover that separation and the
 absence of automatic Chat transfer.
 
 `review-client.ts` holds the review types and request helper.

@@ -102,8 +102,7 @@ column, without a duplicate agent-details column. Ordinary checklist replies
 lead with a short takeaway and one matrix row per supplied criterion, using
 **Met**, **Not demonstrated**, or **Unclear**. Missing evidence isn't automatic
 noncompliance. Case replies keep source references beside the claims they
-support. Both include questions only when needed and keep the human decision
-boundary. Structured document-review schemas are unchanged.
+support. Both ask questions only when needed and leave the decision to a person. Structured document-review schemas are unchanged.
 
 Coordinator replies use **Checklist reviewer** or **Case notes summarizer**
 as the specialist label. Runtime names, tool bindings, and receipt verification
@@ -117,7 +116,7 @@ The deployment and approval follow-up is tracked in #244.
 | Item | Saved? | How long | Notes |
 | --- | --- | --- | --- |
 | Unsaved draft | No. | Browser memory only. | Browser navigation warns about unsaved work where supported. It can't prevent data loss from a browser crash or forced close. |
-| Saved conversation | Yes, after the user selects the Save icon. | Expires 30 days after its last update. | Saving is explicit, not automatic. |
+| Saved conversation | Yes, after the user selects the Save icon. | Expires 30 days after its last update. | Nothing saves automatically. |
 | Export | Download only. | User-controlled. | Export includes completed exchanges and the current draft. |
 | Saved/read receipt flags | Yes, with verification flags cleared. | Same as the conversation. | Reopened receipts display `Stored / not reverified`, and their **How I got this** steps display **Saved earlier**. Live response receipts are checked separately against correlated tool calls and expected targets. |
 
@@ -161,8 +160,8 @@ draft.
 
 Configuration loads with a 15-second bootstrap deadline and a **Retry** action.
 Invalid configuration disables execution. Retrying keeps any draft you typed.
-Review deadline expiry and user cancellation have distinct messages and
-performance outcomes. Neither one retries a model request automatically.
+A review deadline expiring and you cancelling each get their own message and
+performance outcome. Neither retries a model request automatically.
 
 ## Related content
 

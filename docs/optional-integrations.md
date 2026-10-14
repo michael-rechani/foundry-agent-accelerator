@@ -2,9 +2,9 @@
 
 [Home](../README.md) / [Docs](README.md) / Optional integrations
 
-This page covers the integration paths that sit outside the core demo. The core
-experience is the Lab calling Foundry with fictional data and no live
-customer-system integration.
+This page covers the integrations you can add outside the core demo. That demo
+is the Lab calling Foundry with fictional data and no live customer-system
+integration.
 
 > [!IMPORTANT]
 > These integrations are outside the core demo and aren't engagement

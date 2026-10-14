@@ -55,8 +55,7 @@ identity, scaling, session storage, observability, and version lifecycle.
 > routes reviews only; it doesn't triage business requests.
 
 The preview proposal workflow needs no additional agent or infrastructure
-stack. The coordinator is an optional review-delegation pattern. It isn't a
-generic agent framework or a simulated business-approval system.
+stack. The coordinator is an optional pattern for delegating reviews.
 
 ## Scope and safety boundaries
 
@@ -97,10 +96,9 @@ Keep the three responsibilities distinct:
 | Case notes summarizer | Summarize supplied notes. Use policy only when it's supplied and the question needs it. | Attributed facts, unresolved dates or conflicting notes, and focused staff questions. A basic summary doesn't require policy. | No inferred deadlines, unsupported reconciliation, eligibility decisions, or system updates. |
 | Checklist and case helper | Select the appropriate specialist for a review. Explain needed inputs without specialist execution. | The complete specialist findings, not another review or a serialized receipt. | Routing is model-directed. It adds inference work, so use a directly enabled specialist for a known single task. |
 
-These assistants work from the evidence you supply. They aren't autonomous
-case-management systems. Retrieval or write tools would change their
-permissions, data boundary, and evaluation requirements, and these tasks don't
-need them. **Chat** owns conversation context and **Document reviews** owns
+These assistants work only from the evidence you supply. Retrieval or write
+tools would change their permissions, data boundary, and evaluation
+requirements, and these tasks don't need them. **Chat** owns conversation context and **Document reviews** owns
 saved review state. Neither belongs in the coordinator or its specialists.
 
 Refine and validate one layer at a time: application specialist, case specialist,
@@ -109,8 +107,7 @@ provides separate offline selectors. After separately approved staging publicati
 test each specialist's answer first. Then compare it with the coordinator's
 visible answer and execution receipt. Confirm that the findings are useful and
 that no unnecessary questions appear. Passing packaging or mock tests says
-nothing about model quality, and no source edit changes an already deployed
-agent.
+nothing about model quality. No source edit changes an already deployed agent.
 
 The coordinator needs `interact/action` on each specialist's endpoint. This
 repository doesn't know yet whether an agent's default access covers that. The
@@ -151,7 +148,7 @@ doesn't send a previous response or conversation ID.
 ## Deployment walkthrough
 
 Terraform creates the baseline. The procedures below publish agent code through
-the Python deployer. Run them from the repository root on an authorized
+the Python deployer. Run each step from the repository root on an authorized
 private-network execution environment, and stop on any error.
 
 If you're staging source onto a separate runner, use the
@@ -293,8 +290,8 @@ and creates billable resources. Run commands from the repository root.
 Each `.agent-bundle.zip` contains `manifest.json` and `agent.zip`. The manifest
 records instructions, allocation, runtime, approved template/specialist settings,
 smoke prompts, and hashes of the runtime archive and every source/dependency
-file. Source model names are informational. You must always supply the
-destination project, model deployment, and agent name.
+file. Source model names are informational. You must supply the destination
+project, model deployment, and agent name every time.
 
 ### Export a prebuilt agent
 
@@ -412,8 +409,8 @@ python -m unittest discover -s hosted-agents/review-coordinator-agent -p "test_*
 Install the coordinator's `requirements.txt` in an isolated environment to run
 the real software development kit (SDK) contract tests. Deployment-only SDK
 tests need `requirements-deploy.txt`. Unavailable SDK contracts are skipped.
-They use an in-memory HTTP transport, not Azure. Live
-delegation checks still require a deployment from the private network.
+They use an in-memory HTTP transport and don't call Azure. Live
+delegation checks still need a deployment from the private network.
 
 For answer quality beyond smoke checks, use the
 [synthetic review evaluation runner](../evaluations/README.md). It evaluates an
@@ -452,13 +449,12 @@ and `hosted_runtime.py` from this folder, so put this folder on `PYTHONPATH` fir
 | Project or deployment not found | The endpoint or model deployment name is stale or from another environment. | Re-read both values with `terraform output -raw`. The model value is the deployment name, not merely a catalog model name. |
 | Remote build fails | Required source files or pinned packages are unavailable. | Confirm `main.py` and `requirements.txt` are present and that the pinned packages remain available. |
 | Version provisioning fails | The selected region cannot provision the hosted-agent version or model. | Review the reported version details and confirm hosted-agent and model availability in the selected region. |
-| Smoke test fails | The candidate route, specialist call, or runtime behavior failed verification. | From the private network, open **Agents > Traces** in the Foundry project, or query `AppDependencies` and `AppExceptions` by response ID in the linked Application Insights resource ([runbook](../terraform/monitoring/README.md#verification-and-portal-use)). Traces are metadata-only, so check status, timings and exception types rather than prompts. Also check endpoint routing; candidates are retained when cleanup cannot confirm they are unrouted. |
+| Smoke test fails | The candidate route, specialist call, or runtime behavior failed verification. | From the private network, open **Agents > Traces** in the Foundry project, or query `AppDependencies` and `AppExceptions` by response ID in the linked Application Insights resource ([runbook](../terraform/monitoring/README.md#verification-and-portal-use)). Traces are metadata-only, so check status, timings and exception types rather than prompts. Also check endpoint routing. Candidates are retained when cleanup cannot confirm they are unrouted. |
 
 ## Scenario selection and optional extensions
 
-Start with the [scenario/status matrix](../docs/demos.md#at-a-glance), not a
-catalog of promised integrations. Reuse the supplied casework and application
-examples. Validate the preview proposal adaptation before presenting it as
+Start with the [scenario/status matrix](../docs/demos.md#at-a-glance). Reuse
+the supplied casework and application examples. Validate the preview proposal adaptation before presenting it as
 proven. Review delegation isn't business-request triage. For simulated request
 lookups, use the **Service request planner** template in
 [Create agent](../docs/agent-creation.md).
@@ -473,8 +469,8 @@ path.
 The case agent has an optional, read-only policy guidance lookup over Azure AI
 Search behind `KNOWLEDGE_RETRIEVAL_ENABLED`, which is off by default. With the
 flag off, packages, bundles, and published agents are unchanged. A sample
-guidance set and an index script are included, and a small sample pilot has run
-in the dev environment since 2026-10-01. It isn't a finished evaluation. See the
+guidance set and an index script are included, and a small pilot has run in the
+dev environment since 2026-10-01. It isn't a finished evaluation. See the
 [knowledge retrieval design](../docs/knowledge-retrieval.md).
 
 Responses remains the Lab contract. Invocations for webhooks, batch payloads, or

@@ -73,13 +73,14 @@ browser tests with sample data. They aren't a live model run.*
 Pick the path that matches what you want to do:
 
 - **Explore without deploying.** Read the [showcase and presenter guide](docs/showcase.md)
-  for sample inputs, expected findings, and the questions a person must
-  resolve. You don't need an Azure environment to read the walkthroughs.
+  for sample inputs, expected findings, and the questions a person still has to
+  settle. You don't need an Azure environment to read the walkthroughs.
 
 - **Browse the agent library.** In a deployed Lab, look through the sample
-  agents, what each one leaves to a person, and how it did on its recorded test
-  cases. Browsing, reading test results, and downloading an agent definition make
-  no model calls. Trying an agent does. See the [Lab guide](docs/lab-pages-and-access.md#pages).
+  agents, see what each one leaves to a person, and check how it did on its
+  recorded test cases. Browsing, reading test results, and downloading an agent
+  definition make no model calls. Trying an agent does. See the
+  [Lab guide](docs/lab-pages-and-access.md#pages).
 
 - **Create your own agent.** Follow [Create and try a baseline agent](docs/agent-creation.md).
   You need an operator-enabled Lab, one or more model deployments, and cost approval.
@@ -119,9 +120,9 @@ findings to look for and a decision that stays with a person.
 | [Turn scattered notes into a brief](docs/showcase.md#turn-scattered-notes-into-a-brief) | Supported facts, conflicting dates, and missing evidence. | Verify the authoritative record and determine the next steps. |
 
 The invoice story runs on a ready **Supplier invoice reviewer** created from its
-template or, when the Lab has library previews on, on the library preview of
-that template. Either way it uses built-in lookups with sample data. There's
-no finance integration.
+template. If the Lab has library previews on, it can run on the library preview
+of that template instead. Either way it uses built-in lookups with sample data,
+and there's no finance integration.
 
 [Watch all three stories](docs/images/scenario-tour-dark.svg)
 
@@ -163,9 +164,11 @@ The Lab opens on the **Agent library**, and **Chat** is one click away. The
 sidebar has **Agent library** (**All agents**, plus **Create agent** when
 creation is on) and **Try it** (Chat and Shared history). **Operations** (a
 health overview, response times, tokens, cost, and the request log) appears when
-you turn on **Under the hood**. **All agents** has tabs for **Browse**, **Ready to chat**,
-**Made in this Lab**, **Guided demos**, and **Add-ons**. **Document reviews** has
-no sidebar link, so open `/#reviews` or a saved-review link. See the
+you turn on **Under the hood**.
+
+**All agents** has tabs for **Browse**, **Ready to chat**, **Made in this Lab**,
+**Guided demos**, and **Add-ons**. **Document reviews** has no sidebar link, so
+open `/#reviews` or a saved-review link. See the
 [Lab guide](docs/lab-pages-and-access.md#pages).
 
 ---
@@ -179,9 +182,9 @@ steps match the list below it.
 
 ### One foundation, two connected workflows
 
-Terraform prepares the private foundation once. After that, you release,
-verify, and revise agents on their own schedule. A configuration handoff
-connects the two workflows.
+Terraform sets up the private foundation once. After that, you release, verify,
+and revise agents on their own schedule. A configuration handoff connects the
+two workflows.
 
 <img alt="Agent release journey in six numbered steps. Private foundation, built with Terraform and Azure Verified Modules: review the plan, provision separate roots, and verify private access. A configuration handoff carries the project endpoint, model deployments, identity, and private connectivity to agent releases: package the agent, publish and verify a new hosted version, then route, review, and iterate. People approve infrastructure changes, publication costs, and business decisions." src="docs/images/agent-release-journey-dark.svg">
 
@@ -310,8 +313,8 @@ All diagrams share one [style guide](docs/images/README.md#diagram-style).
 ### Tool versions and upgrades
 
 Check only the tools your task needs. Reading docs, preparing sample inputs,
-and running mocked tests need no Azure sign-in or end-user Entra setup. Local
-tests don't require `azd`.
+and running mocked tests need no Azure sign-in or end-user Entra setup, and
+local tests don't require `azd`.
 
 | Tool | Repository baseline | When needed / source of truth |
 | --- | --- | --- |

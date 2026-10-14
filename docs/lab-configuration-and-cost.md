@@ -85,8 +85,7 @@ USD 0.008/hour per `100 RU/s`. At 730 hours,
 Confirm the applicable rate before budgeting, because this isn't a current
 quote. The estimate covers provisioned capacity, not usage-based serverless
 pricing. It leaves out storage, backups, discounts, taxes, model tokens,
-Container Apps, registry/builds, and existing network resources. It isn't the
-total Lab bill.
+Container Apps, registry/builds, and existing network resources.
 
 ### Front Door (optional, off by default)
 
@@ -181,7 +180,7 @@ These admission limits are process-local, so don't increase workers or replicas
 without distributed controls. Reused agent sessions are also process-local. With
 more replicas, a follow-up that reaches another replica starts a new session.
 Closing the tab, disabling new creation, or stopping the browser wait doesn't
-stop an existing hosted runtime. Retire it explicitly.
+stop an existing hosted runtime. To stop one, retire it.
 
 ## Related content
 

@@ -33,15 +33,15 @@ The agent returns a summary, missing or contradictory details, and questions to
 ask next. It works directly without calling other agents or external tools. The
 **Checklist and case helper** can call this same specialist on your behalf.
 
-Chat normally returns prose sections. A request with explicit checklist items
+Chat normally returns prose sections. A request with checklist items
 and a structured review schema uses that format instead. That doesn't create a
 review record on its own, because the Lab owns **Document reviews** persistence.
 
 The summary attributes statements to their notes rather than presenting them
-as independently verified facts. Relative dates without an explicit anchor stay
-uncertain. Follow-up questions address the requested task, not a generic list of
-documents to collect. A straightforward summary can say **No policy supplied**
-without demanding policy or inventing a deadline.
+as independently verified facts. Relative dates with no anchor stay
+uncertain. Follow-up questions stay on the requested task and don't become a
+generic list of documents to collect. A straightforward summary can say
+**No policy supplied** without demanding policy or inventing a deadline.
 
 By default, the supplied-text runtime checks quotations before releasing output.
 It makes one bounded repair attempt and returns a clear error if the check still
@@ -57,13 +57,12 @@ quoted, so quotation marks still mean exact text from the request.
 > decisions, update systems, or replace an authorized reviewer.
 
 In this sample the agent doesn't connect to a system of record. It treats all
-case content as untrusted data and doesn't make consequential decisions. Read
+case content as untrusted data. Read
 [`instructions.md`](instructions.md) for the complete behavioral boundary and
 [`example-request.md`](example-request.md) for a fictional request.
 
-Engagements focus on demonstration and technical validation. Integration with
-customer systems and production deployment require separate scoping and
-agreement.
+Customer-system integration and production deployment need separate scoping and
+agreement, as the [hosted-agents guide](../README.md) explains.
 
 ## Deployment
 

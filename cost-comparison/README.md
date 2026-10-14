@@ -69,9 +69,9 @@ python calculator.py scenario.deployed.json
 
 The filename is retained for compatibility. It doesn't identify your deployment
 or track a live environment. The [reference budget and rate notes](platform-rates.md)
-describe saved assumptions, not current quotes or actual spend. These files don't
-query Azure resources, refresh prices, or reconcile a bill. Verify those
-inputs for the environment you want to evaluate.
+describe saved assumptions. They don't query Azure resources, refresh prices,
+or reconcile a bill, so verify the inputs for the environment you want to
+evaluate.
 
 Copy and adapt the budget before use. It includes labor and unverified
 feature allowances, not measured spend. Registry, endpoint, capacity, and regional
@@ -100,7 +100,7 @@ US for management, with zero APIM capacity hours. These aren't universal
 deployment requirements, and they differ from the GPU example's region. Region
 metadata doesn't select or refresh prices. The [platform budget](platform-rates.md)
 documents recorded rates and usage allowances. The original comparison
-example remains incomplete, and itemized reference-budget coverage isn't proof of
+example remains incomplete. Itemized reference-budget coverage isn't proof of
 actual spend or a complete bill. The `rates_last_reviewed` field applies to GPU,
 model, and runtime rates. `platform_rates_last_reviewed` applies only to platform
 rates.
@@ -109,7 +109,7 @@ rates.
 
 1. Copy `scenario.example.json` for the workload being evaluated.
 2. Add each candidate under `vm_skus`. Keep costs shared by all options under
-   `vm_assumptions`; a SKU entry can override any shared assumption.
+   `vm_assumptions`. A SKU entry can override any shared assumption.
 3. Replace every illustrative rate with the current rate for your agreement,
    currency, region, operating system, purchase model, VM SKU, and Foundry
    sandbox and model. Update `rates_last_reviewed` whenever assumptions change.
@@ -147,12 +147,11 @@ as excluded.
 `null` means unknown, not zero. Known subtotals remain visible, but savings and
 break-even are suppressed if either architecture has an unpriced item. Allocation
 is suppressed only for the incomplete architecture. The calculator can't detect
-an expense that's left out entirely, so even a complete input isn't proof of a
-complete bill.
+an expense that's left out entirely.
 
 Rates are intentionally external to the code because Azure prices vary by
 region, currency, agreement, operating system, purchase model, and date. The SKU
-rates in the example are illustrative, not quotes. Obtain current rates from:
+rates in the example are illustrative. Obtain current rates from:
 
 - [Azure Pricing Calculator](https://azure.microsoft.com/pricing/calculator/)
 - [Foundry Agent Service pricing](https://azure.microsoft.com/pricing/details/foundry-agent-service/)
@@ -203,8 +202,7 @@ the marginal cost of one more request. Estimating marginal cost requires measure
 per-flow token, runtime, and metered dependency usage.
 
 Self-hosted and managed models can differ in quality, safety, and throughput.
-Treat the calculator output as one input to an architecture decision, not the
-decision itself.
+Treat the calculator output as one input to an architecture decision.
 
 ## Related content
 

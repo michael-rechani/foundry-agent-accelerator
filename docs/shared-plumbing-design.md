@@ -355,17 +355,18 @@ recorded sign-offs. The cost today is the number of edits, not unnoticed errors.
 
 ### Shared home
 
-- **Library agents:** one data file per agent, building on the sector modules
-  that #165 split out of `agent_templates.py`. The file holds that agent's template entry, its metadata
-  and readiness, and its tool declarations, plus an `order` number that replaces
-  `LIBRARY_ORDER`. The loader rebuilds `TEMPLATES`, `TEMPLATE_METADATA` and
-  `LIBRARY_ORDER` so the served catalog and the frontend snapshot stay
-  byte-identical. The test `test_frontend_catalog_fixture.py` proves it.
-- **Sample lookup data:** stays in `agent_runtime/demo_tools.py`. That file ships
+- For library agents, use one data file per agent, building on the sector
+  modules that #165 split out of `agent_templates.py`. The file holds that
+  agent's template entry, its metadata and readiness, and its tool declarations,
+  plus an `order` number that replaces `LIBRARY_ORDER`. The loader rebuilds
+  `TEMPLATES`, `TEMPLATE_METADATA` and `LIBRARY_ORDER` so the served catalog and
+  the frontend snapshot stay byte-identical. The test
+  `test_frontend_catalog_fixture.py` proves it.
+- Sample lookup data stays in `agent_runtime/demo_tools.py`. That file ships
   inside the created agent's package and can't import anything from the Lab. The
   existing `TEMPLATE_IDS` test remains the guard. (Update, #225: `TEMPLATE_IDS` is
   now generated; see the bullet on what a new agent touches under "Result".)
-- **Prebuilt hosted agents:** keep `agents.json` as the one entry per agent, and
+- For prebuilt hosted agents, keep `agents.json` as the one entry per agent, and
   derive `REVIEW_SAMPLES` and `SAMPLES` from one list in `deployment.py`. YAML
   can't read it, so add a test that every `hosted-agents/*/main.py` folder is named
   in `validate.yml` and `dependabot.yml`.

@@ -65,9 +65,10 @@ Before inviting participants:
   possible only if an operator has enabled that catalog entry. Proposal review
   reuses application review instead of adding a third specialist.
 - **About this agent** (in the Chat header, or the right-hand column on a wide
-  screen) explains what to paste, what the agent returns, and how it
-  works. **All agents** > **Ready to chat** selects an existing setup. The separate **Create agent** flow
-  prepares a new agent and, with operator confirmation, publishes it.
+  screen) explains what to paste, what the agent returns, and how it works.
+  **All agents** > **Ready to chat** selects an existing setup. The separate
+  **Create agent** flow prepares a new agent and, with operator confirmation,
+  publishes it.
 - A starter is just an example task and message. Developer configuration and
   deployment are covered separately in [Lab settings](lab-configuration-and-cost.md#workspace-configuration).
 - Verify the selected prompt behavior in an approved staging environment first.
@@ -221,8 +222,7 @@ answer uses this request's evidence and not remembered dates.
 `Section 4: The project budget is $12,000. The reviewer
 confirms Section 3 is the current schedule and Section 2 is superseded.`
 The answer may update budget coverage and explain the supplied reconciliation
-with Section 4, while retaining the original conflict's provenance. Coverage is still
-not a permit approval.
+with Section 4, while retaining the original conflict's provenance. Coverage still isn't a permit approval.
 
 **Failure case:** start fresh with [application-failure.txt](demo-inputs/application-failure.txt).
 No checklist or supporting documents are provided, and the request pressures the
@@ -289,11 +289,11 @@ support, and declines vendor selection. In the structured workflow, invented
 quotes or source IDs must be rejected, not displayed as verified findings.
 
 **Reset:** use the [shared reset procedure](#reset-without-hiding-failures).
-**Document reviews** does not currently offer saved-checklist editing or review deletion.
+**Document reviews** doesn't currently offer saved-checklist editing or review deletion.
 
 ## Reset without hiding failures
 
-Use a reset to keep each comparison fair. Don't use one to hide a failed
+Use a reset to keep each comparison fair. Never use one to hide a failed
 run or remove another participant's records.
 
 | Area | Reset rule |

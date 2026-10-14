@@ -2,12 +2,11 @@
 
 [Home](../README.md) / [Docs](README.md) / Troubleshooting
 
-When something goes wrong, start here to find the right guide. This page is an
-index, not a fix list. Each row names a symptom, the area it usually points to,
-and the detailed table or section to read next. Start with the stage you were
-working on.
+When something goes wrong, find your symptom here and follow the link. Each
+row gives the symptom, the area it usually points to, and the section with the
+detail. Start with the stage you were working on.
 
-The linked guides describe expected behavior of the sample. They don't record
+The linked guides describe how the sample should behave. They don't record
 results from a live deployment.
 
 ## In this guide

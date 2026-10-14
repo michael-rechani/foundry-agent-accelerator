@@ -21,7 +21,7 @@ Lab on your own machine without Azure, use
 
 ## Deployment
 
-Run the following steps from the repository root in one PowerShell session. Stop
+Run these steps from the repository root in one PowerShell session. Stop
 if any command fails. Terraform deploys the Lab infrastructure and selects its
 image. Image building and runtime smoke tests are separate steps that you run
 yourself.
@@ -134,8 +134,8 @@ staging step in `build.ps1` (copy the `agent_runtime/` or `agent_templates/`
 pattern). `agent_templates/agents/` holds one JSON file per library agent, and its
 `.dockerignore` rules and `build.ps1` step ship every `*.json` file in it, so a new
 library agent needs no edit to either. `test_image_context.py` fails if a module or
-package that `app.py` imports isn't in the image, or a library agent file isn't let
-into it, and the build imports every module in the finished image before it
+package that `app.py` imports isn't in the image, or if a library agent file isn't
+let into it. The build also imports every module in the finished image before it
 pushes. The Premium Azure Container
 Registry (ACR) has public access and admin credentials disabled. The private
 build uses the local Linux Docker engine on the current authorized
@@ -262,7 +262,7 @@ can check the runtime through approved container-console access without starting
 a virtual machine or changing ingress. Transfer only the reviewed helper through
 the approved administration path and remove that temporary artifact afterward.
 Verification scripts aren't bundled in the runtime image. Loopback results
-say plainly that browser ingress was **not** verified. Neither path
+state that browser ingress was **not** verified. Neither path
 establishes model quality.
 
 Successful private HTTPS, agent execution, and Cosmos CRUD verification are all
@@ -281,10 +281,8 @@ host/origin allowlists, Foundry project endpoint, Cosmos endpoint, and
 managed-identity client ID. Terraform provisions the Cosmos data-plane
 resources, and the runtime never creates them.
 
-The private smoke test creates a sample test conversation, verifies agent
-invocation and Cosmos create/read/update/delete, and deletes the test
-conversation afterward. Browser tests use controlled API responses and don't
-replace this deployment check.
+Browser tests use controlled API responses, so they don't replace this
+deployment check.
 
 ## Deploy a new image from GitHub Actions
 

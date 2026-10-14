@@ -60,7 +60,7 @@ Before live execution:
   in parallel, so give the judge enough throughput. In the private Lab, a
   capacity of 10 (10,000 tokens and 10 requests per minute) throttled 11 of 25
   rows with `429 Too Many Requests`, and the runner correctly failed each
-  profile; a capacity of 50 is the working value. See
+  profile. A capacity of 50 is the working value. See
   [model capacity](../terraform/README.md#1-configure-inputs-and-state).
 - Confirm Foundry permissions for reading agent/model inventory, invoking
   agents and models, and creating/reading custom evaluators and evaluation
@@ -87,7 +87,7 @@ Before live execution:
   use this same project's endpoint in `FOUNDRY_PROJECT_ENDPOINT`.
 - Serialize deployments and model updates for the entire staging stack. The
   runner checks routes and model versions before each case and after collection
-  and grading. These reads detect drift but **are not a distributed lock** and
+  and grading. These reads detect drift but **aren't a distributed lock** and
   can't detect a change that is made and reverted between reads.
 - Get the owner's approval for billable agent/judge calls and for capture
   of the synthetic queries, expected outcomes, and responses in native Foundry
@@ -158,9 +158,9 @@ report paths. For requirements/proposal coverage, keep
 agent or present this as a validated business-triage workflow.
 
 The runner inventories actual agent/specialist versions and model names,
-versions, and publishers. It inventories the judge deployment too. It invokes
-named staging endpoints. It doesn't invoke an unrouted immutable version or
-perform a production canary.
+versions, and publishers, plus the judge deployment. It invokes named staging
+endpoints only. It doesn't invoke an unrouted immutable version or perform a
+production canary.
 
 **Exit code 0** means offline validation succeeded or, with `--run`, every
 selected case passed the structural and native rubric gates. It isn't human
@@ -208,10 +208,10 @@ specialist/model calls for coordinator cases.
 | --- | --- |
 | `response_received.response_time_seconds` | Measured client request round-trip, including hosted processing and any downstream work waited on. Not model-only latency, token throughput, or full evaluation duration. Retained even if subsequent structural checks fail. |
 | `response_received.token_usage` | Only the response's reported input/output/total counts; each absent count is `null`, never estimated from text. A returned coordinator count is **not verified to include all specialist/model calls**. No count is invented by subtraction. |
-| `evaluation_completed.native_results` | Native rubric name, normalized score and pass/fail for each case; rationales remain in Foundry. Scores are not converted to an invented quality percentage. |
-| `evaluation_completed.native_evaluation_usage` | The completed native run's `per_model_usage`, when returned, including model, prompt/completion/total/cache counts and invocation count. Absent list or fields are `null`; an explicitly returned empty list remains empty and does not prove zero cost. Separate from agent collection, not a full stack total. |
-| `estimated_cost` | Always `null` in this runner. A separate estimate would require complete usage, pricing currency/date, deployment/model tier, cache treatment and judge/specialist coverage; tokens alone are not a bill. |
-| `allocated_platform_cost` | Always `null` in this runner. Hosted compute, minimum replicas, networking, storage and monitoring are shared/time-based costs requiring an explicit allocation basis, not observed per-request token cost. |
+| `evaluation_completed.native_results` | Native rubric name, normalized score and pass/fail for each case; rationales remain in Foundry. Scores aren't converted to an invented quality percentage. |
+| `evaluation_completed.native_evaluation_usage` | The completed native run's `per_model_usage`, when returned, including model, prompt/completion/total/cache counts and invocation count. Absent list or fields are `null`; a returned empty list remains empty and doesn't prove zero cost. Separate from agent collection, not a full stack total. |
+| `estimated_cost` | Always `null` in this runner. A separate estimate would require complete usage, pricing currency/date, deployment/model tier, cache treatment and judge/specialist coverage; tokens alone aren't a bill. |
+| `allocated_platform_cost` | Always `null` in this runner. Hosted compute, minimum replicas, networking, storage and monitoring are shared/time-based costs requiring a stated allocation basis, not observed per-request token cost. |
 
 Partial telemetry may still accompany a valid quality result, but it can't support
 an end-to-end usage or cost claim. Malformed returned counts fail the run.

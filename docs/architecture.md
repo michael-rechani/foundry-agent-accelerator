@@ -127,8 +127,7 @@ separate from agent behavior.
 
 Steps 2 and 3 in the diagram are the request and response stages of the
 **same agent**. The blue service boundary is logical hosting, not a virtual
-network. The specialist boxes represent custom code, not separate Microsoft
-products. The diagram shows the Lab's default **Checklist and case helper**,
+network. The specialist boxes represent custom code. The diagram shows the Lab's default **Checklist and case helper**,
 which uses the example profile's `inspect_application` and `inspect_case`
 tools. **Checklist and case helper (base setup)** uses `review_application`
 and `review_case` with the same specialist targets. Both are configurations of
@@ -136,10 +135,9 @@ the same review capabilities, not separate planning and review features.
 Profiles can change tool names and targets, so read the
 [profile contract](agent-profiles.md#specialist-contract) before changing them.
 
-This design keeps roles and handoffs clear without claiming production
-readiness. Tool verification tells you which configured call returned a
-result, not whether every statement is true. The Lab still has shared history
-and no per-user authorization. Structured reviews add
+This design keeps roles and handoffs clear, but it isn't production-ready.
+Tool verification tells you which configured call returned a result. It can't
+tell you whether every statement is true. Structured reviews add
 [coverage, citation, and saved-result checks](review-workflow.md#execution-and-trust).
 Ordinary chat can also return clarification without a specialist receipt.
 
@@ -204,11 +202,11 @@ application-owned conversation and review records. The Lab uses a dedicated
 container in the existing Cosmos DB account. The Lab's history endpoints don't
 manage Foundry-owned data.
 
-The model deployment is used by configured agents. The Lab calls a named agent
+Configured agents use the model deployment. The Lab calls a named agent
 endpoint, not a browser-selected model endpoint. Coordinator and specialist
-boxes represent custom Python applications, not additional Microsoft products.
-Key Vault is the home for necessary secrets, not a transcript store or a service
-that the browser reads. Azure AI Search is a required platform dependency here.
+boxes represent custom Python applications. Key Vault holds necessary secrets.
+It isn't a transcript store, and the browser never reads it. Azure AI Search is
+a required platform dependency here.
 The reference review workflow has no Search retrieval tool unless you turn on the
 optional [policy guidance lookup](knowledge-retrieval.md), which the dev Lab runs
 as a small sample pilot.
@@ -290,19 +288,15 @@ an existing protected backend, not a store that this sample bootstraps.
 Microsoft Entra authentication can use the approved Azure CLI path or managed
 identity. The diagram doesn't require every operator to use managed identity.
 
-The Lab accepts only the configured agent catalog, uses no browser Azure
-credentials, and doesn't publish APIs through APIM. Cosmos DB permissions are
-container-scoped. Saved history is shared, isn't private per user, and isn't an
-audit trail. See the [Lab runbook](../workbench/README.md).
+Cosmos DB permissions are container-scoped. Saved history is shared, isn't
+private per user, and isn't an audit trail. See the
+[Lab runbook](../workbench/README.md).
 
-Reviews admit four concurrent requests and 20 per minute. Each chat turn also
-has to fit its model deployment's own per-minute budget. History separately
-admits four and 60 per minute. Review uploads expire after five seconds, model
-calls after 180 seconds, and complete history operations after 35 seconds. These
-controls are process-local and require one worker and one replica. Dependency
-probes are cached, bounded, and separate from process liveness. Logs contain
-request metadata, not prompts or transcripts. Action groups are needed for
-delivered notifications: the Lab can reuse existing groups or
+The limits and deadlines in
+[Failure and capacity boundaries](#failure-and-capacity-boundaries) are
+process-local and require one worker and one replica. Dependency probes are
+cached, bounded, and separate from process liveness. Delivered notifications
+need action groups. The Lab can reuse existing groups or
 [create an opt-in email group with Terraform](lab-diagnostics.md#terraform-managed-alert-delivery).
 No recipients are configured by default.
 
@@ -315,7 +309,7 @@ registry digest against the local build, and verifies a pull by digest. The
 helper doesn't provision runners or grant roles. Log Analytics ingestion and
 query are private-only through the existing Azure Monitor Private Link Scope
 (AMPLS). Registry admin and Log Analytics local key authentication remain
-disabled. APIM is disabled; there is no deployed APIM gateway.
+disabled.
 
 ## Secret ownership
 

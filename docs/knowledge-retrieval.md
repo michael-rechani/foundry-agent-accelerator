@@ -166,7 +166,7 @@ and the runtime `Agent(...)` arguments are identical with the flag unset or
 
 **Quotations.** Quotation marks keep one meaning: exact text from the request.
 Retrieved passages are a separate source. The answer paraphrases them and names
-their `source_id`; it doesn't put them in quotation marks. A quote of retrieved
+their `source_id`. It doesn't put them in quotation marks. A quote of retrieved
 text isn't in the request, so the check sends the draft back once for repair and
 then withholds the answer. The check never accepts retrieved text as evidence,
 so a passage can't supply a quotation, and a prompt-injected passage can't make
@@ -174,7 +174,7 @@ an invented quote look valid. Structured review citations also stay tied to the
 supplied evidence.
 
 **Promotion and rollback.** `deploy.py` routes 100% of traffic to the new version
-before its smoke checks run; it isn't a pre-promotion canary (see
+before its smoke checks run. It isn't a pre-promotion canary (see
 [What publication does](../hosted-agents/README.md#what-publication-does)). A
 failed check starts a best-effort rollback: it restores the previous route and
 deletes the failed version only after confirming nothing routes to it. If the
@@ -203,8 +203,8 @@ default profile, and bundle validation rejects the overlay files and
   question the sample set doesn't cover, such as "staff parking permit", from
   returning passages that only share one word like "staff". The cost is that a
   synonym finds nothing: "missing proof" doesn't match "missing evidence". The
-    answer then says no guidance was found. Semantic or vector search would fix
-    that, but it's a later change.
+  answer then says no guidance was found. Semantic or vector search would fix
+  that, but it's a later change.
 - Keeps only allowlisted fields, drops results without a string ID, removes
   control and bidirectional-override characters, caps each field at 2,000
   characters, and caps the output at 8,000 characters by dropping whole passages.
@@ -431,7 +431,7 @@ or given different options. Agents without those settings keep their existing
 digests, and runs record only the hash, never the setting values.
 
 A retrieval-enabled version needs these live cases added to the dataset and run.
-They need a person-approved, loaded index and the customer flow chosen in
+They need an approved, loaded index and the customer flow chosen in
 [#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122),
 because through the coordinator only the answer's citations are visible. What
 was tried by hand, and what hasn't run, is in
@@ -502,7 +502,7 @@ show how these steps ran in the dev Lab.
 
 ## Not done
 
-This lists what the design deliberately leaves out. Gaps found in the pilot and
+The design leaves out the items below. Gaps found in the pilot and
 open work are in [Pilot results](#pilot-results-2026-10-01) and tracked in
 [#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122).
 

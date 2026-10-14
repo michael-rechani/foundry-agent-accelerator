@@ -181,7 +181,7 @@ Run `./workbench/test-monitoring.ps1` after provider initialization to check the
 default, existing-group, managed-group, combined-group, opt-out, and
 invalid-input paths. The runner copies only the monitoring configuration into an
 isolated directory, without the deployment backend or tfvars. Both Terraform
-providers are mocked, including test runs named `apply`; no Azure resources are
+providers are mocked, including test runs named `apply`. No Azure resources are
 created and no mail is sent. CI runs the same checks.
 
 ### Budget alerts

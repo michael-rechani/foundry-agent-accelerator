@@ -103,10 +103,10 @@ automatic noncompliance. Product claims aren't independently verified
 capabilities. A conflict needs clarification. The review doesn't invent a
 resolution or make an approval decision.
 
-A matching quote shows what a document says, not whether it is true. These
-results don't approve applications or make business decisions. The UI puts this
-explanation beside the results and keeps storage details in **How to read
-results and where your work is saved**, so it doesn't repeat warning panels.
+A matching quote shows what a document says, not whether it's true. The UI
+puts this explanation beside the results and keeps storage details in **How to
+read results and where your work is saved**, so it doesn't repeat warning
+panels.
 
 The structured-review prompt limits clarification to gaps or conflicts in the
 supplied criteria and asks for no questions when every finding is supported.
@@ -230,7 +230,7 @@ prior run input snapshots. The additive `/kind/?` index supports the separate
 lists.
 
 All network-authorized workspace users can read reviews and submit evidence.
-There is no end-user identity, owner authorization, or immutable audit ledger.
+There's no end-user identity, owner authorization, or immutable audit ledger.
 Use fictional data only. Stored execution checks are historical records, not a
 fresh verification of the current agent deployment. Each record expires 30 days
 after its last write; backup retention is separate. This first release has no
@@ -247,7 +247,7 @@ doesn't make either up from the existing budget.
 
 Run the Lab Python suite and frontend build, lint, and Playwright tests from the
 repository root using the [local validation commands](../workbench/README.md#local-development).
-Browser tests use controlled API responses; backend tests use an in-memory store
+Browser tests use controlled API responses. Backend tests use an in-memory store
 and gateway doubles. They don't prove live Cosmos or model behavior.
 Recovery coverage includes lost workers, graceful shutdown, legacy records,
 recovery-window boundaries, competing submissions, stale-worker final writes,
@@ -258,9 +258,9 @@ cost acknowledgement, and the four-run limit.
 Follow the [Lab deployment steps](lab-deployment.md#deployment): configure
 the correct state, build an immutable image, review a saved Terraform plan, then
 apply and clean up that plan. Keep platform infrastructure and Lab state
-separate. Normal root Terraform source is publishable; state, backups, secrets,
+separate. Normal root Terraform source is publishable. State, backups, secrets,
 backend configuration, environment tfvars, saved plans, and private workaround
-scripts are not. For initial review support, verify the additive Cosmos index is
+scripts aren't. For initial review support, verify the additive Cosmos index is
 ready before promoting the image. Record both the intended image and recovery
 digest.
 
@@ -291,8 +291,9 @@ $reviewId = '<synthetic-review-id-from-step-3>'
 ```
 
 Require verified specialist receipts, exact citations, and `waiting_input` for
-this fixture's missing budget. If still running, the script reports that it has
-not reached a result: inspect again later, without starting another execution.
+this fixture's missing budget. If it's still running, the script reports that it
+hasn't reached a result. Inspect again later, without starting another
+execution.
 For failed or interrupted output, investigate before continuing. An interrupted
 run can be [recovered explicitly](#recover-an-interrupted-review), but that
 consumes another run and changes this fixture's expected run counts. Don't use
@@ -321,10 +322,10 @@ After the second run reaches an outcome:
 
 Require a completed two-run review with preserved snapshots, verified receipts,
 and exact citations. Reopen it in the UI and inspect both run versions. Record
-the test outcome and deployed image; a successful Terraform apply alone is not
-live acceptance. The synthetic review remains under normal 30-day TTL: this
-release has no review deletion API. Don't delete shared storage to clean up a
-test.
+the test outcome and deployed image, because a successful Terraform apply alone
+isn't live acceptance. The synthetic review stays under the normal 30-day TTL,
+since this release has no review deletion API. Don't delete shared storage to
+clean up a test.
 
 Next extensions are authenticated ownership, durable worker recovery, evaluated
 retrieval over approved sources, and approval-gated external actions. They aren't

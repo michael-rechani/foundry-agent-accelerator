@@ -9,7 +9,7 @@ Document reviews workflow.
 
 > [!IMPORTANT]
 > **Proposed, not implemented.** The assistant described here is **Planned**.
-> The repository does not include these integrations, work-packet editing,
+> The repository doesn't include these integrations, work-packet editing,
 > exact-action approvals, write-back, or background follow-up automation.
 
 ## At a glance
@@ -109,13 +109,13 @@ labeled fictional data when live integrations are unavailable.
 The current Lab has shared records and no end-user sign-in. Its application
 managed identity doesn't establish an individual user's access to records. Don't
 connect confidential staff data until authenticated user access and source
-permissions are enforced end to end. Fictional fixtures must not be presented as
-live retrieval or completed integrations.
+permissions are enforced end to end. Don't present fictional fixtures as live
+retrieval or completed integrations.
 
 The existing Lab doesn't provide the work-packet editing and exact-action
 approval workflow defined here. Those capabilities need their own design and
-acceptance checks. Chat consent alone must not be treated as an implemented
-approval control. The existing review JSON schema isn't this packet contract.
+acceptance checks. Don't treat chat consent alone as an implemented approval
+control. The existing review JSON schema isn't this packet contract.
 
 ## Success measures
 

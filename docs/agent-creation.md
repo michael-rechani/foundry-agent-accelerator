@@ -29,13 +29,15 @@ The Create page lists the Lab's 18 templates in three groups, named and ordered
 the same as the sectors in the **Agent library**: **Works in any sector** (five
 jobs), **Private sector** (nine jobs), and **Healthcare and public sector**
 (four jobs). The tables below describe the **Works in any sector** and
-**Healthcare and public sector** groups. Every template is
-marked **Not yet reviewed** until a person has read its recorded test answers and
-signed off (see **Test results** in the **Agent library**). They pass offline
-contract and acceptance tests but aren't yet validated live. Open the **Agent
-library** to see what each one does. The fictional examples in the healthcare and public-sector group
-suit public-sector, healthcare-operations, and independent software vendor
-(ISV) conversations without reproducing any customer's work or implementation
+**Healthcare and public sector** groups. Every template is marked **Not yet
+reviewed** until a person has read its recorded test answers and signed off
+(see **Test results** in the **Agent library**). They pass offline contract and
+acceptance tests but aren't yet validated live. Open the **Agent library** to
+see what each one does.
+
+The fictional examples in the healthcare and public-sector group suit
+public-sector, healthcare-operations, and independent software vendor (ISV)
+conversations. They don't reproduce any customer's work or implementation
 claims. Healthcare examples cover paperwork only. They don't give clinical
 advice or use real patient data.
 
@@ -60,8 +62,7 @@ advice or use real patient data.
 
 The Medical bill reviewer, Insurance pre-approval helper, and Benefits renewal
 helper each use two fixed, sample, read-only lookups (for example, plan
-benefits and usual prices for the medical bill reviewer). The lookup data is
-sample data for the demo.
+benefits and usual prices for the medical bill reviewer).
 
 Each template card shows the [model profile](#how-the-lab-picks-a-model) the
 job uses and whether it has sample lookups.
@@ -257,21 +258,23 @@ than maintained separately.
 
 Readiness and runtime hints are bounded labels, not service-level claims.
 `Not yet reviewed` (the `sample` level) means the definition has deterministic
-contract tests and recorded answers that pass the automatic checks, but a
-person hasn't signed those answers off, and it still needs customer policy
-review. `Reviewed` means a person has signed off the recorded answers and
-every run passed; `evaluations/test_scorecards.py` fails if the label and the
-recorded sign-offs disagree. Current tool modes are only `Text only` and `Sample lookups`;
-neither means a customer system is connected. Cost and latency are relative
+contract tests and recorded answers that pass the automatic checks. A person
+hasn't signed those answers off, and it still needs customer policy review.
+`Reviewed` means a person has signed off the recorded answers and every run
+passed. `evaluations/test_scorecards.py` fails if the label and the recorded
+sign-offs disagree. Current tool modes are only `Text only` and
+`Sample lookups`. Neither means a customer system is connected. Cost and latency are relative
 model-profile hints, not prices or performance guarantees.
 
 Every listed agent's instructions end with the same answer layout: **Result**,
 **Why**, **What to check** and **Next step**, then who makes any decision the
 agent is asked to make. The layout is appended in `agent_templates/catalog.py`, so the
 served `instructions` field keeps its shape.
-The proposed task-sized layout and terminology alignment for **Checklist gap finder**
-are deferred until its sample answers can be re-recorded through the existing
-private Foundry endpoint; see [#244](https://github.com/michael-rechani/foundry-agent-accelerator/issues/244).
+
+The proposed task-sized layout and terminology alignment for **Checklist gap
+finder** are deferred until its sample answers can be re-recorded through the
+existing private Foundry endpoint (see
+[#244](https://github.com/michael-rechani/foundry-agent-accelerator/issues/244)).
 Its current instructions and recorded evidence remain unchanged.
 
 `GET /api/agent-scorecards` serves each template's recorded test results
@@ -281,13 +284,13 @@ The file behind it, `workbench/agent_scorecards.json`, is generated offline by
 acceptance answers, response times and token counts. The endpoint never calls a
 model or storage. All 18 listed templates have a scorecard; a template without a
 recorded run would show no results. Every case is recorded several times, and it
-passes only when every run passes, so each case carries `runs` and `runs_passed`
+passes only when every run passes. Each case carries `runs` and `runs_passed`,
 and each summary carries `runs_per_case`, `runs` and `runs_passed`. Each recorded
 answer also carries a fingerprint of the instructions its agent had when it ran.
 The build fails when an agent's instructions change afterwards, so the results
-can't describe instructions the Lab no longer uses. Each case
-includes the request that was sent, which the library's **Take it to Foundry**
-tab turns into a downloadable evaluation file.
+can't describe instructions the Lab no longer uses. Each case includes the
+request that was sent, which the library's **Take it to Foundry** tab turns into
+a downloadable evaluation file.
 
 Only `main.py`, `demo_tools.py`, and `requirements.txt` enter the deterministic
 ZIP package. Prompts can't upload source, install dependencies, select
@@ -350,10 +353,10 @@ Redeployed bundles are independent agents. They don't copy this Lab's records,
 ownership, chat history, or automatic lifecycle management.
 
 The API saves a typed Cosmos record **before** scheduling remote work. It then
-checks that the chosen model deployment exists, uploads the reviewed ZIP
-package, records the returned version, waits for activation, sets a 100%
-Responses route, and reads the route/version back before marking the agent
-ready. If the deployment doesn't exist, publication stops
+checks that the chosen model deployment exists and uploads the reviewed ZIP
+package. Next it records the returned version, waits for activation, and sets a
+100% Responses route. It reads the route and version back before marking the
+agent ready. If the deployment doesn't exist, publication stops
 before anything is uploaded and the record shows as failed. The API doesn't use
 browser-supplied endpoint names or change prebuilt agents.
 

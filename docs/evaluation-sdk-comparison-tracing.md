@@ -66,7 +66,7 @@ evaluator after preserving required evidence.
 
 ## Optional candidate comparison and human review
 
-Use the **same runner**, not a second engine. Run the approved live command
+Use the **same runner** for every candidate. Run the approved live command
 once per already-deployed candidate, with a new receipt path and candidate label.
 Change only the intended agent/model or prompt version. Don't change routes
 with this runner. Any such change must first complete the separately approved
