@@ -41,7 +41,7 @@ simulated, read-only lookups and proposes next steps for a person to review.
 
 ## Prepare once, demonstrate separately
 
-An operator prepares the [private environment](../README.md#quick-start),
+An operator prepares the [private environment](../README.md#deploy-to-azure),
 publishes approved [agent versions](../hosted-agents/README.md), verifies routes
 and smoke checks, and deploys [the Lab](../workbench/README.md). These steps
 can incur charges and need approval. This guide doesn't perform them.

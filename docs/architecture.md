@@ -396,7 +396,7 @@ analysis tool, not an agent dependency. Redis and semantic caching are
 intentionally absent.
 
 See [private deployment](private-deployment.md) for the operational sequence and
-[production considerations](../README.md#production-considerations) before using
+[production considerations](../README.md#scope-and-limitations) before using
 confidential data or scaling beyond the sample configuration.
 
 ## Related content
