@@ -25,11 +25,11 @@ These new concepts don't replace or rename the existing
 [case-review agent](../../hosted-agents/case-review-agent/README.md) or
 [application-review agent](../../hosted-agents/application-review-agent/README.md).
 In particular, the Caseworker Assistance Agent is a separate proposed workflow,
-and the Internal Staff Workflow Assistant is not case-management-specific.
+and the Internal Staff Workflow Assistant isn't case-management-specific.
 
 No agent registration, runtime integration, application change, deployment, or
 Terraform change is included. No connection to a case-management system, policy
 library, status service, scheduling system, or other system of record is implied.
 Use clearly labelled synthetic data wherever an integration is unavailable.
-The [existing agent profile mechanism](../agent-profiles.md) is separate;
-these Markdown drafts don't create specialists, profiles, or permissions.
+The [existing agent profile mechanism](../agent-profiles.md) is separate.
+These Markdown drafts don't create specialists, profiles, or permissions.
