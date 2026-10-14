@@ -2,8 +2,8 @@
 
 [Home](../../README.md) / [The Lab](../README.md) / Frontend
 
-The Lab frontend is the React, TypeScript, and Vite app that runs the private
-browser experience. This page is for developers who build or test the UI; for
+The Lab frontend is the React, TypeScript, and Vite app behind the private
+browser experience. It's written for developers who build or test the UI. For
 backend, private access, Cosmos retention, and deployment instructions, see the
 [Lab guide](../README.md).
 
@@ -28,15 +28,17 @@ Run `npm run format` to fix formatting that `npm run format:check` reports.
 `npm run test:unit` uses Node's built-in test runner and type stripping, with no
 extra dependencies, to test browser-independent modules in `src/` from `unit/`.
 Those modules must use erasable TypeScript syntax, and tests import them with
-explicit `.ts` extensions. `unit/` sits outside `tests/` so Playwright ignores it.
+`.ts` extensions. `unit/` sits outside `tests/` so Playwright ignores it.
 `npm run build` applies strict TypeScript checks to the application and Vite
 configuration, including nullability and implicit types.
+
 `npm test` builds production assets and starts an isolated preview server on
 `127.0.0.1:4174`. Playwright tests run at desktop and mobile sizes with
 mocked APIs that return sample data. They use no Azure resources or credentials.
 Screenshots and failure traces are written to ignored `test-results/`. On Linux,
 install browser system dependencies with `npx playwright install --with-deps chromium`.
-Specs share their setup through `tests/helpers/`: `mock-api.ts` answers every
+
+Specs share their setup through `tests/helpers/`. `mock-api.ts` answers every
 `/api/` request locally, `lab-config.ts` holds the baseline Lab configuration,
 `catalog.ts` the catalog and scorecard fixtures, and `navigation.ts`,
 `layout.ts` and `appearance.ts` the common page actions and checks. Each area
@@ -50,7 +52,7 @@ setup there rather than copying it into a spec.
 **Browse**, **Ready to chat**, **Made in this Lab**, **Guided demos**, and **Add-ons** tabs,
 **Create agent**, **Chat**, **Document reviews**, **Performance**, **Request
 log**, and **Shared history**. `ChatSidebar.tsx` groups them into four
-sections: **Agent library**, **Try it**, **Measure**, and **Activity**. `AddOns.tsx` renders the preview-only **Add-ons** tab from `add-on-catalog.json`, which `python addons/build_catalog.py --write` generates from the manifests in `addons/`; it makes no API calls. An entry with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**.
+sections: **Agent library**, **Try it**, **Measure**, and **Activity**. `AddOns.tsx` renders the preview-only **Add-ons** tab from `add-on-catalog.json`, which `python addons/build_catalog.py --write` generates from the manifests in `addons/`. It makes no API calls. An entry with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**.
 **Measure** and **Activity** appear only with **Under the hood** on
 (`under-the-hood.ts`); elements marked `hood-only` are hidden otherwise.
 `ChatTopbar.tsx` shows the breadcrumb from `navigation.ts`. The
@@ -60,7 +62,7 @@ including the **How I got this** steps and collapsed execution details, lives in
 `ConversationTurn.tsx`; plain step wording comes from `answer-steps.ts`. Foundry
 portal links (`foundry-links.ts`, `FoundryLink.tsx`) are built from the
 `foundry_portal` config value and shown only under the hood. `WaitingIndicator.tsx` owns the elapsed timer so it
-does not rerender the transcript.
+doesn't rerender the transcript.
 
 The three workspace components (`ChatWorkspace.tsx`,
 `AgentCreationWorkspace.tsx`, and `ReviewWorkspace.tsx`) compose the feature
@@ -70,8 +72,8 @@ handlers live in `use-conversation.ts`, `use-chat-history.ts`,
 `use-dependency-health.ts`. The view components split out of the workspaces are
 presentational and receive values and callbacks as props. `AgentLibrary.tsx`
 chooses between `LibraryBrowse.tsx` and `LibraryDetail.tsx`. `ExploreDemos.tsx`
-additionally owns its local story
-selection and clipboard feedback; it never invokes an agent or writes records.
+also owns its local story selection and clipboard feedback. It never invokes an
+agent or writes records.
 
 | File                                                          | Role                                                                                                                                                                           |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -106,7 +108,7 @@ render by setting `data-theme` (`system`, `light`, or `dark`), `data-accent`
 (`foundry`, `orchid`, or `lagoon`), and `data-look` (`classic`, `aurora`, or
 `console`) on `<html>`. **Light** and **Dark** pin `color-scheme`, and each
 accent overrides only the `--accent*` tokens. The choice is stored under
-`ai-foundry-lab-theme` in `localStorage`; unreadable values fall back to System,
+`ai-foundry-lab-theme` in `localStorage`. Unreadable values fall back to System,
 Foundry, and Classic, and each of the three is read on its own, so a saved
 choice from before looks existed keeps its theme and accent and opens in
 Classic.
@@ -136,7 +138,7 @@ that mode's background before the script applies a pinned opposite theme.
 
 `AgentCreationWorkspace.tsx` implements template-based setup preparation,
 review, operator-confirmed publication, and the shared **Made in this Lab** list.
-This is not a large language model (LLM) configuration conversation or an
+It isn't a large language model (LLM) configuration conversation or an
 arbitrary code/tool generator. `CreationTaskForm.tsx` renders the template
 picker and job description, `CreationSetupReview.tsx` renders the setup review
 and publication controls, `CreatedAgents.tsx` renders the saved-agent list and
@@ -148,15 +150,18 @@ Publication uses an idempotency UUID retained across uncertain retries. GET
 polling never submits another creation. Setup, publication, ready routing, and
 live answer quality remain distinct.
 
-The opening view is **All agents** > **Browse**. Explicit `/#chat`, `/#library`, `/#agents`,
-`/#demos`, `/#reviews`, `/#performance`, `/#logs`, and `/#create` entry links are
-supported; a library **Create** action opens the creator with that template
-preselected unless setup work is already in progress; creation still requires its advertised capability. Valid
-saved-review links keep priority.
-The model and tools are not editable here. Operator keys are password fields
+The opening view is **All agents** > **Browse**. These entry links are
+supported: `/#chat`, `/#library`, `/#agents`, `/#demos`, `/#reviews`,
+`/#performance`, `/#logs`, and `/#create`. A library **Create** action opens the
+creator with that template preselected unless setup work is already in
+progress. Creation still requires its advertised capability. Valid saved-review
+links keep priority.
+
+The model and tools aren't editable here. Operator keys are password fields
 kept only in memory, cleared when leaving the creator views, and never included
-in chat, exports, or persistent browser storage. Deletion requires explicit
-shared-impact confirmation. See the [Create and try a baseline Microsoft Foundry agent](../../docs/agent-creation.md)
+in chat, exports, or persistent browser storage. Deleting an agent requires
+confirming the shared impact. See the
+[Create and try a baseline Microsoft Foundry agent](../../docs/agent-creation.md)
 operator guide.
 
 `tests/agent-creation.spec.ts` and `tests/agent-creation-recovery.spec.ts` cover
@@ -166,8 +171,8 @@ dynamic-agent chat/history, key lifetime, and mobile layout.
 `tests/appearance.spec.ts` and `tests/appearance-looks.spec.ts` cover the
 **Appearance** menu (theme, accent, and look), saved and unreadable choices, and
 text, link, and button contrast for every look in light and dark with each
-accent. Their publication and answer fixtures are explicitly mocked. For a
-focused check, run `npm test -- agent-creation`; this still builds the
+accent. Their publication and answer fixtures are mocked. For a
+focused check, run `npm test -- agent-creation`. This still builds the
 production assets first.
 
 ## Library, performance, and log coverage
@@ -185,7 +190,7 @@ npm --prefix frontend run format
 The Add-ons tab reads `src/add-on-catalog.json`, which is generated from the add-on manifests in the repository's `addons` folder (see [Add-on package format](../../docs/addon-package-format.md)). After you change a manifest, run `python addons/build_catalog.py --write` from the repository root. CI fails if the file is out of date, and `tests/library.spec.ts` checks that the page lists every manifest in order.
 
 The specs cover the four-section navigation and hash links, filters with
-live counts, search and the empty state, detail tabs and honest labels, template
+live counts, search and the empty state, detail tabs and plain labels, template
 preselection without preparing or publishing, opening a ready agent in Chat as
 an unsent draft, the request log reference, recent requests on Performance,
 record download for export, preview and retry states, and light and dark contrast.
@@ -202,7 +207,7 @@ logic.
 
 `tests/showcase.spec.ts` covers the read-only opening experience, source-input
 parity with the downloadable examples, matching only visible or ready agents,
-confirmation before replacing a draft, explicit Send, presenter controls,
+confirmation before replacing a draft, Send, presenter controls,
 storage failures, and desktop/mobile screenshots. The catalog keeps input,
 output, and human limits prominent; execution details stay in its developer
 disclosure. The existing appearance storage key is unchanged by the rebrand.
@@ -211,10 +216,10 @@ disclosure. The existing appearance storage key is unchanged by the rebrand.
 
 `ReviewWorkspace.tsx` labels the structured workflow **Document reviews**.
 Checklist items map to API `criteria`; document text and added information map
-to `evidence`. UI labels do not change the data contract. A review's agent is
+to `evidence`. UI labels don't change the data contract. A review's agent is
 the configured Lab default at creation, not the current **Chat** choice.
-Creating or adding information saves a record; **Run review** and
-**Review again** separately call the agent. Tests cover that separation and the
+Creating or adding information saves a record. **Run review** and
+**Review again** call the agent separately. Tests cover that separation and the
 absence of automatic Chat transfer.
 
 `review-client.ts` holds the review types and request helper.
@@ -235,10 +240,10 @@ review, and guided-demo tests also write `-dark` screenshots for the animated
 README tours. The copies used in the docs live in
 [`docs/images/screenshots/`](../../docs/images/README.md#lab-screenshots).
 
-The UI uses system fonts, and Markdown rendering is local. Do not add browser Azure credentials,
-remote image rendering, or persistent transcript storage. Preserve the explicit
-shared-history and sample-data boundaries. No React Compiler or global state
-library is required for the current bounded workflow.
+The UI uses system fonts, and Markdown rendering is local. Don't add browser
+Azure credentials, remote image rendering, or persistent transcript storage.
+Keep the shared-history and sample-data boundaries as they are. No React
+Compiler or global state library is required for the current bounded workflow.
 
 ## Related content
 

@@ -2,10 +2,10 @@
 
 [Home](../README.md) / [Docs](README.md) / [Evaluations](../evaluations/README.md) / Library scorecards
 
-This page is part of the [evaluation guide](../evaluations/README.md). It covers the
-agent library's acceptance cases, the **Test results** tab in the Lab, and the
-workflows for recording an agent's test answers again and signing them off.
-Everything here runs offline except `library_runs.py record --yes`, which calls
+Acceptance cases, the **Test results** tab in the Lab, and the workflows for
+recording an agent's test answers again and signing them off all live here.
+This page is part of the [evaluation guide](../evaluations/README.md).
+Everything on it runs offline except `library_runs.py record --yes`, which calls
 Foundry and costs money.
 
 ## Agent library acceptance cases
@@ -156,7 +156,7 @@ API. Costs cover model tokens only, not hosting, storage or monitoring. The
 times come from a direct run on a local machine, and the tab says so. Every
 scorecard shows **Waiting for a person** until someone reads the answers.
 `scorecards.py` also fails if an agent's instructions changed after its answers
-were recorded; [library_runs.py](#record-an-agents-test-answers-again) records
+were recorded. [library_runs.py](#record-an-agents-test-answers-again) records
 them again. It also fails if any case has no recorded answer, so a new case
 can't drop out of the results unnoticed. `test_scorecards.py` fails if the
 Lab's copy drifts from the
@@ -218,7 +218,7 @@ python library_runs.py record --templates document-analyst --yes   # billable: r
 
 `record --yes` calls Foundry and costs money. Going by the last recording, an
 agent's 25 runs cost about 3 to 55 cents and take at least 2 to 11 minutes at
-the default pacing; the plan shows the figures first. Get the owner's approval
+the default pacing. The plan shows the figures first. Get the owner's approval
 before you add `--yes`.
 
 **What it needs.** Install `evaluations/requirements.txt`, sign in with
@@ -238,7 +238,7 @@ recording.
 
 **Pacing and retries.** Each deployment is held to 10,000 tokens and 10 requests
 a minute, the limits of a capacity-10 deployment. For one with more quota, pass
-`--limits` like `{"gpt-5.4": {"tokens": 30000, "requests": 30}}`; a number you
+`--limits` like `{"gpt-5.4": {"tokens": 30000, "requests": 30}}`. A number you
 leave out stays at its default. A 429 waits as long as Foundry asks, or 60
 seconds if it doesn't say. A timeout, dropped connection or server error waits 2
 seconds, then 4, 8 and so on up to 30. A request is tried up to six times before

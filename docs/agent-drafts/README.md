@@ -21,7 +21,7 @@ capabilities connected or available in this repository.
 accompany any copied agent definition. Each draft retains its own persona,
 users, workflow, output, boundaries, MVP, and success measures.
 
-These new concepts neither replace nor rename the existing
+These new concepts don't replace or rename the existing
 [case-review agent](../../hosted-agents/case-review-agent/README.md) or
 [application-review agent](../../hosted-agents/application-review-agent/README.md).
 In particular, the Caseworker Assistance Agent is a separate proposed workflow,
@@ -32,4 +32,4 @@ Terraform change is included. No connection to a case-management system, policy
 library, status service, scheduling system, or other system of record is implied.
 Use clearly labelled synthetic data wherever an integration is unavailable.
 The [existing agent profile mechanism](../agent-profiles.md) is separate;
-these Markdown drafts do not create specialists, profiles, or permissions.
+these Markdown drafts don't create specialists, profiles, or permissions.

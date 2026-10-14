@@ -2,11 +2,11 @@
 
 [Home](../../README.md) / [Infrastructure](../README.md) / Agent monitoring
 
-Use this guide to connect an existing Microsoft Foundry project to private,
-metadata-only agent tracing. This independent Terraform root creates a
-workspace-based Application Insights resource and reuses the platform's private
-Log Analytics workspace and Azure Monitor Private Link Scope (AMPLS). It does
-not take ownership of those existing resources or change their network access.
+This independent Terraform root connects an existing Microsoft Foundry project
+to private, metadata-only agent tracing. It creates a workspace-based
+Application Insights resource and reuses the platform's private Log Analytics
+workspace and Azure Monitor Private Link Scope (AMPLS). It doesn't take
+ownership of those existing resources or change their network access.
 
 ## At a glance
 
@@ -16,14 +16,14 @@ not take ownership of those existing resources or change their network access.
 | State example | `ai-foundry/monitoring-dev.tfstate` |
 | Trace destination | Workspace-based Application Insights |
 | Workspace and network | Existing private Log Analytics workspace and AMPLS |
-| Trace content | Operation metadata only; no prompt, response, or sensitive tool content |
+| Trace content | Operation metadata only. No prompt, response, or sensitive tool content. |
 | Project connection | Controlled by `enable_project_connection` and disabled by default |
 | Portal path | **hosted-agents-dev > Agents > Traces** |
 
 Application Insights ingestion and queries remain private, and local/key
-authentication is disabled. The project and explicitly listed agent identities
-receive **Monitoring Metrics Publisher** on this component only. No agent
-receives permission to read other agents' traces. Portal users need appropriate
+authentication is disabled. The project and the agent identities listed in
+`agent_principal_ids` receive **Monitoring Metrics Publisher** on this component
+only. No agent can read other agents' traces. Portal users need appropriate
 reader permissions and private-network access, such as the browser inside the
 jumpbox. Project-managed-identity trace ingestion is currently documented as
 preview.
@@ -40,7 +40,7 @@ preview.
 
 > [!IMPORTANT]
 > Enable monitoring only after every runnable hosted agent version disables
-> sensitive content recording. Do not connect Application Insights first and fix
+> sensitive content recording. Don't connect Application Insights first and fix
 > the agents afterward.
 
 The hosting software development kit (SDK) can enable sensitive content recording
@@ -59,36 +59,36 @@ data while retaining operation metadata. Disabling statsbeat stops the exporter'
 own usage telemetry, including a virtual machine metadata probe that otherwise
 fails in the hosted container and appears as `requests.exceptions.ConnectionError`
 rows in `AppExceptions`. Versions published before this setting keep emitting
-those harmless rows until they are republished.
+those harmless rows until you republish them.
 
-These settings do not sanitize arbitrary application log messages; keep those
+These settings don't sanitize arbitrary application log messages, so keep those
 metadata-only too. `AGENT_STORE_RESPONSES=false` controls response persistence
-separately and is not a substitute for these tracing flags.
+separately and doesn't replace these tracing flags.
 
 Existing agent versions are immutable. Publish equivalent versions with these
 settings, preserve instructions, source code, tools, protocol authorization, and
 agent names, then verify and route the new versions. Retire older versions only
-with approval; an unrouted version may still be directly callable. Do not enable
+with approval, since an unrouted version may still be directly callable. Don't enable
 the project connection while an unsafe version can still run. Deploy the updated
 Lab publisher before enabling its optional agent-creation feature.
 
 For each subsequently created agent, add its runtime
 `instance_identity.principal_id` to `agent_principal_ids` and apply the scoped
-publisher assignment. A project identity grant alone does not authorize a new
+publisher assignment. A project identity grant alone doesn't authorize a new
 hosted agent's SDK exporter.
 
 ## Deployment
 
 Use `dev.tfvars.example` and `backend.hcl.example` to create ignored environment
 inputs. Use a separate protected state key, such as
-`ai-foundry/monitoring-dev.tfstate`; never reuse the platform, Lab, or Bastion
+`ai-foundry/monitoring-dev.tfstate`, and never reuse the platform, Lab, or Bastion
 state. Authenticate from the authorized private-network runner.
 
 The deployment identity needs monitoring resource and project-connection
 permissions. Creating the publisher role assignments also requires scoped
 role-based access control (RBAC) administration. Alternatively, an authorized
 administrator can create those assignments and import them into their declared
-Terraform addresses before the full apply. Do not grant broad permanent
+Terraform addresses before the full apply. Don't grant broad permanent
 administration to a runtime identity.
 
 Start with `enable_project_connection = false`. This provisions the monitoring
@@ -107,13 +107,14 @@ review a new plan, and apply it. The connection uses the project identity, not
 key-based authentication. Foundry still requires the component connection string
 as routing metadata. Terraform marks the string sensitive, and the protected
 state contains it. Setting this flag back to false removes only the connection
-and stops new project-connected tracing; it does not erase already retained
+and stops new project-connected tracing. It doesn't erase already retained
 telemetry.
 
 ## Verification and portal use
 
 1. Confirm the component is attached to the existing AMPLS and resolves through
-   private Domain Name System (DNS). Do not reopen ingestion, query endpoints, or the state backend.
+   private Domain Name System (DNS). Don't reopen ingestion, query endpoints, or
+   the state backend.
 2. Confirm the project connection is `AppInsights` with
    `ProjectManagedIdentity` authentication.
 3. Send a synthetic request with a unique non-sensitive marker. After ingestion,
@@ -123,7 +124,7 @@ telemetry.
    argument/result exclusion is checked. Include `AppGenAIContent` when present:
    it can contain tool schemas even with message capture disabled. Check that
    `InputMessages`, `OutputMessages`, `SystemInstructions`, `ToolCallArguments`,
-   and `ToolCallResult` are empty, rather than assuming any row means a leak or
+   and `ToolCallResult` are empty. Don't assume that any row means a leak or
    that a protected table means content exclusion.
 4. Open **hosted-agents-dev > Agents > Traces** in Foundry. Allow several
    minutes for new traces to arrive. The Application Insights **Performance**
@@ -132,22 +133,22 @@ telemetry.
    deployment permissions after completing the rollout.
 
 > [!NOTE]
-> Telemetry starts with new activity; monitoring does not reconstruct past agent
+> Telemetry starts with new activity. Monitoring doesn't reconstruct past agent
 > runs. Storage and retention incur Azure Monitor charges. The component requests
 > 30-day retention, but the existing workspace's retention, caps, and policies
 > still apply.
 
-Consult [tracing setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup)
+Read [tracing setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup)
 and [Microsoft Entra ID ingestion](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-ingestion-entra-authentication).
 
 ## Troubleshooting
 
 | Symptom | Likely cause | What to do |
 | --- | --- | --- |
-| No traces appear in Foundry. | The project connection is still disabled, ingestion has not completed, or the private path is unavailable. | Confirm `enable_project_connection = true`, wait several minutes, and verify private DNS and AMPLS association. |
+| No traces appear in Foundry. | The project connection is still disabled, ingestion hasn't completed, or the private path is unavailable. | Confirm `enable_project_connection = true`, wait several minutes, and verify private DNS and AMPLS association. |
 | `AppExceptions` contains `requests.exceptions.ConnectionError`. | Older versions still emit statsbeat metadata-probe failures. | Republish the agent version with `APPLICATIONINSIGHTS_STATSBEAT_DISABLED_ALL=true`. |
 | `AppGenAIContent` has rows. | Tool schemas can appear even when message capture is disabled. | Check `InputMessages`, `OutputMessages`, `SystemInstructions`, `ToolCallArguments`, and `ToolCallResult` for empty values. |
-| A created agent emits no traces. | Its runtime principal is not listed in `agent_principal_ids`. | Add the agent's `instance_identity.principal_id` and apply the scoped publisher assignment. |
+| A created agent emits no traces. | Its runtime principal isn't listed in `agent_principal_ids`. | Add the agent's `instance_identity.principal_id` and apply the scoped publisher assignment. |
 
 ## Offline validation
 
@@ -159,8 +160,8 @@ terraform test
 ```
 
 The mock-provider tests check private access, Microsoft Entra ID authentication,
-scoped publishers, and opt-in connection creation. Live telemetry and content
-exclusion must also be verified after deployment.
+scoped publishers, and opt-in connection creation. Also verify live telemetry
+and content exclusion after deployment.
 
 ## Related content
 

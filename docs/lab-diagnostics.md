@@ -2,9 +2,9 @@
 
 [Home](../README.md) / [Docs](README.md) / [The Lab](../workbench/README.md) / Diagnostics, alerts, and caching
 
-This page is part of the [Lab guide](../workbench/README.md). It covers agent
-session reuse, request and dependency diagnostics, alert delivery, budget
-alerts, and browser caching.
+This page is part of the [Lab guide](../workbench/README.md). Read it when you
+need to understand agent session reuse, trace a failed request, wire up alert
+delivery or budget alerts, or see how the browser caches responses.
 
 ## In this guide
 
@@ -19,24 +19,24 @@ alerts, and browser caching.
 ### Agent session reuse
 
 The cache holds at most 512 idle chat/agent sessions per process. Its default
-10-minute window is absolute, measured from the call that created the session;
-successful follow-ups do not extend it. Capacity eviction removes the oldest
+10-minute window is absolute, measured from the call that created the session.
+Successful follow-ups don't extend it. Capacity eviction removes the oldest
 idle entry in cache insertion order, not the oldest saved conversation.
 
 Taking a session removes it from the cache until that request completes. Two
-overlapping requests for the same chat therefore cannot lease the same session:
-the second starts a separate session, and the last successful completion may
+overlapping requests for the same chat therefore can't lease the same session.
+The second starts a separate session, and the last successful completion may
 supply the next reusable session. Failure or cancellation discards the leased
 session, not another request's successful lease. Restart, expiry, or eviction
-means a cold start, not missing context: every request still sends its full
-bounded history with `store=false`. Reuse is a latency optimization, not
+means a cold start, not missing context, because every request still sends its
+full bounded history with `store=false`. Reuse is a latency optimization, not
 persistence, identity, or an authorization boundary.
 
 `workbench_session` logs the checkout category (`hit`, `miss`, `expired`, or
 `disabled`) and `cached_sessions`, the idle count **after** checkout.
 `disabled` also covers requests without a chat thread, including document
 reviews. A `miss` can mean a new chat, restart, eviction, or an overlapping
-request; it cannot distinguish those causes. `workbench_session_eviction`
+request, and the log can't tell you which. `workbench_session_eviction`
 reports expired and capacity-evicted counts after a successful cache insertion.
 These events contain no chat IDs, Foundry session IDs, agent names, or input.
 They are process-local cache observations, not proof of model success or
@@ -47,22 +47,23 @@ measured cold-start savings. Use `workbench_request` for correlated outcomes.
 The backend emits JSON request metadata through the Uvicorn console logger:
 server-generated correlation ID, route template, HTTP method, outcome, HTTP
 status, and elapsed milliseconds. Caught Foundry/Cosmos failures include the
-dependency name and exception class (`error_type`); unexpected API failures
+dependency name and exception class (`error_type`). Unexpected API failures
 use `application` and return a generic HTTP 500. HTTP 5xx request events use
 error severity. These are diagnostic categories, not proof of the root cause.
 Elapsed time covers the whole request, not just the dependency call.
-It does not log prompts, transcripts, bodies, raw URLs, headers, credentials,
-exception messages, or tracebacks. API responses carry the correlation
-ID, including history failures. Azure Container Apps (ACA) console/system logs
-go to a dedicated Log Analytics workspace with 30-day retention and a 0.1-GB
-daily ingestion cap. Workspace ingestion/query uses Azure Monitor Private Link
-with public access disabled. Diagnostics use Azure identity, not workspace shared
-keys. The cap can delay stopping ingestion and is not a hard billing limit;
-retained logs and scheduled-query alerts incur Azure charges.
+The backend doesn't log prompts, transcripts, bodies, raw URLs, headers,
+credentials, exception messages, or tracebacks. API responses carry the
+correlation ID, including history failures. Azure Container Apps (ACA)
+console/system logs go to a dedicated Log Analytics workspace with 30-day
+retention and a 0.1-GB daily ingestion cap. Workspace ingestion/query uses Azure
+Monitor Private Link with public access disabled. Diagnostics use Azure
+identity, not workspace shared keys. The cap can delay stopping ingestion and
+isn't a hard billing limit. Retained logs and scheduled-query alerts incur Azure
+charges.
 
 Every minute the backend checks configured Foundry agents without generating
-responses and performs an empty-result Cosmos query. Results are cached at
-`/api/health/dependencies`; failures return 503 without exception details.
+responses and performs an empty-result Cosmos query. It caches the results at
+`/api/health/dependencies`. Failures return 503 without exception details.
 Failed probes emit `workbench_dependency_failed` with the dependency,
 exception class, and probe duration (`elapsed_ms`). A failed Foundry probe also
 says which step it was in (`stage`: `token` for the managed-identity sign-in,
@@ -70,24 +71,24 @@ says which step it was in (`stage`: `token` for the managed-identity sign-in,
 `read_ms`), so a stall can be placed before or after sign-in. Each successful
 `workbench_dependencies` heartbeat logs the same timings as `foundry_ms`,
 `foundry_token_ms`, `foundry_read_ms`, and `cosmos_ms`, so slow-but-passing
-checks are visible too. These fields are not in the
+checks are visible too. These fields aren't in the
 `/api/health/dependencies` response. Probes have no request ID because they run
 outside a browser request. Every error body from the chat, history, agent, and
 review APIs carries the same `request_id` as the `X-Correlation-ID` header. Use it to find a
-failed API request's `workbench_request` event; never collect submitted text
+failed API request's `workbench_request` event, and never collect submitted text
 or operator keys to diagnose it. A review that ends `agent_unavailable` also logs
 `review_execution_error` with the exception class (`error_type`), so a code bug
-is distinguishable from an outage. `review_execution` is logged only after the
-final save succeeds; otherwise `review_persistence_failed` is logged instead.
-`/healthz` remains process-only, so dependency outages do not cause restart
+is distinguishable from an outage. The Lab logs `review_execution` only after the
+final save succeeds. Otherwise it logs `review_persistence_failed` instead.
+`/healthz` remains process-only, so dependency outages don't cause restart
 loops. These checks verify access, not model-generation quality or full Cosmos
 CRUD.
 
 Foundry probes have been seen failing in bursts of about 3 to 45 minutes.
 Foundry's own request log showed those reads held about 35 seconds and then
 answered with HTTP 408, so the stall was inside Foundry rather than in this
-app's connection or sign-in. The probe's 5-second read limit is deliberate: it
-reports a stall as soon as it starts. See issue #126 for the evidence.
+app's connection or sign-in. The probe's 5-second read limit is deliberate, because
+it reports a stall as soon as it starts. See issue #126 for the evidence.
 
 Azure Monitor raises alerts for five failures/throttles in five minutes, three
 degraded dependency samples in five minutes, and no heartbeat in 15 minutes.
@@ -95,7 +96,7 @@ Alerts are visible in Azure Monitor. Set `alert_action_group_ids` to existing
 action groups to deliver notifications, or let Terraform create an email action
 group as shown below. No group or recipient is added by default.
 Missing-heartbeat alerts also cover stalled ingestion or quota exhaustion, but
-cannot distinguish these from an application outage.
+they can't tell these apart from an application outage.
 
 #### Check the Foundry and Cosmos DB timings
 
@@ -142,7 +143,7 @@ For failed checks with their step and timings:
 | order by TimeGenerated asc
 ```
 
-Only failed Foundry checks have `stage`, `token_ms`, and `read_ms`; those columns
+Only failed Foundry checks have `stage`, `token_ms`, and `read_ms`. Those columns
 are empty for Cosmos DB failures.
 
 ### Terraform-managed alert delivery
@@ -163,29 +164,29 @@ and tags. `managed_alert_action_group_id` returns its ID after apply.
 
 You can also supply `alert_action_group_ids` for centrally managed groups. The
 configuration combines both sets without duplicate group IDs. Existing groups
-remain owned outside this state. Do not configure the same group for creation
+remain owned outside this state. Don't configure the same group for creation
 here unless you deliberately transfer its Terraform ownership. Removing all
 managed receivers plans deletion of the Lab-owned group, so review that change
 before applying.
 
-Recipient addresses are stored in Terraform plans and state; protect those as
+Terraform plans and state store the recipient addresses, so protect those as
 well as the local inputs. Alert messages can include resource identifiers and
-operational log metadata, and are delivered outside the private application
+operational log metadata, and they're delivered outside the private application
 path. Approve recipients, delivery costs, and the rollout before enabling them,
 and verify delivery from the approved Azure environment. Terraform validation
-does not prove that mail reaches an inbox. These are infrastructure health
+doesn't prove that mail reaches an inbox. These are infrastructure health
 alerts, not agent tools for sending email or performing business actions.
 
 Run `./workbench/test-monitoring.ps1` after provider initialization to check the
 default, existing-group, managed-group, combined-group, opt-out, and
 invalid-input paths. The runner copies only the monitoring configuration into an
 isolated directory, without the deployment backend or tfvars. Both Terraform
-providers are mocked, including test runs named `apply`; no Azure resources are
+providers are mocked, including test runs named `apply`. No Azure resources are
 created and no mail is sent. CI runs the same checks.
 
 ### Budget alerts
 
-Azure Monitor alerts cover health, not spend. To be told about spend, set
+Azure Monitor alerts cover health, not spend. To get told about spend, set
 `lab_budget` in your ignored Lab deployment inputs. Terraform then creates a
 monthly Cost Management budget on the Lab resource group:
 
@@ -213,15 +214,16 @@ The model deployment's capacity also limits spend. On Standard and Global
 Standard deployments, each capacity unit is 1,000 tokens per minute, and the
 Foundry configuration in `terraform/` sets it. Requests over the limit return
 HTTP 429 instead of running. For example, capacity 10 limits a deployment to
-10,000 tokens per minute. The Lab tries to answer first: it checks each chat turn against that deployment's
-configured limit ([Model limits](lab-configuration-and-cost.md#model-limits)) and,
-when the turn would pass it, answers `busy` before calling the model. If the model
-rejects a request anyway, the Lab answers `busy` too. Either way it's HTTP 429
+10,000 tokens per minute. The Lab tries to answer first. It checks each chat turn
+against that deployment's configured limit
+([Model limits](lab-configuration-and-cost.md#model-limits)) and, when the turn
+would pass it, answers `busy` before calling the model. If the model rejects a
+request anyway, the Lab answers `busy` too. Either way it's HTTP 429
 with a `Retry-After` of 1 to 60 seconds, and it asks the visitor to wait a
-minute; it doesn't report a connection problem. A Lab-side refusal logs a
+minute. It doesn't report a connection problem. A Lab-side refusal logs a
 `workbench_model_busy` event with the deployment, template and wait, and no
-prompt text. Look for it in the Lab logs to see which deployment is the busy one. The Lab's Performance
-page lists which Lab actions are billable.
+prompt text. Look for it in the Lab logs to see which deployment is the busy one.
+The Lab's Performance page lists which Lab actions are billable.
 
 ### Browser caching
 
@@ -233,7 +235,7 @@ transcript.
 
 Before real user data, add validated user identity, owner-scoped authorization
 on every history operation, appropriate retention and backup policies, and
-operational monitoring. Network restriction alone is not user authentication.
+operational monitoring. Network restriction alone isn't user authentication.
 
 ## Related content
 

@@ -6,7 +6,7 @@
 deployed.** All workflows and integrations below are proposed, not connected
 capabilities. The [shared requirements](shared-requirements.md) apply in full
 and must accompany this definition when copied. This is distinct from the
-existing case-review agent; it does not replace or modify that sample.
+existing case-review agent and doesn't replace or modify that sample.
 
 ## Definition
 
@@ -53,10 +53,10 @@ staff working in housing, disability, family services, and behavioral health.
 
 ## Boundaries
 
-Do not independently determine eligibility, recommend sanctions, diagnose,
+Don't independently determine eligibility, recommend sanctions, diagnose,
 rank people by inferred risk, or make safeguarding or placement decisions.
-Do not merge records when identity is uncertain.
-Do not automatically contact clients or share information across agencies.
+Don't merge records when identity is uncertain.
+Don't automatically contact clients or share information across agencies.
 
 ## MVP
 

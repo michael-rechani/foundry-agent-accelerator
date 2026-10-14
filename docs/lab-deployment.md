@@ -2,7 +2,7 @@
 
 [Home](../README.md) / [Docs](README.md) / [The Lab](../workbench/README.md) / Deploy
 
-This page is part of the [Lab guide](../workbench/README.md). It is the runbook
+This page is part of the [Lab guide](../workbench/README.md). It's the runbook
 for deploying the Lab with the Terraform root in `workbench/infra`. To run the
 Lab on your own machine without Azure, use
 [Local development](../workbench/README.md#local-development) instead.
@@ -21,17 +21,18 @@ Lab on your own machine without Azure, use
 
 ## Deployment
 
-Run the following steps from the repository root in one PowerShell session. Stop
+Run these steps from the repository root in one PowerShell session. Stop
 if any command fails. Terraform deploys the Lab infrastructure and selects its
-image. Image building and runtime smoke tests are separate, explicit steps.
+image. Image building and runtime smoke tests are separate steps that you run
+yourself.
 
 ### 1. Confirm prerequisites and state ownership
 
-Require an existing Foundry project and tested agent, authenticated Azure access,
-Terraform 1.16.4, and an approved private-network path to the backend and
-workload. The state account and blob container must already exist. Ensure the
-executing identity has the necessary resource, role-assignment, and
-state-container access.
+You need an existing Foundry project and tested agent, authenticated Azure
+access, Terraform 1.16.4, and an approved private-network path to the backend
+and workload. The state account and blob container must already exist. Check
+that the executing identity has the resource, role-assignment, and
+state-container access it needs.
 
 If the runner is a virtual machine using its managed identity, grant any
 temporary roles before starting it. The instance metadata service caches tokens
@@ -39,42 +40,42 @@ for up to 24 hours, and tokens issued before a new grant can keep failing with
 `AuthorizationFailed`. After a late grant, deallocate and start the runner
 before retrying. Remove temporary grants once the rollout is verified.
 
-Infrastructure uses a separate Azure Storage backend key,
+Infrastructure uses its own Azure Storage backend key,
 `ai-foundry/workbench-dev.tfstate`, never the platform infrastructure key
 `ai-foundry/dev.tfstate`. The backend uses Microsoft Entra ID and Azure CLI
 authentication with blob-lease locking. Shared-key access is disabled. The
 existing account enforces HTTPS/TLS 1.2, encryption, versioning, 90-day blob
 soft-delete, and seven-day container soft-delete. Public network access is now
-disabled. Do not reopen the shared account's firewall.
+disabled. Don't reopen the shared account's firewall.
 
 For an existing local deployment, use `init -migrate-state -backend-config=backend.hcl`
-only after checking that the target key is unused. Confirm copying existing
-state; never start empty. Compare lineage and managed resource IDs before and
-after. Preserve protected local backups. State and plans must never be committed.
+only after checking that the target key is unused. Confirm that Terraform copies
+the existing state, and never start empty. Compare lineage and managed resource
+IDs before and after. Keep protected local backups. Never commit state or plans.
 Restrict state access and review inherited Azure role-based access control
 (RBAC) separately.
 
-Execute Terraform through the approved private-network path. Existing
+Run Terraform through the approved private-network path. Existing
 installations must use the resource addresses declared in the configuration.
-One-time ownership scripts are not part of the sample. Stop if a plan tries to
-recreate existing resources or destroy an older owner; resolve that
+One-time ownership scripts aren't part of the sample. Stop if a plan tries to
+recreate existing resources or destroy an older owner, and resolve that
 installation's state separately.
 
 Necessary secrets belong in Azure Key Vault and must not enter normal Terraform
 attributes. Lab runtime access is keyless managed identity. Cosmos transcripts
 remain sensitive operational data, not vault secrets. Use keyless Azure Resource
-Manager (ARM) resource reads and preserve historical backups under their
+Manager (ARM) resource reads, and keep historical backups under their
 retention policy.
 
 ### 2. Configure and initialize
 
 Create or review the local `workbench/infra/dev.tfvars` using
 [dev.tfvars.example](../workbench/infra/dev.tfvars.example). Replace example identifiers with
-your actual deployment settings; never overwrite a working environment blindly.
+your actual deployment settings, and never overwrite a working environment blindly.
 Create or review the ignored local `workbench/infra/backend.hcl` using
 [backend.hcl.example](../workbench/infra/backend.hcl.example). Replace the placeholders with
 the intended account, subscription, container, and separate Lab state key. Keep
-the existing state key for an established deployment; do not edit the tracked
+the existing state key for an established deployment. Don't edit the tracked
 example to store environment configuration.
 
 **Start from the canonical inputs, not an old local copy.** A stale
@@ -90,8 +91,8 @@ az storage blob download --auth-mode login --subscription '<state-subscription-i
 
 After a change to the inputs, upload the file again. A plan with only a new
 `image_digest` shows no change to the running image, because Terraform ignores it
-after the first apply (see "Deploy a new image from GitHub Actions"). The inputs can hold alert
-email addresses, so never commit them.
+after the first apply (see "Deploy a new image from GitHub Actions"). The inputs
+can hold alert email addresses, so never commit them.
 
 ```powershell
 terraform -chdir=workbench/infra init -backend-config=backend.hcl
@@ -104,7 +105,7 @@ instead of plain init, following the preservation checks above.
 
 ### 3. Bootstrap only a new Lab
 
-Skip this step if the Lab already exists. If its registry does not exist yet,
+Skip this step if the Lab already exists. If its registry doesn't exist yet,
 create a foundation-only plan:
 
 ```powershell
@@ -115,53 +116,53 @@ terraform -chdir=workbench/infra show "$plan"
 
 Review the foundation resources and costs. Only after approval, use the apply
 and cleanup block in step 6 on this plan, then continue to step 4. Bootstrap
-omits the app; it does not deploy a usable UI. **Never use bootstrap mode
+omits the app, so it doesn't deploy a usable UI. **Never use bootstrap mode
 against an existing app.** The `prevent_destroy` guard blocks accidental app
-destruction. Do not persist `bootstrap_only=true` into the normal deployment
+destruction. Don't persist `bootstrap_only=true` into the normal deployment
 configuration.
 
 ### 4. Build and select an immutable image
 
-`build.ps1 -Private` stages only the files `.dockerignore` allows, excluding local
+`build.ps1 -Private` stages only the files `.dockerignore` allows, leaving out local
 dependencies, state, plans, and environment files. Every top-level `*.py` module
 ships except tests and `verify_private.py`, so adding a module needs no edit to
 the Dockerfile, `build.ps1`, `test-build.ps1` or the CI compile step. Add a
 pattern to `.dockerignore` only to keep a file out of the image or to ship a new
-data file. A package directory such as `agent_templates/` is the exception: it
+data file. A package directory such as `agent_templates/` is the exception. It
 needs its own `COPY` line in the Dockerfile, a rule block in `.dockerignore` and a
 staging step in `build.ps1` (copy the `agent_runtime/` or `agent_templates/`
 pattern). `agent_templates/agents/` holds one JSON file per library agent, and its
 `.dockerignore` rules and `build.ps1` step ship every `*.json` file in it, so a new
 library agent needs no edit to either. `test_image_context.py` fails if a module or
-package that `app.py` imports isn't in the image, or a library agent file isn't let
-into it, and the build imports every module in the finished image before it
+package that `app.py` imports isn't in the image, or if a library agent file isn't
+let into it. The build also imports every module in the finished image before it
 pushes. The Premium Azure Container
 Registry (ACR) has public access and admin credentials disabled. The private
 build uses the local Linux Docker engine on the current authorized
 private-network runner, such as a jumpbox or continuous integration (CI) agent.
 Install Docker with Linux-container support, or Podman with a `docker` command that points to it, and Azure CLI. Authenticate with an
-authorized identity, preferably managed identity, and provide registry-scoped
+authorized identity, preferably managed identity, and give it registry-scoped
 push/pull permission. Both the runner and Docker engine need private DNS and
 routing to ACR, plus access to the base-image and package sources.
 
-The helper logs Docker into ACR using Azure CLI; use the runner's approved
+The helper logs Docker into ACR using Azure CLI, so use the runner's approved
 Docker credential storage. It validates the image as its non-root user before
 pushing, checks the registry's tag digest against the local build (Podman recompresses layers on push, so for Podman it compares the pushed image's config digest with the local image ID), then verifies
-a pull by immutable digest. Subscription, registry, and release tag must be
-supplied explicitly. Use a unique tag and do not overwrite it during
-verification. The helper does not create virtual machines, grant roles, or
+a pull by immutable digest. You must supply the subscription, registry, and
+release tag. Use a unique tag and don't overwrite it during
+verification. The helper doesn't create virtual machines, grant roles, or
 upload remote commands. Without `-Private`, the helper uses ACR Tasks, which
-requires an explicitly public registry; see the fallback below.
+requires a registry that is deliberately public. See the fallback below.
 
 Run `./workbench/test-build.ps1` from the repository root to check staging and
-success/failure handling with mocked Azure CLI and Docker commands. It does not
+success/failure handling with mocked Azure CLI and Docker commands. It doesn't
 contact Azure or build an image. A real build still requires the private runner
 and the push/pull verification below.
 
 Both Docker stages and the frontend CI container use immutable base-image
 digests. Refresh these deliberately and rebuild for security updates. Pinning
-prevents silent changes, but does not patch vulnerabilities. Python transitive
-dependencies still resolve during builds, so this is not a byte-for-byte
+prevents silent changes, but it doesn't patch vulnerabilities. Python transitive
+dependencies still resolve during builds, so this isn't a byte-for-byte
 reproducible build guarantee.
 
 ```powershell
@@ -169,17 +170,17 @@ reproducible build guarantee.
 ```
 
 Replace every placeholder and run from the approved private-network environment.
-Require a successful build, push, and verified pull. Record the returned digest
+The build, push, and verified pull must all succeed. Record the returned digest
 and the prior recovery image. Terraform only reads `image_digest` when it first
 creates the Container App, so for a new image on an existing Lab use the
 **Deploy Lab image** workflow instead of steps 5 and 6. For a first deploy, set
 `image_digest` in local
 `workbench/infra/image.auto.tfvars` using
-[image.auto.tfvars.example](../workbench/infra/image.auto.tfvars.example). Mutable tags are
-not accepted as deployment inputs.
+[image.auto.tfvars.example](../workbench/infra/image.auto.tfvars.example). Mutable tags aren't
+accepted as deployment inputs.
 
-**No private Docker engine?** ACR Tasks cannot reach the private registry,
-because Tasks is not an ACR trusted service, but registry import is. If briefly
+**No private Docker engine?** ACR Tasks can't reach the private registry,
+because Tasks isn't an ACR trusted service, but registry import is. If briefly
 holding the sample source and image in an authenticated public-endpoint
 registry is acceptable, build there and import by digest:
 
@@ -204,14 +205,14 @@ terraform -chdir=workbench/infra show "$plan"
 ```
 
 Stop on failure. Verify the exact image digest and review every infrastructure
-action. A normal image-only update should not recreate shared resources. For
+action. A normal image-only update shouldn't recreate shared resources. For
 first-time review support, verify the additive Cosmos DB index is ready before
 promoting the review-enabled image. Reject unrelated changes.
 
 ### 6. Apply the approved plan and clean up
 
-Applying a saved plan has no additional Terraform approval prompt. Run this
-block only after approving the plan from step 3 or step 5:
+Applying a saved plan has no further Terraform approval prompt. Run this
+block only after you've approved the plan from step 3 or step 5:
 
 ```powershell
 try {
@@ -224,8 +225,8 @@ try {
 
 For a failed or abandoned plan, run
 `Remove-Item -LiteralPath $plan -Force -ErrorAction SilentlyContinue` as well.
-Plans may contain sensitive values; do not keep them as deployment history.
-Preserve Terraform state, state backups, and source configuration. Generate a
+Plans may contain sensitive values, so don't keep them as deployment history.
+Keep Terraform state, state backups, and source configuration. Generate a
 fresh reviewed plan for a retry.
 
 ### 7. Verify the deployed application
@@ -244,8 +245,8 @@ URL. From authorized private-network access, run the sample-data runtime check:
 Replace the URL placeholder with the Terraform output. The check uses the
 deployed default agent and its configured specialist bindings. Review the
 sample application prompt before using it against a different agent profile.
-It makes one billable sample request and requires a verified specialist
-receipt when that agent has specialist tools, not just a nonempty answer.
+It makes one billable sample request. When that agent has specialist tools, the
+check requires a verified specialist receipt, and a nonempty answer isn't enough.
 
 The same check verifies Cosmos create, read, conditional update, stale-ETag
 rejection, and deletion of its own test conversation. Use `-SkipAgentCall`
@@ -260,30 +261,28 @@ The verifier also supports `--loopback` inside the existing Lab container. This
 can check the runtime through approved container-console access without starting
 a virtual machine or changing ingress. Transfer only the reviewed helper through
 the approved administration path and remove that temporary artifact afterward.
-Verification scripts are not bundled in the runtime image. Loopback results
-explicitly say that browser ingress was **not** verified. Neither path
+Verification scripts aren't bundled in the runtime image. Loopback results
+state that browser ingress was **not** verified. Neither path
 establishes model quality.
 
-Require successful private HTTPS, agent execution, and Cosmos CRUD verification.
-An infrastructure apply alone is not an application acceptance test. For the
+Successful private HTTPS, agent execution, and Cosmos CRUD verification are all
+required. An infrastructure apply alone isn't an application acceptance test. For the
 new workflow, also complete [review delivery checks](review-workflow.md#delivery-checks),
-including explicit clarification, resume, and prior-snapshot verification.
-Interrupted reviews also offer [explicit recovery](review-workflow.md#recover-an-interrupted-review)
+including clarification, resume, and prior-snapshot verification.
+Interrupted reviews also offer [recovery](review-workflow.md#recover-an-interrupted-review)
 from saved run input after a recovery window. Recovery requires cost
-confirmation, preserves the earlier attempt, and consumes another run; it does
-not turn the process-local task into a durable worker or retrieve an earlier
+confirmation, keeps the earlier attempt, and consumes another run. It doesn't
+turn the process-local task into a durable worker or retrieve an earlier
 remote result.
 
-Private runtime settings are managed by Terraform: `WORKBENCH_MODE`,
+Terraform manages the private runtime settings: `WORKBENCH_MODE`,
 `WORKBENCH_VISIBLE_AGENTS`, `WORKBENCH_DEFAULT_AGENT`, `WORKBENCH_TITLE`, exact
 host/origin allowlists, Foundry project endpoint, Cosmos endpoint, and
-managed-identity client ID. Cosmos data-plane resources are provisioned by
-Terraform, never created by the runtime.
+managed-identity client ID. Terraform provisions the Cosmos data-plane
+resources, and the runtime never creates them.
 
-The private smoke test creates a sample test conversation, verifies agent
-invocation and Cosmos create/read/update/delete, and deletes the test
-conversation afterward. Browser tests use controlled API responses and do not
-replace this deployment check.
+Browser tests use controlled API responses, so they don't replace this
+deployment check.
 
 ## Deploy a new image from GitHub Actions
 
@@ -312,7 +311,7 @@ summary or the Container App's current revision.
 ### One-time setup for a new subscription
 
 Run this once, signed in as someone who can create an Entra app registration and
-assign roles on the resource group. It is safe to run again.
+assign roles on the resource group. It's safe to run again.
 
 ```powershell
 ./workbench/setup-deploy-identity.ps1 -Subscription '<subscription-id>' -ResourceGroup '<resource-group>' `
@@ -323,7 +322,7 @@ assign roles on the resource group. It is safe to run again.
 The script creates an app registration whose only credential is a federated
 credential for the `lab-deploy` environment of your repository, plus a custom role
 that can import an image into the registry and update the one Container App. It
-cannot change registry networking, other resources, or role assignments. It reads
+can't change registry networking, other resources, or role assignments. It reads
 the repository and owner IDs with `gh` because GitHub signs the token with a subject
 that includes them. If sign-in fails with "No matching federated identity record",
 rerun the script with the subject from the error as `-FederatedSubject`.

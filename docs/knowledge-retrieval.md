@@ -53,7 +53,7 @@ policy or guidance passages from an approved Azure AI Search index and cite them
 by source identifier, while keeping the project's principles:
 
 - **Evidence-led:** every retrieved passage carries a `source_id` the answer can
-  cite, and "nothing matched" or "lookup failed" is reported honestly.
+  cite, and the answer says plainly when nothing matched or the lookup failed.
 - **People decide:** retrieval adds context; it doesn't change the decision
   boundary in [`instructions.md`](../hosted-agents/case-review-agent/instructions.md).
 - **Read-only:** the tool can only query one index, with a read-only data role.
@@ -77,7 +77,7 @@ Why this option fits the pinned versions and the private network:
 | Pinned versions | Works unchanged with `agent-framework-foundry==1.13.1`, `agent-framework-foundry-hosting==1.0.0b260918`, and `azure-identity==1.25.3` from [`requirements.txt`](../hosted-agents/case-review-agent/requirements.txt). The tool is a plain async function, the same pattern the coordinator uses for its specialist tools. |
 | Least privilege | Each hosted agent runs as its own Microsoft Entra agent identity. That identity gets **Search Index Data Reader** on **one index**. The Foundry-managed tool would instead query as the shared project managed identity, which the pinned AVM module already grants Search Index Data Contributor and Search Service Contributor on the whole service. |
 | Private networking | The Search service already has public access disabled, local (key) authentication disabled, and a private endpoint in `privatelink.search.windows.net`. The agent subnet is network-injected into the same virtual network. Keyless managed identity is the only option, which this approach uses. |
-| Bounded behavior | The code, not the model, fixes the index, `top` (at most 5), the `select` field allowlist, the simple query type, and that every query word must match. The model supplies only the query text; it can't pass a filter, index, or field list. |
+| Bounded behavior | The code, not the model, fixes the index, `top` (at most 5), the `select` field allowlist, the simple query type, and that every query word must match. The model supplies only the query text. It can't pass a filter, index, or field list. |
 | Receipts | Returns the coordinator's specialist receipt shape (`status`, `agent`, `output`) plus `retrieval` and `source_ids`, so Lab receipt verification works unchanged. The deploy smoke check also requires at least one passage. |
 | Testability | Unit-tested offline with a fake search client and with the real SDK over a mock transport. |
 | No new service | It's a tool in an existing agent, not a bespoke retrieval service, and it doesn't need Azure-side tool, connection, or toolbox creation, vectors, or an embedding model. |
@@ -96,15 +96,16 @@ pinned version.
 | --- | --- | --- |
 | **Foundry Azure AI Search tool**, called directly through `FoundryChatClient.get_azure_ai_search_tool(...)` | The Foundry tool is GA. The Agent Framework wrapper is marked experimental (`FOUNDRY_TOOLS`) in `agent-framework-foundry` 1.13.1 and emits an experimental warning. | Keyless auth uses the Foundry project managed identity with **Search Index Data Contributor** and **Search Service Contributor** (write and admin-capable), shared by every agent in the project. It needs a project connection ID. Microsoft Learn lists a vector-configured index as a prerequisite. Tool calls are hosted by Foundry, so the repository can't enforce a field allowlist or label content as untrusted. Its receipts don't use the specialist receipt shape. |
 | **Foundry toolbox** exposing Azure AI Search over MCP (`FoundryToolbox`) | Microsoft Learn recommends toolboxes for hosted agents. The toolbox itself is created in the project (`project.toolboxes.create_toolbox_version`). | Same identity and role model as the direct tool, plus an Azure-side toolbox resource to create and version. That is an Azure change this scope excludes. |
-| **`AzureAISearchContextProvider`** from `agent-framework-azure-ai-search` | Beta (`1.0.0b260910`). Requires `agent-framework-core>=1.18`, `aiohttp`, and `azure-search-documents>=12,<13`. Agentic mode needs a Search Knowledge Base and an Azure OpenAI resource. | Injects retrieved context on every turn rather than as an explicit tool call, so there's no function-call receipt to verify, and the model can't decide when a lookup is relevant. Adds a beta package. |
-| **Bespoke retrieval service** | Not applicable. | Explicitly discouraged by the [extension guide](architecture-assessment.md#features-to-evaluate-only-when-needed). It would add a new service, identity, and network path. |
+| **`AzureAISearchContextProvider`** from `agent-framework-azure-ai-search` | Beta (`1.0.0b260910`). Requires `agent-framework-core>=1.18`, `aiohttp`, and `azure-search-documents>=12,<13`. Agentic mode needs a Search Knowledge Base and an Azure OpenAI resource. | Injects retrieved context on every turn instead of through a tool call, so there's no function-call receipt to verify, and the model can't decide when a lookup is relevant. Adds a beta package. |
+| **Bespoke retrieval service** | Not applicable. | The [extension guide](architecture-assessment.md#features-to-evaluate-only-when-needed) discourages it. It would add a new service, identity, and network path. |
 
 ## Which specialist uses it
 
-Only the **Case notes summarizer** (`case-review-agent`). Its instructions
-include applicable supplied policy when the requested review needs it, and its fictional
-scenarios often lack policy text. The tool is described as a lookup for
-fictional policy and guidance passages that the answer can cite by `source_id`.
+Only the **Case notes summarizer** (`case-review-agent`) uses it. Its
+instructions include applicable supplied policy when the requested review needs
+it, and its fictional scenarios often lack policy text. The tool is described as
+a lookup for fictional policy and guidance passages that the answer can cite by
+`source_id`.
 
 The **Checklist reviewer** (`application-review-agent`) isn't changed. It must
 review against the criteria supplied in the request, and retrieved guidance
@@ -123,7 +124,7 @@ and again by the runtime inside the container.
 | `KNOWLEDGE_SEARCH_ENDPOINT` | None | Required when enabled. `https://<service>.search.windows.net` with no path, port, query, or credentials. |
 | `KNOWLEDGE_SEARCH_INDEX` | None | Required when enabled. 1 to 128 lowercase letters, digits, or dashes. |
 | `KNOWLEDGE_TOP_K` | `3` | Whole number from 1 to 5. |
-| `KNOWLEDGE_SELECT_FIELDS` | `id,title,section,content` | 1 to 8 unique field names; must include the ID field. |
+| `KNOWLEDGE_SELECT_FIELDS` | `id,title,section,content` | 1 to 8 unique field names. Must include the ID field. |
 | `KNOWLEDGE_ID_FIELD` | `id` | Field used as the citation `source_id`. |
 
 **Flag off (default).** `with_knowledge_retrieval` in
@@ -165,7 +166,7 @@ and the runtime `Agent(...)` arguments are identical with the flag unset or
 
 **Quotations.** Quotation marks keep one meaning: exact text from the request.
 Retrieved passages are a separate source. The answer paraphrases them and names
-their `source_id`; it doesn't put them in quotation marks. A quote of retrieved
+their `source_id`. It doesn't put them in quotation marks. A quote of retrieved
 text isn't in the request, so the check sends the draft back once for repair and
 then withholds the answer. The check never accepts retrieved text as evidence,
 so a passage can't supply a quotation, and a prompt-injected passage can't make
@@ -173,7 +174,7 @@ an invented quote look valid. Structured review citations also stay tied to the
 supplied evidence.
 
 **Promotion and rollback.** `deploy.py` routes 100% of traffic to the new version
-before its smoke checks run; it isn't a pre-promotion canary (see
+before its smoke checks run. It isn't a pre-promotion canary (see
 [What publication does](../hosted-agents/README.md#what-publication-does)). A
 failed check starts a best-effort rollback: it restores the previous route and
 deletes the failed version only after confirming nothing routes to it. If the
@@ -202,8 +203,8 @@ default profile, and bundle validation rejects the overlay files and
   question the sample set doesn't cover, such as "staff parking permit", from
   returning passages that only share one word like "staff". The cost is that a
   synonym finds nothing: "missing proof" doesn't match "missing evidence". The
-  answer then says no guidance was found. Semantic or vector search would fix that
-  and is a later change.
+  answer then says no guidance was found. Semantic or vector search would fix
+  that, but it's a later change.
 - Keeps only allowlisted fields, drops results without a string ID, removes
   control and bidirectional-override characters, caps each field at 2,000
   characters, and caps the output at 8,000 characters by dropping whole passages.
@@ -222,7 +223,7 @@ default profile, and bundle validation rejects the overlay files and
   ```
 
 - No matches return `succeeded` with a "No passages matched" output and empty
-  `source_ids`, so the answer can say so honestly. The deploy smoke check treats
+  `source_ids`, so the answer can say so. The deploy smoke check treats
   an empty result as a failure. Errors and timeouts (20 seconds) return `failed`
   with a generic message and no exception details, endpoint, or principal.
 - The search client gives up on its own: 5 seconds to connect, 10 seconds for the
@@ -243,7 +244,7 @@ See the [permissions reference](permissions.md) for all current assignments.
   definitions, or read admin keys.
 - Scope the reader role to the index, not the service. Per-index scoping is
   supported by Azure AI Search.
-- Don't use API keys; the service has local authentication disabled.
+- Don't use API keys. The service has local authentication disabled.
 - Grant the role before publishing. Token caching can delay a late grant, and
   the retrieval smoke check fails closed without it.
 - This design doesn't change the project identity's existing Contributor roles,
@@ -387,7 +388,7 @@ data and a shared cost:
   documents private from another visitor. Only the reviewed sample set belongs
   in the index.
 - **People approve the writes.** Creating or loading an index changes shared
-  data, so get explicit approval first, as listed in
+  data, so get approval first, as listed in
   [Operator rollout](#operator-rollout).
 
 ## Receipts in the Lab
@@ -422,15 +423,15 @@ live:
 
 ## Evaluation additions
 
-This design doesn't change the live evaluation dataset. The runner
-has one change: [`evaluations/run.py`](../evaluations/run.py) now includes any
+This design doesn't change the live evaluation dataset. The runner has one
+change. [`evaluations/run.py`](../evaluations/run.py) now includes any
 `KNOWLEDGE_*` settings in the configuration digest of the version it evaluates,
 so the digest changes when retrieval is turned on, pointed at a different index,
 or given different options. Agents without those settings keep their existing
 digests, and runs record only the hash, never the setting values.
 
 A retrieval-enabled version needs these live cases added to the dataset and run.
-They need a person-approved, loaded index and the customer flow chosen in
+They need an approved, loaded index and the customer flow chosen in
 [#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122),
 because through the coordinator only the answer's citations are visible. What
 was tried by hand, and what hasn't run, is in
@@ -453,8 +454,8 @@ the model behaves the same way.
 
 ## Cost
 
-- Uses the existing Agent Service Search service. No new Search service or tier
-  change, so no new hourly charge. The dev pilot's live-check cost is in
+- It uses the existing Agent Service Search service. There's no new Search
+  service or tier change, so no new hourly charge. The dev pilot's live-check cost is in
   [Pilot results](#pilot-results-2026-10-01).
 - A small dedicated index adds storage within the service's existing capacity.
   Simple keyword queries don't use semantic ranker or vector billing.
@@ -466,7 +467,7 @@ the model behaves the same way.
 ## Operator rollout
 
 Every step that creates, loads, or removes data, assigns a role, or publishes
-needs explicit approval first. The [pilot results](#pilot-results-2026-10-01)
+needs approval first. The [pilot results](#pilot-results-2026-10-01)
 show how these steps ran in the dev Lab.
 
 1. Take a read-only inventory of the Search service: its indexes, the project's
@@ -501,7 +502,7 @@ show how these steps ran in the dev Lab.
 
 ## Not done
 
-This lists what the design deliberately leaves out. Gaps found in the pilot and
+The design leaves out the items below. Gaps found in the pilot and
 open work are in [Pilot results](#pilot-results-2026-10-01) and tracked in
 [#122](https://github.com/michael-rechani/foundry-agent-accelerator/issues/122).
 
@@ -513,9 +514,9 @@ open work are in [Pilot results](#pilot-results-2026-10-01) and tracked in
 - No vector, hybrid, or semantic search, and no document-level authorization.
 - No search over a visitor's own documents. The Lab has no sign-in to keep them
   private.
-- The grant isn't yet made by the [add-on package](../addons/knowledge-search/DEPLOY.md), a draft
-  that holds the same role assignment as a module with a plan check. The platform's
-  `knowledge_search_access` still makes it.
+- The [add-on package](../addons/knowledge-search/DEPLOY.md) doesn't make the
+  grant yet. It's a draft that holds the same role assignment as a module with a
+  plan check. The platform's `knowledge_search_access` still makes it.
 
 ## Open decisions
 

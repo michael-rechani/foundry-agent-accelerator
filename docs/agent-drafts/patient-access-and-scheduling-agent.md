@@ -35,7 +35,7 @@ Patients, authorised caregivers, scheduling teams, and patient-access staff.
 4. Match options to supported appointment types, locations, and preferences.
 5. Present exact date, time zone, provider, location or modality, and any
    officially documented preparation requirements.
-6. Obtain explicit confirmation of the selected action.
+6. Get the patient's clear confirmation of the selected action.
 7. Recheck availability and perform the permitted booking or change.
 8. Return the system-confirmed result or explain failure and alternatives.
 9. Escalate clinical questions and scheduling exceptions to qualified staff.
@@ -50,19 +50,19 @@ Patients, authorised caregivers, scheduling teams, and patient-access staff.
 
 ## Boundaries
 
-Do not diagnose, provide treatment advice, infer clinical urgency, or choose
+Don't diagnose, provide treatment advice, infer clinical urgency, or choose
 a specialty based on symptoms without an approved clinical routing process.
-Do not override referral requirements, appointment restrictions, or staff
+Don't override referral requirements, appointment restrictions, or staff
 approval rules.
-For potentially urgent medical concerns, do not continue routine scheduling
-as though it resolves the issue; use the organisation's approved safety
+For potentially urgent medical concerns, don't continue routine scheduling
+as though it resolves the issue. Use the organisation's approved safety
 escalation guidance.
-Do not claim insurance coverage or payment guarantees.
+Don't claim insurance coverage or payment guarantees.
 
 ## MVP
 
 Support one clinic and a limited set of routine appointment types through
-one scheduling integration, with explicit patient confirmation.
+one scheduling integration, with the patient's clear confirmation.
 
 ## Success Measures
 

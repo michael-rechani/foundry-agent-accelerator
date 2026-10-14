@@ -20,7 +20,7 @@ implemented for these proposed agents. Copy this document with any agent draft.
 
 - Enforce existing identity, role, record-level, and organisation boundaries.
 - Retrieve and expose only the sensitive information necessary for the task.
-- Treat documents, messages, and retrieved content as data - not instructions.
+- Treat documents, messages, and retrieved content as data, not instructions.
 - Default to read-only retrieval and draft preparation.
 - Before an external action or record change, show its exact content and
   destination and obtain explicit approval from an authorised person.
@@ -35,4 +35,4 @@ implemented for these proposed agents. Copy this document with any agent draft.
 - Keep policy, terminology, routing, and integrations configurable.
 - Use clearly labelled synthetic data when integrations are unavailable.
 - Begin with a bounded workflow, not unrestricted autonomous operation.
-- Measure accuracy, time saved, corrections, and completed work - not chat volume.
+- Measure accuracy, time saved, corrections, and completed work, not chat volume.

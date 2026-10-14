@@ -2,9 +2,9 @@
 
 [Home](../README.md) / [Docs](README.md) / Showcase
 
-Start with a customer question, not a blank prompt. These three sample
-stories show the input, findings to check, and decision that stays with a
-person. They can be read without Azure.
+Start with a customer question instead of a blank prompt. Each of these three
+sample stories gives you the input, the findings to check, and the decision
+that stays with a person. You can read them without Azure.
 
 ## In this guide
 
@@ -25,9 +25,9 @@ before signing off?
 
 Use the [sample project and checklist](demo-inputs/application.txt).
 In **Guided demos**, choose **Checklist review**, then **Load sample
-input**. This chooses an enabled matching prebuilt agent, or a ready created
-**Checklist gap finder**. It only fills the composer: inspect the text, then
-explicitly Send.
+input**. This picks an enabled matching prebuilt agent, or a ready **Checklist
+gap finder** you created. It only fills the composer. Inspect the text, then
+send it yourself.
 
 | Source | Expected finding | Human follow-up |
 | --- | --- | --- |
@@ -49,24 +49,24 @@ an order, and a delivery record without delegating the payment decision?
 Use the [sample supplier invoice](demo-inputs/supplier-invoice.txt).
 This scenario uses a ready created **Supplier invoice reviewer**. If none is
 ready and the Lab has library previews on, it uses the library preview of the
-same template instead, and preview chats are not saved. Either way, the two
+same template instead, and preview chats aren't saved. Either way, the two
 fixed tools return the sample purchase order and delivery record for
-`PO-DEMO-2210`. They do not contact a finance system.
+`PO-DEMO-2210`. They don't contact a finance system.
 
 With neither, **Guided demos** lets you read and copy the example and points
-you to the appropriate template. Preparing the template does not publish it.
-Publication still requires the operator key, explicit cost approval, and the
+you to the matching template. Preparing the template doesn't publish it.
+Publication still requires the operator key, cost approval, and the
 existing [creation prerequisites](agent-creation.md).
 
 | Source | Expected finding | Human follow-up |
 | --- | --- | --- |
-| Line 1 / purchase order | 120 chairs at $55 were billed; 100 at $50 were ordered | Resolve quantity and price differences |
+| Line 1 / purchase order | 120 chairs at $55 were billed. 100 at $50 were ordered | Resolve quantity and price differences |
 | Line 3 / order terms | A $250 delivery fee conflicts with delivery being included | Clarify the fee |
 | Delivery record | Two received chairs have cracked seats | Decide how damage affects acceptance or payment |
 
 The tables match at 10 units and $300 each. The agent should show arithmetic
 and label any supplier email **UNSENT DRAFT**. It must not approve, hold, pay,
-reject, send a message, or claim a system update. Do not silently treat damaged
+reject, send a message, or claim a system update. Don't silently treat damaged
 chairs as accepted or rejected when presenting an amount.
 
 ## Turn scattered notes into a brief
@@ -87,21 +87,22 @@ input into an enabled matching prebuilt agent or ready created
 | Note 1 / Note 2 | Both notes give August 22 as the follow-up date | Verify the appointment |
 | Note 3 | Proof of address is still outstanding | Obtain the evidence and applicable policy |
 
-No policy is supplied. The agent should not infer an eligibility consequence,
+No policy is supplied, so the agent shouldn't infer an eligibility consequence,
 choose an unsupported date, or modify a system.
 
 ## Present without hiding the boundaries
 
 1. Open **Guided demos** and choose one story. The displayed findings are
-   what to look for, not an agent response.
+   what to look for. They aren't an agent response.
 2. Turn on **Presenter view** in the header for larger story and conversation
    text. The environment indicator and shared-record notices remain visible.
-3. Load the sample input. Existing unsaved chat messages require confirmation
-   before replacement. Nothing is automatically sent, saved, or published.
-4. In a prepared private environment, explicitly Send and compare the real reply
-   with the evidence. Calls can incur costs. In local preview, no agent is invoked.
+3. Load the sample input. Existing unsaved chat messages need confirmation
+   before replacement. Nothing is sent, saved, or published automatically.
+4. In a prepared private environment, send the message yourself and compare the
+   real reply with the evidence. Calls can incur costs. In local preview, no
+   agent is invoked.
 5. Use the **Demo guide** in Chat to keep the expected findings and human decision
-   nearby. It is separate from the model's answer.
+   nearby. It's separate from the model's answer.
 6. Choose **Start fresh with this example** to reset local messages with
    confirmation. It never deletes shared history, changes infrastructure, or
    stops a deployed agent. Record failures rather than hiding them.
@@ -109,26 +110,26 @@ choose an unsupported date, or modify a system.
 Plan for the first wait. A hosted agent starts when a new chat sends its first
 message, so that first answer takes about 30 seconds (31 and 34 seconds were
 measured on 1 October 2026). Each new chat starts its own agent, so opening a
-chat ahead of time does not speed up the next one. Talk through the expected
-findings from the **Demo guide** while it loads, then ask follow-up questions in
-the same chat: those usually answer in a few seconds, because the Lab keeps a
+chat ahead of time doesn't speed up the next one. Talk through the expected
+findings from the **Demo guide** while it loads. Then ask follow-up questions in
+the same chat. Those usually answer in a few seconds, because the Lab keeps a
 chat's agent session for up to 10 minutes. After 20 seconds, Chat shows a note
 that says the same thing.
 
-Presenter view is a browser-session display preference, not a different
-security mode. The Lab still has no individual user sign-in; everyone with
-access shares saved records. Use sample data only.
+Presenter view only changes how the page looks in your browser session. It
+isn't a different security mode. The Lab still has no individual user sign-in,
+and everyone with access shares saved records.
 
-The root URL opens the **Agent library**. Presenters can bookmark `/#demos` to
+The root URL opens the **Agent library**. You can bookmark `/#demos` to
 open **Guided demos** directly, or `/#chat`
-or `/#create`; the latter requires the creation capability. Valid saved-review
+or `/#create` (the latter requires the creation capability). Valid saved-review
 deep links continue to open their review directly.
 
 ## Present from the jump box
 
-Today an operator presents the Lab; customers don't open it themselves. The Lab
-only answers requests from the jump box, so connect to the jump box, open the Lab
-there, and share your screen. See
+Today an operator presents the Lab, and customers don't open it themselves. The
+Lab only answers requests from the jump box, so connect to the jump box, open
+the Lab there, and share your screen. See
 [Who uses the Lab today](ingress-access.md#who-uses-the-lab-today).
 
 Before the customer joins:
@@ -155,24 +156,25 @@ After the customer leaves:
 
 <img alt="Agent release journey in six numbered steps. Private foundation, built with Terraform and Azure Verified Modules: review the plan, provision separate roots, and verify private access. A configuration handoff carries the project endpoint, model deployments, identity, and private connectivity to agent releases: package the agent, publish and verify a new hosted version, then route, review, and iterate. People approve infrastructure changes, publication costs, and business decisions." src="images/agent-release-journey-dark.svg">
 
-**Foundation (steps 1 to 3):** review Terraform plans, deploy the Azure Verified Modules-based
-platform and separate Lab root, then verify private access. Keep the existing
-remote state boundaries. This is not a new landing-zone module or a one-click
-deployment promise.
+**Foundation (steps 1 to 3):** review the Terraform plans, deploy the Azure
+Verified Modules-based platform and the separate Lab root, then verify private
+access. Keep the existing remote state boundaries. This isn't a new
+landing-zone module or a promise of one-click deployment.
 
 **Configuration handoff:** supply the actual Foundry project endpoint, existing
 model deployment names, identities, and approved private connectivity. Portable
 bundles carry source and configuration, not Azure permissions, infrastructure,
 customer records, or saved conversations.
 
-**Agent releases (steps 4 to 6):** prepare a reviewed bundle, publish a new version, verify
-the appropriate runtime/route behavior, and check answers against the source.
-When a release needs correction, follow the documented guarded recovery or
-rollback path; never imply that Terraform automatically published it.
+**Agent releases (steps 4 to 6):** prepare a reviewed bundle, publish a new
+version, verify the runtime and route behavior, and check answers against the
+source. When a release needs correction, follow the documented guarded recovery
+or rollback path. Never imply that Terraform published it automatically.
 
 The prebuilt deployment CLI and operator-confirmed Lab publisher have different
-ownership and verification semantics. This diagram is their logical relationship,
-not a new universal pipeline or a guarantee of automatic rollback.
+ownership and verification semantics. The diagram shows their logical
+relationship. It isn't a new universal pipeline or a guarantee of automatic
+rollback.
 
 [View full size](images/agent-release-journey-dark.svg) ·
 [Edit the SVG template](images/agent-release-journey.template.svg)

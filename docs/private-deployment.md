@@ -2,15 +2,16 @@
 
 [Home](../README.md) / [Docs](README.md) / Private deployment
 
-Use this runbook to publish a reviewed hosted agent update from an approved
-machine inside the private network. The procedure publishes Python agent code; it
-does not deploy Azure API Management (APIM), rotate credentials, or apply
-Terraform infrastructure.
+This runbook publishes a reviewed hosted agent update from an approved machine
+inside the private network. It publishes Python agent code only. It doesn't
+deploy Azure API Management (APIM), rotate credentials, or apply Terraform
+infrastructure.
 
-Use an approved execution environment with Microsoft Foundry private Domain Name System
-(DNS) and routing. Azure CLI connectivity to Azure Resource Manager (ARM) alone
-is insufficient. Run each numbered step to completion before continuing. No
-deployment continues automatically after reading these instructions.
+You need an approved execution environment with Microsoft Foundry private Domain
+Name System (DNS) and routing. Azure CLI connectivity to Azure Resource Manager
+(ARM) alone isn't enough. Run each numbered step to completion before
+continuing. No deployment continues automatically after reading these
+instructions.
 
 ## At a glance
 
@@ -53,7 +54,7 @@ deployment continues automatically after reading these instructions.
 
 ## 2. Stage the reviewed sources
 
-Retain this layout on the private runner:
+Keep this layout on the private runner:
 
 ```text
 hosted-agents/
@@ -71,7 +72,7 @@ hosted-agents/
 
 For portable bundle deployment, stage `hosted-agents\bundle.py`,
 `hosted-agents\deployment.py`, a deployment requirements file, and the reviewed
-`.agent-bundle.zip` instead. Export/inspect need no SDK; deployment uses the
+`.agent-bundle.zip` instead. Export and inspect need no SDK. Deployment uses the
 same private runner and permissions. See
 [portable agent bundles](../hosted-agents/README.md#portable-agent-bundles).
 
@@ -80,13 +81,13 @@ SHA-256 against the local artifact and restrict execution access to operators.
 Never put credential values in scripts or transferred artifacts.
 
 For a profile-based deployment, also stage the selected non-secret profile and
-follow the [swap lifecycle](agent-profiles.md). Profile validation is offline;
-successful validation does not establish that its specialists exist or are
+follow the [swap lifecycle](agent-profiles.md). Profile validation is offline,
+and a successful result doesn't establish that its specialists exist or are
 healthy.
 
 Remote execution can outlive the initiating client connection. Record its task
-name, exit code, and restricted log location. A successful task-start message is
-not a successful agent deployment. Do not start a second task merely because a
+name, exit code, and restricted log location. A successful task-start message
+isn't a successful agent deployment. Don't start a second task merely because a
 status-read request failed.
 
 ## 3. Prepare the private runner
@@ -106,7 +107,7 @@ $env:FOUNDRY_MODEL_NAME = '<verified-model-deployment-name>'
 
 Retrieve the two non-secret values with Terraform's `foundry_project_endpoint`
 and `model_deployment_name` outputs on the administrative machine. The runner
-does not need a copy of Terraform state. Use Python's full executable path if
+doesn't need a copy of Terraform state. Use Python's full executable path if
 the current process has a stale PATH after installation.
 
 ## 4. Inventory before mutation
@@ -135,11 +136,11 @@ with ManagedIdentityCredential() as credential, AIProjectClient(
             print(name, 'not deployed')
 ```
 
-Record the currently routed versions before continuing. Do not redeploy healthy
+Record the currently routed versions before continuing. Don't redeploy healthy
 specialists merely to update the coordinator. If a specialist is missing, stage
 its equivalent five source files and deploy it first using its own requirements.
 An inventory error other than not-found is a blocker, not permission to recreate.
-An existing agent must have explicit version routing before redeployment.
+An existing agent must route to a named version before redeployment.
 Reconcile `@latest`, unknown aliases, or an unrouted agent with an operator
 instead of letting a new version change a symbolic recovery target.
 
@@ -155,13 +156,13 @@ if ($LASTEXITCODE -ne 0) { throw 'Coordinator deployment or verification failed'
 
 The deployer checks the model and specialists and snapshots the previous endpoint
 before creating an immutable version. After activation it verifies the endpoint
-hasn't changed, promotes the candidate while preserving authorization, and reads
+hasn't changed, promotes the candidate while preserving authorization. It reads
 the exact active route back before and after the general smoke test and both
 mandatory delegation checks. Clients may reach the candidate during testing.
 
 ## 6. Verify deployment and routing
 
-Require all of the following evidence before considering the update complete:
+Treat the update as complete only when you have all of this evidence:
 
 - New version becomes active.
 - Application and case delegation checks each report success.
@@ -169,21 +170,22 @@ Require all of the following evidence before considering the update complete:
 - A fresh inventory shows that version receiving the intended endpoint traffic.
 
 Record timestamps, agent/version, test outcomes, and operator identity. Avoid
-logging review bodies. Do not label a coordinator-generated sentence as proof of
+logging review bodies. Don't label a coordinator-generated sentence as proof of
 a specialist call; the verifier checks correlated structured tool results.
 
 ## 7. Handle failure and cleanup
 
 On failure, the deployer attempts previous-route restoration when promotion was
 attempted. It deletes the candidate only when a fresh route read confirms the
-candidate is not referenced. Unknown routes or failed restoration retain it.
+candidate isn't referenced. If the route is unknown or restoration fails, it
+keeps the candidate.
 
 Inspect the actual endpoint before retrying or deleting anything. Restore a
 known-good version under the same deployment lock, verify the route, then clean
 up unrouted candidates deliberately. Retained versions may incur costs.
 
 > [!CAUTION]
-> Do not weaken delegation assertions to get a green deployment. If the service
+> Don't weaken delegation assertions to get a green deployment. If the service
 > omits structured tool results, inspect the Responses protocol from the private
 > runner and resolve that contract before publishing APIM.
 

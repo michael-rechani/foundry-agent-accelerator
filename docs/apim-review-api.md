@@ -2,10 +2,11 @@
 
 [Home](../README.md) / [Docs](README.md) / Governed review API
 
-Use this guide to publish the optional review API through Azure API Management
-(APIM). The API exposes `POST /reviews/responses` and forwards each request to a
-named coordinator in the private Foundry project, so changing the selected agent
-doesn't require a different client URL.
+The optional review API runs through Azure API Management (APIM). It exposes
+`POST /reviews/responses` and forwards each request to a named coordinator in
+the private Foundry project, so changing the selected agent doesn't require a
+different client URL. Below you'll find the inputs, prerequisites, steps, and
+acceptance gates for publishing it.
 
 > [!IMPORTANT]
 > APIM is currently disabled to avoid idle capacity charges. The Terraform module
@@ -42,7 +43,7 @@ doesn't require a different client URL.
 | Request size | Nonblank `input` up to 60,000 characters and an APIM body limit of 65,536 bytes |
 | Backend wait | Up to 180 seconds for response headers |
 | Cache behavior | `Cache-Control: no-store` |
-| Default state | No APIM service or review API is deployed unless explicitly enabled |
+| Default state | No APIM service or review API is deployed unless you enable it |
 
 ## Terraform inputs
 
@@ -52,16 +53,16 @@ control and protect any plan or state files that include these values.
 | Variable or field | Purpose and validation |
 | --- | --- |
 | `enable_api_management` | Creates a one-unit Standard v2 APIM gateway. Defaults to `false`. |
-| `approve_public_api_management` | Explicit approval for the publicly reachable gateway. Defaults to `false`; Terraform refuses to plan with `enable_api_management = true` until it is `true`. |
-| `api_management_location` | Azure region for APIM and its virtual network (VNet) integration subnet. Defaults to `westus`; allowed values are `westus`, `westus3`, `southcentralus`, and `northcentralus`. When APIM is enabled, it must equal `jumpbox_location` for the shared management VNet region. |
+| `approve_public_api_management` | Approval for the publicly reachable gateway. Defaults to `false`. Terraform refuses to plan with `enable_api_management = true` until it is `true`. |
+| `api_management_location` | Azure region for APIM and its virtual network (VNet) integration subnet. Defaults to `westus`. Allowed values are `westus`, `westus3`, `southcentralus`, and `northcentralus`. When APIM is enabled, it must equal `jumpbox_location` for the shared management VNet region. |
 | `api_management_subnet_address_prefixes` | Address prefixes for the dedicated APIM VNet integration subnet. Defaults to `["10.43.1.0/24"]`. |
 | `api_management_publisher_email` | Publisher email. Required when APIM is enabled and validated as an email address. |
 | `api_management_publisher_name` | Publisher name shown by APIM. Defaults to `Foundry Agent Accelerator`. |
 | `review_api` | Optional coordinator API authorization object. Defaults to `null`, which leaves the API unpublished. Requires `enable_api_management = true` when set. |
-| `review_api.audience` | Dedicated Microsoft Entra ID API audience. Terraform accepts a GUID or `api://GUID`; it rejects a general Azure audience. |
+| `review_api.audience` | Dedicated Microsoft Entra ID API audience. Terraform accepts a GUID or `api://GUID`, and it rejects a general Azure audience. |
 | `review_api.allowed_caller_object_ids` | Nonempty set of approved caller principal object IDs. For app-only callers, use the tenant's service principal object ID, not the application ID. For delegated access, use the user's object ID. |
 | `review_api.allowed_client_app_ids` | Nonempty set of approved client application IDs. |
-| `review_api.agent_name` | Named coordinator endpoint. Defaults to `review-coordinator-agent`; use a valid named agent, not a URL or path. |
+| `review_api.agent_name` | Named coordinator endpoint. Defaults to `review-coordinator-agent`. Use a valid named agent, not a URL or path. |
 
 ## Publication prerequisites
 
@@ -114,8 +115,8 @@ enable APIM just to use the internal Lab.
 3. Review the saved plan.
 
    Review the full saved plan. Don't apply unrelated infrastructure changes
-   merely to publish this API. State and plan files can contain sensitive data and
-   must remain restricted.
+   merely to publish this API. State and plan files can contain sensitive data,
+   so keep them restricted.
 
 4. Apply only the reviewed plan.
 
@@ -161,8 +162,8 @@ streaming, or caller-supplied model or tool overrides in this initial contract.
 5. Replace caller authorization with APIM managed-identity authentication for
    `https://ai.azure.com`. Use the fixed named-agent backend and discard unmatched
    query parameters. No automatic retries or redirects are enabled.
-6. Wait up to 180 seconds for backend response headers. This is not a total
-   execution deadline and doesn't cancel remote work already accepted.
+6. Wait up to 180 seconds for backend response headers. This isn't a total
+   execution deadline, and it doesn't cancel remote work already accepted.
 7. Return the Responses body with `x-correlation-id` and
    `Cache-Control: no-store`.
 
@@ -192,8 +193,8 @@ platform-level errors outside this policy may use its native response format.
 
 HTTP 200 doesn't establish review correctness or specialist success. Clients must
 inspect Responses status and correlated tool receipts, and handle a clarifying
-question separately from a completed review. No automatic business decision or
-record-level authorization is supplied by this gateway.
+question separately from a completed review. This gateway supplies no automatic
+business decision or record-level authorization.
 
 ## Acceptance gates
 

@@ -8,17 +8,15 @@
 [![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](hosted-agents/README.md)
 [![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-hosted_agents-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
 
-**One foundation. Repeatable agent releases.**
-
 Build, deploy, and explore agents on **Microsoft Foundry** (formerly Azure AI
 Foundry). The Lab is a customer demo and workshop experience backed by reusable
-code: browse a library of sample agents, read how each one did on its test
-cases, try one with sample data, and take it to your own Microsoft Foundry. You
-can also publish agents from the same templates and explore prebuilt agents
-working as a team.
+code. You can browse a library of sample agents, read how each one did on its
+test cases, try one with sample data, and take it to your own Microsoft
+Foundry. You can also publish agents from the same templates and watch
+prebuilt agents work as a team.
 
-Start with a practical question. Find what is missing from an application,
-check what does not add up on an invoice, or clarify a caseworker's next step.
+Start with a practical question. Find what's missing from an application,
+check what doesn't add up on an invoice, or clarify a caseworker's next step.
 Then compare the agent's actual answer with the sample source.
 
 The Azure deployment runs privately in your subscription. Local preview makes
@@ -44,19 +42,19 @@ no model calls. This is a sample, not an official Microsoft product.
 
 1. **Browse agents:** the agent library lists every sample agent, and **Start
    here** offers three ready-made examples.
-2. **Test results:** read how an agent did on its recorded test cases: how many
-   answers passed, how long it took, what it cost, and whether a person has
-   signed it off yet.
-3. **Chat:** talk with an agent. An example only fills the message box; you
+2. **Test results:** see how an agent did on its recorded test cases. You get
+   how many answers passed, how long it took, what it cost, and whether a
+   person has signed it off yet.
+3. **Chat:** talk with an agent. An example only fills the message box, and you
    choose when to send it.
 4. **Take it to Foundry:** download the agent definition and its test requests,
-   then follow the steps to create it in your own Microsoft Foundry. There is
+   then follow the steps to create it in your own Microsoft Foundry. There's
    no one-click move between environments.
 5. **Create agent:** prepare an agent from one of the library's templates. It
    stays off until an operator turns it on.
 
 *The screenshots come from automated
-browser tests with sample data. They are not a live model run.*
+browser tests with sample data. They aren't a live model run.*
 
 [Open the full tour](docs/images/lab-tour-dark.svg) ·
 [Create agent screenshot](docs/images/screenshots/lab-create-agent-dark.png) ·
@@ -72,16 +70,17 @@ browser tests with sample data. They are not a live model run.*
 
 ## Get started
 
-Choose the path that fits your session:
+Pick the path that matches what you want to do:
 
 - **Explore without deploying.** Read the [showcase and presenter guide](docs/showcase.md)
-  for sample inputs, expected findings, and the questions a person must
-  resolve. No Azure environment is needed to read the walkthroughs.
+  for sample inputs, expected findings, and the questions a person still has to
+  settle. You don't need an Azure environment to read the walkthroughs.
 
 - **Browse the agent library.** In a deployed Lab, look through the sample
-  agents, what each one leaves to a person, and how it did on its recorded test
-  cases. Browsing, reading test results, and downloading an agent definition make
-  no model calls; trying an agent does. See the [Lab guide](docs/lab-pages-and-access.md#pages).
+  agents, see what each one leaves to a person, and check how it did on its
+  recorded test cases. Browsing, reading test results, and downloading an agent
+  definition make no model calls. Trying an agent does. See the
+  [Lab guide](docs/lab-pages-and-access.md#pages).
 
 - **Create your own agent.** Follow [Create and try a baseline agent](docs/agent-creation.md).
   You need an operator-enabled Lab, one or more model deployments, and cost approval.
@@ -90,16 +89,17 @@ Choose the path that fits your session:
   Lab. Reading the walkthroughs and expected findings needs nothing.
 
 - **Check answer quality.** Start with [evaluations](evaluations/README.md).
-  Offline checks need no Azure environment; live runs need a test environment
+  Offline checks need no Azure environment. Live runs need a test environment
   and approval.
 
 - **Deploy your environment.** Follow [Deploy to Azure](#deploy-to-azure).
   You need Azure permissions, model quota, approved private network access,
   and cost approval.
 
-For initial public-sector and healthcare concepts, see the
-[agent drafts](docs/agent-drafts/README.md). These documentation-only definitions
-and shared safeguards are not implemented, registered, or deployed agents.
+If you're after early public-sector and healthcare ideas, see the
+[agent drafts](docs/agent-drafts/README.md). They're documentation-only
+definitions and shared safeguards, not implemented, registered, or deployed
+agents.
 
 ---
 
@@ -120,9 +120,9 @@ findings to look for and a decision that stays with a person.
 | [Turn scattered notes into a brief](docs/showcase.md#turn-scattered-notes-into-a-brief) | Supported facts, conflicting dates, and missing evidence. | Verify the authoritative record and determine the next steps. |
 
 The invoice story runs on a ready **Supplier invoice reviewer** created from its
-template or, when the Lab has library previews on, on the library preview of
-that template. Either way it uses built-in lookups with sample data, not a
-finance integration.
+template. If the Lab has library previews on, it can run on the library preview
+of that template instead. Either way it uses built-in lookups with sample data,
+and there's no finance integration.
 
 [Watch all three stories](docs/images/scenario-tour-dark.svg)
 
@@ -154,18 +154,21 @@ finance integration.
 ### Deploy privately
 
 **[Private, keyless deployment](terraform/README.md):** use Terraform to deploy
-onto private networks. Services use managed identities, not API keys.
+onto private networks. Services sign in with managed identities instead of API
+keys.
 
 **Create agent** is off until an operator turns it on, because publishing
 creates Azure resources that cost money.
 
-The Lab opens on the **Agent library**; **Chat** remains one click away. The
+The Lab opens on the **Agent library**, and **Chat** is one click away. The
 sidebar has **Agent library** (**All agents**, plus **Create agent** when
 creation is on) and **Try it** (Chat and Shared history). **Operations** (a
 health overview, response times, tokens, cost, and the request log) appears when
-you turn on **Under the hood**. **All agents** has tabs for **Browse**, **Ready to chat**,
-**Made in this Lab**, **Guided demos**, and **Add-ons**. **Document reviews** has
-no sidebar link; open `/#reviews` or a saved-review link. See the
+you turn on **Under the hood**.
+
+**All agents** has tabs for **Browse**, **Ready to chat**, **Made in this Lab**,
+**Guided demos**, and **Add-ons**. **Document reviews** has no sidebar link, so
+open `/#reviews` or a saved-review link. See the
 [Lab guide](docs/lab-pages-and-access.md#pages).
 
 ---
@@ -174,14 +177,14 @@ no sidebar link; open `/#reviews` or a saved-review link. See the
 
 ## How it works
 
-Each diagram answers one question, follows your GitHub theme, and numbers its
-steps in the same order as the list below it.
+Each diagram answers one question and follows your GitHub theme. Its numbered
+steps match the list below it.
 
 ### One foundation, two connected workflows
 
-Terraform prepares the private foundation once. Agents are then released,
-verified, and revised on their own schedule, connected by an explicit
-configuration handoff.
+Terraform sets up the private foundation once. After that, you release, verify,
+and revise agents on their own schedule. A configuration handoff connects the
+two workflows.
 
 <img alt="Agent release journey in six numbered steps. Private foundation, built with Terraform and Azure Verified Modules: review the plan, provision separate roots, and verify private access. A configuration handoff carries the project endpoint, model deployments, identity, and private connectivity to agent releases: package the agent, publish and verify a new hosted version, then route, review, and iterate. People approve infrastructure changes, publication costs, and business decisions." src="docs/images/agent-release-journey-dark.svg">
 
@@ -192,14 +195,14 @@ configuration handoff.
 3. **Verify private access.** Check network paths and identities in the
    intended environment.
 4. **Package the agent.** Bundle its source and configuration manifest, with
-   explicit model deployment mappings.
+   named model deployment mappings.
 5. **Publish and verify.** Create a new hosted version and check the
    documented release gates.
 6. **Route, review, and iterate.** Check answers against evidence, and use
    guarded recovery if a release misbehaves.
 
-*A logical workflow. A code push doesn't deploy either workflow, and a bundle
-carries configuration, not Azure permissions.*
+*This is a logical workflow. A code push doesn't deploy either workflow, and a
+bundle carries configuration, not Azure permissions.*
 
 [View full size](docs/images/agent-release-journey-dark.svg) ·
 [Edit the SVG template](docs/images/agent-release-journey.template.svg) ·
@@ -211,8 +214,8 @@ carries configuration, not Azure permissions.*
 The core platform runs in one subscription on private networks. Services sign in
 with managed identities, not API keys. Three optional pieces add something
 public: the Bastion host's static public IP, the jump box's outbound IP, and the
-Azure API Management gateway. Each is off unless you turn it on, and each also needs an
-explicit `approve_*` Terraform input; see the
+Azure API Management gateway. Each is off unless you turn it on, and each also
+needs its own `approve_*` Terraform input. Read the
 [Terraform guide](terraform/README.md) before you do.
 
 <img alt="Azure architecture at a glance: one subscription and resource group hold an admin network, a private workload network, Microsoft Foundry, data services, and shared services. The admin network has subnets for optional Azure Bastion and an optional jumpbox and is peered with the workload network. The workload network has subnets for the Lab in an internal Azure Container Apps environment, the agent network delegated to Foundry, and one private endpoint for each service. Seven numbered steps follow a request from the presenter through Bastion, the jumpbox, and the Lab to Foundry Agent Service and Foundry Models, then through the agent network to Azure Cosmos DB, Azure Storage, and Azure AI Search" src="docs/images/azure-architecture-dark.svg">
@@ -229,8 +232,9 @@ explicit `approve_*` Terraform input; see the
    Storage, and AI Search through their private endpoints.
 7. The Lab saves its records in Cosmos DB through the same private endpoint.
 
-*Logical view with Terraform default addresses, not a resource inventory.
-Bastion and the jumpbox are optional; API Management isn't shown.*
+*This is a logical view with Terraform default addresses, not a resource
+inventory. Bastion and the jumpbox are optional, and API Management isn't
+shown.*
 
 [View full size](docs/images/azure-architecture-dark.svg) ·
 [Edit the SVG template](docs/images/azure-architecture.template.svg) ·
@@ -253,8 +257,8 @@ specialists. You still check the returned findings against the source.
 4. **You check the answer** against the source. A completed tool call doesn't
    prove the findings are correct.
 
-*It calls one specialist by default, or both only if you ask. There is no
-automatic approval, denial, or external action.*
+*It calls one specialist by default, or both only if you ask. No approval,
+denial, or external action happens automatically.*
 
 [View full size](docs/images/agent-collaboration-dark.svg) ·
 [Edit the SVG template](docs/images/agent-collaboration.template.svg) ·
@@ -308,9 +312,9 @@ All diagrams share one [style guide](docs/images/README.md#diagram-style).
 
 ### Tool versions and upgrades
 
-Check only the tools needed for your task. Reading docs, preparing sample
-inputs, and running mocked tests need no Azure sign-in or end-user Entra setup.
-Local tests do not require `azd`.
+Check only the tools your task needs. Reading docs, preparing sample inputs,
+and running mocked tests need no Azure sign-in or end-user Entra setup, and
+local tests don't require `azd`.
 
 | Tool | Repository baseline | When needed / source of truth |
 | --- | --- | --- |
@@ -321,20 +325,20 @@ Local tests do not require `azd`.
 | Azure CLI | No minimum version pinned by this repository | Azure authentication and the documented operator/build helpers only; not needed for offline unit/browser tests. Use an organization-approved current release. |
 | Docker | No engine version pinned; Linux `amd64` builds | The local path in [`workbench/build.ps1`](workbench/build.ps1), not ordinary UI/Python tests. Base images are digest-pinned in the Dockerfile. |
 
-Check the selected executables with `terraform version`, `python --version`,
+Check the executables you picked with `terraform version`, `python --version`,
 `node --version`, `$PSVersionTable.PSVersion`, and, when applicable, `az version`
 and `docker version`. A full executable path avoids a stale Windows PATH or a
-different Python on PATH; Terraform test helpers accept `-TerraformCommand`.
-Do not lower pins to make an older local tool pass.
+different Python on PATH. Terraform test helpers accept `-TerraformCommand`.
+Don't lower pins to make an older local tool pass.
 
 After pulling an update, recreate or update the affected Python environment and
 rerun `npm ci` when the frontend lock changes. Ordinary Terraform initialization
-uses the lock; use `init -upgrade` only for an intentional, reviewed provider or
+uses the lock. Use `init -upgrade` only for an intentional, reviewed provider or
 module update. Review SDK/API compatibility, lockfile and image-digest changes,
 and the [automated release checks](#automated-checks) together. A package-mirror
 404 or TLS failure is an installation problem, not a reason to rewrite the
-lockfile: use an approved source or exact-pin CI and disclose any local version
-differences. Passing offline checks is not a deployment acceptance test; any
+lockfile. Use an approved source or exact-pin CI, and disclose any local version
+differences. Passing offline checks isn't a deployment acceptance test. Any
 private rollout or billable live check still needs separate approval.
 
 Start with the [troubleshooting index](docs/troubleshooting.md#tools-and-dependencies)
@@ -379,12 +383,12 @@ To deploy from a separate private machine, use the
 - **Test results are recorded evidence, not a guarantee.** Each library agent
   was asked five test cases, five times each, with sample data. A case passes
   only if every answer for it passes. An agent shows **Waiting for a person**
-  until someone reads the recorded answers and signs off; the test runner never
+  until someone reads the recorded answers and signs off. The test runner never
   records a sign-off. See [agent library scorecards](docs/library-scorecards.md).
 
 - **Access is by network, not by user.** The Lab has no sign-in. It accepts
   traffic only from the private admin network, such as the jumpbox reached
-  through Azure Bastion, and everyone with that access shares the same saved
+  through Azure Bastion. Everyone with that access shares the same saved
   records. Before you go further, see the
   [production checklist](terraform/README.md#separately-scoped-production-considerations).
 
@@ -399,8 +403,8 @@ To deploy from a separate private machine, use the
 | Folder | What it contains |
 | --- | --- |
 | [`workbench/`](workbench/) | The Lab: React front end, FastAPI backend, browser tests, and its own Terraform |
-| [`hosted-agents/`](hosted-agents/) | Coordinator and specialist agents; scripts to publish, test, and roll back versions |
-| [`terraform/`](terraform/) | Private Foundry platform using Azure Verified Modules (AVM); optional Bastion and monitoring roots |
+| [`hosted-agents/`](hosted-agents/) | Coordinator and specialist agents. Scripts to publish, test, and roll back versions. |
+| [`terraform/`](terraform/) | Private Foundry platform using Azure Verified Modules (AVM). Optional Bastion and monitoring roots. |
 | [`evaluations/`](evaluations/) | Test cases, offline checks, and optional live Foundry evaluations |
 | [`addons/`](addons/) | Optional add-on manifests, their checks, and the data behind the Lab's **Add-ons** tab |
 | [`docs/`](docs/) | Demo walkthroughs, sample inputs, architecture, and operations guides |
@@ -480,8 +484,8 @@ dependencies.
 Major versions and the preview agent hosting package are upgraded by hand.
 Merge an update only after its checks pass.
 
-For Docker and Terraform changes, also verify a deployment, because the
-checks don't build the image or plan against live resources.
+The checks don't build the image or plan against live resources. For Docker and
+Terraform changes, verify a deployment too.
 
 Python correctness linting and dependency compatibility checks run alongside
 the Python 3.14 regression job. The frontend compiles with strict
@@ -496,7 +500,7 @@ conversations, use the
 ## License and sharing
 
 This repository is private and has no open-source license, so no one has
-permission to copy, reuse or share it. It is a sample, not an official Microsoft
+permission to copy, reuse, or share it. It's a sample, not an official Microsoft
 product. If the owner decides to share it outside the team, add a `LICENSE` file
 first.
 

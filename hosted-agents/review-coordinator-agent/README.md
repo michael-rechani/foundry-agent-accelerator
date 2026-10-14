@@ -2,11 +2,11 @@
 
 [Home](../../README.md) / [Hosted agents](../README.md) / Checklist and case helper
 
-Use the Checklist and case helper to route supplied review material to the
-application or case specialist. The coordinator returns specialist findings for
-human review; it does not approve, deny, rank, or fabricate a specialist result.
-The default profile is published in Microsoft Foundry as
-`customer-review-coordinator`; the base runtime is published as
+The Checklist and case helper routes supplied review material to the application
+or case specialist. The coordinator returns specialist findings for human
+review. It doesn't approve, deny, rank, or fabricate a specialist result. The
+default profile is published in Microsoft Foundry as
+`customer-review-coordinator`, and the base runtime is published as
 `review-coordinator-agent`.
 
 ## At a glance
@@ -30,15 +30,15 @@ runtime reaches through `review_application` and `review_case`.
 
 Both Lab entries can ask what input is needed or run an application or case
 review. Select one scenario, not every review type. Routing to review
-specialists is not business-request triage. There are no ticket, notification,
+specialists isn't business-request triage. There are no ticket, notification,
 external-action, or simulated human-approval tools here.
 
 Give the coordinator an application and checklist, or case notes with any
-relevant rules. It picks the matching specialist so the checklist reviewer can
-build a checklist table or the case agent can summarize notes. The coordinator
-uses both specialists only when requested, and returns their findings, document
-references, and follow-up questions. Chat uses these preconfigured agents; it
-cannot create or configure one.
+relevant rules. It picks the matching specialist, so the checklist reviewer can
+build a checklist table or the case agent can summarize notes. It uses both
+specialists only when you ask, and it returns their findings, document
+references, and follow-up questions. Chat uses these preconfigured agents. It
+can't create or configure one.
 
 Ordinary Chat returns prose. For **Document reviews**, the caller supplies a
 structured JSON result schema. The coordinator forwards that schema with all
@@ -51,24 +51,25 @@ Runtime middleware replaces model-written tool request arguments with the
 original user messages in order, excluding generated assistant history. The
 specialist therefore receives the source wording, not a routing-model paraphrase.
 After its tools finish, runtime middleware checks the correlated call IDs,
-configured tool/agent bindings and successful receipts, then returns the full
-specialist text without another model call. Tables, calculations and questions
-therefore remain unchanged. A single JSON result is returned without a label or
-wrapper; ordinary Chat adds only the specialist label. Multiple prose results
-stay separate; multiple structured results fail rather than inventing a merged
-schema. Invalid or failed receipts produce an error, not a substitute review.
-The example profile and base instructions are checked for behavioral parity,
-allowing only their different tool names.
+configured tool/agent bindings and successful receipts. It then returns the full
+specialist text without another model call, so tables, calculations and
+questions remain unchanged. A single JSON result is returned without a label or
+wrapper, and ordinary Chat adds only the specialist label. Multiple prose
+results stay separate. Multiple structured results fail rather than inventing a
+merged schema. Invalid or failed receipts produce an error, not a substitute
+review. The example profile and base instructions are checked for behavioral
+parity, allowing only their different tool names.
 
-Use a directly enabled specialist when the task is already known; the optional
-coordinator is useful when one entry point must handle both application and case
+When the task is already known, use a directly enabled specialist. The optional
+coordinator helps when one entry point must handle both application and case
 requests. It adds model work and another opportunity to alter findings. The
 runtime no longer asks the model to rewrite successful specialist output.
-Initial tool selection is still model-generated, not a
-deterministic routing or first-batch call-count guarantee. Live acceptance must
-check the selected tool, unchanged forwarded evidence and useful findings, not just text
-equality. A direct specialist also avoids the coordinator's initial routing
-inference; no fixed latency improvement is promised.
+Initial tool selection is still model-generated, so there's no guarantee of
+deterministic routing or a first-batch call count. Live acceptance must check
+the selected tool, the unchanged forwarded evidence, and whether the findings
+are useful. Text equality alone isn't enough. A direct specialist also avoids the
+coordinator's initial routing inference, though no fixed latency improvement is
+promised.
 
 | Request | Tool | Default hosted agent |
 | --- | --- | --- |
@@ -81,11 +82,12 @@ inference; no fixed latency improvement is promised.
 ## Try the scenario
 
 1. Follow the [private deployment runbook](../../docs/private-deployment.md).
-2. Deploy the specialists before the coordinator; inventory before redeploying.
+2. Deploy the specialists before the coordinator, and inventory before
+   redeploying.
 3. Submit either [example request](example-request.md) to the coordinator's
    Foundry Responses endpoint from a network-connected client.
 4. Check source references and inspect structured tool output. Naming a
-   specialist in the answer alone is not evidence of delegation.
+   specialist in the answer isn't evidence of delegation.
 
 ### Illustrative application result
 
@@ -95,14 +97,14 @@ This is an expected result shape, **not captured live output**. Wording can vary
 | --- | --- | --- |
 | CRIT-1: provide a budget | Budget is not evidenced in the supplied material | APP-1 describes activities but supplies no budget |
 
-Clarification: request the missing budget. Do not infer approval, denial, or
+Clarification: request the missing budget. Don't infer approval, denial, or
 eligibility from this gap.
 
 A verified execution requires a `function_call` named `review_application` and a
 `function_call_output` with the same `call_id`. The tool emits a JSON success
 receipt only after a completed, nonempty specialist response. Both application
 and case paths are mandatory deployment checks. An empty general smoke prompt
-does not skip them.
+doesn't skip them.
 
 ## Customer profiles
 
@@ -112,7 +114,7 @@ runner. Profiles replace the default tools and instructions and require a smoke
 test for every tool, including verification of the expected target agent.
 
 See [platform boundaries and swap lifecycle](../../docs/agent-profiles.md) and
-the [example profile](profiles/evidence-review.example.json). A profile does not
+the [example profile](profiles/evidence-review.example.json). A profile doesn't
 deploy its specialists, grant permissions, or isolate customer data.
 
 ## Runtime controls
@@ -130,8 +132,8 @@ deploy its specialists, grant permissions, or isolate customer data.
 
 The shared deployer sets project and model values and the default runtime
 behavior. Profiles configure specialist names, descriptions, and tool names.
-Runtime limits still require a reviewed deployment-definition change.
-Cancellation releases local resources but cannot guarantee remote execution
+Changing runtime limits still requires a reviewed deployment-definition change.
+Cancellation releases local resources but can't guarantee remote execution
 stops.
 
 Read [instructions.md](instructions.md) for routing and evidence boundaries. For
