@@ -60,7 +60,7 @@ This package adds no charge. A role assignment is free, and the Search service
 already exists and is already in the
 [deployed budget](../../cost-comparison/scenario.deployed.json). Each lookup an
 agent makes adds model tokens for at most 8,000 characters of retrieved
-passages; see [Cost](../../docs/knowledge-retrieval.md#cost).
+passages. See [Cost](../../docs/knowledge-retrieval.md#cost).
 
 Read the saved plan with `terraform show knowledge-search.tfplan`. It must show
 exactly one change:
@@ -80,7 +80,7 @@ A person approves the saved plan. Before you approve, confirm that:
 
 - The plan check passed, and you read the plan yourself.
 - You approve loading the sample passages into the shared Search service (see
-  [`bootstrap.md`](bootstrap.md)). That is shared data.
+  [`bootstrap.md`](bootstrap.md)). That's shared data.
 - You approve each live acceptance case that makes a model call. Those calls are
   billable.
 

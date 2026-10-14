@@ -2,8 +2,8 @@
 
 [Home](../../README.md) / [Infrastructure](../README.md) / Bastion
 
-Use this guide to adopt or deploy the dedicated Standard Azure Bastion host for
-the private management network. This Terraform root manages only Azure Bastion,
+Adopt or deploy the dedicated Standard Azure Bastion host for the private
+management network here. This Terraform root manages only Azure Bastion,
 its dedicated `AzureBastionSubnet`, and its Standard static public IP. It reads
 the existing management virtual network (VNet) without taking ownership of the
 VNet, Windows virtual machine (VM), or Microsoft Foundry services.
@@ -26,15 +26,15 @@ Run commands in `terraform/bastion/`, not in the parent platform root.
 > [!WARNING]
 > Standard Azure Bastion is billed continuously while it exists, even when the VM
 > is stopped or no sessions are open. Terraform also sets `prevent_destroy` on
-> all three managed resources. Do not remove that protection to force an upgrade
-> or cleanup; plan deletion as a separate approved operation.
+> all three managed resources. Don't remove that protection to force an upgrade
+> or cleanup. Plan deletion as a separate approved operation.
 
 ## Existing host upgrade
 
 Use this procedure when an existing Developer Bastion host already supports the
 management VNet. Standard replaces Developer's shared infrastructure with two
-dedicated instances. An upgrade can interrupt active sessions. The upgrade does
-not guarantee that guest operating system or client-network problems are fixed.
+dedicated instances. An upgrade can interrupt active sessions. It doesn't
+guarantee that guest operating system or client-network problems are fixed.
 Downgrading requires deleting and redeploying Bastion, and this configuration
 intentionally prevents destruction.
 
@@ -42,14 +42,14 @@ intentionally prevents destruction.
 2. Supply the existing subscription, resource group, VNet, and Bastion names.
    Standard Bastion needs a static public IP, so Terraform refuses to plan until
    you set `approve_bastion_public_ip = true`. Set it only after approving that
-   public IP; it changes no resources for a host that already has one.
+   public IP. It changes no resources for a host that already has one.
 3. Verify that the subnet range is unused and inside the VNet.
 4. Preserve any existing Bastion tags.
 5. Copy `backend.hcl.example` to ignored `backend.hcl`.
 6. Configure the existing secured state account. Use a **separate state key**,
    never the platform's `ai-foundry/dev.tfstate` or the Lab's
    `ai-foundry/workbench-dev.tfstate`.
-7. Before importing, verify the host is not owned by another state. If another
+7. Before importing, verify that no other state owns the host. If another
    state already owns it, reconcile that ownership first rather than importing
    it twice.
 8. Run from an authorized private-network environment with access to the
@@ -59,7 +59,7 @@ intentionally prevents destruction.
    runner, replace `use_cli = true` with `use_msi = true` in the backend
    configuration and configure AzAPI managed-identity authentication.
 10. Initialize and import the existing host. Import existing subnet and IP
-    resources too if they already exist; do not attempt to create duplicates.
+    resources too if they already exist, and don't try to create duplicates.
 
 ```powershell
 terraform init "-backend-config=backend.hcl"
@@ -90,8 +90,8 @@ terraform plan "-var-file=dev.tfvars" -detailed-exitcode
 
 The final plan should exit 0 with no changes. Inspect the host's Azure
 provisioning state and reconnect to the Windows VM through the portal. Open
-Foundry in the remote desktop browser; Bastion does not route your local browser
-into the private VNet. Do not put public IPs on the VM or open its Remote
+Foundry in the remote desktop browser, because Bastion doesn't route your local
+browser into the private VNet. Don't put public IPs on the VM or open its Remote
 Desktop Protocol (RDP) port to the internet.
 
 ## Troubleshooting
@@ -99,8 +99,8 @@ Desktop Protocol (RDP) port to the internet.
 | Symptom | Likely cause | What to do |
 | --- | --- | --- |
 | The plan wants to recreate the Bastion host. | The import target, name, or state ownership is wrong. | Stop, confirm the existing resource ID, and reconcile the owning state before planning again. |
-| The plan wants to create duplicate subnet or IP resources. | Existing supporting resources were not imported. | Import the existing `AzureBastionSubnet` or public IP into the declared Terraform addresses. |
-| The portal session still cannot reach Foundry. | Bastion gives remote desktop access only; it does not fix guest operating system, DNS, or route problems. | Test DNS and routing from the VM browser inside the private network. |
+| The plan wants to create duplicate subnet or IP resources. | Existing supporting resources weren't imported. | Import the existing `AzureBastionSubnet` or public IP into the declared Terraform addresses. |
+| The portal session still can't reach Foundry. | Bastion gives remote desktop access only. It doesn't fix guest operating system, DNS, or route problems. | Test DNS and routing from the VM browser inside the private network. |
 | Terraform refuses to destroy a resource. | `prevent_destroy` is working as designed. | Use a separately reviewed deletion process instead of bypassing the lifecycle guard. |
 
 ## Offline checks
@@ -112,7 +112,7 @@ terraform validate
 terraform test
 ```
 
-Tests use a mock provider; they do not deploy resources or demonstrate live
+Tests use a mock provider. They don't deploy resources or demonstrate live
 session stability. See Microsoft's
 [upgrade guidance](https://learn.microsoft.com/azure/bastion/upgrade-sku) and
 [Bastion pricing](https://azure.microsoft.com/pricing/details/azure-bastion/).

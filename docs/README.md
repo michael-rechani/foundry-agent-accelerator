@@ -56,13 +56,13 @@ For developers who change agents, evaluate quality, or extend the architecture.
 | [Coordinator profiles](agent-profiles.md) | Point the coordinator at different instructions and specialists. |
 | [Evaluations](../evaluations/README.md) | Test answer quality offline, or find the live evaluation reference pages. |
 | [Evaluation test cases and acceptance](evaluation-test-cases.md) | Read the evaluation profiles, the cases in each, and what every case expects. |
-| [Run an approved live evaluation](evaluation-live-run.md) | Prepare staging, run explicitly, and understand costs, retention, and interrupted runs. |
+| [Run an approved live evaluation](evaluation-live-run.md) | Prepare staging, run the evaluation, and understand costs, retention, and interrupted runs. |
 | [Evaluation SDK contract, comparison, and tracing](evaluation-sdk-comparison-tracing.md) | See what the offline SDK tests establish, compare candidates, and set up tracing. |
 | [Agent library scorecards](library-scorecards.md) | Read the library's acceptance cases, the Lab's **Test results** tab, and the sign-off workflow. |
 | [Cost comparison](../cost-comparison/README.md) | Compare Azure GPU VM costs with Foundry hosted-agent costs. |
 | [Optional integrations](optional-integrations.md) | Review integration paths that sit outside the core demo. |
 | [Add-on package format](addon-package-format.md) | Read how an add-on is described, checked, and prepared for a person-approved Terraform deployment. It also covers the plan check and the draft knowledge search package. Nothing is deployed from it yet. |
-| [Knowledge retrieval design](knowledge-retrieval.md) | Review the flag-gated, read-only Azure AI Search lookup for the case agent. It's off by default; a small sample pilot has run in the dev Lab since 2026-10-01. |
+| [Knowledge retrieval design](knowledge-retrieval.md) | Review the flag-gated, read-only Azure AI Search lookup for the case agent. It's off by default. A small sample pilot has run in the dev Lab since 2026-10-01. |
 | [Staff workflow assistant](staff-workflow-assistant.md) | Read a proposed agent definition. It isn't implemented. |
 | [Agent drafts](agent-drafts/README.md) | Read documentation-only definitions for public-sector and healthcare agents. None is implemented. |
 | [Lab frontend](../workbench/frontend/README.md) | Run, test, and rebuild the React app and its catalog snapshot. |

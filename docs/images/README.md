@@ -2,8 +2,8 @@
 
 [Home](../../README.md) / [Docs](../README.md) / Architecture artwork
 
-Use this guide when you edit or rebuild the architecture diagrams, Lab
-screenshots, or README tour. The templates, generated SVGs, and Azure icons
+This page covers rebuilding the architecture diagrams, Lab screenshots, and
+README tour. The templates, generated SVGs, and Azure icons
 are part of the documentation contract, so update them together and keep the
 images readable at README width and on mobile.
 
@@ -54,8 +54,8 @@ Don't embed icons or other artwork as `data:` images. GitHub serves SVG files
 with `Content-Security-Policy: default-src 'none'`, so when a reader clicks a
 diagram to open it on its own, the browser blocks every nested image and shows
 a broken-image placeholder. Inline shapes aren't affected. Icons in templates
-must use `<image href="azure-icons/<name>.svg" x="…" y="…" width="…" height="…"/>`;
-the build fails if it can't inline one.
+must use `<image href="azure-icons/<name>.svg" x="…" y="…" width="…" height="…"/>`.
+The build fails if it can't inline one.
 
 The **docs** check in the Validate workflow reruns the build and fails if any
 committed SVG differs from its template's output. It also checks every relative
@@ -67,7 +67,7 @@ python .github/scripts/check_markdown_links.py
 ```
 
 These are logical diagrams, not a resource inventory. Only the Azure
-architecture view shows subnets; elsewhere, boxes don't place managed services
+architecture view shows subnets. Elsewhere, boxes don't place managed services
 inside virtual networks.
 
 ## Diagram style
@@ -84,7 +84,7 @@ restrained color, generous spacing, and labeled flows.
   When a diagram has numbered steps, the subtitle says what they follow.
 - **Type:** 20 px semibold names; 18 px details, captions, and arrow labels;
   17 px monospace for paths, endpoints, and tool names; 18 px uppercase labels
-  for boundaries. Don't go smaller; add height or cut words instead.
+  for boundaries. Don't go smaller. Add height or cut words instead.
 - **Boundaries and panels:**
   - Dashed outlines group things that share a scope, such as the subscription,
     a phase, or the roots that read platform resources.
@@ -113,7 +113,7 @@ restrained color, generous spacing, and labeled flows.
 
 ### Keep each diagram accurate
 
-The Azure architecture view is the one-picture network map. Only what is
+The Azure architecture view is the one-picture network map. Only what's
 deployed into a virtual network sits inside one: Azure Bastion and the jumpbox
 in the admin network, and in the workload network the Lab's internal Container
 Apps environment, the agent subnet delegated to Foundry, and one private
@@ -142,9 +142,9 @@ guide. Keep its message precise: handoff is the *closest* match, not an exact
 one, because specialists are tools and control stays with the coordinator. It
 uses plain shapes rather than icons, because the patterns are concepts, not
 products. Gray arrows show generic pattern flow and dashed gray arrows show
-routes not taken; the blue request and green result arrows belong to the
-coordinator. Each pattern also has a text status, so color is not the only
-signal. The schematics are redrawn, not copied; keep the CC BY 4.0 attribution
+routes not taken. The blue request and green result arrows belong to the
+coordinator. Each pattern also has a text status, so color isn't the only
+signal. The schematics are redrawn, not copied, so keep the CC BY 4.0 attribution
 in the diagram, its description, and the architecture guide caption.
 
 The Lab request view separates agent calls from record saves. Chat is saved
@@ -187,7 +187,7 @@ an icon, copy it from the current download under a short lowercase name, such
 as `private-endpoints.svg`, and delete icons that no template references.
 
 Microsoft permits these icons in architectural diagrams, training materials, and
-documentation, and reserves other rights. Do not crop, recolor, distort, rotate,
+documentation, and reserves other rights. Don't crop, recolor, distort, rotate,
 or repurpose product icons to represent custom applications. Product names
 accompany their icons; custom review agents use plain labeled cards inside the
 Foundry Agent Service boundary. Don't use the Azure logo as a service icon.
@@ -195,14 +195,14 @@ Foundry Agent Service boundary. Don't use the Azure logo as a service icon.
 ## Dark variants
 
 GitHub shows the `-dark` diagrams to readers who use a dark theme.
-Both variants come from the same template, so do not edit either SVG by hand.
+Both variants come from the same template, so don't edit either SVG by hand.
 Edit the template, rebuild, and commit the template and both outputs together.
 
 The build swaps colors in the template markup before it inlines the icons, so
 the icons are identical in both variants. The `<title>` and `<desc>` text
 is never changed. `$darkPalette` in `build-architecture.ps1` is the single
 light-to-dark color map. The build fails if a template uses a hex color that
-the map does not cover, so add each new color to the map before you use it.
+the map doesn't cover, so add each new color to the map before you use it.
 Colors match as whole tokens, ignoring case; `#fff` and `#ffffff` are separate
 entries.
 
@@ -238,7 +238,7 @@ change the map.
 Icons stay unmodified in both variants. The current icons remain visible on the
 dark surfaces, so the dark variants add no backing tiles. If a new icon becomes
 hard to see, add a neutral light rounded tile behind every icon in that dark
-diagram through the build; do not recolor the icon.
+diagram through the build, and don't recolor the icon.
 
 Documentation shows the dark variants only. Embed a diagram or screenshot with
 a plain `<img>` that points at the `-dark` file. Paths are relative to the
@@ -252,14 +252,14 @@ and after the block so the surrounding Markdown still renders:
 Every diagram and screenshot embed uses this pattern, and the full-size links
 point to the dark file too. The light `<name>.svg` and light screenshots are
 still generated and committed, so a light-theme embed can come back without
-rework; only the template link points to the template.
+rework. Only the template link points to the template.
 
 ## Lab screenshots
 
 The screenshots in `screenshots/` come from the Lab's browser tests. The tests
 replace the backend with mocked API responses that return sample data, so the
 images show the real layout but not live model answers or saved records. The
-pictures carry no watermark: this page and the tours' `<title>` and `<desc>` say
+pictures carry no watermark. This page and the tours' `<title>` and `<desc>` say
 that they come from automated browser tests with sample data.
 
 The tests take them in the customer view, with **Under the hood** off, which is
@@ -307,7 +307,7 @@ desktop tests and refresh just the affected light/dark pairs:
 
 Use `-TestResultsDirectory` for an isolated test copy. The script rebuilds both
 tours from the selected new frames plus unchanged committed frames; unchanged
-scenario artwork should stay byte-identical. Do not crop the screenshots or
+scenario artwork should stay byte-identical. Don't crop the screenshots or
 substitute mobile ones. The review findings images remain separate from
 the pre-save form so the walkthrough still shows both stages.
 
@@ -335,7 +335,7 @@ share the same accessible frame and reduced-motion behavior.
 
 A minimal window bar above the frames names the current step and shows a
 progress bar, so nothing covers the screenshots. Both SVGs
-are generated, so do not edit them by hand. The frames are copies of the
+are generated, so don't edit them by hand. The frames are copies of the
 screenshots, so after you refresh any tour frame, rebuild both tours and commit
 the screenshots and SVGs together:
 
@@ -346,9 +346,9 @@ the screenshots and SVGs together:
 
 The build embeds each PNG unchanged as base64 data and animates with CSS only.
 The SVGs have no scripts or external references, because GitHub shows README
-SVGs as images. The build fails if a screenshot is missing or is not 1440 x 1000
+SVGs as images. The build fails if a screenshot is missing or isn't 1440 x 1000
 desktop test output, and reruns give byte-identical files. Keep each SVG under
-about 1.3 MB, and do not recompress the frames as JPEG,
+about 1.3 MB, and don't recompress the frames as JPEG,
 which blurs UI text.
 
 For readers who turn on reduced motion in their operating system, the SVGs'
@@ -373,7 +373,7 @@ README alt text describes the full sequence.
   `./docs/images/build-tour.ps1`, then check a paused frame, a mid-fade state,
   and the reduced-motion first frame in both variants.
 - Keep labels short and avoid crossing text with connectors.
-- Do not reduce type to fit more detail.
+- Don't reduce type to fit more detail.
 - Use labels and callouts, not color alone, to explain requests, results,
   persistence paths, optional paths, and execution boundaries.
 

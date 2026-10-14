@@ -2,19 +2,19 @@
 
 [Home](../README.md) / Cost comparison
 
-Use this calculator to compare Azure infrastructure as a service (IaaS) graphics
+This calculator compares Azure infrastructure as a service (IaaS) graphics
 processing unit (GPU) virtual machine (VM) scenarios with a Microsoft Foundry
-hosted-agent architecture. You will get itemized monthly estimates that you can
+hosted-agent architecture. It gives you itemized monthly estimates that you can
 adapt before a scoped architecture or cost discussion.
 
 > [!IMPORTANT]
 > This is advanced, optional architecture analysis. Start with [one Foundry
 > demonstration](../docs/demos.md) and its quality findings, not a savings claim.
-> The calculator does not measure model quality, demonstrate a customer
+> The calculator doesn't measure model quality, demonstrate a customer
 > implementation, or prove complete spend. Cost recommendations are
 > scope-dependent, missing telemetry stays unavailable instead of zero, and the
 > reference budget makes no savings claim against IaaS because equivalent IaaS
-> dependencies have not been sized.
+> dependencies haven't been sized.
 
 ## In this guide
 
@@ -27,17 +27,17 @@ adapt before a scoped architecture or cost discussion.
 
 ## How the calculator compares costs
 
-Keep three different quantities separate:
+Keep three quantities separate:
 
 | Quantity | Meaning |
 | --- | --- |
 | **Measured usage** | Actual reported tokens and observed response time, with their measurement scope. Missing telemetry stays unavailable, not zero. |
-| **Estimated cost** | Measured or estimated usage multiplied by rates with a named source; not invoiced spend. |
-| **Allocated platform cost** | Shared capacity/runtime/dependency costs divided by an explicitly chosen denominator and time period; not marginal token cost. |
+| **Estimated cost** | Measured or estimated usage multiplied by rates with a named source. It isn't invoiced spend. |
+| **Allocated platform cost** | Shared capacity/runtime/dependency costs divided by a chosen denominator and time period. It isn't marginal token cost. |
 
 Use the [Foundry evaluation guide](../evaluations/README.md) for optional model
-and prompt comparison on the same dataset. Browser-session latency is not a
-quality score, and this calculator cannot recover missing multi-agent telemetry.
+and prompt comparison on the same dataset. Browser-session latency isn't a
+quality score, and this calculator can't recover missing multi-agent telemetry.
 
 Engagements focus on demonstration and technical validation. Integration with
 customer systems and production deployment require separate scoping and agreement.
@@ -51,15 +51,14 @@ and agent orchestration against a Foundry hosted-agent architecture:
   storage, monitoring, egress, external tools, and model token consumption.
 
 The two architectures have separate artificial intelligence (AI)-consumption
-sections. A self-hosted model normally has zero token charges because inference
-is included in GPU compute,
-while the Foundry architecture incurs model token charges. External tool charges
-can appear on both sides.
+sections. A self-hosted model normally has zero token charges because GPU
+compute includes inference, while the Foundry architecture incurs model token
+charges. External tool charges can appear on both sides.
 
 The calculator supports itemized additional platform costs for each architecture
-and allocation per completed review. It is still an estimate, not an Azure bill.
-The example explicitly marks private-platform dependencies as unpriced. It will
-not report savings or break-even until all supplied line items are priced.
+and allocation per completed review. It's still an estimate, not an Azure bill.
+The example marks private-platform dependencies as unpriced. It won't
+report savings or break-even until all supplied line items are priced.
 
 For an itemized **reference-environment budget**, use
 [scenario.deployed.json](scenario.deployed.json):
@@ -68,13 +67,13 @@ For an itemized **reference-environment budget**, use
 python calculator.py scenario.deployed.json
 ```
 
-The filename is retained for compatibility; it does not identify your deployment
+The filename is retained for compatibility. It doesn't identify your deployment
 or track a live environment. The [reference budget and rate notes](platform-rates.md)
-describe saved assumptions, not current quotes or actual spend. These files do
-not query Azure resources, refresh prices, or reconcile a bill. Verify those
+describe saved assumptions, not current quotes or actual spend. These files don't
+query Azure resources, refresh prices, or reconcile a bill. Verify those
 inputs for the environment you want to evaluate.
 
-Copy and adapt the budget before use. It includes explicit labor and unverified
+Copy and adapt the budget before use. It includes labor and unverified
 feature allowances, not measured spend. Registry, endpoint, capacity, and regional
 assumptions must match the environment being evaluated.
 
@@ -89,21 +88,21 @@ assumptions must match the environment being evaluated.
 | Additional platform | Architecture-specific dependencies beyond VM assumptions | Azure API Management (APIM), networking, project dependencies, and platform operations |
 
 The example retains Linux pay-as-you-go retail rates for East US 2 GPU classes:
-NVIDIA T4, A10, and A100. Rates are snapshots, not quotes. These GPU classes are
-not throughput-equivalent; benchmark the selected model, precision, context
+NVIDIA T4, A10, and A100. Rates are snapshots, not quotes. These GPU classes
+aren't throughput-equivalent, so benchmark the selected model, precision, context
 length, batching, and concurrency on each candidate. The example also uses one
-VM, which does not provide production high availability. Evaluate autoscaling,
+VM, which doesn't provide production high availability. Evaluate autoscaling,
 zone redundancy, quota, patching, drivers, model serving, session isolation,
 startup behavior, and support requirements separately.
 
 The reference budget assumes North Central US for the primary workload and West
-US for management, with zero APIM capacity hours. These are not universal
-deployment requirements and differ from the GPU example's region. Region metadata
-does not select or refresh prices. The [platform budget](platform-rates.md)
-documents recorded rates and explicit usage allowances. The original comparison
-example remains incomplete; itemized reference-budget coverage is not proof of
+US for management, with zero APIM capacity hours. These aren't universal
+deployment requirements, and they differ from the GPU example's region. Region
+metadata doesn't select or refresh prices. The [platform budget](platform-rates.md)
+documents recorded rates and usage allowances. The original comparison
+example remains incomplete, and itemized reference-budget coverage isn't proof of
 actual spend or a complete bill. The `rates_last_reviewed` field applies to GPU,
-model, and runtime rates; `platform_rates_last_reviewed` applies only to platform
+model, and runtime rates. `platform_rates_last_reviewed` applies only to platform
 rates.
 
 ## Use the calculator
@@ -133,22 +132,22 @@ rates.
 python calculator.py scenario.example.json
 ```
 
-Platform items are additive. Do not count the same storage, monitoring, egress,
+Platform items are additive. Don't count the same storage, monitoring, egress,
 or operations expense in both a platform item and existing runtime/VM fields.
-Each item accepts either `monthly_cost` or `quantity` and `unit_rate`. Do not
-supply both forms. Quantities and rates must be finite, non-negative numbers;
-the calculator multiplies them without rounding intermediate values. Budget
+Each item accepts either `monthly_cost` or `quantity` and `unit_rate`. Don't
+supply both forms. Quantities and rates must be finite, non-negative numbers.
+The calculator multiplies them without rounding intermediate values. Budget
 metadata and assumptions are printed before totals when provided.
 
-The IaaS placeholder must be replaced with its own equivalent dependency budget;
-do not assume infrastructure is free on that side of the comparison. Older
-scenarios without platform lists still work, but explicitly report those costs
+The IaaS placeholder must be replaced with its own equivalent dependency budget.
+Don't assume infrastructure is free on that side of the comparison. Older
+scenarios without platform lists still work, but the output reports those costs
 as excluded.
 
 `null` means unknown, not zero. Known subtotals remain visible, but savings and
 break-even are suppressed if either architecture has an unpriced item. Allocation
-is suppressed only for the incomplete architecture. An entirely omitted expense
-cannot be detected automatically, so even a complete input is not proof of a
+is suppressed only for the incomplete architecture. The calculator can't detect
+an expense that's left out entirely, so even a complete input isn't proof of a
 complete bill.
 
 Rates are intentionally external to the code because Azure prices vary by
@@ -193,12 +192,12 @@ Allocated cost per completed review =
 For each SKU, the calculator reports total cost, Foundry savings, and the
 monthly sandbox-hour break-even point where hosted runtime equals that VM
 scenario. Positive Foundry savings means the hosted infrastructure is less
-expensive; a negative value means it carries a premium under those assumptions.
+expensive, and a negative value means it carries a premium under those assumptions.
 Architecture-specific model and tool charges are included in savings and
 break-even calculations, along with additional platform items.
 
 The break-even calculation varies sandbox hours only: AI consumption and every
-other cost are held constant. It is not a workload-scaling prediction. Allocated
+other cost are held constant. It isn't a workload-scaling prediction. Allocated
 cost per review is an average including idle capacity and failed attempts, not
 the marginal cost of one more request. Estimating marginal cost requires measured
 per-flow token, runtime, and metered dependency usage.

@@ -37,7 +37,7 @@ Residents seeking public services, benefits, permits, or application updates.
 5. Produce a tailored document checklist and application guidance.
 6. With authentication, retrieve the user's application status.
 7. Prepare forms or a contextual handoff when supported.
-8. Submit only after the user reviews and explicitly confirms the action.
+8. Submit only after the user reviews the action and confirms it.
 
 ## Standard Output
 
@@ -51,7 +51,7 @@ Residents seeking public services, benefits, permits, or application updates.
 ## Boundaries
 
 Never guarantee approval, benefit amounts, processing times, or eligibility.
-Do not expose personal application information without authentication.
+Don't expose personal application information without authentication.
 Clearly separate general guidance from a formal agency determination.
 If sources conflict or jurisdiction is unclear, explain the uncertainty
 and route the question to the responsible agency.

@@ -2,9 +2,10 @@
 
 [Home](../README.md) / Hosted agents
 
-Use these samples to publish and validate the repository's prebuilt agents in
-Microsoft Foundry. This guide is for developers and operators who publish
-hosted-agent versions, test routes, and recover safely when a promotion fails.
+These are the repository's prebuilt agents, along with the steps to publish and
+validate them in Microsoft Foundry. The guide is for developers and operators
+who publish hosted-agent versions, test routes, and recover when a promotion
+fails.
 
 Engagements focus on demonstration and technical validation. Integration with
 customer systems and production deployment require separate scoping and
@@ -44,31 +45,31 @@ identity, scaling, session storage, observability, and version lifecycle.
 | Sample | Purpose | Decision boundary |
 | --- | --- | --- |
 | [`basic-responses-agent/`](basic-responses-agent/) | Minimal Microsoft Agent Framework and Responses protocol baseline. | General-purpose demonstration only. |
-| [`case-review-agent/`](case-review-agent/) | Casework assistance, **Available**: cited summaries, missing or conflicting evidence, and staff questions. | Does not determine eligibility, liability, enforcement, or clinical status. |
-| [`application-review-agent/`](application-review-agent/) | Application completeness, **Available**; requirements and proposal review, **Preview**: compare supplied material with explicit criteria. | Missing evidence is not automatic noncompliance. Does not score, rank, approve, deny, or recommend an outcome. |
-| [`review-coordinator-agent/`](review-coordinator-agent/) | Route review requests to the application or case specialist. | Does not replace specialist review or make consequential decisions. |
+| [`case-review-agent/`](case-review-agent/) | Casework assistance, **Available**: cited summaries, missing or conflicting evidence, and staff questions. | Doesn't determine eligibility, liability, enforcement, or clinical status. |
+| [`application-review-agent/`](application-review-agent/) | Application completeness, **Available**; requirements and proposal review, **Preview**: compare supplied material with explicit criteria. | Missing evidence isn't automatic noncompliance. Doesn't score, rank, approve, deny, or recommend an outcome. |
+| [`review-coordinator-agent/`](review-coordinator-agent/) | Route review requests to the application or case specialist. | Doesn't replace specialist review or make consequential decisions. |
 
 > [!NOTE]
 > **Available** means the code and walkthrough are included. It doesn't mean an
 > environment is deployed or that answers were validated. The review coordinator
 > routes reviews only; it doesn't triage business requests.
 
-No additional agent or infrastructure stack is needed for the preview
-proposal workflow. The coordinator is an optional review-delegation pattern, not
-a generic agent framework or a simulated business-approval system.
+The preview proposal workflow needs no additional agent or infrastructure
+stack. The coordinator is an optional review-delegation pattern. It isn't a
+generic agent framework or a simulated business-approval system.
 
 ## Scope and safety boundaries
 
-All samples use `DefaultAzureCredential`; no credentials are embedded in the
-image or passed as environment variables. The two review samples operate only on
-context supplied in the conversation. The primary demo uses fictional data only,
-with no customer-system, Microsoft 365/Copilot/SharePoint connections or
+All samples use `DefaultAzureCredential`. No credentials are embedded in the
+image or passed as environment variables. The two review samples work only with
+the context supplied in the conversation. The primary demo uses fictional data
+only, with no customer-system, Microsoft 365/Copilot/SharePoint connections or
 external business actions.
 
-Optional integrations require separate review and agreement. Profiles are not
-customer isolation boundaries. Grant the generated agent identity explicit
-least-privilege role-based access control (RBAC) roles for any additional Azure
-service it must access.
+Optional integrations require separate review and agreement. Profiles aren't
+customer isolation boundaries. For any additional Azure service the generated
+agent identity must reach, grant it a named least-privilege role-based access
+control (RBAC) role.
 
 The generated agent identity can invoke project models and use session storage
 by default.
@@ -84,32 +85,32 @@ it. See
 ## Coordinator delegation pattern
 
 The review coordinator calls the two specialist hosted-agent endpoints through
-the Foundry project using its managed identity. The coordinator selects one
-specialist by default, forwards the complete request, and returns the
-specialist's findings. Deploy both specialist agents before deploying the
-coordinator.
+the Foundry project, using its managed identity. By default it selects one
+specialist, forwards the complete request, and returns that specialist's
+findings. Deploy both specialist agents before the coordinator.
 
 Keep the three responsibilities distinct:
 
 | Agent | Useful task and required input | Result a person can use | Capability boundary |
 | --- | --- | --- | --- |
 | Checklist reviewer | Compare supplied application or proposal text with an explicit checklist. Ask for either if missing. | One cited row per item, budget calculations where relevant, and specific questions for incomplete or ambiguous evidence. | No invented criteria, external verification, approval, scoring, or business writes. |
-| Case notes summarizer | Summarize supplied notes; use policy only when supplied and needed for the question. | Attributed facts, unresolved dates or conflicting notes, and focused staff questions. A basic summary does not require policy. | No inferred deadlines, unsupported reconciliation, eligibility decisions, or system updates. |
-| Checklist and case helper | Select the appropriate specialist for a review; explain needed inputs without specialist execution. | The complete specialist findings, not another review or a serialized receipt. | Routing is model-directed. It adds inference work; use a directly enabled specialist for a known single task. |
+| Case notes summarizer | Summarize supplied notes. Use policy only when it's supplied and the question needs it. | Attributed facts, unresolved dates or conflicting notes, and focused staff questions. A basic summary doesn't require policy. | No inferred deadlines, unsupported reconciliation, eligibility decisions, or system updates. |
+| Checklist and case helper | Select the appropriate specialist for a review. Explain needed inputs without specialist execution. | The complete specialist findings, not another review or a serialized receipt. | Routing is model-directed. It adds inference work, so use a directly enabled specialist for a known single task. |
 
-These are supplied-evidence assistants, not autonomous case-management systems.
-Adding retrieval or write tools would change their permissions, data boundary,
-and evaluation requirements; it is not needed to improve these tasks. **Chat**
-owns conversation context and **Document reviews** owns saved review state.
-Neither ownership belongs in the coordinator or its specialists.
+These assistants work from the evidence you supply. They aren't autonomous
+case-management systems. Retrieval or write tools would change their
+permissions, data boundary, and evaluation requirements, and these tasks don't
+need them. **Chat** owns conversation context and **Document reviews** owns
+saved review state. Neither belongs in the coordinator or its specialists.
 
 Refine and validate one layer at a time: application specialist, case specialist,
 then coordinator. The [evaluation guide](../evaluations/README.md#offline-validation)
 provides separate offline selectors. After separately approved staging publication,
-test each specialist's answer before comparing it with the coordinator's visible
-answer and execution receipt. Confirm both useful findings and the absence of
-unnecessary questions. Passing packaging or mock tests is not a model-quality
-result; no source edit changes an already deployed agent.
+test each specialist's answer first. Then compare it with the coordinator's
+visible answer and execution receipt. Confirm that the findings are useful and
+that no unnecessary questions appear. Passing packaging or mock tests says
+nothing about model quality, and no source edit changes an already deployed
+agent.
 
 The coordinator needs `interact/action` on each specialist's endpoint. This
 repository doesn't know yet whether an agent's default access covers that. The
@@ -126,12 +127,12 @@ instructions, named specialist bindings, and mandatory per-tool smoke checks
 without changing Terraform. Deploy its specialists first.
 
 The coordinator uses cancellable async requests with a 90-second deadline,
-including time waiting for a concurrency slot. It performs no automatic
-specialist retries and allows at most four specialist calls in flight per
+including time waiting for a concurrency slot. It doesn't retry specialist
+calls automatically, and it allows at most four specialist calls in flight per
 process. Set `SPECIALIST_TIMEOUT_SECONDS` and `SPECIALIST_MAX_CONCURRENCY` in
 the runtime environment to tune these limits. Cancelling the HTTP request
-releases local resources but does not guarantee the remote service stops
-already-started work. The coordinator keeps one authenticated client per
+releases local resources, but it doesn't guarantee the remote service stops
+work it has already started. The coordinator keeps one authenticated client per
 specialist for the life of the process, so repeated calls reuse open
 connections. Each request still gets a current access token.
 
@@ -144,18 +145,18 @@ default, which is shorter than the default 900-second idle timeout. Set it to
 `0` to turn reuse off. A session stays on the agent version that created it, so
 after you deploy a new specialist version, a running coordinator can keep
 calling the previous version until the window ends. Reuse doesn't carry
-conversation history between calls because the coordinator doesn't store
-responses and doesn't send a previous response or conversation ID.
+conversation history between calls. The coordinator doesn't store responses and
+doesn't send a previous response or conversation ID.
 
 ## Deployment walkthrough
 
-Terraform creates the baseline. The following procedures publish agent code
-through the Python deployer. Run them from the repository root on an authorized
-private-network execution environment. Stop on any error.
+Terraform creates the baseline. The procedures below publish agent code through
+the Python deployer. Run them from the repository root on an authorized
+private-network execution environment, and stop on any error.
 
-For source staging onto a separate runner, use the
-[private deployment runbook](../docs/private-deployment.md) instead. That
-runbook gives the working directory for the staged layout.
+If you're staging source onto a separate runner, use the
+[private deployment runbook](../docs/private-deployment.md) instead. It gives
+the working directory for the staged layout.
 
 ### 1. Confirm prerequisites
 
@@ -177,7 +178,7 @@ terraform -chdir=terraform output -raw model_deployment_name
 ```
 
 Set these non-secret output values in the deployment session. The deployment
-runner does not need a copy of Terraform state:
+runner doesn't need a copy of Terraform state:
 
 ```powershell
 $env:FOUNDRY_PROJECT_ENDPOINT = '<verified-project-endpoint>'
@@ -186,8 +187,8 @@ $env:FOUNDRY_MODEL_NAME = '<verified-model-deployment-name>'
 
 ### 3. Prepare the selected sample
 
-The following example selects the case specialist. Change `$sample`
-deliberately for another sample. Do not reuse another environment's installed
+The example below selects the case specialist. Change `$sample` on purpose
+when you want another sample. Don't reuse another environment's installed
 dependencies.
 
 ```powershell
@@ -198,7 +199,7 @@ $python = Join-Path $PWD "$sample/.venv/Scripts/python.exe"
 ```
 
 Stop if environment creation or dependency installation fails. Use `$python` for
-the subsequent command rather than relying on shell activation or PATH.
+the next command rather than relying on shell activation or PATH.
 
 ### 4. Inventory and review before deployment
 
@@ -217,7 +218,7 @@ the subsequent command rather than relying on shell activation or PATH.
 if ($LASTEXITCODE -ne 0) { throw 'Agent deployment or smoke verification failed' }
 ```
 
-This command creates a billable version and changes routing. It is not a
+This command creates a billable version and changes routing. It isn't a
 Terraform plan or a dry run. Require successful activation and all smoke checks.
 
 ### 6. Verify the route and handle failures
@@ -238,25 +239,26 @@ portable regular-file permissions. Review agents also include the shared
 `review_output.py` quotation and result-preservation middleware and the shared
 `hosted_runtime.py` start-up. Stage both files beside `deployment.py` when
 deploying source rather than a portable bundle.
-Before upload it checks the model and
-specialists and snapshots the existing route. Existing routes must use explicit
-versions: a symbolic `@latest` route or an unrouted existing agent requires
-operator reconciliation before another version is created.
 
-It uploads an immutable hosted-agent version with a source hash, waits for
-activation, checks that the previous endpoint hasn't changed, preserves its
-authorization and other protocol settings, and promotes the Responses route.
-It reads the active version and exact 100% route back both before and after the
-sample-specific smoke checks. Clients can reach the candidate during those
-checks; this is not a pre-promotion canary.
+Before upload, the deployer checks the model and specialists and snapshots the
+existing route. Existing routes must use specific versions. A symbolic
+`@latest` route or an unrouted existing agent needs operator reconciliation
+before another version is created.
+
+It then uploads an immutable hosted-agent version with a source hash and waits
+for activation. Next it checks that the previous endpoint hasn't changed,
+preserves its authorization and other protocol settings, and promotes the
+Responses route. It reads the active version and exact 100% route back both
+before and after the sample-specific smoke checks. Clients can reach the
+candidate during those checks, so this isn't a pre-promotion canary.
 
 If provisioning or a smoke test fails, the deployer attempts to restore the
 previous route when promotion was attempted. It deletes the failed version only
-after a fresh route read confirms the candidate is no longer referenced. Failed
-restoration, an unknown or symbolic route, or a first deployment without a previous route
-retains the candidate for manual inspection.
+after a fresh route read confirms the candidate is no longer referenced. The
+candidate stays for manual inspection if restoration fails, the route is
+unknown or symbolic, or a first deployment has no previous route.
 
-Serialize deployments of the same agent. The cleanup flow does not provide a
+Serialize deployments of the same agent. The cleanup flow doesn't provide a
 distributed lock against concurrent promotions.
 
 The Foundry client allows 30 seconds to connect and 60 seconds for each response,
@@ -267,13 +269,13 @@ rollback above. Inspect the route before you rerun the deployment.
 Run `python deploy.py --help` to override the agent name, supported runtime
 allocation, instructions, smoke-test prompt, or polling timeout.
 
-Coordinator deployments additionally run application and case delegation checks.
+Coordinator deployments also run application and case delegation checks.
 Each check requires a completed response, exactly the expected structured
 function call, and a matching successful tool result with nonempty specialist
-output. These checks are not disabled by an empty `--smoke-test-prompt`. Text
-naming a specialist alone cannot pass. Smoke-test logs report outcomes, not
+output. An empty `--smoke-test-prompt` doesn't disable these checks. Text
+naming a specialist alone can't pass. Smoke-test logs report outcomes, not
 review bodies. If the service omits function-call outputs, verification fails
-closed; inspect the protocol output rather than weakening the check to text
+closed. Inspect the protocol output rather than weakening the check to text
 matching.
 
 Hosted-agent code deployment currently uses the documented `python_3_14`
@@ -285,14 +287,14 @@ tests pass.
 ## Portable agent bundles
 
 `bundle.py` exports source plus a versioned configuration manifest. **Export and
-inspect are offline** and require only Python; only `deploy` uses the Azure SDK
+inspect are offline** and require only Python. Only `deploy` uses the Azure SDK
 and creates billable resources. Run commands from the repository root.
 
 Each `.agent-bundle.zip` contains `manifest.json` and `agent.zip`. The manifest
 records instructions, allocation, runtime, approved template/specialist settings,
 smoke prompts, and hashes of the runtime archive and every source/dependency
-file. Source model names are informational: the destination project, model
-deployment, and agent name must always be supplied explicitly.
+file. Source model names are informational. You must always supply the
+destination project, model deployment, and agent name.
 
 ### Export a prebuilt agent
 
@@ -306,14 +308,14 @@ Select any of the four sample directory names with `--sample`. For a coordinator
 add `--profile <reviewed-profile.json>` to capture its instructions, specialist
 bindings, and mandatory delegation checks. For an unprofiled sample, use
 `--instructions-file <reviewed-instructions.txt>` to preserve an instruction
-override. `--model`, `--cpu`, and `--memory` record source configuration; CPU
+override. `--model`, `--cpu`, and `--memory` record source configuration. CPU
 and memory default to `0.5` / `1Gi`.
 
 This exports **the reviewed checkout**, not a snapshot of live Azure overrides.
-Confirm that the checkout/profile/instructions match the version you intend to
-move. Output files are never overwritten. The CLI prints a SHA-256 for transfer
-verification; `inspect` verifies integrity without executing bundled Python or
-printing prompt text.
+Confirm that the checkout, profile, and instructions match the version you want
+to move. The CLI never overwrites output files. It prints a SHA-256 for
+transfer verification. `inspect` verifies integrity without executing bundled
+Python or printing prompt text.
 
 Individual runtime files are limited to 256 KiB. The embedded runtime ZIP can
 exceed that per-file limit, but each archive and its expanded entries must fit
@@ -323,15 +325,14 @@ inspect and deploy before writing it.
 ### Export an agent created in the Lab
 
 The Lab library's `export.availability` value is `after_creation`. Catalog
-definitions are not standalone checked-in bundle samples: prepare and publish
+definitions aren't standalone checked-in bundle samples. Prepare and publish
 the selected definition through the existing creation lifecycle, then export
-the resulting ready record. This distinction prevents the browser from
-presenting discovery as deployment or implying one-click movement between
-environments.
+the resulting ready record. This keeps the browser from presenting discovery as
+deployment or implying one-click movement between environments.
 
 Save the JSON response for `GET /api/agents/<created-ID>` from your approved
-private Lab. The updated API includes the saved `runtime_hash`; refresh the
-record after deploying the updated Lab if an older response omits it. An
+private Lab. The updated API includes the saved `runtime_hash`. If an older
+response omits it, deploy the updated Lab and refresh the record. An
 operator's saved Cosmos document with the same fields also works.
 
 ```powershell
@@ -345,7 +346,7 @@ python hosted-agents\bundle.py inspect agent-exports\created.agent-bundle.zip
 ```
 
 The record must be ready. The CLI takes its instructions, template ID, model,
-and runtime name, but does not export project IDs, operator keys, events, chat
+and runtime name. It doesn't export project IDs, operator keys, events, chat
 records, or resource ownership metadata. It requires the shared runtime ZIP
 hash to match the saved hash. If the Lab runtime changed since publication,
 use `--runtime-directory <original-agent_runtime-folder>` from the matching
@@ -370,15 +371,15 @@ The destination name is deliberate: using an existing name updates its route.
 Deploy specialists first. When moving a coordinator, repeat
 `--specialist OLD=NEW` for renamed specialists, for example
 `--specialist case-review-agent=destination-case-review`. Both runtime bindings
-and delegation checks are remapped; missing/inactive dependencies and
-self-delegation fail before upload. Unmapped specialists retain their names.
+and delegation checks are remapped. Missing or inactive dependencies and
+self-delegation fail before upload. Unmapped specialists keep their names.
 
 Lab-created bundles deploy as **independently managed Foundry agents**, not as
 new Lab creation records. Use a new destination name rather than taking over a
-Lab-managed resource. They preserve the Lab's no-hidden-model-smoke-call
-behavior: active runtime and confirmed routing are not proof of answer quality.
-Test their fictional prompts explicitly after deployment. Adding an independent
-agent to a destination Lab catalog is a separate operator change.
+Lab-managed resource. They keep the Lab's no-hidden-model-smoke-call behavior,
+so an active runtime and confirmed routing don't prove answer quality. After
+deployment, test their fictional prompts yourself. Adding an independent agent
+to a destination Lab catalog is a separate operator change.
 
 ### Transfer boundaries
 
@@ -386,14 +387,14 @@ agent to a destination Lab catalog is a separate operator change.
   Hashes detect corruption, not malicious code or a forged manifest. Deployment
   executes the source in Foundry and installs its dependencies.
 - Keep exports in protected storage. `agent-exports/` and `*.agent-bundle.zip`
-  are ignored by Git; instructions and saved records can still contain data
+  are ignored by Git, but instructions and saved records can still contain data
   that needs access controls. Never include credentials in prompts.
-- Bundles do not include infrastructure, model weights, permissions, identities,
+- Bundles don't include infrastructure, model weights, permissions, identities,
   conversations, evaluation results, or the Lab's citation/schema validators.
-  Recreate those prerequisites separately. No destination resources are
-  provisioned implicitly.
-- Direct dependency files travel unchanged; transitive dependency resolution
-  still happens during the remote build. A bundle is not a frozen container
+  Recreate those prerequisites separately. Nothing in the destination is
+  provisioned for you.
+- Direct dependency files travel unchanged, but transitive dependency resolution
+  still happens during the remote build. A bundle isn't a frozen container
   image or a byte-for-byte runtime backup.
 
 ## Test and validate
@@ -410,16 +411,15 @@ python -m unittest discover -s hosted-agents/review-coordinator-agent -p "test_*
 
 Install the coordinator's `requirements.txt` in an isolated environment to run
 the real software development kit (SDK) contract tests. Deployment-only SDK
-tests need `requirements-deploy.txt`; unavailable SDK contracts are explicitly
-skipped.
-They use an in-memory HTTP transport, not Azure. Live delegation checks still
-require a deployment from the private network.
+tests need `requirements-deploy.txt`. Unavailable SDK contracts are skipped.
+They use an in-memory HTTP transport, not Azure. Live
+delegation checks still require a deployment from the private network.
 
 For answer quality beyond smoke checks, use the
 [synthetic review evaluation runner](../evaluations/README.md). It evaluates an
 already routed staging version without publishing or promoting agents. Its SDK
 dependencies are isolated from these runtime and deployment environments.
-Passing offline contract tests is not evidence that the live agent passed
+Passing offline contract tests doesn't show that the live agent passed
 evaluation.
 
 To test the agent locally before deployment, install `requirements.txt` in a
@@ -440,7 +440,7 @@ and `hosted_runtime.py` from this folder, so put this folder on `PYTHONPATH` fir
 6. Inspect retained candidates manually before deleting them.
 
 > [!CAUTION]
-> A failed deployment can leave billable versions behind for inspection. Do not
+> A failed deployment can leave billable versions behind for inspection. Don't
 > delete a candidate until a fresh route read confirms that no endpoint traffic
 > references it.
 
@@ -449,7 +449,7 @@ and `hosted_runtime.py` from this folder, so put this folder on `PYTHONPATH` fir
 | Symptom | Likely cause | What to do |
 | --- | --- | --- |
 | Authentication failure | The local Azure session is missing or points to the wrong tenant or subscription. | Run `az login`, then verify tenant and subscription with `az account show`. |
-| Project or deployment not found | The endpoint or model deployment name is stale or from another environment. | Re-read both values with `terraform output -raw`; the model value is the deployment name, not merely a catalog model name. |
+| Project or deployment not found | The endpoint or model deployment name is stale or from another environment. | Re-read both values with `terraform output -raw`. The model value is the deployment name, not merely a catalog model name. |
 | Remote build fails | Required source files or pinned packages are unavailable. | Confirm `main.py` and `requirements.txt` are present and that the pinned packages remain available. |
 | Version provisioning fails | The selected region cannot provision the hosted-agent version or model. | Review the reported version details and confirm hosted-agent and model availability in the selected region. |
 | Smoke test fails | The candidate route, specialist call, or runtime behavior failed verification. | From the private network, open **Agents > Traces** in the Foundry project, or query `AppDependencies` and `AppExceptions` by response ID in the linked Application Insights resource ([runbook](../terraform/monitoring/README.md#verification-and-portal-use)). Traces are metadata-only, so check status, timings and exception types rather than prompts. Also check endpoint routing; candidates are retained when cleanup cannot confirm they are unrouted. |
@@ -459,13 +459,13 @@ and `hosted_runtime.py` from this folder, so put this folder on `PYTHONPATH` fir
 Start with the [scenario/status matrix](../docs/demos.md#at-a-glance), not a
 catalog of promised integrations. Reuse the supplied casework and application
 examples. Validate the preview proposal adaptation before presenting it as
-proven. Review delegation isn't business-request triage; for simulated request
+proven. Review delegation isn't business-request triage. For simulated request
 lookups, use the **Service request planner** template in
 [Create agent](../docs/agent-creation.md).
 
 The [extension guide](../docs/architecture-assessment.md) and
 [optional integrations](../docs/optional-integrations.md) preserve the technical
-paths for separately scoped work. They are not part of the primary demo or a
+paths for separately scoped work. They aren't part of the primary demo or a
 commitment to connect organizational data. Education knowledge assistants and
 Microsoft 365/Copilot/SharePoint integrations are excluded from the primary
 path.
@@ -485,16 +485,17 @@ For metadata-only operational traces in the Foundry portal, see the
 [private monitoring runbook](../terraform/monitoring/README.md). The publisher
 disables prompt, response, and sensitive tool-content recording and uses
 Microsoft Entra authentication for Application Insights. Existing versions need
-an explicit rollout; changing publisher defaults does not update running agents.
+a deliberate rollout, because changing publisher defaults doesn't update running
+agents.
 
 These samples intentionally avoid incident investigation, telemetry correlation,
 root-cause analysis, mitigation, scheduled health checks, and operational
-compliance sweeps. Those scenarios are covered by
-[Azure SRE Agent](https://learn.microsoft.com/azure/sre-agent/overview).
+compliance sweeps. [Azure SRE Agent](https://learn.microsoft.com/azure/sre-agent/overview)
+covers those scenarios.
 
 ## Operational checklist
 
-- Use immutable agent versions and explicitly promote a tested version.
+- Use immutable agent versions, and promote a tested version on purpose.
 - Choose the smallest sandbox, 0.5 vCPU/1 GiB initially, and right-size from
   Application Insights data.
 - Set the shortest practical idle timeout because idle time is billable until

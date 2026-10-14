@@ -2,9 +2,9 @@
 
 [Home](../README.md) / [Docs](README.md) / Permissions
 
-Use this reference to see which Azure roles the sample's Terraform assigns, to
-which identity and scope, and which permissions you must arrange yourself. Each
-row cites the Terraform resource, code, guide, or Microsoft Learn page it comes
+This reference lists the Azure roles the sample's Terraform assigns, the identity
+and scope for each, and the permissions you must arrange yourself. Each row
+cites the Terraform resource, code, guide, or Microsoft Learn page it comes
 from. Where neither the source nor Microsoft Learn says why a role exists or
 which role a requirement needs, this page says so instead of guessing.
 
@@ -100,7 +100,7 @@ operator-key verifier grants in
 After backend-free initialization, run `./terraform/test-platform-validation.ps1`
 and `terraform -chdir=workbench/infra test`. The platform helper copies the real
 assignment sources and replaces module/credential boundaries, because Terraform
-cannot mock the upstream ephemeral resources even with module overrides.
+can't mock the upstream ephemeral resources even with module overrides.
 These targeted mock tests check assignment expressions, not live grants. The
 runner case uses a mock apply to resolve its post-creation identity read. Existing
 platform tests cover coordinator specialist scopes and opt-in Key Vault access;
@@ -279,7 +279,7 @@ state, not Azure.
 `enable_agent_service = true`, the default, this repository sets
 `create_ai_agent_service` and `create_project_connections`. The module then
 assigns these roles to the Foundry project's system-assigned identity. They
-don't appear in this repository's code; the links go to the module source at
+don't appear in this repository's code. The links go to the module source at
 that version.
 
 Confirmed from source: the module creates the project capability host,
@@ -325,7 +325,7 @@ permissions itself. The **Documented in** column is the source for each row.
 | Identity that publishes hosted agents, such as your Azure CLI user or a private runner | Foundry Project Manager | The Foundry project | [Hosted-agent prerequisites](../hosted-agents/README.md#1-confirm-prerequisites), [private deployment runbook](private-deployment.md#1-confirm-prerequisites), [Deploy a hosted agent](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent#required-permissions) | Creating versions and updating endpoint routing. Terraform grants this only to the jumpbox identity, and only when `enable_jumpbox = true`. See [Foundry User and Foundry Project Manager](#foundry-user-and-foundry-project-manager). |
 | Lab image build runner | Registry-scoped push and pull | The Lab's container registry | [Build the Lab image](lab-deployment.md#4-build-and-select-an-immutable-image) | Pushing the image and verifying the pull by digest. |
 | Lab user-assigned identity, when `agent_creation_key_secret_id` is set and `agent_creation_key_secret_resource_id` isn't | Key Vault Secrets User, per Microsoft Learn | The Key Vault secret in `agent_creation_key_secret_id` | [Enable publication](agent-creation.md#enable-publication), the `agent_creation_key_secret_id` variable in [`workbench/infra/main.tf`](../workbench/infra/main.tf), [Container Apps Key Vault references](https://learn.microsoft.com/azure/container-apps/manage-secrets#reference-secret-from-key-vault) | Confirmed from source: the `agent-creation-key-verifier` secret in `azurerm_container_app.this` reads the secret with the Lab identity. Per Microsoft Learn, a Container App's managed identity needs Key Vault Secrets User to use a Key Vault reference. Set `agent_creation_key_secret_resource_id` to have Lab Terraform assign it instead; see [Assigned by this repository](#assigned-by-this-repository). |
-| Hosted agent runtime identity | Model invocation and session storage | The Foundry project | [Scope and safety boundaries](../hosted-agents/README.md#scope-and-safety-boundaries), [agent access beyond defaults](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#agent-access-beyond-defaults) | Foundry provides these by default. Grant explicit least-privilege roles for any other Azure service an agent needs. |
+| Hosted agent runtime identity | Model invocation and session storage | The Foundry project | [Scope and safety boundaries](../hosted-agents/README.md#scope-and-safety-boundaries), [agent access beyond defaults](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#agent-access-beyond-defaults) | Foundry provides these by default. Grant specific least-privilege roles for any other Azure service an agent needs. |
 | The person who runs the sample index script, only while loading or removing the sample index | Search Service Contributor and Search Index Data Contributor, temporarily | The Search service | [Knowledge retrieval design](knowledge-retrieval.md#identity-and-rbac) | Creating, loading, and removing the sample index, and reading it back with `verify`. The dev pilot's index exists, and these roles were removed after its load on 2026-10-01, so no one needs them today. Grant them again only to change or remove the index, and remove them afterward. |
 | Portal users who view traces | Monitoring Reader, per Microsoft Learn. Log Analytics Reader on the workspace to query it directly. | The Application Insights component that the monitoring root creates | [Agent monitoring](../terraform/monitoring/README.md#at-a-glance), [viewing telemetry data](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#viewing-telemetry-data) | Viewing traces from the private network. Per Microsoft Learn, Foundry User shows metrics but not traces. |
 | Identity running monitoring Terraform | Monitoring resource and project-connection permissions, plus scoped RBAC administration for the publisher assignments; no role is named | Confirmed from source: the platform resource group, the Foundry project for the connection, and the new Application Insights component for the publisher grants ([`terraform/monitoring/main.tf`](../terraform/monitoring/main.tf): `azapi_resource.insights`, `azapi_resource.connection`, `azapi_resource.publisher`) | [Monitoring deployment](../terraform/monitoring/README.md#deployment) | Creating the component, the connection, and the publisher grants. An authorized administrator can create the grants and import them instead. |
@@ -417,7 +417,7 @@ This follows the [credentials guide](credentials.md) and the deployment guides.
   principal in [Assigned by this repository](#assigned-by-this-repository) is a
   workload identity, not a person.
 - Scope each grant to the resource that needs it. For example, scope
-  `listSecrets` to the specific app and deployment identity; it isn't a reason
+  `listSecrets` to the specific app and deployment identity. It isn't a reason
   for broad subscription access.
 - Don't give a runtime identity broad, permanent administration. Grant
   temporary deployment permissions for a rollout and remove them after it's
@@ -474,7 +474,7 @@ before relying on the tables.
   above are confirmed from source. The guides don't name a role for these
   identities.
 - **Role names.** The names come from Azure's built-in role catalog at the time
-  of writing, not from this repository. Azure can rename roles; the IDs don't
+  of writing, not from this repository. Azure can rename roles. The IDs don't
   change.
 
 ## Related content

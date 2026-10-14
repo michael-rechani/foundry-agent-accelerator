@@ -2,14 +2,14 @@
 
 [Home](../README.md) / [Cost comparison](README.md) / Platform rates
 
-Use this page to understand the saved rate assumptions behind
-`scenario.deployed.json`. It is for operators and architects who need to copy the
+This page explains the saved rate assumptions behind
+`scenario.deployed.json`. It's for operators and architects who need to copy the
 reference budget, refresh prices, or reconcile it with an approved scope.
 
 > [!IMPORTANT]
 > These are saved assumptions and operational notes for one reference
 > environment, not a live inventory or requirements for every deployment. They
-> do not establish current prices or actual spend. Verify quantities, rates, and
+> don't establish current prices or actual spend. Verify quantities, rates, and
 > resource usage before using this budget.
 
 ## In this guide
@@ -59,10 +59,10 @@ The Foundry Cosmos entry excludes this Lab allocation to avoid double counting.
 
 The [reference scenario](scenario.deployed.json) adds itemized coverage for the
 recorded private-platform assumptions. It accepts quantities and rates, calculates
-their products, and prints its assumptions. Metadata does not perform live price lookups.
-Use actual calendar hours when evaluating a specific billing month. Operational
-allowances remain in the calculator for accounting completeness, not as required
-architecture components.
+their products, and prints its assumptions. Metadata doesn't perform live price
+lookups. Use actual calendar hours when evaluating a specific billing month.
+Operational allowances remain in the calculator for accounting completeness, not
+as required architecture components.
 
 ## Reproduce the selection
 
@@ -74,7 +74,7 @@ serviceName eq 'API Management' and armRegionName eq 'westus' and priceType eq '
 serviceName eq 'Virtual Machines' and armRegionName eq 'westus' and armSkuName eq 'Standard_B2s' and priceType eq 'Consumption'
 ```
 
-Select the exact products/meters in the table. Do not substitute APIM secondary
+Select the exact products/meters in the table. Don't substitute APIM secondary
 units, workspace packs, self-hosted gateways, Linux virtual machines (VMs),
 Spot, or Low Priority rates. APIM call meters have tiers; estimate their
 charges separately from
@@ -84,7 +84,7 @@ capacity using the applicable included allowance and billing rules.
 
 This historical reference budget records APIM as disabled and assigns it zero
 capacity hours, reducing its steady-state monthly estimate by $700.00 to
-**$1,584.76**. That does not erase earlier accrued charges or establish present
+**$1,584.76**. That doesn't erase earlier accrued charges or establish present
 spend. The original comparison example above retains APIM assumptions for
 comparison; neither file automatically follows live deployment changes.
 Azure Container Registry (ACR) appears in the table as a retained budget item.
@@ -110,14 +110,14 @@ Cosmos sustained maximum throughput on all six autoscale containers adds
 $473.04/month. Cosmos storage and monitoring are each counted once across the
 platform and Lab; the separate hosted monitoring field is zero.
 
-Explicit allowances cover private build VM time and excess registry storage ($5),
+Allowances cover private build VM time and excess registry storage ($5),
 Storage/disk operations including shared state ($10), cross-region peering ($3),
 and alerts/security/optional metered features ($30). These are planning allowances,
 not measured usage or sourced unit-price calculations. Labor is two hours at
 $100/hour, not an Azure charge.
 
 A separate $87.60 contingency covers a possible Container Apps environment
-feature meter at $0.12/hour. Applicability is unverified: this is not a confirmed
+feature meter at $0.12/hour. Applicability is unverified, so this isn't a confirmed
 charge. Model tokens, hosted runtime and tools remain illustrative workload inputs.
 No measured review count, invoice total, or equivalent-IaaS savings is claimed.
 
@@ -133,23 +133,23 @@ result was obtained or subsequently recorded here. This is a historical
 observation, not a statement that Cost Management is currently unavailable.
 
 For a new reconciliation, use an approved Cost Management query for the intended
-scope and period, respecting any returned throttling guidance. Do not interpret
+scope and period, respecting any returned throttling guidance. Don't interpret
 the failed query as zero spend or extrapolate these capacity estimates into an
-actual monthly bill. Actual usage can arrive late and a newly deployed
-environment is not yet a stable representative month.
+actual monthly bill. Actual usage can arrive late, and a newly deployed
+environment isn't yet a stable representative month.
 
 ## Cleanup candidates
 
 These are retained operator notes, not a cleanup instruction or a current
-resource inventory. Obtain a fresh inventory and explicit approval before acting.
+resource inventory. Get a fresh inventory and specific approval before acting.
 
 - The reference budget records APIM as disabled. Enable it only for a scoped
   gateway requirement after reviewing networking and current pricing.
 - Inventory retained agent versions and the separate profile coordinator before
-  deciding what to retire. Preserve recovery targets; this documentation edit
+  deciding what to retire. Preserve recovery targets. This documentation edit
   deleted no resources or versions.
-- Preserve private networking required for administration and builds; removing
-  an optional gateway does not establish that shared networking is unused.
+- Preserve private networking required for administration and builds. Removing
+  an optional gateway doesn't establish that shared networking is unused.
 
 ## Related content
 

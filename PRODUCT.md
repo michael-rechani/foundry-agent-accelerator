@@ -14,7 +14,7 @@ operators reuse the agent code, private infrastructure, and release tooling.
 ## Product Purpose
 
 Help a participant explore one practical agent task, inspect its evidence,
-understand its limitations, and identify what a person must decide next.
+understand its limitations, and see what a person still has to decide.
 
 ## Positioning
 
@@ -36,23 +36,24 @@ would first need end-user sign-in and per-user ownership of saved records.
 
 ## Capabilities and Constraints
 
-- Create agents from built-in templates only after explicit operator and cost
-  confirmation. Preparing a setup is not publication.
-- Chat with configured agents; review supplied documents against criteria.
+- Create agents from built-in templates only after the operator and cost
+  confirmations. Preparing a setup isn't publication.
+- Chat with configured agents, and review supplied documents against criteria.
 - Keep fictional inputs, expected findings, and actual model responses distinct.
-- Never imply customer-system connectivity: template lookups are simulated
+- Never imply customer-system connectivity. Template lookups are simulated
   and read-only. People make business, clinical, payment, and eligibility decisions.
 - Shared records have no per-user authorization boundary. Private networking
-  does not make records private to a participant.
+  doesn't make records private to a participant.
 - Preserve resource names, catalog IDs, routes, Terraform state, and operator
   configuration when changing display branding.
 
 ## Brand Commitments
 
 Use **Foundry Agent Accelerator** for the repository, **Foundry Agent Lab** for
-the browser experience, and **Microsoft Foundry** for the underlying service. Retain the existing light/dark themes, optional accents,
-framed walkthroughs, and evidence-led voice. Show practical work, not invented
-benchmarks, customer endorsements, or production claims.
+the browser experience, and **Microsoft Foundry** for the underlying service.
+Retain the existing light/dark themes, optional accents, framed walkthroughs,
+and evidence-led voice. Show practical work. Don't invent benchmarks, customer
+endorsements, or production claims.
 
 ## Evidence on Hand
 
@@ -63,7 +64,7 @@ templates in `workbench/agent_templates/`, simulated lookup records in
 
 ## Product Principles
 
-- Start with a recognizable customer task, not infrastructure terminology.
+- Start with a recognizable customer task instead of infrastructure terminology.
 - Make evidence, uncertainty, and the human decision visible.
 - Keep exploration separate from resource creation and paid execution.
 - Reuse one foundation while releasing and verifying agents independently.
@@ -71,10 +72,10 @@ templates in `workbench/agent_templates/`, simulated lookup records in
 ## Next Product Direction
 
 Grow into a customer-ready library of public-sector and private-sector agent
-templates: discover a practical job, configure its boundaries, try fictional
-inputs, inspect the results, then export a versioned package for deployment in
-the customer's environment. Keep reusable skills separate from deployed agents;
-a catalog entry or prepared setup is not a running service.
+templates. A user discovers a practical job, configures its boundaries, tries
+fictional inputs, inspects the results, then exports a versioned package for
+deployment in the customer's environment. Keep reusable skills separate from
+deployed agents. A catalog entry or prepared setup isn't a running service.
 
 Use a distinctive, rich interface: searchable sector and task collections,
 outcome-focused cards, detailed input/output examples, a guided configuration
@@ -88,8 +89,8 @@ template. Create original visual language, agent definitions and workflows.
 Build on the existing templates, creation lifecycle and portable
 bundles rather than introducing a parallel catalog or deployment system.
 
-This is a direction, not a claim that customer isolation, arbitrary agent
-composition or one-click cross-environment deployment already exists. Private
-customer data needs a real authorization boundary. Keep browsing and local
-configuration distinct from paid calls, shared saves and deployment approvals;
-never silently enable public access or external business actions.
+This is a direction. Customer isolation, arbitrary agent composition, and
+one-click cross-environment deployment don't exist yet. Private customer data
+needs a real authorization boundary. Keep browsing and local configuration
+separate from paid calls, shared saves and deployment approvals. Never silently
+enable public access or external business actions.

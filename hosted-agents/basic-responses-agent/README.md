@@ -2,10 +2,10 @@
 
 [Home](../../README.md) / [Hosted agents](../README.md) / Basic Responses agent
 
-Use the Basic Responses agent as the smallest working hosted agent: one model,
-no tools, and the Responses protocol. It is a starting point for learning the
-publish flow and for building your own agent. It is published in Microsoft
-Foundry as `basic-responses-agent` and isn't listed in the Lab.
+The smallest working hosted agent: one model, no tools, and the Responses
+protocol. Use it to learn the publish flow or as a starting point for your own
+agent. It's published in Microsoft Foundry as `basic-responses-agent` and isn't
+listed in the Lab.
 
 ## At a glance
 
@@ -13,7 +13,7 @@ Foundry as `basic-responses-agent` and isn't listed in the Lab.
 | --- | --- |
 | Lab display name | Not listed in the Lab |
 | Foundry agent name | `basic-responses-agent` (default) |
-| What it does | Answers general questions concisely and says when it is uncertain. |
+| What it does | Answers general questions concisely and says when it's uncertain. |
 | Key files | [`main.py`](main.py), [`deploy.py`](deploy.py), [`instructions.md`](instructions.md), [`example-request.md`](example-request.md) |
 
 ## What the agent does
@@ -21,8 +21,8 @@ Foundry as `basic-responses-agent` and isn't listed in the Lab.
 The agent runs the Microsoft Agent Framework behind a Responses host server. It
 has no tools, no knowledge sources, and no connection to other agents. It
 answers from the model and the supplied conversation only, and it tells you when
-it is unsure. It is a general-purpose demonstration, not a domain assistant, and
-it makes no decisions about people or cases.
+it's unsure. It's a general-purpose demonstration rather than a domain
+assistant, and it makes no decisions about people or cases.
 
 Try the request in [`example-request.md`](example-request.md) to confirm a
 published version responds.
@@ -44,7 +44,7 @@ a published agent.
 
 Instructions come from [`instructions.md`](instructions.md) through the existing
 deployment process, so `main.py` and `deploy.py` use the same text. Local edits
-do not update a deployed agent. Publish and validate a new version, including a
+don't update a deployed agent. Publish and validate a new version, including a
 separate live model check.
 
 Follow the [hosted-agent deployment guide](../README.md), select this directory,

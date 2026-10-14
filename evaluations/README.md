@@ -2,7 +2,7 @@
 
 [Home](../README.md) / Evaluations
 
-Validate the review samples' quality without changing runtime dependencies,
+Checks the review samples' quality without changing runtime dependencies,
 publishing agent versions, changing endpoint routes, or building a Lab
 dashboard. Offline validation checks dataset structure. Approved live evaluation
 checks an already deployed staging stack and records native Microsoft Foundry
@@ -11,7 +11,7 @@ results.
 > [!IMPORTANT]
 > Running [the CLI](run.py) without `--run` is offline and needs only Python.
 > Live mode requires `--run --approve-billable-run --authorize-content-capture`
-> and explicit approval for billable calls and synthetic content retention. It
+> and approval for billable calls and synthetic content retention. It
 > creates and retains a custom evaluator, an evaluation, and a run in your
 > Foundry project. No live evaluation has been run as part of these changes, so
 > there are no captured quality or cost results here. Project tracing is
@@ -20,15 +20,15 @@ results.
 > verified with metadata-only synthetic requests, but no evaluation run has been
 > correlated with its traces.
 
-This guide uses software development kit (SDK) for the pinned Azure AI Projects
-and OpenAI client libraries.
+In this guide, SDK means the pinned Azure AI Projects and OpenAI client
+libraries.
 
 ## Offline and approved live modes
 
 | Mode | What it does | What it does not do |
 | --- | --- | --- |
-| Offline, default | Validates the dataset schema, profile coverage, source identifiers, and local tests. | It does not invoke Azure, acquire credentials, mutate cloud resources, grade quality, or prove model performance. |
-| Approved live, with `--run` | Invokes routed staging agents, creates a native Foundry evaluator/evaluation/run, and gates every selected case through the rubric. | It does not publish agents, promote routes, run a production canary, estimate cost, or authorize a production release. |
+| Offline, default | Validates the dataset schema, profile coverage, source identifiers, and local tests. | It doesn't invoke Azure, acquire credentials, mutate cloud resources, grade quality, or prove model performance. |
+| Approved live, with `--run` | Invokes routed staging agents, creates a native Foundry evaluator/evaluation/run, and gates every selected case through the rubric. | It doesn't publish agents, promote routes, run a production canary, estimate cost, or authorize a production release. |
 
 ## Offline validation
 
@@ -44,10 +44,10 @@ python evaluations\run.py --cases evaluations\review-cases.json
 python -m unittest discover -s evaluations -p 'test_*.py' -v
 ```
 
-Use the three sample selectors in that order when refining the review agents:
-prove each specialist's contract before assessing the coordinator handoff.
-These commands validate acceptance-case structure only; they do not run a
-model. Packaging and coordinator transport can also be checked with the
+Run the three sample selectors in that order when refining the review agents, so
+each specialist's contract is proven before you assess the coordinator handoff.
+These commands validate acceptance-case structure only. They don't run a
+model. You can also check packaging and coordinator transport with the
 existing standard-library tests, without installing tools:
 
 ```powershell
@@ -55,12 +55,12 @@ python -m unittest discover -s hosted-agents -p 'test_bundle.py' -v
 python -m unittest discover -s hosted-agents\review-coordinator-agent -p 'test_*.py' -v
 ```
 
-Without the evaluation dependencies, real SDK contract tests are explicitly
-skipped. With the pinned dependencies, [test_sdk_contract.py](test_sdk_contract.py)
+Without the evaluation dependencies, the real SDK contract tests are skipped.
+With the pinned dependencies, [test_sdk_contract.py](test_sdk_contract.py)
 uses real SDK serialization with **in-memory transports and fake credentials**,
-not Azure. No deployment, credential acquisition, endpoint invocation, cloud
-mutation, or live grading is needed by these offline tests. A green offline run
-is not evidence of model performance or a production-ready demo.
+not Azure. These offline tests need no deployment, credential acquisition,
+endpoint invocation, cloud mutation, or live grading. A green offline run
+isn't evidence of model performance or a production-ready demo.
 
 ## Reference pages
 

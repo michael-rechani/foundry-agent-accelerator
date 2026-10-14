@@ -5,7 +5,7 @@
 This note is the first piece of [#164](https://github.com/michael-rechani/foundry-agent-accelerator/issues/164).
 It reads the code as it is today, picks one shared home for each repeated piece
 of plumbing, and sets the order of the follow-up pull requests. It changes no
-code. Each follow-up moves one helper, with the existing tests proving that
+code. Each follow-up moves one helper, and the existing tests prove that
 nothing moved.
 
 The goal is that a rule or a fact about an agent lives in one place. The four
@@ -296,7 +296,7 @@ in `hosted-agents/deployment.py` lists the files beside `deployment.py` that a
 review sample imports (`review_output.py` and `hosted_runtime.py`), and
 `create_package` and `knowledge_package` both ship them. `bundle.py` allows the
 same names through `PACKAGE_FILES`, which also sets the entry limit that
-`zip_contents` enforces; that limit was a hard-coded 5 and a sixth file in the
+`zip_contents` enforces. That limit was a hard-coded 5, and a sixth file in the
 coordinator package would have failed every export. Old bundles that lack
 `hosted_runtime.py` still validate, because the file is allowed, not required.
 
@@ -413,7 +413,7 @@ issue's checkbox to say so.
   inside that agent, so the generated list holds the same 21 ids as before and the
   package still holds exactly `main.py`, `demo_tools.py` and `requirements.txt`.
   Written at the same width as the old hand list, it is byte-for-byte the same
-  text, so the package's `runtime_hash` does not change. Ids already in the literal
+  text, so the package's `runtime_hash` doesn't change. Ids already in the literal
   keep their place and a new id goes last, so reordering the library, as dropping
   `definition_order` did, doesn't move them either. `test_runtime_ids.py` fails
   when the literal is stale, and `test_agent_templates.py` names the command to
@@ -439,7 +439,7 @@ unchanged, except for these, which are listed so none is a surprise:
 | A content type such as `Application/JSON ; charset=utf-8` is now accepted by `history.py` and `review_runs.py`, which answered 415 before | Admission A | Deliberate, because `is_json` applies the more lenient rule of `app.py` everywhere. A test covers it. If it isn't wanted, `is_json` takes a flag to keep the old test for those two |
 | The strictness rules from #166 (non-string IDs, truthy strings, silent skips) | Validation | #166, before the consolidation |
 
-Two things are not changed, and a step may only change them with its own
+Two things don't change, and a step may only change them with its own
 decision and test:
 
 - **Check order.** The origin check runs before the rate limit in

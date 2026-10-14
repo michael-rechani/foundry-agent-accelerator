@@ -78,7 +78,7 @@ otherwise, and an unknown field is an error.
 | `card` | What the tab shows: `icon`, `group`, `summary`, `example`, `cost` (a list), `needs` (a list), `safety`, `service`, `billing`, and optionally `pilot`, `approval`, and `note`. An add-on with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**. |
 | `package` | Optional. The [deployment package](#the-deployment-package). Leave it out until someone builds the add-on. |
 
-Add-ons without a `package` are previews: the card says what the add-on would
+Add-ons without a `package` are previews. The card says what the add-on would
 do, cost, and need, and nothing about how to deploy it.
 
 ## The deployment package
@@ -183,15 +183,15 @@ the check can't tell that an omitted setting is closed. Add an azapi type to
 properties in the body.
 
 > [!IMPORTANT]
-> A passing check is not an approval. A person reads the saved plan, approves
+> A passing check isn't an approval. A person reads the saved plan, approves
 > that file, and runs `terraform apply` on it. The check, an agent, and CI never
 > apply a plan. A plan that also changes the rest of the platform fails the
 > check by design, so check a plan from a root that calls only the add-on's
 > module.
 
-The [tests](../addons/test_plan_check.py) prove the check offline with plan JSON written by
-hand in [`addons/testdata/plans/`](../addons/testdata/plans/): plans that
-pass, and plans that fail on public access, keys, public IP addresses, extra
+The [tests](../addons/test_plan_check.py) prove the check offline with plan JSON
+written by hand in [`addons/testdata/plans/`](../addons/testdata/plans/). Some
+plans pass, and others fail on public access, keys, public IP addresses, extra
 roles, unknown values, and deleting the Search service. The fixtures use
 placeholder IDs and aren't output from a real plan.
 
@@ -239,13 +239,13 @@ storage or a cache. Chat's **Ask the Lab** answers read the same file, so a new
 add-on appears there with no other change.
 
 Each card also has a **Copy request for your coding agent** button, shown with
-Under the hood on. It copies a request built from the manifest: draft this
-add-on's package under `addons/<id>/` in a pull request, keep it private and
-keyless, run the check and tests, never run `terraform apply`, deploy, make a
-billable call or create anything public, and leave the saved plan for a person
-to approve. An add-on marked as needing approval gets a request for that
-approval only. The button copies text and calls nothing. The wording lives in
-`codingAgentRequest` in
+Under the hood on. It copies a request built from the manifest. The request asks
+the agent to draft this add-on's package under `addons/<id>/` in a pull request,
+keep it private and keyless, and run the check and tests. It also says to never
+run `terraform apply`, deploy, make a billable call or create anything public,
+and to leave the saved plan for a person to approve. An add-on marked as needing
+approval gets a request for that approval only. The button copies text and calls
+nothing. The wording lives in `codingAgentRequest` in
 [`add-on-catalog.ts`](../workbench/frontend/src/add-on-catalog.ts).
 
 ## Add or change an add-on

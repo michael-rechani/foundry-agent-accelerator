@@ -2,9 +2,9 @@
 
 [Home](../README.md) / [Docs](README.md) / [Architecture](architecture.md) / Extension guide
 
-Use this guide to add independent agent examples without rebuilding the
-platform. You will compare Foundry capabilities, confirm the Terraform,
-software development kit (SDK), and networking fit, and complete an onboarding
+You can add independent agent examples without rebuilding the platform. This
+guide helps you compare Foundry capabilities, check the Terraform, software
+development kit (SDK), and networking fit, and work through an onboarding
 checklist before you publish a new example.
 
 > [!IMPORTANT]
@@ -17,11 +17,11 @@ checklist before you publish a new example.
 
 | Decision | Recommendation | Why it matters |
 | --- | --- | --- |
-| Demonstration scope | Start with one fictional scenario, expected findings, and a human-decision boundary. | Four scenarios do not require four independent agents. |
+| Demonstration scope | Start with one fictional scenario, expected findings, and a human-decision boundary. | Four scenarios don't require four independent agents. |
 | Agent type | Choose the least complex supported Foundry capability that meets the example requirement. | A hosted coordinator is useful for custom code and delegation, but it should not be the default for every agent. |
 | Platform ownership | Keep infrastructure declarative and keep agent releases separate from Terraform. | The sample already has separate platform, Lab, Bastion, and monitoring roots with their own state. |
-| Data and identity | Validate permissions, retention, tracing content, and private connectivity before adopting a capability. | A working connection or public service feature does not prove this repository has validated it. |
-| Quality | Use reviewed inputs, expected outcomes, smoke checks, and versioned evaluation cases. | A nonempty answer alone does not pass. |
+| Data and identity | Validate permissions, retention, tracing content, and private connectivity before adopting a capability. | A working connection or public service feature doesn't prove this repository has validated it. |
+| Quality | Use reviewed inputs, expected outcomes, smoke checks, and versioned evaluation cases. | A nonempty answer alone doesn't pass. |
 
 ## In this guide
 
@@ -43,8 +43,8 @@ checklist before you publish a new example.
 Start with [one scenario](demos.md), fictional inputs, expected findings, and a
 clear human-decision boundary. Casework and application completeness reuse the
 prebuilt agents. **Preview** proposal coverage reuses application review and
-Document reviews. Business-request triage isn't included;
-review-specialist routing is not a substitute for simulated request routing and
+Document reviews. Business-request triage isn't included, and
+review-specialist routing can't stand in for simulated request routing and
 human approval.
 
 The primary path excludes live customer-system connections, Microsoft 365,
@@ -55,27 +55,27 @@ production-readiness claim.
 ## Design principles
 
 Keep the existing foundation. Make independent agents easy to add, deploy,
-evaluate, and demonstrate on Microsoft Foundry. Keep the Lab a bounded
-create-and-try client; Document reviews is one optional workflow, not the
+evaluate, and demonstrate on Microsoft Foundry. The Lab stays a bounded
+create-and-try client. Document reviews is one optional workflow, not the
 platform's purpose.
 
 Let concrete agent requirements drive extensions. The implemented, opt-in
 [creation flow](agent-creation.md) publishes prepared hosted-agent templates,
-then opens ready agents in Chat. It is not an unrestricted agent designer:
-fixed code and tools, strict inputs, a shared operator-key gate, explicit cost
-confirmation, and persisted publication status limit its scope. Preparing a
-setup or choosing **New chat** is not resource creation. The source adds the
-publication API and optional configuration, but does not grant permissions or
-deploy resources. Operators must validate their private project, managed
-identity, model availability, and quota before enabling it.
+then opens ready agents in Chat. It isn't an unrestricted agent designer. Fixed
+code and tools, strict inputs, a shared operator-key gate, cost confirmation,
+and persisted publication status limit its scope. Preparing a setup or choosing
+**New chat** isn't resource creation. The source adds the publication API and
+optional configuration, but it doesn't grant permissions or deploy resources.
+Operators must validate their private project, managed identity, model
+availability, and quota before enabling it.
 
 ## Terraform-first deployment
 
-Use the Microsoft references as design guidance, not as a replacement for the
+Treat the Microsoft references as design guidance, not a replacement for the
 working foundation. This repository already uses the Foundry Azure Verified
 Module (AVM), with AzureRM and AzAPI for the surrounding resources. Keep
-infrastructure declarative; keep image builds, agent releases, and quality
-checks as explicit delivery steps.
+infrastructure declarative. Image builds, agent releases, and quality checks
+stay as separate delivery steps.
 
 <img alt="Deploy with Terraform: protected Blob state, approved private access, and Entra authentication are provided before deployment. The platform root in terraform/ owns Microsoft Foundry, the private foundation, private monitoring, and optional extras. The Lab root, the optional Bastion root, and the optional agent monitoring root read reviewed platform IDs and names. Separate release workflows build images, publish agent versions, and run quality checks after infrastructure is reviewed." src="images/foundry-deployment-dark.svg">
 
@@ -86,10 +86,10 @@ checks as explicit delivery steps.
 | Reference | Useful guidance | Fit for this repository |
 | --- | --- | --- |
 | [Microsoft Foundry baseline sample](https://github.com/Azure-Samples/microsoft-foundry-baseline) | Separate private infrastructure, application publishing, and agent deployment. | Its infrastructure implementation is Bicep, not Terraform. Reuse the design decisions, not a second competing deployment. |
-| [Foundry architecture](https://learn.microsoft.com/azure/foundry/concepts/architecture) | Accounts, projects, and connected Azure services have distinct responsibilities and access boundaries. | Keep resource ownership clear. A project connection does not transfer ownership of the connected service. |
-| [Baseline chat architecture](https://learn.microsoft.com/azure/architecture/ai-ml/architecture/baseline-microsoft-foundry-chat) | Private endpoints and DNS, scoped identities, controlled egress, monitoring, and recovery planning. | Use it as a hardening checklist. The Lab does not implement the full gateway, firewall, or availability design. |
-| [Basic chat architecture](https://learn.microsoft.com/azure/architecture/ai-ml/architecture/basic-microsoft-foundry-chat) | A simpler learning application with a clear browser-to-backend-to-model path. | Borrow the clarity, not its public-network defaults. Its linked sample is also Bicep; it is not a production baseline. |
-| [Build and deploy custom models](https://learn.microsoft.com/azure/architecture/ai-ml/architecture/build-deploy-custom-models) | A document-processing design that separates ingestion, storage, model training, and inference. | Relevant only when a later scenario needs extraction or a trained model. It supplies no Terraform implementation and is not a reason to add training infrastructure to this review demo. |
+| [Foundry architecture](https://learn.microsoft.com/azure/foundry/concepts/architecture) | Accounts, projects, and connected Azure services have distinct responsibilities and access boundaries. | Keep resource ownership clear. A project connection doesn't transfer ownership of the connected service. |
+| [Baseline chat architecture](https://learn.microsoft.com/azure/architecture/ai-ml/architecture/baseline-microsoft-foundry-chat) | Private endpoints and DNS, scoped identities, controlled egress, monitoring, and recovery planning. | Use it as a hardening checklist. The Lab doesn't implement the full gateway, firewall, or availability design. |
+| [Basic chat architecture](https://learn.microsoft.com/azure/architecture/ai-ml/architecture/basic-microsoft-foundry-chat) | A simpler learning application with a clear browser-to-backend-to-model path. | Borrow the clarity, not its public-network defaults. Its linked sample is also Bicep, and it isn't a production baseline. |
+| [Build and deploy custom models](https://learn.microsoft.com/azure/architecture/ai-ml/architecture/build-deploy-custom-models) | A document-processing design that separates ingestion, storage, model training, and inference. | Relevant only when a later scenario needs extraction or a trained model. It supplies no Terraform implementation, and it isn't a reason to add training infrastructure to this review demo. |
 | [AI Landing Zones](https://azure.github.io/AI-Landing-Zones/#extensible-implementations) | Reusable Foundry and AI gateway foundations, with separate platform and workload responsibilities. | The strongest Terraform starting point. It links to the Foundry AVM already used here, a broader landing-zone module, and a separate gateway implementation. |
 
 The [Foundry AVM](https://registry.terraform.io/modules/Azure/avm-ptn-aiml-ai-foundry/azurerm/latest)
@@ -99,10 +99,10 @@ deployment, also consider the
 and [AI Gateway Terraform implementation](https://github.com/Azure/terraform-ai-gateway-landing-zone).
 They are alternatives to assess, not dependencies to add automatically.
 
-The landing-zone project is marked preview and does not claim complete
+The landing-zone project is marked preview and doesn't claim complete
 [Bicep/Terraform runtime parity](https://github.com/Azure/AI-Landing-Zones/blob/main/docs/terraform-parity.md).
 Module and provider constraints differ across the implementations. Keep this
-repository's pins until a coordinated upgrade is tested. Do not merge example
+repository's pins until a coordinated upgrade is tested. Don't merge example
 roots or point a new module at existing resources without an ownership and state
 migration plan. Review deletion and purge behavior as well as creation.
 
@@ -112,14 +112,14 @@ migration plan. Review deletion and purge behavior as well as creation.
 | --- | --- | --- |
 | [Platform Terraform](../terraform/) | Foundry account, Foundry project, model deployment, agent backing services, workload and management networks, private endpoints and DNS, identities and role-based access control (RBAC), and private diagnostics. Azure API Management (APIM) and the admin virtual machine are optional. | Keep existing resource names, protected resources, and the platform state key. Azure AI Search is a backing service, not a default review-agent retrieval tool. The optional sample lookup (see the [knowledge retrieval design](knowledge-retrieval.md)) is the only use. |
 | [Lab Terraform](../workbench/infra/) | Internal Container Apps hosting, private registry, runtime identity, application Cosmos DB database and containers, private logs, and operational alert rules. Optional email action group. | Separate state. Reference platform resources without managing them a second time. Application records stay separate from Agent Service's internal data structures. |
-| Existing environment owners | Protected Terraform backend, approved deployment access, any organization-owned hub, central DNS, policy, and existing notification groups. | The sample does not deploy an enterprise landing zone or automatically integrate with one. Reuse shared services only through a reviewed integration. |
-| [Application and agent release workflows](../hosted-agents/README.md) | Build and publish images, select an immutable Lab digest, publish agent versions, verify routing, and recover failed releases. | Terraform sets the Lab's image reference; release scripts produce and verify the artifact. Do not hide these steps in Terraform `local-exec` hooks. |
-| [Quality checks](../evaluations/README.md) | Offline tests, approved private smoke checks, and optional paid model evaluations. | Successful resource deployment does not establish agent quality or trace coverage. |
+| Existing environment owners | Protected Terraform backend, approved deployment access, any organization-owned hub, central DNS, policy, and existing notification groups. | The sample doesn't deploy an enterprise landing zone or automatically integrate with one. Reuse shared services only through a reviewed integration. |
+| [Application and agent release workflows](../hosted-agents/README.md) | Build and publish images, select an immutable Lab digest, publish agent versions, verify routing, and recover failed releases. | Terraform sets the Lab's image reference, and release scripts produce and verify the artifact. Don't hide these steps in Terraform `local-exec` hooks. |
+| [Quality checks](../evaluations/README.md) | Offline tests, approved private smoke checks, and optional paid model evaluations. | Successful resource deployment doesn't establish agent quality or trace coverage. |
 
 The AVM bring-your-own-resources (BYOR) path is already enabled with Agent
-Service: the platform root owns Cosmos DB and agent storage, and the AVM creates
-Azure AI Search and Key Vault. BYOR does not mean these resources already have
-separate Terraform state. Moving them to a central owner would need an explicit
+Service. The platform root owns Cosmos DB and agent storage, and the AVM creates
+Azure AI Search and Key Vault. BYOR doesn't mean these resources already have
+separate Terraform state. Moving them to a central owner would need a planned
 migration.
 
 ### A small implemented improvement: alert delivery
@@ -135,10 +135,10 @@ operational alerts, not a new email tool for agents.
 
 - **Private tracing:** verify project-linked Application Insights, agent support,
   retention, and content-capture policy before adding resources or
-  instrumentation. Log Analytics diagnostics alone do not prove end-to-end agent
+  instrumentation. Log Analytics diagnostics alone don't prove end-to-end agent
   tracing.
 - **Enterprise networking:** agree who owns the hub, egress firewall, DNS,
-  routes, and deployment runners before connecting this workload. Do not
+  routes, and deployment runners before connecting this workload. Don't
   duplicate central services or enable a costly firewall only to match a
   reference diagram.
 - **Broader application access:** use the [ingress guide](ingress-access.md) for
@@ -146,23 +146,23 @@ operational alerts, not a new email tool for agents.
   remain separate application work.
 - **Resilience or custom-model processing:** choose these for an actual
   availability, recovery, or document-processing requirement. They add
-  resources, operating costs, and validation work; they are not prerequisites for
-  this demo.
+  resources, operating costs, and validation work, and this demo doesn't need
+  them first.
 
 ## Capability comparison
 
-Choose the simplest supported capability that satisfies the example. Use this
-comparison before adding a new service, custom orchestration layer, or
-integration.
+Pick the simplest supported capability that satisfies the example, and compare
+it against this table before adding a new service, custom orchestration layer,
+or integration.
 
 | Capability | Good fit | Boundary to check |
 | --- | --- | --- |
-| Prompt agent | Configuration-led use cases that do not need custom code. | Prompt-agent delivery would need a small separate path; the existing deployer publishes hosted code. |
+| Prompt agent | Configuration-led use cases that don't need custom code. | Prompt-agent delivery would need a small separate path; the existing deployer publishes hosted code. |
 | Hosted agent | Custom Python code, validated packaging, or controlled specialist tools. | Preserve immutable versions, deployment preflight, private ingress checks, and route verification. |
-| Coordinator with specialists | Independently useful specialists with explicit handoffs. | More agents add latency, cost, and failure modes. Do not use a hosted coordinator for every example by default. |
+| Coordinator with specialists | Independently useful specialists with clear handoffs. | More agents add latency, cost, and failure modes. Don't use a hosted coordinator for every example by default. |
 | Direct Responses call from the Lab | App-owned logic where the Lab should own prompts, records, and controls. | Keep Responses as the current contract. Add an adapter only for a concrete example needing a different contract. |
-| Native retrieval or toolboxes | Approved data sources or tools that multiple examples need. | A Search connection alone is not retrieval or document authorization. Validate identity, private routing, versioning, and freshness. See the [knowledge retrieval design](knowledge-retrieval.md). |
-| Managed conversations, background work, or resilience | Examples that need native recovery or state after retention requirements are clear. | Background acceptance alone is not durable recovery or exactly-once side effects. Test against pinned SDK and runtime versions. |
+| Native retrieval or toolboxes | Approved data sources or tools that multiple examples need. | A Search connection alone isn't retrieval or document authorization. Validate identity, private routing, versioning, and freshness. See the [knowledge retrieval design](knowledge-retrieval.md). |
+| Managed conversations, background work, or resilience | Examples that need native recovery or state after retention requirements are clear. | Background acceptance alone isn't durable recovery or exactly-once side effects. Test against pinned SDK and runtime versions. |
 | Customer channels or Azure API Management (APIM) | A specific governed API or supported channel requirement. | APIM stays disabled unless its cost, policy, authorization, and networking are reviewed. Native publishing can fit some channels better. |
 
 ## Ownership and fit
@@ -170,13 +170,13 @@ integration.
 | Concern | What this repository has | What Foundry provides | Recommended boundary |
 | --- | --- | --- | --- |
 | Platform | Terraform, private networking, model deployment, managed identities, separate platform and Lab state. | Agent hosting, endpoints, identities, model access, and managed runtime lifecycle. | Keep Terraform for infrastructure and permissions; keep agent publication separate. |
-| Agent implementation | Python hosted samples and a shared version deployer. | Prompt agents for configuration-led use cases; hosted agents for custom code; direct Responses calls for app-owned logic. | Choose the least complex supported type per example. Do not require a hosted coordinator for every agent. |
+| Agent implementation | Python hosted samples and a shared version deployer. | Prompt agents for configuration-led use cases; hosted agents for custom code; direct Responses calls for app-owned logic. | Choose the least complex supported type per example. Don't require a hosted coordinator for every agent. |
 | Invocation | The Lab calls configured named agent Responses endpoints by using managed identity. | Responses protocol and additional protocols for other client needs. | Keep Responses as the current Lab contract. Add an adapter only for a concrete example needing a different contract. |
 | Tools and knowledge | Custom specialist function tools; connected backing Search. An optional, flag-gated case-agent lookup is off by default and runs only as a small sample pilot in the dev Lab ([knowledge retrieval design](knowledge-retrieval.md)). | Managed tools, versioned toolboxes, Model Context Protocol (MCP) or OpenAPI integrations, and Search retrieval. | Prefer a supported native integration when permissions and private connectivity fit; keep domain-specific code in the agent. |
 | Conversation state | Explicitly saved shared Cosmos DB transcripts; bounded history resubmitted with `store=False`. | Managed conversations and sessions. | Preserve current behavior until retention and authorization are decided. Avoid silently enabling a second transcript store. |
-| Long-running work | Optional review records with local background tasks and interruption reporting. | Background Responses and separately configured resilient execution. | Evaluate native recovery first when an example needs it. Background acceptance alone is not durable recovery or exactly-once side effects. |
+| Long-running work | Optional review records with local background tasks and interruption reporting. | Background Responses and separately configured resilient execution. | Evaluate native recovery first when an example needs it. Background acceptance alone isn't durable recovery or exactly-once side effects. |
 | Quality and diagnostics | Unit and browser tests, deployment smoke checks, opt-in fictional Foundry evaluations, metadata logs, and session timings. | Agent tracing, Application Insights integration, and evaluations. | Keep test cases and acceptance thresholds in source; use Foundry for evaluation and diagnostic analysis, not a new Lab dashboard. |
-| Customer access | Private Lab with shared records and no end-user sign-in. | Agent Entra identities, RBAC, supported publishing, and channel integrations. | Agent identity does not authorize individual Lab users. Add user authorization before confidential multi-user use. |
+| Customer access | Private Lab with shared records and no end-user sign-in. | Agent Entra identities, RBAC, supported publishing, and channel integrations. | Agent identity doesn't authorize individual Lab users. Add user authorization before confidential multi-user use. |
 
 The existing [component map](architecture.md#component-interactions) remains the
 implementation reference.
@@ -195,7 +195,7 @@ implementation reference.
   optionally save or export the conversation. Agent internals should not dictate
   the shell.
 - **Example-specific state:** review criteria, evidence snapshots, and findings
-  belong to that example. Other agents do not need to emit the review JSON schema
+  belong to that example. Other agents don't need to emit the review JSON schema
   or custom specialist success receipts.
 
 The [catalog](../workbench/agents.json) already separates display names, named
@@ -212,8 +212,8 @@ by default.
 
 | Area | Requirement |
 | --- | --- |
-| Sample onboarding | A new example can be deployed and demonstrated without editing the Lab's chat logic or unrelated platform resources. Reuse the deployer where compatible and configure catalog visibility explicitly. |
-| Quality | Use reviewed inputs, expected outcomes, and failure cases. Record dataset and agent/model versions with evaluation thresholds; a nonempty answer alone does not pass. |
+| Sample onboarding | A new example can be deployed and demonstrated without editing the Lab's chat logic or unrelated platform resources. Reuse the deployer where compatible and configure catalog visibility by name. |
+| Quality | Use reviewed inputs, expected outcomes, and failure cases. Record dataset and agent/model versions with evaluation thresholds; a nonempty answer alone doesn't pass. |
 | Tracing | A controlled request can be followed from Lab request ID to agent/tool execution through the private setup, with approved content capture. |
 | Reproducibility | Record source revision, dependencies, agent/model versions, tool bindings, and environment in non-secret deployment records. Preserve an identifiable recovery target. |
 | Workflow compatibility | Plain chat agents must not require review-specific JSON or specialist receipts. Offer evidence-review actions only for compatible agents. |
@@ -223,58 +223,60 @@ Generalize behavior only when another example demonstrates a real shared need.
 The [evaluation suite](../evaluations/README.md) implements the first
 quality-gate slice: versioned fictional inputs, deterministic delegation checks,
 a hand-authored Foundry rubric, and metadata-only local receipts. Live evaluation
-is opt-in on a staging stack; it does not change production routes.
+is opt-in on a staging stack. It doesn't change production routes.
 
 ## Capability and compatibility baseline
 
 ### Repository configuration and validation boundary
 
-These are repository pins and implementation choices, not a claim that every
-live combination has been validated in every region. Offline tests exercise
-fixtures, API contracts, and mocked transports. They do not prove model quality,
+These are repository pins and implementation choices. They don't claim that
+every live combination has been validated in every region. Offline tests
+exercise fixtures, API contracts, and mocked transports. They don't prove model
+quality,
 live routing, permissions, trace collection, or production suitability.
 
 | Surface | Repository baseline | Evidence and remaining validation |
 | --- | --- | --- |
 | Hosted agents | Responses 2.0.0, `python_3_14` remote build. | Packaging and deployment safeguards have offline tests. Verify private ingress, agent outbound access, deployment access, and live delegation on the selected staging environment. |
 | Agent runtime | `agent-framework-foundry==1.13.1`; `agent-framework-foundry-hosting==1.0.0b260918`. | The pinned hosting package is beta. Offline SDK contracts are covered; upgrades still require runtime, delegation, and private deployment checks. |
-| Deployment and Lab clients | `azure-ai-projects==2.6.1`; `openai==3.19.2`. | Preserve the pinned pair and its offline transport tests. A newer public release is not an instruction to upgrade without coordinated validation. |
-| Evaluation client | Separate environment with the same `azure-ai-projects==2.6.1`; `openai==3.19.2` pins. | Hand-authored rubric creation uses `.beta.evaluators`. Offline contracts are tested; live evaluation needs explicit approval and private-project, permissions, region, and judge-model verification. |
-| Tracing | Operational metadata logs and private Azure Monitor connectivity. | Verify project-linked Application Insights server-side traces before claiming end-to-end trace coverage or adding client instrumentation. Content capture requires explicit review. |
-| Tools and retrieval | Custom specialist tools; Search connected, and used for retrieval only by the optional, off-by-default case-agent lookup (a small sample pilot in the dev Lab). `azure-search-documents==12.0.0` is pinned only for that lookup. | A Search connection alone is not retrieval or document authorization. Native toolboxes and new integrations need their own identity and network validation. See the [knowledge retrieval design](knowledge-retrieval.md). |
-| Default model | GPT-4.1, with its version set in the [Terraform inputs](../terraform/variables.tf). | A configured model is not a quality result. Compare alternatives against the same evaluation set before an approved change. |
+| Deployment and Lab clients | `azure-ai-projects==2.6.1`; `openai==3.19.2`. | Preserve the pinned pair and its offline transport tests. A newer public release isn't an instruction to upgrade without coordinated validation. |
+| Evaluation client | Separate environment with the same `azure-ai-projects==2.6.1`; `openai==3.19.2` pins. | Hand-authored rubric creation uses `.beta.evaluators`. Offline contracts are tested; live evaluation needs approval and private-project, permissions, region, and judge-model verification. |
+| Tracing | Operational metadata logs and private Azure Monitor connectivity. | Verify project-linked Application Insights server-side traces before claiming end-to-end trace coverage or adding client instrumentation. Content capture requires a specific review. |
+| Tools and retrieval | Custom specialist tools; Search connected, and used for retrieval only by the optional, off-by-default case-agent lookup (a small sample pilot in the dev Lab). `azure-search-documents==12.0.0` is pinned only for that lookup. | A Search connection alone isn't retrieval or document authorization. Native toolboxes and new integrations need their own identity and network validation. See the [knowledge retrieval design](knowledge-retrieval.md). |
+| Default model | GPT-4.1, with its version set in the [Terraform inputs](../terraform/variables.tf). | A configured model isn't a quality result. Compare alternatives against the same evaluation set before an approved change. |
 
 ## Public service and SDK guidance
 
-Use the following sources to check service availability and compatibility.
-Public documentation is **not evidence that this repository has been tested
+Check these sources for service availability and compatibility. Public
+documentation is **not evidence that this repository has been tested
 against every feature**. Support can differ by SDK operation, integration,
 region, and deployment path. Check the relevant source before changing a
 deployment or presenting a capability as supported.
 
 | Topic | What to check | Source |
 | --- | --- | --- |
-| Hosted agents and tools | Verify support for the chosen hosting and tool features. A generally available service does not change the repository's beta hosting-package pin. | [Hosted-agent concepts](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents) |
+| Hosted agents and tools | Verify support for the chosen hosting and tool features. A generally available service doesn't change the repository's beta hosting-package pin. | [Hosted-agent concepts](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents) |
 | Tracing | Check the support level and setup for your agent type. Project-linked Application Insights is required for server-side tracing. | [Tracing setup](https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-setup) |
 | Python Projects SDK | Since 2.5.0 it requires OpenAI 3.x, which uses `httpx2` and the operating-system TLS trust store. The repository pins 2.6.1 because `agent-framework-foundry` 1.13.x caps it below 2.7. | [Projects SDK changelog](https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/ai/azure-ai-projects/CHANGELOG.md) |
 | Configured model | Confirm availability, support status, and retirement policy for the configured model version and deployment region. | [Model lifecycle guidance](https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirement-schedule) |
 
 Private-registry support has project-eligibility requirements, and hosted-agent
-network injection must be configured when creating the account. Do not infer
+network injection must be configured when creating the account. Don't infer
 hosted image-pull compatibility from the Lab's Azure Container Registry (ACR)
-configuration or replace the existing remote-build path without a separate
-connectivity check. Do not remove `allow_preview=True` wholesale: the pinned
-named-agent client and selected beta operations still need preview-aware
+configuration, and don't replace the existing remote-build path without a
+separate connectivity check. Don't remove `allow_preview=True` wholesale: the
+pinned named-agent client and selected beta operations still need preview-aware
 handling.
 
 Consult the [private networking limitations](https://learn.microsoft.com/azure/foundry/agents/how-to/virtual-networks#limitations)
-for the intended project and deployment method. Reading public guidance does not
+for the intended project and deployment method. Reading public guidance doesn't
 verify the existing environment's connectivity or authorize changes to it.
 
 ## Onboarding checklist for each customer example
 
-Use a short README plus existing code, configuration, and test conventions. No
-new manifest schema or scaffold generator is required yet.
+Each customer example needs a short README plus your existing code,
+configuration, and test conventions. No new manifest schema or scaffold
+generator is required yet.
 
 1. [ ] **Define the purpose.** Name the audience, task, and concrete successful
    outcome. Include what the agent must not decide or do.
@@ -298,7 +300,7 @@ new manifest schema or scaffold generator is required yet.
    target, and demo reset or cleanup.
 7. [ ] **Add the Lab entry.** Provide a clear name, short purpose, starter
    prompts, and the supported named Responses endpoint. Confirm visibility and
-   default-agent settings explicitly.
+   default-agent settings by name.
 8. [ ] **Set cost boundaries.** Record model, tool, hosting, deadline, and
    concurrency assumptions. Distinguish estimated cost from measured usage.
 
@@ -310,19 +312,19 @@ The remaining architecture decisions can be worked out from those examples.
 
 - **Knowledge retrieval:** try the supported Foundry tool against the existing
   approved Search setup before writing a bespoke retrieval service. The backing
-  Search connection alone does not establish retrieval or document authorization.
+  Search connection alone doesn't establish retrieval or document authorization.
   The [knowledge retrieval design](knowledge-retrieval.md) compares the Foundry
   tool with a flag-gated, read-only function tool for the case agent. The
   function tool is off by default and runs only as a small sample pilot in the
   dev Lab; a staging comparison with the Foundry tool remains open.
 - **Native state and recovery:** test managed conversations, background work,
   and resilience against pinned SDK and runtime versions and retention
-  requirements. The current `store=False` gateway and local review task are not
+  requirements. The current `store=False` gateway and local review task aren't
   automatically durable because Foundry supports those features. Preserve
   existing records during any migration. Documented resilient execution is
-  public preview without a service-level agreement (SLA); Responses crash
+  public preview without a service-level agreement (SLA). Responses crash
   recovery requires stored background responses and server opt-in. Handler
-  reentry does not restore local variables or guarantee side effects happen only
+  reentry doesn't restore local variables or guarantee side effects happen only
   once. Treat this as a bounded evaluation, not a production commitment.
 - **Shared toolboxes:** use when multiple examples need the same approved tools.
   Check versioning, identity propagation, and private routing before replacing
@@ -336,7 +338,7 @@ The remaining architecture decisions can be worked out from those examples.
   stays disabled unless a specific governed API requirement warrants its cost
   and configuration.
 - **Production scaling:** user authorization, delivered alerts, durable work
-  ownership where required, and restore tests remain gates. They do not all need
+  ownership where required, and restore tests remain gates. They don't all need
   to become prerequisites for a fictional-data demonstration.
 
 ## Related content

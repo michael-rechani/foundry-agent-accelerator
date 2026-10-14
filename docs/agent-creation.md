@@ -4,9 +4,9 @@
 
 The Lab can prepare a task setup from a built-in template, publish a real named
 Microsoft Foundry hosted agent after operator confirmation, and open that agent
-in **Chat**. This guide is for operators and demo leads who need to enable and
+in **Chat**. It's written for operators and demo leads who need to enable and
 try the feature without overstating what it does. The result is a small
-demonstration path, not an unrestricted agent designer or production
+demonstration path. It isn't an unrestricted agent designer or a production
 agent-management service.
 
 ## In this guide
@@ -36,8 +36,8 @@ contract and acceptance tests but aren't yet validated live. Open the **Agent
 library** to see what each one does. The fictional examples in the healthcare and public-sector group
 suit public-sector, healthcare-operations, and independent software vendor
 (ISV) conversations without reproducing any customer's work or implementation
-claims. Healthcare examples cover paperwork only, not clinical advice or real
-patient data.
+claims. Healthcare examples cover paperwork only. They don't give clinical
+advice or use real patient data.
 
 **Works in any sector**
 
@@ -70,12 +70,12 @@ job uses and whether it has sample lookups.
 
 [View full size](images/screenshots/lab-create-agent-dark.png)
 
-| Stage | What happens | What does not happen |
+| Stage | What happens | What doesn't happen |
 | --- | --- | --- |
-| Prepare a draft | The Lab uses deterministic templates and the supplied description. | It does not ask a model to design an agent, save a resource, or spend model tokens. An ambiguous description asks for a template instead of guessing. |
-| Review setup | You can edit the display name and task instructions before creation. | Tools and runtime policy are fixed by the selected template and cannot be added by a prompt. Eleven of the 18 templates have no tools, and no template uses specialist delegation. |
-| Create in Foundry | Explicit creation publishes a new generated `lab-demo-...` named agent using the Foundry software development kit (SDK). Progress represents actual application stages. | Progress is not a timer pretending to be deployment progress. |
-| Try the agent | Ready means the hosted version is active and its Responses route was checked. Send the fictional sample in **Chat** to observe its first actual answer and check quality yourself. | No hidden billable model smoke test runs. |
+| Prepare a draft | The Lab uses deterministic templates and the supplied description. | It doesn't ask a model to design an agent, save a resource, or spend model tokens. An ambiguous description asks for a template instead of guessing. |
+| Review setup | You can edit the display name and task instructions before creation. | The selected template fixes the tools and runtime policy, and a prompt can't add any. Eleven of the 18 templates have no tools, and no template uses specialist delegation. |
+| Create in Foundry | Confirming creation publishes a new generated `lab-demo-...` named agent using the Foundry software development kit (SDK). Progress follows the actual application stages. | Progress isn't a timer pretending to be deployment progress. |
+| Try the agent | Ready means the hosted version is active and its Responses route was checked. Send the fictional sample in **Chat** to see its first actual answer and check quality yourself. | No hidden billable model smoke test runs. |
 
 Templates with tools have exactly two fixed, local, **simulated read-only**
 lookups each:
@@ -96,14 +96,14 @@ a customer application. Letters and notes are unsent drafts for a person to
 review.
 
 **Chat** can use this ready agent or an enabled prebuilt agent. A chat prompt
-does not edit either setup. There is no in-place editor for deployed
+doesn't edit either setup, and there's no in-place editor for deployed
 instructions.
 
-**Document reviews** remains independent. Its saved checklist/results workflow
+**Document reviews** works independently. Its saved checklist/results workflow
 uses the existing Lab default agent, not whichever created agent is in **Chat**.
-There is no automatic transfer between the two.
+Nothing transfers automatically between the two.
 
-The local disconnected preview supports draft preparation only. It cannot
+The local disconnected preview supports draft preparation only. It can't
 publish, persist a created agent, or produce a live model answer.
 
 ## How the Lab picks a model
@@ -151,11 +151,11 @@ and single worker/replica. Before enabling, complete these checks.
 1. Create a strong, randomly generated operator key of at least 32 characters,
    preferably through an approved password manager. Store only its lowercase
    SHA-256 UTF-8 verifier in an existing Azure Key Vault secret. Give the raw
-   key separately to approved operators; do not commit it or put it in
+   key separately to approved operators. Don't commit it or put it in
    Terraform.
 
    In the Lab, the **Operator key** box describes the key as a shared password
-   for whoever runs the Lab. It is not a personal sign-in; whoever has it can
+   for whoever runs the Lab. It isn't a personal sign-in. Whoever has it can
    create and delete real agents in Foundry.
 
    The dev Lab also keeps the raw key in the Key Vault secret
@@ -169,7 +169,7 @@ and single worker/replica. Before enabling, complete these checks.
    Set-Clipboard -Value ' '
    ```
 
-   The Lab identity cannot read that secret; it can read only the verifier.
+   The Lab identity can't read that secret. It can read only the verifier.
 1. If using Lab Terraform, configure these nonsecret inputs through the normal
    reviewed rollout:
 
@@ -186,8 +186,8 @@ and single worker/replica. Before enabling, complete these checks.
    # agent_creation_key_secret_resource_id = "/subscriptions/<subscription ID>/resourceGroups/<vault resource group>/providers/Microsoft.KeyVault/vaults/your-vault/secrets/lab-creation-key-verifier"
    ```
 
-   Use deployment names that exist in your Foundry project; these are
-   examples. `agent_creation_models` is optional.
+   These names are examples, so use deployment names that exist in your Foundry
+   project. `agent_creation_models` is optional.
 
    The secret must contain the **verifier**, not the raw key. The Lab identity
    needs Key Vault Secrets User on that one secret. Either the environment owner
@@ -197,8 +197,8 @@ and single worker/replica. Before enabling, complete these checks.
    vault, secret, or model deployment, and no role assignment unless you set the
    resource ID.
 1. Rebuild the Lab image so it includes the reviewed runtime bundle, then use
-   the existing approved deployment process. The source-code and test changes do
-   not perform a deployment or permission change by themselves.
+   the existing approved deployment process. The source-code and test changes
+   don't perform a deployment or permission change by themselves.
 1. In the private UI, prepare one fictional setup, verify its tools and limits,
    confirm costs/shared visibility, and provide the operator key. Check real
    publication, send its sample, then verify cleanup before inviting an
@@ -229,10 +229,10 @@ settings fail startup rather than enabling an unprotected creation endpoint.
 
 This is a **shared operator gate**, not Microsoft Entra ID sign-in or per-user
 resource ownership. Anyone with Lab access can read the shared created-agent
-setups and use ready agents. Publication and deletion require the key. Do not
+setups and use ready agents. Publication and deletion require the key. Don't
 use confidential data.
 
-Disabling new creation does not stop or hide ready created agents. Keep the
+Disabling new creation doesn't stop or hide ready created agents. Keep the
 valid verifier configured to allow operator deletion while creation is disabled.
 
 ## Configuration ownership
@@ -290,17 +290,17 @@ includes the request that was sent, which the library's **Take it to Foundry**
 tab turns into a downloadable evaluation file.
 
 Only `main.py`, `demo_tools.py`, and `requirements.txt` enter the deterministic
-ZIP package. Prompts cannot upload source, install dependencies, select
+ZIP package. Prompts can't upload source, install dependencies, select
 endpoints, change the model, or register tools. Hosted allocation is fixed at
 0.5 CPU / 1 GiB. Remote build uses `python_3_14`, matching the existing
 deployer and the Lab container's Python 3.14 version.
 
 Changing templates, code, tools, permissions, or model configuration requires a
-developer/operator rollout. It does not mutate already published agents.
+developer/operator rollout. It doesn't mutate already published agents.
 Created-agent guidance, starter text, and expected tool receipts use the saved
 template snapshot, not whichever template definitions a later Lab image
 contains. The `created-<UUID>` identifier namespace belongs to saved created
-agents; prebuilt catalog entries cannot reuse it.
+agents, and prebuilt catalog entries can't reuse it.
 
 ### Add a library agent
 
@@ -315,7 +315,7 @@ name, or a sector, industry, task, readiness or model profile it doesn't know. T
 message names the file.
 
 1. Copy a similar file in `agents/`, rename it to the new id and edit it. Give it an
-   `order` no other agent uses; the library lists agents in `order`, and a task that
+   `order` no other agent uses. The library lists agents in `order`, and a task that
    matches more than one agent's trigger words gets them as `template_required`
    candidates in the same order. To retire an agent, replace `order` with
    `"retired": true`.
@@ -345,8 +345,8 @@ shows the `bundle.py export-created`, `inspect`, and `deploy` commands; building
 and deploying the bundle remain CLI steps in your own environment.
 Library templates are marked exportable only through the `after_creation`
 path: first create and publish a saved Lab agent, then export its ready record.
-Browsing a template alone does not produce a bundle.
-Redeployed bundles are independent agents: they do not copy this Lab's records,
+Browsing a template alone doesn't produce a bundle.
+Redeployed bundles are independent agents. They don't copy this Lab's records,
 ownership, chat history, or automatic lifecycle management.
 
 The API saves a typed Cosmos record **before** scheduling remote work. It then
@@ -354,38 +354,38 @@ checks that the chosen model deployment exists, uploads the reviewed ZIP
 package, records the returned version, waits for activation, sets a 100%
 Responses route, and reads the route/version back before marking the agent
 ready. If the deployment doesn't exist, publication stops
-before anything is uploaded and the record shows as failed. The API does not use
+before anything is uploaded and the record shows as failed. The API doesn't use
 browser-supplied endpoint names or change prebuilt agents.
 
 | Situation | Required behavior |
 | --- | --- |
 | Repeated creation request | A client universally unique identifier (UUID) identifies one creation request. Repeating the same setup with the same UUID returns the same operation. Changing its setup is a conflict. An uncertain browser response must not trigger a new UUID or automatic retry. |
-| Resume after uncertainty | Once submission may have started, **Resume** reconciles the named resource. It never uploads another version merely because a status check returns 404. If submission was definitely never started, **Resume** may perform that original first submission. A missing or unconfirmed cloud outcome stays explicit. |
-| Timeout or restart | Timeout, process restart, or an unsuccessful final status write can leave an interrupted record. Refresh checks status; it is not another publication. A failed poll does not mean the hosted operation stopped. |
-| Concurrent operations | Creation and deletion are serialized in one process. Conditional Cosmos updates reject stale operators. Multiple Lab workers or replicas would need distributed admission and job ownership; do not enable them here. |
+| Resume after uncertainty | Once submission may have started, **Resume** reconciles the named resource. It never uploads another version merely because a status check returns 404. If submission was definitely never started, **Resume** may perform that original first submission. The record keeps showing a missing or unconfirmed cloud outcome as such. |
+| Timeout or restart | Timeout, process restart, or an unsuccessful final status write can leave an interrupted record. Refresh checks status and isn't another publication. A failed poll doesn't mean the hosted operation stopped. |
+| Concurrent operations | Creation and deletion are serialized in one process. Conditional Cosmos updates reject stale operators. Multiple Lab workers or replicas would need distributed admission and job ownership, so don't enable them here. |
 | Ownership checks | Versions must carry this operation's ownership/setup/runtime metadata. Foreign or extra versions and inconsistent routes block automatic promotion or deletion. An owned but unrouted endpoint can be connected without replacing its existing authorization schemes or other protocol configuration. An absent activation status remains pending under the same bounded publication deadline. |
-| Deletion | Delete requires the operator key, explicit shared-impact confirmation, and the current ETag. It retires only this created resource after ownership checks and confirms absence. An interrupted deletion must be retried as deletion, not resumed as setup. A 404 after an unconfirmed submission is not sufficient to claim the resource was safely removed. A deleted record can't be resumed (409 `agent_not_resumable`); repeating the deletion returns the same record without a second operation. |
+| Deletion | Delete requires the operator key, confirmation of the shared impact, and the current ETag. It retires only this created resource after ownership checks and confirms absence. An interrupted deletion must be retried as deletion, not resumed as setup. A 404 after an unconfirmed submission isn't enough to claim the resource was safely removed. A deleted record can't be resumed (409 `agent_not_resumable`); repeating the deletion returns the same record without a second operation. |
 
-Do not edit generated resources through a second control plane during an
+Don't edit generated resources through a second control plane during an
 operation. Investigate unexpected changes in Foundry with an operator.
 
-Active, failed, and unconfirmed records do not expire while a hosted resource
+Active, failed, and unconfirmed records don't expire while a hosted resource
 might still exist. After confirmed deletion, the saved display name and task
 instructions are cleared. A small, nonexpiring ID/hash/status tombstone prevents
 an old creation request from silently republishing the same agent. Cosmos
-backups follow the account policy and are not immediate secure erasure.
+backups follow the account policy and aren't immediate secure erasure.
 
-Chats and reviews retain their existing 30-day retention and shared access
+Chats and reviews keep their existing 30-day retention and shared access
 rules. Export needed conversations **before** deleting their created agent. An
-agent that is no longer ready is no longer selectable, and its saved chats are
-not available through the active-agent history list. Deleting an agent is not a
-blanket deletion of other users' chat documents.
+agent that is no longer ready is no longer selectable, and its saved chats
+aren't available through the active-agent history list. Deleting an agent isn't
+a blanket deletion of other users' chat documents.
 
 > [!WARNING]
 > There is no automatic idle shutdown. Hosted runtime/build costs can continue
 > after a browser closes, a request times out, or new creation is disabled.
 
-A maximum record count and publication deadline are not a spending cap. Confirm
+A maximum record count and publication deadline aren't a spending cap. Confirm
 cleanup and investigate every uncertain outcome before declaring a demo over.
 
 ## Troubleshooting
@@ -421,7 +421,7 @@ persistence-before-mutation, restart recovery, owned routing/deletion, SDK
 model/ZIP contracts, created-agent chat/history, and desktop/mobile UI flows.
 Continuous integration (CI) includes the runtime and API checks.
 
-Those tests do not establish live Azure permissions, private connectivity,
+Those tests don't prove live Azure permissions, private connectivity,
 remote-build support, model availability, answer quality, or actual charges.
 Complete the approved staging checks above and record the difference between
 source availability, enabled configuration, and observed execution in the
@@ -435,7 +435,7 @@ helper, Benefits renewal helper, and Supplier invoice reviewer templates
 were published the same way. Each called its simulated lookups, the Lab
 verified every tool call, each answer found the main problems planted in its
 fictional sample, and all four agents were deleted. That shows the flow can
-work there; it doesn't prove it works in another environment, subscription,
+work there. It doesn't prove it works in another environment, subscription,
 region, or SDK version.
 
 ## Related content

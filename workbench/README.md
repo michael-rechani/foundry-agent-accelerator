@@ -5,16 +5,16 @@
 The Lab is the private browser app in `workbench/`. Use it to try the
 prebuilt agents, prepare reviewed agent setups, publish baseline Microsoft
 Foundry hosted agents when an operator enables creation, and save document
-reviews. When you finish this guide, you'll know how to run, configure, deploy,
-operate, and validate the Lab without changing the safety boundaries.
+reviews. This guide covers how to run, configure, deploy, operate, and validate
+the Lab without changing its safety boundaries.
 
 The UI title is **Foundry Agent Lab**. The private React/TypeScript UI uses a
 FastAPI backend and shared Azure Cosmos DB storage.
 
 Run it on your machine with the commands in [Local development](#local-development).
-To run it in Azure, follow the [deployment runbook](../docs/lab-deployment.md). The
-sections here are the short version; the [reference pages](#reference-pages) hold
-the detail.
+To run it in Azure, follow the [deployment runbook](../docs/lab-deployment.md).
+The sections here are the short version. The [reference pages](#reference-pages)
+hold the detail.
 
 ## At a glance
 
@@ -23,7 +23,7 @@ the detail.
 | Agent library | The opening page. Browse agent definitions by sector or industry (one list), task, readiness, and tool mode; compare a sample example with expected behavior; create, test, and export. |
 | Guided demos | Three sample customer stories with expected findings and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
 | Add-ons | A preview of optional tools and skills an agent could connect to later, such as knowledge search or a calculator. It shows what each would do, cost and need. The page turns nothing on. Knowledge search also runs as a small sample pilot in Checklist and case helper. |
-| Agent creation | **Create agent** prepares instructions from built-in templates. Publication is a separate operator-protected action. **Chat does not create or configure agents.** |
+| Agent creation | **Create agent** prepares instructions from built-in templates. Publication is a separate operator-protected action. **Chat doesn't create or configure agents.** |
 | Prebuilt agents | The prebuilt agents remain available. **Checklist and case helper** is the default visible prebuilt agent. |
 | Document reviews | **Document reviews** saves one structured check per checklist item and keeps the original text beside the result. |
 | Data boundary | Use sample data only. The Lab doesn't connect to customer systems or perform business writes. |
@@ -33,8 +33,8 @@ the detail.
 ## Local development
 
 Requires Node 24 and Python 3.14. See the
-[tool versions and upgrade expectations](../README.md#tool-versions-and-upgrades);
-these disconnected checks need neither Azure sign-in nor `azd`.
+[tool versions and upgrade expectations](../README.md#tool-versions-and-upgrades).
+These disconnected checks need neither Azure sign-in nor `azd`.
 
 ```powershell
 npm --prefix workbench/frontend ci
@@ -44,10 +44,10 @@ python -m uvicorn app:create_app --factory --app-dir workbench --host 127.0.0.1 
 ```
 
 Vite writes compiled assets to `workbench/static`, which FastAPI serves. The Lab
-uses the device's Segoe UI system fonts and downloads none. The browser has no Content Delivery Network (CDN) dependencies or
-Azure credentials. The optional operator key is held in memory only for creation
-or deletion requests. Markdown doesn't render raw HTML, external images, or
-clickable external links.
+uses the device's Segoe UI system fonts and downloads none. The browser has no
+Content Delivery Network (CDN) dependencies or Azure credentials. The optional
+operator key is held in memory only for creation or deletion requests. Markdown
+doesn't render raw HTML, external images, or clickable external links.
 
 ```powershell
 python -m pip install -r workbench/requirements.txt -r workbench/agent_runtime/requirements.txt
@@ -61,7 +61,7 @@ npm --prefix workbench/frontend test
 ```
 
 Infrastructure initialization and validation are separate deployment steps. The
-local application checks do not require access to the remote state backend.
+local application checks don't require access to the remote state backend.
 
 Workbench test classes that exercise the app mix in `CapturedLabLogs` from
 `workbench/log_capture.py`. It collects the Lab's JSON log lines instead of
