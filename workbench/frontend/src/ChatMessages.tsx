@@ -1,5 +1,5 @@
 import type { RefObject } from 'react'
-import { CircleAlert, X } from 'lucide-react'
+import { CircleAlert, RefreshCw, X } from 'lucide-react'
 import { ChatWelcome, type DraftMode } from './ChatWelcome'
 import type { Turn } from './conversation-types'
 import { ConversationTurn } from './ConversationTurn'
@@ -33,6 +33,7 @@ export function ChatMessages({
   onCreateAgent,
   onCopy,
   onDismissError,
+  onRetry,
   agents,
   onChooseAgent,
   onAddOns,
@@ -59,6 +60,7 @@ export function ChatMessages({
   onCreateAgent?: () => void
   onCopy: (text: string) => void
   onDismissError: () => void
+  onRetry?: () => void
   agents: Agent[]
   onChooseAgent: (id: string) => void
   onAddOns: () => void
@@ -122,6 +124,15 @@ export function ChatMessages({
         <div className="chat-error" role="alert">
           <CircleAlert size={19} />
           <p>{error}</p>
+          {onRetry && (
+            <button
+              type="button"
+              className="chat-error-retry"
+              onClick={onRetry}
+            >
+              <RefreshCw size={14} aria-hidden="true" /> Retry
+            </button>
+          )}
           <button
             className="chat-icon"
             aria-label="Dismiss error"

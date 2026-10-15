@@ -80,6 +80,9 @@ export function useChatSubmit({
     setError('')
     setNotice('')
     setPending(question)
+    // The message moves into the transcript while it is sent; a failure puts it
+    // back in the box so it can be edited or retried.
+    setDraft('')
     const timeout = window.setTimeout(
       () =>
         abort.abort(
@@ -142,6 +145,8 @@ export function useChatSubmit({
           ? problem.message
           : 'Request failed.'
       setError(message)
+      setDraft((current) => current || question)
+      setPending('')
       if (config?.mode === 'private')
         onMeasure({
           id: measurementId,

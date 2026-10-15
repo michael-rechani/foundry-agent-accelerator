@@ -100,6 +100,7 @@ test('stop waiting does not automatically retry', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Message' }).fill('Synthetic request')
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect.poll(() => state.requests.length).toBe(1)
+  await expect(page.getByRole('textbox', { name: 'Message' })).toHaveValue('')
   await page.getByRole('button', { name: 'Stop waiting' }).click()
   await expect(page.getByRole('alert')).toContainText('Stopped waiting')
   await expect(page.getByRole('textbox', { name: 'Message' })).toHaveValue(
@@ -124,6 +125,27 @@ test('a busy model asks the visitor to wait instead of blaming the connection', 
     'Synthetic request',
   )
   expect(state.requests).toHaveLength(1)
+})
+
+test('Send clears the box, a failure restores it, and Retry resends it', async ({
+  page,
+}) => {
+  const state = await openWorkspace(page, { busyOnce: true })
+  const box = page.getByRole('textbox', { name: 'Message' })
+  await box.fill('Synthetic request')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('The Lab is busy right now')
+  await expect(box).toHaveValue('Synthetic request')
+  await expect(page.locator('.user-message')).toHaveCount(0)
+  await expect(page.locator('.assistant-message')).toHaveCount(0)
+  await alert.getByRole('button', { name: 'Retry' }).click()
+  await expect(page.locator('.assistant-message')).toHaveCount(1)
+  await expect(page.locator('.user-message')).toHaveCount(1)
+  await expect(box).toHaveValue('')
+  await expect(alert).toHaveCount(0)
+  expect(state.requests).toHaveLength(2)
+  expect(state.requests[1].history).toEqual([])
 })
 
 test('non-JSON gateway errors show the standard failure message', async ({
