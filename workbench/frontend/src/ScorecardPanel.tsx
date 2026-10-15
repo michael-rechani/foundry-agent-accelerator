@@ -154,7 +154,9 @@ export function ScorecardPanel({
             <span>
               {card.signed_off && card.signed_off_by && card.signed_off_on
                 ? `Read by ${card.signed_off_by} on ${formatDate(card.signed_off_on)}.`
-                : "A person reads the recorded answer to every test case before it's marked ready."}
+                : allPassed
+                  ? "The automatic answer checks all passed. A person still reads the recorded answer to every test case before it's marked ready."
+                  : "A person reads the recorded answer to every test case before it's marked ready."}
             </span>
           </dd>
         </div>

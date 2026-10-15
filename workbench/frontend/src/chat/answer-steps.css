@@ -94,6 +94,7 @@
   background: var(--neutral-bg);
   color: var(--neutral-fg);
 }
+.answer-step.answer .answer-step-result,
 .answer-step.verified .answer-step-state {
   background: var(--success-bg);
   color: var(--success-fg);

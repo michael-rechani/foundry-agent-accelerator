@@ -15,9 +15,14 @@ export function LibraryTabs({
   onView: (view: View) => void
   onCreated: () => void
 }) {
-  const tabs: { view: View; label: string; count?: number }[] = [
+  const tabs: { view: View; label: string; count?: number; hint?: string }[] = [
     { view: 'library', label: 'Browse' },
-    { view: 'catalog', label: 'Ready to chat', count: readyCount },
+    {
+      view: 'catalog',
+      label: 'Ready to chat',
+      count: readyCount,
+      hint: 'Agents you can open in Chat now: prebuilt agents and ones made in this Lab. Library previews are under Browse.',
+    },
     ...(creationEnabled
       ? [
           {
@@ -36,6 +41,7 @@ export function LibraryTabs({
         <button
           key={tab.view}
           type="button"
+          title={tab.hint}
           aria-current={view === tab.view ? 'page' : undefined}
           onClick={tab.view === 'created' ? onCreated : () => onView(tab.view)}
         >

@@ -165,10 +165,42 @@ stored in code, the Terraform state, the pull request, or chat.
    `self-hosted`, `linux`, and `lab-runner` labels.
 
 > [!NOTE]
-> These steps are drafted but untested, because nothing was created in Azure. If
-> Run Command isn't suitable, ask for approval to use Azure Bastion or the serial
-> console instead. Neither is enabled here. Serial console doesn't work with the
+> Run Command works for registration, as long as the token is passed as
+> `RUNNER_TOKEN=<token>`. The bracketed `[{name:...,value:...}]` form doesn't
+> work with `az vm run-command create`: the CLI treats the whole string as one
+> value called `arg1`, and the script never sees `RUNNER_TOKEN`. If Run Command
+> stops working, ask for approval to use Azure Bastion or the serial console
+> instead. Neither is enabled here. Serial console doesn't work with the
 > key-only admin user, so it would also need a password.
+
+## Add a second runner
+
+One runner runs the eight `validate.yml` jobs one after another, so a full run
+takes roughly 15 to 20 minutes. A second runner on the same VM lets two jobs run
+at once. It adds no cost, but the heavy `workbench-frontend` job (Playwright)
+shares the VM's four vCPUs and memory with whatever else is running.
+
+`scripts/add-runner.sh` isn't part of the cloud-init, so using it never changes
+the Terraform plan or replaces the VM. Run it after the first runner is
+registered, with a fresh token from **Settings > Actions > Runners**:
+
+```powershell
+$token = Read-Host "Runner registration token" -AsSecureString
+$plain = [System.Net.NetworkCredential]::new("", $token).Password
+az vm run-command create `
+  --resource-group <runner-resource-group> `
+  --vm-name <runner-vm-name> `
+  --name add-runner `
+  --script "@terraform/runner/scripts/add-runner.sh" `
+  --parameters RUNNER_INSTANCE=2 `
+  --protected-parameters "RUNNER_TOKEN=$plain"
+Remove-Variable plain, token
+az vm run-command delete --resource-group <runner-resource-group> --vm-name <runner-vm-name> --name add-runner --yes
+```
+
+Pass the script with LF line endings. Instance N lives in `/opt/actions-runner-N`
+and shows up as `<hostname>-N`. The idle shutdown counts every runner, so the VM
+only deallocates when none of them is busy.
 
 ## Start, stop, and updates
 
