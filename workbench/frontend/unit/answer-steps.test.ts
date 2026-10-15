@@ -49,11 +49,11 @@ describe('answer steps', () => {
       plainStep(current, handoff, {
         'application-review-agent': 'Checklist reviewer',
       }),
-      'Asked the Checklist reviewer',
+      'Asked the Checklist reviewer for its part of the answer',
     )
     assert.equal(
       plainStep(current, handoff),
-      'Asked the Application review agent',
+      'Asked the Application review agent for its part of the answer',
     )
   })
 
