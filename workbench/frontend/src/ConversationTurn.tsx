@@ -21,6 +21,7 @@ import { FoundryLink } from './FoundryLink'
 import { foundryAgentUrl } from './foundry-links'
 import { loadedMarkdown, preloadMarkdown } from './markdown-loader'
 import { usageDetail, usageLabel } from './token-usage'
+import { UserMessage } from './UserMessage'
 
 const receiptLabels: Record<ReceiptState, string> = {
   verified: 'Verified receipt',
@@ -198,10 +199,7 @@ export function ConversationTurn({
 }) {
   return (
     <div className="turn">
-      <article className="user-message">
-        <span className="message-author">You</span>
-        <p>{turn.question}</p>
-      </article>
+      <UserMessage text={turn.question} />
       <article ref={answerRef} className="assistant-message">
         <div className="assistant-heading">
           <span className="agent-avatar">

@@ -78,16 +78,19 @@ test('a long answer opens at its start while a short one stays fully in view', a
 
   await send(page, 'Review a second synthetic request')
   await expect(answers).toHaveCount(2)
-  const gap = () =>
-    page.evaluate(() => {
+  const gap = (selector: string) =>
+    page.evaluate((target) => {
       const top = (selector: string) => {
         const found = document.querySelectorAll(selector)
         return found[found.length - 1].getBoundingClientRect().top
       }
-      return Math.round(top('.assistant-message') - top('.conversation-scroll'))
-    })
-  await expect.poll(gap).toBeGreaterThanOrEqual(0)
-  await expect.poll(gap).toBeLessThanOrEqual(24)
+      return Math.round(top(target) - top('.conversation-scroll'))
+    }, selector)
+  // The view opens on the question, so the start of the answer sits just
+  // below it.
+  await expect.poll(() => gap('.user-message')).toBeGreaterThanOrEqual(0)
+  await expect.poll(() => gap('.user-message')).toBeLessThanOrEqual(24)
+  await expect.poll(() => gap('.assistant-message')).toBeLessThanOrEqual(200)
   await expect(
     page.getByRole('heading', { name: 'Long sample answer' }),
   ).toBeInViewport()
@@ -95,6 +98,47 @@ test('a long answer opens at its start while a short one stays fully in view', a
     page.getByText('Line 60 of the sample answer.', { exact: true }),
   ).not.toBeInViewport()
 })
+test('a long question collapses to a few lines and opens on request', async ({
+  page,
+}) => {
+  const question = Array.from(
+    { length: 15 },
+    (_, index) => `Synthetic requirement line ${index + 1}.`,
+  ).join('\n')
+  await openWorkspace(page)
+  await send(page, question)
+  const bubble = page.locator('.user-message').last()
+  const text = bubble.locator('p')
+  const toggle = bubble.getByRole('button', { name: 'Show more' })
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  const collapsed = (await text.boundingBox())!.height
+  expect(collapsed).toBeLessThan(140)
+  await expect(bubble).toContainText('Synthetic requirement line 15.')
+  await toggle.click()
+  const expanded = (await text.boundingBox())!.height
+  expect(expanded).toBeGreaterThan(collapsed * 2)
+  await bubble.getByRole('button', { name: 'Show less' }).click()
+  await expect(text).toHaveClass(/collapsed/)
+
+  await page.getByRole('textbox', { name: 'Message' }).fill('Short')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-message')).toHaveCount(2)
+  await expect(
+    page.locator('.user-message').last().getByRole('button'),
+  ).toHaveCount(0)
+  // The last line of the newest answer clears the message box.
+  const clearance = await page.evaluate(() => {
+    const scroll = document.querySelector('.conversation-scroll')!
+    scroll.scrollTop = scroll.scrollHeight
+    const answers = document.querySelectorAll('.assistant-message')
+    return (
+      scroll.getBoundingClientRect().bottom -
+      answers[answers.length - 1].getBoundingClientRect().bottom
+    )
+  })
+  expect(clearance).toBeGreaterThanOrEqual(24)
+})
+
 test('stop waiting does not automatically retry', async ({ page }) => {
   const state = await openWorkspace(page, { stalledReview: true })
   await page.getByRole('textbox', { name: 'Message' }).fill('Synthetic request')

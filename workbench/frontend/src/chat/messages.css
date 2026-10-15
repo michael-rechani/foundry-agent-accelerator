@@ -30,6 +30,17 @@
   font-size: 13px;
   line-height: 1.85;
 }
+.user-message p.collapsed {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+.user-message-toggle {
+  margin-top: 6px;
+  font-size: 11px;
+}
 .assistant-message {
   padding: 0 6px;
   scroll-margin-top: 16px;
@@ -116,8 +127,8 @@
   gap: 8px;
   margin: 12px 0 0;
   padding: 8px 12px;
-  border-left: 3px solid var(--accent);
-  border-radius: 0 6px 6px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   background: var(--surface-subtle);
   color: var(--text);
   font-size: 12px;

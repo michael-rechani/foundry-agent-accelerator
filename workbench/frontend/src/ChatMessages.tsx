@@ -2,6 +2,7 @@ import type { RefObject } from 'react'
 import type { ChatFailure } from './chat-failure'
 import { ChatError } from './ChatError'
 import { ChatWelcome, type DraftMode } from './ChatWelcome'
+import { UserMessage } from './UserMessage'
 import type { Turn } from './conversation-types'
 import { ConversationTurn } from './ConversationTurn'
 import type { DemoScenario } from './demo-scenarios'
@@ -104,12 +105,7 @@ export function ChatMessages({
               onCopy={onCopy}
             />
           ))}
-          {pending && (
-            <article className="user-message">
-              <span className="message-author">You</span>
-              <p>{pending}</p>
-            </article>
-          )}
+          {pending && <UserMessage text={pending} />}
         </div>
       )}
       {busy && (

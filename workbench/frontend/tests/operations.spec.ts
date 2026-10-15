@@ -125,8 +125,11 @@ test('preview calls do not count as live performance', async ({ page }) => {
   await page
     .getByRole('textbox', { name: 'Message' })
     .fill('Synthetic preview request')
-  await page.getByRole('button', { name: 'Send message' }).click()
-  await expect(page.getByRole('alert')).toContainText('No agent was invoked')
+  // Local preview has no Send, so nothing can reach the model.
+  await expect(page.getByRole('button', { name: 'Send message' })).toHaveCount(
+    0,
+  )
+  await page.getByRole('button', { name: 'Copy prompt' }).click()
   await page.getByRole('button', { name: 'Performance', exact: true }).click()
   await expect(page.locator('.metric-strip > div').first()).toContainText('0')
 })

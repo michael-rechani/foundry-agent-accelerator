@@ -13,7 +13,7 @@ limits, and configuration loading behave.
 - [Starters and guidance](#starters-and-guidance)
 - [Saving, retention, and receipts](#saving-retention-and-receipts)
 - [Limits and request behavior](#limits-and-request-behavior)
-- [Continue in new chat](#continue-in-new-chat)
+- [Start new chat with this answer](#start-new-chat-with-this-answer)
 - [Configuration loading](#configuration-loading)
 
 ## Conversations
@@ -38,7 +38,7 @@ data contract and deployment checks. You don't need it to use **Chat**.
 | **New chat** | Starts a new Chat draft for the selected agent. | It doesn't create an agent or submit a starter prompt. When you have unsaved messages or a draft you typed, the Lab asks before clearing them. An example you haven't edited is replaced without asking. Saved history isn't deleted. |
 | **Create agent** | Prepares a setup from a built-in template and, when enabled, lets an operator publish it. | Preparation is deterministic template assembly, not a model-designed agent. |
 | **Made in this Lab** | Lists agents published from the Lab's creation flow. | Ready agents can be selected in **Chat**. |
-| **Chat** | Sends a message to the selected prebuilt agent, ready created agent, or library preview. | A chat prompt doesn't edit tools, instructions, or runtime configuration, and Chat can't create an agent. The example cards on the welcome screen only fill the message box and never send. They step aside once the box has text, and **Choose a different example** brings them back. Under the examples, **Ask the Lab** offers two questions: **Which agent should I use or build?** lists the ready agents with a button to switch to one, and **How is an agent built, and what can I add?** explains the parts of an agent and lists the add-ons in the same two groups as the **Add-ons** page. The answers are written from the agent list and the add-on manifests, so asking sends nothing, saves nothing and makes no model call, and your message box stays as it is. A library preview's **Create this agent** button, and the **Open Create agent** link on other agents' welcome screens, only open **Create agent**. Nothing is prepared or published until you act there. |
+| **Chat** | Sends a message to the selected prebuilt agent, ready created agent, or library preview. | A chat prompt doesn't edit tools, instructions, or runtime configuration, and Chat can't create an agent. The example cards on the welcome screen only fill the message box and never send. Each shows a title and what the agent will do. Choosing one marks it and keeps the others, so another can replace the unedited example. They step aside once you type your own text. Under the examples, **Ask the Lab** offers two questions: **Which agent should I use or build?** lists the ready agents with a button to switch to one, and **How is an agent built, and what can I add?** explains the parts of an agent and lists the add-ons in the same two groups as the **Add-ons** page. The answers are written from the agent list and the add-on manifests, so asking sends nothing, saves nothing and makes no model call, and your message box stays as it is. A library preview's **Create this agent** button, and the **Open Create agent** link on other agents' welcome screens, only open **Create agent**. Nothing is prepared or published until you act there. |
 | **Agent switcher** | Opens from the **Agent** button in the Chat header (hover text **Change agent**), which shows the current agent's name. Search and switch between **Ready agents** and **Library previews** without leaving Chat, or choose **Browse the full library**. | Switching agents starts a new chat. When you have unsaved messages or a draft you typed, the Lab names the agent you're switching to and asks first. Saved history isn't deleted. Agents marked **Not yet reviewed** pass offline tests but aren't validated live. |
 | **Library preview** | Runs a library definition directly on the Lab's model deployment, without publishing an agent. Start one from the switcher or from a library entry (**Try it in Chat**). | Private mode only, and only when `WORKBENCH_LIBRARY_PREVIEW_ENABLED` isn't `false` and a creation model is configured. Uses the definition's instructions and its simulated read-only lookups, with bounded tool loops. Preview chats can't be saved to **Shared history**, so **Create this agent** takes the place of **Save** when creation is available. Each message calls the model and may incur cost. |
 | **Document reviews** | Saves and runs checklist-based reviews. | Chat messages and review results don't copy between views automatically. |
@@ -93,12 +93,12 @@ reverified.
 | **Summarize case notes** | Fills the composer with sample case notes to summarize. |
 | **Compare a proposal (preview)** | Fills the composer with a sample vendor proposal to compare with requirements. |
 | **Help me get started** | Asks what to supply and what the selected agent will do. It doesn't explain how to create an agent. |
-| **About this agent** | Available in the Chat header before the first reply and in narrow windows. After the first reply, wide windows show a right-hand column with a collapsed **About this agent** disclosure, conversation details, and save/export actions. It explains what to give the agent, what it returns, how it works, and what it won't do. |
+| **About this agent** | On wide windows the right-hand column shows from the first screen, with **This conversation** (reply limit, last reply time, save state), **Next steps** (save and export), and a collapsed **About this agent** disclosure last. In narrow windows the Chat header has **About this agent** instead. It explains what to give the agent, what it returns, how it works, and what it won't do. |
 
-Starter prompts fill the composer without submitting. You choose **Send**.
+Starter prompts fill the composer without submitting. You choose **Send**. In local preview there is no **Send**, because no model is called; **Copy prompt** copies the message so you can use it in a connected Lab.
 
-An empty chat keeps the example tasks and input/output guidance in the main
-column, without a duplicate agent-details column. Ordinary checklist replies
+An empty chat shows the input/output guidance once, in the main column with the
+example tasks; the side column leaves it out until the first reply. Ordinary checklist replies
 lead with a short takeaway and one matrix row per supplied criterion, using
 **Met**, **Not demonstrated**, or **Unclear**. Missing evidence isn't automatic
 noncompliance. Case replies keep source references beside the claims they
@@ -142,9 +142,9 @@ Save state and expandable **Conversation limits** appear after the first reply, 
 earlier when a draft reaches half of a limit. They don't add status rows to an
 empty chat.
 
-### Continue in new chat
+### Start new chat with this answer
 
-**Continue in new chat** previews an editable draft from the last exchange and
+**Start new chat with this answer** previews an editable draft from the last exchange and
 any unsent follow-up. Earlier exchanges aren't carried over. The Lab labels
 previous output as unverified context, not a verified receipt.
 
@@ -160,6 +160,11 @@ draft.
 
 Configuration loads with a 15-second bootstrap deadline and a **Retry** action.
 Invalid configuration disables execution. Retrying keeps any draft you typed.
+A failed request says what happened and what to do next, shows the HTTP status and
+the `x-azure-ref` or request reference when there is one, and offers **Copy details**
+for support. When the Lab is busy, **Retry** counts down the wait the service
+asked for. Replies that take longer than usual show a hint. Long questions collapse
+to a few lines with **Show more**.
 A review deadline expiring and you cancelling each get their own message and
 performance outcome. Neither retries a model request automatically.
 
