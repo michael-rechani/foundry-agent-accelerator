@@ -1,0 +1,19 @@
+name: Suggestion
+description: Propose an improvement to the samples, docs, or deployment.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Use fictional data only. Don't paste credentials, subscription or tenant IDs, IP addresses, or customer information.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What you want to be able to do, and why.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Suggested approach
+      description: Optional. How you think it could work, including any Azure or cost impact.

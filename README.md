@@ -501,7 +501,9 @@ conversations, use the
 ## License and sharing
 
 This repository is public and released under the [MIT License](LICENSE). It's a
-sample, not an official Microsoft product.
+sample, not an official Microsoft product. To suggest or make a change, see
+[Contributing](CONTRIBUTING.md). To report a vulnerability, see the
+[security policy](SECURITY.md).
 
 <a id="references"></a>
 

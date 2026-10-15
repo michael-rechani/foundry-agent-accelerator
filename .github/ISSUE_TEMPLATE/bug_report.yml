@@ -1,0 +1,27 @@
+name: Bug report
+description: Something in the samples, docs, or Terraform doesn't work as described.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use fictional data only. Don't paste credentials, subscription or tenant IDs, IP addresses, or customer information. For a security problem, use [private reporting](https://github.com/michael-rechani/foundry-agent-accelerator/security/advisories/new) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The shortest path to see the problem. Name the file, page, or Terraform root.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit or release
+      description: The commit SHA on `main` you were using.
