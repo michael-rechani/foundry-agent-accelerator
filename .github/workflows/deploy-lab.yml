@@ -45,9 +45,9 @@ jobs:
           trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
           echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           # .dockerignore is an allow-list, so this context matches what build.ps1 stages.
-          docker buildx build --platform linux/amd64 --provenance=false --sbom=false --pull \
-            --file workbench/Dockerfile --tag "$image" --load workbench
-          docker run --rm --platform linux/amd64 --entrypoint python "$image" -c "import importlib, os; from pathlib import Path; [importlib.import_module(m.stem) for m in sorted(Path('.').glob('*.py'))]; import agent_publisher; assert os.getuid() != 0; assert agent_publisher.runtime_package()[0]; assert Path('agents.json').read_text(); assert Path('static/index.html').read_text()"
+          # The runner is linux/amd64 and its Docker has no buildx plugin, so use the classic builder.
+          docker build --pull --file workbench/Dockerfile --tag "$image" workbench
+          docker run --rm --entrypoint python "$image" -c "import importlib, os; from pathlib import Path; [importlib.import_module(m.stem) for m in sorted(Path('.').glob('*.py'))]; import agent_publisher; assert os.getuid() != 0; assert agent_publisher.runtime_package()[0]; assert Path('agents.json').read_text(); assert Path('static/index.html').read_text()"
           docker push "$image"
           source="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')"
           [[ "$source" =~ @sha256:[a-f0-9]{64}$ ]] || { echo "Pushed image digest not found"; exit 1; }
