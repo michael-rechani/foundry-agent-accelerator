@@ -24,7 +24,12 @@ $ipFlag = if ($Ipv4Only) { @('-4') } else { @() }
 function Invoke-Lab {
     param([string]$Method, [string]$Path, $Body, [hashtable]$Extra = @{}, [int]$TimeoutSeconds = 60)
     $arguments = @('-s', '--max-time', $TimeoutSeconds, '-X', $Method, '-D', '-', '-H', 'X-Workbench-Request: 1') + $ipFlag
-    foreach ($name in $Extra.Keys) { $arguments += @('-H', "${name}: $($Extra[$name])") }
+    foreach ($name in $Extra.Keys) {
+        $value = [string]$Extra[$name]
+        # Windows PowerShell 5.1 drops embedded quotes (the quoted ETag) unless they are escaped.
+        if ($PSVersionTable.PSVersion.Major -lt 7) { $value = $value -replace '"', '\"' }
+        $arguments += @('-H', "${name}: $value")
+    }
     if ($null -ne $Body) { $arguments += @('-H', 'Content-Type: application/json', '--data-binary', '@-') }
     $arguments += "$BaseUrl$Path"
     $raw = if ($null -ne $Body) { ($Body | ConvertTo-Json -Depth 8 -Compress) | curl.exe @arguments } else { curl.exe @arguments }
