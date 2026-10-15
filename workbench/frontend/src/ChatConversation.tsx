@@ -59,7 +59,7 @@ export function ChatConversation({
   saveDisabled: boolean
   saveNote?: string
   onFreshDemo: (scenario: DemoScenario) => void
-  onCopy: (text: string) => void
+  onCopy: (text: string, done?: string) => void
   onCreateAgent?: () => void
   onSubmit: () => void
   onStop: () => void
@@ -145,7 +145,7 @@ export function ChatConversation({
               : undefined
           }
           onDismissError={() => {
-            setError('')
+            setError(null)
             setPending('')
           }}
         />

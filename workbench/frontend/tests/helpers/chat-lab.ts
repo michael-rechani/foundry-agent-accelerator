@@ -40,6 +40,8 @@ export async function openWorkspace(
     // Busy only for the first send, so a Retry can succeed.
     busyOnce?: boolean
     gatewayError?: boolean
+    // A Front Door block: no body, only the x-azure-ref header.
+    blockedReview?: boolean
     preview?: boolean
     startup?: 'stalled' | 'invalid' | 'invalid-guidance' | 'failed'
     config?: Partial<Config>
@@ -108,6 +110,12 @@ export async function openWorkspace(
           status: 429,
           headers: { 'Retry-After': '12' },
           json: { error: 'busy', request_id: 'request-busy' },
+        })
+      if (options.blockedReview)
+        return route.fulfill({
+          status: 403,
+          headers: { 'x-azure-ref': 'azure-ref-123' },
+          body: '',
         })
       if (options.gatewayError)
         return route.fulfill({

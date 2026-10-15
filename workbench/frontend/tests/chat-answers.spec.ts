@@ -9,7 +9,7 @@ test('while waiting, Chat says what the agent returns and reassures after a long
   await page.getByRole('textbox', { name: 'Message' }).fill('Synthetic request')
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect.poll(() => state.requests.length).toBe(1)
-  const waiting = page.getByRole('status').filter({ hasText: 'Awaiting' })
+  const waiting = page.getByRole('status').filter({ hasText: 'Asking' })
   await expect(waiting).toContainText('Expect:')
   await expect(waiting).toContainText(agent.guidance!.output)
   await expect(waiting).not.toContainText('Still working')
@@ -116,9 +116,7 @@ test('a busy model asks the visitor to wait instead of blaming the connection', 
   await page.getByRole('textbox', { name: 'Message' }).fill('Synthetic request')
   await page.getByRole('button', { name: 'Send message' }).click()
   const alert = page.getByRole('alert')
-  await expect(alert).toContainText(
-    'The Lab is busy right now. Wait a minute, then try again.',
-  )
+  await expect(alert).toContainText('The Lab is busy right now.')
   await expect(alert).toContainText('Reference: request-busy')
   await expect(alert).not.toContainText(/connectivity|managed-identity/i)
   await expect(page.getByRole('textbox', { name: 'Message' })).toHaveValue(
@@ -127,9 +125,47 @@ test('a busy model asks the visitor to wait instead of blaming the connection', 
   expect(state.requests).toHaveLength(1)
 })
 
+test('a busy reply counts down its Retry-After, then unlocks Retry', async ({
+  page,
+}) => {
+  await page.clock.install()
+  const state = await openWorkspace(page, { busyOnce: true })
+  await page.getByRole('textbox', { name: 'Message' }).fill('Synthetic request')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  const retry = page.getByRole('alert').getByRole('button', { name: 'Retry' })
+  await expect(retry).toBeDisabled()
+  await expect(retry).toContainText('in 12s')
+  await page.clock.runFor(5000)
+  await expect(retry).toContainText('in 7s')
+  await expect(retry).toBeDisabled()
+  await page.clock.runFor(7000)
+  await expect(retry).toBeEnabled()
+  await expect(retry).not.toContainText(/\d+s/)
+  expect(state.requests).toHaveLength(1)
+})
+
+test('a blocked request shows its HTTP status and x-azure-ref, and Copy details copies them', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  const state = await openWorkspace(page, { blockedReview: true })
+  await page.getByRole('textbox', { name: 'Message' }).fill('Synthetic request')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('Request failed (HTTP 403).')
+  await expect(alert).toContainText('Reference: azure-ref-123')
+  await alert.getByRole('button', { name: 'Copy details' }).click()
+  const copied = await page.evaluate(() => navigator.clipboard.readText())
+  expect(copied).toContain('HTTP 403')
+  expect(copied).toContain('Reference: azure-ref-123')
+  expect(state.requests).toHaveLength(1)
+})
+
 test('Send clears the box, a failure restores it, and Retry resends it', async ({
   page,
 }) => {
+  await page.clock.install()
   const state = await openWorkspace(page, { busyOnce: true })
   const box = page.getByRole('textbox', { name: 'Message' })
   await box.fill('Synthetic request')
@@ -139,6 +175,7 @@ test('Send clears the box, a failure restores it, and Retry resends it', async (
   await expect(box).toHaveValue('Synthetic request')
   await expect(page.locator('.user-message')).toHaveCount(0)
   await expect(page.locator('.assistant-message')).toHaveCount(0)
+  await page.clock.runFor(12001)
   await alert.getByRole('button', { name: 'Retry' }).click()
   await expect(page.locator('.assistant-message')).toHaveCount(1)
   await expect(page.locator('.user-message')).toHaveCount(1)
@@ -148,14 +185,15 @@ test('Send clears the box, a failure restores it, and Retry resends it', async (
   expect(state.requests[1].history).toEqual([])
 })
 
-test('non-JSON gateway errors show the standard failure message', async ({
+test('non-JSON gateway errors say what happened without exposing parsing details', async ({
   page,
 }) => {
   const state = await openWorkspace(page, { gatewayError: true })
   await page.getByRole('textbox', { name: 'Message' }).fill('Synthetic request')
   await page.getByRole('button', { name: 'Send message' }).click()
   const alert = page.getByRole('alert')
-  await expect(alert).toContainText('Request failed.')
+  await expect(alert).toContainText('could not get a reply from its service')
+  await expect(alert).toContainText('try again')
   await expect(alert).not.toContainText(/JSON|token/i)
   await expect(page.getByRole('textbox', { name: 'Message' })).toHaveValue(
     'Synthetic request',

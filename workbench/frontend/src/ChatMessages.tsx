@@ -1,5 +1,6 @@
 import type { RefObject } from 'react'
-import { CircleAlert, RefreshCw, X } from 'lucide-react'
+import type { ChatFailure } from './chat-failure'
+import { ChatError } from './ChatError'
 import { ChatWelcome, type DraftMode } from './ChatWelcome'
 import type { Turn } from './conversation-types'
 import { ConversationTurn } from './ConversationTurn'
@@ -49,7 +50,7 @@ export function ChatMessages({
   historyBusy: boolean
   turns: Turn[]
   pending: string
-  error: string
+  error: ChatFailure | null
   activeDemo: DemoScenario | null
   bottom: RefObject<HTMLDivElement | null>
   latestAnswer: RefObject<HTMLElement | null>
@@ -58,7 +59,7 @@ export function ChatMessages({
   onPrompt: (text: string) => void
   onClearExample: () => void
   onCreateAgent?: () => void
-  onCopy: (text: string) => void
+  onCopy: (text: string, done?: string) => void
   onDismissError: () => void
   onRetry?: () => void
   agents: Agent[]
@@ -121,26 +122,13 @@ export function ChatMessages({
         />
       )}
       {error && (
-        <div className="chat-error" role="alert">
-          <CircleAlert size={19} />
-          <p>{error}</p>
-          {onRetry && (
-            <button
-              type="button"
-              className="chat-error-retry"
-              onClick={onRetry}
-            >
-              <RefreshCw size={14} aria-hidden="true" /> Retry
-            </button>
-          )}
-          <button
-            className="chat-icon"
-            aria-label="Dismiss error"
-            onClick={onDismissError}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <ChatError
+          key={error.details}
+          failure={error}
+          onRetry={onRetry}
+          onDismiss={onDismissError}
+          onCopy={onCopy}
+        />
       )}
       <div ref={bottom} />
     </div>

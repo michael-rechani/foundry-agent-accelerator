@@ -23,7 +23,7 @@ export function WaitingIndicator({
     <div className="chat-waiting" role="status">
       <div className="chat-waiting-row">
         <LoaderCircle size={18} className="spin" />
-        <span>Awaiting {label}</span>
+        <span>Asking {label ?? 'the agent'}…</span>
         <span aria-hidden="true">{elapsed}s</span>
       </div>
       {expects && (

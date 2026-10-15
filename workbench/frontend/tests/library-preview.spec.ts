@@ -46,7 +46,7 @@ test('a library preview says what the agent will return while the answer is on i
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect.poll(() => state.chat.length).toBe(1)
   expect(state.chat[0].agent_id).toBe(`library-${support.id}`)
-  const waiting = page.getByRole('status').filter({ hasText: 'Awaiting' })
+  const waiting = page.getByRole('status').filter({ hasText: 'Asking' })
   await expect(waiting).toContainText(support.label)
   await expect(waiting).toContainText('Expect:')
   await expect(waiting).toContainText(support.output)
