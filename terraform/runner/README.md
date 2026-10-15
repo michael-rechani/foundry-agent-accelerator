@@ -14,12 +14,12 @@ It reads the VNet and its NAT gateway without taking ownership of them.
 > from an authorized private-network environment.
 
 > [!WARNING]
-> **Private repository only.** A persistent self-hosted runner executes the code
-> in pull requests on a machine inside your network. Use it only while
-> `michael-rechani/foundry-agent-accelerator` is private and only trusted
-> collaborators can open pull requests. **If the repository ever goes public,
-> remove the runner and switch `validate.yml` back to `ubuntu-24.04` first.**
-> Anyone who can open a pull request could otherwise run code on this VM.
+> **Private repository only.** This repository is now public and
+> `validate.yml` runs on GitHub-hosted `ubuntu-24.04` runners, so don't register
+> this runner for it. A persistent self-hosted runner executes the code in pull
+> requests on a machine inside your network. Use it only while a repository is
+> private and only trusted collaborators can open pull requests. Anyone who can
+> open a pull request could otherwise run code on this VM.
 
 Run commands in `terraform/runner/`, not in the parent platform root. The runner
 is called the CI runner here to avoid confusion with the Windows jumpbox that
