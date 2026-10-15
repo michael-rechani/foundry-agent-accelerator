@@ -37,6 +37,8 @@ export async function openWorkspace(
     stalledHistory?: boolean
     stalledReview?: boolean
     busyReview?: boolean
+    // Busy only for the first send, so a Retry can succeed.
+    busyOnce?: boolean
     gatewayError?: boolean
     preview?: boolean
     startup?: 'stalled' | 'invalid' | 'invalid-guidance' | 'failed'
@@ -98,7 +100,10 @@ export async function openWorkspace(
     if (path === '/api/reviews') {
       state.requests.push(request.postDataJSON())
       if (options.stalledReview) return
-      if (options.busyReview)
+      if (
+        options.busyReview ||
+        (options.busyOnce && state.requests.length === 1)
+      )
         return route.fulfill({
           status: 429,
           headers: { 'Retry-After': '12' },

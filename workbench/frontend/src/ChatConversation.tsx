@@ -135,6 +135,15 @@ export function ChatConversation({
           onChooseAgent={onChooseAgent}
           onAddOns={onAddOns}
           onCopy={onCopy}
+          onRetry={
+            agent &&
+            draft.trim() &&
+            !busy &&
+            !historyBusy &&
+            !limits.limitReasons.length
+              ? onSubmit
+              : undefined
+          }
           onDismissError={() => {
             setError('')
             setPending('')
