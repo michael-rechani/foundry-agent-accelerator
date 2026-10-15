@@ -26,6 +26,7 @@ export function ChatAside({
   saveDisabled,
   saveNote,
   exportDisabled,
+  saveState,
   onCatalog,
   onSave,
   onExport,
@@ -40,6 +41,7 @@ export function ChatAside({
   saveDisabled: boolean
   saveNote?: string
   exportDisabled: boolean
+  saveState: string
   onCatalog: () => void
   onSave: () => void
   onExport: () => void
@@ -51,26 +53,6 @@ export function ChatAside({
   const agentUrl = foundryAgentUrl(portal, agent.agent)
   return (
     <aside className="chat-aside" aria-label="Agent details">
-      <section className="aside-panel" aria-labelledby="aside-about">
-        <details className="aside-about" key={agent.id}>
-          <summary>
-            <h2 id="aside-about">About this agent</h2>
-          </summary>
-          <div className="aside-more-body">
-            <span className={`aside-kind${isPreview ? ' preview' : ''}`}>
-              {isPreview ? 'Library preview' : agent.category}
-            </span>
-            <p>{agent.description}</p>
-            <AgentGuide agent={agent} />
-            <p>{isPreview ? previewBlurb : publishedBlurb}</p>
-            <AgentRuntime agent={agent} foundryPortal={portal} />
-            <button type="button" className="inline-link" onClick={onCatalog}>
-              Change agent
-            </button>
-          </div>
-        </details>
-      </section>
-
       <section className="aside-panel" aria-labelledby="aside-conversation">
         <h2 id="aside-conversation">This conversation</h2>
         <dl className="aside-rows">
@@ -156,6 +138,7 @@ export function ChatAside({
               Save to shared history
             </button>
           )}
+          {!onCreateThis && <p className="aside-save-state">{saveState}</p>}
           <button
             type="button"
             className="aside-button"
@@ -172,6 +155,26 @@ export function ChatAside({
             </FoundryLink>
           )}
         </div>
+      </section>
+
+      <section className="aside-panel" aria-labelledby="aside-about">
+        <details className="aside-about" key={agent.id}>
+          <summary>
+            <h2 id="aside-about">About this agent</h2>
+          </summary>
+          <div className="aside-more-body">
+            <span className={`aside-kind${isPreview ? ' preview' : ''}`}>
+              {isPreview ? 'Library preview' : agent.category}
+            </span>
+            <p>{agent.description}</p>
+            {turns.length > 0 && <AgentGuide agent={agent} />}
+            <p>{isPreview ? previewBlurb : publishedBlurb}</p>
+            <AgentRuntime agent={agent} foundryPortal={portal} />
+            <button type="button" className="inline-link" onClick={onCatalog}>
+              Change agent
+            </button>
+          </div>
+        </details>
       </section>
     </aside>
   )

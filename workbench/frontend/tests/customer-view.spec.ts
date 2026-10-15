@@ -144,9 +144,9 @@ test('Foundry links appear only under the hood', async ({ page }) => {
   )
 
   await workspaceNav(page).getByRole('button', { name: 'Chat' }).click()
-  await expect(page.locator('.chat-aside')).toHaveCount(0)
-  await page.locator('.agent-about > summary').click()
-  const runtime = page.locator('.agent-about .catalog-runtime')
+  await expect(page.locator('.chat-aside')).toBeVisible()
+  await page.locator('.aside-about > summary').click()
+  const runtime = page.locator('.aside-about .catalog-runtime')
   await runtime.getByText('Developer setup details').click()
   await expect(runtime.getByRole('link').first()).toHaveAttribute(
     'href',

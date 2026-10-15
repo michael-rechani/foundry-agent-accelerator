@@ -33,6 +33,18 @@
     border-left: 1px solid var(--line);
     background: var(--bg);
   }
+
+  /* The side column already shows the reply limit and the save state. */
+  .chat-app.chat-has-aside .composer-details .reply-limit,
+  .chat-app.chat-has-aside .composer-details .save-state {
+    display: none;
+  }
+}
+
+.aside-save-state {
+  margin: 0;
+  font-size: 11px;
+  text-align: center;
 }
 
 .aside-panel {

@@ -77,7 +77,9 @@ test('a conversation asks before switching until it is saved', async ({
   await expect(pickerName(page)).toHaveText(guidedReview.label)
 
   await page.getByRole('button', { name: 'Save to shared history' }).click()
-  await expect(page.getByText('Saved / shared', { exact: true })).toBeVisible()
+  await expect(
+    page.getByText('Saved / shared', { exact: true }).filter({ visible: true }),
+  ).toBeVisible()
   await choose(page, caseHelper.label)
   await expect(anyConfirmation(page)).toHaveCount(0)
   await expect(pickerName(page)).toHaveText(caseHelper.label)

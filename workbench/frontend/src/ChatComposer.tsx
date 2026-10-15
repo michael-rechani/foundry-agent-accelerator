@@ -1,5 +1,6 @@
 import type { RefObject } from 'react'
 import { ArrowUp, Copy, FlaskConical, GitBranch, Square } from 'lucide-react'
+import { saveStateText } from './chat-helpers'
 import type { Agent, Config } from './workspace-config'
 
 export function ChatComposer({
@@ -154,14 +155,22 @@ export function ChatComposer({
         </div>
       </form>
       {config?.mode === 'private' && (
-        <p className="composer-privacy" id="chat-privacy">
-          Use sample data only, never personal or confidential information. Each
-          message calls the model and may incur cost.
-          {isPreview
-            ? ' Preview chats are not saved.'
-            : config.history_enabled &&
-              ` Saving shares completed messages with everyone in this Lab for ${config.retention_days} days after the last update.`}
-        </p>
+        <div className="composer-privacy" id="chat-privacy">
+          <p>
+            Use sample data only, never personal or confidential information.
+            Each message calls the model and may incur cost.
+            {isPreview && ' Preview chats are not saved.'}
+          </p>
+          {!isPreview && config.history_enabled && (
+            <details>
+              <summary>About saving</summary>
+              <p>
+                Saving shares completed messages with everyone in this Lab for{' '}
+                {config.retention_days} days after the last update.
+              </p>
+            </details>
+          )}
+        </div>
       )}
       {showDetails && (
         <div className="composer-details">
@@ -189,7 +198,7 @@ export function ChatComposer({
                     {config.max_request_bytes.toLocaleString()}
                   </dd>
                 </div>
-                <div>
+                <div className="reply-limit">
                   <dt>Reply limit</dt>
                   <dd>
                     {turnCount} of {config.max_history_turns + 1} replies used
@@ -199,15 +208,7 @@ export function ChatComposer({
             </details>
           )}
           <span className="save-state">
-            {isPreview
-              ? 'Preview · not saved'
-              : saved
-                ? dirty
-                  ? 'Unsaved changes'
-                  : draft
-                    ? 'Draft not saved'
-                    : 'Saved / shared'
-                : 'Not saved'}
+            {saveStateText({ isPreview, saved, dirty, draft })}
           </span>
         </div>
       )}

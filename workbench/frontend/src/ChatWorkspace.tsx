@@ -122,8 +122,7 @@ export default function ChatWorkspace() {
   })
   const unsaved = dirty || !!draft || busy
   const libraryCount = library.catalog?.templates.length
-  const showAside =
-    view === 'chat' && !!agent && turns.length > 0 && !presenting
+  const showAside = view === 'chat' && !!agent && !presenting
   const saveDisabled =
     isPreview ||
     !config?.history_enabled ||

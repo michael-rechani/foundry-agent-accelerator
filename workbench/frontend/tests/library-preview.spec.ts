@@ -121,7 +121,7 @@ test('on a wide screen the side column offers to create a previewed agent', asyn
   await openAgent(page, support.label)
   await page.getByRole('button', { name: 'Try it in Chat' }).click()
   const aside = page.getByRole('complementary', { name: 'Agent details' })
-  await expect(aside).toHaveCount(0)
+  await expect(aside).toBeVisible()
   await expect(
     page.getByRole('button', { name: 'Create this agent', exact: true }),
   ).toBeVisible()

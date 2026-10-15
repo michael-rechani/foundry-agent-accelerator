@@ -244,7 +244,9 @@ test('continuation previews context and leaves saved source unchanged', async ({
   const state = await openWorkspace(page, { config: { max_history_turns: 0 } })
   await send(page)
   await page.getByRole('button', { name: 'Save to shared history' }).click()
-  await expect(page.getByText('Saved / shared', { exact: true })).toBeVisible()
+  await expect(
+    page.getByText('Saved / shared', { exact: true }).filter({ visible: true }),
+  ).toBeVisible()
   const source = JSON.stringify(state.document)
   await page
     .getByRole('textbox', { name: 'Message', exact: true })

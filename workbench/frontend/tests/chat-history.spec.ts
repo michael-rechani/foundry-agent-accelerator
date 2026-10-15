@@ -116,7 +116,9 @@ test('save, reopen, follow up, update and delete shared history', async ({
   const state = await openWorkspace(page)
   await send(page)
   await page.getByRole('button', { name: 'Save to shared history' }).click()
-  await expect(page.getByText('Saved / shared', { exact: true })).toBeVisible()
+  await expect(
+    page.getByText('Saved / shared', { exact: true }).filter({ visible: true }),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'New chat', exact: true }).click()
   await page.getByRole('button', { name: /^Shared history/ }).click()
   await page.locator('.saved-open').click()
@@ -141,7 +143,9 @@ test('save, reopen, follow up, update and delete shared history', async ({
   ])
   expect(state.requests[1].thread).not.toBe(state.requests[0].thread)
   await page.getByRole('button', { name: 'Save to shared history' }).click()
-  await expect(page.getByText('Saved / shared', { exact: true })).toBeVisible()
+  await expect(
+    page.getByText('Saved / shared', { exact: true }).filter({ visible: true }),
+  ).toBeVisible()
   expect(state.updates).toEqual(['v1'])
   expect(state.saves[1].turns.every((turn) => !('stored' in turn))).toBeTruthy()
   await page.getByRole('button', { name: 'New chat', exact: true }).click()
@@ -164,7 +168,9 @@ test('conflicting save preserves local replies and allows export', async ({
   const state = await openWorkspace(page, { conflict: true })
   await send(page)
   await page.getByRole('button', { name: 'Save to shared history' }).click()
-  await expect(page.getByText('Saved / shared', { exact: true })).toBeVisible()
+  await expect(
+    page.getByText('Saved / shared', { exact: true }).filter({ visible: true }),
+  ).toBeVisible()
   await send(page, 'Keep this local follow-up')
   expect(state.requests[1].thread).toBe(state.requests[0].thread)
   await page.getByRole('button', { name: 'Save to shared history' }).click()
@@ -177,7 +183,11 @@ test('conflicting save preserves local replies and allows export', async ({
   await expect(
     page.getByRole('button', { name: 'Export conversation' }),
   ).toBeEnabled()
-  await expect(page.getByText('Unsaved changes', { exact: true })).toBeVisible()
+  await expect(
+    page
+      .getByText('Unsaved changes', { exact: true })
+      .filter({ visible: true }),
+  ).toBeVisible()
 })
 
 test('history timeout releases controls without losing the draft', async ({

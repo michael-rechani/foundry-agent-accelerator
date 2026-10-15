@@ -86,6 +86,11 @@
   font-size: 11px;
   line-height: 1.6;
 }
+.composer-privacy summary {
+  width: fit-content;
+  cursor: pointer;
+  text-decoration: underline;
+}
 .save-state {
   margin-left: auto;
   padding-top: 3px;
