@@ -383,9 +383,19 @@ export function AgentCreationWorkspace({
       {view === 'create' ? (
         <>
           <ol className="creation-steps">
-            <li>Describe the job</li>
-            <li>Review name, instructions and tools</li>
-            <li>Create in Foundry and try it</li>
+            {[
+              'Describe the job',
+              'Review name, instructions and tools',
+              'Create in Foundry and try it',
+            ].map((label, index) => (
+              <li
+                key={label}
+                aria-current={index === (draft ? 1 : 0) ? 'step' : undefined}
+                data-done={index < (draft ? 1 : 0) ? 'true' : undefined}
+              >
+                {label}
+              </li>
+            ))}
           </ol>
           {!capability.enabled && (
             <p className="creation-notice">
@@ -431,6 +441,9 @@ export function AgentCreationWorkspace({
               pending={pending}
               busy={busy}
               publishEnabled={capability.enabled}
+              publishMinutes={Math.ceil(
+                capability.publication_timeout_seconds / 60,
+              )}
               validSetup={validSetup}
               operatorKey={keyInput}
               onChangeTask={() => {

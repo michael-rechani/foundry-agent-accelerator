@@ -65,6 +65,73 @@
   color: var(--accent);
   font-weight: 700;
 }
+.creation-steps li[aria-current='step'] {
+  font-weight: 700;
+}
+.creation-steps li[aria-current='step']::before {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+.creation-steps li:not([aria-current]):not([data-done])::before {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.creation-steps li[data-done]::before {
+  content: '\2713';
+}
+.creation-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  margin-top: 16px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.creation-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 10px 0;
+  font: inherit;
+  font-size: 13px;
+}
+.creation-picked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.creation-costs {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.creation-costs h3 {
+  font-size: 14px;
+}
+.creation-costs ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.creation-instructions-edit > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--accent);
+}
+.creation-instructions-edit[open] > summary {
+  margin-bottom: 10px;
+}
 .creation-template-groups {
   display: grid;
   gap: 22px;

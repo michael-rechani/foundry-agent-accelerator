@@ -1,10 +1,11 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import {
   ArrowRight,
   Brain,
   Check,
   Cpu,
   LoaderCircle,
+  Search,
   Wrench,
   Zap,
   type LucideIcon,
@@ -38,13 +39,47 @@ export function CreationTaskForm({
   onPrepare: () => void
 }) {
   const goalField = useRef<HTMLTextAreaElement>(null)
+  const [search, setSearch] = useState('')
+  const needle = search.trim().toLowerCase()
+  const groups = groupTemplates(templates)
+    .map(
+      ([category, items]) =>
+        [
+          category,
+          items.filter(
+            (item) =>
+              !needle ||
+              `${item.label} ${item.description}`
+                .toLowerCase()
+                .includes(needle),
+          ),
+        ] as const,
+    )
+    .filter(([, items]) => items.length)
+  const picked = templates.find((item) => item.id === templateId)
   return (
     <>
+      <label className="creation-search">
+        <Search size={16} aria-hidden="true" />
+        <span className="visually-hidden">Search templates</span>
+        <input
+          type="search"
+          value={search}
+          placeholder="Search templates, for example invoice or ticket"
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </label>
+      {needle && !groups.length && (
+        <p className="creation-help" role="status">
+          No templates match &ldquo;{search.trim()}&rdquo;. Clear the search to
+          see all {templates.length}.
+        </p>
+      )}
       <div
         className="creation-template-groups"
         aria-label="Prepared agent templates"
       >
-        {groupTemplates(templates).map(([category, items]) => (
+        {groups.map(([category, items]) => (
           <section
             key={category}
             className="creation-template-group"
@@ -66,6 +101,7 @@ export function CreationTaskForm({
                     onClick={() => {
                       onPick(item)
                       goalField.current?.focus()
+                      goalField.current?.scrollIntoView({ block: 'center' })
                     }}
                   >
                     <span className="creation-template-icon" aria-hidden="true">
@@ -109,6 +145,12 @@ export function CreationTaskForm({
           onPrepare()
         }}
       >
+        {picked && (
+          <p className="creation-picked" role="status">
+            <Check size={14} aria-hidden="true" /> Selected: {picked.label}.
+            Describe the job below, then choose Prepare setup.
+          </p>
+        )}
         <label>
           What should the agent help with?
           <textarea

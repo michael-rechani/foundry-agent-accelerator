@@ -441,6 +441,18 @@ fictional sample, and all four agents were deleted. That shows the flow can
 work there. It doesn't prove it works in another environment, subscription,
 region, or SDK version.
 
+On 2026-10-14, `workbench/live-check-creation.ps1 -Execute` ran against the
+Lab's direct Container Apps address from a jump box, with one Insurance
+pre-approval helper agent on `gpt-5.4`. The agent was ready in about
+50 seconds, its sample answered in 27 seconds with both simulated lookups
+verified, and 0 created agents remained after deletion. The script's delete
+step returned `agent_changed` under Windows PowerShell 5.1, which dropped the
+quotes around the `If-Match` value. The script now escapes them there, and a
+retried delete with the fresh `_etag` succeeded. A second run the same day
+repeated the flow over the API, saved the sample chat once to shared history,
+re-opened it, then deleted the chat and the agent, which left 0 created
+agents. That run didn't click through the browser UI.
+
 ## Related content
 
 - [Terms used in these guides](README.md#terms-used-in-these-guides)

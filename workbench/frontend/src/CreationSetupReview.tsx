@@ -16,6 +16,7 @@ export function CreationSetupReview({
   pending,
   busy,
   publishEnabled,
+  publishMinutes,
   validSetup,
   operatorKey,
   onChangeTask,
@@ -34,6 +35,7 @@ export function CreationSetupReview({
   pending: CreatePayload | null
   busy: boolean
   publishEnabled: boolean
+  publishMinutes: number
   validSetup: boolean
   operatorKey: ReactNode
   onChangeTask: () => void
@@ -101,22 +103,29 @@ export function CreationSetupReview({
           onChange={(event) => onName(event.target.value)}
         />
       </label>
-      <label>
-        Task instructions
-        <textarea
-          rows={7}
-          value={instructions}
-          disabled={busy || !!pending}
-          onChange={(event) => onInstructions(event.target.value)}
-        />
-      </label>
-      <small>
-        {[...instructions].length}/6000 instruction characters. Name: up to 80
-        characters.
-      </small>
+      <details className="creation-instructions-edit">
+        <summary>
+          Task instructions: {[...instructions].length.toLocaleString()}{' '}
+          characters. Open to read or edit.
+        </summary>
+        <label>
+          Task instructions
+          <textarea
+            rows={10}
+            value={instructions}
+            disabled={busy || !!pending}
+            onChange={(event) => onInstructions(event.target.value)}
+          />
+        </label>
+        <small>
+          {[...instructions].length}/6000 instruction characters. Name: up to 80
+          characters.
+        </small>
+      </details>
       <p className="creation-help">
-        The template fixes the tools, runtime rules and model. A chat prompt
-        can't change them.
+        The summary above already says what the agent does. Most people leave
+        the instructions as they are. The template fixes the tools, runtime
+        rules and model. A chat prompt can&apos;t change them.
       </p>
       {template?.tools.length ? (
         <ul className="creation-tool-list">
@@ -135,6 +144,23 @@ export function CreationSetupReview({
         <pre>{draft.sample_input}</pre>
       </details>
       {operatorKey}
+      <div className="creation-costs">
+        <h3>Before you create it</h3>
+        <ul>
+          <li>
+            Publishing takes up to {publishMinutes} minute
+            {publishMinutes === 1 ? '' : 's'}.
+          </li>
+          <li>
+            The hosted agent keeps costing money until someone deletes it. There
+            is no automatic shutdown, and closing this page does not stop it.
+          </li>
+          <li>
+            Each chat message sent to it also uses the model. The Lab
+            doesn&apos;t show a price per agent yet.
+          </li>
+        </ul>
+      </div>
       <label className="creation-consent">
         <input
           type="checkbox"
