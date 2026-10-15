@@ -146,10 +146,14 @@ test('save, reopen, follow up, update and delete shared history', async ({
   expect(state.saves[1].turns.every((turn) => !('stored' in turn))).toBeTruthy()
   await page.getByRole('button', { name: 'New chat', exact: true }).click()
   await page.getByRole('button', { name: /^Shared history/ }).click()
-  page.once('dialog', (dialog) => dialog.accept())
   await page
     .getByRole('button', { name: 'Delete Review synthetic APP-1' })
     .click()
+  const confirm = page.getByRole('dialog', {
+    name: 'Delete this saved conversation?',
+  })
+  await expect(confirm).toContainText('removed from shared history')
+  await confirm.getByRole('button', { name: 'Delete for everyone' }).click()
   await expect(page.getByText('No saved conversations')).toBeVisible()
   expect(state.deletes).toEqual(['v2'])
 })

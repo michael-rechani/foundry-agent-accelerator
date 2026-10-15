@@ -173,7 +173,7 @@ export function ChatComposer({
                 <div>
                   <dt>Reply limit</dt>
                   <dd>
-                    {turnCount} of {config.max_history_turns + 1} used
+                    {turnCount} of {config.max_history_turns + 1} replies used
                   </dd>
                 </div>
               </dl>

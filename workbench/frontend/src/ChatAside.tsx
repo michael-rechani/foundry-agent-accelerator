@@ -78,7 +78,7 @@ export function ChatAside({
             <div>
               <dt>Reply limit</dt>
               <dd>
-                {turns.length} of {config.max_history_turns + 1} used
+                {turns.length} of {config.max_history_turns + 1} replies used
               </dd>
             </div>
           )}
@@ -138,7 +138,10 @@ export function ChatAside({
             <button
               type="button"
               className="aside-button"
-              title={saveNote || 'Save to shared history'}
+              title={
+                saveNote ||
+                'Save to shared history. Everyone who uses this Lab can open it.'
+              }
               aria-describedby={
                 config?.mode === 'private' ? 'chat-privacy' : undefined
               }
@@ -156,7 +159,7 @@ export function ChatAside({
           <button
             type="button"
             className="aside-button"
-            title="Export conversation"
+            title="Downloads a file to your computer and shares nothing."
             disabled={exportDisabled}
             onClick={onExport}
           >

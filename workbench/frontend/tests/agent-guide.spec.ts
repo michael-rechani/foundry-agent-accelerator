@@ -176,7 +176,7 @@ test('on a wide screen the agent details sit beside the conversation', async ({
   ])
   await expect(page.locator('.agent-about > summary')).toBeHidden()
   await expect(aside.locator('.aside-more-body')).toBeHidden()
-  await expect(detail('Reply limit')).toContainText('1 of 11 used')
+  await expect(detail('Reply limit')).toContainText('1 of 11 replies used')
   await expect(detail('Last reply took')).toContainText('1.0 s')
   await expect(detail('Tokens')).toContainText('1,200 in · 300 out')
   // Token counts and limits stay under the hood; the reply time doesn't.

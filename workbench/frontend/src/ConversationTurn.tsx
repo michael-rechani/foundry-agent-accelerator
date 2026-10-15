@@ -121,6 +121,12 @@ function AnswerSteps({
               {usage && ` \u00b7 ${usage}`}
             </small>
           </span>
+          <small
+            className="answer-step-result"
+            title="The reply below was written after these steps."
+          >
+            Done
+          </small>
         </li>
       </ol>
       {turn.result.receipts.length === 0 && (

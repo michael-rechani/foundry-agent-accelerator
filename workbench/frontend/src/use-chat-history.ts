@@ -117,14 +117,7 @@ export function useChatHistory({
   }
 
   async function deleteChat(item: SavedChat) {
-    if (
-      busy ||
-      historyBusy ||
-      !window.confirm(
-        'Delete this conversation from shared history for everyone?',
-      )
-    )
-      return
+    if (busy || historyBusy) return
     setHistoryBusy(true)
     try {
       const current = await historyRequest(`/${item.id}`)

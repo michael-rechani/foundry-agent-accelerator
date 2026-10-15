@@ -84,7 +84,8 @@
 .answer-step-text code {
   font: 11px var(--mono);
 }
-.answer-step-state {
+.answer-step-state,
+.answer-step-result {
   flex: none;
   padding: 2px 8px;
   border-radius: 10px;

@@ -148,7 +148,9 @@ test('export downloads the saved ready record needed by export-created', async (
   await openAgent(page, support.label)
   await page.getByRole('tab', { name: 'Take it to Foundry' }).click()
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Download saved record' }).click()
+  await page
+    .getByRole('button', { name: 'Download hosted-agent package' })
+    .click()
   const file = await download
   expect(file.suggestedFilename()).toBe(`${support.id}-record.json`)
   const saved = JSON.parse(await readFile(await file.path(), 'utf8'))

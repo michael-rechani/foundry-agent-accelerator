@@ -27,7 +27,8 @@ export function OperatorKeyField({
       </p>
       <p>
         You need it only to create or delete. Reading, chatting and trying
-        agents work without it.
+        agents work without it. It clears after each create or delete, so type
+        it again for the next one.
       </p>
       <p>
         Kept in memory for this view only, never sent to the model or saved with

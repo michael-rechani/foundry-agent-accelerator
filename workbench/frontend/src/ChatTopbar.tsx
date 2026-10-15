@@ -206,7 +206,10 @@ export function ChatTopbar({
             ) : (
               <button
                 className="topbar-button"
-                title={saveNote || 'Save to shared history'}
+                title={
+                  saveNote ||
+                  'Save to shared history. Everyone who uses this Lab can open it.'
+                }
                 aria-label="Save to shared history"
                 aria-describedby={
                   config?.mode === 'private' ? 'chat-privacy' : undefined
@@ -224,7 +227,7 @@ export function ChatTopbar({
             )}
             <button
               className="topbar-button"
-              title="Export conversation"
+              title="Export conversation. Downloads a file to your computer and shares nothing."
               aria-label="Export conversation"
               disabled={exportDisabled}
               onClick={onExport}
