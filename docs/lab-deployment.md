@@ -335,7 +335,8 @@ branches to `main`, and add the variables the script prints as environment
 variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`,
 `AZURE_RESOURCE_GROUP`, `LAB_REGISTRY` and `LAB_CONTAINER_APP`. Keep them out of
 committed files. The workflow needs a private repository, so the image package
-stays private. Don't run it from a public repository.
+stays private. It skips itself when the repository is public, which this one now
+is. Run it from a private copy or fork instead.
 
 Use the jumpbox route in steps 4 to 6 when you need to change infrastructure, not
 just the image.
