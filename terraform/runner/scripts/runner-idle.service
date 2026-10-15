@@ -1,0 +1,7 @@
+[Unit]
+Description=Deallocate the runner VM when it has been idle
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/runner-idle-deallocate

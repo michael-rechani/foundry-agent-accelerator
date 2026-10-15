@@ -355,7 +355,8 @@ for version, import, and dependency-install failures.
    its own Terraform state.
 
 4. **Optional:** add [Bastion](terraform/bastion/README.md),
-   [agent monitoring](terraform/monitoring/README.md), or
+   [agent monitoring](terraform/monitoring/README.md),
+   a [CI runner](terraform/runner/README.md), or
    [agent creation](docs/agent-creation.md#enable-publication).
 
 5. **Verify:** run one scenario from the [demo guide](docs/demos.md) before you
