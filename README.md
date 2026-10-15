@@ -500,10 +500,8 @@ conversations, use the
 
 ## License and sharing
 
-This repository is private and has no open-source license, so no one has
-permission to copy, reuse, or share it. It's a sample, not an official Microsoft
-product. If the owner decides to share it outside the team, add a `LICENSE` file
-first.
+This repository is public and released under the [MIT License](LICENSE). It's a
+sample, not an official Microsoft product.
 
 <a id="references"></a>
 

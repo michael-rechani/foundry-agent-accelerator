@@ -14,9 +14,9 @@ them up.
 Report privately. Don't open an issue, pull request, or discussion for a
 suspected vulnerability.
 
-- **In this repository's code, infrastructure, or workflows:** email the
-  repository owner, [@michael-rechani](https://github.com/michael-rechani), at
-  [mrechani@microsoft.com](mailto:mrechani@microsoft.com).
+- **In this repository's code, infrastructure, or workflows:** use
+  [private vulnerability reporting](https://github.com/michael-rechani/foundry-agent-accelerator/security/advisories/new)
+  to reach the repository owner, [@michael-rechani](https://github.com/michael-rechani).
 - **In Microsoft Foundry, Azure, or a Microsoft SDK:** report it to the
   [Microsoft Security Response Center (MSRC)](https://msrc.microsoft.com/create-report).
 
