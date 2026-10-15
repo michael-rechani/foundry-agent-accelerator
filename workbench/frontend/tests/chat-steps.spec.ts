@@ -15,10 +15,20 @@ test('How I got this lists the recorded steps in plain words', async ({
   )
   const steps = await openSteps(page)
   await expect(steps.locator('.answer-step-text')).toHaveText([
-    /^Asked the Application review agent/,
+    /^Asked the Application review agent for its part of the answer/,
     /^Wrote the answer/,
   ])
   await expect(steps.locator('.answer-step-state')).toHaveText(['Confirmed'])
+  await expect(panel).toContainText(
+    'Confirmed means the Lab has a record that the step ran.',
+  )
+  await expect(page.locator('.review-note')).toBeInViewport({ ratio: 1 })
+  await expect(page.locator('.review-note')).toContainText(
+    'Check this answer before you use it.',
+  )
+  await expect(
+    page.getByRole('button', { name: 'Start new chat with this answer' }),
+  ).toBeVisible()
   await expect(page.locator('.receipt-details')).not.toHaveAttribute('open')
   expect(
     await panel.evaluate(

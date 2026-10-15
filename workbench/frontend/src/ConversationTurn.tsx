@@ -129,6 +129,14 @@ function AnswerSteps({
           </small>
         </li>
       </ol>
+      {turn.result.receipts.some(
+        (receipt) => receiptState(turn, receipt) !== 'stored',
+      ) && (
+        <p className="answer-steps-note">
+          Confirmed means the Lab has a record that the step ran. It does not
+          mean the content is correct.
+        </p>
+      )}
       {turn.result.receipts.length === 0 && (
         <p className="answer-steps-note">
           No lookups or other agents were recorded for this answer.
@@ -211,6 +219,10 @@ export function ConversationTurn({
           </span>
         </div>
         <Markdown text={turn.result.text} />
+        <p className="review-note" role="note">
+          <UserCheck size={14} aria-hidden="true" /> Check this answer before
+          you use it. A person makes the final decision.
+        </p>
         <AnswerSteps
           turn={turn}
           agentLabels={agentLabels}
@@ -226,10 +238,6 @@ export function ConversationTurn({
           >
             <Clipboard size={15} />
           </button>
-          <span className="review-note">
-            <UserCheck size={14} aria-hidden="true" /> Check this answer before
-            you use it. A person makes the final decision.
-          </span>
         </div>
         <details className="receipt-details hood-only">
           <summary>

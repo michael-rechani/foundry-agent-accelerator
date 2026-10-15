@@ -88,6 +88,19 @@ export function ChatComposer({
         />
         <div className="composer-toolbar">
           <span>
+            {turnCount > 0 && (
+              <button
+                type="button"
+                className="composer-continue"
+                title="Opens a draft that carries this answer into a new chat. Nothing is sent."
+                aria-label="Start new chat with this answer"
+                disabled={busy || historyBusy}
+                onClick={onContinue}
+              >
+                <GitBranch size={15} aria-hidden="true" />
+                <span>Start new chat with this answer</span>
+              </button>
+            )}
             {config?.mode !== 'private' && (
               <>
                 <FlaskConical size={12} aria-hidden="true" />
@@ -98,19 +111,6 @@ export function ChatComposer({
             )}
           </span>
           <div>
-            {turnCount > 0 && (
-              <button
-                type="button"
-                className="composer-continue"
-                title="Start a new chat that carries this reply forward"
-                aria-label="Continue in new chat"
-                disabled={busy || historyBusy}
-                onClick={onContinue}
-              >
-                <GitBranch size={15} aria-hidden="true" />
-                <span>Continue in new chat</span>
-              </button>
-            )}
             {busy ? (
               <button
                 key="stop"

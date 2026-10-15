@@ -111,8 +111,14 @@
   margin: 12px 0 5px;
 }
 .review-note {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  color: var(--text-secondary, var(--muted));
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  background: var(--surface-subtle);
+  color: var(--text);
+  font-size: 12px;
 }
