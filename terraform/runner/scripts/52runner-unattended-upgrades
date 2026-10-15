@@ -1,0 +1,8 @@
+// Install security fixes and regular updates automatically.
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+Unattended-Upgrade::Allowed-Origins:: "${distro_id}:${distro_codename}-updates";
+// Reboot at a fixed time only when an update needs it. A job running then is lost.
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "04:30";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";

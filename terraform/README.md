@@ -36,6 +36,7 @@ of deploying a second foundation.
 | The Lab | `workbench/infra/` | `ai-foundry/workbench-dev.tfstate` | The browser app, backend, registry integration, history storage, and alert delivery described in the Lab guide. |
 | Bastion | `terraform/bastion/` | `ai-foundry/bastion-dev.tfstate` | The dedicated Standard Azure Bastion host, `AzureBastionSubnet`, and static public IP for browser-based private access. |
 | Agent monitoring | `terraform/monitoring/` | `ai-foundry/monitoring-dev.tfstate` | Workspace-based Application Insights and private trace routing for metadata-only hosted agent monitoring. |
+| CI runner | `terraform/runner/` | `ai-foundry/runner-dev.tfstate` | A draft private Ubuntu VM that runs `validate.yml` jobs, with a subnet on the existing management VNet and its NAT gateway. Needs `approve_shared_egress`. |
 
 ## In this guide
 
@@ -687,3 +688,4 @@ controls. Before production use:
 - [The Lab](../workbench/README.md)
 - [Bastion](bastion/README.md)
 - [Agent monitoring](monitoring/README.md)
+- [CI runner](runner/README.md)

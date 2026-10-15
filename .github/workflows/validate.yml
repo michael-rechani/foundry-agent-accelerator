@@ -18,7 +18,7 @@ jobs:
   # Pushes to main and any other change run everything. Skipped jobs still satisfy required checks.
   changes:
     timeout-minutes: 5
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, lab-runner]
     permissions:
       contents: read
       pull-requests: read
@@ -46,7 +46,7 @@ jobs:
 
   secrets:
     timeout-minutes: 10
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, lab-runner]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -68,7 +68,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.code == 'true' }}
     timeout-minutes: 20
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, lab-runner]
     strategy:
       fail-fast: false
       matrix:
@@ -147,7 +147,7 @@ jobs:
     needs: python-tests
     if: ${{ always() }}
     timeout-minutes: 5
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, lab-runner]
     steps:
       - name: Require every Python version to pass
         env:
@@ -162,7 +162,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.code == 'true' }}
     timeout-minutes: 15
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, lab-runner]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -181,7 +181,7 @@ jobs:
 
   docs:
     timeout-minutes: 10
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, lab-runner]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -205,7 +205,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.code == 'true' }}
     timeout-minutes: 20
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, lab-runner]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
@@ -237,6 +237,11 @@ jobs:
           terraform -chdir=terraform/monitoring init -backend=false
           terraform -chdir=terraform/monitoring validate
           terraform -chdir=terraform/monitoring test
+      - name: Validate and test isolated CI runner without Azure
+        run: |
+          terraform -chdir=terraform/runner init -backend=false
+          terraform -chdir=terraform/runner validate
+          terraform -chdir=terraform/runner test
       - name: Validate isolated workbench infrastructure
         run: |
           terraform -chdir=workbench/infra fmt -check
@@ -265,7 +270,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.code == 'true' }}
     timeout-minutes: 25
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, lab-runner]
     container: node:24.21.0-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -277,3 +282,8 @@ jobs:
         run: npm --prefix workbench/frontend exec -- playwright install --with-deps chromium
       - name: Build and test desktop and mobile workflows
         run: npm --prefix workbench/frontend test
+      # This job runs as root in a container on a persistent runner. Hand the
+      # workspace back so the next checkout can clean it.
+      - name: Return workspace ownership to the runner user
+        if: ${{ always() }}
+        run: chown -R "$(stat -c %u:%g /__w)" "$GITHUB_WORKSPACE"
