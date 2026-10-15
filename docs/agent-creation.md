@@ -448,7 +448,10 @@ pre-approval helper agent on `gpt-5.4`. The agent was ready in about
 verified, and 0 created agents remained after deletion. The script's delete
 step returned `agent_changed` under Windows PowerShell 5.1, which dropped the
 quotes around the `If-Match` value. The script now escapes them there, and a
-retried delete with the fresh `_etag` succeeded.
+retried delete with the fresh `_etag` succeeded. A second run the same day
+repeated the flow over the API, saved the sample chat once to shared history,
+re-opened it, then deleted the chat and the agent, which left 0 created
+agents. That run didn't click through the browser UI.
 
 ## Related content
 
