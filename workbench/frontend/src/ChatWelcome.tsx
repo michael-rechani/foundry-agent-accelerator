@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { ArrowRight, CircleDashed, FlaskConical } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowRight, Check, CircleDashed } from 'lucide-react'
 import { AgentGuide } from './AgentGuide'
 import { agentKind, inProgressNote, previewBlurb } from './library-helpers'
 import { LabGuide } from './LabGuide'
@@ -9,9 +9,10 @@ import type { Agent, Config } from './workspace-config'
 // person's own words.
 export type DraftMode = 'empty' | 'example' | 'typed'
 
-const snippet = (text: string) => {
+// The first sentence of a starter says what the agent will do with it.
+const outcome = (text: string) => {
   const flat = text.replace(/\s+/g, ' ').trim()
-  return flat.length > 110 ? `${flat.slice(0, 107).trimEnd()}…` : flat
+  return flat.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? flat
 }
 
 function welcomeHint(preview: boolean, draftMode: DraftMode) {
@@ -19,12 +20,12 @@ function welcomeHint(preview: boolean, draftMode: DraftMode) {
     return draftMode === 'empty'
       ? 'Local preview: examples fill the message box. No model calls or saved records.'
       : draftMode === 'example'
-        ? 'Local preview: your example is in the message box. No model calls or saved records.'
+        ? 'Local preview: your example is in the message box. Pick another to replace it. No model calls or saved records.'
         : 'Local preview. No model calls or saved records.'
   return draftMode === 'empty'
     ? 'Pick an example to fill the message box, or type your own. Nothing is sent until you press Send.'
     : draftMode === 'example'
-      ? 'Your example is in the message box below. Edit it if you like. Nothing is sent until you press Send.'
+      ? 'Your example is in the message box below. Edit it, or pick another to replace it. Nothing is sent until you press Send.'
       : 'Nothing is sent until you press Send.'
 }
 
@@ -35,7 +36,6 @@ export function ChatWelcome({
   inProgress = false,
   draftMode,
   onPrompt,
-  onClearExample,
   onCreateAgent,
   agents,
   onChooseAgent,
@@ -47,24 +47,12 @@ export function ChatWelcome({
   inProgress?: boolean
   draftMode: DraftMode
   onPrompt: (text: string) => void
-  onClearExample?: () => void
   onCreateAgent?: () => void
   agents?: Agent[]
   onChooseAgent?: (id: string) => void
   onAddOns?: () => void
 }) {
-  const canSwapExample =
-    draftMode === 'example' &&
-    (agent?.prompts.length ?? 0) > 1 &&
-    !!onClearExample
-  const options = useRef<HTMLDivElement>(null)
-  const refocusOptions = useRef(false)
-  // The link that cleared the example is gone, so hand focus to the examples.
-  useEffect(() => {
-    if (draftMode !== 'empty' || !refocusOptions.current) return
-    refocusOptions.current = false
-    options.current?.querySelector('button')?.focus()
-  }, [draftMode])
+  const [chosen, setChosen] = useState<string>()
   return (
     <div className="chat-welcome">
       {agent && (
@@ -86,49 +74,46 @@ export function ChatWelcome({
       )}
       {agent && <AgentGuide agent={agent} compact />}
       {isPreview && <p className="welcome-preview-note">{previewBlurb}</p>}
-      {draftMode === 'empty' && !!agent?.prompts.length && (
+      {draftMode !== 'typed' && !!agent?.prompts.length && (
         <>
           <h2 className="welcome-examples-title">Start with an example</h2>
-          <div className="prompt-options" ref={options}>
-            {agent.prompts.map((prompt, index) => (
-              <button
-                key={prompt.label}
-                disabled={!config}
-                aria-label={prompt.label}
-                aria-describedby={`welcome-prompt-${index}`}
-                onClick={() => onPrompt(prompt.text)}
-              >
-                <FlaskConical size={16} aria-hidden="true" />
-                <span>
-                  <strong>{prompt.label}</strong>
-                  <small id={`welcome-prompt-${index}`}>
-                    {snippet(prompt.text)}
-                  </small>
-                </span>
-                <ArrowRight size={15} aria-hidden="true" />
-              </button>
-            ))}
+          <div className="prompt-options">
+            {agent.prompts.map((prompt, index) => {
+              const selected =
+                draftMode === 'example' && chosen === prompt.label
+              return (
+                <button
+                  key={prompt.label}
+                  className={selected ? 'selected' : undefined}
+                  disabled={!config}
+                  aria-label={prompt.label}
+                  aria-pressed={selected}
+                  aria-describedby={`welcome-prompt-${index}`}
+                  onClick={() => {
+                    setChosen(prompt.label)
+                    onPrompt(prompt.text)
+                  }}
+                >
+                  <span>
+                    <strong>{prompt.label}</strong>
+                    <small id={`welcome-prompt-${index}`}>
+                      {outcome(prompt.text)}
+                    </small>
+                  </span>
+                  {selected ? (
+                    <Check size={15} aria-hidden="true" />
+                  ) : (
+                    <ArrowRight size={15} aria-hidden="true" />
+                  )}
+                </button>
+              )
+            })}
           </div>
         </>
       )}
       {agent && (
         <p className="welcome-hint">
           {welcomeHint(config?.mode === 'preview', draftMode)}
-          {canSwapExample && (
-            <>
-              {' '}
-              <button
-                type="button"
-                className="inline-link"
-                onClick={() => {
-                  refocusOptions.current = true
-                  onClearExample?.()
-                }}
-              >
-                Choose a different example
-              </button>
-            </>
-          )}
         </p>
       )}
       {agent && onCreateAgent && (

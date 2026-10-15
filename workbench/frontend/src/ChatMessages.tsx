@@ -30,7 +30,6 @@ export function ChatMessages({
   onFreshDemo,
   onCloseDemo,
   onPrompt,
-  onClearExample,
   onCreateAgent,
   onCopy,
   onDismissError,
@@ -57,7 +56,6 @@ export function ChatMessages({
   onFreshDemo: (scenario: DemoScenario) => void
   onCloseDemo: () => void
   onPrompt: (text: string) => void
-  onClearExample: () => void
   onCreateAgent?: () => void
   onCopy: (text: string, done?: string) => void
   onDismissError: () => void
@@ -86,7 +84,6 @@ export function ChatMessages({
             inProgress={inProgress}
             draftMode={draftMode}
             onPrompt={onPrompt}
-            onClearExample={onClearExample}
             onCreateAgent={onCreateAgent}
             agents={agents}
             onChooseAgent={onChooseAgent}

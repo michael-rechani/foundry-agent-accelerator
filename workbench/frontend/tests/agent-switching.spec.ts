@@ -130,45 +130,35 @@ test('New chat asks only when something would be lost', async ({ page }) => {
   await expect(pickerName(page)).toHaveText(guidedReview.label)
 })
 
-test('examples step aside once the box has text, and a link brings them back', async ({
+test('examples step aside once the box has typed text, and stay while it holds an example', async ({
   page,
 }) => {
   await openWorkspace(page, { config: twoAgents })
   const welcome = page.locator('.chat-welcome')
-  const swap = page.getByRole('button', { name: 'Choose a different example' })
   await expect(examples(page)).toHaveCount(guidedReview.prompts.length)
   await expect(welcome).toContainText('Pick an example to fill the message box')
-  await expect(swap).toHaveCount(0)
 
   await editor(page).fill('Fictional text I typed myself')
   await expect(examples(page)).toHaveCount(0)
   await expect(welcome).toContainText('Nothing is sent until you press Send.')
-  await expect(swap).toHaveCount(0)
 
   await editor(page).fill('')
   await expect(examples(page)).toHaveCount(guidedReview.prompts.length)
 
   await examples(page).nth(1).click()
   await expect(editor(page)).toHaveValue(guidedReview.prompts[1].text)
-  await expect(examples(page)).toHaveCount(0)
-  await expect(welcome).toContainText('Your example is in the message box')
-  await swap.click()
-  await expect(editor(page)).toHaveValue('')
   await expect(examples(page)).toHaveCount(guidedReview.prompts.length)
-  await expect(examples(page).first()).toBeFocused()
-})
+  await expect(examples(page).nth(1)).toHaveAttribute('aria-pressed', 'true')
+  await expect(welcome).toContainText('Your example is in the message box')
 
-test('an agent with one example has nothing to swap', async ({ page }) => {
-  await openWorkspace(page)
-  await examples(page).click()
-  await expect(page.locator('.chat-welcome')).toContainText(
-    'Your example is in the message box',
-  )
-  await expect(
-    page.getByRole('button', { name: 'Choose a different example' }),
-  ).toHaveCount(0)
-})
+  await examples(page).nth(0).click()
+  await expect(editor(page)).toHaveValue(guidedReview.prompts[0].text)
+  await expect(examples(page).nth(0)).toHaveAttribute('aria-pressed', 'true')
+  await expect(examples(page).nth(1)).toHaveAttribute('aria-pressed', 'false')
 
+  await editor(page).fill(guidedReview.prompts[0].text + ' Edited.')
+  await expect(examples(page)).toHaveCount(0)
+})
 test('All agents opens the full list, but library tabs keep the agent you were reading', async ({
   page,
 }) => {

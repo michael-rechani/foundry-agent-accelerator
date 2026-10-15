@@ -44,6 +44,13 @@
   border-color: var(--accent);
   background: var(--accent-soft);
 }
+.prompt-options button.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.prompt-options button.selected > svg:last-child {
+  color: var(--accent);
+}
 .prompt-options button > svg:last-child {
   color: var(--muted);
 }

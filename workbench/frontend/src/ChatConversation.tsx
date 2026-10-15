@@ -130,7 +130,6 @@ export function ChatConversation({
             setActiveDemo(null)
             editor.current?.focus()
           }}
-          onClearExample={() => prefill('')}
           onCreateAgent={onCreateAgent}
           agents={agents}
           onChooseAgent={onChooseAgent}
