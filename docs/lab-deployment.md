@@ -290,8 +290,11 @@ The **Deploy Lab image** workflow (`.github/workflows/deploy-lab.yml`) ships the
 current `main` to a running Lab without a jumpbox. Run it from the Actions tab
 with **Run workflow** on `main`. It:
 
-1. Builds the image on a GitHub runner, checks it as its non-root user, and
-   pushes it to this repository's **private** GitHub package.
+1. Builds the image on the repository's self-hosted runner (see
+   [`terraform/runner`](../terraform/runner/README.md); start its VM first if it
+   is deallocated), checks it as its non-root user, and pushes it to this
+   repository's **private** GitHub package. The runner has Docker but no Azure
+   CLI, so the workflow runs the CLI from Microsoft's `azure-cli` image.
 2. Signs in to Azure with a short-lived GitHub token. No secret is stored.
 3. Imports the image into the private registry by digest. Registry import is
    allowed for a registry with public access off, so nothing in Azure is made

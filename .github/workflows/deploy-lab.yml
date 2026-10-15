@@ -21,7 +21,7 @@ jobs:
   build:
     if: github.ref == 'refs/heads/main'
     timeout-minutes: 30
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, lab-runner]
     permissions:
       contents: read
       packages: write
@@ -41,6 +41,8 @@ jobs:
           repository="${GITHUB_REPOSITORY,,}"
           tag="${GITHUB_SHA::12}-r${GITHUB_RUN_ID}"
           image="ghcr.io/${repository}/workbench:${tag}"
+          # The runner is persistent, so don't leave the registry login behind.
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
           echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           # .dockerignore is an allow-list, so this context matches what build.ps1 stages.
           docker buildx build --platform linux/amd64 --provenance=false --sbom=false --pull \
@@ -55,7 +57,7 @@ jobs:
   deploy:
     needs: build
     timeout-minutes: 30
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, lab-runner]
     environment: lab-deploy
     permissions:
       contents: read
@@ -71,6 +73,21 @@ jobs:
       IMAGE_SOURCE: ${{ needs.build.outputs.source }}
       IMAGE_TAG: ${{ needs.build.outputs.tag }}
     steps:
+      # The self-hosted runner has Docker but no Azure CLI, and the runner user can't install one.
+      # This wrapper runs the same CLI from Microsoft's image, with its sign-in kept in the job's temp folder.
+      - name: Use the Azure CLI from Microsoft's image
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bin" "$RUNNER_TEMP/azconfig"
+          docker pull --quiet mcr.microsoft.com/azure-cli:latest >/dev/null
+          cat > "$RUNNER_TEMP/bin/az" <<EOF
+          #!/bin/bash
+          exec docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e AZURE_CONFIG_DIR=/azconfig \\
+            -e AZURE_EXTENSION_USE_DYNAMIC_INSTALL=yes_without_prompt -e AZURE_EXTENSION_RUN_AFTER_DYNAMIC_INSTALL=false \\
+            -v "$RUNNER_TEMP/azconfig:/azconfig" mcr.microsoft.com/azure-cli:latest az "\$@"
+          EOF
+          chmod +x "$RUNNER_TEMP/bin/az"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - name: Sign in to Azure with the GitHub token
         run: |
           set -euo pipefail
