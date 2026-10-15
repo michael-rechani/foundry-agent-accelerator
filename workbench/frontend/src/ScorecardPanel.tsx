@@ -204,12 +204,17 @@ export function ScorecardPanel({
         ))}
       </ul>
       <p className="library-muted">
-        <strong>Needs a look</strong> means at least one answer missed an
-        automatic check, such as a required figure, a follow-up question or a
-        claim the sample data doesn&apos;t support. Some of these are wording
-        the check doesn&apos;t recognize, so a person reads the answer against
-        its goal. Passing the checks isn&apos;t a promise that every answer is
-        right, which is why a person still reads the recorded answers.
+        {!allPassed && (
+          <>
+            <strong>Needs a look</strong> means at least one answer missed an
+            automatic check, such as a required figure, a follow-up question or
+            a claim the sample data doesn&apos;t support. Some of these are
+            wording the check doesn&apos;t recognize, so a person reads the
+            answer against its goal.{' '}
+          </>
+        )}
+        Passing the checks isn&apos;t a promise that every answer is right,
+        which is why a person still reads the recorded answers.
       </p>
       <p className="library-muted hood-only">
         <CalendarCheck size={13} aria-hidden="true" /> Model {card.model}.{' '}

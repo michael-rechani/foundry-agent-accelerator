@@ -94,6 +94,8 @@ export function LibraryExportTab({
             <p className="library-muted">
               Instructions and settings for a Foundry prompt agent. Add your own
               model deployment.
+              {template.tools.length > 0 &&
+                ' The tools list in the file is empty. The sample lookups are named under metadata.tools_to_connect so you can replace them with your own connectors.'}
             </p>
           </div>
           <div className="library-download">
@@ -150,7 +152,7 @@ export function LibraryExportTab({
               className="library-primary"
               onClick={() => void downloadRecord(ready.recordId)}
             >
-              <Download size={16} /> Download saved record
+              <Download size={16} /> Download hosted-agent package
             </button>
           ) : (
             <>

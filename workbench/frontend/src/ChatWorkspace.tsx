@@ -445,7 +445,14 @@ export default function ChatWorkspace() {
             busy={busy}
             historyBusy={historyBusy}
             onOpen={openSaved}
-            onDelete={(item) => void deleteChat(item)}
+            onDelete={(item) =>
+              setChanging({
+                title: 'Delete this saved conversation?',
+                message: `"${item.title}" will be removed from shared history for everyone who uses this Lab. This can't be undone.`,
+                confirmLabel: 'Delete for everyone',
+                run: () => void deleteChat(item),
+              })
+            }
             onMore={() => void listHistory(true)}
           />
         ) : view === 'chat' ? (

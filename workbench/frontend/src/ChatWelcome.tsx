@@ -81,6 +81,9 @@ export function ChatWelcome({
       )}
       <h1>{agent?.label || 'Connecting to your workspace'}</h1>
       {agent && <p>{agent.description}</p>}
+      {agent && inProgress && (
+        <p className="welcome-preview-note">{inProgressNote}</p>
+      )}
       {agent && <AgentGuide agent={agent} compact />}
       {isPreview && <p className="welcome-preview-note">{previewBlurb}</p>}
       {draftMode === 'empty' && !!agent?.prompts.length && (
