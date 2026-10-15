@@ -151,7 +151,7 @@ stored in code, the Terraform state, the pull request, or chat.
      --vm-name <runner-vm-name> `
      --name register-runner `
      --script "/usr/local/sbin/register-runner" `
-     --protected-parameters "[{name:RUNNER_TOKEN,value:$plain}]"
+     --protected-parameters "RUNNER_TOKEN=$plain"
    Remove-Variable plain, token
    ```
 

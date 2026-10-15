@@ -282,3 +282,8 @@ jobs:
         run: npm --prefix workbench/frontend exec -- playwright install --with-deps chromium
       - name: Build and test desktop and mobile workflows
         run: npm --prefix workbench/frontend test
+      # This job runs as root in a container on a persistent runner. Hand the
+      # workspace back so the next checkout can clean it.
+      - name: Return workspace ownership to the runner user
+        if: ${{ always() }}
+        run: chown -R "$(stat -c %u:%g /__w)" "$GITHUB_WORKSPACE"
