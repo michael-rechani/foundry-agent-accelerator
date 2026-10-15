@@ -1,0 +1,8 @@
+subscription_id      = "00000000-0000-0000-0000-000000000000"
+resource_group_name  = "rg-example"
+virtual_network_name = "vnet-jumpbox-example"
+nat_gateway_name     = "nat-jumpbox-example"
+# A public SSH key only. Azure requires one; the VM has no inbound path to use it.
+admin_ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINscr5/0uytwl6kAEaWqSaYio1YQpVWBT/G7ui/VusPg runner-test"
+# The runner shares the jumpbox NAT gateway's outbound public IP. Leave false until approved.
+approve_shared_egress = false
