@@ -1,5 +1,5 @@
 import type { RefObject } from 'react'
-import { ArrowUp, FlaskConical, GitBranch, Square } from 'lucide-react'
+import { ArrowUp, Copy, FlaskConical, GitBranch, Square } from 'lucide-react'
 import type { Agent, Config } from './workspace-config'
 
 export function ChatComposer({
@@ -19,6 +19,7 @@ export function ChatComposer({
   isPreview,
   onDraft,
   onSubmit,
+  onCopyPrompt,
   onStop,
   onContinue,
 }: {
@@ -38,10 +39,13 @@ export function ChatComposer({
   isPreview: boolean
   onDraft: (value: string) => void
   onSubmit: () => void
+  onCopyPrompt: () => void
   onStop: () => void
   onContinue: () => void
 }) {
   const exceedsLimit = limitReasons.length > 0
+  // Local preview never calls a model, so Send would only ever fail.
+  const localPreview = config?.mode === 'preview'
   // Limits and save state only matter once there is something to lose.
   const showDetails = turnCount > 0 || contextUsage >= 0.5
   return (
@@ -71,6 +75,7 @@ export function ChatComposer({
           onChange={(event) => onDraft(event.target.value)}
           onKeyDown={(event) => {
             if (
+              !localPreview &&
               event.key === 'Enter' &&
               !event.shiftKey &&
               !event.nativeEvent.isComposing
@@ -85,7 +90,9 @@ export function ChatComposer({
             {config?.mode !== 'private' && (
               <>
                 <FlaskConical size={12} aria-hidden="true" />
-                No model calls or saving
+                {localPreview
+                  ? 'Local preview makes no model calls. Copy the prompt to use it in a connected Lab.'
+                  : 'No model calls or saving'}
               </>
             )}
           </span>
@@ -116,6 +123,18 @@ export function ChatComposer({
                 }}
               >
                 <Square size={16} />
+              </button>
+            ) : localPreview ? (
+              <button
+                key="copy"
+                type="button"
+                className="send-button copy-prompt"
+                disabled={!draft.trim()}
+                aria-label="Copy prompt"
+                title="Copy prompt"
+                onClick={onCopyPrompt}
+              >
+                <Copy size={18} aria-hidden="true" />
               </button>
             ) : (
               <button

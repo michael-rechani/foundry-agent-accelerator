@@ -52,6 +52,7 @@ export function useChatSubmit({
   async function submit() {
     if (
       !config ||
+      config.mode === 'preview' ||
       !agent ||
       !draft.trim() ||
       busy ||

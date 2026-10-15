@@ -169,6 +169,7 @@ export function ChatConversation({
             if (!busy) setPending('')
           }}
           onSubmit={onSubmit}
+          onCopyPrompt={() => onCopy(draft, 'Prompt copied.')}
           onStop={onStop}
           onContinue={onContinue}
         />

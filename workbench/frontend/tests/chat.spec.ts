@@ -35,6 +35,33 @@ test('preview chat does not promise shared persistence', async ({ page }) => {
   await expect(page.locator('#chat-privacy')).toHaveCount(0)
 })
 
+test('local preview offers Copy prompt instead of a Send that cannot work', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  const state = await openWorkspace(page, { preview: true })
+  const box = page.getByRole('textbox', { name: 'Message' })
+  const copy = page.getByRole('button', { name: 'Copy prompt' })
+  await expect(page.getByRole('button', { name: 'Send message' })).toHaveCount(
+    0,
+  )
+  await expect(page.locator('.composer-toolbar')).toContainText(
+    'Local preview makes no model calls',
+  )
+  await expect(copy).toBeDisabled()
+  await box.fill('Synthetic request')
+  await expect(copy).toBeEnabled()
+  await box.press('Enter')
+  await copy.click()
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toContain('Synthetic request')
+  await expect(page.locator('.user-message')).toHaveCount(0)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  expect(state.requests).toHaveLength(0)
+})
+
 test('storage-disabled chat does not promise shared persistence', async ({
   page,
 }) => {
