@@ -222,7 +222,7 @@ export function ChatTopbar({
                 ) : (
                   <Save size={16} />
                 )}
-                <span>Save</span>
+                <span>Save to shared history</span>
               </button>
             )}
             <button
@@ -233,7 +233,7 @@ export function ChatTopbar({
               onClick={onExport}
             >
               <ArrowDownToLine size={16} />
-              <span>Export</span>
+              <span>Export conversation</span>
             </button>
           </>
         )}
