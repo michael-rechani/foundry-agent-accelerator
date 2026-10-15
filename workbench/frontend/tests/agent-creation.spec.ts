@@ -91,6 +91,43 @@ test('template selection preserves custom input and brings the next step into vi
   ).toBeInViewport()
 })
 
+test('the step indicator, search and cost notice guide the create flow', async ({
+  page,
+}) => {
+  await openCreation(page)
+  const steps = page.locator('.creation-steps li')
+  await expect(steps.nth(0)).toHaveAttribute('aria-current', 'step')
+  await expect(steps.nth(1)).not.toHaveAttribute('aria-current', 'step')
+
+  const cards = page.locator('.creation-template')
+  const total = await cards.count()
+  const search = page.getByRole('searchbox', { name: 'Search templates' })
+  await search.fill('zzzz-no-such-template')
+  await expect(cards).toHaveCount(0)
+  await expect(page.getByRole('status')).toContainText('No templates match')
+  await search.fill('')
+  await expect(cards).toHaveCount(total)
+  const first = (await cards.first().locator('strong').textContent()) ?? ''
+  await search.fill(first.toLowerCase())
+  expect(await cards.count()).toBeGreaterThan(0)
+  expect(await cards.count()).toBeLessThanOrEqual(total)
+
+  await cards.first().click()
+  await expect(page.locator('.creation-picked')).toContainText(
+    `Selected: ${first}`,
+  )
+  await page
+    .getByLabel('What should the agent help with?')
+    .fill('Explain the differences between my fictional policy notices.')
+  await page.getByRole('button', { name: 'Prepare setup', exact: true }).click()
+  await expect(steps.nth(1)).toHaveAttribute('aria-current', 'step')
+  await expect(steps.nth(0)).toHaveAttribute('data-done', 'true')
+  const costs = page.locator('.creation-costs')
+  await expect(costs).toContainText('Before you create it')
+  await expect(costs).toContainText(/Publishing takes up to \d+ minutes?/)
+  await expect(costs).toContainText('keeps costing money until someone deletes')
+})
+
 test('ambiguous descriptions require a template and preparation creates no agent', async ({
   page,
 }) => {
@@ -134,6 +171,7 @@ test('publishes reviewed setup, uses its real ID in chat, saves and restores his
   await page
     .getByLabel('Agent name', { exact: true })
     .fill('Policy notice helper')
+  await page.getByText(/^Task instructions: [\d,]+ characters/).click()
   await page
     .getByLabel('Task instructions')
     .fill(

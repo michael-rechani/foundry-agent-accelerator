@@ -26,6 +26,10 @@ export function OperatorKeyField({
         costs money. Ask the Lab operator for it.
       </p>
       <p>
+        You need it only to create or delete. Reading, chatting and trying
+        agents work without it.
+      </p>
+      <p>
         Kept in memory for this view only, never sent to the model or saved with
         the agent.
       </p>
