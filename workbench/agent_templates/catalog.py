@@ -170,7 +170,7 @@ def list_templates():
             "tool_mode": deepcopy(tool_modes[mode]),
             "prerequisites": [
                 "A model deployment",
-                "Customer-reviewed instructions and acceptance cases",
+                                "Instructions your team has reviewed, and test cases that match your real work",
             ],
             "runtime_hint": {
                 **_PROFILE_HINTS[profile],

@@ -2,19 +2,15 @@
 
 [Home](../README.md) / The Lab
 
-The Lab is the private browser app in `workbench/`. Use it to try the
-prebuilt agents, prepare reviewed agent setups, publish baseline Microsoft
-Foundry hosted agents when an operator enables creation, and save document
-reviews. The sections below cover running, configuring, deploying, operating,
-and validating it.
+The Lab is the private browser app in `workbench/`, titled **Foundry Agent
+Lab**. Use it to try the prebuilt agents, prepare agents from templates,
+publish hosted agents when an operator enables creation, and save document
+reviews. It's a React and TypeScript UI on a FastAPI backend, with shared Azure
+Cosmos DB storage.
 
-The UI title is **Foundry Agent Lab**. The private React/TypeScript UI uses a
-FastAPI backend and shared Azure Cosmos DB storage.
-
-Run it on your machine with the commands in [Local development](#local-development).
-To run it in Azure, follow the [deployment runbook](../docs/lab-deployment.md).
-The sections here are the short version. The [reference pages](#reference-pages)
-hold the detail.
+- **Run it on your machine:** see [Local development](#local-development).
+- **Run it in Azure:** follow the [deployment runbook](../docs/lab-deployment.md).
+- **Need detail?** See the [reference pages](#reference-pages).
 
 ## At a glance
 
@@ -33,7 +29,7 @@ hold the detail.
 ## Local development
 
 Requires Node 24 and Python 3.14. See the
-[tool versions and upgrade expectations](../README.md#tool-versions-and-upgrades).
+[tool versions and upgrade expectations](../docs/tool-versions.md).
 These disconnected checks need neither Azure sign-in nor `azd`.
 
 ```powershell
