@@ -73,8 +73,8 @@ them all.
 
 | Scenario | Status | What it means |
 | --- | --- | --- |
-| [Casework assistance](demos.md#casework-assistance) | **Available** | The source and walkthrough are included. This isn't a live-validation claim. |
-| [Application completeness](demos.md#application-completeness) | **Available** | The source and walkthrough are included. This isn't a live-validation claim. |
+| [Casework assistance](demos.md#casework-assistance) | **Available** | The source and walkthrough are included. |
+| [Application completeness](demos.md#application-completeness) | **Available** | The source and walkthrough are included. |
 | [Requirements and proposal review](demos.md#requirements-and-proposal-review) | **Preview** | This reuses the application agent and the existing criteria-and-evidence workflow. It doesn't add another agent. |
 
 The creation jobs are grouped on the page by sector, using the same three names,

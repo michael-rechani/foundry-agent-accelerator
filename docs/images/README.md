@@ -256,10 +256,8 @@ rework. Only the template link points to the template.
 ## Lab screenshots
 
 The screenshots in `screenshots/` come from the Lab's browser tests. The tests
-replace the backend with mocked API responses that return sample data, so the
-images show the real layout but not live model answers or saved records. The
-pictures carry no watermark. This page and the tours' `<title>` and `<desc>` say
-that they come from automated browser tests with sample data.
+replace the backend with mocked API responses that return sample data. The
+pictures carry no watermark.
 
 The tests take them in the customer view, with **Under the hood** off, which is
 the plain view a customer sees. The `docsScreenshot` helper in
@@ -277,7 +275,7 @@ light and dark mode. To capture another look, change the `data-look` value in
 | [lab-start.png](screenshots/lab-start.png) / [dark](screenshots/lab-start-dark.png) | The first page, **Ask the Lab**: the welcome, the "What are you trying to do?" finder with a match, and the **Try an agent** and **Build your own** next steps | `start-page.png` / `start-page-dark.png` | [README tour](#readme-tour), [Lab guide](../lab-pages-and-access.md#pages) |
 | [lab-library.png](screenshots/lab-library.png) / [dark](screenshots/lab-library-dark.png) | The **Agent library** on **Browse**: the **Start here** examples, the filters, and the first agent cards | `library-browse.png` / `library-browse-dark.png` | [README tour](#readme-tour) |
 | [lab-test-results.png](screenshots/lab-test-results.png) / [dark](screenshots/lab-test-results-dark.png) | The **Test results** tab of the Supplier invoice reviewer: answers passed, typical response, model cost per answer, and **Waiting for a person** | `library-test-results.png` / `library-test-results-dark.png` | README tour |
-| [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide, example tasks, the **Ask the Lab** questions, and inline shared-data notice | `demo-starters.png` | README tour, [demo guide](../demos.md#a-short-demonstration) |
+| [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide and example tasks | `demo-starters.png` | README tour, [demo guide](../demos.md#a-short-demonstration) |
 | [lab-chat-start-dark.png](screenshots/lab-chat-start-dark.png) | The same **Chat** with the **System** theme and a dark color scheme | `demo-starters-dark.png` | README tour, [demo guide](../demos.md#a-short-demonstration) |
 | [lab-take-to-foundry.png](screenshots/lab-take-to-foundry.png) / [dark](screenshots/lab-take-to-foundry-dark.png) | The **Take it to Foundry** tab: the agent-definition and test-request downloads, and the steps for setting it up in your own project | `library-take-to-foundry.png` / `library-take-to-foundry-dark.png` | README tour |
 | [lab-addons.png](screenshots/lab-addons.png) / [dark](screenshots/lab-addons-dark.png) | The **Add-ons** tab: the preview-only notice, the rules every add-on follows, and cards grouped by job (such as **Find answers**), each marked **Lets an agent do more** or **Supports the agent** | `library-addons.png` / `library-addons-dark.png` | [Add-on package format](../addon-package-format.md) |
@@ -319,8 +317,8 @@ the pre-save form so the walkthrough still shows both stages.
 
 ## README tour
 
-The root README opens with [lab-tour-dark.svg](lab-tour-dark.svg); the light
-[lab-tour.svg](lab-tour.svg) is still generated.
+The root README opens with [lab-tour-dark.svg](lab-tour-dark.svg). Only the
+dark tour is generated and committed.
 The tour crossfades between six Lab screenshots, about four seconds each,
 and loops:
 
@@ -333,15 +331,14 @@ and loops:
 | 5 · Take it to Foundry | `lab-take-to-foundry.png` | `lab-take-to-foundry-dark.png` |
 | 6 · Create an agent | `lab-create-agent.png` | `lab-create-agent-dark.png` |
 
-[scenario-tour-dark.svg](scenario-tour-dark.svg) and its light
-[variant](scenario-tour.svg)
-use the application, invoice, and casework screenshots as three separate
+[scenario-tour-dark.svg](scenario-tour-dark.svg)
+uses the application, invoice, and casework screenshots as three separate
 customer stories. The root README links to them from its story table rather
 than embedding them, so its opening screen stays a single tour. They
 share the same accessible frame and reduced-motion behavior.
 
 A minimal window bar above the frames names the current step and shows a
-progress bar, so nothing covers the screenshots. Both SVGs
+progress bar, so nothing covers the screenshots. The SVGs
 are generated, so don't edit them by hand. The frames are copies of the
 screenshots, so after you refresh any tour frame, rebuild both tours and commit
 the screenshots and SVGs together:
@@ -361,9 +358,7 @@ which blurs UI text.
 For readers who turn on reduced motion in their operating system, the SVGs'
 `prefers-reduced-motion: reduce` rules stop every animation and show only the
 first frame, **Ask the Lab** (or the application story in the scenario tour),
-with its step label. The SVG `<title>` and `<desc>` say that the tour shows
-sample data from automated browser tests, not live model results, and the
-README alt text describes the full sequence.
+with its step label. The README alt text describes the full sequence.
 
 ## Visual review checklist
 

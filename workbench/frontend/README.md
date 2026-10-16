@@ -231,8 +231,8 @@ findings, and guidance. Polling and resume stay in `ReviewWorkspace.tsx`.
 
 The visible **Local preview** state means no model calls or persistence.
 `tests/fixtures.ts` reads the real catalog rather than duplicating it. The
-documentation screenshots come from API-mocked browser tests with sample data,
-not live model output or saved Cosmos records, and carry no watermark. Their
+documentation screenshots come from API-mocked browser tests with sample data
+and carry no watermark. Their
 `docsScreenshot` helper turns **Under the hood** off for the capture, so the
 pictures show the plain view a customer sees, and puts it back afterwards; the
 test setup turns it on by default. The library tour, **Create agent**, chat,

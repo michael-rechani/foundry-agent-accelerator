@@ -58,7 +58,7 @@ implemented or deployed.
 
 ## Take a tour
 
-<img alt="Tour of the Foundry Agent Lab in six steps: ask the Lab which agent to use, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template. Every screen shows sample data." src="docs/images/lab-tour-dark.svg">
+<img alt="Tour of the Foundry Agent Lab in six steps: ask the Lab which agent to use, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template." src="docs/images/lab-tour-dark.svg">
 
 1. **Ask the Lab.** The Lab opens here. Pick a guide question, such as which
    agent to use or build, and get an answer from the Lab's own lists. Nothing
@@ -74,9 +74,6 @@ implemented or deployed.
 6. **Create agent.** Prepare an agent from a library template. It stays off
    until an operator turns it on, because publishing creates Azure resources
    that cost money.
-
-*Screenshots come from automated browser tests with sample data, not a live
-model run.*
 
 [Open the full tour](docs/images/lab-tour-dark.svg) ·
 [Create agent screenshot](docs/images/screenshots/lab-create-agent-dark.png) ·

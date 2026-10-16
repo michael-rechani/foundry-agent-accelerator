@@ -6,8 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# The README tours: Lab screenshots from automated browser tests, shown with
-# sample data. They crossfade inside a minimal window frame. Each step names its
+# The README tours: Lab screenshots from automated browser tests. They crossfade inside a minimal window frame. Each step names its
 # light and dark screenshot. Label widths are the average of Segoe UI and Arial
 # at 20px semibold; textLength keeps every label inside its pill whichever
 # system font renders it.
@@ -28,11 +27,6 @@ $tourName = if ($Tour -eq 'scenarios') { 'scenario-tour' } else { 'lab-tour' }
 # Label text meets a WCAG contrast ratio of at least 4.5:1 against its pill, and
 # badge numbers against their badge.
 $themes = [ordered]@{
-    $tourName      = [ordered]@{
-        Screenshot = 'Light'; Bar = '#f6f8fa'; Border = '#d1d9e0'; Dot = '#c8d1da'; Muted = '#59636e'
-        Pill = '#ffffff'; PillText = '#1f2328'; Accent = '#0f6cbd'; AccentText = '#ffffff'; Track = '#d8dee4'
-        Shadow = '#1f2328'; NearOpacity = '0.08'; FarOpacity = '0.14'
-    }
     "$tourName-dark" = [ordered]@{
         Screenshot = 'Dark'; Bar = '#161b22'; Border = '#3d444d'; Dot = '#3d444d'; Muted = '#9198a1'
         Pill = '#212830'; PillText = '#f0f6fc'; Accent = '#4aa8ff'; AccentText = '#0d1117'; Track = '#2f3742'
@@ -41,14 +35,14 @@ $themes = [ordered]@{
 }
 
 $title = if ($Tour -eq 'scenarios') {
-    'Foundry Agent Lab: three example walkthroughs with sample data'
+    'Foundry Agent Lab: three example walkthroughs'
 } else {
-    'Foundry Agent Lab: a tour of the agent library with sample data'
+    'Foundry Agent Lab: a tour of the agent library'
 }
 $description = if ($Tour -eq 'scenarios') {
-    'Three example customer walkthroughs from automated browser tests, shown with sample data: missing application evidence, supplier invoice discrepancies, and a casework brief. Expected findings are examples, not live model results. Nothing was published, sent, or saved.'
+    'Three example customer walkthroughs: missing application evidence, supplier invoice discrepancies, and a casework brief.'
 } else {
-    'Six screenshots from automated browser tests, shown with sample data: the Ask the Lab first page, browsing the agent library, one agent''s recorded test results, the Chat page, the Take it to Foundry steps, and the Create agent page. They are not live model results. Nothing was published, sent, or saved.'
+    'Six screenshots: the Ask the Lab first page, browsing the agent library, one agent''s recorded test results, the Chat page, the Take it to Foundry steps, and the Create agent page.'
 }
 
 # Each frame holds for $frameSeconds, including a $fadeSeconds crossfade into
@@ -219,7 +213,7 @@ function New-Tour([string]$Name, [Collections.IDictionary]$Theme, [string[]]$Fra
         $lines += "  <circle cx=`"$($windowX + $offset)`" cy=`"$barCenter`" r=`"6`"/>"
     }
     $lines += '</g>'
-    $lines += "<text x=`"$($windowX + $imageWidth / 2)`" y=`"$(Format-Number ($barCenter + 5))`" font-size=`"15`" fill=`"$($Theme.Muted)`" text-anchor=`"middle`">Foundry Agent Lab &#183; sample data</text>"
+    $lines += "<text x=`"$($windowX + $imageWidth / 2)`" y=`"$(Format-Number ($barCenter + 5))`" font-size=`"15`" fill=`"$($Theme.Muted)`" text-anchor=`"middle`">Foundry Agent Lab</text>"
     for ($i = 0; $i -lt $steps.Count; $i++) {
         $step = $steps[$i]
         $pillWidth = ($textX - $pillX) + $step.Width + 18
@@ -253,12 +247,8 @@ function Test-Tour([string]$Content, [string]$Name) {
         throw "The $Name tour must embed every image."
     }
     if ($markup -match 'url\((?!#)|@import') { throw "The $Name tour must not load external resources." }
-    # The pictures come from browser tests, so say so and say they are not live.
-    if ($validated.DocumentElement['title'].InnerText -notmatch 'Foundry Agent Lab' -or
-        $validated.DocumentElement['title'].InnerText -notmatch 'sample data' -or
-        $validated.DocumentElement['desc'].InnerText -notmatch 'automated browser tests' -or
-        $validated.DocumentElement['desc'].InnerText -notmatch 'not live model results') {
-        throw "The $Name tour must say it shows sample data from automated browser tests, not live model results."
+    if ($validated.DocumentElement['title'].InnerText -notmatch 'Foundry Agent Lab') {
+        throw "The $Name tour must have a title."
     }
 }
 

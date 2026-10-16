@@ -146,7 +146,7 @@ Allow roughly 10-15 minutes for one scenario. Model response time varies.
 4. **Handoff (2 minutes):** record [what worked, what needs further validation,
    and the recommended next step](demo-handoff.md). Reset as described below.
 
-<img alt="An empty Chat: the Checklist and case helper explains what to give it and what it returns, with example tasks to review an application, summarize case notes, or compare a proposal, and an Ask the Lab section with two guide questions" src="images/screenshots/lab-chat-start-dark.png">
+<img alt="An empty Chat: the Checklist and case helper explains what to give it and what it returns, with example tasks to review an application, summarize case notes, or compare a proposal" src="images/screenshots/lab-chat-start-dark.png">
 
 [View full size](images/screenshots/lab-chat-start-dark.png)
 
@@ -158,8 +158,7 @@ failure and stop presenting it as a successful result.
 ## Casework assistance
 
 **Available**: supplied-input case summary and follow-up workflow in the existing
-[case-review agent](../hosted-agents/case-review-agent/README.md). The source is
-included, but this isn't a live validation claim.
+[case-review agent](../hosted-agents/case-review-agent/README.md). The source is included.
 
 **Question:** Can the assistant help a staff member see what is known and what
 needs clarification without making a case decision?
