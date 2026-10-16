@@ -369,12 +369,12 @@ Front Door profile to the Lab's Log Analytics workspace, so a rebuilt Lab gets t
 same logs. The workspace stays private. Don't enable public access to read them.
 
 The dev Lab's setting was first created with the Azure CLI (#240), so it already
-exists. To adopt it without an "already exists" error, set
+existed, and it was adopted into Terraform on 15 October 2026 with one import and
+no other change (#256). A Lab that still has a hand-made setting needs
 `import_front_door_diagnostic_setting = true` for one apply from the private
 runner, then set it back to `false`. The plan must show one import and no other
 change. If it shows anything else, stop and report. A new Lab doesn't need the
-flag. Tracked in
-[#256](https://github.com/michael-rechani/foundry-agent-accelerator/issues/256).
+flag.
 
 ## Shared application and HTTP requirements
 
