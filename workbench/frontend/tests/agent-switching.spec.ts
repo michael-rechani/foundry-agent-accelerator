@@ -130,6 +130,22 @@ test('New chat asks only when something would be lost', async ({ page }) => {
   await expect(pickerName(page)).toHaveText(guidedReview.label)
 })
 
+test('New chat is available from any view and opens an empty chat', async ({
+  page,
+}) => {
+  await openWorkspace(page, { config: twoAgents })
+  await editor(page).fill('Fictional draft')
+  await page.getByRole('button', { name: 'All agents' }).click()
+  const newChat = page.getByRole('button', { name: 'New chat', exact: true })
+  await expect(newChat).toBeVisible()
+  await newChat.click()
+  await confirmation(page, 'Start a new chat?')
+    .getByRole('button', { name: 'Start new chat' })
+    .click()
+  await expect(editor(page)).toHaveValue('')
+  await expect(editor(page)).toBeFocused()
+})
+
 test('examples step aside once the box has typed text, and stay while it holds an example', async ({
   page,
 }) => {

@@ -168,17 +168,15 @@ export function ChatSidebar({
         </span>
         <span>{title || 'Foundry Agent Lab'}</span>
       </div>
-      {view === 'chat' && (
-        <button
-          className="new-chat"
-          disabled={busy || historyBusy}
-          onClick={onNewChat}
-          title="New chat"
-        >
-          <Plus size={18} />
-          <span>New chat</span>
-        </button>
-      )}
+      <button
+        className="new-chat"
+        disabled={busy || historyBusy}
+        onClick={onNewChat}
+        title="Start a new chat with the selected agent"
+      >
+        <Plus size={18} />
+        <span>New chat</span>
+      </button>
       <nav aria-label="Workspace">
         {sections
           .filter((section) => !section.hood || hood || current === section.id)
