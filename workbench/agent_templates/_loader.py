@@ -18,7 +18,9 @@ _TOP_FIELDS = {"id", "order", "retired", "template", "metadata", "match"}
 _TEMPLATE_FIELDS = ("model_profile", "label", "description", "input", "output", "limits", "delegation",
                     "instructions", "example_request", "sample_input", "tools")
 _METADATA_FIELDS = ("sector", "industry", "tasks", "summary", "expected_behavior", "human_decision", "keywords",
-                    "readiness")
+                    "readiness", "availability")
+_OPTIONAL_METADATA_FIELDS = {"availability"}
+_DEFAULT_AVAILABILITY = "preview"
 _TOOL_NOTE = "; no external call or update."
 
 
@@ -117,7 +119,8 @@ def _read(path, vocabulary):
         _choice(template["model_profile"], "model_profile", vocabulary["model_profiles"])
         template["tools"] = _tools(source["tools"])
 
-        source = _object(document["metadata"], "metadata", _METADATA_FIELDS)
+        source = _object(document["metadata"], "metadata", _METADATA_FIELDS,
+                         set(_METADATA_FIELDS) - _OPTIONAL_METADATA_FIELDS)
         metadata = {
             "sector": _choice(_text(source["sector"], "metadata sector"), "sector", vocabulary["sectors"]),
             "industry": _choice(_text(source["industry"], "metadata industry"), "industry", vocabulary["industries"]),
@@ -127,7 +130,9 @@ def _read(path, vocabulary):
             "human_decision": _text(source["human_decision"], "metadata human_decision"),
             "keywords": _texts(source["keywords"], "metadata keywords"),
             "readiness": _choice(_text(source["readiness"], "metadata readiness"), "readiness", vocabulary["readiness"]),
-        }
+                        "availability": _choice(_text(source.get("availability", _DEFAULT_AVAILABILITY), "metadata availability"),
+                                                "availability", vocabulary["availability"]),
+                    }
         if len(set(metadata["tasks"])) != len(metadata["tasks"]):
             raise ValueError("a task is listed twice")
 
@@ -149,7 +154,7 @@ def _unique(agents, field):
 
 def load_agents(directory, vocabulary):
     """Read every *.json file in `directory`. `vocabulary` holds the ids a file may use: `sectors` (id to label),
-    `industries`, `tasks`, `readiness` and `model_profiles`."""
+    `industries`, `tasks`, `readiness`, `availability` and `model_profiles`."""
     paths = sorted(Path(directory).glob("*.json"))
     if not paths:
         raise AgentFileError(f"No agent files in {directory}")

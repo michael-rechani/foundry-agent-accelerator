@@ -38,7 +38,8 @@
       "preapproval",
       "paperwork"
     ],
-    "readiness": "sample"
+    "readiness": "sample",
+    "availability": "focus"
   },
   "match": [
     "pre-?approv\\w*|prior authori[sz]\\w*|pre-?authori[sz]\\w*",

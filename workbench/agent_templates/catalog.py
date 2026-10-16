@@ -52,6 +52,12 @@ READINESS_LEVELS = (
     {"id": "reviewed", "label": "Reviewed", "description": "A person has signed off on its test answers, its setup passes the Lab's validation, and every run of its test cases met the Lab's checks."},
     {"id": "sample", "label": "Not yet reviewed", "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."},
 )
+# Where the Lab is putting its depth. Focus agents get the full build-out; every other agent stays listed
+# as a preview and still works. An agent file that leaves `availability` out is a preview.
+AVAILABILITY_LEVELS = (
+    {"id": "focus", "label": "Focus agent", "description": "One of the agents the Lab is building out in depth, with the most test cases and features."},
+    {"id": "preview", "label": "Preview", "description": "Works with sample data, but isn't being built out yet. Expect fewer features and less polish than a focus agent."},
+)
 TOOL_MODES = (
     {"id": "none", "label": "Text only", "description": "Works only from the text you give it."},
     {"id": "simulated", "label": "Sample lookups", "description": "Looks up sample records that come with the Lab. It can't change anything."},
@@ -83,6 +89,7 @@ _LIBRARY = load_agents(AGENTS_DIRECTORY, {
     "industries": {item["id"] for item in INDUSTRIES},
     "tasks": {item["id"] for item in TASKS},
     "readiness": {item["id"] for item in READINESS_LEVELS},
+    "availability": {item["id"] for item in AVAILABILITY_LEVELS},
     "model_profiles": set(MODEL_PROFILES),
 })
 TEMPLATES = _LIBRARY.templates
@@ -136,6 +143,7 @@ def catalog_facets():
         "industries": _facet(INDUSTRIES, "industry"),
         "tasks": _facet(TASKS, "tasks"),
         "readiness": _facet(READINESS_LEVELS, "readiness"),
+        "availability": _facet(AVAILABILITY_LEVELS, "availability"),
         "tool_modes": [
             {**item, "count": sum(
                 (bool(template["tools"]) if item["id"] == "simulated" else not template["tools"])
@@ -153,6 +161,7 @@ def list_templates():
     industries = {item["id"]: item for item in INDUSTRIES}
     tasks = {item["id"]: item for item in TASKS}
     readiness = {item["id"]: item for item in READINESS_LEVELS}
+    availability = {item["id"]: item for item in AVAILABILITY_LEVELS}
     tool_modes = {item["id"]: item for item in TOOL_MODES}
     result = []
     for identifier in LIBRARY_ORDER:
@@ -167,6 +176,7 @@ def list_templates():
             "industry": deepcopy(industries[metadata["industry"]]),
             "tasks": [deepcopy(tasks[task]) for task in metadata["tasks"]],
             "readiness": deepcopy(readiness[metadata["readiness"]]),
+            "availability": deepcopy(availability[metadata["availability"]]),
             "tool_mode": deepcopy(tool_modes[mode]),
             "prerequisites": [
                 "A model deployment",

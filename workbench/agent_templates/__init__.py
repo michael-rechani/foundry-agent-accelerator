@@ -7,6 +7,7 @@ always has. To add an agent, add one file (see docs/agent-creation.md).
 """
 from .catalog import (
     ANSWER_LAYOUT,
+    AVAILABILITY_LEVELS,
     INDUSTRIES,
     LIBRARY_ORDER,
     MODEL_PROFILES,
@@ -27,7 +28,7 @@ from .catalog import (
 
 __all__ = [
     "ANSWER_LAYOUT",
-    "INDUSTRIES",
+    "AVAILABILITY_LEVELS",
     "LIBRARY_ORDER",
     "MODEL_PROFILES",
     "READINESS_LEVELS",

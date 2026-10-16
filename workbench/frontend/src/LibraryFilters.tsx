@@ -14,6 +14,7 @@ import {
 const labels: Partial<Record<FacetKey, string>> = {
   tasks: 'Task',
   readiness: 'Readiness',
+  availability: 'Focus or preview',
   tool_modes: 'Works with',
 }
 

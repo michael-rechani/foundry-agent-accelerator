@@ -16,6 +16,7 @@ VOCABULARY = {
     "industries": {"finance", "retail"},
     "tasks": {"review", "extract"},
     "readiness": {"sample", "reviewed"},
+    "availability": {"focus", "preview"},
     "model_profiles": {"extraction", "reasoning"},
 }
 
@@ -87,7 +88,9 @@ class AgentFileTests(unittest.TestCase):
         }])
         self.assertEqual(list(library.metadata["sample-agent"]), [
             "sector", "industry", "tasks", "summary", "expected_behavior", "human_decision", "keywords", "readiness",
+            "availability",
         ])
+        self.assertEqual(library.metadata["sample-agent"]["availability"], "preview")
         self.assertEqual([pattern.pattern for pattern in library.matchers["sample-agent"]],
                          [r"\b(sample)\b", r"\b(thing)\b"])
         self.assertEqual(library.library_order, ("sample-agent",))
@@ -156,6 +159,7 @@ class AgentFileTests(unittest.TestCase):
             "no tasks": (changed(["metadata", "tasks"], []), "metadata tasks must be a non-empty list"),
             "unknown readiness": (changed(["metadata", "readiness"], "great"), "unknown readiness 'great'"),
             "missing readiness": (without(["metadata", "readiness"]), "metadata is missing readiness"),
+            "unknown availability": (changed(["metadata", "availability"], "soon"), "unknown availability 'soon'"),
             "no match": (changed(["match"], []), "match must be a non-empty list"),
             "bad pattern": (changed(["match"], ["(open"]), "missing"),
             "no place in the library": (without(["order"]), "needs an order"),

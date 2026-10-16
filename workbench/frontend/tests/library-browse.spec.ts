@@ -17,6 +17,7 @@ test('browse, filter and search the catalog with live counts', async ({
     'Sector and industry',
     'Task',
     'Readiness',
+    'Focus or preview',
     'Works with',
   ])
   const publicCount = templates.filter(
@@ -115,6 +116,7 @@ test('the library switches between cards and a list and remembers the choice', a
     'Sector and industry',
     'Task',
     'Readiness',
+    'Focus or preview',
     'Works with',
   ])
   const publicCount = templates.filter(
@@ -219,7 +221,7 @@ test('sector and industry are one list that opens a sector to show its industrie
     (item) => item.industry.id === 'finance',
   )!.industry
 
-  await expect(page.locator('.library-filters legend')).toHaveCount(4)
+  await expect(page.locator('.library-filters legend')).toHaveCount(5)
   await expect(page.locator('.library-facet[data-nested]')).toHaveCount(0)
   await expect(facet(chosen.label)).toHaveCount(0)
   await expect(facet(priv)).toHaveAttribute('aria-expanded', 'false')

@@ -1,6 +1,7 @@
 import { ArrowRight, BadgeCheck, CircleDashed } from 'lucide-react'
 import { agentIcons, fallbackAgentIcon } from './agent-icons'
 import type { LibraryTemplate } from './library-catalog'
+import { AvailabilityBadge } from './LibraryBadges'
 
 const tones: Record<string, string> = {
   reviewed: 'good',
@@ -103,6 +104,7 @@ export function LibraryList({
                 </td>
                 <td>
                   <div className="library-badges library-list-badges">
+                    <AvailabilityBadge template={template} />
                     <ReadinessBadge template={template} />
                   </div>
                 </td>

@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 
 from agent_templates import (
+    AVAILABILITY_LEVELS,
     INDUSTRIES,
     MODEL_PROFILES,
     READINESS_LEVELS,
@@ -220,6 +221,7 @@ class TemplateTests(unittest.TestCase):
                 self.assertTrue(template["tasks"])
                 self.assertTrue({item["id"] for item in template["tasks"]} <= task_ids)
                 self.assertIn(template["readiness"]["id"], readiness_ids)
+                self.assertIn(template["availability"]["id"], {item["id"] for item in AVAILABILITY_LEVELS})
                 self.assertIn(template["tool_mode"]["id"], tool_mode_ids)
                 self.assertLessEqual(len(template["summary"]), 140)
                 for key in ("summary", "expected_behavior", "human_decision"):
@@ -240,6 +242,7 @@ class TemplateTests(unittest.TestCase):
             "industries": (INDUSTRIES, lambda item: [item["industry"]["id"]]),
             "tasks": (TASKS, lambda item: [task["id"] for task in item["tasks"]]),
             "readiness": (READINESS_LEVELS, lambda item: [item["readiness"]["id"]]),
+            "availability": (AVAILABILITY_LEVELS, lambda item: [item["availability"]["id"]]),
             "tool_modes": (TOOL_MODES, lambda item: [item["tool_mode"]["id"]]),
         }
         for name, (definitions, identifiers) in sources.items():

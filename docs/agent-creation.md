@@ -314,8 +314,15 @@ its catalog `metadata` (sector, industry, tasks, summary, readiness and so on), 
 `match` patterns that choose it from a described task, and an `order` number for its
 place in the library. The Lab reads every file when it starts and refuses to start
 if one has a missing or unknown field, a repeated `order`, an id that isn't its file
-name, or a sector, industry, task, readiness or model profile it doesn't know. The
-message names the file.
+name, or a sector, industry, task, readiness, availability or model profile it doesn't
+know. The message names the file.
+
+`metadata.availability` is optional. `"focus"` marks an agent the Lab builds out in
+depth; leaving it out makes the agent a **Preview**, which still works but isn't
+being developed further. The library shows the tag on cards and in the list, and
+people can filter by it. Today the focus agents are the Insurance pre-approval helper,
+the Medical bill reviewer and the Workflow coordinator. It is separate from
+`readiness`, which only records whether a person signed off the test answers.
 
 1. Copy a similar file in `agents/`, rename it to the new id and edit it. Give it an
    `order` no other agent uses. The library lists agents in `order`, and a task that
