@@ -7,4 +7,5 @@ admin_ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINscr5/0uytwl6kAEaWq
 # The runner shares the jumpbox NAT gateway's outbound public IP. Leave false until approved.
 approve_shared_egress = false
 # Lets the deploy workflow push images: TCP 443 to the registry private endpoint only.
+# Never leave this empty for the dev runner: an apply then deletes the live rule.
 registry_private_endpoint_ips = []
