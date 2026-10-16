@@ -3,17 +3,35 @@ import { addOnGroupLabels, addOns } from '../src/add-on-catalog'
 import { registry } from './fixtures'
 import { openWorkspace } from './helpers/chat-lab'
 import { openLibrary } from './helpers/library-lab'
-import { openChat } from './helpers/navigation'
+import { workspaceNav } from './helpers/navigation'
 
 const askWhich = 'Which agent should I use or build?'
 const askHow = 'How is an agent built, and what can I add?'
 
 const guide = (page: Page) => page.getByRole('region', { name: 'Ask the Lab' })
 
-test('the welcome offers two questions to ask the Lab and shows no answer until one is chosen', async ({
+// The guide lives on the Start here page, not in Chat.
+async function openGuide(
+  page: Page,
+  options: Parameters<typeof openWorkspace>[1],
+) {
+  const state = await openWorkspace(page, options)
+  await workspaceNav(page).getByRole('button', { name: 'Ask the Lab' }).click()
+  return state
+}
+
+test('Chat does not carry the guide, so it stays on the conversation', async ({
   page,
 }) => {
   await openWorkspace(page, { config: { agents: registry } })
+  await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible()
+  await expect(guide(page)).toHaveCount(0)
+})
+
+test('the guide offers two questions and shows no answer until one is chosen', async ({
+  page,
+}) => {
+  await openGuide(page, { config: { agents: registry } })
   const ask = guide(page)
   await expect(ask).toBeVisible()
   for (const question of [askWhich, askHow])
@@ -27,11 +45,10 @@ test('the welcome offers two questions to ask the Lab and shows no answer until 
 test('asking which agent to use lists the ready agents and sends nothing', async ({
   page,
 }) => {
-  const state = await openWorkspace(page, {
+  const state = await openGuide(page, {
     config: { agents: registry, default_agent: registry[0].id },
   })
   const ask = guide(page)
-  await page.getByRole('textbox', { name: 'Message' }).fill('My own draft')
   await ask.getByRole('button', { name: askWhich }).click()
 
   await expect(ask.getByRole('button', { name: askWhich })).toHaveAttribute(
@@ -50,8 +67,10 @@ test('asking which agent to use lists the ready agents and sends nothing', async
     await expect(rows.nth(index)).toContainText(item.label)
     await expect(rows.nth(index)).toContainText(item.description)
   }
-  await expect(rows.first()).toContainText('In use now')
-  await expect(rows.first().getByRole('button')).toHaveCount(0)
+  await expect(ask.getByRole('button', { name: /^Use / })).toHaveCount(
+    registry.length,
+  )
+  await expect(ask.getByText('In use now')).toHaveCount(0)
   await expect(ask).toContainText(
     "Agent creation isn't turned on in this Lab, so only these agents are available.",
   )
@@ -60,9 +79,6 @@ test('asking which agent to use lists the ready agents and sends nothing', async
   ).toHaveCount(0)
   await expect(ask).toContainText('Nothing is sent or saved.')
 
-  await expect(page.getByRole('textbox', { name: 'Message' })).toHaveValue(
-    'My own draft',
-  )
   expect(state.requests).toHaveLength(0)
   expect(state.saves).toHaveLength(0)
 
@@ -73,7 +89,7 @@ test('asking which agent to use lists the ready agents and sends nothing', async
 test('choosing another agent from the answer starts a chat with it', async ({
   page,
 }) => {
-  const state = await openWorkspace(page, {
+  const state = await openGuide(page, {
     config: { agents: registry, default_agent: registry[0].id },
   })
   const ask = guide(page)
@@ -83,7 +99,7 @@ test('choosing another agent from the answer starts a chat with it', async ({
     page.getByRole('heading', { level: 1, name: registry[2].label }),
   ).toBeVisible()
   await expect(page.locator('.agent-picker')).toContainText(registry[2].label)
-  await expect(page.locator('.lab-guide-exchange')).toHaveCount(0)
+  await expect(guide(page)).toHaveCount(0)
   expect(state.requests).toHaveLength(0)
   expect(state.saves).toHaveLength(0)
 })
@@ -91,7 +107,7 @@ test('choosing another agent from the answer starts a chat with it', async ({
 test('asking how an agent is built explains the parts and groups the add-ons', async ({
   page,
 }) => {
-  const state = await openWorkspace(page, {
+  const state = await openGuide(page, {
     config: { agents: registry, default_agent: registry[0].id },
   })
   const ask = guide(page)
@@ -104,7 +120,6 @@ test('asking how an agent is built explains the parts and groups the add-ons', a
   await expect(ask).toContainText(
     'instructions, a model that does the thinking, and the tools',
   )
-  await expect(ask).toContainText(registry[0].guidance!.delegation)
   await expect(ask).toContainText('Chatting never changes an agent.')
   await expect(ask.getByRole('heading', { level: 4 })).toHaveText([
     addOnGroupLabels.abilities,
@@ -136,7 +151,7 @@ test('asking how an agent is built explains the parts and groups the add-ons', a
 })
 
 test('the add-on answer links to the Add-ons page', async ({ page }) => {
-  await openWorkspace(page, { config: { agents: registry } })
+  await openGuide(page, { config: { agents: registry } })
   const ask = guide(page)
   await ask.getByRole('button', { name: askHow }).click()
   await ask
@@ -150,8 +165,7 @@ test('the add-on answer links to the Add-ons page', async ({ page }) => {
 test('when agent creation is on, the answer offers it and nothing is made', async ({
   page,
 }) => {
-  const state = await openLibrary(page)
-  await openChat(page)
+  const state = await openLibrary(page, { hash: '' })
   const ask = guide(page)
   await ask.getByRole('button', { name: askWhich }).click()
   await expect(ask).toContainText('start a new agent from a template')

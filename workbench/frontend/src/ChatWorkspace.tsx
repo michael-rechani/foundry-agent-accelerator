@@ -506,11 +506,6 @@ export default function ChatWorkspace() {
             saveNote={saveNote}
             onFreshDemo={loadDemo}
             onCopy={copy}
-            onCreateAgent={
-              !isPreview && config?.agent_creation
-                ? () => setView('create')
-                : undefined
-            }
             onSubmit={() => void submit()}
             onStop={stop}
             onContinue={() => setContinuing(true)}
@@ -518,9 +513,6 @@ export default function ChatWorkspace() {
             onSave={() => void saveChat()}
             onExport={() => exportConversation(agent, turns, draft)}
             onCreateThis={createThis}
-            agents={availableAgents}
-            onChooseAgent={newChat}
-            onAddOns={() => setView('addons')}
           />
         ) : view === 'catalog' ? (
           <AgentCatalog
