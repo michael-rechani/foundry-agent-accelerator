@@ -9,7 +9,7 @@ search. Each one is described by a manifest in
 package: a runbook, an acceptance case, a Terraform module, and the roles that
 module may grant.
 
-<img alt="The Lab's Add-ons tab: a preview-only notice, the rules every add-on follows, and add-on cards marked either Lets an agent do more or Supports the agent, starting with Knowledge search as the sample pilot" src="images/screenshots/lab-addons-dark.png">
+<img alt="The Lab's Add-ons tab: a preview-only notice, the rules every add-on follows, and add-on cards grouped by job, starting with Find answers and Knowledge search as the sample pilot" src="images/screenshots/lab-addons-dark.png">
 
 [View full size](images/screenshots/lab-addons-dark.png)
 
