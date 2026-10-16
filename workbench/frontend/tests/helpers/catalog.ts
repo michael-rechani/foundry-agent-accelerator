@@ -16,13 +16,15 @@ export const scorecards = JSON.parse(
 )
 export const templates: LibraryTemplate[] = catalog.templates
 
-// The add-on manifests in the repository's addons folder, in the order the Add-ons tab lists them.
+// The add-on manifests in the repository's addons folder, in the order the Add-ons tab lists them:
+// by job heading, then by each manifest's order.
+const addOnJobOrder = ['answers', 'documents', 'memory', 'work']
 const addOnsFolder = new URL('../../../../addons/', import.meta.url)
 export const addOnManifests: {
   id: string
   name: string
   order: number
-  card: { summary: string; pilot?: string }
+  card: { summary: string; job: string; pilot?: string }
 }[] = readdirSync(addOnsFolder, { withFileTypes: true })
   .filter(
     (entry) =>
@@ -34,7 +36,11 @@ export const addOnManifests: {
       readFileSync(new URL(`${entry.name}/addon.json`, addOnsFolder), 'utf8'),
     ),
   )
-  .sort((a, b) => a.order - b.order)
+  .sort(
+    (a, b) =>
+      addOnJobOrder.indexOf(a.card.job) - addOnJobOrder.indexOf(b.card.job) ||
+      a.order - b.order,
+  )
 
 export const templateById = (id: string) =>
   templates.find((item) => item.id === id)!

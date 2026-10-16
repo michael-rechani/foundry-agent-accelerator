@@ -8,6 +8,7 @@
   "card": {
     "icon": "cache",
     "group": "support",
+    "job": "memory",
     "summary": "Lets an agent reuse a saved answer when the same question comes in again, instead of asking the model each time.",
     "example": "Many people ask the same policy question each week. The first answer is saved and the rest get it back straight away.",
     "cost": [

@@ -21,6 +21,8 @@ KINDS = ("built-in-tool", "existing-service", "new-service")
 ICONS = ("search", "memory", "documents", "notifications", "calculator", "web", "cache", "storage", "queue")
 # What the add-on is for: "abilities" lets an agent do something more, "support" is what an agent runs on.
 GROUPS = ("abilities", "support")
+# The job a person would pick the add-on for. The Add-ons tab groups its cards under these headings.
+JOBS = ("answers", "documents", "memory", "work")
 APPROVAL_GATES = ("billable-calls", "shared-data", "data-handling")
 RUNBOOK_HEADINGS = ("Plan", "Cost and diff", "Approval", "Apply", "Verify", "Wire the agent", "Tear down")
 # The only value a package may declare for each guardrail. Loosening one is a code change, not a manifest edit.
@@ -34,9 +36,9 @@ _TERRAFORM_TYPE = re.compile(r"(?:azurerm|azapi)_[a-z0-9_]+")
 _FILE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 _TOP_FIELDS = {"schema_version", "id", "name", "order", "kind", "tracking", "card", "package"}
 # The order the Add-ons tab's data lists a card's fields in.
-_CARD_ORDER = ("icon", "group", "summary", "example", "pilot", "cost", "needs", "safety", "approval", "service",
+_CARD_ORDER = ("icon", "group", "job", "summary", "example", "pilot", "cost", "needs", "safety", "approval", "service",
                "billing", "note")
-_CARD_REQUIRED = {"icon", "group", "summary", "example", "cost", "needs", "safety", "service", "billing"}
+_CARD_REQUIRED = {"icon", "group", "job", "summary", "example", "cost", "needs", "safety", "service", "billing"}
 _PACKAGE_FIELDS = {"runbook", "bootstrap", "acceptance_case", "terraform", "approval", "approval_gates",
                    "roles", "cost_lines", "guardrails"}
 _ACCEPTANCE_FIELDS = {"schema_version", "add_on", "cases"}
@@ -141,6 +143,7 @@ def _card(value):
     card = _object(value, "card", _CARD_ORDER, _CARD_REQUIRED)
     _choice(card["icon"], "icon", ICONS)
     _choice(card["group"], "group", GROUPS)
+    _choice(card["job"], "job", JOBS)
     for field in ("summary", "example", "safety", "service", "billing", "pilot", "approval", "note"):
         if field in card:
             _text(card[field], f"card {field}")

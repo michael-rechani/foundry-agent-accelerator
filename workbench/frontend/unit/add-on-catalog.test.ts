@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   addOnGroupLabels,
+  addOnJobs,
   addOnRules,
   addOns,
   codingAgentRequest,
@@ -79,6 +80,32 @@ describe('add-ons catalogue', () => {
       )
     assert.equal(addOnGroupLabels.abilities, 'Lets an agent do more')
     assert.equal(addOnGroupLabels.support, 'Supports the agent')
+  })
+
+  it('puts every add-on under one job heading and shows no empty heading', () => {
+    const jobs = addOnJobs.map((job) => job.id)
+    for (const item of addOns)
+      assert.ok(jobs.includes(item.job), ` job ${item.job}`)
+    for (const job of addOnJobs)
+      assert.ok(
+        addOns.some((item) => item.job === job.id),
+        `nothing is listed under ${job.title}`,
+      )
+    assert.deepEqual(
+      addOnJobs.map((job) => job.title),
+      [
+        'Find answers',
+        'Work with documents',
+        'Remember and reuse',
+        'Do the work and tell people',
+      ],
+    )
+  })
+
+  it('says what each add-on does in one sentence', () => {
+    for (const item of addOns) {
+      assert.match(item.summary, /^[^.!?]+\.$/, ` summary`)
+    }
   })
 
   it('warns that a cache keeps what people asked, like memory does', () => {

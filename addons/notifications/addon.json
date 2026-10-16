@@ -8,6 +8,7 @@
   "card": {
     "icon": "notifications",
     "group": "abilities",
+    "job": "work",
     "summary": "Lets an agent send a message once a person has approved it.",
     "example": "The agent drafts an email to a vendor. A person reads it, then chooses Send.",
     "cost": [

@@ -8,6 +8,7 @@
   "card": {
     "icon": "queue",
     "group": "support",
+    "job": "work",
     "summary": "Lets an agent hand off long or batched work and answer when it finishes, instead of keeping a chat open.",
     "example": "A person asks the agent to check fifty applications. The agent queues them, the work runs in the background, and the results are ready when the person comes back.",
     "cost": [

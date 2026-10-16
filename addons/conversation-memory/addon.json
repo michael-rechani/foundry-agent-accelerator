@@ -8,6 +8,7 @@
   "card": {
     "icon": "memory",
     "group": "support",
+    "job": "memory",
     "summary": "Lets an agent remember earlier conversations, so people do not have to repeat themselves.",
     "example": "A returning person carries on with an earlier case without restating the details.",
     "cost": [

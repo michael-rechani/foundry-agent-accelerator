@@ -26,11 +26,38 @@ export const addOnGroupLabels: Record<AddOnGroup, string> = {
   support: 'Supports the agent',
 }
 
+// The job a person would pick an add-on for. The page groups its cards under these.
+export type AddOnJob = 'answers' | 'documents' | 'memory' | 'work'
+
+export const addOnJobs: { id: AddOnJob; title: string; blurb: string }[] = [
+  {
+    id: 'answers',
+    title: 'Find answers',
+    blurb: 'Look things up in your own documents or on the web.',
+  },
+  {
+    id: 'documents',
+    title: 'Work with documents',
+    blurb: 'Read forms and keep files in one private place.',
+  },
+  {
+    id: 'memory',
+    title: 'Remember and reuse',
+    blurb: 'Keep context and saved answers so people do not repeat themselves.',
+  },
+  {
+    id: 'work',
+    title: 'Do the work and tell people',
+    blurb: 'Run calculations, hand off long jobs and send approved messages.',
+  },
+]
+
 export type AddOn = {
   id: string
   name: string
   icon: AddOnIcon
   group: AddOnGroup
+  job: AddOnJob
   summary: string
   example: string
   // Set only when a small sample version already runs in the Lab.

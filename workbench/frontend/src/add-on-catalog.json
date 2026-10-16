@@ -6,6 +6,7 @@
       "name": "Knowledge search",
       "icon": "search",
       "group": "abilities",
+      "job": "answers",
       "summary": "Lets an agent answer from your own documents, not only from what it already knows.",
       "example": "A grant reviewer asks what the policy says about travel. The agent finds the right passage and names where it came from.",
       "pilot": "Ask Checklist and case helper to use the sample policy guidance when it summarizes case notes. It looks up ten approved sample passages and names the one it used. Your own documents cannot be added yet.",
@@ -28,6 +29,7 @@
       "name": "Conversation memory",
       "icon": "memory",
       "group": "support",
+      "job": "memory",
       "summary": "Lets an agent remember earlier conversations, so people do not have to repeat themselves.",
       "example": "A returning person carries on with an earlier case without restating the details.",
       "cost": [
@@ -47,6 +49,7 @@
       "name": "Document extraction",
       "icon": "documents",
       "group": "abilities",
+      "job": "documents",
       "summary": "Lets an agent read scanned forms, receipts and PDFs, so it can work with the text and fields in them.",
       "example": "An expense claim arrives as a photo of a receipt. The agent reads the date and the total from it.",
       "cost": [
@@ -65,6 +68,7 @@
       "name": "Notifications",
       "icon": "notifications",
       "group": "abilities",
+      "job": "work",
       "summary": "Lets an agent send a message once a person has approved it.",
       "example": "The agent drafts an email to a vendor. A person reads it, then chooses Send.",
       "cost": [
@@ -83,6 +87,7 @@
       "name": "Code interpreter",
       "icon": "calculator",
       "group": "abilities",
+      "job": "work",
       "summary": "Lets an agent run small calculations on the data you give it, instead of doing the arithmetic in its head.",
       "example": "The agent totals the lines on an expense claim and shows its working.",
       "cost": [
@@ -101,6 +106,7 @@
       "name": "Web search",
       "icon": "web",
       "group": "abilities",
+      "job": "answers",
       "summary": "Lets an agent look things up on the public internet.",
       "example": "The agent checks a current public regulation before it answers.",
       "cost": [
@@ -119,6 +125,7 @@
       "name": "Document storage",
       "icon": "storage",
       "group": "support",
+      "job": "documents",
       "summary": "Gives an agent a private place to keep the files it works from, such as policies, forms and reports.",
       "example": "A grant team keeps its policy PDFs in one place. Knowledge search and document extraction read them from there.",
       "cost": [
@@ -139,6 +146,7 @@
       "name": "Response cache",
       "icon": "cache",
       "group": "support",
+      "job": "memory",
       "summary": "Lets an agent reuse a saved answer when the same question comes in again, instead of asking the model each time.",
       "example": "Many people ask the same policy question each week. The first answer is saved and the rest get it back straight away.",
       "cost": [
@@ -159,6 +167,7 @@
       "name": "Job queue",
       "icon": "queue",
       "group": "support",
+      "job": "work",
       "summary": "Lets an agent hand off long or batched work and answer when it finishes, instead of keeping a chat open.",
       "example": "A person asks the agent to check fifty applications. The agent queues them, the work runs in the background, and the results are ready when the person comes back.",
       "cost": [
