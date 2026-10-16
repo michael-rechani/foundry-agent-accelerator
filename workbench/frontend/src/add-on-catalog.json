@@ -153,6 +153,26 @@
       "service": "Azure Managed Redis",
       "billing": "Per hour by cache size and performance tier.",
       "note": "Check the current Redis options before building, since Azure's older Redis tiers are being retired."
+    },
+    {
+      "id": "job-queue",
+      "name": "Job queue",
+      "icon": "queue",
+      "group": "support",
+      "summary": "Lets an agent hand off long or batched work and answer when it finishes, instead of keeping a chat open.",
+      "example": "A person asks the agent to check fifty applications. The agent queues them, the work runs in the background, and the results are ready when the person comes back.",
+      "cost": [
+        "Billed by the hour for the queue service that is running, and by the number of messages handled on some tiers.",
+        "Long jobs still use the model, so the cost of each job doesn't change. Only the waiting does."
+      ],
+      "needs": [
+        "A rule for how long a job may run, how often it may retry, and what happens when it keeps failing.",
+        "A named person who owns jobs that fail or sit unfinished."
+      ],
+      "safety": "Each job would hold what a person asked and what the agent found, so it needs the same retention and deletion rules as conversation memory. A finished job is only shown to the person who started it, and failed jobs never retry forever.",
+      "service": "Azure Service Bus",
+      "billing": "Per hour by tier, plus per message on the lower tiers.",
+      "note": "The queue must be private, with no public network access, so building it needs its own approval first."
     }
   ]
 }

@@ -293,10 +293,10 @@ class RepositoryManifestTests(unittest.TestCase):
         self.assertEqual([item.id for item in add_ons], ["knowledge-search", "conversation-memory",
                                                          "document-extraction", "notifications",
                                                          "code-interpreter", "web-search",
-                                                         "document-storage", "response-cache"])
-        self.assertEqual([item.order for item in add_ons], list(range(1, 9)))
+                                                         "document-storage", "response-cache", "job-queue"])
+        self.assertEqual([item.order for item in add_ons], list(range(1, 10)))
         self.assertEqual([item.id for item in add_ons if item.card["group"] == "support"],
-                         ["conversation-memory", "document-storage", "response-cache"])
+                         ["conversation-memory", "document-storage", "response-cache", "job-queue"])
 
     def test_the_frontend_catalog_matches_the_manifests(self):
         self.assertTrue(build_catalog.is_current(load_add_ons(ADDONS_DIRECTORY), build_catalog.CATALOG_PATH),

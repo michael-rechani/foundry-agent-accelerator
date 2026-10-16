@@ -16,6 +16,7 @@ export type AddOnIcon =
   | 'web'
   | 'cache'
   | 'storage'
+  | 'queue'
 
 // "abilities" lets an agent do something more. "support" is what an agent runs on.
 export type AddOnGroup = 'abilities' | 'support'

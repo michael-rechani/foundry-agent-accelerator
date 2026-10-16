@@ -26,7 +26,7 @@ const everyText = () =>
   ].join('\n')
 
 describe('add-ons catalogue', () => {
-  it('lists the eight planned add-ons once each', () => {
+  it('lists the nine planned add-ons once each', () => {
     assert.deepEqual(
       addOns.map((item) => item.id),
       [
@@ -38,6 +38,7 @@ describe('add-ons catalogue', () => {
         'web-search',
         'document-storage',
         'response-cache',
+        'job-queue',
       ],
     )
   })
@@ -52,6 +53,7 @@ describe('add-ons catalogue', () => {
       'web',
       'cache',
       'storage',
+      'queue',
     ]
     assert.equal(new Set(addOns.map((item) => item.id)).size, addOns.length)
     for (const item of addOns) {
@@ -68,6 +70,7 @@ describe('add-ons catalogue', () => {
       'conversation-memory',
       'document-storage',
       'response-cache',
+      'job-queue',
     ])
     for (const item of addOns)
       assert.ok(
