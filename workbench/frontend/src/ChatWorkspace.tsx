@@ -190,9 +190,13 @@ export default function ChatWorkspace() {
     })
   }
 
-  function newChat(agentId = selected) {
+  function newChat(agentId = selected, focusEditor = false) {
     if (busy || historyBusy) return
-    const start = () => resetConversation(agentId)
+    const start = () => {
+      resetConversation(agentId)
+      // The sidebar button can be pressed from any view, so land in the box.
+      if (focusEditor) setTimeout(() => editor.current?.focus(), 0)
+    }
     if (agentId === selected)
       confirmClear('Start a new chat?', 'Start new chat', '', start)
     else
@@ -300,7 +304,7 @@ export default function ChatWorkspace() {
         requestCount={measurements.length}
         hood={hood}
         foundryPortal={config?.foundry_portal}
-        onNewChat={() => newChat()}
+        onNewChat={() => newChat(selected, true)}
         onView={setView}
         onHistory={() => void listHistory()}
         onHood={(on) => {
@@ -417,7 +421,11 @@ export default function ChatWorkspace() {
         ) : view === 'start' ? (
           <StartPage
             agents={availableAgents}
+            templates={library.catalog?.templates ?? []}
             onChooseAgent={newChat}
+            onUseTemplate={
+              config?.agent_creation ? createFromTemplate : undefined
+            }
             onTryAgent={() => setView('catalog')}
             onBuild={() =>
               setView(config?.agent_creation ? 'create' : 'library')

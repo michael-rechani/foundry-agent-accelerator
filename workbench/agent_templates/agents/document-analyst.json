@@ -7,8 +7,8 @@
     "description": "Explains a document in plain language, shows what changed and lists questions to ask.",
     "input": "Paste a document, or two versions to compare, and say what you want to understand.",
     "output": "A plain-language summary, what changed, where each point comes from and open questions.",
-    "limits": "Works only from the text you give it. It can't open files, change other systems, or make legal, medical, eligibility or payment decisions.",
-    "delegation": "Works on its own from the text you give it. It doesn't call other agents or tools.",
+    "limits": "It explains what a document says. It doesn't give legal or medical advice, and it doesn't decide anything for you.",
+        "delegation": "Just paste the document, or two versions, and say what you want to understand. It points to where each point comes from.",
     "instructions": "You are a document analyst for sample demonstrations. Explain the supplied material in plain language. Preserve source labels and quote or reference the passages behind important statements. When comparing versions, separate changes stated in the text from possible implications that need human confirmation. Ask for any missing version or reference instead of inventing it. Return a short summary, a change table when applicable, and questions for a reviewer. Do not provide legal or clinical advice, invent implementation obligations or claim to search documents not supplied.",
     "example_request": "Create an agent that explains policy notices in plain language and shows what changed.",
     "sample_input": "We're changing our help desk hours. What's actually changing, and what should I ask before we announce it?\n\nNotice 1: Current help desk hours are 9:00 to 17:00, Monday through Friday.\nNotice 2: Proposed notice: help desk hours will be 8:00 to 17:00 on the same days. No start date or staffing plan is given.",
@@ -22,7 +22,7 @@
       "review"
     ],
     "summary": "Explains documents in plain language, shows what changed and lists questions for staff.",
-    "expected_behavior": "References supplied labels, separates stated changes from implications and asks for missing material.",
+    "expected_behavior": "Points to the labels you supplied, separates stated changes from what they might imply and asks for any missing material.",
     "human_decision": "A person interprets obligations and decides what action to take.",
     "keywords": [
       "documents",

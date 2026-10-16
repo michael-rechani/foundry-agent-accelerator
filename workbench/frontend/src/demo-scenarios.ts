@@ -33,12 +33,9 @@ Checklist item 1: Include a project budget.
 Checklist item 2: Identify an implementation owner.
 Checklist item 3: Provide a delivery schedule.
 
-Section 1: The Facilities team is the implementation owner for the proposed project.
-Section 2: Work starts on 2027-04-01 and completes on 2027-06-30.
-Section 3: Work starts on 2027-04-01 and completes on 2027-07-31.
-
-There's no budget, and nothing says which schedule is current. What does a
-person need to check?`,
+Section 1 (Ownership): The Facilities team is the implementation owner for the proposed project.
+Section 2 (Schedule): Work starts on 2027-04-01 and completes on 2027-06-30.
+Section 3 (Timeline summary): Work starts on 2027-04-01 and completes on 2027-07-31.`,
     findings: [
       {
         label: 'Missing',
@@ -109,15 +106,13 @@ Invoice total: $9,850.00`,
     templateId: 'casework-assistant',
     templateLabel: 'Case summary writer',
     catalogIds: ['customer-review', 'case-review', 'review-coordinator'],
-    input: `Summarize these client notes for the team. Show what the notes say, what's
-missing or conflicting, and suggest follow-up questions. Point to the note each
-fact comes from, and if the notes disagree, show both instead of picking one.
+    input: `Summarize these client notes for the team's handoff. Show what the notes say,
+what's missing or conflicting, and suggest follow-up questions. Point to the
+note each fact comes from. Don't decide eligibility or change any record.
 
-Note 1: Intake completed on 2026-08-15. Follow-up scheduled for 2026-08-22.
-Note 2: Intake completed on 2026-08-17. Follow-up scheduled for 2026-08-22.
-Note 3: Proof of address is still outstanding. No supporting document is supplied.
-
-We don't have a written policy for this. What does a person need to check next?`,
+Note 1 (intake form): Intake completed on 2027-03-01. Follow-up scheduled for 2027-03-10.
+Note 2 (caseworker log): Intake completed on 2027-03-03. Follow-up scheduled for 2027-03-10.
+Note 3 (document checklist): Proof of address hasn't come in yet. No document is attached.`,
     findings: [
       {
         label: 'Conflicting',
@@ -128,13 +123,13 @@ We don't have a written policy for this. What does a person need to check next?`
       {
         label: 'Supported',
         source: 'Note 1 / Note 2',
-        detail: 'Both notes give August 22 as the follow-up date.',
+        detail: 'Both notes give March 10 as the follow-up date.',
       },
       {
         label: 'Missing',
         source: 'Note 3',
         detail:
-          "Proof of address hasn't come in. With no policy supplied, the agent doesn't guess what that means.",
+          "Proof of address hasn't come in. The agent doesn't guess what that means for eligibility.",
       },
     ],
     decision:

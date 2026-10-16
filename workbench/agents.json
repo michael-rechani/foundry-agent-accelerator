@@ -3,20 +3,20 @@
     "id": "customer-review",
     "label": "Checklist and case helper",
     "category": "Coordinator: hands off to specialists",
-    "description": "Check a document against your checklist, or turn case notes into a clear summary.",
+    "description": "Check a document against your checklist, or turn case notes into a clear summary. It brings in a specialist when the job needs one.",
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
       "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
-      "limits": "It works from what you supply. The one exception is a sample pilot: the case notes specialist can look up ten approved sample policy passages and name the one it used. It cannot search your own documents, look up missing documents, change business systems or decide whether to approve something. Requirements and proposal review is in preview.",
-      "delegation": "It hands your task to a specialist agent (Checklist reviewer or Case notes summarizer), then returns their findings in one reply. It uses both only if you ask for both, and may first ask what you need.",
+      "limits": "It works from what you paste, plus one sample lookup: the case notes specialist can search ten approved sample policy passages and name the one it used. It can't search your own documents, change business systems or decide whether to approve something. Checking requirements against proposals is in preview.",
+            "delegation": "It passes your task to the right specialist (Checklist reviewer or Case notes summarizer) and brings back one combined reply. It uses both only if you ask for both, and it may first ask what you need.",
       "configuration": "Instructions and specialist tools: hosted-agents\\review-coordinator-agent\\profiles\\evidence-review.example.json. Publish a new coordinator version with this profile to change runtime behavior."
     },
     "agent": "customer-review-coordinator",
     "tools": {"inspect_application": "application-review-agent", "inspect_case": "case-review-agent"},
     "prompts": [
-      {"label": "Check against a checklist", "text": "Before this project goes for sign-off, check it against our checklist. Make a table showing what's covered, missing or unclear, point to the section each answer comes from, and list the questions we need answered. Don't approve or reject it; I'll decide.\n\nChecklist item 1: Include a project budget.\nChecklist item 2: Identify an implementation owner.\nChecklist item 3: Provide a delivery schedule.\nSection 1: The Facilities team is the implementation owner.\nSection 2: Work starts April 1, 2027 and completes June 30, 2027.\nSection 3: Work starts April 1, 2027 and completes July 31, 2027.\n\nThere's no budget, and nothing says which schedule is current. If the dates disagree, show both instead of picking one."},
-      {"label": "Summarize case notes", "text": "Summarize these client notes for the team. Show what they say, where they disagree or have gaps, and suggest follow-up questions. Point to the note each fact comes from, and if the notes disagree, show both instead of picking one.\n\nNote 1: Intake completed August 15, 2026; follow-up August 22, 2026.\nNote 2: Intake completed August 17, 2026; follow-up August 22, 2026.\nNote 3: Proof of address is still outstanding. No supporting document is supplied.\n\nWe don't have a written policy for this. What does a person need to check next?"},
-      {"label": "Compare a proposal (preview)", "text": "Compare this vendor proposal with our requirements. Make a table with one row per requirement showing what's described, what's missing and where the documents disagree, and point to the document each answer comes from. Treat brochure claims as claims, not tested features. Don't pick a vendor; tell me what else we need.\n\nRequirement 1: Support CSV export of service-request records.\nRequirement 2: Retain audit records for seven years.\nRequirement 3: Support single sign-on with documented supported protocols.\nProduct sheet: The product exports service-request records as CSV and retains audit records for seven years.\nAdmin guide: The administrator guide says audit records are deleted after thirty days.\nBrochure: The brochure says the product is enterprise-ready.\n\nThat's all the documentation we have, so don't assume single sign-on is supported."},
+      {"label": "Check against a checklist", "text": "Before this project goes for sign-off, check it against our checklist. Make a table showing what's covered, missing or unclear, point to the section each answer comes from, and list the questions we need answered. Don't approve or reject it; I'll decide.\n\nChecklist item 1: Include a project budget.\nChecklist item 2: Identify an implementation owner.\nChecklist item 3: Provide a delivery schedule.\nSection 1 (Ownership): The Facilities team is the implementation owner.\nSection 2 (Schedule): Work starts April 1, 2027 and completes June 30, 2027.\nSection 3 (Timeline summary): Work starts April 1, 2027 and completes July 31, 2027."},
+      {"label": "Summarize case notes", "text": "Summarize these client notes for the team's handoff. Show what they say, where they disagree or have gaps, and suggest follow-up questions. Point to the note each fact comes from. Don't decide eligibility or change any record.\n\nNote 1 (intake form): Intake completed on March 1, 2027; follow-up on March 10, 2027.\nNote 2 (caseworker log): Intake completed on March 3, 2027; follow-up on March 10, 2027.\nNote 3 (document checklist): Proof of address hasn't come in yet. No document is attached."},
+      {"label": "Compare a proposal (preview)", "text": "Compare this vendor proposal with our requirements. Make a table with one row per requirement showing what's described, what's missing and where the documents disagree, and point to the document each answer comes from. Treat brochure claims as claims, not tested features. Don't pick a vendor; tell me what else we need.\n\nRequirement 1: Support CSV export of service-request records.\nRequirement 2: Retain audit records for seven years.\nRequirement 3: Support single sign-on with documented supported protocols.\nProduct sheet: The product exports service-request records as CSV and retains audit records for seven years.\nAdmin guide: The administrator guide says audit records are deleted after thirty days.\nBrochure: The brochure says the product is enterprise-ready.\n\nThat's all the documentation we have."},
       {"label": "Help me get started", "text": "What can you help me with? What should I paste in, and what will you do with it? I'm using you as you are, not creating a new agent."}
     ]
   },
@@ -28,8 +28,8 @@
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
       "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
-      "limits": "It works from what you supply. The one exception is a sample pilot: the case notes specialist can look up ten approved sample policy passages and name the one it used. It cannot search your own documents, look up missing documents, change business systems or decide whether to approve something. Requirements and proposal review is in preview.",
-      "delegation": "It hands your task to the same specialists (Checklist reviewer or Case notes summarizer). It uses one unless you ask for both; what you can accomplish is the same as Checklist and case helper.",
+      "limits": "It works from what you paste, plus one sample lookup: the case notes specialist can search ten approved sample policy passages and name the one it used. It can't search your own documents, change business systems or decide whether to approve something. Checking requirements against proposals is in preview.",
+            "delegation": "It passes your task to the same specialists (Checklist reviewer or Case notes summarizer). It uses one unless you ask for both, and what you can get done is the same as with Checklist and case helper.",
       "configuration": "Base instructions: hosted-agents\\review-coordinator-agent\\instructions.md. Tools: main.py in that directory, with deployed SPECIALIST_CONFIG taking precedence over legacy agent-name settings. Publish a new agent version to change runtime behavior."
     },
     "agent": "review-coordinator-agent",
@@ -43,12 +43,12 @@
     "id": "application-review",
     "label": "Checklist reviewer",
     "category": "Specialist: works on its own",
-    "description": "Check a document against your checklist and point out missing information or statements that disagree.",
+    "description": "Check a document against your checklist and see what's missing or where statements disagree.",
     "guidance": {
       "input": "Paste your checklist and the application or proposal text. Label each document so you can check references.",
       "output": "A table for your checklist: what is included, missing or unclear, where to look in the documents, and questions to follow up.",
-      "limits": "It does not make up rules, look up documents or approve applications. Missing information is not an automatic failure. Requirements and proposal review is in preview.",
-      "delegation": "It does the check itself. It does not call other agents or use external tools.",
+      "limits": "It doesn't invent rules, look up documents or approve applications. Missing information isn't an automatic failure; it becomes a question for you. Checking requirements against proposals is in preview.",
+            "delegation": "It does the check itself, using only the text you paste. It doesn't call other agents or tools.",
       "configuration": "Instructions: hosted-agents\\application-review-agent\\instructions.md, packaged by deploy.py in that directory. Publish a new agent version to apply changes. This runtime has no tools."
     },
     "agent": "application-review-agent",
@@ -61,12 +61,12 @@
     "id": "case-review",
     "label": "Case notes summarizer",
     "category": "Specialist: works on its own",
-    "description": "Turn case notes into a summary, point out missing or contradictory details, and suggest follow-up questions.",
+    "description": "Turn case notes into a summary that flags missing or contradictory details and suggests follow-up questions.",
     "guidance": {
-      "input": "Paste sample case notes and any rules you want it to consider. Label the notes so you can check references.",
+      "input": "Paste your case notes and any rules you want it to consider. Label the notes so you can check references.",
       "output": "A summary of what the notes say, any relevant supplied rules, details to check and questions to ask next.",
-      "limits": "It does not find missing records, invent rules, decide eligibility or liability, or update a system. Its policy lookup is a sample pilot of ten approved passages, and it says so if nothing matches or the lookup fails. A person checks the documents and makes decisions.",
-      "delegation": "It writes the summary itself and does not call other agents. Its only tool is a read-only lookup of the ten approved sample policy passages, used when that helps.",
+      "limits": "It can't find missing records, invent rules, decide eligibility or liability, or update a system. Its policy search covers ten approved sample passages, and it tells you if nothing matches or the search fails. A person checks the documents and makes the decisions.",
+            "delegation": "It writes the summary itself and doesn't call other agents. Its only tool is a read-only search of the ten approved sample policy passages, used when that helps.",
       "configuration": "Instructions: hosted-agents\\case-review-agent\\instructions.md, packaged by deploy.py in that directory. Publish a new agent version to apply changes. The sample policy lookup is added only when deploy.py runs with KNOWLEDGE_RETRIEVAL_ENABLED=true (see docs\\knowledge-retrieval.md); it is not a tool binding here, so the Lab shows no receipt for it."
     },
     "agent": "case-review-agent",

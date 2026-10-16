@@ -140,7 +140,7 @@ test('default helper explains its job and offers example tasks without auto-send
   )
   await expect(page.locator('.prompt-options button small')).toHaveText([
     'Before this project goes for sign-off, check it against our checklist.',
-    'Summarize these client notes for the team.',
+    "Summarize these client notes for the team's handoff.",
     'Compare this vendor proposal with our requirements.',
     'What can you help me with?',
   ])

@@ -1,4 +1,4 @@
-Compare this fictional proposal with my checklist. Make a table with one row per
+Compare this vendor proposal with my checklist. Make a table with one row per
 checklist item showing what is described, what is missing, and where the
 documents disagree. Refer to the checklist item and document labels so I can
 check each point, and ask questions that would fill the gaps. Product
@@ -9,12 +9,10 @@ Checklist item 1: Support exporting service-request records as CSV.
 Checklist item 2: Retain audit records for seven years.
 Checklist item 3: Support single sign-on and document the supported protocols.
 
-Product sheet: The sample product exports service-request records as CSV and
-retains audit records for seven years.
-Admin guide: The sample administrator guide says audit records are deleted after
-thirty days.
-Brochure: The sample product brochure says the product is "enterprise-ready".
+Product sheet: The product exports service-request records as CSV and retains
+audit records for seven years.
+Admin guide: Audit records are deleted after thirty days.
+Brochure: The product is "enterprise-ready".
 
-No other product documentation or test results are supplied. Missing
-information does not automatically mean an item is failed. Do not assume
-single sign-on is supported because of the brochure; a person needs to check.
+No other product documentation or test results are attached. Missing
+information does not automatically mean an item is failed.
