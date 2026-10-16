@@ -52,11 +52,12 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           persist-credentials: false
+      # Without --yes the recorder prints the plan and exits 2 ("nothing was sent"); any other failure still stops the job.
       - name: Show the plan, which sends nothing
         run: |
-          set -euo pipefail
+          set -uo pipefail
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e PYTHONPATH=/tmp/deps -v "$PWD:/work" -w /work \
-            python:3.12-slim bash -c 'pip install --quiet --target /tmp/deps -r evaluations/requirements.txt && python evaluations/library_runs.py record --templates $0' "$TEMPLATES"
+            python:3.12-slim bash -c 'pip install --quiet --target /tmp/deps -r evaluations/requirements.txt && python evaluations/library_runs.py record --templates $0 | tee /tmp/plan.txt; test "${PIPESTATUS[0]}" -eq 2 && grep -q "Nothing was sent" /tmp/plan.txt' "$TEMPLATES"
       - name: Record the answers
         run: |
           set -euo pipefail
