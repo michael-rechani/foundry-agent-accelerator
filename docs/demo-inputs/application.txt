@@ -7,9 +7,6 @@ Checklist item 1: Include a project budget.
 Checklist item 2: Identify an implementation owner.
 Checklist item 3: Provide a delivery schedule.
 
-Section 1: The Facilities team is the implementation owner for the proposed project.
-Section 2: Work starts on 2027-04-01 and completes on 2027-06-30.
-Section 3: Work starts on 2027-04-01 and completes on 2027-07-31.
-
-There's no budget, and nothing says which schedule is current. What does a
-person need to check?
+Section 1 (Ownership): The Facilities team is the implementation owner for the proposed project.
+Section 2 (Schedule): Work starts on 2027-04-01 and completes on 2027-06-30.
+Section 3 (Timeline summary): Work starts on 2027-04-01 and completes on 2027-07-31.
