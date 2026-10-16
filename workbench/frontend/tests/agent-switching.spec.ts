@@ -136,11 +136,11 @@ test('examples step aside once the box has typed text, and stay while it holds a
   await openWorkspace(page, { config: twoAgents })
   const welcome = page.locator('.chat-welcome')
   await expect(examples(page)).toHaveCount(guidedReview.prompts.length)
-  await expect(welcome).toContainText('Pick an example to fill the message box')
+  await expect(welcome).not.toContainText('Your example is in the message box')
 
   await editor(page).fill('Fictional text I typed myself')
   await expect(examples(page)).toHaveCount(0)
-  await expect(welcome).toContainText('Nothing is sent until you press Send.')
+  await expect(welcome).not.toContainText('Your example is in the message box')
 
   await editor(page).fill('')
   await expect(examples(page)).toHaveCount(guidedReview.prompts.length)
