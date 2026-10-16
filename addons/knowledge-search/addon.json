@@ -12,6 +12,7 @@
   "card": {
     "icon": "search",
     "group": "abilities",
+    "job": "answers",
     "summary": "Lets an agent answer from your own documents, not only from what it already knows.",
     "example": "A grant reviewer asks what the policy says about travel. The agent finds the right passage and names where it came from.",
     "pilot": "Ask Checklist and case helper to use the sample policy guidance when it summarizes case notes. It looks up ten approved sample passages and names the one it used. Your own documents cannot be added yet.",

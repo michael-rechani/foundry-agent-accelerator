@@ -8,6 +8,7 @@
   "card": {
     "icon": "storage",
     "group": "support",
+    "job": "documents",
     "summary": "Gives an agent a private place to keep the files it works from, such as policies, forms and reports.",
     "example": "A grant team keeps its policy PDFs in one place. Knowledge search and document extraction read them from there.",
     "cost": [

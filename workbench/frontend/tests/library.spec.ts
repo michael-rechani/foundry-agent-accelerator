@@ -294,14 +294,20 @@ test('the Add-ons tab previews what an agent could connect to without calling an
   const cards = page.locator('.addon-card')
   await expect(cards.getByRole('heading', { level: 2 })).toHaveText([
     'Knowledge search',
-    'Conversation memory',
+    'Web search',
     'Document extraction',
+    'Document storage',
+    'Conversation memory',
+    'Response cache',
     'Notifications',
     'Code interpreter',
-    'Web search',
-    'Document storage',
-    'Response cache',
     'Job queue',
+  ])
+  await expect(page.locator('.addon-job > h2')).toHaveText([
+    'Find answers',
+    'Work with documents',
+    'Remember and reuse',
+    'Do the work and tell people',
   ])
   await expect(cards.getByText('Not available yet')).toHaveCount(8)
   await expect(cards.getByText('Supports the agent')).toHaveCount(4)

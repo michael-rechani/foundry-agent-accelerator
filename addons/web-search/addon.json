@@ -8,6 +8,7 @@
   "card": {
     "icon": "web",
     "group": "abilities",
+    "job": "answers",
     "summary": "Lets an agent look things up on the public internet.",
     "example": "The agent checks a current public regulation before it answers.",
     "cost": [

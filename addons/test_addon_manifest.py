@@ -14,6 +14,7 @@ def card(**changes):
     value = {
         "icon": "search",
         "group": "abilities",
+        "job": "answers",
         "summary": "Lets an agent find things.",
         "example": "It finds a passage.",
         "cost": ["Billed by the hour."],
@@ -134,6 +135,7 @@ class ManifestShapeTests(TemporaryAddOns):
             ({"tracking": [54, 54]}, "tracking lists an issue twice"),
             ({"card": card(icon="robot")}, "unknown icon"),
             ({"card": card(group="extras")}, "unknown group"),
+            ({"card": card(job="chores")}, "unknown job"),
             ({"card": card(cost=[])}, "card cost must be a non-empty list"),
             ({"card": card(needs=[1])}, "card needs entries must be non-empty text"),
             ({"card": card(approval="")}, "card approval must be non-empty text"),
@@ -245,7 +247,7 @@ class CatalogTests(TemporaryAddOns):
         self.add("second", manifest("second", name="Second", order=1))
         entries = json.loads(build_catalog.render(load_add_ons(self.root)))["add_ons"]
         self.assertEqual([entry["id"] for entry in entries], ["second", "first"])
-        self.assertEqual(list(entries[1]), ["id", "name", "icon", "group", "summary", "example", "pilot", "cost",
+        self.assertEqual(list(entries[1]), ["id", "name", "icon", "group", "job", "summary", "example", "pilot", "cost",
                                             "needs", "safety", "approval", "service", "billing", "note"])
 
     def test_notices_a_stale_or_missing_catalog(self):

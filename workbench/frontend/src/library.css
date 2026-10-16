@@ -1159,6 +1159,17 @@
   align-items: center;
   gap: 6px;
 }
+.addon-job {
+  margin: 0 0 28px;
+}
+.addon-job h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 650;
+}
+.addon-job > p {
+  margin: 0 0 12px;
+}
 .addon-grid {
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 }

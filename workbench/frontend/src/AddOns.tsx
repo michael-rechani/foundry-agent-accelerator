@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import {
   addOnGroupLabels,
+  addOnJobs,
   addOnRules,
   addOns,
   codingAgentRequest,
@@ -68,13 +69,25 @@ export function AddOns({ onNotice }: { onNotice: (text: string) => void }) {
           ))}
         </ul>
       </section>
-      <ul className="library-grid addon-grid" aria-label="Add-ons">
-        {addOns.map((addOn) => (
-          <li key={addOn.id}>
-            <AddOnCard addOn={addOn} onNotice={onNotice} />
-          </li>
-        ))}
-      </ul>
+      {addOnJobs.map((job) => (
+        <section
+          key={job.id}
+          className="addon-job"
+          aria-labelledby={`addon-job-${job.id}`}
+        >
+          <h2 id={`addon-job-${job.id}`}>{job.title}</h2>
+          <p className="library-muted">{job.blurb}</p>
+          <ul className="library-grid addon-grid">
+            {addOns
+              .filter((addOn) => addOn.job === job.id)
+              .map((addOn) => (
+                <li key={addOn.id}>
+                  <AddOnCard addOn={addOn} onNotice={onNotice} />
+                </li>
+              ))}
+          </ul>
+        </section>
+      ))}
     </main>
   )
 }
