@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1164" viewBox="0 0 1600 1164" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">How people reach the Lab</title>
+  <desc id="desc">Three numbered access paths lead into one Lab, the web app and API in an internal Azure Container Apps environment with public network access off. Path 1, on by default: a presenter or admin, while customers watch a shared screen, connects over HTTPS to optional Azure Bastion, then by remote desktop to an optional jumpbox with a private IP address, which reaches the Lab across virtual network peering. Path 2, a design reference that is not deployed: an internal employee on an approved private network, such as VPN or ExpressRoute, connects over HTTPS to an Azure Application Gateway WAF v2 with a private frontend in a dedicated gateway subnet, which reaches the Lab over virtual network routing and private DNS. A public listener on the same gateway would serve regional internet users instead. Path 3, an optional draft that is off by default: a customer on the public internet connects to a public Azure Front Door Premium endpoint, where a web application firewall blocks clients that are not allowed. Front Door reaches the Lab through a Front Door-managed Private Link connection to the Container Apps environment, which an operator approves, and sends origin HTTPS requests. Private Link protects the Front Door to Lab hop, not the user to Front Door hop. The Lab has an ingress allow list. Rule 1 admits the jumpbox subnet and is in the Terraform default. Rule 2 admits a gateway subnet and is not added yet. Rule 3 admits the traffic that arrives over the Front Door Private Link connection and is added only when Front Door is on. Anything not listed gets a 403. The Lab then calls Foundry, Cosmos DB and Storage privately with a managed identity. A caveat says the Lab has no end-user sign-in yet, so before customers use it themselves it needs Microsoft Entra ID sign-in and per-user ownership of saved records. A WAF, Private Link or managed identity does not provide those checks. This is a logical view, not a resource inventory.</desc>
+  <defs>
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#0078d4"/>
+    </marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #242424; }
+      .title { font-size: 34px; font-weight: 600; }
+      .sub { font-size: 21px; fill: #4d5b69; }
+      .name { font-size: 20px; font-weight: 600; }
+      .detail { font-size: 18px; }
+      .small { font-size: 18px; fill: #4d5b69; }
+      .label { font-size: 18px; fill: #4d5b69; font-weight: 600; }
+      .boundary { font-size: 18px; font-weight: 600; fill: #4d5b69; letter-spacing: 0.4px; }
+      .num { font-family: 'Segoe UI', Arial, sans-serif; font-size: 17px; font-weight: 700; fill: #fff; }
+      .request { fill: none; stroke: #0078d4; stroke-width: 2.5; marker-end: url(#blue); }
+    </style>
+  </defs>
+  <rect width="1600" height="1164" fill="#fff"/>
+  <text x="24" y="50" class="title">How people reach the Lab</text>
+  <text x="24" y="86" class="sub">Three paths lead to one private Lab. Only the jumpbox path is on by default. Each other path needs its own approval.</text>
+
+  <rect x="24" y="124" width="976" height="260" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
+  <circle cx="52" cy="158" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="52" y="164" class="num" text-anchor="middle">1</text>
+  <text x="76" y="164" class="boundary">PRESENTER OR ADMIN</text>
+  <rect x="800" y="138" width="180" height="32" rx="8" fill="#edf7f4" stroke="#00786a" stroke-width="1.5"/>
+  <text x="890" y="160" class="small" text-anchor="middle">On by default</text>
+  <rect x="44" y="194" width="180" height="100" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/users.svg" x="56" y="204" width="32" height="32"/>
+  <text x="98" y="228" class="name">Presenter</text>
+  <text x="56" y="258" class="detail">Customers watch</text>
+  <text x="56" y="282" class="detail">a shared screen</text>
+  <rect x="286" y="194" width="260" height="100" rx="10" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <image href="azure-icons/bastion.svg" x="298" y="204" width="36" height="36"/>
+  <text x="344" y="228" class="name">Azure Bastion</text>
+  <text x="344" y="252" class="small">Optional</text>
+  <text x="298" y="282" class="detail">No open RDP ports</text>
+  <rect x="608" y="194" width="260" height="100" rx="10" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <image href="azure-icons/virtual-machine.svg" x="620" y="204" width="36" height="36"/>
+  <text x="666" y="228" class="name">Jumpbox</text>
+  <text x="666" y="252" class="small">Optional VM</text>
+  <text x="620" y="282" class="detail">Private IP only</text>
+  <path d="M224 244H284" class="request"/>
+  <path d="M546 244H606" class="request"/>
+  <text x="577" y="232" class="label" text-anchor="middle">RDP</text>
+  <path d="M868 244H1038" class="request"/>
+  <text x="934" y="232" class="label" text-anchor="middle">VNet peering</text>
+  <text x="44" y="330" class="detail">The Lab admits only the jumpbox, so a customer's own browser can't reach it. This is today's setup.</text>
+  <text x="44" y="356" class="detail">Chat is capped at 20 turns a minute: enough for one presenter, tight for a group.</text>
+
+  <rect x="24" y="404" width="976" height="260" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
+  <circle cx="52" cy="438" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="52" y="444" class="num" text-anchor="middle">2</text>
+  <text x="76" y="444" class="boundary">INTERNAL EMPLOYEES, REGIONAL</text>
+  <rect x="690" y="418" width="290" height="32" rx="8" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="835" y="440" class="small" text-anchor="middle">Design reference, not deployed</text>
+  <rect x="44" y="474" width="180" height="100" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/users.svg" x="56" y="484" width="32" height="32"/>
+  <text x="98" y="508" class="name">Employee</text>
+  <text x="56" y="538" class="detail">On an approved</text>
+  <text x="56" y="562" class="detail">private network</text>
+  <rect x="286" y="474" width="260" height="100" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/virtual-network.svg" x="298" y="484" width="36" height="36"/>
+  <text x="344" y="508" class="name">Private network</text>
+  <text x="344" y="532" class="small">VPN or ExpressRoute</text>
+  <text x="298" y="562" class="detail">Approved routing and DNS</text>
+  <rect x="608" y="474" width="260" height="100" rx="10" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <image href="azure-icons/application-gateway.svg" x="620" y="484" width="36" height="36"/>
+  <text x="666" y="508" class="name">Application Gateway</text>
+  <text x="666" y="532" class="small">WAF v2, regional</text>
+  <text x="620" y="562" class="detail">Dedicated gateway subnet</text>
+  <path d="M224 524H284" class="request"/>
+  <path d="M546 524H606" class="request"/>
+  <path d="M868 524H1038" class="request"/>
+  <text x="934" y="512" class="label" text-anchor="middle">VNet routing</text>
+  <text x="44" y="610" class="detail">Needs a gateway subnet, an ingress rule for it, and private DNS to the Lab's address.</text>
+  <text x="44" y="636" class="detail">A public listener would serve regional internet users instead. Sign-in comes first.</text>
+
+  <rect x="24" y="684" width="976" height="260" rx="12" fill="#f5f7fa" stroke="#aebdcb" stroke-width="1.5"/>
+  <circle cx="52" cy="718" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="52" y="724" class="num" text-anchor="middle">3</text>
+  <text x="76" y="724" class="boundary">CUSTOMERS AND GLOBAL USERS</text>
+  <rect x="690" y="698" width="290" height="32" rx="8" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="835" y="720" class="small" text-anchor="middle">Optional draft, off by default</text>
+  <rect x="44" y="754" width="180" height="100" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/users.svg" x="56" y="764" width="32" height="32"/>
+  <text x="98" y="788" class="name">Customer</text>
+  <text x="56" y="818" class="detail">On the public</text>
+  <text x="56" y="842" class="detail">internet</text>
+  <rect x="286" y="754" width="260" height="100" rx="10" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <image href="azure-icons/front-door.svg" x="298" y="764" width="36" height="36"/>
+  <text x="344" y="788" class="name">Azure Front Door</text>
+  <text x="344" y="812" class="small">Premium + WAF</text>
+  <text x="298" y="842" class="detail">Blocks unlisted clients</text>
+  <rect x="608" y="754" width="260" height="100" rx="10" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <image href="azure-icons/private-link.svg" x="620" y="764" width="36" height="36"/>
+  <text x="666" y="788" class="name">Private Link</text>
+  <text x="666" y="812" class="small">Front Door to the Lab</text>
+  <text x="620" y="842" class="detail">An operator approves it</text>
+  <path d="M224 804H284" class="request"/>
+  <path d="M546 804H606" class="request"/>
+  <path d="M868 804H1038" class="request"/>
+  <text x="934" y="792" class="label" text-anchor="middle">Origin HTTPS</text>
+  <text x="44" y="890" class="detail">Draft today: the WAF admits only listed single IPs. Private Link guards Front Door to the Lab only.</text>
+  <text x="44" y="916" class="detail">Opening it to customers needs sign-in, a custom domain, and each public resource approved.</text>
+
+  <rect x="1040" y="124" width="536" height="820" rx="12" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+  <image href="azure-icons/container-apps.svg" x="1056" y="136" width="36" height="36"/>
+  <text x="1104" y="160" class="name">The Lab</text>
+  <text x="1104" y="184" class="small">Internal Azure Container Apps environment</text>
+  <rect x="1064" y="204" width="488" height="140" rx="10" fill="#fff" stroke="#0078d4" stroke-width="2"/>
+  <text x="1080" y="238" class="name">Web app and API</text>
+  <text x="1080" y="270" class="detail">React front end, FastAPI back end</text>
+  <text x="1080" y="296" class="detail">Public network access is off</text>
+  <text x="1080" y="322" class="detail">Shared sample data, no end-user sign-in</text>
+  <rect x="1064" y="364" width="488" height="392" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="1080" y="398" class="name">Ingress allow list</text>
+  <text x="1080" y="422" class="small">Anything not listed gets a 403</text>
+  <circle cx="1096" cy="466" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="1096" y="472" class="num" text-anchor="middle">1</text>
+  <text x="1124" y="472" class="name">Jumpbox subnet</text>
+  <text x="1124" y="498" class="detail">In the Terraform default</text>
+  <circle cx="1096" cy="566" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="1096" y="572" class="num" text-anchor="middle">2</text>
+  <text x="1124" y="572" class="name">Gateway subnet</text>
+  <text x="1124" y="598" class="detail">Not added yet. Add it with the gateway.</text>
+  <circle cx="1096" cy="666" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="1096" y="672" class="num" text-anchor="middle">3</text>
+  <text x="1124" y="672" class="name">Front Door traffic</text>
+  <text x="1124" y="698" class="detail">Arrives over its Private Link</text>
+  <text x="1124" y="724" class="detail">Added only when Front Door is on</text>
+  <rect x="1064" y="776" width="488" height="150" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <image href="azure-icons/managed-identity.svg" x="1076" y="788" width="36" height="36"/>
+  <text x="1124" y="814" class="name">Managed identity</text>
+  <text x="1080" y="852" class="detail">The Lab calls Foundry with its identity.</text>
+  <text x="1080" y="878" class="detail">Foundry, Cosmos DB and Storage stay</text>
+  <text x="1080" y="904" class="detail">private, and no keys reach the browser.</text>
+
+  <rect x="24" y="964" width="1552" height="110" rx="8" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="42" y="996" class="name">Before customers use the Lab themselves</text>
+  <text x="42" y="1026" class="detail">Add end-user Microsoft Entra ID sign-in and per-user ownership of saved records, then choose path 2 or 3.</text>
+  <text x="42" y="1052" class="detail">A WAF, Private Link or managed identity doesn't provide those checks. Use fictional data only until then.</text>
+
+  <text x="24" y="1128" class="boundary">LEGEND</text>
+  <path d="M120 1122H176" class="request"/>
+  <text x="186" y="1128" class="small">Request</text>
+  <rect x="300" y="1108" width="44" height="28" rx="6" fill="#fffaf0" stroke="#b59e59" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="354" y="1128" class="small">Optional or not deployed by default</text>
+  <circle cx="730" cy="1122" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="730" y="1128" class="num" text-anchor="middle">n</text>
+  <text x="756" y="1128" class="small">Access path and its ingress rule</text>
+  <rect x="1060" y="1108" width="44" height="28" rx="6" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="1114" y="1128" class="small">Caveat</text>
+  <text x="1576" y="1128" class="small" text-anchor="end">Logical view, not a resource inventory</text>
+</svg>

@@ -55,7 +55,7 @@ control and protect any plan or state files that include these values.
 | `enable_api_management` | Creates a one-unit Standard v2 APIM gateway. Defaults to `false`. |
 | `approve_public_api_management` | Approval for the publicly reachable gateway. Defaults to `false`. Terraform refuses to plan with `enable_api_management = true` until it is `true`. |
 | `api_management_location` | Azure region for APIM and its virtual network (VNet) integration subnet. Defaults to `westus`. Allowed values are `westus`, `westus3`, `southcentralus`, and `northcentralus`. When APIM is enabled, it must equal `jumpbox_location` for the shared management VNet region. |
-| `api_management_subnet_address_prefixes` | Address prefixes for the dedicated APIM VNet integration subnet. Defaults to `["10.43.1.0/24"]`. |
+| `api_management_subnet_address_prefixes` | Address prefixes for the dedicated APIM VNet integration subnet. Defaults to a /24 inside the admin network (see `variables.tf`). |
 | `api_management_publisher_email` | Publisher email. Required when APIM is enabled and validated as an email address. |
 | `api_management_publisher_name` | Publisher name shown by APIM. Defaults to `Foundry Agent Accelerator`. |
 | `review_api` | Optional coordinator API authorization object. Defaults to `null`, which leaves the API unpublished. Requires `enable_api_management = true` when set. |

@@ -107,7 +107,7 @@ billed the Front Door service at about USD 10.65 a day from 8 to 11 Oct, which i
 with the first and last days partial. Request and data-transfer charges were too
 small to show at this traffic. Front Door added about 55 ms to a chat call. The
 route took about 20 minutes to start answering, and origin health reached 100%
-within three minutes of allowing `100.64.0.0/10`. The profile stays billed until
+within three minutes of allowing Front Door's shared Private Link range. The profile stays billed until
 `enable_front_door = false` is applied.
 
 **Decision (12 Oct 2026).** Front Door stays up on the dev Lab with no end date, so

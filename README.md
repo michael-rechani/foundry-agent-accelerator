@@ -175,8 +175,13 @@ Terraform input. Read the
    Storage, and AI Search through private endpoints.
 7. The Lab saves its records in Cosmos DB through the same private endpoint.
 
-*A logical view with Terraform default addresses, not a resource inventory.
-Bastion, the jumpbox, and Front Door are optional, and API Management isn't shown.*
+*A logical view, not a resource inventory. Bastion, the jumpbox, and Front Door
+are optional, and API Management isn't shown.*
+
+Wondering how customers or colleagues could reach the Lab? See
+[How people reach the Lab](docs/ingress-access.md): the jumpbox is the only path
+on by default, and the Application Gateway and Front Door paths are optional
+designs that need end-user sign-in first.
 
 [Full size](docs/images/azure-architecture-dark.svg) ·
 [SVG template](docs/images/azure-architecture.template.svg) ·
@@ -276,8 +281,9 @@ To deploy from a separate private machine, use the
 - **Access is by network, not by user.** The Lab has no sign-in. It accepts
   traffic only from the private admin network, such as the jumpbox reached
   through Azure Bastion, or from the optional IP-limited Front Door, and
-  everyone with that access shares the same saved
-  records. See the
+  everyone with that access shares the same saved records. To let employees or
+  customers in, see [How people reach the Lab](docs/ingress-access.md), which
+  also covers the sign-in they'd need first. See the
   [production checklist](terraform/README.md#separately-scoped-production-considerations).
 
 ---

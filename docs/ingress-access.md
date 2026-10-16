@@ -21,6 +21,10 @@ and calls the same application's FastAPI routes. FastAPI uses managed identity t
 invoke the configured named agent. Agents call their models and tools. The
 browser doesn't receive Azure keys or need Foundry project permissions.
 
+<img alt="How people reach the Lab: path 1, on by default, is a presenter or admin using Azure Bastion and a jumpbox. Path 2, a design reference that isn't deployed, is an employee on an approved private network using Application Gateway WAF v2. Path 3, an optional draft that is off by default, is a customer on the internet using Azure Front Door Premium with a WAF and Private Link. All three reach the Lab's internal Container Apps environment, whose ingress allow list needs one rule per path. The Lab then calls Foundry privately with a managed identity. The Lab has no end-user sign-in yet, so customer access needs Microsoft Entra ID sign-in first." src="images/lab-access-paths-dark.svg">
+
+[View full size](images/lab-access-paths-dark.svg) · [Edit the SVG template](images/lab-access-paths.template.svg)
+
 ## In this guide
 
 - [Choose an ingress pattern](#choose-an-ingress-pattern)
@@ -270,7 +274,7 @@ path.
 | Switches | `enable_front_door` creates it. `approve_public_front_door` must also be true, because the endpoint name is publicly resolvable. Without both, nothing is created. |
 | Who gets in | The WAF runs in Prevention mode with one custom rule that blocks any client whose connecting address (`SocketAddr`) isn't in `front_door_allowed_cidrs`. Entries must be single hosts: `/32`, or `/128` for IPv6. There can be at most 10 entries. Ranges, `0.0.0.0/0`, and private, loopback, link-local, shared (CGNAT) and multicast addresses are rejected. `SocketAddr` is the address Front Door sees connecting, so a forged `X-Forwarded-For` header can't satisfy it. |
 | Path to the Lab | Front Door Premium, then Private Link (`managedEnvironments`) to the internal environment. The Lab's own hostname is sent as the host header, with certificate-name checks on and a `GET /healthz` probe over HTTPS. Responses may take up to 200 seconds, to cover the Lab's 180-second review deadline. |
-| Lab settings | The Front Door address is added to `WORKBENCH_ORIGINS` so the browser's origin check passes. `front_door_ingress_allow_cidrs` adds ingress rules after the jump box rule. Front Door's Private Link traffic arrives from the shared address space `100.64.0.0/10`. Set it to `["100.64.0.0/10"]` or the app answers Front Door's probes with 403. It's empty by default and accepts only private IPv4 ranges of `/16` or narrower, or `100.64.0.0/10` or narrower. |
+| Lab settings | The Front Door address is added to `WORKBENCH_ORIGINS` so the browser's origin check passes. `front_door_ingress_allow_cidrs` adds ingress rules after the jump box rule. Front Door's Private Link traffic arrives from a shared address range, not the Lab's own network. Set `front_door_ingress_allow_cidrs` to that range (see the variable's description in `front-door.tf`) or the app answers Front Door's probes with 403. It's empty by default and accepts only private ranges, never a public or internet-wide one. |
 | Region | Front Door Private Link doesn't support `northcentralus`. Set `front_door_private_link_location` (for example `centralus`) if the Lab is there. Null uses the environment's region. |
 | Your address | Put it in an untracked `.tfvars` file (`*.tfvars` is ignored). Don't commit it or add it to `dev.tfvars.example`. |
 | Offline checks | `workbench/infra/tests/front-door.tftest.hcl` runs under mock providers, so it needs no Azure access: the switches, every address rejection, the WAF rule and mode, the origin and Private Link settings, and the Lab's origin and ingress changes. |
@@ -280,7 +284,8 @@ path.
 1. Register the `Microsoft.Cdn` resource provider. Approve the public endpoint, the
    Premium cost and your IP in [#240](https://github.com/michael-rechani/foundry-agent-accelerator/issues/240).
 2. Plan, and confirm only the Front Door resources and the Lab's ingress and origin
-   settings change. Set `front_door_ingress_allow_cidrs = ["100.64.0.0/10"]` in the
+   settings change. Set `front_door_ingress_allow_cidrs` to Front Door's shared
+   Private Link range (see the variable's description in `front-door.tf`) in the
    same apply. Apply.
 3. Before approving any Private Link connection, confirm the WAF is associated with
    the endpoint and that a request from an address that isn't on the list gets 403.
@@ -303,14 +308,14 @@ path.
    the decision was to keep Front Door up with no end date; see
    [Storage and cost](lab-configuration-and-cost.md#storage-and-cost).
 
-**Measured.** The Lab's ingress sees Front Door's Private Link traffic from
-`100.64.0.0/10`, not from the Lab's own network (`10.42.0.0/16` was refused). The
-Lab's `jumpbox-only` rule alone left origin health at 0%. Adding `100.64.0.0/10`
-brought it to 100% within three minutes and it stayed there once the other trial
-private ranges were removed. The exact subrange inside `100.64.0.0/10` wasn't
-identified, so the rule uses the whole shared range, which isn't routable on the
-internet. Still unverified: whether the environment needs its own private endpoint
-for the Front Door link (it worked without one).
+**Measured.** The Lab's ingress sees Front Door's Private Link traffic from a
+shared address range, not from the Lab's own network, which was refused. The
+Lab's `jumpbox-only` rule alone left origin health at 0%. Allowing that shared
+range brought it to 100% within three minutes and it stayed there once the other
+trial private ranges were removed. The exact subrange wasn't identified, so the
+rule uses the whole shared range, which isn't routable on the internet. Still
+unverified: whether the environment needs its own private endpoint for the Front
+Door link (it worked without one).
 
 The Lab has no end-user sign-in, so the IP rule is the only gate. Use fictional data
 only, and don't treat a single-IP WAF rule as a substitute for the sign-in described
@@ -483,7 +488,7 @@ don't describe the result as ready for public or confidential multi-user access.
 | --- | --- |
 | Origin unhealthy or edge `502`/`504` | Private DNS and routing or Private Link approval, origin host and SNI, TLS validation, `GET` probe path, ingress source restrictions, and timeout settings. |
 | Homepage loads but chat fails with `400`/`403` | Backend allowed hosts and origins, `/api/*` route configuration, WAF matches, app authentication, and original request size. |
-| Front Door can't reach an otherwise working internal URL | Premium tier, the correct environment and subresource, supported Private Link location, connection approval, and private-path ingress behavior. Probes that the app refuses with 403 mean the ingress rules lack `100.64.0.0/10`. A browser in the VNet is a different access path. |
+| Front Door can't reach an otherwise working internal URL | Premium tier, the correct environment and subresource, supported Private Link location, connection approval, and private-path ingress behavior. Probes that the app refuses with 403 mean the ingress rules lack Front Door's shared Private Link range. A browser in the VNet is a different access path. |
 | Login loop or redirect to the internal hostname | Redirect URI registration, cookie settings, origin-host strategy, and trusted forwarded-host and protocol handling. |
 | Review fails only after a fixed delay | Compare all timeout layers; preserve correlation IDs and check whether remote work or a saved record already exists before retrying. |
 | Direct public origin still works | Recheck environment public access, alternate origins and routes, and DNS. Don't rely on an obscure origin URL or a forwarded header as the access boundary. |

@@ -24,6 +24,7 @@ component:
 | --- | --- | --- | --- |
 | [Agent release journey](agent-release-journey.svg) | The private foundation and agent releases as two connected workflows, their configuration handoff, and the decisions people approve. | [README](../../README.md#one-foundation-two-connected-workflows), [showcase](../showcase.md) | [Template](agent-release-journey.template.svg) |
 | [Azure architecture](azure-architecture.svg) | One-page network map: the subscription and resource group, the admin and workload networks, a private endpoint for each service, seven numbered request steps, and the optional Front Door route. | [README](../../README.md#what-runs-in-azure) | [Template](azure-architecture.template.svg) |
+| [How people reach the Lab](lab-access-paths.svg) | Three ways in: the presenter's jumpbox (on by default), an internal Application Gateway path, and an optional Front Door path for customers. Shows what each needs and the sign-in gap. No addresses. | [Application ingress guide](../ingress-access.md), [architecture guide](../architecture.md#components-at-a-glance) | [Template](lab-access-paths.template.svg) |
 | [Agent collaboration](agent-collaboration.svg) | The coordinator's requests to specialists, their results, and the person who checks the answer. | [README](../../README.md#agents-working-together), [architecture guide](../architecture.md#agent-collaboration) | [Template](agent-collaboration.template.svg) |
 | [Orchestration pattern](orchestration-pattern.svg) | How the coordinator compares with the five patterns in Microsoft's agent orchestration guide: handoff is the closest match, with one difference. | [Architecture guide](../architecture.md#orchestration-pattern) | [Template](orchestration-pattern.template.svg) |
 | [How the Lab handles a request](foundry-overview.svg) | The Lab's request path, the records it saves, and optional Azure API Management (APIM) outside the default flow. | [Architecture guide](../architecture.md#implementation-overview) | [Template](foundry-overview.template.svg) |
@@ -71,7 +72,7 @@ unless the diagram says so.
 
 ## Diagram style
 
-All ten diagrams follow the same rules, so the set reads as one family. They
+All eleven diagrams follow the same rules, so the set reads as one family. They
 borrow the layered layout of the
 [Azure Architecture Center](https://learn.microsoft.com/azure/architecture/browse/)
 reference diagrams, simplified for a workshop audience: official icons,
@@ -125,7 +126,7 @@ security groups or a firewall. Don't add paths the view omits on purpose, such
 as Lab logs, which reach Azure Monitor through diagnostic settings rather
 than its private endpoint. Model names are examples, and deployments are
 configurable. Keep optional API Management out of this view, and don't draw subnets.
-When an address default changes in Terraform, update the view.
+Don't print network addresses or CIDR ranges in any diagram or guide.
 
 The collaboration view shows the Lab's default setup: **Checklist and case
 helper** with the **Checklist reviewer** and **Case notes summarizer**
