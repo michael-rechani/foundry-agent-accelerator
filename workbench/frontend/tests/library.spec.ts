@@ -5,7 +5,7 @@ import { openLibrary } from './helpers/library-lab'
 import { libraryNav, workspaceNav } from './helpers/navigation'
 import { demoScenarios } from '../src/demo-scenarios'
 
-test('the library is the landing view and groups navigation into three sections', async ({
+test('the library groups navigation into four sections, after the Ask the Lab start page', async ({
   page,
 }) => {
   await openLibrary(page)
@@ -14,7 +14,7 @@ test('the library is the landing view and groups navigation into three sections'
   ).toHaveAttribute('aria-current', 'page')
   await expect(
     workspaceNav(page).getByRole('group').locator('.nav-section-label'),
-  ).toHaveText(['Agent library', 'Try it', 'Operations'])
+  ).toHaveText(['Start here', 'Agent library', 'Try it', 'Operations'])
   const tabs = libraryNav(page)
   await expect(tabs.getByRole('button')).toHaveText([
     'Browse',
@@ -24,6 +24,7 @@ test('the library is the landing view and groups navigation into three sections'
     'Add-ons',
   ])
   await expect(workspaceNav(page).getByRole('button')).toHaveText([
+    'Ask the Lab',
     /^All agents\s*\d*$/,
     'Create agent',
     'Chat',

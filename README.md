@@ -160,8 +160,8 @@ keys.
 **Create agent** is off until an operator turns it on, because publishing
 creates Azure resources that cost money.
 
-The Lab opens on the **Agent library**, and **Chat** is one click away. The
-sidebar has **Agent library** (**All agents**, plus **Create agent** when
+The Lab opens on **Ask the Lab**, so you can ask a question before you meet an agent. From there you can try a ready agent or build your own, and **Chat** is one click away. The
+sidebar has **Start here** (**Ask the Lab**), **Agent library** (**All agents**, plus **Create agent** when
 creation is on) and **Try it** (Chat and Shared history). **Operations** (a
 health overview, response times, tokens, cost, and the request log) appears when
 you turn on **Under the hood**.

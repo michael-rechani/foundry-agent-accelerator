@@ -171,17 +171,17 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   )
 })
 
-test('invalid review links fall back to the library without opening a review', async ({
+test('invalid review links fall back to the start page without opening a review', async ({
   page,
 }) => {
   await openReviews(page)
   await page.goto('/#review-not-a-valid-id')
   await page.reload()
   await expect(
-    workspaceNav(page).getByRole('button', { name: 'All agents', exact: true }),
+    workspaceNav(page).getByRole('button', { name: 'Ask the Lab' }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(
-    page.getByRole('heading', { level: 1, name: /library|job that needs/i }),
+    page.getByRole('heading', { level: 1, name: 'Welcome to the Lab' }),
   ).toBeVisible()
   await expect(
     page.getByRole('heading', { name: 'Document reviews', exact: true }),

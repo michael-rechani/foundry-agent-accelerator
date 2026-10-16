@@ -4,6 +4,7 @@ import {
   FileCheck2,
   History,
   Layers3,
+  MessageCircleQuestion,
   MessageSquare,
   Plus,
   ScrollText,
@@ -13,6 +14,7 @@ import { FoundryLink } from './FoundryLink'
 import { libraryViews } from './navigation'
 
 export type View =
+  | 'start'
   | 'library'
   | 'explore'
   | 'addons'
@@ -26,7 +28,7 @@ export type View =
   | 'create'
   | 'created'
 
-export type Section = 'test' | 'library' | 'operations'
+export type Section = 'start' | 'test' | 'library' | 'operations'
 
 type Item = {
   view: View
@@ -39,6 +41,7 @@ type Item = {
 }
 
 const sectionOf: Record<View, Section> = {
+  start: 'start',
   chat: 'test',
   reviews: 'test',
   history: 'test',
@@ -92,6 +95,13 @@ export function ChatSidebar({
     items: Item[]
     hood?: boolean
   }[] = [
+    {
+      id: 'start',
+      label: 'Start here',
+      items: [
+        { view: 'start', label: 'Ask the Lab', icon: MessageCircleQuestion },
+      ],
+    },
     {
       id: 'library',
       label: 'Agent library',
