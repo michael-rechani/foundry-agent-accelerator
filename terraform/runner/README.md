@@ -14,12 +14,14 @@ It reads the VNet and its NAT gateway without taking ownership of them.
 > from an authorized private-network environment.
 
 > [!WARNING]
-> **Private repository only.** This repository is now public and
-> `validate.yml` runs on GitHub-hosted `ubuntu-24.04` runners, so don't register
-> this runner for it. A persistent self-hosted runner executes the code in pull
-> requests on a machine inside your network. Use it only while a repository is
-> private and only trusted collaborators can open pull requests. Anyone who can
-> open a pull request could otherwise run code on this VM.
+> **Public repository risk.** A persistent self-hosted runner executes the code in
+> pull requests on a machine inside your network, so no pull request workflow may
+> use it. `validate.yml` runs on GitHub-hosted `ubuntu-24.04` runners. Only the
+> manual [`deploy-lab.yml`](../../.github/workflows/deploy-lab.yml) targets this
+> runner, and it runs only from `main` behind the `lab-deploy` environment. Fork
+> pull requests need approval from every outside contributor. To let it push images,
+> set `registry_private_endpoint_ips` so the NSG allows TCP 443 to the registry
+> private endpoint only. Everything else in the VNet stays denied.
 
 Run commands in `terraform/runner/`, not in the parent platform root. The runner
 is called the CI runner here to avoid confusion with the Windows jumpbox that
@@ -64,7 +66,7 @@ creating one.
 
 The NSG limits outbound traffic to ports 80 and 443 (plus Azure's DNS and
 metadata endpoints) and **denies the VirtualNetwork destination**. Pull request
-code can't reach the jumpbox, the peered Foundry network, or private endpoints.
+code can't reach the jumpbox, the peered Foundry network, or private endpoints, except the registry exception above.
 If you add an egress allowlist later, these hosts are needed:
 `github.com`, `api.github.com`, `*.actions.githubusercontent.com`,
 `objects.githubusercontent.com`, `pypi.org`, `files.pythonhosted.org`,

@@ -1,12 +1,14 @@
 name: Deploy Lab image
 
-# Builds the Lab image from main, copies it into the private registry by digest,
-# and rolls the Lab Container App to it. Start it by hand from the Actions tab.
-# One-time setup: workbench/setup-deploy-identity.ps1 (see docs/lab-deployment.md).
+# Builds the Lab image from main on the private runner, pushes it straight to the
+# private registry, and rolls the Lab Container App to it by digest. Start it by hand
+# from the Actions tab. One-time setup: workbench/setup-deploy-identity.ps1
+# (see docs/lab-deployment.md).
 #
-# The registry has no public access, so a hosted runner can't push to it. The image
-# goes to this repository's private GitHub package, and Azure imports it from there.
-# Nothing public is created, and Azure holds no stored secret for this workflow.
+# The registry has no public access. The runner reaches its private endpoint through the
+# peered VNet, so nothing is published to GitHub Packages or anywhere public, and Azure
+# holds no stored secret for this workflow. It runs only from main, by hand, and the
+# lab-deploy environment gates the sign-in, so pull request code never reaches the runner.
 on:
   workflow_dispatch:
 
@@ -18,51 +20,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    # Public repositories publish public packages, so this workflow refuses to run in one.
-    if: github.ref == 'refs/heads/main' && github.event.repository.private
-    timeout-minutes: 30
-    runs-on: [self-hosted, linux, lab-runner]
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      source: ${{ steps.image.outputs.source }}
-      tag: ${{ steps.image.outputs.tag }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Build, check and push the image
-        id: image
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          repository="${GITHUB_REPOSITORY,,}"
-          tag="${GITHUB_SHA::12}-r${GITHUB_RUN_ID}"
-          image="ghcr.io/${repository}/workbench:${tag}"
-          # The runner is persistent, so don't leave the registry login behind.
-          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
-          echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-          # .dockerignore is an allow-list, so this context matches what build.ps1 stages.
-          # The runner is linux/amd64 and its Docker has no buildx plugin, so use the classic builder.
-          docker build --pull --file workbench/Dockerfile --tag "$image" workbench
-          docker run --rm --entrypoint python "$image" -c "import importlib, os; from pathlib import Path; [importlib.import_module(m.stem) for m in sorted(Path('.').glob('*.py'))]; import agent_publisher; assert os.getuid() != 0; assert agent_publisher.runtime_package()[0]; assert Path('agents.json').read_text(); assert Path('static/index.html').read_text()"
-          docker push "$image"
-          source="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')"
-          [[ "$source" =~ @sha256:[a-f0-9]{64}$ ]] || { echo "Pushed image digest not found"; exit 1; }
-          echo "source=$source" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-
   deploy:
-    needs: build
-    timeout-minutes: 30
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 45
     runs-on: [self-hosted, linux, lab-runner]
     environment: lab-deploy
     permissions:
       contents: read
-      packages: read
       id-token: write
     env:
       AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
@@ -71,9 +35,10 @@ jobs:
       AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       LAB_REGISTRY: ${{ vars.LAB_REGISTRY }}
       LAB_CONTAINER_APP: ${{ vars.LAB_CONTAINER_APP }}
-      IMAGE_SOURCE: ${{ needs.build.outputs.source }}
-      IMAGE_TAG: ${{ needs.build.outputs.tag }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # The self-hosted runner has Docker but no Azure CLI, and the runner user can't install one.
       # This wrapper runs the same CLI from Microsoft's image, with its sign-in kept in the job's temp folder.
       - name: Use the Azure CLI from Microsoft's image
@@ -96,13 +61,25 @@ jobs:
           echo "::add-mask::$token"
           az login --service-principal --username "$AZURE_CLIENT_ID" --tenant "$AZURE_TENANT_ID" --federated-token "$token" --allow-no-subscriptions --output none
           az account set --subscription "$AZURE_SUBSCRIPTION_ID"
-      - name: Copy the image into the private registry by digest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build, check and push the image to the private registry
         run: |
           set -euo pipefail
-          az acr import --name "$LAB_REGISTRY" --source "$IMAGE_SOURCE" --image "workbench:${IMAGE_TAG}" \
-            --username "$GITHUB_ACTOR" --password "$GITHUB_TOKEN" --output none
+          server="$(az acr show --name "$LAB_REGISTRY" --query loginServer --output tsv)"
+          tag="${GITHUB_SHA::12}-r${GITHUB_RUN_ID}"
+          image="${server}/workbench:${tag}"
+          # The runner is persistent, so don't leave the registry login behind.
+          trap 'docker logout "$server" >/dev/null 2>&1 || true' EXIT
+          acr_token="$(az acr login --name "$LAB_REGISTRY" --expose-token --output tsv --query accessToken)"
+          echo "::add-mask::$acr_token"
+          echo "$acr_token" | docker login "$server" --username 00000000-0000-0000-0000-000000000000 --password-stdin
+          # .dockerignore is an allow-list, so this context matches what build.ps1 stages.
+          # The runner is linux/amd64 and its Docker has no buildx plugin, so use the classic builder.
+          docker build --pull --file workbench/Dockerfile --tag "$image" workbench
+          docker run --rm --entrypoint python "$image" -c "import importlib, os; from pathlib import Path; [importlib.import_module(m.stem) for m in sorted(Path('.').glob('*.py'))]; import agent_publisher; assert os.getuid() != 0; assert agent_publisher.runtime_package()[0]; assert Path('agents.json').read_text(); assert Path('static/index.html').read_text()"
+          docker push "$image"
+          source="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')"
+          [[ "$source" =~ @sha256:[a-f0-9]{64}$ ]] || { echo "Pushed image digest not found"; exit 1; }
+          echo "IMAGE_SOURCE=$source" >> "$GITHUB_ENV"
       - name: Roll the Container App to the new image
         run: |
           set -euo pipefail

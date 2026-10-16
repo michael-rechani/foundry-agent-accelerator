@@ -292,13 +292,12 @@ with **Run workflow** on `main`. It:
 
 1. Builds the image on the repository's self-hosted runner (see
    [`terraform/runner`](../terraform/runner/README.md); start its VM first if it
-   is deallocated), checks it as its non-root user, and pushes it to this
-   repository's **private** GitHub package. The runner has Docker but no Azure
-   CLI, so the workflow runs the CLI from Microsoft's `azure-cli` image.
+   is deallocated) and checks it as its non-root user. The runner has Docker but
+   no Azure CLI, so the workflow runs the CLI from Microsoft's `azure-cli` image.
 2. Signs in to Azure with a short-lived GitHub token. No secret is stored.
-3. Imports the image into the private registry by digest. Registry import is
-   allowed for a registry with public access off, so nothing in Azure is made
-   public.
+3. Pushes the image to the private registry through its private endpoint, which
+   the runner reaches over the peered VNet. Nothing is published to GitHub
+   Packages, and nothing in Azure is made public.
 4. Updates the Container App to the new digest, waits for the new revision to be
    healthy, and restores the previous image if it isn't.
 
@@ -324,8 +323,9 @@ assign roles on the resource group. It's safe to run again.
 
 The script creates an app registration whose only credential is a federated
 credential for the `lab-deploy` environment of your repository, plus a custom role
-that can import an image into the registry and update the one Container App. It
-can't change registry networking, other resources, or role assignments. It reads
+that can import an image into the registry and update the one Container App, and
+the built-in `AcrPush` role on the registry so the workflow can push. It can't
+change registry networking, other resources, or role assignments. It reads
 the repository and owner IDs with `gh` because GitHub signs the token with a subject
 that includes them. If sign-in fails with "No matching federated identity record",
 rerun the script with the subject from the error as `-FederatedSubject`.
@@ -334,9 +334,14 @@ Then create a `lab-deploy` environment in the repository, limit its deployment
 branches to `main`, and add the variables the script prints as environment
 variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`,
 `AZURE_RESOURCE_GROUP`, `LAB_REGISTRY` and `LAB_CONTAINER_APP`. Keep them out of
-committed files. The workflow needs a private repository, so the image package
-stays private. It skips itself when the repository is public, which this one now
-is. Run it from a private copy or fork instead.
+committed files.
+
+The runner's network security group (NSG) denies all VNet traffic by default.
+Set `registry_private_endpoint_ips` in `terraform/runner` to the registry private
+endpoint addresses (registry and data endpoint) so it may reach only those on
+TCP 443. The workflow works in a public repository because it runs only on
+`main` and only by hand, behind the `lab-deploy` environment. Don't point any
+pull request workflow at the self-hosted runner.
 
 Use the jumpbox route in steps 4 to 6 when you need to change infrastructure, not
 just the image.

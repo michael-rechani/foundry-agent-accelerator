@@ -96,6 +96,23 @@ resource "azurerm_network_security_group" "runner" {
     destination_address_prefix = "Internet"
   }
 
+  # Optional, narrow exception so the deploy workflow can push to the private
+  # registry. Only HTTPS to the registry private endpoint addresses is allowed.
+  dynamic "security_rule" {
+    for_each = length(var.registry_private_endpoint_ips) > 0 ? [1] : []
+    content {
+      name                         = "AllowRegistryPrivateEndpointOutbound"
+      priority                     = 120
+      direction                    = "Outbound"
+      access                       = "Allow"
+      protocol                     = "Tcp"
+      source_port_range            = "*"
+      destination_port_range       = "443"
+      source_address_prefix        = "*"
+      destination_address_prefixes = var.registry_private_endpoint_ips
+    }
+  }
+
   security_rule {
     name                       = "DenyVirtualNetworkOutbound"
     priority                   = 4000

@@ -175,3 +175,14 @@ variable "tags" {
   description = "Additional tags to merge with the required workload tags."
   default     = {}
 }
+
+variable "registry_private_endpoint_ips" {
+  type        = list(string)
+  description = "Private IP addresses of the Lab container registry private endpoint (registry and data endpoint). When set, the runner may reach only these on TCP 443 so the deploy workflow can push images. Leave empty to keep all VNet traffic denied."
+  default     = []
+
+  validation {
+    condition     = alltrue([for ip in var.registry_private_endpoint_ips : can(cidrhost("${ip}/32", 0))])
+    error_message = "registry_private_endpoint_ips must contain IPv4 addresses only."
+  }
+}

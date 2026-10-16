@@ -40,7 +40,7 @@ For operators who deploy Azure resources and keep the environment running.
 | [Troubleshooting](troubleshooting.md) | Go from a symptom to the guide section that covers it. |
 | [Security policy](../SECURITY.md) | Report a suspected vulnerability privately and handle an exposed credential. |
 | [Bastion](../terraform/bastion/README.md) | Manage the Standard Azure Bastion host used to reach the jumpbox. |
-| [CI runner](../terraform/runner/README.md) | Draft a private self-hosted runner for the deploy workflow. Private repository only. The validation workflow runs on GitHub-hosted runners. |
+| [CI runner](../terraform/runner/README.md) | Draft a private self-hosted runner for the manual deploy workflow, which pushes to the private registry. The validation workflow runs on GitHub-hosted runners. |
 | [Agent monitoring](../terraform/monitoring/README.md) | Connect metadata-only agent traces to a private Application Insights resource. |
 | [Application ingress options](ingress-access.md) | Plan Application Gateway or Front Door access to the Lab. These gateways aren't deployed by default. |
 | [Governed review API](apim-review-api.md) | Publish the optional coordinator API through Azure API Management (APIM). |

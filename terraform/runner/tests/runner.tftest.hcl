@@ -161,3 +161,20 @@ run "idle_shutdown_can_be_disabled" {
     error_message = "Setting auto_shutdown to null must remove the backstop schedule."
   }
 }
+
+run "registry_push_exception_is_narrow" {
+  command = plan
+
+  variables {
+    registry_private_endpoint_ips = ["10.42.0.24", "10.42.0.25"]
+  }
+
+  assert {
+    condition     = length([for rule in azurerm_network_security_group.runner.security_rule : rule if rule.name == "AllowRegistryPrivateEndpointOutbound" && rule.destination_port_range == "443" && length(rule.destination_address_prefixes) == 2 && rule.priority < 4000]) == 1
+    error_message = "The registry exception must allow only TCP 443 to the two private endpoint addresses, ahead of the VirtualNetwork deny."
+  }
+  assert {
+    condition     = length([for rule in azurerm_network_security_group.runner.security_rule : rule if rule.direction == "Outbound" && rule.access == "Deny" && rule.destination_address_prefix == "VirtualNetwork"]) == 1
+    error_message = "The VirtualNetwork deny must remain."
+  }
+}
