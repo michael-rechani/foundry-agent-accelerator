@@ -18,7 +18,7 @@ ADDONS_DIRECTORY = Path(__file__).resolve().parent
 SCHEMA_VERSION = 1
 
 KINDS = ("built-in-tool", "existing-service", "new-service")
-ICONS = ("search", "memory", "documents", "notifications", "calculator", "web", "cache", "storage")
+ICONS = ("search", "memory", "documents", "notifications", "calculator", "web", "cache", "storage", "queue")
 # What the add-on is for: "abilities" lets an agent do something more, "support" is what an agent runs on.
 GROUPS = ("abilities", "support")
 APPROVAL_GATES = ("billable-calls", "shared-data", "data-handling")

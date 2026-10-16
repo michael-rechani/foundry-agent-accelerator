@@ -123,6 +123,7 @@ test('asking how an agent is built explains the parts and groups the add-ons', a
     'Conversation memory',
     'Document storage',
     'Response cache',
+    'Job queue',
   ])
   await expect(ask.locator('.lab-guide-status')).toHaveCount(addOns.length)
   await expect(ask.getByText('Sample pilot')).toHaveCount(1)

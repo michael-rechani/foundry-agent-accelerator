@@ -5,6 +5,7 @@ import {
   Globe,
   HardDrive,
   Info,
+  ListOrdered,
   Mail,
   ScanText,
   Search,
@@ -31,6 +32,7 @@ const addOnIcons: Record<AddOnIcon, LucideIcon> = {
   web: Globe,
   cache: Zap,
   storage: HardDrive,
+  queue: ListOrdered,
 }
 
 export function AddOns({ onNotice }: { onNotice: (text: string) => void }) {
