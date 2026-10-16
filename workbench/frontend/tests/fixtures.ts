@@ -21,9 +21,9 @@ export async function screenshot(
   })
 }
 
-// README and docs pictures show the plain view a first-time visitor sees.
-// Desktop specs start with Under the hood on, so switch it off for the picture
-// and back on afterwards.
+// README and docs pictures show the plain view a first-time visitor sees, in
+// the Aurora look. Desktop specs start with Under the hood on, so switch it off
+// for the picture and back on afterwards.
 export async function docsScreenshot(
   page: Page,
   testInfo: TestInfo,
@@ -34,11 +34,20 @@ export async function docsScreenshot(
   const hood = page.getByRole('switch', { name: /Under the hood/ })
   const wasOn = await hood.isChecked()
   if (wasOn) await hood.uncheck()
+  const look = await page.evaluate(() => {
+    const root = document.documentElement
+    const previous = root.dataset.look ?? ''
+    root.dataset.look = 'aurora'
+    return previous
+  })
   await page.evaluate(() => (document.activeElement as HTMLElement)?.blur())
   await page.mouse.move(0, 0)
   try {
     await screenshot(page, testInfo, filename)
   } finally {
+    await page.evaluate((previous) => {
+      document.documentElement.dataset.look = previous
+    }, look)
     if (wasOn) await hood.check()
   }
 }

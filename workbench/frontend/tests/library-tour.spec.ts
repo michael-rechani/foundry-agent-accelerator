@@ -46,6 +46,34 @@ for (const mode of ['light', 'dark'] as const)
 
 // The README and docs pictures: the plain view a first-time visitor sees.
 for (const mode of ['light', 'dark'] as const)
+  test(`the first page shows Ask the Lab before any agent in ${mode} mode`, async ({
+    page,
+  }, testInfo) => {
+    await seedAppearance(page, { mode, accent: 'foundry' })
+    const state = await openLibrary(page, { hash: '' })
+    await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Welcome to the Lab' }),
+    ).toBeVisible()
+    const ask = page.getByRole('region', { name: 'Ask the Lab' })
+    await ask
+      .getByRole('button', { name: 'Which agent should I use or build?' })
+      .click()
+    await expect(
+      ask.getByRole('heading', { level: 3, name: 'Agents you can use' }),
+    ).toBeFocused()
+    await expect(ask).toContainText('Nothing is sent or saved.')
+    await docsScreenshot(
+      page,
+      testInfo,
+      `start-page${mode === 'dark' ? '-dark' : ''}.png`,
+    )
+    expect(state.chat).toHaveLength(0)
+    expect(state.creations).toBe(0)
+    expect(state.drafts).toBe(0)
+  })
+
+for (const mode of ['light', 'dark'] as const)
   test(`the library tour shows Browse, Test results and Take it to Foundry in ${mode} mode`, async ({
     page,
   }, testInfo) => {

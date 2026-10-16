@@ -36,21 +36,25 @@ no model calls. This is a sample, not an official Microsoft product.
 
 ## Take a tour
 
-<img alt="Tour of the Foundry Agent Lab in five steps: browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template. Every screen shows sample data." src="docs/images/lab-tour-dark.svg">
+<img alt="Tour of the Foundry Agent Lab in six steps: ask the Lab which agent to use, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template. Every screen shows sample data." src="docs/images/lab-tour-dark.svg">
 
-**Browse agents → Test results → Chat → Take it to Foundry → Create agent**
+**Ask the Lab → Browse agents → Test results → Chat → Take it to Foundry → Create agent**
 
-1. **Browse agents:** the agent library lists every sample agent, and **Start
+1. **Ask the Lab:** the Lab opens here, before any agent. Pick a guide
+   question, such as which agent to use or build, and get an answer written
+   from the Lab's own lists. Nothing is sent or saved. Then try a ready agent
+   or build your own.
+2. **Browse agents:** the agent library lists every sample agent, and **Start
    here** offers three ready-made examples.
-2. **Test results:** see how an agent did on its recorded test cases. You get
+3. **Test results:** see how an agent did on its recorded test cases. You get
    how many answers passed, how long it took, what it cost, and whether a
    person has signed it off yet.
-3. **Chat:** talk with an agent. An example only fills the message box, and you
+4. **Chat:** talk with an agent. An example only fills the message box, and you
    choose when to send it.
-4. **Take it to Foundry:** download the agent definition and its test requests,
+5. **Take it to Foundry:** download the agent definition and its test requests,
    then follow the steps to create it in your own Microsoft Foundry. There's
    no one-click move between environments.
-5. **Create agent:** prepare an agent from one of the library's templates. It
+6. **Create agent:** prepare an agent from one of the library's templates. It
    stays off until an operator turns it on.
 
 *The screenshots come from automated
