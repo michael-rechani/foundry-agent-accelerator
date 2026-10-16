@@ -417,7 +417,11 @@ export default function ChatWorkspace() {
         ) : view === 'start' ? (
           <StartPage
             agents={availableAgents}
+            templates={library.catalog?.templates ?? []}
             onChooseAgent={newChat}
+            onUseTemplate={
+              config?.agent_creation ? createFromTemplate : undefined
+            }
             onTryAgent={() => setView('catalog')}
             onBuild={() =>
               setView(config?.agent_creation ? 'create' : 'library')

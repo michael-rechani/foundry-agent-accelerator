@@ -11,7 +11,14 @@ test('the Lab opens on Ask the Lab before any agent', async ({ page }) => {
   ).toBeVisible()
   const ask = page.getByRole('region', { name: 'Ask the Lab' })
   await expect(ask).toBeVisible()
-  await expect(ask.getByRole('button', { name: askWhich })).toBeVisible()
+  await expect(
+    ask.getByRole('textbox', { name: 'What are you trying to do?' }),
+  ).toBeVisible()
+  await expect(
+    page
+      .getByRole('region', { name: 'Common questions' })
+      .getByRole('button', { name: askWhich }),
+  ).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Message' })).toHaveCount(0)
   await expect(
     workspaceNav(page).getByRole('button', { name: 'Ask the Lab' }),
@@ -33,7 +40,7 @@ test('a question on the first page is answered without sending anything', async 
   page,
 }) => {
   const state = await openLibrary(page, { hash: '' })
-  const ask = page.getByRole('region', { name: 'Ask the Lab' })
+  const ask = page.getByRole('region', { name: 'Common questions' })
   await ask.getByRole('button', { name: askWhich }).click()
   await expect(
     ask.getByRole('heading', { level: 3, name: 'Agents you can use' }),
@@ -42,6 +49,44 @@ test('a question on the first page is answered without sending anything', async 
   await expect(ask.getByText('In use now')).toHaveCount(0)
   expect(state.chat).toHaveLength(0)
   expect(state.drafts).toBe(0)
+  expect(state.creations).toBe(0)
+})
+
+test('describing a job finds a ready agent and sends nothing', async ({
+  page,
+}) => {
+  const state = await openLibrary(page, { hash: '' })
+  const ask = page.getByRole('region', { name: 'Ask the Lab' })
+  await expect(ask).toContainText('does not use an AI model')
+  await ask
+    .getByRole('textbox', { name: 'What are you trying to do?' })
+    .fill('check a document against a checklist')
+  await ask.getByRole('button', { name: 'Find an agent' }).click()
+  await expect(
+    ask.getByRole('heading', { level: 3, name: /^Best matches for/ }),
+  ).toBeFocused()
+  await ask.getByRole('button', { name: /^Use / }).first().click()
+  await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible()
+  expect(state.chat).toHaveLength(0)
+  expect(state.creations).toBe(0)
+})
+
+test('a job nothing matches says so and offers a way forward', async ({
+  page,
+}) => {
+  const state = await openLibrary(page, { hash: '' })
+  const ask = page.getByRole('region', { name: 'Ask the Lab' })
+  await ask
+    .getByRole('textbox', { name: 'What are you trying to do?' })
+    .fill('zzzz qqqq')
+  await ask.getByRole('button', { name: 'Find an agent' }).click()
+  await expect(
+    ask.getByRole('heading', { level: 3, name: /^No match found/ }),
+  ).toBeVisible()
+  await ask.getByRole('button', { name: 'Create an agent' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Create an agent', exact: true }),
+  ).toBeVisible()
   expect(state.creations).toBe(0)
 })
 
