@@ -83,8 +83,8 @@ input into an enabled matching prebuilt agent or ready created
 
 | Source | Expected finding | Human follow-up |
 | --- | --- | --- |
-| Note 1 / Note 2 | Intake dates disagree: August 15 and August 17 | Find the authoritative record |
-| Note 1 / Note 2 | Both notes give August 22 as the follow-up date | Verify the appointment |
+| Note 1 / Note 2 | Intake dates disagree: March 1 and March 3 | Find the authoritative record |
+| Note 1 / Note 2 | Both notes give March 10 as the follow-up date | Verify the appointment |
 | Note 3 | Proof of address is still outstanding | Obtain the evidence and applicable policy |
 
 No policy is supplied, so the agent shouldn't infer an eligibility consequence,

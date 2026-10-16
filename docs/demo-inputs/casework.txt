@@ -1,9 +1,7 @@
-Summarize these client notes for the team. Show what the notes say, what's
-missing or conflicting, and suggest follow-up questions. Point to the note each
-fact comes from, and if the notes disagree, show both instead of picking one.
+Summarize these client notes for the team's handoff. Show what the notes say,
+what's missing or conflicting, and suggest follow-up questions. Point to the
+note each fact comes from. Don't decide eligibility or change any record.
 
-Note 1: Intake completed on 2026-08-15. Follow-up scheduled for 2026-08-22.
-Note 2: Intake completed on 2026-08-17. Follow-up scheduled for 2026-08-22.
-Note 3: Proof of address is still outstanding. No supporting document is supplied.
-
-We don't have a written policy for this. What does a person need to check next?
+Note 1 (intake form): Intake completed on 2027-03-01. Follow-up scheduled for 2027-03-10.
+Note 2 (caseworker log): Intake completed on 2027-03-03. Follow-up scheduled for 2027-03-10.
+Note 3 (document checklist): Proof of address hasn't come in yet. No document is attached.
