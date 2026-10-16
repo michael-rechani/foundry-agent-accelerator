@@ -321,7 +321,9 @@ know. The message names the file.
 depth; leaving it out makes the agent a **Preview**, which still works but isn't
 being developed further. The library shows the tag on cards and in the list, and
 people can filter by it. Today the focus agents are the Insurance pre-approval helper,
-the Medical bill reviewer and the Workflow coordinator. It is separate from
+the Medical bill reviewer and the Form field extractor (`document-intake`), which is
+meant to grow into the intake step that sorts an uploaded packet and routes it to the
+other two. It is separate from
 `readiness`, which only records whether a person signed off the test answers.
 
 1. Copy a similar file in `agents/`, rename it to the new id and edit it. Give it an

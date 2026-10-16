@@ -38,8 +38,7 @@
       "request",
       "service"
     ],
-    "readiness": "sample",
-    "availability": "focus"
+    "readiness": "sample"
   },
   "match": [
     "workflow|coordinate|coordinates|orchestration|integration|lookups"

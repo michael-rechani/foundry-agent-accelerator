@@ -28,7 +28,8 @@
       "invoice",
       "fields"
     ],
-    "readiness": "sample"
+    "readiness": "sample",
+    "availability": "focus"
   },
   "match": [
     "extract|extracts|extraction|invoice|invoices|intake|fields|forms"

@@ -543,9 +543,9 @@
         "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "availability": {
-        "id": "preview",
-        "label": "Preview",
-        "description": "Works with sample data, but isn't being built out yet. Expect fewer features and less polish than a focus agent."
+        "id": "focus",
+        "label": "Focus agent",
+        "description": "One of the agents the Lab is building out in depth, with the most test cases and features."
       },
       "tool_mode": {
         "id": "none",
@@ -1092,9 +1092,9 @@
         "description": "Its setup passes the Lab's validation, but a person hasn't signed off on its test answers yet. Try it with sample data, and check it against your own policies before real use."
       },
       "availability": {
-        "id": "focus",
-        "label": "Focus agent",
-        "description": "One of the agents the Lab is building out in depth, with the most test cases and features."
+        "id": "preview",
+        "label": "Preview",
+        "description": "Works with sample data, but isn't being built out yet. Expect fewer features and less polish than a focus agent."
       },
       "tool_mode": {
         "id": "simulated",
