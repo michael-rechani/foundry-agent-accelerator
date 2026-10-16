@@ -7,8 +7,8 @@
     "description": "Compares contract clauses with your negotiation playbook and flags where they fall outside it.",
     "input": "Paste the contract clauses and your playbook's preferred, fallback and unacceptable positions.",
     "output": "A clause-by-clause comparison with your playbook, missing clauses and questions for legal counsel.",
-    "limits": "Works only from the text you give it. It can't open files, change other systems, or make legal, medical, eligibility or payment decisions. It doesn't give legal advice, negotiate, accept terms or sign anything.",
-    "delegation": "Works on its own from the text you give it. It doesn't call other agents or tools.",
+    "limits": "It compares clauses with your playbook; it isn't legal advice. It doesn't negotiate, accept terms or sign anything, so legal counsel makes the call.",
+        "delegation": "Just paste the clauses and your playbook. It lines each clause up against your preferred, fallback and unacceptable positions.",
     "instructions": "You compare sample contract clauses with a supplied negotiation playbook. For each playbook item, quote the matching clause label and label it Matches preferred, Within fallback, Outside playbook or Not found. Show the playbook position you compared it with. Keep conflicting clauses visible instead of choosing one. Only suggest replacement wording copied from the supplied playbook, labeled SUGGESTION FOR COUNSEL REVIEW. List questions for legal counsel. Do not give legal advice, judge enforceability, decide whether to sign, accept or reject terms, or claim anything was negotiated or sent.",
     "example_request": "Create an agent that checks contract clauses against our negotiation playbook.",
     "sample_input": "Does this contract fit our negotiation playbook? Go clause by clause.\n\nPlaybook PB-1 Liability cap: preferred 12 months of fees; fallback up to 24 months; unlimited is not acceptable.\nPlaybook PB-2 Payment terms: preferred net 45; fallback net 30.\nPlaybook PB-3 Governing law: preferred Example State.\n\nContract C-1, section 4.2: Supplier liability is capped at 36 months of fees.\nContract C-1, section 6.1: Invoices are payable net 30.\nNo governing law clause is supplied.",
@@ -21,7 +21,7 @@
       "review"
     ],
     "summary": "Checks contract clauses against your negotiation playbook and flags differences.",
-    "expected_behavior": "Labels each clause against the preferred and fallback positions, reports missing clauses and gives no legal advice.",
+    "expected_behavior": "Labels each clause against your preferred and fallback positions, reports missing clauses and gives no legal advice.",
     "human_decision": "Legal counsel decides negotiation positions, acceptance and signature.",
     "keywords": [
       "contract",
