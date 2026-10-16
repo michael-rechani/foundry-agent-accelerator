@@ -8,7 +8,8 @@ import { workspaceNav } from './helpers/navigation'
 const askWhich = 'Which agent should I use or build?'
 const askHow = 'How is an agent built, and what can I add?'
 
-const guide = (page: Page) => page.getByRole('region', { name: 'Ask the Lab' })
+const guide = (page: Page) =>
+  page.getByRole('region', { name: 'Common questions' })
 
 // The guide lives on the Start here page, not in Chat.
 async function openGuide(
