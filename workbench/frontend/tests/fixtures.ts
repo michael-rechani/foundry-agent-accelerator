@@ -29,8 +29,6 @@ export async function docsScreenshot(
   testInfo: TestInfo,
   filename: string,
 ) {
-  if (testInfo.project.name !== 'desktop')
-    return screenshot(page, testInfo, filename)
   const hood = page.getByRole('switch', { name: /Under the hood/ })
   const wasOn = await hood.isChecked()
   if (wasOn) await hood.uncheck()

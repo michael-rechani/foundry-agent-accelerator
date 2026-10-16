@@ -223,7 +223,7 @@ for (const look of ['aurora', 'console'] as const) {
   })
 }
 
-test('the Console look keeps the phone tab strip as Classic has it and styles the wide sidebar buttons', async ({
+test('the Console look styles the sidebar buttons', async ({
   page,
 }) => {
   await seedAppearance(page.context(), {
@@ -232,8 +232,7 @@ test('the Console look keeps the phone tab strip as Classic has it and styles th
     look: 'console',
   })
   await openCreation(page)
-  const phone = page.viewportSize()!.width <= 650
-  const { classic, current, mono } = await page.evaluate(() => {
+  const { current, mono } = await page.evaluate(() => {
     const root = document.documentElement
     const first = document.querySelector('.chat-sidebar nav button')!
     const measure = (look: string) => {
@@ -246,30 +245,25 @@ test('the Console look keeps the phone tab strip as Classic has it and styles th
         lineHeight: style.lineHeight,
         padding: style.padding,
         minHeight: style.minHeight,
-        width: style.width,
-        height: style.height,
       }
     }
-    const classic = measure('classic')
     const current = measure('console')
     const probe = document.createElement('i')
     probe.style.fontFamily = 'var(--mono)'
     document.body.append(probe)
     const mono = getComputedStyle(probe).fontFamily
     probe.remove()
-    return { classic, current, mono }
+    return { current, mono }
   })
 
-  if (phone) expect(current).toEqual(classic)
-  else
-    expect(current).toMatchObject({
-      family: mono,
-      weight: '500',
-      size: '12.5px',
-      lineHeight: '17.5px',
-      padding: '8px 12px',
-      minHeight: '36px',
-    })
+  expect(current).toMatchObject({
+    family: mono,
+    weight: '500',
+    size: '12.5px',
+    lineHeight: '17.5px',
+    padding: '8px 12px',
+    minHeight: '36px',
+  })
 })
 
 test('template cards stay legible in dark mode for every accent', async ({

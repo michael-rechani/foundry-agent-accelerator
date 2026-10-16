@@ -112,11 +112,7 @@ test('a library preview offers to create that agent and opens Create with it cho
 
 test('on a wide screen the side column offers to create a previewed agent', async ({
   page,
-}, testInfo) => {
-  test.skip(
-    testInfo.project.name === 'mobile',
-    'The side column needs a wide window',
-  )
+}) => {
   const state = await openLibrary(page, { libraryPreview: true })
   await openAgent(page, support.label)
   await page.getByRole('button', { name: 'Try it in Chat' }).click()

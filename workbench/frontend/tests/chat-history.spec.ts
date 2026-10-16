@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
-import { agent, openSteps, openWorkspace, send } from './helpers/chat-lab'
-import { expectFitsViewport } from './helpers/layout'
+import { openSteps, openWorkspace, send } from './helpers/chat-lab'
 import { workspaceNav } from './helpers/navigation'
 
 test('shared lab details are available on demand across workspace views', async ({
@@ -50,45 +49,6 @@ test('shared lab details are available on demand across workspace views', async 
       await expect(notice).toBeVisible()
     }
   }
-})
-
-test('shared lab details fit narrow screens and close with Escape', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 320, height: 720 })
-  await openWorkspace(page, {
-    config: {
-      agents: [
-        {
-          ...agent,
-          label: 'Customer application and supporting evidence review',
-        },
-      ],
-    },
-  })
-  await expectFitsViewport(page)
-  await expect(
-    page.getByRole('complementary', { name: 'Lab data boundary' }),
-  ).toHaveCount(0)
-  await expect(
-    page.getByRole('button', {
-      name: 'Customer application and supporting evidence review',
-    }),
-  ).toBeInViewport()
-  const control = page.getByTitle('About this shared lab', { exact: true })
-  const notice = page.getByRole('complementary', { name: 'Shared lab details' })
-  await control.focus()
-  await control.press('Enter')
-  await expect(notice).toBeInViewport()
-  expect(
-    await notice.evaluate((element) => {
-      const { left, right } = element.getBoundingClientRect()
-      return left >= 0 && right <= innerWidth
-    }),
-  ).toBe(true)
-  await control.press('Escape')
-  await expect(notice).toBeHidden()
-  await expect(control).toBeFocused()
 })
 
 test('disconnected preview does not claim connected shared storage', async ({

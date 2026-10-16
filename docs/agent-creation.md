@@ -421,7 +421,7 @@ ContainerAppConsoleLogs
 Offline tests cover drafts, model choice for each template, strict inputs,
 operator/origin checks, idempotency, single-flight/quota behavior,
 persistence-before-mutation, restart recovery, owned routing/deletion, SDK
-model/ZIP contracts, created-agent chat/history, and desktop/mobile UI flows.
+model/ZIP contracts, created-agent chat/history, and desktop UI flows.
 Continuous integration (CI) includes the runtime and API checks.
 
 Those tests don't prove live Azure permissions, private connectivity,

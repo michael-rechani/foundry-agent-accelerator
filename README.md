@@ -470,7 +470,7 @@ includes every guide and a glossary.
 ## Automated checks
 
 On every pull request and push to `main`, GitHub Actions tests the Python,
-TypeScript, and Terraform code, including browser tests at desktop and mobile
+TypeScript, and Terraform code, including browser tests at desktop
 sizes. A docs check rebuilds every diagram from its template and fails if the
 committed SVGs differ, then checks that every relative link, image, and heading
 anchor in the Markdown resolves.

@@ -4,7 +4,7 @@
 
 Rebuild steps for the architecture diagrams, Lab screenshots, and README tour
 live here. The templates, generated SVGs, and Azure icons belong together, so
-update them together and keep the images readable at README width and on mobile.
+update them together and keep the images readable at README width.
 
 ## At a glance
 
@@ -314,7 +314,7 @@ desktop tests and refresh just the affected light/dark pairs:
 Use `-TestResultsDirectory` for an isolated test copy. The script rebuilds both
 tours from the selected new frames plus unchanged committed frames; unchanged
 scenario artwork should stay byte-identical. Don't crop the screenshots or
-substitute mobile ones. The review findings images remain separate from
+substitute narrower ones. The review findings images remain separate from
 the pre-save form so the walkthrough still shows both stages.
 
 ## README tour
@@ -367,7 +367,7 @@ README alt text describes the full sequence.
 
 ## Visual review checklist
 
-- Check each image at README width and on mobile.
+- Check each image at README width.
 - Check every diagram in both GitHub themes. Render the light and `-dark` SVGs
   and confirm that text, arrows, notes, icons, and card edges stay visible in
   each.

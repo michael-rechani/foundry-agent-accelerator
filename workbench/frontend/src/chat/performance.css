@@ -110,14 +110,3 @@
 .log-reference code {
   font: 11px var(--mono);
 }
-@media (max-width: 650px) {
-  .metric-strip-4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .metric-strip-4 > div:nth-child(3) {
-    padding-left: 0;
-  }
-  .metric-strip-4 > div:nth-child(2) {
-    border-right: 0;
-  }
-}

@@ -1268,24 +1268,6 @@
     display: none;
   }
 }
-@media (max-width: 650px) {
-  .library-hero h1 {
-    font-size: 22px;
-  }
-  .library-columns,
-  .library-facts {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .library-tabs {
-    gap: 0;
-  }
-  .library-tabs button {
-    padding: 10px 9px;
-  }
-  .library-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 @media (prefers-reduced-motion: reduce) {
   .library-card,
   .library-start-card {

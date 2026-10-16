@@ -325,11 +325,7 @@ test('the filter panel does not scroll when the window is tall enough', async ({
 
 test('in a half-width window each filter list is only as tall as its rows', async ({
   page,
-}, testInfo) => {
-  test.skip(
-    testInfo.project.name === 'mobile',
-    'This checks a narrow desktop window',
-  )
+}) => {
   await page.setViewportSize({ width: 1028, height: 952 })
   await openLibrary(page)
   const list = (legend: string) =>
@@ -349,11 +345,7 @@ test('in a half-width window each filter list is only as tall as its rows', asyn
 
 test('the steps under the heading wrap two by two in a narrow window', async ({
   page,
-}, testInfo) => {
-  test.skip(
-    testInfo.project.name === 'mobile',
-    'This checks a narrow desktop window',
-  )
+}) => {
   await page.setViewportSize({ width: 900, height: 900 })
   await openLibrary(page)
   const steps = page.locator('.library-path li')

@@ -280,5 +280,5 @@ jobs:
       - run: npm --prefix workbench/frontend run test:unit
       - name: Install browser and system dependencies
         run: npm --prefix workbench/frontend exec -- playwright install --with-deps chromium
-      - name: Build and test desktop and mobile workflows
+      - name: Build and test desktop workflows
         run: npm --prefix workbench/frontend test
