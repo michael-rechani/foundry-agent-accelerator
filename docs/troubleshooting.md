@@ -24,7 +24,7 @@ results from a live deployment.
 
 ## Tools and dependencies
 
-Check the [toolchain baseline](../README.md#tool-versions-and-upgrades) before
+Check the [toolchain baseline](tool-versions.md) before
 changing configuration or credentials.
 
 | Symptom | Check | Safe next step |

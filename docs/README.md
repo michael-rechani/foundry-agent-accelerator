@@ -35,6 +35,7 @@ For operators who deploy Azure resources and keep the environment running.
 | [Lab diagnostics, alerts, and caching](lab-diagnostics.md) | Check session reuse, request and dependency logs, budget alerts, and browser caching. |
 | [Hosted agents](../hosted-agents/README.md) | Publish, test, and roll back the prebuilt agents. |
 | [Private deployment runbook](private-deployment.md) | Publish agent updates from a separate machine inside the private network. |
+| [Tool versions and upgrades](tool-versions.md) | Check the Terraform, Python, Node.js, and other tool versions the repository expects, and upgrade safely. |
 | [Credentials and protected state](credentials.md) | Keep credentials in Key Vault, scan every commit, and protect Terraform state. |
 | [Permissions reference](permissions.md) | See which roles Terraform assigns to which identities, and which permissions you grant yourself. |
 | [Troubleshooting](troubleshooting.md) | Go from a symptom to the guide section that covers it. |

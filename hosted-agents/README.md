@@ -2,14 +2,12 @@
 
 [Home](../README.md) / Hosted agents
 
-These are the repository's prebuilt agents, along with the steps to publish and
-validate them in Microsoft Foundry. The guide is for developers and operators
-who publish hosted-agent versions, test routes, and recover when a promotion
-fails.
+The repository's prebuilt agents, with the steps to publish and validate them
+in Microsoft Foundry. It's for developers and operators who publish
+hosted-agent versions, test routes, and recover from a failed promotion.
 
-Engagements focus on demonstration and technical validation. Integration with
-customer systems and production deployment require separate scoping and
-agreement.
+This is for demonstration and technical validation. Customer-system
+integration and production deployment need separate scoping and agreement.
 
 ## At a glance
 
@@ -21,9 +19,8 @@ agreement.
 | Primary roles | Developers change agent code and publish versions. Operators confirm Azure resources, permissions, and private access. |
 | Main dependencies | `FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_MODEL_NAME`, `DefaultAzureCredential`, and a routed model deployment. |
 
-Hosted agents run custom containerized code in per-session, VM-isolated
-sandboxes managed by Foundry Agent Service. Foundry manages the endpoint, agent
-identity, scaling, session storage, observability, and version lifecycle.
+Foundry manages the endpoint, agent identity, scaling, session storage,
+observability, and version lifecycle.
 
 ## In this guide
 

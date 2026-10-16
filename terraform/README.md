@@ -2,31 +2,27 @@
 
 [Home](../README.md) / Infrastructure
 
-This directory holds the platform infrastructure for the Microsoft Foundry
-hosted agent samples. The `terraform/` root deploys Foundry and its shared
-private services. The Lab, Azure Bastion, and agent monitoring each deploy from
-their own Terraform roots, with their own protected state files.
+The platform infrastructure for the Microsoft Foundry hosted agent samples. The
+`terraform/` root deploys Foundry and its shared private services. The Lab,
+Azure Bastion, and agent monitoring each deploy from their own Terraform roots,
+with their own protected state files.
 
-The platform root uses the Azure Verified Modules (AVM)
-[`Azure/avm-ptn-aiml-ai-foundry/azurerm`](https://registry.terraform.io/modules/Azure/avm-ptn-aiml-ai-foundry/azurerm/latest)
-pattern module. The module deploys the Foundry account, Foundry project, model
-deployment, Agent Service capability host, and the supporting services needed
-by the standard Agent Service setup.
+- **Platform root:** the Azure Verified Modules (AVM)
+  [`Azure/avm-ptn-aiml-ai-foundry/azurerm`](https://registry.terraform.io/modules/Azure/avm-ptn-aiml-ai-foundry/azurerm/latest)
+  pattern module deploys the Foundry account and project, model deployment,
+  Agent Service capability host, and the supporting services the standard Agent
+  Service setup needs.
+- **Optional gateway:** the AVM
+  [`Azure/avm-res-apimanagement-service/azurerm`](https://registry.terraform.io/modules/Azure/avm-res-apimanagement-service/azurerm/latest)
+  module, pinned to 0.9.0.
+- **Names:** the account is
+  `foundry-hosted-agents-<base>-<environment>-<unique>`, and the project is
+  `hosted-agents-<environment>`.
 
-The optional client gateway uses the AVM
-[`Azure/avm-res-apimanagement-service/azurerm`](https://registry.terraform.io/modules/Azure/avm-res-apimanagement-service/azurerm/latest)
-resource module pinned to version 0.9.0.
-
-The default names say what each resource is for. The account uses
-`foundry-hosted-agents-<base>-<environment>-<unique>`, and the project uses
-`hosted-agents-<environment>`.
-
-For how this setup relates to Microsoft's baseline and landing-zone designs, see
-the [Terraform-first architecture guide](../docs/architecture-assessment.md#terraform-first-deployment).
-The design separates platform infrastructure from the Lab stack, existing shared
-services, and application or agent releases. The official baseline chat sample
-uses Bicep. This repository keeps its existing Terraform implementation instead
-of deploying a second foundation.
+For how this relates to Microsoft's baseline and landing-zone designs, see the
+[Terraform-first architecture guide](../docs/architecture-assessment.md#terraform-first-deployment).
+The official baseline chat sample uses Bicep. This repository keeps its
+Terraform implementation instead of deploying a second foundation.
 
 ## At a glance
 
@@ -85,7 +81,7 @@ Follow this order for a new environment:
 
 ## Prerequisites
 
-See [tool versions and upgrades](../README.md#tool-versions-and-upgrades) for
+See [tool versions and upgrades](../docs/tool-versions.md) for
 version checks, lockfile expectations, and installation troubleshooting.
 
 - Terraform 1.16.4 or a later 1.16 patch release.
