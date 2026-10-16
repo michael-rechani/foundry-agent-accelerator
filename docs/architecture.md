@@ -12,8 +12,10 @@ extend or operate the sample.
 > [!NOTE]
 > The diagrams describe the implemented sample. Optional browser ingress through
 > Application Gateway Web Application Firewall (WAF) v2 or Front Door Premium
-> with Private Link is documented in the [application ingress guide](ingress-access.md),
-> but those gateways are not deployed by default.
+> with Private Link is documented in the [application ingress guide](ingress-access.md).
+> Front Door has optional, off-by-default Terraform in the Lab root and appears in the
+> Azure architecture diagram as an optional route. This repository doesn't deploy
+> Application Gateway.
 
 ## Components at a glance
 
@@ -25,6 +27,7 @@ extend or operate the sample.
 | Azure Cosmos DB | Stores Lab-owned conversations, review drafts, review results, and created-agent metadata in a dedicated `workbench` database and `conversations` container. | Foundry-owned data is separate. Saved Lab records expire through a 30-day time to live (TTL). |
 | Private network | Uses workload and management virtual networks, private endpoints, private DNS, and an approved source subnet. | Managed services are reached through private endpoints. Diagram boxes don't place those services inside a virtual network. |
 | Jumpbox and Bastion | The optional Windows jumpbox is reached through the separately managed Standard Azure Bastion host. | The jumpbox is optional platform Terraform. The separate Bastion root and state manage the Standard Bastion host. The jumpbox's outbound public IP and administrator account, and Bastion's public IP, each need their own `approve_*` input. |
+| Optional Front Door | Puts a public, WAF-filtered Front Door Premium endpoint in front of the Lab, limited to your own IP, when `enable_front_door` is set in the Lab root (`workbench/infra/`). Traffic reaches the internal Container Apps environment over Front Door-managed Private Link. | Off by default. The endpoint name is publicly resolvable, so it also needs `approve_public_front_door = true`. See the [application ingress guide](ingress-access.md#draft-front-door-limited-to-your-own-ip). |
 | Optional APIM gateway | Publishes a governed `POST /reviews/responses` target when `enable_api_management` and `review_api` are configured. | APIM is disabled by default. Outbound virtual network integration doesn't make the gateway private, so enabling it also needs `approve_public_api_management = true`. |
 | Monitoring | Platform and Lab logs use private Log Analytics paths. The monitoring root can connect a dedicated Application Insights resource for agent traces. | Logs contain request metadata, not prompts or transcripts. The project telemetry connection is opt-in. |
 
