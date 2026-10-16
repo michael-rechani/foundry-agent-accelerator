@@ -5,6 +5,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $sources = [ordered]@{
+    'lab-start.png' = 'start-page.png'
+    'lab-start-dark.png' = 'start-page-dark.png'
     'lab-library.png' = 'library-browse.png'
     'lab-library-dark.png' = 'library-browse-dark.png'
     'lab-test-results.png' = 'library-test-results.png'
