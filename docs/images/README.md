@@ -274,7 +274,7 @@ light and dark mode. To capture another look, change the `data-look` value in
 
 | Screenshot | Shows | Test output | Used in |
 | --- | --- | --- | --- |
-| [lab-start.png](screenshots/lab-start.png) / [dark](screenshots/lab-start-dark.png) | The first page, **Ask the Lab**: the welcome, a guide question already answered, and the **Try an agent** and **Build your own** next steps | `start-page.png` / `start-page-dark.png` | [README tour](#readme-tour), [Lab guide](../lab-pages-and-access.md#pages) |
+| [lab-start.png](screenshots/lab-start.png) / [dark](screenshots/lab-start-dark.png) | The first page, **Ask the Lab**: the welcome, the "What are you trying to do?" finder with a match, and the **Try an agent** and **Build your own** next steps | `start-page.png` / `start-page-dark.png` | [README tour](#readme-tour), [Lab guide](../lab-pages-and-access.md#pages) |
 | [lab-library.png](screenshots/lab-library.png) / [dark](screenshots/lab-library-dark.png) | The **Agent library** on **Browse**: the **Start here** examples, the filters, and the first agent cards | `library-browse.png` / `library-browse-dark.png` | [README tour](#readme-tour) |
 | [lab-test-results.png](screenshots/lab-test-results.png) / [dark](screenshots/lab-test-results-dark.png) | The **Test results** tab of the Supplier invoice reviewer: answers passed, typical response, model cost per answer, and **Waiting for a person** | `library-test-results.png` / `library-test-results-dark.png` | README tour |
 | [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide, example tasks, the **Ask the Lab** questions, and inline shared-data notice | `demo-starters.png` | README tour, [demo guide](../demos.md#a-short-demonstration) |

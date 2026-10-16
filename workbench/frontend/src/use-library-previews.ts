@@ -14,7 +14,8 @@ const previewReasons: Record<string, string> = {
 export function useLibraryPreviews(config: Config | null, view: View) {
   const previewCapability = config?.library_preview
   const library = useLibraryCatalog(
-    !!config && (view === 'library' || !!previewCapability?.enabled),
+    !!config &&
+      (view === 'library' || view === 'start' || !!previewCapability?.enabled),
   )
   const previewList = previewCapability?.enabled
     ? previewAgents(library.catalog, previewCapability.agent)

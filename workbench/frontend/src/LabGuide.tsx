@@ -137,12 +137,14 @@ export function LabGuide({
   onChooseAgent,
   onAddOns,
   onCreateAgent,
+  title = 'Ask the Lab',
 }: {
   agents: Agent[]
   current?: Agent
   onChooseAgent: (id: string) => void
   onAddOns: () => void
   onCreateAgent?: () => void
+  title?: string
 }) {
   const [topic, setTopic] = useState<Topic | null>(null)
   const answer = useRef<HTMLHeadingElement>(null)
@@ -153,7 +155,7 @@ export function LabGuide({
   return (
     <section className="lab-guide" aria-labelledby="lab-guide-title">
       <h2 id="lab-guide-title">
-        <MessageCircleQuestion size={14} aria-hidden="true" /> Ask the Lab
+        <MessageCircleQuestion size={14} aria-hidden="true" /> {title}
       </h2>
       <div className="lab-guide-questions">
         {topics.map((item) => (

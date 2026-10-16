@@ -57,12 +57,13 @@ for (const mode of ['light', 'dark'] as const)
     ).toBeVisible()
     const ask = page.getByRole('region', { name: 'Ask the Lab' })
     await ask
-      .getByRole('button', { name: 'Which agent should I use or build?' })
-      .click()
+      .getByRole('textbox', { name: 'What are you trying to do?' })
+      .fill('check a document against a checklist')
+    await ask.getByRole('button', { name: 'Find an agent' }).click()
     await expect(
-      ask.getByRole('heading', { level: 3, name: 'Agents you can use' }),
+      ask.getByRole('heading', { level: 3, name: /^Best matches for/ }),
     ).toBeFocused()
-    await expect(ask).toContainText('Nothing is sent or saved.')
+    await expect(ask).toContainText('does not use an AI model')
     await docsScreenshot(
       page,
       testInfo,
