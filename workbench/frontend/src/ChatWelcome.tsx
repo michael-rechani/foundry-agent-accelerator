@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { ArrowRight, Check, CircleDashed } from 'lucide-react'
 import { AgentGuide } from './AgentGuide'
 import { agentKind, inProgressNote, previewBlurb } from './library-helpers'
-import { LabGuide } from './LabGuide'
 import type { Agent, Config } from './workspace-config'
 
 // What is in the message box: nothing, an example the app put there, or the
@@ -15,6 +14,7 @@ const outcome = (text: string) => {
   return flat.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? flat
 }
 
+// One short line. Once the person types, the message box speaks for itself.
 function welcomeHint(preview: boolean, draftMode: DraftMode) {
   if (preview)
     return draftMode === 'empty'
@@ -22,11 +22,9 @@ function welcomeHint(preview: boolean, draftMode: DraftMode) {
       : draftMode === 'example'
         ? 'Local preview: your example is in the message box. Pick another to replace it. No model calls or saved records.'
         : 'Local preview. No model calls or saved records.'
-  return draftMode === 'empty'
-    ? 'Pick an example to fill the message box, or type your own. Nothing is sent until you press Send.'
-    : draftMode === 'example'
-      ? 'Your example is in the message box below. Edit it, or pick another to replace it. Nothing is sent until you press Send.'
-      : 'Nothing is sent until you press Send.'
+  return draftMode === 'example'
+    ? 'Your example is in the message box below. Edit it or press Send, or pick another to replace it.'
+    : ''
 }
 
 export function ChatWelcome({
@@ -36,10 +34,6 @@ export function ChatWelcome({
   inProgress = false,
   draftMode,
   onPrompt,
-  onCreateAgent,
-  agents,
-  onChooseAgent,
-  onAddOns,
 }: {
   agent?: Agent
   config: Config | null
@@ -47,11 +41,8 @@ export function ChatWelcome({
   inProgress?: boolean
   draftMode: DraftMode
   onPrompt: (text: string) => void
-  onCreateAgent?: () => void
-  agents?: Agent[]
-  onChooseAgent?: (id: string) => void
-  onAddOns?: () => void
 }) {
+  const hint = agent ? welcomeHint(config?.mode === 'preview', draftMode) : ''
   const [chosen, setChosen] = useState<string>()
   return (
     <div className="chat-welcome">
@@ -111,30 +102,7 @@ export function ChatWelcome({
           </div>
         </>
       )}
-      {agent && (
-        <p className="welcome-hint">
-          {welcomeHint(config?.mode === 'preview', draftMode)}
-        </p>
-      )}
-      {agent && onCreateAgent && (
-        <p className="welcome-hint welcome-create">
-          Need something else?{' '}
-          <button type="button" className="inline-link" onClick={onCreateAgent}>
-            Create an agent
-          </button>{' '}
-          from a template.
-        </p>
-      )}
-      {agent && agents && onChooseAgent && onAddOns && (
-        <LabGuide
-          key={agent.id}
-          agents={agents}
-          current={agent}
-          onChooseAgent={onChooseAgent}
-          onAddOns={onAddOns}
-          onCreateAgent={onCreateAgent}
-        />
-      )}
+      {hint && <p className="welcome-hint">{hint}</p>}
     </div>
   )
 }

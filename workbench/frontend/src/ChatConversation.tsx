@@ -30,7 +30,6 @@ export function ChatConversation({
   saveNote,
   onFreshDemo,
   onCopy,
-  onCreateAgent,
   onSubmit,
   onStop,
   onContinue,
@@ -38,9 +37,6 @@ export function ChatConversation({
   onSave,
   onExport,
   onCreateThis,
-  agents,
-  onChooseAgent,
-  onAddOns,
 }: {
   config: Config | null
   agent?: Agent
@@ -61,7 +57,6 @@ export function ChatConversation({
   saveNote?: string
   onFreshDemo: (scenario: DemoScenario) => void
   onCopy: (text: string, done?: string) => void
-  onCreateAgent?: () => void
   onSubmit: () => void
   onStop: () => void
   onContinue: () => void
@@ -69,9 +64,6 @@ export function ChatConversation({
   onSave: () => void
   onExport: () => void
   onCreateThis?: () => void
-  agents: Agent[]
-  onChooseAgent: (id: string) => void
-  onAddOns: () => void
 }) {
   const {
     draft,
@@ -130,10 +122,6 @@ export function ChatConversation({
             setActiveDemo(null)
             editor.current?.focus()
           }}
-          onCreateAgent={onCreateAgent}
-          agents={agents}
-          onChooseAgent={onChooseAgent}
-          onAddOns={onAddOns}
           onCopy={onCopy}
           onRetry={
             agent &&

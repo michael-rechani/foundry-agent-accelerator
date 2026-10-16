@@ -31,13 +31,9 @@ export function ChatMessages({
   onFreshDemo,
   onCloseDemo,
   onPrompt,
-  onCreateAgent,
   onCopy,
   onDismissError,
   onRetry,
-  agents,
-  onChooseAgent,
-  onAddOns,
 }: {
   config: Config | null
   agent?: Agent
@@ -57,13 +53,9 @@ export function ChatMessages({
   onFreshDemo: (scenario: DemoScenario) => void
   onCloseDemo: () => void
   onPrompt: (text: string) => void
-  onCreateAgent?: () => void
   onCopy: (text: string, done?: string) => void
   onDismissError: () => void
   onRetry?: () => void
-  agents: Agent[]
-  onChooseAgent: (id: string) => void
-  onAddOns: () => void
 }) {
   return (
     <div className="conversation-scroll" aria-label="Conversation">
@@ -85,10 +77,6 @@ export function ChatMessages({
             inProgress={inProgress}
             draftMode={draftMode}
             onPrompt={onPrompt}
-            onCreateAgent={onCreateAgent}
-            agents={agents}
-            onChooseAgent={onChooseAgent}
-            onAddOns={onAddOns}
           />
         )
       ) : (

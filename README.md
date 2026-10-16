@@ -152,17 +152,21 @@ configuration, not Azure permissions.*
 The core platform runs in one subscription on private networks. Services sign
 in with managed identities, not API keys.
 
-Three optional pieces add something public: the Bastion host's static public
-IP, the jump box's outbound IP, and the Azure API Management gateway. Each is
-off by default and needs its own `approve_*` Terraform input. Read the
+Four optional pieces add something public: the Bastion host's static public
+IP, the jump box's outbound IP, the Azure API Management gateway, and the
+Azure Front Door endpoint. Each is off by default and needs its own `approve_*`
+Terraform input. Read the
 [Terraform guide](terraform/README.md) before you turn one on.
 
-<img alt="Azure architecture at a glance: one subscription and resource group hold an admin network, a private workload network, Microsoft Foundry, data services, and shared services. The admin network holds optional Azure Bastion and an optional jumpbox and is peered with the workload network. The workload network holds the Lab in an internal Azure Container Apps environment, the agent network delegated to Foundry, and one private endpoint for each service. Seven numbered steps follow a request from the presenter through Bastion, the jumpbox, and the Lab to Foundry Agent Service and Foundry Models, then through the agent network to Azure Cosmos DB, Azure Storage, and Azure AI Search" src="docs/images/azure-architecture-dark.svg">
+<img alt="Azure architecture at a glance: one subscription and resource group hold an admin network, a private workload network, Microsoft Foundry, data services, and shared services. The admin network holds optional Azure Bastion and an optional jumpbox and is peered with the workload network. The workload network holds the Lab in an internal Azure Container Apps environment, the agent network delegated to Foundry, and one private endpoint for each service. An optional Azure Front Door Premium, limited to allowed client addresses, reaches the Lab through Private Link. Seven numbered steps follow a request from the presenter through Bastion, the jumpbox, and the Lab to Foundry Agent Service and Foundry Models, then through the agent network to Azure Cosmos DB, Azure Storage, and Azure AI Search" src="docs/images/azure-architecture-dark.svg">
 
 1. A presenter opens Azure Bastion from the Azure portal.
 2. Bastion opens a remote desktop session to the private jumpbox.
 3. The jumpbox browser opens the Lab across the network peering. The Lab
-   accepts traffic only from the jumpbox subnet.
+   accepts traffic only from the jumpbox subnet, plus Front Door if you turn
+   it on. Front Door is the optional top route in the diagram: an allowed
+   client reaches its WAF-filtered endpoint, and Private Link carries the
+   request to the Lab. [Setup](docs/ingress-access.md#draft-front-door-limited-to-your-own-ip)
 4. The Lab calls Foundry Agent Service through the Foundry private endpoint,
    signing in with its managed identity.
 5. The agents run on a Foundry Models deployment, GPT-4.1 by default.
@@ -172,7 +176,7 @@ off by default and needs its own `approve_*` Terraform input. Read the
 7. The Lab saves its records in Cosmos DB through the same private endpoint.
 
 *A logical view with Terraform default addresses, not a resource inventory.
-Bastion and the jumpbox are optional, and API Management isn't shown.*
+Bastion, the jumpbox, and Front Door are optional, and API Management isn't shown.*
 
 [Full size](docs/images/azure-architecture-dark.svg) ·
 [SVG template](docs/images/azure-architecture.template.svg) ·
@@ -271,7 +275,8 @@ To deploy from a separate private machine, use the
   sign-off. See [agent library scorecards](docs/library-scorecards.md).
 - **Access is by network, not by user.** The Lab has no sign-in. It accepts
   traffic only from the private admin network, such as the jumpbox reached
-  through Azure Bastion, and everyone with that access shares the same saved
+  through Azure Bastion, or from the optional IP-limited Front Door, and
+  everyone with that access shares the same saved
   records. See the
   [production checklist](terraform/README.md#separately-scoped-production-considerations).
 

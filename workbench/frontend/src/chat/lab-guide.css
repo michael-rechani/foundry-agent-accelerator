@@ -1,9 +1,4 @@
-/* "Ask the Lab": two questions on the welcome screen with written answers. */
-.chat-welcome .lab-guide {
-  width: 100%;
-  margin-top: 22px;
-  text-align: left;
-}
+/* "Ask the Lab" questions and written answers. Shown on the Start here page. */
 .lab-guide h2 {
   display: flex;
   align-items: center;
@@ -46,15 +41,6 @@
   gap: 10px;
   margin-top: 12px;
 }
-.chat-welcome .lab-guide-bubble {
-  justify-self: end;
-  max-width: 85%;
-  padding: 8px 12px;
-  border-radius: 12px 12px 2px 12px;
-  background: var(--accent-soft);
-  color: var(--text);
-  font-weight: 600;
-}
 .lab-guide-answer {
   padding: 14px 16px;
   border: 1px solid var(--line);
@@ -77,12 +63,6 @@
   font-weight: 700;
   text-transform: none;
   color: var(--text-secondary);
-}
-.chat-welcome .lab-guide-answer p {
-  margin-top: 8px;
-}
-.chat-welcome .lab-guide-answer h3 + p {
-  margin-top: 0;
 }
 .lab-guide-answer ul {
   display: grid;
@@ -141,8 +121,4 @@
   color: var(--neutral-fg);
   font-size: 11px;
   font-weight: 650;
-}
-.chat-welcome .lab-guide-note {
-  margin-top: 12px;
-  font-size: 11px;
 }
