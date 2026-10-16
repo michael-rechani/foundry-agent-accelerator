@@ -27,8 +27,10 @@ export function StartPage({
         <p className="library-eyebrow">Start here</p>
         <h1>Welcome to the Lab</h1>
         <p>
-          Not sure where to begin? Ask the Lab first. When you are ready, try
-          one of the agents that are already working, or build your own.
+          Not sure where to begin? Pick one of the two questions below for a
+          quick answer. It is not a chat, so there is nothing to type. When you
+          are ready, try one of the agents that are already working, or build
+          your own.
         </p>
       </header>
       <LabGuide
