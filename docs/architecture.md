@@ -33,7 +33,10 @@ extend or operate the sample.
 
 For every Azure service and private endpoint on one page, with numbered
 request steps, see
-[Azure architecture at a glance](images/azure-architecture-dark.svg).
+[Azure architecture at a glance](images/azure-architecture-dark.svg). For how
+presenters, employees, and customers can reach the Lab, including the optional
+Front Door and Application Gateway paths, see
+[How people reach the Lab](images/lab-access-paths-dark.svg).
 
 ## In this guide
 
