@@ -2,6 +2,24 @@ import type { Turn } from './conversation-types'
 import { saveFile } from './save-file'
 import type { Agent, Config } from './workspace-config'
 
+// Where this conversation stands against shared history, in a few words.
+export function saveStateText({
+  isPreview,
+  saved,
+  dirty,
+  draft,
+}: {
+  isPreview: boolean
+  saved: boolean
+  dirty: boolean
+  draft: string
+}) {
+  if (isPreview) return 'Preview · not saved'
+  if (!saved) return 'Not saved'
+  if (dirty) return 'Unsaved changes'
+  return draft ? 'Draft not saved' : 'Saved / shared'
+}
+
 // What a request would weigh, against the limits the Lab reports.
 export function chatLimits({
   config,

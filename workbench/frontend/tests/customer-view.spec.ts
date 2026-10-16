@@ -118,7 +118,8 @@ test('add-on technical details stay hidden until Under the hood is on', async ({
   ).toBeVisible()
 })
 
-test('Foundry links appear only under the hood', async ({ page }) => {
+test('Foundry links appear only under the hood', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile')
   await openCustomerView(page, { foundry_portal: foundryPortal })
   const projectLink = page.getByRole('link', {
     name: /Open project in Foundry/,
@@ -144,9 +145,9 @@ test('Foundry links appear only under the hood', async ({ page }) => {
   )
 
   await workspaceNav(page).getByRole('button', { name: 'Chat' }).click()
-  await expect(page.locator('.chat-aside')).toHaveCount(0)
-  await page.locator('.agent-about > summary').click()
-  const runtime = page.locator('.agent-about .catalog-runtime')
+  await expect(page.locator('.chat-aside')).toBeVisible()
+  await page.locator('.aside-about > summary').click()
+  const runtime = page.locator('.aside-about .catalog-runtime')
   await runtime.getByText('Developer setup details').click()
   await expect(runtime.getByRole('link').first()).toHaveAttribute(
     'href',

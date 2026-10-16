@@ -2,13 +2,14 @@ import type { RefObject } from 'react'
 import { ChatAside } from './ChatAside'
 import { ChatComposer } from './ChatComposer'
 import { ChatMessages } from './ChatMessages'
-import type { chatLimits } from './chat-helpers'
+import { saveStateText, type chatLimits } from './chat-helpers'
 import type { DemoScenario } from './demo-scenarios'
 import type { Conversation } from './use-conversation'
 import type { Agent, Config } from './workspace-config'
 
 // The chat page: the conversation and its message box in the middle, and on
-// wide screens the agent's details beside them.
+// wide screens the agent's details beside them from the first screen on, so the
+// layout does not shift after the first reply.
 export function ChatConversation({
   config,
   agent,
@@ -59,7 +60,7 @@ export function ChatConversation({
   saveDisabled: boolean
   saveNote?: string
   onFreshDemo: (scenario: DemoScenario) => void
-  onCopy: (text: string) => void
+  onCopy: (text: string, done?: string) => void
   onCreateAgent?: () => void
   onSubmit: () => void
   onStop: () => void
@@ -129,7 +130,6 @@ export function ChatConversation({
             setActiveDemo(null)
             editor.current?.focus()
           }}
-          onClearExample={() => prefill('')}
           onCreateAgent={onCreateAgent}
           agents={agents}
           onChooseAgent={onChooseAgent}
@@ -145,7 +145,7 @@ export function ChatConversation({
               : undefined
           }
           onDismissError={() => {
-            setError('')
+            setError(null)
             setPending('')
           }}
         />
@@ -169,6 +169,7 @@ export function ChatConversation({
             if (!busy) setPending('')
           }}
           onSubmit={onSubmit}
+          onCopyPrompt={() => onCopy(draft, 'Prompt copied.')}
           onStop={onStop}
           onContinue={onContinue}
         />
@@ -184,6 +185,11 @@ export function ChatConversation({
           saveDisabled={saveDisabled}
           saveNote={saveNote}
           exportDisabled={!turns.length && !draft}
+          saveState={
+            turns.length
+              ? saveStateText({ isPreview, saved: !!saved, dirty, draft })
+              : 'Nothing to save yet'
+          }
           onCatalog={onCatalog}
           onSave={onSave}
           onExport={onExport}

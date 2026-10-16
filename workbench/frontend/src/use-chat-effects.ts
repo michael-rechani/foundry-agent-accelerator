@@ -35,9 +35,12 @@ export function useConversationScroll(
     const answered = before.busy && !busy && turns.length > before.turns
     if (activeDemo && !turns.length && !busy)
       bottom.current?.parentElement?.scrollTo({ top: 0 })
-    else if (answered && latestAnswer.current)
-      latestAnswer.current.scrollIntoView({ block: 'start' })
-    else bottom.current?.scrollIntoView({ block: 'end' })
+    else if (answered && latestAnswer.current) {
+      // Start at the question, collapsed to a few lines, so the answer opens
+      // with what it answers in view.
+      const question = latestAnswer.current.previousElementSibling
+      ;(question ?? latestAnswer.current).scrollIntoView({ block: 'start' })
+    } else bottom.current?.scrollIntoView({ block: 'end' })
   }, [turns, busy, view, activeDemo])
 
   return { bottom, latestAnswer }

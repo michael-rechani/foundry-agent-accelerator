@@ -37,7 +37,7 @@ export function ContinueDialog({
         }}
       >
         <header>
-          <h2 id="continue-title">Continue in new chat</h2>
+          <h2 id="continue-title">Start new chat with this answer</h2>
           <button
             type="button"
             className="chat-icon"

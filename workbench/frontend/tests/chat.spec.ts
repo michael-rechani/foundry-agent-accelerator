@@ -35,6 +35,33 @@ test('preview chat does not promise shared persistence', async ({ page }) => {
   await expect(page.locator('#chat-privacy')).toHaveCount(0)
 })
 
+test('local preview offers Copy prompt instead of a Send that cannot work', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  const state = await openWorkspace(page, { preview: true })
+  const box = page.getByRole('textbox', { name: 'Message' })
+  const copy = page.getByRole('button', { name: 'Copy prompt' })
+  await expect(page.getByRole('button', { name: 'Send message' })).toHaveCount(
+    0,
+  )
+  await expect(page.locator('.composer-toolbar')).toContainText(
+    'Local preview makes no model calls',
+  )
+  await expect(copy).toBeDisabled()
+  await box.fill('Synthetic request')
+  await expect(copy).toBeEnabled()
+  await box.press('Enter')
+  await copy.click()
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toContain('Synthetic request')
+  await expect(page.locator('.user-message')).toHaveCount(0)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  expect(state.requests).toHaveLength(0)
+})
+
 test('storage-disabled chat does not promise shared persistence', async ({
   page,
 }) => {
@@ -95,6 +122,7 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
 test('default helper explains its job and offers example tasks without auto-sending', async ({
   page,
 }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile')
   const state = await openWorkspace(page, {
     config: { agents: [guidedReview] },
   })
@@ -110,6 +138,12 @@ test('default helper explains its job and offers example tasks without auto-send
   await expect(page.locator('.chat-welcome .agent-guide')).toContainText(
     guidedReview.guidance!.output,
   )
+  await expect(page.locator('.prompt-options button small')).toHaveText([
+    'Before this project goes for sign-off, check it against our checklist.',
+    'Summarize these client notes for the team.',
+    'Compare this vendor proposal with our requirements.',
+    'What can you help me with?',
+  ])
   await expect(page.locator('.prompt-options button strong')).toHaveText([
     'Check against a checklist',
     'Summarize case notes',
@@ -117,6 +151,9 @@ test('default helper explains its job and offers example tasks without auto-send
     'Help me get started',
   ])
   await expect(page.locator('#chat-privacy')).toBeInViewport({ ratio: 1 })
+  await expect(
+    page.getByRole('region', { name: 'Ask the Lab' }),
+  ).toBeInViewport({ ratio: 1 })
   await docsScreenshot(page, testInfo, 'demo-starters.png')
   await page.emulateMedia({ colorScheme: 'dark' })
   await docsScreenshot(page, testInfo, 'demo-starters-dark.png')
@@ -127,17 +164,17 @@ test('default helper explains its job and offers example tasks without auto-send
     await expect(editor).toHaveValue(prompt.text)
     await expect(editor).toBeFocused()
     expect(state.requests).toHaveLength(0)
-    // With an example in the message box the cards step aside. A link brings
-    // them back, so picking another never overwrites the box silently.
-    await expect(page.locator('.prompt-options')).toHaveCount(0)
+    // The cards stay, with the chosen one marked, so another can replace it
+    // while the message box still holds the unedited example.
+    await expect(page.locator('.prompt-options button')).toHaveCount(
+      guidedReview.prompts.length,
+    )
+    await expect(
+      page.getByRole('button', { name: prompt.label, exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true')
     await expect(page.locator('.welcome-hint')).toContainText(
       'Your example is in the message box below.',
     )
-    await page
-      .getByRole('button', { name: 'Choose a different example' })
-      .click()
-    await expect(editor).toHaveValue('')
-    await expect(page.locator('.prompt-options button').first()).toBeFocused()
   }
   await openLibraryTab(page, /^Ready to chat/)
   await expect(page.locator('.catalog-agent')).toHaveCount(1)

@@ -41,9 +41,9 @@ export function plainStep(
   if (isHandoff(turn, receipt)) {
     const agent = receipt.agent as string
     const name = agentLabels[agent]
-    if (name) return `Asked the ${name}`
+    if (name) return `Asked the ${name} for its part of the answer`
     const text = words(agent).join(' ')
-    return `Asked the ${text.charAt(0).toUpperCase()}${text.slice(1)}`
+    return `Asked the ${text.charAt(0).toUpperCase()}${text.slice(1)} for its part of the answer`
   }
   const [verb, ...rest] = words(receipt.tool)
   const object = rest.join(' ')

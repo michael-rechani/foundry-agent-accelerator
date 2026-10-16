@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ChatFailure } from './chat-failure'
 import type { Turn } from './conversation-types'
 import type { DemoScenario } from './demo-scenarios'
 
@@ -20,7 +21,7 @@ export function useConversation(defaultAgent: string | undefined) {
   const [turns, setTurns] = useState<Turn[]>([])
   const [pending, setPending] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<ChatFailure | null>(null)
   const [saved, setSaved] = useState<SavedVersion | null>(null)
   const [dirty, setDirty] = useState(false)
   const [activeDemo, setActiveDemo] = useState<DemoScenario | null>(null)
@@ -33,7 +34,7 @@ export function useConversation(defaultAgent: string | undefined) {
     setDraft(initialDraft)
     setSeed(initialDraft)
     setPending('')
-    setError('')
+    setError(null)
     setSaved(null)
     setDirty(false)
     setActiveDemo(null)
@@ -53,7 +54,7 @@ export function useConversation(defaultAgent: string | undefined) {
     setDraft('')
     setSeed('')
     setPending('')
-    setError('')
+    setError(null)
     setActiveDemo(null)
   }
 

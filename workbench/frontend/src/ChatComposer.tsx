@@ -1,5 +1,6 @@
 import type { RefObject } from 'react'
-import { ArrowUp, FlaskConical, GitBranch, Square } from 'lucide-react'
+import { ArrowUp, Copy, FlaskConical, GitBranch, Square } from 'lucide-react'
+import { saveStateText } from './chat-helpers'
 import type { Agent, Config } from './workspace-config'
 
 export function ChatComposer({
@@ -19,6 +20,7 @@ export function ChatComposer({
   isPreview,
   onDraft,
   onSubmit,
+  onCopyPrompt,
   onStop,
   onContinue,
 }: {
@@ -38,10 +40,13 @@ export function ChatComposer({
   isPreview: boolean
   onDraft: (value: string) => void
   onSubmit: () => void
+  onCopyPrompt: () => void
   onStop: () => void
   onContinue: () => void
 }) {
   const exceedsLimit = limitReasons.length > 0
+  // Local preview never calls a model, so Send would only ever fail.
+  const localPreview = config?.mode === 'preview'
   // Limits and save state only matter once there is something to lose.
   const showDetails = turnCount > 0 || contextUsage >= 0.5
   return (
@@ -71,6 +76,7 @@ export function ChatComposer({
           onChange={(event) => onDraft(event.target.value)}
           onKeyDown={(event) => {
             if (
+              !localPreview &&
               event.key === 'Enter' &&
               !event.shiftKey &&
               !event.nativeEvent.isComposing
@@ -82,27 +88,29 @@ export function ChatComposer({
         />
         <div className="composer-toolbar">
           <span>
-            {config?.mode !== 'private' && (
-              <>
-                <FlaskConical size={12} aria-hidden="true" />
-                No model calls or saving
-              </>
-            )}
-          </span>
-          <div>
             {turnCount > 0 && (
               <button
                 type="button"
                 className="composer-continue"
-                title="Start a new chat that carries this reply forward"
-                aria-label="Continue in new chat"
+                title="Opens a draft that carries this answer into a new chat. Nothing is sent."
+                aria-label="Start new chat with this answer"
                 disabled={busy || historyBusy}
                 onClick={onContinue}
               >
                 <GitBranch size={15} aria-hidden="true" />
-                <span>Continue in new chat</span>
+                <span>Start new chat with this answer</span>
               </button>
             )}
+            {config?.mode !== 'private' && (
+              <>
+                <FlaskConical size={12} aria-hidden="true" />
+                {localPreview
+                  ? 'Local preview makes no model calls. Copy the prompt to use it in a connected Lab.'
+                  : 'No model calls or saving'}
+              </>
+            )}
+          </span>
+          <div>
             {busy ? (
               <button
                 key="stop"
@@ -116,6 +124,18 @@ export function ChatComposer({
                 }}
               >
                 <Square size={16} />
+              </button>
+            ) : localPreview ? (
+              <button
+                key="copy"
+                type="button"
+                className="send-button copy-prompt"
+                disabled={!draft.trim()}
+                aria-label="Copy prompt"
+                title="Copy prompt"
+                onClick={onCopyPrompt}
+              >
+                <Copy size={18} aria-hidden="true" />
               </button>
             ) : (
               <button
@@ -135,14 +155,22 @@ export function ChatComposer({
         </div>
       </form>
       {config?.mode === 'private' && (
-        <p className="composer-privacy" id="chat-privacy">
-          Use sample data only, never personal or confidential information. Each
-          message calls the model and may incur cost.
-          {isPreview
-            ? ' Preview chats are not saved.'
-            : config.history_enabled &&
-              ` Saving shares completed messages with everyone in this Lab for ${config.retention_days} days after the last update.`}
-        </p>
+        <div className="composer-privacy" id="chat-privacy">
+          <p>
+            Use sample data only, never personal or confidential information.
+            Each message calls the model and may incur cost.
+            {isPreview && ' Preview chats are not saved.'}
+          </p>
+          {!isPreview && config.history_enabled && (
+            <details>
+              <summary>About saving</summary>
+              <p>
+                Saving shares completed messages with everyone in this Lab for{' '}
+                {config.retention_days} days after the last update.
+              </p>
+            </details>
+          )}
+        </div>
       )}
       {showDetails && (
         <div className="composer-details">
@@ -170,7 +198,7 @@ export function ChatComposer({
                     {config.max_request_bytes.toLocaleString()}
                   </dd>
                 </div>
-                <div>
+                <div className="reply-limit">
                   <dt>Reply limit</dt>
                   <dd>
                     {turnCount} of {config.max_history_turns + 1} replies used
@@ -180,15 +208,7 @@ export function ChatComposer({
             </details>
           )}
           <span className="save-state">
-            {isPreview
-              ? 'Preview · not saved'
-              : saved
-                ? dirty
-                  ? 'Unsaved changes'
-                  : draft
-                    ? 'Draft not saved'
-                    : 'Saved / shared'
-                : 'Not saved'}
+            {saveStateText({ isPreview, saved, dirty, draft })}
           </span>
         </div>
       )}

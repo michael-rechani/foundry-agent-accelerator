@@ -161,18 +161,20 @@ test('on a wide screen the agent details sit beside the conversation', async ({
     aside
       .locator('.aside-rows > div')
       .filter({ has: page.getByText(name, { exact: true }) })
-  await expect(aside).toHaveCount(0)
-  await expect(page.locator('.agent-about > summary')).toBeVisible()
+  // The side column is there from the first screen, so nothing shifts.
+  await expect(aside).toBeVisible()
+  await expect(page.locator('.agent-about > summary')).toBeHidden()
   await expect(page.locator('.chat-welcome .agent-guide')).toBeVisible()
+  await expect(aside.locator('.agent-guide')).toHaveCount(0)
   await expect(
-    page.getByRole('button', { name: 'Export conversation' }),
+    aside.getByRole('button', { name: 'Export conversation' }),
   ).toBeDisabled()
 
   await send(page)
   await expect(aside.getByRole('heading', { level: 2 })).toHaveText([
-    'About this agent',
     'This conversation',
     'Next steps',
+    'About this agent',
   ])
   await expect(page.locator('.agent-about > summary')).toBeHidden()
   await expect(aside.locator('.aside-more-body')).toBeHidden()
@@ -216,9 +218,9 @@ test('on a wide screen the agent details sit beside the conversation', async ({
   await expect(page.locator('.agent-about > summary')).toBeVisible()
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.getByRole('button', { name: 'New chat', exact: true }).click()
-  await expect(aside).toHaveCount(0)
+  await expect(aside).toBeVisible()
   await expect(page.locator('.chat-welcome .agent-guide')).toBeVisible()
-  await expect(page.locator('.agent-about > summary')).toBeVisible()
+  await expect(page.locator('.agent-about > summary')).toBeHidden()
 })
 
 test('configuration guidance separates UI settings from deployed agent behavior', async ({

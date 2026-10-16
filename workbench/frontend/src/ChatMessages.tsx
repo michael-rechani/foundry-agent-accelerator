@@ -1,6 +1,8 @@
 import type { RefObject } from 'react'
-import { CircleAlert, RefreshCw, X } from 'lucide-react'
+import type { ChatFailure } from './chat-failure'
+import { ChatError } from './ChatError'
 import { ChatWelcome, type DraftMode } from './ChatWelcome'
+import { UserMessage } from './UserMessage'
 import type { Turn } from './conversation-types'
 import { ConversationTurn } from './ConversationTurn'
 import type { DemoScenario } from './demo-scenarios'
@@ -29,7 +31,6 @@ export function ChatMessages({
   onFreshDemo,
   onCloseDemo,
   onPrompt,
-  onClearExample,
   onCreateAgent,
   onCopy,
   onDismissError,
@@ -49,16 +50,15 @@ export function ChatMessages({
   historyBusy: boolean
   turns: Turn[]
   pending: string
-  error: string
+  error: ChatFailure | null
   activeDemo: DemoScenario | null
   bottom: RefObject<HTMLDivElement | null>
   latestAnswer: RefObject<HTMLElement | null>
   onFreshDemo: (scenario: DemoScenario) => void
   onCloseDemo: () => void
   onPrompt: (text: string) => void
-  onClearExample: () => void
   onCreateAgent?: () => void
-  onCopy: (text: string) => void
+  onCopy: (text: string, done?: string) => void
   onDismissError: () => void
   onRetry?: () => void
   agents: Agent[]
@@ -85,7 +85,6 @@ export function ChatMessages({
             inProgress={inProgress}
             draftMode={draftMode}
             onPrompt={onPrompt}
-            onClearExample={onClearExample}
             onCreateAgent={onCreateAgent}
             agents={agents}
             onChooseAgent={onChooseAgent}
@@ -106,12 +105,7 @@ export function ChatMessages({
               onCopy={onCopy}
             />
           ))}
-          {pending && (
-            <article className="user-message">
-              <span className="message-author">You</span>
-              <p>{pending}</p>
-            </article>
-          )}
+          {pending && <UserMessage text={pending} />}
         </div>
       )}
       {busy && (
@@ -121,26 +115,13 @@ export function ChatMessages({
         />
       )}
       {error && (
-        <div className="chat-error" role="alert">
-          <CircleAlert size={19} />
-          <p>{error}</p>
-          {onRetry && (
-            <button
-              type="button"
-              className="chat-error-retry"
-              onClick={onRetry}
-            >
-              <RefreshCw size={14} aria-hidden="true" /> Retry
-            </button>
-          )}
-          <button
-            className="chat-icon"
-            aria-label="Dismiss error"
-            onClick={onDismissError}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <ChatError
+          key={error.details}
+          failure={error}
+          onRetry={onRetry}
+          onDismiss={onDismissError}
+          onCopy={onCopy}
+        />
       )}
       <div ref={bottom} />
     </div>

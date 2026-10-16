@@ -46,7 +46,7 @@ test('a library preview says what the agent will return while the answer is on i
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect.poll(() => state.chat.length).toBe(1)
   expect(state.chat[0].agent_id).toBe(`library-${support.id}`)
-  const waiting = page.getByRole('status').filter({ hasText: 'Awaiting' })
+  const waiting = page.getByRole('status').filter({ hasText: 'Asking' })
   await expect(waiting).toContainText(support.label)
   await expect(waiting).toContainText('Expect:')
   await expect(waiting).toContainText(support.output)
@@ -121,7 +121,7 @@ test('on a wide screen the side column offers to create a previewed agent', asyn
   await openAgent(page, support.label)
   await page.getByRole('button', { name: 'Try it in Chat' }).click()
   const aside = page.getByRole('complementary', { name: 'Agent details' })
-  await expect(aside).toHaveCount(0)
+  await expect(aside).toBeVisible()
   await expect(
     page.getByRole('button', { name: 'Create this agent', exact: true }),
   ).toBeVisible()
