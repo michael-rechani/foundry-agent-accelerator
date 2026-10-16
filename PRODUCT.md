@@ -27,8 +27,6 @@ production-ready business application.
 
 The private Azure deployment supports model calls and shared saved records.
 Local preview supports exploration without model execution or persistence.
-Screenshots and tour artwork come from automated browser tests with sample
-data, not live results.
 
 Today an operator presents the Lab from the jump box, the only machine that can
 reach it. Customers don't open it or sign in themselves. Customer self-service
