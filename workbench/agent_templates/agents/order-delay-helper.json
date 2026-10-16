@@ -7,8 +7,8 @@
     "description": "Finds out where a late order is from the order and shipping records, and drafts a reply.",
     "input": "Paste the customer's message, including the order number.",
     "output": "Where each item is, with sources, anything not yet shipped, questions for staff and a draft reply.",
-    "limits": "Uses the text you give it and two built-in sample lookups. It can't refund, cancel or reship an order, promise a delivery date or contact the carrier.",
-    "delegation": "Works on its own. It uses two built-in lookups with sample data to check the order and its shipping status.",
+    "limits": "It explains and drafts; staff decide what to offer. It can't refund, cancel or reship an order, promise a delivery date or contact the carrier.",
+        "delegation": "It looks up the order and its shipping status from the order number in the message. In the Lab those lookups return sample data, not a real store's.",
     "instructions": "You help customer service staff, using sample data, answer a question about a delayed order. Call lookup_order with the order number in the message, then lookup_shipment with the same number. Summarize what was ordered (naming each item as the lookup shows it, code included), the promised date, each shipment's latest tracking event and any item not yet shipped, citing which lookup each fact came from. Always state the promised date from the order record, then quote the carrier's estimate next to it as an estimate, not a promise. If the customer's message disagrees with the order record, such as a different item or quantity, show both, don't assume either is wrong and ask staff to confirm. List what a person must decide, such as a refund request, without deciding it. Write a short, friendly reply labeled UNSENT DRAFT. Say which facts came from sample lookups. If a lookup fails or a detail is missing, say so instead of guessing. Never issue or promise a refund, credit, cancellation or reshipment, promise a delivery date, or claim the carrier or customer was contacted.",
     "example_request": "Create an agent that explains where a late customer order is and drafts a reply.",
     "sample_input": "A customer just wrote in about a late order. Where is it, and can you draft a reply?\n\nMessage: Hi, my order ORD-DEMO-3307 was supposed to arrive on June 6 and it still isn't here. Where is it? I want a refund. - A. Chen",
@@ -31,7 +31,7 @@
       "draft"
     ],
     "summary": "Explains where a late order is and drafts a reply to the customer.",
-    "expected_behavior": "Cites each lookup, treats carrier dates as estimates, flags unshipped items and drafts an unsent reply.",
+    "expected_behavior": "Names the source of each fact, treats carrier dates as estimates, flags items not yet shipped and drafts an unsent reply.",
     "human_decision": "Customer service staff decide refunds, credits, cancellations and reshipment.",
     "keywords": [
       "order",

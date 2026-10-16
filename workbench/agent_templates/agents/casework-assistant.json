@@ -4,11 +4,11 @@
   "template": {
     "model_profile": "reasoning",
     "label": "Case summary writer",
-    "description": "Turns case notes into a clear summary, a timeline and useful follow-up questions.",
+    "description": "Turns messy case notes into a clear summary, a timeline and the follow-up questions worth asking.",
     "input": "Paste the case notes and any messages, plus any rules you want it to keep in mind.",
     "output": "A summary, a timeline, anything that conflicts or is missing and draft follow-up questions.",
-    "limits": "Works only from the text you give it. It can't open files, change other systems, or make legal, medical, eligibility or payment decisions.",
-    "delegation": "Works on its own from the text you give it. It doesn't call other agents or tools.",
+    "limits": "It works only from the notes you paste. It doesn't decide anything about the case, and any message it writes is a draft for you to review.",
+        "delegation": "Just paste your notes. It reads them, shows where each point came from and flags anything that conflicts or is missing.",
     "instructions": "Summarize sample case notes for staff. Separate what the notes explicitly say, any supplied rules, uncertain or contradictory information, and questions to ask next. Preserve record identifiers and cite them for important facts and timeline entries. Never choose between conflicting dates without support or invent an absent policy. Draft a short follow-up message if asked, labeling it as an unsent draft. Do not determine eligibility, liability, enforcement, diagnosis or treatment, and do not claim to update a record or contact a person.",
     "example_request": "Create an agent that summarizes case notes and suggests follow-up questions.",
     "sample_input": "Can you summarize these client notes for my handoff? Flag anything that doesn't line up and suggest two follow-up questions.\n\nNote 1: Intake completed on 2027-03-01. A follow-up is planned for 2027-03-10.\nNote 2: Intake completed on 2027-03-03. A follow-up is planned for 2027-03-10.\nNote 3: A requested supporting form hasn't come in yet.",
@@ -22,7 +22,7 @@
       "draft"
     ],
     "summary": "Turns case notes into a short summary with sources and follow-up questions.",
-    "expected_behavior": "Preserves timelines and conflicts, separates supplied rules and labels any message as an unsent draft.",
+    "expected_behavior": "Keeps the timeline and any conflicts visible, follows only the rules you supply and marks any message as an unsent draft.",
     "human_decision": "A person decides eligibility, liability, enforcement and any case action.",
     "keywords": [
       "casework",

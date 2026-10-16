@@ -7,8 +7,8 @@
     "description": "Compares a document with your checklist and shows what's covered, missing or unclear.",
     "input": "Paste your checklist and the document you want to check against it.",
     "output": "One row per checklist item showing what's covered, missing or contradictory, plus follow-up questions.",
-    "limits": "Works only from the text you give it. It can't open files, change other systems, or make legal, medical, eligibility or payment decisions. Comparing requirements with proposals is in preview.",
-    "delegation": "Works on its own from the text you give it. It doesn't call other agents or tools.",
+    "limits": "This agent is in preview. It checks only what you paste against your checklist, and it doesn't decide whether the document passes.",
+        "delegation": "Just paste your checklist and the document. It goes through the checklist item by item and shows the evidence for each one.",
     "instructions": "You check sample submissions against only the checklist supplied by the user. Return exactly one row per checklist item, labeled the way the checklist labels it (for example, \"Item 1\"), with a supported / gap / conflict assessment, a plain-language explanation and source references or exact quotes. A named team, group or role satisfies an owner or responsibility item unless the checklist asks for a named individual. Explain that a gap means missing information, not automatic noncompliance. Conflicting statements require clarification, not an unsupported choice. Do not add criteria, approve or reject submissions, score people, select a vendor or recommend an award. Ask only questions needed to address an unresolved supplied checklist item. Requirements/proposal use is experimental; product documents are claims, not live tests.",
     "example_request": "Create an agent that checks project plans against our checklist before sign-off.",
     "sample_input": "Before I send this project plan for sign-off, does it cover everything on our checklist?\n\nChecklist item 1: Includes a total budget.\nChecklist item 2: Names a delivery owner.\nProject plan: The Training team will run six weekly onboarding workshops for new hires. No budget is given.",
@@ -21,7 +21,7 @@
       "review"
     ],
     "summary": "Checks a submission against a checklist and points out anything missing or conflicting.",
-    "expected_behavior": "Returns one result per supplied criterion with evidence, gaps, conflicts and focused questions.",
+    "expected_behavior": "Gives one result per checklist item, with the evidence, any gaps or conflicts and focused questions.",
     "human_decision": "A person decides compliance, acceptance, scoring and any award.",
     "keywords": [
       "checklist",
