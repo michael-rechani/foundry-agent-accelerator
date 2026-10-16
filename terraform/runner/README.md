@@ -115,6 +115,19 @@ and Docker need the headroom. Change `vm_size` if you want to try it.
    added by hand as `AllowRegistryPrivateEndpointOutbound` (priority 120,
    TCP 443, `10.42.0.24` and `10.42.0.25`). If this variable is left empty on an
    apply, Terraform removes the rule and the deploy workflow can no longer push.
+
+   **The dev runner already exists and is not yet in the state.** Don't apply this
+   stack against it. After step 3 and `terraform init`, run
+   [`scripts/import-live.ps1`](scripts/import-live.ps1) from the jump box. It
+   refuses to run until `registry_private_endpoint_ips` is set in your tfvars,
+   prints the `terraform import` commands as a dry run, and writes to the state
+   only with `-Apply`. Then run the plan in step 4: it must show no change to the
+   VM and no public IP, and a second plan must show no changes at all.
+
+   ```powershell
+   ./scripts/import-live.ps1 -VarFile dev.tfvars          # dry run
+   ./scripts/import-live.ps1 -VarFile dev.tfvars -Apply   # writes to the shared state
+   ```
 3. Copy `backend.hcl.example` to ignored `backend.hcl` and fill in the secured
    state account.
 4. Run:
