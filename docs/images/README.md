@@ -266,6 +266,12 @@ the plain view a customer sees. The `docsScreenshot` helper in
 `workbench/frontend/tests/fixtures.ts` turns that switch off for the capture and
 puts it back afterwards, so every test still runs with it on.
 
+The same helper switches the page to the **Aurora** look for the capture, so
+every screenshot shows the Lab's glowing, futuristic style while the tests
+themselves keep running in the default look. Aurora keeps its contrast in both
+light and dark mode. To capture another look, change the `data-look` value in
+`docsScreenshot`.
+
 | Screenshot | Shows | Test output | Used in |
 | --- | --- | --- | --- |
 | [lab-start.png](screenshots/lab-start.png) / [dark](screenshots/lab-start-dark.png) | The first page, **Ask the Lab**: the welcome, a guide question already answered, and the **Try an agent** and **Build your own** next steps | `start-page.png` / `start-page-dark.png` | [README tour](#readme-tour), [Lab guide](../lab-pages-and-access.md#pages) |
@@ -349,7 +355,7 @@ The build embeds each PNG unchanged as base64 data and animates with CSS only.
 The SVGs have no scripts or external references, because GitHub shows README
 SVGs as images. The build fails if a screenshot is missing or isn't 1440 x 1000
 desktop test output, and reruns give byte-identical files. Keep each SVG under
-about 1.3 MB, and don't recompress the frames as JPEG,
+about 2.2 MB (the Aurora gradients make the PNGs larger than Classic), and don't recompress the frames as JPEG,
 which blurs UI text.
 
 For readers who turn on reduced motion in their operating system, the SVGs'
