@@ -1147,6 +1147,41 @@ class SafetyTests(Recording):
                 self.assertFalse(self.files.journals.exists())
         self.assertEqual(self.run_main("status", environ={**ENV, "CI": "true"}).code, 0)
 
+    def test_only_the_manual_recording_workflow_may_record_in_ci(self):
+        workflow = {"CI": "true", "GITHUB_ACTIONS": "true", "GITHUB_WORKFLOW": "Record library answers",
+                    "GITHUB_EVENT_NAME": "workflow_dispatch"}
+        for change in ({}, {"GITHUB_WORKFLOW": "Validate"}, {"GITHUB_EVENT_NAME": "pull_request"},
+                       {"GITHUB_EVENT_NAME": "push"}, {"GITHUB_ACTIONS": "false"}):
+            with self.subTest(change=change):
+                allowed = lr.in_approved_workflow({**workflow, **change})
+                self.assertIs(allowed, not change)
+        self.assertNotEqual(self.record(environ={**ENV, **workflow}).code, 2)
+
+    def test_the_workflow_asks_github_for_a_new_token_each_time(self):
+        self.assertIsNone(lr.github_token_fetcher({}))
+        self.assertIsNone(lr.github_token_fetcher({"ACTIONS_ID_TOKEN_REQUEST_URL": "https://x/?a=1"}))
+        seen = []
+
+        class Reply:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *details):
+                return False
+
+            def read(self):
+                return b'{"value": "new-token"}'
+
+        def fake_open(request, timeout):
+            seen.append((request.full_url, request.get_header("Authorization")))
+            return Reply()
+
+        fetch = lr.github_token_fetcher({"ACTIONS_ID_TOKEN_REQUEST_URL": "https://x/token?a=1",
+                                         "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "bearer"})
+        with mock.patch.object(lr.urllib.request, "urlopen", fake_open):
+            self.assertEqual((fetch(), fetch()), ("new-token", "new-token"))
+        self.assertEqual(seen, [("https://x/token?a=1&audience=api://AzureADTokenExchange", "Bearer bearer")] * 2)
+
     def test_it_will_not_guess_which_project_to_use(self):
         result = self.record(environ={})
         self.assertEqual((result.code, result.opened, result.foundry.calls), (2, [], []))
@@ -1244,6 +1279,7 @@ class FakeSdk:
 
         projects, identity = ModuleType("azure.ai.projects"), ModuleType("azure.identity")
         projects.AIProjectClient, identity.DefaultAzureCredential = Project, Credential
+        identity.ClientAssertionCredential = Credential
         return {"azure": ModuleType("azure"), "azure.ai": ModuleType("azure.ai"),
                 "azure.ai.projects": projects, "azure.identity": identity}
 
@@ -1304,11 +1340,19 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual([path.read_bytes() for path in paths], before)
         self.assertEqual(files.journals.exists(), had_journals)
 
-    def test_no_workflow_runs_the_recorder(self):
+    def test_only_the_gated_manual_workflow_runs_the_recorder(self):
         workflows = sorted((Path(__file__).resolve().parent.parent / ".github" / "workflows").glob("*.y*ml"))
         self.assertTrue(workflows)
         for path in workflows:
-            self.assertNotRegex(path.read_text(encoding="utf-8"), r"library_runs\S*\s+record", path.name)
+            text = path.read_text(encoding="utf-8")
+            if path.name != "record-library-answers.yml":
+                self.assertNotRegex(text, r"library_runs\S*\s+record", path.name)
+                continue
+            self.assertIn(f"name: {lr.APPROVED_WORKFLOW}\n", text)
+            self.assertRegex(text, r"(?m)^on:\n  workflow_dispatch:")
+            self.assertNotRegex(text, r"(?m)^  (push|pull_request\w*|schedule|workflow_run):")
+            self.assertRegex(text, r"(?m)^    environment: library-recording$")
+            self.assertRegex(text, r"(?m)^    if: github\.ref == 'refs/heads/main'$")
 
 
 if __name__ == "__main__":

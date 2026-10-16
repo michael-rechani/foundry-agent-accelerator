@@ -11,7 +11,7 @@ that need new answers and records them again:
 `status` and `record` without --yes never call the network. `record --yes` sends each of an agent's
 cases to the Lab's Foundry project five times, on the same code the Lab's Chat preview uses, so
 the answers are the ones the Lab would give. It never creates an agent and stores nothing in
-Foundry. It refuses to run in CI.
+Foundry. It refuses to run in CI, except in the manually started "Record library answers" workflow.
 
 Each finished run is saved at once under results/library-runs/, so an interrupted recording
 resumes where it stopped. Only when all of an agent's runs are saved does it replace that agent's
@@ -34,6 +34,7 @@ import os
 import re
 import sys
 import time
+import urllib.request
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -679,7 +680,7 @@ def next_steps(items):
 
 
 def command_record(args, files, *, open_client, clock, sleep, today, environ):
-    if in_ci(environ):
+    if in_ci(environ) and not in_approved_workflow(environ):
         raise Stop("Recording calls Foundry and costs money, so it never runs in CI.", 2)
     grouped = cases_by_template(files)
     chosen = pick_templates(grouped, args.templates)
@@ -767,6 +768,34 @@ def in_ci(environ):
     return any(environ.get(name, "").strip().lower() not in ("", "0", "false", "no") for name in ("CI", "GITHUB_ACTIONS"))
 
 
+APPROVED_WORKFLOW = "Record library answers"
+
+
+def in_approved_workflow(environ):
+    """True only inside the manually started "Record library answers" workflow, the one place CI may record."""
+    return (environ.get("GITHUB_ACTIONS", "").strip().lower() == "true"
+            and environ.get("GITHUB_WORKFLOW") == APPROVED_WORKFLOW
+            and environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch")
+
+
+def github_token_fetcher(environ):
+    """A function that asks GitHub for a new sign-in token, or None outside a workflow that can.
+
+    A full recording outlasts one token, so the credential asks again whenever Azure needs a fresh one.
+    """
+    url, bearer = environ.get("ACTIONS_ID_TOKEN_REQUEST_URL"), environ.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN")
+    if not (url and bearer):
+        return None
+
+    def fetch():
+        request = urllib.request.Request(f"{url}&audience=api://AzureADTokenExchange",
+                                         headers={"Authorization": f"Bearer {bearer}"})
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.load(response)["value"]
+
+    return fetch
+
+
 @contextlib.contextmanager
 def open_live_client(endpoint):
     """Open the Foundry project and yield an async function that sends one Responses API request.
@@ -776,11 +805,16 @@ def open_live_client(endpoint):
     """
     try:
         from azure.ai.projects import AIProjectClient
-        from azure.identity import DefaultAzureCredential
+        from azure.identity import ClientAssertionCredential, DefaultAzureCredential
     except ImportError:
         raise Stop("Recording needs the Azure SDK: pip install -r evaluations/requirements.txt", 2) from None
+    fetch = github_token_fetcher(os.environ) if in_approved_workflow(os.environ) else None
+    if fetch and os.environ.get("AZURE_TENANT_ID") and os.environ.get("AZURE_CLIENT_ID"):
+        credential = ClientAssertionCredential(os.environ["AZURE_TENANT_ID"], os.environ["AZURE_CLIENT_ID"], fetch)
+    else:
+        credential = DefaultAzureCredential()
     with (
-        DefaultAzureCredential() as credential,
+        credential,
         AIProjectClient(endpoint=endpoint, credential=credential, allow_preview=True,
                         retry_total=0, connection_timeout=30, read_timeout=60) as project,
         project.get_openai_client(timeout=240, max_retries=0) as client,

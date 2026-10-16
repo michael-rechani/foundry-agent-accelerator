@@ -1,0 +1,77 @@
+name: Record library answers
+
+# Re-records the acceptance answers of the agents you name, on the private runner. It sends each
+# test case to the Lab's Foundry project five times, which costs money, so it never runs on its
+# own: start it by hand from the Actions tab, and the library-recording environment waits for its
+# reviewer before anything is sent. Foundry has no public access, and the runner reaches it through
+# the peered VNet. Azure holds no stored secret; the job signs in with GitHub's short-lived token.
+# One-time setup: workbench/setup-recording-identity.ps1 (see docs/library-scorecards.md).
+#
+# This only records. It uploads the new evidence files as an artifact; commit them in a pull request,
+# then a person reads the answers and signs off. It never records a sign-off.
+on:
+  workflow_dispatch:
+    inputs:
+      templates:
+        description: Agent ids to record, separated by spaces
+        required: true
+        type: string
+      ref:
+        description: Branch or commit whose instructions to record (the reviewer sees this before approving)
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: record-library-answers
+  cancel-in-progress: false
+
+jobs:
+  record:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 360
+    runs-on: [self-hosted, linux, lab-runner]
+    environment: library-recording
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+      TEMPLATES: ${{ inputs.templates }}
+    steps:
+      - name: Check the agent ids
+        run: |
+          set -euo pipefail
+          [[ "$TEMPLATES" =~ ^[a-z0-9-]+( [a-z0-9-]+)*$ ]] || { echo "::error::Agent ids are lowercase words with hyphens, separated by single spaces."; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - name: Show the plan, which sends nothing
+        run: |
+          set -euo pipefail
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e PYTHONPATH=/tmp/deps -v "$PWD:/work" -w /work \
+            python:3.12-slim bash -c 'pip install --quiet --target /tmp/deps -r evaluations/requirements.txt && python evaluations/library_runs.py record --templates $0' "$TEMPLATES"
+      - name: Record the answers
+        run: |
+          set -euo pipefail
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e PYTHONPATH=/tmp/deps -v "$PWD:/work" -w /work \
+            -e CI -e GITHUB_ACTIONS -e GITHUB_WORKFLOW -e GITHUB_EVENT_NAME \
+            -e ACTIONS_ID_TOKEN_REQUEST_URL -e ACTIONS_ID_TOKEN_REQUEST_TOKEN \
+            -e AZURE_CLIENT_ID -e AZURE_TENANT_ID -e FOUNDRY_PROJECT_ENDPOINT \
+            python:3.12-slim bash -c 'pip install --quiet --target /tmp/deps -r evaluations/requirements.txt && python evaluations/library_runs.py record --templates $0 --yes' "$TEMPLATES"
+      - name: Keep the new evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: library-evidence-${{ github.run_id }}
+          path: |
+            evaluations/evidence/
+            evaluations/results/library-runs/
+          retention-days: 14
+          if-no-files-found: warn

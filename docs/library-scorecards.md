@@ -261,9 +261,32 @@ those dates. Rows from two versions of an agent's instructions never mix. Agents
 are saved one at a time, so a later failure never undoes an earlier agent.
 
 It refuses to run when `CI` or `GITHUB_ACTIONS` is set, so CI never calls
-Foundry. `test_library_runs.py` covers the planning, the row replacement and the
+Foundry. The one exception is the manually started **Record library answers**
+workflow, described below. `test_library_runs.py` covers the planning, the row replacement and the
 pacing with a fake Foundry and no network. Run one recording at a time: two at
 once would share the same quota and could overwrite each other's rows.
+
+**Recording from the private runner.** Foundry has no public access, so a
+laptop outside the VNet gets a 403 ("Public access is disabled"). The **Record
+library answers** workflow
+([record-library-answers.yml](../.github/workflows/record-library-answers.yml))
+runs the same command on the Lab's private `lab-runner` machines, which reach
+Foundry through the peered VNet.
+
+- Start it by hand from the Actions tab, on `main`. Give it the agent ids and the
+  branch or commit whose instructions to record. It prints the plan first.
+- The `library-recording` environment holds a required reviewer, so nothing is
+  sent until the owner approves. Check the `ref` in the approval prompt: the
+  runner runs the code at that ref.
+- It signs in as its own identity, `gh-library-recording`, with no stored secret.
+  That identity has one role, Foundry User, on the Lab's Foundry account only,
+  and Azure accepts it only from that environment. Create it with
+  [setup-recording-identity.ps1](../workbench/setup-recording-identity.ps1).
+- A full recording outlasts one GitHub sign-in token, so the job asks GitHub for a
+  new one whenever Azure needs it.
+- It doesn't commit anything. It uploads the new evidence files as an artifact
+  (kept 14 days). Download it, copy the files into `evaluations/evidence/`, run
+  `python scorecards.py write`, and open a pull request.
 
 **Then:**
 
