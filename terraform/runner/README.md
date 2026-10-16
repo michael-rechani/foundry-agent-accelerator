@@ -109,6 +109,12 @@ and Docker need the headroom. Change `vm_size` if you want to try it.
    public key. The region comes from the existing VNet.
 2. Set `approve_shared_egress = true` only after you approve sharing the
    jumpbox's outbound public IP.
+   If the Lab deploy workflow uses this runner, also set
+   `registry_private_endpoint_ips` to the registry private endpoint addresses
+   (registry and data endpoint). The dev runner's NSG already has that rule,
+   added by hand as `AllowRegistryPrivateEndpointOutbound` (priority 120,
+   TCP 443, `10.42.0.24` and `10.42.0.25`). If this variable is left empty on an
+   apply, Terraform removes the rule and the deploy workflow can no longer push.
 3. Copy `backend.hcl.example` to ignored `backend.hcl` and fill in the secured
    state account.
 4. Run:
