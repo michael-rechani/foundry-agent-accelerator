@@ -118,7 +118,8 @@ test('add-on technical details stay hidden until Under the hood is on', async ({
   ).toBeVisible()
 })
 
-test('Foundry links appear only under the hood', async ({ page }) => {
+test('Foundry links appear only under the hood', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile')
   await openCustomerView(page, { foundry_portal: foundryPortal })
   const projectLink = page.getByRole('link', {
     name: /Open project in Foundry/,

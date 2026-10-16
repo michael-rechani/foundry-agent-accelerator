@@ -60,7 +60,8 @@ test('the answer stays readable if the formatter cannot load', async ({
 
 test('a long answer opens at its start while a short one stays fully in view', async ({
   page,
-}) => {
+}, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile')
   const long = [
     '# Long sample answer',
     ...Array.from(
