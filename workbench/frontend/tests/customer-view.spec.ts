@@ -162,9 +162,7 @@ test('Foundry links appear only under the hood', async ({ page }) => {
   await expect(page.getByRole('link', { name: /Foundry/ })).toHaveCount(0)
 })
 
-test('breadcrumbs link back to the library from its tabs', async ({
-  page,
-}) => {
+test('breadcrumbs link back to the library from its tabs', async ({ page }) => {
   await openCustomerView(page)
   await libraryNav(page).getByRole('button', { name: 'Guided demos' }).click()
   const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })

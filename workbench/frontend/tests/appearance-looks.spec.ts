@@ -223,9 +223,7 @@ for (const look of ['aurora', 'console'] as const) {
   })
 }
 
-test('the Console look styles the sidebar buttons', async ({
-  page,
-}) => {
+test('the Console look styles the sidebar buttons', async ({ page }) => {
   await seedAppearance(page.context(), {
     mode: 'light',
     accent: 'foundry',
