@@ -1160,6 +1160,8 @@ class SafetyTests(Recording):
     def test_the_workflow_asks_github_for_a_new_token_each_time(self):
         self.assertIsNone(lr.github_token_fetcher({}))
         self.assertIsNone(lr.github_token_fetcher({"ACTIONS_ID_TOKEN_REQUEST_URL": "https://x/?a=1"}))
+        self.assertIsNone(lr.github_token_fetcher({"ACTIONS_ID_TOKEN_REQUEST_URL": "file:///x?a=1",
+                                                   "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "bearer"}))
         seen = []
 
         class Reply:

@@ -784,13 +784,13 @@ def github_token_fetcher(environ):
     A full recording outlasts one token, so the credential asks again whenever Azure needs a fresh one.
     """
     url, bearer = environ.get("ACTIONS_ID_TOKEN_REQUEST_URL"), environ.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN")
-    if not (url and bearer):
+    if not (url and bearer and url.startswith("https://")):
         return None
 
     def fetch():
-        request = urllib.request.Request(f"{url}&audience=api://AzureADTokenExchange",
+        request = urllib.request.Request(f"{url}&audience=api://AzureADTokenExchange",  # noqa: S310
                                          headers={"Authorization": f"Bearer {bearer}"})
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
             return json.load(response)["value"]
 
     return fetch
