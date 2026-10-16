@@ -51,7 +51,11 @@ const review: Review = {
   ],
 }
 
-async function open(page: Page, look: (typeof looks)[number], hash = '') {
+async function open(
+  page: Page,
+  look: (typeof looks)[number],
+  hash = '#library',
+) {
   await seedAppearance(page, { mode: 'light', accent: 'foundry', look })
   await mockApi(page, ({ path, respond }) => {
     if (path === '/api/config')

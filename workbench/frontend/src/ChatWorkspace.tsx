@@ -22,6 +22,7 @@ import { OperationsView } from './OperationsView'
 import { AgentLibrary, type ReadyAgent } from './AgentLibrary'
 import { ExploreDemos } from './ExploreDemos'
 import { AddOns } from './AddOns'
+import { StartPage } from './StartPage'
 import { isPreviewId, previewTemplateId } from './library-catalog'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
 import { hoodViews, loadUnderTheHood, saveUnderTheHood } from './under-the-hood'
@@ -413,6 +414,19 @@ export default function ChatWorkspace() {
               onChat={() => setView('chat')}
             />
           )
+        ) : view === 'start' ? (
+          <StartPage
+            agents={availableAgents}
+            onChooseAgent={newChat}
+            onTryAgent={() => setView('catalog')}
+            onBuild={() =>
+              setView(config?.agent_creation ? 'create' : 'library')
+            }
+            onAddOns={() => setView('addons')}
+            onCreateAgent={
+              config?.agent_creation ? () => setView('create') : undefined
+            }
+          />
         ) : view === 'reviews' ||
           view === 'addons' ||
           view === 'library' ||

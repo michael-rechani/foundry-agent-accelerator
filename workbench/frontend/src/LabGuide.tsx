@@ -27,7 +27,7 @@ function AgentsAnswer({
   onCreateAgent,
 }: {
   agents: Agent[]
-  current: Agent
+  current?: Agent
   onChooseAgent: (id: string) => void
   onCreateAgent?: () => void
 }) {
@@ -46,7 +46,7 @@ function AgentsAnswer({
                 <strong>{item.label}</strong>
                 <small>{item.description}</small>
               </span>
-              {item.id === current.id ? (
+              {item.id === current?.id ? (
                 <span className="lab-guide-current">
                   <Check size={13} aria-hidden="true" /> In use now
                 </span>
@@ -81,7 +81,7 @@ function BuildAnswer({
   current,
   onAddOns,
 }: {
-  current: Agent
+  current?: Agent
   onAddOns: () => void
 }) {
   return (
@@ -91,7 +91,7 @@ function BuildAnswer({
         the tools it is allowed to use. Add-ons are optional extras on top, such
         as search over your documents or a place to keep files.
       </p>
-      {current.guidance && (
+      {current?.guidance && (
         <p>
           <strong>{current.label}:</strong> {current.guidance.delegation}
         </p>
@@ -139,7 +139,7 @@ export function LabGuide({
   onCreateAgent,
 }: {
   agents: Agent[]
-  current: Agent
+  current?: Agent
   onChooseAgent: (id: string) => void
   onAddOns: () => void
   onCreateAgent?: () => void

@@ -144,7 +144,7 @@ export async function openLibrary(
     }
     return respond({ error: 'not_found' }, 404)
   })
-  await page.goto('/' + (options.hash ?? ''))
+  await page.goto('/' + (options.hash ?? '#library'))
   await waitForLab(page)
   return state
 }

@@ -11,6 +11,7 @@ export const libraryViews: View[] = [
 
 // Breadcrumb trail for the top bar: section, then page.
 export const crumbs: Record<View, [string, string]> = {
+  start: ['Start here', 'Ask the Lab'],
   library: ['Agent library', 'Browse'],
   catalog: ['Agent library', 'Ready to chat'],
   created: ['Agent library', 'Made in this Lab'],

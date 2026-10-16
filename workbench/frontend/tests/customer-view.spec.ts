@@ -35,7 +35,7 @@ async function openCustomerView(
     if (path === '/api/agent-scorecards') return respond(served)
     return respond({ error: 'not_found' }, 404)
   })
-  await page.goto('/')
+  await page.goto('/#library')
   await waitForLab(page)
 }
 
@@ -48,6 +48,7 @@ test('the customer view hides technical details until Under the hood is on', asy
     page.getByRole('navigation', { name: 'Breadcrumb' }),
   ).toContainText(/Agent library\s*Browse/)
   await expect(workspaceNav(page).locator('.nav-section-label')).toHaveText([
+    'Start here',
     'Agent library',
     'Try it',
   ])
@@ -65,6 +66,7 @@ test('the customer view hides technical details until Under the hood is on', asy
   await hoodSwitch(page).check()
   await expect(page.getByText('Model profile')).toBeVisible()
   await expect(workspaceNav(page).locator('.nav-section-label')).toHaveText([
+    'Start here',
     'Agent library',
     'Try it',
     'Operations',

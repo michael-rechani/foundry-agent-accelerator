@@ -14,7 +14,7 @@ says who can reach the Lab and what they share.
 
 ## Pages
 
-The sidebar groups the Lab's pages into three sections, in this order: **Agent library**, **Try it**, and **Operations**. Every agent lives under **Agent library** > **All agents**, which has tabs for **Browse**, **Ready to chat**, **Made in this Lab** (when creation is on), **Guided demos**, and **Add-ons**. A small number beside **All agents** and **Shared history** says how many there are. **Browse** can show the agents as **Cards** or as a **List**, and the Lab remembers your choice in this browser.
+The sidebar groups the Lab's pages into four sections, in this order: **Start here**, **Agent library**, **Try it**, and **Operations**. The Lab opens on **Start here** > **Ask the Lab** (`/#start`), which offers two questions and, under them, two next steps: **Try an agent** and **Build your own**. The answers are written from the agent list and the add-on manifests, so asking sends nothing, saves nothing and makes no model call. **Try an agent** opens **Ready to chat**. **Build your own** opens **Create agent** when creation is on, or the agent library when it isn't. Every agent lives under **Agent library** > **All agents**, which has tabs for **Browse**, **Ready to chat**, **Made in this Lab** (when creation is on), **Guided demos**, and **Add-ons**. A small number beside **All agents** and **Shared history** says how many there are. **Browse** can show the agents as **Cards** or as a **List**, and the Lab remembers your choice in this browser.
 
 The Lab opens in a plain customer view. Turn on **Under the hood** at the bottom of the sidebar to show models, token counts, execution details, setup commands, and the **Operations** section. The Lab saves the choice in this browser. A breadcrumb in the top bar shows the current section and page.
 
@@ -22,6 +22,7 @@ With **Under the hood** on, the Lab also links into Microsoft Foundry: **Open pr
 
 | Section | Page | What you do there |
 | --- | --- | --- |
+| Start here | **Ask the Lab** | Ask which agent to use or build, or how an agent is built, then choose **Try an agent** or **Build your own**. Nothing is sent or saved. |
 | Agent library | **All agents** > **Browse** | Filter the [agent library](agent-creation.md#what-a-participant-can-do) by sector or industry, task, readiness, and tools. Sector and industry are one list: choose a sector to see its industries, then choose one to narrow further. Each entry shows what to give it, what it returns, what it won't do, who decides, an example with sample data, and the expected behavior. From an entry you can create the agent, open a ready one in **Chat** with the example as an unsent draft, or download its saved record for export. |
 | Agent library | **All agents** > **Ready to chat** | Browse the prebuilt and ready created agents you can chat with, read what each one needs and does, and start a chat. |
 | Agent library | **Create agent** | Describe a job, pick a library template, edit the name and instructions, and publish a new Foundry hosted agent on the [model that suits the job](agent-creation.md#how-the-lab-picks-a-model). Shown only when the server advertises creation. Actual publication needs operator enablement. |
