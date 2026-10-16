@@ -6,7 +6,8 @@
 # If sign-in fails with "No matching federated identity record", the error shows the
 # subject GitHub presented; pass it as -FederatedSubject.
 # Its custom role can import an image into the registry and update the one Container
-# App. It cannot change registry networking, other apps, or role assignments.
+# App. It cannot change registry networking, other apps, or role assignments. It also
+# holds AcrPush on the registry so the workflow can push the image it builds.
 param(
     [Parameter(Mandatory)][ValidatePattern('^[0-9a-fA-F-]{36}$')][string]$Subscription,
     [Parameter(Mandatory)][string]$ResourceGroup,
@@ -94,6 +95,12 @@ foreach ($target in @($registryId, $appId, $environmentId, $identityId)) {
     if (-not $has) {
         Invoke-Az role assignment create --subscription $Subscription --assignee-object-id $principalId --assignee-principal-type ServicePrincipal --role $roleName --scope $target | Out-Null
     }
+}
+
+# The workflow builds on the private runner and pushes straight to the registry.
+$pushes = Invoke-Az role assignment list --subscription $Subscription --assignee $principalId --role AcrPush --scope $registryId --query "[].id" --output tsv
+if (-not $pushes) {
+    Invoke-Az role assignment create --subscription $Subscription --assignee-object-id $principalId --assignee-principal-type ServicePrincipal --role AcrPush --scope $registryId | Out-Null
 }
 
 Write-Output "Identity ready. Set these as variables of the '$Environment' environment in GitHub (not in a file):"
