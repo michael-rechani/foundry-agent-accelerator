@@ -324,9 +324,9 @@ The most used:
 ## Automated checks
 
 On every pull request and push to `main`, GitHub Actions tests the Python,
-TypeScript, and Terraform code, including browser tests at desktop and mobile
-sizes. A docs check rebuilds every diagram from its template, fails if the
-committed SVGs differ, and checks that every relative link, image, and heading
+TypeScript, and Terraform code, including browser tests at desktop sizes. A docs
+check rebuilds every diagram from its template, fails if the committed SVGs
+differ, and checks that every relative link, image, and heading
 anchor in the Markdown resolves.
 
 The checks use mocked service responses. They don't call live agents or create

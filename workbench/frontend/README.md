@@ -33,7 +33,7 @@ Those modules must use erasable TypeScript syntax, and tests import them with
 configuration, including nullability and implicit types.
 
 `npm test` builds production assets and starts an isolated preview server on
-`127.0.0.1:4174`. Playwright tests run at desktop and mobile sizes with
+`127.0.0.1:4174`. Playwright tests run at desktop size with
 mocked APIs that return sample data. They use no Azure resources or credentials.
 Screenshots and failure traces are written to ignored `test-results/`. On Linux,
 install browser system dependencies with `npx playwright install --with-deps chromium`.
@@ -167,7 +167,7 @@ operator guide.
 `tests/agent-creation.spec.ts` and `tests/agent-creation-recovery.spec.ts` cover
 template selection, preparation versus publication, operator confirmation,
 uncertain submissions and stable-ID retries, poll recovery, deletion,
-dynamic-agent chat/history, key lifetime, and mobile layout.
+dynamic-agent chat/history, and key lifetime.
 `tests/appearance.spec.ts` and `tests/appearance-looks.spec.ts` cover the
 **Appearance** menu (theme, accent, and look), saved and unreadable choices, and
 text, link, and button contrast for every look in light and dark with each
@@ -208,7 +208,7 @@ logic.
 `tests/showcase.spec.ts` covers the read-only opening experience, source-input
 parity with the downloadable examples, matching only visible or ready agents,
 confirmation before replacing a draft, Send, presenter controls,
-storage failures, and desktop/mobile screenshots. The catalog keeps input,
+storage failures, and desktop screenshots. The catalog keeps input,
 output, and human limits prominent; execution details stay in its developer
 disclosure. The existing appearance storage key is unchanged by the rebrand.
 

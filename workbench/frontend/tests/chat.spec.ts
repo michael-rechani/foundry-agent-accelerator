@@ -122,7 +122,6 @@ test('chat starts with focused controls and preserves drafts when choosing an ag
 test('default helper explains its job and offers example tasks without auto-sending', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name === 'mobile')
   const state = await openWorkspace(page, {
     config: { agents: [guidedReview] },
   })

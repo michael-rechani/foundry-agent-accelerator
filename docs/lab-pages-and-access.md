@@ -100,7 +100,7 @@ Live model execution still incurs charges. See [Storage and cost](lab-configurat
 The frontend uses React 19, TypeScript, Vite, Lucide icons, and custom
 Fluent-inspired CSS, not the Fluent UI component library. Neutral surfaces and
 blue actions are shared across creation, **Chat**, **Document reviews**,
-history, **Agent library**, performance, and the request log. Playwright covers desktop and mobile
+history, **Agent library**, performance, and the request log. Playwright covers desktop
 workflows. The Python backend uses FastAPI, Pydantic validation, and async Azure
 SDKs for Foundry and Cosmos DB. To build or test the UI, see the
 [frontend guide](../workbench/frontend/README.md).
@@ -152,7 +152,7 @@ The **Shared lab** control in the header explains these limits on demand:
 | Created-agent setups | Everyone with workspace access can read the setups. | Publication and deletion require the shared operator key. This isn't per-user authorization. |
 
 The Lab has no permanent warning banner. The **Shared lab** details are
-available on desktop and mobile, but they're informational only. They don't
+available on desktop, but they're informational only. They don't
 control access, and they don't check that submitted data is sample data.
 
 ### How the Lab checks where a request came from

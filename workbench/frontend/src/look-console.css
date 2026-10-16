@@ -117,16 +117,10 @@
   color: var(--accent);
 }
 :root[data-look='console'] .chat-sidebar nav button {
+  min-height: 36px;
+  padding: 8px 12px;
+  font: 500 12.5px/1.4 var(--mono);
   transition: none;
-}
-/* Phone tabs are a fixed width with 10px labels. A monospace face would break
-   words such as Performance, so the phone strip stays as Classic has it. */
-@media (min-width: 651px) {
-  :root[data-look='console'] .chat-sidebar nav button {
-    min-height: 36px;
-    padding: 8px 12px;
-    font: 500 12.5px/1.4 var(--mono);
-  }
 }
 :root[data-look='console'] .chat-sidebar nav button:hover:not([aria-current]) {
   background: var(--surface-hover);
@@ -265,20 +259,6 @@
   content: '## ';
   content: '## ' / '';
   color: var(--accent);
-}
-@media (max-width: 700px) {
-  :root[data-look='console']
-    :is(
-      .library-hero h1,
-      .section-heading h1,
-      .creation-heading h1,
-      .review-heading h1,
-      .demo-introduction h1,
-      .library-detail h1,
-      .chat-welcome h1
-    ) {
-    font-size: 20px;
-  }
 }
 :root[data-look='console'] .library-path li {
   font: 600 11.5px/1.4 var(--mono);

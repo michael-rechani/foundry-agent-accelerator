@@ -26,15 +26,6 @@ export default defineConfig({
       name: 'desktop',
       use: { browserName: 'chromium', viewport: { width: 1440, height: 1000 } },
     },
-    {
-      name: 'mobile',
-      use: {
-        browserName: 'chromium',
-        viewport: { width: 390, height: 844 },
-        isMobile: true,
-        hasTouch: true,
-      },
-    },
   ],
   webServer: {
     command: 'npm run preview -- --host 127.0.0.1 --port 4174 --strictPort',

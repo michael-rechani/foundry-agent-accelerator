@@ -148,10 +148,6 @@ test('agent guidance remains inspectable without reconfiguring the runtime', asy
 test('on a wide screen the agent details sit beside the conversation', async ({
   page,
 }, testInfo) => {
-  test.skip(
-    testInfo.project.name === 'mobile',
-    'The side column needs a wide window',
-  )
   const state = await openWorkspace(page, {
     usage: { input_tokens: 1200, output_tokens: 300, total_tokens: 1500 },
   })
@@ -253,10 +249,9 @@ test('configuration guidance separates UI settings from deployed agent behavior'
     ).toBeVisible()
   await expect(page.getByRole('textbox')).toHaveCount(1)
   await expect(page.locator('.catalog-agent')).toHaveCount(1)
-  if (testInfo.project.name === 'desktop')
-    expect(
-      (await page.locator('.catalog-agent').boundingBox())!.width,
-    ).toBeGreaterThanOrEqual(500)
+  expect(
+    (await page.locator('.catalog-agent').boundingBox())!.width,
+  ).toBeGreaterThanOrEqual(500)
   await screenshot(page, testInfo, 'configuration-guide.png')
   expect(state.requests).toHaveLength(0)
 })

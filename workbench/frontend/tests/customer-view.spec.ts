@@ -120,8 +120,7 @@ test('add-on technical details stay hidden until Under the hood is on', async ({
   ).toBeVisible()
 })
 
-test('Foundry links appear only under the hood', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name === 'mobile')
+test('Foundry links appear only under the hood', async ({ page }) => {
   await openCustomerView(page, { foundry_portal: foundryPortal })
   const projectLink = page.getByRole('link', {
     name: /Open project in Foundry/,
@@ -163,11 +162,7 @@ test('Foundry links appear only under the hood', async ({ page }, testInfo) => {
   await expect(page.getByRole('link', { name: /Foundry/ })).toHaveCount(0)
 })
 
-test('breadcrumbs link back to the library from its tabs', async ({
-  page,
-}, testInfo) => {
-  // Narrow screens show only the current page in the top bar.
-  test.skip(testInfo.project.name === 'mobile')
+test('breadcrumbs link back to the library from its tabs', async ({ page }) => {
   await openCustomerView(page)
   await libraryNav(page).getByRole('button', { name: 'Guided demos' }).click()
   const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
