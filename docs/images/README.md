@@ -23,7 +23,7 @@ component:
 | Diagram | What it shows | Where it appears | Source |
 | --- | --- | --- | --- |
 | [Agent release journey](agent-release-journey.svg) | The private foundation and agent releases as two connected workflows, their configuration handoff, and the decisions people approve. | [README](../../README.md#one-foundation-two-connected-workflows), [showcase](../showcase.md) | [Template](agent-release-journey.template.svg) |
-| [Azure architecture](azure-architecture.svg) | One-page network map: the subscription and resource group, the admin and workload networks with their default subnets, a private endpoint for each service, and seven numbered request steps. | [README](../../README.md#what-runs-in-azure) | [Template](azure-architecture.template.svg) |
+| [Azure architecture](azure-architecture.svg) | One-page network map: the subscription and resource group, the admin and workload networks, a private endpoint for each service, and seven numbered request steps. | [README](../../README.md#what-runs-in-azure) | [Template](azure-architecture.template.svg) |
 | [Agent collaboration](agent-collaboration.svg) | The coordinator's requests to specialists, their results, and the person who checks the answer. | [README](../../README.md#agents-working-together), [architecture guide](../architecture.md#agent-collaboration) | [Template](agent-collaboration.template.svg) |
 | [Orchestration pattern](orchestration-pattern.svg) | How the coordinator compares with the five patterns in Microsoft's agent orchestration guide: handoff is the closest match, with one difference. | [Architecture guide](../architecture.md#orchestration-pattern) | [Template](orchestration-pattern.template.svg) |
 | [How the Lab handles a request](foundry-overview.svg) | The Lab's request path, the records it saves, and optional Azure API Management (APIM) outside the default flow. | [Architecture guide](../architecture.md#implementation-overview) | [Template](foundry-overview.template.svg) |
@@ -65,9 +65,9 @@ link check locally before you push:
 python .github/scripts/check_markdown_links.py
 ```
 
-These are logical diagrams, not a resource inventory. Only the Azure
-architecture view shows subnets. Elsewhere, boxes don't place managed services
-inside virtual networks.
+These are logical diagrams, not a resource inventory. No diagram draws
+subnets, and boxes don't place managed services inside virtual networks
+unless the diagram says so.
 
 ## Diagram style
 
@@ -115,17 +115,17 @@ restrained color, generous spacing, and labeled flows.
 The Azure architecture view is the one-picture network map. Only what's
 deployed into a virtual network sits inside one: Azure Bastion and the jumpbox
 in the admin network, and in the workload network the Lab's internal Container
-Apps environment, the agent subnet delegated to Foundry, and one private
+Apps environment, the agent network delegated to Foundry, and one private
 endpoint for each service. Foundry, data services, and shared services sit
 outside the networks, each linked to its private endpoint. Step 6 starts at
-Foundry Agent Service and runs through the agent subnet, because agents reach
+Foundry Agent Service and runs through the agent network, because agents reach
 their data from there. Badges 1 to 7 follow one request and match the steps in
 the root README. Don't draw what Terraform doesn't create, such as network
 security groups or a firewall. Don't add paths the view omits on purpose, such
 as Lab logs, which reach Azure Monitor through diagnostic settings rather
 than its private endpoint. Model names are examples, and deployments are
-configurable. Keep optional API Management and its subnet out of this view.
-When a subnet or address default changes in Terraform, update the view.
+configurable. Keep optional API Management out of this view, and don't draw subnets.
+When an address default changes in Terraform, update the view.
 
 The collaboration view shows the Lab's default setup: **Checklist and case
 helper** with the **Checklist reviewer** and **Case notes summarizer**
