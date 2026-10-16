@@ -151,17 +151,21 @@ test('on a wide screen the side column offers to create a previewed agent', asyn
   expect(state.creations).toBe(0)
 })
 
-test('Chat points to Create an agent for something new and cannot create one itself', async ({
+test('Chat has no creation pointer and cannot create an agent itself', async ({
   page,
 }) => {
   const state = await openLibrary(page)
   await openChat(page)
   const welcome = page.locator('.chat-welcome')
-  await expect(welcome).toContainText('Need something else?')
+  await expect(welcome).toBeVisible()
+  await expect(welcome).not.toContainText('Need something else?')
+  await expect(
+    welcome.getByRole('button', { name: 'Create an agent' }),
+  ).toHaveCount(0)
   await expect(
     page.getByRole('button', { name: 'Create this agent', exact: true }),
   ).toHaveCount(0)
-  await welcome.getByRole('button', { name: 'Create an agent' }).click()
+  await workspaceNav(page).getByRole('button', { name: 'Create agent' }).click()
   await expect(
     page.getByRole('heading', { name: 'Create an agent', exact: true }),
   ).toBeVisible()
