@@ -38,7 +38,8 @@
       "insurer",
       "dispute"
     ],
-    "readiness": "sample"
+    "readiness": "sample",
+    "availability": "focus"
   },
   "match": [
     "bills?|billed|billing|charges?|overcharg\\w*|itemi[sz]ed|explanation of benefits|eob",

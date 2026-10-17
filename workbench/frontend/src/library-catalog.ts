@@ -28,6 +28,7 @@ export type LibraryTemplate = {
   industry: Choice
   tasks: Choice[]
   readiness: DescribedChoice
+  availability: DescribedChoice
   tool_mode: DescribedChoice
   prerequisites: string[]
   runtime_hint: {
@@ -45,7 +46,12 @@ export type LibraryTemplate = {
 }
 
 export type FacetKey =
-  'sectors' | 'industries' | 'tasks' | 'readiness' | 'tool_modes'
+  | 'sectors'
+  | 'industries'
+  | 'tasks'
+  | 'readiness'
+  | 'availability'
+  | 'tool_modes'
 export type LibraryCatalog = {
   templates: LibraryTemplate[]
   facets: Record<FacetKey, Facet[]>
@@ -57,6 +63,7 @@ export const facetKeys: FacetKey[] = [
   'industries',
   'tasks',
   'readiness',
+  'availability',
   'tool_modes',
 ]
 
@@ -126,6 +133,7 @@ function validTemplate(item: unknown): item is LibraryTemplate {
     item.tasks.length > 0 &&
     item.tasks.every((task) => choice(task)) &&
     choice(item.readiness, true) &&
+    choice(item.availability, true) &&
     choice(item.tool_mode, true) &&
     Array.isArray(item.prerequisites) &&
     item.prerequisites.every(text) &&
@@ -200,6 +208,8 @@ export function valuesFor(template: LibraryTemplate, key: FacetKey): Choice[] {
       return template.tasks
     case 'readiness':
       return [template.readiness]
+    case 'availability':
+      return [template.availability]
     case 'tool_modes':
       return [template.tool_mode]
   }
