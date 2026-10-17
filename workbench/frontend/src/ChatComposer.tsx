@@ -65,6 +65,7 @@ export function ChatComposer({
           value={draft}
           aria-describedby={
             [
+              !localPreview && 'composer-hint',
               config?.mode === 'private' && 'chat-privacy',
               config && showDetails && 'context-budget',
             ]
@@ -154,6 +155,11 @@ export function ChatComposer({
           </div>
         </div>
       </form>
+      {!localPreview && (
+        <p className="composer-hint" id="composer-hint">
+          Enter sends. Shift+Enter adds a new line.
+        </p>
+      )}
       {config?.mode === 'private' && (
         <div className="composer-privacy" id="chat-privacy">
           <p>

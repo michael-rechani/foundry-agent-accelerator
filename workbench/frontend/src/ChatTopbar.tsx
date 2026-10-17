@@ -104,6 +104,11 @@ export function ChatTopbar({
             onChoose={onChoose}
             onBrowse={() => onView('library')}
           />
+          {agent && isPreview && (
+            <span className="agent-preview-badge" title={previewBlurb}>
+              Library preview
+            </span>
+          )}
           {agent && (
             // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape bubbles up from the summary and controls inside this disclosure.
             <details

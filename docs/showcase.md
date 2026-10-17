@@ -101,11 +101,16 @@ choose an unsupported date, or modify a system.
 4. In a prepared private environment, send the message yourself and compare the
    real reply with the evidence. Calls can incur costs. In local preview, no
    agent is invoked.
-5. Use the **Demo guide** in Chat to keep the expected findings and human decision
-   nearby. It's separate from the model's answer.
-6. Choose **Start fresh with this example** to reset local messages with
-   confirmation. It never deletes shared history, changes infrastructure, or
-   stops a deployed agent. Record failures rather than hiding them.
+5. Use the **Demo guide** in Chat. It lists a test path: the sample input, then
+   one or two follow-up questions. For each step, choose **Load this prompt**,
+   send it yourself, and tick each check the real reply meets. The guide counts
+   them ("N of M checks passed"). The checks are separate from the model's
+   answer, stay in this browser tab, and are added to **Export conversation**.
+   They are never saved to shared history.
+6. Choose **Start fresh with this example** to reset local messages and the
+   checks, with confirmation. It never deletes shared history, changes
+   infrastructure, or stops a deployed agent. Record failures rather than
+   hiding them.
 
 Plan for the first wait. A hosted agent starts when a new chat sends its first
 message, so that first answer takes about 30 seconds (31 and 34 seconds were

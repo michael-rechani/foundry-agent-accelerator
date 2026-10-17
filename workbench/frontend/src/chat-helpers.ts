@@ -1,4 +1,5 @@
 import type { Turn } from './conversation-types'
+import type { exportDemoChecks } from './demo-checks'
 import { saveFile } from './save-file'
 import type { Agent, Config } from './workspace-config'
 
@@ -80,10 +81,11 @@ export function exportConversation(
   agent: Agent | undefined,
   turns: Turn[],
   draft: string,
+  demo?: ReturnType<typeof exportDemoChecks>,
 ) {
   saveFile(
     'foundry-conversation.json',
-    JSON.stringify({ agent: agent?.agent, turns, draft }, null, 2),
+    JSON.stringify({ agent: agent?.agent, turns, draft, demo }, null, 2),
     'application/json',
   )
 }

@@ -117,6 +117,10 @@ export function ChatConversation({
           latestAnswer={latestAnswer}
           onFreshDemo={onFreshDemo}
           onCloseDemo={() => setActiveDemo(null)}
+          onDemoStep={(prompt) => {
+            prefill(prompt)
+            editor.current?.focus()
+          }}
           onPrompt={(text) => {
             prefill(text)
             setActiveDemo(null)

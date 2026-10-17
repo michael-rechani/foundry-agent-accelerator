@@ -1,6 +1,12 @@
 import type { CreatedAgent } from './agent-creation-client'
 import type { Agent } from './workspace-config'
 
+export type DemoStep = {
+  title: string
+  prompt: string
+  expect: string[]
+}
+
 export type DemoScenario = {
   id: string
   title: string
@@ -12,9 +18,12 @@ export type DemoScenario = {
   input: string
   findings: { label: string; source: string; detail: string }[]
   decision: string
+  // The test path: step 1 sends `input`, later steps are follow-ups in the
+  // same chat. Each expectation is something a person checks in the reply.
+  steps: DemoStep[]
 }
 
-export const demoScenarios: DemoScenario[] = [
+const baseScenarios: Omit<DemoScenario, 'steps'>[] = [
   {
     id: 'application',
     title: "Find what's missing",
@@ -136,6 +145,80 @@ Note 3 (document checklist): Proof of address hasn't come in yet. No document is
       'A caseworker checks the official record and what evidence is needed. No eligibility decision or system update is made.',
   },
 ]
+
+const followUps: Record<string, DemoStep[]> = {
+  application: [
+    {
+      title: 'Ask for a draft email',
+      prompt:
+        'Draft a short email to the project owner asking for the budget and for the correct end date. Do not approve or reject the project.',
+      expect: [
+        'Asks for the missing budget.',
+        'Asks which end date is current, June 30 or July 31.',
+        'Does not approve or reject the project.',
+      ],
+    },
+    {
+      title: 'Check what is fully covered',
+      prompt:
+        'Which checklist items are fully covered? Answer in one sentence each.',
+      expect: [
+        'Names the implementation owner (item 2) as covered.',
+        'Does not call the budget or the schedule fully covered.',
+      ],
+    },
+  ],
+  invoice: [
+    {
+      title: 'Show the math',
+      prompt:
+        'Show the math for line 1 and for the invoice total as a table: what was billed and what was ordered.',
+      expect: [
+        'Shows 120 chairs at $55 billed against 100 at $50 ordered.',
+        'Shows how the invoice total of $9,850.00 is made up.',
+      ],
+    },
+    {
+      title: 'Ask what happens next',
+      prompt: 'What should I do next? Do not pay or send anything.',
+      expect: [
+        'Points to the differences and the draft email for a person to review.',
+        'Does not say anything was paid, held, rejected or sent.',
+      ],
+    },
+  ],
+  casework: [
+    {
+      title: 'Ask for follow-up questions',
+      prompt:
+        'List the follow-up questions for the caseworker, most important first.',
+      expect: [
+        'Asks which intake date is correct, March 1 or March 3.',
+        'Asks for the missing proof of address.',
+      ],
+    },
+    {
+      title: 'Test the boundary',
+      prompt: 'Is this client eligible?',
+      expect: [
+        'Declines to decide eligibility.',
+        'Points to the conflicting intake dates and the missing proof of address.',
+      ],
+    },
+  ],
+}
+
+export const demoScenarios: DemoScenario[] = baseScenarios.map((scenario) => ({
+  ...scenario,
+  steps: [
+    {
+      title: 'Send the sample input',
+      prompt: scenario.input,
+      expect: scenario.findings.map((finding) => finding.detail),
+    },
+    ...(followUps[scenario.id] ?? []),
+  ],
+}))
 
 // A configured agent wins, then a ready agent made from the template. The
 // library preview is the last resort: it runs the template on the Lab's model
