@@ -84,9 +84,18 @@ def load_and_run(path):
     asyncio.run(module.main())
 
 
-def run_main(folder, environ):
+def optimizer_stubs(source, instructions="Candidate instructions.", model="candidate-model", skills=""):
+    """Stub azure.ai.agentserver.optimization so load_config() returns a candidate from the given source."""
+    config = SimpleNamespace(source=source, model=model, compose_instructions=lambda: instructions + skills)
+    package = ModuleType("azure.ai.agentserver.optimization")
+    package.load_config = MagicMock(name="load_config", return_value=config)
+    return {"azure.ai.agentserver": ModuleType("azure.ai.agentserver"), "azure.ai.agentserver.optimization": package}
+
+
+def run_main(folder, environ, extra_modules=None):
     """Run a hosted agent's main() against stubbed SDKs and return what it built."""
     modules, built = sdk_stubs()
+    modules.update(extra_modules or {})
     with (patch.dict(sys.modules, modules), patch.dict(os.environ, environ, clear=True),
           patch("review_output.quotation_middleware", return_value="quotation-check")):
         load_and_run(HOSTED / folder / "main.py")
@@ -166,6 +175,39 @@ class HostedStartupTests(unittest.TestCase):
             with self.subTest(agent=folder):
                 kwargs = run_main(folder, environ).agent.call_args.kwargs
                 self.assertEqual((kwargs["name"], kwargs["instructions"]), ("renamed-agent", "Use only supplied text."))
+
+    def test_an_active_optimizer_candidate_replaces_instructions_and_model(self):
+        environ = {**ENVIRONMENT, "AGENT_INSTRUCTIONS": "Deployed instructions."}
+        for folder, _, _ in SHARED_RUNTIME_AGENTS:
+            for source in ("env:OPTIMIZATION_CONFIG", "api:candidate:c1"):
+                with self.subTest(agent=folder, source=source):
+                    built = run_main(folder, environ, optimizer_stubs(source, skills="\n- skill"))
+                    self.assertEqual(built.agent.call_args.kwargs["instructions"], "Candidate instructions.\n- skill")
+                    self.assertEqual(built.client.call_args.kwargs["model"], "candidate-model")
+
+    def test_the_baseline_folder_and_a_missing_candidate_change_nothing(self):
+        environ = {**ENVIRONMENT, "AGENT_INSTRUCTIONS": "Deployed instructions."}
+        for folder, _, _ in SHARED_RUNTIME_AGENTS:
+            for label, extra in (("baseline", optimizer_stubs("local:/agent/.agent_configs/baseline")),
+                                 ("none", optimizer_stubs("")), ("not installed", {})):
+                with self.subTest(agent=folder, config=label):
+                    built = run_main(folder, environ, extra)
+                    self.assertEqual(built.agent.call_args.kwargs["instructions"], "Deployed instructions.")
+                    self.assertEqual(built.client.call_args.kwargs["model"], "model")
+
+    def test_a_candidate_without_instructions_or_model_keeps_the_deployed_ones(self):
+        environ = {**ENVIRONMENT, "AGENT_INSTRUCTIONS": "Deployed instructions."}
+        built = run_main("case-review-agent", environ, optimizer_stubs("env:OPTIMIZATION_CONFIG", "", None))
+        self.assertEqual(built.agent.call_args.kwargs["instructions"], "Deployed instructions.")
+        self.assertEqual(built.client.call_args.kwargs["model"], "model")
+
+    def test_optimizer_files_stay_out_of_the_deployed_package(self):
+        for folder, _, _ in SHARED_RUNTIME_AGENTS:
+            with self.subTest(agent=folder):
+                self.assertTrue((HOSTED / folder / ".agent_configs" / "baseline" / "metadata.yaml").is_file())
+                names = set(packaged_files(folder))
+                self.assertFalse({"eval.yaml", "eval.jsonl"} & names)
+                self.assertFalse([name for name in names if ".agent_configs" in name])
 
     def test_responses_are_stored_only_when_the_setting_is_true(self):
         for value, stored in (("true", True), ("TRUE", True), ("True", True), ("false", False), ("", False),
