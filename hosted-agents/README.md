@@ -505,4 +505,5 @@ covers those scenarios.
 - [Coordinator profiles](../docs/agent-profiles.md)
 - [Private deployment runbook](../docs/private-deployment.md)
 - [Synthetic review evaluations](../evaluations/README.md)
+- [Agent Optimizer](../docs/agent-optimizer.md)
 - [Agent monitoring](../terraform/monitoring/README.md)

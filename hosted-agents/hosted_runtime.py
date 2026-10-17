@@ -40,6 +40,32 @@ def agent_settings(default_name: str, default_instructions: str, environ: Mappin
     )
 
 
+def load_optimization_config():
+    """Return the active Foundry Agent Optimizer candidate, or None when no run is active.
+
+    The optimizer starts temporary agent versions with OPTIMIZATION_CONFIG or
+    OPTIMIZATION_CANDIDATE_ID set. Anything else, including a missing package or the
+    baseline folder beside main.py, leaves the agent exactly as deployed.
+    """
+    try:
+        from azure.ai.agentserver.optimization import load_config
+    except ImportError:
+        return None
+    config = load_config()
+    source = getattr(config, "source", "") or ""
+    return config if source.startswith(("env:", "api:")) else None
+
+
+def apply_optimization(settings: AgentSettings, config) -> AgentSettings:
+    """Overlay a candidate's instructions and model on the settings; no candidate changes nothing."""
+    if config is None:
+        return settings
+    return settings._replace(
+        instructions=config.compose_instructions() or settings.instructions,
+        model=config.model or settings.model,
+    )
+
+
 def build_agent(credential, settings: AgentSettings, *, middleware=(), tools=()) -> Agent:
     """Build the agent. Middleware and tools are passed on only when there are some."""
     client_options = {"middleware": list(middleware)} if middleware else {}

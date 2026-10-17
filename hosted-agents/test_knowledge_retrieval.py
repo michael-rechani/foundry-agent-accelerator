@@ -502,7 +502,7 @@ def run_main(path, environ):
     modules = {
         "agent_framework": agent_framework, "agent_framework.foundry": foundry,
         "agent_framework_foundry_hosting": hosting, "azure": ModuleType("azure"),
-        "azure.identity": identity,
+        "azure.identity": identity, "azure.ai.agentserver.optimization": None,
     }
     environ = {**environ, "FOUNDRY_PROJECT_ENDPOINT": "https://example.services.ai.azure.com/api/projects/test",
                "FOUNDRY_MODEL_NAME": "model"}

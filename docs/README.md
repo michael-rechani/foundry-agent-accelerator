@@ -61,6 +61,7 @@ For developers who change agents, evaluate quality, or extend the architecture.
 | [Run an approved live evaluation](evaluation-live-run.md) | Prepare staging, run the evaluation, and understand costs, retention, and interrupted runs. |
 | [Evaluation SDK contract, comparison, and tracing](evaluation-sdk-comparison-tracing.md) | See what the offline SDK tests establish, compare candidates, and set up tracing. |
 | [Agent library scorecards](library-scorecards.md) | Read the library's acceptance cases, the Lab's **Test results** tab, and the sign-off workflow. |
+| [Agent Optimizer](agent-optimizer.md) | Improve a hosted review agent's instructions and model with the Foundry Agent Optimizer, behind a review gate. |
 | [Cost comparison](../cost-comparison/README.md) | Compare Azure GPU VM costs with Foundry hosted-agent costs. |
 | [Optional integrations](optional-integrations.md) | Review integration paths that sit outside the core demo. |
 | [Add-on package format](addon-package-format.md) | See how an add-on is described, checked, and prepared for a Terraform deployment that a person approves. It also covers the plan check and the draft knowledge search package. Nothing is deployed from it yet. |

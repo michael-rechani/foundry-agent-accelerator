@@ -3,7 +3,13 @@ from pathlib import Path
 
 from azure.identity import DefaultAzureCredential
 
-from hosted_runtime import agent_settings, build_agent, serve
+from hosted_runtime import (
+    agent_settings,
+    apply_optimization,
+    build_agent,
+    load_optimization_config,
+    serve,
+)
 from review_output import quotation_middleware
 
 DEFAULT_INSTRUCTIONS = (Path(__file__).parent / "instructions.md").read_text(
@@ -12,7 +18,10 @@ DEFAULT_INSTRUCTIONS = (Path(__file__).parent / "instructions.md").read_text(
 
 
 async def main() -> None:
-    settings = agent_settings("case-review-agent", DEFAULT_INSTRUCTIONS)
+    settings = apply_optimization(
+        agent_settings("case-review-agent", DEFAULT_INSTRUCTIONS),
+        load_optimization_config(),
+    )
 
     with DefaultAzureCredential() as credential:
         agent = build_agent(credential, settings, middleware=[quotation_middleware()])
