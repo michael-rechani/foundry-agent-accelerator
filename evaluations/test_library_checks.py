@@ -391,6 +391,45 @@ GOOD = {
         "necessity or tell whether approval will follow; clinical staff and insurer staff decide medical need "
         "and approval.\n\n"
         "UNSENT DRAFT: The paperwork appears complete, and the next step is review by clinical and insurer staff."),
+    "insurance-preapproval-helper-gold-plan": (
+        "The sample insurer rules lookup for PLAN-DEMO-GOLD lists four requirements with a 90-day visit-notes "
+        "window and no treatment record. Document 1 is the signed order and Document 3 is the member ID, so "
+        "both are ready. Document 2 is dated 2027-03-30, which is 77 days before the 2027-06-15 request "
+        "(1 + 30 + 31 + 15 = 77), so it is inside the 90 days. The sample facility lookup says FAC-DEMO-22 is "
+        "in network for this plan, so every requirement is ready.\n\n"
+        "UNSENT DRAFT: The paperwork looks complete for staff to send. Is anyone confirming the order "
+        "signature before it goes?"),
+    "insurance-preapproval-helper-all-ready": (
+        "The sample insurer rules lookup lists five requirements. Document 1 is the signed order, Document 3 "
+        "is the treatment log with dates, and Document 4 is the member ID, so all are ready. Document 2 is "
+        "dated 2027-03-10, which is 33 days before the 2027-04-12 request (21 + 12 = 33), inside the 60-day "
+        "window. The sample facility lookup says FAC-DEMO-31 is in network.\n\n"
+        "UNSENT DRAFT: The paperwork looks complete for staff to send."),
+    "insurance-preapproval-helper-missing-details": (
+        "The sample insurer rules lookup lists five requirements. Document 1 shows no date or signature, "
+        "Document 2 has no date so I cannot count the visit-notes window, and Document 3 is the member ID. "
+        "The request says the facility is not listed, so I did not look up a facility and cannot check "
+        "network status. Those requirements are Needs attention and the treatment record is Missing.\n\n"
+        "UNSENT DRAFT: Please add the facility ID and the dates for Document 1 and Document 2. "
+        "Can you send them?"),
+    "medical-bill-reviewer-clean-bill": (
+        "The sample plan lookup for PLAN-DEMO-SILVER and the usual price lookup show DEMO-ER-3 at $600.00 "
+        "allowed and DEMO-LAB-7 at $40.00, and the insurer statement matches both. I found no issues: "
+        "$600.00 + $40.00 = $640.00 allowed, plan paid $512.00, so the estimated patient share is $128.00, "
+        "which matches the bill's $128.00.\n\n"
+        "UNSENT DRAFT: Thank you, the bill matches the insurer statement and no correction is needed."),
+    "medical-bill-reviewer-gold-plan-balance-billing": (
+        "The sample plan lookup for PLAN-DEMO-GOLD says in-network members owe only the statement's share, "
+        "and the usual price lookup supports $600.00 allowed for DEMO-ER-3. The bill asks for $475.00, "
+        "which is $1,150.00 minus the $675.00 the plan paid, but the statement supports an estimated "
+        "patient share of $75.00 ($60.00 + $15.00). That is $400.00 billed beyond the patient share.\n\n"
+        "UNSENT DRAFT: For lines 1 and 2 of HB-DEMO-0602, please send a corrected bill because the "
+        "documents support an estimated patient share of $75.00, not $475.00."),
+    "medical-bill-reviewer-missing-statement-line": (
+        "The sample plan lookup for PLAN-DEMO-SILVER and the usual price lookup show DEMO-LAB-7 is usually "
+        "allowed at $40.00, but the insurer statement has no line for DEMO-LAB-7, so I cannot say what the "
+        "plan paid. The bill asks for $480.00 and the statement supports $120.00 for DEMO-ER-3 only.\n\n"
+        "UNSENT DRAFT: Please send the insurer statement line for DEMO-LAB-7. Could you share it?"),
 }
 
 
@@ -820,7 +859,7 @@ class CliTests(unittest.TestCase):
     def test_validate(self):
         code, out, _ = self.run_cli("validate")
         self.assertEqual(code, 0)
-        self.assertIn("90 cases valid across 18 templates", out)
+        self.assertIn("96 cases valid across 18 templates", out)
 
     def test_validate_reports_bad_metadata_and_a_non_string_fixture_id(self):
         broken = json.loads(json.dumps(DATA))

@@ -60,9 +60,29 @@ _PLANS = {
         ],
         "status": "Example only; not a real health plan",
     },
+    "PLAN-DEMO-GOLD": {
+        "plan_id": "PLAN-DEMO-GOLD", "plan_name": "Gold Demo Plan", "plan_year": 2027,
+        "in_network_providers": [
+            "Lakeside Demo Hospital", "Riverbend Demo Clinic", "Lakeside Demo Imaging Center",
+            "Northside Demo Imaging",
+        ],
+        "deductible_remaining": "$0.00 (met earlier in 2027)",
+        "patient_share_after_deductible": "10% of the allowed amount for in-network care",
+        "in_network_billing_rule": (
+            "In-network providers have agreed to accept the allowed amount. Members owe only the 'your share' "
+            "amount on the insurer statement."
+        ),
+        "duplicate_rule": "The same service on the same date is paid once unless the provider explains why it was repeated.",
+        "dispute_steps": [
+            "Ask the hospital billing office for a corrected itemized bill.",
+            "Call member services at the number on the member card.",
+            "Send a written dispute within 180 days of the insurer statement date.",
+        ],
+        "status": "Example only; not a real health plan",
+    },
 }
 _USUAL_PRICES = {
-    code: {"service_code": code, "plan_id": "PLAN-DEMO-SILVER", "description": description,
+    code: {"service_code": code, "plan_ids": ["PLAN-DEMO-SILVER", "PLAN-DEMO-GOLD"], "description": description,
            "usual_allowed_amount": amount, "billing_unit": unit, "status": _EXAMPLE}
     for code, description, amount, unit in (
         ("DEMO-ER-3", "Emergency room visit, level 3", "$600.00", "One per visit"),
@@ -84,17 +104,28 @@ _PREAPPROVAL_RULES = {
         "note": "Paperwork list only. The insurer's own reviewers decide medical need.",
         "status": "Example only; not a real insurer rule",
     },
+    "PLAN-DEMO-GOLD/DEMO-MRI-LS": {
+        "plan_id": "PLAN-DEMO-GOLD", "service_code": "DEMO-MRI-LS", "service": "MRI of the lower back",
+        "required_documents": [
+            {"id": "RULE-1", "item": "Order signed and dated by the treating clinician"},
+            {"id": "RULE-2", "item": "Visit notes dated within 90 days before the request date"},
+            {"id": "RULE-3", "item": "Member ID that matches the plan"},
+            {"id": "RULE-4", "item": "Facility in the plan's network, or an out-of-network exception form"},
+        ],
+        "note": "Paperwork list only. The insurer's own reviewers decide medical need.",
+        "status": "Example only; not a real insurer rule",
+    },
 }
 _FACILITIES = {
     "FAC-DEMO-22": {
         "facility_id": "FAC-DEMO-22", "name": "Northside Demo Imaging",
-        "network_status": {"PLAN-DEMO-SILVER": "Out of network"},
+        "network_status": {"PLAN-DEMO-SILVER": "Out of network", "PLAN-DEMO-GOLD": "In network"},
         "in_network_alternative": "FAC-DEMO-31 Lakeside Demo Imaging Center",
         "status": _EXAMPLE,
     },
     "FAC-DEMO-31": {
         "facility_id": "FAC-DEMO-31", "name": "Lakeside Demo Imaging Center",
-        "network_status": {"PLAN-DEMO-SILVER": "In network"},
+        "network_status": {"PLAN-DEMO-SILVER": "In network", "PLAN-DEMO-GOLD": "In network"},
         "status": _EXAMPLE,
     },
 }
