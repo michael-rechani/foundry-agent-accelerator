@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import {
   ArrowRight,
   Check,
@@ -13,6 +13,14 @@ import {
   agentForDemo,
   type DemoScenario,
 } from './demo-scenarios'
+import {
+  checkKey,
+  demoChecksSnapshot,
+  parseChecks,
+  subscribeDemoChecks,
+  summarizeChecks,
+  toggleDemoCheck,
+} from './demo-checks'
 import type { CreatedAgent } from './agent-creation-client'
 import { isPreviewId } from './library-catalog'
 import type { Agent, Config } from './workspace-config'
@@ -163,6 +171,22 @@ export function ExploreDemos({
             <summary>Sample input</summary>
             <pre>{selected.input}</pre>
           </details>
+          <details className="demo-test-path" key={`${selected.id}-steps`}>
+            <summary>Test path: {selected.steps.length} steps</summary>
+            <p>Example checks, not a live model result.</p>
+            <ol>
+              {selected.steps.map((step) => (
+                <li key={step.title}>
+                  <strong>{step.title}</strong>
+                  <ul>
+                    {step.expect.map((expectation) => (
+                      <li key={expectation}>{expectation}</li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ol>
+          </details>
           {loadingAgents && (
             <p role="status">Checking which agents are available...</p>
           )}
@@ -199,25 +223,66 @@ export function DemoRunGuide({
   busy,
   onFresh,
   onClose,
+  onLoadStep,
 }: {
   scenario: DemoScenario
   presenting: boolean
   busy: boolean
   onFresh: () => void
   onClose: () => void
+  onLoadStep: (prompt: string) => void
 }) {
+  const raw = useSyncExternalStore(subscribeDemoChecks, () =>
+    demoChecksSnapshot(scenario.id),
+  )
+  const marks = parseChecks(raw)
   return (
     <details className="demo-run-guide" open={presenting}>
       <summary>Demo guide: {scenario.task}</summary>
       <p>
-        Expected findings, not a live result. Compare the actual reply with the
-        sample source.
+        Expected findings, not a live result. Load each step, choose when to
+        send it, then tick each check that the actual reply meets. Marks stay in
+        this browser tab only.
       </p>
-      <ul>
-        {scenario.findings.map((finding) => (
-          <li key={finding.source}>{finding.detail}</li>
+      <ol className="demo-steps">
+        {scenario.steps.map((step, stepIndex) => (
+          <li key={step.title}>
+            <div className="demo-step-head">
+              <strong>
+                Step {stepIndex + 1}: {step.title}
+              </strong>
+              <button
+                className="inline-link"
+                disabled={busy}
+                aria-label={`Load step ${stepIndex + 1}: ${step.title}`}
+                onClick={() => onLoadStep(step.prompt)}
+              >
+                Load this prompt
+              </button>
+            </div>
+            <ul>
+              {step.expect.map((expectation, itemIndex) => {
+                const key = checkKey(stepIndex, itemIndex)
+                return (
+                  <li key={key}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={marks.has(key)}
+                        onChange={() => toggleDemoCheck(scenario.id, key)}
+                      />
+                      <span>{expectation}</span>
+                    </label>
+                  </li>
+                )
+              })}
+            </ul>
+          </li>
         ))}
-      </ul>
+      </ol>
+      <p className="demo-check-summary" role="status">
+        {summarizeChecks(scenario, marks)}
+      </p>
       <p>{scenario.decision}</p>
       <div className="demo-guide-actions">
         <button className="inline-link" disabled={busy} onClick={onFresh}>

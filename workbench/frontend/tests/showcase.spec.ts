@@ -195,6 +195,59 @@ test('loading a demo preserves unsaved work until confirmed and never auto-sends
   })
 })
 
+test('demo test path loads prompts without sending and keeps pass marks in the tab', async ({
+  page,
+}) => {
+  const state = await openShowcase(page)
+  const scenario = demoScenarios[0]
+  const test_path = page.locator('.demo-test-path')
+  await test_path.locator('summary').click()
+  await expect(test_path).toContainText(scenario.steps[1].title)
+  await page.getByRole('button', { name: 'Load sample input' }).click()
+  const guide = page.locator('.demo-run-guide')
+  await guide.locator('summary').click()
+  const total = scenario.steps.reduce(
+    (sum, step) => sum + step.expect.length,
+    0,
+  )
+  const summary = guide.locator('.demo-check-summary')
+  await expect(summary).toHaveText(`0 of ${total} checks passed`)
+
+  // Loading a step only fills the message box.
+  const box = page.getByRole('textbox', { name: 'Message', exact: true })
+  await guide.getByRole('button', { name: /Load step 2:/ }).click()
+  await expect(box).toHaveValue(scenario.steps[1].prompt)
+  await expect(guide).toBeVisible()
+  expect(state.writes).toEqual([])
+
+  await guide
+    .getByRole('checkbox', { name: scenario.steps[0].expect[0] })
+    .check()
+  await guide
+    .getByRole('checkbox', { name: scenario.steps[1].expect[0] })
+    .check()
+  await expect(summary).toHaveText(`2 of ${total} checks passed`)
+
+  // Export carries the marks; starting fresh clears them.
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export conversation' }).click()
+  const download = await downloadPromise
+  const payload = JSON.parse(await readFile((await download.path())!, 'utf8'))
+  expect(payload.demo.summary).toBe(`2 of ${total} checks passed`)
+  expect(
+    payload.demo.checks.filter((c: { passed: boolean }) => c.passed),
+  ).toHaveLength(2)
+  await guide
+    .getByRole('button', { name: 'Start fresh with this example' })
+    .click()
+  const confirm = page.locator('dialog.confirm-dialog')
+  if (await confirm.count()) {
+    await confirm.getByRole('button', { name: 'Open example' }).click()
+  }
+  await expect(summary).toHaveText(`0 of ${total} checks passed`)
+  expect(state.writes).toEqual([])
+})
+
 test('presenter controls keep environment and human-review boundaries visible', async ({
   page,
 }, testInfo) => {

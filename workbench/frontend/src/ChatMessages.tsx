@@ -30,6 +30,7 @@ export function ChatMessages({
   latestAnswer,
   onFreshDemo,
   onCloseDemo,
+  onDemoStep,
   onPrompt,
   onCopy,
   onDismissError,
@@ -52,6 +53,7 @@ export function ChatMessages({
   latestAnswer: RefObject<HTMLElement | null>
   onFreshDemo: (scenario: DemoScenario) => void
   onCloseDemo: () => void
+  onDemoStep: (prompt: string) => void
   onPrompt: (text: string) => void
   onCopy: (text: string, done?: string) => void
   onDismissError: () => void
@@ -66,6 +68,7 @@ export function ChatMessages({
           busy={busy || historyBusy}
           onFresh={() => onFreshDemo(activeDemo)}
           onClose={onCloseDemo}
+          onLoadStep={onDemoStep}
         />
       )}
       {!turns.length && !pending ? (

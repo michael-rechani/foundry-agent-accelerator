@@ -55,9 +55,15 @@ users or saved with chats.
 
 **Presenter view:** the presentation button in the header enlarges story and
 Chat text for this browser session. A loaded scenario has a compact **Demo
-guide** with expected findings and a guarded **Start fresh with this example**
-action. Environment notices stay available, and resetting local messages never
-deletes shared records. See the [showcase guide](showcase.md).
+guide** with a test path: two or three steps, each with the checks a good reply
+should meet. **Load this prompt** only fills the message box; you choose when to
+send. Tick each check the real reply meets and the guide shows "N of M checks
+passed". The marks stay in this browser tab, are added to **Export
+conversation**, and are cleared by the guarded **Start fresh with this example**
+action. They are never sent to the server or saved to shared history. The same
+steps are listed, as an example and not a live result, on **Guided demos**.
+Environment notices stay available, and resetting local messages never deletes
+shared records. See the [showcase guide](showcase.md).
 
 **What gets saved:** **Chat** saves completed messages to the shared Azure
 Cosmos DB database only when you choose to save. Creating a document review

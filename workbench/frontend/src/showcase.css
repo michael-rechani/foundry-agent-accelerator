@@ -253,6 +253,46 @@
 .demo-run-guide ul {
   margin: 12px 0;
 }
+.demo-steps {
+  margin: 12px 0;
+  padding-left: 20px;
+}
+.demo-steps > li {
+  margin-bottom: 10px;
+}
+.demo-steps ul {
+  margin: 4px 0 0;
+  padding-left: 0;
+  list-style: none;
+}
+.demo-step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+}
+.demo-steps label {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+.demo-steps input[type='checkbox'] {
+  margin-top: 6px;
+  accent-color: var(--accent);
+}
+.demo-check-summary {
+  font-weight: 600;
+}
+.demo-test-path {
+  margin: 18px 0;
+  font-size: 13px;
+}
+.demo-test-path summary {
+  cursor: pointer;
+  color: var(--accent);
+  padding: 8px 0;
+}
 .presenter-toggle[aria-pressed='true'] {
   background: var(--accent-soft);
   color: var(--accent);

@@ -27,6 +27,7 @@ import { isPreviewId, previewTemplateId } from './library-catalog'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
 import { hoodViews, loadUnderTheHood, saveUnderTheHood } from './under-the-hood'
 import { chatLimits, exportConversation } from './chat-helpers'
+import { clearDemoChecks, exportDemoChecks } from './demo-checks'
 import { useChatHistory } from './use-chat-history'
 import { useChatSubmit } from './use-chat-submit'
 import { useChatView } from './use-chat-view'
@@ -214,6 +215,15 @@ export default function ChatWorkspace() {
     setView('chat')
   }
 
+  function exportChat() {
+    exportConversation(
+      agent,
+      turns,
+      draft,
+      activeDemo ? exportDemoChecks(activeDemo) : undefined,
+    )
+  }
+
   function loadDemo(scenario: DemoScenario) {
     if (!config || busy || historyBusy) return
     const target = agentForDemo(
@@ -234,6 +244,7 @@ export default function ChatWorkspace() {
       `The new chat uses ${target.label}.`,
       () => {
         resetConversation(target.id, scenario.input)
+        clearDemoChecks(scenario.id)
         conversation.setActiveDemo(scenario)
       },
     )
@@ -342,7 +353,7 @@ export default function ChatWorkspace() {
             if (id !== selected) newChat(id)
           }}
           onSave={() => void saveChat()}
-          onExport={() => exportConversation(agent, turns, draft)}
+          onExport={exportChat}
           onCreateThis={createThis}
         />
 
@@ -519,7 +530,7 @@ export default function ChatWorkspace() {
             onContinue={() => setContinuing(true)}
             onCatalog={() => setView('catalog')}
             onSave={() => void saveChat()}
-            onExport={() => exportConversation(agent, turns, draft)}
+            onExport={exportChat}
             onCreateThis={createThis}
           />
         ) : view === 'catalog' ? (
