@@ -116,6 +116,9 @@ test('on a wide screen the side column offers to create a previewed agent', asyn
   const state = await openLibrary(page, { libraryPreview: true })
   await openAgent(page, support.label)
   await page.getByRole('button', { name: 'Try it in Chat' }).click()
+  await expect(page.locator('.agent-preview-badge')).toHaveText(
+    'Library preview',
+  )
   const aside = page.getByRole('complementary', { name: 'Agent details' })
   await expect(aside).toBeVisible()
   await expect(

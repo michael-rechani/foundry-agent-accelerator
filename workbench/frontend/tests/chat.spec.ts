@@ -35,6 +35,24 @@ test('preview chat does not promise shared persistence', async ({ page }) => {
   await expect(page.locator('#chat-privacy')).toHaveCount(0)
 })
 
+test('composer says that Enter sends and Shift+Enter adds a line', async ({
+  page,
+}) => {
+  await openWorkspace(page)
+  await expect(page.locator('#composer-hint')).toHaveText(
+    'Enter sends. Shift+Enter adds a new line.',
+  )
+  await expect(page.getByRole('textbox', { name: 'Message' })).toHaveAttribute(
+    'aria-describedby',
+    /composer-hint/,
+  )
+})
+
+test('local preview does not claim that Enter sends', async ({ page }) => {
+  await openWorkspace(page, { preview: true })
+  await expect(page.locator('#composer-hint')).toHaveCount(0)
+})
+
 test('local preview offers Copy prompt instead of a Send that cannot work', async ({
   page,
   context,
