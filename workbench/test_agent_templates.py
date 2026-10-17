@@ -368,7 +368,7 @@ class TemplateTests(unittest.TestCase):
             template = TEMPLATES[identifier]
             with self.subTest(identifier=identifier):
                 self.assertIn("UNSENT DRAFT", template["instructions"])
-                self.assertIn("sample lookups", template["instructions"])
+                self.assertIn("sample lookups", template["instructions"].lower())
                 self.assertRegex(
                     template["instructions"],
                     r"(?i)\b(never|do not) (judge|decide|approve)",
