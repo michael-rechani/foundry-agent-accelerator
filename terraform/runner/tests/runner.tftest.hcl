@@ -178,3 +178,36 @@ run "registry_push_exception_is_narrow" {
     error_message = "The VirtualNetwork deny must remain."
   }
 }
+
+run "foundry_exception_is_narrow" {
+  command = plan
+
+  variables {
+    foundry_private_endpoint_ips = ["10.42.0.17", "10.42.0.19"]
+  }
+
+  assert {
+    condition     = length([for rule in azurerm_network_security_group.runner.security_rule : rule if rule.name == "AllowFoundryPrivateEndpointOutbound" && rule.protocol == "Tcp" && rule.destination_port_range == "443" && length(rule.destination_address_prefixes) == 2 && rule.priority < 4000]) == 1
+    error_message = "The Foundry exception must allow only TCP 443 to the two private endpoint addresses, ahead of the VirtualNetwork deny."
+  }
+  assert {
+    condition     = length([for rule in azurerm_network_security_group.runner.security_rule : rule if rule.direction == "Outbound" && rule.access == "Deny" && rule.destination_address_prefix == "VirtualNetwork"]) == 1
+    error_message = "The VirtualNetwork deny must remain."
+  }
+}
+
+run "no_foundry_exception_by_default" {
+  command = plan
+  assert {
+    condition     = length([for rule in azurerm_network_security_group.runner.security_rule : rule if rule.name == "AllowFoundryPrivateEndpointOutbound"]) == 0
+    error_message = "Without foundry_private_endpoint_ips the runner must not be able to reach Foundry."
+  }
+}
+
+run "reject_ipv6_foundry_endpoint" {
+  command = plan
+  variables {
+    foundry_private_endpoint_ips = ["fd00::1"]
+  }
+  expect_failures = [var.foundry_private_endpoint_ips]
+}

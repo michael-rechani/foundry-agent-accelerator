@@ -21,7 +21,11 @@ It reads the VNet and its NAT gateway without taking ownership of them.
 > runner, and it runs only from `main` behind the `lab-deploy` environment. Fork
 > pull requests need approval from every outside contributor. To let it push images,
 > set `registry_private_endpoint_ips` so the NSG allows TCP 443 to the registry
-> private endpoint only. Everything else in the VNet stays denied.
+> private endpoint only. To let the approved
+> [`record-library-answers.yml`](../../.github/workflows/record-library-answers.yml)
+> workflow call the private Foundry account, set `foundry_private_endpoint_ips` the
+> same way (it runs only from `main`, behind the `library-recording` environment's
+> required reviewer). Everything else in the VNet stays denied.
 
 Run commands in `terraform/runner/`, not in the parent platform root. The runner
 is called the CI runner here to avoid confusion with the Windows jumpbox that
@@ -116,6 +120,11 @@ and Docker need the headroom. Change `vm_size` if you want to try it.
    TCP 443, `10.42.0.24` and `10.42.0.25`). If this variable is left empty on an
    apply, Terraform removes the rule and the deploy workflow can no longer push.
 
+   To let the recording workflow reach the private Foundry account, also set
+   `foundry_private_endpoint_ips` to the Foundry private endpoint addresses. This
+   adds `AllowFoundryPrivateEndpointOutbound` (priority 130, TCP 443 to those
+   addresses only) through Terraform. Don't add it by hand (see #318). Find the
+   addresses by resolving the account's private endpoint name from the runner.
    **The dev runner already exists and is not yet in the state.** Don't apply this
    stack against it. After step 3 and `terraform init`, run
    [`scripts/import-live.ps1`](scripts/import-live.ps1) from the jump box. It

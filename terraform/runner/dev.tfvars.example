@@ -9,3 +9,6 @@ approve_shared_egress = false
 # Lets the deploy workflow push images: TCP 443 to the registry private endpoint only.
 # Never leave this empty for the dev runner: an apply then deletes the live rule.
 registry_private_endpoint_ips = []
+# Lets the approved recording workflow call the private Foundry account: TCP 443 to
+# its private endpoint addresses only. Leave empty to keep all VNet traffic denied.
+foundry_private_endpoint_ips = []
