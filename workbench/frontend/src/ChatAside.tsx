@@ -1,5 +1,6 @@
 import { ArrowDownToLine, LoaderCircle, Plus, Save } from 'lucide-react'
 import { AgentGuide, AgentRuntime } from './AgentGuide'
+import { summarizeRatings } from './answer-feedback'
 import type { Turn } from './conversation-types'
 import { FoundryLink } from './FoundryLink'
 import { foundryAgentUrl } from './foundry-links'
@@ -68,6 +69,12 @@ export function ChatAside({
             <div>
               <dt>Last reply took</dt>
               <dd>{seconds(last.elapsed_ms)}</dd>
+            </div>
+          )}
+          {summarizeRatings(turns) && (
+            <div>
+              <dt>Your ratings</dt>
+              <dd>{summarizeRatings(turns)}</dd>
             </div>
           )}
           {!!turns.length && (

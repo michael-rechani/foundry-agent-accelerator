@@ -16,7 +16,8 @@ import {
   stepsSummary,
   type ReceiptState,
 } from './answer-steps'
-import type { Turn } from './conversation-types'
+import { AnswerFeedback } from './AnswerFeedback'
+import type { Rating, Turn } from './conversation-types'
 import { FoundryLink } from './FoundryLink'
 import { foundryAgentUrl } from './foundry-links'
 import { loadedMarkdown, preloadMarkdown } from './markdown-loader'
@@ -188,6 +189,7 @@ export function ConversationTurn({
   agentName,
   answerRef,
   onCopy,
+  onRate,
 }: {
   turn: Turn
   label?: string
@@ -196,6 +198,7 @@ export function ConversationTurn({
   agentName?: string
   answerRef?: RefObject<HTMLElement | null>
   onCopy: (text: string) => void
+  onRate: (rating: Rating | undefined) => void
 }) {
   return (
     <div className="turn">
@@ -236,6 +239,7 @@ export function ConversationTurn({
           >
             <Clipboard size={15} />
           </button>
+          <AnswerFeedback rating={turn.rating} onRate={onRate} />
         </div>
         <details className="receipt-details hood-only">
           <summary>

@@ -3,6 +3,7 @@ import { ChatAside } from './ChatAside'
 import { ChatComposer } from './ChatComposer'
 import { ChatMessages } from './ChatMessages'
 import { saveStateText, type chatLimits } from './chat-helpers'
+import { withRating } from './answer-feedback'
 import type { DemoScenario } from './demo-scenarios'
 import type { Conversation } from './use-conversation'
 import type { Agent, Config } from './workspace-config'
@@ -76,6 +77,7 @@ export function ChatConversation({
     dirty,
     activeDemo,
     setDraft,
+    setTurns,
     setPending,
     setError,
     setActiveDemo,
@@ -127,6 +129,9 @@ export function ChatConversation({
             editor.current?.focus()
           }}
           onCopy={onCopy}
+          onRate={(index, rating) =>
+            setTurns((previous) => withRating(previous, index, rating))
+          }
           onRetry={
             agent &&
             draft.trim() &&

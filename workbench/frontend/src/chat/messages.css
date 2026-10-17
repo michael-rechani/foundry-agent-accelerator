@@ -121,6 +121,27 @@
   font-size: 12px;
   margin: 12px 0 5px;
 }
+.answer-feedback {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.answer-feedback .chat-icon[aria-pressed='true'] {
+  background: var(--surface-subtle);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.answer-feedback-reason input {
+  width: 220px;
+  max-width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
 .review-note {
   display: flex;
   align-items: center;

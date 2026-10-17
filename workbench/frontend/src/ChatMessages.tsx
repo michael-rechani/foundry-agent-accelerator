@@ -3,7 +3,7 @@ import type { ChatFailure } from './chat-failure'
 import { ChatError } from './ChatError'
 import { ChatWelcome, type DraftMode } from './ChatWelcome'
 import { UserMessage } from './UserMessage'
-import type { Turn } from './conversation-types'
+import type { Rating, Turn } from './conversation-types'
 import { ConversationTurn } from './ConversationTurn'
 import type { DemoScenario } from './demo-scenarios'
 import { DemoRunGuide } from './ExploreDemos'
@@ -33,6 +33,7 @@ export function ChatMessages({
   onDemoStep,
   onPrompt,
   onCopy,
+  onRate,
   onDismissError,
   onRetry,
 }: {
@@ -56,6 +57,7 @@ export function ChatMessages({
   onDemoStep: (prompt: string) => void
   onPrompt: (text: string) => void
   onCopy: (text: string, done?: string) => void
+  onRate: (index: number, rating: Rating | undefined) => void
   onDismissError: () => void
   onRetry?: () => void
 }) {
@@ -94,6 +96,7 @@ export function ChatMessages({
               agentName={agent?.agent}
               answerRef={index === turns.length - 1 ? latestAnswer : undefined}
               onCopy={onCopy}
+              onRate={(rating) => onRate(index, rating)}
             />
           ))}
           {pending && <UserMessage text={pending} />}
