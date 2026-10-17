@@ -18,4 +18,13 @@ export type Result = {
   usage?: Usage | null
 }
 
-export type Turn = { question: string; result: Result; stored?: boolean }
+// A tester's verdict on one answer. It lives only in this browser tab and the
+// exported file; saving to shared history leaves it out.
+export type Rating = { value: 'up' | 'down'; reason?: string }
+
+export type Turn = {
+  question: string
+  result: Result
+  stored?: boolean
+  rating?: Rating
+}

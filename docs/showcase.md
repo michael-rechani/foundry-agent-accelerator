@@ -106,7 +106,9 @@ choose an unsupported date, or modify a system.
    send it yourself, and tick each check the real reply meets. The guide counts
    them ("N of M checks passed"). The checks are separate from the model's
    answer, stay in this browser tab, and are added to **Export conversation**.
-   They are never saved to shared history.
+   They are never saved to shared history. You can also rate each answer with
+   **Helpful** or **Not helpful** and an optional reason; ratings follow the
+   same rules and are cleared by a new chat.
 6. Choose **Start fresh with this example** to reset local messages and the
    checks, with confirmation. It never deletes shared history, changes
    infrastructure, or stops a deployed agent. Record failures rather than
