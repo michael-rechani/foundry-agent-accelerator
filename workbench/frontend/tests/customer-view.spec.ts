@@ -240,7 +240,7 @@ test('test results read plainly and keep case details under the hood', async ({
   await expect(panel.getByRole('heading', { level: 2 })).toHaveText(
     'How it did on its test cases',
   )
-  await expect(panel).toContainText('September 29, 2026')
+  await expect(panel).toContainText('October 17, 2026')
   await expect(panel).toContainText(
     `a sample request ${each} times and checks every answer`,
   )
