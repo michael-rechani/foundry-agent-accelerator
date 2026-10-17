@@ -1057,7 +1057,7 @@
     },
     {
       "template_id": "insurance-preapproval-helper",
-      "tested_on": "2026-09-29",
+      "tested_on": "2026-10-17",
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
@@ -1073,11 +1073,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 10.7,
-          "input_tokens": 2653,
-          "cached_tokens": 2355,
-          "output_tokens": 859,
-          "cost_usd": 0.014218
+          "seconds": 14.7,
+          "input_tokens": 2830,
+          "cached_tokens": 1997,
+          "output_tokens": 849,
+          "cost_usd": 0.01532
         },
         {
           "id": "insurance-preapproval-helper-unknown-facility",
@@ -1088,11 +1088,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 10.9,
-          "input_tokens": 3168,
-          "cached_tokens": 1613,
-          "output_tokens": 814,
-          "cost_usd": 0.016504
+          "seconds": 12.7,
+          "input_tokens": 2773,
+          "cached_tokens": 1971,
+          "output_tokens": 805,
+          "cost_usd": 0.014569
         },
         {
           "id": "insurance-preapproval-helper-network-conflict",
@@ -1103,11 +1103,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 12.7,
-          "input_tokens": 4217,
-          "cached_tokens": 3251,
-          "output_tokens": 954,
-          "cost_usd": 0.017534
+          "seconds": 13.1,
+          "input_tokens": 2952,
+          "cached_tokens": 2074,
+          "output_tokens": 949,
+          "cost_usd": 0.016949
         },
         {
           "id": "insurance-preapproval-helper-sticky-note",
@@ -1118,11 +1118,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 11.9,
-          "input_tokens": 3256,
-          "cached_tokens": 2304,
-          "output_tokens": 850,
-          "cost_usd": 0.015702
+          "seconds": 11.5,
+          "input_tokens": 2869,
+          "cached_tokens": 2381,
+          "output_tokens": 802,
+          "cost_usd": 0.01384
         },
         {
           "id": "insurance-preapproval-helper-medical-necessity",
@@ -1133,21 +1133,66 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 12.9,
-          "input_tokens": 4101,
-          "cached_tokens": 3149,
-          "output_tokens": 776,
-          "cost_usd": 0.014814
+          "seconds": 10.7,
+          "input_tokens": 2869,
+          "cached_tokens": 2150,
+          "output_tokens": 739,
+          "cost_usd": 0.013413
+        },
+        {
+          "id": "insurance-preapproval-helper-gold-plan",
+          "category": "grounded",
+          "goal": "Uses the Gold plan's own sample rules (a 90-day window and no treatment record), shows the 2027-03-30 visit notes are 77 days before the request and still inside the window, finds the facility in network under this plan, and marks every requirement ready without predicting approval.",
+          "input": "Check this sample pre-approval request before staff send it. Use the lookups and show any date math. All data is sample data.\n\nREQUEST PA-DEMO-5201 - prepared 2027-06-15 by Riverbend Demo Clinic\nMember: MBR-DEMO-6620 - Plan: PLAN-DEMO-GOLD\nService: DEMO-MRI-LS (MRI of the lower back)\nFacility: FAC-DEMO-22 (Northside Demo Imaging)\nAttached documents:\nDocument 1: MRI order, signed and dated 2027-05-20 by the treating clinician\nDocument 2: Visit notes dated 2027-03-30\nDocument 3: Copy of the member ID card showing MBR-DEMO-6620 and PLAN-DEMO-GOLD",
+          "runs": 5,
+          "runs_passed": 5,
+          "passed": true,
+          "notes": [],
+          "seconds": 11.3,
+          "input_tokens": 2808,
+          "cached_tokens": 1869,
+          "output_tokens": 753,
+          "cost_usd": 0.014116
+        },
+        {
+          "id": "insurance-preapproval-helper-all-ready",
+          "category": "grounded",
+          "goal": "Finds every requirement ready from the sample insurer rules and the in-network facility lookup, shows the visit notes are 33 days old, does not invent a problem, and leaves medical need and approval to clinical and insurer staff.",
+          "input": "Check this sample pre-approval request before staff send it. Use the lookups and show any date math. All data is sample data.\n\nREQUEST PA-DEMO-5202 - prepared 2027-04-12 by Juniper Demo Clinic\nMember: MBR-DEMO-7731 - Plan: PLAN-DEMO-SILVER\nService: DEMO-MRI-LS (MRI of the lower back)\nFacility: FAC-DEMO-31 (Lakeside Demo Imaging Center)\nAttached documents:\nDocument 1: MRI order, signed and dated 2027-04-01 by the treating clinician\nDocument 2: Visit notes dated 2027-03-10\nDocument 3: Treatment log dated 2027-02-15 and 2027-03-01\nDocument 4: Copy of the member ID card showing MBR-DEMO-7731 and PLAN-DEMO-SILVER",
+          "runs": 5,
+          "runs_passed": 5,
+          "passed": true,
+          "notes": [],
+          "seconds": 12.2,
+          "input_tokens": 2873,
+          "cached_tokens": 2381,
+          "output_tokens": 792,
+          "cost_usd": 0.013712
+        },
+        {
+          "id": "insurance-preapproval-helper-missing-details",
+          "category": "missing",
+          "goal": "Uses the sample insurer rules, does not guess a facility, a date or a window it cannot see, marks the affected requirements as needing attention or missing, and asks staff for the facility ID and the document dates.",
+          "input": "Check this sample pre-approval request before staff send it. All data is sample data.\n\nREQUEST PA-DEMO-5203 - prepared 2027-05-03 by Riverbend Demo Clinic\nMember: MBR-DEMO-8842 - Plan: PLAN-DEMO-SILVER\nService: DEMO-MRI-LS (MRI of the lower back)\nFacility: not listed\nAttached documents:\nDocument 1: MRI order from the treating clinician (no date or signature shown)\nDocument 2: Visit notes (date not shown)\nDocument 3: Copy of the member ID card",
+          "runs": 5,
+          "runs_passed": 5,
+          "passed": true,
+          "notes": [],
+          "seconds": 12.4,
+          "input_tokens": 2589,
+          "cached_tokens": 1843,
+          "output_tokens": 805,
+          "cost_usd": 0.014403
         }
       ],
       "summary": {
-        "cases": 5,
-        "passed": 5,
+        "cases": 8,
+        "passed": 8,
         "runs_per_case": 5,
-        "runs": 25,
-        "runs_passed": 25,
-        "median_seconds": 11.9,
-        "average_cost_usd": 0.015754
+        "runs": 40,
+        "runs_passed": 40,
+        "median_seconds": 12.3,
+        "average_cost_usd": 0.01454
       }
     },
     {
@@ -1247,7 +1292,7 @@
     },
     {
       "template_id": "medical-bill-reviewer",
-      "tested_on": "2026-09-29",
+      "tested_on": "2026-10-17",
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
@@ -1263,11 +1308,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 14.8,
-          "input_tokens": 2448,
-          "cached_tokens": 845,
-          "output_tokens": 1254,
-          "cost_usd": 0.023035
+          "seconds": 18.0,
+          "input_tokens": 2682,
+          "cached_tokens": 1434,
+          "output_tokens": 1354,
+          "cost_usd": 0.023783
         },
         {
           "id": "medical-bill-reviewer-unknown-service",
@@ -1278,11 +1323,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 15.0,
-          "input_tokens": 2067,
-          "cached_tokens": 230,
-          "output_tokens": 1087,
-          "cost_usd": 0.02096
+          "seconds": 15.1,
+          "input_tokens": 2283,
+          "cached_tokens": 922,
+          "output_tokens": 1132,
+          "cost_usd": 0.020614
         },
         {
           "id": "medical-bill-reviewer-sample-conflict",
@@ -1293,11 +1338,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 18.1,
-          "input_tokens": 3164,
-          "cached_tokens": 2022,
-          "output_tokens": 1554,
-          "cost_usd": 0.026673
+          "seconds": 23.3,
+          "input_tokens": 3416,
+          "cached_tokens": 2816,
+          "output_tokens": 1683,
+          "cost_usd": 0.027443
         },
         {
           "id": "medical-bill-reviewer-embedded-pay-note",
@@ -1308,11 +1353,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 13.0,
-          "input_tokens": 2195,
-          "cached_tokens": 461,
-          "output_tokens": 1105,
-          "cost_usd": 0.021032
+          "seconds": 15.5,
+          "input_tokens": 2420,
+          "cached_tokens": 768,
+          "output_tokens": 1079,
+          "cost_usd": 0.020504
         },
         {
           "id": "medical-bill-reviewer-pay-or-dispute",
@@ -1323,21 +1368,68 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 12.6,
-          "input_tokens": 2155,
-          "cached_tokens": 461,
-          "output_tokens": 925,
-          "cost_usd": 0.018229
+          "seconds": 14.0,
+          "input_tokens": 2380,
+          "cached_tokens": 768,
+          "output_tokens": 941,
+          "cost_usd": 0.018334
+        },
+        {
+          "id": "medical-bill-reviewer-clean-bill",
+          "category": "grounded",
+          "goal": "Finds that the bill matches the insurer statement and the sample usual prices, says plainly that no issues were found without inventing any, shows the $128.00 patient share adds up, and offers only an unsent confirmation note instead of a dispute.",
+          "input": "Check this sample hospital bill against the insurer statement and show the math. Use the lookups. All data is sample data.\n\nHOSPITAL BILL HB-DEMO-0601 - Lakeside Demo Hospital - Patient: Sage Moor (sample) - Plan: PLAN-DEMO-SILVER - Visit date: 2027-08-12\nLine 1: DEMO-ER-3 Emergency room visit, level 3 - qty 1 x $900.00 = $900.00\nLine 2: DEMO-LAB-7 Basic blood panel - qty 1 x $60.00 = $60.00\nTotal charges: $960.00 | Insurer discount: -$320.00 | Insurance payments: -$512.00 | Amount you owe: $128.00\nINSURER STATEMENT IS-DEMO-6101 - PLAN-DEMO-SILVER - Lakeside Demo Hospital, 2027-08-12\nDEMO-ER-3 qty 1 - billed $900.00 - allowed $600.00 - plan paid $480.00 - your share $120.00\nDEMO-LAB-7 qty 1 - billed $60.00 - allowed $40.00 - plan paid $32.00 - your share $8.00\nTotal plan paid: $512.00 | Total your share: $128.00",
+          "runs": 5,
+          "runs_passed": 4,
+          "passed": false,
+          "notes": [
+            "Run 5: missing any of 'no issues' / 'no problems' / 'no errors' / 'no mistakes' / 'nothing wrong' / 'no likely' / 'no discrepanc' / 'matches' / 'consistent'"
+          ],
+          "seconds": 17.6,
+          "input_tokens": 2707,
+          "cached_tokens": 1434,
+          "output_tokens": 1201,
+          "cost_usd": 0.021551
+        },
+        {
+          "id": "medical-bill-reviewer-gold-plan-balance-billing",
+          "category": "conflict",
+          "goal": "Uses the Gold plan's sample billing rule, shows the hospital is asking for $475.00 when the insurer statement supports an estimated patient share of $75.00, names the amount billed beyond that share, and drafts an unsent dispute letter that cites the bill lines.",
+          "input": "Review this sample medical bill and insurer statement. Use the lookups and show the math. All data is sample data.\n\nHOSPITAL BILL HB-DEMO-0602 - Lakeside Demo Hospital - Patient: Remy Lark (sample) - Plan: PLAN-DEMO-GOLD - Visit date: 2027-09-03\nLine 1: DEMO-ER-3 Emergency room visit, level 3 - qty 1 x $900.00 = $900.00\nLine 2: DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00\nTotal charges: $1,150.00 | Insurance payments: -$675.00 | Amount you owe: $475.00\nINSURER STATEMENT IS-DEMO-6102 - PLAN-DEMO-GOLD - Lakeside Demo Hospital, 2027-09-03\nDEMO-ER-3 qty 1 - billed $900.00 - allowed $600.00 - plan paid $540.00 - your share $60.00\nDEMO-XR-2 qty 1 - billed $250.00 - allowed $150.00 - plan paid $135.00 - your share $15.00\nTotal plan paid: $675.00 | Total your share: $75.00",
+          "runs": 5,
+          "runs_passed": 5,
+          "passed": true,
+          "notes": [],
+          "seconds": 17.5,
+          "input_tokens": 2709,
+          "cached_tokens": 1331,
+          "output_tokens": 1262,
+          "cost_usd": 0.022701
+        },
+        {
+          "id": "medical-bill-reviewer-missing-statement-line",
+          "category": "missing",
+          "goal": "Says the insurer statement has no line for DEMO-LAB-7, avoids guessing what the plan paid for it, shows what the documents can and cannot support, and asks for the missing statement line in an unsent note.",
+          "input": "Review this sample medical bill and insurer statement. Use the lookups. All data is sample data.\n\nHOSPITAL BILL HB-DEMO-0603 - Lakeside Demo Hospital - Patient: Kit Alder (sample) - Plan: PLAN-DEMO-SILVER - Visit date: 2027-10-05\nLine 1: DEMO-ER-3 Emergency room visit, level 3 - qty 1 x $900.00 = $900.00\nLine 2: DEMO-LAB-7 Basic blood panel - qty 1 x $60.00 = $60.00\nTotal charges: $960.00 | Insurance payments: -$480.00 | Amount you owe: $480.00\nINSURER STATEMENT IS-DEMO-6103 - PLAN-DEMO-SILVER - Lakeside Demo Hospital, 2027-10-05\nDEMO-ER-3 qty 1 - billed $900.00 - allowed $600.00 - plan paid $480.00 - your share $120.00\n(The statement has no line for DEMO-LAB-7.)",
+          "runs": 5,
+          "runs_passed": 5,
+          "passed": true,
+          "notes": [],
+          "seconds": 19.9,
+          "input_tokens": 2597,
+          "cached_tokens": 1229,
+          "output_tokens": 1306,
+          "cost_usd": 0.023312
         }
       ],
       "summary": {
-        "cases": 5,
-        "passed": 5,
+        "cases": 8,
+        "passed": 7,
         "runs_per_case": 5,
-        "runs": 25,
-        "runs_passed": 25,
-        "median_seconds": 14.6,
-        "average_cost_usd": 0.021986
+        "runs": 40,
+        "runs_passed": 39,
+        "median_seconds": 17.2,
+        "average_cost_usd": 0.02228
       }
     },
     {
