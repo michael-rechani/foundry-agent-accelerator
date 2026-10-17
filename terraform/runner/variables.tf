@@ -186,3 +186,14 @@ variable "registry_private_endpoint_ips" {
     error_message = "registry_private_endpoint_ips must contain IPv4 addresses only."
   }
 }
+
+variable "foundry_private_endpoint_ips" {
+  type        = list(string)
+  description = "Private IP addresses of the Foundry account's private endpoint. When set, the runner may reach only these on TCP 443 so the approved recording workflow can call the private Foundry account. Leave empty to keep all VNet traffic denied."
+  default     = []
+
+  validation {
+    condition     = alltrue([for ip in var.foundry_private_endpoint_ips : can(regex("^[0-9]{1,3}(\\.[0-9]{1,3}){3}$", ip)) && can(cidrhost("${ip}/32", 0))])
+    error_message = "foundry_private_endpoint_ips must contain IPv4 addresses only."
+  }
+}

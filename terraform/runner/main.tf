@@ -113,6 +113,25 @@ resource "azurerm_network_security_group" "runner" {
     }
   }
 
+  # Optional, narrow exception so the "Record library answers" workflow can call
+  # the private Foundry account. Only HTTPS to its private endpoint addresses is
+  # allowed. That workflow runs only from main, behind the library-recording
+  # environment's required reviewer.
+  dynamic "security_rule" {
+    for_each = length(var.foundry_private_endpoint_ips) > 0 ? [1] : []
+    content {
+      name                         = "AllowFoundryPrivateEndpointOutbound"
+      priority                     = 130
+      direction                    = "Outbound"
+      access                       = "Allow"
+      protocol                     = "Tcp"
+      source_port_range            = "*"
+      destination_port_range       = "443"
+      source_address_prefix        = "*"
+      destination_address_prefixes = var.foundry_private_endpoint_ips
+    }
+  }
+
   security_rule {
     name                       = "DenyVirtualNetworkOutbound"
     priority                   = 4000
