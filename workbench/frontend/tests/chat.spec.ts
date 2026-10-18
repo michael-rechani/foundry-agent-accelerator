@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { docsScreenshot, guidedReview } from './fixtures'
-import { openWorkspace } from './helpers/chat-lab'
+import { openDetails, openWorkspace } from './helpers/chat-lab'
 import { openLibraryTab } from './helpers/navigation'
 
 test('shared privacy notice is visible before sending or saving', async ({
@@ -218,6 +218,7 @@ test('default helper explains its job and offers example tasks without auto-send
       ),
     },
   ])
+  await openDetails(page)
   await page.locator('.receipt-details > summary').click()
   await expect(
     page.getByText('Verified receipt', { exact: true }),

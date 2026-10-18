@@ -8,11 +8,14 @@ test('How I got this lists the recorded steps in plain words', async ({
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await openWorkspace(page)
   await send(page)
-  const panel = page.locator('.answer-steps')
+  const panel = page.locator('.answer-details')
   await expect(panel).not.toHaveAttribute('open')
-  await expect(panel.locator('summary')).toHaveText(
-    /How I got this\s*Asked another agent/,
+  await expect(panel.locator(':scope > summary')).toHaveText(
+    /Details\s*Asked another agent/,
   )
+  // One closed disclosure holds the steps and execution details.
+  await expect(page.locator('.answer-steps')).toBeHidden()
+  await expect(page.locator('.receipt-details')).toBeHidden()
   const steps = await openSteps(page)
   await expect(steps.locator('.answer-step-text')).toHaveText([
     /^Asked the Application review agent for its part of the answer/,
@@ -106,8 +109,8 @@ test('self-targeted lookups on a created agent read as lookups, not a handoff', 
     ],
   })
   await send(page)
-  await expect(page.locator('.answer-steps summary')).toHaveText(
-    /How I got this\s*Used 1 lookup/,
+  await expect(page.locator('.answer-details > summary')).toHaveText(
+    /Details\s*Used 1 lookup/,
   )
   const steps = await openSteps(page)
   await expect(steps.locator('.answer-step-text').first()).toHaveText(
@@ -124,8 +127,8 @@ test('answers without receipts say no steps were recorded', async ({
   await expect(page.locator('.assistant-message')).toContainText(
     'Section 1 is missing a budget.',
   )
-  await expect(page.locator('.answer-steps summary')).toHaveText(
-    /How I got this\s*No lookups or other agents recorded/,
+  await expect(page.locator('.answer-details > summary')).toHaveText(
+    /Details\s*No lookups or other agents recorded/,
   )
   const steps = await openSteps(page)
   await expect(steps.locator('.answer-step-text')).toHaveText([

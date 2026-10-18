@@ -235,8 +235,16 @@ export const serviceStatus = (page: Page, service: string) =>
 export const labStatus = (page: Page) =>
   page.locator('.metric-strip-4 > div').first().locator('strong')
 
+// Opens the closed "Details" disclosure on the latest answer.
+export const openDetails = async (page: Page) => {
+  const panel = page.locator('.answer-details').last()
+  if ((await panel.getAttribute('open')) === null) {
+    await panel.locator(':scope > summary').click()
+  }
+  return panel
+}
+
 export const openSteps = async (page: Page) => {
-  const panel = page.locator('.answer-steps').last()
-  await panel.locator('summary').click()
+  const panel = await openDetails(page)
   return panel.getByRole('list', { name: 'How I got this' })
 }

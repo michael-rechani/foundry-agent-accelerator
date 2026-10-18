@@ -36,6 +36,10 @@ test('Try again asks the last question again and keeps the earlier answer', asyn
   })
   expect(state.requests[2].thread).toBe(state.requests[1].thread)
 
+  await expect(turns.nth(1).locator('.answer-details > summary')).toContainText(
+    '1 earlier answer',
+  )
+  await turns.nth(1).locator('.answer-details > summary').click()
   const earlier = turns.nth(1).locator('.earlier-answers')
   await expect(earlier.locator('summary')).toContainText('Earlier answer')
   await earlier.locator('summary').click()
@@ -68,6 +72,7 @@ test('trying again twice keeps every earlier answer, oldest first, and the file 
   await page.getByRole('button', { name: 'Try again' }).click()
   await expect(page.locator('.message-markdown').first()).toHaveText('Three')
 
+  await page.locator('.answer-details > summary').click()
   const earlier = page.locator('.earlier-answers')
   await expect(earlier.locator('summary')).toContainText('2 earlier answers')
   await earlier.locator('summary').click()
