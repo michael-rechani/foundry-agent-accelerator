@@ -140,22 +140,21 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 14px;
-  padding: 6px 14px;
-  border: 1px solid var(--accent-line);
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  margin-top: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
   font-size: 12px;
-  font-weight: 650;
-  text-decoration: none;
+  text-decoration: underline;
 }
 .chat-welcome .welcome-simple-toggle:hover {
-  border-color: var(--accent);
+  color: var(--accent);
 }
 .welcome-modes.welcome-simple-modes {
   margin-top: 22px;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: minmax(240px, 340px);
+  justify-content: center;
 }
 .welcome-modes {
   display: grid;

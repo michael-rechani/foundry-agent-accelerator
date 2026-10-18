@@ -66,13 +66,8 @@ export function ChatWelcome({
   onPrompt: (text: string) => void
 }) {
   const [simple, setSimple] = useSimpleChat()
-  const hint = !agent
-    ? ''
-    : simple
-      ? config?.mode === 'preview'
-        ? 'Local preview. No model calls or saved records.'
-        : ''
-      : welcomeHint(config?.mode === 'preview', draftMode)
+  const hint =
+    !agent || simple ? '' : welcomeHint(config?.mode === 'preview', draftMode)
   const [chosen, setChosen] = useState<string>()
   const [creating, setCreating] = useState(false)
   const showModes = !simple && !!config && draftMode !== 'typed'
@@ -92,8 +87,7 @@ export function ChatWelcome({
       )}
       {simple ? (
         <>
-          <h1>What would you like to do?</h1>
-          <p>Try a ready-made agent, or talk through one you want to build.</p>
+          <h1>What agent do you want to build?</h1>
         </>
       ) : (
         <>
@@ -113,15 +107,8 @@ export function ChatWelcome({
           <button type="button" disabled={switchDisabled} onClick={onSwitch}>
             <ChevronsUpDown size={16} aria-hidden="true" />
             <span>
-              <strong>Try a new agent</strong>
+              <strong>Try a pre-built agent</strong>
               <small>Pick a ready agent and chat with it.</small>
-            </span>
-          </button>
-          <button type="button" onClick={onAsk}>
-            <MessageSquare size={16} aria-hidden="true" />
-            <span>
-              <strong>Chat about an agent I'm building</strong>
-              <small>Think it through in your own words.</small>
             </span>
           </button>
         </div>

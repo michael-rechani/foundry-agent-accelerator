@@ -18,12 +18,9 @@ test('chat opens clean, with no agent details, and sends nothing', async ({
 }) => {
   const state = await openWorkspace(page, { config: twoAgents, startup: true })
   await expect(page.locator('.chat-welcome h1')).toHaveText(
-    'What would you like to do?',
+    'What agent do you want to build?',
   )
-  await expect(choices(page)).toHaveText([
-    /Try a new agent/,
-    /Chat about an agent I'm building/,
-  ])
+  await expect(choices(page)).toHaveText([/Try a pre-built agent/])
   await expect(page.locator('.chat-welcome')).not.toContainText(
     guidedReview.label,
   )
@@ -44,16 +41,7 @@ test('chat opens clean, with no agent details, and sends nothing', async ({
   expect(state.requests).toEqual([])
 })
 
-test('Chat about an agent I am building puts the cursor in the message box', async ({
-  page,
-}) => {
-  await openWorkspace(page, { config: twoAgents, startup: true })
-  await choices(page).nth(1).click()
-  await expect(editor(page)).toBeFocused()
-  await expect(editor(page)).toHaveValue('')
-})
-
-test('Try a new agent opens the agent picker', async ({ page }) => {
+test('Try a pre-built agent opens the agent picker', async ({ page }) => {
   await openWorkspace(page, { config: twoAgents, startup: true })
   await choices(page).first().click()
   await expect(page.getByPlaceholder('Search agents')).toBeVisible()
@@ -74,6 +62,6 @@ test('the agent guide and examples come back and the choice is remembered', asyn
   await expect(page.locator('.chat-welcome h1')).toHaveText(guidedReview.label)
   await page.getByRole('button', { name: 'Simple view' }).click()
   await expect(page.locator('.chat-welcome h1')).toHaveText(
-    'What would you like to do?',
+    'What agent do you want to build?',
   )
 })
