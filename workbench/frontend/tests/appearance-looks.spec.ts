@@ -148,7 +148,7 @@ test('every look keeps text, links and buttons readable in light and dark with e
 })
 
 for (const look of ['aurora', 'console'] as const) {
-  test(`the ${look} look gives only the Shared lab badge its green treatment`, async ({
+  test(`the ${look} look keeps the Local preview badge muted with a warning dot`, async ({
     page,
   }) => {
     await seedAppearance(page.context(), {
@@ -156,8 +156,7 @@ for (const look of ['aurora', 'console'] as const) {
       accent: 'foundry',
       look,
     })
-    await openCreation(page)
-    const preview = await page.context().newPage()
+    const preview = page
     await openCreation(preview, { preview: true })
     const read = (target: Page, scheme: string) =>
       target.evaluate((scheme) => {
@@ -188,15 +187,6 @@ for (const look of ['aurora', 'console'] as const) {
       }, scheme)
 
     for (const scheme of ['light', 'dark']) {
-      const shared = await read(page, scheme)
-      expect(
-        { text: shared.text, border: shared.border, dot: shared.dot },
-        `${look} ${scheme}: Shared lab`,
-      ).toEqual({
-        text: shared.success,
-        border: shared.successLine,
-        dot: shared.successDot,
-      })
       const local = await read(preview, scheme)
       expect(
         {
@@ -215,10 +205,6 @@ for (const look of ['aurora', 'console'] as const) {
       expect(local.border, `${look} ${scheme}: Local preview border`).not.toBe(
         local.successLine,
       )
-      if (look === 'aurora') {
-        expect(shared.glow).not.toBe('none')
-        expect(shared.pulse).toBe('look-pulse')
-      }
     }
   })
 }

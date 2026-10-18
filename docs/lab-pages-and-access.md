@@ -149,7 +149,7 @@ Lab would still leave records shared. Don't expose this sample to untrusted
 participants or use sensitive data on the assumption that private networking
 provides user isolation.
 
-The **Shared lab** control in the header explains these limits on demand:
+The **About sharing and saving** note under the message box explains these limits on demand:
 
 | Shared item | Who can act | Limits |
 | --- | --- | --- |
@@ -157,8 +157,8 @@ The **Shared lab** control in the header explains these limits on demand:
 | Reviews | Everyone with workspace access can read reviews and add requested information. | Reviews have no deletion control. |
 | Created-agent setups | Everyone with workspace access can read the setups. | Publication and deletion require the shared operator key. This isn't per-user authorization. |
 
-The Lab has no permanent warning banner. The **Shared lab** details are
-available on desktop, but they're informational only. They don't
+The Lab has no permanent warning banner. The **About sharing and saving** details
+are available in Chat on desktop, but they're informational only. They don't
 control access, and they don't check that submitted data is sample data.
 
 ### How the Lab checks where a request came from

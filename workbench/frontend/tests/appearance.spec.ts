@@ -105,11 +105,10 @@ test('header panels open one at a time so none is hidden behind another', async 
   const appearance = page.getByRole('complementary', {
     name: 'Appearance settings',
   })
-  const lab = page.getByRole('complementary', { name: 'Shared lab details' })
   const guide = page.getByRole('complementary', {
     name: 'Selected agent guide',
   })
-  const onTop = (panel: typeof lab) =>
+  const onTop = (panel: typeof appearance) =>
     panel.evaluate((element) => {
       const { left, top, width } = element.getBoundingClientRect()
       return element.contains(
@@ -119,14 +118,11 @@ test('header panels open one at a time so none is hidden behind another', async 
 
   await page.getByTitle('Appearance', { exact: true }).click()
   await expect(appearance).toBeInViewport()
-  await page.getByTitle('About this shared lab', { exact: true }).click()
-  await expect(lab).toBeInViewport()
-  await expect(appearance).toBeHidden()
-  expect(await onTop(lab)).toBe(true)
+  expect(await onTop(appearance)).toBe(true)
 
   await page.locator('.agent-about > summary').click()
   await expect(guide).toBeInViewport()
-  await expect(lab).toBeHidden()
+  await expect(appearance).toBeHidden()
   expect(await onTop(guide)).toBe(true)
 
   await page.getByTitle('Appearance', { exact: true }).click()

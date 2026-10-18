@@ -1,4 +1,4 @@
-/* Top bar actions: environment badge, lab info panel, and icon buttons. */
+/* Top bar actions: environment badge and icon buttons. */
 .topbar-actions {
   display: flex;
   gap: 14px;
@@ -19,46 +19,6 @@
 }
 .environment-badge .status-dot {
   background: var(--warning-dot);
-}
-.environment-badge.private {
-  background: var(--success-bg);
-  color: var(--success-fg);
-}
-.environment-badge.private .status-dot {
-  background: var(--success-dot);
-}
-.lab-info {
-  flex-shrink: 0;
-}
-.lab-info summary {
-  cursor: pointer;
-  list-style: none;
-}
-.lab-info summary::-webkit-details-marker {
-  display: none;
-}
-.lab-info summary:hover,
-.lab-info[open] summary {
-  box-shadow: inset 0 0 0 1px var(--success-line);
-}
-.lab-info-panel {
-  position: absolute;
-  z-index: 10;
-  top: calc(100% + 8px);
-  right: 32px;
-  width: 270px;
-  max-width: calc(100vw - 34px);
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: 0 4px 16px var(--shadow);
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.6;
-}
-.lab-info-panel p {
-  margin-top: 8px;
 }
 .chat-icon {
   width: 32px;

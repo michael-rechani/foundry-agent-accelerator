@@ -172,15 +172,28 @@ export function ChatComposer({
             Each message calls the model and may incur cost.
             {isPreview && ' Preview chats are not saved.'}
           </p>
-          {!isPreview && config.history_enabled && (
-            <details>
-              <summary>About saving</summary>
+          <details>
+            <summary>About sharing and saving</summary>
+            {!isPreview && config.history_enabled && (
               <p>
                 Saving shares completed messages with everyone in this Lab for{' '}
                 {config.retention_days} days after the last update.
               </p>
-            </details>
-          )}
+            )}
+            <p>No user sign-in. Saved records are shared.</p>
+            <p>
+              Everyone with workspace access can read, modify and delete saved
+              chats, and read reviews and add requested evidence. There is no
+              per-user authorization; private networking does not isolate users.
+            </p>
+            {config.agent_creation && (
+              <p>
+                Created-agent setups are shared too. Publishing or deleting a
+                created agent requires an operator key, not an individual user
+                account.
+              </p>
+            )}
+          </details>
         </div>
       )}
       {showDetails && (

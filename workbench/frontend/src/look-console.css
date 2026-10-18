@@ -165,10 +165,6 @@
   background: transparent;
   font: 600 11px/1.4 var(--mono);
 }
-:root[data-look='console'] .environment-badge.private {
-  border-color: var(--success-line);
-  color: var(--success-fg);
-}
 :root[data-look='console'] .chat-icon:hover {
   background: var(--surface-hover);
   color: var(--accent);
@@ -510,8 +506,7 @@
 :root[data-look='console'] .hood-switch input::after {
   transition: none;
 }
-:root[data-look='console']
-  :is(.theme-panel, .lab-info-panel, .agent-switcher-panel) {
+:root[data-look='console'] :is(.theme-panel, .agent-switcher-panel) {
   background: var(--surface);
   border-color: var(--line-strong);
   box-shadow: 0 12px 28px -8px var(--shadow);

@@ -141,8 +141,8 @@ the Lab there, and share your screen. See
 
 Before the customer joins:
 
-1. Open the Lab and check that the **Shared lab** details name the environment
-   you expect.
+1. Open the Lab, start a chat and open **About sharing and saving** under the
+   message box. Check that it matches what you'll tell the customer.
 2. Choose one story and have its sample input ready. Use fictional data only.
 3. Expect about 30 seconds for the first answer in each new chat. Opening a chat
    ahead of time doesn't speed up the next one, so there is nothing to warm up.
