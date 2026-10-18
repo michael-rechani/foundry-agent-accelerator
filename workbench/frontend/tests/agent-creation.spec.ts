@@ -102,6 +102,17 @@ test('the step indicator, search and cost notice guide the create flow', async (
   const cards = page.locator('.creation-template')
   const total = await cards.count()
   const search = page.getByRole('searchbox', { name: 'Search templates' })
+  // The box draws one border, and focus rings that box instead of the input.
+  const inner = await search.evaluate((node) => {
+    const style = getComputedStyle(node)
+    return { border: style.borderTopWidth, outline: style.outlineStyle }
+  })
+  expect(inner).toEqual({ border: '0px', outline: 'none' })
+  await search.focus()
+  await expect(page.locator('.creation-search')).toHaveCSS(
+    'box-shadow',
+    /rgba?\(/,
+  )
   await search.fill('zzzz-no-such-template')
   await expect(cards).toHaveCount(0)
   await expect(page.getByRole('status')).toContainText('No templates match')

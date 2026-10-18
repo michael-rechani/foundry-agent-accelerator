@@ -1,16 +1,8 @@
-import {
-  ArrowLeft,
-  ArrowRight,
-  CircleDashed,
-  MessageSquare,
-  UserCheck,
-} from 'lucide-react'
+import { ArrowLeft, ArrowRight, MessageSquare, UserCheck } from 'lucide-react'
 import type { LibraryTemplate } from './library-catalog'
 import { Badges } from './LibraryBadges'
 import { LibraryExportTab } from './LibraryExportTab'
 import {
-  inProgress,
-  inProgressNote,
   runTemplateChat,
   storesOpenChat,
   type LibraryTab,
@@ -23,11 +15,19 @@ import type { ScorecardsState } from './scorecards-client'
 import { tabKeyDown } from './tab-keys'
 import type { Agent, CreationCapability } from './workspace-config'
 
-const tabs: [LibraryTab, string][] = [
-  ['overview', 'Overview'],
-  ['test', 'Try it'],
-  ['results', 'Test results'],
-  ['export', 'Take it to Foundry'],
+const tabs: [LibraryTab, string, string][] = [
+  [
+    'overview',
+    'Overview',
+    'What it needs, what it returns, and what it leaves to a person',
+  ],
+  ['test', 'Try it', 'Run it on example inputs'],
+  ['results', 'Test results', "How it did on the Lab's test cases"],
+  [
+    'export',
+    'Take it to Foundry',
+    'Set this agent up in your own Microsoft Foundry project',
+  ],
 ]
 const tabIds = tabs.map(([id]) => id)
 
@@ -104,15 +104,6 @@ export function LibraryDetail({
           Take it to Foundry <ArrowRight size={16} />
         </button>
       </div>
-      {inProgress(template) && (
-        <div className="library-progress" role="note">
-          <CircleDashed size={18} aria-hidden="true" />
-          <p>
-            <strong>Not yet reviewed. </strong>
-            {inProgressNote}
-          </p>
-        </div>
-      )}
       <div className="library-decision" role="note">
         <UserCheck size={18} aria-hidden="true" />
         <p>
@@ -120,12 +111,14 @@ export function LibraryDetail({
           {template.human_decision}
         </p>
       </div>
+      <p className="library-tabs-label">More about {template.label}</p>
       <div className="library-tabs" role="tablist" aria-label="Agent details">
-        {tabs.map(([id, label]) => (
+        {tabs.map(([id, label, hint]) => (
           <button
             key={id}
             type="button"
             role="tab"
+            title={hint}
             id={`library-tab-${id}`}
             aria-selected={tab === id}
             aria-controls="library-tabpanel"

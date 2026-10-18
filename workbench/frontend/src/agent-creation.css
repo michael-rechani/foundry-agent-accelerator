@@ -90,12 +90,21 @@
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
+  color: var(--muted);
 }
-.creation-search input {
+.creation-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.creation-workspace .creation-search input[type='search'] {
   flex: 1;
+  width: auto;
   min-width: 0;
   border: 0;
+  border-radius: 0;
+  outline: 0;
   background: transparent;
+  color: var(--text);
   padding: 10px 0;
   font: inherit;
   font-size: 13px;

@@ -263,7 +263,7 @@ hasn't signed those answers off, and it still needs customer policy review.
 `Reviewed` means a person has signed off the recorded answers and every run
 passed. `evaluations/test_scorecards.py` fails if the label and the recorded
 sign-offs disagree. Current tool modes are only `Text only` and
-`Sample lookups`. Neither means a customer system is connected. Cost and latency are relative
+`Looks up sample data`. Neither means a customer system is connected. Cost and latency are relative
 model-profile hints, not prices or performance guarantees.
 
 Every listed agent's instructions end with the same answer layout: **Result**,
@@ -318,7 +318,7 @@ name, or a sector, industry, task, readiness, availability or model profile it d
 know. The message names the file.
 
 `metadata.availability` is optional. `"focus"` marks an agent the Lab builds out in
-depth; leaving it out makes the agent a **Preview**, which still works but isn't
+depth, shown as **Featured agent**; leaving it out makes the agent a **Preview**, which still works but isn't
 being developed further. The library shows the tag on cards and in the list, and
 people can filter by it. Today the focus agents are the Insurance pre-approval helper,
 the Medical bill reviewer and the Form field extractor (`document-intake`), which is

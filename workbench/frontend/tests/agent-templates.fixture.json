@@ -62,7 +62,7 @@
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Sample lookups",
+        "label": "Looks up sample data",
         "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
@@ -146,7 +146,7 @@
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Sample lookups",
+        "label": "Looks up sample data",
         "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
@@ -230,7 +230,7 @@
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Sample lookups",
+        "label": "Looks up sample data",
         "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
@@ -517,7 +517,7 @@
       },
       "availability": {
         "id": "focus",
-        "label": "Focus agent",
+        "label": "Featured agent",
         "description": "One of the agents the Lab is building out in depth, with the most test cases and features."
       },
       "tool_mode": {
@@ -1040,7 +1040,7 @@
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Sample lookups",
+        "label": "Looks up sample data",
         "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
@@ -1192,12 +1192,12 @@
       },
       "availability": {
         "id": "focus",
-        "label": "Focus agent",
+        "label": "Featured agent",
         "description": "One of the agents the Lab is building out in depth, with the most test cases and features."
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Sample lookups",
+        "label": "Looks up sample data",
         "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
@@ -1276,12 +1276,12 @@
       },
       "availability": {
         "id": "focus",
-        "label": "Focus agent",
+        "label": "Featured agent",
         "description": "One of the agents the Lab is building out in depth, with the most test cases and features."
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Sample lookups",
+        "label": "Looks up sample data",
         "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
@@ -1365,7 +1365,7 @@
       },
       "tool_mode": {
         "id": "simulated",
-        "label": "Sample lookups",
+        "label": "Looks up sample data",
         "description": "Looks up sample records that come with the Lab. It can't change anything."
       },
       "prerequisites": [
@@ -1508,7 +1508,7 @@
     "availability": [
       {
         "id": "focus",
-        "label": "Focus agent",
+        "label": "Featured agent",
         "description": "One of the agents the Lab is building out in depth, with the most test cases and features.",
         "count": 3
       },
@@ -1528,7 +1528,7 @@
       },
       {
         "id": "simulated",
-        "label": "Sample lookups",
+        "label": "Looks up sample data",
         "description": "Looks up sample records that come with the Lab. It can't change anything.",
         "count": 7
       }

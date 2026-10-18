@@ -64,9 +64,11 @@ test('a preview nobody has signed off yet says "Not yet reviewed" in the library
   await expect(
     page.locator('.library-badge', { hasText: 'Not yet reviewed' }),
   ).toHaveCount(1)
+  // The badge carries the explanation; the page has no amber banner.
   await expect(
-    page.getByRole('note').filter({ hasText: 'Not yet reviewed.' }),
-  ).toContainText("A person hasn't signed off on its test answers yet.")
+    page.locator('.library-badge', { hasText: 'Not yet reviewed' }),
+  ).toHaveAttribute('title', /hasn't signed off on its test answers yet/)
+  await expect(page.locator('.library-progress')).toHaveCount(0)
   await expect(readiness.filter({ hasText: /in progress/i })).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Try it in Chat' }).click()

@@ -24,6 +24,11 @@
   line-height: 1.6;
   max-width: 760px;
 }
+.library-hero > .library-hero-note {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
 .library-path {
   display: flex;
   flex-wrap: wrap;
@@ -61,14 +66,14 @@
 .library-path-link {
   padding: 0;
   background: none;
-  color: var(--accent);
+  color: inherit;
   font: inherit;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
+  text-decoration: none;
 }
 .library-path-link:hover {
-  color: var(--accent-strong);
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .library-path-link:focus-visible {
   outline: 2px solid var(--accent);
@@ -775,26 +780,6 @@
   padding: 6px 10px;
   white-space: nowrap;
 }
-.library-progress {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  margin: 0 0 14px;
-  padding: 10px 12px;
-  border: 1px solid var(--warning-line);
-  border-radius: 4px;
-  background: var(--warning-bg);
-  color: var(--text);
-}
-.library-progress > svg {
-  flex-shrink: 0;
-  color: var(--warning-fg);
-}
-.library-progress p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.45;
-}
 .library-empty,
 .library-error {
   display: flex;
@@ -856,10 +841,16 @@
   margin-top: 1px;
   color: var(--accent);
 }
+.library-tabs-label {
+  margin-top: 24px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
 .library-tabs {
   display: flex;
   gap: 4px;
-  margin: 24px 0 18px;
+  margin: 6px 0 18px;
   border-bottom: 1px solid var(--line);
   overflow-x: auto;
 }

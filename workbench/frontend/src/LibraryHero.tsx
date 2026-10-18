@@ -9,6 +9,10 @@ export function LibraryHero({ children }: { children: ReactNode }) {
         Pick an agent, try it with sample inputs, see what it needs and what it
         leaves to a person, then take it to your Microsoft Foundry project.
       </p>
+      <p className="library-hero-note">
+        Every agent below can be tried from its own page. &ldquo;Ready to
+        chat&rdquo; counts only the agents already set up to open in Chat.
+      </p>
       {children}
     </header>
   )
