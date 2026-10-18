@@ -27,7 +27,7 @@ test('How I got this lists the recorded steps in plain words', async ({
     'Check this answer before you use it.',
   )
   await expect(
-    page.getByRole('button', { name: 'Start new chat with this answer' }),
+    page.getByRole('button', { name: 'Continue in a new chat' }),
   ).toBeVisible()
   await expect(page.locator('.receipt-details')).not.toHaveAttribute('open')
   expect(

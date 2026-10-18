@@ -13,7 +13,7 @@ limits, and configuration loading behave.
 - [Starters and guidance](#starters-and-guidance)
 - [Saving, retention, and receipts](#saving-retention-and-receipts)
 - [Limits and request behavior](#limits-and-request-behavior)
-- [Start new chat with this answer](#start-new-chat-with-this-answer)
+- [Continue in a new chat](#continue-in-a-new-chat)
 - [Configuration loading](#configuration-loading)
 
 ## Conversations
@@ -97,6 +97,10 @@ reverified.
 
 Starter prompts fill the composer without submitting. You choose **Send**. In local preview there is no **Send**, because no model is called; **Copy prompt** copies the message so you can use it in a connected Lab.
 
+While a reply is pending, the message box stays editable so you can write the next message. **Stop waiting** replaces **Send**, and pressing Enter doesn't send until the reply arrives. A failed send restores the message only when the box is empty, so it never overwrites something you typed meanwhile. Agents that pass work to specialists say so while you wait, because they often take 30 to 60 seconds.
+
+Wide tables in a reply keep whole words in each cell and scroll sideways inside the reply instead of squeezing the columns. The reminder to check an answer appears on each reply except the one to **Help me get started**, which only describes what the agent can do.
+
 An empty chat shows the input/output guidance once, in the main column with the
 example tasks; the side column leaves it out until the first reply. Ordinary checklist replies
 lead with a short takeaway and one matrix row per supplied criterion, using
@@ -142,9 +146,9 @@ Save state and expandable **Conversation limits** appear after the first reply, 
 earlier when a draft reaches half of a limit. They don't add status rows to an
 empty chat.
 
-### Start new chat with this answer
+### Continue in a new chat
 
-**Start new chat with this answer** previews an editable draft from the last exchange and
+**Continue in a new chat** previews an editable draft from the last exchange and
 any unsent follow-up. Earlier exchanges aren't carried over. The Lab labels
 previous output as unverified context, not a verified receipt.
 

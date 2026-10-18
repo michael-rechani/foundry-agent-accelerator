@@ -297,7 +297,7 @@ run or remove another participant's records.
 
 | Area | Reset rule |
 | --- | --- |
-| **Chat** | Export or save only if you need it for the agreed synthetic handoff, then start a new chat and select the same scenario. A new chat clears model context but doesn't remove shared saved history. Don't use **Start new chat with this answer** for a clean comparison, because it carries an editable context draft. |
+| **Chat** | Export or save only if you need it for the agreed synthetic handoff, then start a new chat and select the same scenario. A new chat clears model context but doesn't remove shared saved history. Don't use **Continue in a new chat** for a clean comparison, because it carries an editable context draft. |
 | **Shared saved conversations** | Delete only the specific synthetic records created for this demo, and only if their removal is agreed. There is no owner authorization. Never bulk-delete other participants' records. |
 | **Document reviews** | Export if required, then create a new draft with the original fixture. Don't overwrite earlier evidence or label a failed run as passed. Records allow at most four runs and expire 30 days after their last write. No review-delete endpoint exists. Time to live (TTL) isn't immediate secure erasure, and backup retention is separate. |
 | **Interrupted calls** | **Stop waiting** ends the browser wait, not guaranteed remote execution. Refresh or check the existing record before repeating a call. Retries can cost money and aren't automatic. Don't break networking or permissions to manufacture an outage in a shared environment. |

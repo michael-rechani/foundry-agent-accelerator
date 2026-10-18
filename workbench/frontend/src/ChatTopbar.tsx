@@ -200,7 +200,7 @@ export function ChatTopbar({
           <>
             {onCreateThis ? (
               <button
-                className="topbar-button topbar-accent"
+                className="topbar-button"
                 title={createFromPreviewNote}
                 aria-label="Create this agent"
                 onClick={onCreateThis}

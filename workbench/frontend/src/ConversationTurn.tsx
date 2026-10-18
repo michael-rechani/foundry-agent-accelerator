@@ -188,6 +188,7 @@ export function ConversationTurn({
   foundryPortal,
   agentName,
   answerRef,
+  showReviewNote = true,
   onCopy,
   onRate,
 }: {
@@ -197,6 +198,7 @@ export function ConversationTurn({
   foundryPortal?: string | null
   agentName?: string
   answerRef?: RefObject<HTMLElement | null>
+  showReviewNote?: boolean
   onCopy: (text: string) => void
   onRate: (rating: Rating | undefined) => void
 }) {
@@ -220,10 +222,12 @@ export function ConversationTurn({
           </span>
         </div>
         <Markdown text={turn.result.text} />
-        <p className="review-note" role="note">
-          <UserCheck size={14} aria-hidden="true" /> Check this answer before
-          you use it. A person makes the final decision.
-        </p>
+        {showReviewNote && (
+          <p className="review-note" role="note">
+            <UserCheck size={14} aria-hidden="true" /> Check this answer before
+            you use it. A person makes the final decision.
+          </p>
+        )}
         <AnswerSteps
           turn={turn}
           agentLabels={agentLabels}

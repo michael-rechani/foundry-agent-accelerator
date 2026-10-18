@@ -92,6 +92,12 @@ test('a library preview offers to create that agent and opens Create with it cho
   await expect(
     page.getByRole('button', { name: 'Save to shared history' }),
   ).toHaveCount(0)
+  // Trying the agent comes first, so Create isn't styled as the main action.
+  const classes = await page
+    .getByRole('button', { name: 'Create this agent', exact: true })
+    .evaluateAll((buttons) => buttons.map((button) => button.className))
+  expect(classes.length).toBeGreaterThan(0)
+  expect(classes.join(' ')).not.toMatch(/topbar-accent|primary/)
   await page
     .getByRole('button', { name: 'Create this agent', exact: true })
     .click()

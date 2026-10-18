@@ -114,7 +114,7 @@ export function ChatAside({
             <>
               <button
                 type="button"
-                className="aside-button primary"
+                className="aside-button"
                 title={createFromPreviewNote}
                 onClick={onCreateThis}
               >

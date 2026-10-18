@@ -6,9 +6,12 @@ const slowAfterSeconds = 20
 export function WaitingIndicator({
   label,
   expects,
+  delegates,
 }: {
   label?: string
   expects?: string
+  // True when the agent hands the work to specialist agents, which takes longer.
+  delegates?: boolean
 }) {
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
@@ -29,6 +32,13 @@ export function WaitingIndicator({
       {expects && (
         <p className="chat-waiting-note">
           <strong>Expect:</strong> {expects}
+        </p>
+      )}
+      {delegates && (
+        <p className="chat-waiting-note">
+          <strong>Working:</strong> {label ?? 'This agent'} is passing your task
+          to specialist agents and combining what they return. That usually
+          takes 30 to 60 seconds.
         </p>
       )}
       {elapsed >= slowAfterSeconds && (

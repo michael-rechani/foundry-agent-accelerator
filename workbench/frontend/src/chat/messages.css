@@ -84,12 +84,17 @@
 .message-markdown p {
   margin: 10px 0;
 }
-.message-markdown table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  font-size: 11px;
+.message-markdown .table-scroll {
+  overflow-x: auto;
   margin: 16px 0;
+}
+.message-markdown table {
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin: 0;
 }
 .message-markdown th,
 .message-markdown td {
@@ -97,6 +102,10 @@
   border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: top;
+  min-width: 9ch;
+  max-width: 42ch;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 .message-markdown th {
   background: var(--surface-sunken);
