@@ -287,19 +287,26 @@ deployment check.
 ## Deploy a new image from GitHub Actions
 
 The **Deploy Lab image** workflow (`.github/workflows/deploy-lab.yml`) ships the
-current `main` to a running Lab without a jumpbox. Run it from the Actions tab
-with **Run workflow** on `main`. It:
+current `main` to a running Lab without a jumpbox. It runs on its own when a
+change under `workbench/` merges to `main`. Changes that only touch docs, tests
+or Terraform don't start it. You can also run it from the Actions tab with
+**Run workflow** on `main`. It:
 
-1. Builds the image on the repository's self-hosted runner (see
-   [`terraform/runner`](../terraform/runner/README.md); start its VM first if it
-   is deallocated) and checks it as its non-root user. The runner has Docker but
+1. Starts the runner VM if it is deallocated. This step runs on a GitHub-hosted
+   runner, and the deploy identity can only start that one VM.
+2. Builds the image on the repository's self-hosted runner (see
+   [`terraform/runner`](../terraform/runner/README.md)) and checks it as its
+   non-root user. The runner has Docker but
    no Azure CLI, so the workflow runs the CLI from Microsoft's `azure-cli` image.
-2. Signs in to Azure with a short-lived GitHub token. No secret is stored.
-3. Pushes the image to the private registry through its private endpoint, which
+3. Signs in to Azure with a short-lived GitHub token. No secret is stored.
+4. Pushes the image to the private registry through its private endpoint, which
    the runner reaches over the peered VNet. Nothing is published to GitHub
    Packages, and nothing in Azure is made public.
-4. Updates the Container App to the new digest, waits for the new revision to be
+5. Updates the Container App to the new digest, waits for the new revision to be
    healthy, and restores the previous image if it isn't.
+
+The runner deallocates itself after 30 idle minutes, so a deploy costs about
+$0.15 of compute ($0.192 an hour for `Standard_D4s_v5`).
 
 The run summary shows the new digest and the previous image to recover to.
 
@@ -336,11 +343,24 @@ variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`,
 `AZURE_RESOURCE_GROUP`, `LAB_REGISTRY` and `LAB_CONTAINER_APP`. Keep them out of
 committed files.
 
+The workflow also starts the deallocated runner VM. Run this once, signed in as
+someone who can create role definitions and assignments on the runner's resource
+group. It adds a custom role that can read and start that one VM, and nothing
+else, for the deploy identity. Use the client ID the first script printed:
+
+```powershell
+./workbench/setup-runner-start.ps1 -Subscription '<subscription-id>' `
+  -RunnerResourceGroup '<runner-resource-group>' -RunnerVm '<runner-vm-name>' -ClientId '<AZURE_CLIENT_ID>'
+```
+
+Then add the two variables it prints, `LAB_RUNNER_VM` and
+`LAB_RUNNER_RESOURCE_GROUP`, to the `lab-deploy` environment.
+
 The runner's network security group (NSG) denies all VNet traffic by default.
 Set `registry_private_endpoint_ips` in `terraform/runner` to the registry private
 endpoint addresses (registry and data endpoint) so it may reach only those on
 TCP 443. The workflow works in a public repository because it runs only on
-`main` and only by hand, behind the `lab-deploy` environment. Don't point any
+`main`, behind the `lab-deploy` environment. Don't point any
 pull request workflow at the self-hosted runner.
 
 Use the jumpbox route in steps 4 to 6 when you need to change infrastructure, not

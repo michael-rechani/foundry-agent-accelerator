@@ -17,7 +17,7 @@ It reads the VNet and its NAT gateway without taking ownership of them.
 > **Public repository risk.** A persistent self-hosted runner executes the code in
 > pull requests on a machine inside your network, so no pull request workflow may
 > use it. `validate.yml` runs on GitHub-hosted `ubuntu-24.04` runners. Only the
-> manual [`deploy-lab.yml`](../../.github/workflows/deploy-lab.yml) targets this
+> [`deploy-lab.yml`](../../.github/workflows/deploy-lab.yml) build job targets this
 > runner, and it runs only from `main` behind the `lab-deploy` environment. Fork
 > pull requests need approval from every outside contributor. To let it push images,
 > set `registry_private_endpoint_ips` so the NSG allows TCP 443 to the registry
@@ -234,8 +234,11 @@ only deallocates when none of them is busy.
 
 ## Start, stop, and updates
 
-- **Starting.** The VM deallocates when idle, so start it before you open a pull
-  request: `az vm start --resource-group <runner-resource-group> --name <runner-vm-name>`.
+- **Starting.** The VM deallocates when idle. The
+  [`deploy-lab.yml`](../../.github/workflows/deploy-lab.yml) workflow starts it
+  for you (its identity may start this one VM and nothing else). For anything
+  else, start it before you need it:
+  `az vm start --resource-group <runner-resource-group> --name <runner-vm-name>`.
   The runner service starts on boot. Queued jobs wait up to 24 hours for a runner.
   There is no automatic start, because a webhook-driven start needs a public
   endpoint.
