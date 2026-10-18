@@ -84,11 +84,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "invoice",
-        "purchase order",
-        "delivery"
-      ]
+      "keywords": ["invoice", "purchase order", "delivery"]
     },
     {
       "id": "expense-report-checker",
@@ -172,12 +168,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "expense",
-        "travel",
-        "receipts",
-        "reimbursement"
-      ]
+      "keywords": ["expense", "travel", "receipts", "reimbursement"]
     },
     {
       "id": "order-delay-helper",
@@ -261,12 +252,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "order",
-        "shipment",
-        "delivery",
-        "tracking"
-      ]
+      "keywords": ["order", "shipment", "delivery", "tracking"]
     },
     {
       "id": "customer-support-brief",
@@ -343,11 +329,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "customer support",
-        "ticket",
-        "handoff"
-      ]
+      "keywords": ["customer support", "ticket", "handoff"]
     },
     {
       "id": "customer-feedback-themes",
@@ -420,12 +402,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "feedback",
-        "survey",
-        "themes",
-        "voice of customer"
-      ]
+      "keywords": ["feedback", "survey", "themes", "voice of customer"]
     },
     {
       "id": "document-analyst",
@@ -498,11 +475,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "documents",
-        "policy",
-        "comparison"
-      ]
+      "keywords": ["documents", "policy", "comparison"]
     },
     {
       "id": "document-intake",
@@ -571,11 +544,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "forms",
-        "invoice",
-        "fields"
-      ]
+      "keywords": ["forms", "invoice", "fields"]
     },
     {
       "id": "criteria-checker",
@@ -644,11 +613,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "checklist",
-        "criteria",
-        "requirements"
-      ]
+      "keywords": ["checklist", "criteria", "requirements"]
     },
     {
       "id": "contract-playbook-checker",
@@ -717,12 +682,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "contract",
-        "clause",
-        "playbook",
-        "legal"
-      ]
+      "keywords": ["contract", "clause", "playbook", "legal"]
     },
     {
       "id": "rfp-answer-drafter",
@@ -795,12 +755,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "rfp",
-        "proposal",
-        "questionnaire",
-        "security"
-      ]
+      "keywords": ["rfp", "proposal", "questionnaire", "security"]
     },
     {
       "id": "incident-timeline-writer",
@@ -873,12 +828,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "incident",
-        "outage",
-        "timeline",
-        "postmortem"
-      ]
+      "keywords": ["incident", "outage", "timeline", "postmortem"]
     },
     {
       "id": "cash-application-reviewer",
@@ -951,11 +901,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "remittance",
-        "receivables",
-        "cash application"
-      ]
+      "keywords": ["remittance", "receivables", "cash application"]
     },
     {
       "id": "maintenance-work-order-planner",
@@ -1032,11 +978,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "maintenance",
-        "work order",
-        "safety"
-      ]
+      "keywords": ["maintenance", "work order", "safety"]
     },
     {
       "id": "workflow-coordinator",
@@ -1120,11 +1062,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "workflow",
-        "request",
-        "service"
-      ]
+      "keywords": ["workflow", "request", "service"]
     },
     {
       "id": "casework-assistant",
@@ -1197,11 +1135,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "casework",
-        "timeline",
-        "follow-up"
-      ]
+      "keywords": ["casework", "timeline", "follow-up"]
     },
     {
       "id": "medical-bill-reviewer",
@@ -1285,11 +1219,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "medical bill",
-        "insurer",
-        "dispute"
-      ]
+      "keywords": ["medical bill", "insurer", "dispute"]
     },
     {
       "id": "insurance-preapproval-helper",
@@ -1373,11 +1303,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "insurance",
-        "preapproval",
-        "paperwork"
-      ]
+      "keywords": ["insurance", "preapproval", "paperwork"]
     },
     {
       "id": "benefits-renewal-helper",
@@ -1461,11 +1387,7 @@
         "sample_name": null,
         "description": "Create the agent in the Lab, then download its saved setup. It has everything needed to run it as a hosted agent in your own Foundry project."
       },
-      "keywords": [
-        "benefits",
-        "renewal",
-        "proof"
-      ]
+      "keywords": ["benefits", "renewal", "proof"]
     }
   ],
   "facets": {
