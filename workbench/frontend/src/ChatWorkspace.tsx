@@ -25,6 +25,7 @@ import { AddOns } from './AddOns'
 import { StartPage } from './StartPage'
 import { isPreviewId, previewTemplateId } from './library-catalog'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
+import { useSimpleChat } from './simple-chat'
 import { hoodViews, loadUnderTheHood, saveUnderTheHood } from './under-the-hood'
 import { chatLimits, exportConversation } from './chat-helpers'
 import { clearDemoChecks, exportDemoChecks } from './demo-checks'
@@ -124,7 +125,11 @@ export default function ChatWorkspace() {
   })
   const unsaved = dirty || !!draft || busy
   const libraryCount = library.catalog?.templates.length
-  const showAside = view === 'chat' && !!agent && !presenting
+  const [simple] = useSimpleChat()
+  // Before the first message the chat is not about one agent yet, so the
+  // agent's details and actions stay out of the way.
+  const clean = view === 'chat' && simple && !turns.length && !busy
+  const showAside = view === 'chat' && !!agent && !presenting && !clean
   const saveDisabled =
     isPreview ||
     !config?.history_enabled ||
@@ -350,6 +355,7 @@ export default function ChatWorkspace() {
           saveDisabled={saveDisabled}
           exportDisabled={!turns.length && !draft}
           presenting={presenting}
+          clean={clean}
           onPresent={() => setPresenting((value) => !value)}
           onView={setView}
           onChoose={(id) => {
@@ -506,6 +512,7 @@ export default function ChatWorkspace() {
             isPreview={isPreview}
             presenting={presenting}
             showAside={showAside}
+            clean={clean}
             agentLabels={agentLabels}
             agentNotice={
               selected.startsWith('created-') &&

@@ -9,14 +9,18 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4174',
     trace: 'retain-on-failure',
-    // Most specs check technical details, so they start with Under the hood on.
-    // customer-view.spec.ts covers the default customer view.
+    // Most specs check technical details, so they start with Under the hood on
+    // and the full agent screen. customer-view.spec.ts covers the default
+    // customer view and chat-clean.spec.ts covers the default clean chat.
     storageState: {
       cookies: [],
       origins: [
         {
           origin: 'http://127.0.0.1:4174',
-          localStorage: [{ name: 'ai-foundry-lab-under-the-hood', value: '1' }],
+          localStorage: [
+            { name: 'ai-foundry-lab-under-the-hood', value: '1' },
+            { name: 'ai-foundry-lab-simple-chat', value: '0' },
+          ],
         },
       ],
     },

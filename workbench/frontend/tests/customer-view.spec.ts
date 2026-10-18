@@ -121,6 +121,10 @@ test('add-on technical details stay hidden until Under the hood is on', async ({
 })
 
 test('Foundry links appear only under the hood', async ({ page }) => {
+  // The agent details panel is part of the full view, not the clean default.
+  await page.addInitScript(() =>
+    localStorage.setItem('ai-foundry-lab-simple-chat', '0'),
+  )
   await openCustomerView(page, { foundry_portal: foundryPortal })
   const projectLink = page.getByRole('link', {
     name: /Open project in Foundry/,

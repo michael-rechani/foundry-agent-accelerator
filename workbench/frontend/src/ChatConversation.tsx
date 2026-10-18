@@ -20,6 +20,7 @@ export function ChatConversation({
   isPreview,
   presenting,
   showAside,
+  clean,
   agentLabels,
   agentNotice,
   previewNotice,
@@ -53,6 +54,7 @@ export function ChatConversation({
   isPreview: boolean
   presenting: boolean
   showAside: boolean
+  clean: boolean
   agentLabels: Record<string, string>
   agentNotice: string
   previewNotice: string
@@ -170,6 +172,7 @@ export function ChatConversation({
         />
         <ChatComposer
           editor={editor}
+          clean={clean}
           agent={agent}
           config={config}
           draft={draft}
