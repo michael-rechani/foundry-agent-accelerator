@@ -1,7 +1,7 @@
 import type { RefObject } from 'react'
 import type { ChatFailure } from './chat-failure'
 import { ChatError } from './ChatError'
-import { ChatWelcome, type DraftMode } from './ChatWelcome'
+import { ChatWelcome, type DraftMode, type LabGuideProps } from './ChatWelcome'
 import { UserMessage } from './UserMessage'
 import type { Rating, Turn } from './conversation-types'
 import { ConversationTurn } from './ConversationTurn'
@@ -20,6 +20,7 @@ export function ChatMessages({
   isPreview,
   inProgress,
   draftMode,
+  lab,
   presenting,
   busy,
   historyBusy,
@@ -32,6 +33,8 @@ export function ChatMessages({
   onFreshDemo,
   onCloseDemo,
   onDemoStep,
+  onAsk,
+  onSwitch,
   onPrompt,
   onCopy,
   onRate,
@@ -45,6 +48,7 @@ export function ChatMessages({
   isPreview: boolean
   inProgress: boolean
   draftMode: DraftMode
+  lab: LabGuideProps
   presenting: boolean
   busy: boolean
   historyBusy: boolean
@@ -57,6 +61,8 @@ export function ChatMessages({
   onFreshDemo: (scenario: DemoScenario) => void
   onCloseDemo: () => void
   onDemoStep: (prompt: string) => void
+  onAsk: () => void
+  onSwitch: () => void
   onPrompt: (text: string) => void
   onCopy: (text: string, done?: string) => void
   onRate: (index: number, rating: Rating | undefined) => void
@@ -84,6 +90,10 @@ export function ChatMessages({
             isPreview={isPreview}
             inProgress={inProgress}
             draftMode={draftMode}
+            lab={lab}
+            switchDisabled={busy || historyBusy}
+            onAsk={onAsk}
+            onSwitch={onSwitch}
             onPrompt={onPrompt}
           />
         )

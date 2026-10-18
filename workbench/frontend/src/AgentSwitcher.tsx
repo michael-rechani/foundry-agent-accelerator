@@ -15,6 +15,8 @@ export function AgentSwitcher({
   previews,
   previewNote,
   disabled,
+  open,
+  onOpenChange: setOpen,
   onChoose,
   onBrowse,
 }: {
@@ -24,10 +26,12 @@ export function AgentSwitcher({
   previews: SwitcherOption[]
   previewNote: string
   disabled: boolean
+  // Controlled, so the welcome screen can open the list too.
+  open: boolean
+  onOpenChange: (open: boolean) => void
   onChoose: (id: string) => void
   onBrowse: () => void
 }) {
-  const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -43,7 +47,7 @@ export function AgentSwitcher({
     }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
-  }, [open])
+  }, [open, setOpen])
 
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean)
   const visible = (options: SwitcherOption[]) =>
@@ -116,7 +120,7 @@ export function AgentSwitcher({
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         disabled={disabled}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => setOpen(!open)}
       >
         <span className="agent-picker-eyebrow">Agent</span>
         <span className="agent-name">{label}</span>

@@ -96,6 +96,11 @@ variable "agent_creation_enabled" {
   default     = false
   description = "Opt in to operator-confirmed Foundry hosted-agent publication from built-in templates."
 }
+variable "unfinished_agents_enabled" {
+  type        = bool
+  default     = false
+  description = "Offer library agents that are not yet featured or signed off. Off by default so first-time users only see agents that work well."
+}
 variable "agent_creation_model" {
   type        = string
   default     = ""
@@ -355,18 +360,19 @@ resource "azurerm_container_app" "this" {
       dynamic "env" {
         for_each = merge(
           {
-            WORKBENCH_MODE                   = "private"
-            WORKBENCH_TITLE                  = var.workspace_title
-            WORKBENCH_COSMOS_ENDPOINT        = local.cosmos_endpoint
-            WORKBENCH_VISIBLE_AGENTS         = join(",", var.visible_agents)
-            WORKBENCH_DEFAULT_AGENT          = coalesce(var.default_agent, var.visible_agents[0])
-            WORKBENCH_AGENT_CREATION_ENABLED = tostring(var.agent_creation_enabled)
-            WORKBENCH_AGENT_CREATION_MODEL   = var.agent_creation_model
-            WORKBENCH_ALLOWED_HOSTS          = local.hostname
-            WORKBENCH_ORIGINS                = join(",", compact(["https://${local.hostname}", local.front_door_endpoint_host == null ? "" : "https://${local.front_door_endpoint_host}"]))
-            FOUNDRY_PROJECT_ENDPOINT         = "https://${var.foundry_account_name}.services.ai.azure.com/api/projects/${var.foundry_project_name}"
-            WORKBENCH_FOUNDRY_PROJECT_ID     = local.project_id
-            AZURE_CLIENT_ID                  = azurerm_user_assigned_identity.this.client_id
+            WORKBENCH_MODE                      = "private"
+            WORKBENCH_TITLE                     = var.workspace_title
+            WORKBENCH_COSMOS_ENDPOINT           = local.cosmos_endpoint
+            WORKBENCH_VISIBLE_AGENTS            = join(",", var.visible_agents)
+            WORKBENCH_DEFAULT_AGENT             = coalesce(var.default_agent, var.visible_agents[0])
+            WORKBENCH_AGENT_CREATION_ENABLED    = tostring(var.agent_creation_enabled)
+            WORKBENCH_AGENT_CREATION_MODEL      = var.agent_creation_model
+            WORKBENCH_UNFINISHED_AGENTS_ENABLED = tostring(var.unfinished_agents_enabled)
+            WORKBENCH_ALLOWED_HOSTS             = local.hostname
+            WORKBENCH_ORIGINS                   = join(",", compact(["https://${local.hostname}", local.front_door_endpoint_host == null ? "" : "https://${local.front_door_endpoint_host}"]))
+            FOUNDRY_PROJECT_ENDPOINT            = "https://${var.foundry_account_name}.services.ai.azure.com/api/projects/${var.foundry_project_name}"
+            WORKBENCH_FOUNDRY_PROJECT_ID        = local.project_id
+            AZURE_CLIENT_ID                     = azurerm_user_assigned_identity.this.client_id
           },
           length(var.agent_creation_models) == 0 ? {} : {
             WORKBENCH_AGENT_CREATION_MODELS = jsonencode(var.agent_creation_models)

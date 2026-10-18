@@ -28,6 +28,7 @@ export function ChatTopbar({
   previewOptions,
   previewNote,
   switchDisabled,
+  switcherOpen,
   isPreview,
   saving,
   saveDisabled,
@@ -36,6 +37,7 @@ export function ChatTopbar({
   presenting,
   onPresent,
   onView,
+  onSwitcherOpen,
   onChoose,
   onSave,
   onExport,
@@ -50,6 +52,7 @@ export function ChatTopbar({
   previewOptions: SwitcherOption[]
   previewNote: string
   switchDisabled: boolean
+  switcherOpen: boolean
   isPreview: boolean
   saving: boolean
   saveDisabled: boolean
@@ -58,6 +61,7 @@ export function ChatTopbar({
   presenting: boolean
   onPresent: () => void
   onView: (view: View) => void
+  onSwitcherOpen: (open: boolean) => void
   onChoose: (id: string) => void
   onSave: () => void
   onExport: () => void
@@ -100,6 +104,8 @@ export function ChatTopbar({
             previews={previewOptions}
             previewNote={previewNote}
             disabled={!config || switchDisabled}
+            open={switcherOpen}
+            onOpenChange={onSwitcherOpen}
             onChoose={onChoose}
             onBrowse={() => onView('library')}
           />

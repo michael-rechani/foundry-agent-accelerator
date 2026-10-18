@@ -146,6 +146,7 @@ export default function ChatWorkspace() {
     activeDemo,
   )
   const editor = useAutoGrowEditor(draft, view)
+  const [switcherOpen, setSwitcherOpen] = useState(false)
   const { submit, retry, stop } = useChatSubmit({
     config,
     agent,
@@ -341,6 +342,8 @@ export default function ChatWorkspace() {
           previewOptions={previewOptions}
           previewNote={previewNote}
           switchDisabled={busy || historyBusy}
+          switcherOpen={switcherOpen}
+          onSwitcherOpen={setSwitcherOpen}
           isPreview={isPreview}
           saving={historyBusy}
           saveNote={saveNote}
@@ -491,6 +494,13 @@ export default function ChatWorkspace() {
           <ChatConversation
             config={config}
             agent={agent}
+            agents={availableAgents}
+            onSwitchAgent={() => setSwitcherOpen(true)}
+            onChooseAgent={newChat}
+            onAddOns={() => setView('addons')}
+            onCreateAgent={
+              config?.agent_creation ? () => setView('create') : undefined
+            }
             conversation={conversation}
             historyBusy={historyBusy}
             isPreview={isPreview}

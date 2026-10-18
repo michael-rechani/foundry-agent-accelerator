@@ -138,6 +138,7 @@ export function LabGuide({
   onAddOns,
   onCreateAgent,
   title = 'Ask the Lab',
+  initialTopic = null,
 }: {
   agents: Agent[]
   current?: Agent
@@ -145,8 +146,9 @@ export function LabGuide({
   onAddOns: () => void
   onCreateAgent?: () => void
   title?: string
+  initialTopic?: Topic | null
 }) {
-  const [topic, setTopic] = useState<Topic | null>(null)
+  const [topic, setTopic] = useState<Topic | null>(initialTopic)
   const answer = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     if (topic) answer.current?.focus()

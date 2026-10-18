@@ -136,3 +136,50 @@
 .chat-welcome .welcome-hint {
   margin-top: 14px;
 }
+.welcome-modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 9px;
+  width: 100%;
+  margin-top: 10px;
+}
+.welcome-modes button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: left;
+}
+.welcome-modes button:hover:not(:disabled),
+.welcome-modes button[aria-expanded='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.welcome-modes button > svg {
+  flex: none;
+  color: var(--accent);
+}
+.welcome-modes button > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.welcome-modes button strong {
+  font-weight: 650;
+  color: var(--text);
+}
+.welcome-modes button small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.welcome-create {
+  width: 100%;
+  margin-top: 10px;
+  text-align: left;
+}

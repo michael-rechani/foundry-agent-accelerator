@@ -105,7 +105,7 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.gateway.review.return_value = ("completed", "Illustrative unit-test answer.", [])
         self.settings = Settings(
             "private", ENDPOINT, ("lab.test",), (ORIGIN,),
-            creation=CreationSettings(True, "test-model", KEY_HASH, max_agents=2),
+            creation=CreationSettings(True, "test-model", KEY_HASH, max_agents=2), unfinished_agents=True,
         )
         self.body = {
             "idempotency_key": str(uuid4()), "template_id": "document-analyst",
@@ -226,7 +226,7 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((await self.client.post("/api/agent-drafts", json=body)).status_code, 400)
 
     async def test_preview_can_prepare_but_cannot_publish_or_list_shared_records(self):
-        preview = Settings("preview", "", ("localhost",), ("http://localhost",))
+        preview = Settings("preview", "", ("localhost",), ("http://localhost",), unfinished_agents=True)
         async with AsyncClient(transport=ASGITransport(app=create_app(preview)),
                                base_url="http://localhost", headers={"X-Workbench-Request": "1"}) as client:
             config = (await client.get("/api/config")).json()
@@ -518,6 +518,7 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
             "private", ENDPOINT, ("lab.test",), (ORIGIN,),
             creation=CreationSettings(True, "test-model", KEY_HASH, max_agents=5,
                                       models={"extraction": "fast-model", "tool_calling": "tool-model"}),
+            unfinished_agents=True,
         )
         await self.client.aclose()
         self.client = self.make_client(settings)

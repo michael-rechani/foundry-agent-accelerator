@@ -720,7 +720,7 @@ class LibraryPreviewTests(CapturedLabLogs, unittest.TestCase):
         self.gateway.review.return_value = ("completed", "Finding APP-1", [])
         self.gateway.preview.return_value = ("completed", "Preview answer", [])
         self.settings = Settings("private", "https://example.services.ai.azure.com/api/projects/test",
-                                 ("testserver",), ("https://testserver",),
+                                 ("testserver",), ("https://testserver",), unfinished_agents=True,
                                  creation=CreationSettings(False, "test-model", models={"reasoning": "reason-model"}))
         self.client = TestClient(create_app(self.settings, self.gateway))
         self.headers = {"X-Workbench-Request": "1", "Origin": "https://testserver"}
@@ -761,6 +761,25 @@ class LibraryPreviewTests(CapturedLabLogs, unittest.TestCase):
         response = self.client.post("/api/reviews", json={**body, "agent_id": "library-missing"}, headers=self.headers)
         self.assertEqual((response.status_code, response.json()["error"]), (400, "invalid_request"))
         self.gateway.preview.assert_not_called()
+
+    def test_unfinished_previews_are_refused_unless_the_operator_allows_them(self):
+        hidden = TestClient(create_app(replace(self.settings, unfinished_agents=False), self.gateway))
+        body = {"agent_id": "library-document-analyst", "input": "Summarize"}
+        response = hidden.post("/api/reviews", json=body, headers=self.headers)
+        self.assertEqual((response.status_code, response.json()["error"]), (400, "invalid_request"))
+        self.gateway.preview.assert_not_called()
+        response = hidden.post("/api/reviews", json={**body, "agent_id": "library-document-intake"}, headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+
+    def test_unfinished_flag_must_be_boolean_and_defaults_off(self):
+        self.assertFalse(Settings("preview", "", ("localhost",), ("http://localhost",)).unfinished_agents)
+        with self.assertRaisesRegex(ValueError, "Unfinished agent"):
+            create_app(replace(self.settings, unfinished_agents="yes"), self.gateway)
+        with patch.dict("os.environ", {"WORKBENCH_UNFINISHED_AGENTS_ENABLED": "maybe"}):
+            with self.assertRaisesRegex(ValueError, "WORKBENCH_UNFINISHED_AGENTS_ENABLED"):
+                Settings.from_env()
+        with patch.dict("os.environ", {"WORKBENCH_UNFINISHED_AGENTS_ENABLED": "true"}):
+            self.assertTrue(Settings.from_env().unfinished_agents)
 
     def test_preview_flag_must_be_boolean(self):
         with self.assertRaisesRegex(ValueError, "Library preview enablement"):
@@ -810,7 +829,7 @@ class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
         self.gateway.review.return_value = ("completed", "Finding APP-1", [])
         self.gateway.preview.return_value = ("completed", "Preview answer", [])
         self.settings = Settings("private", "https://example.services.ai.azure.com/api/projects/test",
-                                 ("testserver",), ("https://testserver",), model_limits=self.LIMITS,
+                                 ("testserver",), ("https://testserver",), model_limits=self.LIMITS, unfinished_agents=True,
                                  creation=CreationSettings(False, "test-model", models={"reasoning": "reason-model"}))
         self.now = 100.0
         for patcher in (patch("app.measured_answer_tokens", return_value=self.ANSWERS),

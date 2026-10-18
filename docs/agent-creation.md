@@ -218,6 +218,7 @@ For non-Terraform operators, the equivalent server configuration is:
 | `WORKBENCH_MAX_CREATED_AGENTS` | Defaults to 5. Allowed range 1-20. Failed or unconfirmed attempts still count |
 | `WORKBENCH_PUBLICATION_TIMEOUT_SECONDS` | Defaults to 600. Allowed range 30-900 |
 | `WORKBENCH_LIBRARY_PREVIEW_ENABLED` | `true` (default) or `false`. When `true` in private mode with a creation model configured, **Chat** can run library definitions as unsaved previews on that model without publishing an agent. Previews use only simulated read-only lookups, and each message may incur model cost. Other values fail startup. |
+| `WORKBENCH_UNFINISHED_AGENTS_ENABLED` | `true` or `false` (default). When `false`, the Lab offers, previews, drafts and creates only **featured** library agents: those marked Focus or signed off as Reviewed. Everything else stays in the code but is hidden from the Library, Chat, Create and Ask the Lab, and the API refuses it. Agents you already created keep working. Set by `unfinished_agents_enabled` in Terraform. Other values fail startup. Guided demos use agents that are not featured yet, so they show their "no matching agent" state until you turn this on. |
 
 The existing `WORKBENCH_MODE=private`, Foundry endpoint, managed identity,
 trusted hosts/origins, and Cosmos configuration still apply. Invalid opt-in
