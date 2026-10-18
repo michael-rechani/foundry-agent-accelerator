@@ -1,7 +1,6 @@
 import {
   ArrowDownToLine,
   ChevronRight,
-  Info,
   LoaderCircle,
   Plus,
   Presentation,
@@ -153,44 +152,7 @@ export function ChatTopbar({
         >
           <Presentation size={18} />
         </button>
-        {config?.mode === 'private' ? (
-          // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape bubbles up from the summary and controls inside this disclosure.
-          <details
-            className="lab-info"
-            name="topbar-panel"
-            key={view}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') event.currentTarget.open = false
-            }}
-          >
-            <summary
-              className="environment-badge private"
-              title="About this shared lab"
-            >
-              <span className="status-dot" />
-              Shared lab
-              <Info size={13} aria-hidden="true" />
-            </summary>
-            <aside className="lab-info-panel" aria-label="Shared lab details">
-              <strong>Private shared lab</strong>
-              <p>No user sign-in. Saved records are shared.</p>
-              <p>Use sample data only.</p>
-              <p>
-                Everyone with workspace access can read, modify and delete saved
-                chats, and read reviews and add requested evidence. There is no
-                per-user authorization; private networking does not isolate
-                users.
-              </p>
-              {config.agent_creation && (
-                <p>
-                  Created-agent setups are shared too. Publishing or deleting a
-                  created agent requires an operator key, not an individual user
-                  account.
-                </p>
-              )}
-            </aside>
-          </details>
-        ) : (
+        {config?.mode !== 'private' && (
           <span className="environment-badge" title="No model calls or saving">
             <span className="status-dot" />
             {config ? 'Local preview' : 'Connecting'}

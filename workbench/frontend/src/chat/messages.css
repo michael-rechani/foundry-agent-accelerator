@@ -11,24 +11,24 @@
 }
 .user-message {
   max-width: 88%;
-  margin: 14px 0 28px auto;
+  margin: 8px 0 18px auto;
   background: var(--accent-soft);
   border: 1px solid var(--accent-line);
   border-radius: 7px;
-  padding: 15px 19px;
+  padding: 10px 14px;
   overflow-wrap: anywhere;
 }
 .message-author {
   display: block;
   font-size: 10px;
   color: var(--muted);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   font-weight: 700;
 }
 .user-message p {
   white-space: pre-wrap;
   font-size: 13px;
-  line-height: 1.85;
+  line-height: 1.6;
 }
 .user-message p.collapsed {
   display: -webkit-box;
@@ -50,12 +50,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 17px;
+  margin-bottom: 10px;
   font-size: 12px;
 }
 .assistant-heading .agent-avatar {
-  width: 29px;
-  height: 29px;
+  width: 24px;
+  height: 24px;
 }
 .assistant-heading > span:last-child {
   margin-left: auto;
@@ -128,7 +128,17 @@
   gap: 8px;
   color: var(--muted);
   font-size: 12px;
-  margin: 12px 0 5px;
+  margin: 10px 0 2px;
+}
+/* Older answers keep their tools out of sight until the turn is used. */
+.response-tools:not(.latest) {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.turn:hover .response-tools,
+.response-tools:focus-within,
+.response-tools:has([aria-pressed='true']) {
+  opacity: 1;
 }
 .answer-feedback {
   display: flex;
@@ -171,20 +181,26 @@
   cursor: not-allowed;
 }
 .earlier-answers {
-  margin: 10px 0 0;
-  border: 1px solid var(--line);
+  margin: 4px 0 0;
+  border: 1px solid transparent;
   border-radius: 6px;
-  background: var(--surface-sunken);
   font-size: 12px;
   color: var(--text-secondary, var(--muted));
+}
+.earlier-answers[open] {
+  border-color: var(--line);
+  background: var(--surface-sunken);
 }
 .earlier-answers > summary {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 6px 0;
   cursor: pointer;
   list-style: none;
+}
+.earlier-answers[open] > summary {
+  padding: 8px 12px;
 }
 .earlier-answers > summary::-webkit-details-marker {
   display: none;
@@ -209,12 +225,8 @@
 .review-note {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 12px 0 0;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface-subtle);
-  color: var(--text);
-  font-size: 12px;
+  gap: 6px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 11px;
 }

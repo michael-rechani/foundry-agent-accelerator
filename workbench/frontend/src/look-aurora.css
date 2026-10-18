@@ -254,12 +254,6 @@
   border-radius: 999px;
   border: 1px solid var(--line);
 }
-:root[data-look='aurora'] .environment-badge.private {
-  border-color: var(--success-line);
-}
-:root[data-look='aurora'] .environment-badge.private .status-dot {
-  box-shadow: 0 0 10px var(--success-dot);
-}
 :root[data-look='aurora'] .chat-icon:hover {
   background: var(--accent-soft);
   color: var(--accent);
@@ -723,7 +717,6 @@
   box-shadow: 0 0 18px -4px var(--accent-glow);
 }
 :root[data-look='aurora'] .theme-panel,
-:root[data-look='aurora'] .lab-info-panel,
 :root[data-look='aurora'] .agent-switcher-panel {
   /* Solid on purpose: these panels sit inside the frosted top bar, where a
      second blur cannot reach the page, so a see-through fill lets the cards
@@ -765,7 +758,6 @@
     transform: translateX(130%);
     transition: transform 0.85s var(--look-ease);
   }
-  :root[data-look='aurora'] .environment-badge.private .status-dot,
   :root[data-look='aurora'] .operations-status.ready::before {
     animation: look-pulse 2.6s ease-in-out infinite;
   }

@@ -224,6 +224,7 @@ export function ConversationTurn({
   foundryPortal,
   agentName,
   answerRef,
+  latest = false,
   showReviewNote = true,
   busy = false,
   onCopy,
@@ -236,6 +237,7 @@ export function ConversationTurn({
   foundryPortal?: string | null
   agentName?: string
   answerRef?: RefObject<HTMLElement | null>
+  latest?: boolean
   showReviewNote?: boolean
   busy?: boolean
   onCopy: (text: string) => void
@@ -262,22 +264,7 @@ export function ConversationTurn({
           </span>
         </div>
         <Markdown text={turn.result.text} />
-        {showReviewNote && (
-          <p className="review-note" role="note">
-            <UserCheck size={14} aria-hidden="true" /> Check this answer before
-            you use it. A person makes the final decision.
-          </p>
-        )}
-        <AnswerSteps
-          turn={turn}
-          agentLabels={agentLabels}
-          foundryPortal={foundryPortal}
-          agentName={agentName}
-        />
-        {turn.earlier?.length ? (
-          <EarlierAnswers answers={turn.earlier} />
-        ) : null}
-        <div className="response-tools">
+        <div className={`response-tools${latest ? ' latest' : ''}`}>
           <button
             className="chat-icon"
             title="Copy response"
@@ -299,6 +286,21 @@ export function ConversationTurn({
           )}
           <AnswerFeedback rating={turn.rating} onRate={onRate} />
         </div>
+        <AnswerSteps
+          turn={turn}
+          agentLabels={agentLabels}
+          foundryPortal={foundryPortal}
+          agentName={agentName}
+        />
+        {turn.earlier?.length ? (
+          <EarlierAnswers answers={turn.earlier} />
+        ) : null}
+        {latest && showReviewNote && (
+          <p className="review-note" role="note">
+            <UserCheck size={14} aria-hidden="true" /> Check this answer before
+            you use it. A person makes the final decision.
+          </p>
+        )}
         <details className="receipt-details hood-only">
           <summary>
             <Activity size={14} aria-hidden="true" /> Execution details

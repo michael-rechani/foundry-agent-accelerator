@@ -1,66 +1,38 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { openSteps, openWorkspace, send } from './helpers/chat-lab'
-import { workspaceNav } from './helpers/navigation'
 
-test('shared lab details are available on demand across workspace views', async ({
+test('sharing details sit in the composer and the top bar has no shared-lab badge', async ({
   page,
 }, testInfo) => {
   await openWorkspace(page, { config: { reviews_enabled: true } })
-  const control = page.getByTitle('About this shared lab', { exact: true })
-  const notice = page.getByRole('complementary', { name: 'Shared lab details' })
-  for (const name of ['Chat', 'Shared history', 'All agents', 'Performance']) {
-    await workspaceNav(page).getByTitle(name, { exact: true }).click()
-    // The top bar names the page only in its breadcrumb, never as a title.
-    await expect(
-      page
-        .getByRole('banner')
-        .getByText(name, { exact: true })
-        .and(page.locator(':not(.topbar-crumbs *)')),
-    ).toHaveCount(0)
-    await expect(control).toBeInViewport()
-    await expect(notice).toBeHidden()
-    await expect(
-      page.getByRole('complementary', { name: 'Lab data boundary' }),
-    ).toHaveCount(0)
-    await control.click()
-    await expect(notice).toBeInViewport()
-    await expect(notice).toContainText(
-      'No user sign-in. Saved records are shared.',
-    )
-    await expect(notice).toContainText('Use sample data only.')
-    await expect(notice).toContainText(
-      'read, modify and delete saved chats, and read reviews and add requested evidence',
-    )
-    expect(
-      await notice.evaluate((element) => {
-        const { left, right } = element.getBoundingClientRect()
-        return left >= 0 && right <= innerWidth
-      }),
-    ).toBe(true)
-    if (name === 'Chat') {
-      await page.evaluate(() => document.fonts.ready)
-      await page.screenshot({
-        path: testInfo.outputPath('shared-lab-details.png'),
-      })
-      await control.press('Enter')
-      await expect(notice).toBeHidden()
-      await control.press('Space')
-      await expect(notice).toBeVisible()
-    }
-  }
+  await expect(page.getByTitle('About this shared lab')).toHaveCount(0)
+  await expect(page.locator('.environment-badge')).toHaveCount(0)
+  const summary = page.getByText('About sharing and saving')
+  const privacy = page.locator('#chat-privacy')
+  await expect(privacy).toContainText('Use sample data only')
+  await expect(privacy.getByText('No user sign-in.')).toBeHidden()
+  await summary.click()
+  await expect(privacy).toContainText(
+    'No user sign-in. Saved records are shared.',
+  )
+  await expect(privacy).toContainText(
+    'read, modify and delete saved chats, and read reviews and add requested evidence',
+  )
+  await expect(privacy).toContainText('no per-user authorization')
+  await page.evaluate(() => document.fonts.ready)
+  await page.screenshot({
+    path: testInfo.outputPath('sharing-details.png'),
+  })
+  await summary.press('Enter')
+  await expect(privacy.getByText('No user sign-in.')).toBeHidden()
 })
 
 test('disconnected preview does not claim connected shared storage', async ({
   page,
 }) => {
   await openWorkspace(page, { preview: true })
-  await expect(
-    page.getByTitle('About this shared lab', { exact: true }),
-  ).toHaveCount(0)
-  await expect(
-    page.getByRole('complementary', { name: 'Shared lab details' }),
-  ).toHaveCount(0)
+  await expect(page.getByTitle('About this shared lab')).toHaveCount(0)
   await expect(page.getByText('Local preview', { exact: true })).toBeVisible()
   await expect(page.locator('.chat-welcome .welcome-hint')).toContainText(
     'No model calls or saved records',

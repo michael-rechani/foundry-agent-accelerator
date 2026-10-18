@@ -261,11 +261,11 @@ test('presenter controls keep environment and human-review boundaries visible', 
   await expect(
     page.getByRole('button', { name: 'Start fresh with this example' }),
   ).toBeVisible()
-  await page.locator('.lab-info > summary').click()
+  await page.getByText('About sharing and saving').click()
   await expect(
     page.getByText('No user sign-in. Saved records are shared.'),
   ).toBeVisible()
-  await page.locator('.lab-info > summary').click()
+  await page.getByText('About sharing and saving').click()
   await screenshot(page, testInfo, 'presenter-view.png')
   // The example is untouched, so starting it again asks nothing.
   await page

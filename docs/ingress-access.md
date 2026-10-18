@@ -139,7 +139,7 @@ access. That differs from signing users in to the application.
 | Private shared demonstration | Trusted operators only, approved private routing, DNS, source restrictions, fictional inputs, and a clear acknowledgement that saved records are shared. No end-user login or per-user isolation is claimed. |
 | Internet-facing or confidential multi-user application | Implement user authentication and server-side agent and record authorization before opening access. Select an identity provider appropriate to the audience. The current Lab doesn't implement this mode. |
 
-The **Shared lab** header control opens the shared-demo details on desktop.
+The **About sharing and saving** note under the Chat message box opens the shared-demo details on desktop.
 It doesn't enforce that inputs are fictional. Don't substitute
 a shared password or a WAF policy for user identity and record ownership. Keep
 the public Application Gateway and Front Door patterns as design references until
@@ -472,7 +472,7 @@ don't describe the result as ready for public or confidential multi-user access.
 | --- | --- |
 | DNS and TLS | Browser reaches the intended listener. The gateway resolves and reaches its private origin. Certificates validate on both hops. |
 | Origin isolation | Direct origin access from the public internet fails while the authorized edge path succeeds. Any retained private administrator bypass is documented, not presented as edge-only enforcement. |
-| Private-demo boundary | Only approved private sources can reach the app, public ingress remains closed, the **Shared lab** control exposes the shared-data details on desktop, and test inputs are fictional. This doesn't establish individual user identity or record isolation. |
+| Private-demo boundary | Only approved private sources can reach the app, public ingress remains closed, the **About sharing and saving** note in Chat exposes the shared-data details on desktop, and test inputs are fictional. This doesn't establish individual user identity or record isolation. |
 | Authentication for broader access | Anonymous access to protected application and API routes is denied; sign-in and sign-out use the correct public or private frontend domain without redirect loops. |
 | Authorization for broader access | A user can't access another user's records or invoke an unauthorized agent. This is an implementation gate, not current Lab behavior. |
 | Host and origin checks | Approved browser requests succeed. Unapproved `Host` and `Origin` values remain rejected. Don't weaken these controls to pass a probe. |
