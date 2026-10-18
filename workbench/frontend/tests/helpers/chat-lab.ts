@@ -36,6 +36,8 @@ export async function openWorkspace(
     conflict?: boolean
     stalledHistory?: boolean
     stalledReview?: boolean
+    // Hold the reply until state.release() is called.
+    holdReview?: boolean
     busyReview?: boolean
     // Busy only for the first send, so a Retry can succeed.
     busyOnce?: boolean
@@ -59,6 +61,7 @@ export async function openWorkspace(
     ...options.config,
   })
   const state = {
+    release: () => {},
     configRequests: 0,
     healthRequests: 0,
     document: null as Document | null,
@@ -102,6 +105,10 @@ export async function openWorkspace(
     if (path === '/api/reviews') {
       state.requests.push(request.postDataJSON())
       if (options.stalledReview) return
+      if (options.holdReview)
+        await new Promise<void>((resolve) => {
+          state.release = resolve
+        })
       if (
         options.busyReview ||
         (options.busyOnce && state.requests.length === 1)

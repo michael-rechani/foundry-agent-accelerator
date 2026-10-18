@@ -111,7 +111,6 @@ export function useChatSubmit({
         },
       ])
       setDirty(true)
-      setDraft('')
       setPending('')
       if (config?.mode === 'private')
         onMeasure({

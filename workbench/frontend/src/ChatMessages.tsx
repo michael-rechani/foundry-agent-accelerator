@@ -7,6 +7,7 @@ import type { Rating, Turn } from './conversation-types'
 import { ConversationTurn } from './ConversationTurn'
 import type { DemoScenario } from './demo-scenarios'
 import { DemoRunGuide } from './ExploreDemos'
+import { isHelpQuestion } from './help-prompt'
 import { WaitingIndicator } from './WaitingIndicator'
 import type { Agent, Config } from './workspace-config'
 
@@ -95,6 +96,7 @@ export function ChatMessages({
               foundryPortal={isPreview ? null : config?.foundry_portal}
               agentName={agent?.agent}
               answerRef={index === turns.length - 1 ? latestAnswer : undefined}
+              showReviewNote={!isHelpQuestion(turn.question, agent?.prompts)}
               onCopy={onCopy}
               onRate={(rating) => onRate(index, rating)}
             />
@@ -106,6 +108,7 @@ export function ChatMessages({
         <WaitingIndicator
           label={agent?.label}
           expects={agent?.guidance?.output}
+          delegates={!!agent && Object.keys(agent.tools).length > 0}
         />
       )}
       {error && (

@@ -61,7 +61,11 @@ export function ChatComposer({
         <textarea
           ref={editor}
           aria-label="Message"
-          placeholder={`Message ${agent?.label || 'your agent'}...`}
+          placeholder={
+            busy
+              ? 'Waiting for a reply. You can write your next message now.'
+              : `Message ${agent?.label || 'your agent'}...`
+          }
           value={draft}
           aria-describedby={
             [
@@ -72,7 +76,6 @@ export function ChatComposer({
               .filter(Boolean)
               .join(' ') || undefined
           }
-          disabled={busy}
           rows={3}
           onChange={(event) => onDraft(event.target.value)}
           onKeyDown={(event) => {
@@ -93,13 +96,13 @@ export function ChatComposer({
               <button
                 type="button"
                 className="composer-continue"
-                title="Opens a draft that carries this answer into a new chat. Nothing is sent."
-                aria-label="Start new chat with this answer"
+                title="Carries the latest answer into a draft in a new chat, so you can build on it. Nothing is sent."
+                aria-label="Continue in a new chat"
                 disabled={busy || historyBusy}
                 onClick={onContinue}
               >
                 <GitBranch size={15} aria-hidden="true" />
-                <span>Start new chat with this answer</span>
+                <span>Continue in a new chat</span>
               </button>
             )}
             {config?.mode !== 'private' && (
@@ -157,7 +160,9 @@ export function ChatComposer({
       </form>
       {!localPreview && (
         <p className="composer-hint" id="composer-hint">
-          Enter sends. Shift+Enter adds a new line.
+          {busy
+            ? 'You can keep typing. Send turns on when the reply arrives.'
+            : 'Enter sends. Shift+Enter adds a new line.'}
         </p>
       )}
       {config?.mode === 'private' && (

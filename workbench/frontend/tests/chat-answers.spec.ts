@@ -298,11 +298,9 @@ test('continuation previews context and leaves saved source unchanged', async ({
   await expect(page.getByRole('alert')).toContainText(
     'Conversation turn limit reached',
   )
-  await page
-    .getByRole('button', { name: 'Start new chat with this answer' })
-    .click()
+  await page.getByRole('button', { name: 'Continue in a new chat' }).click()
   const dialog = page.getByRole('dialog', {
-    name: 'Start new chat with this answer',
+    name: 'Continue in a new chat',
   })
   await expect(dialog).toBeVisible()
   await expect(
@@ -312,9 +310,7 @@ test('continuation previews context and leaves saved source unchanged', async ({
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toHaveValue('Next synthetic question')
-  await page
-    .getByRole('button', { name: 'Start new chat with this answer' })
-    .click()
+  await page.getByRole('button', { name: 'Continue in a new chat' }).click()
   await dialog
     .getByRole('textbox', { name: 'Carry-over draft' })
     .fill('Reviewed carry-over context')
@@ -339,12 +335,12 @@ async function openContinuation(page: Page) {
   await openWorkspace(page)
   await send(page)
   const opener = page.getByRole('button', {
-    name: 'Start new chat with this answer',
+    name: 'Continue in a new chat',
   })
   await opener.focus()
   await page.keyboard.press('Enter')
   const dialog = page.getByRole('dialog', {
-    name: 'Start new chat with this answer',
+    name: 'Continue in a new chat',
   })
   await expect(dialog).toBeVisible()
   return { opener, dialog }
