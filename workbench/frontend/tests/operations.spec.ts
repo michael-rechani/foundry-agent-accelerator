@@ -3,6 +3,7 @@ import { screenshot } from './fixtures'
 import {
   healthy,
   labStatus,
+  openDetails,
   openOverview,
   openWorkspace,
   serviceStatus,
@@ -154,6 +155,7 @@ test('replies show reported tokens and Performance estimates cost from user rate
   await expect(page.locator('.assistant-heading')).toContainText(
     '1.0s · 1,500 tokens',
   )
+  await openDetails(page)
   await page.locator('.receipt-details > summary').click()
   await expect(page.locator('.usage-detail')).toContainText(
     '1,200 in (200 cached) · 300 out (120 reasoning) · 1,500 total',

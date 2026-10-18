@@ -63,16 +63,8 @@ function AnswerSteps({
   const usage = usageLabel(turn.result.usage)
   const agentUrl = foundryAgentUrl(foundryPortal, agentName)
   return (
-    <details className="answer-steps">
-      <summary>
-        <ChevronRight
-          className="answer-steps-chevron"
-          size={14}
-          aria-hidden="true"
-        />
-        <strong>How I got this</strong>
-        <span>{stepsSummary(turn)}</span>
-      </summary>
+    <section className="answer-steps">
+      <h4>How I got this</h4>
       <ol aria-label="How I got this">
         {turn.result.receipts.map((receipt, index) => {
           const state = receiptState(turn, receipt)
@@ -152,8 +144,15 @@ function AnswerSteps({
           </FoundryLink>
         </p>
       )}
-    </details>
+    </section>
   )
+}
+
+function detailsSummary(turn: Turn) {
+  const earlier = turn.earlier?.length ?? 0
+  const steps = stepsSummary(turn)
+  if (!earlier) return steps
+  return `${steps} \u00b7 ${earlier} earlier ${earlier === 1 ? 'answer' : 'answers'}`
 }
 
 function Markdown({ text }: { text: string }) {
@@ -286,65 +285,76 @@ export function ConversationTurn({
           )}
           <AnswerFeedback rating={turn.rating} onRate={onRate} />
         </div>
-        <AnswerSteps
-          turn={turn}
-          agentLabels={agentLabels}
-          foundryPortal={foundryPortal}
-          agentName={agentName}
-        />
-        {turn.earlier?.length ? (
-          <EarlierAnswers answers={turn.earlier} />
-        ) : null}
+        <details className="answer-details">
+          <summary>
+            <ChevronRight
+              className="answer-steps-chevron"
+              size={14}
+              aria-hidden="true"
+            />
+            <strong>Details</strong>
+            <span>{detailsSummary(turn)}</span>
+          </summary>
+          <AnswerSteps
+            turn={turn}
+            agentLabels={agentLabels}
+            foundryPortal={foundryPortal}
+            agentName={agentName}
+          />
+          {turn.earlier?.length ? (
+            <EarlierAnswers answers={turn.earlier} />
+          ) : null}
+          <details className="receipt-details hood-only">
+            <summary>
+              <Activity size={14} aria-hidden="true" /> Execution details
+              <span>
+                {turn.result.receipts.length === 0
+                  ? 'No tool calls'
+                  : `${turn.result.receipts.length} tool ${turn.result.receipts.length === 1 ? 'call' : 'calls'}`}
+              </span>
+            </summary>
+            <code>{turn.result.request_id}</code>
+            {turn.result.usage !== undefined && (
+              <p className="usage-detail">
+                {turn.result.usage
+                  ? `Tokens: ${usageDetail(turn.result.usage)}.`
+                  : 'The service did not report token usage for this answer.'}{' '}
+                Counts come from the answering agent&apos;s response. A
+                coordinator&apos;s count may not include specialists it calls.
+              </p>
+            )}
+            {turn.result.receipts.length ? (
+              turn.result.receipts.map((receipt, index) => (
+                <div className="receipt" key={`${receipt.call_id}-${index}`}>
+                  <div>
+                    {receiptState(turn, receipt) === 'verified' ? (
+                      <CheckCheck size={16} />
+                    ) : (
+                      <CircleAlert size={16} />
+                    )}
+                    <strong>{receipt.tool}</strong>
+                    <span>{receiptLabels[receiptState(turn, receipt)]}</span>
+                  </div>
+                  <code>{receipt.agent || 'Target not verified'}</code>
+                  {receipt.output && (
+                    <details>
+                      <summary>What it returned</summary>
+                      <Markdown text={receipt.output} />
+                    </details>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p>No tool calls were recorded for this answer.</p>
+            )}
+          </details>
+        </details>
         {latest && showReviewNote && (
           <p className="review-note" role="note">
             <UserCheck size={14} aria-hidden="true" /> Check this answer before
             you use it. A person makes the final decision.
           </p>
         )}
-        <details className="receipt-details hood-only">
-          <summary>
-            <Activity size={14} aria-hidden="true" /> Execution details
-            <span>
-              {turn.result.receipts.length === 0
-                ? 'No tool calls'
-                : `${turn.result.receipts.length} tool ${turn.result.receipts.length === 1 ? 'call' : 'calls'}`}
-            </span>
-          </summary>
-          <code>{turn.result.request_id}</code>
-          {turn.result.usage !== undefined && (
-            <p className="usage-detail">
-              {turn.result.usage
-                ? `Tokens: ${usageDetail(turn.result.usage)}.`
-                : 'The service did not report token usage for this answer.'}{' '}
-              Counts come from the answering agent&apos;s response. A
-              coordinator&apos;s count may not include specialists it calls.
-            </p>
-          )}
-          {turn.result.receipts.length ? (
-            turn.result.receipts.map((receipt, index) => (
-              <div className="receipt" key={`${receipt.call_id}-${index}`}>
-                <div>
-                  {receiptState(turn, receipt) === 'verified' ? (
-                    <CheckCheck size={16} />
-                  ) : (
-                    <CircleAlert size={16} />
-                  )}
-                  <strong>{receipt.tool}</strong>
-                  <span>{receiptLabels[receiptState(turn, receipt)]}</span>
-                </div>
-                <code>{receipt.agent || 'Target not verified'}</code>
-                {receipt.output && (
-                  <details>
-                    <summary>What it returned</summary>
-                    <Markdown text={receipt.output} />
-                  </details>
-                )}
-              </div>
-            ))
-          ) : (
-            <p>No tool calls were recorded for this answer.</p>
-          )}
-        </details>
       </article>
     </div>
   )
