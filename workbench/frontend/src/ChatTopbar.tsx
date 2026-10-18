@@ -155,16 +155,18 @@ export function ChatTopbar({
         </div>
       )}
       <div className="topbar-actions">
-        <button
-          className="chat-icon presenter-toggle"
-          title="Presenter view"
-          aria-label="Presenter view"
-          aria-pressed={presenting}
-          onClick={onPresent}
-        >
-          <Presentation size={18} />
-        </button>
-        {config?.mode !== 'private' && (
+        {!clean && (
+          <button
+            className="chat-icon presenter-toggle"
+            title="Presenter view"
+            aria-label="Presenter view"
+            aria-pressed={presenting}
+            onClick={onPresent}
+          >
+            <Presentation size={18} />
+          </button>
+        )}
+        {config?.mode !== 'private' && !(clean && config) && (
           <span className="environment-badge" title="No model calls or saving">
             <span className="status-dot" />
             {config ? 'Local preview' : 'Connecting'}

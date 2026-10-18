@@ -24,7 +24,11 @@ test('chat opens clean, with no agent details, and sends nothing', async ({
   await expect(page.locator('.chat-welcome')).not.toContainText(
     guidedReview.label,
   )
-  await expect(page.locator('.welcome-kind')).toHaveCount(0)
+  await expect(page.locator('.chat-welcome .welcome-kind')).toHaveCount(0)
+  await expect(page.locator('.environment-badge')).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Presenter view' }),
+  ).toHaveCount(0)
   await expect(page.locator('.prompt-options')).toHaveCount(0)
   await expect(page.locator('.chat-aside')).toHaveCount(0)
   await expect(page.getByText('About this agent')).toHaveCount(0)
