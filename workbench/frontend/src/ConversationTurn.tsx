@@ -7,6 +7,7 @@ import {
   Clipboard,
   GitBranch,
   MessageSquare,
+  RotateCcw,
   UserCheck,
 } from 'lucide-react'
 import { useEffect, useState, type RefObject } from 'react'
@@ -17,7 +18,7 @@ import {
   type ReceiptState,
 } from './answer-steps'
 import { AnswerFeedback } from './AnswerFeedback'
-import type { Rating, Turn } from './conversation-types'
+import type { Rating, Result, Turn } from './conversation-types'
 import { FoundryLink } from './FoundryLink'
 import { foundryAgentUrl } from './foundry-links'
 import { loadedMarkdown, preloadMarkdown } from './markdown-loader'
@@ -181,6 +182,41 @@ function Markdown({ text }: { text: string }) {
   )
 }
 
+function EarlierAnswers({ answers }: { answers: Result[] }) {
+  return (
+    <details className="earlier-answers">
+      <summary>
+        <ChevronRight
+          className="answer-steps-chevron"
+          size={14}
+          aria-hidden="true"
+        />
+        <strong>
+          {answers.length === 1
+            ? 'Earlier answer'
+            : `${answers.length} earlier answers`}
+        </strong>
+        <span>Kept so you can compare. Not saved to shared history.</span>
+      </summary>
+      {answers.map((answer, index) => (
+        <section
+          className="earlier-answer"
+          key={`${answer.request_id}-${index}`}
+          aria-label={`Earlier answer ${index + 1}`}
+        >
+          <h4>
+            Answer {index + 1} · {(answer.elapsed_ms / 1000).toFixed(1)}s
+            {usageLabel(answer.usage) && (
+              <span className="hood-only"> · {usageLabel(answer.usage)}</span>
+            )}
+          </h4>
+          <Markdown text={answer.text} />
+        </section>
+      ))}
+    </details>
+  )
+}
+
 export function ConversationTurn({
   turn,
   label,
@@ -189,8 +225,10 @@ export function ConversationTurn({
   agentName,
   answerRef,
   showReviewNote = true,
+  busy = false,
   onCopy,
   onRate,
+  onTryAgain,
 }: {
   turn: Turn
   label?: string
@@ -199,8 +237,10 @@ export function ConversationTurn({
   agentName?: string
   answerRef?: RefObject<HTMLElement | null>
   showReviewNote?: boolean
+  busy?: boolean
   onCopy: (text: string) => void
   onRate: (rating: Rating | undefined) => void
+  onTryAgain?: () => void
 }) {
   return (
     <div className="turn">
@@ -234,6 +274,9 @@ export function ConversationTurn({
           foundryPortal={foundryPortal}
           agentName={agentName}
         />
+        {turn.earlier?.length ? (
+          <EarlierAnswers answers={turn.earlier} />
+        ) : null}
         <div className="response-tools">
           <button
             className="chat-icon"
@@ -243,6 +286,17 @@ export function ConversationTurn({
           >
             <Clipboard size={15} />
           </button>
+          {onTryAgain && (
+            <button
+              type="button"
+              className="try-again"
+              title="Ask the same question again. The earlier answer stays below for comparison."
+              disabled={busy}
+              onClick={onTryAgain}
+            >
+              <RotateCcw size={14} aria-hidden="true" /> Try again
+            </button>
+          )}
           <AnswerFeedback rating={turn.rating} onRate={onRate} />
         </div>
         <details className="receipt-details hood-only">

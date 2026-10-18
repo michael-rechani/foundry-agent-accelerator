@@ -27,4 +27,7 @@ export type Turn = {
   result: Result
   stored?: boolean
   rating?: Rating
+  // Earlier answers to this same question, oldest first, kept after "Try
+  // again". Like a rating, they live only in this tab and the exported file.
+  earlier?: Result[]
 }

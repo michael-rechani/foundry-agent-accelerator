@@ -146,7 +146,7 @@ export default function ChatWorkspace() {
     activeDemo,
   )
   const editor = useAutoGrowEditor(draft, view)
-  const { submit, stop } = useChatSubmit({
+  const { submit, retry, stop } = useChatSubmit({
     config,
     agent,
     conversation,
@@ -526,6 +526,7 @@ export default function ChatWorkspace() {
             onFreshDemo={loadDemo}
             onCopy={copy}
             onSubmit={() => void submit()}
+            onTryAgain={() => void retry()}
             onStop={stop}
             onContinue={() => setContinuing(true)}
             onCatalog={() => setView('catalog')}

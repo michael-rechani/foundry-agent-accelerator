@@ -32,6 +32,7 @@ export function ChatConversation({
   onFreshDemo,
   onCopy,
   onSubmit,
+  onTryAgain,
   onStop,
   onContinue,
   onCatalog,
@@ -59,6 +60,7 @@ export function ChatConversation({
   onFreshDemo: (scenario: DemoScenario) => void
   onCopy: (text: string, done?: string) => void
   onSubmit: () => void
+  onTryAgain: () => void
   onStop: () => void
   onContinue: () => void
   onCatalog: () => void
@@ -132,6 +134,7 @@ export function ChatConversation({
           onRate={(index, rating) =>
             setTurns((previous) => withRating(previous, index, rating))
           }
+          onTryAgain={agent && !isPreview ? onTryAgain : undefined}
           onRetry={
             agent &&
             draft.trim() &&

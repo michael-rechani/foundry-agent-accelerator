@@ -35,6 +35,7 @@ export function ChatMessages({
   onPrompt,
   onCopy,
   onRate,
+  onTryAgain,
   onDismissError,
   onRetry,
 }: {
@@ -59,6 +60,7 @@ export function ChatMessages({
   onPrompt: (text: string) => void
   onCopy: (text: string, done?: string) => void
   onRate: (index: number, rating: Rating | undefined) => void
+  onTryAgain?: () => void
   onDismissError: () => void
   onRetry?: () => void
 }) {
@@ -99,6 +101,10 @@ export function ChatMessages({
               showReviewNote={!isHelpQuestion(turn.question, agent?.prompts)}
               onCopy={onCopy}
               onRate={(rating) => onRate(index, rating)}
+              onTryAgain={
+                index === turns.length - 1 && !pending ? onTryAgain : undefined
+              }
+              busy={busy || historyBusy}
             />
           ))}
           {pending && <UserMessage text={pending} />}

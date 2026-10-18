@@ -151,6 +151,61 @@
   color: var(--text);
   font: inherit;
 }
+.try-again {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+}
+.try-again:hover:not(:disabled) {
+  background: var(--surface-subtle);
+  color: var(--accent);
+}
+.try-again:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.earlier-answers {
+  margin: 10px 0 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-sunken);
+  font-size: 12px;
+  color: var(--text-secondary, var(--muted));
+}
+.earlier-answers > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.earlier-answers > summary::-webkit-details-marker {
+  display: none;
+}
+.earlier-answers > summary strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.earlier-answers[open] .answer-steps-chevron {
+  transform: rotate(90deg);
+}
+.earlier-answer {
+  padding: 4px 12px 12px;
+  border-top: 1px solid var(--line);
+}
+.earlier-answer h4 {
+  margin: 8px 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
 .review-note {
   display: flex;
   align-items: center;

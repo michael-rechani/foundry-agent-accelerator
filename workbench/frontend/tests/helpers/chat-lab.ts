@@ -41,6 +41,8 @@ export async function openWorkspace(
     busyReview?: boolean
     // Busy only for the first send, so a Retry can succeed.
     busyOnce?: boolean
+    // Busy only for this one send (1 = first), so later sends succeed.
+    busyOn?: number
     gatewayError?: boolean
     // A Front Door block: no body, only the x-azure-ref header.
     blockedReview?: boolean
@@ -66,6 +68,7 @@ export async function openWorkspace(
     healthRequests: 0,
     document: null as Document | null,
     requests: [] as {
+      input: string
       history: { role: string; content: string }[]
       thread: string
     }[],
@@ -111,7 +114,8 @@ export async function openWorkspace(
         })
       if (
         options.busyReview ||
-        (options.busyOnce && state.requests.length === 1)
+        (options.busyOnce && state.requests.length === 1) ||
+        state.requests.length === options.busyOn
       )
         return route.fulfill({
           status: 429,
