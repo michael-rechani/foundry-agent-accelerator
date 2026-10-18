@@ -132,6 +132,37 @@ test('the Check this answer reminder skips the Help me get started reply', async
   ).toHaveCount(1)
 })
 
+test('only the latest answer carries the reminder and visible tools', async ({
+  page,
+}) => {
+  await openWorkspace(page, { answers: ['First answer', 'Second answer'] })
+  await send(page, 'First question')
+  await send(page, 'Second question')
+  const turns = page.locator('.turn')
+  await expect(turns).toHaveCount(2)
+  await expect(page.locator('.review-note')).toHaveCount(1)
+  await expect(turns.nth(1).locator('.review-note')).toBeVisible()
+  await expect(turns.nth(0).locator('.response-tools')).toHaveCSS(
+    'opacity',
+    '0',
+  )
+  await expect(turns.nth(1).locator('.response-tools')).toHaveCSS(
+    'opacity',
+    '1',
+  )
+
+  await turns.nth(0).hover()
+  await expect(turns.nth(0).locator('.response-tools')).toHaveCSS(
+    'opacity',
+    '1',
+  )
+  await turns.nth(0).getByRole('button', { name: 'Copy response' }).focus()
+  await expect(turns.nth(0).locator('.response-tools')).toHaveCSS(
+    'opacity',
+    '1',
+  )
+})
+
 test('an agent that passes work to specialists says so while you wait', async ({
   page,
 }) => {

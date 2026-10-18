@@ -98,6 +98,7 @@ export function ChatMessages({
               foundryPortal={isPreview ? null : config?.foundry_portal}
               agentName={agent?.agent}
               answerRef={index === turns.length - 1 ? latestAnswer : undefined}
+              latest={index === turns.length - 1}
               showReviewNote={!isHelpQuestion(turn.question, agent?.prompts)}
               onCopy={onCopy}
               onRate={(rating) => onRate(index, rating)}
