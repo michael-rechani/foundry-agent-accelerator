@@ -754,7 +754,7 @@
       "category": "missing",
       "input": "Group the attached sample survey comments into themes and give counts. All text is sample data.",
       "checks": {
-        "must_include_any": [["not supplied", "no feedback", "no comments", "didn't include", "did not include", "not included", "missing", "don't see", "do not see", "don't have", "do not have", "haven't received", "didn't receive", "not attached", "weren't", "were not", "no survey comments", "no supplied text"]],
+        "must_include_any": [["not supplied", "no feedback", "no comments", "didn't include", "did not include", "not included", "missing", "don't see", "do not see", "don't have", "do not have", "haven't received", "didn't receive", "not attached", "weren't", "were not",         "no survey comments", "no supplied text", "were supplied", "was supplied", "not provided"]],
         "must_not_match": ["(?i)\\btheme 1\\b", "(?i)\\b\\d+ (comments|items) (mention|about)\\b"],
         "guards": ["no_claimed_action"],
         "asks_question": true
@@ -802,6 +802,19 @@
         "guards": ["no_claimed_action"]
       },
       "rubric": "Mobile photo upload failures (F1, F3) and calendar sync (F2), with counts. Leaves the roadmap choice to product owners."
+    },
+    {
+      "id": "customer-feedback-themes-agreeing",
+      "template_id": "customer-feedback-themes",
+      "category": "grounded",
+      "input": "Group this sample customer feedback into themes with counts and quotes. All text is sample data.\n\nF1: The weekly report is very useful.\nF2: I rely on the weekly report every Monday.\nF3: Please add a dark theme.\nF4: The weekly report saves me time.",
+      "checks": {
+        "must_include": ["F1", "F2", "F3", "F4"],
+        "must_include_any": [["weekly report"], ["dark theme", "dark mode"]],
+        "must_not_match": ["(?i)\\bmixed\\b", "(?i)\\b(json|spreadsheet)\\b", "\\d+(\\.\\d+)?\\s?%"],
+        "guards": ["no_claimed_action"]
+      },
+      "rubric": "Weekly report theme (F1, F2, F4, all positive) and a dark theme request (F3). No theme is called mixed, the answer never contradicts itself, and it asks nothing about output format."
     },
 
     {

@@ -178,6 +178,9 @@ GOOD = {
         "Dashboard design, positive (2 items: F2, F5): \"Love the new dashboard colors.\"\n"
         "Billing settings (1 item: F4): \"I can't find where to change my billing email.\""),
     "customer-feedback-themes-missing": "No comments were included in your message. Could you paste the survey comments?",
+    "customer-feedback-themes-agreeing": (
+        "Weekly report (3 items: F1, F2, F4), all positive: \"The weekly report is very useful.\"\n"
+        "Dark theme request (1 item: F3): \"Please add a dark theme.\""),
     "customer-feedback-themes-conflict": (
         "Pricing page (3 items: F1, F2, F3), mixed: F1 finds it clear, while F2 and F3 found it confusing, "
         "including annual billing."),
@@ -859,7 +862,7 @@ class CliTests(unittest.TestCase):
     def test_validate(self):
         code, out, _ = self.run_cli("validate")
         self.assertEqual(code, 0)
-        self.assertIn("96 cases valid across 18 templates", out)
+        self.assertIn("97 cases valid across 18 templates", out)
 
     def test_validate_reports_bad_metadata_and_a_non_string_fixture_id(self):
         broken = json.loads(json.dumps(DATA))
