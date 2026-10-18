@@ -55,12 +55,12 @@ READINESS_LEVELS = (
 # Where the Lab is putting its depth. Focus agents get the full build-out; every other agent stays listed
 # as a preview and still works. An agent file that leaves `availability` out is a preview.
 AVAILABILITY_LEVELS = (
-    {"id": "focus", "label": "Focus agent", "description": "One of the agents the Lab is building out in depth, with the most test cases and features."},
+    {"id": "focus", "label": "Featured agent", "description": "One of the agents the Lab is building out in depth, with the most test cases and features."},
     {"id": "preview", "label": "Preview", "description": "Works with sample data, but isn't being built out yet. Expect fewer features and less polish than a focus agent."},
 )
 TOOL_MODES = (
     {"id": "none", "label": "Text only", "description": "Works only from the text you give it."},
-    {"id": "simulated", "label": "Sample lookups", "description": "Looks up sample records that come with the Lab. It can't change anything."},
+    {"id": "simulated", "label": "Looks up sample data", "description": "Looks up sample records that come with the Lab. It can't change anything."},
 )
 
 _PROFILE_HINTS = {

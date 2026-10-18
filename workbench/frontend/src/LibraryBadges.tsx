@@ -11,7 +11,7 @@ const tones: Record<string, string> = {
   focus: 'info',
 }
 
-// Focus agents are the ones the Lab builds out in depth; the rest are previews.
+// Featured agents are the ones the Lab builds out in depth; the rest are previews.
 export function AvailabilityBadge({ template }: { template: LibraryTemplate }) {
   return (
     <span
@@ -44,7 +44,10 @@ export function Badges({ template }: { template: LibraryTemplate }) {
     <>
       <AvailabilityBadge template={template} />
       <ReadinessBadge template={template} />
-      <span className={`library-badge ${tones[template.tool_mode.id] || ''}`}>
+      <span
+        className={`library-badge ${tones[template.tool_mode.id] || ''}`}
+        title={template.tool_mode.description}
+      >
         {template.tool_mode.label}
       </span>
     </>
