@@ -1,15 +1,23 @@
 name: Deploy Lab image
 
 # Builds the Lab image from main on the private runner, pushes it straight to the
-# private registry, and rolls the Lab Container App to it by digest. Start it by hand
-# from the Actions tab. One-time setup: workbench/setup-deploy-identity.ps1
-# (see docs/lab-deployment.md).
+# private registry, and rolls the Lab Container App to it by digest. It runs when a
+# change to the Lab merges to main, and can also be started by hand from the Actions
+# tab. One-time setup: workbench/setup-deploy-identity.ps1 and
+# workbench/setup-runner-start.ps1 (see docs/lab-deployment.md).
 #
 # The registry has no public access. The runner reaches its private endpoint through the
 # peered VNet, so nothing is published to GitHub Packages or anywhere public, and Azure
-# holds no stored secret for this workflow. It runs only from main, by hand, and the
-# lab-deploy environment gates the sign-in, so pull request code never reaches the runner.
+# holds no stored secret for this workflow. It runs only from main, and the lab-deploy
+# environment gates the sign-in, so pull request code never reaches the runner.
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'workbench/**'
+      - '!workbench/infra/**'
+      - '!workbench/**/*.md'
+      - '!workbench/frontend/tests/**'
   workflow_dispatch:
 
 permissions:
@@ -20,7 +28,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The runner VM deallocates itself when idle to save cost, and nothing else starts it.
+  # This job runs on a GitHub-hosted runner and starts only that VM. Its role can't stop,
+  # change or run commands on the VM. Starting a running VM does nothing.
+  start-runner:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    environment: lab-deploy
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      LAB_RUNNER_VM: ${{ vars.LAB_RUNNER_VM }}
+      LAB_RUNNER_RESOURCE_GROUP: ${{ vars.LAB_RUNNER_RESOURCE_GROUP }}
+    steps:
+      - name: Sign in to Azure with the GitHub token
+        run: |
+          set -euo pipefail
+          token="$(curl -sSf -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" | jq -r .value)"
+          echo "::add-mask::$token"
+          az login --service-principal --username "$AZURE_CLIENT_ID" --tenant "$AZURE_TENANT_ID" --federated-token "$token" --allow-no-subscriptions --output none
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+      - name: Start the runner VM
+        run: |
+          set -euo pipefail
+          az vm start --name "$LAB_RUNNER_VM" --resource-group "$LAB_RUNNER_RESOURCE_GROUP" --output none
+          echo "The runner VM is started. The build job starts when its runner comes online."
+
   deploy:
+    needs: start-runner
     if: github.ref == 'refs/heads/main'
     timeout-minutes: 45
     runs-on: [self-hosted, linux, lab-runner]

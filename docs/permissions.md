@@ -196,6 +196,16 @@ with the description `Foundry Lab agent creation`. Neither was in Terraform.
   Whether the Lab needs it isn't confirmed. See
   [Test whether the Lab needs Foundry Project Manager](#test-whether-the-lab-needs-foundry-project-manager).
 
+### Grants made by hand for the deploy workflow
+
+On 2026-10-18, `workbench/setup-runner-start.ps1` created the custom role
+**Lab runner starter** (read, instance view and start on one virtual machine)
+and assigned it to the Lab deploy identity on the runner VM only. It lets the
+[Deploy Lab image](lab-deployment.md#deploy-a-new-image-from-github-actions)
+workflow start the runner, which deallocates itself when idle. It can't stop,
+change, delete or run commands on the VM. It's not in Terraform, because the
+runner stack isn't in Terraform state yet.
+
 ### Adopt the Key Vault grant
 
 Azure rejects a second copy of a role assignment, so an environment that
