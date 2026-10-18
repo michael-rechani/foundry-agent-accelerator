@@ -14,6 +14,7 @@ import type { Agent, Config } from './workspace-config'
 export function ChatConversation({
   config,
   agent,
+  agents,
   conversation,
   historyBusy,
   isPreview,
@@ -39,9 +40,14 @@ export function ChatConversation({
   onSave,
   onExport,
   onCreateThis,
+  onSwitchAgent,
+  onChooseAgent,
+  onAddOns,
+  onCreateAgent,
 }: {
   config: Config | null
   agent?: Agent
+  agents: Agent[]
   conversation: Conversation
   historyBusy: boolean
   isPreview: boolean
@@ -67,6 +73,10 @@ export function ChatConversation({
   onSave: () => void
   onExport: () => void
   onCreateThis?: () => void
+  onSwitchAgent: () => void
+  onChooseAgent: (id: string) => void
+  onAddOns: () => void
+  onCreateAgent?: () => void
 }) {
   const {
     draft,
@@ -110,6 +120,13 @@ export function ChatConversation({
           isPreview={isPreview}
           inProgress={welcomeInProgress}
           draftMode={draftMode}
+          lab={{
+            agents,
+            current: agent,
+            onChooseAgent,
+            onAddOns,
+            onCreateAgent,
+          }}
           presenting={presenting}
           busy={busy}
           historyBusy={historyBusy}
@@ -125,6 +142,8 @@ export function ChatConversation({
             prefill(prompt)
             editor.current?.focus()
           }}
+          onAsk={() => editor.current?.focus()}
+          onSwitch={onSwitchAgent}
           onPrompt={(text) => {
             prefill(text)
             setActiveDemo(null)

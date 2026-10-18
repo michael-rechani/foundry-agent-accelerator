@@ -110,6 +110,19 @@ for _template_id, _metadata_entry in TEMPLATE_METADATA.items():
 def is_listed(template_id):
     return template_id in TEMPLATES and template_id not in RETIRED_TEMPLATES
 
+
+def is_featured(template_id):
+    """True for a listed agent that is ready to show: a featured agent, or one a person has signed off."""
+    if not is_listed(template_id):
+        return False
+    metadata = TEMPLATE_METADATA[template_id]
+    return metadata["availability"] == "focus" or metadata["readiness"] == "reviewed"
+
+
+def is_available(template_id, include_unfinished=True):
+    """Whether the Lab offers this agent. Unfinished agents are offered only when the operator allows them."""
+    return is_listed(template_id) and (include_unfinished or is_featured(template_id))
+
 def _matches(matcher, text):
     return all(pattern.search(text) for pattern in matcher)
 
@@ -124,39 +137,44 @@ def model_profile(profile_id):
     return {"id": profile_id, **MODEL_PROFILES[profile_id]}
 
 
-def _listed():
-    return [TEMPLATES[key] for key in LIBRARY_ORDER]
+def _offered(include_unfinished):
+    return [key for key in LIBRARY_ORDER if is_available(key, include_unfinished)]
 
 
-def _facet(values, field):
+def _listed(include_unfinished=True):
+    return [TEMPLATES[key] for key in _offered(include_unfinished)]
+
+
+def _facet(values, field, include_unfinished=True):
     counts = {item["id"]: 0 for item in values}
-    for metadata in (TEMPLATE_METADATA[key] for key in LIBRARY_ORDER):
+    for metadata in (TEMPLATE_METADATA[key] for key in _offered(include_unfinished)):
         selected = metadata[field]
         for identifier in selected if isinstance(selected, list) else [selected]:
             counts[identifier] += 1
     return [{**item, "count": counts[item["id"]]} for item in values if counts[item["id"]]]
 
 
-def catalog_facets():
+def catalog_facets(include_unfinished=True):
+    offered = _listed(include_unfinished)
     return {
-        "sectors": _facet(SECTORS, "sector"),
-        "industries": _facet(INDUSTRIES, "industry"),
-        "tasks": _facet(TASKS, "tasks"),
-        "readiness": _facet(READINESS_LEVELS, "readiness"),
-        "availability": _facet(AVAILABILITY_LEVELS, "availability"),
+        "sectors": _facet(SECTORS, "sector", include_unfinished),
+        "industries": _facet(INDUSTRIES, "industry", include_unfinished),
+        "tasks": _facet(TASKS, "tasks", include_unfinished),
+        "readiness": _facet(READINESS_LEVELS, "readiness", include_unfinished),
+        "availability": _facet(AVAILABILITY_LEVELS, "availability", include_unfinished),
         "tool_modes": [
             {**item, "count": sum(
                 (bool(template["tools"]) if item["id"] == "simulated" else not template["tools"])
-                for template in _listed()
+                for template in offered
             )}
             for item in TOOL_MODES
             if any((bool(template["tools"]) if item["id"] == "simulated" else not template["tools"])
-                   for template in _listed())
+                   for template in offered)
         ],
     }
 
 
-def list_templates():
+def list_templates(include_unfinished=True):
     sectors = {item["id"]: item for item in SECTORS}
     industries = {item["id"]: item for item in INDUSTRIES}
     tasks = {item["id"]: item for item in TASKS}
@@ -164,7 +182,7 @@ def list_templates():
     availability = {item["id"]: item for item in AVAILABILITY_LEVELS}
     tool_modes = {item["id"]: item for item in TOOL_MODES}
     result = []
-    for identifier in LIBRARY_ORDER:
+    for identifier in _offered(include_unfinished):
         template, metadata = TEMPLATES[identifier], TEMPLATE_METADATA[identifier]
         profile = template["model_profile"]
         mode = "simulated" if template["tools"] else "none"
@@ -204,17 +222,17 @@ def list_templates():
     return result
 
 
-def prepare_draft(goal, template_id=None):
+def prepare_draft(goal, template_id=None, include_unfinished=True):
     if not isinstance(goal, str) or not 10 <= len(goal) <= 1200 or len(goal.strip()) < 10 or "\x00" in goal:
         raise ValueError("Describe a task in 10 to 1200 characters")
     goal = goal.strip()
     if template_id is None:
         text = goal.casefold()
-        candidates = [key for key, matcher in _MATCHERS.items() if is_listed(key) and _matches(matcher, text)]
+        candidates = [key for key, matcher in _MATCHERS.items() if is_available(key, include_unfinished) and _matches(matcher, text)]
         if len(candidates) != 1:
             raise TemplateRequiredError(candidates)
         template_id = candidates[0]
-    if not isinstance(template_id, str) or not is_listed(template_id):
+    if not isinstance(template_id, str) or not is_available(template_id, include_unfinished):
         raise ValueError("Unknown prepared template")
     template = TEMPLATES[template_id]
     instructions = template["instructions"] + "\n\nTask described by the user:\n" + goal

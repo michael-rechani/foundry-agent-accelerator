@@ -15,6 +15,8 @@ from agent_templates import (
     RETIRED_TEMPLATES,
     TemplateRequiredError,
     catalog_facets,
+    is_available,
+    is_featured,
     list_templates,
     prepare_draft,
 )
@@ -233,6 +235,31 @@ class TemplateTests(unittest.TestCase):
                 self.assertEqual(export["exportable"], export["availability"] == "after_creation")
                 if template["tool_mode"]["id"] == "connected-required":
                     self.assertTrue(any("connection" in item.lower() for item in template["prerequisites"]))
+
+    def test_only_featured_or_signed_off_agents_are_offered_when_unfinished_ones_are_off(self):
+        featured = [
+            key for key in LIBRARY_ORDER
+            if TEMPLATE_METADATA[key]["availability"] == "focus" or TEMPLATE_METADATA[key]["readiness"] == "reviewed"
+        ]
+        self.assertEqual(featured, ["document-intake", "medical-bill-reviewer", "insurance-preapproval-helper"])
+        self.assertEqual([item["id"] for item in list_templates(False)], featured)
+        self.assertEqual([item["id"] for item in list_templates()], list(LIBRARY_ORDER))
+        facets = catalog_facets(False)
+        for name in ("sectors", "industries", "tasks", "readiness", "availability", "tool_modes"):
+            self.assertLessEqual(sum(item["count"] for item in facets[name]), sum(item["count"] for item in catalog_facets()[name]))
+        self.assertEqual(sum(item["count"] for item in facets["sectors"]), len(featured))
+        self.assertTrue(all(is_available(key, False) for key in featured))
+        self.assertFalse(is_available("document-analyst", False))
+        self.assertTrue(is_available("document-analyst"))
+        self.assertTrue(is_featured("document-intake"))
+        self.assertFalse(is_featured("document-analyst"))
+        self.assertFalse(is_featured("no-such-agent"))
+        with self.assertRaisesRegex(ValueError, "Unknown prepared template"):
+            prepare_draft("Summarize a fictional policy document.", "document-analyst", include_unfinished=False)
+        self.assertEqual(
+            prepare_draft("Review a fictional intake form.", "document-intake", include_unfinished=False)["template_id"],
+            "document-intake",
+        )
 
     def test_facets_have_stable_order_and_counts_matching_templates(self):
         templates = list_templates()

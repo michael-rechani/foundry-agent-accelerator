@@ -19,7 +19,7 @@ from pydantic import Field, ValidationError, field_validator
 from agent_publisher import FoundryPublisher, PublicationError, resource_name, runtime_package
 from agent_scorecards import SCORECARDS
 from agent_templates import (
-    MODEL_PROFILES, TEMPLATES, TemplateRequiredError, catalog_facets, is_listed, list_templates,
+    MODEL_PROFILES, TEMPLATES, TemplateRequiredError, catalog_facets, is_available, is_listed, list_templates,
     model_profile, prepare_draft,
 )
 from history import StrictModel
@@ -201,8 +201,8 @@ class AgentCreations:
         rejection = self.admit(request)
         return rejection if rejection is not None else {
             "schema_version": 1,
-            "templates": list_templates(),
-            "facets": catalog_facets(),
+            "templates": list_templates(self.settings.unfinished_agents),
+            "facets": catalog_facets(self.settings.unfinished_agents),
             "draft_mode": "template",
         }
 
@@ -217,7 +217,7 @@ class AgentCreations:
         try:
             async with self.read_gate.slots:
                 data = await self.body(request, DraftInput)
-                return prepare_draft(data.goal, data.template_id)
+                return prepare_draft(data.goal, data.template_id, self.settings.unfinished_agents)
         except TemplateRequiredError as problem:
             return self.error(request, 400, "template_required", candidates=problem.candidates)
         except (ValidationError, ValueError):
@@ -392,6 +392,8 @@ class AgentCreations:
             if not self.owned(existing) or existing["setup_hash"] != digest:
                 return self.error(request, 409, "agent_changed")
             return JSONResponse(self.public(existing))
+        if not is_available(data.template_id, self.settings.unfinished_agents):
+            return self.error(request, 400, "invalid_setup")
         if self.operation_slot.locked():
             return self.error(request, 429, "agents_busy")
         if len(await self.records()) >= self.config.max_agents:

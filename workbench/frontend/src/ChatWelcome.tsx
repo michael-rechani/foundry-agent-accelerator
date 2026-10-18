@@ -1,8 +1,21 @@
-import { useState } from 'react'
-import { ArrowRight, Check, CircleDashed } from 'lucide-react'
+import { useState, type ComponentProps } from 'react'
+import {
+  ArrowRight,
+  Check,
+  ChevronsUpDown,
+  CircleDashed,
+  MessageSquare,
+  Sparkles,
+} from 'lucide-react'
 import { AgentGuide } from './AgentGuide'
+import { LabGuide } from './LabGuide'
 import { agentKind, inProgressNote, previewBlurb } from './library-helpers'
 import type { Agent, Config } from './workspace-config'
+
+export type LabGuideProps = Omit<
+  ComponentProps<typeof LabGuide>,
+  'title' | 'initialTopic'
+>
 
 // What is in the message box: nothing, an example the app put there, or the
 // person's own words.
@@ -33,6 +46,10 @@ export function ChatWelcome({
   isPreview,
   inProgress = false,
   draftMode,
+  lab,
+  switchDisabled = false,
+  onAsk,
+  onSwitch,
   onPrompt,
 }: {
   agent?: Agent
@@ -40,10 +57,17 @@ export function ChatWelcome({
   isPreview: boolean
   inProgress?: boolean
   draftMode: DraftMode
+  // What the "What can I create?" card shows, written from the Lab's own lists.
+  lab: LabGuideProps
+  switchDisabled?: boolean
+  onAsk: () => void
+  onSwitch: () => void
   onPrompt: (text: string) => void
 }) {
   const hint = agent ? welcomeHint(config?.mode === 'preview', draftMode) : ''
   const [chosen, setChosen] = useState<string>()
+  const [creating, setCreating] = useState(false)
+  const showModes = !!config && draftMode !== 'typed'
   return (
     <div className="chat-welcome">
       {agent && (
@@ -65,6 +89,50 @@ export function ChatWelcome({
       )}
       {agent && <AgentGuide agent={agent} compact />}
       {isPreview && <p className="welcome-preview-note">{previewBlurb}</p>}
+      {showModes && (
+        <>
+          <h2 className="welcome-examples-title">
+            How would you like to start?
+          </h2>
+          <div className="welcome-modes">
+            <button type="button" onClick={onAsk}>
+              <MessageSquare size={16} aria-hidden="true" />
+              <span>
+                <strong>Ask anything</strong>
+                <small>Type your own message.</small>
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-expanded={creating}
+              aria-controls="welcome-create"
+              onClick={() => setCreating((value) => !value)}
+            >
+              <Sparkles size={16} aria-hidden="true" />
+              <span>
+                <strong>What can I create?</strong>
+                <small>See the agents and how they are built.</small>
+              </span>
+            </button>
+            <button type="button" disabled={switchDisabled} onClick={onSwitch}>
+              <ChevronsUpDown size={16} aria-hidden="true" />
+              <span>
+                <strong>Switch agent</strong>
+                <small>Choose a different prebuilt agent.</small>
+              </span>
+            </button>
+          </div>
+          {creating && (
+            <div className="welcome-create" id="welcome-create">
+              <LabGuide
+                {...lab}
+                title="What can I create?"
+                initialTopic="agents"
+              />
+            </div>
+          )}
+        </>
+      )}
       {draftMode !== 'typed' && !!agent?.prompts.length && (
         <>
           <h2 className="welcome-examples-title">Start with an example</h2>

@@ -67,6 +67,7 @@ class Settings:
     creation: CreationSettings = field(default_factory=CreationSettings)
     session_reuse_seconds: float = 600
     library_preview: bool = True
+    unfinished_agents: bool = False
     budget_alerts: bool = False
     foundry_project_id: str = ""
     model_limits: dict = field(default_factory=dict)
@@ -81,6 +82,9 @@ class Settings:
         library_preview = os.getenv("WORKBENCH_LIBRARY_PREVIEW_ENABLED", "true")
         if library_preview not in {"true", "false"}:
             raise ValueError("WORKBENCH_LIBRARY_PREVIEW_ENABLED must be true or false")
+        unfinished_agents = os.getenv("WORKBENCH_UNFINISHED_AGENTS_ENABLED", "false")
+        if unfinished_agents not in {"true", "false"}:
+            raise ValueError("WORKBENCH_UNFINISHED_AGENTS_ENABLED must be true or false")
         budget_alerts = os.getenv("WORKBENCH_BUDGET_ALERTS_ENABLED", "false")
         if budget_alerts not in {"true", "false"}:
             raise ValueError("WORKBENCH_BUDGET_ALERTS_ENABLED must be true or false")
@@ -92,7 +96,8 @@ class Settings:
                visible_agents=visible_agents, default_agent=os.getenv("WORKBENCH_DEFAULT_AGENT") or None,
                title=os.getenv("WORKBENCH_TITLE", "Foundry Agent Lab"), creation=CreationSettings.from_env(),
                session_reuse_seconds=float(os.getenv("WORKBENCH_SESSION_REUSE_SECONDS", "600")),
-               library_preview=library_preview == "true", budget_alerts=budget_alerts == "true",
+               library_preview=library_preview == "true", unfinished_agents=unfinished_agents == "true",
+               budget_alerts=budget_alerts == "true",
                foundry_project_id=os.getenv("WORKBENCH_FOUNDRY_PROJECT_ID", ""), model_limits=model_limits)
 
     def validate(self):
@@ -108,6 +113,8 @@ class Settings:
         self.creation.validate(self.mode)
         if type(self.library_preview) is not bool:
             raise ValueError("Library preview enablement must be a boolean")
+        if type(self.unfinished_agents) is not bool:
+            raise ValueError("Unfinished agent enablement must be a boolean")
         if type(self.budget_alerts) is not bool:
             raise ValueError("Budget alert status must be a boolean")
         validate_model_limits(self.model_limits)
@@ -425,7 +432,7 @@ class ChatReviews:
         if PREVIEW_ID.fullmatch(agent_id):
             if not self.settings.library_preview_enabled:
                 return None, self.error(request, 503, "library_preview_disabled")
-            agent = preview_agent(agent_id)
+            agent = preview_agent(agent_id, self.settings.unfinished_agents)
             return (agent, None) if agent is not None else (None, self.error(request, 400, "invalid_request"))
         try:
             agent = await self.created_agents.resolve_agent(agent_id)
