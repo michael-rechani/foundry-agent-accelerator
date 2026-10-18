@@ -21,6 +21,28 @@ export function saveStateText({
   return draft ? 'Draft not saved' : 'Saved / shared'
 }
 
+// The request body for asking `input` after the given earlier turns.
+export function requestPayload({
+  turns,
+  input,
+  selected,
+  thread,
+}: {
+  turns: Turn[]
+  input: string
+  selected: string
+  thread: string | undefined
+}) {
+  const history = turns.flatMap((turn) => [
+    { role: 'user', content: turn.question },
+    { role: 'assistant', content: turn.result.text },
+  ])
+  return {
+    history,
+    payload: JSON.stringify({ agent_id: selected, input, history, thread }),
+  }
+}
+
 // What a request would weigh, against the limits the Lab reports.
 export function chatLimits({
   config,
@@ -35,19 +57,15 @@ export function chatLimits({
   selected: string
   thread: string | undefined
 }) {
-  const history = turns.flatMap((turn) => [
-    { role: 'user', content: turn.question },
-    { role: 'assistant', content: turn.result.text },
-  ])
+  const { history, payload } = requestPayload({
+    turns,
+    input: draft,
+    selected,
+    thread,
+  })
   const characters =
     history.reduce((total, message) => total + [...message.content].length, 0) +
     [...draft].length
-  const payload = JSON.stringify({
-    agent_id: selected,
-    input: draft,
-    history,
-    thread,
-  })
   const requestBytes = new TextEncoder().encode(payload).length
   const limitReasons = config
     ? [

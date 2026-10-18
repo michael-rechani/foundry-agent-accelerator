@@ -8,6 +8,7 @@ import {
   makeFailure,
   type ChatFailure,
 } from './chat-failure'
+import { requestPayload } from './chat-helpers'
 import { requestJson } from './request'
 import { parseUsage } from './token-usage'
 import type { Agent, Config } from './workspace-config'
@@ -38,6 +39,9 @@ export function useChatSubmit({
   const {
     draft,
     busy,
+    turns,
+    selected,
+    thread,
     setBusy,
     setError,
     setPending,
@@ -49,18 +53,28 @@ export function useChatSubmit({
 
   useEffect(() => () => controller.current?.abort(), [])
 
-  async function submit() {
-    if (
-      !config ||
-      config.mode === 'preview' ||
-      !agent ||
-      !draft.trim() ||
-      busy ||
-      historyBusy ||
-      exceedsLimit
-    )
+  function submit() {
+    if (!draft.trim() || exceedsLimit) return
+    return send(draft, payload, false)
+  }
+
+  // Asks the last question again without it or the answer in the history. The
+  // new answer replaces the old one, which stays under it for comparison.
+  function retry() {
+    const last = turns[turns.length - 1]
+    if (!last) return
+    const { payload: body } = requestPayload({
+      turns: turns.slice(0, -1),
+      input: last.question,
+      selected,
+      thread,
+    })
+    return send(last.question, body, true)
+  }
+
+  async function send(question: string, body: string, retrying: boolean) {
+    if (!config || config.mode === 'preview' || !agent || busy || historyBusy)
       return
-    const question = draft
     const abort = new AbortController()
     const started = performance.now()
     const measurementId = crypto.randomUUID()
@@ -69,10 +83,12 @@ export function useChatSubmit({
     void preloadMarkdown()
     setError(null)
     setNotice('')
-    setPending(question)
-    // The message moves into the transcript while it is sent; a failure puts it
-    // back in the box so it can be edited or retried.
-    setDraft('')
+    if (!retrying) {
+      setPending(question)
+      // The message moves into the transcript while it is sent; a failure puts
+      // it back in the box so it can be edited or retried.
+      setDraft('')
+    }
     const timeout = window.setTimeout(
       () =>
         abort.abort(
@@ -92,7 +108,7 @@ export function useChatSubmit({
             'Content-Type': 'application/json',
             'X-Workbench-Request': '1',
           },
-          body: payload,
+          body,
         },
         abort.signal,
       )
@@ -103,13 +119,20 @@ export function useChatSubmit({
         throw new Error(failure.message)
       }
       const usage = parseUsage(data.usage)
-      setTurns((previous) => [
-        ...previous,
-        {
-          question,
-          result: { ...data, ...('usage' in data ? { usage } : {}) },
-        },
-      ])
+      const result = { ...data, ...('usage' in data ? { usage } : {}) }
+      setTurns((previous) => {
+        if (!retrying) return [...previous, { question, result }]
+        const last = previous[previous.length - 1]
+        if (!last) return previous
+        return [
+          ...previous.slice(0, -1),
+          {
+            question,
+            result,
+            earlier: [...(last.earlier ?? []), last.result],
+          },
+        ]
+      })
       setDirty(true)
       setPending('')
       if (config?.mode === 'private')
@@ -135,7 +158,7 @@ export function useChatSubmit({
         failure ??
         (message ? makeFailure(message) : failureFromProblem(problem))
       setError(shown)
-      setDraft((current) => current || question)
+      if (!retrying) setDraft((current) => current || question)
       setPending('')
       if (config?.mode === 'private')
         onMeasure({
@@ -164,5 +187,5 @@ export function useChatSubmit({
     controller.current?.abort()
   }
 
-  return { submit, stop }
+  return { submit, retry, stop }
 }
