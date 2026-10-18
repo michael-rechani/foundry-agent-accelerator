@@ -35,6 +35,7 @@ export function ChatTopbar({
   saveNote,
   exportDisabled,
   presenting,
+  clean = false,
   onPresent,
   onView,
   onSwitcherOpen,
@@ -59,6 +60,9 @@ export function ChatTopbar({
   saveNote?: string
   exportDisabled: boolean
   presenting: boolean
+  // The first screen is not about one agent yet, so agent details and the
+  // save and export actions are left out.
+  clean?: boolean
   onPresent: () => void
   onView: (view: View) => void
   onSwitcherOpen: (open: boolean) => void
@@ -92,12 +96,14 @@ export function ChatTopbar({
         <div className="agent-controls">
           <AgentSwitcher
             label={
-              agent?.label ||
-              (selected.startsWith('created-')
-                ? 'Agent unavailable'
-                : config
-                  ? 'Loading agent'
-                  : 'Connecting')
+              clean
+                ? 'Choose an agent'
+                : agent?.label ||
+                  (selected.startsWith('created-')
+                    ? 'Agent unavailable'
+                    : config
+                      ? 'Loading agent'
+                      : 'Connecting')
             }
             selected={selected}
             ready={readyOptions}
@@ -109,12 +115,12 @@ export function ChatTopbar({
             onChoose={onChoose}
             onBrowse={() => onView('library')}
           />
-          {agent && isPreview && (
+          {agent && isPreview && !clean && (
             <span className="agent-preview-badge" title={previewBlurb}>
               Library preview
             </span>
           )}
-          {agent && (
+          {agent && !clean && (
             // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape bubbles up from the summary and controls inside this disclosure.
             <details
               className="agent-about"
@@ -164,7 +170,7 @@ export function ChatTopbar({
             {config ? 'Local preview' : 'Connecting'}
           </span>
         )}
-        {view === 'chat' && (
+        {view === 'chat' && !clean && (
           <>
             {onCreateThis ? (
               <button

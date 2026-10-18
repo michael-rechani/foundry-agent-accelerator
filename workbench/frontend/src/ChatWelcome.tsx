@@ -10,6 +10,7 @@ import {
 import { AgentGuide } from './AgentGuide'
 import { LabGuide } from './LabGuide'
 import { agentKind, inProgressNote, previewBlurb } from './library-helpers'
+import { useSimpleChat } from './simple-chat'
 import type { Agent, Config } from './workspace-config'
 
 export type LabGuideProps = Omit<
@@ -64,13 +65,15 @@ export function ChatWelcome({
   onSwitch: () => void
   onPrompt: (text: string) => void
 }) {
-  const hint = agent ? welcomeHint(config?.mode === 'preview', draftMode) : ''
+  const [simple, setSimple] = useSimpleChat()
+  const hint =
+    !agent || simple ? '' : welcomeHint(config?.mode === 'preview', draftMode)
   const [chosen, setChosen] = useState<string>()
   const [creating, setCreating] = useState(false)
-  const showModes = !!config && draftMode !== 'typed'
+  const showModes = !simple && !!config && draftMode !== 'typed'
   return (
     <div className="chat-welcome">
-      {agent && (
+      {agent && !simple && (
         <div className="welcome-tags">
           <span className={`welcome-kind${isPreview ? ' preview' : ''}`}>
             {agentKind(agent)}
@@ -82,13 +85,45 @@ export function ChatWelcome({
           )}
         </div>
       )}
-      <h1>{agent?.label || 'Connecting to your workspace'}</h1>
-      {agent && <p>{agent.description}</p>}
-      {agent && inProgress && (
+      {simple ? (
+        <>
+          <h1>What agent do you want to build?</h1>
+        </>
+      ) : (
+        <>
+          <h1>{agent?.label || 'Connecting to your workspace'}</h1>
+          {agent && <p>{agent.description}</p>}
+        </>
+      )}
+      {agent && !simple && inProgress && (
         <p className="welcome-preview-note">{inProgressNote}</p>
       )}
-      {agent && <AgentGuide agent={agent} compact />}
-      {isPreview && <p className="welcome-preview-note">{previewBlurb}</p>}
+      {agent && !simple && <AgentGuide agent={agent} compact />}
+      {isPreview && !simple && (
+        <p className="welcome-preview-note">{previewBlurb}</p>
+      )}
+      {simple && !!config && draftMode !== 'typed' && (
+        <div className="welcome-modes welcome-simple-modes">
+          <button type="button" disabled={switchDisabled} onClick={onSwitch}>
+            <ChevronsUpDown size={16} aria-hidden="true" />
+            <span>
+              <strong>Try a pre-built agent</strong>
+              <small>Pick a ready agent and chat with it.</small>
+            </span>
+          </button>
+        </div>
+      )}
+      {agent && (
+        <button
+          type="button"
+          className="welcome-simple-toggle"
+          aria-pressed={simple}
+          onClick={() => setSimple(!simple)}
+        >
+          <MessageSquare size={14} aria-hidden="true" />
+          {simple ? 'Show agent guide and examples' : 'Simple view'}
+        </button>
+      )}
       {showModes && (
         <>
           <h2 className="welcome-examples-title">
@@ -133,7 +168,7 @@ export function ChatWelcome({
           )}
         </>
       )}
-      {draftMode !== 'typed' && !!agent?.prompts.length && (
+      {!simple && draftMode !== 'typed' && !!agent?.prompts.length && (
         <>
           <h2 className="welcome-examples-title">Start with an example</h2>
           <div className="prompt-options">

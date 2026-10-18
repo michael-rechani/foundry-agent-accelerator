@@ -136,6 +136,26 @@
 .chat-welcome .welcome-hint {
   margin-top: 14px;
 }
+.chat-welcome .welcome-simple-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: underline;
+}
+.chat-welcome .welcome-simple-toggle:hover {
+  color: var(--accent);
+}
+.welcome-modes.welcome-simple-modes {
+  margin-top: 22px;
+  grid-template-columns: minmax(240px, 340px);
+  justify-content: center;
+}
 .welcome-modes {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));

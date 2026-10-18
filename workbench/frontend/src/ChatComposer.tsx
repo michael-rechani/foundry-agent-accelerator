@@ -5,6 +5,7 @@ import type { Agent, Config } from './workspace-config'
 
 export function ChatComposer({
   editor,
+  clean = false,
   agent,
   config,
   draft,
@@ -25,6 +26,8 @@ export function ChatComposer({
   onContinue,
 }: {
   editor: RefObject<HTMLTextAreaElement | null>
+  // The first screen is not about one agent yet.
+  clean?: boolean
   agent?: Agent
   config: Config | null
   draft: string
@@ -64,7 +67,9 @@ export function ChatComposer({
           placeholder={
             busy
               ? 'Waiting for a reply. You can write your next message now.'
-              : `Message ${agent?.label || 'your agent'}...`
+              : clean
+                ? 'Describe the agent you want to build, or the job you need done...'
+                : `Message ${agent?.label || 'your agent'}...`
           }
           value={draft}
           aria-describedby={
