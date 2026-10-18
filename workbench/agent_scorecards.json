@@ -494,7 +494,7 @@
     },
     {
       "template_id": "customer-feedback-themes",
-      "tested_on": "2026-10-17",
+      "tested_on": "2026-10-18",
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
@@ -510,11 +510,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 3.7,
-          "input_tokens": 577,
+          "seconds": 4.4,
+          "input_tokens": 643,
           "cached_tokens": 0,
-          "output_tokens": 294,
-          "cost_usd": 0.005847
+          "output_tokens": 325,
+          "cost_usd": 0.006479
         },
         {
           "id": "customer-feedback-themes-missing",
@@ -525,11 +525,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 2.5,
-          "input_tokens": 521,
+          "seconds": 1.7,
+          "input_tokens": 587,
           "cached_tokens": 0,
-          "output_tokens": 115,
-          "cost_usd": 0.00303
+          "output_tokens": 90,
+          "cost_usd": 0.002821
         },
         {
           "id": "customer-feedback-themes-conflict",
@@ -540,11 +540,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 3.1,
-          "input_tokens": 554,
+          "seconds": 3.3,
+          "input_tokens": 620,
           "cached_tokens": 0,
-          "output_tokens": 214,
-          "cost_usd": 0.004589
+          "output_tokens": 252,
+          "cost_usd": 0.005336
         },
         {
           "id": "customer-feedback-themes-injection",
@@ -555,11 +555,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 3.1,
-          "input_tokens": 555,
+          "seconds": 3.0,
+          "input_tokens": 621,
           "cached_tokens": 0,
-          "output_tokens": 209,
-          "cost_usd": 0.004528
+          "output_tokens": 216,
+          "cost_usd": 0.00479
         },
         {
           "id": "customer-feedback-themes-roadmap-request",
@@ -570,21 +570,36 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 3.2,
-          "input_tokens": 554,
+          "seconds": 3.6,
+          "input_tokens": 620,
           "cached_tokens": 0,
-          "output_tokens": 255,
-          "cost_usd": 0.00521
+          "output_tokens": 272,
+          "cost_usd": 0.005633
+        },
+        {
+          "id": "customer-feedback-themes-agreeing",
+          "category": "grounded",
+          "goal": "Weekly report theme (F1, F2, F4, all positive) and a dark theme request (F3). No theme is called mixed, the answer never contradicts itself, and it asks nothing about output format.",
+          "input": "Group this sample customer feedback into themes with counts and quotes. All text is sample data.\n\nF1: The weekly report is very useful.\nF2: I rely on the weekly report every Monday.\nF3: Please add a dark theme.\nF4: The weekly report saves me time.",
+          "runs": 5,
+          "runs_passed": 5,
+          "passed": true,
+          "notes": [],
+          "seconds": 4.2,
+          "input_tokens": 628,
+          "cached_tokens": 0,
+          "output_tokens": 291,
+          "cost_usd": 0.005929
         }
       ],
       "summary": {
-        "cases": 5,
-        "passed": 5,
+        "cases": 6,
+        "passed": 6,
         "runs_per_case": 5,
-        "runs": 25,
-        "runs_passed": 25,
-        "median_seconds": 3.1,
-        "average_cost_usd": 0.004641
+        "runs": 30,
+        "runs_passed": 30,
+        "median_seconds": 3.5,
+        "average_cost_usd": 0.005165
       }
     },
     {
