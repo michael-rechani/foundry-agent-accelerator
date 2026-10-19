@@ -18,6 +18,8 @@ on:
       - '!workbench/infra/**'
       - '!workbench/**/*.md'
       - '!workbench/frontend/tests/**'
+      - '!workbench/test-deploy.ps1'
+      - '!workbench/tests/fixtures/**'
   workflow_dispatch:
 
 permissions:
