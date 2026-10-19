@@ -304,8 +304,9 @@ The most used:
   [credentials](docs/credentials.md), [permissions](docs/permissions.md),
   [troubleshooting](docs/troubleshooting.md), [security policy](SECURITY.md)
 - **Build and extend:** [architecture](docs/architecture.md),
-[agent governance](docs/governance.md),
-[extension guide](docs/architecture-assessment.md),
+  [agent governance](docs/governance.md),
+  [extension guide](docs/architecture-assessment.md),
+  [portable agent bundles](hosted-agents/README.md#portable-agent-bundles),
   [coordinator profiles](docs/agent-profiles.md),
   [evaluations](evaluations/README.md),
   [cost comparison](cost-comparison/README.md),
@@ -332,18 +333,14 @@ resources. For Docker and Terraform changes, verify a deployment too.
 <details>
 <summary>Dependency updates</summary>
 
-CodeQL scans the code weekly and on pull requests, and the **Validate**
-workflow runs gitleaks over every commit (see [`.gitleaks.toml`](.gitleaks.toml)).
-Dependabot alerts flag known vulnerabilities in pinned packages. Each month,
+The **Validate** workflow runs gitleaks over every commit (see
+[`.gitleaks.toml`](.gitleaks.toml)). Dependabot alerts flag known
+vulnerabilities in pinned packages. Each month,
 [Dependabot](.github/dependabot.yml) also opens one grouped update pull request
 per ecosystem: GitHub Actions, Python, frontend, Docker, and Terraform. Merge an
 update only after its checks pass. Major versions and the preview agent hosting
 package are upgraded by hand. See
 [tool versions and upgrades](docs/tool-versions.md#upgrade).
-
-To move agent code and configuration without copying infrastructure or saved
-conversations, use the
-[portable agent bundle CLI](hosted-agents/README.md#portable-agent-bundles).
 
 </details>
 
