@@ -32,23 +32,28 @@ variable "subscription_id" {
 }
 variable "resource_group_name" {
   type        = string
-  description = "Existing resource group that holds the Lab resources."
+  default     = null
+  description = "Existing resource group that holds the Lab resources. Null reads it from the platform state (platform_state)."
 }
 variable "workload_vnet_name" {
   type        = string
-  description = "Existing workload virtual network. The Lab subnet and the registry private endpoint go here."
+  default     = null
+  description = "Existing workload virtual network. The Lab subnet and the registry private endpoint go here. Null reads it from the platform state."
 }
 variable "management_vnet_name" {
   type        = string
-  description = "Existing management virtual network, linked to the registry private DNS zone so the jumpbox can reach the registry."
+  default     = null
+  description = "Existing management virtual network, linked to the registry private DNS zone so the jumpbox can reach the registry. Null reads it from the platform state."
 }
 variable "foundry_account_name" {
   type        = string
-  description = "Name of the existing Foundry account. The Lab calls its project endpoint."
+  default     = null
+  description = "Name of the existing Foundry account. The Lab calls its project endpoint. Null reads it from the platform state."
 }
 variable "foundry_project_name" {
   type        = string
-  description = "Name of the existing Foundry project. The Lab identity gets Foundry User on it."
+  default     = null
+  description = "Name of the existing Foundry project. The Lab identity gets Foundry User on it. Null reads it from the platform state."
 }
 variable "registry_name" {
   type        = string
@@ -171,21 +176,21 @@ variable "subnet_prefix" {
   description = "Address range of the delegated Container Apps subnet in the workload virtual network. It must not overlap another subnet."
 }
 data "azurerm_virtual_network" "workload" {
-  name                = var.workload_vnet_name
-  resource_group_name = var.resource_group_name
+  name                = local.workload_vnet_name
+  resource_group_name = local.resource_group_name
 }
 data "azurerm_virtual_network" "management" {
-  name                = var.management_vnet_name
-  resource_group_name = var.resource_group_name
+  name                = local.management_vnet_name
+  resource_group_name = local.resource_group_name
 }
 data "azurerm_subnet" "management" {
   name                 = "snet-jumpbox"
-  virtual_network_name = var.management_vnet_name
-  resource_group_name  = var.resource_group_name
+  virtual_network_name = local.management_vnet_name
+  resource_group_name  = local.resource_group_name
 }
 
 locals {
-  project_id = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.CognitiveServices/accounts/${var.foundry_account_name}/projects/${var.foundry_project_name}"
+  project_id = "/subscriptions/${var.subscription_id}/resourceGroups/${local.resource_group_name}/providers/Microsoft.CognitiveServices/accounts/${local.foundry_account_name}/projects/${local.foundry_project_name}"
   hostname   = "${var.name}.${azurerm_container_app_environment.this.default_domain}"
   tags       = { workload = "foundry-workbench", managed-by = "terraform" }
 }
@@ -194,7 +199,7 @@ resource "azurerm_subnet" "this" {
   name                 = "snet-${var.name}"
   address_prefixes     = [var.subnet_prefix]
   virtual_network_name = data.azurerm_virtual_network.workload.name
-  resource_group_name  = var.resource_group_name
+  resource_group_name  = local.resource_group_name
   delegation {
     name = "container-apps"
     service_delegation {
@@ -207,7 +212,7 @@ resource "azurerm_subnet" "this" {
 resource "azurerm_container_registry" "this" {
   name                          = var.registry_name
   location                      = data.azurerm_virtual_network.workload.location
-  resource_group_name           = var.resource_group_name
+  resource_group_name           = local.resource_group_name
   sku                           = var.private_registry_enabled ? "Premium" : "Basic"
   public_network_access_enabled = var.registry_public_network_access_enabled
   admin_enabled                 = false
@@ -217,7 +222,7 @@ resource "azurerm_container_registry" "this" {
 resource "azurerm_user_assigned_identity" "this" {
   name                = "id-${var.name}"
   location            = data.azurerm_virtual_network.workload.location
-  resource_group_name = var.resource_group_name
+  resource_group_name = local.resource_group_name
   tags                = local.tags
 }
 
@@ -256,7 +261,7 @@ resource "azurerm_role_assignment" "creation_key_verifier" {
 resource "azurerm_container_app_environment" "this" {
   name                           = "cae-${var.name}"
   location                       = data.azurerm_virtual_network.workload.location
-  resource_group_name            = var.resource_group_name
+  resource_group_name            = local.resource_group_name
   infrastructure_subnet_id       = azurerm_subnet.this.id
   internal_load_balancer_enabled = true
   public_network_access          = "Disabled"
@@ -270,14 +275,14 @@ resource "azurerm_container_app_environment" "this" {
 
 resource "azurerm_private_dns_zone" "this" {
   name                = azurerm_container_app_environment.this.default_domain
-  resource_group_name = var.resource_group_name
+  resource_group_name = local.resource_group_name
   tags                = local.tags
 }
 resource "azurerm_private_dns_a_record" "this" {
   for_each            = toset(["*", "@"])
   name                = each.value
   zone_name           = azurerm_private_dns_zone.this.name
-  resource_group_name = var.resource_group_name
+  resource_group_name = local.resource_group_name
   ttl                 = 60
   records             = [azurerm_container_app_environment.this.static_ip_address]
 }
@@ -285,14 +290,14 @@ resource "azurerm_private_dns_zone_virtual_network_link" "this" {
   for_each              = { workload = data.azurerm_virtual_network.workload.id, management = data.azurerm_virtual_network.management.id }
   name                  = "${var.name}-${each.key}"
   private_dns_zone_name = azurerm_private_dns_zone.this.name
-  resource_group_name   = var.resource_group_name
+  resource_group_name   = local.resource_group_name
   virtual_network_id    = each.value
 }
 
 resource "azurerm_container_app" "this" {
   count                        = var.bootstrap_only ? 0 : 1
   name                         = var.name
-  resource_group_name          = var.resource_group_name
+  resource_group_name          = local.resource_group_name
   container_app_environment_id = azurerm_container_app_environment.this.id
   revision_mode                = "Single"
   workload_profile_name        = "Consumption"
@@ -370,7 +375,7 @@ resource "azurerm_container_app" "this" {
             WORKBENCH_UNFINISHED_AGENTS_ENABLED = tostring(var.unfinished_agents_enabled)
             WORKBENCH_ALLOWED_HOSTS             = local.hostname
             WORKBENCH_ORIGINS                   = join(",", compact(["https://${local.hostname}", local.front_door_endpoint_host == null ? "" : "https://${local.front_door_endpoint_host}"]))
-            FOUNDRY_PROJECT_ENDPOINT            = "https://${var.foundry_account_name}.services.ai.azure.com/api/projects/${var.foundry_project_name}"
+            FOUNDRY_PROJECT_ENDPOINT            = "https://${local.foundry_account_name}.services.ai.azure.com/api/projects/${local.foundry_project_name}"
             WORKBENCH_FOUNDRY_PROJECT_ID        = local.project_id
             AZURE_CLIENT_ID                     = azurerm_user_assigned_identity.this.client_id
           },

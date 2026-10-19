@@ -37,7 +37,7 @@ locals {
 resource "azurerm_consumption_budget_resource_group" "lab" {
   count             = var.lab_budget == null ? 0 : 1
   name              = "${var.name}-monthly"
-  resource_group_id = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}"
+  resource_group_id = "/subscriptions/${var.subscription_id}/resourceGroups/${local.resource_group_name}"
   amount            = var.lab_budget.amount
   time_grain        = "Monthly"
 

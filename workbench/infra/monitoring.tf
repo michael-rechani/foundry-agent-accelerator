@@ -19,7 +19,7 @@ variable "private_monitoring_enabled" {
 resource "azapi_resource" "logs" {
   type      = "Microsoft.OperationalInsights/workspaces@2023-09-01"
   name      = "log-${var.name}"
-  parent_id = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}"
+  parent_id = "/subscriptions/${var.subscription_id}/  resourceGroups/${local.resource_group_name}"
   location  = data.azurerm_virtual_network.workload.location
   tags      = local.tags
   body = {
@@ -45,7 +45,7 @@ resource "azapi_resource" "logs" {
 resource "azurerm_monitor_private_link_scoped_service" "logs" {
   linked_resource_id  = azapi_resource.logs.id
   name                = "law-${var.name}"
-  resource_group_name = var.resource_group_name
+  resource_group_name = local.resource_group_name
   scope_name          = var.monitor_private_link_scope_name
 }
 
@@ -82,7 +82,7 @@ locals {
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "operational" {
   for_each                = local.operational_alerts
   name                    = "${var.name}-${each.key}"
-  resource_group_name     = var.resource_group_name
+  resource_group_name     = local.resource_group_name
   location                = data.azurerm_virtual_network.workload.location
   scopes                  = [azapi_resource.logs.id]
   severity                = 2
@@ -107,7 +107,7 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "operational" {
 
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "heartbeat" {
   name                    = "${var.name}-missing-heartbeat"
-  resource_group_name     = var.resource_group_name
+  resource_group_name     = local.resource_group_name
   location                = data.azurerm_virtual_network.workload.location
   scopes                  = [azapi_resource.logs.id]
   severity                = 2

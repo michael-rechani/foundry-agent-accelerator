@@ -78,6 +78,17 @@ the intended account, subscription, container, and separate Lab state key. Keep
 the existing state key for an established deployment. Don't edit the tracked
 example to store environment configuration.
 
+**Read the platform names from its state.** The Lab needs the resource group,
+virtual network, Foundry account and project, and Cosmos DB account names the
+platform root created. Set `platform_state` in `dev.tfvars` to the platform
+root's state location, and the Lab reads those names from the platform outputs
+(`resource_group_name`, `workload_virtual_network_name`,
+`management_virtual_network_name`, `foundry_account_name`,
+`foundry_project_name`, `cosmos_account_name`) through Microsoft Entra ID. Apply the
+platform root first. A name you set explicitly still wins, so an existing Lab keeps
+working unchanged. The plan stops with a clear message if a name is missing, for
+example `management_vnet_name` when the platform's management network is off.
+
 **Start from the canonical inputs, not an old local copy.** A stale
 `dev.tfvars` can plan to turn off agent creation, drop the creation-key secret,
 or destroy the alert action group. Keep one complete inputs file (everything

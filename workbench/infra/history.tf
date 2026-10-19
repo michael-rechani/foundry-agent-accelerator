@@ -1,6 +1,7 @@
 variable "cosmos_account_name" {
   type        = string
-  description = "Name of the existing Cosmos DB account that holds the Lab's history database and container. The Lab identity gets data access to that container only."
+  default     = null
+  description = "Name of the existing Cosmos DB account that holds the Lab's history database and container. The Lab identity gets data access to that container only. Null reads it from the platform state (platform_state)."
 }
 
 variable "index_project_path" {
@@ -10,14 +11,14 @@ variable "index_project_path" {
 }
 
 locals {
-  cosmos_account_id = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.DocumentDB/databaseAccounts/${var.cosmos_account_name}"
-  cosmos_endpoint   = "https://${var.cosmos_account_name}.documents.azure.com:443/"
+  cosmos_account_id = "/subscriptions/${var.subscription_id}/resourceGroups/${local.resource_group_name}/providers/Microsoft.DocumentDB/databaseAccounts/${local.cosmos_account_name}"
+  cosmos_endpoint   = "https://${local.cosmos_account_name}.documents.azure.com:443/"
 }
 
 resource "azurerm_cosmosdb_sql_database" "history" {
   name                = "workbench"
-  account_name        = var.cosmos_account_name
-  resource_group_name = var.resource_group_name
+  account_name        = local.cosmos_account_name
+  resource_group_name = local.resource_group_name
   lifecycle {
     prevent_destroy = true
   }
@@ -25,8 +26,8 @@ resource "azurerm_cosmosdb_sql_database" "history" {
 
 resource "azurerm_cosmosdb_sql_container" "history" {
   name                  = "conversations"
-  resource_group_name   = var.resource_group_name
-  account_name          = var.cosmos_account_name
+  resource_group_name   = local.resource_group_name
+  account_name          = local.cosmos_account_name
   database_name         = azurerm_cosmosdb_sql_database.history.name
   partition_key_paths   = ["/workspace"]
   partition_key_version = 2
@@ -53,8 +54,8 @@ resource "azurerm_cosmosdb_sql_container" "history" {
 # Cosmos DB Built-in Data Contributor: shared Lab records in this container only.
 # This is a Cosmos data-plane role, not an Azure RBAC role or per-user authorization.
 resource "azurerm_cosmosdb_sql_role_assignment" "history" {
-  resource_group_name = var.resource_group_name
-  account_name        = var.cosmos_account_name
+  resource_group_name = local.resource_group_name
+  account_name        = local.cosmos_account_name
   role_definition_id  = "${local.cosmos_account_id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002"
   principal_id        = azurerm_user_assigned_identity.this.principal_id
   scope               = "${local.cosmos_account_id}/dbs/${azurerm_cosmosdb_sql_database.history.name}/colls/${azurerm_cosmosdb_sql_container.history.name}"
