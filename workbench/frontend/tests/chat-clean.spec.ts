@@ -51,18 +51,38 @@ test('Try a pre-built agent opens the agent picker', async ({ page }) => {
   await expect(page.getByPlaceholder('Search agents')).toBeVisible()
 })
 
-test('the agent guide and examples come back and the choice is remembered', async ({
+test('the guide and examples open inside the clean chat', async ({ page }) => {
+  const state = await openWorkspace(page, { config: twoAgents, startup: true })
+  const toggle = page.getByRole('button', {
+    name: 'Show agent guide and examples',
+  })
+  await toggle.click()
+  await expect(page.locator('.chat-welcome h1')).toHaveText(
+    'What agent do you want to build?',
+  )
+  await expect(
+    page.getByRole('heading', { name: 'What you can do' }),
+  ).toBeVisible()
+  await expect(page.getByText('About this agent')).toHaveCount(0)
+  await expect(page.locator('.chat-aside')).toHaveCount(0)
+  await page.getByRole('button', { name: /Help me design an agent/ }).click()
+  await expect(editor(page)).toHaveValue(/Help me design an agent/)
+  await page.getByRole('button', { name: 'Hide guide and examples' }).click()
+  await expect(page.locator('.prompt-options')).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('.chat-welcome h1')).toHaveText(
+    'What agent do you want to build?',
+  )
+  expect(state.requests).toEqual([])
+})
+
+test('a saved full view can still return to the simple view', async ({
   page,
 }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem('ai-foundry-lab-simple-chat', '0'),
+  )
   await openWorkspace(page, { config: twoAgents, startup: true })
-  await page
-    .getByRole('button', { name: 'Show agent guide and examples' })
-    .click()
-  await expect(page.locator('.chat-welcome h1')).toHaveText(guidedReview.label)
-  await expect(
-    page.getByRole('heading', { name: 'About this agent' }),
-  ).toBeVisible()
-  await page.reload()
   await expect(page.locator('.chat-welcome h1')).toHaveText(guidedReview.label)
   await page.getByRole('button', { name: 'Simple view' }).click()
   await expect(page.locator('.chat-welcome h1')).toHaveText(
