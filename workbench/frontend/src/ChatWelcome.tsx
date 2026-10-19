@@ -22,6 +22,13 @@ export type LabGuideProps = Omit<
 // person's own words.
 export type DraftMode = 'empty' | 'example' | 'typed'
 
+// Conversation starters for the clean chat; they only fill the message box.
+const simpleExamples = [
+  'Help me design an agent that summarizes meeting notes.',
+  'What kinds of agents can I build here?',
+  'I want an agent that answers questions from a policy document.',
+]
+
 // The first sentence of a starter says what the agent will do with it.
 const outcome = (text: string) => {
   const flat = text.replace(/\s+/g, ' ').trim()
@@ -68,6 +75,7 @@ export function ChatWelcome({
   const [simple, setSimple] = useSimpleChat()
   const hint =
     !agent || simple ? '' : welcomeHint(config?.mode === 'preview', draftMode)
+  const [guide, setGuide] = useState(false)
   const [chosen, setChosen] = useState<string>()
   const [creating, setCreating] = useState(false)
   const showModes = !simple && !!config && draftMode !== 'typed'
@@ -117,12 +125,42 @@ export function ChatWelcome({
         <button
           type="button"
           className="welcome-simple-toggle"
-          aria-pressed={simple}
-          onClick={() => setSimple(!simple)}
+          aria-pressed={simple ? guide : simple}
+          aria-expanded={simple ? guide : undefined}
+          aria-controls={simple ? 'welcome-guide' : undefined}
+          onClick={() => (simple ? setGuide(!guide) : setSimple(true))}
         >
           <MessageSquare size={14} aria-hidden="true" />
-          {simple ? 'Show agent guide and examples' : 'Simple view'}
+          {!simple
+            ? 'Simple view'
+            : guide
+              ? 'Hide guide and examples'
+              : 'Show agent guide and examples'}
         </button>
+      )}
+      {simple && guide && (
+        <div className="welcome-guide" id="welcome-guide">
+          <h2 className="welcome-examples-title">What you can do</h2>
+          <ul>
+            <li>Describe an agent and talk the idea through.</li>
+            <li>Try a pre-built agent and chat with it.</li>
+            <li>Ask what agents can do before you decide.</li>
+          </ul>
+          <div className="prompt-options">
+            {simpleExamples.map((text) => (
+              <button
+                key={text}
+                disabled={!config}
+                onClick={() => onPrompt(text)}
+              >
+                <span>
+                  <strong>{text}</strong>
+                </span>
+                <ArrowRight size={15} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </div>
       )}
       {showModes && (
         <>

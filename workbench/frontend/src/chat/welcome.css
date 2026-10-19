@@ -156,6 +156,19 @@
   grid-template-columns: minmax(240px, 340px);
   justify-content: center;
 }
+.chat-welcome .welcome-guide {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.welcome-guide ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: left;
+}
 .welcome-modes {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
