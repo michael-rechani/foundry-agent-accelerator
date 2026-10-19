@@ -21,6 +21,26 @@ Lab on your own machine without Azure, use
 
 ## Deployment
 
+**One command.** `deploy.ps1` at the repo root runs every step below in order for
+a new subscription: preflight checks, the state backend, the platform, the Lab
+foundation, the private image build, the Lab and the verification. Each Terraform
+stage shows its plan and applies only after you type `apply`; `-PlanOnly` stops at
+the first stage with changes. The state account is private, so run the stages after
+bootstrap from a host that can reach it. The build and verify stages need the
+private network too.
+
+```powershell
+./deploy.ps1 -Subscription '<subscription-id>' -Stage preflight   # read-only checks
+./deploy.ps1 -Subscription '<subscription-id>' -PlanOnly          # first plan, nothing applied
+./deploy.ps1 -Subscription '<subscription-id>'                    # approve each plan in turn
+```
+
+It creates any missing ignored input (`backend.hcl`, `terraform.tfvars`,
+`dev.tfvars`) with defaults and never overwrites one. Publishing agents is a
+separate, billable `-Stage agents -Agent <name>`, and the verify stage skips the
+billable agent call unless you add `-IncludeAgentCall`. The steps below are the
+same sequence by hand, and the reference for each one.
+
 Run these steps from the repository root in one PowerShell session. Stop
 if any command fails. Terraform deploys the Lab infrastructure and selects its
 image. Image building and runtime smoke tests are separate steps that you run

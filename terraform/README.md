@@ -69,7 +69,8 @@ flowchart TD
     F --> G
 ```
 
-Follow this order for a new environment:
+Follow this order for a new environment, or run `./deploy.ps1` to do it in one
+command (see [Deploy the Lab](../docs/lab-deployment.md#deployment)):
 
 1. For a new subscription, deploy `terraform/bootstrap/` once to create the
    private state backend.
