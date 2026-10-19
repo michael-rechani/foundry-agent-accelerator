@@ -6,7 +6,6 @@
 [![Validate](https://github.com/michael-rechani/foundry-agent-accelerator/actions/workflows/validate.yml/badge.svg)](https://github.com/michael-rechani/foundry-agent-accelerator/actions/workflows/validate.yml)
 [![Latest release](https://img.shields.io/github/v/release/michael-rechani/foundry-agent-accelerator?include_prereleases&sort=semver)](https://github.com/michael-rechani/foundry-agent-accelerator/releases)
 [![License: MIT](https://img.shields.io/github/license/michael-rechani/foundry-agent-accelerator)](LICENSE)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/michael-rechani/foundry-agent-accelerator)
 
 Build, deploy, and explore agents on **Microsoft Foundry**. The Lab is a demo
 and workshop app backed by reusable code. In it you can:
