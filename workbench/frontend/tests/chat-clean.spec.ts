@@ -103,8 +103,16 @@ test('a first message chats with the Agent designer and stays clean', async ({
   await expect(page.locator('.answer-details')).toHaveCount(0)
   await expect(page.locator('.review-note')).toHaveCount(0)
   await expect(
-    page.getByRole('button', { name: /Choose an agent/ }),
+    page.getByRole('button', { name: /Agent designer/ }).first(),
   ).toBeVisible()
+  await expect(editor(page)).toHaveAttribute('placeholder', 'Reply...')
+  await expect(
+    page.getByRole('button', { name: 'Continue in a new chat' }),
+  ).toHaveCount(0)
+  await expect(page.locator('.save-state')).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: /Choose an agent/ }),
+  ).toHaveCount(0)
 })
 
 test('from the Agent designer the person can move to a real agent', async ({
@@ -117,7 +125,7 @@ test('from the Agent designer the person can move to a real agent', async ({
   await editor(page).fill('Hello')
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect(page.locator('.assistant-message')).toBeVisible()
-  await page.getByRole('button', { name: /Choose an agent/ }).click()
+  await page.locator('.agent-picker').click()
   const picker = page.getByRole('dialog', { name: 'Choose an agent' })
   await expect(
     picker.getByRole('region', { name: 'General chat' }),
