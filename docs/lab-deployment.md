@@ -36,10 +36,22 @@ private network too.
 ```
 
 It creates any missing ignored input (`backend.hcl`, `terraform.tfvars`,
-`dev.tfvars`) with defaults and never overwrites one. Publishing agents is a
-separate, billable `-Stage agents -Agent <name>`, and the verify stage skips the
-billable agent call unless you add `-IncludeAgentCall`. The steps below are the
-same sequence by hand, and the reference for each one.
+`dev.tfvars`) with defaults and never overwrites one. The committed names in
+[`environments/dev/`](../environments/README.md) are passed with `-var-file`, and
+`dev\lab.tfvars` sets `platform_state = {}`, which reads the platform's state from
+the account `terraform/bootstrap` creates. Three stages are opt-in:
+
+```powershell
+./deploy.ps1 -Subscription '<subscription-id>' -Stage runner -ApproveSharedEgress   # private CI VM; shares the jumpbox NAT IP
+./deploy.ps1 -Subscription '<subscription-id>' -Stage identity                      # Entra apps, roles, GitHub environments
+./deploy.ps1 -Subscription '<subscription-id>' -Stage agents -Agent <name>          # billable
+```
+
+The runner stage needs an SSH public key (`-RunnerSshPublicKeyPath`; only the public
+half is used). The identity stage needs rights to create Entra apps and role
+assignments, plus `GITHUB_TOKEN` or a signed-in `gh` with repo admin. The verify
+stage skips the billable agent call unless you add `-IncludeAgentCall`. The steps
+below are the same sequence by hand, and the reference for each one.
 
 Run these steps from the repository root in one PowerShell session. Stop
 if any command fails. Terraform deploys the Lab infrastructure and selects its
@@ -105,7 +117,8 @@ root's state location, and the Lab reads those names from the platform outputs
 (`resource_group_name`, `workload_virtual_network_name`,
 `management_virtual_network_name`, `foundry_account_name`,
 `foundry_project_name`, `cosmos_account_name`) through Microsoft Entra ID. Apply the
-platform root first. A name you set explicitly still wins, so an existing Lab keeps
+platform root first. Set `platform_state = {}` to use the state account
+`terraform/bootstrap` creates: each field defaults to its names. A name you set explicitly still wins, so an existing Lab keeps
 working unchanged. The plan stops with a clear message if a name is missing, for
 example `management_vnet_name` when the platform's management network is off.
 
@@ -350,43 +363,32 @@ summary or the Container App's current revision.
 
 ### One-time setup for a new subscription
 
-Run this once, signed in as someone who can create an Entra app registration and
-assign roles on the resource group. It's safe to run again.
+The deploy identity, its roles and the GitHub environment are Terraform, in
+[terraform/identity](../terraform/identity/README.md). Run that root once, after
+the Lab and runner roots, signed in as someone who can create an Entra app
+registration, create role definitions and assignments on the Lab and runner
+resource groups, and administer the repository's environments. It's safe to run
+again, and deploy.ps1 -Stage identity runs it with the same approval step as
+every other root.
 
-```powershell
-./workbench/setup-deploy-identity.ps1 -Subscription '<subscription-id>' -ResourceGroup '<resource-group>' `
-  -Registry '<registry-name>' -ContainerApp '<container-app-name>' -ManagedIdentity '<app-identity-name>' `
-  -Repository '<owner>/<repository>'
-```
+The root creates an app registration whose only credential is a federated
+credential for the lab-deploy environment of your repository. It also creates a
+custom role that can import an image into the registry and update the one
+Container App, the built-in AcrPush role on the registry so the workflow can
+push, and a custom role that can read and start the one runner VM, and nothing
+else. None of them can change registry networking, other resources, or role
+assignments. It reads the repository and owner IDs from GitHub because GitHub
+signs the token with a subject that includes them. If sign-in fails with "No
+matching federated identity record", set the subject from the error as
+deploy_federated_subject.
 
-The script creates an app registration whose only credential is a federated
-credential for the `lab-deploy` environment of your repository, plus a custom role
-that can import an image into the registry and update the one Container App, and
-the built-in `AcrPush` role on the registry so the workflow can push. It can't
-change registry networking, other resources, or role assignments. It reads
-the repository and owner IDs with `gh` because GitHub signs the token with a subject
-that includes them. If sign-in fails with "No matching federated identity record",
-rerun the script with the subject from the error as `-FederatedSubject`.
-
-Then create a `lab-deploy` environment in the repository, limit its deployment
-branches to `main`, and add the variables the script prints as environment
-variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`,
-`AZURE_RESOURCE_GROUP`, `LAB_REGISTRY` and `LAB_CONTAINER_APP`. Keep them out of
-committed files.
-
-The workflow also starts the deallocated runner VM. Run this once, signed in as
-someone who can create role definitions and assignments on the runner's resource
-group. It adds a custom role that can read and start that one VM, and nothing
-else, for the deploy identity. Use the client ID the first script printed:
-
-```powershell
-./workbench/setup-runner-start.ps1 -Subscription '<subscription-id>' `
-  -RunnerResourceGroup '<runner-resource-group>' -RunnerVm '<runner-vm-name>' -ClientId '<AZURE_CLIENT_ID>'
-```
-
-Then add the two variables it prints, `LAB_RUNNER_VM` and
-`LAB_RUNNER_RESOURCE_GROUP`, to the `lab-deploy` environment.
-
+It also creates the lab-deploy environment, limits its deployment branches to
+main, and sets the variables the workflow reads (AZURE_CLIENT_ID,
+AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP,
+LAB_REGISTRY, LAB_CONTAINER_APP, LAB_RUNNER_VM and
+LAB_RUNNER_RESOURCE_GROUP). None of them is a secret. A Lab set up with the old
+setup scripts adopts its identity by import; see
+[Adopt identities the old scripts created](../terraform/identity/README.md#adopt-identities-the-old-scripts-created).
 The runner's network security group (NSG) denies all VNet traffic by default.
 Set `registry_private_endpoint_ips` in `terraform/runner` to the registry private
 endpoint addresses (registry and data endpoint) so it may reach only those on

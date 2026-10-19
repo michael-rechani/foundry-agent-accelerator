@@ -4,6 +4,8 @@
 *.tfplan
 *.tfvars
 *.tfvars.json
+# Committed per-environment inputs hold names only, never IDs or secrets.
+!/environments/**/*.tfvars
 .terraform.tfstate.lock.info
 crash.log
 crash.*.log

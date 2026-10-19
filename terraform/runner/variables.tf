@@ -112,6 +112,34 @@ variable "os_disk_size_gb" {
   }
 }
 
+variable "os_disk_storage_account_type" {
+  type        = string
+  description = "OS disk SKU. The default matches the live VM (Standard_LRS), so adopting it does not replace the disk."
+  default     = "Standard_LRS"
+
+  validation {
+    condition     = contains(["Standard_LRS", "StandardSSD_LRS", "Premium_LRS"], var.os_disk_storage_account_type)
+    error_message = "os_disk_storage_account_type must be Standard_LRS, StandardSSD_LRS, or Premium_LRS."
+  }
+}
+
+variable "patch_mode" {
+  type        = string
+  description = "VM guest patch mode. The default matches the live VM (AutomaticByPlatform)."
+  default     = "AutomaticByPlatform"
+
+  validation {
+    condition     = contains(["ImageDefault", "AutomaticByPlatform"], var.patch_mode)
+    error_message = "patch_mode must be ImageDefault or AutomaticByPlatform."
+  }
+}
+
+variable "bypass_platform_safety_checks_on_user_schedule" {
+  type        = bool
+  description = "Only used with patch_mode = AutomaticByPlatform. The default matches the live VM."
+  default     = true
+}
+
 variable "github_repository" {
   type        = string
   description = "Repository the runner registers against, in owner/name form. Repository-level runners are visible to this repository only."

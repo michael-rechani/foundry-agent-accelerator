@@ -280,8 +280,9 @@ Foundry through the peered VNet.
   runner runs the code at that ref.
 - It signs in as its own identity, `gh-library-recording`, with no stored secret.
   That identity has one role, Foundry User, on the Lab's Foundry account only,
-  and Azure accepts it only from that environment. Create it with
-  [setup-recording-identity.ps1](../workbench/setup-recording-identity.ps1).
+  and Azure accepts it only from that environment.   Terraform creates it,
+    with the environment and its required reviewer, in
+    [terraform/identity](../terraform/identity/README.md).
 - A full recording outlasts one GitHub sign-in token, so the job asks GitHub for a
   new one whenever Azure needs it.
 - It doesn't commit anything. It uploads the new evidence files as an artifact
