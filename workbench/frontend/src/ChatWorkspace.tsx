@@ -375,6 +375,7 @@ export default function ChatWorkspace() {
           exportDisabled={!turns.length && !draft}
           presenting={presenting}
           clean={clean}
+          started={turns.length > 0}
           onPresent={() => setPresenting((value) => !value)}
           onView={setView}
           onChoose={(id) => {

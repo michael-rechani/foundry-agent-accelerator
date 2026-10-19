@@ -1,6 +1,7 @@
 import type { RefObject } from 'react'
 import { ArrowUp, Copy, FlaskConical, GitBranch, Square } from 'lucide-react'
 import { saveStateText } from './chat-helpers'
+import { DESIGNER_ID } from './agent-designer'
 import type { Agent, Config } from './workspace-config'
 
 export function ChatComposer({
@@ -52,6 +53,8 @@ export function ChatComposer({
   const localPreview = config?.mode === 'preview'
   // Limits and save state only matter once there is something to lose.
   const showDetails = turnCount > 0 || contextUsage >= 0.5
+  // The general conversation has nothing to save or carry into a review.
+  const plain = agent?.id === DESIGNER_ID
   return (
     <div className="composer-area">
       <form
@@ -67,9 +70,11 @@ export function ChatComposer({
           placeholder={
             busy
               ? 'Waiting for a reply. You can write your next message now.'
-              : clean
-                ? 'Describe the agent you want to build, or the job you need done...'
-                : `Message ${agent?.label || 'your agent'}...`
+              : plain && turnCount > 0
+                ? 'Reply...'
+                : clean
+                  ? 'Describe the agent you want to build, or the job you need done...'
+                  : `Message ${agent?.label || 'your agent'}...`
           }
           value={draft}
           aria-describedby={
@@ -97,7 +102,7 @@ export function ChatComposer({
         />
         <div className="composer-toolbar">
           <span>
-            {turnCount > 0 && (
+            {turnCount > 0 && !plain && (
               <button
                 type="button"
                 className="composer-continue"
@@ -236,9 +241,11 @@ export function ChatComposer({
               </dl>
             </details>
           )}
-          <span className="save-state">
-            {saveStateText({ isPreview, saved, dirty, draft })}
-          </span>
+          {!plain && (
+            <span className="save-state">
+              {saveStateText({ isPreview, saved, dirty, draft })}
+            </span>
+          )}
         </div>
       )}
       {exceedsLimit ? (

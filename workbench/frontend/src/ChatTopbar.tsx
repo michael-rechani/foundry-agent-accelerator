@@ -37,6 +37,7 @@ export function ChatTopbar({
   exportDisabled,
   presenting,
   clean = false,
+  started = false,
   onPresent,
   onView,
   onSwitcherOpen,
@@ -65,6 +66,8 @@ export function ChatTopbar({
   // The first screen is not about one agent yet, so agent details and the
   // save and export actions are left out.
   clean?: boolean
+  // The conversation has begun, so the picker names who is answering.
+  started?: boolean
   onPresent: () => void
   onView: (view: View) => void
   onSwitcherOpen: (open: boolean) => void
@@ -98,7 +101,7 @@ export function ChatTopbar({
         <div className="agent-controls">
           <AgentSwitcher
             label={
-              clean
+              clean && !(started && agent)
                 ? 'Choose an agent'
                 : agent?.label ||
                   (selected.startsWith('created-')
