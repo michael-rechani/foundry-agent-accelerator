@@ -26,6 +26,8 @@ and workshop app backed by reusable code. In it you can:
 The Azure deployment runs privately in your subscription. Local preview makes
 no model calls. This is a sample, not an official Microsoft product.
 
+<a href="docs/images/screenshots/lab-test-results-dark.png"><img alt="The Foundry Agent Lab showing the Supplier invoice reviewer's test results: 25 of 25 answers passed, a typical response time, the model cost per answer, and a sign-off that is waiting for a person." src="docs/images/screenshots/lab-test-results-dark.png"></a>
+
 **On this page:**
 [Get started](#get-started) · [Take a tour](#take-a-tour) ·
 [Three stories](#explore-three-stories) · [How it works](#how-it-works) ·

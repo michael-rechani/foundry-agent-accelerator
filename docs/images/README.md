@@ -14,6 +14,7 @@ update them together and keep the images readable at README width.
 | Azure service icons | Unmodified SVG files in `azure-icons/` | Copied unchanged from the official Azure Architecture Center icon set. |
 | Lab screenshots | Playwright tests in `workbench/frontend/tests/` | `npm test -- --project=desktop` in `workbench/frontend/`, then `./docs/images/refresh-screenshots.ps1` from the repo root |
 | README and scenario tours | Screenshots in `screenshots/` | `./docs/images/build-tour.ps1`, then `./docs/images/build-tour.ps1 -Tour scenarios` |
+| GitHub social preview card (`social-preview.png`, 1280 x 640) | `screenshots/lab-test-results-dark.png` | `python docs/images/build-social-preview.py`, then upload it under **Settings > General > Social preview**. GitHub has no API for that upload. |
 
 ## Diagrams
 
