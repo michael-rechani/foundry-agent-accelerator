@@ -242,12 +242,20 @@ test('test results read plainly and keep case details under the hood', async ({
   await expect(panel.getByRole('heading', { level: 2 })).toHaveText(
     'How it did on its test cases',
   )
-  await expect(panel).toContainText('October 17, 2026')
+  await expect(panel).toContainText(
+    new Date(`${card.tested_on}T00:00:00Z`).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC',
+    }),
+  )
   await expect(panel).toContainText(
     `a sample request ${each} times and checks every answer`,
   )
+  const total = card.cases.length
   await expect(panel).toContainText(
-    `${5 - passed} of 5 test ${5 - passed === 1 ? 'case has' : 'cases have'} an answer that missed a check`,
+    `${total - passed} of ${total} test ${total - passed === 1 ? 'case has' : 'cases have'} an answer that missed a check`,
   )
   await expect(panel.locator('.scorecard-facts > div')).toHaveText([
     new RegExp(`Answer checks\\s*${runsPassed} of ${runs} answers passed`),
@@ -258,10 +266,10 @@ test('test results read plainly and keep case details under the hood', async ({
   const cases = panel
     .getByRole('list', { name: 'Test cases' })
     .locator(':scope > li')
-  await expect(cases).toHaveCount(5)
+  await expect(cases).toHaveCount(total)
   await expect(cases.filter({ hasText: /Passed/ })).toHaveCount(passed)
   await expect(cases.filter({ hasText: 'Needs a look' })).toHaveCount(
-    5 - passed,
+    total - passed,
   )
   await expect(cases.first()).toContainText(card.cases[0].goal)
   await expect(cases.first()).toContainText(

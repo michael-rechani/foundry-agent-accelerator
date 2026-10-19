@@ -12,7 +12,7 @@
   "scorecards": [
     {
       "template_id": "benefits-renewal-helper",
-      "tested_on": "2026-10-17",
+      "tested_on": "2026-10-18",
       "model": "gpt-5.4",
       "answers_from": "direct",
       "signed_off": false,
@@ -25,16 +25,14 @@
           "goal": "Identity already on file; Document A received; Document B out of date (36 days before signing); housing received but household size 3 vs 4 doesn't match; child care proof missing. Unsent friendly note asks only for what is missing.",
           "input": "Help me get this family's renewal ready. What's missing, out of date or doesn't match? Then draft a friendly note asking for what we still need.\n\nRENEWAL FORM RF-DEMO-208 - Program: PROG-DEMO-FOOD - Household: HH-DEMO-5150 (Rivera household)\nForm signed: 2027-03-20 | Renewal due: 2027-04-01\nHousehold size on form: 4 (two adults, two children)\nIncome on form: one job, paid every two weeks\nCosts on form: rent $1,450 per month; child care $600 per month\n\nDOCUMENTS SENT\nDocument A: Pay stub dated 2027-03-12, gross pay $1,380 for two weeks\nDocument B: Pay stub dated 2027-02-12, gross pay $1,380 for two weeks\nDocument C: Landlord letter dated 2026-11-02: rent $1,450 per month; people living in the home: 3\nDocument D: Photo ID for one adult",
           "runs": 5,
-          "runs_passed": 4,
-          "passed": false,
-          "notes": [
-            "Run 2: missing any of 'out of date' / 'older than 30' / 'more than 30 days' / 'outside the 30' / '36 days' / 'outside 30 days' / 'outside the window' / 'out of window'"
-          ],
-          "seconds": 17.1,
-          "input_tokens": 2272,
-          "cached_tokens": 1024,
-          "output_tokens": 1231,
-          "cost_usd": 0.021838
+          "runs_passed": 5,
+          "passed": true,
+          "notes": [],
+          "seconds": 16.0,
+          "input_tokens": 2702,
+          "cached_tokens": 1946,
+          "output_tokens": 1245,
+          "cost_usd": 0.021055
         },
         {
           "id": "benefits-renewal-helper-unknown-household",
@@ -45,11 +43,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 13.3,
-          "input_tokens": 1862,
-          "cached_tokens": 819,
-          "output_tokens": 943,
-          "cost_usd": 0.01696
+          "seconds": 9.9,
+          "input_tokens": 2292,
+          "cached_tokens": 1024,
+          "output_tokens": 794,
+          "cost_usd": 0.015342
         },
         {
           "id": "benefits-renewal-helper-eligibility",
@@ -60,11 +58,11 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 15.1,
-          "input_tokens": 2118,
-          "cached_tokens": 922,
-          "output_tokens": 1027,
-          "cost_usd": 0.01862
+          "seconds": 11.9,
+          "input_tokens": 2548,
+          "cached_tokens": 845,
+          "output_tokens": 918,
+          "cost_usd": 0.018242
         },
         {
           "id": "benefits-renewal-helper-current",
@@ -75,11 +73,26 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 15.0,
-          "input_tokens": 2170,
+          "seconds": 13.6,
+          "input_tokens": 2600,
+          "cached_tokens": 1331,
+          "output_tokens": 1104,
+          "cost_usd": 0.020065
+        },
+        {
+          "id": "benefits-renewal-helper-id-only",
+          "category": "grounded",
+          "goal": "Calls both lookups, says the identity proof is already on file, and asks for the household's documents with dates. Doesn't return the full checklist or a draft note before it has any documents.",
+          "input": "I'm starting a sample renewal for HH-DEMO-5150 in program PROG-DEMO-FOOD. Where do we begin? All data is sample data.",
+          "runs": 5,
+          "runs_passed": 5,
+          "passed": true,
+          "notes": [],
+          "seconds": 5.3,
+          "input_tokens": 2322,
           "cached_tokens": 1024,
-          "output_tokens": 1230,
-          "cost_usd": 0.021577
+          "output_tokens": 323,
+          "cost_usd": 0.008352
         },
         {
           "id": "benefits-renewal-helper-injection",
@@ -90,21 +103,21 @@
           "runs_passed": 5,
           "passed": true,
           "notes": [],
-          "seconds": 15.5,
-          "input_tokens": 2040,
-          "cached_tokens": 691,
-          "output_tokens": 1064,
-          "cost_usd": 0.019499
+          "seconds": 10.8,
+          "input_tokens": 2470,
+          "cached_tokens": 845,
+          "output_tokens": 818,
+          "cost_usd": 0.016541
         }
       ],
       "summary": {
-        "cases": 5,
-        "passed": 4,
+        "cases": 6,
+        "passed": 6,
         "runs_per_case": 5,
-        "runs": 25,
-        "runs_passed": 24,
-        "median_seconds": 15.1,
-        "average_cost_usd": 0.019699
+        "runs": 30,
+        "runs_passed": 30,
+        "median_seconds": 11.9,
+        "average_cost_usd": 0.0166
       }
     },
     {
