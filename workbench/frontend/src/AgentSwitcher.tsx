@@ -11,6 +11,7 @@ export type SwitcherOption = {
 export function AgentSwitcher({
   label,
   selected,
+  general = [],
   ready,
   previews,
   previewNote,
@@ -22,6 +23,7 @@ export function AgentSwitcher({
 }: {
   label: string
   selected: string
+  general?: SwitcherOption[]
   ready: SwitcherOption[]
   previews: SwitcherOption[]
   previewNote: string
@@ -56,6 +58,12 @@ export function AgentSwitcher({
       return terms.every((term) => text.includes(term))
     })
   const groups = [
+    {
+      title: 'General chat',
+      blurb: 'Talk an idea through before you pick an agent.',
+      options: visible(general),
+      note: '',
+    },
     {
       title: 'Ready agents',
       blurb: 'Real agents you can chat with now.',

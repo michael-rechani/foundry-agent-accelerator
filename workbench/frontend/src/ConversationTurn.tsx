@@ -225,6 +225,7 @@ export function ConversationTurn({
   answerRef,
   latest = false,
   showReviewNote = true,
+  plain = false,
   busy = false,
   onCopy,
   onRate,
@@ -238,6 +239,8 @@ export function ConversationTurn({
   answerRef?: RefObject<HTMLElement | null>
   latest?: boolean
   showReviewNote?: boolean
+  // A plain conversation has no steps, receipts or answer to check.
+  plain?: boolean
   busy?: boolean
   onCopy: (text: string) => void
   onRate: (rating: Rating | undefined) => void
@@ -285,70 +288,72 @@ export function ConversationTurn({
           )}
           <AnswerFeedback rating={turn.rating} onRate={onRate} />
         </div>
-        <details className="answer-details">
-          <summary>
-            <ChevronRight
-              className="answer-steps-chevron"
-              size={14}
-              aria-hidden="true"
-            />
-            <strong>Details</strong>
-            <span>{detailsSummary(turn)}</span>
-          </summary>
-          <AnswerSteps
-            turn={turn}
-            agentLabels={agentLabels}
-            foundryPortal={foundryPortal}
-            agentName={agentName}
-          />
-          {turn.earlier?.length ? (
-            <EarlierAnswers answers={turn.earlier} />
-          ) : null}
-          <details className="receipt-details hood-only">
+        {!plain && (
+          <details className="answer-details">
             <summary>
-              <Activity size={14} aria-hidden="true" /> Execution details
-              <span>
-                {turn.result.receipts.length === 0
-                  ? 'No tool calls'
-                  : `${turn.result.receipts.length} tool ${turn.result.receipts.length === 1 ? 'call' : 'calls'}`}
-              </span>
+              <ChevronRight
+                className="answer-steps-chevron"
+                size={14}
+                aria-hidden="true"
+              />
+              <strong>Details</strong>
+              <span>{detailsSummary(turn)}</span>
             </summary>
-            <code>{turn.result.request_id}</code>
-            {turn.result.usage !== undefined && (
-              <p className="usage-detail">
-                {turn.result.usage
-                  ? `Tokens: ${usageDetail(turn.result.usage)}.`
-                  : 'The service did not report token usage for this answer.'}{' '}
-                Counts come from the answering agent&apos;s response. A
-                coordinator&apos;s count may not include specialists it calls.
-              </p>
-            )}
-            {turn.result.receipts.length ? (
-              turn.result.receipts.map((receipt, index) => (
-                <div className="receipt" key={`${receipt.call_id}-${index}`}>
-                  <div>
-                    {receiptState(turn, receipt) === 'verified' ? (
-                      <CheckCheck size={16} />
-                    ) : (
-                      <CircleAlert size={16} />
+            <AnswerSteps
+              turn={turn}
+              agentLabels={agentLabels}
+              foundryPortal={foundryPortal}
+              agentName={agentName}
+            />
+            {turn.earlier?.length ? (
+              <EarlierAnswers answers={turn.earlier} />
+            ) : null}
+            <details className="receipt-details hood-only">
+              <summary>
+                <Activity size={14} aria-hidden="true" /> Execution details
+                <span>
+                  {turn.result.receipts.length === 0
+                    ? 'No tool calls'
+                    : `${turn.result.receipts.length} tool ${turn.result.receipts.length === 1 ? 'call' : 'calls'}`}
+                </span>
+              </summary>
+              <code>{turn.result.request_id}</code>
+              {turn.result.usage !== undefined && (
+                <p className="usage-detail">
+                  {turn.result.usage
+                    ? `Tokens: ${usageDetail(turn.result.usage)}.`
+                    : 'The service did not report token usage for this answer.'}{' '}
+                  Counts come from the answering agent&apos;s response. A
+                  coordinator&apos;s count may not include specialists it calls.
+                </p>
+              )}
+              {turn.result.receipts.length ? (
+                turn.result.receipts.map((receipt, index) => (
+                  <div className="receipt" key={`${receipt.call_id}-${index}`}>
+                    <div>
+                      {receiptState(turn, receipt) === 'verified' ? (
+                        <CheckCheck size={16} />
+                      ) : (
+                        <CircleAlert size={16} />
+                      )}
+                      <strong>{receipt.tool}</strong>
+                      <span>{receiptLabels[receiptState(turn, receipt)]}</span>
+                    </div>
+                    <code>{receipt.agent || 'Target not verified'}</code>
+                    {receipt.output && (
+                      <details>
+                        <summary>What it returned</summary>
+                        <Markdown text={receipt.output} />
+                      </details>
                     )}
-                    <strong>{receipt.tool}</strong>
-                    <span>{receiptLabels[receiptState(turn, receipt)]}</span>
                   </div>
-                  <code>{receipt.agent || 'Target not verified'}</code>
-                  {receipt.output && (
-                    <details>
-                      <summary>What it returned</summary>
-                      <Markdown text={receipt.output} />
-                    </details>
-                  )}
-                </div>
-              ))
-            ) : (
-              <p>No tool calls were recorded for this answer.</p>
-            )}
+                ))
+              ) : (
+                <p>No tool calls were recorded for this answer.</p>
+              )}
+            </details>
           </details>
-        </details>
+        )}
         {latest && showReviewNote && (
           <p className="review-note" role="note">
             <UserCheck size={14} aria-hidden="true" /> Check this answer before

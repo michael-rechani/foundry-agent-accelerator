@@ -69,3 +69,78 @@ test('the agent guide and examples come back and the choice is remembered', asyn
     'What agent do you want to build?',
   )
 })
+
+const withDesigner = {
+  ...twoAgents,
+  library_preview: {
+    enabled: true,
+    reason: null,
+    agent: 'lab-library-preview',
+  },
+}
+
+test('a first message chats with the Agent designer and stays clean', async ({
+  page,
+}) => {
+  const state = await openWorkspace(page, {
+    config: withDesigner,
+    startup: true,
+    answer: 'Good morning! What would you like to build?',
+  })
+  await editor(page).fill('Good morning')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-message')).toContainText(
+    'What would you like to build?',
+  )
+  expect(state.requests.map((item) => item.agent_id)).toEqual([
+    'library-agent-designer',
+  ])
+  await expect(page.locator('.assistant-heading')).toContainText(
+    'Agent designer',
+  )
+  await expect(page.locator('.chat-aside')).toHaveCount(0)
+  await expect(page.getByText('About this agent')).toHaveCount(0)
+  await expect(page.locator('.answer-details')).toHaveCount(0)
+  await expect(page.locator('.review-note')).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: /Choose an agent/ }),
+  ).toBeVisible()
+})
+
+test('from the Agent designer the person can move to a real agent', async ({
+  page,
+}) => {
+  const state = await openWorkspace(page, {
+    config: withDesigner,
+    startup: true,
+  })
+  await editor(page).fill('Hello')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-message')).toBeVisible()
+  await page.getByRole('button', { name: /Choose an agent/ }).click()
+  const picker = page.getByRole('dialog', { name: 'Choose an agent' })
+  await expect(
+    picker.getByRole('region', { name: 'General chat' }),
+  ).toContainText('Agent designer')
+  await picker
+    .getByRole('button', { name: new RegExp(caseHelper.label) })
+    .click()
+  await page.getByRole('button', { name: 'Switch agent' }).click()
+  await editor(page).fill('Review synthetic APP-1')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.chat-aside')).toBeVisible()
+  expect(state.requests.map((item) => item.agent_id)).toEqual([
+    'library-agent-designer',
+    caseHelper.id,
+  ])
+})
+
+test('without library previews the first message goes to the default agent', async ({
+  page,
+}) => {
+  const state = await openWorkspace(page, { config: twoAgents, startup: true })
+  await editor(page).fill('Good morning')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-message')).toBeVisible()
+  expect(state.requests.map((item) => item.agent_id)).toEqual([guidedReview.id])
+})
