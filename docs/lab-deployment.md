@@ -21,6 +21,26 @@ Lab on your own machine without Azure, use
 
 ## Deployment
 
+**One command.** `deploy.ps1` at the repo root runs every step below in order for
+a new subscription: preflight checks, the state backend, the platform, the Lab
+foundation, the private image build, the Lab and the verification. Each Terraform
+stage shows its plan and applies only after you type `apply`; `-PlanOnly` stops at
+the first stage with changes. The state account is private, so run the stages after
+bootstrap from a host that can reach it. The build and verify stages need the
+private network too.
+
+```powershell
+./deploy.ps1 -Subscription '<subscription-id>' -Stage preflight   # read-only checks
+./deploy.ps1 -Subscription '<subscription-id>' -PlanOnly          # first plan, nothing applied
+./deploy.ps1 -Subscription '<subscription-id>'                    # approve each plan in turn
+```
+
+It creates any missing ignored input (`backend.hcl`, `terraform.tfvars`,
+`dev.tfvars`) with defaults and never overwrites one. Publishing agents is a
+separate, billable `-Stage agents -Agent <name>`, and the verify stage skips the
+billable agent call unless you add `-IncludeAgentCall`. The steps below are the
+same sequence by hand, and the reference for each one.
+
 Run these steps from the repository root in one PowerShell session. Stop
 if any command fails. Terraform deploys the Lab infrastructure and selects its
 image. Image building and runtime smoke tests are separate steps that you run
@@ -77,6 +97,17 @@ Create or review the ignored local `workbench/infra/backend.hcl` using
 the intended account, subscription, container, and separate Lab state key. Keep
 the existing state key for an established deployment. Don't edit the tracked
 example to store environment configuration.
+
+**Read the platform names from its state.** The Lab needs the resource group,
+virtual network, Foundry account and project, and Cosmos DB account names the
+platform root created. Set `platform_state` in `dev.tfvars` to the platform
+root's state location, and the Lab reads those names from the platform outputs
+(`resource_group_name`, `workload_virtual_network_name`,
+`management_virtual_network_name`, `foundry_account_name`,
+`foundry_project_name`, `cosmos_account_name`) through Microsoft Entra ID. Apply the
+platform root first. A name you set explicitly still wins, so an existing Lab keeps
+working unchanged. The plan stops with a clear message if a name is missing, for
+example `management_vnet_name` when the platform's management network is off.
 
 **Start from the canonical inputs, not an old local copy.** A stale
 `dev.tfvars` can plan to turn off agent creation, drop the creation-key secret,

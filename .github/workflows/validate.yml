@@ -227,6 +227,11 @@ jobs:
       - name: Test platform inputs, permissions, and retained-disk safeguards without Azure
         shell: pwsh
         run: ./terraform/test-platform-validation.ps1
+      - name: Validate and test private state backend without Azure
+        run: |
+          terraform -chdir=terraform/bootstrap init -backend=false
+          terraform -chdir=terraform/bootstrap validate
+          terraform -chdir=terraform/bootstrap test
       - name: Validate and test isolated Standard Bastion without Azure
         run: |
           terraform -chdir=terraform/bastion init -backend=false
@@ -260,6 +265,9 @@ jobs:
       - name: Test monitoring and notification wiring without Azure
         shell: pwsh
         run: ./workbench/test-monitoring.ps1
+      - name: Test the one-command deployment helpers without Azure
+        shell: pwsh
+        run: ./workbench/test-deploy.ps1
       - name: Test private build and verification helpers without Azure or Docker
         shell: pwsh
         run: |

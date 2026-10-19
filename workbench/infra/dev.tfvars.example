@@ -1,4 +1,16 @@
 subscription_id      = "00000000-0000-0000-0000-000000000000"
+
+# Preferred: read the resource group, network, Foundry and Cosmos names from the platform root's outputs.
+# The state account is the one terraform/bootstrap creates. Any name you also set below still wins.
+# platform_state = {
+#   subscription_id      = "00000000-0000-0000-0000-000000000000"
+#   resource_group_name  = "<state-resource-group>"
+#   storage_account_name = "<state-storage-account>"
+#   container_name       = "<state-container>"
+#   key                  = "ai-foundry/dev.tfstate"
+# }
+
+# Or set every name by hand (not needed when platform_state is set):
 resource_group_name  = "existing-resource-group"
 workload_vnet_name   = "existing-workload-vnet"
 management_vnet_name = "existing-management-vnet"

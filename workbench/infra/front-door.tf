@@ -113,7 +113,7 @@ module "front_door" {
   version = "0.1.9"
 
   name                = "afd-${var.name}"
-  resource_group_name = var.resource_group_name
+  resource_group_name = local.resource_group_name
   location            = "global"
   # Private Link origins need Premium; Standard cannot reach the internal environment.
   sku = "Premium_AzureFrontDoor"
@@ -177,7 +177,7 @@ module "front_door" {
   front_door_firewall_policies = {
     lab = {
       name                              = "waf${local.front_door_compact_name}"
-      resource_group_name               = var.resource_group_name
+      resource_group_name               = local.resource_group_name
       sku_name                          = "Premium_AzureFrontDoor"
       mode                              = "Prevention"
       custom_block_response_status_code = 403
@@ -250,7 +250,7 @@ resource "azurerm_monitor_diagnostic_setting" "front_door" {
 import {
   for_each = var.enable_front_door && var.import_front_door_diagnostic_setting ? toset(["front_door"]) : toset([])
   to       = azurerm_monitor_diagnostic_setting.front_door[0]
-  id       = "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.Cdn/profiles/afd-${var.name}|${local.front_door_diagnostic_name}"
+  id       = "/subscriptions/${var.subscription_id}/resourceGroups/${local.resource_group_name}/providers/Microsoft.Cdn/profiles/afd-${var.name}|${local.front_door_diagnostic_name}"
 }
 
 output "front_door_url" {

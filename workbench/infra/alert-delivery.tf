@@ -33,7 +33,7 @@ variable "managed_alert_email_receivers" {
 resource "azurerm_monitor_action_group" "operations" {
   count               = length(var.managed_alert_email_receivers) == 0 ? 0 : 1
   name                = "${var.name}-operations"
-  resource_group_name = var.resource_group_name
+  resource_group_name = local.resource_group_name
   short_name          = "FoundryLab"
   enabled             = true
   tags                = local.tags

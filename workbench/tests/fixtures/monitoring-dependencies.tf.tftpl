@@ -42,7 +42,8 @@ variable "name" {
 }
 
 locals {
-  tags = { workload = "foundry-workbench", managed-by = "terraform" }
+  resource_group_name = var.resource_group_name
+  tags                = { workload = "foundry-workbench", managed-by = "terraform" }
 }
 
 data "azurerm_virtual_network" "workload" {

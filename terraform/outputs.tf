@@ -48,6 +48,21 @@ output "virtual_network_id" {
   value       = azurerm_virtual_network.this.id
 }
 
+output "workload_virtual_network_name" {
+  description = "Name of the private workload virtual network. The Lab reads it from remote state."
+  value       = azurerm_virtual_network.this.name
+}
+
+output "management_virtual_network_name" {
+  description = "Name of the shared management virtual network, or null when the management network is disabled. The Lab reads it from remote state."
+  value       = one(azurerm_virtual_network.jumpbox[*].name)
+}
+
+output "cosmos_account_name" {
+  description = "Name of the Cosmos DB account. The Lab stores its history there and reads the name from remote state."
+  value       = azapi_resource.cosmos.name
+}
+
 output "private_endpoint_subnet_id" {
   description = "Resource ID of the subnet containing workload private endpoints."
   value       = azurerm_subnet.private_endpoints.id
