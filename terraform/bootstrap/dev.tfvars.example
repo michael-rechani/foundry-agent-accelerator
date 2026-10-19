@@ -1,0 +1,12 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+location        = "northcentralus"
+
+# VNets that run Terraform (management, CI runner). Each gets two-way peering and a blob DNS link.
+# peered_virtual_network_ids = {
+#   management = "/subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>"
+# }
+
+# Extra identities (CI runner managed identity, teammates) that need state access.
+# state_contributor_object_ids = {
+#   runner = "00000000-0000-0000-0000-000000000000"
+# }

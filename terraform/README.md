@@ -28,6 +28,7 @@ Terraform implementation instead of deploying a second foundation.
 
 | Area | Terraform root | State guidance | What it deploys |
 | --- | --- | --- | --- |
+| State backend | `terraform/bootstrap/` | Local first, then `ai-foundry/bootstrap.tfstate` | The private state storage account, container, private endpoint and DNS. Run once, first. See [its guide](bootstrap/README.md). |
 | Platform infrastructure | `terraform/` | `ai-foundry/<environment>.tfstate` | Foundry account and project, model deployment, Agent Service capability host, private workload services, diagnostics, and optional jumpbox or Azure API Management (APIM). |
 | The Lab | `workbench/infra/` | `ai-foundry/workbench-dev.tfstate` | The browser app, backend, registry integration, history storage, and alert delivery described in the Lab guide. |
 | Bastion | `terraform/bastion/` | `ai-foundry/bastion-dev.tfstate` | The dedicated Standard Azure Bastion host, `AzureBastionSubnet`, and static public IP for browser-based private access. |
@@ -70,13 +71,15 @@ flowchart TD
 
 Follow this order for a new environment:
 
-1. Deploy the platform root in `terraform/`.
-2. Publish the prebuilt agents from `hosted-agents/` after the platform outputs
+1. For a new subscription, deploy `terraform/bootstrap/` once to create the
+   private state backend.
+2. Deploy the platform root in `terraform/`.
+3. Publish the prebuilt agents from `hosted-agents/` after the platform outputs
    are available.
-3. Deploy the Lab from `workbench/infra/` with its separate state key.
-4. Deploy `terraform/bastion/` only when operators need dedicated browser-based
+4. Deploy the Lab from `workbench/infra/` with its separate state key.
+5. Deploy `terraform/bastion/` only when operators need dedicated browser-based
    access through Azure Bastion.
-5. Deploy `terraform/monitoring/` only after the metadata-only agent rollout is
+6. Deploy `terraform/monitoring/` only after the metadata-only agent rollout is
    complete and the trace destination is approved.
 
 ## Prerequisites
@@ -93,7 +96,8 @@ version checks, lockfile expectations, and installation troubleshooting.
   are disabled.
 - A pre-created, secured Azure Storage account and blob container for remote
   state, with private access and Storage Blob Data Contributor for the operator
-  on that container. This configuration doesn't bootstrap its own backend.
+  on that container. The [`bootstrap/`](bootstrap/README.md) root creates this
+  for a new subscription. The platform root doesn't create its own backend.
 
 > [!IMPORTANT]
 > This isn't a minimal-cost configuration. Applying it creates billable Azure
