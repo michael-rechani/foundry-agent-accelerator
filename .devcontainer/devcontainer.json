@@ -1,0 +1,24 @@
+{
+  "name": "Foundry Agent Accelerator (local preview)",
+  "image": "mcr.microsoft.com/devcontainers/python:3.14-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "24.21.0" },
+    "ghcr.io/devcontainers/features/powershell:1": {}
+  },
+  "hostRequirements": { "cpus": 2, "memory": "4gb" },
+  "postCreateCommand": "python -m pip install -r workbench/requirements.txt -r workbench/agent_runtime/requirements.txt && npm --prefix workbench/frontend ci && npm --prefix workbench/frontend run build",
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": { "label": "Foundry Agent Lab (local preview)", "onAutoForward": "openPreview", "visibility": "private" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "hashicorp.terraform"
+      ]
+    }
+  }
+}

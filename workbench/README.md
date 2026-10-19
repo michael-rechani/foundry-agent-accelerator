@@ -40,6 +40,17 @@ python -m pip install -r workbench/requirements.txt
 python -m uvicorn app:create_app --factory --app-dir workbench --host 127.0.0.1 --port 8080 --no-access-log
 ```
 
+<a id="github-codespaces"></a>
+
+**No installs?** Use
+[GitHub Codespaces](https://codespaces.new/michael-rechani/foundry-agent-accelerator).
+The [dev container](../.devcontainer/devcontainer.json) installs Node 24,
+Python 3.14 and the Lab's dependencies, then builds the frontend. When it
+finishes, run the `uvicorn` command above in its terminal. Codespaces forwards
+port 8080 privately to you. Like any local run, it needs no Azure sign-in and
+makes no model calls. Stop the codespace when you're done, since it bills your
+GitHub account.
+
 Vite writes compiled assets to `workbench/static`, which FastAPI serves. The Lab
 uses the device's Segoe UI system fonts and downloads none. The browser has no
 Content Delivery Network (CDN) dependencies or Azure credentials. The optional

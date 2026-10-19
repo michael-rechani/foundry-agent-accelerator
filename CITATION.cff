@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use this sample in your work, please cite it as below."
+title: "Foundry Agent Accelerator"
+abstract: "Microsoft Foundry hosted-agent samples: a private Foundry Agent Lab web app, prebuilt review agents, and Terraform for a private-network deployment. A sample, not an official Microsoft product."
+type: software
+license: MIT
+repository-code: "https://github.com/michael-rechani/foundry-agent-accelerator"
+authors:
+  - alias: "michael-rechani"
+keywords:
+  - microsoft-foundry
+  - ai-agents
+  - hosted-agents
+  - terraform
+  - azure
