@@ -50,7 +50,6 @@ test('the customer view hides technical details until Under the hood is on', asy
   await expect(workspaceNav(page).locator('.nav-section-label')).toHaveText([
     'Start here',
     'Agent library',
-    'Try it',
   ])
   for (const name of ['Overview', 'Performance'])
     await expect(workspaceNav(page).getByRole('button', { name })).toHaveCount(
@@ -68,7 +67,6 @@ test('the customer view hides technical details until Under the hood is on', asy
   await expect(workspaceNav(page).locator('.nav-section-label')).toHaveText([
     'Start here',
     'Agent library',
-    'Try it',
     'Operations',
   ])
   await expect(

@@ -60,7 +60,7 @@ implemented or deployed.
 
 <img alt="Tour of the Foundry Agent Lab in six steps: ask the Lab which agent to use, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template." src="docs/images/lab-tour-dark.svg">
 
-1. **Ask the Lab.** The Lab opens here. Pick a guide question, such as which
+1. **Find an agent.** The Lab opens here. Pick a guide question, such as which
    agent to use or build, and get an answer from the Lab's own lists. Nothing
    is sent or saved.
 2. **Browse agents.** The library lists every sample agent. **Start here**
@@ -79,9 +79,9 @@ implemented or deployed.
 [Create agent screenshot](docs/images/screenshots/lab-create-agent-dark.png) ·
 [All screenshots](docs/images/README.md#lab-screenshots)
 
-The sidebar groups the pages. **Start here** has **Ask the Lab**. **Agent
-library** has **All agents**, plus **Create agent** when creation is on. **Try
-it** has Chat and Shared history. **Operations** (health, response times,
+The sidebar groups the pages. **Start here** has **Chat**, **Find an agent** and
+Shared history. **Agent library** has **All agents**, plus **Create agent** when
+creation is on. **Operations** (health, response times,
 tokens, cost, and the request log) appears when you turn on **Under the hood**.
 **Document reviews** has no sidebar link, so open `/#reviews` or a saved-review
 link. See the [Lab guide](docs/lab-pages-and-access.md#pages).

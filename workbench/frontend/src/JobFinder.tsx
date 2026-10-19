@@ -55,7 +55,7 @@ export function JobFinder({
   const nothing = !!found && !found.agents.length && !found.templates.length
   return (
     <section className="job-finder" aria-labelledby="job-finder-title">
-      <h2 id="job-finder-title">Ask the Lab</h2>
+      <h2 id="job-finder-title">Find an agent</h2>
       <form
         onSubmit={(event) => {
           event.preventDefault()

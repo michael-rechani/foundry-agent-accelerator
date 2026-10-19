@@ -160,7 +160,7 @@ export async function openReviews(
     'Checklist and case helper',
   )
   const navigation = workspaceNav(page)
-  await expect(navigation.getByRole('button').first()).toHaveText('Ask the Lab')
+  await expect(navigation.getByRole('button').first()).toHaveText('Chat')
   await expect(
     navigation.getByRole('button', { name: 'Chat', exact: true }),
   ).toHaveAttribute('aria-current', 'page')

@@ -17,7 +17,9 @@ async function openGuide(
   options: Parameters<typeof openWorkspace>[1],
 ) {
   const state = await openWorkspace(page, options)
-  await workspaceNav(page).getByRole('button', { name: 'Ask the Lab' }).click()
+  await workspaceNav(page)
+    .getByRole('button', { name: 'Find an agent' })
+    .click()
   return state
 }
 
