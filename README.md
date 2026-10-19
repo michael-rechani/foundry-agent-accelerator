@@ -126,36 +126,6 @@ integration.
 
 ## How it works
 
-Terraform sets up a private foundation once. After that, you release, verify,
-and revise agents on their own schedule.
-
-### One foundation, two connected workflows
-
-<img alt="Agent release journey in six numbered steps. Private foundation, built with Terraform and Azure Verified Modules: review the plan, provision separate roots, and verify private access. A configuration handoff carries the project endpoint, model deployments, identity, and private connectivity to agent releases: package the agent, publish and verify a new hosted version, then route, review, and iterate. People approve infrastructure changes, publication costs, and business decisions." src="docs/images/agent-release-journey-dark.svg">
-
-1. **Review the plan.** Confirm permissions, quota, cost approval, and
-   protected remote state.
-2. **Provision separate roots.** Deploy the Foundry platform and the Lab, with
-   optional Bastion and monitoring.
-3. **Verify private access.** Check network paths and identities.
-4. **Package the agent.** Bundle its source and configuration manifest, with
-   named model deployment mappings.
-5. **Publish and verify.** Create a new hosted version and check the release
-   gates.
-6. **Route, review, and iterate.** Check answers against evidence. Use guarded
-   recovery if a release misbehaves.
-
-*A code push doesn't deploy Terraform changes or publish an agent, and a bundle
-carries configuration, not Azure permissions. The one exception is the Lab
-image: a Lab change merged to `main` is built and rolled out by the
-[Deploy Lab image](docs/lab-deployment.md#deploy-a-new-image-from-github-actions)
-workflow, once it's set up.*
-
-[Full size](docs/images/agent-release-journey-dark.svg) ·
-[SVG template](docs/images/agent-release-journey.template.svg) ·
-[Release journey](docs/showcase.md#one-foundation-repeatable-agent-releases) ·
-[Portable bundles](hosted-agents/README.md#portable-agent-bundles)
-
 ### What runs in Azure
 
 The core platform runs in one subscription on private networks. Services sign

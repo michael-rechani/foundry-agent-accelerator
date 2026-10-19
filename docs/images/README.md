@@ -23,7 +23,7 @@ component:
 
 | Diagram | What it shows | Where it appears | Source |
 | --- | --- | --- | --- |
-| [Agent release journey](agent-release-journey.svg) | The private foundation and agent releases as two connected workflows, their configuration handoff, and the decisions people approve. | [README](../../README.md#one-foundation-two-connected-workflows), [showcase](../showcase.md) | [Template](agent-release-journey.template.svg) |
+| [Agent release journey](agent-release-journey.svg) | The private foundation and agent releases as two connected workflows, their configuration handoff, and the decisions people approve. | [Showcase](../showcase.md) | [Template](agent-release-journey.template.svg) |
 | [Azure architecture](azure-architecture.svg) | One-page network map: the subscription and resource group, the admin and workload networks, a private endpoint for each service, seven numbered request steps, and the optional Front Door route. | [README](../../README.md#what-runs-in-azure) | [Template](azure-architecture.template.svg) |
 | [How people reach the Lab](lab-access-paths.svg) | Three ways in: the presenter's jumpbox (on by default), an internal Application Gateway path, and an optional Front Door path for customers. Shows what each needs and the sign-in gap. No addresses. | [Application ingress guide](../ingress-access.md), [architecture guide](../architecture.md#components-at-a-glance) | [Template](lab-access-paths.template.svg) |
 | [Agent collaboration](agent-collaboration.svg) | The coordinator's requests to specialists, their results, and the person who checks the answer. | [README](../../README.md#agents-working-together), [architecture guide](../architecture.md#agent-collaboration) | [Template](agent-collaboration.template.svg) |
