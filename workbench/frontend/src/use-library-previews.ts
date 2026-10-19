@@ -1,4 +1,5 @@
 import type { View } from './ChatSidebar'
+import { designerAgent } from './agent-designer'
 import { useLibraryCatalog } from './library-catalog-client'
 import { previewAgents } from './library-catalog'
 import type { Config } from './workspace-config'
@@ -22,6 +23,10 @@ export function useLibraryPreviews(config: Config | null, view: View) {
     : []
   const previewFor = (templateId: string) =>
     previewList.find((item) => item.id === `library-${templateId}`)
+  // Needs no catalog, so it can answer before the library has loaded.
+  const designer = previewCapability?.enabled
+    ? designerAgent(previewCapability.agent)
+    : undefined
   const previewsLoading =
     !!previewCapability?.enabled && !library.catalog && !library.error
   const previewNote = !previewCapability
@@ -51,6 +56,7 @@ export function useLibraryPreviews(config: Config | null, view: View) {
     previewCapability,
     previewList,
     previewFor,
+    designer,
     previewsLoading,
     previewNote,
     previewOptions,

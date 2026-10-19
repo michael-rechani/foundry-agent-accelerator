@@ -8,6 +8,7 @@ import { ConversationTurn } from './ConversationTurn'
 import type { DemoScenario } from './demo-scenarios'
 import { DemoRunGuide } from './ExploreDemos'
 import { isHelpQuestion } from './help-prompt'
+import { DESIGNER_ID } from './agent-designer'
 import { WaitingIndicator } from './WaitingIndicator'
 import type { Agent, Config } from './workspace-config'
 
@@ -70,6 +71,7 @@ export function ChatMessages({
   onDismissError: () => void
   onRetry?: () => void
 }) {
+  const plain = agent?.id === DESIGNER_ID
   return (
     <div className="conversation-scroll" aria-label="Conversation">
       {activeDemo && (
@@ -109,7 +111,10 @@ export function ChatMessages({
               agentName={agent?.agent}
               answerRef={index === turns.length - 1 ? latestAnswer : undefined}
               latest={index === turns.length - 1}
-              showReviewNote={!isHelpQuestion(turn.question, agent?.prompts)}
+              showReviewNote={
+                !plain && !isHelpQuestion(turn.question, agent?.prompts)
+              }
+              plain={plain}
               onCopy={onCopy}
               onRate={(rating) => onRate(index, rating)}
               onTryAgain={

@@ -743,6 +743,18 @@ class LibraryPreviewTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual((agent["template_id"], agent["preview"]), ("document-analyst", True))
         self.gateway.review.assert_not_called()
 
+    def test_agent_designer_chat_uses_the_preview_path(self):
+        response = self.client.post("/api/reviews", json={"agent_id": "library-agent-designer", "input": "Good morning"},
+                                    headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        agent = self.gateway.preview.call_args.args[0]
+        self.assertEqual((agent["template_id"], agent["tools"], agent["preview"]), ("agent-designer", {}, True))
+        self.gateway.review.assert_not_called()
+        disabled = TestClient(create_app(replace(self.settings, library_preview=False), self.gateway))
+        response = disabled.post("/api/reviews", json={"agent_id": "library-agent-designer", "input": "Hi"},
+                                 headers=self.headers)
+        self.assertEqual((response.status_code, response.json()["error"]), (503, "library_preview_disabled"))
+
     def test_preview_receipts_are_verified_against_the_preview_binding(self):
         output = [{"type": "function_call", "call_id": "one", "name": "lookup_demo_request"},
                   {"type": "function_call_output", "call_id": "one", "output": json.dumps(

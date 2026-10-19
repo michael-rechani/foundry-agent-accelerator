@@ -24,6 +24,7 @@ import { ExploreDemos } from './ExploreDemos'
 import { AddOns } from './AddOns'
 import { StartPage } from './StartPage'
 import { isPreviewId, previewTemplateId } from './library-catalog'
+import { isDesignerId } from './agent-designer'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
 import { useSimpleChat } from './simple-chat'
 import { hoodViews, loadUnderTheHood, saveUnderTheHood } from './under-the-hood'
@@ -56,7 +57,22 @@ export default function ChatWorkspace() {
     retry: retryConfig,
   } = useWorkspaceConfig()
   const { view, setView } = useChatView(config)
-  const conversation = useConversation(config?.default_agent)
+  const [simple] = useSimpleChat()
+  const {
+    library,
+    previewCapability,
+    previewList,
+    designer,
+    previewFor,
+    previewsLoading,
+    previewNote,
+    previewOptions,
+  } = useLibraryPreviews(config, view)
+  // The clean Chat opens a general conversation first, when the Lab can run
+  // one, and only then moves to a specific agent the person chooses.
+  const conversation = useConversation(
+    simple && designer ? designer.id : config?.default_agent,
+  )
   const { selected, draft, seed, turns, busy, dirty, activeDemo } = conversation
   const createdAgents = useCreatedAgents(config?.agent_creation)
   const availableAgents: Agent[] = [
@@ -65,15 +81,6 @@ export default function ChatWorkspace() {
       .map((record) => record.agent)
       .filter((item): item is Agent => item !== null),
   ]
-  const {
-    library,
-    previewCapability,
-    previewList,
-    previewFor,
-    previewsLoading,
-    previewNote,
-    previewOptions,
-  } = useLibraryPreviews(config, view)
   const [notice, setNotice] = useState('')
   const [query, setQuery] = useState('')
   const [measurements, setMeasurements] = useState<Measurement[]>([])
@@ -105,10 +112,13 @@ export default function ChatWorkspace() {
     setNotice,
   })
   const isPreview = isPreviewId(selected)
-  const previewTemplate = previewTemplateId(selected)
-  const agent = (isPreview ? previewList : availableAgents).find(
-    (item) => item.id === selected,
-  )
+  const designing = isDesignerId(selected)
+  const previewTemplate = designing ? undefined : previewTemplateId(selected)
+  const agent = designing
+    ? designer
+    : (isPreview ? previewList : availableAgents).find(
+        (item) => item.id === selected,
+      )
   const agentLabels = Object.fromEntries(
     availableAgents.map((item) => [item.agent, item.label]),
   )
@@ -125,10 +135,11 @@ export default function ChatWorkspace() {
   })
   const unsaved = dirty || !!draft || busy
   const libraryCount = library.catalog?.templates.length
-  const [simple] = useSimpleChat()
   // Before the first message the chat is not about one agent yet, so the
-  // agent's details and actions stay out of the way.
-  const clean = view === 'chat' && simple && !turns.length && !busy
+  // agent's details and actions stay out of the way. They also stay out of the
+  // way for the general conversation, which is not about an agent at all.
+  const clean =
+    view === 'chat' && simple && (designing || (!turns.length && !busy))
   const showAside = view === 'chat' && !!agent && !presenting && !clean
   const saveDisabled =
     isPreview ||
@@ -166,8 +177,11 @@ export default function ChatWorkspace() {
   })
 
   function agentLabel(id: string) {
-    return [...availableAgents, ...previewList].find((item) => item.id === id)
-      ?.label
+    return [
+      ...(designer ? [designer] : []),
+      ...availableAgents,
+      ...previewList,
+    ].find((item) => item.id === id)?.label
   }
 
   // Asks before clearing messages the person wrote. An example the app put in
@@ -343,6 +357,11 @@ export default function ChatWorkspace() {
           config={config}
           agent={agent}
           selected={selected}
+          generalOptions={
+            designer
+              ? [{ agent: designer, detail: 'Agent designer general chat' }]
+              : []
+          }
           readyOptions={readyOptions}
           previewOptions={previewOptions}
           previewNote={previewNote}

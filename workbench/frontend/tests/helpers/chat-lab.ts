@@ -68,6 +68,7 @@ export async function openWorkspace(
     healthRequests: 0,
     document: null as Document | null,
     requests: [] as {
+      agent_id: string
       input: string
       history: { role: string; content: string }[]
       thread: string

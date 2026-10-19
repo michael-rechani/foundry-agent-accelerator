@@ -6,8 +6,8 @@ from types import SimpleNamespace
 from agent_runtime.demo_tools import create_demo_tools
 from agent_runtime.main import DEMO_POLICY
 from agent_templates import RETIRED_TEMPLATES, TEMPLATES
-from library_preview import (MAX_TOOL_ROUNDS, PREVIEW_AGENT, preview_agent, run_preview, run_tool, summarize_usage,
-                             tool_specs, usage_record)
+from library_preview import (DESIGNER_ID, DESIGNER_INSTRUCTIONS, DESIGNER_TEMPLATE, MAX_TOOL_ROUNDS, PREVIEW_AGENT,
+                             preview_agent, run_preview, run_tool, summarize_usage, tool_specs, usage_record)
 
 
 class Response:
@@ -48,6 +48,20 @@ class LibraryPreviewTests(unittest.TestCase):
             self.assertTrue(agent["preview"])
             self.assertEqual(agent["model_profile"], template["model_profile"])
             self.assertEqual(agent["tools"], {tool["name"]: PREVIEW_AGENT for tool in template["tools"]})
+
+    def test_agent_designer_is_a_toolless_conversation(self):
+        agent = preview_agent(DESIGNER_ID, include_unfinished=False)
+        self.assertEqual((agent["template_id"], agent["tools"], agent["preview"]), (DESIGNER_TEMPLATE, {}, True))
+        self.assertNotIn(DESIGNER_TEMPLATE, TEMPLATES)
+        client = FakeClient([Response([{"type": "message"}], text="Hi! What would you like to build?")])
+        status, text, _ = asyncio.run(run_preview(client, template_id=DESIGNER_TEMPLATE, model="gpt-test",
+                                                  prompt="Good morning", reasoning=True))
+        self.assertEqual((status, text), ("completed", "Hi! What would you like to build?"))
+        options = client.calls[0]
+        self.assertEqual(options["instructions"], DESIGNER_INSTRUCTIONS)
+        self.assertNotIn("tools", options)
+        self.assertNotIn("include", options)
+        self.assertFalse(options["store"])
 
     def test_unknown_or_malformed_ids_are_rejected(self):
         for identifier in ("library-", "library-missing-template", "Library-x", f"library-{text_template()}\n",

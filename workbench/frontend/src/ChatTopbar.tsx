@@ -24,6 +24,7 @@ export function ChatTopbar({
   config,
   agent,
   selected,
+  generalOptions = [],
   readyOptions,
   previewOptions,
   previewNote,
@@ -49,6 +50,7 @@ export function ChatTopbar({
   config: Config | null
   agent?: Agent
   selected: string
+  generalOptions?: SwitcherOption[]
   readyOptions: SwitcherOption[]
   previewOptions: SwitcherOption[]
   previewNote: string
@@ -106,6 +108,7 @@ export function ChatTopbar({
                       : 'Connecting')
             }
             selected={selected}
+            general={generalOptions}
             ready={readyOptions}
             previews={previewOptions}
             previewNote={previewNote}
