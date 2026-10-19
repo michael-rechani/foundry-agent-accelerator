@@ -7,6 +7,12 @@
 [![Terraform 1.16.4](https://img.shields.io/badge/Terraform-1.16.4-844FBA?logo=terraform&logoColor=white)](terraform/README.md)
 [![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](hosted-agents/README.md)
 [![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-hosted_agents-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
+[![CodeQL](https://img.shields.io/badge/CodeQL-scanning_on-2EA44F?logo=github&logoColor=white)](https://github.com/michael-rechani/foundry-agent-accelerator/security/code-scanning)
+[![Secret scan](https://img.shields.io/badge/gitleaks-every_commit-2EA44F?logo=git&logoColor=white)](.gitleaks.toml)
+[![Dependabot](https://img.shields.io/badge/Dependabot-monthly_updates-025E8C?logo=dependabot&logoColor=white)](.github/dependabot.yml)
+[![Latest release](https://img.shields.io/github/v/release/michael-rechani/foundry-agent-accelerator?include_prereleases&sort=semver)](https://github.com/michael-rechani/foundry-agent-accelerator/releases)
+[![License: MIT](https://img.shields.io/github/license/michael-rechani/foundry-agent-accelerator)](LICENSE)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/michael-rechani/foundry-agent-accelerator)
 
 Build, deploy, and explore agents on **Microsoft Foundry**. The Lab is a demo
 and workshop app backed by reusable code. In it you can:
@@ -45,6 +51,7 @@ Pick what you want to do.
 | I want to... | Go to | You need |
 | --- | --- | --- |
 | Read the demos | [Showcase and presenter guide](docs/showcase.md) | Nothing. No Azure environment. |
+| Preview the Lab without installing anything | [Open in GitHub Codespaces](workbench/README.md#github-codespaces) | A GitHub account. Local preview makes no model calls and needs no Azure. |
 | Browse agents and test results | [Lab guide](docs/lab-pages-and-access.md#pages) | A deployed Lab. Browsing makes no model calls. Trying an agent does. |
 | Demo the prebuilt agents | [Demo guide](docs/demos.md) | A deployed Lab. Reading the walkthroughs needs nothing. |
 | Create my own agent | [Create and try a baseline agent](docs/agent-creation.md) | An operator-enabled Lab, model deployments, and cost approval. |
@@ -350,6 +357,8 @@ resources. For Docker and Terraform changes, verify a deployment too.
 <details>
 <summary>Dependency updates</summary>
 
+CodeQL scans the code weekly and on pull requests, and the **Validate**
+workflow runs gitleaks over every commit (see [`.gitleaks.toml`](.gitleaks.toml)).
 Dependabot alerts flag known vulnerabilities in pinned packages. Each month,
 [Dependabot](.github/dependabot.yml) also opens one grouped update pull request
 per ecosystem: GitHub Actions, Python, frontend, Docker, and Terraform. Merge an
@@ -368,6 +377,15 @@ conversations, use the
 This repository is public and released under the [MIT License](LICENSE). To
 suggest a change, see [Contributing](CONTRIBUTING.md). To report a
 vulnerability, see the [security policy](SECURITY.md).
+
+- **What changed:** the [changelog](CHANGELOG.md) and
+  [releases](https://github.com/michael-rechani/foundry-agent-accelerator/releases).
+- **What's next:** the
+  [Foundry Agent Lab roadmap](https://github.com/users/michael-rechani/projects/2)
+  and [open issues](https://github.com/michael-rechani/foundry-agent-accelerator/issues).
+  Look for [good first issues](https://github.com/michael-rechani/foundry-agent-accelerator/labels/good%20first%20issue).
+- **Questions and ideas:** [Discussions](https://github.com/michael-rechani/foundry-agent-accelerator/discussions).
+- **Citing this sample:** see [`CITATION.cff`](CITATION.cff).
 
 <a id="references"></a>
 
