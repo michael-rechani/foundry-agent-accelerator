@@ -296,6 +296,10 @@ To deploy from a separate private machine, use the
   customers in, see [How people reach the Lab](docs/ingress-access.md), which
   also covers the sign-in they'd need first. See the
   [production checklist](terraform/README.md#separately-scoped-production-considerations).
+- **Controls and gaps are mapped.** The
+  [agent governance and risk map](docs/governance.md) lines up the sample's
+  controls against the OWASP Top 10 for Agentic Applications and names what's
+  missing.
 
 ---
 
@@ -330,7 +334,8 @@ The most used:
   [credentials](docs/credentials.md), [permissions](docs/permissions.md),
   [troubleshooting](docs/troubleshooting.md), [security policy](SECURITY.md)
 - **Build and extend:** [architecture](docs/architecture.md),
-  [extension guide](docs/architecture-assessment.md),
+[agent governance](docs/governance.md),
+[extension guide](docs/architecture-assessment.md),
   [coordinator profiles](docs/agent-profiles.md),
   [evaluations](evaluations/README.md),
   [cost comparison](cost-comparison/README.md),
@@ -345,6 +350,10 @@ TypeScript, and Terraform code, including browser tests at desktop sizes. A docs
 check rebuilds every diagram from its template, fails if the committed SVGs
 differ, and checks that every relative link, image, and heading
 anchor in the Markdown resolves.
+
+CodeQL scans the code through the repository's default setup, and a weekly
+[Scorecard](.github/workflows/scorecard.yml) run scores its supply-chain
+practices. See [supply-chain checks](docs/governance.md#supply-chain-checks).
 
 The checks use mocked service responses. They don't call live agents or create
 Azure resources, and they don't build the image or plan against live

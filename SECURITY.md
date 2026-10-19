@@ -44,6 +44,9 @@ These documented design limits aren't vulnerabilities on their own:
 - Everyone with network access shares the same saved records.
 - Template lookup tools use simulated, read-only data.
 
+See the [agent governance and risk map](docs/governance.md) for the full list
+of controls, gaps, and limitations.
+
 Anything that lets someone reach the Lab or its data from outside the approved
 private network, or obtain credentials or elevated Azure access, is in scope.
 See [Scope and limitations](README.md#scope-and-limitations) and the

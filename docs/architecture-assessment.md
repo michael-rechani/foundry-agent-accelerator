@@ -340,6 +340,7 @@ The remaining architecture decisions can be worked out from those examples.
 ## Related content
 
 - [Architecture](architecture.md)
+- [Agent governance and risk map](governance.md)
 - [Staff workflow assistant](staff-workflow-assistant.md), a proposed example
   that isn't implemented
 - [Coordinator profiles](agent-profiles.md)

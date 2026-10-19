@@ -53,6 +53,7 @@ For developers who change agents, evaluate quality, or extend the architecture.
 | Guide | Use it to |
 | --- | --- |
 | [Architecture](architecture.md) | Understand the components, data flows, and trust boundaries. |
+| [Agent governance and risk map](governance.md) | Map the sample's controls and gaps to the OWASP Top 10 for Agentic Applications, and see the known limitations in one place. |
 | [Extension guide](architecture-assessment.md) | Add new agent examples without rebuilding the platform. |
 | [Shared plumbing design](shared-plumbing-design.md) | See where request admission, validation rules, hosted-agent start-up and per-agent metadata should live, and the order to move them. |
 | [Coordinator profiles](agent-profiles.md) | Point the coordinator at different instructions and specialists. |
