@@ -4,12 +4,6 @@
 # Foundry Agent Accelerator
 
 [![Validate](https://github.com/michael-rechani/foundry-agent-accelerator/actions/workflows/validate.yml/badge.svg)](https://github.com/michael-rechani/foundry-agent-accelerator/actions/workflows/validate.yml)
-[![Terraform 1.16.4](https://img.shields.io/badge/Terraform-1.16.4-844FBA?logo=terraform&logoColor=white)](terraform/README.md)
-[![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](hosted-agents/README.md)
-[![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-hosted_agents-0078D4?logo=microsoftazure&logoColor=white)](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
-[![CodeQL](https://img.shields.io/badge/CodeQL-scanning_on-2EA44F?logo=github&logoColor=white)](https://github.com/michael-rechani/foundry-agent-accelerator/security/code-scanning)
-[![Secret scan](https://img.shields.io/badge/gitleaks-every_commit-2EA44F?logo=git&logoColor=white)](.gitleaks.toml)
-[![Dependabot](https://img.shields.io/badge/Dependabot-monthly_updates-025E8C?logo=dependabot&logoColor=white)](.github/dependabot.yml)
 [![Latest release](https://img.shields.io/github/v/release/michael-rechani/foundry-agent-accelerator?include_prereleases&sort=semver)](https://github.com/michael-rechani/foundry-agent-accelerator/releases)
 [![License: MIT](https://img.shields.io/github/license/michael-rechani/foundry-agent-accelerator)](LICENSE)
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/michael-rechani/foundry-agent-accelerator)
