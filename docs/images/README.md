@@ -273,7 +273,7 @@ light and dark mode. To capture another look, change the `data-look` value in
 
 | Screenshot | Shows | Test output | Used in |
 | --- | --- | --- | --- |
-| [lab-start.png](screenshots/lab-start.png) / [dark](screenshots/lab-start-dark.png) | The first page, **Ask the Lab**: the welcome, the "What are you trying to do?" finder with a match, and the **Try an agent** and **Build your own** next steps | `start-page.png` / `start-page-dark.png` | [README tour](#readme-tour), [Lab guide](../lab-pages-and-access.md#pages) |
+| [lab-start.png](screenshots/lab-start.png) / [dark](screenshots/lab-start-dark.png) | The first page, **Find an agent**: the welcome, the "What are you trying to do?" finder with a match, and the **Try an agent** and **Build your own** next steps | `start-page.png` / `start-page-dark.png` | [README tour](#readme-tour), [Lab guide](../lab-pages-and-access.md#pages) |
 | [lab-library.png](screenshots/lab-library.png) / [dark](screenshots/lab-library-dark.png) | The **Agent library** on **Browse**: the **Start here** examples, the filters, and the first agent cards | `library-browse.png` / `library-browse-dark.png` | [README tour](#readme-tour) |
 | [lab-test-results.png](screenshots/lab-test-results.png) / [dark](screenshots/lab-test-results-dark.png) | The **Test results** tab of the Supplier invoice reviewer: answers passed, typical response, model cost per answer, and **Waiting for a person** | `library-test-results.png` / `library-test-results-dark.png` | README tour |
 | [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide and example tasks | `demo-starters.png` | README tour, [demo guide](../demos.md#a-short-demonstration) |
@@ -325,7 +325,7 @@ and loops:
 
 | Step | Light frame | Dark frame |
 | --- | --- | --- |
-| 1 · Ask the Lab | `lab-start.png` | `lab-start-dark.png` |
+| 1 · Find an agent | `lab-start.png` | `lab-start-dark.png` |
 | 2 · Browse agents | `lab-library.png` | `lab-library-dark.png` |
 | 3 · Test results | `lab-test-results.png` | `lab-test-results-dark.png` |
 | 4 · Chat with it | `lab-chat-start.png` | `lab-chat-start-dark.png` |
@@ -358,7 +358,7 @@ which blurs UI text.
 
 For readers who turn on reduced motion in their operating system, the SVGs'
 `prefers-reduced-motion: reduce` rules stop every animation and show only the
-first frame, **Ask the Lab** (or the application story in the scenario tour),
+first frame, **Find an agent** (or the application story in the scenario tour),
 with its step label. The README alt text describes the full sequence.
 
 ## Visual review checklist

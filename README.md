@@ -12,7 +12,8 @@ Build, deploy, and explore agents on **Microsoft Foundry**. The Lab is a demo
 and workshop app backed by reusable code. In it you can:
 
 - browse a library of sample agents and read how each did on its test cases,
-- try an agent with sample data and compare its answer with the source,
+- talk through an agent idea in a plain chat, or try a ready agent with sample
+  data and compare its answer with the source,
 - take an agent to your own Foundry, or publish a new one from a template,
 - watch prebuilt agents work as a team.
 
@@ -58,17 +59,22 @@ implemented or deployed.
 
 ## Take a tour
 
-<img alt="Tour of the Foundry Agent Lab in six steps: ask the Lab which agent to use, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template." src="docs/images/lab-tour-dark.svg">
+<img alt="Tour of the Foundry Agent Lab in six steps: find an agent by describing a job, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template." src="docs/images/lab-tour-dark.svg">
 
 1. **Find an agent.** The Lab opens here. Pick a guide question, such as which
    agent to use or build, and get an answer from the Lab's own lists. Nothing
    is sent or saved.
-2. **Browse agents.** The library lists every sample agent. **Start here**
-   offers three ready-made examples.
+2. **Browse agents.** The library lists the featured sample agents: the ones
+   the Lab is building out in depth, plus any a person has signed off. An
+   operator can turn on the rest. **Start here** offers three ready-made
+   examples.
 3. **Test results.** See how many answers passed, how long they took, what they
    cost, and whether a person has signed the agent off.
-4. **Chat.** Talk with an agent. An example only fills the message box. You
-   choose when to send it.
+4. **Chat.** Opens clean, as a plain conversation with the **Agent designer**
+   for talking through an agent you want to build. It has no tools and can't
+   create anything. Pick **Try a pre-built agent** to chat with a ready agent
+   or a library preview instead, where an example only fills the message box.
+   You choose when to send it. **Simple view** hides the guide and examples.
 5. **Take it to Foundry.** Download the agent definition and test requests, then
    follow the steps to create it in your own Foundry. There's no one-click move.
 6. **Create agent.** Prepare an agent from a library template. It stays off
@@ -136,8 +142,11 @@ and revise agents on their own schedule.
 6. **Route, review, and iterate.** Check answers against evidence. Use guarded
    recovery if a release misbehaves.
 
-*A code push doesn't deploy either workflow, and a bundle carries
-configuration, not Azure permissions.*
+*A code push doesn't deploy Terraform changes or publish an agent, and a bundle
+carries configuration, not Azure permissions. The one exception is the Lab
+image: a Lab change merged to `main` is built and rolled out by the
+[Deploy Lab image](docs/lab-deployment.md#deploy-a-new-image-from-github-actions)
+workflow, once it's set up.*
 
 [Full size](docs/images/agent-release-journey-dark.svg) ·
 [SVG template](docs/images/agent-release-journey.template.svg) ·
@@ -246,7 +255,9 @@ share one [style guide](docs/images/README.md#diagram-style).
 2. **Prebuilt agents:** publish and test them from
    [`hosted-agents/`](hosted-agents/README.md).
 3. **The Lab:** [`workbench/`](docs/lab-deployment.md#deployment), which has
-   its own Terraform state.
+   its own Terraform state. After the first deploy, a Lab change merged to
+   `main` can roll out the new image automatically through the
+   [deploy workflow](docs/lab-deployment.md#deploy-a-new-image-from-github-actions).
 4. **Optional:** [Bastion](terraform/bastion/README.md),
    [agent monitoring](terraform/monitoring/README.md),
    a [CI runner](terraform/runner/README.md), or
