@@ -15,7 +15,7 @@ $steps = if ($Tour -eq 'scenarios') { @(
     [ordered]@{ Label = 'Check an invoice'; Width = 155; Light = 'lab-demo-invoice.png'; Dark = 'lab-demo-invoice-dark.png' }
     [ordered]@{ Label = 'Prepare a case brief'; Width = 185; Light = 'lab-demo-casework.png'; Dark = 'lab-demo-casework-dark.png' }
 ) } else { @(
-    [ordered]@{ Label = 'Ask the Lab'; Width = 112; Light = 'lab-start.png'; Dark = 'lab-start-dark.png' }
+    [ordered]@{ Label = 'Find an agent'; Width = 126; Light = 'lab-start.png'; Dark = 'lab-start-dark.png' }
     [ordered]@{ Label = 'Browse agents'; Width = 136; Light = 'lab-library.png'; Dark = 'lab-library-dark.png' }
     [ordered]@{ Label = 'Test results'; Width = 106; Light = 'lab-test-results.png'; Dark = 'lab-test-results-dark.png' }
     [ordered]@{ Label = 'Chat with it'; Width = 106; Light = 'lab-chat-start.png'; Dark = 'lab-chat-start-dark.png' }
@@ -42,7 +42,7 @@ $title = if ($Tour -eq 'scenarios') {
 $description = if ($Tour -eq 'scenarios') {
     'Three example customer walkthroughs: missing application evidence, supplier invoice discrepancies, and a casework brief.'
 } else {
-    'Six screenshots: the Ask the Lab first page, browsing the agent library, one agent''s recorded test results, the Chat page, the Take it to Foundry steps, and the Create agent page.'
+    'Six screenshots: the Find an agent first page, browsing the agent library, one agent''s recorded test results, the Chat page, the Take it to Foundry steps, and the Create agent page.'
 }
 
 # Each frame holds for $frameSeconds, including a $fadeSeconds crossfade into

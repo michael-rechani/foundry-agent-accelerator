@@ -51,9 +51,9 @@ setup there rather than copying it into a spec.
 `src/ChatWorkspace.tsx` owns conversation and view state for the library's
 **Browse**, **Ready to chat**, **Made in this Lab**, **Guided demos**, and **Add-ons** tabs,
 **Create agent**, **Chat**, **Document reviews**, **Performance**, **Request
-log**, and **Shared history**. `ChatSidebar.tsx` groups them into four
-sections: **Agent library**, **Try it**, **Measure**, and **Activity**. `AddOns.tsx` renders the preview-only **Add-ons** tab from `add-on-catalog.json`, which `python addons/build_catalog.py --write` generates from the manifests in `addons/`. It makes no API calls. An entry with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**.
-**Measure** and **Activity** appear only with **Under the hood** on
+log**, and **Shared history**. `ChatSidebar.tsx` groups them into three
+sections: **Start here**, **Agent library**, and **Operations**. `AddOns.tsx` renders the preview-only **Add-ons** tab from `add-on-catalog.json`, which `python addons/build_catalog.py --write` generates from the manifests in `addons/`. It makes no API calls. An entry with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**.
+**Operations** appears only with **Under the hood** on
 (`under-the-hood.ts`); elements marked `hood-only` are hidden otherwise.
 `ChatTopbar.tsx` shows the breadcrumb from `navigation.ts`. The
 library is one sidebar entry, **All
@@ -75,25 +75,26 @@ chooses between `LibraryBrowse.tsx` and `LibraryDetail.tsx`. `ExploreDemos.tsx`
 also owns its local story selection and clipboard feedback. It never invokes an
 agent or writes records.
 
-| File                                                          | Role                                                                                                                                                                           |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ChatSidebar.tsx`, `ChatTopbar.tsx`                           | Render the view navigation and the Chat header, agent picker, and save/export actions.                                                                                         |
-| `ChatWelcome.tsx`, `ChatComposer.tsx`                         | Render the new-chat start choices (ask anything, what can I create, switch agent), the example prompts, and the message composer with its conversation limits.                 |
-| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx`  | Render the **Shared history**, **Ready to chat**, and **Performance** views.                                                                                                   |
-| `AgentLibrary.tsx`, `library-catalog.ts`, `library.css`       | Render **Browse**. `library-catalog.ts` strictly validates `/api/agent-templates` (`schema_version` 1) and filters with live facet counts.                                     |
-| `ScorecardPanel.tsx`, `scorecards.ts`, `scorecards-client.ts` | Render an agent's **Test results** tab. `scorecards.ts` strictly validates `/api/agent-scorecards` (`schema_version` 1) and formats times and costs in plain language.         |
-| `foundry-handoff.ts`                                          | Builds the **Take it to Foundry** downloads: a prompt-agent definition and a Foundry evaluation JSONL file, from data the Lab already serves.                                  |
-| `RequestLog.tsx`, `performance-stats.ts`                      | Render the **Request log** and compute the 90th-percentile response time for **Performance**.                                                                                  |
-| `TokenCost.tsx`, `token-usage.ts`                             | Render **Token usage and cost** in Performance. Parse reported token counts, total them without treating missing counts as zero, and estimate cost from rates the user enters. |
-| `history-client.ts`                                           | Handles bounded history requests.                                                                                                                                              |
-| `request.ts`                                                  | Handles transport-independent cancellation.                                                                                                                                    |
-| `workspace-config.ts`                                         | Validates public configuration and handles bootstrap timeouts and retry.                                                                                                       |
-| `ContinueDialog.tsx`                                          | Previews carry-over context before resetting the conversation. It returns focus on close and never invokes an agent.                                                           |
-| `ConfirmDialog.tsx`                                           | Asks before switching agents, starting a new chat or opening an example would discard unsent work. It names the target, returns focus on cancel, and never invokes an agent.   |
-| `use-modal-dialog.ts`                                         | Shows a dialog as a modal and hands focus back to what opened it, or to a fallback when that has gone.                                                                         |
-| `AgentGuide.tsx`                                              | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Ready to chat** cards.                                           |
-| `theme.ts`, `ThemePicker.tsx`                                 | Load, validate, save, and apply the **Appearance** choice (theme, accent, and look), and render its header menu.                                                               |
-| `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`       | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement.                                  |
+| File                                                          | Role                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ChatSidebar.tsx`, `ChatTopbar.tsx`                           | Render the view navigation and the Chat header, agent picker, and save/export actions.                                                                                                                                                                  |
+| `ChatWelcome.tsx`, `ChatComposer.tsx`                         | Render the new-chat welcome (the clean **Simple view** by default, or the full start choices and example prompts), and the message composer with its conversation limits.                                                                               |
+| `simple-chat.ts`, `agent-designer.ts`                         | `simple-chat.ts` saves the **Simple view** choice in this browser. `agent-designer.ts` describes the tool-free **Agent designer** chat that the clean Chat opens when library previews are on. The server owns its instructions (`library_preview.py`). |
+| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx`  | Render the **Shared history**, **Ready to chat**, and **Performance** views.                                                                                                                                                                            |
+| `AgentLibrary.tsx`, `library-catalog.ts`, `library.css`       | Render **Browse**. `library-catalog.ts` strictly validates `/api/agent-templates` (`schema_version` 1) and filters with live facet counts.                                                                                                              |
+| `ScorecardPanel.tsx`, `scorecards.ts`, `scorecards-client.ts` | Render an agent's **Test results** tab. `scorecards.ts` strictly validates `/api/agent-scorecards` (`schema_version` 1) and formats times and costs in plain language.                                                                                  |
+| `foundry-handoff.ts`                                          | Builds the **Take it to Foundry** downloads: a prompt-agent definition and a Foundry evaluation JSONL file, from data the Lab already serves.                                                                                                           |
+| `RequestLog.tsx`, `performance-stats.ts`                      | Render the **Request log** and compute the 90th-percentile response time for **Performance**.                                                                                                                                                           |
+| `TokenCost.tsx`, `token-usage.ts`                             | Render **Token usage and cost** in Performance. Parse reported token counts, total them without treating missing counts as zero, and estimate cost from rates the user enters.                                                                          |
+| `history-client.ts`                                           | Handles bounded history requests.                                                                                                                                                                                                                       |
+| `request.ts`                                                  | Handles transport-independent cancellation.                                                                                                                                                                                                             |
+| `workspace-config.ts`                                         | Validates public configuration and handles bootstrap timeouts and retry.                                                                                                                                                                                |
+| `ContinueDialog.tsx`                                          | Previews carry-over context before resetting the conversation. It returns focus on close and never invokes an agent.                                                                                                                                    |
+| `ConfirmDialog.tsx`                                           | Asks before switching agents, starting a new chat or opening an example would discard unsent work. It names the target, returns focus on cancel, and never invokes an agent.                                                                            |
+| `use-modal-dialog.ts`                                         | Shows a dialog as a modal and hands focus back to what opened it, or to a fallback when that has gone.                                                                                                                                                  |
+| `AgentGuide.tsx`                                              | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Ready to chat** cards.                                                                                                                    |
+| `theme.ts`, `ThemePicker.tsx`                                 | Load, validate, save, and apply the **Appearance** choice (theme, accent, and look), and render its header menu.                                                                                                                                        |
+| `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`       | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement.                                                                                                           |
 
 Keep purpose, input, output, how-it-works, and limits in the registry, not
 hard-coded by agent ID in React. **Developer setup details** distinguishes the
@@ -150,8 +151,8 @@ Publication uses an idempotency UUID retained across uncertain retries. GET
 polling never submits another creation. Setup, publication, ready routing, and
 live answer quality remain distinct.
 
-The opening view is **All agents** > **Browse**. These entry links are
-supported: `/#chat`, `/#library`, `/#agents`, `/#demos`, `/#reviews`,
+The Lab opens on **Start here** > **Find an agent** (`/#start`). These other entry links are
+supported: `/#chat`, `/#library`, `/#agents`, `/#demos`, `/#reviews`, `/#addons`, `/#operations`,
 `/#performance`, `/#logs`, and `/#create`. A library **Create** action opens the
 creator with that template preselected unless setup work is already in
 progress. Creation still requires its advertised capability. Valid saved-review
