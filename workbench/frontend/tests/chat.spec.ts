@@ -168,7 +168,9 @@ test('default helper explains its job and offers example tasks without auto-send
     'Help me get started',
   ])
   await expect(page.locator('#chat-privacy')).toBeInViewport({ ratio: 1 })
-  await expect(page.getByRole('region', { name: 'Ask the Lab' })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Find an agent' })).toHaveCount(
+    0,
+  )
   await docsScreenshot(page, testInfo, 'demo-starters.png')
   await page.emulateMedia({ colorScheme: 'dark' })
   await docsScreenshot(page, testInfo, 'demo-starters-dark.png')

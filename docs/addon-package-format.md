@@ -235,7 +235,7 @@ test does for the agent library.
 Each card's `group` decides which heading it sits under and its badge:
 `abilities` (**Lets an agent do more**) for something the agent can do, and
 `support` (**Supports the agent**) for something it runs on, such as memory,
-storage or a cache. The **Common questions** answers on **Ask the Lab** read the same file, so a new
+storage or a cache. The **Common questions** answers on **Find an agent** read the same file, so a new
 add-on appears there with no other change.
 
 Each card's job decides which heading the Add-ons tab lists it under:

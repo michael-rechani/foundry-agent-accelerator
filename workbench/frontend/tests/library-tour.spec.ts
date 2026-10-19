@@ -46,7 +46,7 @@ for (const mode of ['light', 'dark'] as const)
 
 // The README and docs pictures: the plain view a first-time visitor sees.
 for (const mode of ['light', 'dark'] as const)
-  test(`the first page shows Ask the Lab before any agent in ${mode} mode`, async ({
+  test(`the first page shows Find an agent before any agent in ${mode} mode`, async ({
     page,
   }, testInfo) => {
     await seedAppearance(page, { mode, accent: 'foundry' })
@@ -55,7 +55,7 @@ for (const mode of ['light', 'dark'] as const)
     await expect(
       page.getByRole('heading', { level: 1, name: 'Welcome to the Lab' }),
     ).toBeVisible()
-    const ask = page.getByRole('region', { name: 'Ask the Lab' })
+    const ask = page.getByRole('region', { name: 'Find an agent' })
     await ask
       .getByRole('textbox', { name: 'What are you trying to do?' })
       .fill('check a document against a checklist')

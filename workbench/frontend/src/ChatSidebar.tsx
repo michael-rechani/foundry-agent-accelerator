@@ -28,7 +28,7 @@ export type View =
   | 'create'
   | 'created'
 
-export type Section = 'start' | 'test' | 'library' | 'operations'
+export type Section = 'start' | 'library' | 'operations'
 
 type Item = {
   view: View
@@ -42,9 +42,9 @@ type Item = {
 
 const sectionOf: Record<View, Section> = {
   start: 'start',
-  chat: 'test',
-  reviews: 'test',
-  history: 'test',
+  chat: 'start',
+  reviews: 'start',
+  history: 'start',
   explore: 'library',
   addons: 'library',
   library: 'library',
@@ -99,30 +99,8 @@ export function ChatSidebar({
       id: 'start',
       label: 'Start here',
       items: [
-        { view: 'start', label: 'Ask the Lab', icon: MessageCircleQuestion },
-      ],
-    },
-    {
-      id: 'library',
-      label: 'Agent library',
-      items: [
-        {
-          view: 'library',
-          label: 'All agents',
-          icon: BookOpen,
-          count: libraryCount,
-          current: libraryViews.includes(view),
-        },
-        ...(creationEnabled
-          ? [{ view: 'create' as const, label: 'Create agent', icon: Plus }]
-          : []),
-      ],
-    },
-    {
-      id: 'test',
-      label: 'Try it',
-      items: [
         { view: 'chat', label: 'Chat', icon: MessageSquare },
+        { view: 'start', label: 'Find an agent', icon: MessageCircleQuestion },
         // Reviews are reached only from /#reviews or a saved-review link.
         ...(view === 'reviews'
           ? [
@@ -141,6 +119,22 @@ export function ChatSidebar({
           enabled: historyEnabled && !historyBusy,
           onSelect: onHistory,
         },
+      ],
+    },
+    {
+      id: 'library',
+      label: 'Agent library',
+      items: [
+        {
+          view: 'library',
+          label: 'All agents',
+          icon: BookOpen,
+          count: libraryCount,
+          current: libraryViews.includes(view),
+        },
+        ...(creationEnabled
+          ? [{ view: 'create' as const, label: 'Create agent', icon: Plus }]
+          : []),
       ],
     },
     {

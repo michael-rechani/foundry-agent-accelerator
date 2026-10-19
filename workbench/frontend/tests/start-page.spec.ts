@@ -4,12 +4,12 @@ import { workspaceNav } from './helpers/navigation'
 
 const askWhich = 'Which agent should I use or build?'
 
-test('the Lab opens on Ask the Lab before any agent', async ({ page }) => {
+test('the Lab opens on Find an agent before any agent', async ({ page }) => {
   const state = await openLibrary(page, { hash: '' })
   await expect(
     page.getByRole('heading', { level: 1, name: 'Welcome to the Lab' }),
   ).toBeVisible()
-  const ask = page.getByRole('region', { name: 'Ask the Lab' })
+  const ask = page.getByRole('region', { name: 'Find an agent' })
   await expect(ask).toBeVisible()
   await expect(
     ask.getByRole('textbox', { name: 'What are you trying to do?' }),
@@ -21,11 +21,11 @@ test('the Lab opens on Ask the Lab before any agent', async ({ page }) => {
   ).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Message' })).toHaveCount(0)
   await expect(
-    workspaceNav(page).getByRole('button', { name: 'Ask the Lab' }),
+    workspaceNav(page).getByRole('button', { name: 'Find an agent' }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(
     page.getByRole('navigation', { name: 'Breadcrumb' }),
-  ).toContainText(/Start here\s*Ask the Lab/)
+  ).toContainText(/Start here\s*Find an agent/)
   expect(state.chat).toHaveLength(0)
 })
 
@@ -56,7 +56,7 @@ test('describing a job finds a ready agent and sends nothing', async ({
   page,
 }) => {
   const state = await openLibrary(page, { hash: '' })
-  const ask = page.getByRole('region', { name: 'Ask the Lab' })
+  const ask = page.getByRole('region', { name: 'Find an agent' })
   await expect(ask).toContainText('does not use an AI model')
   await ask
     .getByRole('textbox', { name: 'What are you trying to do?' })
@@ -75,7 +75,7 @@ test('a job nothing matches says so and offers a way forward', async ({
   page,
 }) => {
   const state = await openLibrary(page, { hash: '' })
-  const ask = page.getByRole('region', { name: 'Ask the Lab' })
+  const ask = page.getByRole('region', { name: 'Find an agent' })
   await ask
     .getByRole('textbox', { name: 'What are you trying to do?' })
     .fill('zzzz qqqq')

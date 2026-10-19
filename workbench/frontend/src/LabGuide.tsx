@@ -137,7 +137,7 @@ export function LabGuide({
   onChooseAgent,
   onAddOns,
   onCreateAgent,
-  title = 'Ask the Lab',
+  title = 'Common questions',
   initialTopic = null,
 }: {
   agents: Agent[]

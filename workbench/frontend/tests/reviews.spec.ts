@@ -178,7 +178,7 @@ test('invalid review links fall back to the start page without opening a review'
   await page.goto('/#review-not-a-valid-id')
   await page.reload()
   await expect(
-    workspaceNav(page).getByRole('button', { name: 'Ask the Lab' }),
+    workspaceNav(page).getByRole('button', { name: 'Find an agent' }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(
     page.getByRole('heading', { level: 1, name: 'Welcome to the Lab' }),
