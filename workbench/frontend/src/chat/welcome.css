@@ -227,10 +227,10 @@
   content: '';
   position: absolute;
   z-index: -1;
-  inset: -12% -40% 10%;
+  inset: -12% 0 10%;
   pointer-events: none;
   background: radial-gradient(
-    ellipse 55% 50% at 50% 42%,
+    ellipse 70% 50% at 50% 42%,
     color-mix(in srgb, var(--accent) 11%, transparent),
     transparent 70%
   );
