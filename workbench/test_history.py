@@ -61,6 +61,30 @@ class HistoryTests(CapturedLabLogs, unittest.TestCase):
             self.assertEqual(response.status_code, 400, bad)
         self.store.create.assert_not_called()
 
+    def test_saved_replies_may_include_a_bounded_rating(self):
+        turn = self.body["turns"][0]
+        self.assertEqual(self.client.post("/api/conversations", json=self.body, headers=self.headers).status_code, 200)
+        self.assertNotIn("rating", self.store.create.call_args.args[0]["turns"][0])
+        for rating in ({"value": "up"}, {"value": "down", "reason": "Wrong total"}, {"value": "down", "reason": "x" * 200}):
+            with self.subTest(rating=rating):
+                turn["rating"] = rating
+                response = self.client.post("/api/conversations", json=self.body, headers=self.headers)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(self.store.create.call_args.args[0]["turns"][0]["rating"], rating)
+        self.store.create.reset_mock()
+        for bad in ({"value": "meh"}, {"value": "up", "reason": "x" * 201}, {"value": "up", "reason": ""},
+                    {"value": "up", "reason": 5}, {"value": "up", "extra": 1}, {"reason": "no value"}, "up", None):
+            with self.subTest(bad=bad):
+                turn["rating"] = bad
+                response = self.client.post("/api/conversations", json=self.body, headers=self.headers)
+                self.assertEqual(response.status_code, 200 if bad is None else 400)
+        self.assertEqual(self.store.create.call_count, 1)
+
+    def test_reopened_conversations_return_their_ratings(self):
+        self.document["turns"][0]["rating"] = {"value": "down", "reason": "Wrong total"}
+        response = self.client.get(f"/api/conversations/{self.identifier}", headers=self.headers)
+        self.assertEqual(response.json()["turns"][0]["rating"], {"value": "down", "reason": "Wrong total"})
+
     def test_stored_receipts_cannot_claim_live_verification(self):
         receipt = {"tool": "invented", "call_id": "one", "verified": True,
                    "agent": "unconfigured-agent", "output": "Synthetic receipt"}

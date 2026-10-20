@@ -92,6 +92,7 @@ export function ChatConversation({
     activeDemo,
     setDraft,
     setTurns,
+    setDirty,
     setPending,
     setError,
     setActiveDemo,
@@ -152,9 +153,10 @@ export function ChatConversation({
             editor.current?.focus()
           }}
           onCopy={onCopy}
-          onRate={(index, rating) =>
+          onRate={(index, rating) => {
             setTurns((previous) => withRating(previous, index, rating))
-          }
+            setDirty(true)
+          }}
           onTryAgain={agent && !isPreview ? onTryAgain : undefined}
           onRetry={
             agent &&

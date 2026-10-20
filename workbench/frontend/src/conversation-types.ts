@@ -18,8 +18,8 @@ export type Result = {
   usage?: Usage | null
 }
 
-// A tester's verdict on one answer. It lives only in this browser tab and the
-// exported file; saving to shared history leaves it out.
+// A tester's verdict on one answer. It is saved to shared history with the
+// conversation, and is included in the exported file.
 export type Rating = { value: 'up' | 'down'; reason?: string }
 
 export type Turn = {
