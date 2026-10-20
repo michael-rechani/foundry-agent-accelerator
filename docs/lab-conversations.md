@@ -78,7 +78,9 @@ followed by **Wrote the answer**. Each step is **Confirmed**, **Not confirmed**,
 or **Saved earlier** (reopened from shared history and not checked again). A
 step asks another agent only when the receipt targets a different agent. A
 created agent's lookups against its own runtime name read as lookups. Answers
-without receipts say no lookups or other agents were recorded. With **Under the
+without receipts say no lookups or other agents were recorded. When an answer
+asked other agents, its heading also shows a short **Asked ...** line naming
+them (up to two, then **+N more**); the full list is in **Details**. With **Under the
 hood** on, each step also shows its tool and target, and the last step shows
 the time and reported token usage. A confirmed step only shows that the expected
 target was called. It doesn't prove the findings are correct. Check
@@ -120,7 +122,7 @@ The deployment and approval follow-up is tracked in #244.
 | Item | Saved? | How long | Notes |
 | --- | --- | --- | --- |
 | Unsaved draft | No. | Browser memory only. | Browser navigation warns about unsaved work where supported. It can't prevent data loss from a browser crash or forced close. |
-| Saved conversation | Yes, after the user selects the Save icon. | Expires 30 days after its last update. | Nothing saves automatically. |
+| Saved conversation | Yes, after the user selects the Save icon. | Expires 30 days after its last update. | Nothing saves automatically. Answer ratings (**Helpful** or **Not helpful** and an optional reason of up to 200 characters) are saved with it; earlier answers kept by **Try again** are not. |
 | Export | Download only. | User-controlled. | Export includes completed exchanges and the current draft. |
 | Saved/read receipt flags | Yes, with verification flags cleared. | Same as the conversation. | Reopened receipts display `Stored / not reverified`, and their **How I got this** steps display **Saved earlier**. Live response receipts are checked separately against correlated tool calls and expected targets. |
 

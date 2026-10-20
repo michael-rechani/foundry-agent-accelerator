@@ -13,6 +13,9 @@ test('How I got this lists the recorded steps in plain words', async ({
   await expect(panel.locator(':scope > summary')).toHaveText(
     /Details\s*Asked another agent/,
   )
+  await expect(page.locator('.assistant-heading .asked-chip')).toHaveText(
+    'Asked Application review agent',
+  )
   // One closed disclosure holds the steps and execution details.
   await expect(page.locator('.answer-steps')).toBeHidden()
   await expect(page.locator('.receipt-details')).toBeHidden()

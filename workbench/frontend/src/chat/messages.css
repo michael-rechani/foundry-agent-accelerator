@@ -62,6 +62,9 @@
   font: 9px var(--mono);
   color: var(--muted);
 }
+.assistant-heading .asked-chip::after {
+  content: ' \00b7 ';
+}
 .message-markdown {
   font-size: 13px;
   line-height: 1.9;

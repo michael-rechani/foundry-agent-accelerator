@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { plainStep, receiptState, stepsSummary } from '../src/answer-steps.ts'
+import {
+  askedLine,
+  plainStep,
+  receiptState,
+  stepsSummary,
+} from '../src/answer-steps.ts'
 import type { Receipt, Turn } from '../src/conversation-types.ts'
 
 const receipt = (tool: string, agent: string | null, verified = true) =>
@@ -76,6 +81,25 @@ describe('answer steps', () => {
         ]),
       ),
       'Asked another agent and used 1 lookup',
+    )
+  })
+
+  it('lists the other agents asked in one short line', () => {
+    assert.equal(askedLine(turn([])), '')
+    assert.equal(
+      askedLine(turn([receipt('lookup_purchase_order', null)])),
+      '',
+    )
+    const intake = receipt('inspect_intake', 'intake-agent-1a2b')
+    const reviewer = receipt('inspect_review', 'review-agent')
+    const third = receipt('inspect_third', 'third-agent')
+    assert.equal(
+      askedLine(turn([intake, reviewer]), { 'intake-agent-1a2b': 'Intake' }),
+      'Asked Intake, Review agent',
+    )
+    assert.equal(
+      askedLine(turn([intake, intake, reviewer, third])),
+      'Asked Intake agent, Review agent +1 more',
     )
   })
 

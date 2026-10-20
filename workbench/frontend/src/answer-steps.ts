@@ -52,6 +52,32 @@ export function plainStep(
   return `Used ${[verb, ...rest].join(' ')}`
 }
 
+// A short "Asked Intake, Reviewer" line for the answer heading, or '' when the
+// answer used no other agents. Long lists end in "+N more".
+export function askedLine(
+  turn: Turn,
+  agentLabels: Record<string, string> = {},
+  limit = 2,
+) {
+  const names = [
+    ...new Set(
+      turn.result.receipts
+        .filter((receipt) => isHandoff(turn, receipt))
+        .map((receipt) => {
+          const agent = receipt.agent as string
+          const text = words(agent).join(' ')
+          return (
+            agentLabels[agent] ||
+            `${text.charAt(0).toUpperCase()}${text.slice(1)}`
+          )
+        }),
+    ),
+  ]
+  if (!names.length) return ''
+  const more = names.length - limit
+  return `Asked ${names.slice(0, limit).join(', ')}${more > 0 ? ` +${more} more` : ''}`
+}
+
 export function stepsSummary(turn: Turn) {
   const handoffs = turn.result.receipts.filter((receipt) =>
     isHandoff(turn, receipt),

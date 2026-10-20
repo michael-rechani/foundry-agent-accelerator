@@ -45,9 +45,15 @@ class Result(StrictModel):
     usage: Usage | None = None
 
 
+class Rating(StrictModel):
+    value: Literal["up", "down"]
+    reason: str | None = Field(default=None, min_length=1, max_length=200)
+
+
 class Turn(StrictModel):
     question: str = Field(min_length=1, max_length=60000)
     result: Result
+    rating: Rating | None = None
 
 
 class Conversation(StrictModel):
@@ -212,6 +218,10 @@ class ConversationHistory:
                     "title": conversation.turns[0].question.strip()[:80],
                     "updated_at": datetime.now(timezone.utc).isoformat(), "ttl": 2592000}
         document["turns"] = unverified_turns(document["turns"])
+        for turn in document["turns"]:
+            rating = turn.pop("rating")
+            if rating is not None:
+                turn["rating"] = {key: value for key, value in rating.items() if value is not None}
         saved = await self.store.replace(document, existing["_etag"]) if existing else await self.store.create(document)
         return {"id": saved["id"], "_etag": saved["_etag"], "updated_at": saved["updated_at"]}
 

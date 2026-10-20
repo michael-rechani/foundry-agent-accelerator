@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { openWorkspace, send } from './helpers/chat-lab'
 
-test('a tester can rate an answer, change it, clear it and export it', async ({
+test('a tester can rate an answer, change it, clear it, export it and save it', async ({
   page,
 }) => {
   const state = await openWorkspace(page, { answers: ['First', 'Second'] })
@@ -51,11 +51,46 @@ test('a tester can rate an answer, change it, clear it and export it', async ({
     first.getByRole('textbox', { name: 'Reason (optional)' }),
   ).toHaveCount(0)
 
-  // Ratings are never part of what is saved to shared history.
+  // Ratings are saved with the conversation and come back when it is reopened.
   await first.getByRole('button', { name: 'Not helpful' }).click()
+  await first
+    .getByRole('textbox', { name: 'Reason (optional)' })
+    .fill('Missed the budget')
   await page.getByRole('button', { name: 'Save to shared history' }).click()
   await expect.poll(() => state.saves.length).toBe(1)
-  expect(JSON.stringify(state.saves[0])).not.toContain('rating')
+  expect(state.saves[0].turns.map((turn) => turn.rating)).toEqual([
+    { value: 'down', reason: 'Missed the budget' },
+    undefined,
+  ])
+  await expect(
+    page.getByText('Saved / shared', { exact: true }).filter({ visible: true }),
+  ).toBeVisible()
+
+  // Changing a rating after saving marks the chat as changed.
+  await second.getByRole('button', { name: 'Helpful', exact: true }).click()
+  await expect(
+    page
+      .getByText('Unsaved changes', { exact: true })
+      .filter({ visible: true }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Save to shared history' }).click()
+  await expect.poll(() => state.saves.length).toBe(2)
+  expect(state.saves[1].turns[1].rating).toEqual({ value: 'up' })
+
+  await page.getByRole('button', { name: 'New chat', exact: true }).click()
+  await page.getByRole('button', { name: /^Shared history/ }).click()
+  await page.locator('.saved-open').click()
+  const reopened = page.locator('.turn')
+  await expect(
+    reopened.nth(0).getByRole('button', { name: 'Not helpful' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await expect(
+    reopened.nth(0).getByRole('textbox', { name: 'Reason (optional)' }),
+  ).toHaveValue('Missed the budget')
+  await expect(
+    reopened.nth(1).getByRole('button', { name: 'Helpful', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  await expect(aside).toContainText('1 helpful, 1 not helpful')
 })
 
 test('a new chat starts without ratings', async ({ page }) => {

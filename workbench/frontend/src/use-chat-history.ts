@@ -69,13 +69,17 @@ export function useChatHistory({
         },
         body: JSON.stringify({
           agent_id: selected,
-          turns: turns.map(({ question, result }) => ({ question, result })),
+          turns: turns.map(({ question, result, rating }) => ({
+            question,
+            result,
+            ...(rating ? { rating } : {}),
+          })),
         }),
       })
       setSaved(data)
       setDirty(false)
       setNotice(
-        `Completed replies saved to shared history for ${config?.retention_days} days. Drafts are not saved.`,
+        `Completed replies and your ratings saved to shared history for ${config?.retention_days} days. Drafts are not saved.`,
       )
     } catch (problem) {
       setNotice(problem instanceof Error ? problem.message : 'Save failed.')

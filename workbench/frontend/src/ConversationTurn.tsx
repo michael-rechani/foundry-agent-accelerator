@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useState, type RefObject } from 'react'
 import {
+  askedLine,
   plainStep,
   receiptState,
   stepsSummary,
@@ -256,6 +257,14 @@ export function ConversationTurn({
           </span>
           <strong>{label}</strong>
           <span>
+            {askedLine(turn, agentLabels) && (
+              <span
+                className="asked-chip"
+                title="Open Details under the answer for each step."
+              >
+                {askedLine(turn, agentLabels)}
+              </span>
+            )}
             {(turn.result.elapsed_ms / 1000).toFixed(1)}s
             {usageLabel(turn.result.usage) && (
               <span className="hood-only">
