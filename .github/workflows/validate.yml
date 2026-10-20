@@ -247,6 +247,12 @@ jobs:
           terraform -chdir=terraform/runner init -backend=false
           terraform -chdir=terraform/runner validate
           terraform -chdir=terraform/runner test
+      - name: Validate and test Entra and GitHub identity without Azure
+        run: |
+          terraform -chdir=terraform/identity fmt -check
+          terraform -chdir=terraform/identity init -backend=false
+          terraform -chdir=terraform/identity validate
+          terraform -chdir=terraform/identity test
       - name: Validate isolated workbench infrastructure
         run: |
           terraform -chdir=workbench/infra fmt -check

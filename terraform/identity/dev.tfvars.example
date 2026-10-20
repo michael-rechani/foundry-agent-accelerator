@@ -1,0 +1,18 @@
+subscription_id   = "00000000-0000-0000-0000-000000000000"
+github_repository = "<owner>/<repository>"
+# github_owner_type = "organization"
+
+# Preferred: read names from the other roots' state (the account terraform/bootstrap creates).
+# lab_state = {
+#   subscription_id      = "00000000-0000-0000-0000-000000000000"
+#   resource_group_name  = "<state-resource-group>"
+#   storage_account_name = "<state-storage-account>"
+#   container_name       = "<state-container>"
+#   key                  = "ai-foundry/workbench-dev.tfstate"
+# }
+# runner_state   = { ...same account..., key = "ai-foundry/runner-dev.tfstate" }
+# platform_state = { ...same account..., key = "ai-foundry/dev.tfstate" }
+
+# Numeric GitHub user IDs that must approve each library recording run (gh api user --jq .id).
+recording_reviewer_user_ids = [0]
+# enable_library_recording = false

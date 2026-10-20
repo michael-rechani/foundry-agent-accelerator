@@ -90,7 +90,10 @@ Reusing the NAT gateway adds no fixed cost.
 | NAT data, 100 GB at $0.045/GB | $4.50 | $4.50 | $4.50 |
 | **Total** | **About $154** | **About $48** | **About $24** |
 
-Idle deallocation moves a lightly used runner into the right-hand column. A
+Idle deallocation moves a lightly used runner into the right-hand column. The
+live VM's OS disk is `Standard_LRS` (the `os_disk_storage_account_type` default),
+which costs less than the Standard SSD row above. Set it to `StandardSSD_LRS` if
+you want the faster disk. A
 `Standard_D2s_v5` ($0.096/h) halves the compute rows, but the Lab frontend job
 and Docker need the headroom. Change `vm_size` if you want to try it.
 

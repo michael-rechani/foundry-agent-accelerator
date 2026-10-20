@@ -3,8 +3,8 @@ name: Deploy Lab image
 # Builds the Lab image from main on the private runner, pushes it straight to the
 # private registry, and rolls the Lab Container App to it by digest. It runs when a
 # change to the Lab merges to main, and can also be started by hand from the Actions
-# tab. One-time setup: workbench/setup-deploy-identity.ps1 and
-# workbench/setup-runner-start.ps1 (see docs/lab-deployment.md).
+# tab. One-time setup: terraform/identity creates the identity, its roles and this
+# environment (see docs/lab-deployment.md).
 #
 # The registry has no public access. The runner reaches its private endpoint through the
 # peered VNet, so nothing is published to GitHub Packages or anywhere public, and Azure

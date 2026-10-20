@@ -14,6 +14,7 @@ $parse = $null
 Assert-Equal 0 $parse.Count 'deploy.ps1 parses without errors'
 
 Assert-Equal 'preflight,platform,verify' ((Get-StageOrder @('verify', 'platform', 'preflight')) -join ',') 'stages run in the fixed order'
+Assert-Equal 'platform,runner,lab,identity,verify' ((Get-StageOrder @('identity', 'verify', 'lab', 'runner', 'platform')) -join ',') 'runner follows platform and identity follows lab'
 Assert-Equal 'agents' ((Get-StageOrder @('agents')) -join ',') 'agents can run alone'
 Assert-Equal '' ((Get-StageOrder @()) -join ',') 'no stages selected'
 
@@ -33,6 +34,18 @@ $hcl = New-BackendHcl 'stexample' 'ai-foundry/dev.tfstate'
 foreach ($expected in 'storage_account_name = "stexample"', 'key                  = "ai-foundry/dev.tfstate"', 'use_azuread_auth     = true', "subscription_id      = ""$subscription""") {
     if ($hcl -notmatch [regex]::Escape($expected)) { throw "Backend config lacks: $expected" }
 }
+
+$stateObject = New-StateObject 'stexample' 'ai-foundry/runner-dev.tfstate'
+foreach ($expected in 'storage_account_name = "stexample"', 'key                  = "ai-foundry/runner-dev.tfstate"', "subscription_id      = ""$subscription""") {
+    if ($stateObject -notmatch [regex]::Escape($expected)) { throw "State object lacks: $expected" }
+}
+
+$defaultStages = @($Stage)
+foreach ($optIn in 'runner', 'identity', 'agents') {
+    if ($defaultStages -contains $optIn) { throw "$optIn must be opt-in, not a default stage." }
+}
+Assert-Equal 1 @(Get-EnvironmentArgument 'lab.tfvars').Count 'the committed dev lab inputs are passed with -var-file'
+Assert-Equal 0 @(Get-EnvironmentArgument 'missing.tfvars').Count 'a missing environment file adds no argument'
 
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('deploy-test-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temporary | Out-Null

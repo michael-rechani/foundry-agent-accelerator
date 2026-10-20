@@ -5,9 +5,14 @@ One entry point that deploys the Lab and its platform from a subscription and th
 
 .DESCRIPTION
 Runs each stage in order: preflight, bootstrap (state backend), platform, lab-foundation
-(registry and network only), image (private build), lab, verify. The agents stage is separate
-because it is billable. Every Terraform stage shows its plan and applies only after you type
-"apply". Nothing is applied without an approved plan, and no stage creates a public resource.
+(registry and network only), image (private build), lab, verify. Three stages are opt-in and
+never run by default: runner (the private CI VM; needs -ApproveSharedEgress and an SSH public key),
+identity (Entra apps, roles and GitHub environments; needs rights to create them and a GitHub
+token), and agents (billable). Every Terraform stage shows its plan and applies only after you
+type "apply". Nothing is applied without an approved plan, and no stage creates a public resource.
+
+Committed, non-secret inputs live in environments/<Environment>/. They are passed with -var-file
+and an ignored overlay adds your subscription.
 
 The state account is private, so after bootstrap run the remaining stages from a host on a
 network that can reach it (see terraform/bootstrap/README.md). The first platform run can use
@@ -25,7 +30,7 @@ Existing ones are never overwritten.
 [CmdletBinding()]
 param(
     [ValidatePattern('^[0-9a-fA-F-]{36}$')][string]$Subscription,
-    [ValidateSet('preflight', 'bootstrap', 'platform', 'lab-foundation', 'image', 'lab', 'verify', 'agents')]
+    [ValidateSet('preflight', 'bootstrap', 'platform', 'runner', 'lab-foundation', 'image', 'lab', 'identity', 'verify', 'agents')]
     [string[]]$Stage = @('preflight', 'bootstrap', 'platform', 'lab-foundation', 'image', 'lab', 'verify'),
     [ValidatePattern('^[a-z0-9]{2,10}$')][string]$Environment = 'dev',
     [ValidatePattern('^[a-z0-9][a-z0-9-]{1,5}[a-z0-9]$')][string]$BaseName = 'aifnd',
@@ -35,6 +40,10 @@ param(
     [string[]]$Agent,
     [string]$ModelQuotaName = 'OpenAI.GlobalStandard.gpt-4.1',
     [int]$ModelCapacity = 10,
+    [string]$GitHubRepository,
+    [string[]]$RecordingReviewerId,
+    [string]$RunnerSshPublicKeyPath,
+    [switch]$ApproveSharedEgress,
     [switch]$PlanOnly,
     [switch]$LocalState,
     [switch]$IncludeAgentCall,
@@ -42,10 +51,18 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $script:PlanOnlyStopped = $false
-$stageOrder = @('preflight', 'bootstrap', 'platform', 'lab-foundation', 'image', 'lab', 'verify', 'agents')
+$stageOrder = @('preflight', 'bootstrap', 'platform', 'runner', 'lab-foundation', 'image', 'lab', 'identity', 'verify', 'agents')
 $bootstrapDir = Join-Path $PSScriptRoot 'terraform/bootstrap'
 $platformDir = Join-Path $PSScriptRoot 'terraform'
+$runnerDir = Join-Path $PSScriptRoot 'terraform/runner'
+$identityDir = Join-Path $PSScriptRoot 'terraform/identity'
 $labDir = Join-Path $PSScriptRoot 'workbench/infra'
+$environmentDir = Join-Path $PSScriptRoot "environments/$Environment"
+$environmentBase = if (Test-Path -LiteralPath (Join-Path $environmentDir 'platform.tfvars')) {
+    $line = Select-String -LiteralPath (Join-Path $environmentDir 'platform.tfvars') -Pattern '^\s*base_name\s*=\s*"([^"]+)"' | Select-Object -First 1
+    if ($line) { $line.Matches[0].Groups[1].Value }
+}
+if ($environmentBase -and -not $PSBoundParameters.ContainsKey('BaseName')) { $BaseName = $environmentBase }
 $requiredProviders = @(
     'Microsoft.App', 'Microsoft.Authorization', 'Microsoft.CognitiveServices', 'Microsoft.Compute',
     'Microsoft.ContainerRegistry', 'Microsoft.DocumentDB', 'Microsoft.Insights', 'Microsoft.KeyVault',
@@ -176,6 +193,48 @@ function Initialize-PlatformRoot {
     Initialize-Backend $platformDir "ai-foundry/$Environment.tfstate"
 }
 
+function Get-EnvironmentArgument([string]$FileName) {
+    $path = Join-Path $environmentDir $FileName
+    if (Test-Path -LiteralPath $path) { @("-var-file=$path") } else { @() }
+}
+
+function New-StateObject([string]$Account, [string]$Key) {
+    @"
+{
+  subscription_id      = "$Subscription"
+  resource_group_name  = "$StateResourceGroup"
+  storage_account_name = "$Account"
+  container_name       = "tfstate"
+  key                  = "$Key"
+}
+"@
+}
+
+function Get-RunnerSshPublicKey {
+    $candidates = if ($RunnerSshPublicKeyPath) { @($RunnerSshPublicKeyPath) } else {
+        @('id_ed25519.pub', 'id_rsa.pub') | ForEach-Object { Join-Path (Join-Path $HOME '.ssh') $_ }
+    }
+    $path = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    if (-not $path) { throw 'The runner needs an SSH public key. Pass -RunnerSshPublicKeyPath. Only the public key is used; the VM has no inbound path.' }
+    $key = (Get-Content -LiteralPath $path -Raw).Trim()
+    if ($key -notmatch '^ssh-(ed25519|rsa) ' -or $key -match 'PRIVATE KEY') { throw "$path is not an SSH public key." }
+    $key
+}
+
+function Get-GitHubRepositoryName {
+    if ($GitHubRepository) { return $GitHubRepository }
+    $url = Get-Native 'git' @('-C', $PSScriptRoot, 'remote', 'get-url', 'origin')
+    $match = [regex]::Match($url, 'github\.com[:/]([^/]+/[^/]+?)(\.git)?$')
+    if (-not $match.Success) { throw 'Could not read the GitHub repository from the origin remote. Pass -GitHubRepository owner/name.' }
+    $match.Groups[1].Value
+}
+
+function Initialize-GitHubToken {
+    if ($env:GITHUB_TOKEN) { return }
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { throw 'The identity stage needs GITHUB_TOKEN or the gh CLI signed in with repo admin rights.' }
+    $env:GITHUB_TOKEN = Get-Native 'gh' @('auth', 'token')
+}
+
 function Test-Preflight([string[]]$Selected) {
     $problems = [Collections.Generic.List[string]]::new()
     foreach ($tool in @('az', $TerraformCommand)) {
@@ -186,6 +245,12 @@ function Test-Preflight([string[]]$Selected) {
     if ($version -notmatch '^1\.16\.') { $problems.Add("Terraform $version found; the roots need 1.16.x.") }
     if (@($Selected) -contains 'image' -and -not (Get-Command docker -ErrorAction SilentlyContinue)) { $problems.Add('docker is needed to build the image.') }
     if (@($Selected) -match '^(verify|agents)$' -and -not (Get-Command python -ErrorAction SilentlyContinue)) { $problems.Add('python is needed to verify and publish agents.') }
+    if (@($Selected) -contains 'runner' -and -not $ApproveSharedEgress) {
+        $problems.Add('The runner shares the jumpbox NAT gateway outbound public IP. Pass -ApproveSharedEgress once you approve that.')
+    }
+    if (@($Selected) -contains 'identity' -and -not $env:GITHUB_TOKEN -and -not (Get-Command gh -ErrorAction SilentlyContinue)) {
+        $problems.Add('The identity stage needs GITHUB_TOKEN or the gh CLI signed in with repo admin rights.')
+    }
 
     $signedIn = & az account show --subscription $Subscription --query id --output tsv --only-show-errors 2>$null
     if ($LASTEXITCODE -ne 0 -or "$signedIn".Trim() -ne $Subscription) {
@@ -222,9 +287,49 @@ function Invoke-BootstrapStage {
 }
 
 function Invoke-PlatformStage {
-    Write-NewFile (Join-Path $platformDir 'terraform.tfvars') "subscription_id = `"$Subscription`"`nbase_name       = `"$BaseName`"`nenvironment     = `"$Environment`"`nlocation        = `"$Location`"`n"
+    $overlay = "subscription_id = `"$Subscription`"`nlocation        = `"$Location`"`n"
+    if (-not (Test-Path -LiteralPath (Join-Path $environmentDir 'platform.tfvars'))) {
+        $overlay += "base_name       = `"$BaseName`"`nenvironment     = `"$Environment`"`n"
+    }
+    Write-NewFile (Join-Path $platformDir 'terraform.tfvars') $overlay
     Initialize-PlatformRoot
-    Invoke-ReviewedApply $platformDir 'platform'
+    Invoke-ReviewedApply $platformDir 'platform' (Get-EnvironmentArgument 'platform.tfvars')
+}
+
+function Invoke-RunnerStage {
+    Initialize-PlatformRoot
+    $group = Get-Native $TerraformCommand @("-chdir=$platformDir", 'output', '-raw', 'resource_group_name')
+    $network = Get-Native $TerraformCommand @("-chdir=$platformDir", 'output', '-raw', 'management_virtual_network_name')
+    Write-NewFile (Join-Path $runnerDir 'dev.tfvars') @"
+subscription_id      = "$Subscription"
+resource_group_name  = "$group"
+virtual_network_name = "$network"
+nat_gateway_name     = "nat-jumpbox-$BaseName-$Environment"
+base_name            = "$BaseName"
+environment          = "$Environment"
+admin_ssh_public_key = "$(Get-RunnerSshPublicKey)"
+"@
+    Initialize-Backend $runnerDir "ai-foundry/runner-$Environment.tfstate"
+    Invoke-ReviewedApply $runnerDir 'runner' @('-var-file=dev.tfvars', '-var=approve_shared_egress=true')
+}
+
+function Invoke-IdentityStage {
+    Initialize-GitHubToken
+    $account = Get-StateAccount
+    $reviewers = if ($RecordingReviewerId) { @($RecordingReviewerId) } else { @(Get-Native 'gh' @('api', 'user', '--jq', '.id')) }
+    if ($reviewers -notmatch '^\d+$') { throw '-RecordingReviewerId must be numeric GitHub user IDs.' }
+    Write-NewFile (Join-Path $identityDir 'dev.tfvars') @"
+subscription_id   = "$Subscription"
+github_repository = "$(Get-GitHubRepositoryName)"
+
+lab_state      = $(New-StateObject $account "ai-foundry/workbench-$Environment.tfstate")
+runner_state   = $(New-StateObject $account "ai-foundry/runner-$Environment.tfstate")
+platform_state = $(New-StateObject $account "ai-foundry/$Environment.tfstate")
+
+recording_reviewer_user_ids = [$($reviewers -join ', ')]
+"@
+    Initialize-Backend $identityDir "ai-foundry/identity-$Environment.tfstate"
+    Invoke-ReviewedApply $identityDir 'identity' @('-var-file=dev.tfvars')
 }
 
 function Initialize-LabRoot {
@@ -256,7 +361,7 @@ function Invoke-LabFoundationStage {
         Write-Host 'The Lab app already exists. Skipping foundation; bootstrap_only must never run against an existing app.'
         return
     }
-    Invoke-ReviewedApply $labDir 'lab-foundation' @('-var-file=dev.tfvars', '-var=bootstrap_only=true')
+    Invoke-ReviewedApply $labDir 'lab-foundation' (@(Get-EnvironmentArgument 'lab.tfvars') + @('-var-file=dev.tfvars', '-var=bootstrap_only=true'))
 }
 
 function Invoke-ImageStage {
@@ -284,7 +389,7 @@ function Invoke-LabStage {
         throw 'No image digest. Run -Stage image first.'
     }
     Initialize-LabRoot
-    Invoke-ReviewedApply $labDir 'lab' @('-var-file=dev.tfvars')
+    Invoke-ReviewedApply $labDir 'lab' (@(Get-EnvironmentArgument 'lab.tfvars') + @('-var-file=dev.tfvars'))
 }
 
 function Invoke-VerifyStage {
@@ -335,9 +440,11 @@ foreach ($name in $selected) {
         'preflight' { Test-Preflight $selected }
         'bootstrap' { Invoke-BootstrapStage }
         'platform' { Invoke-PlatformStage }
+        'runner' { Invoke-RunnerStage }
         'lab-foundation' { Invoke-LabFoundationStage }
         'image' { Invoke-ImageStage }
         'lab' { Invoke-LabStage }
+        'identity' { Invoke-IdentityStage }
         'verify' { Invoke-VerifyStage }
         'agents' { Invoke-AgentsStage }
     }

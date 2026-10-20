@@ -63,6 +63,19 @@ run "private_vm_with_shared_egress" {
   }
 }
 
+run "defaults_match_the_live_vm" {
+  command = plan
+
+  assert {
+    condition = (
+      azurerm_linux_virtual_machine.runner.os_disk[0].storage_account_type == "Standard_LRS" &&
+      azurerm_linux_virtual_machine.runner.patch_mode == "AutomaticByPlatform" &&
+      azurerm_linux_virtual_machine.runner.bypass_platform_safety_checks_on_user_schedule_enabled == true
+    )
+    error_message = "Defaults must equal the live VM so adopting it into state plans no change."
+  }
+}
+
 run "no_inbound_allowed" {
   command = plan
 

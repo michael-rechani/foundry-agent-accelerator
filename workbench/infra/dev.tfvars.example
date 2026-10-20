@@ -2,6 +2,7 @@ subscription_id      = "00000000-0000-0000-0000-000000000000"
 
 # Preferred: read the resource group, network, Foundry and Cosmos names from the platform root's outputs.
 # The state account is the one terraform/bootstrap creates. Any name you also set below still wins.
+# platform_state = {}   # uses terraform/bootstrap's defaults; set fields only to point elsewhere:
 # platform_state = {
 #   subscription_id      = "00000000-0000-0000-0000-000000000000"
 #   resource_group_name  = "<state-resource-group>"

@@ -213,13 +213,15 @@ resource "azurerm_linux_virtual_machine" "runner" {
   location                        = local.location
   name                            = local.vm_name
   network_interface_ids           = [azurerm_network_interface.runner.id]
-  patch_mode                      = "ImageDefault"
+  patch_mode                      = var.patch_mode
   provision_vm_agent              = true
   resource_group_name             = azurerm_resource_group.runner.name
   secure_boot_enabled             = true
   size                            = var.vm_size
   tags                            = local.tags
   vtpm_enabled                    = true
+
+  bypass_platform_safety_checks_on_user_schedule_enabled = var.patch_mode == "AutomaticByPlatform" ? var.bypass_platform_safety_checks_on_user_schedule : false
 
   admin_ssh_key {
     username   = var.admin_username
@@ -236,7 +238,7 @@ resource "azurerm_linux_virtual_machine" "runner" {
     caching              = "ReadWrite"
     disk_size_gb         = var.os_disk_size_gb
     name                 = "${local.vm_name}-os"
-    storage_account_type = "StandardSSD_LRS"
+    storage_account_type = var.os_disk_storage_account_type
   }
 
   source_image_reference {

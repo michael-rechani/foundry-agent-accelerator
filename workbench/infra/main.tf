@@ -425,5 +425,8 @@ resource "azurerm_container_app" "this" {
 }
 
 output "registry_name" { value = azurerm_container_registry.this.name }
+output "resource_group_name" { value = local.resource_group_name }
+output "container_app_name" { value = var.name }
+output "managed_identity_name" { value = azurerm_user_assigned_identity.this.name }
 output "private_url" { value = var.bootstrap_only ? null : "https://${local.hostname}" }
 output "internal_ip" { value = azurerm_container_app_environment.this.static_ip_address }

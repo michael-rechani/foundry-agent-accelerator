@@ -5,7 +5,7 @@ name: Record library answers
 # own: start it by hand from the Actions tab, and the library-recording environment waits for its
 # reviewer before anything is sent. Foundry has no public access, and the runner reaches it through
 # the peered VNet. Azure holds no stored secret; the job signs in with GitHub's short-lived token.
-# One-time setup: workbench/setup-recording-identity.ps1 (see docs/library-scorecards.md).
+# One-time setup: terraform/identity (see docs/library-scorecards.md).
 #
 # This only records. It uploads the new evidence files as an artifact; commit them in a pull request,
 # then a person reads the answers and signs off. It never records a sign-off.
