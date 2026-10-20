@@ -216,3 +216,89 @@
   margin-top: 10px;
   text-align: left;
 }
+
+/* The clean first screen: one mark, one question, one next step. */
+.chat-welcome.simple {
+  position: relative;
+  isolation: isolate;
+  padding-bottom: 8vh;
+}
+.chat-welcome.simple::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -12% -40% 10%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 55% 50% at 50% 42%,
+    color-mix(in srgb, var(--accent) 11%, transparent),
+    transparent 70%
+  );
+}
+.welcome-mark {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 22px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent-fill), var(--accent-2));
+  color: var(--on-accent);
+  box-shadow:
+    0 10px 24px -6px var(--accent-glow),
+    inset 0 1px 0 #ffffff33;
+}
+.chat-welcome.simple h1 {
+  max-width: 18ch;
+  margin-bottom: 0;
+  font-size: clamp(28px, 3.2vw, 38px);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.chat-welcome.simple .welcome-modes.welcome-simple-modes {
+  margin-top: 30px;
+  grid-template-columns: minmax(280px, 360px);
+}
+.chat-welcome.simple .welcome-simple-modes button {
+  gap: 14px;
+  padding: 14px 18px 14px 14px;
+  border-radius: 12px;
+  border-color: var(--line-strong);
+  box-shadow: 0 1px 2px var(--shadow-soft);
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    transform 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.chat-welcome.simple .welcome-simple-modes button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.chat-welcome.simple .welcome-simple-modes button > svg {
+  box-sizing: border-box;
+  width: 36px;
+  height: 36px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+}
+.chat-welcome.simple .welcome-simple-modes strong {
+  font-size: 13px;
+}
+.chat-welcome.simple .welcome-simple-modes small {
+  font-size: 12px;
+}
+.chat-welcome.simple .welcome-simple-toggle {
+  margin-top: 22px;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+.chat-welcome.simple .welcome-simple-toggle:hover {
+  text-decoration: underline;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-welcome.simple .welcome-simple-modes button:hover:not(:disabled) {
+    transform: none;
+  }
+}

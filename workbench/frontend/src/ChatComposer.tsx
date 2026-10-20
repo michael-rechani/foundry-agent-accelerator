@@ -55,6 +55,14 @@ export function ChatComposer({
   const showDetails = turnCount > 0 || contextUsage >= 0.5
   // The general conversation has nothing to save or carry into a review.
   const plain = agent?.id === DESIGNER_ID
+  const inToolbar = config?.mode === 'private'
+  const hint = !localPreview && (
+    <span className="composer-hint" id="composer-hint">
+      {busy
+        ? 'You can keep typing. Send turns on when the reply arrives.'
+        : 'Enter sends. Shift+Enter adds a new line.'}
+    </span>
+  )
   return (
     <div className="composer-area">
       <form
@@ -115,6 +123,7 @@ export function ChatComposer({
                 <span>Continue in a new chat</span>
               </button>
             )}
+            {inToolbar && hint}
             {config?.mode !== 'private' && (
               <>
                 <FlaskConical size={12} aria-hidden="true" />
@@ -168,13 +177,7 @@ export function ChatComposer({
           </div>
         </div>
       </form>
-      {!localPreview && (
-        <p className="composer-hint" id="composer-hint">
-          {busy
-            ? 'You can keep typing. Send turns on when the reply arrives.'
-            : 'Enter sends. Shift+Enter adds a new line.'}
-        </p>
-      )}
+      {!inToolbar && hint}
       {config?.mode === 'private' && (
         <div className="composer-privacy" id="chat-privacy">
           <p>
