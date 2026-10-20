@@ -86,10 +86,7 @@ describe('answer steps', () => {
 
   it('lists the other agents asked in one short line', () => {
     assert.equal(askedLine(turn([])), '')
-    assert.equal(
-      askedLine(turn([receipt('lookup_purchase_order', null)])),
-      '',
-    )
+    assert.equal(askedLine(turn([receipt('lookup_purchase_order', null)])), '')
     const intake = receipt('inspect_intake', 'intake-agent-1a2b')
     const reviewer = receipt('inspect_review', 'review-agent')
     const third = receipt('inspect_third', 'third-agent')
