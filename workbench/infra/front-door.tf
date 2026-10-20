@@ -220,15 +220,9 @@ locals {
   front_door_diagnostic_name = "diag-front-door-240"
 }
 
-variable "import_front_door_diagnostic_setting" {
-  type        = bool
-  default     = false
-  description = "Set to true for one apply only, in a Lab whose Front Door diagnostic setting (diag-front-door-240) was created by hand with the Azure CLI (#240), so Terraform adopts it instead of failing with \"already exists\". Leave false for a new Lab, where Terraform creates the setting, and set it back to false after the apply."
-}
-
 # Probe, WAF and access logs go to the Lab's own private workspace. The WAF log is the way to see
 # which client address Front Door saw for a blocked request. The setting is named after #240, where
-# it was first created by hand, so importing it changes nothing.
+# it was first created by hand; the dev Lab adopted it into state in #256.
 resource "azurerm_monitor_diagnostic_setting" "front_door" {
   count = var.enable_front_door ? 1 : 0
 
@@ -245,12 +239,6 @@ resource "azurerm_monitor_diagnostic_setting" "front_door" {
   enabled_log {
     category = "FrontDoorAccessLog"
   }
-}
-
-import {
-  for_each = var.enable_front_door && var.import_front_door_diagnostic_setting ? toset(["front_door"]) : toset([])
-  to       = azurerm_monitor_diagnostic_setting.front_door[0]
-  id       = "/subscriptions/${var.subscription_id}/resourceGroups/${local.resource_group_name}/providers/Microsoft.Cdn/profiles/afd-${var.name}|${local.front_door_diagnostic_name}"
 }
 
 output "front_door_url" {
