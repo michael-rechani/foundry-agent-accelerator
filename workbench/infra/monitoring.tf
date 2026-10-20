@@ -19,7 +19,7 @@ variable "private_monitoring_enabled" {
 resource "azapi_resource" "logs" {
   type      = "Microsoft.OperationalInsights/workspaces@2023-09-01"
   name      = "log-${var.name}"
-  parent_id = "/subscriptions/${var.subscription_id}/  resourceGroups/${local.resource_group_name}"
+  parent_id = "/subscriptions/${var.subscription_id}/resourceGroups/${local.resource_group_name}"
   location  = data.azurerm_virtual_network.workload.location
   tags      = local.tags
   body = {

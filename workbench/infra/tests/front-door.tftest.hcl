@@ -430,11 +430,8 @@ run "front_door_logs_go_to_the_lab_workspace" {
 
 run "front_door_logging_is_off_while_front_door_is_off" {
   command = plan
-  variables {
-    import_front_door_diagnostic_setting = true
-  }
   assert {
     condition     = length(azurerm_monitor_diagnostic_setting.front_door) == 0
-    error_message = "No Front Door diagnostic setting may exist, or be imported, while Front Door is off."
+    error_message = "No Front Door diagnostic setting may exist while Front Door is off."
   }
 }

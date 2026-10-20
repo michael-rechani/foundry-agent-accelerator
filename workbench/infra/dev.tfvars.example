@@ -45,6 +45,4 @@ default_agent        = "customer-review"
 # Required with Front Door: Private Link traffic reaches the app from this shared range, so without it the origin
 # health probe is refused and Front Door reports 0% origin health (see docs/ingress-access.md).
 # front_door_ingress_allow_cidrs   = ["100.64.0.0/10"]
-# Front Door logs (probes, WAF, access) go to the Lab's workspace automatically. Set this to true for one apply only
-# in a Lab where diag-front-door-240 was already created by hand (#240), so Terraform adopts it; then set it back.
-# import_front_door_diagnostic_setting = true
+# Front Door logs (probes, WAF, access) go to the Lab's workspace automatically.
