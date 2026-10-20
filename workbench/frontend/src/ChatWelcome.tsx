@@ -4,6 +4,7 @@ import {
   Check,
   ChevronsUpDown,
   CircleDashed,
+  Layers3,
   MessageSquare,
   Sparkles,
 } from 'lucide-react'
@@ -80,7 +81,7 @@ export function ChatWelcome({
   const [creating, setCreating] = useState(false)
   const showModes = !simple && !!config && draftMode !== 'typed'
   return (
-    <div className="chat-welcome">
+    <div className={`chat-welcome${simple ? ' simple' : ''}`}>
       {agent && !simple && (
         <div className="welcome-tags">
           <span className={`welcome-kind${isPreview ? ' preview' : ''}`}>
@@ -95,6 +96,9 @@ export function ChatWelcome({
       )}
       {simple ? (
         <>
+          <span className="welcome-mark" aria-hidden="true">
+            <Layers3 size={26} />
+          </span>
           <h1>What agent do you want to build?</h1>
         </>
       ) : (
