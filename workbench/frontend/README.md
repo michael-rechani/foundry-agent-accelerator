@@ -151,8 +151,8 @@ Publication uses an idempotency UUID retained across uncertain retries. GET
 polling never submits another creation. Setup, publication, ready routing, and
 live answer quality remain distinct.
 
-The Lab opens on **Start here** > **Find an agent** (`/#start`). These other entry links are
-supported: `/#chat`, `/#library`, `/#agents`, `/#demos`, `/#reviews`, `/#addons`, `/#operations`,
+The Lab opens on **Start here** > **Chat** (`/#chat`). These other entry links are
+supported: `/#start` (**Find an agent**), `/#library`, `/#agents`, `/#demos`, `/#reviews`, `/#addons`, `/#operations`,
 `/#performance`, `/#logs`, and `/#create`. A library **Create** action opens the
 creator with that template preselected unless setup work is already in
 progress. Creation still requires its advertised capability. Valid saved-review

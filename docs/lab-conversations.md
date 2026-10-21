@@ -18,8 +18,7 @@ limits, and configuration loading behave.
 
 ## Conversations
 
-The Lab opens on **Start here** > **Find an agent**. Bookmark `/#start` for that page, `/#chat` to start in
-Chat, `/#library` for **All agents** > **Browse**, `/#agents` for **My agents**, `/#reviews` for **Document reviews**,
+The Lab opens on **Start here** > **Chat**. Bookmark `/#chat` for that page, `/#start` for **Find an agent**, `/#library` for **All agents** > **Browse**, `/#agents` for **My agents**, `/#reviews` for **Document reviews**,
 `/#demos` for **Guided demos** (opened from **Browse**), `/#addons` for **Add-ons**, `/#performance`,
 `/#logs`, or `/#create` for the creator when its capability is advertised. A
 valid saved-review URL still opens its review directly, including after a

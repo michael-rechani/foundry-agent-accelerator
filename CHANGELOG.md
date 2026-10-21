@@ -29,6 +29,11 @@ Pull request numbers link to the full discussion.
 
 ### Changed
 
+- **The Lab opens on Chat.** It used to open on **Find an agent**. Chat is the
+  start of the path (ideate with the Agent designer, try, export), and **Find an
+  agent** is still in the sidebar and at `/#start`. Other bookmarks are
+  unchanged.
+  ([#408](https://github.com/michael-rechani/foundry-agent-accelerator/issues/408))
 - **Simpler Agent library navigation.** The library has three tabs, **Browse**,
   **My agents** and **Add-ons**, instead of five. **Ready to chat** and **Made
   in this Lab** now sit together under **My agents**, and **Guided demos** opens

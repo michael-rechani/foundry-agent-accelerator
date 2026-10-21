@@ -16,7 +16,7 @@ Cosmos DB storage.
 
 | Area | What to know |
 | --- | --- |
-| Start here | The Lab opens on **Find an agent**, a plain-word finder that sends and saves nothing. **Chat** opens clean as a plain conversation with the **Agent designer**, or with a ready agent or library preview you choose. |
+| Start here | The Lab opens on **Chat**, clean, as a plain conversation with the **Agent designer**, or with a ready agent or library preview you choose. **Find an agent** is a plain-word finder that sends and saves nothing. |
 | Agent library | Browse agent definitions by sector or industry (one list), task, readiness, and tool mode. By default only featured agents show. Compare a sample example with expected behavior. Create, test, and export. |
 | Guided demos | Three sample customer stories with expected findings and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
 | Add-ons | A preview of optional tools and skills an agent could connect to later, such as knowledge search or a calculator. It shows what each would do, cost and need. The page turns nothing on. Knowledge search also runs as a small sample pilot in Checklist and case helper. |

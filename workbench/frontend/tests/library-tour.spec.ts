@@ -50,7 +50,7 @@ for (const mode of ['light', 'dark'] as const)
     page,
   }, testInfo) => {
     await seedAppearance(page, { mode, accent: 'foundry' })
-    const state = await openLibrary(page, { hash: '' })
+    const state = await openLibrary(page, { hash: '#start' })
     await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
     await expect(
       page.getByRole('heading', { level: 1, name: 'Welcome to the Lab' }),
