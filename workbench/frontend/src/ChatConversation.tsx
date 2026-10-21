@@ -45,6 +45,8 @@ export function ChatConversation({
   onChooseAgent,
   onAddOns,
   onCreateAgent,
+  templates,
+  onCreateFromTemplate,
 }: {
   config: Config | null
   agent?: Agent
@@ -79,6 +81,8 @@ export function ChatConversation({
   onChooseAgent: (id: string) => void
   onAddOns: () => void
   onCreateAgent?: () => void
+  templates?: { id: string; label: string }[]
+  onCreateFromTemplate?: (templateId: string) => void
 }) {
   const {
     draft,
@@ -158,6 +162,8 @@ export function ChatConversation({
             setDirty(true)
           }}
           onTryAgain={agent && !isPreview ? onTryAgain : undefined}
+          templates={templates}
+          onCreateFromTemplate={onCreateFromTemplate}
           onRetry={
             agent &&
             draft.trim() &&

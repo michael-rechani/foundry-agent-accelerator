@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 from agent_runtime.demo_tools import create_demo_tools
 from agent_runtime.main import DEMO_POLICY
-from agent_templates import RETIRED_TEMPLATES, TEMPLATES
+from agent_templates import RETIRED_TEMPLATES, TEMPLATES, is_available
 from library_preview import (DESIGNER_ID, DESIGNER_INSTRUCTIONS, DESIGNER_TEMPLATE, MAX_TOOL_ROUNDS, PREVIEW_AGENT,
                              preview_agent, run_preview, run_tool, summarize_usage, tool_specs, usage_record)
 
@@ -66,6 +66,18 @@ class LibraryPreviewTests(unittest.TestCase):
     def test_agent_designer_knows_the_real_export_path(self):
         for phrase in ("Take it to Foundry", "The Lab has no import", "hosted-agent package"):
             self.assertIn(phrase, DESIGNER_INSTRUCTIONS)
+
+    def test_agent_designer_writes_a_spec_naming_only_real_agents(self):
+        self.assertIn("agent-spec", DESIGNER_INSTRUCTIONS)
+        for key in ("instructions", "human_decision", "closest_template", "tools_needed"):
+            self.assertIn(key, DESIGNER_INSTRUCTIONS)
+        finished = [identifier for identifier in TEMPLATES if is_available(identifier, False)]
+        self.assertTrue(finished)
+        for identifier in finished:
+            self.assertIn(identifier, DESIGNER_INSTRUCTIONS)
+        for identifier in TEMPLATES:
+            if identifier not in finished:
+                self.assertNotIn(identifier, DESIGNER_INSTRUCTIONS)
 
     def test_unknown_or_malformed_ids_are_rejected(self):
         for identifier in ("library-", "library-missing-template", "Library-x", f"library-{text_template()}\n",

@@ -42,6 +42,8 @@ export function ChatMessages({
   onTryAgain,
   onDismissError,
   onRetry,
+  templates,
+  onCreateFromTemplate,
 }: {
   config: Config | null
   agent?: Agent
@@ -70,6 +72,8 @@ export function ChatMessages({
   onTryAgain?: () => void
   onDismissError: () => void
   onRetry?: () => void
+  templates?: { id: string; label: string }[]
+  onCreateFromTemplate?: (templateId: string) => void
 }) {
   const plain = agent?.id === DESIGNER_ID
   return (
@@ -115,6 +119,8 @@ export function ChatMessages({
                 !plain && !isHelpQuestion(turn.question, agent?.prompts)
               }
               plain={plain}
+              templates={templates}
+              onCreateFromTemplate={onCreateFromTemplate}
               onCopy={onCopy}
               onRate={(rating) => onRate(index, rating)}
               onTryAgain={

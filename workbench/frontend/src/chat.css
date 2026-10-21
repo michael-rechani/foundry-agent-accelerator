@@ -13,6 +13,7 @@
 @import './chat/agent-switcher.css';
 @import './chat/composer.css';
 @import './chat/messages.css';
+@import './chat/agent-spec.css';
 @import './chat/answer-steps.css';
 @import './chat/receipt.css';
 @import './chat/status.css';

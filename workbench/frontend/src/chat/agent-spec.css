@@ -1,0 +1,49 @@
+/* The agent spec card under an Agent designer reply. */
+.agent-spec {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  max-width: 640px;
+}
+.agent-spec h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.agent-spec p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.agent-spec dl {
+  margin: 10px 0 0;
+  display: grid;
+  gap: 6px;
+}
+.agent-spec dl div {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.agent-spec dt {
+  color: var(--muted);
+}
+.agent-spec dd {
+  margin: 0;
+}
+.agent-spec-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.agent-spec .agent-spec-note {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
