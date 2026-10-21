@@ -25,6 +25,8 @@ agent-management service.
 **Describe the job -> prepare a setup -> review and confirm -> create in Foundry
 -> try it in Chat.**
 
+You can also start from **Chat**. When the Agent designer's spec card points to a template, **Create this agent here** runs the same steps (template assembly, operator key, cost confirmation, publish) inside the card, then offers **Chat with it**.
+
 The Create page lists the Lab's 18 templates in three groups, named and ordered
 the same as the sectors in the **Agent library**: **Works in any sector** (five
 jobs), **Private sector** (nine jobs), and **Healthcare and public sector**

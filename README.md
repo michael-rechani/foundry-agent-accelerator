@@ -63,7 +63,7 @@ implemented or deployed.
 
 <img alt="Tour of the Foundry Agent Lab in six steps: find an agent by describing a job, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template." src="docs/images/lab-tour-dark.svg">
 
-1. **Find an agent.** The Lab opens here. Pick a guide question, such as which
+1. **Find an agent.** Open it from the sidebar (the Lab itself opens on Chat). Pick a guide question, such as which
    agent to use or build, and get an answer from the Lab's own lists. Nothing
    is sent or saved.
 2. **Browse agents.** The library lists the featured sample agents: the ones
@@ -73,8 +73,9 @@ implemented or deployed.
 3. **Test results.** See how many answers passed, how long they took, what they
    cost, and whether a person has signed the agent off.
 4. **Chat.** Opens clean, as a plain conversation with the **Agent designer**
-   for talking through an agent you want to build. It has no tools and can't
-   create anything. Pick **Try a pre-built agent** to chat with a ready agent
+   for talking through an agent you want to build. It has no tools of its own;
+   when an idea is clear it ends with a spec card to download or, with creation
+   on, build here after the operator key and a cost confirmation. Pick **Try a pre-built agent** to chat with a ready agent
    or a library preview instead, where an example only fills the message box.
    You choose when to send it. **Simple view** hides the guide and examples.
 5. **Take it to Foundry.** Download the agent definition and test requests, then
