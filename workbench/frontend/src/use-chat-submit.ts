@@ -8,7 +8,7 @@ import {
   makeFailure,
   type ChatFailure,
 } from './chat-failure'
-import { requestPayload } from './chat-helpers'
+import { chatLimits, requestPayload } from './chat-helpers'
 import { requestJson } from './request'
 import { parseUsage } from './token-usage'
 import type { Agent, Config } from './workspace-config'
@@ -58,6 +58,19 @@ export function useChatSubmit({
     return send(draft, payload, false)
   }
 
+  // Sends a suggested next step without touching what the person is typing.
+  function ask(text: string) {
+    const { exceedsLimit: over, payload: body } = chatLimits({
+      config,
+      turns,
+      draft: text,
+      selected,
+      thread,
+    })
+    if (over) return
+    return send(text, body, false, true)
+  }
+
   // Asks the last question again without it or the answer in the history. The
   // new answer replaces the old one, which stays under it for comparison.
   function retry() {
@@ -72,7 +85,12 @@ export function useChatSubmit({
     return send(last.question, body, true)
   }
 
-  async function send(question: string, body: string, retrying: boolean) {
+  async function send(
+    question: string,
+    body: string,
+    retrying: boolean,
+    keepDraft = false,
+  ) {
     if (!config || config.mode === 'preview' || !agent || busy || historyBusy)
       return
     const abort = new AbortController()
@@ -87,7 +105,7 @@ export function useChatSubmit({
       setPending(question)
       // The message moves into the transcript while it is sent; a failure puts
       // it back in the box so it can be edited or retried.
-      setDraft('')
+      if (!keepDraft) setDraft('')
     }
     const timeout = window.setTimeout(
       () =>
@@ -158,7 +176,7 @@ export function useChatSubmit({
         failure ??
         (message ? makeFailure(message) : failureFromProblem(problem))
       setError(shown)
-      if (!retrying) setDraft((current) => current || question)
+      if (!retrying && !keepDraft) setDraft((current) => current || question)
       setPending('')
       if (config?.mode === 'private')
         onMeasure({
@@ -187,5 +205,5 @@ export function useChatSubmit({
     controller.current?.abort()
   }
 
-  return { submit, retry, stop }
+  return { submit, ask, retry, stop }
 }

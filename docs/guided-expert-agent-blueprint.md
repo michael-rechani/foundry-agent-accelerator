@@ -3,8 +3,8 @@
 [Home](../README.md) / [Docs](README.md) / Guided expert agent blueprint
 
 A proposed pattern for agents that talk like a knowledgeable guide in one field
-instead of asking for a full paste and returning a report. **It isn't
-implemented.** The first trial, the Benefits renewal helper, is tracked in
+instead of asking for a full paste and returning a report. **Only the first
+trial, the Benefits renewal helper, follows it so far.** It is tracked in
 [#363](https://github.com/michael-rechani/foundry-agent-accelerator/issues/363).
 The bill reviewer follows in
 [#362](https://github.com/michael-rechani/foundry-agent-accelerator/issues/362).
@@ -71,7 +71,7 @@ Each agent needs two personas: the expert it plays and the person it serves.
 | --- | --- | --- | --- | --- |
 | Healthcare | Billing advocate. | Patient, or a billing-office helper. | [Medical bill reviewer](../workbench/agent_templates/agents/medical-bill-reviewer.json) | Exists as a one-shot report. |
 | Healthcare | Pre-approval coordinator. | Patient or clinic staff. | [Insurance pre-approval helper](../workbench/agent_templates/agents/insurance-preapproval-helper.json) | Exists as a one-shot report. |
-| Public sector | Benefits renewal guide for a caseworker. | Caseworker, who serves a household. | [Benefits renewal helper](../workbench/agent_templates/agents/benefits-renewal-helper.json) | Exists as a one-shot report. It already has the rules and on-file lookups, so it is the first trial. |
+| Public sector | Benefits renewal guide for a caseworker. | Caseworker, who serves a household. | [Benefits renewal helper](../workbench/agent_templates/agents/benefits-renewal-helper.json) | Guided conversation. It has the rules and on-file lookups, so it is the first trial. |
 | Financial public sector | Grants and payments reviewer. | Program officer. | Not yet built. | Gap. |
 
 The remaining gap is financial public sector: the library's finance agents are
@@ -91,8 +91,10 @@ sign-off keeps its agent at the `sample` readiness level.
 ## Phases
 
 1. **Prompt only.** Conversation flow plus a small rules pack in the
-   instructions, tried first on the Benefits renewal helper. Re-recording its
-   acceptance cases is billable and needs approval.
+   instructions. Done for the Benefits renewal helper, and the **Next steps**
+   buttons under its latest answer send "See the checklist", "Draft the note"
+   and "Questions for me" in one click. Its multi-turn acceptance cases aren't
+   recorded yet; that is billable and needs approval.
 2. **Lookup by ID.** Simulated records fetched by ID so the person doesn't
    paste everything. The renewal helper already has them. The bill reviewer
    needs new bill and statement records.
