@@ -44,6 +44,7 @@ export function LibraryBrowse({
   onShow,
   onTest,
   onOpenCreate,
+  onDemos,
 }: {
   catalog: LibraryCatalog
   results: LibraryTemplate[]
@@ -63,6 +64,7 @@ export function LibraryBrowse({
   onShow: (templateId: string) => void
   onTest: (agent: Agent, input: string) => void
   onOpenCreate?: () => void
+  onDemos?: () => void
 }) {
   const toolbar = (
     <LibraryResultsToolbar
@@ -74,7 +76,7 @@ export function LibraryBrowse({
   )
   return (
     <>
-      <LibraryHero>
+      <LibraryHero onDemos={onDemos}>
         <LibraryPath previewsOn={previewsOn} onOpenCreate={onOpenCreate} />
       </LibraryHero>
       {viewMode === 'cards' ? (

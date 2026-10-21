@@ -99,7 +99,7 @@ test('document reviews use the Lab default and do not transfer Chat drafts', asy
   const navigation = workspaceNav(page)
   await navigation.getByRole('button', { name: 'All agents' }).click()
   await libraryNav(page)
-    .getByRole('button', { name: /^Ready to chat/ })
+    .getByRole('button', { name: /^My agents/ })
     .click()
   await page
     .locator('.catalog-agent')

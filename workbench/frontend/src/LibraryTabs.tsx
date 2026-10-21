@@ -3,37 +3,30 @@ import type { View } from './ChatSidebar'
 export function LibraryTabs({
   view,
   readyCount,
-  createdCount,
-  creationEnabled,
   onView,
-  onCreated,
 }: {
   view: View
   readyCount: number
-  createdCount: number
-  creationEnabled: boolean
   onView: (view: View) => void
-  onCreated: () => void
 }) {
-  const tabs: { view: View; label: string; count?: number; hint?: string }[] = [
-    { view: 'library', label: 'Browse' },
+  // Guided demos and the Made in this Lab list sit one step inside Browse and
+  // My agents, so those tabs stay current while you are on them.
+  const tabs: {
+    view: View
+    label: string
+    count?: number
+    hint?: string
+    covers: View[]
+  }[] = [
+    { view: 'library', label: 'Browse', covers: ['library', 'explore'] },
     {
       view: 'catalog',
-      label: 'Ready to chat',
+      label: 'My agents',
       count: readyCount,
       hint: 'Agents you can open in Chat now: prebuilt agents and ones made in this Lab. Library previews are under Browse.',
+      covers: ['catalog', 'created'],
     },
-    ...(creationEnabled
-      ? [
-          {
-            view: 'created' as const,
-            label: 'Made in this Lab',
-            count: createdCount,
-          },
-        ]
-      : []),
-    { view: 'explore', label: 'Guided demos' },
-    { view: 'addons', label: 'Add-ons' },
+    { view: 'addons', label: 'Add-ons', covers: ['addons'] },
   ]
   return (
     <nav className="library-switch" aria-label="Agent library">
@@ -42,8 +35,8 @@ export function LibraryTabs({
           key={tab.view}
           type="button"
           title={tab.hint}
-          aria-current={view === tab.view ? 'page' : undefined}
-          onClick={tab.view === 'created' ? onCreated : () => onView(tab.view)}
+          aria-current={tab.covers.includes(view) ? 'page' : undefined}
+          onClick={() => onView(tab.view)}
         >
           {tab.label}
           {tab.count !== undefined && <small>{tab.count}</small>}

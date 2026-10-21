@@ -13,8 +13,8 @@ export const libraryViews: View[] = [
 export const crumbs: Record<View, [string, string]> = {
   start: ['Start here', 'Find an agent'],
   library: ['Agent library', 'Browse'],
-  catalog: ['Agent library', 'Ready to chat'],
-  created: ['Agent library', 'Made in this Lab'],
+  catalog: ['Agent library', 'My agents'],
+  created: ['Agent library', 'My agents › Made in this Lab'],
   explore: ['Agent library', 'Guided demos'],
   addons: ['Agent library', 'Add-ons'],
   create: ['Agent library', 'Create agent'],

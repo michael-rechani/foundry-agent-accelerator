@@ -18,9 +18,7 @@ test('the library groups navigation into three sections, starting with Chat and 
   const tabs = libraryNav(page)
   await expect(tabs.getByRole('button')).toHaveText([
     'Browse',
-    /^Ready to chat\s*1$/,
-    /^Made in this Lab\s*0$/,
-    'Guided demos',
+    /^My agents\s*1$/,
     'Add-ons',
   ])
   await expect(workspaceNav(page).getByRole('button')).toHaveText([
@@ -37,9 +35,9 @@ test('the library groups navigation into three sections, starting with Chat and 
     'aria-current',
     'page',
   )
-  await tabs.getByRole('button', { name: /^Ready to chat/ }).click()
+  await tabs.getByRole('button', { name: /^My agents/ }).click()
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Choose an agent' }),
+    page.getByRole('heading', { level: 1, name: 'My agents' }),
   ).toBeVisible()
   await expect(
     workspaceNav(page).getByRole('button', { name: /^All agents/ }),
@@ -67,16 +65,17 @@ test('the library groups navigation into three sections, starting with Chat and 
       heading === 'Find an agent for the job' ? 1 : 0,
     )
   }
-  await tabs.getByRole('button', { name: 'Guided demos' }).click()
+  await page.getByRole('button', { name: 'Try a guided demo' }).click()
   await expect(
     page.getByRole('heading', {
       level: 1,
       name: 'From paperwork to a clear next step.',
     }),
   ).toBeVisible()
-  await expect(
-    tabs.getByRole('button', { name: 'Guided demos' }),
-  ).toHaveAttribute('aria-current', 'page')
+  await expect(tabs.getByRole('button', { name: 'Browse' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  )
   await expect(
     page.getByRole('heading', { name: 'Want a version of your own?' }),
   ).toBeVisible()
@@ -103,30 +102,33 @@ test('the library groups navigation into three sections, starting with Chat and 
   }
 })
 
-test('the Ready to chat and Made in this Lab pages explain their counts at 1 and 0', async ({
+test('the My agents page explains its count and leads to agents made in this Lab at 1 and 0', async ({
   page,
 }) => {
   await openLibrary(page)
   const tabs = libraryNav(page)
-  await tabs.getByRole('button', { name: /^Ready to chat/ }).click()
+  await tabs.getByRole('button', { name: /^My agents/ }).click()
   const intro = page
-    .getByRole('heading', { level: 1, name: 'Choose an agent' })
+    .getByRole('heading', { level: 1, name: 'My agents' })
     .locator('xpath=..')
   await expect(intro).toContainText('1 agent is ready to chat.')
   await expect(intro).toContainText(
     'To try another library agent, open Browse and make your own copy.',
   )
   await expect(intro).not.toContainText('as previews')
-  await tabs.getByRole('button', { name: /^Made in this Lab/ }).click()
+  await page
+    .getByRole('button', { name: 'See the 0 agents made in this Lab' })
+    .click()
   await expect(
     page.getByRole('heading', { level: 1, name: 'Made in this Lab' }),
   ).toBeVisible()
   await expect(
+    tabs.getByRole('button', { name: /^My agents/ }),
+  ).toHaveAttribute('aria-current', 'page')
+  await expect(
     page.getByRole('heading', { name: 'Nothing made in this Lab yet' }),
   ).toBeVisible()
-  await expect(
-    page.getByText('also shows up under Ready to chat'),
-  ).toBeVisible()
+  await expect(page.getByText('also shows up under My agents')).toBeVisible()
   await page
     .getByRole('button', { name: 'Create an agent', exact: true })
     .click()
@@ -135,26 +137,26 @@ test('the Ready to chat and Made in this Lab pages explain their counts at 1 and
   ).toBeVisible()
 })
 
-test('the Ready to chat page counts created agents and points to the previews', async ({
+test('the My agents page counts created agents and points to the previews', async ({
   page,
 }) => {
   await openLibrary(page, { ready: true, libraryPreview: true })
   const tabs = libraryNav(page)
-  await expect(tabs.getByRole('button', { name: /^Ready to chat/ })).toHaveText(
-    /^Ready to chat\s*2$/,
+  await expect(tabs.getByRole('button', { name: /^My agents/ })).toHaveText(
+    /^My agents\s*2$/,
   )
-  await expect(
-    tabs.getByRole('button', { name: /^Made in this Lab/ }),
-  ).toHaveText(/^Made in this Lab\s*1$/)
-  await tabs.getByRole('button', { name: /^Ready to chat/ }).click()
+  await tabs.getByRole('button', { name: /^My agents/ }).click()
   const intro = page
-    .getByRole('heading', { level: 1, name: 'Choose an agent' })
+    .getByRole('heading', { level: 1, name: 'My agents' })
     .locator('xpath=..')
   await expect(intro).toContainText('2 agents are ready to chat.')
   await expect(intro).toContainText(
     'Library agents can be tried as previews from Browse.',
   )
   await expect(intro).not.toContainText('make your own copy')
+  await expect(
+    intro.getByRole('button', { name: 'See the 1 agent made in this Lab' }),
+  ).toBeVisible()
 })
 
 test('grey placeholder cards hold the place of the agents while the library loads', async ({

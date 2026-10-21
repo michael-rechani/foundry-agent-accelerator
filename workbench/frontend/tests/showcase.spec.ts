@@ -4,7 +4,7 @@ import { docsScreenshot, guidedReview, screenshot } from './fixtures'
 import { labConfig, modeFor } from './helpers/lab-config'
 import { expectFitsViewport } from './helpers/layout'
 import { mockApi } from './helpers/mock-api'
-import { libraryNav, openLibraryTab } from './helpers/navigation'
+import { libraryNav, openGuidedDemos } from './helpers/navigation'
 import { type CreatedAgent } from '../src/agent-creation-client'
 import { demoScenarios } from '../src/demo-scenarios'
 
@@ -122,7 +122,7 @@ test('exploration is read-only and every scenario has an honest customer story',
   // instead of the "no matching agent" notice.
   const state = await openShowcase(page, { record: invoiceRecord('ready') })
   await expect(
-    libraryNav(page).getByRole('button', { name: 'Guided demos' }),
+    libraryNav(page).getByRole('button', { name: 'Browse' }),
   ).toHaveAttribute('aria-current', 'page')
   for (const scenario of demoScenarios) {
     await page
@@ -158,7 +158,7 @@ test('loading a demo preserves unsaved work until confirmed and never auto-sends
   await page
     .getByRole('textbox', { name: 'Message', exact: true })
     .fill('Keep my existing draft')
-  await openLibraryTab(page, 'Guided demos')
+  await openGuidedDemos(page)
   const confirm = page.getByRole('dialog', {
     name: 'Open this example in a new chat?',
   })
@@ -170,7 +170,7 @@ test('loading a demo preserves unsaved work until confirmed and never auto-sends
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toHaveValue('Keep my existing draft')
-  await openLibraryTab(page, 'Guided demos')
+  await openGuidedDemos(page)
   await page.getByRole('button', { name: 'Load sample input' }).click()
   await confirm.getByRole('button', { name: 'Open example' }).click()
   await expect(

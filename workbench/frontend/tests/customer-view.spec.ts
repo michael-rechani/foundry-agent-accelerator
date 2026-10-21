@@ -166,7 +166,7 @@ test('Foundry links appear only under the hood', async ({ page }) => {
 
 test('breadcrumbs link back to the library from its tabs', async ({ page }) => {
   await openCustomerView(page)
-  await libraryNav(page).getByRole('button', { name: 'Guided demos' }).click()
+  await page.getByRole('button', { name: 'Try a guided demo' }).click()
   const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
   await expect(crumbs).toContainText(/Agent library\s*Guided demos/)
   await crumbs.getByRole('button', { name: 'Agent library' }).click()

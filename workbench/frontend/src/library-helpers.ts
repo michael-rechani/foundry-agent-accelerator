@@ -22,7 +22,7 @@ export const publishedBlurb =
 export const createFromPreviewNote =
   "Preview chats can't be saved. Create this agent to save chats and take it to Foundry. Nothing is created until you confirm on the last step."
 
-// What kind of agent this is, in the words the Ready to chat tab uses.
+// What kind of agent this is, in the words the My agents tab uses.
 export function agentKind(agent: Agent) {
   return isPreviewId(agent.id)
     ? 'Library preview'

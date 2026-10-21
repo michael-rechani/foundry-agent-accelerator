@@ -4,13 +4,13 @@ import { LibraryHero } from './LibraryHero'
 
 // Grey shapes in the same places as the real page, so nothing jumps when the
 // agents arrive. They do not animate, which keeps a remote desktop quiet.
-export function LibraryLoading() {
+export function LibraryLoading({ onDemos }: { onDemos?: () => void }) {
   return (
     <>
       <p role="status" className="visually-hidden">
         Loading the agent library...
       </p>
-      <LibraryHero>
+      <LibraryHero onDemos={onDemos}>
         <ol className="library-path" aria-hidden="true">
           {[1, 2, 3, 4].map((step) => (
             <li key={step}>

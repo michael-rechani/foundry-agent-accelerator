@@ -191,7 +191,7 @@ test('All agents opens the full list, but library tabs keep the agent you were r
   })
   await openAgent(page, support.label)
 
-  await tabs.getByRole('button', { name: /^Ready to chat/ }).click()
+  await tabs.getByRole('button', { name: /^My agents/ }).click()
   await tabs.getByRole('button', { name: 'Browse' }).click()
   await expect(agentPage).toBeVisible()
 

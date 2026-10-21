@@ -31,6 +31,7 @@ export function AgentLibrary({
   busy,
   onCreate,
   onOpenCreate,
+  onDemos,
   onTest,
   onOpen,
 }: {
@@ -45,6 +46,7 @@ export function AgentLibrary({
   busy: boolean
   onCreate: (templateId: string) => void
   onOpenCreate?: () => void
+  onDemos?: () => void
   onTest: (agent: Agent, input: string) => void
   onOpen?: (label: string) => void
 }) {
@@ -119,9 +121,14 @@ export function AgentLibrary({
           <button type="button" onClick={library.retry}>
             <RefreshCw size={15} /> Retry
           </button>
+          {onDemos && (
+            <button type="button" className="inline-link" onClick={onDemos}>
+              Try a guided demo
+            </button>
+          )}
         </div>
       ) : !catalog ? (
-        <LibraryLoading />
+        <LibraryLoading onDemos={onDemos} />
       ) : open ? (
         <LibraryDetail
           template={open}
@@ -163,6 +170,7 @@ export function AgentLibrary({
           onShow={show}
           onTest={onTest}
           onOpenCreate={onOpenCreate}
+          onDemos={onDemos}
         />
       )}
     </main>
