@@ -15,6 +15,7 @@ For anyone using the Lab with fictional data. You don't need Azure permissions.
 | Guide | Use it to |
 | --- | --- |
 | [Showcase and presenter guide](showcase.md) | Explore three fictional customer stories, inspect expected findings, and present without hiding safety boundaries. |
+| [Demo script](demo-script.md) | Run a ten-minute demo with exact clicks and sample prompts, after a pre-demo check. |
 | [Demo guide](demos.md) | Pick a scenario, copy its fictional input, and compare the answer with the expected findings. |
 | [Create and try a baseline agent](agent-creation.md) | Prepare an agent from a template and, in an operator-enabled Lab, publish and chat with it. |
 | [Document reviews](review-workflow.md) | Check pasted document text against your checklist and save the results. |

@@ -142,7 +142,9 @@ the Lab there, and share your screen. See
 
 Before the customer joins:
 
-1. Open the Lab, start a chat and open **About sharing and saving** under the
+1. Run the [pre-demo check](demo-script.md#before-you-start), or follow the
+   whole [ten-minute demo script](demo-script.md).
+2. Open the Lab, start a chat and open **About sharing and saving** under the
    message box. Check that it matches what you'll tell the customer.
 2. Choose one story and have its sample input ready. Use fictional data only.
 3. Expect about 30 seconds for the first answer in each new chat. Opening a chat
