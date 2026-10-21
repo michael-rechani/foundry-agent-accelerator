@@ -84,7 +84,9 @@ export function ChatTopbar({
         <nav className="topbar-crumbs" aria-label="Breadcrumb">
           <ol>
             <li>
-              {libraryViews.includes(view) && view !== 'library' && !detail ? (
+              {!detail &&
+              ((libraryViews.includes(view) && view !== 'library') ||
+                view === 'create') ? (
                 <button type="button" onClick={() => onView('library')}>
                   {crumbs[view][0]}
                 </button>

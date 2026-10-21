@@ -341,6 +341,9 @@
   background: transparent;
   font: 600 10px/1.5 var(--mono);
 }
+:root[data-look='console'] .library-badge.caution {
+  color: light-dark(#a3400a, var(--warning-fg));
+}
 :root[data-look='console'] .library-decides {
   border-top-style: dashed;
 }

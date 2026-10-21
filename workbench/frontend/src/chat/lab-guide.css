@@ -92,7 +92,7 @@
 }
 .lab-guide-answer li small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .lab-guide-answer li button {
