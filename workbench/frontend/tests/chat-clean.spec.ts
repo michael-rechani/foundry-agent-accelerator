@@ -135,6 +135,46 @@ test('a first message chats with the Agent designer and stays clean', async ({
   ).toHaveCount(0)
 })
 
+test('the Agent designer can end with a downloadable agent spec', async ({
+  page,
+}) => {
+  const spec = {
+    name: 'Renewal Checklist Helper',
+    summary: 'Turns a renewal notice into a short checklist.',
+    instructions: 'List what the person must send before the renewal date.',
+    inputs: 'A renewal notice',
+    outputs: 'A checklist',
+    tools_needed: [],
+    human_decision: 'A caseworker decides eligibility.',
+    closest_template: null,
+  }
+  await openWorkspace(page, {
+    config: withDesigner,
+    startup: true,
+    answer: `Here is the idea.\n\n\`\`\`agent-spec\n${JSON.stringify(spec)}\n\`\`\`\n`,
+  })
+  await editor(page).fill('Help people renew benefits')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  const card = page.getByRole('region', { name: 'Agent spec' })
+  await expect(card).toContainText('Renewal Checklist Helper')
+  await expect(card).toContainText('A caseworker decides eligibility.')
+  await expect(page.locator('.assistant-message')).not.toContainText(
+    'agent-spec',
+  )
+  await expect(page.locator('.assistant-message')).not.toContainText(
+    '"instructions"',
+  )
+  await expect(card.getByRole('button', { name: /Create agent/ })).toHaveCount(
+    0,
+  )
+  const download = page.waitForEvent('download')
+  await card.getByRole('button', { name: 'Download agent spec' }).click()
+  const file = await download
+  expect(file.suggestedFilename()).toBe(
+    'renewal-checklist-helper.foundry-agent.json',
+  )
+})
+
 test('from the Agent designer the person can move to a real agent', async ({
   page,
 }) => {

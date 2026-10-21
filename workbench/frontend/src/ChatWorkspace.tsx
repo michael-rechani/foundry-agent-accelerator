@@ -570,6 +570,10 @@ export default function ChatWorkspace() {
             onSave={() => void saveChat()}
             onExport={exportChat}
             onCreateThis={createThis}
+            templates={library.catalog?.templates}
+            onCreateFromTemplate={
+              config?.agent_creation ? createFromTemplate : undefined
+            }
           />
         ) : view === 'catalog' ? (
           <AgentCatalog

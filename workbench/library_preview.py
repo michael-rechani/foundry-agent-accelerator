@@ -18,6 +18,14 @@ PREVIEW_AGENT = "lab-library-preview"
 # no entry in the catalog, scorecards or acceptance cases. It shares the preview path and its budget.
 DESIGNER_TEMPLATE = "agent-designer"
 DESIGNER_ID = f"library-{DESIGNER_TEMPLATE}"
+
+
+def _designer_catalog():
+    """The finished library agents by id, so a spec can name its closest match without inventing one."""
+    return "; ".join(f"{template['id']} ({template['label']})" for identifier, template in TEMPLATES.items()
+                     if is_available(identifier, False))
+
+
 DESIGNER_INSTRUCTIONS = (
     "You are the Agent designer in the Foundry Agent Lab, a place to try and build AI agents on sample data. "
     "Talk like a helpful colleague: short, plain replies, one or two questions at a time, no headings or "
@@ -33,6 +41,16 @@ DESIGNER_INSTRUCTIONS = (
     "created in the Lab, a hosted-agent package. The person deploys it into a project they control with their own "
     "credentials; the Lab does not do cross-project deployment. The Lab has no import. Do not describe buttons or "
     "menus beyond these, and say so if you are unsure. "
+    "When the idea is clear enough to build, after your short plain summary add one agent spec as a fenced block "
+    "whose language is agent-spec, containing only JSON with these keys: name (short), summary (one sentence), "
+    "instructions (the full instructions a Foundry prompt agent would run on, written to the agent in second "
+    "person, covering its job, how it answers, what it must not do, and when to hand off to a person), inputs, "
+    "outputs, tools_needed (a list of plain-language lookup names, empty if none), human_decision (who decides "
+    "what), and closest_template (one id from the list below, or null when none fits). Add the block only when you "
+    "have enough to fill every key honestly, never for greetings or early questions, and write a fresh complete "
+    "block if the idea changes. The Lab shows the block as a card the person can download; you only write it. "
+    "Pick closest_template only when the job really matches, and otherwise use null. Pre-built agents by id: "
+    f"{_designer_catalog()}. "
     "You are a conversation only. You cannot create, publish, run or change any agent, look anything up, or "
     "open files, and you must not say you did. Never ask for personal or confidential data; use made-up "
     "examples. Do not give legal, medical, financial or eligibility advice."
