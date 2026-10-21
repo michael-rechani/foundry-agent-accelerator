@@ -19,6 +19,7 @@ import {
   type ReceiptState,
 } from './answer-steps'
 import { AgentSpecCard } from './AgentSpecCard'
+import { SpecBuildPanel, type SpecBuild } from './SpecBuildPanel'
 import { parseAgentSpec, specGoal } from './agent-spec'
 import { AnswerFeedback } from './AnswerFeedback'
 import type { Rating, Result, Turn } from './conversation-types'
@@ -232,6 +233,7 @@ export function ConversationTurn({
   busy = false,
   templates,
   onCreateFromTemplate,
+  build,
   onCopy,
   onRate,
   onTryAgain,
@@ -250,6 +252,8 @@ export function ConversationTurn({
   // Library templates the Agent designer's spec can point to.
   templates?: { id: string; label: string }[]
   onCreateFromTemplate?: (templateId: string, goal?: string) => void
+  // Lets the spec card publish the agent without leaving the chat.
+  build?: SpecBuild
   onCopy: (text: string) => void
   onRate: (rating: Rating | undefined) => void
   onTryAgain?: () => void
@@ -297,6 +301,16 @@ export function ConversationTurn({
                 ? () =>
                     onCreateFromTemplate(closest.id, specGoal(designed.spec!))
                 : undefined
+            }
+            build={
+              closest && build?.capability.enabled && !busy ? (
+                <SpecBuildPanel
+                  spec={designed.spec}
+                  templateId={closest.id}
+                  templateLabel={closest.label}
+                  build={build}
+                />
+              ) : undefined
             }
           />
         )}

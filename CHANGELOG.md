@@ -14,6 +14,13 @@ Pull request numbers link to the full discussion.
 
 ### Added
 
+- **Build an agent from the chat.** When the Agent designer's spec points to a
+  built-in template and creation is on, the spec card offers **Create this agent
+  here**. It shows the cost notes, asks for the operator key and a cost
+  confirmation, publishes through the same steps as Create agent, and offers
+  **Chat with it** when ready. It is still template-based; nothing is created
+  without the key and confirmation.
+  ([#406](https://github.com/michael-rechani/foundry-agent-accelerator/issues/406))
 - **Demo script and pre-demo check.** A ten-minute demo script with exact clicks
   and sample prompts, and `workbench/demo-check.ps1`, which confirms the Lab,
   library and Foundry are healthy before you present. It only reads unless you

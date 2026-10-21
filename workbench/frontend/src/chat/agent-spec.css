@@ -47,3 +47,33 @@
   font-size: 12px;
   color: var(--muted);
 }
+.spec-build {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+}
+.spec-build h5 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.spec-build ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.spec-build .agent-spec-actions {
+  margin-top: 4px;
+}
+.spec-build-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.agent-spec .spec-build-error {
+  color: var(--danger-fg);
+}

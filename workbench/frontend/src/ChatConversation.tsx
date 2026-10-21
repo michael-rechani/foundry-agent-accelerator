@@ -2,6 +2,7 @@ import type { RefObject } from 'react'
 import { ChatAside } from './ChatAside'
 import { ChatComposer } from './ChatComposer'
 import { ChatMessages } from './ChatMessages'
+import type { SpecBuild } from './SpecBuildPanel'
 import { saveStateText, type chatLimits } from './chat-helpers'
 import { withRating } from './answer-feedback'
 import type { DemoScenario } from './demo-scenarios'
@@ -47,6 +48,7 @@ export function ChatConversation({
   onCreateAgent,
   templates,
   onCreateFromTemplate,
+  build,
 }: {
   config: Config | null
   agent?: Agent
@@ -83,6 +85,7 @@ export function ChatConversation({
   onCreateAgent?: () => void
   templates?: { id: string; label: string }[]
   onCreateFromTemplate?: (templateId: string, goal?: string) => void
+  build?: SpecBuild
 }) {
   const {
     draft,
@@ -164,6 +167,7 @@ export function ChatConversation({
           onTryAgain={agent && !isPreview ? onTryAgain : undefined}
           templates={templates}
           onCreateFromTemplate={onCreateFromTemplate}
+          build={build}
           onRetry={
             agent &&
             draft.trim() &&
