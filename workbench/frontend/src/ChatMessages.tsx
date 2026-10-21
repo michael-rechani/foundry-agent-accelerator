@@ -73,7 +73,7 @@ export function ChatMessages({
   onDismissError: () => void
   onRetry?: () => void
   templates?: { id: string; label: string }[]
-  onCreateFromTemplate?: (templateId: string) => void
+  onCreateFromTemplate?: (templateId: string, goal?: string) => void
 }) {
   const plain = agent?.id === DESIGNER_ID
   return (

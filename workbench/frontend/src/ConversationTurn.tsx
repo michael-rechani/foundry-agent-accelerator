@@ -19,7 +19,7 @@ import {
   type ReceiptState,
 } from './answer-steps'
 import { AgentSpecCard } from './AgentSpecCard'
-import { parseAgentSpec } from './agent-spec'
+import { parseAgentSpec, specGoal } from './agent-spec'
 import { AnswerFeedback } from './AnswerFeedback'
 import type { Rating, Result, Turn } from './conversation-types'
 import { FoundryLink } from './FoundryLink'
@@ -249,7 +249,7 @@ export function ConversationTurn({
   busy?: boolean
   // Library templates the Agent designer's spec can point to.
   templates?: { id: string; label: string }[]
-  onCreateFromTemplate?: (templateId: string) => void
+  onCreateFromTemplate?: (templateId: string, goal?: string) => void
   onCopy: (text: string) => void
   onRate: (rating: Rating | undefined) => void
   onTryAgain?: () => void
@@ -294,7 +294,8 @@ export function ConversationTurn({
             templateLabel={closest?.label}
             onCreateFromTemplate={
               closest && onCreateFromTemplate
-                ? () => onCreateFromTemplate(closest.id)
+                ? () =>
+                    onCreateFromTemplate(closest.id, specGoal(designed.spec!))
                 : undefined
             }
           />

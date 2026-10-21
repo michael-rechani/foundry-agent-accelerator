@@ -4,6 +4,7 @@ import {
   parseAgentSpec,
   specDefinition,
   specFileName,
+  specGoal,
   validateSpec,
 } from '../src/agent-spec.ts'
 import { modelPlaceholder } from '../src/foundry-handoff.ts'
@@ -79,6 +80,25 @@ describe('validateSpec', () => {
       validateSpec({ ...spec, tools_needed: many })?.tools_needed.length,
       10,
     )
+  })
+})
+
+describe('specGoal', () => {
+  it('carries the whole spec into the Create agent task description', () => {
+    const goal = specGoal(spec)
+    for (const part of [
+      spec.summary,
+      spec.inputs,
+      spec.outputs,
+      spec.human_decision,
+      spec.instructions,
+    ])
+      assert.ok(goal.includes(part))
+  })
+
+  it('stays within the 1200 characters Create agent accepts', () => {
+    const goal = specGoal({ ...spec, instructions: 'x'.repeat(4000) })
+    assert.equal([...goal].length, 1200)
   })
 })
 

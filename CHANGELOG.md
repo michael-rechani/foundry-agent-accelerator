@@ -16,8 +16,9 @@ Pull request numbers link to the full discussion.
 
 - **Agent designer spec.** When an idea is clear, the Agent designer can end its
   reply with an agent spec card: a Foundry prompt agent definition to download,
-  and a button to start from the closest pre-built agent in Create agent. No
-  extra model call, and nothing is created until you act.
+  and a button to start from the closest pre-built agent in Create agent, with
+  the spec's description filled in as the task. No extra model call, and
+  nothing is created until you confirm in Create agent.
   ([#404](https://github.com/michael-rechani/foundry-agent-accelerator/issues/404))
 
 ### Changed

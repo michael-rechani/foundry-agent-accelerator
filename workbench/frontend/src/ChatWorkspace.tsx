@@ -92,6 +92,7 @@ export default function ChatWorkspace() {
   const [requestedTemplate, setRequestedTemplate] = useState<{
     id: string
     key: number
+    goal?: string
   } | null>(null)
   const { dependencyHealth, loadDependencyHealth } = useDependencyHealth(view)
   const {
@@ -302,10 +303,11 @@ export default function ChatWorkspace() {
     )
   }
 
-  function createFromTemplate(templateId: string) {
+  function createFromTemplate(templateId: string, goal?: string) {
     setRequestedTemplate((current) => ({
       id: templateId,
       key: (current?.key ?? 0) + 1,
+      goal,
     }))
     setView('create')
   }

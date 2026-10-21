@@ -82,7 +82,7 @@ export function ChatConversation({
   onAddOns: () => void
   onCreateAgent?: () => void
   templates?: { id: string; label: string }[]
-  onCreateFromTemplate?: (templateId: string) => void
+  onCreateFromTemplate?: (templateId: string, goal?: string) => void
 }) {
   const {
     draft,
