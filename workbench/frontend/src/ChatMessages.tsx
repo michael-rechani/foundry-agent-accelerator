@@ -5,6 +5,7 @@ import { ChatWelcome, type DraftMode, type LabGuideProps } from './ChatWelcome'
 import { UserMessage } from './UserMessage'
 import type { Rating, Turn } from './conversation-types'
 import { ConversationTurn } from './ConversationTurn'
+import type { SpecBuild } from './SpecBuildPanel'
 import type { DemoScenario } from './demo-scenarios'
 import { DemoRunGuide } from './ExploreDemos'
 import { isHelpQuestion } from './help-prompt'
@@ -44,6 +45,7 @@ export function ChatMessages({
   onRetry,
   templates,
   onCreateFromTemplate,
+  build,
 }: {
   config: Config | null
   agent?: Agent
@@ -74,6 +76,7 @@ export function ChatMessages({
   onRetry?: () => void
   templates?: { id: string; label: string }[]
   onCreateFromTemplate?: (templateId: string, goal?: string) => void
+  build?: SpecBuild
 }) {
   const plain = agent?.id === DESIGNER_ID
   return (
@@ -121,6 +124,7 @@ export function ChatMessages({
               plain={plain}
               templates={templates}
               onCreateFromTemplate={onCreateFromTemplate}
+              build={build}
               onCopy={onCopy}
               onRate={(rating) => onRate(index, rating)}
               onTryAgain={

@@ -6,6 +6,7 @@ import type {
 } from '../../src/agent-creation-client'
 import type { Turn } from '../../src/conversation-types'
 import { guidedReview } from '../fixtures'
+import { catalog } from './catalog'
 import { creationCapability, labConfig, modeFor } from './lab-config'
 import { mockApi } from './mock-api'
 import { openMadeInLab, waitForLab, workspaceNav } from './navigation'
@@ -214,6 +215,8 @@ export async function openCreation(
     listFailure?: boolean
     templateFailure?: boolean
     hash?: string
+    // Make the Agent designer reachable and have it answer with this text.
+    designerAnswer?: string
   } = {},
 ) {
   const config = labConfig({
@@ -221,6 +224,15 @@ export async function openCreation(
     history_enabled: !options.preview,
     reviews_enabled: !options.preview,
     agent_creation: creationCapability(options),
+    ...(options.designerAnswer
+      ? {
+          library_preview: {
+            enabled: true,
+            reason: null,
+            agent: 'lab-library-preview',
+          },
+        }
+      : {}),
   })
   const state = {
     record: options.saved || (null as CreatedAgent | null),
@@ -265,7 +277,11 @@ export async function openCreation(
       expect(request.headers()['x-workbench-request']).toBe('1')
       if (state.templateFailure)
         return respond({ error: 'agents_unavailable' }, 503)
-      return respond({ templates, draft_mode: 'template' })
+      return respond(
+        options.designerAnswer
+          ? catalog
+          : { templates, draft_mode: 'template' },
+      )
     }
     if (path === '/api/agent-drafts') {
       const body = request.postDataJSON()
@@ -357,6 +373,18 @@ export async function openCreation(
     if (path === '/api/reviews') {
       expect(request.headers()['x-workbench-creation-key']).toBeUndefined()
       state.chat.push(request.postDataJSON())
+      if (
+        options.designerAnswer &&
+        state.chat.at(-1)!.agent_id === 'library-agent-designer'
+      )
+        return respond({
+          request_id: 'illustrative-designer-1',
+          status: 'completed',
+          agent: 'lab-library-preview',
+          text: options.designerAnswer,
+          elapsed_ms: 900,
+          receipts: [],
+        })
       return respond({
         request_id: 'illustrative-response-1',
         status: 'completed',

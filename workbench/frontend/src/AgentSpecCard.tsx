@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { ArrowRight, Download } from 'lucide-react'
 import { specDefinition, specFileName, type AgentSpec } from './agent-spec'
 import { saveFile } from './save-file'
@@ -10,10 +11,13 @@ export function AgentSpecCard({
   spec,
   templateLabel,
   onCreateFromTemplate,
+  build,
 }: {
   spec: AgentSpec
   templateLabel?: string
   onCreateFromTemplate?: () => void
+  // Where the spec can be built into a real agent without leaving the chat.
+  build?: ReactNode
 }) {
   const details: [string, string][] = [
     ['Takes in', spec.inputs],
@@ -60,6 +64,7 @@ export function AgentSpecCard({
           </button>
         )}
       </div>
+      {build}
       <p className="agent-spec-note">
         The file is a Foundry prompt agent definition. Add your own model
         deployment. Nothing is created until you act.

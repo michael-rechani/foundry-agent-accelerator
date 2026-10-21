@@ -572,6 +572,16 @@ export default function ChatWorkspace() {
             onCreateFromTemplate={
               config?.agent_creation ? createFromTemplate : undefined
             }
+            build={
+              config?.agent_creation?.enabled
+                ? {
+                    capability: config.agent_creation,
+                    onCreated: createdAgents.update,
+                    onChat: (item) => newChat(item.id),
+                    onOpenMade: () => setView('created'),
+                  }
+                : undefined
+            }
           />
         ) : view === 'catalog' ? (
           <AgentCatalog

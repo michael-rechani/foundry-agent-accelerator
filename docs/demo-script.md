@@ -52,6 +52,10 @@ person confirms.
    needs, what it returns and **what a person decides**.
 5. Choose **Download agent spec**. Say: "That is a real Foundry prompt agent
    definition. Nothing was created."
+6. Optional, only with the operator key and your approval to spend: on the card
+   choose **Create this agent here**, enter the key, confirm the cost and wait
+   for it to publish, then choose **Chat with it**. This creates a real, billable
+   agent, so delete it afterwards in **Made in this Lab**.
 
 If the designer asks a question first, answer in one line and let it continue.
 
