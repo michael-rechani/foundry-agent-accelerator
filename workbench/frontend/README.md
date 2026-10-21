@@ -144,6 +144,9 @@ arbitrary code/tool generator. `CreationTaskForm.tsx` renders the template
 picker and job description, `CreationSetupReview.tsx` renders the setup review
 and publication controls, `CreatedAgents.tsx` renders the saved-agent list and
 detail, and `OperatorKeyField.tsx` renders the operator key input.
+`SpecBuildPanel.tsx` runs the same prepare, confirm and publish steps inside the
+Agent designer's spec card (`AgentSpecCard.tsx`) for a spec that points to a
+template, so Chat can build an agent without a second flow.
 
 `agent-creation-client.ts` validates API responses, bounds requests, loads saved
 agents, and merges only ready server-provided identities into **Chat**.

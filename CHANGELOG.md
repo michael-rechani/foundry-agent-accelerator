@@ -36,6 +36,9 @@ Pull request numbers link to the full discussion.
 
 ### Changed
 
+- **Docs match the Chat-first Lab.** The README tour, the Create agent guide,
+  the frontend README and the screenshot index now say the Lab opens on Chat,
+  and describe building an agent from the spec card.
 - **The Lab opens on Chat.** It used to open on **Find an agent**. Chat is the
   start of the path (ideate with the Agent designer, try, export), and **Find an
   agent** is still in the sidebar and at `/#start`. Other bookmarks are
