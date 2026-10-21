@@ -75,7 +75,10 @@ describe('validateSpec', () => {
 
   it('caps the tool list', () => {
     const many = Array.from({ length: 30 }, (_, index) => `tool${index}`)
-    assert.equal(validateSpec({ ...spec, tools_needed: many })?.tools_needed.length, 10)
+    assert.equal(
+      validateSpec({ ...spec, tools_needed: many })?.tools_needed.length,
+      10,
+    )
   })
 })
 
@@ -92,7 +95,10 @@ describe('specDefinition', () => {
   })
 
   it('names the file from the agent name', () => {
-    assert.equal(specFileName(spec), 'benefits-renewal-helper.foundry-agent.json')
+    assert.equal(
+      specFileName(spec),
+      'benefits-renewal-helper.foundry-agent.json',
+    )
     assert.equal(specFileName({ name: '!!!' }), 'agent.foundry-agent.json')
   })
 })

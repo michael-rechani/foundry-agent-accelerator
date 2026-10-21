@@ -1,9 +1,5 @@
 import { ArrowRight, Download } from 'lucide-react'
-import {
-  specDefinition,
-  specFileName,
-  type AgentSpec,
-} from './agent-spec'
+import { specDefinition, specFileName, type AgentSpec } from './agent-spec'
 import { saveFile } from './save-file'
 
 // What the Agent designer's spec turns into. Both actions are the person's
