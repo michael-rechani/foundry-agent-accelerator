@@ -4,7 +4,8 @@ import { saveFile } from './save-file'
 
 // What the Agent designer's spec turns into. Both actions are the person's
 // choice: the download only saves a file, and the template button only opens
-// Create agent, where nothing is made until the last step is confirmed.
+// Create agent with the task filled in, where nothing is made until the last
+// step is confirmed.
 export function AgentSpecCard({
   spec,
   templateLabel,

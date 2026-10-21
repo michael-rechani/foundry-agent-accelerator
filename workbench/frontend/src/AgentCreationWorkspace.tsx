@@ -40,7 +40,7 @@ export function AgentCreationWorkspace({
   view: 'create' | 'created'
   active: boolean
   chatBusy: boolean
-  requestedTemplate?: { id: string; key: number } | null
+  requestedTemplate?: { id: string; key: number; goal?: string } | null
   onView: (view: 'create' | 'created') => void
   onUse: (agent: Agent) => void
 }) {
@@ -137,7 +137,8 @@ export function AgentCreationWorkspace({
       setHandledRequest(requestedTemplate.key)
       if (!draft && !pending) {
         setTemplateId(found.id)
-        if (
+        if (requestedTemplate.goal) setGoal(requestedTemplate.goal)
+        else if (
           !goal.trim() ||
           templates.some((entry) => entry.example_request === goal)
         )

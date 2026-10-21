@@ -80,6 +80,24 @@ export const specSlug = (spec: Pick<AgentSpec, 'name'>) =>
 export const specFileName = (spec: Pick<AgentSpec, 'name'>) =>
   `${specSlug(spec)}.foundry-agent.json`
 
+const goalLimit = 1200
+
+// The task description Create agent starts from. The Lab adds it to the
+// matching template's reviewed instructions, and the person can still edit it.
+export function specGoal(spec: AgentSpec) {
+  const parts = [
+    spec.summary,
+    spec.inputs && `Takes in: ${spec.inputs}`,
+    spec.outputs && `Returns: ${spec.outputs}`,
+    `A person decides: ${spec.human_decision}`,
+    spec.instructions,
+  ].filter(Boolean)
+  const letters = [...parts.join('\n')]
+  return letters.length > goalLimit
+    ? letters.slice(0, goalLimit - 1).join('') + '…'
+    : letters.join('')
+}
+
 // The body of Foundry's "create agent version" request for a prompt agent, in
 // the same shape as the library's agent definition, with a placeholder for
 // your own model deployment.
