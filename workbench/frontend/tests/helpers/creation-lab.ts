@@ -8,7 +8,7 @@ import type { Turn } from '../../src/conversation-types'
 import { guidedReview } from '../fixtures'
 import { creationCapability, labConfig, modeFor } from './lab-config'
 import { mockApi } from './mock-api'
-import { openLibraryTab, waitForLab, workspaceNav } from './navigation'
+import { openMadeInLab, waitForLab, workspaceNav } from './navigation'
 
 export const operatorKey = 'fictional-test-key-not-a-real-secret-1234567890'
 export const sample =
@@ -395,7 +395,7 @@ export async function openCreation(
 
 export async function navigate(page: Page, name: string) {
   if (name === 'Created agents') {
-    await openLibraryTab(page, /^Made in this Lab/)
+    await openMadeInLab(page)
     await expect(
       page.getByRole('heading', { level: 1, name: 'Made in this Lab' }),
     ).toBeVisible()

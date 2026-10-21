@@ -193,7 +193,7 @@ test('default helper explains its job and offers example tasks without auto-send
       'Your example is in the message box below.',
     )
   }
-  await openLibraryTab(page, /^Ready to chat/)
+  await openLibraryTab(page, /^My agents/)
   await expect(page.locator('.catalog-agent')).toHaveCount(1)
   await expect(
     page.getByRole('heading', {

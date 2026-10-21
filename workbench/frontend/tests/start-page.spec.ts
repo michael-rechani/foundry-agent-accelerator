@@ -95,7 +95,7 @@ test('Try an agent opens the agent list', async ({ page }) => {
   await page.getByRole('button', { name: /^Try an agent/ }).click()
   await expect(
     page.getByRole('navigation', { name: 'Breadcrumb' }),
-  ).toContainText(/Agent library\s*Ready to chat/)
+  ).toContainText(/Agent library\s*My agents/)
 })
 
 test('Build your own opens agent creation when it is on', async ({ page }) => {

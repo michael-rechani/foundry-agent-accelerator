@@ -23,6 +23,12 @@ Pull request numbers link to the full discussion.
 
 ### Changed
 
+- **Simpler Agent library navigation.** The library has three tabs, **Browse**,
+  **My agents** and **Add-ons**, instead of five. **Ready to chat** and **Made
+  in this Lab** now sit together under **My agents**, and **Guided demos** opens
+  from **Try a guided demo** on **Browse**. The `#agents` and `#demos`
+  bookmarks still work.
+  ([#408](https://github.com/michael-rechani/foundry-agent-accelerator/issues/408))
 - The Agent designer now knows where export lives (Find an agent > Take it to
   Foundry) and says the Lab has no import.
   ([#403](https://github.com/michael-rechani/foundry-agent-accelerator/pull/403))

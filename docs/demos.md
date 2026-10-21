@@ -19,7 +19,7 @@ Status values use the definitions in [terms used in these guides](README.md#term
 
 | Scenario | Status | Lab agent or task to pick | What you'll check |
 | --- | --- | --- | --- |
-| [Create and try a baseline agent](#create-and-try-a-baseline-agent) | **Available** | **Create agent**, then **All agents** > **Made in this Lab** and **Chat** | A prepared template becomes a small Foundry agent, then a person checks its sample output. |
+| [Create and try a baseline agent](#create-and-try-a-baseline-agent) | **Available** | **Create agent**, then **All agents** > **My agents** > **Made in this Lab** and **Chat** | A prepared template becomes a small Foundry agent, then a person checks its sample output. |
 | [Casework assistance](#casework-assistance) | **Available** | **Checklist and case helper** with **Summarize case notes**. Optional direct **Case notes summarizer** if enabled | The answer keeps known facts, missing evidence, and conflicting case notes separate. |
 | [Application completeness](#application-completeness) | **Available** | **Checklist and case helper** with **Check against a checklist**. Optional direct **Checklist reviewer** if enabled | The answer compares supplied evidence with a checklist without approving or denying the application. |
 | [Requirements and proposal review](#requirements-and-proposal-review) | **Preview** | **Checklist and case helper** with **Compare a proposal (preview)** | The answer separates product claims, supported requirements, gaps, and conflicts without selecting a vendor. |
@@ -66,7 +66,7 @@ Before inviting participants:
   reuses application review instead of adding a third specialist.
 - **About this agent** (in the Chat header, or the right-hand column on a wide
   screen) explains what to paste, what the agent returns, and how it works.
-  **All agents** > **Ready to chat** selects an existing setup. The separate
+  **All agents** > **My agents** selects an existing setup. The separate
   **Create agent** flow prepares a new agent and, with operator confirmation,
   publishes it.
 - A starter is just an example task and message. Developer configuration and
@@ -98,7 +98,7 @@ created sample agent ready rather than promising instant deployment.
 4. Review its input, output, limits, and fixed tools. Edit its name and task
    instructions if needed.
 5. Confirm costs and shared visibility, enter the operator key, and create it.
-6. Follow the real upload, provisioning, and routing stages in **All agents** > **Made in this Lab**.
+6. Follow the real upload, provisioning, and routing stages in **All agents** > **My agents** > **Made in this Lab**.
    **Ready to try** means an active runtime and checked Responses route, not a
    quality pass.
 7. Open it in **Chat**, select its sample, and send it. Keep the source

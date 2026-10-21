@@ -396,13 +396,7 @@ export default function ChatWorkspace() {
           <LibraryTabs
             view={view}
             readyCount={availableAgents.length}
-            createdCount={createdAgents.records.length}
-            creationEnabled={!!config.agent_creation}
             onView={setView}
-            onCreated={() => {
-              setView('created')
-              void createdAgents.refresh()
-            }}
           />
         )}
         {config && (
@@ -424,6 +418,7 @@ export default function ChatWorkspace() {
             onOpenCreate={
               config.agent_creation ? () => setView('create') : undefined
             }
+            onDemos={() => setView('explore')}
           />
         )}
         {config?.agent_creation && (
@@ -449,6 +444,7 @@ export default function ChatWorkspace() {
               loadingAgents={createdAgents.loading || previewsLoading}
               agentError={createdAgents.error}
               busy={busy || historyBusy}
+              onBack={() => setView('library')}
               onLoad={loadDemo}
               onCreate={(label) => {
                 setView('create')
@@ -589,6 +585,13 @@ export default function ChatWorkspace() {
             disabled={busy || historyBusy}
             onQuery={setQuery}
             onCreate={() => setView('create')}
+            madeCount={
+              config?.agent_creation ? createdAgents.records.length : undefined
+            }
+            onManage={() => {
+              setView('created')
+              void createdAgents.refresh()
+            }}
             onChoose={(id) => (id === selected ? setView('chat') : newChat(id))}
           />
         ) : (
