@@ -68,6 +68,11 @@ npm --prefix workbench/frontend test
 ./workbench/test-private-checks.ps1
 ```
 
+Before presenting, run `./workbench/demo-check.ps1 -BaseUrl <lab address>` from
+the network you'll present on. It only reads. Add `-Designer` to send one short
+billable message to the Agent designer and check its spec card. The
+[demo script](../docs/demo-script.md) explains the output.
+
 Infrastructure initialization and validation are separate deployment steps. The
 local application checks don't require access to the remote state backend.
 

@@ -14,6 +14,12 @@ Pull request numbers link to the full discussion.
 
 ### Added
 
+- **Demo script and pre-demo check.** A ten-minute demo script with exact clicks
+  and sample prompts, and `workbench/demo-check.ps1`, which confirms the Lab,
+  library and Foundry are healthy before you present. It only reads unless you
+  add `-Designer`, which sends one short billable message to the Agent designer
+  and checks its spec card.
+  ([#410](https://github.com/michael-rechani/foundry-agent-accelerator/issues/410))
 - **Agent designer spec.** When an idea is clear, the Agent designer can end its
   reply with an agent spec card: a Foundry prompt agent definition to download,
   and a button to start from the closest pre-built agent in Create agent, with
