@@ -35,6 +35,7 @@ export function ChatConversation({
   onCopy,
   onSubmit,
   onTryAgain,
+  onFollowUp,
   onStop,
   onContinue,
   onCatalog,
@@ -69,6 +70,7 @@ export function ChatConversation({
   onCopy: (text: string, done?: string) => void
   onSubmit: () => void
   onTryAgain: () => void
+  onFollowUp: (text: string) => void
   onStop: () => void
   onContinue: () => void
   onCatalog: () => void
@@ -158,6 +160,7 @@ export function ChatConversation({
             setDirty(true)
           }}
           onTryAgain={agent && !isPreview ? onTryAgain : undefined}
+          onFollowUp={agent ? onFollowUp : undefined}
           onRetry={
             agent &&
             draft.trim() &&

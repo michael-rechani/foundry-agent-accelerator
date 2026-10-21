@@ -12,6 +12,12 @@ Pull request numbers link to the full discussion.
 
 ## [Unreleased]
 
+### Added
+
+- **Next steps in Chat.** The Benefits renewal helper offers one-click buttons
+  under its latest answer: the checklist, the draft note and questions for the
+  caseworker.
+
 ## [0.1.0] - 2026-10-19
 
 First tagged release. The repository went public on 2026-10-15
