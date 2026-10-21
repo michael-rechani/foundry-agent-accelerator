@@ -26,7 +26,6 @@ test('the library groups navigation into three sections, starting with Chat and 
     'Find an agent',
     /^Shared history/,
     /^All agents\s*\d*$/,
-    'Create agent',
     'Overview',
     'Performance',
     /^Request log/,

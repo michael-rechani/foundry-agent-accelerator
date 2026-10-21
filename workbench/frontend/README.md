@@ -50,7 +50,7 @@ setup there rather than copying it into a spec.
 
 `src/ChatWorkspace.tsx` owns conversation and view state for the library's
 **Browse**, **My agents** and **Add-ons** tabs,
-**Create agent**, **Chat**, **Document reviews**, **Performance**, **Request
+**Create agent** (reached from links and cards, with no sidebar entry), **Chat**, **Document reviews**, **Performance**, **Request
 log**, and **Shared history**. `ChatSidebar.tsx` groups them into three
 sections: **Start here**, **Agent library**, and **Operations**. `AddOns.tsx` renders the preview-only **Add-ons** tab from `add-on-catalog.json`, which `python addons/build_catalog.py --write` generates from the manifests in `addons/`. It makes no API calls. An entry with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**.
 **Operations** appears only with **Under the hood** on

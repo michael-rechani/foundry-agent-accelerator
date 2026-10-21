@@ -89,8 +89,8 @@ implemented or deployed.
 [All screenshots](docs/images/README.md#lab-screenshots)
 
 The sidebar groups the pages. **Start here** has **Chat**, **Find an agent** and
-Shared history. **Agent library** has **All agents**, plus **Create agent** when
-creation is on. **Operations** (health, response times,
+Shared history. **Agent library** has **All agents**. When creation is on, **Create agent**
+opens from the Chat spec card, **Find an agent** and the library templates. **Operations** (health, response times,
 tokens, cost, and the request log) appears when you turn on **Under the hood**.
 **Document reviews** has no sidebar link, so open `/#reviews` or a saved-review
 link. See the [Lab guide](docs/lab-pages-and-access.md#pages).

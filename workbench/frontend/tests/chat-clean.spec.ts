@@ -167,6 +167,7 @@ test('the Agent designer can end with a downloadable agent spec', async ({
   await expect(card.getByRole('button', { name: /Create agent/ })).toHaveCount(
     0,
   )
+  await expect(card).toContainText('No built-in template matches this idea')
   const download = page.waitForEvent('download')
   await card.getByRole('button', { name: 'Download agent spec' }).click()
   const file = await download
