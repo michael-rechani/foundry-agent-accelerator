@@ -20,9 +20,9 @@ const hashViews: Record<string, View> = {
 const viewForHash = (hash: string): View | null =>
   reviewIdFromHash(hash) ? 'reviews' : (hashViews[hash] ?? null)
 
-// The page being shown. It follows the URL hash and opens on "Find an agent" when
-// there is none. Create agent falls back to the library in a Lab that cannot
-// create agents.
+// The page being shown. It follows the URL hash and opens on Chat when there is
+// none. Create agent falls back to the library in a Lab that cannot create
+// agents.
 export function useChatView(config: Config | null) {
   const [selectedView, setView] = useState<View | null>(() =>
     viewForHash(window.location.hash),
@@ -38,6 +38,6 @@ export function useChatView(config: Config | null) {
   const view: View =
     selectedView === 'create' && config && !config.agent_creation
       ? 'library'
-      : (selectedView ?? 'start')
+      : (selectedView ?? 'chat')
   return { view, setView }
 }

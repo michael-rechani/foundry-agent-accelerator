@@ -168,7 +168,7 @@ test('the add-on answer links to the Add-ons page', async ({ page }) => {
 test('when agent creation is on, the answer offers it and nothing is made', async ({
   page,
 }) => {
-  const state = await openLibrary(page, { hash: '' })
+  const state = await openLibrary(page, { hash: '#start' })
   const ask = guide(page)
   await ask.getByRole('button', { name: askWhich }).click()
   await expect(ask).toContainText('start a new agent from a template')

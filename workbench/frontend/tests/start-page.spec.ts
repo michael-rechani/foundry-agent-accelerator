@@ -4,8 +4,26 @@ import { workspaceNav } from './helpers/navigation'
 
 const askWhich = 'Which agent should I use or build?'
 
-test('the Lab opens on Find an agent before any agent', async ({ page }) => {
+test('the Lab opens on Chat, not on Find an agent', async ({ page }) => {
   const state = await openLibrary(page, { hash: '' })
+  await expect(
+    workspaceNav(page).getByRole('button', { name: 'Chat' }),
+  ).toHaveAttribute('aria-current', 'page')
+  await expect(
+    workspaceNav(page).getByRole('button', { name: 'Find an agent' }),
+  ).not.toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Welcome to the Lab' }),
+  ).toHaveCount(0)
+  expect(state.chat).toHaveLength(0)
+})
+
+test('Find an agent still opens from the sidebar', async ({ page }) => {
+  const state = await openLibrary(page, { hash: '' })
+  await workspaceNav(page)
+    .getByRole('button', { name: 'Find an agent' })
+    .click()
   await expect(
     page.getByRole('heading', { level: 1, name: 'Welcome to the Lab' }),
   ).toBeVisible()
@@ -39,7 +57,7 @@ test('#start opens the same first page', async ({ page }) => {
 test('a question on the first page is answered without sending anything', async ({
   page,
 }) => {
-  const state = await openLibrary(page, { hash: '' })
+  const state = await openLibrary(page, { hash: '#start' })
   const ask = page.getByRole('region', { name: 'Common questions' })
   await ask.getByRole('button', { name: askWhich }).click()
   await expect(
@@ -55,7 +73,7 @@ test('a question on the first page is answered without sending anything', async 
 test('describing a job finds a ready agent and sends nothing', async ({
   page,
 }) => {
-  const state = await openLibrary(page, { hash: '' })
+  const state = await openLibrary(page, { hash: '#start' })
   const ask = page.getByRole('region', { name: 'Find an agent' })
   await expect(ask).toContainText('does not use an AI model')
   await ask
@@ -74,7 +92,7 @@ test('describing a job finds a ready agent and sends nothing', async ({
 test('a job nothing matches says so and offers a way forward', async ({
   page,
 }) => {
-  const state = await openLibrary(page, { hash: '' })
+  const state = await openLibrary(page, { hash: '#start' })
   const ask = page.getByRole('region', { name: 'Find an agent' })
   await ask
     .getByRole('textbox', { name: 'What are you trying to do?' })
@@ -91,7 +109,7 @@ test('a job nothing matches says so and offers a way forward', async ({
 })
 
 test('Try an agent opens the agent list', async ({ page }) => {
-  await openLibrary(page, { hash: '' })
+  await openLibrary(page, { hash: '#start' })
   await page.getByRole('button', { name: /^Try an agent/ }).click()
   await expect(
     page.getByRole('navigation', { name: 'Breadcrumb' }),
@@ -99,7 +117,7 @@ test('Try an agent opens the agent list', async ({ page }) => {
 })
 
 test('Build your own opens agent creation when it is on', async ({ page }) => {
-  const state = await openLibrary(page, { hash: '' })
+  const state = await openLibrary(page, { hash: '#start' })
   await page.getByRole('button', { name: /^Build your own/ }).click()
   await expect(
     page.getByRole('heading', { name: 'Create an agent', exact: true }),
@@ -110,7 +128,7 @@ test('Build your own opens agent creation when it is on', async ({ page }) => {
 test('Build your own opens the library when creation is off', async ({
   page,
 }) => {
-  await openLibrary(page, { hash: '', withoutCreation: true })
+  await openLibrary(page, { hash: '#start', withoutCreation: true })
   await expect(
     page.getByText('Browse the agent library for a starting point.'),
   ).toBeVisible()

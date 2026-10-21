@@ -37,7 +37,7 @@ person confirms.
 
 ## 1. Shape an idea (2 minutes)
 
-1. Open the Lab and choose **Chat**. On the clean Chat screen you're talking to
+1. Open the Lab. It opens on **Chat**, where you're talking to
    the **Agent designer**.
 2. Paste this:
 
