@@ -63,6 +63,10 @@ class LibraryPreviewTests(unittest.TestCase):
         self.assertNotIn("include", options)
         self.assertFalse(options["store"])
 
+    def test_agent_designer_knows_the_real_export_path(self):
+        for phrase in ("Take it to Foundry", "The Lab has no import", "hosted-agent package"):
+            self.assertIn(phrase, DESIGNER_INSTRUCTIONS)
+
     def test_unknown_or_malformed_ids_are_rejected(self):
         for identifier in ("library-", "library-missing-template", "Library-x", f"library-{text_template()}\n",
                            "customer-review", None, 3):
