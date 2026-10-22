@@ -62,34 +62,62 @@ If the designer asks a question first, answer in one line and let it continue.
 ## 2. Try a proven agent (3 minutes)
 
 1. Open the **Agent library**. The **Browse** tab lists agents the Lab has
-   tested. Open one that matches your customer's world.
+   tested. For a strong example, open **Medical bill reviewer**.
 2. On **Overview**, read aloud the three things it states: what it needs, what
    it returns and what it leaves to a person.
 3. On **Try it**, run it on an example input.
-4. On **Test results**, show how it did on the Lab's test cases. Say: "These
-   are the results before anyone trusts it, not after."
+4. On **Test results**, show how it did on the Lab's test cases: each case is
+   sent five times and every answer must pass. Say: "These are the results
+   before anyone trusts it, not after," and point at the case that missed a
+   check, which the Lab flags for a person instead of hiding.
 
-## 3. Run a guided demo (2 minutes)
+## 3. Watch agents work together (4 minutes)
 
-1. From the Browse page, choose **Try a guided demo**.
-2. Pick **Find what's missing** (the checklist review).
-3. Choose **Load sample input**, confirm **Open example**, then send it. The
-   answer takes 30 to 60 seconds because several agents work on it. Say so
-   while you wait.
-4. Compare the answer with the expected findings next to it: the missing budget
-   and the two different completion dates.
-5. Say: "It flagged what it couldn't verify and left the decision to a person.
-   That is the behaviour we test for."
+This is the centrepiece. The **Checklist and case helper** is a *coordinator*:
+one agent that reads your request, decides which *specialist* agent should do
+the detailed work, and hands it over. You can show that hand-off happening.
+
+Before you start, turn on **Under the hood** (bottom of the sidebar) so the
+answer can show how it was made.
+
+1. From the **Agent library** > **Browse** page, choose **Try a guided demo**.
+2. Pick **Find what's missing** (the checklist review), choose **Load sample
+   input**, confirm **Open example**, then **Send**. The input is a project
+   checked against three checklist items: a budget, an owner and a schedule.
+3. While it works (30 to 60 seconds), explain what is on screen:
+   > "I asked one agent, the coordinator. It reads the request and passes it to a
+   > specialist that only reviews applications against checklists. It's two
+   > agents, each with one job, instead of one agent trying to do everything."
+4. When the answer arrives, point at three things in it:
+   - the **table** with one row per checklist item (the owner is *Covered*, the
+     schedule is *Unclear*, the budget is missing);
+   - **Missing or conflicting information**: no budget, and two different
+     completion dates in the text;
+   - **Human review notice**: it made no decision.
+5. Open **Details** under the answer. Say: "This is the proof. It lists that the
+   coordinator asked the Application review agent for its part, and that the
+   specialist's reply was **Confirmed**." Choose **Open in Foundry** to show the
+   specialist as a real agent in your own project.
+6. Say: "It found what's missing, caught the conflict I would have skimmed past,
+   and left the sign-off to a person. That is the behaviour we test for."
+
+Optional, 1 minute: choose **New chat**, then send the **Summarize case notes**
+starter (under **Show agent guide and examples**). The same coordinator should
+now call the *other* specialist, so **Details** shows a different agent. That is
+routing: you don't pick the specialist, the coordinator does. Try it once before
+you present.
 
 **Catch what does not add up** (the supplier invoice review) can be read, but
 it has no **Load sample input**: running it needs the Supplier invoice reviewer
-agent created first. Use it as a talking point, not a live step. The third demo,
-**Turn scattered notes into a brief** (case notes), is the other option. The
-inputs and expected findings are in the [demo guide](demos.md).
+agent created first. Use it as a talking point, not a live step. The inputs and
+expected findings for every guided demo are in the [demo guide](demos.md).
 
 If you used the invoice idea in step 1, expect the spec card to say no built-in
 template matches. That is the honest answer, and **Create this agent here**
-won't appear for it, so step 6 doesn't apply to that example.
+won't appear for it, so the optional step 6 in part 1 doesn't apply to that example.
+
+If the answer takes longer than a minute, say so plainly and keep talking
+through the steps above.
 
 ## 4. Take it to Foundry (1 minute)
 

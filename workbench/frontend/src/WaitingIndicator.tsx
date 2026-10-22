@@ -31,21 +31,20 @@ export function WaitingIndicator({
       </div>
       {expects && (
         <p className="chat-waiting-note">
-          <strong>Expect:</strong> {expects}
+          <strong>You'll get:</strong> {expects}
         </p>
       )}
       {delegates && (
         <p className="chat-waiting-note">
-          <strong>Working:</strong> {label ?? 'This agent'} is passing your task
-          to specialist agents and combining what they return. That usually
-          takes 30 to 60 seconds.
+          <strong>What's happening:</strong> {label ?? 'This agent'} reads your
+          request, hands it to a specialist agent that does the detailed check,
+          then returns that answer to you. That usually takes 30 to 60 seconds.
         </p>
       )}
       {elapsed >= slowAfterSeconds && (
         <p className="chat-waiting-note">
-          Still working. Some answers take 30 seconds to a minute, especially
-          the first one in a new chat. Follow-up questions in the same chat
-          usually take a few seconds.
+          Still working. The first answer in a new chat is the slowest.
+          Follow-up questions usually take a few seconds.
         </p>
       )}
     </div>

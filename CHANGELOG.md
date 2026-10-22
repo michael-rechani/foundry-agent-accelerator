@@ -36,6 +36,13 @@ Pull request numbers link to the full discussion.
 
 ### Changed
 
+- **Plainer waiting message, and a multi-agent demo.** While an answer loads, the
+  Lab now says "You'll get" and "What's happening: it reads your request, hands
+  it to a specialist agent that does the detailed check, then returns that
+  answer to you", instead of "Expect" and "passing your task to specialist
+  agents". The demo script's step 3 now centres on the coordinator and
+  specialist hand-off and shows the **Details** proof.
+  ([#410](https://github.com/michael-rechani/foundry-agent-accelerator/issues/410))
 - **Create agent leaves the sidebar.** The Agent designer, **Find an agent** and
   the library templates are the ways in now, so the sidebar is shorter. `/#create`
   still works. A spec that matches no built-in template now says so on its card

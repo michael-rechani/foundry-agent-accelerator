@@ -6,7 +6,7 @@
     "description": "Check a document against your checklist, or turn case notes into a clear summary. It brings in a specialist when the job needs one.",
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
-      "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
+      "output": "A table or summary that shows what is covered, what is missing or conflicting, and which part of your text each point comes from, plus questions for you to answer.",
       "limits": "It works from what you paste, plus one sample lookup: the case notes specialist can search ten approved sample policy passages and name the one it used. It can't search your own documents, change business systems or decide whether to approve something. Checking requirements against proposals is in preview.",
             "delegation": "It passes your task to the right specialist (Checklist reviewer or Case notes summarizer) and brings back one combined reply. It uses both only if you ask for both, and it may first ask what you need.",
       "configuration": "Instructions and specialist tools: hosted-agents\\review-coordinator-agent\\profiles\\evidence-review.example.json. Publish a new coordinator version with this profile to change runtime behavior."
@@ -27,7 +27,7 @@
     "description": "Does the same jobs as Checklist and case helper, with the same two specialists. Only the developer setup differs; it does not add capabilities.",
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
-      "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
+      "output": "A table or summary that shows what is covered, what is missing or conflicting, and which part of your text each point comes from, plus questions for you to answer.",
       "limits": "It works from what you paste, plus one sample lookup: the case notes specialist can search ten approved sample policy passages and name the one it used. It can't search your own documents, change business systems or decide whether to approve something. Checking requirements against proposals is in preview.",
             "delegation": "It passes your task to the same specialists (Checklist reviewer or Case notes summarizer). It uses one unless you ask for both, and what you can get done is the same as with Checklist and case helper.",
       "configuration": "Base instructions: hosted-agents\\review-coordinator-agent\\instructions.md. Tools: main.py in that directory, with deployed SPECIALIST_CONFIG taking precedence over legacy agent-name settings. Publish a new agent version to change runtime behavior."
