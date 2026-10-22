@@ -328,7 +328,6 @@ export default function ChatWorkspace() {
       <ChatSidebar
         title={config?.title}
         view={view}
-        creationEnabled={!!config?.agent_creation}
         historyEnabled={!!config?.history_enabled}
         busy={busy}
         historyBusy={historyBusy}

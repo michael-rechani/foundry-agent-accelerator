@@ -36,6 +36,12 @@ Pull request numbers link to the full discussion.
 
 ### Changed
 
+- **Create agent leaves the sidebar.** The Agent designer, **Find an agent** and
+  the library templates are the ways in now, so the sidebar is shorter. `/#create`
+  still works. A spec that matches no built-in template now says so on its card
+  and points to downloading the spec.
+  ([#404](https://github.com/michael-rechani/foundry-agent-accelerator/issues/404),
+  [#408](https://github.com/michael-rechani/foundry-agent-accelerator/issues/408))
 - **Docs match the Chat-first Lab.** The README tour, the Create agent guide,
   the frontend README and the screenshot index now say the Lab opens on Chat,
   and describe building an agent from the spec card.

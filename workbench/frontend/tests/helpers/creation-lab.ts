@@ -9,7 +9,12 @@ import { guidedReview } from '../fixtures'
 import { catalog } from './catalog'
 import { creationCapability, labConfig, modeFor } from './lab-config'
 import { mockApi } from './mock-api'
-import { openMadeInLab, waitForLab, workspaceNav } from './navigation'
+import {
+  followLink,
+  openMadeInLab,
+  waitForLab,
+  workspaceNav,
+} from './navigation'
 
 export const operatorKey = 'fictional-test-key-not-a-real-secret-1234567890'
 export const sample =
@@ -428,6 +433,12 @@ export async function navigate(page: Page, name: string) {
       page.getByRole('heading', { level: 1, name: 'Made in this Lab' }),
     ).toBeVisible()
     return
+  }
+  // Create agent has no sidebar entry; it opens from cards and links.
+  // The hash stays on #create after another page is picked, so leave it first.
+  if (name === 'Create agent') {
+    await followLink(page, '#chat')
+    return followLink(page, '#create')
   }
   await workspaceNav(page).getByRole('button', { name, exact: true }).click()
 }

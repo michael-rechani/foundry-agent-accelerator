@@ -59,7 +59,6 @@ const sectionOf: Record<View, Section> = {
 export function ChatSidebar({
   title,
   view,
-  creationEnabled,
   historyEnabled,
   busy,
   historyBusy,
@@ -75,7 +74,6 @@ export function ChatSidebar({
 }: {
   title?: string
   view: View
-  creationEnabled: boolean
   historyEnabled: boolean
   busy: boolean
   historyBusy: boolean
@@ -132,9 +130,6 @@ export function ChatSidebar({
           count: libraryCount,
           current: libraryViews.includes(view),
         },
-        ...(creationEnabled
-          ? [{ view: 'create' as const, label: 'Create agent', icon: Plus }]
-          : []),
       ],
     },
     {

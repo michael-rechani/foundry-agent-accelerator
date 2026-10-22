@@ -65,6 +65,12 @@ export function AgentSpecCard({
         )}
       </div>
       {build}
+      {!spec.closest_template && (
+        <p className="agent-spec-note">
+          No built-in template matches this idea, so the Lab can&apos;t create
+          it here. Download the spec to build it in your own Foundry project.
+        </p>
+      )}
       <p className="agent-spec-note">
         The file is a Foundry prompt agent definition. Add your own model
         deployment. Nothing is created until you act.
