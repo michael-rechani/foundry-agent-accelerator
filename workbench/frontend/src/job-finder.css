@@ -1,11 +1,11 @@
-/* First page: a job finder, common questions, then two next steps. Theme tokens only. */
+/* The job finder on the library's Browse page. Theme tokens only. */
 .job-finder {
   max-width: 880px;
-  margin-bottom: 22px;
+  margin: 20px 0 22px;
   text-align: left;
 }
 .job-finder h2 {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-secondary);
 }
@@ -149,77 +149,4 @@
 .job-finder-results li button:hover {
   border-color: var(--accent);
   background: var(--accent-soft);
-}
-.start-page .lab-guide {
-  max-width: 880px;
-  text-align: left;
-}
-.start-page .lab-guide-bubble {
-  justify-self: end;
-  max-width: 85%;
-  padding: 8px 12px;
-  border-radius: 12px 12px 2px 12px;
-  background: var(--accent-soft);
-  color: var(--text);
-  font-weight: 600;
-}
-.start-page .lab-guide-answer p {
-  margin-top: 8px;
-  font-size: 13px;
-  line-height: 1.6;
-}
-.start-page .lab-guide-answer h3 + p {
-  margin-top: 0;
-}
-.start-page .lab-guide-note {
-  margin-top: 12px;
-  font-size: 12px;
-}
-.start-next {
-  max-width: 880px;
-  margin-top: 26px;
-}
-.start-next h2 {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
-}
-.start-next-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 9px;
-  margin-top: 10px;
-}
-.start-next-cards button {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
-  text-align: left;
-}
-.start-next-cards button:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-.start-next-cards button > span {
-  display: grid;
-  flex: 1;
-  gap: 2px;
-}
-.start-next-cards strong {
-  font-size: 13px;
-  font-weight: 650;
-}
-.start-next-cards small {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
-}
-.start-next-cards button > svg {
-  flex: none;
-  color: var(--muted);
 }

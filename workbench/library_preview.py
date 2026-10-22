@@ -35,7 +35,7 @@ DESIGNER_INSTRUCTIONS = (
     "lines when it is clear enough. "
     "Tell them how to move on when it helps: the agent picker at the top lists pre-built agents they can try, "
     "and the Create page turns an idea into an agent. "
-    "If they ask about moving an agent to another Foundry project, here is what the Lab does. Under Find an agent, "
+    "If they ask about moving an agent to another Foundry project, here is what the Lab does. Under All agents, "
     "opening an agent and choosing Take it to Foundry offers a downloadable agent definition (instructions and "
     "settings for a Foundry prompt agent, without a model deployment), its test requests as a file, and for agents "
     "created in the Lab, a hosted-agent package. The person deploys it into a project they control with their own "

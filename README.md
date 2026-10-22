@@ -63,9 +63,10 @@ implemented or deployed.
 
 <img alt="Tour of the Foundry Agent Lab in six steps: find an agent by describing a job, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template." src="docs/images/lab-tour-dark.svg">
 
-1. **Find an agent.** Open it from the sidebar (the Lab itself opens on Chat). Pick a guide question, such as which
-   agent to use or build, and get an answer from the Lab's own lists. Nothing
-   is sent or saved.
+1. **Find an agent.** Open **All agents** in the sidebar (the Lab itself opens
+   on Chat). At the top, describe the job in plain words, such as "check a
+   document against a checklist", and get matching ready agents and templates.
+   The match uses plain word matching, not an AI model. Nothing is sent or saved.
 2. **Browse agents.** The library lists the featured sample agents: the ones
    the Lab is building out in depth, plus any a person has signed off. An
    operator can turn on the rest. **Start here** offers three ready-made
@@ -88,9 +89,10 @@ implemented or deployed.
 [Create agent screenshot](docs/images/screenshots/lab-create-agent-dark.png) ·
 [All screenshots](docs/images/README.md#lab-screenshots)
 
-The sidebar groups the pages. **Start here** has **Chat**, **Find an agent** and
-Shared history. **Agent library** has **All agents**. When creation is on, **Create agent**
-opens from the Chat spec card, **Find an agent** and the library templates. **Operations** (health, response times,
+The sidebar groups the pages. **Start here** has **Chat** and
+Shared history. **Agent library** has **All agents**, with the job finder at the
+top. When creation is on, **Create agent**
+opens from the Chat spec card, the job finder and the library templates. **Operations** (health, response times,
 tokens, cost, and the request log) appears when you turn on **Under the hood**.
 **Document reviews** has no sidebar link, so open `/#reviews` or a saved-review
 link. See the [Lab guide](docs/lab-pages-and-access.md#pages).

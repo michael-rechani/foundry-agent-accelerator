@@ -3,27 +3,33 @@ import { addOnGroupLabels, addOns } from '../src/add-on-catalog'
 import { registry } from './fixtures'
 import { openWorkspace } from './helpers/chat-lab'
 import { openLibrary } from './helpers/library-lab'
-import { workspaceNav } from './helpers/navigation'
 
 const askWhich = 'Which agent should I use or build?'
 const askHow = 'How is an agent built, and what can I add?'
 
 const guide = (page: Page) =>
-  page.getByRole('region', { name: 'Common questions' })
+  page.getByRole('region', { name: 'What can I create?' })
 
-// The guide lives on the Start here page, not in Chat.
+// The guide sits behind "What can I create?" on the Chat welcome. It opens on
+// the agents answer, so close that to start from the two collapsed questions.
+async function showGuide(page: Page) {
+  await page
+    .locator('.welcome-modes')
+    .getByRole('button', { name: /What can I create\?/ })
+    .click()
+  await guide(page).getByRole('button', { name: askWhich }).click()
+}
+
 async function openGuide(
   page: Page,
   options: Parameters<typeof openWorkspace>[1],
 ) {
   const state = await openWorkspace(page, options)
-  await workspaceNav(page)
-    .getByRole('button', { name: 'Find an agent' })
-    .click()
+  await showGuide(page)
   return state
 }
 
-test('Chat does not carry the guide, so it stays on the conversation', async ({
+test('Chat keeps the guide closed until asked, so it stays on the conversation', async ({
   page,
 }) => {
   await openWorkspace(page, { config: { agents: registry } })
@@ -71,9 +77,9 @@ test('asking which agent to use lists the ready agents and sends nothing', async
     await expect(rows.nth(index)).toContainText(item.description)
   }
   await expect(ask.getByRole('button', { name: /^Use / })).toHaveCount(
-    registry.length,
+    registry.length - 1,
   )
-  await expect(ask.getByText('In use now')).toHaveCount(0)
+  await expect(ask.getByText('In use now')).toHaveCount(1)
   await expect(ask).toContainText(
     "Agent creation isn't turned on in this Lab, so only these agents are available.",
   )
@@ -102,7 +108,6 @@ test('choosing another agent from the answer starts a chat with it', async ({
     page.getByRole('heading', { level: 1, name: registry[2].label }),
   ).toBeVisible()
   await expect(page.locator('.agent-picker')).toContainText(registry[2].label)
-  await expect(guide(page)).toHaveCount(0)
   expect(state.requests).toHaveLength(0)
   expect(state.saves).toHaveLength(0)
 })
@@ -168,7 +173,8 @@ test('the add-on answer links to the Add-ons page', async ({ page }) => {
 test('when agent creation is on, the answer offers it and nothing is made', async ({
   page,
 }) => {
-  const state = await openLibrary(page, { hash: '#start' })
+  const state = await openLibrary(page, { hash: '' })
+  await showGuide(page)
   const ask = guide(page)
   await ask.getByRole('button', { name: askWhich }).click()
   await expect(ask).toContainText('start a new agent from a template')

@@ -1,16 +1,24 @@
+import type { ReactNode } from 'react'
 import { Search } from 'lucide-react'
 import { demoScenarios } from './demo-scenarios'
 import { LibraryHero } from './LibraryHero'
 
 // Grey shapes in the same places as the real page, so nothing jumps when the
 // agents arrive. They do not animate, which keeps a remote desktop quiet.
-export function LibraryLoading({ onDemos }: { onDemos?: () => void }) {
+export function LibraryLoading({
+  onDemos,
+  finder,
+}: {
+  onDemos?: () => void
+  finder?: ReactNode
+}) {
   return (
     <>
       <p role="status" className="visually-hidden">
         Loading the agent library...
       </p>
       <LibraryHero onDemos={onDemos}>
+        {finder}
         <ol className="library-path" aria-hidden="true">
           {[1, 2, 3, 4].map((step) => (
             <li key={step}>

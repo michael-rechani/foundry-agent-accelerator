@@ -3,6 +3,7 @@ import { Check, Search } from 'lucide-react'
 import { findMatches } from './guide-finder'
 import type { LibraryTemplate } from './library-catalog'
 import type { Agent } from './workspace-config'
+import './job-finder.css'
 
 // Plain-word examples taken from the agents that are ready, so each one finds
 // something real.
@@ -55,7 +56,7 @@ export function JobFinder({
   const nothing = !!found && !found.agents.length && !found.templates.length
   return (
     <section className="job-finder" aria-labelledby="job-finder-title">
-      <h2 id="job-finder-title">Find an agent</h2>
+      <h2 id="job-finder-title">Describe the job</h2>
       <form
         onSubmit={(event) => {
           event.preventDefault()

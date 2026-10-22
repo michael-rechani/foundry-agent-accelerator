@@ -4,7 +4,7 @@ import { reviewIdFromHash } from './review-client'
 import type { Config } from './workspace-config'
 
 const hashViews: Record<string, View> = {
-  '#start': 'start',
+  '#start': 'library',
   '#chat': 'chat',
   '#create': 'create',
   '#library': 'library',

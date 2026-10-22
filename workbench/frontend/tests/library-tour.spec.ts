@@ -46,16 +46,19 @@ for (const mode of ['light', 'dark'] as const)
 
 // The README and docs pictures: the plain view a first-time visitor sees.
 for (const mode of ['light', 'dark'] as const)
-  test(`the first page shows Find an agent before any agent in ${mode} mode`, async ({
+  test(`the library finder matches a job to an agent in ${mode} mode`, async ({
     page,
   }, testInfo) => {
     await seedAppearance(page, { mode, accent: 'foundry' })
-    const state = await openLibrary(page, { hash: '#start' })
+    const state = await openLibrary(page, { hash: '#library' })
     await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Welcome to the Lab' }),
+      page.getByRole('heading', {
+        level: 1,
+        name: 'Find an agent for the job',
+      }),
     ).toBeVisible()
-    const ask = page.getByRole('region', { name: 'Find an agent' })
+    const ask = page.getByRole('region', { name: 'Describe the job' })
     await ask
       .getByRole('textbox', { name: 'What are you trying to do?' })
       .fill('check a document against a checklist')

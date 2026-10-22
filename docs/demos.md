@@ -90,8 +90,8 @@ This path shows how a recognizable job becomes a small Foundry agent. The
 and complete. Publication time depends on the service, so have a previously
 created sample agent ready rather than promising instant deployment.
 
-1. Open **Create agent** from **Find an agent** > **Build your own**, or
-   browse to `/#create`.
+1. Open **Create agent** from the Chat spec card, a library template's
+   **Start from this**, or browse to `/#create`.
 2. Describe one job or choose a prepared template.
 3. Prepare the setup. Explain that the template supplies the baseline and the
    typed task is included in its instructions. No model has designed or tested
