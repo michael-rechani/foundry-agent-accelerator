@@ -175,7 +175,7 @@ test('an agent that passes work to specialists says so while you wait', async ({
   await message(page).fill('Synthetic request')
   await page.getByRole('button', { name: 'Send message' }).click()
   const waiting = page.getByRole('status').filter({ hasText: 'Asking' })
-  await expect(waiting).toContainText('passing your task to specialist agents')
+  await expect(waiting).toContainText('hands it to a specialist agent')
   await expect(waiting).toContainText('30 to 60 seconds')
 })
 
@@ -190,7 +190,7 @@ test('an agent that works alone does not claim to pass work on', async ({
   await page.getByRole('button', { name: 'Send message' }).click()
   const waiting = page.getByRole('status').filter({ hasText: 'Asking' })
   await expect(waiting).toBeVisible()
-  await expect(waiting).not.toContainText('specialist agents')
+  await expect(waiting).not.toContainText('specialist agent')
 })
 
 test('the carry-over button says what it does', async ({ page }) => {
