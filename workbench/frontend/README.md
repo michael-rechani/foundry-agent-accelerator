@@ -155,7 +155,7 @@ polling never submits another creation. Setup, publication, ready routing, and
 live answer quality remain distinct.
 
 The Lab opens on **Start here** > **Chat** (`/#chat`). These other entry links are
-supported: `/#start` (**Find an agent**), `/#library`, `/#agents`, `/#demos`, `/#reviews`, `/#addons`, `/#operations`,
+supported: `/#start` (opens the library, where the job finder now lives), `/#library`, `/#agents`, `/#demos`, `/#reviews`, `/#addons`, `/#operations`,
 `/#performance`, `/#logs`, and `/#create`. A library **Create** action opens the
 creator with that template preselected unless setup work is already in
 progress. Creation still requires its advertised capability. Valid saved-review

@@ -22,7 +22,7 @@ import { OperationsView } from './OperationsView'
 import { AgentLibrary, type ReadyAgent } from './AgentLibrary'
 import { ExploreDemos } from './ExploreDemos'
 import { AddOns } from './AddOns'
-import { StartPage } from './StartPage'
+import { JobFinder } from './JobFinder'
 import { isPreviewId, previewTemplateId } from './library-catalog'
 import { isDesignerId } from './agent-designer'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
@@ -418,6 +418,20 @@ export default function ChatWorkspace() {
               config.agent_creation ? () => setView('create') : undefined
             }
             onDemos={() => setView('explore')}
+            finder={
+              <JobFinder
+                agents={availableAgents}
+                templates={library.catalog?.templates ?? []}
+                onChooseAgent={newChat}
+                onUseTemplate={
+                  config.agent_creation ? createFromTemplate : undefined
+                }
+                onBrowse={() => setView('library')}
+                onCreateAgent={
+                  config.agent_creation ? () => setView('create') : undefined
+                }
+              />
+            }
           />
         )}
         {config?.agent_creation && (
@@ -455,23 +469,6 @@ export default function ChatWorkspace() {
               onChat={() => setView('chat')}
             />
           )
-        ) : view === 'start' ? (
-          <StartPage
-            agents={availableAgents}
-            templates={library.catalog?.templates ?? []}
-            onChooseAgent={newChat}
-            onUseTemplate={
-              config?.agent_creation ? createFromTemplate : undefined
-            }
-            onTryAgent={() => setView('catalog')}
-            onBuild={() =>
-              setView(config?.agent_creation ? 'create' : 'library')
-            }
-            onAddOns={() => setView('addons')}
-            onCreateAgent={
-              config?.agent_creation ? () => setView('create') : undefined
-            }
-          />
         ) : view === 'reviews' ||
           view === 'addons' ||
           view === 'library' ||

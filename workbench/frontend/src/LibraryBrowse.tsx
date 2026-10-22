@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type {
   FacetKey,
   LibraryCatalog,
@@ -45,6 +46,7 @@ export function LibraryBrowse({
   onTest,
   onOpenCreate,
   onDemos,
+  finder,
 }: {
   catalog: LibraryCatalog
   results: LibraryTemplate[]
@@ -65,6 +67,7 @@ export function LibraryBrowse({
   onTest: (agent: Agent, input: string) => void
   onOpenCreate?: () => void
   onDemos?: () => void
+  finder?: ReactNode
 }) {
   const toolbar = (
     <LibraryResultsToolbar
@@ -77,6 +80,7 @@ export function LibraryBrowse({
   return (
     <>
       <LibraryHero onDemos={onDemos}>
+        {finder}
         <LibraryPath previewsOn={previewsOn} onOpenCreate={onOpenCreate} />
       </LibraryHero>
       {viewMode === 'cards' ? (

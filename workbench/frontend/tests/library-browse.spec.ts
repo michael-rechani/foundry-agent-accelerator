@@ -283,7 +283,7 @@ test('the filter panel fits a short window and scrolls inside itself', async ({
     .click()
   await page
     .locator('.library-view')
-    .evaluate((view) => view.scrollTo({ top: 300 }))
+    .evaluate((view) => view.scrollTo({ top: 600 }))
 
   const box = (await panel.boundingBox())!
   expect(box.y).toBeGreaterThanOrEqual(0)

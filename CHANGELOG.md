@@ -36,6 +36,13 @@ Pull request numbers link to the full discussion.
 
 ### Changed
 
+- **One place to find an agent.** The separate **Find an agent** page is gone.
+  Its "What are you trying to do?" box now sits at the top of **All agents**,
+  above the guided demos and the agent cards, so the sidebar has one agents
+  entry instead of two. `/#start` still works and opens the library. The
+  "Common questions" answers on that page repeated **What can I create?** in
+  Chat, so only the Chat version remains.
+  ([#410](https://github.com/michael-rechani/foundry-agent-accelerator/issues/410))
 - **Plainer waiting message, and a multi-agent demo.** While an answer loads, the
   Lab now says "You'll get" and "What's happening: it reads your request, hands
   it to a specialist agent that does the detailed check, then returns that

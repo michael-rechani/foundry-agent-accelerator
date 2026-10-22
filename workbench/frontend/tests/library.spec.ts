@@ -5,7 +5,7 @@ import { openLibrary } from './helpers/library-lab'
 import { libraryNav, workspaceNav } from './helpers/navigation'
 import { demoScenarios } from '../src/demo-scenarios'
 
-test('the library groups navigation into three sections, starting with Chat and Find an agent', async ({
+test('the library groups navigation into three sections, starting with Chat', async ({
   page,
 }) => {
   await openLibrary(page)
@@ -23,7 +23,6 @@ test('the library groups navigation into three sections, starting with Chat and 
   ])
   await expect(workspaceNav(page).getByRole('button')).toHaveText([
     'Chat',
-    'Find an agent',
     /^Shared history/,
     /^All agents\s*\d*$/,
     'Overview',
