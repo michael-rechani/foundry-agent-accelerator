@@ -82,7 +82,7 @@ class WorkbenchTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual(config["title"], "Foundry Agent Lab")
         self.assertEqual(config["agents"][0]["prompts"][0]["label"], "Check against a checklist")
         self.assertIn("application and your checklist", config["agents"][0]["guidance"]["input"])
-        self.assertIn("where each point came from", config["agents"][0]["guidance"]["output"])
+        self.assertIn("which part of your text each point comes from", config["agents"][0]["guidance"]["output"])
         self.assertEqual(config["max_history_turns"], 10)
         self.assertEqual(config["review_timeout_ms"], 190000)
         self.assertEqual(config["history_timeout_ms"], 45000)
