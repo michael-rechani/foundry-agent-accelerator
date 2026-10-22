@@ -72,17 +72,24 @@ If the designer asks a question first, answer in one line and let it continue.
 ## 3. Run a guided demo (2 minutes)
 
 1. From the Browse page, choose **Try a guided demo**.
-2. Pick **Catch what does not add up** (the supplier invoice review).
-3. Choose **Load sample input**, then send it.
-4. Compare the answer with the expected findings next to it, then ask for the
-   follow-up the demo suggests (for example, "Show the math").
-5. Say: "It flagged what it couldn't verify and left the payment decision to a
-   person. That is the behaviour we test for."
+2. Pick **Find what's missing** (the checklist review).
+3. Choose **Load sample input**, confirm **Open example**, then send it. The
+   answer takes 30 to 60 seconds because several agents work on it. Say so
+   while you wait.
+4. Compare the answer with the expected findings next to it: the missing budget
+   and the two different completion dates.
+5. Say: "It flagged what it couldn't verify and left the decision to a person.
+   That is the behaviour we test for."
 
-The other two demos are **Find what's missing** (a checklist review) and
-**Turn scattered notes into a brief** (case notes). Pick whichever is closest to
-the customer's work. The inputs and expected findings are in the
-[demo guide](demos.md).
+**Catch what does not add up** (the supplier invoice review) can be read, but
+it has no **Load sample input**: running it needs the Supplier invoice reviewer
+agent created first. Use it as a talking point, not a live step. The third demo,
+**Turn scattered notes into a brief** (case notes), is the other option. The
+inputs and expected findings are in the [demo guide](demos.md).
+
+If you used the invoice idea in step 1, expect the spec card to say no built-in
+template matches. That is the honest answer, and **Create this agent here**
+won't appear for it, so step 6 doesn't apply to that example.
 
 ## 4. Take it to Foundry (1 minute)
 
