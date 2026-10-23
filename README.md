@@ -73,12 +73,11 @@ implemented or deployed.
    examples.
 3. **Test results.** See how many answers passed, how long they took, what they
    cost, and whether a person has signed the agent off.
-4. **Chat.** Opens clean, as a plain conversation with the **Agent designer**
-   for talking through an agent you want to build. It has no tools of its own;
-   when an idea is clear it ends with a spec card to download or, with creation
-   on, build here after the operator key and a cost confirmation. Pick **Try a pre-built agent** to chat with a ready agent
-   or a library preview instead, where an example only fills the message box.
-   You choose when to send it. **Simple view** hides the guide and examples.
+4. **Chat.** A plain conversation with the **Agent designer** to talk through
+   an agent you want to build. When the idea is clear, it ends with a spec card
+   to download. Building it here also needs the operator key and a cost
+   confirmation. Pick **Try a pre-built agent** to chat with a ready agent or a
+   library preview instead.
 5. **Take it to Foundry.** Download the agent definition and test requests, then
    follow the steps to create it in your own Foundry. There's no one-click move.
 6. **Create agent.** Prepare an agent from a library template. It stays off
@@ -89,13 +88,13 @@ implemented or deployed.
 [Create agent screenshot](docs/images/screenshots/lab-create-agent-dark.png) ·
 [All screenshots](docs/images/README.md#lab-screenshots)
 
-The sidebar groups the pages. **Start here** has **Chat** and
-Shared history. **Agent library** has **All agents**, with the job finder at the
-top. When creation is on, **Create agent**
-opens from the Chat spec card, the job finder and the library templates. **Operations** (health, response times,
-tokens, cost, and the request log) appears when you turn on **Under the hood**.
-**Document reviews** has no sidebar link, so open `/#reviews` or a saved-review
-link. See the [Lab guide](docs/lab-pages-and-access.md#pages).
+The sidebar groups the pages: **Start here** (**Chat** and **Shared history**),
+**Agent library** (**All agents**, with the job finder), and **Operations**
+(health, response times, cost, and the request log), which appears when you turn
+on **Under the hood**. When creation is on, **Create agent** opens from the Chat
+spec card, the job finder and the library templates. **Document reviews** has no
+sidebar link, so open `/#reviews` or a saved-review link. See the
+[Lab guide](docs/lab-pages-and-access.md#pages).
 
 ---
 
