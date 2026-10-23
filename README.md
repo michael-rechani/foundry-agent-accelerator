@@ -51,7 +51,7 @@ Pick what you want to do.
 | Demo the prebuilt agents | [Demo guide](docs/demos.md) | A deployed Lab. Reading the walkthroughs needs nothing. |
 | Create my own agent | [Create and try a baseline agent](docs/agent-creation.md) | An operator-enabled Lab, model deployments, and cost approval. |
 | Check answer quality | [Evaluations](evaluations/README.md) | Offline checks: nothing. Live runs: a test environment and approval. |
-| Deploy the environment | [Deploy to Azure](#deploy-to-azure) | Azure permissions, model quota, private network access, and cost approval. |
+| Deploy Foundry and the Lab | [Deploy to Azure](#deploy-to-azure) and the [Terraform guide](terraform/README.md#at-a-glance) | Azure permissions, model quota, private network access, and cost approval. |
 
 Looking for early public-sector and healthcare ideas? See the
 [agent drafts](docs/agent-drafts/README.md). They're documentation only, not
@@ -222,22 +222,36 @@ share one [style guide](docs/images/README.md#diagram-style).
 - Terraform 1.16.4 and the Azure CLI. See [tool versions](docs/tool-versions.md).
 - Permission to deploy resources and assign roles.
 - Model quota and approved private network access.
-- An existing Azure Storage container for Terraform state.
+
+Foundry itself, with its project, model deployment, and Agent Service setup, is
+deployed with Terraform and
+[Azure Verified Modules](terraform/README.md). The
+[infrastructure guide](terraform/README.md#at-a-glance) lists every Terraform
+root and its state. The repo uses Terraform rather than Bicep. See
+[why](docs/architecture-assessment.md#terraform-first-deployment).
+
+**One command:** [`./deploy.ps1`](deploy.ps1) runs preflight, state backend,
+platform, Lab, and verify in order. It shows each Terraform plan and applies
+only after you type `apply`. Start with `-Stage preflight` or `-PlanOnly`. The
+steps below are the same stages, run by hand.
 
 **Deploy in this order:**
 
-1. **Platform:** [`terraform/`](terraform/README.md#deploy).
-2. **Prebuilt agents:** publish and test them from
+1. **State backend:** [`terraform/bootstrap/`](terraform/bootstrap/README.md)
+   creates the private state storage account. Run it once, first.
+2. **Platform (Foundry):** [`terraform/`](terraform/README.md#deploy).
+3. **Prebuilt agents:** publish and test them from
    [`hosted-agents/`](hosted-agents/README.md).
-3. **The Lab:** [`workbench/`](docs/lab-deployment.md#deployment), which has
+4. **The Lab:** [`workbench/`](docs/lab-deployment.md#deployment), which has
    its own Terraform state. After the first deploy, a Lab change merged to
    `main` can roll out the new image automatically through the
    [deploy workflow](docs/lab-deployment.md#deploy-a-new-image-from-github-actions).
-4. **Optional:** [Bastion](terraform/bastion/README.md),
+5. **Optional:** [Bastion](terraform/bastion/README.md),
    [agent monitoring](terraform/monitoring/README.md),
-   a [CI runner](terraform/runner/README.md), or
+   a [CI runner](terraform/runner/README.md),
+   the [deploy identity](terraform/identity/README.md), or
    [agent creation](docs/agent-creation.md#enable-publication).
-5. **Verify:** run one scenario from the [demo guide](docs/demos.md) before you
+6. **Verify:** run one scenario from the [demo guide](docs/demos.md) before you
    present it.
 
 To deploy from a separate private machine, use the
