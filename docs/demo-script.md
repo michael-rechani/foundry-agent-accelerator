@@ -30,7 +30,7 @@ is one small billable model call; skip it if you don't need it.
 ## The pitch in two sentences
 
 Building an agent usually means a portal, a blank prompt and a lot of guessing.
-The Lab gives you a safe place to shape the idea, try proven agents on realistic
+The Lab gives you a safe place to shape the idea, try tested sample agents on realistic
 inputs, see how they did on test cases, and take the result to Foundry as a
 definition you can review, all with fictional data and nothing created until a
 person confirms.
@@ -59,7 +59,7 @@ person confirms.
 
 If the designer asks a question first, answer in one line and let it continue.
 
-## 2. Try a proven agent (3 minutes)
+## 2. Try a tested sample agent (3 minutes)
 
 1. Open the **Agent library**. The **Browse** tab lists agents the Lab has
    tested. For a strong example, open **Medical bill reviewer**.
