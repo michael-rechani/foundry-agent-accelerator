@@ -61,10 +61,7 @@ implemented or deployed.
 
 ## Take a tour
 
-<a href="docs/images/screenshots/lab-test-results-dark.png"><img alt="The Foundry Agent Lab showing the Supplier invoice reviewer's test results: 25 of 25 answers passed, a typical response time, the model cost per answer, and a sign-off that is waiting for a person." src="docs/images/screenshots/lab-test-results-dark.png"></a>
-
-The animated tour at the top of this page walks through the six steps below.
-The screenshot above shows step 3, an agent's test results.
+The animated tour at the top of this page walks through these six steps.
 
 1. **Find an agent.** Open **All agents** in the sidebar (the Lab itself opens
    on Chat). At the top, describe the job in plain words, such as "check a
