@@ -19,49 +19,12 @@ and workshop app backed by reusable code. In it you can:
 The Azure deployment runs privately in your subscription. Local preview makes
 no model calls. This is a sample, not an official Microsoft product.
 
+<a id="take-a-tour"></a>
+
 <a href="docs/images/lab-tour-dark.svg"><img alt="Tour of the Foundry Agent Lab in six steps: find an agent by describing a job, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template." src="docs/images/lab-tour-dark.svg"></a>
 
-**On this page:**
-[Get started](#get-started) · [Take a tour](#take-a-tour) ·
-[Three stories](#explore-three-stories) · [How it works](#how-it-works) ·
-[Deploy to Azure](#deploy-to-azure) ·
-[Scope and limitations](#scope-and-limitations) ·
-[What's included](#whats-included) · [Documentation](#documentation) ·
-[Automated checks](#automated-checks)
-
----
-
-<a id="start-here"></a>
-<a id="scenarios-and-status"></a>
-<a id="what-you-can-try"></a>
-<a id="choose-a-demo"></a>
-<a id="run-a-demo"></a>
-<a id="validate-and-compare"></a>
-<a id="check-answer-quality"></a>
-
-## Get started
-
-Pick what you want to do.
-
-| I want to... | Go to | You need |
-| --- | --- | --- |
-| Read the demos | [Showcase and presenter guide](docs/showcase.md) | Nothing. No Azure environment. |
-| Preview the Lab without installing anything | [Open in GitHub Codespaces](workbench/README.md#github-codespaces) | A GitHub account. Local preview makes no model calls and needs no Azure. |
-| Browse agents and test results | [Lab guide](docs/lab-pages-and-access.md#pages) | A deployed Lab. Browsing makes no model calls. Trying an agent does. |
-| Demo the prebuilt agents | [Demo guide](docs/demos.md) | A deployed Lab. Reading the walkthroughs needs nothing. |
-| Create my own agent | [Create and try a baseline agent](docs/agent-creation.md) | An operator-enabled Lab, model deployments, and cost approval. |
-| Check answer quality | [Evaluations](evaluations/README.md) | Offline checks: nothing. Live runs: a test environment and approval. |
-| Deploy Foundry and the Lab | [Deploy to Azure](#deploy-to-azure) and the [Terraform guide](terraform/README.md#at-a-glance) | Azure permissions, model quota, private network access, and cost approval. |
-
-Looking for early public-sector and healthcare ideas? See the
-[agent drafts](docs/agent-drafts/README.md). They're documentation only, not
-implemented or deployed.
-
----
-
-## Take a tour
-
-The animated tour at the top of this page walks through these six steps.
+<details>
+<summary><strong>What each step of the tour shows</strong></summary>
 
 1. **Find an agent.** Open **All agents** in the sidebar (the Lab itself opens
    on Chat). At the top, describe the job in plain words, such as "check a
@@ -95,6 +58,43 @@ on **Under the hood**. When creation is on, **Create agent** opens from the Chat
 spec card, the job finder and the library templates. **Document reviews** has no
 sidebar link, so open `/#reviews` or a saved-review link. See the
 [Lab guide](docs/lab-pages-and-access.md#pages).
+
+</details>
+
+**On this page:**
+[Get started](#get-started) · [Three stories](#explore-three-stories) ·
+[How it works](#how-it-works) · [Deploy to Azure](#deploy-to-azure) ·
+[Scope and limitations](#scope-and-limitations) ·
+[What's included](#whats-included) · [Documentation](#documentation) ·
+[Automated checks](#automated-checks)
+
+---
+
+<a id="start-here"></a>
+<a id="scenarios-and-status"></a>
+<a id="what-you-can-try"></a>
+<a id="choose-a-demo"></a>
+<a id="run-a-demo"></a>
+<a id="validate-and-compare"></a>
+<a id="check-answer-quality"></a>
+
+## Get started
+
+Pick what you want to do.
+
+| I want to... | Go to | You need |
+| --- | --- | --- |
+| Read the demos | [Showcase and presenter guide](docs/showcase.md) | Nothing. No Azure environment. |
+| Preview the Lab without installing anything | [Open in GitHub Codespaces](workbench/README.md#github-codespaces) | A GitHub account. Local preview makes no model calls and needs no Azure. |
+| Browse agents and test results | [Lab guide](docs/lab-pages-and-access.md#pages) | A deployed Lab. Browsing makes no model calls. Trying an agent does. |
+| Demo the prebuilt agents | [Demo guide](docs/demos.md) | A deployed Lab. Reading the walkthroughs needs nothing. |
+| Create my own agent | [Create and try a baseline agent](docs/agent-creation.md) | An operator-enabled Lab, model deployments, and cost approval. |
+| Check answer quality | [Evaluations](evaluations/README.md) | Offline checks: nothing. Live runs: a test environment and approval. |
+| Deploy Foundry and the Lab | [Deploy to Azure](#deploy-to-azure) and the [Terraform guide](terraform/README.md#at-a-glance) | Azure permissions, model quota, private network access, and cost approval. |
+
+Looking for early public-sector and healthcare ideas? See the
+[agent drafts](docs/agent-drafts/README.md). They're documentation only, not
+implemented or deployed.
 
 ---
 
