@@ -834,12 +834,20 @@ class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
 
     LIMITS = {"reason-model": {"requests_per_minute": 100, "tokens_per_minute": 6000},
               "test-model": {"requests_per_minute": 2, "tokens_per_minute": 100000}}
-    ANSWERS = {"document-analyst": 1000, "workflow-coordinator": 3000}
+    ANSWERS = {"document-analyst": 900, "workflow-coordinator": 2900}
 
     def setUp(self):
         self.gateway = AsyncMock()
         self.gateway.review.return_value = ("completed", "Finding APP-1", [])
-        self.gateway.preview.return_value = ("completed", "Preview answer", [])
+        self.preview_model_calls = []
+
+        async def preview(agent, prompt, thread=None, usage=None, admit_model_call=None):
+            if admit_model_call is not None:
+                admit_model_call({"instructions": "", "input": prompt, "tools": []})
+            self.preview_model_calls.append((agent, prompt))
+            return "completed", "Preview answer", []
+
+        self.gateway.preview.side_effect = preview
         self.settings = Settings("private", "https://example.services.ai.azure.com/api/projects/test",
                                  ("testserver",), ("https://testserver",), model_limits=self.LIMITS, unfinished_agents=True,
                                  creation=CreationSettings(False, "test-model", models={"reasoning": "reason-model"}))
@@ -861,7 +869,7 @@ class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
 
     def test_turns_below_the_limit_are_answered(self):
         self.fill_reason_model()
-        self.assertEqual(self.gateway.preview.await_count, 6)
+        self.assertEqual(len(self.preview_model_calls), 6)
 
     def test_a_turn_over_the_limit_is_busy_before_any_model_call(self):
         self.fill_reason_model()
@@ -869,7 +877,7 @@ class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual((response.status_code, response.json()["error"]), (429, "busy"))
         self.assertEqual(response.headers["Retry-After"], "60")
         self.assertEqual(response.json()["request_id"], response.headers["X-Correlation-ID"])
-        self.assertEqual(self.gateway.preview.await_count, 6)
+        self.assertEqual(len(self.preview_model_calls), 6)
         self.gateway.review.assert_not_called()
 
     def test_limits_are_per_deployment_so_a_busy_model_does_not_block_another(self):
@@ -880,7 +888,7 @@ class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual(self.gateway.preview.call_args.args[0]["template_id"], "workflow-coordinator")
         self.assertEqual(self.chat("library-workflow-coordinator").status_code, 429)
         self.assertEqual(self.chat().status_code, 429)
-        self.assertEqual(self.gateway.preview.await_count, 8)
+        self.assertEqual(len(self.preview_model_calls), 8)
 
     def test_counters_recover_after_the_window_and_the_hint_counts_down(self):
         self.fill_reason_model()
@@ -889,7 +897,7 @@ class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual((response.status_code, response.headers["Retry-After"]), (429, "30"))
         self.now = 160
         self.assertEqual(self.chat().status_code, 200)
-        self.assertEqual(self.gateway.preview.await_count, 7)
+        self.assertEqual(len(self.preview_model_calls), 7)
 
     def test_invalid_requests_do_not_spend_a_models_budget(self):
         for _ in range(5):
@@ -899,11 +907,31 @@ class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual(self.chat().status_code, 200)
 
     def test_prebuilt_agents_that_declare_no_model_are_not_budgeted(self):
-        tiny = {name: {"requests_per_minute": 1, "tokens_per_minute": 1} for name in ("reason-model", "test-model")}
-        client = TestClient(create_app(replace(self.settings, model_limits=tiny), self.gateway))
-        for _ in range(5):
-            self.assertEqual(self.chat("customer-review", client).status_code, 200)
+        tiny = {name: {"requests_per_minute": 1, "tokens_per_minute": 1}
+                for name in ("reason-model", "test-model", "gpt-4.1")}
+        agents = json.loads((Path(__file__).parent / "agents.json").read_text(encoding="utf-8"))
+        for agent in agents:
+            agent.pop("model", None)
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "agents.json"
+            path.write_text(json.dumps(agents), encoding="utf-8")
+            client = TestClient(create_app(replace(self.settings, agents_path=path, model_limits=tiny), self.gateway))
+            for _ in range(5):
+                self.assertEqual(self.chat("customer-review", client).status_code, 200)
         self.assertEqual(self.gateway.review.await_count, 5)
+
+    def test_prebuilt_defaults_are_budgeted_against_their_declared_deployment(self):
+        limits = {**self.LIMITS, "gpt-4.1": {"requests_per_minute": 1, "tokens_per_minute": 100000}}
+        client = TestClient(create_app(replace(self.settings, model_limits=limits), self.gateway))
+        for _ in range(5):
+            response = self.chat("customer-review", client)
+            if response.status_code == 429:
+                self.assertEqual(response.json()["error"], "busy")
+                break
+            self.assertEqual(response.status_code, 200)
+        else:
+            self.fail("the prebuilt agent passed its one-request model budget")
+        self.assertEqual(self.gateway.review.await_count, 1)
 
     def declaring_client(self, directory, models):
         """A client whose prebuilt agents declare a model deployment in agents.json (#232)."""

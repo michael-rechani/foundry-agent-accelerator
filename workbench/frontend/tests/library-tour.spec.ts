@@ -94,6 +94,9 @@ for (const mode of ['light', 'dark'] as const)
     const panel = page.getByRole('tabpanel')
     await tabs.getByRole('tab', { name: 'Test results' }).click()
     await expect(panel).toContainText('25 of 25 answers passed')
+    await expect(panel).toContainText(
+      'Median time across these recorded test runs.',
+    )
     await expect(panel).toContainText('Waiting for a person')
     await docsScreenshot(page, testInfo, `library-test-results${suffix}.png`)
 

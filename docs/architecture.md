@@ -267,7 +267,7 @@ audit ledger.
 
 | Operation | Admission or deadline | Failure behavior |
 | --- | --- | --- |
-| Chat agent request | Four shared agent slots, 20 starts per minute, a per-model-deployment requests and tokens budget, five-second upload, and up to 180-second agent call. | Invalid requests fail before invocation. A turn over its model's budget returns busy before any model call. A deadline returns timeout, not success. |
+| Chat agent request | Four shared agent slots, 20 starts per minute, a per-model-deployment requests and tokens budget, five-second upload, and up to 180-second agent call. | Invalid requests fail before invocation. The Lab checks each direct model call before invocation; a preview tool loop can return busy after earlier calls if another call would exceed the budget. A deadline returns timeout, not success. |
 | Structured review execution | Shares chat's agent slots and start budget; at most four runs per record. | Conditional start prevents competing execution. There's no automatic retry. |
 | Review record API | Four requests, 120 per minute, 35-second operation deadline, and five-second upload. | ETag conflicts return 409. Failed polling can be resumed with **Refresh**. |
 | Chat history API | Four requests, 60 per minute, and 35-second operation deadline. | Conditional writes prevent silent overwrite. Uncertain saves require checking history. |

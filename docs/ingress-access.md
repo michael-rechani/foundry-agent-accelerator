@@ -21,7 +21,7 @@ and calls the same application's FastAPI routes. FastAPI uses managed identity t
 invoke the configured named agent. Agents call their models and tools. The
 browser doesn't receive Azure keys or need Foundry project permissions.
 
-<img alt="How people reach the Lab: path 1, on by default, is a presenter or admin using Azure Bastion and a jumpbox. Path 2, a design reference that isn't deployed, is an employee on an approved private network using Application Gateway WAF v2. Path 3, an optional draft that is off by default, is a customer on the internet using Azure Front Door Premium with a WAF and Private Link. All three reach the Lab's internal Container Apps environment, whose ingress allow list needs one rule per path. The Lab then calls Foundry privately with a managed identity. The Lab has no end-user sign-in yet, so customer access needs Microsoft Entra ID sign-in first." src="images/lab-access-paths-dark.svg">
+<img alt="How people reach the Lab: the default ingress rule allows the management subnet, but Azure Bastion and the jumpbox are optional and off by default. Path 1 shows a presenter or admin using those resources when enabled. Path 2, a design reference that isn't deployed, is an employee on an approved private network using Application Gateway WAF v2. Path 3, an optional draft that is off by default, is a customer on the internet using Azure Front Door Premium with a WAF and Private Link. Each path needs its own ingress rule. The Lab then calls Foundry privately with a managed identity. The Lab has no end-user sign-in yet, so customer access needs Microsoft Entra ID sign-in first." src="images/lab-access-paths-dark.svg">
 
 [View full size](images/lab-access-paths-dark.svg) · [Edit the SVG template](images/lab-access-paths.template.svg)
 
@@ -76,7 +76,8 @@ already configures:
       environment boundary so a gateway outside that environment can reach it. It
       doesn't make this internal environment internet-accessible.
 - [ ] A `jumpbox-only` Internet Protocol (IP) restriction that allows the
-      management subnet.
+      management subnet. This rule doesn't provision a jumpbox: both the
+      jumpbox and Azure Bastion are optional and off by default.
 - [ ] Private DNS records that point the app hostname at the internal environment
       IP, with links to the workload and management VNets.
 - [ ] `WORKBENCH_ALLOWED_HOSTS` and `WORKBENCH_ORIGINS` fixed to the existing
@@ -105,14 +106,17 @@ gateway elsewhere in the VNet.
 
 ### Who uses the Lab today
 
-**Decision (#103): an operator presents the Lab from the jump box. Customers
-don't use it themselves yet.**
+**Decision (#103): an operator presents the Lab from the jump box when that
+optional resource is enabled. Customers don't use it themselves yet.**
 
 - The Lab's environment is internal with public network access disabled, and the
-  app only accepts the jump box's address, so a customer's browser can't reach
-  it. That's intended for now.
-- No public listener, Front Door, Application Gateway or IP allow rule is on by
-  default. Each would be a separate approval of that specific resource. The one
+  app's default allow rule covers only the management subnet, where an optional
+  jumpbox would reside. This rule does not create a jumpbox, so a customer's
+  browser can't reach the Lab. That's intended for now.
+- The default private management-subnet allow rule is configured, but no public
+  listener, Front Door or Application Gateway is on by default. Bastion and the
+  jumpbox are separate opt-in resources. Each public resource or setting needs
+  its own approval. The one
   exception in code is the off-by-default
   [Front Door draft limited to your own IP](#draft-front-door-limited-to-your-own-ip)
   ([#240](https://github.com/michael-rechani/foundry-agent-accelerator/issues/240)),

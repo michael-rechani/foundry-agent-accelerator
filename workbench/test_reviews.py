@@ -561,6 +561,43 @@ class ReviewLifecycleTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.store.get(document["id"]), document)
         self.gateway.review.assert_not_called()
 
+    async def test_model_admissions_use_the_time_after_storage_reads_finish(self):
+        first, second = await self.draft(), await self.draft()
+        self.gateway.review.return_value = ("completed", json.dumps(self.result), self.output)
+        controller = self.controller()
+        original_get = self.store.get
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        async def delayed_get(identifier):
+            if identifier == first["id"] and not entered.is_set():
+                entered.set()
+                await release.wait()
+            return await original_get(identifier)
+
+        self.store.get = delayed_get
+        app = FastAPI()
+
+        @app.middleware("http")
+        async def request_id(request, call_next):
+            request.state.request_id = "test-request"
+            return await call_next(request)
+
+        app.include_router(controller.router)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="https://testserver",
+                               headers=self.headers) as client:
+            first_request = asyncio.create_task(client.post(
+                f'/api/review-runs/{first["id"]}/execute', headers={"If-Match": first["_etag"]}))
+            await entered.wait()
+            second_response = await client.post(
+                f'/api/review-runs/{second["id"]}/execute', headers={"If-Match": second["_etag"]})
+            release.set()
+            first_response = await first_request
+            await controller.close()
+
+        self.assertEqual((first_response.status_code, second_response.status_code), (202, 202))
+        admissions = list(controller.model_gate.recent)
+        self.assertEqual(admissions, sorted(admissions))
+
     async def test_a_run_over_its_agents_model_budget_is_busy_before_any_model_call(self):
         # A review run is a model call too, so it spends the budget of the deployment its agent declares (#232).
         limits = {"review-model": {"requests_per_minute": 2, "tokens_per_minute": 10_000_000},
