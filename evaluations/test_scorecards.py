@@ -298,12 +298,17 @@ class ScorecardTests(unittest.TestCase):
         self.assertNotEqual(scorecards.instructions_digest("document-analyst"),
                             scorecards.instructions_digest("criteria-checker"))
         original = TEMPLATES["document-analyst"]["instructions"]
+        original_policy = scorecards.DEMO_POLICY
         try:
             before = scorecards.instructions_digest("document-analyst")
             TEMPLATES["document-analyst"]["instructions"] = original + " "
             self.assertNotEqual(before, scorecards.instructions_digest("document-analyst"))
+            TEMPLATES["document-analyst"]["instructions"] = original
+            scorecards.DEMO_POLICY = original_policy + " "
+            self.assertNotEqual(before, scorecards.instructions_digest("document-analyst"))
         finally:
             TEMPLATES["document-analyst"]["instructions"] = original
+            scorecards.DEMO_POLICY = original_policy
 
     def test_every_case_of_an_agent_needs_the_same_number_of_runs(self):
         good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"

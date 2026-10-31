@@ -9,10 +9,11 @@ runs of the same request. The build fails if any case has no recorded answer, so
 drop out of the scorecards unnoticed. A case passes only when every run passes, because a model
 that gets a case right once can still get it wrong the next time.
 
-Every recorded row carries a fingerprint of the instructions its agent had when it was run, and the
-date it was recorded. The build fails if the Lab's instructions for an agent have changed since, so
-the test results can't describe instructions the Lab no longer uses; library_runs.py re-records an
-agent's answers. An agent's test date is the latest date on its rows.
+Every recorded row carries a fingerprint of the effective instructions its agent had when it was
+run (the shared runtime policy plus the template instructions), and the date it was recorded. The
+build fails if either changes, so the test results can't describe instructions the Lab no longer
+uses; library_runs.py re-records an agent's answers. An agent's test date is the latest date on its
+rows.
 
     python scorecards.py write   # regenerate the Lab's copy
     python scorecards.py check   # fail if the Lab's copy is out of date
@@ -34,6 +35,7 @@ from pathlib import Path
 
 from library_checks import CASES_PATH, TEMPLATES, case_input, load_cases, score
 from library_rules import METRIC_KEYS, is_int, is_number, valid_date
+from agent_runtime.main import DEMO_POLICY
 
 HERE = Path(__file__).resolve().parent
 EVIDENCE = HERE / "evidence"
@@ -42,7 +44,7 @@ ANSWERS_DATASET = "library-v4"
 ANSWERS = EVIDENCE / "library-acceptance-2026-09-29.jsonl"
 # Later runs replace earlier answers for the same case. The direct run sent each case with the
 # template's current instructions straight to the Lab's Foundry project and timed it from the
-# machine that ran it, so its times can differ slightly from the live Lab.
+# machine that ran it, so its times can differ from live Lab latency.
 RUNS = (("direct", ANSWERS),)
 METRICS = EVIDENCE / "library-acceptance-2026-09-29-metrics.jsonl"
 # Runs 2 and up of the same cases, each row carrying its own answer and metrics.
@@ -113,8 +115,9 @@ def _whole_number(value):
 
 
 def instructions_digest(template_id):
-    """Fingerprint of the instructions the Lab serves for an agent."""
-    return hashlib.sha256(TEMPLATES[template_id]["instructions"].encode("utf-8")).hexdigest()
+    """Fingerprint of the shared runtime policy and template instructions the Lab serves."""
+    effective_instructions = DEMO_POLICY + TEMPLATES[template_id]["instructions"]
+    return hashlib.sha256(effective_instructions.encode("utf-8")).hexdigest()
 
 
 def _check_fingerprint(record, case, run, what="answer"):

@@ -1,10 +1,10 @@
 name: Deploy Lab image
 
-# Builds the Lab image from main on the private runner, pushes it straight to the
-# private registry, and rolls the Lab Container App to it by digest. It runs when a
-# change to the Lab merges to main, and can also be started by hand from the Actions
-# tab. One-time setup: terraform/identity creates the identity, its roles and this
-# environment (see docs/lab-deployment.md).
+# After Validate succeeds for the exact main commit, builds the Lab image on the
+# private runner, pushes it to the private registry, and rolls the Container App to
+# it by digest. A manual run uses the same validation gate. One-time setup:
+# terraform/identity creates the identity, its roles and this environment
+# (see docs/lab-deployment.md).
 #
 # The registry has no public access. The runner reaches its private endpoint through the
 # peered VNet, so nothing is published to GitHub Packages or anywhere public, and Azure
@@ -18,8 +18,11 @@ on:
       - '!workbench/infra/**'
       - '!workbench/**/*.md'
       - '!workbench/frontend/tests/**'
-      - '!workbench/test-deploy.ps1'
-      - '!workbench/tests/fixtures/**'
+      - '!workbench/frontend/unit/**'
+      - '!workbench/**/tests/**'
+      - '!workbench/**/test_*.py'
+      - '!workbench/**/*.test.*'
+      - '!workbench/test-*.ps1'
   workflow_dispatch:
 
 permissions:
@@ -30,10 +33,47 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # GitHub starts push workflows independently. Wait for Validate on this exact
+  # main SHA before starting the private runner or requesting Azure credentials.
+  validate-source:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 35
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Require successful validation for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          deadline=$((SECONDS + 1800))
+          while (( SECONDS < deadline )); do
+            runs="$(gh run list --repo "$REPOSITORY" --workflow validate.yml --branch main \
+              --commit "$SOURCE_SHA" --limit 20 --json status,conclusion)"
+            if jq -e 'any(.[]; .status == "completed" and .conclusion == "success")' <<<"$runs" >/dev/null; then
+              echo "Validate succeeded for $SOURCE_SHA."
+              exit 0
+            fi
+            active="$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs")"
+            completed="$(jq '[.[] | select(.status == "completed")] | length' <<<"$runs")"
+            if (( completed > 0 && active == 0 )); then
+              echo "::error::Validate did not succeed for $SOURCE_SHA."
+              exit 1
+            fi
+            sleep 15
+          done
+          echo "::error::Timed out waiting for Validate to succeed for $SOURCE_SHA."
+          exit 1
+
   # The runner VM deallocates itself when idle to save cost, and nothing else starts it.
   # This job runs on a GitHub-hosted runner and starts only that VM. Its role can't stop,
   # change or run commands on the VM. Starting a running VM does nothing.
   start-runner:
+    needs: validate-source
     if: github.ref == 'refs/heads/main'
     timeout-minutes: 15
     runs-on: ubuntu-24.04
@@ -153,6 +193,5 @@ jobs:
             echo "- Image digest: \`${digest}\`"
             echo "- Previous image (recovery): \`${previous}\`"
             echo ""
-            echo "Terraform still has the old digest. Before the next \`terraform apply\`, set \`image_digest\` in"
-            echo "\`workbench/infra/image.auto.tfvars\` to the digest above, or the apply will roll this back."
+            echo "- Terraform ignores the container image after initial creation, so future applies will not roll it back."
           } >> "$GITHUB_STEP_SUMMARY"

@@ -23,7 +23,7 @@ from agent_creation import CREATED_ID, AgentCreations, CreationSettings
 from agent_scorecards import SCORECARDS
 from library_rules import DEPLOYMENT_NAME
 from library_preview import PREVIEW_AGENT, PREVIEW_ID, preview_agent, run_preview, summarize_usage, usage_record
-from model_budget import ModelBudgets, measured_answer_tokens, validate_model_limits
+from model_budget import ModelBudgetWait, ModelBudgets, estimate_input_tokens, measured_answer_tokens, validate_model_limits
 from request_guard import MAX_REQUEST_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
 
 
@@ -336,7 +336,7 @@ class FoundryGateway:
             self._keep_session(key, session_id, leased[1] if leased and session_id == leased[0] else started)
         return response.status, response.output_text, response.model_dump().get("output", [])
 
-    async def preview(self, agent, prompt, thread=None, usage=None):
+    async def preview(self, agent, prompt, thread=None, usage=None, admit_model_call=None):
         # A library preview calls the model deployment directly; there is no hosted agent or session to reuse.
         client = self._review_project().get_openai_client(
             timeout=self.settings.timeout, max_retries=0, http_client=self._http_client,
@@ -344,6 +344,7 @@ class FoundryGateway:
         status, text, output = await run_preview(
             client, template_id=agent["template_id"], model=self.settings.creation.model_for(agent["model_profile"]),
             prompt=prompt, reasoning=agent["model_profile"] != "tool_calling", usage=usage,
+            admit_model_call=admit_model_call,
         )
         LOGGER.info(json.dumps({"event": "workbench_library_preview", "template_id": agent["template_id"],
                                 "status": status, "tool_calls": sum(item.get("type") == "function_call" for item in output)}))
@@ -456,11 +457,12 @@ class ChatReviews:
         if rejection is not None:
             return rejection
         deployment, template_id = self.deployment_for(agent), agent.get("template_id")
-        wait = self.budgets.try_admit(deployment, template_id)
-        if wait:
-            LOGGER.info(json.dumps({"event": "workbench_model_busy", "deployment": deployment,
-                                    "template_id": template_id, "retry_after": wait}))
-            return self.busy(request, wait)
+        if not agent.get("preview"):
+            wait = self.budgets.try_admit(deployment, template_id, input_tokens=estimate_input_tokens(prompt))
+            if wait:
+                LOGGER.info(json.dumps({"event": "workbench_model_busy", "deployment": deployment,
+                                        "template_id": template_id, "retry_after": wait}))
+                return self.busy(request, wait)
         return await self.respond(request, agent, prompt, data.get("thread"))
 
     async def respond(self, request, agent, prompt, thread=None):
@@ -470,7 +472,22 @@ class ChatReviews:
         try:
             async with asyncio.timeout(self.settings.timeout):
                 call = self.gateway.preview if agent.get("preview") else self.gateway.review
-                status, text, output = await call(agent, prompt, thread=thread, usage=usage)
+                options = {"thread": thread, "usage": usage}
+                if agent.get("preview"):
+                    def admit_model_call(payload):
+                        wait = self.budgets.try_admit(
+                            self.deployment_for(agent), agent["template_id"],
+                            input_tokens=estimate_input_tokens(payload),
+                        )
+                        if wait:
+                            LOGGER.info(json.dumps({
+                                "event": "workbench_model_busy", "deployment": self.deployment_for(agent),
+                                "template_id": agent["template_id"], "retry_after": wait,
+                            }))
+                            raise ModelBudgetWait(wait)
+
+                    options["admit_model_call"] = admit_model_call
+                status, text, output = await call(agent, prompt, **options)
             if status != "completed" or not isinstance(text, str) or not text.strip():
                 return self.error(request, 502, "incomplete_response")
             if len(text) > 100000 or len(json.dumps(output).encode("utf-8")) > 524288:
@@ -482,6 +499,8 @@ class ChatReviews:
                                  "text": text, "receipts": receipts, "elapsed_ms": round((time.monotonic() - started) * 1000),
                                  "usage": summarize_usage(usage)},
                                 headers={"X-Correlation-ID": request_id})
+        except ModelBudgetWait as problem:
+            return self.busy(request, problem.retry_after)
         except TimeoutError as problem:
             record_request_failure(request, problem, "foundry")
             return self.error(request, 504, "timeout")

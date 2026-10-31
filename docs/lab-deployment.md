@@ -331,10 +331,12 @@ deployment check.
 ## Deploy a new image from GitHub Actions
 
 The **Deploy Lab image** workflow (`.github/workflows/deploy-lab.yml`) ships the
-current `main` to a running Lab without a jumpbox. It runs on its own when a
-change under `workbench/` merges to `main`. Changes that only touch docs, tests
-or Terraform don't start it. You can also run it from the Actions tab with
-**Run workflow** on `main`. It:
+current `main` to a running Lab without a jumpbox. It runs on its own when an
+application change under `workbench/` merges to `main`; docs, tests, and Terraform
+changes alone don't start it. Before starting the private runner, it waits for the
+**Validate** workflow to succeed for the exact same `main` commit. A manual run
+from the Actions tab on `main` uses the same gate and cannot bypass validation.
+It:
 
 1. Starts the runner VM if it is deallocated. This step runs on a GitHub-hosted
    runner, and the deploy identity can only start that one VM.

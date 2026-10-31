@@ -12,6 +12,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from model_budget import estimate_input_tokens
 from request_guard import MAX_REQUEST_BYTES, RateGate, RequestRejected, api_error, cosmos_failure, read_json_body, record_request_failure, request_allowed
 from reviews import Evidence, ReviewInput, review_prompt, validate_result
 
@@ -78,12 +79,11 @@ class ReviewRuns:
             return self.error(request, 400, "invalid_review")
         if action not in {None, "execute", "resume", "evidence"}:
             return self.error(request, 404, "not_found")
-        now = time.monotonic()
-        if not self.read_gate.try_admit(now):
+        if not self.read_gate.try_admit():
             return self.error(request, 429, "reviews_busy")
         try:
             async with self.read_gate.slots, asyncio.timeout(35):
-                return await self.dispatch(request, identifier, action, now)
+                return await self.dispatch(request, identifier, action)
         except (ValidationError, ValueError):
             return self.error(request, 400, "invalid_review")
         except RequestRejected as problem:
@@ -97,7 +97,7 @@ class ReviewRuns:
             record_request_failure(request, problem, "cosmos")
             return self.error(request, 503, "reviews_unavailable")
 
-    async def dispatch(self, request, identifier, action, now):
+    async def dispatch(self, request, identifier, action):
         if request.method == "GET" and not identifier:
             return await self.list_page(request)
         document = await self.store.get(identifier) if identifier else None
@@ -111,7 +111,7 @@ class ReviewRuns:
         if action != "execute":
             body = await read_json_body(request, MAX_REQUEST_BYTES)
         if action in {"execute", "resume"}:
-            return await self.start(request, identifier, document, body, now, recovering=action == "resume")
+            return await self.start(request, identifier, document, body, recovering=action == "resume")
         if action == "evidence":
             return await self.add_evidence(request, document, body)
         return await self.create(request, body)
@@ -145,14 +145,16 @@ class ReviewRuns:
             return self.error(request, 409, "review_not_resumable"), None
         return snapshot, previous
 
-    async def start(self, request, identifier, document, body, now, recovering):
+    async def start(self, request, identifier, document, body, recovering):
         snapshot, previous = self.snapshot(request, identifier, document, body, recovering)
         if isinstance(snapshot, JSONResponse):
             return snapshot
-        if not self.model_gate.try_admit(now):
+        if not self.model_gate.try_admit():
             return self.error(request, 429, "busy")
         deployment = self.registry[document["agent_id"]].get("model")
-        wait = self.budgets.try_admit(deployment, None) if self.budgets is not None else 0
+        prompt = review_prompt(ReviewInput.model_validate(snapshot))
+        wait = (self.budgets.try_admit(deployment, None, input_tokens=estimate_input_tokens(prompt))
+                if self.budgets is not None else 0)
         if wait:
             LOGGER.info(json.dumps({"event": "workbench_model_busy", "deployment": deployment,
                                     "template_id": None, "retry_after": wait}))

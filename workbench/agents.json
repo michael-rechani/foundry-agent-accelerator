@@ -12,6 +12,7 @@
       "configuration": "Instructions and specialist tools: hosted-agents\\review-coordinator-agent\\profiles\\evidence-review.example.json. Publish a new coordinator version with this profile to change runtime behavior."
     },
     "agent": "customer-review-coordinator",
+    "model": "gpt-4.1",
     "tools": {"inspect_application": "application-review-agent", "inspect_case": "case-review-agent"},
     "prompts": [
       {"label": "Check against a checklist", "text": "Before this project goes for sign-off, check it against our checklist. Make a table showing what's covered, missing or unclear, point to the section each answer comes from, and list the questions we need answered. Don't approve or reject it; I'll decide.\n\nChecklist item 1: Include a project budget.\nChecklist item 2: Identify an implementation owner.\nChecklist item 3: Provide a delivery schedule.\nSection 1 (Ownership): The Facilities team is the implementation owner.\nSection 2 (Schedule): Work starts April 1, 2027 and completes June 30, 2027.\nSection 3 (Timeline summary): Work starts April 1, 2027 and completes July 31, 2027."},
@@ -33,6 +34,7 @@
       "configuration": "Base instructions: hosted-agents\\review-coordinator-agent\\instructions.md. Tools: main.py in that directory, with deployed SPECIALIST_CONFIG taking precedence over legacy agent-name settings. Publish a new agent version to change runtime behavior."
     },
     "agent": "review-coordinator-agent",
+    "model": "gpt-4.1",
     "tools": {"review_application": "application-review-agent", "review_case": "case-review-agent"},
     "prompts": [
       {"label": "Review case notes", "text": "Summarize these case notes. Show what they say, point out where they disagree without picking a date, and tell me what needs clarifying.\n\nNote 1: Intake completed June 1, 2027.\nNote 2: Intake completed June 3, 2027."},
@@ -52,6 +54,7 @@
       "configuration": "Instructions: hosted-agents\\application-review-agent\\instructions.md, packaged by deploy.py in that directory. Publish a new agent version to apply changes. This runtime has no tools."
     },
     "agent": "application-review-agent",
+    "model": "gpt-4.1",
     "tools": {},
     "prompts": [
       {"label": "Check against a checklist", "text": "Check this proposal against our checklist. Show what's included or missing, point to the section each answer comes from, and ask what else we need. Don't approve or reject it; a person decides.\n\nChecklist item 1: Include a project budget.\nSection 1: Twelve weekly workshops are proposed. No budget is supplied."}
@@ -70,6 +73,7 @@
       "configuration": "Instructions: hosted-agents\\case-review-agent\\instructions.md, packaged by deploy.py in that directory. Publish a new agent version to apply changes. The sample policy lookup is added only when deploy.py runs with KNOWLEDGE_RETRIEVAL_ENABLED=true (see docs\\knowledge-retrieval.md); it is not a tool binding here, so the Lab shows no receipt for it."
     },
     "agent": "case-review-agent",
+    "model": "gpt-4.1",
     "tools": {},
     "prompts": [
       {"label": "Check conflicting dates", "text": "Summarize these case notes, point out where they disagree without picking a date, and draft a follow-up question.\n\nNote 1: Intake completed June 1, 2027.\nNote 2: Intake completed June 3, 2027."}

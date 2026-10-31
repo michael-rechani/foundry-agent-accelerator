@@ -129,7 +129,7 @@ def run_tool(functions, call):
         return json.dumps({"status": "failed", "error": str(problem)})
 
 
-async def run_preview(client, *, template_id, model, prompt, reasoning=False, usage=None):
+async def run_preview(client, *, template_id, model, prompt, reasoning=False, usage=None, admit_model_call=None):
     """Return (status, text, output items) after a bounded simulated-tool loop.
 
     Output items include each function_call_output so the caller can verify receipts the same way it
@@ -147,6 +147,9 @@ async def run_preview(client, *, template_id, model, prompt, reasoning=False, us
     items = [{"role": "user", "content": prompt}] if isinstance(prompt, str) else [dict(message) for message in prompt]
     transcript = []
     for _ in range(MAX_TOOL_ROUNDS + 1):
+        if admit_model_call is not None:
+            admit_model_call({"instructions": instructions, "input": [dict(item) for item in items],
+                              "tools": options.get("tools", [])})
         response = await client.responses.create(input=items, **options)
         if usage is not None:
             usage.append(usage_record(response))
