@@ -1,4 +1,4 @@
 agent-framework-foundry==1.14.0
 agent-framework-foundry-hosting==1.0.0b260918
-azure-identity==1.26.0
+azure-identity==1.27.0
 azure-ai-agentserver-optimization==1.0.0b1
