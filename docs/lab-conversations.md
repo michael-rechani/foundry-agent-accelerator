@@ -123,7 +123,10 @@ everyone with Lab access. Choose it again after adding replies. **Export
 conversation** instead downloads the full completed dialogue, including any
 spec text and the current unsent draft, as a local JSON file; it shares nothing
 and makes no model call. **Download agent spec** downloads only the proposed
-agent definition, not the conversation, and doesn't configure its tools.
+agent definition, not the conversation. It is a draft with a model placeholder
+and an empty tools list; any listed lookup needs and document sources are
+descriptive only and must be configured separately in Foundry. Review and test
+the result there before relying on it.
 Visiting another Lab page preserves the current chat in this browser tab;
 refreshing or closing the tab loses anything not saved or exported.
 

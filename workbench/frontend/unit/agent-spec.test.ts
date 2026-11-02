@@ -114,6 +114,15 @@ describe('specDefinition', () => {
     assert.equal(file.metadata.closest_library_agent, 'benefits-renewal-helper')
   })
 
+  it('keeps requested lookups descriptive rather than adding unconfigured tools', () => {
+    const file = specDefinition({
+      ...spec,
+      tools_needed: ['document retrieval / search'],
+    })
+    assert.deepEqual(file.definition.tools, [])
+    assert.equal(file.metadata.tools_to_connect, 'document retrieval / search')
+  })
+
   it('names the file from the agent name', () => {
     assert.equal(
       specFileName(spec),

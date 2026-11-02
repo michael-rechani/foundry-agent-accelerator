@@ -37,8 +37,10 @@ no model calls. This is a sample, not an official Microsoft product.
 3. **Test results.** See how many answers passed, how long they took, what they
    cost, and whether a person has signed the agent off.
 4. **Chat.** A plain conversation with the **Agent designer** to talk through
-   an agent you want to build. When the idea is clear, it ends with a spec card
-   to download. Building it here also needs the operator key and a cost
+   an agent you want to build. When the idea is clear, it ends with a draft
+   spec card to download. The draft uses a model placeholder; any needed tools
+   and document sources still need to be configured and tested in Foundry.
+   Building a matching template here also needs the operator key and a cost
    confirmation. Pick **Try a pre-built agent** to chat with a ready agent or a
    library preview instead.
 5. **Take it to Foundry.** Download the agent definition and test requests, then

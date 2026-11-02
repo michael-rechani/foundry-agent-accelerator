@@ -27,6 +27,11 @@ agent-management service.
 
 You can also start from **Chat**. When the Agent designer's spec card points to a template, **Create this agent here** runs the same steps (template assembly, operator key, cost confirmation, publish) inside the card, then offers **Chat with it**.
 
+**Download agent spec** is a draft handoff, not an uploaded or tested agent.
+The file uses a model placeholder and has no configured tools. Any lookup needs
+or document sources listed on the card are notes only; configure them separately
+in Foundry, then test the agent before relying on it.
+
 The Create page lists the Lab's 18 templates in three groups, named and ordered
 the same as the sectors in the **Agent library**: **Works in any sector** (five
 jobs), **Private sector** (nine jobs), and **Healthcare and public sector**

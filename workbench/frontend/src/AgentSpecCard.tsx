@@ -68,12 +68,23 @@ export function AgentSpecCard({
       {!spec.closest_template && (
         <p className="agent-spec-note">
           No built-in template matches this idea, so the Lab can&apos;t create
-          it here. Download the spec to build it in your own Foundry project.
+          it here. Download the draft and configure it in your Foundry project.
         </p>
       )}
       <p className="agent-spec-note">
-        The file is a Foundry prompt agent definition. Add your own model
-        deployment. Nothing is created until you act.
+        {spec.tools_needed.length ? (
+          <>
+            Draft only: this file uses a model placeholder and does not
+            configure the listed lookups or document sources. Set them up in
+            Foundry, then test the agent before relying on it.
+          </>
+        ) : (
+          <>
+            Draft only: this file uses a model placeholder and configures no
+            tools. Choose a model deployment in Foundry, then test the agent
+            before relying on it.
+          </>
+        )}
       </p>
     </section>
   )
