@@ -44,10 +44,11 @@ import scorecards
 from library_checks import CASES_PATH, case_input, load_cases
 # library_checks puts workbench/ on sys.path, which these two imports need.
 from agent_templates import MODEL_PROFILES, TEMPLATE_METADATA, TEMPLATES
-from library_preview import run_preview, summarize_usage, usage_record
+from library_preview import PREVIEW_AGENT, run_preview, summarize_usage, usage_record
 from library_rules import (
     ANSWER_ROW, COUNT_KEYS, DEPLOYMENT_NAME, METRICS_ROW, RUN_ROW, is_int, is_number, is_profile_map, valid_date,
 )
+from tool_receipts import execution_receipts
 
 HERE = Path(__file__).resolve().parent
 JOURNALS = HERE / "results" / "library-runs"
@@ -584,9 +585,15 @@ def finish_run(item, case, run, outcome, usage, seconds, today):
     cached = total["cached_tokens"] or 0
     if cached > total["input_tokens"]:
         raise Stop(f"{where}: Foundry reported more cached tokens than input tokens.")
+    receipts = []
+    for receipt in execution_receipts(transcript, {"calculate_bill_math": PREVIEW_AGENT}):
+        recorded = {"tool": receipt["tool"]}
+        if receipt["tool"] == "calculate_bill_math":
+            recorded.update(verified=receipt["verified"], output=receipt["output"])
+        receipts.append(recorded)
     return {
         "case_id": case["id"], "run": run, "text": text,
-        "receipts": [{"tool": call.get("name", "unknown")} for call in transcript if call.get("type") == "function_call"],
+        "receipts": receipts,
         "model": item.model, "seconds": round(seconds, 1), "input_tokens": total["input_tokens"],
         "cached_tokens": cached, "output_tokens": total["output_tokens"],
         "instructions_sha256": item.digest, "recorded_on": today,

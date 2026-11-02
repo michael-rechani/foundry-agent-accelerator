@@ -5,8 +5,9 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from agent_runtime.demo_tools import create_demo_tools
-from agent_runtime.main import DEMO_POLICY
+from agent_runtime.main import demo_policy
 from agent_templates import RETIRED_TEMPLATES, TEMPLATES, is_available
+from app import execution_receipts
 from library_preview import (DESIGNER_ID, DESIGNER_INSTRUCTIONS, DESIGNER_TEMPLATE, MAX_TOOL_ROUNDS, PREVIEW_AGENT,
                              preview_agent, run_preview, run_tool, summarize_usage, tool_specs, usage_record)
 from model_budget import ModelBudgetWait, estimate_input_tokens
@@ -117,7 +118,7 @@ class LibraryPreviewTests(unittest.TestCase):
         status, text, output = asyncio.run(run_preview(client, template_id=template_id, model="gpt-test", prompt="Hello"))
         self.assertEqual((status, text, output), ("completed", "Draft notes", [{"type": "message"}]))
         options = client.calls[0]
-        self.assertEqual(options["instructions"], DEMO_POLICY + TEMPLATES[template_id]["instructions"])
+        self.assertEqual(options["instructions"], demo_policy(template_id) + TEMPLATES[template_id]["instructions"])
         self.assertFalse(options["store"])
         self.assertEqual(options["model"], "gpt-test")
         self.assertNotIn("tools", options)
@@ -149,6 +150,32 @@ class LibraryPreviewTests(unittest.TestCase):
         self.assertEqual(parsed["agent"], PREVIEW_AGENT)
         self.assertTrue(parsed["simulation"])
         self.assertEqual(history[2], {"role": "user", "content": "Look it up"})
+
+    def test_medical_preview_runs_and_verifies_the_same_local_calculator(self):
+        data = {
+            "lines": [{"label": "One", "quantity": "1", "unit_price": "900.00", "amount": "900.00"},
+                      {"label": "Two", "quantity": "1", "unit_price": "250.00", "amount": "250.00"},
+                      {"label": "Three", "quantity": "1", "unit_price": "250.00", "amount": "250.00"},
+                      {"label": "Four", "quantity": "3", "unit_price": "60.00", "amount": "180.00"},
+                      {"label": "Five", "quantity": "1", "unit_price": "120.00", "amount": "120.00"}],
+            "bill_total": "1800.00", "bill_adjustments": ["-696.00"], "bill_balance": "1104.00",
+            "patient_shares": ["120.00", "30.00", "0.00", "8.00", "16.00"], "statement_share": "174.00",
+        }
+        calls = [{"type": "function_call", "call_id": "math", "name": "calculate_bill_math",
+                  "arguments": json.dumps({"bill_data_json": json.dumps(data)})}]
+        client = FakeClient([Response(calls), Response([{"type": "message"}], text="Answer")])
+        status, _, transcript = asyncio.run(run_preview(
+            client, template_id="medical-bill-reviewer", model="gpt-test", prompt="Review sample bill"))
+        self.assertEqual(status, "completed")
+        spec = next(tool for tool in client.calls[0]["tools"] if tool["name"] == "calculate_bill_math")
+        self.assertEqual(spec["parameters"]["required"], ["bill_data_json"])
+        receipts = execution_receipts(transcript, preview_agent("library-medical-bill-reviewer")["tools"])
+        self.assertEqual(len(receipts), 1)
+        self.assertTrue(receipts[0]["verified"])
+        result = json.loads(receipts[0]["output"].split("\n", 1)[1])
+        self.assertEqual(result["line_amount_sum"], "$1,700.00")
+        self.assertEqual(result["bill_total_minus_line_sum"], "$100.00")
+        self.assertEqual(result["bill_balance_minus_statement_share"], "$930.00")
 
     def test_usage_is_summed_across_tool_rounds(self):
         call = {"type": "function_call", "call_id": "call-1", "name": "lookup_demo_request",

@@ -1,10 +1,16 @@
 import inspect
+import io
 import json
+import subprocess
+import sys
+import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
+from zipfile import ZipFile
 
+from agent_package import runtime_package
 from agent_runtime.demo_tools import TEMPLATE_IDS, create_demo_tools
-from agent_runtime.main import DEMO_POLICY, build_agent, read_configuration
+from agent_runtime.main import DEMO_POLICY, build_agent, demo_policy, read_configuration
 from agent_templates import TEMPLATES
 
 SAMPLE_LOOKUPS = {
@@ -38,18 +44,22 @@ def environment(template="document-analyst"):
 
 
 class RuntimeTests(unittest.TestCase):
-    def test_text_jobs_have_no_tools_and_lookup_jobs_have_only_read_only_lookups(self):
+    def test_text_jobs_have_no_tools_and_sample_tools_are_read_only(self):
         for identifier in TEMPLATE_IDS:
             with self.subTest(identifier=identifier):
                 tools = create_demo_tools(identifier, "lab-demo-fictional")
-                self.assertEqual(len(tools), 2 if identifier in SAMPLE_LOOKUPS else 0)
+                expected = 3 if identifier == "medical-bill-reviewer" else 2 if identifier in SAMPLE_LOOKUPS else 0
+                self.assertEqual(len(tools), expected)
                 self.assertTrue(all("read" in tool.__doc__.lower() for tool in tools))
                 self.assertTrue(all("SAMPLE DATA" in tool.__doc__ for tool in tools))
 
     def test_every_identifier_in_each_sample_resolves_to_a_simulated_receipt(self):
         for template, calls in SAMPLE_LOOKUPS.items():
             tools = {tool.__name__: tool for tool in create_demo_tools(template, "lab-demo-fictional")}
-            self.assertEqual(set(tools), {call[0] for call in calls})
+            expected = {call[0] for call in calls}
+            if template == "medical-bill-reviewer":
+                expected.add("calculate_bill_math")
+            self.assertEqual(set(tools), expected)
             seen = [TEMPLATES[template]["sample_input"]]
             for name, *arguments in calls:
                 with self.subTest(template=template, tool=name, arguments=arguments):
@@ -124,11 +134,36 @@ class RuntimeTests(unittest.TestCase):
                 self.assertEqual(client.call_args.kwargs["model"], "fictional-model")
                 self.assertEqual(client.call_args.kwargs["credential"], credential)
                 options = constructor.call_args.kwargs
-                self.assertTrue(options["instructions"].startswith(DEMO_POLICY))
+                self.assertTrue(options["instructions"].startswith(demo_policy(identifier)))
                 self.assertIn(environment()["AGENT_INSTRUCTIONS"], options["instructions"])
                 self.assertEqual(options["default_options"], {"store": False})
-                self.assertEqual(len(options["tools"]), 0 if identifier == "document-analyst" else 2)
+                self.assertEqual(len(options["tools"]),
+                                 0 if identifier == "document-analyst" else 3 if identifier == "medical-bill-reviewer" else 2)
         credential.get_token.assert_not_called()
+
+    def test_calculator_policy_does_not_change_other_agents(self):
+        self.assertIn("sample-lookup and arithmetic tools", demo_policy("medical-bill-reviewer"))
+        for identifier in TEMPLATE_IDS - {"medical-bill-reviewer"}:
+            self.assertEqual(demo_policy(identifier), DEMO_POLICY)
+
+    def test_packaged_tools_calculate_without_access_to_the_workbench(self):
+        package, _ = runtime_package()
+        with tempfile.TemporaryDirectory() as directory:
+            with ZipFile(io.BytesIO(package)) as archive:
+                archive.extractall(directory)
+            script = (
+                "import json, sys; sys.path.insert(0, sys.argv[1]); "
+                "from demo_tools import create_demo_tools; "
+                "tool = next(t for t in create_demo_tools('medical-bill-reviewer', 'demo-agent') "
+                "if t.__name__ == 'calculate_bill_math'); "
+                "data = {'lines': [{'label': 'one', 'amount': '2', 'quantity': '1', 'unit_price': '2'}]}; "
+                "receipt = json.loads(tool(json.dumps(data))); "
+                "result = json.loads(receipt['output'].split('\\n', 1)[1]); "
+                "assert receipt['status'] == 'succeeded' and result['line_amount_sum'] == '$2.00'"
+            )
+            result = subprocess.run([sys.executable, "-I", "-c", script, directory],
+                                    cwd=directory, capture_output=True, text=True, timeout=30, check=False)
+            self.assertEqual(result.returncode, 0, result.stderr)
 
 
 if __name__ == "__main__":

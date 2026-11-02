@@ -349,8 +349,10 @@ export function previewAgent(
   template: LibraryTemplate,
   runtimeAgent: string,
 ): Agent {
-  const lookups = template.tools.length
-    ? `${template.tools.length} sample ${template.tools.length === 1 ? 'lookup' : 'lookups'}`
+  const tools = template.tools.length
+    ? template.tools.every((tool) => tool.name.startsWith('lookup_'))
+      ? `${template.tools.length} sample ${template.tools.length === 1 ? 'lookup' : 'lookups'}`
+      : `${template.tools.length} local sample-data tools`
     : 'no tools'
   return {
     id: `${previewPrefix}${template.id}`,
@@ -370,7 +372,7 @@ export function previewAgent(
         template.delegation || 'Works directly on the text you supply.',
       ),
       configuration: clip(
-        `Library preview of template ${template.id}: the Lab applies its fixed demonstration policy and this template's instructions with ${lookups} on the ${profileNames[template.model_profile.id] || template.model_profile.id} model. Nothing is published, and preview chats are not saved. Create the agent to save, share or export it.`,
+        `Library preview of template ${template.id}: the Lab applies its fixed demonstration policy and this template's instructions with ${tools} on the ${profileNames[template.model_profile.id] || template.model_profile.id} model. Nothing is published, and preview chats are not saved. Create the agent to save, share or export it.`,
       ),
     },
   }

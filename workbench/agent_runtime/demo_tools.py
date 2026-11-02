@@ -2,6 +2,11 @@ import json
 import re
 from copy import deepcopy
 
+if __package__:
+    from .bill_math import calculate_bill_values
+else:
+    from bill_math import calculate_bill_values
+
 
 TEMPLATE_IDS = frozenset({
     "document-analyst", "criteria-checker", "document-intake", "casework-assistant", "workflow-coordinator",
@@ -243,11 +248,16 @@ def create_demo_tools(template_id, agent_name):
     if not isinstance(agent_name, str) or not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", agent_name):
         raise ValueError("Invalid hosted agent name")
 
-    def receipt(record):
+    def receipt(record, calculation=False):
+        description = (
+            "SAMPLE local arithmetic. Compare the copied values with the supplied documents. "
+            "No external system was contacted or changed."
+            if calculation else
+            "SAMPLE read-only lookup. No external system was contacted or changed."
+        )
         return json.dumps({
             "status": "succeeded", "agent": agent_name, "simulation": True,
-            "output": "SAMPLE read-only lookup. No external system was contacted or changed.\n"
-                      + json.dumps(record, sort_keys=True),
+            "output": description + "\n" + json.dumps(record, sort_keys=True),
         })
 
     def lookup_demo_request(request_id: str) -> str:
@@ -265,6 +275,19 @@ def create_demo_tools(template_id, agent_name):
     def lookup_usual_price(service_code: str) -> str:
         """Read the sample plan's usual allowed price for one service code. SAMPLE DATA, read-only; not a real price list."""
         return receipt(_lookup(_USUAL_PRICES, service_code))
+
+    def calculate_bill_math(bill_data_json: str) -> str:
+        """Calculate bill math from copied SAMPLE DATA, read-only; no external system is contacted.
+
+        bill_data_json is a JSON object with a lines array. Each line has label and amount, and,
+        when shown, quantity and unit_price. Optional fields are bill_total, bill_adjustments
+        (a list of signed amounts, negative for credits or payments), bill_balance,
+        patient_shares (a list of statement line shares), and statement_share (the statement's
+        printed total). Use decimal strings; copy every bill line and value from the documents.
+        Omit missing fields or use null, not guessed zeros. Use [] for adjustments only when
+        the bill shows there are none. Compare the returned inputs with the original documents.
+        """
+        return receipt(calculate_bill_values(bill_data_json), calculation=True)
 
     def lookup_preapproval_rules(plan_id: str, service_code: str) -> str:
         """Read a fixed sample insurer's pre-approval document list for a plan ID and service code. SAMPLE DATA, read-only; never submits a request."""
@@ -310,7 +333,7 @@ def create_demo_tools(template_id, agent_name):
 
     return {
         "workflow-coordinator": [lookup_demo_request, lookup_demo_service],
-        "medical-bill-reviewer": [lookup_plan_benefits, lookup_usual_price],
+        "medical-bill-reviewer": [lookup_plan_benefits, lookup_usual_price, calculate_bill_math],
         "insurance-preapproval-helper": [lookup_preapproval_rules, lookup_facility],
         "benefits-renewal-helper": [lookup_renewal_rules, lookup_documents_on_file],
         "supplier-invoice-reviewer": [lookup_purchase_order, lookup_delivery_record],

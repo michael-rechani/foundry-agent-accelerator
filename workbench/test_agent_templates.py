@@ -378,11 +378,12 @@ class TemplateTests(unittest.TestCase):
             with self.subTest(identifier=identifier):
                 self.assertNotIn("Format every answer", TEMPLATES[identifier]["instructions"])
 
-    def test_only_lookup_jobs_have_tools_and_they_are_simulated(self):
+    def test_only_tool_jobs_have_local_sample_tools(self):
         for identifier, template in TEMPLATES.items():
             with self.subTest(identifier=identifier):
                 self.assertEqual(
-                    len(template["tools"]), 2 if identifier in LOOKUP_JOBS else 0
+                    len(template["tools"]),
+                    3 if identifier == "medical-bill-reviewer" else 2 if identifier in LOOKUP_JOBS else 0,
                 )
                 self.assertTrue(all(tool["simulated"] for tool in template["tools"]))
                 for tool in template["tools"]:

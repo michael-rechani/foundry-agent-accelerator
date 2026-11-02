@@ -25,6 +25,7 @@ from library_rules import DEPLOYMENT_NAME
 from library_preview import PREVIEW_AGENT, PREVIEW_ID, preview_agent, run_preview, summarize_usage, usage_record
 from model_budget import ModelBudgetWait, ModelBudgets, estimate_input_tokens, measured_answer_tokens, validate_model_limits
 from request_guard import MAX_REQUEST_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
+from tool_receipts import execution_receipts
 
 
 ROOT = Path(__file__).resolve().parent
@@ -245,27 +246,6 @@ def chat_prompt(data, registry):
     if sum(len(message["content"]) for message in history) + len(data["input"]) > MAX_CHARACTERS:
         return None
     return history + [{"role": "user", "content": data["input"]}] if history else data["input"]
-
-
-def execution_receipts(output, bindings):
-    calls = [item for item in output if item.get("type") == "function_call"]
-    receipts = []
-    for call in calls:
-        call_id = call.get("call_id")
-        matching = [item for item in output if item.get("type") == "function_call_output" and item.get("call_id") == call_id]
-        unique = bool(call_id) and sum(item.get("call_id") == call_id for item in calls) == 1
-        receipt = {"tool": call.get("name", "unknown"), "call_id": call_id, "verified": False, "agent": None, "output": None}
-        if unique and len(matching) == 1:
-            try:
-                result = json.loads(matching[0].get("output", ""))
-            except (TypeError, ValueError):
-                result = None
-            if (isinstance(result, dict) and result.get("status") == "succeeded"
-                    and call.get("name") in bindings and result.get("agent") == bindings[call["name"]]
-                    and isinstance(result.get("output"), str) and result["output"].strip()):
-                receipt.update(verified=True, agent=result["agent"], output=result["output"])
-        receipts.append(receipt)
-    return receipts
 
 
 @contextmanager

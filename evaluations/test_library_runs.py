@@ -485,6 +485,30 @@ class PacedClientTests(unittest.TestCase):
         self.assertEqual(len(foundry.calls), 3)
 
 
+class ReceiptRecordingTests(unittest.TestCase):
+    def test_only_a_correlated_successful_calculator_result_is_preserved(self):
+        item = lr.Item("medical-bill-reviewer", "reasoning", [], "digest", "model", "test")
+        case = {"id": "medical-bill-reviewer-sample-conflict"}
+        call = {"type": "function_call", "name": "calculate_bill_math", "call_id": "math"}
+        output = {"type": "function_call_output", "call_id": "math", "output": json.dumps({
+            "status": "succeeded", "agent": lr.PREVIEW_AGENT,
+            "output": 'SAMPLE local arithmetic.\n{"line_amount_sum":"$1,700.00"}',
+        })}
+        usage = [lr.usage_record(SimpleNamespace(usage=USAGE))]
+
+        def finish(transcript):
+            return lr.finish_run(item, case, 1, ("completed", "Answer", transcript), usage, 1.0, TODAY)["receipts"]
+
+        result = finish([call, output])
+        self.assertEqual(result[0]["tool"], "calculate_bill_math")
+        self.assertTrue(result[0]["verified"])
+        self.assertIn("$1,700.00", result[0]["output"])
+        for transcript in ([call], [call, call, output], [call, {**output, "call_id": "other"}],
+                           [call, {**output, "output": json.dumps({"status": "failed"})}]):
+            with self.subTest(transcript=transcript):
+                self.assertFalse(any(receipt.get("verified") for receipt in finish(transcript)))
+
+
 class RowFileTests(Scratch):
     DATA = b'{"case_id": "a", "n": 1}\n{"case_id": "b", "n": 2}\n\n{"case_id": "a", "n": 3}\n{"case_id": "c", "n": 4}\n'
 

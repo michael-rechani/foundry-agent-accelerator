@@ -48,9 +48,13 @@ const templateProfiles: Record<string, string> = {
   'benefits-renewal-helper': 'reasoning',
   'supplier-invoice-reviewer': 'reasoning',
 }
-const lookups: Record<string, string[]> = {
+const localTools: Record<string, string[]> = {
   'workflow-coordinator': ['lookup_demo_request', 'lookup_demo_service'],
-  'medical-bill-reviewer': ['lookup_plan_benefits', 'lookup_usual_price'],
+  'medical-bill-reviewer': [
+    'lookup_plan_benefits',
+    'lookup_usual_price',
+    'calculate_bill_math',
+  ],
   'insurance-preapproval-helper': [
     'lookup_preapproval_rules',
     'lookup_facility',
@@ -120,15 +124,19 @@ export const templates: AgentTemplate[] = [
   output: 'A referenced response, missing information and follow-up questions.',
   limits:
     'No business, clinical, payment or eligibility decisions. No live writes. Human review required.',
-  delegation: lookups[id]
-    ? 'Uses two simulated read-only lookups, not specialist agents.'
+  delegation: localTools[id]
+    ? id === 'medical-bill-reviewer'
+      ? 'Uses sample read-only lookups and a local calculator, not specialist agents.'
+      : 'Uses two simulated read-only lookups, not specialist agents.'
     : 'Works directly on supplied text; no tools or other agents.',
   instructions: `Act as a ${label}. Use fictional supplied material, cite sources and ask for missing information.`,
   example_request: `Create a ${label} for a fictional demonstration.`,
   sample_input: sample,
-  tools: (lookups[id] ?? []).map((name) => ({
+  tools: (localTools[id] ?? []).map((name) => ({
     name,
-    description: 'Read-only local fixture; no external system is contacted.',
+    description: name.startsWith('calculate_')
+      ? 'Checks copied values with local arithmetic.'
+      : 'Read-only local fixture; no external system is contacted.',
     simulated: true,
   })),
   model_profile: profiles[templateProfiles[id]],

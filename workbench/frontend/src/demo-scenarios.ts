@@ -174,7 +174,7 @@ Note 3 (document checklist): Proof of address hasn't come in yet. No document is
     problem:
       'A hospital asks for $1,104. The insurer says the patient share is $174 for the same visit. The patient needs the difference explained before contacting the hospital.',
     agentDoes:
-      'Checks both documents and their totals, uses fictional plan and price lookups, explains the differences and drafts an unsent dispute letter. This is billing assistance, not diagnosis, an insurer connection or a payment action.',
+      'Compares both documents, checks copied amounts with a local calculator, uses fictional plan and price lookups, and drafts an unsent dispute letter. This is billing assistance, not diagnosis, an insurer connection or a payment action.',
     expectedReturn:
       'A $174 statement-supported estimate to confirm, with the $930 gap explained as a $100 total discrepancy, $250 duplicate X-ray, $120 unmatched lab units and $460 contractual adjustments. An unsent dispute letter, not confirmed savings.',
     templateId: 'medical-bill-reviewer',

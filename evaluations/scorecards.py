@@ -35,7 +35,7 @@ from pathlib import Path
 
 from library_checks import CASES_PATH, TEMPLATES, case_input, load_cases, score
 from library_rules import METRIC_KEYS, is_int, is_number, valid_date
-from agent_runtime.main import DEMO_POLICY
+from agent_runtime.main import demo_policy
 
 HERE = Path(__file__).resolve().parent
 EVIDENCE = HERE / "evidence"
@@ -115,8 +115,8 @@ def _whole_number(value):
 
 
 def instructions_digest(template_id):
-    """Fingerprint of the shared runtime policy and template instructions the Lab serves."""
-    effective_instructions = DEMO_POLICY + TEMPLATES[template_id]["instructions"]
+    """Fingerprint the runtime policy and template instructions the Lab serves."""
+    effective_instructions = demo_policy(template_id) + TEMPLATES[template_id]["instructions"]
     return hashlib.sha256(effective_instructions.encode("utf-8")).hexdigest()
 
 

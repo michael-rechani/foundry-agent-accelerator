@@ -23,6 +23,12 @@ test('the library explains the problem, agent job and expected result before any
   await expect(story).toContainText('Expected sample result')
   await expect(story).toContainText('not an answer the agent has returned')
   await expect(
+    page.getByRole('heading', { name: 'Sample lookups and calculator' }),
+  ).toBeVisible()
+  await expect(page.locator('.library-tools')).toContainText(
+    'a person must verify the inputs',
+  )
+  await expect(
     page.getByRole('heading', { name: 'What the agent returned', exact: true }),
   ).toHaveCount(0)
   expect(state.chat).toHaveLength(0)

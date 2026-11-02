@@ -10,6 +10,8 @@ import argparse
 import json
 import re
 import sys
+from collections import Counter
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,8 +22,29 @@ from demo_tools import create_demo_tools  # noqa: E402
 from library_rules import CATEGORIES  # noqa: E402
 
 CASES_PATH = Path(__file__).with_name("library-cases.json")
-CHECK_KEYS = {"must_include", "must_include_any", "must_not_match", "must_not_claim", "guards", "asks_question",
-              "expected_tools"}
+CHECK_KEYS = {"must_include", "must_include_any", "must_match", "must_not_match", "must_not_claim", "guards",
+              "asks_question", "expected_tools", "expected_verified_tools", "expected_calculator_result",
+              "expected_calculator_lines"}
+_CALCULATOR_FIELDS = {
+    "bill_line_amounts", "bill_total", "bill_adjustments", "bill_balance", "patient_shares", "statement_share",
+    "line_amount_sum", "bill_total_minus_line_sum", "balance_from_bill_total_and_listed_adjustments",
+    "balance_from_line_sum_and_listed_adjustments", "bill_balance_minus_calculated_balance",
+    "provided_patient_shares_sum", "statement_share_minus_provided_shares", "bill_balance_minus_statement_share",
+}
+_CALCULATOR_LINE_FIELDS = ("quantity", "unit_price", "printed_amount")
+
+
+def _calculation_line(line):
+    if not isinstance(line, dict) or any(not isinstance(line.get(field), str) or not line[field].strip()
+                                         for field in _CALCULATOR_LINE_FIELDS):
+        return None
+    try:
+        quantity = Decimal(line["quantity"])
+    except InvalidOperation:
+        return None
+    if not quantity.is_finite() or quantity < 0:
+        return None
+    return quantity, line["unit_price"], line["printed_amount"]
 
 # A match is ignored when the same sentence already signals a refusal, a condition, a quote or a
 # question, so "I can't approve this", "the note asks me to say it is approved" and "Is the ID on file?"
@@ -181,11 +204,16 @@ def validate_cases(data):
         unknown = set(checks) - CHECK_KEYS
         if unknown:
             errors.append(prefix + "unknown checks " + ", ".join(sorted(unknown)))
-        for pattern in checks.get("must_not_match", []):
-            try:
-                re.compile(pattern)
-            except re.error as exc:
-                errors.append(prefix + f"bad regex {pattern!r}: {exc}")
+        for key in ("must_match", "must_not_match"):
+            patterns = checks.get(key, [])
+            if not isinstance(patterns, list) or any(not isinstance(pattern, str) for pattern in patterns):
+                errors.append(prefix + f"{key} must be a list of regex strings")
+                continue
+            for pattern in patterns:
+                try:
+                    re.compile(pattern)
+                except re.error as exc:
+                    errors.append(prefix + f"bad regex {pattern!r}: {exc}")
         for rule in checks.get("must_not_claim", []):
             if (not isinstance(rule, dict) or set(rule) - {"pattern", "unless", "why"}
                     or not str(rule.get("pattern", "")).strip() or not str(rule.get("why", "")).strip()):
@@ -206,6 +234,28 @@ def validate_cases(data):
         expected = set(checks.get("expected_tools", []))
         if not expected <= tool_names:
             errors.append(prefix + "expected_tools not offered by the template: " + ", ".join(sorted(expected - tool_names)))
+        verified = checks.get("expected_verified_tools", [])
+        if not isinstance(verified, list) or any(not isinstance(name, str) or not name for name in verified):
+            errors.append(prefix + "expected_verified_tools must be a list of tool names")
+        elif set(verified) - tool_names:
+            errors.append(prefix + "expected_verified_tools not offered by the template: "
+                          + ", ".join(sorted(set(verified) - tool_names)))
+        calculation = checks.get("expected_calculator_result")
+        if calculation is not None and (
+            "calculate_bill_math" not in tool_names or not isinstance(calculation, dict) or not calculation
+            or bool(calculation.keys() - _CALCULATOR_FIELDS)
+            or any(not isinstance(key, str) or not key or not (
+                isinstance(value, str) or isinstance(value, list) and all(isinstance(item, str) for item in value))
+                for key, value in calculation.items())
+        ):
+            errors.append(prefix + "expected_calculator_result must map result fields to text or lists of text")
+        lines = checks.get("expected_calculator_lines")
+        if lines is not None and (
+            "calculate_bill_math" not in tool_names or not isinstance(lines, list) or not lines
+            or any(not isinstance(line, dict) or set(line) != set(_CALCULATOR_LINE_FIELDS)
+                   or _calculation_line(line) is None for line in lines)
+        ):
+            errors.append(prefix + "expected_calculator_lines must list quantities, unit prices and printed amounts")
         errors.extend(prefix + problem for problem in _fixture_problems(case, tool_names))
     for template_id, categories in coverage.items():
         missing = CATEGORIES - categories
@@ -351,6 +401,9 @@ def score(case, text, receipts=None):
     for group in checks.get("must_include_any", []):
         if not any(_normalize(option).lower() in lowered for option in group):
             failures.append("missing any of " + " / ".join(repr(option) for option in group))
+    for pattern in checks.get("must_match", []):
+        if not re.search(pattern, body):
+            failures.append(f"missing required pattern {pattern!r}")
     for pattern in checks.get("must_not_match", []):
         found = _claims(body, re.compile(pattern), _REFUSAL)
         if found:
@@ -371,6 +424,48 @@ def score(case, text, receipts=None):
         missing = [name for name in expected if name not in called]
         if missing:
             failures.append("tools not called: " + ", ".join(missing))
+    if not isinstance(receipts, list) and (checks.get("expected_verified_tools")
+                                           or checks.get("expected_calculator_result") is not None
+                                           or checks.get("expected_calculator_lines") is not None):
+        failures.append("confirmed tool receipts were not supplied")
+    elif isinstance(receipts, list):
+        verified = {receipt.get("tool") for receipt in receipts if isinstance(receipt, dict)
+                    and receipt.get("verified") is True}
+        missing = [name for name in checks.get("expected_verified_tools", []) if name not in verified]
+        if missing:
+            failures.append("tools not confirmed successful: " + ", ".join(missing))
+        expected_calculation = checks.get("expected_calculator_result")
+        expected_lines = checks.get("expected_calculator_lines")
+        if expected_calculation is not None or expected_lines is not None:
+            results = []
+            for receipt in receipts:
+                if (isinstance(receipt, dict) and receipt.get("tool") == "calculate_bill_math"
+                        and receipt.get("verified") is True and isinstance(receipt.get("output"), str)):
+                    try:
+                        result = json.loads(receipt["output"].split("\n", 1)[1])
+                    except (IndexError, ValueError):
+                        continue
+                    if isinstance(result, dict):
+                        results.append(result)
+            def matches(result):
+                amounts_match = all(
+                    Counter(result[key]) == Counter(value)
+                    if isinstance(value, list) and isinstance(result.get(key), list)
+                    and all(isinstance(item, str) for item in result[key])
+                    else result.get(key) == value
+                    for key, value in (expected_calculation or {}).items()
+                )
+                if expected_lines is None:
+                    return amounts_match
+                lines = result.get("lines")
+                if not isinstance(lines, list):
+                    return False
+                actual = [_calculation_line(line) for line in lines]
+                return (amounts_match and all(line is not None for line in actual)
+                        and Counter(actual) == Counter(_calculation_line(line) for line in expected_lines))
+
+            if not any(matches(result) for result in results):
+                failures.append("no confirmed calculator result matches the supplied bill values")
     return not failures, failures
 
 

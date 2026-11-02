@@ -24,6 +24,15 @@ DEMO_POLICY = (
 )
 
 
+def demo_policy(template_id):
+    if template_id == "medical-bill-reviewer":
+        return DEMO_POLICY.replace(
+            "the fixed local sample-lookup tools.",
+            "the fixed local sample-lookup and arithmetic tools.",
+        )
+    return DEMO_POLICY
+
+
 def read_configuration(environment=None):
     environment = os.environ if environment is None else environment
     required = ("FOUNDRY_PROJECT_ENDPOINT", "FOUNDRY_MODEL_NAME", "AGENT_NAME", "AGENT_INSTRUCTIONS", "DEMO_TEMPLATE_ID")
@@ -58,7 +67,7 @@ def build_agent(credential, environment=None):
             model=config["FOUNDRY_MODEL_NAME"], credential=credential, allow_preview=True,
         ),
         name=config["AGENT_NAME"],
-        instructions=DEMO_POLICY + config["AGENT_INSTRUCTIONS"],
+        instructions=demo_policy(config["DEMO_TEMPLATE_ID"]) + config["AGENT_INSTRUCTIONS"],
         tools=create_demo_tools(config["DEMO_TEMPLATE_ID"], config["AGENT_NAME"]),
         default_options={"store": False},
     )

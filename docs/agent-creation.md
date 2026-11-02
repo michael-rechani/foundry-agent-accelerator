@@ -69,7 +69,9 @@ advice or use real patient data.
 
 The Medical bill reviewer, Insurance pre-approval helper, and Benefits renewal
 helper each use two fixed, sample, read-only lookups (for example, plan
-benefits and usual prices for the medical bill reviewer).
+benefits and usual prices for the medical bill reviewer). The medical reviewer
+also has a local calculator for values copied from the supplied documents;
+someone must still verify that the copied values are complete and correct.
 
 Each template card shows the [model profile](#how-the-lab-picks-a-model) the
 job uses and whether it has sample lookups.
@@ -85,13 +87,13 @@ job uses and whether it has sample lookups.
 | Create in Foundry | Confirming creation publishes a new generated `lab-demo-...` named agent using the Foundry software development kit (SDK). Progress follows the actual application stages. | Progress isn't a timer pretending to be deployment progress. |
 | Try the agent | Ready means the hosted version is active and its Responses route was checked. Send the fictional sample in **Chat** to see its first actual answer and check quality yourself. | No hidden billable model smoke test runs. |
 
-Templates with tools have exactly two fixed, local, **simulated read-only**
-lookups each:
+Templates with tools have two fixed, local, **simulated read-only** lookups
+each. The medical bill reviewer also has a local calculator:
 
-| Template | Lookups |
+| Template | Local tools |
 | --- | --- |
 | Service request planner | `lookup_demo_request`, `lookup_demo_service` |
-| Medical bill reviewer | `lookup_plan_benefits`, `lookup_usual_price` |
+| Medical bill reviewer | `lookup_plan_benefits`, `lookup_usual_price`, `calculate_bill_math` |
 | Insurance pre-approval helper | `lookup_preapproval_rules`, `lookup_facility` |
 | Benefits renewal helper | `lookup_renewal_rules`, `lookup_documents_on_file` |
 | Supplier invoice reviewer | `lookup_purchase_order`, `lookup_delivery_record` |
@@ -350,8 +352,8 @@ can't describe instructions the Lab no longer uses. Each case includes the
 request that was sent, which the library's **Take it to Foundry** tab turns into
 a downloadable evaluation file.
 
-Only `main.py`, `demo_tools.py`, and `requirements.txt` enter the deterministic
-ZIP package. Prompts can't upload source, install dependencies, select
+Only `main.py`, `demo_tools.py`, `bill_math.py`, and `requirements.txt` enter the
+deterministic ZIP package. Prompts can't upload source, install dependencies, select
 endpoints, change the model, or register tools. Hosted allocation is fixed at
 0.5 CPU / 1 GiB. Remote build uses `python_3_14`, matching the existing
 deployer and the Lab container's Python 3.14 version.
@@ -412,7 +414,9 @@ The saved-agent API exposes its `runtime_hash` so the exporter can require the
 exact matching runtime source. In the Lab, a library entry's **Export and
 deploy** tab downloads a ready agent's saved record (`GET /api/agents/{id}`) and
 shows the `bundle.py export-created`, `inspect`, and `deploy` commands; building
-and deploying the bundle remain CLI steps in your own environment.
+and deploying the bundle remain CLI steps in your own environment. An archived
+three-file runtime from before the calculator was added can still be exported
+when its hash matches the saved record.
 Library templates are marked exportable only through the `after_creation`
 path: first create and publish a saved Lab agent, then export its ready record.
 Browsing a template alone doesn't produce a bundle.

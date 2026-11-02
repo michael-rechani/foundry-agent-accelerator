@@ -73,7 +73,13 @@ export function LibraryOverviewTab({
           <p>{template.limits}</p>
           {template.tools.length > 0 && (
             <>
-              <h2>Sample data it looks up</h2>
+              <h2>
+                {template.tools.some((tool) =>
+                  tool.name.startsWith('calculate_'),
+                )
+                  ? 'Sample lookups and calculator'
+                  : 'Sample data it looks up'}
+              </h2>
               <ul className="library-tools">
                 {template.tools.map((tool) => (
                   <li key={tool.name}>

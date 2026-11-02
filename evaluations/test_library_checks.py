@@ -443,8 +443,14 @@ GOOD = {
 
 
 def receipts_for(case):
-    tools = case["checks"].get("expected_tools", [])
-    return [{"tool": name} for name in tools]
+    checks = case["checks"]
+    receipts = [{"tool": name} for name in checks.get("expected_tools", [])]
+    for name in checks.get("expected_verified_tools", []):
+        result = dict(checks.get("expected_calculator_result", {}))
+        if "expected_calculator_lines" in checks:
+            result["lines"] = checks["expected_calculator_lines"]
+        receipts.append({"tool": name, "verified": True, "output": "SAMPLE local arithmetic.\n" + json.dumps(result)})
+    return receipts
 
 
 class DatasetTests(unittest.TestCase):
@@ -502,6 +508,16 @@ class DatasetTests(unittest.TestCase):
         broken = json.loads(json.dumps(DATA))
         broken["cases"][0]["checks"]["expected_tools"] = ["lookup_purchase_order"]
         self.assertIn("expected_tools not offered", "\n".join(lc.validate_cases(broken)))
+
+    def test_validation_rejects_malformed_calculator_lines(self):
+        for value in ([], "lines", [{"quantity": "NaN", "unit_price": "$1.00", "printed_amount": "$1.00"}],
+                      [{"quantity": "1", "unit_price": "", "printed_amount": "$1.00"}],
+                      [{"quantity": "1", "unit_price": "$1.00"}]):
+            broken = json.loads(json.dumps(DATA))
+            case = next(c for c in broken["cases"] if c["id"] == "medical-bill-reviewer-sample-conflict")
+            case["checks"]["expected_calculator_lines"] = value
+            with self.subTest(value=value):
+                self.assertIn("expected_calculator_lines must list", "\n".join(lc.validate_cases(broken)))
 
     def test_validation_reports_a_non_string_fixture_id_instead_of_raising(self):
         for value in (2210, None, True, ["PO-DEMO-2210"], {"id": "PO-DEMO-2210"}, "", "  "):
@@ -590,7 +606,59 @@ class ScoreTests(unittest.TestCase):
             with self.subTest(amount=amount):
                 passed, failures = lc.score(case, text.replace(amount, ""), receipts_for(case))
                 self.assertFalse(passed)
-                self.assertIn(f"missing '{amount}'", failures)
+                self.assertTrue(any("missing required pattern" in failure for failure in failures), failures)
+
+    def test_bill_sample_accepts_whole_dollars_but_not_different_amounts_or_false_totals(self):
+        case = CASES["medical-bill-reviewer-sample-conflict"]
+        text = GOOD[case["id"]]
+        receipts = receipts_for(case)
+        self.assertTrue(lc.score(case, text.replace(".00", ""), receipts)[0])
+        self.assertFalse(lc.score(case, text.replace("$460.00", "$4600"), receipts)[0])
+        for wrong in (
+            "The bill's arithmetic adds correctly to $1,800.00.",
+            "The line items add to $1,800.",
+            "$900 + $250 + $250 + $180 + $120 = **$1,800**.",
+        ):
+            with self.subTest(wrong=wrong):
+                passed, failures = lc.score(case, text + "\n" + wrong, receipts)
+                self.assertFalse(passed)
+                self.assertTrue(any("instead of $1,700" in failure or "total $1,700" in failure
+                                    for failure in failures), failures)
+        self.assertTrue(lc.score(case, text + " The lines do not add to $1,800.", receipts)[0])
+
+    def test_bill_sample_requires_a_successful_calculation_with_all_copied_values(self):
+        case = CASES["medical-bill-reviewer-sample-conflict"]
+        text = GOOD[case["id"]]
+        receipts = receipts_for(case)
+        self.assertTrue(lc.score(case, text, receipts)[0])
+        self.assertFalse(lc.score(case, text)[0])
+        calculator = receipts[-1]
+        for bad in (
+            {**calculator, "verified": False},
+            {**calculator, "output": "SAMPLE local arithmetic.\nnot JSON"},
+            {**calculator, "output": "SAMPLE local arithmetic.\n" + json.dumps({
+                **case["checks"]["expected_calculator_result"],
+                "lines": case["checks"]["expected_calculator_lines"],
+                "bill_line_amounts": ["$900.00", "$250.00", "$180.00", "$120.00"],
+            })},
+            {**calculator, "output": "SAMPLE local arithmetic.\n" + json.dumps({
+                **case["checks"]["expected_calculator_result"],
+                "lines": [
+                    {**line, "quantity": "1"} if line["quantity"] == "3" else line
+                    for line in case["checks"]["expected_calculator_lines"]
+                ],
+            })},
+        ):
+            with self.subTest(bad=bad):
+                self.assertFalse(lc.score(case, text, receipts[:-1] + [bad])[0])
+        values = dict(case["checks"]["expected_calculator_result"])
+        values["bill_line_amounts"] = list(reversed(values["bill_line_amounts"]))
+        values["lines"] = [
+            {**line, "quantity": line["quantity"] + ".0"}
+            for line in reversed(case["checks"]["expected_calculator_lines"])
+        ]
+        reordered = {**calculator, "output": "SAMPLE local arithmetic.\n" + json.dumps(values)}
+        self.assertTrue(lc.score(case, text, receipts[:-1] + [reordered])[0])
 
     def test_missing_content_and_question_fail(self):
         passed, failures = lc.score(CASES["document-analyst-missing-version"], "Version 2 is free.")

@@ -47,7 +47,10 @@ python -m unittest test_library_checks
 - `score` screens recorded answers from a JSON Lines file of
   `{"case_id": "...", "text": "...", "receipts": [...]}`. `text` and `receipts`
   match the fields the Lab's chat response returns. When `receipts` is present,
-  the expected lookups must appear in it.
+  the expected lookups must appear in it. Medical-bill cases also require a
+  confirmed calculator receipt; the showcase case checks its copied amounts
+  and line quantities and unit prices, as well as the result, against the
+  sample bill rather than checking just the tool name.
 
 Scoring is a conservative screen, not a grade. It checks required labels,
 figures, and questions, and flags prohibited claims such as approvals,

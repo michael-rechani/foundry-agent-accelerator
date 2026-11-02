@@ -112,7 +112,12 @@ test('creation is the entry point with nine honest jobs in two groups and usable
     page
       .getByRole('region', { name: 'Healthcare and public sector' })
       .locator('.creation-template small'),
-  ).toHaveText(Array(4).fill('Sample read-only lookups'))
+  ).toHaveText([
+    'Sample lookups + calculator',
+    'Sample read-only lookups',
+    'Sample read-only lookups',
+    'Sample read-only lookups',
+  ])
   await expect(
     page
       .getByRole('combobox', { name: 'Prepared template', exact: true })
@@ -362,12 +367,21 @@ test('local preview prepares all nine templates but cannot publish or load saved
       `Set by the Lab operator, chosen for ${template.model_profile.label}.`,
     )
     if (template.tools.length) {
-      await expect(page.locator('.creation-tool-list li')).toHaveCount(2)
+      await expect(page.locator('.creation-tool-list li')).toHaveCount(
+        template.tools.length,
+      )
       await expect(page.locator('.creation-tool-list')).toContainText(
         '(sample data)',
       )
-      if (template.id === 'medical-bill-reviewer')
+      if (template.id === 'medical-bill-reviewer') {
+        await expect(page.locator('.creation-tool-list')).toContainText(
+          'calculate_bill_math',
+        )
+        await expect(page.locator('.creation-tool-list')).toContainText(
+          '(local calculation)',
+        )
         await screenshot(page, testInfo, 'creation-preview-tools.png')
+      }
     } else
       await expect(
         page.getByText('No tools or external integrations.', { exact: true }),

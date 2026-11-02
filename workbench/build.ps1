@@ -13,7 +13,7 @@ try {
         Copy-Item (Join-Path $PSScriptRoot $name) $stage
     }
     New-Item -ItemType Directory -Path (Join-Path $stage "agent_runtime") | Out-Null
-    foreach ($name in @("main.py", "demo_tools.py", "requirements.txt")) {
+    foreach ($name in @("main.py", "demo_tools.py", "bill_math.py", "requirements.txt")) {
         Copy-Item (Join-Path $PSScriptRoot "agent_runtime/$name") (Join-Path $stage "agent_runtime")
     }
     New-Item -ItemType Directory -Path (Join-Path $stage "agent_templates/agents") -Force | Out-Null

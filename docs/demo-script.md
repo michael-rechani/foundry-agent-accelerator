@@ -88,9 +88,10 @@ If the designer asks a question first, answer in one line and let it continue.
    **$100 + $250 duplicate + $120 unmatched lab units + $460 contractual
    adjustments**. These components explain the same gap; they aren't
    additional savings. A price above an allowed amount alone isn't an error.
-   The lookups use sample records, not a connection to an insurer. **Confirmed**
-   means a lookup ran, not that its answer is correct. Keep technical receipts
-   in **Details** rather than reading all five steps aloud.
+   The lookups use sample records, not a connection to an insurer. The calculator
+   checks arithmetic on the values the agent copied; a person still checks those
+   values against the documents. **Confirmed** means a step ran, not that its
+   content is correct. Keep technical receipts in **Details**.
 4. On **Test results**, show how it did on the Lab's test cases: each case is
    sent five times and every answer must pass. Say: "These are the results
    before anyone trusts it, not after," and point at the case that missed a
