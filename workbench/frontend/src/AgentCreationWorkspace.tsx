@@ -40,7 +40,7 @@ export function AgentCreationWorkspace({
   view: 'create' | 'created'
   active: boolean
   chatBusy: boolean
-  requestedTemplate?: { id: string; key: number } | null
+  requestedTemplate?: { id: string; key: number; goal?: string } | null
   onView: (view: 'create' | 'created') => void
   onUse: (agent: Agent) => void
 }) {
@@ -137,7 +137,8 @@ export function AgentCreationWorkspace({
       setHandledRequest(requestedTemplate.key)
       if (!draft && !pending) {
         setTemplateId(found.id)
-        if (
+        if (requestedTemplate.goal) setGoal(requestedTemplate.goal)
+        else if (
           !goal.trim() ||
           templates.some((entry) => entry.example_request === goal)
         )
@@ -204,7 +205,7 @@ export function AgentCreationWorkspace({
   async function publish() {
     if (!draft || !capability.enabled || !consent || !validSetup || busy) return
     const key = operatorKey()
-    if (!key) return
+    if (key === null) return
     if (typeof crypto.randomUUID !== 'function') {
       setError(
         'Open the Lab over HTTPS, or a localhost development connection, before creating an agent.',
@@ -226,7 +227,7 @@ export function AgentCreationWorkspace({
         parseCreatedAgent(
           await creationRequest('agents', {
             method: 'POST',
-            headers: { 'X-Workbench-Creation-Key': key },
+            headers: key ? { 'X-Workbench-Creation-Key': key } : {},
             body: JSON.stringify(payload),
           }),
         ),
@@ -283,7 +284,7 @@ export function AgentCreationWorkspace({
   async function operate(action: 'resume' | 'delete') {
     if (!selected || busy || operationRunning) return
     const key = operatorKey()
-    if (!key) return
+    if (key === null) return
     if (
       action === 'delete' &&
       !window.confirm(
@@ -300,7 +301,7 @@ export function AgentCreationWorkspace({
           {
             method: action === 'resume' ? 'POST' : 'DELETE',
             headers: {
-              'X-Workbench-Creation-Key': key,
+              ...(key ? { 'X-Workbench-Creation-Key': key } : {}),
               'If-Match': selected._etag,
             },
           },
@@ -317,6 +318,7 @@ export function AgentCreationWorkspace({
   }
 
   function operatorKey() {
+    if (!capability.requires_operator_key) return ''
     const key = keyField.current?.value || ''
     if (key.length < 32) {
       setError(
@@ -331,6 +333,7 @@ export function AgentCreationWorkspace({
   const keyInput = active && (
     <OperatorKeyField
       inputRef={keyField}
+      required={capability.requires_operator_key}
       disabled={!capability.enabled && !canManage}
     />
   )

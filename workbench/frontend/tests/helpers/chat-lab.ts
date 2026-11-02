@@ -136,13 +136,15 @@ export async function openWorkspace(
           body: '<html><body>Bad Gateway</body></html>',
         })
       if (options.preview) return respond({ error: 'preview_only' }, 503)
+      const selected = state.requests[state.requests.length - 1].agent_id
       return respond({
         request_id: `request-${state.requests.length}`,
         status: 'completed',
-        agent: (
-          config.agents.find((item) => item.id === config.default_agent) ??
-          agent
-        ).agent,
+        agent:
+          (selected.startsWith('library-')
+            ? config.library_preview?.agent
+            : config.agents.find((item) => item.id === selected)?.agent) ??
+          agent.agent,
         text:
           options.answers?.[state.requests.length - 1] ??
           options.answer ??

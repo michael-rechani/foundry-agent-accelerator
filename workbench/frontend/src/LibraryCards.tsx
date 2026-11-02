@@ -32,8 +32,9 @@ export function LibraryCard({
     >
       <span className="library-kicker">
         <span className="library-sector-dot" aria-hidden="true" />
-        <span className="library-kicker-text">
-          {template.sector.label} · {template.industry.label}
+        <span className="library-kicker-text" title={template.sector.label}>
+          <span className="visually-hidden">{template.sector.label} · </span>
+          {template.industry.label}
         </span>
       </span>
       <span className="library-card-head">

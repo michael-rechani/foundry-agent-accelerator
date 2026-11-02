@@ -166,7 +166,7 @@ test('Foundry links appear only under the hood', async ({ page }) => {
 
 test('breadcrumbs link back to the library from its tabs', async ({ page }) => {
   await openCustomerView(page)
-  await libraryNav(page).getByRole('button', { name: 'Guided demos' }).click()
+  await page.getByRole('button', { name: 'Try a guided demo' }).click()
   const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
   await expect(crumbs).toContainText(/Agent library\s*Guided demos/)
   await crumbs.getByRole('button', { name: 'Agent library' }).click()
@@ -259,10 +259,13 @@ test('test results read plainly and keep case details under the hood', async ({
   )
   await expect(panel.locator('.scorecard-facts > div')).toHaveText([
     new RegExp(`Answer checks\\s*${runsPassed} of ${runs} answers passed`),
-    /Typical response\s*\d+\.\d s/,
+    /Recorded test time\s*\d+\.\d s/,
     /Model cost per answer\s*(Under 1?|About \d+?)/,
     /Sign-off\s*Waiting for a person/,
   ])
+  await expect(panel).toContainText(
+    'Median time across these recorded test runs.',
+  )
   const cases = panel
     .getByRole('list', { name: 'Test cases' })
     .locator(':scope > li')
@@ -293,6 +296,7 @@ test('test results read plainly and keep case details under the hood', async ({
   )
   await expect(panel.locator('.scorecard-notes').first()).toBeVisible()
   await expect(panel).toContainText(`Model ${card.model}.`)
+  await expect(panel).toContainText('not through the live Lab')
   await hoodSwitch(page).uncheck()
 })
 

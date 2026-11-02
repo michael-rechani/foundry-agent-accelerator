@@ -12,6 +12,7 @@ from azure.identity.aio import ManagedIdentityCredential
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from library_preview import DESIGNER_ID, preview_agent
 from request_guard import MAX_CONVERSATION_BYTES, RateGate, RequestRejected, api_error, cosmos_failure, read_json_body, record_request_failure, request_allowed
 
 
@@ -145,6 +146,8 @@ class ConversationHistory:
     async def resolve(self, identifier):
         if identifier in self.registry:
             return self.registry[identifier]
+        if identifier == DESIGNER_ID and self.settings.library_preview_enabled:
+            return preview_agent(identifier)
         return await self.created_agents.resolve_agent(identifier) if self.created_agents is not None else None
 
     async def conversations(self, request: Request, identifier: str | None = None):
@@ -199,6 +202,8 @@ class ConversationHistory:
         if cursor and len(cursor) > 8192:
             return history_error(request, 400, "invalid_cursor")
         identifiers = list(self.registry)
+        if self.settings.library_preview_enabled:
+            identifiers.append(DESIGNER_ID)
         if self.created_agents is not None:
             identifiers.extend(await self.created_agents.ready_ids())
         return await self.store.list(identifiers, cursor)

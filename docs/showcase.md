@@ -128,9 +128,9 @@ Presenter view only changes how the page looks in your browser session. It
 isn't a different security mode. The Lab still has no individual user sign-in,
 and everyone with access shares saved records.
 
-The root URL opens the **Agent library**. You can bookmark `/#demos` to
-open **Guided demos** directly, or `/#chat`
-or `/#create` (the latter requires the creation capability). Valid saved-review
+The root URL opens **Chat**. You can bookmark `/#demos` to
+open **Guided demos** directly, `/#library` for the **Agent library**, or
+`/#create` (which requires the creation capability). Valid saved-review
 deep links continue to open their review directly.
 
 ## Present from the jump box
@@ -142,7 +142,9 @@ the Lab there, and share your screen. See
 
 Before the customer joins:
 
-1. Open the Lab, start a chat and open **About sharing and saving** under the
+1. Run the [pre-demo check](demo-script.md#before-you-start), or follow the
+   whole [ten-minute demo script](demo-script.md).
+2. Open the Lab, start a chat and open **Privacy & sharing** under the
    message box. Check that it matches what you'll tell the customer.
 2. Choose one story and have its sample input ready. Use fictional data only.
 3. Expect about 30 seconds for the first answer in each new chat. Opening a chat
@@ -151,7 +153,7 @@ Before the customer joins:
 
 After the customer leaves:
 
-1. Open **Saved conversations** and delete each chat you saved during the
+1. Open **Shared history** and delete each chat you saved during the
    session (the delete button, then confirm). Saved chats are shared with everyone
    who can open the Lab, and they otherwise stay for 30 days. **Start fresh** only
    clears the messages on your screen.

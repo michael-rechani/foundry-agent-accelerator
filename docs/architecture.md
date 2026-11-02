@@ -208,11 +208,16 @@ application-owned conversation and review records. The Lab uses a dedicated
 container in the existing Cosmos DB account. The Lab's history endpoints don't
 manage Foundry-owned data.
 
-Configured agents use the model deployment. The Lab calls a named agent
-endpoint, not a browser-selected model endpoint. Coordinator and specialist
-boxes represent custom Python applications. Key Vault holds necessary secrets.
-It isn't a transcript store, and the browser never reads it. Azure AI Search is
-a required platform dependency here.
+For a hosted agent, the Lab calls a named endpoint over HTTPS using the
+Responses API, its managed identity, and the Foundry private endpoint. Library
+previews instead call the model deployment directly. The coordinator invokes
+specialists using the same API pattern. Foundry runs these custom Python agents
+in managed, VM-isolated session sandboxes, separate from the Lab's Container
+App. They call the model deployment for inference; the delegated agent network
+provides private data access.
+
+Key Vault holds necessary secrets. It isn't a transcript store, and the browser
+never reads it. Azure AI Search is a required platform dependency here.
 The reference review workflow has no Search retrieval tool unless you turn on the
 optional [policy guidance lookup](knowledge-retrieval.md), which the dev Lab runs
 as a small sample pilot.
@@ -267,7 +272,7 @@ audit ledger.
 
 | Operation | Admission or deadline | Failure behavior |
 | --- | --- | --- |
-| Chat agent request | Four shared agent slots, 20 starts per minute, a per-model-deployment requests and tokens budget, five-second upload, and up to 180-second agent call. | Invalid requests fail before invocation. A turn over its model's budget returns busy before any model call. A deadline returns timeout, not success. |
+| Chat agent request | Four shared agent slots, 20 starts per minute, a per-model-deployment requests and tokens budget, five-second upload, and up to 180-second agent call. | Invalid requests fail before invocation. The Lab checks each direct model call before invocation; a preview tool loop can return busy after earlier calls if another call would exceed the budget. A deadline returns timeout, not success. |
 | Structured review execution | Shares chat's agent slots and start budget; at most four runs per record. | Conditional start prevents competing execution. There's no automatic retry. |
 | Review record API | Four requests, 120 per minute, 35-second operation deadline, and five-second upload. | ETag conflicts return 409. Failed polling can be resumed with **Refresh**. |
 | Chat history API | Four requests, 60 per minute, and 35-second operation deadline. | Conditional writes prevent silent overwrite. Uncertain saves require checking history. |

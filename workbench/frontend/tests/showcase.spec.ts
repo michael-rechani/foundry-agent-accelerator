@@ -4,7 +4,7 @@ import { docsScreenshot, guidedReview, screenshot } from './fixtures'
 import { labConfig, modeFor } from './helpers/lab-config'
 import { expectFitsViewport } from './helpers/layout'
 import { mockApi } from './helpers/mock-api'
-import { libraryNav, openLibraryTab } from './helpers/navigation'
+import { libraryNav, openGuidedDemos } from './helpers/navigation'
 import { type CreatedAgent } from '../src/agent-creation-client'
 import { demoScenarios } from '../src/demo-scenarios'
 
@@ -122,7 +122,7 @@ test('exploration is read-only and every scenario has an honest customer story',
   // instead of the "no matching agent" notice.
   const state = await openShowcase(page, { record: invoiceRecord('ready') })
   await expect(
-    libraryNav(page).getByRole('button', { name: 'Guided demos' }),
+    libraryNav(page).getByRole('button', { name: 'Browse' }),
   ).toHaveAttribute('aria-current', 'page')
   for (const scenario of demoScenarios) {
     await page
@@ -158,7 +158,7 @@ test('loading a demo preserves unsaved work until confirmed and never auto-sends
   await page
     .getByRole('textbox', { name: 'Message', exact: true })
     .fill('Keep my existing draft')
-  await openLibraryTab(page, 'Guided demos')
+  await openGuidedDemos(page)
   const confirm = page.getByRole('dialog', {
     name: 'Open this example in a new chat?',
   })
@@ -170,7 +170,7 @@ test('loading a demo preserves unsaved work until confirmed and never auto-sends
   await expect(
     page.getByRole('textbox', { name: 'Message', exact: true }),
   ).toHaveValue('Keep my existing draft')
-  await openLibraryTab(page, 'Guided demos')
+  await openGuidedDemos(page)
   await page.getByRole('button', { name: 'Load sample input' }).click()
   await confirm.getByRole('button', { name: 'Open example' }).click()
   await expect(
@@ -248,7 +248,7 @@ test('demo test path loads prompts without sending and keeps pass marks in the t
   expect(state.writes).toEqual([])
 })
 
-test('presenter controls keep environment and human-review boundaries visible', async ({
+test('presenter controls keep sharing details accessible', async ({
   page,
 }, testInfo) => {
   const state = await openShowcase(page)
@@ -261,11 +261,11 @@ test('presenter controls keep environment and human-review boundaries visible', 
   await expect(
     page.getByRole('button', { name: 'Start fresh with this example' }),
   ).toBeVisible()
-  await page.getByText('About sharing and saving').click()
+  await page.getByText('Privacy & sharing').click()
   await expect(
-    page.getByText('No user sign-in. Saved records are shared.'),
+    page.locator('.composer-privacy').getByText('Anyone with Lab access can'),
   ).toBeVisible()
-  await page.getByText('About sharing and saving').click()
+  await page.getByText('Privacy & sharing').click()
   await screenshot(page, testInfo, 'presenter-view.png')
   // The example is untouched, so starting it again asks nothing.
   await page

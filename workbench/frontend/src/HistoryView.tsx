@@ -15,6 +15,7 @@ export function HistoryView({
   cursor,
   busy,
   historyBusy,
+  onChat,
   onOpen,
   onDelete,
   onMore,
@@ -25,6 +26,7 @@ export function HistoryView({
   cursor: string | null
   busy: boolean
   historyBusy: boolean
+  onChat: () => void
   onOpen: (item: SavedChat) => void
   onDelete: (item: SavedChat) => void
   onMore: () => void
@@ -70,7 +72,16 @@ export function HistoryView({
       {historyBusy ? (
         <p role="status">Loading history...</p>
       ) : !chats.length ? (
-        <p className="no-data">No saved conversations</p>
+        <div className="no-data">
+          <p>No saved conversations</p>
+          <p>
+            Choose Save to shared history in Chat to keep a conversation here.
+            Chats are not saved automatically.
+          </p>
+          <button type="button" className="inline-link" onClick={onChat}>
+            Return to Chat
+          </button>
+        </div>
       ) : null}
       {cursor && (
         <button

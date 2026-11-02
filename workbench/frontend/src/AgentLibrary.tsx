@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { CircleAlert, RefreshCw } from 'lucide-react'
 import {
   facetKeys,
@@ -31,8 +31,10 @@ export function AgentLibrary({
   busy,
   onCreate,
   onOpenCreate,
+  onDemos,
   onTest,
   onOpen,
+  finder,
 }: {
   active: boolean
   // True on any library tab. Leaving them all puts this page back on Browse.
@@ -45,8 +47,11 @@ export function AgentLibrary({
   busy: boolean
   onCreate: (templateId: string) => void
   onOpenCreate?: () => void
+  onDemos?: () => void
   onTest: (agent: Agent, input: string) => void
   onOpen?: (label: string) => void
+  // The "what are you trying to do?" box shown at the top of Browse.
+  finder?: ReactNode
 }) {
   const { catalog, error } = library
   const [query, setQuery] = useState('')
@@ -119,9 +124,14 @@ export function AgentLibrary({
           <button type="button" onClick={library.retry}>
             <RefreshCw size={15} /> Retry
           </button>
+          {onDemos && (
+            <button type="button" className="inline-link" onClick={onDemos}>
+              Try a guided demo
+            </button>
+          )}
         </div>
       ) : !catalog ? (
-        <LibraryLoading />
+        <LibraryLoading onDemos={onDemos} finder={finder} />
       ) : open ? (
         <LibraryDetail
           template={open}
@@ -163,6 +173,8 @@ export function AgentLibrary({
           onShow={show}
           onTest={onTest}
           onOpenCreate={onOpenCreate}
+          onDemos={onDemos}
+          finder={finder}
         />
       )}
     </main>

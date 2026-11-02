@@ -80,10 +80,11 @@
 .creation-steps li[data-done]::before {
   content: '\2713';
 }
-.creation-search {
+.creation-workspace .creation-search {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-weight: 400;
   max-width: 420px;
   margin-top: 16px;
   padding: 0 12px;
@@ -154,7 +155,7 @@
 }
 .creation-templates {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 14px;
 }
 .creation-template {
@@ -319,7 +320,8 @@
 }
 .creation-help,
 .creation-form > small,
-.creation-setup > small {
+.creation-setup > small,
+.creation-setup details > small {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.7;
@@ -475,7 +477,7 @@
 .created-agent-row small {
   display: block;
   margin-top: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .creation-status {
@@ -540,7 +542,7 @@
 .creation-timeline time {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   margin-bottom: 10px;
 }
 .creation-empty {

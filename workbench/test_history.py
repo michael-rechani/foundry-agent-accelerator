@@ -4,6 +4,7 @@ import json
 import re
 import unittest
 from copy import deepcopy
+from dataclasses import replace
 from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
@@ -12,9 +13,11 @@ from httpx import ASGITransport, AsyncClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
 
 from agent_publisher import resource_name
+from agent_creation import CreationSettings
 from agent_templates import TEMPLATES
 from app import Settings, create_app
 from history import CosmosHistory
+from library_preview import DESIGNER_ID, PREVIEW_AGENT
 from log_capture import CapturedLabLogs
 
 CREATED_AGENT_FIELDS = {
@@ -47,6 +50,67 @@ class HistoryTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual(saved["workspace"], "shared")
         self.assertEqual(saved["ttl"], 2592000)
         self.assertEqual(saved["title"], "Review APP-1")
+
+    def test_designer_conversation_can_be_saved_listed_reopened_updated_and_deleted(self):
+        settings = replace(self.settings, creation=CreationSettings(False, "test-model"))
+        client = TestClient(create_app(settings, AsyncMock(), self.store))
+        body = deepcopy(self.body)
+        body["agent_id"] = DESIGNER_ID
+        body["turns"][0]["question"] = "Design a fictional policy Q&A agent."
+        body["turns"][0]["result"].update(agent=PREVIEW_AGENT, text='Draft.\n```agent-spec\n{"name":"Policy Q&A"}\n```')
+        response = client.post("/api/conversations", json=body, headers=self.headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        saved = self.store.create.call_args.args[0]
+        self.assertEqual((saved["workspace"], saved["ttl"]), ("shared", 2592000))
+        self.store.get.return_value = {**saved, "_etag": response.json()["_etag"]}
+        self.store.list.return_value = {"items": [{
+            key: saved[key] for key in ("id", "title", "agent_id", "updated_at")
+        }], "cursor": None}
+
+        listing = client.get("/api/conversations", headers=self.headers)
+        self.assertEqual(listing.json()["items"][0]["agent_id"], DESIGNER_ID)
+        self.assertEqual(self.store.list.call_args.args[0], ["customer-review", DESIGNER_ID])
+        path = f"/api/conversations/{saved['id']}"
+        reopened = client.get(path, headers=self.headers).json()["turns"]
+        self.assertEqual(reopened, saved["turns"])
+        self.assertEqual(reopened[0]["result"]["text"], body["turns"][0]["result"]["text"])
+        body["turns"].append({**deepcopy(body["turns"][0]), "question": "Support several fictional policies."})
+        self.assertEqual(client.put(path, json=body, headers=self.headers).status_code, 409)
+        updated = client.put(path, json=body, headers={**self.headers, "If-Match": '"one"'})
+        self.assertEqual(updated.status_code, 200, updated.text)
+        self.store.get.return_value = {**self.store.replace.call_args.args[0], "_etag": updated.json()["_etag"]}
+        self.assertEqual(len(client.get(path, headers=self.headers).json()["turns"]), 2)
+        self.assertEqual(client.delete(path, headers={**self.headers, "If-Match": '"one"'}).status_code, 409)
+        self.assertEqual(client.delete(path, headers={**self.headers, "If-Match": '"two"'}).status_code, 200)
+
+    def test_designer_history_requires_the_designer_capability(self):
+        body = deepcopy(self.body)
+        body["agent_id"] = DESIGNER_ID
+        body["turns"][0]["result"]["agent"] = PREVIEW_AGENT
+        self.store.get.return_value = {**self.document, **body}
+        self.store.list.return_value = {"items": [], "cursor": None}
+        for settings in (self.settings, replace(self.settings, library_preview=False,
+                                                creation=CreationSettings(False, "test-model"))):
+            with self.subTest(settings=settings):
+                client = TestClient(create_app(settings, AsyncMock(), self.store))
+                self.assertEqual(client.post("/api/conversations", json=body, headers=self.headers).status_code, 400)
+                self.assertEqual(client.get(f"/api/conversations/{self.identifier}", headers=self.headers).status_code, 404)
+                self.assertEqual(client.get("/api/conversations", headers=self.headers).status_code, 200)
+                self.assertNotIn(DESIGNER_ID, self.store.list.call_args.args[0])
+        self.store.create.assert_not_called()
+
+    def test_designer_history_does_not_allow_other_previews_or_mismatched_runtime_names(self):
+        settings = replace(self.settings, creation=CreationSettings(False, "test-model"))
+        client = TestClient(create_app(settings, AsyncMock(), self.store))
+        for identifier, runtime in ((DESIGNER_ID, "unconfigured-agent"),
+                                    ("library-document-analyst", PREVIEW_AGENT),
+                                    ("library-missing-template", PREVIEW_AGENT)):
+            with self.subTest(identifier=identifier, runtime=runtime):
+                body = deepcopy(self.body)
+                body["agent_id"] = identifier
+                body["turns"][0]["result"]["agent"] = runtime
+                self.assertEqual(client.post("/api/conversations", json=body, headers=self.headers).status_code, 400)
+        self.store.create.assert_not_called()
 
     def test_saved_replies_may_include_bounded_token_usage(self):
         usage = {"input_tokens": 40, "output_tokens": 10, "total_tokens": 50, "cached_tokens": None, "reasoning_tokens": 0}

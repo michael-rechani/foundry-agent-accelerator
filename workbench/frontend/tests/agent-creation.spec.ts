@@ -6,13 +6,94 @@ import {
   categories,
   navigate,
   openCreation,
+  openSaved,
   operatorKey,
   prepare,
+  recordFor,
   sample,
   templates,
 } from './helpers/creation-lab'
 import { expectFitsViewport } from './helpers/layout'
 import { workspaceNav } from './helpers/navigation'
+import { creationCapability, labConfig } from './helpers/lab-config'
+import { mockApi } from './helpers/mock-api'
+
+test('private presenter mode creates and deletes without a key but still asks for cost consent', async ({
+  page,
+}) => {
+  const state = await openCreation(page, { presenter: true })
+  await prepare(page)
+  await expect(page.getByLabel('Operator key', { exact: true })).toHaveCount(0)
+  await expect(page.locator('.creation-notice')).toContainText(
+    'Anyone with access',
+  )
+  const create = page.getByRole('button', {
+    name: 'Create in Foundry',
+    exact: true,
+  })
+  await expect(create).toBeDisabled()
+  expect(state.posts).toHaveLength(0)
+  await page.getByRole('checkbox').check()
+  await create.click()
+  await expect(page.locator('.creation-status')).toHaveText('Ready to try')
+  expect(state.keys).toEqual([undefined])
+  expect(state.posts[0].confirm_cost).toBe(true)
+  await expect(page.getByLabel('Operator key', { exact: true })).toHaveCount(0)
+  page.once('dialog', (dialog) => dialog.dismiss())
+  await page.getByRole('button', { name: 'Delete created agent' }).click()
+  expect(state.deletes).toBe(0)
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Delete created agent' }).click()
+  await expect(page.locator('.creation-status')).toHaveText('Deleted')
+  expect(state.deletes).toBe(1)
+})
+
+test('private presenter mode resumes without a key', async ({ page }) => {
+  const state = await openCreation(page, {
+    presenter: true,
+    saved: recordFor('interrupted'),
+  })
+  await openSaved(page)
+  await page.getByRole('button', { name: 'Resume setup' }).click()
+  await expect(page.locator('.creation-status')).toHaveText('Ready to try')
+  expect(state.resumes).toBe(1)
+})
+
+test('private presenter mode can delete while creation is disabled', async ({
+  page,
+}) => {
+  const state = await openCreation(page, {
+    presenter: true,
+    disabled: true,
+    saved: recordFor('ready'),
+  })
+  await openSaved(page)
+  await expect(page.getByLabel('Operator key', { exact: true })).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Delete created agent' }),
+  ).toBeEnabled()
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Delete created agent' }).click()
+  await expect(page.locator('.creation-status')).toHaveText('Deleted')
+  expect(state.deletes).toBe(1)
+})
+
+test('local preview rejects a keyless presenter capability', async ({
+  page,
+}) => {
+  await mockApi(page, async ({ respond }) =>
+    respond(
+      labConfig({
+        mode: 'preview',
+        agent_creation: creationCapability({ preview: true, presenter: true }),
+      }),
+    ),
+  )
+  await page.goto('/')
+  await expect(page.getByRole('alert')).toContainText(
+    'configuration unavailable or invalid',
+  )
+})
 
 test('creation is the entry point with nine honest jobs in two groups and usable navigation', async ({
   page,
@@ -51,13 +132,7 @@ test('creation is the entry point with nine honest jobs in two groups and usable
   await expect(
     page.getByRole('button', { name: 'Prepare setup', exact: true }),
   ).toBeDisabled()
-  for (const label of [
-    'Create agent',
-    'All agents',
-    'Chat',
-    'Shared history',
-    'Performance',
-  ]) {
+  for (const label of ['All agents', 'Chat', 'Shared history', 'Performance']) {
     await expect(
       workspaceNav(page).getByRole('button', { name: label, exact: true }),
     ).toBeVisible()

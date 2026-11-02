@@ -2,11 +2,12 @@
 
 A model deployment publishes its own limits, and tokens a minute usually bind before requests a
 minute. The Lab can't see the model's counters, so it keeps its own: a sliding window per
-deployment of the turns it admitted and their estimated tokens. A turn that would push a window
-over the configured limit is refused before any model call. Counters live in memory, like every
-other Lab gate, so they need the single replica the Lab already runs.
+deployment of admitted model requests and their estimated tokens. A request that would push a
+window over the configured limit is refused before its model call. Counters live in memory, like
+every other Lab gate, so they need the single replica the Lab already runs.
 """
 
+import json
 import math
 import time
 from collections import deque
@@ -47,8 +48,20 @@ def measured_answer_tokens(scorecards):
     return estimates
 
 
+def estimate_input_tokens(value):
+    """Approximate serialized input size at one token per three UTF-8 bytes."""
+    serialized = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    return math.ceil(len(serialized.encode("utf-8")) / 3)
+
+
+class ModelBudgetWait(Exception):
+    def __init__(self, retry_after):
+        super().__init__("The model deployment is at its configured limit")
+        self.retry_after = retry_after
+
+
 class ModelBudgets:
-    """Requests and estimated tokens admitted per model deployment in a sliding window."""
+    """Model requests and estimated tokens admitted per deployment in a sliding window."""
 
     def __init__(self, limits, answer_tokens, window_seconds=60.0):
         self.limits = validate_model_limits(limits)
@@ -60,11 +73,14 @@ class ModelBudgets:
     def estimate(self, template_id):
         return self.answer_tokens.get(template_id, self.default_tokens)
 
-    def try_admit(self, deployment, template_id, now=None):
+    def try_admit(self, deployment, template_id, now=None, *, input_tokens=0):
         """Count this turn and return 0, or return the seconds to wait (counting nothing) when it would exceed the deployment's limits.
 
-        A deployment without configured limits is never refused here; the Lab's global caps still apply.
+        The estimate adds the submitted input size to the largest recorded answer. A deployment
+        without configured limits is never refused here; the Lab's global caps still apply.
         """
+        if not is_int(input_tokens) or input_tokens < 0:
+            raise ValueError("input_tokens must be a nonnegative whole number")
         limit = self.limits.get(deployment)
         if limit is None:
             return 0
@@ -72,7 +88,7 @@ class ModelBudgets:
         recent = self.recent[deployment]
         while recent and recent[0][0] <= now - self.window_seconds:
             recent.popleft()
-        tokens = self.estimate(template_id)
+        tokens = self.estimate(template_id) + input_tokens
         requests, used = len(recent), sum(spent for _, spent in recent)
         waited = 0
         # A turn larger than the whole token limit still runs alone, so it is never refused forever.

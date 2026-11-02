@@ -49,7 +49,7 @@ export type CreationCapability = {
   storage_enabled: boolean
   management_enabled?: boolean
   reason: string | null
-  requires_operator_key: true
+  requires_operator_key: boolean
   max_agents: number
   publication_timeout_seconds: number
   model?: string | null
@@ -89,7 +89,7 @@ function validCreation(
       typeof value.storage_enabled === 'boolean' &&
       (value.management_enabled === undefined ||
         typeof value.management_enabled === 'boolean') &&
-      value.requires_operator_key === true &&
+      typeof value.requires_operator_key === 'boolean' &&
       (value.reason === null || typeof value.reason === 'string') &&
       typeof value.max_agents === 'number' &&
       Number.isInteger(value.max_agents) &&
@@ -158,6 +158,8 @@ function parseConfig(value: unknown): Config {
       typeof config.reviews_enabled !== 'boolean') ||
     !validCreation(config.agent_creation) ||
     (config.mode === 'preview' && config.agent_creation?.enabled) ||
+    (config.mode === 'preview' &&
+      config.agent_creation?.requires_operator_key === false) ||
     !validLibraryPreview(config.library_preview) ||
     (config.mode === 'preview' && config.library_preview?.enabled) ||
     (config.budget_alerts !== undefined &&

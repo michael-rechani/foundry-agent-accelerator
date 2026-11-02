@@ -16,8 +16,8 @@ Cosmos DB storage.
 
 | Area | What to know |
 | --- | --- |
-| Start here | The Lab opens on **Find an agent**, a plain-word finder that sends and saves nothing. **Chat** opens clean as a plain conversation with the **Agent designer**, or with a ready agent or library preview you choose. |
-| Agent library | Browse agent definitions by sector or industry (one list), task, readiness, and tool mode. By default only featured agents show. Compare a sample example with expected behavior. Create, test, and export. |
+| Start here | The Lab opens on **Chat**, clean, as a plain conversation with the **Agent designer**, or with a ready agent or library preview you choose. |
+| Agent library | Browse agent definitions by sector or industry (one list), task, readiness, and tool mode. A plain-word job finder at the top sends and saves nothing. By default only featured agents show. Compare a sample example with expected behavior. Create, test, and export. |
 | Guided demos | Three sample customer stories with expected findings and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
 | Add-ons | A preview of optional tools and skills an agent could connect to later, such as knowledge search or a calculator. It shows what each would do, cost and need. The page turns nothing on. Knowledge search also runs as a small sample pilot in Checklist and case helper. |
 | Agent creation | **Create agent** prepares instructions from built-in templates. Publication is a separate operator-protected action. **Chat doesn't create or configure agents.** |
@@ -67,6 +67,11 @@ npm --prefix workbench/frontend test
 ./workbench/test-deployment-inputs.ps1
 ./workbench/test-private-checks.ps1
 ```
+
+Before presenting, run `./workbench/demo-check.ps1 -BaseUrl <lab address>` from
+the network you'll present on. It only reads. Add `-Designer` to send one short
+billable message to the Agent designer and check its spec card. The
+[demo script](../docs/demo-script.md) explains the output.
 
 Infrastructure initialization and validation are separate deployment steps. The
 local application checks don't require access to the remote state backend.

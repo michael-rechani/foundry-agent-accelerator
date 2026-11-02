@@ -2,16 +2,14 @@ import { expect, test } from '@playwright/test'
 import { support } from './helpers/catalog'
 import { openAgent, openLibrary } from './helpers/library-lab'
 
-test('the library says what "Ready to chat" counts next to the agent total', async ({
+test('the library says what "My agents" counts next to the agent total', async ({
   page,
 }) => {
   await openLibrary(page, { ready: true })
   await expect(page.locator('.library-hero-note')).toContainText(
     'Every agent below can be tried from its own page',
   )
-  await expect(page.locator('.library-hero-note')).toContainText(
-    'Ready to chat',
-  )
+  await expect(page.locator('.library-hero-note')).toContainText('My agents')
 })
 
 test('an agent page has no amber review banner and explains its labels on hover', async ({

@@ -39,6 +39,7 @@ export function ExploreDemos({
   onLoad,
   onCreate,
   onChat,
+  onBack,
 }: {
   config: Config
   agents: Agent[]
@@ -50,6 +51,7 @@ export function ExploreDemos({
   onLoad: (scenario: DemoScenario) => void
   onCreate: (label?: string) => void
   onChat: () => void
+  onBack: () => void
 }) {
   const [selected, setSelected] = useState(demoScenarios[0])
   const [copyStatus, setCopyStatus] = useState('')
@@ -70,6 +72,9 @@ export function ExploreDemos({
   return (
     <main className="demo-explorer" aria-label="Guided demos">
       <div className="demo-introduction">
+        <button className="inline-link" onClick={onBack}>
+          Back to the library
+        </button>
         <h1>From paperwork to a clear next step.</h1>
         <p>
           Pick a practical question. Explore the evidence. Then try an agent and

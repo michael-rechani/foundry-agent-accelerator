@@ -9,7 +9,7 @@ export const modelPlaceholder = '<your-model-deployment>'
 // Foundry allows up to 512 characters per metadata value.
 const metadataLimit = 512
 
-function clip(value: string) {
+export function clip(value: string) {
   const letters = [...value]
   return letters.length > metadataLimit
     ? letters.slice(0, metadataLimit - 1).join('') + '…'

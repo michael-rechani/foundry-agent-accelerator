@@ -49,8 +49,8 @@ setup there rather than copying it into a spec.
 ## App structure
 
 `src/ChatWorkspace.tsx` owns conversation and view state for the library's
-**Browse**, **Ready to chat**, **Made in this Lab**, **Guided demos**, and **Add-ons** tabs,
-**Create agent**, **Chat**, **Document reviews**, **Performance**, **Request
+**Browse**, **My agents** and **Add-ons** tabs,
+**Create agent** (reached from links and cards, with no sidebar entry), **Chat**, **Document reviews**, **Performance**, **Request
 log**, and **Shared history**. `ChatSidebar.tsx` groups them into three
 sections: **Start here**, **Agent library**, and **Operations**. `AddOns.tsx` renders the preview-only **Add-ons** tab from `add-on-catalog.json`, which `python addons/build_catalog.py --write` generates from the manifests in `addons/`. It makes no API calls. An entry with a `pilot` description shows a **Sample pilot** badge instead of **Not available yet**.
 **Operations** appears only with **Under the hood** on
@@ -63,6 +63,13 @@ including the **How I got this** steps and collapsed execution details, lives in
 portal links (`foundry-links.ts`, `FoundryLink.tsx`) are built from the
 `foundry_portal` config value and shown only under the hood. `WaitingIndicator.tsx` owns the elapsed timer so it
 doesn't rerender the transcript.
+
+After the first Agent designer reply, the plain Chat header exposes explicit
+save and export actions without showing the agent-details column. Designer
+chats use the preview runtime, but can be saved to shared history when it is
+enabled. Other library-template previews remain unsaveable. Export downloads
+the whole completed dialogue and unsent draft, while the spec card downloads
+only an agent definition. Neither action invokes a model or publishes an agent.
 
 The three workspace components (`ChatWorkspace.tsx`,
 `AgentCreationWorkspace.tsx`, and `ReviewWorkspace.tsx`) compose the feature
@@ -80,7 +87,7 @@ agent or writes records.
 | `ChatSidebar.tsx`, `ChatTopbar.tsx`                           | Render the view navigation and the Chat header, agent picker, and save/export actions.                                                                                                                                                                  |
 | `ChatWelcome.tsx`, `ChatComposer.tsx`                         | Render the new-chat welcome (the clean **Simple view** by default, or the full start choices and example prompts), and the message composer with its conversation limits.                                                                               |
 | `simple-chat.ts`, `agent-designer.ts`                         | `simple-chat.ts` saves the **Simple view** choice in this browser. `agent-designer.ts` describes the tool-free **Agent designer** chat that the clean Chat opens when library previews are on. The server owns its instructions (`library_preview.py`). |
-| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx`  | Render the **Shared history**, **Ready to chat**, and **Performance** views.                                                                                                                                                                            |
+| `HistoryView.tsx`, `AgentCatalog.tsx`, `PerformanceView.tsx`  | Render the **Shared history**, **My agents**, and **Performance** views.                                                                                                                                                                                |
 | `AgentLibrary.tsx`, `library-catalog.ts`, `library.css`       | Render **Browse**. `library-catalog.ts` strictly validates `/api/agent-templates` (`schema_version` 1) and filters with live facet counts.                                                                                                              |
 | `ScorecardPanel.tsx`, `scorecards.ts`, `scorecards-client.ts` | Render an agent's **Test results** tab. `scorecards.ts` strictly validates `/api/agent-scorecards` (`schema_version` 1) and formats times and costs in plain language.                                                                                  |
 | `foundry-handoff.ts`                                          | Builds the **Take it to Foundry** downloads: a prompt-agent definition and a Foundry evaluation JSONL file, from data the Lab already serves.                                                                                                           |
@@ -92,7 +99,7 @@ agent or writes records.
 | `ContinueDialog.tsx`                                          | Previews carry-over context before resetting the conversation. It returns focus on close and never invokes an agent.                                                                                                                                    |
 | `ConfirmDialog.tsx`                                           | Asks before switching agents, starting a new chat or opening an example would discard unsent work. It names the target, returns focus on cancel, and never invokes an agent.                                                                            |
 | `use-modal-dialog.ts`                                         | Shows a dialog as a modal and hands focus back to what opened it, or to a fallback when that has gone.                                                                                                                                                  |
-| `AgentGuide.tsx`                                              | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **Ready to chat** cards.                                                                                                                    |
+| `AgentGuide.tsx`                                              | Uses optional `guidance` from the configured agent registry for the Chat **About this agent** panel and the **My agents** cards.                                                                                                                        |
 | `theme.ts`, `ThemePicker.tsx`                                 | Load, validate, save, and apply the **Appearance** choice (theme, accent, and look), and render its header menu.                                                                                                                                        |
 | `ExploreDemos.tsx`, `demo-scenarios.ts`, `showcase.css`       | Render three fictional stories, readiness-aware sample loading, and the presenter guide. The workspace owns guarded conversation replacement.                                                                                                           |
 
@@ -138,12 +145,18 @@ that mode's background before the script applies a pinned opposite theme.
 ## Agent creation UI
 
 `AgentCreationWorkspace.tsx` implements template-based setup preparation,
-review, operator-confirmed publication, and the shared **Made in this Lab** list.
+review, operator-confirmed publication, and the shared **Made in this Lab** list under **My agents**.
 It isn't a large language model (LLM) configuration conversation or an
 arbitrary code/tool generator. `CreationTaskForm.tsx` renders the template
 picker and job description, `CreationSetupReview.tsx` renders the setup review
 and publication controls, `CreatedAgents.tsx` renders the saved-agent list and
-detail, and `OperatorKeyField.tsx` renders the operator key input.
+detail, and `OperatorKeyField.tsx` renders the operator key input or the shared
+access notice for explicitly enabled private presenter mode. The server's
+`requires_operator_key` capability controls both workspace and inline Chat
+creation; the browser cannot enable presenter mode.
+`SpecBuildPanel.tsx` runs the same prepare, confirm and publish steps inside the
+Agent designer's spec card (`AgentSpecCard.tsx`) for a spec that points to a
+template, so Chat can build an agent without a second flow.
 
 `agent-creation-client.ts` validates API responses, bounds requests, loads saved
 agents, and merges only ready server-provided identities into **Chat**.
@@ -151,8 +164,8 @@ Publication uses an idempotency UUID retained across uncertain retries. GET
 polling never submits another creation. Setup, publication, ready routing, and
 live answer quality remain distinct.
 
-The Lab opens on **Start here** > **Find an agent** (`/#start`). These other entry links are
-supported: `/#chat`, `/#library`, `/#agents`, `/#demos`, `/#reviews`, `/#addons`, `/#operations`,
+The Lab opens on **Start here** > **Chat** (`/#chat`). These other entry links are
+supported: `/#start` (opens the library, where the job finder now lives), `/#library`, `/#agents`, `/#demos`, `/#reviews`, `/#addons`, `/#operations`,
 `/#performance`, `/#logs`, and `/#create`. A library **Create** action opens the
 creator with that template preselected unless setup work is already in
 progress. Creation still requires its advertised capability. Valid saved-review

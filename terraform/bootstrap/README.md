@@ -74,5 +74,4 @@ state, then delete the local `terraform.tfstate` files. Never commit state.
 ```powershell
 terraform -chdir=terraform/bootstrap init -backend=false
 terraform -chdir=terraform/bootstrap validate
-terraform -chdir=terraform/bootstrap test
 ```

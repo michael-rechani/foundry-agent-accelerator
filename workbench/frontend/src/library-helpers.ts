@@ -22,7 +22,7 @@ export const publishedBlurb =
 export const createFromPreviewNote =
   "Preview chats can't be saved. Create this agent to save chats and take it to Foundry. Nothing is created until you confirm on the last step."
 
-// What kind of agent this is, in the words the Ready to chat tab uses.
+// What kind of agent this is, in the words the My agents tab uses.
 export function agentKind(agent: Agent) {
   return isPreviewId(agent.id)
     ? 'Library preview'
@@ -60,7 +60,9 @@ export function creationNote(capability?: CreationCapability) {
   return !capability
     ? 'Agent creation is not available in this Lab.'
     : capability.enabled
-      ? 'Creating prepares a setup for review. Publishing it requires an operator key and incurs Foundry charges.'
+      ? capability.requires_operator_key
+        ? 'Creating prepares a setup for review. Publishing it requires an operator key and incurs Foundry charges.'
+        : 'Creating prepares a setup for review. Private presenter mode needs no key; publishing still requires cost confirmation and incurs Foundry charges.'
       : capability.reason === 'local_preview'
         ? 'Local preview: you can prepare and review a setup, but nothing is published.'
         : 'Publishing is not enabled here. You can still prepare and review a setup.'

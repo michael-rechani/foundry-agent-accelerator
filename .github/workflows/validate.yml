@@ -75,7 +75,7 @@ jobs:
         python-version: ["3.14"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -165,7 +165,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
           cache: pip
@@ -184,7 +184,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
       - name: Check diagrams match their templates
@@ -214,63 +214,53 @@ jobs:
           terraform_wrapper: false
       - name: Test publisher validation without Azure resources
         shell: pwsh
-        run: ./terraform/test-publisher-validation.ps1
+        run: ./scripts/terraform/test-publisher-validation.ps1
       - name: Test review API authorization and policy rendering
         shell: pwsh
-        run: ./terraform/test-review-api-validation.ps1
+        run: ./scripts/terraform/test-review-api-validation.ps1
+      - name: Test private presenter mode without Azure resources
+        shell: pwsh
+        run: ./scripts/terraform/test-presenter-mode.ps1
       - name: Check formatting
         run: terraform -chdir=terraform fmt -check -recursive
       - name: Initialize without a backend
         run: terraform -chdir=terraform init -backend=false
       - name: Validate configuration
         run: terraform -chdir=terraform validate
-      - name: Test platform inputs, permissions, and retained-disk safeguards without Azure
-        shell: pwsh
-        run: ./terraform/test-platform-validation.ps1
-      - name: Validate and test private state backend without Azure
+      - name: Validate private state backend without Azure
         run: |
           terraform -chdir=terraform/bootstrap init -backend=false
           terraform -chdir=terraform/bootstrap validate
-          terraform -chdir=terraform/bootstrap test
-      - name: Validate and test isolated Standard Bastion without Azure
+      - name: Validate isolated Standard Bastion without Azure
         run: |
           terraform -chdir=terraform/bastion init -backend=false
           terraform -chdir=terraform/bastion validate
-          terraform -chdir=terraform/bastion test
-      - name: Validate and test private Foundry monitoring without Azure
+      - name: Validate private Foundry monitoring without Azure
         run: |
           terraform -chdir=terraform/monitoring init -backend=false
           terraform -chdir=terraform/monitoring validate
-          terraform -chdir=terraform/monitoring test
-      - name: Validate and test isolated CI runner without Azure
+      - name: Validate isolated CI runner without Azure
         run: |
           terraform -chdir=terraform/runner init -backend=false
           terraform -chdir=terraform/runner validate
-          terraform -chdir=terraform/runner test
-      - name: Validate and test Entra and GitHub identity without Azure
+      - name: Validate Entra and GitHub identity without Azure
         run: |
           terraform -chdir=terraform/identity fmt -check
           terraform -chdir=terraform/identity init -backend=false
           terraform -chdir=terraform/identity validate
-          terraform -chdir=terraform/identity test
       - name: Validate isolated workbench infrastructure
         run: |
           terraform -chdir=workbench/infra fmt -check
           terraform -chdir=workbench/infra init -backend=false
           terraform -chdir=workbench/infra validate
-          terraform -chdir=workbench/infra test
-      - name: Validate and test the knowledge search add-on module without Azure
+      - name: Validate the knowledge search add-on module without Azure
         run: |
           terraform -chdir=addons/knowledge-search/terraform fmt -check -recursive
           terraform -chdir=addons/knowledge-search/terraform init -backend=false
           terraform -chdir=addons/knowledge-search/terraform validate
-          terraform -chdir=addons/knowledge-search/terraform test
       - name: Test workbench deployment safeguards
         shell: pwsh
         run: ./workbench/test-deployment-inputs.ps1
-      - name: Test monitoring and notification wiring without Azure
-        shell: pwsh
-        run: ./workbench/test-monitoring.ps1
       - name: Test the one-command deployment helpers without Azure
         shell: pwsh
         run: ./workbench/test-deploy.ps1

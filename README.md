@@ -19,12 +19,54 @@ and workshop app backed by reusable code. In it you can:
 The Azure deployment runs privately in your subscription. Local preview makes
 no model calls. This is a sample, not an official Microsoft product.
 
-<a href="docs/images/screenshots/lab-test-results-dark.png"><img alt="The Foundry Agent Lab showing the Supplier invoice reviewer's test results: 25 of 25 answers passed, a typical response time, the model cost per answer, and a sign-off that is waiting for a person." src="docs/images/screenshots/lab-test-results-dark.png"></a>
+<a id="take-a-tour"></a>
+
+<a href="docs/images/lab-tour-dark.svg"><img alt="Tour of the Foundry Agent Lab in six steps: find an agent by describing a job, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template." src="docs/images/lab-tour-dark.svg"></a>
+
+<details>
+<summary><strong>What each step of the tour shows</strong></summary>
+
+1. **Find an agent.** Open **All agents** in the sidebar (the Lab itself opens
+   on Chat). At the top, describe the job in plain words, such as "check a
+   document against a checklist", and get matching ready agents and templates.
+   The match uses plain word matching, not an AI model. Nothing is sent or saved.
+2. **Browse agents.** The library lists the featured sample agents: the ones
+   the Lab is building out in depth, plus any a person has signed off. An
+   operator can turn on the rest. **Start here** offers three ready-made
+   examples.
+3. **Test results.** See how many answers passed, how long they took, what they
+   cost, and whether a person has signed the agent off.
+4. **Chat.** A plain conversation with the **Agent designer** to talk through
+   an agent you want to build. When the idea is clear, it ends with a draft
+   spec card to download. The draft uses a model placeholder; any needed tools
+   and document sources still need to be configured and tested in Foundry.
+   Building a matching template here also needs the configured access gate
+   (operator key by default, or opt-in [presenter mode](docs/agent-creation.md#private-presenter-mode-no-operator-key))
+   and a cost confirmation. Pick **Try a pre-built agent** to chat with a ready agent or a
+   library preview instead.
+5. **Take it to Foundry.** Download the agent definition and test requests, then
+   follow the steps to create it in your own Foundry. There's no one-click move.
+6. **Create agent.** Prepare an agent from a library template. It stays off
+   until an operator turns it on, because publishing creates Azure resources
+   that cost money.
+
+[Open the full tour](docs/images/lab-tour-dark.svg) ·
+[Create agent screenshot](docs/images/screenshots/lab-create-agent-dark.png) ·
+[All screenshots](docs/images/README.md#lab-screenshots)
+
+The sidebar groups the pages: **Start here** (**Chat** and **Shared history**),
+**Agent library** (**All agents**, with the job finder), and **Operations**
+(health, response times, cost, and the request log), which appears when you turn
+on **Under the hood**. When creation is on, **Create agent** opens from the Chat
+spec card, the job finder and the library templates. **Document reviews** has no
+sidebar link, so open `/#reviews` or a saved-review link. See the
+[Lab guide](docs/lab-pages-and-access.md#pages).
+
+</details>
 
 **On this page:**
-[Get started](#get-started) · [Take a tour](#take-a-tour) ·
-[Three stories](#explore-three-stories) · [How it works](#how-it-works) ·
-[Deploy to Azure](#deploy-to-azure) ·
+[Get started](#get-started) · [Three stories](#explore-three-stories) ·
+[How it works](#how-it-works) · [Deploy to Azure](#deploy-to-azure) ·
 [Scope and limitations](#scope-and-limitations) ·
 [What's included](#whats-included) · [Documentation](#documentation) ·
 [Automated checks](#automated-checks)
@@ -51,48 +93,11 @@ Pick what you want to do.
 | Demo the prebuilt agents | [Demo guide](docs/demos.md) | A deployed Lab. Reading the walkthroughs needs nothing. |
 | Create my own agent | [Create and try a baseline agent](docs/agent-creation.md) | An operator-enabled Lab, model deployments, and cost approval. |
 | Check answer quality | [Evaluations](evaluations/README.md) | Offline checks: nothing. Live runs: a test environment and approval. |
-| Deploy the environment | [Deploy to Azure](#deploy-to-azure) | Azure permissions, model quota, private network access, and cost approval. |
+| Deploy Foundry and the Lab | [Deploy to Azure](#deploy-to-azure) and the [Terraform guide](terraform/README.md#at-a-glance) | Azure permissions, model quota, private network access, and cost approval. |
 
 Looking for early public-sector and healthcare ideas? See the
 [agent drafts](docs/agent-drafts/README.md). They're documentation only, not
 implemented or deployed.
-
----
-
-## Take a tour
-
-<img alt="Tour of the Foundry Agent Lab in six steps: find an agent by describing a job, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template." src="docs/images/lab-tour-dark.svg">
-
-1. **Find an agent.** The Lab opens here. Pick a guide question, such as which
-   agent to use or build, and get an answer from the Lab's own lists. Nothing
-   is sent or saved.
-2. **Browse agents.** The library lists the featured sample agents: the ones
-   the Lab is building out in depth, plus any a person has signed off. An
-   operator can turn on the rest. **Start here** offers three ready-made
-   examples.
-3. **Test results.** See how many answers passed, how long they took, what they
-   cost, and whether a person has signed the agent off.
-4. **Chat.** Opens clean, as a plain conversation with the **Agent designer**
-   for talking through an agent you want to build. It has no tools and can't
-   create anything. Pick **Try a pre-built agent** to chat with a ready agent
-   or a library preview instead, where an example only fills the message box.
-   You choose when to send it. **Simple view** hides the guide and examples.
-5. **Take it to Foundry.** Download the agent definition and test requests, then
-   follow the steps to create it in your own Foundry. There's no one-click move.
-6. **Create agent.** Prepare an agent from a library template. It stays off
-   until an operator turns it on, because publishing creates Azure resources
-   that cost money.
-
-[Open the full tour](docs/images/lab-tour-dark.svg) ·
-[Create agent screenshot](docs/images/screenshots/lab-create-agent-dark.png) ·
-[All screenshots](docs/images/README.md#lab-screenshots)
-
-The sidebar groups the pages. **Start here** has **Chat**, **Find an agent** and
-Shared history. **Agent library** has **All agents**, plus **Create agent** when
-creation is on. **Operations** (health, response times,
-tokens, cost, and the request log) appears when you turn on **Under the hood**.
-**Document reviews** has no sidebar link, so open `/#reviews` or a saved-review
-link. See the [Lab guide](docs/lab-pages-and-access.md#pages).
 
 ---
 
@@ -136,30 +141,33 @@ Azure Front Door endpoint. Each is off by default and needs its own `approve_*`
 Terraform input. Read the
 [Terraform guide](terraform/README.md) before you turn one on.
 
-<img alt="Azure architecture at a glance: one subscription and resource group hold an admin network, a private workload network, Microsoft Foundry, data services, and shared services. The admin network holds optional Azure Bastion and an optional jumpbox and is peered with the workload network. The workload network holds the Lab in an internal Azure Container Apps environment, the agent network delegated to Foundry, and one private endpoint for each service. An optional Azure Front Door Premium, limited to allowed client addresses, reaches the Lab through Private Link. Seven numbered steps follow a request from the presenter through Bastion, the jumpbox, and the Lab to Foundry Agent Service and Foundry Models, then through the agent network to Azure Cosmos DB, Azure Storage, and Azure AI Search" src="docs/images/azure-architecture-dark.svg">
+<img alt="Azure architecture at a glance: one subscription and resource group hold an admin network, a private workload network, Microsoft Foundry, data services, and shared services. The admin network holds optional Azure Bastion and an optional jumpbox and is peered with the workload network. The workload network holds the Lab in an internal Azure Container Apps environment, the agent network delegated to Foundry, and one private endpoint for each service. An optional Azure Front Door Premium, limited to allowed client addresses, reaches the Lab through Private Link. Seven numbered steps follow a request from the presenter through Bastion, the jumpbox, and the Lab to Foundry Agent Service over HTTPS using the Responses API, a private endpoint, and managed identity. Foundry hosts the coordinator and specialists in VM-isolated session sandboxes, separate from the model deployment they call for inference. The agent network connects to Azure Cosmos DB, Azure Storage, and Azure AI Search" src="docs/images/azure-architecture-dark.svg">
 
-1. A presenter opens Azure Bastion from the Azure portal.
-2. Bastion opens a remote desktop session to the private jumpbox.
-3. The jumpbox browser opens the Lab across the network peering. The Lab
-   accepts traffic only from the jumpbox subnet, plus Front Door if you turn
-   it on. Front Door is the optional top route in the diagram: an allowed
+1. If enabled, a presenter opens Azure Bastion from the Azure portal.
+2. Bastion opens a remote desktop session to the optional private jumpbox.
+3. The jumpbox browser opens the Lab across the network peering. The default
+   ingress rule allows the management subnet, where the optional jumpbox would
+   reside. Front Door is the optional top route in the diagram: an allowed
    client reaches its WAF-filtered endpoint, and Private Link carries the
    request to the Lab. [Setup](docs/ingress-access.md#draft-front-door-limited-to-your-own-ip)
-4. The Lab calls Foundry Agent Service through the Foundry private endpoint,
-   signing in with its managed identity.
-5. The agents run on a Foundry Models deployment, GPT-4.1 by default.
+4. The Lab calls Foundry Agent Service over HTTPS using the Responses API
+   through the Foundry private endpoint, signing in with its managed identity.
+5. Foundry hosts the agents in managed, VM-isolated session sandboxes. They call
+   a Foundry Models deployment for inference, GPT-4.1 by default.
 6. Foundry Agent Service connects the agents to the delegated agent network.
    From there they keep conversations, files, and search data in Cosmos DB,
    Storage, and AI Search through private endpoints.
 7. The Lab saves its records in Cosmos DB through the same private endpoint.
 
 *A logical view, not a resource inventory. Bastion, the jumpbox, and Front Door
-are optional, and API Management isn't shown.*
+are optional and off by default. The default ingress allow rule does not create
+an access machine. API Management isn't shown.*
 
 Wondering how customers or colleagues could reach the Lab? See
-[How people reach the Lab](docs/ingress-access.md): the jumpbox is the only path
-on by default, and the Application Gateway and Front Door paths are optional
-designs that need end-user sign-in first.
+[How people reach the Lab](docs/ingress-access.md): the management subnet is the
+only ingress source allowed by default. Bastion and the jumpbox are optional
+resources, and the Application Gateway and Front Door paths are optional designs
+that need end-user sign-in first.
 
 [Full size](docs/images/azure-architecture-dark.svg) ·
 [SVG template](docs/images/azure-architecture.template.svg) ·
@@ -219,22 +227,36 @@ share one [style guide](docs/images/README.md#diagram-style).
 - Terraform 1.16.4 and the Azure CLI. See [tool versions](docs/tool-versions.md).
 - Permission to deploy resources and assign roles.
 - Model quota and approved private network access.
-- An existing Azure Storage container for Terraform state.
+
+Foundry itself, with its project, model deployment, and Agent Service setup, is
+deployed with Terraform and
+[Azure Verified Modules](terraform/README.md). The
+[infrastructure guide](terraform/README.md#at-a-glance) lists every Terraform
+root and its state. The repo uses Terraform rather than Bicep. See
+[why](docs/architecture-assessment.md#terraform-first-deployment).
+
+**One command:** [`./deploy.ps1`](deploy.ps1) runs preflight, state backend,
+platform, Lab, and verify in order. It shows each Terraform plan and applies
+only after you type `apply`. Start with `-Stage preflight` or `-PlanOnly`. The
+steps below are the same stages, run by hand.
 
 **Deploy in this order:**
 
-1. **Platform:** [`terraform/`](terraform/README.md#deploy).
-2. **Prebuilt agents:** publish and test them from
+1. **State backend:** [`terraform/bootstrap/`](terraform/bootstrap/README.md)
+   creates the private state storage account. Run it once, first.
+2. **Platform (Foundry):** [`terraform/`](terraform/README.md#deploy).
+3. **Prebuilt agents:** publish and test them from
    [`hosted-agents/`](hosted-agents/README.md).
-3. **The Lab:** [`workbench/`](docs/lab-deployment.md#deployment), which has
+4. **The Lab:** [`workbench/`](docs/lab-deployment.md#deployment), which has
    its own Terraform state. After the first deploy, a Lab change merged to
    `main` can roll out the new image automatically through the
    [deploy workflow](docs/lab-deployment.md#deploy-a-new-image-from-github-actions).
-4. **Optional:** [Bastion](terraform/bastion/README.md),
+5. **Optional:** [Bastion](terraform/bastion/README.md),
    [agent monitoring](terraform/monitoring/README.md),
-   a [CI runner](terraform/runner/README.md), or
+   a [CI runner](terraform/runner/README.md),
+   the [deploy identity](terraform/identity/README.md), or
    [agent creation](docs/agent-creation.md#enable-publication).
-5. **Verify:** run one scenario from the [demo guide](docs/demos.md) before you
+6. **Verify:** run one scenario from the [demo guide](docs/demos.md) before you
    present it.
 
 To deploy from a separate private machine, use the

@@ -4,7 +4,6 @@ import {
   FileCheck2,
   History,
   Layers3,
-  MessageCircleQuestion,
   MessageSquare,
   Plus,
   ScrollText,
@@ -14,7 +13,6 @@ import { FoundryLink } from './FoundryLink'
 import { libraryViews } from './navigation'
 
 export type View =
-  | 'start'
   | 'library'
   | 'explore'
   | 'addons'
@@ -41,7 +39,6 @@ type Item = {
 }
 
 const sectionOf: Record<View, Section> = {
-  start: 'start',
   chat: 'start',
   reviews: 'start',
   history: 'start',
@@ -59,7 +56,6 @@ const sectionOf: Record<View, Section> = {
 export function ChatSidebar({
   title,
   view,
-  creationEnabled,
   historyEnabled,
   busy,
   historyBusy,
@@ -75,7 +71,6 @@ export function ChatSidebar({
 }: {
   title?: string
   view: View
-  creationEnabled: boolean
   historyEnabled: boolean
   busy: boolean
   historyBusy: boolean
@@ -100,7 +95,6 @@ export function ChatSidebar({
       label: 'Start here',
       items: [
         { view: 'chat', label: 'Chat', icon: MessageSquare },
-        { view: 'start', label: 'Find an agent', icon: MessageCircleQuestion },
         // Reviews are reached only from /#reviews or a saved-review link.
         ...(view === 'reviews'
           ? [
@@ -132,9 +126,6 @@ export function ChatSidebar({
           count: libraryCount,
           current: libraryViews.includes(view),
         },
-        ...(creationEnabled
-          ? [{ view: 'create' as const, label: 'Create agent', icon: Plus }]
-          : []),
       ],
     },
     {

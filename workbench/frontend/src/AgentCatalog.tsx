@@ -5,7 +5,7 @@ import type { Agent, CreationCapability } from './workspace-config'
 
 const sendNote = 'Nothing is sent until you press Send.'
 
-// The count is the same one the "Ready to chat" tab shows.
+// The count is the same one the "My agents" tab shows.
 function readySummary(count: number | null) {
   if (count === null) return sendNote
   if (!count) return 'No agents are ready to chat yet.'
@@ -21,8 +21,10 @@ export function AgentCatalog({
   previewsOn,
   foundryPortal,
   disabled,
+  madeCount,
   onQuery,
   onCreate,
+  onManage,
   onChoose,
 }: {
   agents: Agent[]
@@ -33,8 +35,11 @@ export function AgentCatalog({
   previewsOn: boolean
   foundryPortal?: string | null
   disabled: boolean
+  // Set only when agent creation is on.
+  madeCount?: number
   onQuery: (query: string) => void
   onCreate: () => void
+  onManage: () => void
   onChoose: (id: string) => void
 }) {
   const matches = agents.filter((item) =>
@@ -52,12 +57,21 @@ export function AgentCatalog({
   return (
     <main className="secondary-view">
       <div className="section-heading">
-        <h1>Choose an agent</h1>
+        <h1>My agents</h1>
         <p>
           {[readySummary(loaded ? agents.length : null), tail]
             .filter(Boolean)
             .join(' ')}
         </p>
+        {madeCount !== undefined && (
+          <p>
+            <button type="button" className="inline-link" onClick={onManage}>
+              See the {madeCount} {madeCount === 1 ? 'agent' : 'agents'} made in
+              this Lab
+            </button>{' '}
+            to check their status or delete them.
+          </p>
+        )}
       </div>
       <ConfigurationGuide creation={creation} onCreate={onCreate} />
       <details className="catalog-status hood-only">

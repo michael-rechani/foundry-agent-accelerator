@@ -42,7 +42,7 @@ $title = if ($Tour -eq 'scenarios') {
 $description = if ($Tour -eq 'scenarios') {
     'Three example customer walkthroughs: missing application evidence, supplier invoice discrepancies, and a casework brief.'
 } else {
-    'Six screenshots: the Find an agent first page, browsing the agent library, one agent''s recorded test results, the Chat page, the Take it to Foundry steps, and the Create agent page.'
+    'Six screenshots: the job finder at the top of the agent library, browsing the agent library, one agent''s recorded test results, the Chat page, the Take it to Foundry steps, and the Create agent page.'
 }
 
 # Each frame holds for $frameSeconds, including a $fadeSeconds crossfade into

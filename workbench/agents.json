@@ -6,12 +6,13 @@
     "description": "Check a document against your checklist, or turn case notes into a clear summary. It brings in a specialist when the job needs one.",
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
-      "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
+      "output": "A table or summary that shows what is covered, what is missing or conflicting, and which part of your text each point comes from, plus questions for you to answer.",
       "limits": "It works from what you paste, plus one sample lookup: the case notes specialist can search ten approved sample policy passages and name the one it used. It can't search your own documents, change business systems or decide whether to approve something. Checking requirements against proposals is in preview.",
             "delegation": "It passes your task to the right specialist (Checklist reviewer or Case notes summarizer) and brings back one combined reply. It uses both only if you ask for both, and it may first ask what you need.",
       "configuration": "Instructions and specialist tools: hosted-agents\\review-coordinator-agent\\profiles\\evidence-review.example.json. Publish a new coordinator version with this profile to change runtime behavior."
     },
     "agent": "customer-review-coordinator",
+    "model": "gpt-4.1",
     "tools": {"inspect_application": "application-review-agent", "inspect_case": "case-review-agent"},
     "prompts": [
       {"label": "Check against a checklist", "text": "Before this project goes for sign-off, check it against our checklist. Make a table showing what's covered, missing or unclear, point to the section each answer comes from, and list the questions we need answered. Don't approve or reject it; I'll decide.\n\nChecklist item 1: Include a project budget.\nChecklist item 2: Identify an implementation owner.\nChecklist item 3: Provide a delivery schedule.\nSection 1 (Ownership): The Facilities team is the implementation owner.\nSection 2 (Schedule): Work starts April 1, 2027 and completes June 30, 2027.\nSection 3 (Timeline summary): Work starts April 1, 2027 and completes July 31, 2027."},
@@ -27,12 +28,13 @@
     "description": "Does the same jobs as Checklist and case helper, with the same two specialists. Only the developer setup differs; it does not add capabilities.",
     "guidance": {
       "input": "Paste an application and your checklist, or paste case notes and any rules you want it to use.",
-      "output": "An application checklist or case summary showing where each point came from, what is missing and what needs clarification.",
+      "output": "A table or summary that shows what is covered, what is missing or conflicting, and which part of your text each point comes from, plus questions for you to answer.",
       "limits": "It works from what you paste, plus one sample lookup: the case notes specialist can search ten approved sample policy passages and name the one it used. It can't search your own documents, change business systems or decide whether to approve something. Checking requirements against proposals is in preview.",
             "delegation": "It passes your task to the same specialists (Checklist reviewer or Case notes summarizer). It uses one unless you ask for both, and what you can get done is the same as with Checklist and case helper.",
       "configuration": "Base instructions: hosted-agents\\review-coordinator-agent\\instructions.md. Tools: main.py in that directory, with deployed SPECIALIST_CONFIG taking precedence over legacy agent-name settings. Publish a new agent version to change runtime behavior."
     },
     "agent": "review-coordinator-agent",
+    "model": "gpt-4.1",
     "tools": {"review_application": "application-review-agent", "review_case": "case-review-agent"},
     "prompts": [
       {"label": "Review case notes", "text": "Summarize these case notes. Show what they say, point out where they disagree without picking a date, and tell me what needs clarifying.\n\nNote 1: Intake completed June 1, 2027.\nNote 2: Intake completed June 3, 2027."},
@@ -52,6 +54,7 @@
       "configuration": "Instructions: hosted-agents\\application-review-agent\\instructions.md, packaged by deploy.py in that directory. Publish a new agent version to apply changes. This runtime has no tools."
     },
     "agent": "application-review-agent",
+    "model": "gpt-4.1",
     "tools": {},
     "prompts": [
       {"label": "Check against a checklist", "text": "Check this proposal against our checklist. Show what's included or missing, point to the section each answer comes from, and ask what else we need. Don't approve or reject it; a person decides.\n\nChecklist item 1: Include a project budget.\nSection 1: Twelve weekly workshops are proposed. No budget is supplied."}
@@ -70,6 +73,7 @@
       "configuration": "Instructions: hosted-agents\\case-review-agent\\instructions.md, packaged by deploy.py in that directory. Publish a new agent version to apply changes. The sample policy lookup is added only when deploy.py runs with KNOWLEDGE_RETRIEVAL_ENABLED=true (see docs\\knowledge-retrieval.md); it is not a tool binding here, so the Lab shows no receipt for it."
     },
     "agent": "case-review-agent",
+    "model": "gpt-4.1",
     "tools": {},
     "prompts": [
       {"label": "Check conflicting dates", "text": "Summarize these case notes, point out where they disagree without picking a date, and draft a follow-up question.\n\nNote 1: Intake completed June 1, 2027.\nNote 2: Intake completed June 3, 2027."}

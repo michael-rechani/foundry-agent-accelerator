@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { support, templates } from './helpers/catalog'
 import { openAgent, openLibrary } from './helpers/library-lab'
-import { openChat, workspaceNav } from './helpers/navigation'
+import { followLink, openChat, workspaceNav } from './helpers/navigation'
 import { demoScenarios } from '../src/demo-scenarios'
 
 test('preview explains that nothing is published and catalog failures can be retried', async ({
@@ -48,7 +48,7 @@ test('a library preview says what the agent will return while the answer is on i
   expect(state.chat[0].agent_id).toBe(`library-${support.id}`)
   const waiting = page.getByRole('status').filter({ hasText: 'Asking' })
   await expect(waiting).toContainText(support.label)
-  await expect(waiting).toContainText('Expect:')
+  await expect(waiting).toContainText("You'll get:")
   await expect(waiting).toContainText(support.output)
   await expect(waiting).not.toContainText('Still working')
 })
@@ -172,7 +172,7 @@ test('Chat has no creation pointer and cannot create an agent itself', async ({
   await expect(
     page.getByRole('button', { name: 'Create this agent', exact: true }),
   ).toHaveCount(0)
-  await workspaceNav(page).getByRole('button', { name: 'Create agent' }).click()
+  await followLink(page, '#create')
   await expect(
     page.getByRole('heading', { name: 'Create an agent', exact: true }),
   ).toBeVisible()

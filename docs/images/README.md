@@ -24,8 +24,8 @@ component:
 | Diagram | What it shows | Where it appears | Source |
 | --- | --- | --- | --- |
 | [Agent release journey](agent-release-journey.svg) | The private foundation and agent releases as two connected workflows, their configuration handoff, and the decisions people approve. | [Showcase](../showcase.md) | [Template](agent-release-journey.template.svg) |
-| [Azure architecture](azure-architecture.svg) | One-page network map: the subscription and resource group, the admin and workload networks, a private endpoint for each service, seven numbered request steps, and the optional Front Door route. | [README](../../README.md#what-runs-in-azure) | [Template](azure-architecture.template.svg) |
-| [How people reach the Lab](lab-access-paths.svg) | Three ways in: the presenter's jumpbox (on by default), an internal Application Gateway path, and an optional Front Door path for customers. Shows what each needs and the sign-in gap. No addresses. | [Application ingress guide](../ingress-access.md), [architecture guide](../architecture.md#components-at-a-glance) | [Template](lab-access-paths.template.svg) |
+| [Azure architecture](azure-architecture.svg) | One-page network map: the admin and workload networks, private endpoints, the Foundry-managed agent runtime, the Responses API path, seven numbered request steps, and the optional Front Door route. | [README](../../README.md#what-runs-in-azure) | [Template](azure-architecture.template.svg) |
+| [How people reach the Lab](lab-access-paths.svg) | Three ingress patterns. The management subnet allow rule is configured by default, while Bastion and the jumpbox are optional and off by default. Also shows the internal Application Gateway design and optional Front Door path, including the sign-in gap. No addresses. | [Application ingress guide](../ingress-access.md), [architecture guide](../architecture.md#components-at-a-glance) | [Template](lab-access-paths.template.svg) |
 | [Agent collaboration](agent-collaboration.svg) | The coordinator's requests to specialists, their results, and the person who checks the answer. | [README](../../README.md#agents-working-together), [architecture guide](../architecture.md#agent-collaboration) | [Template](agent-collaboration.template.svg) |
 | [Orchestration pattern](orchestration-pattern.svg) | How the coordinator compares with the five patterns in Microsoft's agent orchestration guide: handoff is the closest match, with one difference. | [Architecture guide](../architecture.md#orchestration-pattern) | [Template](orchestration-pattern.template.svg) |
 | [How the Lab handles a request](foundry-overview.svg) | The Lab's request path, the records it saves, and optional Azure API Management (APIM) outside the default flow. | [Architecture guide](../architecture.md#implementation-overview) | [Template](foundry-overview.template.svg) |
@@ -119,10 +119,13 @@ deployed into a virtual network sits inside one: Azure Bastion and the jumpbox
 in the admin network, and in the workload network the Lab's internal Container
 Apps environment, the agent network delegated to Foundry, and one private
 endpoint for each service. Foundry, data services, and shared services sit
-outside the networks, each linked to its private endpoint. Step 6 starts at
-Foundry Agent Service and runs through the agent network, because agents reach
-their data from there. Badges 1 to 7 follow one request and match the steps in
-the root README. Don't draw what Terraform doesn't create, such as network
+outside the networks, each linked to its private endpoint. Step 4 labels the
+Lab's HTTPS / Responses API call, private endpoint, and managed identity.
+Inside Foundry Agent Service, show the managed agent runtime separately from
+the model deployment used for inference. Step 6 starts at Foundry Agent Service
+and runs through the agent network, because agents reach their data from
+there. Badges 1 to 7 follow one request and match the steps in the root README.
+Don't draw what Terraform doesn't create, such as network
 security groups or a firewall. Don't add paths the view omits on purpose, such
 as Lab logs, which reach Azure Monitor through diagnostic settings rather
 than its private endpoint. Model names are examples, and deployments are
@@ -274,9 +277,9 @@ light and dark mode. To capture another look, change the `data-look` value in
 
 | Screenshot | Shows | Test output | Used in |
 | --- | --- | --- | --- |
-| [lab-start.png](screenshots/lab-start.png) / [dark](screenshots/lab-start-dark.png) | The first page, **Find an agent**: the welcome, the "What are you trying to do?" finder with a match, and the **Try an agent** and **Build your own** next steps | `start-page.png` / `start-page-dark.png` | [README tour](#readme-tour), [Lab guide](../lab-pages-and-access.md#pages) |
+| [lab-start.png](screenshots/lab-start.png) / [dark](screenshots/lab-start-dark.png) | The top of **All agents** > **Browse**: the "What are you trying to do?" finder with a match, above the guided demos | `start-page.png` / `start-page-dark.png` | [README tour](#readme-tour), [Lab guide](../lab-pages-and-access.md#pages) |
 | [lab-library.png](screenshots/lab-library.png) / [dark](screenshots/lab-library-dark.png) | The **Agent library** on **Browse**: the **Start here** examples, the filters, and the first agent cards | `library-browse.png` / `library-browse-dark.png` | [README tour](#readme-tour) |
-| [lab-test-results.png](screenshots/lab-test-results.png) / [dark](screenshots/lab-test-results-dark.png) | The **Test results** tab of the Supplier invoice reviewer: answers passed, typical response, model cost per answer, and **Waiting for a person** | `library-test-results.png` / `library-test-results-dark.png` | README tour |
+| [lab-test-results.png](screenshots/lab-test-results.png) / [dark](screenshots/lab-test-results-dark.png) | The **Test results** tab of the Supplier invoice reviewer: answers passed, recorded test time, model cost per answer, and **Waiting for a person** | `library-test-results.png` / `library-test-results-dark.png` | README tour |
 | [lab-chat-start.png](screenshots/lab-chat-start.png) | An empty **Chat** with the default agent's guide and example tasks | `demo-starters.png` | README tour, [demo guide](../demos.md#a-short-demonstration) |
 | [lab-chat-start-dark.png](screenshots/lab-chat-start-dark.png) | The same **Chat** with the **System** theme and a dark color scheme | `demo-starters-dark.png` | README tour, [demo guide](../demos.md#a-short-demonstration) |
 | [lab-take-to-foundry.png](screenshots/lab-take-to-foundry.png) / [dark](screenshots/lab-take-to-foundry-dark.png) | The **Take it to Foundry** tab: the agent-definition and test-request downloads, and the steps for setting it up in your own project | `library-take-to-foundry.png` / `library-take-to-foundry-dark.png` | README tour |

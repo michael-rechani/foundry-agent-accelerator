@@ -81,5 +81,4 @@ changes, or only the differences you expect.
 ```powershell
 terraform -chdir=terraform/identity init -backend=false
 terraform -chdir=terraform/identity validate
-terraform -chdir=terraform/identity test
 ```

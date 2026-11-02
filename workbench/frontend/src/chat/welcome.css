@@ -65,7 +65,7 @@
 }
 .prompt-options button small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .chat-welcome .prompt-options {
@@ -208,7 +208,7 @@
 }
 .welcome-modes button small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .welcome-create {

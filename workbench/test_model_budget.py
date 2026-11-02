@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from agent_scorecards import SCORECARDS
-from model_budget import MAX_LIMIT, ModelBudgets, measured_answer_tokens, validate_model_limits
+from model_budget import MAX_LIMIT, ModelBudgets, estimate_input_tokens, measured_answer_tokens, validate_model_limits
 
 BUSY_MODEL = "gpt-5.4"
 OTHER_MODEL = "gpt-4.1"
@@ -68,6 +68,13 @@ class MeasuredAnswerTokensTests(unittest.TestCase):
         self.assertTrue(all(type(value) is int and value > 0 for value in estimates.values()))
 
 
+class EstimateInputTokensTests(unittest.TestCase):
+    def test_estimate_uses_serialized_input_history_and_utf8_size(self):
+        self.assertEqual(estimate_input_tokens("123"), 1)
+        self.assertEqual(estimate_input_tokens({"history": ["abc", "def"]}), 9)
+        self.assertEqual(estimate_input_tokens("ééé"), 2)
+
+
 class ModelBudgetsTests(unittest.TestCase):
     def budgets(self, limits=LIMITS, answers=ANSWERS, **options):
         return ModelBudgets(limits, answers, **options)
@@ -77,6 +84,19 @@ class ModelBudgetsTests(unittest.TestCase):
         self.assertEqual(budgets.try_admit(BUSY_MODEL, "big", now=0), 0)
         self.assertEqual(budgets.try_admit(BUSY_MODEL, "small", now=1), 0)
         self.assertEqual(list(budgets.recent[BUSY_MODEL]), [(0, 5000), (1, 1000)])
+
+    def test_submitted_input_size_is_added_to_the_recorded_answer_estimate(self):
+        budgets = self.budgets({BUSY_MODEL: {"requests_per_minute": 10, "tokens_per_minute": 2500}})
+        self.assertEqual(budgets.try_admit(BUSY_MODEL, "small", now=0, input_tokens=1000), 0)
+        self.assertEqual(budgets.recent[BUSY_MODEL][0], (0, 2000))
+        self.assertEqual(budgets.try_admit(BUSY_MODEL, "small", now=1, input_tokens=1000), 59)
+        self.assertEqual(len(budgets.recent[BUSY_MODEL]), 1)
+
+    def test_invalid_input_estimates_are_rejected(self):
+        budgets = self.budgets()
+        for value in (-1, 1.5, True, "100"):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "input_tokens"):
+                budgets.try_admit(BUSY_MODEL, "small", input_tokens=value)
 
     def test_a_turn_that_would_pass_the_token_limit_is_refused_and_not_counted(self):
         budgets = self.budgets()

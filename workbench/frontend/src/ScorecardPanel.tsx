@@ -25,7 +25,7 @@ import { formatTokens } from './token-usage'
 const ANSWER_SOURCES = {
   lab: 'Answers were recorded in the Lab.',
   direct:
-    'Answers, response times and token counts were recorded by running the agent’s current instructions against the Lab’s Foundry project, so times can differ slightly from the live Lab. The first answer to each request is the recorded one a person reads. The repeat answers are checked automatically.',
+    'Answers, response times and token counts were recorded by running the agent’s current instructions directly against the Lab’s Foundry project, not through the live Lab. The first answer to each request is the recorded one a person reads. The repeat answers are checked automatically.',
   mixed: 'Answers were recorded in more than one run.',
 }
 
@@ -127,11 +127,11 @@ export function ScorecardPanel({
         </div>
         <div>
           <dt>
-            <Clock3 size={15} aria-hidden="true" /> Typical response
+            <Clock3 size={15} aria-hidden="true" /> Recorded test time
           </dt>
           <dd>
             <strong>{formatSeconds(summary.median_seconds)}</strong>
-            <span>Median time to a full answer in the Lab.</span>
+            <span>Median time across these recorded test runs.</span>
           </dd>
         </div>
         <div>

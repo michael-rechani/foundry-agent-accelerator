@@ -197,7 +197,7 @@ placeholder IDs and aren't output from a real plan.
 
 The Terraform guardrails the check enforces are also declared as code in each
 module. The pilot module fixes its role, principal type, and scope instead of
-taking them as inputs, and its [tests](../addons/knowledge-search/terraform/tests/grant.tftest.hcl)
+taking them as inputs. Its [variable validations](../addons/knowledge-search/terraform/variables.tf)
 reject a bad Search service ID or principal ID.
 
 ## The knowledge search pilot
@@ -235,7 +235,7 @@ test does for the agent library.
 Each card's `group` decides which heading it sits under and its badge:
 `abilities` (**Lets an agent do more**) for something the agent can do, and
 `support` (**Supports the agent**) for something it runs on, such as memory,
-storage or a cache. The **Common questions** answers on **Find an agent** read the same file, so a new
+storage or a cache. The **What can I create?** answers in Chat read the same file, so a new
 add-on appears there with no other change.
 
 Each card's job decides which heading the Add-ons tab lists it under:

@@ -69,7 +69,10 @@ updates:
     directories:
       - /terraform
       - /terraform/bastion
+      - /terraform/bootstrap
+      - /terraform/identity
       - /terraform/monitoring
+      - /terraform/runner
       - /workbench/infra
       - /addons/knowledge-search/terraform
     schedule:

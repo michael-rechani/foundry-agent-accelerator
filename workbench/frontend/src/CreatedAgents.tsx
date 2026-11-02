@@ -69,7 +69,7 @@ export function CreatedAgentList({
         <h2>Nothing made in this Lab yet</h2>
         <p>
           Agents you create from a library template appear here, with their
-          status. Once one is ready, it also shows up under Ready to chat.
+          status. Once one is ready, it also shows up under My agents.
         </p>
         <button className="creation-primary" onClick={onCreate}>
           Create an agent

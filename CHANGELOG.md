@@ -17,6 +17,65 @@ Pull request numbers link to the full discussion.
 - **Next steps in Chat.** The Benefits renewal helper offers one-click buttons
   under its latest answer: the checklist, the draft note and questions for the
   caseworker.
+- **Build an agent from the chat.** When the Agent designer's spec points to a
+  built-in template and creation is on, the spec card offers **Create this agent
+  here**. It shows the cost notes, asks for the operator key and a cost
+  confirmation, publishes through the same steps as Create agent, and offers
+  **Chat with it** when ready. It is still template-based; nothing is created
+  without the key and confirmation.
+  ([#406](https://github.com/michael-rechani/foundry-agent-accelerator/issues/406))
+- **Demo script and pre-demo check.** A ten-minute demo script with exact clicks
+  and sample prompts, and `workbench/demo-check.ps1`, which confirms the Lab,
+  library and Foundry are healthy before you present. It only reads unless you
+  add `-Designer`, which sends one short billable message to the Agent designer
+  and checks its spec card.
+  ([#410](https://github.com/michael-rechani/foundry-agent-accelerator/issues/410))
+- **Agent designer spec.** When an idea is clear, the Agent designer can end its
+  reply with an agent spec card: a Foundry prompt agent definition to download,
+  and a button to start from the closest pre-built agent in Create agent, with
+  the spec's description filled in as the task. No extra model call, and
+  nothing is created until you confirm in Create agent.
+  ([#404](https://github.com/michael-rechani/foundry-agent-accelerator/issues/404))
+
+### Changed
+
+- **One place to find an agent.** The separate **Find an agent** page is gone.
+  Its "What are you trying to do?" box now sits at the top of **All agents**,
+  above the guided demos and the agent cards, so the sidebar has one agents
+  entry instead of two. `/#start` still works and opens the library. The
+  "Common questions" answers on that page repeated **What can I create?** in
+  Chat, so only the Chat version remains.
+  ([#410](https://github.com/michael-rechani/foundry-agent-accelerator/issues/410))
+- **Plainer waiting message, and a multi-agent demo.** While an answer loads, the
+  Lab now says "You'll get" and "What's happening: it reads your request, hands
+  it to a specialist agent that does the detailed check, then returns that
+  answer to you", instead of "Expect" and "passing your task to specialist
+  agents". The demo script's step 3 now centres on the coordinator and
+  specialist hand-off and shows the **Details** proof.
+  ([#410](https://github.com/michael-rechani/foundry-agent-accelerator/issues/410))
+- **Create agent leaves the sidebar.** The Agent designer, **Find an agent** and
+  the library templates are the ways in now, so the sidebar is shorter. `/#create`
+  still works. A spec that matches no built-in template now says so on its card
+  and points to downloading the spec.
+  ([#404](https://github.com/michael-rechani/foundry-agent-accelerator/issues/404),
+  [#408](https://github.com/michael-rechani/foundry-agent-accelerator/issues/408))
+- **Docs match the Chat-first Lab.** The README tour, the Create agent guide,
+  the frontend README and the screenshot index now say the Lab opens on Chat,
+  and describe building an agent from the spec card.
+- **The Lab opens on Chat.** It used to open on **Find an agent**. Chat is the
+  start of the path (ideate with the Agent designer, try, export), and **Find an
+  agent** is still in the sidebar and at `/#start`. Other bookmarks are
+  unchanged.
+  ([#408](https://github.com/michael-rechani/foundry-agent-accelerator/issues/408))
+- **Simpler Agent library navigation.** The library has three tabs, **Browse**,
+  **My agents** and **Add-ons**, instead of five. **Ready to chat** and **Made
+  in this Lab** now sit together under **My agents**, and **Guided demos** opens
+  from **Try a guided demo** on **Browse**. The `#agents` and `#demos`
+  bookmarks still work.
+  ([#408](https://github.com/michael-rechani/foundry-agent-accelerator/issues/408))
+- The Agent designer now knows where export lives (Find an agent > Take it to
+  Foundry) and says the Lab has no import.
+  ([#403](https://github.com/michael-rechani/foundry-agent-accelerator/pull/403))
 
 ## [0.1.0] - 2026-10-19
 

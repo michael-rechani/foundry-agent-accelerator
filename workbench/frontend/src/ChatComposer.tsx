@@ -53,8 +53,8 @@ export function ChatComposer({
   const localPreview = config?.mode === 'preview'
   // Limits and save state only matter once there is something to lose.
   const showDetails = turnCount > 0 || contextUsage >= 0.5
-  // The general conversation has nothing to save or carry into a review.
   const plain = agent?.id === DESIGNER_ID
+  const unsavedPreview = isPreview && !plain
   const inToolbar = config?.mode === 'private'
   const hint = !localPreview && (
     <span className="composer-hint" id="composer-hint">
@@ -179,31 +179,39 @@ export function ChatComposer({
       </form>
       {!inToolbar && hint}
       {config?.mode === 'private' && (
-        <div className="composer-privacy" id="chat-privacy">
-          <p>
-            Use sample data only, never personal or confidential information.
-            Each message calls the model and may incur cost.
-            {isPreview && ' Preview chats are not saved.'}
+        <div className="composer-privacy">
+          <p id="chat-privacy">
+            Sample data only. AI use may cost money.
+            {unsavedPreview
+              ? " Preview chats aren't saved."
+              : config.history_enabled
+                ? ' Saved chats are shared.'
+                : ''}
           </p>
           <details>
-            <summary>About sharing and saving</summary>
-            {!isPreview && config.history_enabled && (
+            <summary>Privacy &amp; sharing</summary>
+            <p>No personal or confidential data.</p>
+            {!unsavedPreview && config.history_enabled && (
               <p>
-                Saving shares completed messages with everyone in this Lab for{' '}
-                {config.retention_days} days after the last update.
+                Saved chats contain completed messages and expire{' '}
+                {config.retention_days} days after their last update.
               </p>
             )}
-            <p>No user sign-in. Saved records are shared.</p>
-            <p>
-              Everyone with workspace access can read, modify and delete saved
-              chats, and read reviews and add requested evidence. There is no
-              per-user authorization; private networking does not isolate users.
-            </p>
+            {(config.history_enabled || config.reviews_enabled) && (
+              <p>
+                Anyone with Lab access can{' '}
+                {config.history_enabled && 'read, edit and delete saved chats'}
+                {config.history_enabled && config.reviews_enabled && ', and '}
+                {config.reviews_enabled &&
+                  'read reviews and add requested evidence'}
+                .
+              </p>
+            )}
             {config.agent_creation && (
               <p>
-                Created-agent setups are shared too. Publishing or deleting a
-                created agent requires an operator key, not an individual user
-                account.
+                {config.agent_creation.requires_operator_key
+                  ? 'Agent setups are shared. Publishing or deleting an agent requires an operator key, not a user account.'
+                  : 'Private presenter mode: anyone with Lab access can create or delete shared agents without a key. This is not a user account.'}
               </p>
             )}
           </details>
@@ -244,11 +252,14 @@ export function ChatComposer({
               </dl>
             </details>
           )}
-          {!plain && (
-            <span className="save-state">
-              {saveStateText({ isPreview, saved, dirty, draft })}
-            </span>
-          )}
+          <span className="save-state">
+            {saveStateText({
+              isPreview: unsavedPreview,
+              saved,
+              dirty,
+              draft,
+            })}
+          </span>
         </div>
       )}
       {exceedsLimit ? (

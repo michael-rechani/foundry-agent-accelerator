@@ -22,7 +22,7 @@ import { OperationsView } from './OperationsView'
 import { AgentLibrary, type ReadyAgent } from './AgentLibrary'
 import { ExploreDemos } from './ExploreDemos'
 import { AddOns } from './AddOns'
-import { StartPage } from './StartPage'
+import { JobFinder } from './JobFinder'
 import { isPreviewId, previewTemplateId } from './library-catalog'
 import { isDesignerId } from './agent-designer'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
@@ -92,6 +92,7 @@ export default function ChatWorkspace() {
   const [requestedTemplate, setRequestedTemplate] = useState<{
     id: string
     key: number
+    goal?: string
   } | null>(null)
   const { dependencyHealth, loadDependencyHealth } = useDependencyHealth(view)
   const {
@@ -142,13 +143,18 @@ export default function ChatWorkspace() {
     view === 'chat' && simple && (designing || (!turns.length && !busy))
   const showAside = view === 'chat' && !!agent && !presenting && !clean
   const saveDisabled =
-    isPreview ||
+    (isPreview && !designing) ||
     !config?.history_enabled ||
     !turns.length ||
     busy ||
     historyBusy ||
     !dirty
-  const saveNote = isPreview ? "Preview chats can't be saved." : undefined
+  const saveNote =
+    isPreview && !designing
+      ? "Preview chats can't be saved."
+      : !config?.history_enabled
+        ? 'Shared history is unavailable in this Lab. Export conversation to keep a local copy.'
+        : undefined
   const createThis =
     agent && previewTemplate && config?.agent_creation
       ? () => createFromTemplate(previewTemplate)
@@ -302,10 +308,11 @@ export default function ChatWorkspace() {
     )
   }
 
-  function createFromTemplate(templateId: string) {
+  function createFromTemplate(templateId: string, goal?: string) {
     setRequestedTemplate((current) => ({
       id: templateId,
       key: (current?.key ?? 0) + 1,
+      goal,
     }))
     setView('create')
   }
@@ -326,7 +333,6 @@ export default function ChatWorkspace() {
       <ChatSidebar
         title={config?.title}
         view={view}
-        creationEnabled={!!config?.agent_creation}
         historyEnabled={!!config?.history_enabled}
         busy={busy}
         historyBusy={historyBusy}
@@ -394,13 +400,7 @@ export default function ChatWorkspace() {
           <LibraryTabs
             view={view}
             readyCount={availableAgents.length}
-            createdCount={createdAgents.records.length}
-            creationEnabled={!!config.agent_creation}
             onView={setView}
-            onCreated={() => {
-              setView('created')
-              void createdAgents.refresh()
-            }}
           />
         )}
         {config && (
@@ -421,6 +421,21 @@ export default function ChatWorkspace() {
             onTest={testFromLibrary}
             onOpenCreate={
               config.agent_creation ? () => setView('create') : undefined
+            }
+            onDemos={() => setView('explore')}
+            finder={
+              <JobFinder
+                agents={availableAgents}
+                templates={library.catalog?.templates ?? []}
+                onChooseAgent={newChat}
+                onUseTemplate={
+                  config.agent_creation ? createFromTemplate : undefined
+                }
+                onBrowse={() => setView('library')}
+                onCreateAgent={
+                  config.agent_creation ? () => setView('create') : undefined
+                }
+              />
             }
           />
         )}
@@ -447,6 +462,7 @@ export default function ChatWorkspace() {
               loadingAgents={createdAgents.loading || previewsLoading}
               agentError={createdAgents.error}
               busy={busy || historyBusy}
+              onBack={() => setView('library')}
               onLoad={loadDemo}
               onCreate={(label) => {
                 setView('create')
@@ -458,23 +474,6 @@ export default function ChatWorkspace() {
               onChat={() => setView('chat')}
             />
           )
-        ) : view === 'start' ? (
-          <StartPage
-            agents={availableAgents}
-            templates={library.catalog?.templates ?? []}
-            onChooseAgent={newChat}
-            onUseTemplate={
-              config?.agent_creation ? createFromTemplate : undefined
-            }
-            onTryAgent={() => setView('catalog')}
-            onBuild={() =>
-              setView(config?.agent_creation ? 'create' : 'library')
-            }
-            onAddOns={() => setView('addons')}
-            onCreateAgent={
-              config?.agent_creation ? () => setView('create') : undefined
-            }
-          />
         ) : view === 'reviews' ||
           view === 'addons' ||
           view === 'library' ||
@@ -500,11 +499,12 @@ export default function ChatWorkspace() {
         ) : view === 'history' ? (
           <HistoryView
             chats={savedChats}
-            agents={availableAgents}
+            agents={designer ? [designer, ...availableAgents] : availableAgents}
             retentionDays={config?.retention_days}
             cursor={cursor}
             busy={busy}
             historyBusy={historyBusy}
+            onChat={() => setView('chat')}
             onOpen={openSaved}
             onDelete={(item) =>
               setChanging({
@@ -571,6 +571,20 @@ export default function ChatWorkspace() {
             onSave={() => void saveChat()}
             onExport={exportChat}
             onCreateThis={createThis}
+            templates={library.catalog?.templates}
+            onCreateFromTemplate={
+              config?.agent_creation ? createFromTemplate : undefined
+            }
+            build={
+              config?.agent_creation?.enabled
+                ? {
+                    capability: config.agent_creation,
+                    onCreated: createdAgents.update,
+                    onChat: (item) => newChat(item.id),
+                    onOpenMade: () => setView('created'),
+                  }
+                : undefined
+            }
           />
         ) : view === 'catalog' ? (
           <AgentCatalog
@@ -584,6 +598,13 @@ export default function ChatWorkspace() {
             disabled={busy || historyBusy}
             onQuery={setQuery}
             onCreate={() => setView('create')}
+            madeCount={
+              config?.agent_creation ? createdAgents.records.length : undefined
+            }
+            onManage={() => {
+              setView('created')
+              void createdAgents.refresh()
+            }}
             onChoose={(id) => (id === selected ? setView('chat') : newChat(id))}
           />
         ) : (

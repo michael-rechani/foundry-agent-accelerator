@@ -70,7 +70,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 .composer-toolbar > div {
@@ -87,7 +87,7 @@
   display: block;
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 .composer-toolbar .composer-hint {
   margin: 0;
@@ -99,7 +99,7 @@
   gap: 2px 10px;
   margin: 10px 4px 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
 }
 .composer-privacy > p {
@@ -123,7 +123,7 @@
   margin-left: auto;
   padding-top: 3px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 .context-budget {
@@ -287,7 +287,7 @@
   border-color: var(--danger);
 }
 .composer-warning {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--danger-fg);
   margin-top: 10px;
 }

@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react'
 
-export function LibraryHero({ children }: { children: ReactNode }) {
+export function LibraryHero({
+  children,
+  onDemos,
+}: {
+  children: ReactNode
+  onDemos?: () => void
+}) {
   return (
     <header className="library-hero">
       <p className="library-eyebrow">Agent library</p>
@@ -10,8 +16,18 @@ export function LibraryHero({ children }: { children: ReactNode }) {
         leaves to a person, then take it to your Microsoft Foundry project.
       </p>
       <p className="library-hero-note">
-        Every agent below can be tried from its own page. &ldquo;Ready to
-        chat&rdquo; counts only the agents already set up to open in Chat.
+        Every agent below can be tried from its own page. &ldquo;My
+        agents&rdquo; counts only the agents already set up to open in Chat.
+        {onDemos && (
+          <>
+            {' '}
+            Want a walkthrough?{' '}
+            <button type="button" className="inline-link" onClick={onDemos}>
+              Try a guided demo
+            </button>
+            .
+          </>
+        )}
       </p>
       {children}
     </header>

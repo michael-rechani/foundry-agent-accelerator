@@ -30,7 +30,7 @@ test('catalog uses customer names while retaining runtime targets and scenario s
     { id: 'application-review', agent: 'application-review-agent', tools: {} },
     { id: 'case-review', agent: 'case-review-agent', tools: {} },
   ])
-  await openLibraryTab(page, /^Ready to chat/)
+  await openLibraryTab(page, /^My agents/)
   await expect(page.locator('.catalog-agent h2')).toHaveText([
     'Checklist and case helper',
     'Checklist and case helper (base setup)',
@@ -223,7 +223,7 @@ test('configuration guidance separates UI settings from deployed agent behavior'
   page,
 }, testInfo) => {
   const state = await openWorkspace(page)
-  await openLibraryTab(page, /^Ready to chat/)
+  await openLibraryTab(page, /^My agents/)
   const guide = page.locator('.configuration-guide')
   await guide.locator(':scope > summary').click()
   await expect(guide).toContainText(

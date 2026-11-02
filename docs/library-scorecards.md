@@ -114,12 +114,13 @@ case's `rubric`.
 > the right thing, so a person reads every answer.
 >
 > **Fingerprints.** Every recorded answer carries a SHA-256 fingerprint of the
-> instructions its agent had when it ran and the date it was recorded, and
-> `scorecards.py` refuses to build when an agent's current instructions don't
-> match. Answers from the first set, which were recorded before rows carried a
+> effective instructions its agent had when it ran: the shared runtime policy
+> plus that agent's template instructions. It also carries the date it was
+> recorded, and `scorecards.py` refuses to build when either part has changed.
+> Answers from the first set, which were recorded before rows carried a
 > fingerprint, were stamped with the instructions in force when that set
 > started, and only for agents whose instructions haven't changed since. After
-> you change an agent's instructions, record its 25 answers again with
+> you change the shared policy or an agent's instructions, record its 25 answers again with
 > [library_runs.py](#record-an-agents-test-answers-again).
 >
 > The answers, metrics and repeat runs are in [evidence/](../evaluations/evidence/), which holds
@@ -153,10 +154,12 @@ the tokens with
 [saved Azure list prices](../evaluations/evidence/model-prices-2026-09.json): USD, Global
 Standard, North Central US, retrieved 2026-09-28 from the Azure Retail Prices
 API. Costs cover model tokens only, not hosting, storage or monitoring. The
-times come from a direct run on a local machine, and the tab says so. Every
+times come from a direct run on a local machine, and the tab identifies them
+as recorded test times rather than typical live-Lab latency. Every
 scorecard shows **Waiting for a person** until someone reads the answers.
-`scorecards.py` also fails if an agent's instructions changed after its answers
-were recorded. [library_runs.py](#record-an-agents-test-answers-again) records
+`scorecards.py` also fails if the shared runtime policy or an agent's template
+instructions changed after its answers were recorded.
+[library_runs.py](#record-an-agents-test-answers-again) records
 them again. It also fails if any case has no recorded answer, so a new case
 can't drop out of the results unnoticed. `test_scorecards.py` fails if the
 Lab's copy drifts from the
@@ -193,7 +196,7 @@ Foundry project yet.
 
 ### Record an agent's test answers again
 
-When you change an agent's instructions in
+When you change the shared runtime policy or an agent's instructions in
 [agent_templates](../workbench/agent_templates), its recorded answers no
 longer describe it, and `scorecards.py` refuses to build until they're recorded
 again. [library_runs.py](../evaluations/library_runs.py) finds those agents and records them:
@@ -298,8 +301,12 @@ python scorecards.py write   # rebuild the Lab's copy of the results
 A sign-off covers the exact answers a person read, so an agent that had one stops
 building ("the answers changed after the sign-off") until a person reads the new
 answers and signs off again. `library_runs.py` never records a sign-off. Until
-that's done, set the agent's `readiness` in `TEMPLATE_METADATA` back to `sample`
-if it says `reviewed`. The Lab shows the new results after the next deploy.
+that's done, set `metadata.readiness` in
+`workbench/agent_templates/agents/<id>.json` back to `sample` if it says
+`reviewed`. `TEMPLATE_METADATA` is loaded from those files, not edited directly.
+Regenerate the frontend catalog snapshot as described in
+[Add a library agent](agent-creation.md#add-a-library-agent).
+The Lab shows the new results after the next deploy.
 
 Exit codes: `status` returns 0 when every agent is current, 1 when some need
 recording and 2 when it can't read the evidence or an agent has no cases.

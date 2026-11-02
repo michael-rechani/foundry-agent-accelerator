@@ -21,7 +21,7 @@ and calls the same application's FastAPI routes. FastAPI uses managed identity t
 invoke the configured named agent. Agents call their models and tools. The
 browser doesn't receive Azure keys or need Foundry project permissions.
 
-<img alt="How people reach the Lab: path 1, on by default, is a presenter or admin using Azure Bastion and a jumpbox. Path 2, a design reference that isn't deployed, is an employee on an approved private network using Application Gateway WAF v2. Path 3, an optional draft that is off by default, is a customer on the internet using Azure Front Door Premium with a WAF and Private Link. All three reach the Lab's internal Container Apps environment, whose ingress allow list needs one rule per path. The Lab then calls Foundry privately with a managed identity. The Lab has no end-user sign-in yet, so customer access needs Microsoft Entra ID sign-in first." src="images/lab-access-paths-dark.svg">
+<img alt="How people reach the Lab: the default ingress rule allows the management subnet, but Azure Bastion and the jumpbox are optional and off by default. Path 1 shows a presenter or admin using those resources when enabled. Path 2, a design reference that isn't deployed, is an employee on an approved private network using Application Gateway WAF v2. Path 3, an optional draft that is off by default, is a customer on the internet using Azure Front Door Premium with a WAF and Private Link. Each path needs its own ingress rule. The Lab then calls Foundry privately with a managed identity. The Lab has no end-user sign-in yet, so customer access needs Microsoft Entra ID sign-in first." src="images/lab-access-paths-dark.svg">
 
 [View full size](images/lab-access-paths-dark.svg) · [Edit the SVG template](images/lab-access-paths.template.svg)
 
@@ -76,7 +76,8 @@ already configures:
       environment boundary so a gateway outside that environment can reach it. It
       doesn't make this internal environment internet-accessible.
 - [ ] A `jumpbox-only` Internet Protocol (IP) restriction that allows the
-      management subnet.
+      management subnet. This rule doesn't provision a jumpbox: both the
+      jumpbox and Azure Bastion are optional and off by default.
 - [ ] Private DNS records that point the app hostname at the internal environment
       IP, with links to the workload and management VNets.
 - [ ] `WORKBENCH_ALLOWED_HOSTS` and `WORKBENCH_ORIGINS` fixed to the existing
@@ -105,14 +106,17 @@ gateway elsewhere in the VNet.
 
 ### Who uses the Lab today
 
-**Decision (#103): an operator presents the Lab from the jump box. Customers
-don't use it themselves yet.**
+**Decision (#103): an operator presents the Lab from the jump box when that
+optional resource is enabled. Customers don't use it themselves yet.**
 
 - The Lab's environment is internal with public network access disabled, and the
-  app only accepts the jump box's address, so a customer's browser can't reach
-  it. That's intended for now.
-- No public listener, Front Door, Application Gateway or IP allow rule is on by
-  default. Each would be a separate approval of that specific resource. The one
+  app's default allow rule covers only the management subnet, where an optional
+  jumpbox would reside. This rule does not create a jumpbox, so a customer's
+  browser can't reach the Lab. That's intended for now.
+- The default private management-subnet allow rule is configured, but no public
+  listener, Front Door or Application Gateway is on by default. Bastion and the
+  jumpbox are separate opt-in resources. Each public resource or setting needs
+  its own approval. The one
   exception in code is the off-by-default
   [Front Door draft limited to your own IP](#draft-front-door-limited-to-your-own-ip)
   ([#240](https://github.com/michael-rechani/foundry-agent-accelerator/issues/240)),
@@ -139,7 +143,7 @@ access. That differs from signing users in to the application.
 | Private shared demonstration | Trusted operators only, approved private routing, DNS, source restrictions, fictional inputs, and a clear acknowledgement that saved records are shared. No end-user login or per-user isolation is claimed. |
 | Internet-facing or confidential multi-user application | Implement user authentication and server-side agent and record authorization before opening access. Select an identity provider appropriate to the audience. The current Lab doesn't implement this mode. |
 
-The **About sharing and saving** note under the Chat message box opens the shared-demo details on desktop.
+The **Privacy & sharing** note under the Chat message box opens the shared-demo details on desktop.
 It doesn't enforce that inputs are fictional. Don't substitute
 a shared password or a WAF policy for user identity and record ownership. Keep
 the public Application Gateway and Front Door patterns as design references until
@@ -277,7 +281,7 @@ path.
 | Lab settings | The Front Door address is added to `WORKBENCH_ORIGINS` so the browser's origin check passes. `front_door_ingress_allow_cidrs` adds ingress rules after the jump box rule. Front Door's Private Link traffic arrives from a shared address range, not the Lab's own network. Set `front_door_ingress_allow_cidrs` to that range (see the variable's description in `front-door.tf`) or the app answers Front Door's probes with 403. It's empty by default and accepts only private ranges, never a public or internet-wide one. |
 | Region | Front Door Private Link doesn't support `northcentralus`. Set `front_door_private_link_location` (for example `centralus`) if the Lab is there. Null uses the environment's region. |
 | Your address | Put it in an untracked `.tfvars` file (`*.tfvars` is ignored). Don't commit it or add it to `dev.tfvars.example`. |
-| Offline checks | `workbench/infra/tests/front-door.tftest.hcl` runs under mock providers, so it needs no Azure access: the switches, every address rejection, the WAF rule and mode, the origin and Private Link settings, and the Lab's origin and ingress changes. |
+| Offline checks | CI runs formatting and configuration validation for `workbench/infra/`. Native HCL behavior tests aren't included; review the plan for the WAF, origin, Private Link, and ingress settings before an approved rollout. |
 
 **Rollout order.** Don't skip the 403 check.
 
@@ -470,7 +474,7 @@ don't describe the result as ready for public or confidential multi-user access.
 | --- | --- |
 | DNS and TLS | Browser reaches the intended listener. The gateway resolves and reaches its private origin. Certificates validate on both hops. |
 | Origin isolation | Direct origin access from the public internet fails while the authorized edge path succeeds. Any retained private administrator bypass is documented, not presented as edge-only enforcement. |
-| Private-demo boundary | Only approved private sources can reach the app, public ingress remains closed, the **About sharing and saving** note in Chat exposes the shared-data details on desktop, and test inputs are fictional. This doesn't establish individual user identity or record isolation. |
+| Private-demo boundary | Only approved private sources can reach the app, public ingress remains closed, the **Privacy & sharing** note in Chat exposes the shared-data details on desktop, and test inputs are fictional. This doesn't establish individual user identity or record isolation. |
 | Authentication for broader access | Anonymous access to protected application and API routes is denied; sign-in and sign-out use the correct public or private frontend domain without redirect loops. |
 | Authorization for broader access | A user can't access another user's records or invoke an unauthorized agent. This is an implementation gate, not current Lab behavior. |
 | Host and origin checks | Approved browser requests succeed. Unapproved `Host` and `Origin` values remain rejected. Don't weaken these controls to pass a probe. |

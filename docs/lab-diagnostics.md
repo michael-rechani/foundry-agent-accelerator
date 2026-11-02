@@ -177,12 +177,10 @@ and verify delivery from the approved Azure environment. Terraform validation
 doesn't prove that mail reaches an inbox. These are infrastructure health
 alerts, not agent tools for sending email or performing business actions.
 
-Run `./workbench/test-monitoring.ps1` after provider initialization to check the
-default, existing-group, managed-group, combined-group, opt-out, and
-invalid-input paths. The runner copies only the monitoring configuration into an
-isolated directory, without the deployment backend or tfvars. Both Terraform
-providers are mocked, including test runs named `apply`. No Azure resources are
-created and no mail is sent. CI runs the same checks.
+Run `terraform -chdir=workbench/infra validate` after backend-free provider
+initialization to check configuration validity. CI runs the same validation.
+Native HCL monitoring tests aren't included; review the plan for action-group
+and opt-out settings, then verify delivery only in an approved Azure environment.
 
 ### Budget alerts
 

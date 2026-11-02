@@ -2,12 +2,14 @@ import asyncio
 import json
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from agent_runtime.demo_tools import create_demo_tools
 from agent_runtime.main import DEMO_POLICY
-from agent_templates import RETIRED_TEMPLATES, TEMPLATES
+from agent_templates import RETIRED_TEMPLATES, TEMPLATES, is_available
 from library_preview import (DESIGNER_ID, DESIGNER_INSTRUCTIONS, DESIGNER_TEMPLATE, MAX_TOOL_ROUNDS, PREVIEW_AGENT,
                              preview_agent, run_preview, run_tool, summarize_usage, tool_specs, usage_record)
+from model_budget import ModelBudgetWait, estimate_input_tokens
 
 
 class Response:
@@ -62,6 +64,29 @@ class LibraryPreviewTests(unittest.TestCase):
         self.assertNotIn("tools", options)
         self.assertNotIn("include", options)
         self.assertFalse(options["store"])
+
+    def test_agent_designer_knows_the_real_export_path(self):
+        for phrase in ("Take it to Foundry", "The Lab has no import", "hosted-agent package"):
+            self.assertIn(phrase, DESIGNER_INSTRUCTIONS)
+
+    def test_agent_designer_knows_how_to_preserve_the_conversation(self):
+        for phrase in ("Export conversation", "Save to shared history", "this designer conversation",
+                       "Chats are not saved automatically", "save again after adding replies",
+                       "Never tell them to paste into Shared history", "not the conversation",
+                       "does not create an agent or configure retrieval or tools"):
+            self.assertIn(phrase, DESIGNER_INSTRUCTIONS)
+
+    def test_agent_designer_writes_a_spec_naming_only_real_agents(self):
+        self.assertIn("agent-spec", DESIGNER_INSTRUCTIONS)
+        for key in ("instructions", "human_decision", "closest_template", "tools_needed"):
+            self.assertIn(key, DESIGNER_INSTRUCTIONS)
+        finished = [identifier for identifier in TEMPLATES if is_available(identifier, False)]
+        self.assertTrue(finished)
+        for identifier in finished:
+            self.assertIn(identifier, DESIGNER_INSTRUCTIONS)
+        for identifier in TEMPLATES:
+            if identifier not in finished:
+                self.assertNotIn(identifier, DESIGNER_INSTRUCTIONS)
 
     def test_unknown_or_malformed_ids_are_rejected(self):
         for identifier in ("library-", "library-missing-template", "Library-x", f"library-{text_template()}\n",
@@ -137,6 +162,26 @@ class LibraryPreviewTests(unittest.TestCase):
         asyncio.run(run_preview(client, template_id="workflow-coordinator", model="gpt-test", prompt="Check", usage=usage))
         self.assertEqual(summarize_usage(usage), {"input_tokens": 250, "output_tokens": 60, "total_tokens": 310,
                                                   "cached_tokens": 64, "reasoning_tokens": 20})
+
+    def test_each_preview_model_call_is_admitted_with_its_current_input_history(self):
+        template_id = "workflow-coordinator"
+        function = create_demo_tools(template_id, PREVIEW_AGENT)[0]
+        call = {"type": "function_call", "call_id": "call-1", "name": function.__name__, "arguments": "{}"}
+        client = FakeClient([Response([call]), Response([{"type": "message"}], text="Answer")])
+        payloads = []
+
+        def admit(payload):
+            payloads.append(payload)
+            if len(payloads) == 2:
+                raise ModelBudgetWait(59)
+
+        with patch("library_preview.run_tool", return_value="sample lookup result " * 100):
+            with self.assertRaisesRegex(ModelBudgetWait, "configured limit"):
+                asyncio.run(run_preview(client, template_id=template_id, model="gpt-test", prompt="Check",
+                                        admit_model_call=admit))
+        self.assertEqual(len(client.calls), 1)
+        self.assertEqual(len(payloads), 2)
+        self.assertLess(estimate_input_tokens(payloads[0]), estimate_input_tokens(payloads[1]))
 
     def test_missing_usage_is_not_reported_as_zero(self):
         self.assertIsNone(summarize_usage([]))

@@ -18,6 +18,9 @@ import {
   stepsSummary,
   type ReceiptState,
 } from './answer-steps'
+import { AgentSpecCard } from './AgentSpecCard'
+import { SpecBuildPanel, type SpecBuild } from './SpecBuildPanel'
+import { parseAgentSpec, specGoal } from './agent-spec'
 import { AnswerFeedback } from './AnswerFeedback'
 import type { Rating, Result, Turn } from './conversation-types'
 import { FoundryLink } from './FoundryLink'
@@ -229,6 +232,9 @@ export function ConversationTurn({
   showReviewNote = true,
   plain = false,
   busy = false,
+  templates,
+  onCreateFromTemplate,
+  build,
   onCopy,
   onRate,
   onTryAgain,
@@ -246,12 +252,23 @@ export function ConversationTurn({
   // A plain conversation has no steps, receipts or answer to check.
   plain?: boolean
   busy?: boolean
+  // Library templates the Agent designer's spec can point to.
+  templates?: { id: string; label: string }[]
+  onCreateFromTemplate?: (templateId: string, goal?: string) => void
+  // Lets the spec card publish the agent without leaving the chat.
+  build?: SpecBuild
   onCopy: (text: string) => void
   onRate: (rating: Rating | undefined) => void
   onTryAgain?: () => void
   followUps?: FollowUp[]
   onFollowUp?: (text: string) => void
 }) {
+  const designed = plain
+    ? parseAgentSpec(turn.result.text)
+    : { text: turn.result.text, spec: null }
+  const closest = designed.spec?.closest_template
+    ? templates?.find((item) => item.id === designed.spec?.closest_template)
+    : undefined
   return (
     <div className="turn">
       <UserMessage text={turn.question} />
@@ -279,7 +296,7 @@ export function ConversationTurn({
             )}
           </span>
         </div>
-        <Markdown text={turn.result.text} />
+        <Markdown text={designed.text} />
         {latest && onFollowUp && followUps.length > 0 && (
           <div className="follow-ups" role="group" aria-label="Next steps">
             {followUps.map((item) => (
@@ -295,12 +312,34 @@ export function ConversationTurn({
             ))}
           </div>
         )}
+        {designed.spec && (
+          <AgentSpecCard
+            spec={designed.spec}
+            templateLabel={closest?.label}
+            onCreateFromTemplate={
+              closest && onCreateFromTemplate
+                ? () =>
+                    onCreateFromTemplate(closest.id, specGoal(designed.spec!))
+                : undefined
+            }
+            build={
+              closest && build?.capability.enabled && !busy ? (
+                <SpecBuildPanel
+                  spec={designed.spec}
+                  templateId={closest.id}
+                  templateLabel={closest.label}
+                  build={build}
+                />
+              ) : undefined
+            }
+          />
+        )}
         <div className={`response-tools${latest ? ' latest' : ''}`}>
           <button
             className="chat-icon"
             title="Copy response"
             aria-label="Copy response"
-            onClick={() => onCopy(turn.result.text)}
+            onClick={() => onCopy(designed.text)}
           >
             <Clipboard size={15} />
           </button>
