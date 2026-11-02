@@ -89,7 +89,7 @@ command (see [Deploy the Lab](../docs/lab-deployment.md#deployment)):
 ## Prerequisites
 
 See [tool versions and upgrades](../docs/tool-versions.md) for
-version checks, lockfile expectations, and installation troubleshooting.
+version checks and installation troubleshooting.
 
 - Terraform 1.16.4 or a later 1.16 patch release.
 - Azure CLI authenticated to the target tenant.
@@ -385,48 +385,31 @@ named endpoint and a specific Microsoft Entra ID audience, caller object IDs, an
 client app IDs. The default is null: no API is published. See the
 [publication runbook and acceptance gates](../docs/apim-review-api.md).
 
-Run `./terraform/test-review-api-validation.ps1` for isolated input validation
+Run `./scripts/terraform/test-review-api-validation.ps1` for isolated input validation
 and rendered policy checks. These tests don't contact Azure or validate the
 live gateway.
 
 ## Local validation
 
-After initializing the providers and modules, run from the repository root:
+Run from the repository root:
 
 ```powershell
-./terraform/test-platform-validation.ps1
-./terraform/test-publisher-validation.ps1
-./terraform/test-review-api-validation.ps1
+terraform -chdir=terraform init -backend=false
+terraform -chdir=terraform fmt -check -recursive
+terraform -chdir=terraform validate
+./scripts/terraform/test-publisher-validation.ps1
+./scripts/terraform/test-review-api-validation.ps1
 ```
 
 Use `-TerraformCommand <path-to-terraform>` when the required version isn't on
-PATH. The platform suite copies every root `*.tf` file and `policies/` into an
-isolated directory, so it tests the real `main.tf`, `network.tf`, `apim.tf`, and
-`review-api.tf`. It uses provider mocks and excludes deployment state, backend
-settings, and tfvars. It checks region profiles, existing-name overrides,
-credential input requirements, management networking, retained-disk bodies, and
-credential-gated extension creation.
+PATH. The PowerShell helpers live in `scripts/terraform/` and check publisher
+inputs, review API authorization inputs, and policy rendering in temporary
+directories without deployment state or Azure resources. CI runs the same checks
+and validates each Terraform root.
 
-These checks don't test live secret retrieval, VM creation, or rotation. Run
-full `terraform validate` as well, and use the credential guide's disposable
-resource checks before relying on a new credential path.
-
-Terraform's mock providers can't run ephemeral resources, so the runner swaps
-three pieces in its temporary copy only. Your root files aren't edited:
-
-- The Foundry registry module in `main.tf` becomes the stub in
-  [`tests/fixtures/foundry`](tests/fixtures/foundry/main.tf).
-- The API Management registry module in `apim.tf` becomes the stub in
-  [`tests/fixtures/api-management`](tests/fixtures/api-management/main.tf).
-- The ephemeral Key Vault secret read in `jumpbox-credentials.tf` becomes the
-  literal `synthetic-offline-fixture-only`.
-
-A swap that no longer matches its source fails the run, so a root file can't
-drift out of coverage unnoticed. The runner also fails when a copied file
-differs from its source, when a swap leaves an `ephemeral` block behind, when
-`main.tf`, `network.tf`, `apim.tf`, or `review-api.tf` has no matching
-`tests/<name>.tftest.hcl`, or when no test runs. Continuous integration (CI)
-runs the same platform suite after initialization.
+Native HCL test suites aren't included. Configuration validation doesn't replace
+infrastructure behavior tests or live checks. Use the credential guide's
+disposable-resource checks before relying on a new credential path.
 
 ### Downloaded-module deprecation notices
 

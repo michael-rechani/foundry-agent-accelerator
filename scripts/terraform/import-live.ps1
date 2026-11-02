@@ -7,7 +7,7 @@
   AllowRegistryPrivateEndpointOutbound). Until its state holds the live resources, an
   apply would try to create duplicates or delete that rule.
 
-  Run this from a machine that can reach the private state account (the jump box),
+  Run this from terraform/runner on a machine that can reach the private state account (the jump box),
   after `terraform init -backend-config=backend.hcl`. It only reads Azure, and it
   prints the `terraform import` commands without running them. Add -Apply to run
   them, which writes to the shared state. Resources already in state are skipped.
