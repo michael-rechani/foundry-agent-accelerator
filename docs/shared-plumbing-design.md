@@ -2,26 +2,41 @@
 
 [Home](../README.md) / [Docs](README.md) / Shared plumbing design
 
-This note is the first piece of [#164](https://github.com/michael-rechani/foundry-agent-accelerator/issues/164).
-It reads the code as it is today, picks one shared home for each repeated piece
-of plumbing, and sets the order of the follow-up pull requests. It changes no
-code. Each follow-up moves one helper, and the existing tests prove that
-nothing moved.
+This note records the completed consolidation from
+[#164](https://github.com/michael-rechani/foundry-agent-accelerator/issues/164)
+and the per-agent metadata work in
+[#215](https://github.com/michael-rechani/foundry-agent-accelerator/issues/215).
+The implementation map below is the starting point for contributors. The
+remaining sections preserve the original migration plan and its completion
+notes, not a backlog of work still to do.
 
 The goal is that a rule or a fact about an agent lives in one place. The four
 areas are request admission, validation rules, hosted-agent start-up and
 per-agent metadata.
 
+## Current implementation
+
+| Area | Shared home | What to edit |
+| --- | --- | --- |
+| Request admission and errors | [`workbench/request_guard.py`](../workbench/request_guard.py) | Shared body limits, JSON checks, rate gates, error responses and Cosmos error mapping. All four routers use `api_error`, so their error bodies include `request_id`; the app middleware adds `X-Correlation-ID`. Router-specific codes and check order stay in each router. |
+| Library and evaluation rules | [`workbench/library_rules.py`](../workbench/library_rules.py) | Shared categories, deployment-name checks, numeric/date checks and evidence row keys. Standalone packages keep separate checks where necessary, with parity coverage in `workbench/test_rule_copies.py`. |
+| Review hosted-agent start-up | [`hosted-agents/hosted_runtime.py`](../hosted-agents/hosted_runtime.py) | Shared settings, agent construction and serving. Credentials and tools stay with each entry point. The basic-responses sample and the Lab-created runtime remain separate on purpose. |
+| Library-agent definitions | [`workbench/agent_templates/agents/`](../workbench/agent_templates/agents/) | One JSON file per agent, including `metadata.readiness`, template instructions, match patterns and display order. The loader derives the catalog tables; follow [Add a library agent](agent-creation.md#add-a-library-agent) for regeneration steps. |
+| Prebuilt-agent inventory | [`hosted-agents/deployment.py`](../hosted-agents/deployment.py) | `PREBUILT_AGENTS`, from which deployment and bundle inventories are derived. Lab display and receipt bindings remain in `workbench/agents.json`. |
+
 > [!NOTE]
-> This is a design for contributors, not a promise to build every step. A step is
-> done when its pull request merges. Anything that would change behaviour is
-> listed under [What would change behaviour](#what-would-change-behaviour) and
-> gets its own pull request and test.
+> The sections below are a historical migration record. Their original issue
+> dependencies, duplication tables and proposed API sketches describe the
+> consolidation at the time. Use the linked source files above for current
+> APIs, and keep the recorded [behaviour boundaries](#what-would-change-behaviour)
+> when making further changes.
 
-## The order
+<a id="the-order"></a>
 
-Each step is one pull request. Steps with the same number can run in parallel
-because they touch different folders.
+## Original migration order
+
+Each step was scoped to one pull request. Steps with the same number could run
+in parallel because they touched different folders.
 
 | # | Pull request | Needs first | Changes behaviour? |
 | --- | --- | --- | --- |
@@ -38,16 +53,18 @@ because they touch different folders.
 | 5 | Admission D: `cosmos_failure` in `request_guard.py` | Admission C | No |
 | 5 | Metadata: one data file per library agent ([#215](https://github.com/michael-rechani/foundry-agent-accelerator/issues/215)) | [#165](https://github.com/michael-rechani/foundry-agent-accelerator/issues/165), and the `readiness="reviewed"` flips ([#87](https://github.com/michael-rechani/foundry-agent-accelerator/issues/87)) | No |
 
-The admission steps touch `app.py`, `history.py`, `agent_creation.py` and
-`review_runs.py`, so they wait for #153 and for the `history.py` change in
+The admission steps touched `app.py`, `history.py`, `agent_creation.py` and
+`review_runs.py`, so they waited for #153 and for the `history.py` change in
 [#152](https://github.com/michael-rechani/foundry-agent-accelerator/issues/152).
-Start-up B edits the package lists in `hosted-agents/deployment.py`, so it waits
-for the timeout change in [#159](https://github.com/michael-rechani/foundry-agent-accelerator/issues/159)
-or rebases on it.
+Start-up B edited the package lists in `hosted-agents/deployment.py`, so it
+depended on the timeout change in
+[#159](https://github.com/michael-rechani/foundry-agent-accelerator/issues/159).
 
-## How this overlaps with open issues
+<a id="how-this-overlaps-with-open-issues"></a>
 
-| Issue | Where it overlaps | What this design does |
+## Issue sequencing at the time
+
+| Issue | Original overlap | Planned sequencing |
 | --- | --- | --- |
 | [#153](https://github.com/michael-rechani/foundry-agent-accelerator/issues/153) | It changes the same `error` methods in `agent_creation.py` and `review_runs.py` that the admission helper replaces. | #153 lands first as a small in-place fix. The helper then copies the already-fixed shape, so the admission pull requests have no behaviour change to carry. |
 | [#155](https://github.com/michael-rechani/foundry-agent-accelerator/issues/155) | A new `workbench/` module has to be added to the `Dockerfile` COPY line, `.dockerignore`, `test-build.ps1`, `build.ps1` and CI. | Admission extends the existing `request_guard.py`, so it pays nothing. Only `workbench/library_rules.py` is new, so Validation A waits for #155. This note doesn't touch the module-list problem. |
@@ -56,7 +73,7 @@ or rebases on it.
 
 ## 1. Request admission
 
-### Where it is today
+### Migration context
 
 `workbench/request_guard.py` already holds the shared pieces:
 `MAX_REQUEST_BYTES`, `MAX_CONVERSATION_BYTES`, `MAX_SETUP_BYTES`,
@@ -70,8 +87,8 @@ routers import them. What each router still repeats is the glue around them:
 | --- | --- | --- | --- | --- |
 | `app.py` `ChatReviews` | Shared 4-slot semaphore and 20 a minute, then a per-model budget (`model_budget.py`) after the agent is resolved | `busy` | Yes | Rate limit, origin, content type, body, agent, model budget |
 | `history.py` `ConversationHistory` | Own 4-slot semaphore, 60 a minute | `history_busy` | Yes | Rate limit, origin |
-| `agent_creation.py` `AgentCreations` | Own 4-slot semaphore, 120 a minute | `agents_busy` | No | Origin, rate limit |
-| `review_runs.py` `ReviewRuns` | Own read gate (120 a minute). `start` uses the shared chat gate | `reviews_busy`, `busy` | No | Origin, id check, rate limit |
+| `agent_creation.py` `AgentCreations` | Own 4-slot semaphore, 120 a minute | `agents_busy` | Yes | Origin, rate limit |
+| `review_runs.py` `ReviewRuns` | Own read gate (120 a minute). `start` uses the shared chat gate | `reviews_busy`, `busy` | Yes | Origin, id check, rate limit |
 
 Smaller differences that the helper has to keep, or change on purpose:
 
@@ -88,9 +105,9 @@ Smaller differences that the helper has to keep, or change on purpose:
   out three times, in `history.py`, `agent_creation.py` and `review_runs.py`. The
   conflict is 412 in `history.py` and `review_runs.py`, but 409 or 412 in
   `agent_creation.py`, which creates records.
-- The `X-Correlation-ID` header already comes from the `security_headers`
-  middleware in `app.py` for every `/api/` response, so only the body's
-  `request_id` differs.
+- The `X-Correlation-ID` header comes from the `security_headers` middleware in
+  `app.py` for every `/api/` response. The shared `api_error` now includes the
+  same `request_id` in all four routers' error bodies.
 
 The browser maps these codes to messages (`history-client.ts`,
 `agent-creation-client.ts`, `review-client.ts`), so a code is part of the
@@ -156,9 +173,9 @@ places for no benefit, and it would split the guard code across two files.
 
 ## 2. Validation rules
 
-### Where it is today
+### Migration context
 
-| Rule | Copies today |
+| Rule | Original copies |
 | --- | --- |
 | The five answer categories (`grounded`, `missing`, `conflict`, `injection`, `decision-boundary`) | `evaluations/library_checks.py` and `workbench/agent_scorecards.py` |
 | The deployment-name pattern `[A-Za-z0-9][A-Za-z0-9_.-]{0,127}` | `workbench/agent_creation.py` and `evaluations/library_runs.py` |
@@ -233,7 +250,7 @@ the others match. Merging the endpoint copies later is optional.
 
 ## 3. Hosted-agent start-up
 
-### Where it is today
+### Migration context
 
 Status: done. `hosted_runtime.py` is in place and the case-review,
 application-review and coordinator agents and `knowledge_main.py` use it.
@@ -323,7 +340,7 @@ It landed before the `readiness="reviewed"` flips in #87, which the issue allows
 those sign-offs are made in the new per-agent files. The sections below keep the
 original design for the record, then "Result" says what changed and what didn't.
 
-### Where it is today
+### Migration context
 
 "Adding an agent" means one of two different jobs:
 

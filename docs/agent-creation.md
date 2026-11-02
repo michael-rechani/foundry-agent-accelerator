@@ -359,10 +359,11 @@ tests name any step that's missed.
 For a source/configuration export, see
 [portable agent bundles](../hosted-agents/README.md#portable-agent-bundles).
 The saved-agent API exposes its `runtime_hash` so the exporter can require the
-exact matching runtime source. In the Lab, a library entry's **Export and
-deploy** tab downloads a ready agent's saved record (`GET /api/agents/{id}`) and
-shows the `bundle.py export-created`, `inspect`, and `deploy` commands; building
-and deploying the bundle remain CLI steps in your own environment.
+exact matching runtime source. In the Lab, a library entry's **Take it to
+Foundry** tab downloads a ready agent's saved record (`GET /api/agents/{id}`).
+With **Under the hood** on, it also shows the `bundle.py export-created`,
+`inspect`, and `deploy` commands; building and deploying the bundle remain CLI
+steps in your own environment.
 Library templates are marked exportable only through the `after_creation`
 path: first create and publish a saved Lab agent, then export its ready record.
 Browsing a template alone doesn't produce a bundle.

@@ -28,9 +28,13 @@ production-ready business application.
 The private Azure deployment supports model calls and shared saved records.
 Local preview supports exploration without model execution or persistence.
 
-Today an operator presents the Lab from the jump box, the only machine that can
-reach it. Customers don't open it or sign in themselves. Customer self-service
-would first need end-user sign-in and per-user ownership of saved records.
+An operator presents the Lab over an approved access path: the private jump box
+or an explicitly approved, client-address-restricted Front Door endpoint with a
+Private Link origin. Front Door is optional and off by default; the dev Lab's
+approved exception is recorded in the
+[configuration and cost guide](docs/lab-configuration-and-cost.md#front-door-optional-off-by-default).
+The Lab has no end-user sign-in or per-user ownership of saved records, so
+network access alone does not provide customer isolation.
 
 ## Capabilities and Constraints
 
