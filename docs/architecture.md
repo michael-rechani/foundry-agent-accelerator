@@ -208,11 +208,16 @@ application-owned conversation and review records. The Lab uses a dedicated
 container in the existing Cosmos DB account. The Lab's history endpoints don't
 manage Foundry-owned data.
 
-Configured agents use the model deployment. The Lab calls a named agent
-endpoint, not a browser-selected model endpoint. Coordinator and specialist
-boxes represent custom Python applications. Key Vault holds necessary secrets.
-It isn't a transcript store, and the browser never reads it. Azure AI Search is
-a required platform dependency here.
+For a hosted agent, the Lab calls a named endpoint over HTTPS using the
+Responses API, its managed identity, and the Foundry private endpoint. Library
+previews instead call the model deployment directly. The coordinator invokes
+specialists using the same API pattern. Foundry runs these custom Python agents
+in managed, VM-isolated session sandboxes, separate from the Lab's Container
+App. They call the model deployment for inference; the delegated agent network
+provides private data access.
+
+Key Vault holds necessary secrets. It isn't a transcript store, and the browser
+never reads it. Azure AI Search is a required platform dependency here.
 The reference review workflow has no Search retrieval tool unless you turn on the
 optional [policy guidance lookup](knowledge-retrieval.md), which the dev Lab runs
 as a small sample pilot.
