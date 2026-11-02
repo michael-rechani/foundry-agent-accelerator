@@ -44,12 +44,16 @@ class CreationSettings:
     max_agents: int = 5
     timeout_seconds: int = 600
     models: dict = field(default_factory=dict)
+    private_presenter_mode: bool = False
 
     @classmethod
     def from_env(cls):
         flag = os.getenv("WORKBENCH_AGENT_CREATION_ENABLED", "false")
         if flag not in {"true", "false"}:
             raise ValueError("WORKBENCH_AGENT_CREATION_ENABLED must be true or false")
+        presenter = os.getenv("WORKBENCH_PRIVATE_PRESENTER_MODE", "false")
+        if presenter not in {"true", "false"}:
+            raise ValueError("WORKBENCH_PRIVATE_PRESENTER_MODE must be true or false")
         try:
             models = json.loads(os.getenv("WORKBENCH_AGENT_CREATION_MODELS") or "{}")
         except json.JSONDecodeError as problem:
@@ -61,11 +65,16 @@ class CreationSettings:
             key_sha256=os.getenv("WORKBENCH_CREATION_KEY_SHA256", ""),
             max_agents=int(os.getenv("WORKBENCH_MAX_CREATED_AGENTS", "5")),
             timeout_seconds=int(os.getenv("WORKBENCH_PUBLICATION_TIMEOUT_SECONDS", "600")),
+            private_presenter_mode=presenter == "true",
         )
 
     def validate(self, mode):
         if type(self.enabled) is not bool:
             raise ValueError("Agent creation enablement must be a boolean")
+        if type(self.private_presenter_mode) is not bool:
+            raise ValueError("Private presenter mode must be a boolean")
+        if self.private_presenter_mode and mode != "private":
+            raise ValueError("Presenter mode requires a private Lab")
         if not is_int(self.max_agents) or not 1 <= self.max_agents <= 20:
             raise ValueError("Configure between one and twenty created agents")
         if not is_int(self.timeout_seconds) or not 30 <= self.timeout_seconds <= 900:
@@ -77,9 +86,9 @@ class CreationSettings:
         if self.enabled and (
             mode != "private"
             or not isinstance(self.model, str) or not DEPLOYMENT_NAME.fullmatch(self.model)
-            or not re.fullmatch(r"[a-f0-9]{64}", self.key_sha256)
+            or (not self.private_presenter_mode and not re.fullmatch(r"[a-f0-9]{64}", self.key_sha256))
         ):
-            raise ValueError("Creation requires private mode, a model deployment, and an operator-key SHA-256 verifier")
+            raise ValueError("Creation requires private mode, a model deployment, and an operator-key SHA-256 verifier or explicit private presenter mode")
 
     def model_for(self, profile):
         return self.models.get(profile) or self.model
@@ -149,13 +158,14 @@ class AgentCreations:
         return self.settings.mode == "private" and self.store is not None
 
     def capabilities(self):
+        presenter = self.settings.mode == "private" and self.config.private_presenter_mode
         reason = ("local_preview" if self.settings.mode == "preview" else
                   "storage_unavailable" if self.store is None else
                   "not_enabled" if not self.config.enabled else None)
         return {
             "enabled": reason is None, "storage_enabled": self.storage_enabled, "reason": reason,
-            "management_enabled": self.storage_enabled and bool(self.config.key_sha256),
-            "requires_operator_key": True, "max_agents": self.config.max_agents,
+            "management_enabled": self.storage_enabled and (presenter or bool(self.config.key_sha256)),
+            "requires_operator_key": not presenter, "max_agents": self.config.max_agents,
             "publication_timeout_seconds": self.config.timeout_seconds,
             "model": self.config.model if self.config.enabled else None,
             "models": {profile: self.config.model_for(profile) for profile in MODEL_PROFILES}
@@ -186,6 +196,8 @@ class AgentCreations:
         capability = "enabled" if creating else "management_enabled"
         if not self.capabilities()[capability]:
             return self.error(request, 503, "creation_disabled")
+        if self.settings.mode == "private" and self.config.private_presenter_mode:
+            return None
         key = request.headers.get("x-workbench-creation-key", "")
         if not 32 <= len(key) <= 256 or not hmac.compare_digest(
             hashlib.sha256(key.encode("utf-8")).hexdigest(), self.config.key_sha256,

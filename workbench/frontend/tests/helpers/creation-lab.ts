@@ -214,6 +214,7 @@ export async function openCreation(
   page: Page,
   options: {
     preview?: boolean
+    presenter?: boolean
     disabled?: boolean
     saved?: CreatedAgent
     missingFromList?: boolean
@@ -243,7 +244,7 @@ export async function openCreation(
     record: options.saved || (null as CreatedAgent | null),
     drafts: [] as { goal: string; template_id?: string }[],
     posts: [] as CreatePayload[],
-    keys: [] as string[],
+    keys: [] as (string | undefined)[],
     chat: [] as ChatRequest[],
     savedChat: null as SavedChat | null,
     polls: 0,
@@ -329,7 +330,7 @@ export async function openCreation(
         'name',
         'template_id',
       ])
-      if (state.keys.at(-1) !== operatorKey)
+      if (!options.presenter && state.keys.at(-1) !== operatorKey)
         return respond({ error: 'operator_access_required' }, 403)
       if (state.rejectSetup)
         return respond(
@@ -351,7 +352,9 @@ export async function openCreation(
     if (path.startsWith('/api/agents/')) {
       if (!state.record) return respond({ error: 'agent_not_found' }, 404)
       if (method === 'DELETE' || path.endsWith('/resume')) {
-        expect(request.headers()['x-workbench-creation-key']).toBe(operatorKey)
+        expect(request.headers()['x-workbench-creation-key']).toBe(
+          options.presenter ? undefined : operatorKey,
+        )
         expect(request.headers()['if-match']).toBe(state.record._etag)
         expect(request.headers()['x-workbench-request']).toBe('1')
         if (method === 'DELETE') {

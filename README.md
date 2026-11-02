@@ -40,8 +40,9 @@ no model calls. This is a sample, not an official Microsoft product.
    an agent you want to build. When the idea is clear, it ends with a draft
    spec card to download. The draft uses a model placeholder; any needed tools
    and document sources still need to be configured and tested in Foundry.
-   Building a matching template here also needs the operator key and a cost
-   confirmation. Pick **Try a pre-built agent** to chat with a ready agent or a
+   Building a matching template here also needs the configured access gate
+   (operator key by default, or opt-in [presenter mode](docs/agent-creation.md#private-presenter-mode-no-operator-key))
+   and a cost confirmation. Pick **Try a pre-built agent** to chat with a ready agent or a
    library preview instead.
 5. **Take it to Foundry.** Download the agent definition and test requests, then
    follow the steps to create it in your own Foundry. There's no one-click move.

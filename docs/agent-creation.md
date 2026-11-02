@@ -25,7 +25,7 @@ agent-management service.
 **Describe the job -> prepare a setup -> review and confirm -> create in Foundry
 -> try it in Chat.**
 
-You can also start from **Chat**. When the Agent designer's spec card points to a template, **Create this agent here** runs the same steps (template assembly, operator key, cost confirmation, publish) inside the card, then offers **Chat with it**.
+You can also start from **Chat**. When the Agent designer's spec card points to a template, **Create this agent here** runs the same steps (template assembly, configured access gate, cost confirmation, publish) inside the card, then offers **Chat with it**. The access gate normally requires the operator key; explicitly enabled private presenter mode does not.
 
 **Download agent spec** is a draft handoff, not an uploaded or tested agent.
 The file uses a model placeholder and has no configured tools. Any lookup needs
@@ -162,6 +162,10 @@ and single worker/replica. Before enabling, complete these checks.
    key separately to approved operators. Don't commit it or put it in
    Terraform.
 
+   For an approved presenter-only demonstration, you can instead use
+   [private presenter mode](#private-presenter-mode-no-operator-key). Skip the
+   key and verifier setup in that case, not the other prerequisites.
+
    In the Lab, the **Operator key** box describes the key as a shared password
    for whoever runs the Lab. It isn't a personal sign-in. Whoever has it can
    create and delete real agents in Foundry.
@@ -208,7 +212,8 @@ and single worker/replica. Before enabling, complete these checks.
    the existing approved deployment process. The source-code and test changes
    don't perform a deployment or permission change by themselves.
 1. In the private UI, prepare one fictional setup, verify its tools and limits,
-   confirm costs/shared visibility, and provide the operator key. Check real
+   confirm costs/shared visibility, and provide the operator key unless approved
+   presenter mode is enabled. These live, billable checks need separate approval. Check real
    publication, send its sample, then verify cleanup before inviting an
    audience. Repeat once for each model deployment you use, because models
    differ in how they follow instructions and call tools.
@@ -218,6 +223,7 @@ For non-Terraform operators, the equivalent server configuration is:
 | Environment variable | Meaning |
 | --- | --- |
 | `WORKBENCH_AGENT_CREATION_ENABLED` | Exactly `true` to allow new publication/resume. Defaults to `false` |
+| `WORKBENCH_PRIVATE_PRESENTER_MODE` | Exactly `true` to allow private Lab users to create, resume and delete without a key. Defaults to `false`; rejected outside private mode. Not sign-in or per-user authorization |
 | `WORKBENCH_AGENT_CREATION_MODEL` | Default existing model deployment, used for any kind of work without its own entry. Not editable in the browser |
 | `WORKBENCH_MODEL_LIMITS` | Optional JSON object that maps each model deployment name to its `requests_per_minute` and `tokens_per_minute`, so the Lab answers busy before a chat turn would pass that deployment's limit. Set by `model_limits` in Terraform. See [Model limits](lab-configuration-and-cost.md#model-limits) |
 | `WORKBENCH_AGENT_CREATION_MODELS` | Optional JSON object that maps `reasoning`, `extraction`, and `tool_calling` to existing model deployments, for example `{"reasoning":"gpt-5.4","extraction":"gpt-5.4-mini"}` |
@@ -232,17 +238,62 @@ trusted hosts/origins, and Cosmos configuration still apply. Invalid opt-in
 settings fail startup rather than enabling an unprotected creation endpoint.
 
 > [!IMPORTANT]
-> The operator key travels only to this backend over the private HTTPS session,
+> In the default keyed mode, the operator key travels only to this backend over HTTPS,
 > in `X-Workbench-Creation-Key`. It is not sent to the model, written to Cosmos,
 > included in chat exports, or stored in browser persistent storage.
 
 This is a **shared operator gate**, not Microsoft Entra ID sign-in or per-user
 resource ownership. Anyone with Lab access can read the shared created-agent
-setups and use ready agents. Publication and deletion require the key. Don't
+setups and use ready agents. Publication and deletion require the key unless
+private presenter mode is explicitly enabled. Don't
 use confidential data.
 
 Disabling new creation doesn't stop or hide ready created agents. Keep the
-valid verifier configured to allow operator deletion while creation is disabled.
+valid verifier or private presenter mode configured to allow deletion while creation is disabled.
+
+### Private presenter mode (no operator key)
+
+This mode is for a trusted presenter on a restricted private Lab, not customer
+self-service. **Everyone who can reach the Lab can create, resume and delete
+shared agents without a key.** The server must explicitly opt in; a browser
+setting, request header or chat message cannot enable it.
+
+After separate rollout approval, set the following in the reviewed Lab
+Terraform inputs, retaining the existing model, storage and network settings:
+
+```hcl
+agent_creation_enabled = true
+private_presenter_mode = true
+agent_creation_model   = "your-existing-model"
+```
+
+Non-Terraform equivalent: `WORKBENCH_MODE=private`,
+`WORKBENCH_PRIVATE_PRESENTER_MODE=true` and
+`WORKBENCH_AGENT_CREATION_ENABLED=true`, with the existing model and storage
+configuration. No verifier is required. Retain the existing verifier input for
+rollback; this mode does not remove secrets or role assignments.
+
+Create, inline creation from Chat, resume and delete no longer ask for a key or
+send a key header. Cost consent for creation, shared-impact deletion
+confirmation, origin/header checks, ETags, idempotency, resource ownership and
+agent limits still apply. The mode neither enables creation on its own nor
+turns disconnected local preview into a running Lab. It changes no network
+access settings and must not be used to justify broader public exposure.
+
+The approved rollout in #442 is limited to the **existing IP-allowlisted public
+Front Door**, until presenter mode is switched off. Every caller reaching that
+endpoint from an allowed address gains keyless shared-agent mutation access;
+the application origin/header checks are not user authentication. No new public
+resource, ingress, firewall/allowlist change, credential, or anonymous/shared-key
+storage access is approved. Rollout and live boundary verification remain
+separate coordinated work; offline checks do not verify the live boundary.
+
+To roll back, retain/configure a valid verifier and set `private_presenter_mode=false`
+(or `WORKBENCH_PRIVATE_PRESENTER_MODE=false`). Without a valid verifier, enabled
+creation fails startup. Disabling creation alone stops new publication/resume,
+but leaves presenter-mode deletion available for cleanup. Entra sign-in remains
+separate work in #278; rollout and live verification for this mode are tracked
+in #442.
 
 ## Configuration ownership
 
@@ -253,7 +304,7 @@ valid verifier configured to allow operator deletion while creation is disabled.
 | [`agent_package.py`](../workbench/agent_package.py) | Deterministic runtime packaging shared by publication and the offline export CLI |
 | Creation request and saved record | Chosen template metadata snapshot, edited name/instructions, model deployment chosen for the template's kind of work, generated resource identity, and setup/runtime hashes |
 | [`agent_publisher.py`](../workbench/agent_publisher.py) | SDK publication, version/ownership checks, activation polling, route verification, and retirement |
-| Server environment / [Lab Terraform](../workbench/infra/main.tf) | Enablement, the default and per-kind model deployments, operator-key verifier, and operational limits |
+| Server environment / [Lab Terraform](../workbench/infra/main.tf) | Enablement, the default and per-kind model deployments, operator-key verifier or explicit private presenter mode, and operational limits |
 | Existing [`agents.json`](../workbench/agents.json) and coordinator profiles | Unchanged prebuilt agent catalog, visibility, and specialist bindings. Creation doesn't overwrite them |
 
 `GET /api/agent-templates` is also the browser's library contract. The response
@@ -385,7 +436,7 @@ browser-supplied endpoint names or change prebuilt agents.
 | Timeout or restart | Timeout, process restart, or an unsuccessful final status write can leave an interrupted record. Refresh checks status and isn't another publication. A failed poll doesn't mean the hosted operation stopped. |
 | Concurrent operations | Creation and deletion are serialized in one process. Conditional Cosmos updates reject stale operators. Multiple Lab workers or replicas would need distributed admission and job ownership, so don't enable them here. |
 | Ownership checks | Versions must carry this operation's ownership/setup/runtime metadata. Foreign or extra versions and inconsistent routes block automatic promotion or deletion. An owned but unrouted endpoint can be connected without replacing its existing authorization schemes or other protocol configuration. An absent activation status remains pending under the same bounded publication deadline. |
-| Deletion | Delete requires the operator key, confirmation of the shared impact, and the current ETag. It retires only this created resource after ownership checks and confirms absence. An interrupted deletion must be retried as deletion, not resumed as setup. A 404 after an unconfirmed submission isn't enough to claim the resource was safely removed. A deleted record can't be resumed (409 `agent_not_resumable`); repeating the deletion returns the same record without a second operation. |
+| Deletion | Delete requires the operator key unless private presenter mode is enabled, confirmation of the shared impact, and the current ETag. It retires only this created resource after ownership checks and confirms absence. An interrupted deletion must be retried as deletion, not resumed as setup. A 404 after an unconfirmed submission isn't enough to claim the resource was safely removed. A deleted record can't be resumed (409 `agent_not_resumable`); repeating the deletion returns the same record without a second operation. |
 
 Don't edit generated resources through a second control plane during an
 operation. Investigate unexpected changes in Foundry with an operator.
