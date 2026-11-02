@@ -24,7 +24,7 @@ component:
 | Diagram | What it shows | Where it appears | Source |
 | --- | --- | --- | --- |
 | [Agent release journey](agent-release-journey.svg) | The private foundation and agent releases as two connected workflows, their configuration handoff, and the decisions people approve. | [Showcase](../showcase.md) | [Template](agent-release-journey.template.svg) |
-| [Azure architecture](azure-architecture.svg) | One-page network map: the subscription and resource group, the admin and workload networks, a private endpoint for each service, seven numbered request steps, and the optional Front Door route. | [README](../../README.md#what-runs-in-azure) | [Template](azure-architecture.template.svg) |
+| [Azure architecture](azure-architecture.svg) | One-page network map: the admin and workload networks, private endpoints, the Foundry-managed agent runtime, the Responses API path, seven numbered request steps, and the optional Front Door route. | [README](../../README.md#what-runs-in-azure) | [Template](azure-architecture.template.svg) |
 | [How people reach the Lab](lab-access-paths.svg) | Three ingress patterns. The management subnet allow rule is configured by default, while Bastion and the jumpbox are optional and off by default. Also shows the internal Application Gateway design and optional Front Door path, including the sign-in gap. No addresses. | [Application ingress guide](../ingress-access.md), [architecture guide](../architecture.md#components-at-a-glance) | [Template](lab-access-paths.template.svg) |
 | [Agent collaboration](agent-collaboration.svg) | The coordinator's requests to specialists, their results, and the person who checks the answer. | [README](../../README.md#agents-working-together), [architecture guide](../architecture.md#agent-collaboration) | [Template](agent-collaboration.template.svg) |
 | [Orchestration pattern](orchestration-pattern.svg) | How the coordinator compares with the five patterns in Microsoft's agent orchestration guide: handoff is the closest match, with one difference. | [Architecture guide](../architecture.md#orchestration-pattern) | [Template](orchestration-pattern.template.svg) |
@@ -119,10 +119,13 @@ deployed into a virtual network sits inside one: Azure Bastion and the jumpbox
 in the admin network, and in the workload network the Lab's internal Container
 Apps environment, the agent network delegated to Foundry, and one private
 endpoint for each service. Foundry, data services, and shared services sit
-outside the networks, each linked to its private endpoint. Step 6 starts at
-Foundry Agent Service and runs through the agent network, because agents reach
-their data from there. Badges 1 to 7 follow one request and match the steps in
-the root README. Don't draw what Terraform doesn't create, such as network
+outside the networks, each linked to its private endpoint. Step 4 labels the
+Lab's HTTPS / Responses API call, private endpoint, and managed identity.
+Inside Foundry Agent Service, show the managed agent runtime separately from
+the model deployment used for inference. Step 6 starts at Foundry Agent Service
+and runs through the agent network, because agents reach their data from
+there. Badges 1 to 7 follow one request and match the steps in the root README.
+Don't draw what Terraform doesn't create, such as network
 security groups or a firewall. Don't add paths the view omits on purpose, such
 as Lab logs, which reach Azure Monitor through diagnostic settings rather
 than its private endpoint. Model names are examples, and deployments are

@@ -138,7 +138,7 @@ Azure Front Door endpoint. Each is off by default and needs its own `approve_*`
 Terraform input. Read the
 [Terraform guide](terraform/README.md) before you turn one on.
 
-<img alt="Azure architecture at a glance: one subscription and resource group hold an admin network, a private workload network, Microsoft Foundry, data services, and shared services. The admin network holds optional Azure Bastion and an optional jumpbox and is peered with the workload network. The workload network holds the Lab in an internal Azure Container Apps environment, the agent network delegated to Foundry, and one private endpoint for each service. An optional Azure Front Door Premium, limited to allowed client addresses, reaches the Lab through Private Link. Seven numbered steps follow a request from the presenter through Bastion, the jumpbox, and the Lab to Foundry Agent Service and Foundry Models, then through the agent network to Azure Cosmos DB, Azure Storage, and Azure AI Search" src="docs/images/azure-architecture-dark.svg">
+<img alt="Azure architecture at a glance: one subscription and resource group hold an admin network, a private workload network, Microsoft Foundry, data services, and shared services. The admin network holds optional Azure Bastion and an optional jumpbox and is peered with the workload network. The workload network holds the Lab in an internal Azure Container Apps environment, the agent network delegated to Foundry, and one private endpoint for each service. An optional Azure Front Door Premium, limited to allowed client addresses, reaches the Lab through Private Link. Seven numbered steps follow a request from the presenter through Bastion, the jumpbox, and the Lab to Foundry Agent Service over HTTPS using the Responses API, a private endpoint, and managed identity. Foundry hosts the coordinator and specialists in VM-isolated session sandboxes, separate from the model deployment they call for inference. The agent network connects to Azure Cosmos DB, Azure Storage, and Azure AI Search" src="docs/images/azure-architecture-dark.svg">
 
 1. If enabled, a presenter opens Azure Bastion from the Azure portal.
 2. Bastion opens a remote desktop session to the optional private jumpbox.
@@ -147,9 +147,10 @@ Terraform input. Read the
    reside. Front Door is the optional top route in the diagram: an allowed
    client reaches its WAF-filtered endpoint, and Private Link carries the
    request to the Lab. [Setup](docs/ingress-access.md#draft-front-door-limited-to-your-own-ip)
-4. The Lab calls Foundry Agent Service through the Foundry private endpoint,
-   signing in with its managed identity.
-5. The agents run on a Foundry Models deployment, GPT-4.1 by default.
+4. The Lab calls Foundry Agent Service over HTTPS using the Responses API
+   through the Foundry private endpoint, signing in with its managed identity.
+5. Foundry hosts the agents in managed, VM-isolated session sandboxes. They call
+   a Foundry Models deployment for inference, GPT-4.1 by default.
 6. Foundry Agent Service connects the agents to the delegated agent network.
    From there they keep conversations, files, and search data in Cosmos DB,
    Storage, and AI Search through private endpoints.
