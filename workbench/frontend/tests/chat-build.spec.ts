@@ -106,6 +106,33 @@ test('a rejected key does not leave a stuck request', async ({ page }) => {
   ).toBeVisible()
 })
 
+test('private presenter mode builds from chat without a key and keeps cost consent', async ({
+  page,
+}) => {
+  const state = await openCreation(page, {
+    hash: '#chat',
+    designerAnswer,
+    presenter: true,
+  })
+  const card = await askDesigner(page)
+  await card.getByRole('button', { name: 'Create this agent here' }).click()
+  const panel = card.getByRole('group', { name: 'Create this agent' })
+  await expect(panel.getByLabel('Operator key', { exact: true })).toHaveCount(0)
+  await expect(panel).toContainText('Private presenter mode')
+  const create = panel.getByRole('button', { name: 'Create in Foundry' })
+  await expect(create).toBeDisabled()
+  expect(state.posts).toHaveLength(0)
+  await panel.getByRole('checkbox').check()
+  await create.click()
+  await expect(card.getByRole('status')).toContainText('is ready in Foundry')
+  expect(state.keys).toEqual([undefined])
+  expect(state.posts[0].confirm_cost).toBe(true)
+  await page.getByText('Privacy & sharing', { exact: true }).click()
+  await expect(page.locator('.composer-privacy')).toContainText(
+    'anyone with Lab access can create or delete',
+  )
+})
+
 test('without creation the spec card offers only the download', async ({
   page,
 }) => {

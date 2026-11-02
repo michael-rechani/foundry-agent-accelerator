@@ -55,7 +55,8 @@ fixed tools return the sample purchase order and delivery record for
 
 With neither, **Guided demos** lets you read and copy the example and points
 you to the matching template. Preparing the template doesn't publish it.
-Publication still requires the operator key, cost approval, and the
+Publication still requires cost approval, the operator key unless explicit
+[private presenter mode](agent-creation.md#private-presenter-mode-no-operator-key) is enabled, and the
 existing [creation prerequisites](agent-creation.md).
 
 | Source | Expected finding | Human follow-up |
@@ -159,8 +160,9 @@ After the customer leaves:
    clears the messages on your screen.
 2. Reviews can't be deleted in the Lab. They expire 30 days after their last
    update, so use sample content only.
-3. Leave created agents alone unless the owner asks. An operator deletes them with
-   the operator key.
+3. Leave created agents alone unless the owner asks. An operator deletes them
+   with the operator key, or without a key in explicitly enabled private
+   presenter mode. Deletion still asks for confirmation of the shared impact.
 
 ## One foundation. Repeatable agent releases.
 

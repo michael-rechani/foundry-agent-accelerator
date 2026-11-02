@@ -12,6 +12,7 @@ import { isHelpQuestion } from './help-prompt'
 import { DESIGNER_ID } from './agent-designer'
 import { WaitingIndicator } from './WaitingIndicator'
 import type { Agent, Config } from './workspace-config'
+import { DemoBrief } from './DemoBrief'
 
 // The scrolling part of a chat: the guide for a demo, the welcome, the
 // messages, the wait indicator and the error.
@@ -30,6 +31,7 @@ export function ChatMessages({
   pending,
   error,
   activeDemo,
+  isDemoInput,
   bottom,
   latestAnswer,
   onFreshDemo,
@@ -61,6 +63,7 @@ export function ChatMessages({
   pending: string
   error: ChatFailure | null
   activeDemo: DemoScenario | null
+  isDemoInput: boolean
   bottom: RefObject<HTMLDivElement | null>
   latestAnswer: RefObject<HTMLElement | null>
   onFreshDemo: (scenario: DemoScenario) => void
@@ -91,6 +94,9 @@ export function ChatMessages({
           onLoadStep={onDemoStep}
         />
       )}
+      {activeDemo && !turns.length && isDemoInput && !pending && (
+        <DemoBrief scenario={activeDemo} showExpected />
+      )}
       {!turns.length && !pending ? (
         activeDemo ? null : (
           <ChatWelcome
@@ -112,6 +118,13 @@ export function ChatMessages({
             <ConversationTurn
               key={`${turn.result.request_id}-${index}`}
               turn={turn}
+              demo={
+                index === 0 &&
+                activeDemo &&
+                turn.question.trim() === activeDemo.input.trim()
+                  ? activeDemo
+                  : undefined
+              }
               label={agent?.label}
               agentLabels={agentLabels}
               foundryPortal={isPreview ? null : config?.foundry_portal}

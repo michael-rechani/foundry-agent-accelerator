@@ -1466,7 +1466,7 @@
         "lookup_usual_price": "DEMO-XR-2"
       },
       "checks": {
-        "must_include": ["DEMO-XR-2", "DEMO-LAB-7", "$1,104.00", "$174.00", "UNSENT DRAFT"],
+        "must_include": ["DEMO-XR-2", "DEMO-LAB-7", "$1,104.00", "$174.00", "$1,700.00", "$1,800.00", "$100.00", "$930.00", "$460.00", "UNSENT DRAFT"],
         "must_include_any": [
           ["duplicate", "already processed", "paid once"],
           ["qty 3", "quantity 3", "3 x $60.00", "three blood panels"],
@@ -1477,7 +1477,7 @@
         "expected_tools": ["lookup_plan_benefits", "lookup_usual_price"],
         "guards": ["no_payment_decision", "no_claimed_action"]
       },
-      "rubric": "Using the sample plan and usual-price lookup, keeps the duplicate X-ray, the bill's 3 blood panels versus the insurer's 1, and the hospital's $1,104.00 demand versus the statement's $174.00 patient share visible, then drafts an unsent dispute letter."
+      "rubric": "Leads with the estimated $174.00 statement share versus $1,104.00 billed. Independently sums the lines to $1,700.00 rather than the printed $1,800.00. Reconciles the $930.00 difference as $100.00 total error, $250.00 duplicate, $120.00 unmatched lab units and $460.00 contractual adjustments without double-counting or treating normal billed-to-allowed differences as standalone errors or guaranteed savings. Distinguishes sample lookups from claim evidence and includes an unsent letter because the sample asks for one."
     },
     {
       "id": "medical-bill-reviewer-embedded-pay-note",

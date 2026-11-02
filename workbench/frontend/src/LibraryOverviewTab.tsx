@@ -1,13 +1,17 @@
 import { FlaskConical, PackageOpen, ShieldCheck, Wrench } from 'lucide-react'
 import type { LibraryTemplate } from './library-catalog'
+import { demoForSample } from './demo-scenarios'
+import { DemoBrief } from './DemoBrief'
 
 export function LibraryOverviewTab({
   template,
 }: {
   template: LibraryTemplate
 }) {
+  const demo = demoForSample(template.id, template.sample_input)
   return (
     <>
+      {demo && <DemoBrief scenario={demo} showExpected />}
       <dl className="library-facts">
         <div>
           <dt>

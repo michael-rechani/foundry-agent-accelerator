@@ -13,6 +13,14 @@ and expected findings, but it doesn't run agents for you. **Presenter view**
 enlarges the story and Chat text while keeping the environment and shared-data
 boundaries.
 
+Each guided demo states the **Problem statement**, **What the agent does** and
+**Expected sample result** before a run. The matching medical-bill and supplier
+invoice library examples carry that framing into Chat. After sending the
+unchanged sample, **What the agent returned** labels the actual response; it
+does not substitute the expected findings or automatically mark checks as
+passed. The medical-bill guide explains the $1,104 bill versus $174 insurer
+patient share, sample-only lookups and the unsent letter a person reviews.
+
 ## At a glance
 
 Status values use the definitions in [terms used in these guides](README.md#terms-used-in-these-guides).
@@ -98,7 +106,9 @@ created sample agent ready rather than promising instant deployment.
    the configuration at this point.
 4. Review its input, output, limits, and fixed tools. Edit its name and task
    instructions if needed.
-5. Confirm costs and shared visibility, enter the operator key, and create it.
+5. Confirm costs and shared visibility, enter the operator key if requested, and
+   create it. Explicit [private presenter mode](agent-creation.md#private-presenter-mode-no-operator-key)
+   skips the key, not cost confirmation.
 6. Follow the real upload, provisioning, and routing stages in **All agents** > **My agents** > **Made in this Lab**.
    **Ready to try** means an active runtime and checked Responses route, not a
    quality pass.
@@ -115,7 +125,7 @@ created sample agent ready rather than promising instant deployment.
 | Any sector / Checklist gap finder | Compare a sample project application with the checklist I paste and flag anything missing or conflicting. | Item-by-item checking, not an award or eligibility decision |
 | Any sector / Form field extractor | Pull the request ID, requested supplies, dates and any blank fields from a sample supply request. | Fields copied as written, blanks left blank. No guessing |
 | Any sector / Service request planner | Use the sample request and service records to plan the review steps and list what a person must check. | Two read-only sample lookups and a step-by-step plan. No connected apps, writes or approvals |
-| Healthcare / Medical bill reviewer | Review a sample hospital bill against the insurer's statement and draft a dispute letter. | A math error, a duplicate X-ray, extra lab charges and prices above the plan's allowed amount, with the math shown and an unsent letter |
+| Healthcare / Medical bill reviewer | Review a sample hospital bill against the insurer's statement and draft a dispute letter. | The $174 statement share versus $1,104 billed, including the $100 total error, duplicate X-ray, unmatched lab units and separate contractual adjustments, without double-counting; an unsent letter |
 | Healthcare / Insurance pre-approval helper | Check that a sample MRI pre-approval request has every document the insurer asks for. | Out-of-date visit notes, two missing documents and an out-of-network facility caught before staff send it. No approval prediction |
 | Public sector / Benefits renewal helper | Sort a family's sample food-assistance renewal paperwork and flag what's missing or doesn't match. | An old pay stub, a likely missing one, a household-size mismatch and a friendly draft note. The caseworker decides |
 | Public sector / Case summary writer | Summarize sample intake notes and draft follow-up questions without deciding eligibility or changing records. | Facts, conflicting notes and questions kept separate |

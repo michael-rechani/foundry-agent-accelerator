@@ -28,6 +28,8 @@ import { foundryAgentUrl } from './foundry-links'
 import { loadedMarkdown, preloadMarkdown } from './markdown-loader'
 import { usageDetail, usageLabel } from './token-usage'
 import { UserMessage } from './UserMessage'
+import { DemoBrief } from './DemoBrief'
+import type { DemoScenario } from './demo-scenarios'
 
 const receiptLabels: Record<ReceiptState, string> = {
   verified: 'Verified receipt',
@@ -222,6 +224,7 @@ function EarlierAnswers({ answers }: { answers: Result[] }) {
 
 export function ConversationTurn({
   turn,
+  demo,
   label,
   agentLabels,
   foundryPortal,
@@ -239,6 +242,7 @@ export function ConversationTurn({
   onTryAgain,
 }: {
   turn: Turn
+  demo?: DemoScenario
   label?: string
   agentLabels?: Record<string, string>
   foundryPortal?: string | null
@@ -291,6 +295,16 @@ export function ConversationTurn({
             )}
           </span>
         </div>
+        {demo && (
+          <>
+            <DemoBrief scenario={demo} inAnswer />
+            <h3 className="demo-returned-title">What the agent returned</h3>
+            <p className="demo-returned-note">
+              Actual response for this request, not the expected sample result.
+              Check its claims against the documents.
+            </p>
+          </>
+        )}
         <Markdown text={designed.text} />
         {designed.spec && (
           <AgentSpecCard

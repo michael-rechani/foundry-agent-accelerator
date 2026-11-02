@@ -38,8 +38,9 @@ no model calls. This is a sample, not an official Microsoft product.
    cost, and whether a person has signed the agent off.
 4. **Chat.** A plain conversation with the **Agent designer** to talk through
    an agent you want to build. When the idea is clear, it ends with a spec card
-   to download. Building it here also needs the operator key and a cost
-   confirmation. Pick **Try a pre-built agent** to chat with a ready agent or a
+   to download. Building it here also needs cost confirmation and, unless
+   [private presenter mode](docs/agent-creation.md#private-presenter-mode-no-operator-key)
+   is enabled, the operator key. Pick **Try a pre-built agent** to chat with a ready agent or a
    library preview instead.
 5. **Take it to Foundry.** Download the agent definition and test requests, then
    follow the steps to create it in your own Foundry. There's no one-click move.

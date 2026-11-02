@@ -209,8 +209,9 @@ export function ChatComposer({
             )}
             {config.agent_creation && (
               <p>
-                Agent setups are shared. Publishing or deleting an agent
-                requires an operator key, not a user account.
+                {config.agent_creation.requires_operator_key
+                  ? 'Agent setups are shared. Publishing or deleting an agent requires an operator key, not a user account.'
+                  : 'Private presenter mode: anyone with Lab access can create or delete shared agents without a key. This is not a user account.'}
               </p>
             )}
           </details>

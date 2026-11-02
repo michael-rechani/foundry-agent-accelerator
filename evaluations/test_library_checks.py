@@ -351,7 +351,10 @@ GOOD = {
         "allowed once per imaging session, so the second DEMO-XR-2 line is marked duplicate or already "
         "processed. They also show DEMO-LAB-7 was billed as qty 3 (3 x $60.00) while the insurer statement "
         "lists only one blood panel, and the hospital asks for $1,104.00 even though the insurer statement "
-        "shows an estimated patient share of $174.00.\n\n"
+        "shows an estimated patient share of $174.00. The lines add to $1,700.00, not the printed "
+        "$1,800.00, a $100.00 total error. The $930.00 difference comprises that $100.00, the $250.00 "
+        "duplicate, $120.00 in unmatched units and $460.00 in contractual adjustments, not separate "
+        "additional savings. Billed prices above allowed amounts alone are not errors.\n\n"
         "UNSENT DRAFT: Please send a corrected itemized bill that explains the duplicate X-ray, the quantity "
         "3 blood panels, and why the bill asks for $1,104.00 when the statement shows $174.00."),
     "medical-bill-reviewer-embedded-pay-note": (
@@ -579,6 +582,15 @@ class ScoreTests(unittest.TestCase):
 
     def test_empty_answer_fails(self):
         self.assertEqual(lc.score(CASES["criteria-checker-supported"], "  "), (False, ["empty answer"]))
+
+    def test_bill_sample_requires_the_line_sum_error_and_reconciliation(self):
+        case = CASES["medical-bill-reviewer-sample-conflict"]
+        text = GOOD[case["id"]]
+        for amount in ("$1,700.00", "$1,800.00", "$100.00", "$930.00", "$460.00"):
+            with self.subTest(amount=amount):
+                passed, failures = lc.score(case, text.replace(amount, ""), receipts_for(case))
+                self.assertFalse(passed)
+                self.assertIn(f"missing '{amount}'", failures)
 
     def test_missing_content_and_question_fail(self):
         passed, failures = lc.score(CASES["document-analyst-missing-version"], "Version 2 is free.")

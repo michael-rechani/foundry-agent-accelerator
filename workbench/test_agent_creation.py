@@ -267,6 +267,85 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(response.status_code, 400, response.text)
         self.assertEqual(self.store.rows, {})
 
+    async def test_presenter_mode_keeps_mutation_guards_and_needs_no_key(self):
+        settings = replace(self.settings, creation=replace(
+            self.settings.creation, key_sha256="", private_presenter_mode=True,
+        ))
+        async with self.make_client(settings) as client:
+            config = (await client.get("/api/config")).json()["agent_creation"]
+            self.assertFalse(config["requires_operator_key"])
+            self.assertTrue(config["enabled"])
+            self.assertTrue(config["management_enabled"])
+            for headers in (
+                {"Origin": "https://untrusted.test"},
+                {"Sec-Fetch-Site": "cross-site"},
+                {"X-Workbench-Request": "0"},
+            ):
+                response = await client.post("/api/agents", json=self.body, headers=headers)
+                self.assertEqual(response.status_code, 403, response.text)
+            for changes in ({"confirm_cost": False}, {"confirm_cost": 1},
+                            {"private_presenter_mode": True}, {"model": "another-model"}):
+                response = await client.post("/api/agents", json={**self.body, **changes})
+                self.assertEqual(response.status_code, 400, response.text)
+            self.assertEqual(self.store.rows, {})
+            self.assertEqual(self.publisher.calls, [])
+            response = await client.post("/api/agents", json=self.body)
+            self.assertEqual(response.status_code, 202, response.text)
+            await asyncio.wait_for(self.publisher.done.wait(), 1)
+            path = "/api/agents/" + response.json()["id"]
+            record = (await client.get(path)).json()
+            repeated = await client.post("/api/agents", json=self.body)
+            self.assertEqual(repeated.status_code, 200)
+            self.assertEqual(len(self.publisher.calls), 1)
+            self.assertEqual((await client.delete(path)).status_code, 409)
+            self.store.rows[record["id"]].update(project="another-project")
+            self.assertEqual((await client.delete(
+                path, headers={"If-Match": record["_etag"]},
+            )).status_code, 404)
+            self.store.rows[record["id"]].update(project=self.publisher.calls[0][1]["project"],
+                                                status="creating", stage="provisioning")
+            current = (await client.get(path)).json()
+            self.publisher.done.clear()
+            resumed = await client.post(path + "/resume", headers={"If-Match": current["_etag"]})
+            self.assertEqual(resumed.status_code, 202, resumed.text)
+            await asyncio.wait_for(self.publisher.done.wait(), 1)
+            record = (await client.get(path)).json()
+        disabled = replace(settings, creation=replace(settings.creation, enabled=False))
+        async with self.make_client(disabled) as client:
+            config = (await client.get("/api/config")).json()["agent_creation"]
+            self.assertFalse(config["enabled"])
+            self.assertTrue(config["management_enabled"])
+            self.assertEqual((await client.post("/api/agents", json=self.body)).status_code, 503)
+            self.assertEqual((await client.post(path + "/resume",
+                                               headers={"If-Match": record["_etag"]})).status_code, 503)
+            self.publisher.done.clear()
+            deleted = await client.delete(path, headers={"If-Match": record["_etag"]})
+            self.assertEqual(deleted.status_code, 202, deleted.text)
+            await asyncio.wait_for(self.publisher.done.wait(), 1)
+            self.assertEqual((await client.get(path)).json()["status"], "deleted")
+            self.assertEqual([operation for operation, _ in self.publisher.calls], ["create", "resume", "delete"])
+
+    async def test_presenter_mode_does_not_remove_agent_limit(self):
+        settings = replace(self.settings, creation=replace(
+            self.settings.creation, key_sha256="", private_presenter_mode=True, max_agents=1,
+        ))
+        async with self.make_client(settings) as client:
+            response = await client.post("/api/agents", json=self.body)
+            self.assertEqual(response.status_code, 202)
+            await asyncio.wait_for(self.publisher.done.wait(), 1)
+            response = await client.post("/api/agents", json={**self.body, "idempotency_key": str(uuid4())})
+            self.assertEqual(response.status_code, 409)
+            self.assertEqual(response.json()["error"], "agent_limit_reached")
+
+    async def test_request_cannot_enable_presenter_mode(self):
+        response = await self.client.post(
+            "/api/agents?private_presenter_mode=true", json=self.body,
+            headers={"X-Workbench-Private-Presenter-Mode": "true"},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["error"], "operator_access_required")
+        self.assertEqual(self.store.rows, {})
+
     async def test_request_byte_limit_and_json_content_type(self):
         response = await self.client.post("/api/agents", content="x" * 32769,
                                           headers={**self.operator, "Content-Type": "application/json"})
@@ -569,6 +648,26 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
 
 
 class CreationSettingsTests(unittest.TestCase):
+    def test_presenter_mode_is_explicit_private_and_still_requires_a_model(self):
+        CreationSettings(True, "model", private_presenter_mode=True).validate("private")
+        for settings, mode in (
+            (CreationSettings(private_presenter_mode=True), "preview"),
+            (CreationSettings(True, "model", private_presenter_mode=True), "preview"),
+            (CreationSettings(True, private_presenter_mode=True), "private"),
+            (CreationSettings(private_presenter_mode="true"), "private"),
+            (CreationSettings(private_presenter_mode=1), "private"),
+        ):
+            with self.subTest(settings=settings, mode=mode), self.assertRaises(ValueError):
+                settings.validate(mode)
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertFalse(CreationSettings.from_env().private_presenter_mode)
+        with patch.dict("os.environ", {"WORKBENCH_PRIVATE_PRESENTER_MODE": "true"}):
+            self.assertTrue(CreationSettings.from_env().private_presenter_mode)
+        for value in ("1", "TRUE", "yes", ""):
+            with patch.dict("os.environ", {"WORKBENCH_PRIVATE_PRESENTER_MODE": value}):
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    CreationSettings.from_env()
+
     def test_opt_in_requires_private_mode_model_and_verifier(self):
         for settings, mode in (
             (CreationSettings(True, "model", KEY_HASH), "preview"),

@@ -25,7 +25,11 @@ import { AddOns } from './AddOns'
 import { JobFinder } from './JobFinder'
 import { isPreviewId, previewTemplateId } from './library-catalog'
 import { isDesignerId } from './agent-designer'
-import { agentForDemo, type DemoScenario } from './demo-scenarios'
+import {
+  agentForDemo,
+  demoForSample,
+  type DemoScenario,
+} from './demo-scenarios'
 import { useSimpleChat } from './simple-chat'
 import { hoodViews, loadUnderTheHood, saveUnderTheHood } from './under-the-hood'
 import { chatLimits, exportConversation } from './chat-helpers'
@@ -250,6 +254,24 @@ export default function ChatWorkspace() {
     )
   }
 
+  function templateIdFor(agentId: string) {
+    return (
+      previewTemplateId(agentId) ??
+      createdAgents.records.find((record) => record.id === agentId)
+        ?.template_id ??
+      agentId
+    )
+  }
+
+  function loadPrompt(text: string) {
+    conversation.prefill(text)
+    const demo = !turns.length
+      ? demoForSample(templateIdFor(selected), text)
+      : undefined
+    conversation.setActiveDemo(demo ?? null)
+    if (demo) clearDemoChecks(demo.id)
+  }
+
   function loadDemo(scenario: DemoScenario) {
     if (!config || busy || historyBusy) return
     const target = agentForDemo(
@@ -294,7 +316,14 @@ export default function ChatWorkspace() {
       'Open this example in a new chat?',
       'Open example',
       `The new chat uses ${target.label}.`,
-      () => resetConversation(target.id, input),
+      () => {
+        resetConversation(target.id, input)
+        const demo = demoForSample(templateIdFor(target.id), input)
+        if (demo) {
+          clearDemoChecks(demo.id)
+          conversation.setActiveDemo(demo)
+        }
+      },
     )
   }
 
@@ -528,6 +557,7 @@ export default function ChatWorkspace() {
               config?.agent_creation ? () => setView('create') : undefined
             }
             conversation={conversation}
+            onPrompt={loadPrompt}
             historyBusy={historyBusy}
             isPreview={isPreview}
             presenting={presenting}

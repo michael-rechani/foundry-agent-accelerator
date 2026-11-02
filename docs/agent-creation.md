@@ -25,7 +25,7 @@ agent-management service.
 **Describe the job -> prepare a setup -> review and confirm -> create in Foundry
 -> try it in Chat.**
 
-You can also start from **Chat**. When the Agent designer's spec card points to a template, **Create this agent here** runs the same steps (template assembly, operator key, cost confirmation, publish) inside the card, then offers **Chat with it**.
+You can also start from **Chat**. When the Agent designer's spec card points to a template, **Create this agent here** runs the same steps (template assembly, configured access gate, cost confirmation, publish) inside the card, then offers **Chat with it**. The access gate normally requires the operator key; explicitly enabled private presenter mode does not.
 
 The Create page lists the Lab's 18 templates in three groups, named and ordered
 the same as the sectors in the **Agent library**: **Works in any sector** (five
@@ -58,7 +58,7 @@ advice or use real patient data.
 | Template | You give it | You get back |
 | --- | --- | --- |
 | **Case summary writer** | Fictional case notes and any messages | A summary, a timeline, anything that conflicts or is missing, and draft follow-up questions |
-| **Medical bill reviewer** | A fictional hospital bill and the insurer's statement for the same visit | Likely mistakes (math errors, duplicate charges, amounts above the plan's allowed price) with the math shown, an estimate of what the documents support owing, and an unsent dispute letter. It doesn't contact anyone or pay or refuse the bill. |
+| **Medical bill reviewer** | A fictional hospital bill and the insurer's statement for the same visit | A statement-supported patient-share estimate, distinct discrepancies and a reconciliation without double-counting. Normal billed-to-allowed adjustments aren't standalone errors. An unsent letter is included when requested. It doesn't contact anyone or pay or refuse the bill. |
 | **Insurance pre-approval helper** | A fictional pre-approval request packet | Each required document marked present, missing, or out of date, plus a network check and a draft note to the ordering office. It doesn't approve or submit the request. |
 | **Benefits renewal helper** | A family's fictional renewal form and supporting paperwork | What's missing, too old, or doesn't match, what's already on file, and a friendly draft note to the family. It doesn't decide eligibility. |
 
@@ -157,6 +157,10 @@ and single worker/replica. Before enabling, complete these checks.
    key separately to approved operators. Don't commit it or put it in
    Terraform.
 
+   For an approved presenter-only demonstration, you can instead use
+   [private presenter mode](#private-presenter-mode-no-operator-key). Skip the
+   key and verifier setup in that case, not the other prerequisites.
+
    In the Lab, the **Operator key** box describes the key as a shared password
    for whoever runs the Lab. It isn't a personal sign-in. Whoever has it can
    create and delete real agents in Foundry.
@@ -213,6 +217,7 @@ For non-Terraform operators, the equivalent server configuration is:
 | Environment variable | Meaning |
 | --- | --- |
 | `WORKBENCH_AGENT_CREATION_ENABLED` | Exactly `true` to allow new publication/resume. Defaults to `false` |
+| `WORKBENCH_PRIVATE_PRESENTER_MODE` | Exactly `true` to allow private Lab users to create, resume and delete without a key. Defaults to `false`; rejected outside private mode. Not sign-in or per-user authorization |
 | `WORKBENCH_AGENT_CREATION_MODEL` | Default existing model deployment, used for any kind of work without its own entry. Not editable in the browser |
 | `WORKBENCH_MODEL_LIMITS` | Optional JSON object that maps each model deployment name to its `requests_per_minute` and `tokens_per_minute`, so the Lab answers busy before a chat turn would pass that deployment's limit. Set by `model_limits` in Terraform. See [Model limits](lab-configuration-and-cost.md#model-limits) |
 | `WORKBENCH_AGENT_CREATION_MODELS` | Optional JSON object that maps `reasoning`, `extraction`, and `tool_calling` to existing model deployments, for example `{"reasoning":"gpt-5.4","extraction":"gpt-5.4-mini"}` |
@@ -233,11 +238,48 @@ settings fail startup rather than enabling an unprotected creation endpoint.
 
 This is a **shared operator gate**, not Microsoft Entra ID sign-in or per-user
 resource ownership. Anyone with Lab access can read the shared created-agent
-setups and use ready agents. Publication and deletion require the key. Don't
+setups and use ready agents. Publication and deletion require the key unless
+private presenter mode is explicitly enabled. Don't
 use confidential data.
 
 Disabling new creation doesn't stop or hide ready created agents. Keep the
-valid verifier configured to allow operator deletion while creation is disabled.
+valid verifier or private presenter mode configured to allow deletion while creation is disabled.
+
+### Private presenter mode (no operator key)
+
+This mode is for a trusted presenter on a restricted private Lab, not customer
+self-service. **Everyone who can reach the Lab can create, resume and delete
+shared agents without a key.** The server must explicitly opt in; a browser
+setting, request header or chat message cannot enable it.
+
+After separate rollout approval, set the following in the reviewed Lab
+Terraform inputs, retaining the existing model, storage and network settings:
+
+```hcl
+agent_creation_enabled = true
+private_presenter_mode = true
+agent_creation_model   = "your-existing-model"
+```
+
+Non-Terraform equivalent: `WORKBENCH_MODE=private`,
+`WORKBENCH_PRIVATE_PRESENTER_MODE=true` and
+`WORKBENCH_AGENT_CREATION_ENABLED=true`, with the existing model and storage
+configuration. No verifier is required. Existing verifier inputs may remain
+for rollback; this mode does not remove secrets or role assignments.
+
+Create, inline creation from Chat, resume and delete no longer ask for a key or
+send a key header. Cost consent for creation, shared-impact deletion
+confirmation, origin/header checks, ETags, idempotency, resource ownership and
+agent limits still apply. The mode neither enables creation on its own nor
+turns disconnected local preview into a running Lab. It changes no network
+access settings and must not be used to justify public exposure.
+
+To roll back, configure a valid verifier and set `private_presenter_mode=false`
+(or `WORKBENCH_PRIVATE_PRESENTER_MODE=false`). Without a valid verifier, enabled
+creation fails startup. Disabling creation alone stops new publication/resume,
+but leaves presenter-mode deletion available for cleanup. Entra sign-in remains
+separate work in #278; rollout and live verification for this mode are tracked
+in #442.
 
 ## Configuration ownership
 
@@ -248,7 +290,7 @@ valid verifier configured to allow operator deletion while creation is disabled.
 | [`agent_package.py`](../workbench/agent_package.py) | Deterministic runtime packaging shared by publication and the offline export CLI |
 | Creation request and saved record | Chosen template metadata snapshot, edited name/instructions, model deployment chosen for the template's kind of work, generated resource identity, and setup/runtime hashes |
 | [`agent_publisher.py`](../workbench/agent_publisher.py) | SDK publication, version/ownership checks, activation polling, route verification, and retirement |
-| Server environment / [Lab Terraform](../workbench/infra/main.tf) | Enablement, the default and per-kind model deployments, operator-key verifier, and operational limits |
+| Server environment / [Lab Terraform](../workbench/infra/main.tf) | Enablement, the default and per-kind model deployments, operator-key verifier or explicit private presenter mode, and operational limits |
 | Existing [`agents.json`](../workbench/agents.json) and coordinator profiles | Unchanged prebuilt agent catalog, visibility, and specialist bindings. Creation doesn't overwrite them |
 
 `GET /api/agent-templates` is also the browser's library contract. The response

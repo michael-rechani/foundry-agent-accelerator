@@ -7,7 +7,9 @@ import {
   FlaskConical,
   MessageSquare,
   ReceiptText,
+  Stethoscope,
 } from 'lucide-react'
+import { DemoBrief } from './DemoBrief'
 import {
   demoScenarios,
   agentForDemo,
@@ -26,7 +28,7 @@ import { isPreviewId } from './library-catalog'
 import type { Agent, Config } from './workspace-config'
 import './showcase.css'
 
-const icons = [FileCheck2, ReceiptText, MessageSquare]
+const icons = [FileCheck2, ReceiptText, MessageSquare, Stethoscope]
 
 export function ExploreDemos({
   config,
@@ -112,6 +114,7 @@ export function ExploreDemos({
             <h2 id="demo-story-title">{selected.title}</h2>
             <p>{selected.description}</p>
           </header>
+          <DemoBrief scenario={selected} showExpected />
           <div className="demo-actions">
             {agent ? (
               <button
@@ -167,10 +170,6 @@ export function ExploreDemos({
                 </li>
               ))}
             </ol>
-          </div>
-          <div className="demo-decision">
-            <h3>Your decision stays yours.</h3>
-            <p>{selected.decision}</p>
           </div>
           <details className="demo-input" key={selected.id}>
             <summary>Sample input</summary>

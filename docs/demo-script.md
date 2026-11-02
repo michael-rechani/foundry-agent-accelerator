@@ -52,8 +52,9 @@ person confirms.
    needs, what it returns and **what a person decides**.
 5. Choose **Download agent spec**. Say: "That is a real Foundry prompt agent
    definition. Nothing was created."
-6. Optional, only with the operator key and your approval to spend: on the card
-   choose **Create this agent here**, enter the key, confirm the cost and wait
+6. Optional, only with your approval to spend and either the operator key or
+   explicitly enabled [private presenter mode](agent-creation.md#private-presenter-mode-no-operator-key): on the card
+   choose **Create this agent here**, enter the key if requested, confirm the cost and wait
    for it to publish, then choose **Chat with it**. This creates a real, billable
    agent, so delete it afterwards in **Made in this Lab**.
 
@@ -63,13 +64,44 @@ If the designer asks a question first, answer in one line and let it continue.
 
 1. Open the **Agent library**. The **Browse** tab lists agents the Lab has
    tested. For a strong example, open **Medical bill reviewer**.
-2. On **Overview**, read aloud the three things it states: what it needs, what
-   it returns and what it leaves to a person.
-3. On **Try it**, run it on an example input.
+2. On **Overview**, use the sample's **Problem statement**, **What the agent
+   does** and **Expected sample result** to frame the demo:
+   "The patient has two documents that disagree. The agent checks the documents,
+   explains the math and drafts a letter. A person still confirms the balance."
+   The expected result is a target to check, not an answer already returned.
+3. On **Try it**, choose **Try it in Chat** (or **Open your created agent**).
+   This only loads the sample; choose **Send** when ready to make an approved
+   billable call. The same story appears in Chat. **Presenter view** enlarges it.
+   When the response arrives, point to **What the agent returned**: that is the
+   actual response, unchanged, not the expected sample result. If it misses a
+   check, show the miss rather than claiming the target was achieved.
+   Frame this as **healthcare billing
+   assistance**, not clinical advice. The task is to compare two documents,
+   explain the difference and draft a letter for a person to review.
+   The standard sample's statement supports **$174**, compared with **$1,104**
+   billed. Check that the answer catches the **$100 arithmetic discrepancy**:
+   its lines total **$1,700**, not **$1,800**. The **$930** gap reconciles as
+   **$100 + $250 duplicate + $120 unmatched lab units + $460 contractual
+   adjustments**. These components explain the same gap; they aren't
+   additional savings. A price above an allowed amount alone isn't an error.
+   The lookups use sample records, not a connection to an insurer. **Confirmed**
+   means a lookup ran, not that its answer is correct. Keep technical receipts
+   in **Details** rather than reading all five steps aloud.
 4. On **Test results**, show how it did on the Lab's test cases: each case is
    sent five times and every answer must pass. Say: "These are the results
    before anyone trusts it, not after," and point at the case that missed a
    check, which the Lab flags for a person instead of hiding.
+
+The revised bill instructions and arithmetic checks need new recorded answers
+and live verification before they can be described as measured improvements
+(#362). Existing published agents keep their saved instructions until replaced;
+changing a library template does not update them in place.
+The medical sample is also available under **Try a guided demo** as
+**Explain why the bill and insurer disagree**, with follow-ups to explain the
+math and review the unsent letter. Loading a guide never creates an agent or
+sends a message. The sample framing applies only to the unchanged example;
+edited requests and restored chats do not receive that sample's returned-answer
+framing.
 
 ## 3. Watch agents work together (4 minutes)
 
@@ -107,10 +139,11 @@ now call the *other* specialist, so **Details** shows a different agent. That is
 routing: you don't pick the specialist, the coordinator does. Try it once before
 you present.
 
-**Catch what does not add up** (the supplier invoice review) can be read, but
-it has no **Load sample input**: running it needs the Supplier invoice reviewer
-agent created first. Use it as a talking point, not a live step. The inputs and
-expected findings for every guided demo are in the [demo guide](demos.md).
+**Catch what does not add up** (the supplier invoice review) offers **Load sample
+input** when a matching ready agent or an enabled library preview is available.
+Otherwise it offers the library template to prepare separately. Loading the
+sample never creates an agent or sends a message. The inputs and expected
+findings for every guided demo are in the [demo guide](demos.md).
 
 If you used the invoice idea in step 1, expect the spec card to say no built-in
 template matches. That is the honest answer, and **Create this agent here**
