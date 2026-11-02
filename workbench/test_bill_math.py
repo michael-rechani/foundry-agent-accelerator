@@ -22,6 +22,19 @@ SAMPLE = {
     "statement_share": "$174.00",
 }
 
+SAMPLE_RECONCILIATION = {
+    "matched_claim_lines": [
+        {"label": "ER", "billed": "900", "allowed": "600"},
+        {"label": "First X-ray", "billed": "250", "allowed": "150"},
+        {"label": "One lab unit", "billed": "60", "allowed": "40"},
+        {"label": "Splint", "billed": "120", "allowed": "80"},
+    ],
+    "duplicate_bill_amounts": ["250"],
+    "unmatched_units": [
+        {"label": "Lab", "bill_quantity": "3", "statement_quantity": "1", "unit_price": "60"},
+    ],
+}
+
 
 def calculate(data):
     return calculate_bill_values(json.dumps(data))
@@ -45,6 +58,81 @@ class BillMathTests(unittest.TestCase):
         self.assertTrue(all(line["printed_amount_minus_exact_product"] == "$0.00" for line in result["lines"]))
         self.assertEqual(result["warnings"], [])
         self.assertIn("omitted lines", result["note"])
+
+    def test_demo_reconciliation_calculates_each_component_without_double_counting(self):
+        data = deepcopy(SAMPLE)
+        data["reconciliation"] = SAMPLE_RECONCILIATION
+        result = calculate(data)["reconciliation"]
+        self.assertEqual([line["billed_minus_allowed"] for line in result["matched_claim_lines"]],
+                         ["$300.00", "$100.00", "$20.00", "$40.00"])
+        self.assertEqual(result["matched_billed_minus_allowed"], "$460.00")
+        self.assertEqual(result["duplicate_bill_amount_sum"], "$250.00")
+        self.assertEqual(result["unmatched_units"][0]["unmatched_quantity"], "2")
+        self.assertEqual(result["unmatched_amount_sum"], "$120.00")
+        self.assertEqual(result["component_sum"], "$930.00")
+        self.assertEqual(result["balance_gap_minus_component_sum"], "$0.00")
+        self.assertIn("already posted", result["note"])
+
+    def test_reconciliation_leaves_posted_adjustments_visible_in_the_remainder(self):
+        data = {
+            "lines": [
+                {"label": "ER", "quantity": "1", "unit_price": "900", "amount": "900"},
+                {"label": "Lab", "quantity": "1", "unit_price": "60", "amount": "60"},
+            ],
+            "bill_total": "960", "bill_adjustments": ["-320", "-512"], "bill_balance": "128",
+            "patient_shares": ["120", "8"], "statement_share": "128",
+            "reconciliation": {
+                "matched_claim_lines": [
+                    {"label": "ER", "billed": "900", "allowed": "600"},
+                    {"label": "Lab", "billed": "60", "allowed": "40"},
+                ],
+                "duplicate_bill_amounts": [], "unmatched_units": [],
+            },
+        }
+        result = calculate(data)["reconciliation"]
+        self.assertEqual(result["matched_billed_minus_allowed"], "$320.00")
+        self.assertEqual(result["component_sum"], "$320.00")
+        self.assertEqual(result["balance_gap_minus_component_sum"], "-$320.00")
+
+    def test_partial_shares_do_not_become_a_printed_statement_total(self):
+        data = {
+            "lines": [
+                {"label": "ER", "quantity": "1", "unit_price": "900", "amount": "900"},
+                {"label": "Lab", "quantity": "1", "unit_price": "60", "amount": "60"},
+            ],
+            "bill_total": "960", "bill_adjustments": ["-480"], "bill_balance": "480",
+            "patient_shares": ["120"],
+            "reconciliation": {
+                "matched_claim_lines": [{"label": "ER", "billed": "900", "allowed": "600"}],
+                "duplicate_bill_amounts": [],
+                "unmatched_units": [
+                    {"label": "Lab", "bill_quantity": "1", "statement_quantity": "0", "unit_price": "60"},
+                ],
+            },
+        }
+        result = calculate(data)
+        self.assertIsNone(result["statement_share"])
+        self.assertEqual(result["provided_patient_shares_sum"], "$120.00")
+        self.assertEqual(result["bill_balance_minus_provided_patient_shares"], "$360.00")
+        self.assertIsNone(result["bill_balance_minus_statement_share"])
+        self.assertIsNone(result["reconciliation"]["balance_gap_minus_component_sum"])
+        self.assertIn("not necessarily a complete statement total", result["note"])
+
+    def test_reconciliation_rejects_missing_or_inconsistent_categories(self):
+        for invalid in (
+            {},
+            {**SAMPLE_RECONCILIATION, "duplicate_bill_amounts": None},
+            {**SAMPLE_RECONCILIATION, "duplicate_bill_amounts": ["-250"]},
+            {**SAMPLE_RECONCILIATION, "matched_claim_lines": [{"label": "ER", "billed": "900"}]},
+            {**SAMPLE_RECONCILIATION, "matched_claim_lines": [{"label": "ER", "billed": "-1", "allowed": "0"}]},
+            {**SAMPLE_RECONCILIATION, "unmatched_units": [
+                {"label": "Lab", "bill_quantity": "1", "statement_quantity": "3", "unit_price": "60"},
+            ]},
+        ):
+            data = deepcopy(SAMPLE)
+            data["reconciliation"] = invalid
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                calculate(data)
 
     def test_clean_bill_and_decimal_cents_are_not_hardcoded_to_the_demo(self):
         data = {

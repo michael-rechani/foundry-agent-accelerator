@@ -48,9 +48,10 @@ python -m unittest test_library_checks
   `{"case_id": "...", "text": "...", "receipts": [...]}`. `text` and `receipts`
   match the fields the Lab's chat response returns. When `receipts` is present,
   the expected lookups must appear in it. Medical-bill cases also require a
-  confirmed calculator receipt; the showcase case checks its copied amounts
-  and line quantities and unit prices, as well as the result, against the
-  sample bill rather than checking just the tool name.
+  confirmed calculator receipt and check its copied amounts, line quantities,
+  unit prices and whether a statement total was actually printed. The showcase
+  also checks its matched claim pairs, duplicate and unmatched quantities, and
+  calculated reconciliation components against the sample documents.
 
 Scoring is a conservative screen, not a grade. It checks required labels,
 figures, and questions, and flags prohibited claims such as approvals,

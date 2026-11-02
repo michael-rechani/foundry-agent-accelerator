@@ -282,10 +282,20 @@ def create_demo_tools(template_id, agent_name):
         bill_data_json is a JSON object with a lines array. Each line has label and amount, and,
         when shown, quantity and unit_price. Optional fields are bill_total, bill_adjustments
         (a list of signed amounts, negative for credits or payments), bill_balance,
-        patient_shares (a list of statement line shares), and statement_share (the statement's
-        printed total). Use decimal strings; copy every bill line and value from the documents.
-        Omit missing fields or use null, not guessed zeros. Use [] for adjustments only when
-        the bill shows there are none. Compare the returned inputs with the original documents.
+        patient_shares (a list of statement line shares), and statement_share (only a total
+        explicitly printed on the statement, never a sum you inferred). Use decimal strings;
+        copy every bill line and value from the documents. Omit missing fields or use null,
+        not guessed zeros. Use [] for adjustments only when the bill shows there are none.
+
+        For a component reconciliation, optionally provide reconciliation with all three lists:
+        matched_claim_lines (objects with label, billed and allowed from matched non-duplicate
+        statement quantities), duplicate_bill_amounts (billed amounts for duplicate lines), and
+        unmatched_units (objects with label, bill_quantity, statement_quantity and unit_price).
+        Use empty lists only when the documents support none. The caller must identify the
+        matches and verify that categories do not overlap; the tool cannot do this or detect
+        omitted lines. Its component sum does not account for already-posted adjustments:
+        compare the returned remainder and check the bill before drawing a conclusion.
+        Compare all returned inputs with the original documents.
         """
         return receipt(calculate_bill_values(bill_data_json), calculation=True)
 

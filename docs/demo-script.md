@@ -82,16 +82,20 @@ If the designer asks a question first, answer in one line and let it continue.
    Frame this as **healthcare billing
    assistance**, not clinical advice. The task is to compare two documents,
    explain the difference and draft a letter for a person to review.
-   The standard sample's statement supports **$174**, compared with **$1,104**
-   billed. Check that the answer catches the **$100 arithmetic discrepancy**:
+   The standard sample's statement lists **$174** for processed lines, compared
+   with **$1,104** billed. Two lab units are missing from the statement, so
+   **$174 is not a whole-bill estimate**. Check that the answer catches the
+   **$100 arithmetic discrepancy**:
    its lines total **$1,700**, not **$1,800**. The **$930** gap reconciles as
    **$100 + $250 duplicate + $120 unmatched lab units + $460 contractual
    adjustments**. These components explain the same gap; they aren't
    additional savings. A price above an allowed amount alone isn't an error.
    The lookups use sample records, not a connection to an insurer. The calculator
    checks arithmetic on the values the agent copied; a person still checks those
-   values against the documents. **Confirmed** means a step ran, not that its
-   content is correct. Keep technical receipts in **Details**.
+   values, the line matches, and any already-posted adjustments against the
+   documents. If statement lines are missing, their listed shares are only a
+   partial sum, not an estimate of the full balance. **Confirmed** means a step
+   ran, not that its content is correct. Keep technical receipts in **Details**.
 4. On **Test results**, show how it did on the Lab's test cases: each case is
    sent five times and every answer must pass. Say: "These are the results
    before anyone trusts it, not after," and point at the case that missed a

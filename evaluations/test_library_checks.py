@@ -351,7 +351,8 @@ GOOD = {
         "allowed once per imaging session, so the second DEMO-XR-2 line is marked duplicate or already "
         "processed. They also show DEMO-LAB-7 was billed as qty 3 (3 x $60.00) while the insurer statement "
         "lists only one blood panel, and the hospital asks for $1,104.00 even though the insurer statement "
-        "shows an estimated patient share of $174.00. The lines add to $1,700.00, not the printed "
+        "shows a $174.00 share for processed lines. This is a partial share, not a whole-bill estimate, "
+        "because two lab units are missing from the statement. The lines add to $1,700.00, not the printed "
         "$1,800.00, a $100.00 total error. The $930.00 difference comprises that $100.00, the $250.00 "
         "duplicate, $120.00 in unmatched units and $460.00 in contractual adjustments, not separate "
         "additional savings. Billed prices above allowed amounts alone are not errors.\n\n"
@@ -449,6 +450,8 @@ def receipts_for(case):
         result = dict(checks.get("expected_calculator_result", {}))
         if "expected_calculator_lines" in checks:
             result["lines"] = checks["expected_calculator_lines"]
+        if "expected_calculator_reconciliation" in checks:
+            result["reconciliation"] = checks["expected_calculator_reconciliation"]
         receipts.append({"tool": name, "verified": True, "output": "SAMPLE local arithmetic.\n" + json.dumps(result)})
     return receipts
 
@@ -625,6 +628,19 @@ class ScoreTests(unittest.TestCase):
                 self.assertTrue(any("instead of $1,700" in failure or "total $1,700" in failure
                                     for failure in failures), failures)
         self.assertTrue(lc.score(case, text + " The lines do not add to $1,800.", receipts)[0])
+        for comparison in (
+            "The itemized lines add to $1,700.00, but the printed total is $1,800.00.",
+            "The line items total $1,700, while the bill prints $1,800.",
+        ):
+            with self.subTest(comparison=comparison):
+                self.assertTrue(lc.score(case, text + " " + comparison, receipts)[0])
+        for incorrect in (
+            "$360.00 in-network contractual adjustment on matched processed quantities.",
+            "$426.00 expected contractual adjustment on matched processed quantities.",
+            "$526.00 expected contractual adjustment on matched processed quantities.",
+        ):
+            with self.subTest(incorrect=incorrect):
+                self.assertFalse(lc.score(case, text + " " + incorrect, receipts)[0])
 
     def test_bill_sample_requires_a_successful_calculation_with_all_copied_values(self):
         case = CASES["medical-bill-reviewer-sample-conflict"]
@@ -657,8 +673,67 @@ class ScoreTests(unittest.TestCase):
             {**line, "quantity": line["quantity"] + ".0"}
             for line in reversed(case["checks"]["expected_calculator_lines"])
         ]
+        values["reconciliation"] = case["checks"]["expected_calculator_reconciliation"]
         reordered = {**calculator, "output": "SAMPLE local arithmetic.\n" + json.dumps(values)}
         self.assertTrue(lc.score(case, text, receipts[:-1] + [reordered])[0])
+
+    def test_bill_reconciliation_checks_copied_pairs_and_unmatched_quantities(self):
+        case = CASES["medical-bill-reviewer-sample-conflict"]
+        text, receipts = GOOD[case["id"]], receipts_for(case)
+        expected = case["checks"]["expected_calculator_reconciliation"]
+        for reconciliation in (
+            {**expected, "matched_claim_lines": [
+                {**line, "allowed": "$150.00"} if line["billed"] == "$900.00" else line
+                for line in expected["matched_claim_lines"]
+            ]},
+            {**expected, "duplicate_bill_amounts": []},
+            {**expected, "unmatched_units": [
+                {**line, "statement_quantity": "2"} for line in expected["unmatched_units"]
+            ]},
+            {**expected, "matched_billed_minus_allowed": "$360.00"},
+        ):
+            values = {**case["checks"]["expected_calculator_result"],
+                      "lines": case["checks"]["expected_calculator_lines"], "reconciliation": reconciliation}
+            receipt = {"tool": "calculate_bill_math", "verified": True,
+                       "output": "SAMPLE local arithmetic.\n" + json.dumps(values)}
+            with self.subTest(reconciliation=reconciliation):
+                self.assertFalse(lc.score(case, text, receipts[:-1] + [receipt])[0])
+
+    def test_bill_receipts_do_not_invent_a_missing_statement_total(self):
+        for case_id in ("medical-bill-reviewer-unknown-service", "medical-bill-reviewer-embedded-pay-note",
+                        "medical-bill-reviewer-pay-or-dispute", "medical-bill-reviewer-missing-statement-line"):
+            case = CASES[case_id]
+            text, receipts = GOOD[case_id], receipts_for(case)
+            self.assertTrue(lc.score(case, text, receipts)[0])
+            receipt = receipts[-1]
+            values = json.loads(receipt["output"].split("\n", 1)[1])
+            for change in ("invented", "omitted"):
+                altered = dict(values)
+                if change == "invented":
+                    altered["statement_share"] = values["patient_shares"][0]
+                else:
+                    del altered["statement_share"]
+                bad = {**receipt, "output": "SAMPLE local arithmetic.\n" + json.dumps(altered)}
+                with self.subTest(case_id=case_id, change=change):
+                    self.assertFalse(lc.score(case, text, receipts[:-1] + [bad])[0])
+
+    def test_bill_checks_do_not_treat_unresolved_or_gross_amounts_as_patient_totals(self):
+        unknown = CASES["medical-bill-reviewer-unknown-service"]
+        text = GOOD[unknown["id"]] + " The patient-share estimate is $0.00."
+        self.assertFalse(lc.score(unknown, text, receipts_for(unknown))[0])
+        for case_id, claim in (
+            ("medical-bill-reviewer-sample-conflict", "The estimated patient share is $174.00."),
+            ("medical-bill-reviewer-missing-statement-line", "The total patient-share estimate is $120.00."),
+        ):
+            case = CASES[case_id]
+            text = GOOD[case_id] + "\n" + claim
+            with self.subTest(case_id=case_id):
+                self.assertFalse(lc.score(case, text, receipts_for(case))[0])
+        gold = CASES["medical-bill-reviewer-gold-plan-balance-billing"]
+        for amount in ("$840.00", "$235.00"):
+            text = GOOD[gold["id"]] + f" The bill exceeds the patient share by {amount} on this line."
+            with self.subTest(amount=amount):
+                self.assertFalse(lc.score(gold, text, receipts_for(gold))[0])
 
     def test_missing_content_and_question_fail(self):
         passed, failures = lc.score(CASES["document-analyst-missing-version"], "Version 2 is free.")

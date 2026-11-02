@@ -63,15 +63,18 @@ advice or use real patient data.
 | Template | You give it | You get back |
 | --- | --- | --- |
 | **Case summary writer** | Fictional case notes and any messages | A summary, a timeline, anything that conflicts or is missing, and draft follow-up questions |
-| **Medical bill reviewer** | A fictional hospital bill and the insurer's statement for the same visit | A statement-supported patient-share estimate, distinct discrepancies and a reconciliation without double-counting. Normal billed-to-allowed adjustments aren't standalone errors. An unsent letter is included when requested. It doesn't contact anyone or pay or refuse the bill. |
+| **Medical bill reviewer** | A fictional hospital bill and the insurer's statement for the same visit | A statement-supported patient-share estimate when the documents support one, or a partial sum when statement lines are missing, plus distinct discrepancies and a reconciliation without double-counting. Normal billed-to-allowed adjustments aren't standalone errors. An unsent letter is included when requested. It doesn't contact anyone or pay or refuse the bill. |
 | **Insurance pre-approval helper** | A fictional pre-approval request packet | Each required document marked present, missing, or out of date, plus a network check and a draft note to the ordering office. It doesn't approve or submit the request. |
 | **Benefits renewal helper** | A family's fictional renewal form and supporting paperwork | What's missing, too old, or doesn't match, what's already on file, and a friendly draft note to the family. It doesn't decide eligibility. |
 
 The Medical bill reviewer, Insurance pre-approval helper, and Benefits renewal
 helper each use two fixed, sample, read-only lookups (for example, plan
 benefits and usual prices for the medical bill reviewer). The medical reviewer
-also has a local calculator for values copied from the supplied documents;
-someone must still verify that the copied values are complete and correct.
+also has a local calculator for values copied from the supplied documents. It
+calculates selected reconciliation components but cannot decide which lines
+match, detect omissions, or know whether an adjustment was already posted.
+Someone must verify those selections and the copied values. The sum of listed
+patient shares is not a complete statement total when a line is missing.
 
 Each template card shows the [model profile](#how-the-lab-picks-a-model) the
 job uses and whether it has sample lookups.
