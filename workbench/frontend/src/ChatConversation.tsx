@@ -5,6 +5,7 @@ import { ChatMessages } from './ChatMessages'
 import type { SpecBuild } from './SpecBuildPanel'
 import { saveStateText, type chatLimits } from './chat-helpers'
 import { withRating } from './answer-feedback'
+import { isDesignerId } from './agent-designer'
 import type { DemoScenario } from './demo-scenarios'
 import type { Conversation } from './use-conversation'
 import type { Agent, Config } from './workspace-config'
@@ -221,7 +222,12 @@ export function ChatConversation({
           exportDisabled={!turns.length && !draft}
           saveState={
             turns.length
-              ? saveStateText({ isPreview, saved: !!saved, dirty, draft })
+              ? saveStateText({
+                  isPreview: isPreview && !isDesignerId(conversation.selected),
+                  saved: !!saved,
+                  dirty,
+                  draft,
+                })
               : 'Nothing to save yet'
           }
           onCatalog={onCatalog}

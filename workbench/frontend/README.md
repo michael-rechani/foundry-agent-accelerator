@@ -64,6 +64,13 @@ portal links (`foundry-links.ts`, `FoundryLink.tsx`) are built from the
 `foundry_portal` config value and shown only under the hood. `WaitingIndicator.tsx` owns the elapsed timer so it
 doesn't rerender the transcript.
 
+After the first Agent designer reply, the plain Chat header exposes explicit
+save and export actions without showing the agent-details column. Designer
+chats use the preview runtime, but can be saved to shared history when it is
+enabled. Other library-template previews remain unsaveable. Export downloads
+the whole completed dialogue and unsent draft, while the spec card downloads
+only an agent definition. Neither action invokes a model or publishes an agent.
+
 The three workspace components (`ChatWorkspace.tsx`,
 `AgentCreationWorkspace.tsx`, and `ReviewWorkspace.tsx`) compose the feature
 hooks and route callbacks between views. Chat's state, effects, and request

@@ -69,6 +69,13 @@ class LibraryPreviewTests(unittest.TestCase):
         for phrase in ("Take it to Foundry", "The Lab has no import", "hosted-agent package"):
             self.assertIn(phrase, DESIGNER_INSTRUCTIONS)
 
+    def test_agent_designer_knows_how_to_preserve_the_conversation(self):
+        for phrase in ("Export conversation", "Save to shared history", "this designer conversation",
+                       "Chats are not saved automatically", "save again after adding replies",
+                       "Never tell them to paste into Shared history", "not the conversation",
+                       "does not create an agent or configure retrieval or tools"):
+            self.assertIn(phrase, DESIGNER_INSTRUCTIONS)
+
     def test_agent_designer_writes_a_spec_naming_only_real_agents(self):
         self.assertIn("agent-spec", DESIGNER_INSTRUCTIONS)
         for key in ("instructions", "human_decision", "closest_template", "tools_needed"):

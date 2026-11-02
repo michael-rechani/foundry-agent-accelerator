@@ -63,8 +63,7 @@ export function ChatTopbar({
   saveNote?: string
   exportDisabled: boolean
   presenting: boolean
-  // The first screen is not about one agent yet, so agent details and the
-  // save and export actions are left out.
+  // The designer stays plain, but save and export appear once a reply exists.
   clean?: boolean
   // The conversation has begun, so the picker names who is answering.
   started?: boolean
@@ -180,7 +179,7 @@ export function ChatTopbar({
             {config ? 'Local preview' : 'Connecting'}
           </span>
         )}
-        {view === 'chat' && !clean && (
+        {view === 'chat' && (!clean || started) && (
           <>
             {onCreateThis ? (
               <button

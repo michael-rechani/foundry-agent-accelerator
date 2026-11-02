@@ -1,6 +1,7 @@
 import { type Page, expect, test } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
 import { guidedReview, registry } from './fixtures'
-import { openWorkspace } from './helpers/chat-lab'
+import { openWorkspace, send } from './helpers/chat-lab'
 import { creationCapability } from './helpers/lab-config'
 
 const caseHelper = registry.find((item) => item.id === 'case-review')!
@@ -109,7 +110,7 @@ test('a first message chats with the Agent designer and stays clean', async ({
     answer: 'Good morning! What would you like to build?',
   })
   await expect(page.locator('#chat-privacy')).toHaveText(
-    "Sample data only. AI use may cost money. Preview chats aren't saved.",
+    'Sample data only. AI use may cost money. Saved chats are shared.',
   )
   await expect(page.locator('.composer-privacy details')).not.toHaveAttribute(
     'open',
@@ -137,7 +138,13 @@ test('a first message chats with the Agent designer and stays clean', async ({
   await expect(
     page.getByRole('button', { name: 'Continue in a new chat' }),
   ).toHaveCount(0)
-  await expect(page.locator('.save-state')).toHaveCount(0)
+  await expect(page.locator('.save-state')).toHaveText('Not saved')
+  await expect(
+    page.getByRole('button', { name: 'Save to shared history' }),
+  ).toBeEnabled()
+  await expect(
+    page.getByRole('button', { name: 'Export conversation' }),
+  ).toBeEnabled()
   await expect(
     page.getByRole('button', { name: /Choose an agent/ }),
   ).toHaveCount(0)
@@ -158,7 +165,7 @@ test('designer privacy details stay collapsed but describe shared services', asy
   const details = privacy.locator('details')
   const summary = privacy.getByText('Privacy & sharing')
   await expect(page.locator('#chat-privacy')).toHaveText(
-    "Sample data only. AI use may cost money. Preview chats aren't saved.",
+    'Sample data only. AI use may cost money. Saved chats are shared.',
   )
   await expect(details).not.toHaveAttribute('open', '')
   await summary.click()
@@ -169,8 +176,8 @@ test('designer privacy details stay collapsed but describe shared services', asy
   await expect(privacy).toContainText(
     'Agent setups are shared. Publishing or deleting an agent requires an operator key, not a user account.',
   )
-  await expect(privacy).not.toContainText(
-    'Saved chats contain completed messages',
+  await expect(privacy).toContainText(
+    'Saved chats contain completed messages and expire 30 days after their last update.',
   )
   await summary.press('Enter')
   await expect(details).not.toHaveAttribute('open', '')
@@ -216,6 +223,136 @@ test('the Agent designer can end with a downloadable agent spec', async ({
   expect(file.suggestedFilename()).toBe(
     'renewal-checklist-helper.foundry-agent.json',
   )
+})
+
+test('designer conversation exports and survives saving, reopening, updating and deletion', async ({
+  page,
+}, testInfo) => {
+  const spec = {
+    name: 'Policy Q&A',
+    summary: 'Answers questions from fictional policies.',
+    instructions:
+      'Quote only the supplied policy text and flag unsupported answers.',
+    inputs: 'One or more fictional policy documents',
+    outputs: 'Answers with supporting quotes',
+    tools_needed: ['document retrieval / search'],
+    human_decision: 'A policy owner resolves conflicts and exceptions.',
+    closest_template: null,
+  }
+  const state = await openWorkspace(page, {
+    config: withDesigner,
+    startup: true,
+    receipts: [],
+    answers: [
+      'Should it use one policy or several?',
+      `Here is the draft.\n\n\`\`\`agent-spec\n${JSON.stringify(spec)}\n\`\`\``,
+      'A person should verify unsupported answers.',
+    ],
+  })
+  await send(
+    page,
+    'I want an agent that answers questions from a policy document.',
+  )
+  await send(page, 'Use one or several fictional policies.')
+  expect(state.saves).toEqual([])
+  await expect(page.getByRole('region', { name: 'Agent spec' })).toContainText(
+    'Policy Q&A',
+  )
+  await page.screenshot({
+    path: testInfo.outputPath('designer-save-export.png'),
+    fullPage: true,
+    animations: 'disabled',
+  })
+  await page.getByRole('button', { name: /^Shared history/ }).click()
+  await expect(page.getByText('No saved conversations')).toBeVisible()
+  await expect(
+    page.getByText('Chats are not saved automatically.', { exact: false }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Return to Chat' }).click()
+  await expect(page.locator('.assistant-message')).toHaveCount(2)
+  await expect(page.getByRole('region', { name: 'Agent spec' })).toContainText(
+    'Policy Q&A',
+  )
+
+  await page.getByRole('button', { name: 'Save to shared history' }).click()
+  await expect(page.locator('.save-state')).toHaveText('Saved / shared')
+  expect(state.saves).toHaveLength(1)
+  expect(state.document?.agent_id).toBe('library-agent-designer')
+  expect(
+    state.document?.turns.every(
+      (turn) => turn.result.agent === 'lab-library-preview',
+    ),
+  ).toBe(true)
+  await editor(page).fill('Unsent follow-up for the local export.')
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export conversation' }).click()
+  const file = await download
+  expect(file.suggestedFilename()).toBe('foundry-conversation.json')
+  const exportPath = testInfo.outputPath('designer-conversation.json')
+  await file.saveAs(exportPath)
+  const exported = JSON.parse(await readFile(exportPath, 'utf8'))
+  expect(exported.turns).toEqual(state.document?.turns)
+  expect(exported.turns[1].result.text).toContain(JSON.stringify(spec))
+  expect(exported.draft).toBe('Unsent follow-up for the local export.')
+  expect(state.requests).toHaveLength(2)
+  expect(state.saves).toHaveLength(1)
+
+  await editor(page).fill('')
+  await page.reload()
+  await page.getByRole('button', { name: /^Shared history/ }).click()
+  await expect(page.locator('.saved-open')).toContainText('Agent designer')
+  await page.locator('.saved-open').click()
+  await expect(page.locator('.assistant-message')).toHaveCount(2)
+  await expect(page.getByRole('region', { name: 'Agent spec' })).toContainText(
+    'Policy Q&A',
+  )
+  await expect(page.locator('.save-state')).toHaveText('Saved / shared')
+  await expect(
+    page.getByRole('button', { name: 'Save to shared history' }),
+  ).toBeDisabled()
+  expect(state.requests).toHaveLength(2)
+  await send(
+    page,
+    'What should happen when a policy does not support an answer?',
+  )
+  expect(state.requests[2].history.map((message) => message.role)).toEqual([
+    'user',
+    'assistant',
+    'user',
+    'assistant',
+  ])
+  await page.getByRole('button', { name: 'Save to shared history' }).click()
+  await expect(page.locator('.save-state')).toHaveText('Saved / shared')
+  expect(state.updates).toEqual(['v1'])
+  expect(state.document?.turns).toHaveLength(3)
+  await page.getByRole('button', { name: /^Shared history/ }).click()
+  await page.getByRole('button', { name: /^Delete I want an agent/ }).click()
+  await page.getByRole('button', { name: 'Delete for everyone' }).click()
+  await expect(page.getByText('No saved conversations')).toBeVisible()
+  expect(state.deletes).toEqual(['v2'])
+})
+
+test('designer export stays available when shared history is disabled', async ({
+  page,
+}) => {
+  const state = await openWorkspace(page, {
+    config: { ...withDesigner, history_enabled: false },
+    startup: true,
+    receipts: [],
+  })
+  await editor(page).fill('Help me design an agent using fictional policies.')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-message')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Save to shared history' }),
+  ).toBeDisabled()
+  await expect(
+    page.getByRole('button', { name: 'Save to shared history' }),
+  ).toHaveAttribute('title', /Shared history is unavailable/)
+  await expect(
+    page.getByRole('button', { name: 'Export conversation' }),
+  ).toBeEnabled()
+  expect(state.saves).toEqual([])
 })
 
 test('from the Agent designer the person can move to a real agent', async ({

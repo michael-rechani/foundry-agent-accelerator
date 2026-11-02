@@ -53,8 +53,8 @@ export function ChatComposer({
   const localPreview = config?.mode === 'preview'
   // Limits and save state only matter once there is something to lose.
   const showDetails = turnCount > 0 || contextUsage >= 0.5
-  // The general conversation has nothing to save or carry into a review.
   const plain = agent?.id === DESIGNER_ID
+  const unsavedPreview = isPreview && !plain
   const inToolbar = config?.mode === 'private'
   const hint = !localPreview && (
     <span className="composer-hint" id="composer-hint">
@@ -182,7 +182,7 @@ export function ChatComposer({
         <div className="composer-privacy">
           <p id="chat-privacy">
             Sample data only. AI use may cost money.
-            {isPreview
+            {unsavedPreview
               ? " Preview chats aren't saved."
               : config.history_enabled
                 ? ' Saved chats are shared.'
@@ -191,7 +191,7 @@ export function ChatComposer({
           <details>
             <summary>Privacy &amp; sharing</summary>
             <p>No personal or confidential data.</p>
-            {!isPreview && config.history_enabled && (
+            {!unsavedPreview && config.history_enabled && (
               <p>
                 Saved chats contain completed messages and expire{' '}
                 {config.retention_days} days after their last update.
@@ -251,11 +251,14 @@ export function ChatComposer({
               </dl>
             </details>
           )}
-          {!plain && (
-            <span className="save-state">
-              {saveStateText({ isPreview, saved, dirty, draft })}
-            </span>
-          )}
+          <span className="save-state">
+            {saveStateText({
+              isPreview: unsavedPreview,
+              saved,
+              dirty,
+              draft,
+            })}
+          </span>
         </div>
       )}
       {exceedsLimit ? (

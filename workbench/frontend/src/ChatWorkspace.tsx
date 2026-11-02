@@ -143,13 +143,18 @@ export default function ChatWorkspace() {
     view === 'chat' && simple && (designing || (!turns.length && !busy))
   const showAside = view === 'chat' && !!agent && !presenting && !clean
   const saveDisabled =
-    isPreview ||
+    (isPreview && !designing) ||
     !config?.history_enabled ||
     !turns.length ||
     busy ||
     historyBusy ||
     !dirty
-  const saveNote = isPreview ? "Preview chats can't be saved." : undefined
+  const saveNote =
+    isPreview && !designing
+      ? "Preview chats can't be saved."
+      : !config?.history_enabled
+        ? 'Shared history is unavailable in this Lab. Export conversation to keep a local copy.'
+        : undefined
   const createThis =
     agent && previewTemplate && config?.agent_creation
       ? () => createFromTemplate(previewTemplate)
@@ -494,11 +499,12 @@ export default function ChatWorkspace() {
         ) : view === 'history' ? (
           <HistoryView
             chats={savedChats}
-            agents={availableAgents}
+            agents={designer ? [designer, ...availableAgents] : availableAgents}
             retentionDays={config?.retention_days}
             cursor={cursor}
             busy={busy}
             historyBusy={historyBusy}
+            onChat={() => setView('chat')}
             onOpen={openSaved}
             onDelete={(item) =>
               setChanging({
