@@ -16,15 +16,14 @@
     },
     {
       "id": "module-keeps-the-grant-narrow",
-      "summary": "The module's own tests prove the role, the principal type and the index scope are fixed.",
+      "summary": "Offline contract tests check the module's fixed role, principal type and index scope, plus its input validation.",
       "live": false,
       "steps": [
-        "In addons/knowledge-search/terraform, run: terraform init -backend=false",
-        "Run: terraform test"
+        "From the repository root, run: python addons/test_knowledge_search_terraform.py -v"
       ],
       "expect": [
-        "Every run passes with mocked providers, and nothing is created.",
-        "A service ID that is already an index, a principal that isn't a GUID, and an index name with a path are rejected."
+        "All 11 contract tests pass without Azure access, provider initialization, or resource creation.",
+        "The suite rejects an index or URL supplied as the service ID, a non-GUID principal, and an invalid index name."
       ]
     },
     {
