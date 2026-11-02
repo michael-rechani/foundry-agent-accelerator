@@ -91,20 +91,11 @@ The Lab's identity, registry, Cosmos, and optional operator-key verifier
 assignments live in the separate Lab Terraform state. The monitoring
 assignments live in the monitoring state.
 
-Offline mock-provider assertions pin the deployer, project, optional gateway,
-and optional runner grants in
-[`terraform/tests/permissions.tftest.hcl`](../terraform/tests/permissions.tftest.hcl).
-They also pin the Lab's registry, Foundry, container-only Cosmos, and
-secret-scoped operator-key verifier grants in
-[`workbench/infra/tests/permissions.tftest.hcl`](../workbench/infra/tests/permissions.tftest.hcl).
-After backend-free initialization, run `./terraform/test-platform-validation.ps1`
-and `terraform -chdir=workbench/infra test`. The platform helper copies the real
-assignment sources and replaces module/credential boundaries, because Terraform
-can't mock the upstream ephemeral resources even with module overrides.
-These targeted mock tests check assignment expressions, not live grants. The
-runner case uses a mock apply to resolve its post-creation identity read. Existing
-platform tests cover coordinator specialist scopes and opt-in Key Vault access;
-monitoring tests cover component-scoped publishing. CI runs all of them.
+After backend-free initialization, run `terraform validate` in each relevant
+Terraform root. CI checks configuration validity, but native HCL permission tests
+aren't included. Review role scopes in a plan and verify effective grants from
+the authorized Azure environment; configuration validation alone doesn't prove
+least privilege or live access.
 
 ### Coordinator agent access
 

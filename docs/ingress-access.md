@@ -281,7 +281,7 @@ path.
 | Lab settings | The Front Door address is added to `WORKBENCH_ORIGINS` so the browser's origin check passes. `front_door_ingress_allow_cidrs` adds ingress rules after the jump box rule. Front Door's Private Link traffic arrives from a shared address range, not the Lab's own network. Set `front_door_ingress_allow_cidrs` to that range (see the variable's description in `front-door.tf`) or the app answers Front Door's probes with 403. It's empty by default and accepts only private ranges, never a public or internet-wide one. |
 | Region | Front Door Private Link doesn't support `northcentralus`. Set `front_door_private_link_location` (for example `centralus`) if the Lab is there. Null uses the environment's region. |
 | Your address | Put it in an untracked `.tfvars` file (`*.tfvars` is ignored). Don't commit it or add it to `dev.tfvars.example`. |
-| Offline checks | `workbench/infra/tests/front-door.tftest.hcl` runs under mock providers, so it needs no Azure access: the switches, every address rejection, the WAF rule and mode, the origin and Private Link settings, and the Lab's origin and ingress changes. |
+| Offline checks | CI runs formatting and configuration validation for `workbench/infra/`. Native HCL behavior tests aren't included; review the plan for the WAF, origin, Private Link, and ingress settings before an approved rollout. |
 
 **Rollout order.** Don't skip the 403 check.
 

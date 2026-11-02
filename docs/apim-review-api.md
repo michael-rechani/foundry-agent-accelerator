@@ -201,7 +201,7 @@ business decision or record-level authorization.
 Run the local checks without deploying Azure resources:
 
 ```powershell
-./terraform/test-review-api-validation.ps1
+./scripts/terraform/test-review-api-validation.ps1
 terraform -chdir=terraform validate
 ```
 
