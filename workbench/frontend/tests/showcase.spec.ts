@@ -248,7 +248,7 @@ test('demo test path loads prompts without sending and keeps pass marks in the t
   expect(state.writes).toEqual([])
 })
 
-test('presenter controls keep environment and human-review boundaries visible', async ({
+test('presenter controls keep sharing details accessible', async ({
   page,
 }, testInfo) => {
   const state = await openShowcase(page)
@@ -261,11 +261,11 @@ test('presenter controls keep environment and human-review boundaries visible', 
   await expect(
     page.getByRole('button', { name: 'Start fresh with this example' }),
   ).toBeVisible()
-  await page.getByText('About sharing and saving').click()
+  await page.getByText('Privacy & sharing').click()
   await expect(
-    page.getByText('No user sign-in or per-user authorization.'),
+    page.locator('.composer-privacy').getByText('Anyone with Lab access can'),
   ).toBeVisible()
-  await page.getByText('About sharing and saving').click()
+  await page.getByText('Privacy & sharing').click()
   await screenshot(page, testInfo, 'presenter-view.png')
   // The example is untouched, so starting it again asks nothing.
   await page
