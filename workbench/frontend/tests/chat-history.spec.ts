@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { openSteps, openWorkspace, send } from './helpers/chat-lab'
+import { creationCapability } from './helpers/lab-config'
 
 test('sharing details sit in the composer and the top bar has no shared-lab badge', async ({
   page,
@@ -9,23 +10,80 @@ test('sharing details sit in the composer and the top bar has no shared-lab badg
   await expect(page.getByTitle('About this shared lab')).toHaveCount(0)
   await expect(page.locator('.environment-badge')).toHaveCount(0)
   const summary = page.getByText('About sharing and saving')
-  const privacy = page.locator('#chat-privacy')
+  const privacy = page.locator('.composer-privacy')
   await expect(privacy).toContainText('Use sample data only')
-  await expect(privacy.getByText('No user sign-in.')).toBeHidden()
+  await expect(privacy.getByText('No user sign-in or per-user')).toBeHidden()
   await summary.click()
   await expect(privacy).toContainText(
-    'No user sign-in. Saved records are shared.',
+    'No user sign-in or per-user authorization.',
   )
   await expect(privacy).toContainText(
     'read, modify and delete saved chats, and read reviews and add requested evidence',
   )
-  await expect(privacy).toContainText('no per-user authorization')
+  await expect(privacy).toContainText(
+    'Private networking does not isolate users.',
+  )
+  await expect(privacy).toContainText(
+    'Never include personal or confidential information.',
+  )
+  await expect(privacy).toContainText(
+    'Saving shares completed messages with everyone in this Lab for 30 days',
+  )
   await page.evaluate(() => document.fonts.ready)
   await page.screenshot({
     path: testInfo.outputPath('sharing-details.png'),
   })
   await summary.press('Enter')
-  await expect(privacy.getByText('No user sign-in.')).toBeHidden()
+  await expect(privacy.getByText('No user sign-in or per-user')).toBeHidden()
+})
+
+test('sharing details describe enabled services without promising disabled history', async ({
+  page,
+}) => {
+  await openWorkspace(page, {
+    config: {
+      history_enabled: false,
+      reviews_enabled: true,
+      agent_creation: creationCapability(),
+    },
+  })
+  const privacy = page.locator('.composer-privacy')
+  await expect(page.locator('#chat-privacy')).toHaveText(
+    'Use sample data only. Model calls may incur cost.',
+  )
+  await privacy.getByText('About sharing and saving').click()
+  await expect(privacy).toContainText('read reviews and add requested evidence')
+  await expect(privacy).not.toContainText('delete saved chats')
+  await expect(privacy).toContainText(
+    'Publishing or deleting an agent requires an operator key, not an individual user account.',
+  )
+})
+
+test('sharing details mention saved chats without disabled reviews', async ({
+  page,
+}) => {
+  await openWorkspace(page, { config: { reviews_enabled: false } })
+  const privacy = page.locator('.composer-privacy')
+  await privacy.getByText('About sharing and saving').click()
+  await expect(privacy).toContainText(
+    'Anyone with workspace access can read, modify and delete saved chats. Private networking does not isolate users.',
+  )
+  await expect(privacy).not.toContainText('read reviews')
+})
+
+test('sharing details omit saved records when both services are disabled', async ({
+  page,
+}) => {
+  await openWorkspace(page, {
+    config: { history_enabled: false, reviews_enabled: false },
+  })
+  const privacy = page.locator('.composer-privacy')
+  await privacy.getByText('About sharing and saving').click()
+  await expect(privacy).toContainText(
+    'No user sign-in or per-user authorization. Private networking does not isolate users.',
+  )
+  await expect(privacy).not.toContainText('Anyone with workspace access can')
+  await expect(privacy).not.toContainText('Saving shares completed messages')
 })
 
 test('disconnected preview does not claim connected shared storage', async ({

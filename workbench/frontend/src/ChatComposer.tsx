@@ -179,31 +179,43 @@ export function ChatComposer({
       </form>
       {!inToolbar && hint}
       {config?.mode === 'private' && (
-        <div className="composer-privacy" id="chat-privacy">
-          <p>
-            Use sample data only, never personal or confidential information.
-            Each message calls the model and may incur cost.
-            {isPreview && ' Preview chats are not saved.'}
+        <div className="composer-privacy">
+          <p id="chat-privacy">
+            Use sample data only. Model calls may incur cost.
+            {isPreview
+              ? ' Preview chats are not saved.'
+              : config.history_enabled
+                ? ' Saved chats are shared.'
+                : ''}
           </p>
           <details>
             <summary>About sharing and saving</summary>
+            <p>Never include personal or confidential information.</p>
             {!isPreview && config.history_enabled && (
               <p>
                 Saving shares completed messages with everyone in this Lab for{' '}
                 {config.retention_days} days after the last update.
               </p>
             )}
-            <p>No user sign-in. Saved records are shared.</p>
             <p>
-              Everyone with workspace access can read, modify and delete saved
-              chats, and read reviews and add requested evidence. There is no
-              per-user authorization; private networking does not isolate users.
+              No user sign-in or per-user authorization.{' '}
+              {(config.history_enabled || config.reviews_enabled) && (
+                <>
+                  Anyone with workspace access can{' '}
+                  {config.history_enabled &&
+                    'read, modify and delete saved chats'}
+                  {config.history_enabled && config.reviews_enabled && ', and '}
+                  {config.reviews_enabled &&
+                    'read reviews and add requested evidence'}
+                  .{' '}
+                </>
+              )}
+              Private networking does not isolate users.
             </p>
             {config.agent_creation && (
               <p>
-                Created-agent setups are shared too. Publishing or deleting a
-                created agent requires an operator key, not an individual user
-                account.
+                Agent setups are shared. Publishing or deleting an agent
+                requires an operator key, not an individual user account.
               </p>
             )}
           </details>

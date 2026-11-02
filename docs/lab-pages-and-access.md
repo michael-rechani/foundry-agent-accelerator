@@ -150,7 +150,9 @@ Lab would still leave records shared. Don't expose this sample to untrusted
 participants or use sensitive data on the assumption that private networking
 provides user isolation.
 
-The **About sharing and saving** note under the message box explains these limits on demand:
+In the private Lab, a short note below the message box covers sample data,
+model costs, and whether the current chat is saved or shared. **About sharing
+and saving** explains these limits on demand:
 
 | Shared item | Who can act | Limits |
 | --- | --- | --- |

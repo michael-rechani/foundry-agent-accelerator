@@ -263,7 +263,7 @@ test('presenter controls keep environment and human-review boundaries visible', 
   ).toBeVisible()
   await page.getByText('About sharing and saving').click()
   await expect(
-    page.getByText('No user sign-in. Saved records are shared.'),
+    page.getByText('No user sign-in or per-user authorization.'),
   ).toBeVisible()
   await page.getByText('About sharing and saving').click()
   await screenshot(page, testInfo, 'presenter-view.png')
