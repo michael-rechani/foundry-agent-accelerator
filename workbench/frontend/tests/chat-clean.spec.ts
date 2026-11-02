@@ -1,6 +1,7 @@
 import { type Page, expect, test } from '@playwright/test'
 import { guidedReview, registry } from './fixtures'
 import { openWorkspace } from './helpers/chat-lab'
+import { creationCapability } from './helpers/lab-config'
 
 const caseHelper = registry.find((item) => item.id === 'case-review')!
 const twoAgents = { agents: [guidedReview, caseHelper] }
@@ -108,7 +109,11 @@ test('a first message chats with the Agent designer and stays clean', async ({
     answer: 'Good morning! What would you like to build?',
   })
   await expect(page.locator('#chat-privacy')).toHaveText(
-    'Use sample data only. Model calls may incur cost. Preview chats are not saved.',
+    "Sample data only. AI use may cost money. Preview chats aren't saved.",
+  )
+  await expect(page.locator('.composer-privacy details')).not.toHaveAttribute(
+    'open',
+    '',
   )
   await editor(page).fill('Good morning')
   await page.getByRole('button', { name: 'Send message' }).click()
@@ -136,6 +141,40 @@ test('a first message chats with the Agent designer and stays clean', async ({
   await expect(
     page.getByRole('button', { name: /Choose an agent/ }),
   ).toHaveCount(0)
+})
+
+test('designer privacy details stay collapsed but describe shared services', async ({
+  page,
+}) => {
+  const state = await openWorkspace(page, {
+    config: {
+      ...withDesigner,
+      reviews_enabled: true,
+      agent_creation: creationCapability(),
+    },
+    startup: true,
+  })
+  const privacy = page.locator('.composer-privacy')
+  const details = privacy.locator('details')
+  const summary = privacy.getByText('Privacy & sharing')
+  await expect(page.locator('#chat-privacy')).toHaveText(
+    "Sample data only. AI use may cost money. Preview chats aren't saved.",
+  )
+  await expect(details).not.toHaveAttribute('open', '')
+  await summary.click()
+  await expect(privacy).toContainText('No personal or confidential data.')
+  await expect(privacy).toContainText(
+    'Anyone with Lab access can read, edit and delete saved chats, and read reviews and add requested evidence.',
+  )
+  await expect(privacy).toContainText(
+    'Agent setups are shared. Publishing or deleting an agent requires an operator key, not a user account.',
+  )
+  await expect(privacy).not.toContainText(
+    'Saved chats contain completed messages',
+  )
+  await summary.press('Enter')
+  await expect(details).not.toHaveAttribute('open', '')
+  expect(state.requests).toEqual([])
 })
 
 test('the Agent designer can end with a downloadable agent spec', async ({

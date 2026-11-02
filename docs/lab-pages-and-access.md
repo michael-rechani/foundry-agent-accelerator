@@ -151,8 +151,8 @@ participants or use sensitive data on the assumption that private networking
 provides user isolation.
 
 In the private Lab, a short note below the message box covers sample data,
-model costs, and whether the current chat is saved or shared. **About sharing
-and saving** explains these limits on demand:
+model costs, and whether the current chat is saved or shared. The collapsed
+**Privacy & sharing** details summarize shared access. The full boundaries are:
 
 | Shared item | Who can act | Limits |
 | --- | --- | --- |
@@ -160,7 +160,7 @@ and saving** explains these limits on demand:
 | Reviews | Everyone with workspace access can read reviews and add requested information. | Reviews have no deletion control. |
 | Created-agent setups | Everyone with workspace access can read the setups. | Publication and deletion require the shared operator key. This isn't per-user authorization. |
 
-The Lab has no permanent warning banner. The **About sharing and saving** details
+The Lab has no permanent warning banner. The **Privacy & sharing** details
 are available in Chat on desktop, but they're informational only. They don't
 control access, and they don't check that submitted data is sample data.
 

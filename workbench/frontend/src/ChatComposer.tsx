@@ -181,41 +181,36 @@ export function ChatComposer({
       {config?.mode === 'private' && (
         <div className="composer-privacy">
           <p id="chat-privacy">
-            Use sample data only. Model calls may incur cost.
+            Sample data only. AI use may cost money.
             {isPreview
-              ? ' Preview chats are not saved.'
+              ? " Preview chats aren't saved."
               : config.history_enabled
                 ? ' Saved chats are shared.'
                 : ''}
           </p>
           <details>
-            <summary>About sharing and saving</summary>
-            <p>Never include personal or confidential information.</p>
+            <summary>Privacy &amp; sharing</summary>
+            <p>No personal or confidential data.</p>
             {!isPreview && config.history_enabled && (
               <p>
-                Saving shares completed messages with everyone in this Lab for{' '}
-                {config.retention_days} days after the last update.
+                Saved chats contain completed messages and expire{' '}
+                {config.retention_days} days after their last update.
               </p>
             )}
-            <p>
-              No user sign-in or per-user authorization.{' '}
-              {(config.history_enabled || config.reviews_enabled) && (
-                <>
-                  Anyone with workspace access can{' '}
-                  {config.history_enabled &&
-                    'read, modify and delete saved chats'}
-                  {config.history_enabled && config.reviews_enabled && ', and '}
-                  {config.reviews_enabled &&
-                    'read reviews and add requested evidence'}
-                  .{' '}
-                </>
-              )}
-              Private networking does not isolate users.
-            </p>
+            {(config.history_enabled || config.reviews_enabled) && (
+              <p>
+                Anyone with Lab access can{' '}
+                {config.history_enabled && 'read, edit and delete saved chats'}
+                {config.history_enabled && config.reviews_enabled && ', and '}
+                {config.reviews_enabled &&
+                  'read reviews and add requested evidence'}
+                .
+              </p>
+            )}
             {config.agent_creation && (
               <p>
                 Agent setups are shared. Publishing or deleting an agent
-                requires an operator key, not an individual user account.
+                requires an operator key, not a user account.
               </p>
             )}
           </details>
