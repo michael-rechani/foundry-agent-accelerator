@@ -176,7 +176,7 @@ Note 3 (document checklist): Proof of address hasn't come in yet. No document is
     agentDoes:
       'Compares both documents, checks copied amounts with a local calculator, uses fictional plan and price lookups, and drafts an unsent dispute letter. This is billing assistance, not diagnosis, an insurer connection or a payment action.',
     expectedReturn:
-      'A $174 statement-supported estimate to confirm, with the $930 gap explained as a $100 total discrepancy, $250 duplicate X-ray, $120 unmatched lab units and $460 contractual adjustments. An unsent dispute letter, not confirmed savings.',
+      'The $174 share for processed lines, not a whole-bill estimate because two lab units are missing. The $930 document difference breaks down into a $100 total discrepancy, $250 duplicate X-ray, $120 unmatched lab units and $460 contractual adjustments. An unsent dispute letter, not confirmed savings.',
     templateId: 'medical-bill-reviewer',
     templateLabel: 'Medical bill reviewer',
     catalogIds: [],
@@ -202,7 +202,7 @@ Total plan paid: $696.00 | Total your share: $174.00`,
         label: 'Balance to explain',
         source: 'HB-DEMO-0412 / IS-DEMO-5521',
         detail:
-          'The statement supports an estimated $174.00 patient share, compared with $1,104.00 billed: a $930.00 difference to confirm.',
+          'The statement lists $174.00 for processed lines, $930.00 less than the $1,104.00 bill. Two lab units are missing from the statement, so this is not a whole-bill estimate.',
       },
       {
         label: 'Total does not add up',

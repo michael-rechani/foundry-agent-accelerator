@@ -87,6 +87,14 @@ describe('guided demo agent choice', () => {
     )
   })
 
+  it('does not present the medical statement share as a whole-bill estimate', () => {
+    const medical = demoScenarios.find(
+      (scenario) => scenario.id === 'medical-bill',
+    )!
+    assert.match(medical.expectedReturn, /not a whole-bill estimate/i)
+    assert.match(medical.findings[0].detail, /not a whole-bill estimate/i)
+  })
+
   it('has a library preview for every demo template', () => {
     for (const scenario of demoScenarios)
       assert.ok(previewFor(scenario.templateId), scenario.templateId)
