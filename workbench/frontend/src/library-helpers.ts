@@ -60,7 +60,9 @@ export function creationNote(capability?: CreationCapability) {
   return !capability
     ? 'Agent creation is not available in this Lab.'
     : capability.enabled
-      ? 'Creating prepares a setup for review. Publishing it requires an operator key and incurs Foundry charges.'
+      ? capability.requires_operator_key
+        ? 'Creating prepares a setup for review. Publishing it requires an operator key and incurs Foundry charges.'
+        : 'Creating prepares a setup for review. Private presenter mode needs no key; publishing still requires cost confirmation and incurs Foundry charges.'
       : capability.reason === 'local_preview'
         ? 'Local preview: you can prepare and review a setup, but nothing is published.'
         : 'Publishing is not enabled here. You can still prepare and review a setup.'

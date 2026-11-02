@@ -141,7 +141,10 @@ application.
 not an authenticated team mode. No end-user app registration or Entra sign-in
 is required. The Lab header and origin checks prevent cross-site browser
 requests, but they don't identify a user. The operator key protects publication
-and deletion, not access to shared records.
+and deletion by default, not access to shared records. An explicitly enabled
+[private presenter mode](agent-creation.md#private-presenter-mode-no-operator-key)
+removes the key requirement: everyone with Lab access can create, resume and
+delete shared agents. Cost confirmation and existing request checks remain.
 
 An optional authenticated team mode is a future extension, not a supported
 setting today. It would need both validated identities and authorization on
@@ -158,7 +161,7 @@ model costs, and whether the current chat is saved or shared. The collapsed
 | --- | --- | --- |
 | Saved chats | Everyone with workspace access can read, modify, and delete them. | There is no per-user authorization yet. |
 | Reviews | Everyone with workspace access can read reviews and add requested information. | Reviews have no deletion control. |
-| Created-agent setups | Everyone with workspace access can read the setups. | Publication and deletion require the shared operator key. This isn't per-user authorization. |
+| Created-agent setups | Everyone with workspace access can read the setups. | Publication and deletion require the shared operator key by default. Explicit private presenter mode allows those actions without a key. Neither mode provides per-user authorization. |
 
 The Lab has no permanent warning banner. The **Privacy & sharing** details
 are available in Chat on desktop, but they're informational only. They don't

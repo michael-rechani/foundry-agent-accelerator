@@ -218,6 +218,9 @@ jobs:
       - name: Test review API authorization and policy rendering
         shell: pwsh
         run: ./scripts/terraform/test-review-api-validation.ps1
+      - name: Test private presenter mode without Azure resources
+        shell: pwsh
+        run: ./scripts/terraform/test-presenter-mode.ps1
       - name: Check formatting
         run: terraform -chdir=terraform fmt -check -recursive
       - name: Initialize without a backend

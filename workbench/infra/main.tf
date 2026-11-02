@@ -101,6 +101,11 @@ variable "agent_creation_enabled" {
   default     = false
   description = "Opt in to operator-confirmed Foundry hosted-agent publication from built-in templates."
 }
+variable "private_presenter_mode" {
+  type        = bool
+  default     = false
+  description = "Explicitly allow anyone with private Lab access to create, resume and delete shared agents without an operator key. Cost confirmation and limits still apply. Not end-user authentication."
+}
 variable "unfinished_agents_enabled" {
   type        = bool
   default     = false
@@ -308,8 +313,8 @@ resource "azurerm_container_app" "this" {
     # a later apply can't roll the app back to an older digest.
     ignore_changes = [template[0].container[0].image]
     precondition {
-      condition     = !var.agent_creation_enabled || (var.agent_creation_model != "" && var.agent_creation_key_secret_id != null)
-      error_message = "Agent creation requires an existing model deployment and an operator-key verifier secret."
+      condition     = !var.agent_creation_enabled || (var.agent_creation_model != "" && (var.private_presenter_mode || var.agent_creation_key_secret_id != null))
+      error_message = "Agent creation requires an existing model deployment and either an operator-key verifier secret or explicit private presenter mode."
     }
   }
   identity {
@@ -371,6 +376,7 @@ resource "azurerm_container_app" "this" {
             WORKBENCH_VISIBLE_AGENTS            = join(",", var.visible_agents)
             WORKBENCH_DEFAULT_AGENT             = coalesce(var.default_agent, var.visible_agents[0])
             WORKBENCH_AGENT_CREATION_ENABLED    = tostring(var.agent_creation_enabled)
+            WORKBENCH_PRIVATE_PRESENTER_MODE    = tostring(var.private_presenter_mode)
             WORKBENCH_AGENT_CREATION_MODEL      = var.agent_creation_model
             WORKBENCH_UNFINISHED_AGENTS_ENABLED = tostring(var.unfinished_agents_enabled)
             WORKBENCH_ALLOWED_HOSTS             = local.hostname

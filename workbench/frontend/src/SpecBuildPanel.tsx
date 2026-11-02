@@ -34,7 +34,7 @@ function problemText(problem: unknown) {
 }
 
 // A spec can become a real, billable agent from the chat, but only through the
-// same steps as Create agent: a reviewed template, the operator key and an
+// same steps as Create agent: a reviewed template, the configured access gate and an
 // explicit cost confirmation. The setup is the template's reviewed
 // instructions plus the spec as the task, so it never publishes free text.
 export function SpecBuildPanel({
@@ -91,8 +91,10 @@ export function SpecBuildPanel({
 
   async function create() {
     if (busy || !consent) return
-    const key = keyField.current?.value ?? ''
-    if (key.length < 32) {
+    const key = capability.requires_operator_key
+      ? (keyField.current?.value ?? '')
+      : ''
+    if (capability.requires_operator_key && key.length < 32) {
       setError(
         'Enter the operator key (at least 32 characters) to create a real agent. Ask the Lab operator if you do not have it.',
       )
@@ -136,7 +138,7 @@ export function SpecBuildPanel({
       const created = parseCreatedAgent(
         await creationRequest('agents', {
           method: 'POST',
-          headers: { 'X-Workbench-Creation-Key': key },
+          headers: key ? { 'X-Workbench-Creation-Key': key } : {},
           body: JSON.stringify(payload),
         }),
       )
@@ -277,7 +279,11 @@ export function SpecBuildPanel({
         </li>
         <li>Each chat message sent to it also uses the model.</li>
       </ul>
-      <OperatorKeyField inputRef={keyField} disabled={busy} />
+      <OperatorKeyField
+        inputRef={keyField}
+        disabled={busy}
+        required={capability.requires_operator_key}
+      />
       <label className="creation-consent">
         <input
           type="checkbox"

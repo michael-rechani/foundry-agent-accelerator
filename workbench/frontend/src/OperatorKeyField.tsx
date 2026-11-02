@@ -3,10 +3,20 @@ import type { RefObject } from 'react'
 export function OperatorKeyField({
   inputRef,
   disabled,
+  required,
 }: {
   inputRef: RefObject<HTMLInputElement | null>
   disabled: boolean
+  required: boolean
 }) {
+  if (!required)
+    return (
+      <p className="creation-notice">
+        Private presenter mode: no key is needed. Anyone with access to this Lab
+        can create or delete shared agents. Cost confirmation still applies when
+        creating an agent.
+      </p>
+    )
   return (
     <div className="creation-key">
       <label>

@@ -150,7 +150,10 @@ It isn't a large language model (LLM) configuration conversation or an
 arbitrary code/tool generator. `CreationTaskForm.tsx` renders the template
 picker and job description, `CreationSetupReview.tsx` renders the setup review
 and publication controls, `CreatedAgents.tsx` renders the saved-agent list and
-detail, and `OperatorKeyField.tsx` renders the operator key input.
+detail, and `OperatorKeyField.tsx` renders the operator key input or the shared
+access notice for explicitly enabled private presenter mode. The server's
+`requires_operator_key` capability controls both workspace and inline Chat
+creation; the browser cannot enable presenter mode.
 `SpecBuildPanel.tsx` runs the same prepare, confirm and publish steps inside the
 Agent designer's spec card (`AgentSpecCard.tsx`) for a spec that points to a
 template, so Chat can build an agent without a second flow.

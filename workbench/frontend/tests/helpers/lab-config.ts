@@ -27,7 +27,7 @@ export function labConfig(overrides: Partial<Config> = {}): Config {
 }
 
 export function creationCapability(
-  options: { preview?: boolean; disabled?: boolean } = {},
+  options: { preview?: boolean; disabled?: boolean; presenter?: boolean } = {},
 ): CreationCapability {
   const unavailable = options.preview || options.disabled
   return {
@@ -39,7 +39,7 @@ export function creationCapability(
       : options.disabled
         ? 'not_enabled'
         : null,
-    requires_operator_key: true,
+    requires_operator_key: !options.presenter,
     max_agents: 5,
     publication_timeout_seconds: 600,
     model: unavailable ? null : 'demo-model',
