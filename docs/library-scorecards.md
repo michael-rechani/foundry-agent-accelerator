@@ -305,8 +305,12 @@ python scorecards.py write   # rebuild the Lab's copy of the results
 A sign-off covers the exact answers a person read, so an agent that had one stops
 building ("the answers changed after the sign-off") until a person reads the new
 answers and signs off again. `library_runs.py` never records a sign-off. Until
-that's done, set the agent's `readiness` in `TEMPLATE_METADATA` back to `sample`
-if it says `reviewed`. The Lab shows the new results after the next deploy.
+that's done, set `metadata.readiness` in
+`workbench/agent_templates/agents/<id>.json` back to `sample` if it says
+`reviewed`. `TEMPLATE_METADATA` is loaded from those files, not edited directly.
+Regenerate the frontend catalog snapshot as described in
+[Add a library agent](agent-creation.md#add-a-library-agent).
+The Lab shows the new results after the next deploy.
 
 Exit codes: `status` returns 0 when every agent is current, 1 when some need
 recording and 2 when it can't read the evidence or an agent has no cases.

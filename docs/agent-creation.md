@@ -217,8 +217,9 @@ Before enabling, complete these checks.
 1. Rebuild the Lab image so it includes the reviewed runtime bundle, then use
    the existing approved deployment process. The source-code and test changes
    don't perform a deployment or permission change by themselves.
-1. In the UI, prepare one fictional setup, verify its tools and limits,
-   confirm costs/shared visibility, and provide the operator key if requested. Check real
+1. In the private UI, prepare one fictional setup, verify its tools and limits,
+   confirm costs/shared visibility, and provide the operator key unless approved
+   presenter mode is enabled. These live, billable checks need separate approval. Check real
    publication, send its sample, then verify cleanup before inviting an
    audience. Repeat once for each model deployment you use, because models
    differ in how they follow instructions and call tools.
@@ -243,7 +244,7 @@ trusted hosts/origins, and Cosmos configuration still apply. Invalid opt-in
 settings fail startup rather than enabling an unprotected creation endpoint.
 
 > [!IMPORTANT]
-> The operator key travels only to this backend over the private HTTPS session,
+> In the default keyed mode, the operator key travels only to this backend over HTTPS,
 > in `X-Workbench-Creation-Key`. It is not sent to the model, written to Cosmos,
 > included in chat exports, or stored in browser persistent storage.
 
@@ -282,17 +283,25 @@ agent_creation_model   = "your-existing-model"
 Non-Terraform equivalent: `WORKBENCH_MODE=private`,
 `WORKBENCH_PRIVATE_PRESENTER_MODE=true` and
 `WORKBENCH_AGENT_CREATION_ENABLED=true`, with the existing model and storage
-configuration. No verifier is required. Existing verifier inputs may remain
-for rollback; this mode does not remove secrets or role assignments.
+configuration. No verifier is required. Retain the existing verifier input for
+rollback; this mode does not remove secrets or role assignments.
 
 Create, inline creation from Chat, resume and delete no longer ask for a key or
 send a key header. Cost consent for creation, shared-impact deletion
 confirmation, origin/header checks, ETags, idempotency, resource ownership and
 agent limits still apply. The mode neither enables creation on its own nor
 turns disconnected local preview into a running Lab. It changes no network
-access settings and must not be used to justify public exposure.
+access settings and must not be used to justify broader public exposure.
 
-To roll back, configure a valid verifier and set `private_presenter_mode=false`
+The approved rollout in #442 is limited to the **existing IP-allowlisted public
+Front Door**, until presenter mode is switched off. Every caller reaching that
+endpoint from an allowed address gains keyless shared-agent mutation access;
+the application origin/header checks are not user authentication. No new public
+resource, ingress, firewall/allowlist change, credential, or anonymous/shared-key
+storage access is approved. Rollout and live boundary verification remain
+separate coordinated work; offline checks do not verify the live boundary.
+
+To roll back, retain/configure a valid verifier and set `private_presenter_mode=false`
 (or `WORKBENCH_PRIVATE_PRESENTER_MODE=false`). Without a valid verifier, enabled
 creation fails startup. Disabling creation alone stops new publication/resume,
 but leaves presenter-mode deletion available for cleanup. Entra sign-in remains
@@ -414,12 +423,12 @@ tests name any step that's missed.
 For a source/configuration export, see
 [portable agent bundles](../hosted-agents/README.md#portable-agent-bundles).
 The saved-agent API exposes its `runtime_hash` so the exporter can require the
-exact matching runtime source. In the Lab, a library entry's **Export and
-deploy** tab downloads a ready agent's saved record (`GET /api/agents/{id}`) and
-shows the `bundle.py export-created`, `inspect`, and `deploy` commands; building
-and deploying the bundle remain CLI steps in your own environment. An archived
-three-file runtime from before the calculator was added can still be exported
-when its hash matches the saved record.
+exact matching runtime source. In the Lab, a library entry's **Take it to
+Foundry** tab downloads a ready agent's saved record (`GET /api/agents/{id}`).
+With **Under the hood** on, it also shows the `bundle.py export-created`,
+`inspect`, and `deploy` commands; building and deploying the bundle remain CLI
+steps in your own environment. An archived three-file runtime from before the
+calculator was added can still be exported when its hash matches the saved record.
 Library templates are marked exportable only through the `after_creation`
 path: first create and publish a saved Lab agent, then export its ready record.
 Browsing a template alone doesn't produce a bundle.
@@ -441,7 +450,7 @@ browser-supplied endpoint names or change prebuilt agents.
 | Timeout or restart | Timeout, process restart, or an unsuccessful final status write can leave an interrupted record. Refresh checks status and isn't another publication. A failed poll doesn't mean the hosted operation stopped. |
 | Concurrent operations | Creation and deletion are serialized in one process. Conditional Cosmos updates reject stale operators. Multiple Lab workers or replicas would need distributed admission and job ownership, so don't enable them here. |
 | Ownership checks | Versions must carry this operation's ownership/setup/runtime metadata. Foreign or extra versions and inconsistent routes block automatic promotion or deletion. An owned but unrouted endpoint can be connected without replacing its existing authorization schemes or other protocol configuration. An absent activation status remains pending under the same bounded publication deadline. |
-| Deletion | Delete requires the operator key unless private presenter mode is enabled, plus confirmation of the shared impact and the current ETag. It retires only this created resource after ownership checks and confirms absence. An interrupted deletion must be retried as deletion, not resumed as setup. A 404 after an unconfirmed submission isn't enough to claim the resource was safely removed. A deleted record can't be resumed (409 `agent_not_resumable`); repeating the deletion returns the same record without a second operation. |
+| Deletion | Delete requires the operator key unless private presenter mode is enabled, confirmation of the shared impact, and the current ETag. It retires only this created resource after ownership checks and confirms absence. An interrupted deletion must be retried as deletion, not resumed as setup. A 404 after an unconfirmed submission isn't enough to claim the resource was safely removed. A deleted record can't be resumed (409 `agent_not_resumable`); repeating the deletion returns the same record without a second operation. |
 
 Don't edit generated resources through a second control plane during an
 operation. Investigate unexpected changes in Foundry with an operator.

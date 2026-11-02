@@ -325,6 +325,30 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await client.get(path)).json()["status"], "deleted")
             self.assertEqual([operation for operation, _ in self.publisher.calls], ["create", "resume", "delete"])
 
+    async def test_presenter_rollback_restores_existing_operator_verifier(self):
+        settings = replace(self.settings, creation=replace(
+            self.settings.creation, private_presenter_mode=True,
+        ))
+        async with self.make_client(settings) as client:
+            response = await client.post("/api/agents", json=self.body)
+            self.assertEqual(response.status_code, 202)
+            await asyncio.wait_for(self.publisher.done.wait(), 1)
+            path = "/api/agents/" + response.json()["id"]
+            record = (await client.get(path)).json()
+        async with self.make_client(self.settings) as client:
+            config = (await client.get("/api/config")).json()["agent_creation"]
+            self.assertTrue(config["requires_operator_key"])
+            self.assertTrue(config["management_enabled"])
+            for key_headers in ({}, {"X-Workbench-Creation-Key": "x" * 32}):
+                rejected = await client.delete(path, headers={**key_headers, "If-Match": record["_etag"]})
+                self.assertEqual(rejected.status_code, 403)
+                self.assertEqual(rejected.json()["error"], "operator_access_required")
+            self.publisher.done.clear()
+            deleted = await client.delete(path, headers={**self.operator, "If-Match": record["_etag"]})
+            self.assertEqual(deleted.status_code, 202, deleted.text)
+            await asyncio.wait_for(self.publisher.done.wait(), 1)
+            self.assertEqual((await client.get(path)).json()["status"], "deleted")
+
     async def test_presenter_mode_does_not_remove_agent_limit(self):
         settings = replace(self.settings, creation=replace(
             self.settings.creation, key_sha256="", private_presenter_mode=True, max_agents=1,
@@ -656,6 +680,7 @@ class CreationSettingsTests(unittest.TestCase):
             (CreationSettings(True, private_presenter_mode=True), "private"),
             (CreationSettings(private_presenter_mode="true"), "private"),
             (CreationSettings(private_presenter_mode=1), "private"),
+            (CreationSettings(True, "model", key_sha256="invalid", private_presenter_mode=True), "private"),
         ):
             with self.subTest(settings=settings, mode=mode), self.assertRaises(ValueError):
                 settings.validate(mode)

@@ -9,7 +9,7 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.81"
     }
-    # Needed by the Front Door AVM module (front-door.tf). Declared here so the offline tests can mock it.
+    # Needed by the Front Door AVM module (front-door.tf).
     modtm = {
       source  = "azure/modtm"
       version = "~> 0.3"
