@@ -10,15 +10,18 @@ test('shared privacy notice is visible before sending or saving', async ({
   const notice = page.locator('#chat-privacy')
   await expect(notice).toBeVisible()
   await expect(notice).toBeInViewport({ ratio: 1 })
-  await expect(notice).toContainText(
-    'never personal or confidential information',
+  await expect(notice).toHaveText(
+    'Use sample data only. Model calls may incur cost. Saved chats are shared.',
   )
-  await expect(notice).toContainText(
-    'Saving shares completed messages with everyone in this Lab for 30 days after the last update.',
+  const editor = page.getByRole('textbox', { name: 'Message' })
+  await expect(editor).toHaveAttribute('aria-describedby', /chat-privacy/)
+  await expect(editor).toHaveAccessibleDescription(
+    /Use sample data only\. Model calls may incur cost\. Saved chats are shared\./,
   )
-  await expect(page.getByRole('textbox', { name: 'Message' })).toHaveAttribute(
-    'aria-describedby',
-    /chat-privacy/,
+  await expect(editor).not.toHaveAccessibleDescription(/per-user authorization/)
+  await expect(page.locator('.composer-privacy details')).not.toHaveAttribute(
+    'open',
+    '',
   )
   await expect(
     page.getByRole('button', { name: 'Save to shared history' }),

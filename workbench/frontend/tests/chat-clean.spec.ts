@@ -107,6 +107,9 @@ test('a first message chats with the Agent designer and stays clean', async ({
     startup: true,
     answer: 'Good morning! What would you like to build?',
   })
+  await expect(page.locator('#chat-privacy')).toHaveText(
+    'Use sample data only. Model calls may incur cost. Preview chats are not saved.',
+  )
   await editor(page).fill('Good morning')
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect(page.locator('.assistant-message')).toContainText(
