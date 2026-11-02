@@ -197,7 +197,7 @@ placeholder IDs and aren't output from a real plan.
 
 The Terraform guardrails the check enforces are also declared as code in each
 module. The pilot module fixes its role, principal type, and scope instead of
-taking them as inputs, and its [tests](../addons/knowledge-search/terraform/tests/grant.tftest.hcl)
+taking them as inputs. Its [variable validations](../addons/knowledge-search/terraform/variables.tf)
 reject a bad Search service ID or principal ID.
 
 ## The knowledge search pilot

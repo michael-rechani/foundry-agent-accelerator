@@ -3,10 +3,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$terraformRoot = Join-Path $PSScriptRoot '../../terraform'
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('publisher-validation-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temporary | Out-Null
 try {
-    Copy-Item (Join-Path $PSScriptRoot 'variables.tf') (Join-Path $temporary 'variables.tf')
+    Copy-Item (Join-Path $terraformRoot 'variables.tf') (Join-Path $temporary 'variables.tf')
     $initialization = & $TerraformCommand "-chdir=$temporary" init -backend=false -input=false -no-color 2>&1
     if ($LASTEXITCODE -ne 0) { throw "Isolated initialization failed: $initialization" }
     $cases = @(

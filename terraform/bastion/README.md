@@ -109,11 +109,10 @@ Desktop Protocol (RDP) port to the internet.
 terraform init -backend=false
 terraform fmt -check
 terraform validate
-terraform test
 ```
 
-Tests use a mock provider. They don't deploy resources or demonstrate live
-session stability. See Microsoft's
+These checks don't deploy resources or demonstrate live session stability.
+Native HCL tests aren't included. See Microsoft's
 [upgrade guidance](https://learn.microsoft.com/azure/bastion/upgrade-sku) and
 [Bastion pricing](https://azure.microsoft.com/pricing/details/azure-bastion/).
 

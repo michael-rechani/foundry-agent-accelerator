@@ -130,15 +130,16 @@ and Docker need the headroom. Change `vm_size` if you want to try it.
    addresses by resolving the account's private endpoint name from the runner.
    **The dev runner already exists and is not yet in the state.** Don't apply this
    stack against it. After step 3 and `terraform init`, run
-   [`scripts/import-live.ps1`](scripts/import-live.ps1) from the jump box. It
+   [`../../scripts/terraform/import-live.ps1`](../../scripts/terraform/import-live.ps1)
+   from the jump box, keeping `terraform/runner/` as the working directory. It
    refuses to run until `registry_private_endpoint_ips` is set in your tfvars,
    prints the `terraform import` commands as a dry run, and writes to the state
    only with `-Apply`. Then run the plan in step 4: it must show no change to the
    VM and no public IP, and a second plan must show no changes at all.
 
    ```powershell
-   ./scripts/import-live.ps1 -VarFile dev.tfvars          # dry run
-   ./scripts/import-live.ps1 -VarFile dev.tfvars -Apply   # writes to the shared state
+   ../../scripts/terraform/import-live.ps1 -VarFile dev.tfvars          # dry run
+   ../../scripts/terraform/import-live.ps1 -VarFile dev.tfvars -Apply   # writes to the shared state
    ```
 3. Copy `backend.hcl.example` to ignored `backend.hcl` and fill in the secured
    state account.
@@ -274,14 +275,13 @@ to run them.
 
 ## Check without Azure
 
-These commands need no Azure credentials. They use mock providers and
-`terraform init -backend=false`.
+These commands need no Azure credentials. They check formatting and configuration
+with `terraform init -backend=false`; native HCL tests aren't included.
 
 ```powershell
 terraform -chdir=terraform/runner fmt -check -recursive
 terraform -chdir=terraform/runner init -backend=false
 terraform -chdir=terraform/runner validate
-terraform -chdir=terraform/runner test
 ```
 
 ## Remove the runner

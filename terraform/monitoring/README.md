@@ -156,12 +156,11 @@ and [Microsoft Entra ID ingestion](https://learn.microsoft.com/azure/foundry/obs
 terraform init -backend=false
 terraform fmt -check -recursive
 terraform validate
-terraform test
 ```
 
-The mock-provider tests check private access, Microsoft Entra ID authentication,
-scoped publishers, and opt-in connection creation. Also verify live telemetry
-and content exclusion after deployment.
+Native HCL tests aren't included. Review private access, Microsoft Entra ID
+authentication, scoped publishers, and opt-in connection creation in the plan.
+Also verify live telemetry and content exclusion after an approved deployment.
 
 ## Related content
 

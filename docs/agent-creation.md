@@ -27,6 +27,11 @@ agent-management service.
 
 You can also start from **Chat**. When the Agent designer's spec card points to a template, **Create this agent here** runs the same steps (template assembly, configured access gate, cost confirmation, publish) inside the card, then offers **Chat with it**. The access gate normally requires the operator key; explicitly enabled private presenter mode does not.
 
+**Download agent spec** is a draft handoff, not an uploaded or tested agent.
+The file uses a model placeholder and has no configured tools. Any lookup needs
+or document sources listed on the card are notes only; configure them separately
+in Foundry, then test the agent before relying on it.
+
 The Create page lists the Lab's 18 templates in three groups, named and ordered
 the same as the sectors in the **Agent library**: **Works in any sector** (five
 jobs), **Private sector** (nine jobs), and **Healthcare and public sector**
@@ -129,8 +134,9 @@ settings later affects only new agents.
 
 ## Enable publication
 
-Creation is **disabled by default**. Keep the existing private access boundary
-and single worker/replica. Before enabling, complete these checks.
+Creation is **disabled by default**. Keep the existing private application
+boundary and single worker/replica, and review any public ingress separately.
+Before enabling, complete these checks.
 
 1. Confirm an approved Foundry project, existing model deployments with quota,
    working private connectivity, and the Lab's shared Cosmos container. Check
@@ -206,8 +212,8 @@ and single worker/replica. Before enabling, complete these checks.
 1. Rebuild the Lab image so it includes the reviewed runtime bundle, then use
    the existing approved deployment process. The source-code and test changes
    don't perform a deployment or permission change by themselves.
-1. In the private UI, prepare one fictional setup, verify its tools and limits,
-   confirm costs/shared visibility, and provide the operator key. Check real
+1. In the UI, prepare one fictional setup, verify its tools and limits,
+   confirm costs/shared visibility, and provide the operator key if requested. Check real
    publication, send its sample, then verify cleanup before inviting an
    audience. Repeat once for each model deployment you use, because models
    differ in how they follow instructions and call tools.
@@ -247,10 +253,17 @@ valid verifier or private presenter mode configured to allow deletion while crea
 
 ### Private presenter mode (no operator key)
 
-This mode is for a trusted presenter on a restricted private Lab, not customer
-self-service. **Everyone who can reach the Lab can create, resume and delete
-shared agents without a key.** The server must explicitly opt in; a browser
-setting, request header or chat message cannot enable it.
+This mode is for a trusted presenter, not customer self-service. **Everyone who
+can reach the Lab can create, resume and delete shared agents without a key.**
+The server must explicitly opt in; a browser setting, request header or chat
+message cannot enable it.
+
+The private Container Apps environment does not guarantee that the entire access
+path is private. An existing public Front Door, even one restricted to an IP
+allowlist, exposes these keyless actions through that endpoint. Prefer a
+private-only access path. Enabling this mode through any public endpoint needs
+separate explicit approval for that endpoint and duration; keep its existing
+network restrictions unchanged.
 
 After separate rollout approval, set the following in the reviewed Lab
 Terraform inputs, retaining the existing model, storage and network settings:
@@ -421,7 +434,7 @@ browser-supplied endpoint names or change prebuilt agents.
 | Timeout or restart | Timeout, process restart, or an unsuccessful final status write can leave an interrupted record. Refresh checks status and isn't another publication. A failed poll doesn't mean the hosted operation stopped. |
 | Concurrent operations | Creation and deletion are serialized in one process. Conditional Cosmos updates reject stale operators. Multiple Lab workers or replicas would need distributed admission and job ownership, so don't enable them here. |
 | Ownership checks | Versions must carry this operation's ownership/setup/runtime metadata. Foreign or extra versions and inconsistent routes block automatic promotion or deletion. An owned but unrouted endpoint can be connected without replacing its existing authorization schemes or other protocol configuration. An absent activation status remains pending under the same bounded publication deadline. |
-| Deletion | Delete requires the operator key, confirmation of the shared impact, and the current ETag. It retires only this created resource after ownership checks and confirms absence. An interrupted deletion must be retried as deletion, not resumed as setup. A 404 after an unconfirmed submission isn't enough to claim the resource was safely removed. A deleted record can't be resumed (409 `agent_not_resumable`); repeating the deletion returns the same record without a second operation. |
+| Deletion | Delete requires the operator key unless private presenter mode is enabled, plus confirmation of the shared impact and the current ETag. It retires only this created resource after ownership checks and confirms absence. An interrupted deletion must be retried as deletion, not resumed as setup. A 404 after an unconfirmed submission isn't enough to claim the resource was safely removed. A deleted record can't be resumed (409 `agent_not_resumable`); repeating the deletion returns the same record without a second operation. |
 
 Don't edit generated resources through a second control plane during an
 operation. Investigate unexpected changes in Foundry with an operator.
