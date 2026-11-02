@@ -2,11 +2,12 @@
 
 [Home](../README.md) / [Docs](README.md) / Demo script
 
-A walk-through you can read aloud while you click. It shows one idea: **go from
-"I wonder if an agent could do this" to a reviewed, portable agent definition
-in minutes, without opening the Foundry portal, and without anything unsafe
-along the way.** Use fictional data only. Presenting from the jump box is
-covered in the [presenter guide](showcase.md#present-from-the-jump-box).
+A walk-through you can read aloud while you click. It shows one idea: **shape a
+job, inspect a draft agent definition, and compare it with a tested sample
+agent** without opening the Foundry portal. The draft is not a deployed or
+tested agent; its model and any required tools or document sources still need
+configuration in Foundry. Use fictional data only. Presenting from the jump box
+is covered in the [presenter guide](showcase.md#present-from-the-jump-box).
 
 ## Before you start
 
@@ -50,8 +51,10 @@ person confirms.
    keeps the agent honest."
 4. When the reply ends with the **agent spec card**, point at the name, what it
    needs, what it returns and **what a person decides**.
-5. Choose **Download agent spec**. Say: "That is a real Foundry prompt agent
-   definition. Nothing was created."
+5. Choose **Download agent spec**. Say: "This is a draft Foundry prompt-agent
+   definition, not a deployed or tested agent. It has a model placeholder, and
+   any required lookups or document sources still need to be configured in
+   Foundry. Nothing was created."
 6. Optional, only with the operator key and your approval to spend: on the card
    choose **Create this agent here**, enter the key, confirm the cost and wait
    for it to publish, then choose **Chat with it**. This creates a real, billable

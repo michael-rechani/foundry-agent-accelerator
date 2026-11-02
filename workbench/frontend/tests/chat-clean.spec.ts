@@ -207,6 +207,9 @@ test('the Agent designer can end with a downloadable agent spec', async ({
   const card = page.getByRole('region', { name: 'Agent spec' })
   await expect(card).toContainText('Renewal Checklist Helper')
   await expect(card).toContainText('A caseworker decides eligibility.')
+  await expect(card).toContainText(
+    'Draft only: this file uses a model placeholder and configures no tools.',
+  )
   await expect(page.locator('.assistant-message')).not.toContainText(
     'agent-spec',
   )
@@ -257,6 +260,11 @@ test('designer conversation exports and survives saving, reopening, updating and
   expect(state.saves).toEqual([])
   await expect(page.getByRole('region', { name: 'Agent spec' })).toContainText(
     'Policy Q&A',
+  )
+  const specCard = page.getByRole('region', { name: 'Agent spec' })
+  await expect(specCard).toContainText('document retrieval / search')
+  await expect(specCard).toContainText(
+    'does not configure the listed lookups or document sources',
   )
   await page.screenshot({
     path: testInfo.outputPath('designer-save-export.png'),
