@@ -55,6 +55,11 @@ Pull request numbers link to the full discussion.
 
 ### Changed
 
+- **A plainer review lifecycle.** The document review diagram and its steps in
+  the review workflow guide now say what happens in everyday words: you add a
+  checklist, start the review, add what's missing, or recover an interrupted
+  one. The routes, ETags and status names moved into a short table for
+  developers.
 - **One place to find an agent.** The separate **Find an agent** page is gone.
   Its "What are you trying to do?" box now sits at the top of **All agents**,
   above the guided demos and the agent cards, so the sidebar has one agents
