@@ -66,6 +66,13 @@ Pull request numbers link to the full discussion.
 
 ### Changed
 
+- **A tighter main README.** The page says each thing once: access to the Lab is
+  explained in one place and linked, the tour steps and sidebar summary are
+  shorter, and the Documentation and Automated checks sections point to the
+  full guides instead of repeating them. `./deploy.ps1` now leads the deploy
+  steps, with the by-hand order folded away. The intro now mentions testing a
+  draft before you publish it. Every heading is unchanged, so existing links to
+  the page still work.
 - **A plainer review lifecycle.** The document review diagram and its steps in
   the review workflow guide now say what happens in everyday words: you add a
   checklist, start the review, add what's missing, or recover an interrupted
