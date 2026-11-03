@@ -1,6 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import { type Locator, type Page, expect, test } from '@playwright/test'
-import { openCreation, operatorKey, templates } from './helpers/creation-lab'
+import {
+  authorize,
+  openCreation,
+  operatorKey,
+  templates,
+} from './helpers/creation-lab'
 
 // Start without stored choices, as a first-time visitor would.
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -548,4 +553,111 @@ test('starting over with new cases drops an accepted revision', async ({
     panel.getByRole('group', { name: 'Proposed revision' }),
   ).toHaveCount(0)
   await expect(panel).not.toContainText('under the revised instructions')
+})
+
+async function startFromTemplate(page: Page, card: Locator) {
+  await card
+    .getByRole('button', { name: new RegExp(`Start from ${template.label}`) })
+    .click()
+  await expect(
+    page.getByRole('heading', { name: 'Create an agent', level: 1 }),
+  ).toBeVisible()
+  return page.getByRole('textbox', { name: 'What should the agent help with?' })
+}
+
+async function reviewInstructions(page: Page) {
+  await page.getByRole('button', { name: 'Prepare setup', exact: true }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Review your agent setup' }),
+  ).toBeVisible()
+  await page.getByText(/Task instructions: .* characters/).click()
+  return page.getByRole('textbox', { name: 'Task instructions' })
+}
+
+const preparedFor = (goal: string) =>
+  `${template.instructions}\nRequested job: ${goal}`
+
+test('accepted revised instructions carry into Create agent, and the person can switch', async ({
+  page,
+}) => {
+  const { state, card } = await openPanel(page, { creation: true })
+  const panel = await runAll(card, 3)
+  await panel.getByRole('button', { name: propose }).click()
+  await panel.getByRole('button', { name: 'Accept revision' }).click()
+  await expect(card).toContainText(
+    'The task instructions you accepted while testing come with it',
+  )
+
+  const goal = await startFromTemplate(page, card)
+  const task = await goal.inputValue()
+  await expect(
+    page.getByText('The task instructions you accepted while testing will be'),
+  ).toBeVisible()
+
+  const instructions = await reviewInstructions(page)
+  const accepted = `${preparedFor(task)}\n${addedLine}`
+  await expect(instructions).toHaveValue(accepted)
+  await expect(
+    page.getByText('These are the task instructions you accepted'),
+  ).toBeVisible()
+
+  await page
+    .getByRole('button', { name: 'Use the prepared text instead' })
+    .click()
+  await expect(instructions).toHaveValue(preparedFor(task))
+  await expect(
+    page.getByText('These are the template’s prepared instructions'),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: 'Use the accepted text' }).click()
+  await expect(instructions).toHaveValue(accepted)
+
+  await authorize(page)
+  await page
+    .getByRole('button', { name: 'Create in Foundry', exact: true })
+    .click()
+  await expect.poll(() => state.posts.length).toBe(1)
+  expect(state.posts[0].instructions).toBe(accepted)
+})
+
+test('changing the task in Create agent drops the accepted instructions and says so', async ({
+  page,
+}) => {
+  const { card } = await openPanel(page, { creation: true })
+  const panel = await runAll(card, 3)
+  await panel.getByRole('button', { name: propose }).click()
+  await panel.getByRole('button', { name: 'Accept revision' }).click()
+
+  const goal = await startFromTemplate(page, card)
+  const changed = `${await goal.inputValue()} Also mention deadlines.`
+  await goal.fill(changed)
+  await expect(
+    page.getByText('no longer apply, because the task or template changed'),
+  ).toBeVisible()
+
+  const instructions = await reviewInstructions(page)
+  await expect(instructions).toHaveValue(preparedFor(changed))
+  await expect(
+    page.getByText('These are the task instructions you accepted'),
+  ).toHaveCount(0)
+})
+
+test('starting over with new cases means nothing is carried into Create agent', async ({
+  page,
+}) => {
+  const { card } = await openPanel(page, { creation: true })
+  const panel = await runAll(card, 3)
+  await panel.getByRole('button', { name: propose }).click()
+  await panel.getByRole('button', { name: 'Accept revision' }).click()
+  await panel.getByRole('button', { name: 'Start over with new cases' }).click()
+  await expect(card).not.toContainText('you accepted while testing')
+
+  const goal = await startFromTemplate(page, card)
+  const task = await goal.inputValue()
+  await expect(page.getByText('you accepted while testing')).toHaveCount(0)
+  const instructions = await reviewInstructions(page)
+  await expect(instructions).toHaveValue(preparedFor(task))
+  await expect(
+    page.getByText('These are the task instructions you accepted'),
+  ).toHaveCount(0)
 })

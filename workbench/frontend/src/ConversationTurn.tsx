@@ -253,7 +253,11 @@ export function ConversationTurn({
   busy?: boolean
   // Library templates the Agent designer's spec can point to.
   templates?: { id: string; label: string }[]
-  onCreateFromTemplate?: (templateId: string, goal?: string) => void
+  onCreateFromTemplate?: (
+    templateId: string,
+    goal?: string,
+    instructions?: string,
+  ) => void
   // Lets the spec card publish the agent without leaving the chat.
   build?: SpecBuild
   // Lets the spec card try the draft before publishing it.
@@ -302,10 +306,15 @@ export function ConversationTurn({
           <AgentSpecCard
             spec={designed.spec}
             templateLabel={closest?.label}
+            carriesInstructions={revised !== null}
             onCreateFromTemplate={
               closest && onCreateFromTemplate
                 ? () =>
-                    onCreateFromTemplate(closest.id, specGoal(designed.spec!))
+                    onCreateFromTemplate(
+                      closest.id,
+                      specGoal(designed.spec!),
+                      revised ?? undefined,
+                    )
                 : undefined
             }
             tests={

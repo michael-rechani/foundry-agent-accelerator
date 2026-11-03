@@ -77,7 +77,11 @@ export function ChatMessages({
   onDismissError: () => void
   onRetry?: () => void
   templates?: { id: string; label: string }[]
-  onCreateFromTemplate?: (templateId: string, goal?: string) => void
+  onCreateFromTemplate?: (
+    templateId: string,
+    goal?: string,
+    instructions?: string,
+  ) => void
   build?: SpecBuild
   tests?: SpecTests
 }) {
