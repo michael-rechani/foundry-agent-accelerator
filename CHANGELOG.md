@@ -14,6 +14,23 @@ Pull request numbers link to the full discussion.
 
 ### Added
 
+- **Test a draft before you create it.** When the Agent designer's spec points to
+  a built-in template, the spec card offers **Test this draft first**. One model
+  call writes sample test cases, and the Lab keeps only those that pass its
+  rules. You run them against the draft's setup text, and the Lab screens each
+  answer with its fixed checks. If cases fail, **Propose a revision** asks a
+  model to rewrite the task instructions only, shows the reasons and a line
+  diff, and changes nothing until you accept. Every model call needs the cost
+  confirmation, and nothing is published or written to the Lab's own test cases.
+  ([#457](https://github.com/michael-rechani/foundry-agent-accelerator/issues/457),
+  [#458](https://github.com/michael-rechani/foundry-agent-accelerator/issues/458),
+  [#459](https://github.com/michael-rechani/foundry-agent-accelerator/issues/459),
+  [#460](https://github.com/michael-rechani/foundry-agent-accelerator/issues/460))
+- **Carry accepted text into Create agent.** **Start from** on the spec card now
+  passes the instructions you accepted while testing. The review step shows them
+  with a note and a button to switch to the template's own text. They apply only
+  while the template and the goal are unchanged.
+  ([#465](https://github.com/michael-rechani/foundry-agent-accelerator/issues/465))
 - **Build an agent from the chat.** When the Agent designer's spec points to a
   built-in template and creation is on, the spec card offers **Create this agent
   here**. It shows the cost notes, asks for the operator key and a cost
