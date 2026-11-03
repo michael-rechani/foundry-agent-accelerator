@@ -154,3 +154,43 @@
 .agent-spec .spec-test-summary {
   color: var(--text);
 }
+.spec-test-revise,
+.spec-test-revision {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+.spec-test-revision {
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+}
+.spec-test-revision ul {
+  margin: 0;
+}
+.spec-test-revision ul.spec-test-diff {
+  max-height: 320px;
+  overflow: auto;
+  padding: 6px 0;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-subtle);
+}
+.spec-test-diff li {
+  padding: 0 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.spec-test-diff li.add {
+  background: var(--success-bg);
+  color: var(--success-fg);
+}
+.spec-test-diff li.remove {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}

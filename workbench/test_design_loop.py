@@ -10,6 +10,7 @@ from agent_creation import CreationSettings
 from agent_runtime.main import DEMO_POLICY
 from app import Settings, create_app
 from draft_cases import CASE_WRITER_INSTRUCTIONS
+from draft_revision import REVISER_INSTRUCTIONS
 from log_capture import CapturedLabLogs
 
 INSTRUCTIONS = "Summarize the notice and list what the reader should ask before acting on it."
@@ -18,6 +19,9 @@ CASE = {"id": "grounded-one", "category": "grounded", "input": "Sample notice: h
 CASES = [CASE,
          {**CASE, "id": "missing-one", "category": "missing", "checks": {"asks_question": True}},
          {**CASE, "id": "injection-one", "category": "injection", "checks": {"guards": ["no_approval"]}}]
+FAILED = {"case": CASE, "text": "The hours are staying the same.", "failures": ["Missing required text: 8:00"]}
+REVISED = INSTRUCTIONS + "\nState times exactly as written in the notice."
+REVISION = json.dumps({"instructions": REVISED, "changes": ["Told the agent to state times as written."]})
 
 
 class DesignLoopTests(CapturedLabLogs, unittest.TestCase):
@@ -40,6 +44,10 @@ class DesignLoopTests(CapturedLabLogs, unittest.TestCase):
     def run_case(self, **changes):
         return self.post("/api/agent-test-runs", {"instructions": INSTRUCTIONS, "template_id": "document-analyst",
                                                   "case": CASE, "confirm_cost": True, **changes})
+
+    def revise(self, **changes):
+        return self.post("/api/agent-test-revisions", {"instructions": INSTRUCTIONS, "template_id": "document-analyst",
+                                                       "failed": [FAILED], "confirm_cost": True, **changes})
 
     def test_cases_are_drafted_by_the_designer_without_tools(self):
         response = self.draft()
@@ -174,6 +182,76 @@ class DesignLoopTests(CapturedLabLogs, unittest.TestCase):
         self.gateway.preview.side_effect = slow
         response = self.run_case()
         self.assertEqual((response.status_code, response.json()["error"]), (504, "timeout"))
+
+    def test_a_revision_is_proposed_by_the_designer_for_instructions_only(self):
+        self.gateway.preview.return_value = ("completed", REVISION, [])
+        response = self.revise()
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual((body["instructions"], body["changes"]),
+                         (REVISED, ["Told the agent to state times as written."]))
+        self.assertEqual(set(body), {"request_id", "template_id", "instructions", "changes", "elapsed_ms", "usage"})
+        agent, prompt = self.gateway.preview.call_args.args
+        self.assertEqual((agent["template_id"], agent["tools"]), ("agent-designer", {}))
+        self.assertEqual(self.gateway.preview.call_args.kwargs["instructions"], REVISER_INSTRUCTIONS)
+        for expected in (INSTRUCTIONS, CASE["input"], "Missing required text: 8:00", "The hours are staying the same."):
+            self.assertIn(expected, prompt)
+
+    def test_a_revision_that_touches_anything_but_the_instructions_is_unusable(self):
+        reply = json.dumps({"instructions": REVISED, "changes": ["Edited."], "checks": {"must_include": []}})
+        self.gateway.preview.return_value = ("completed", reply, [])
+        response = self.revise()
+        self.assertEqual((response.status_code, response.json()["error"]), (502, "revision_unusable"))
+        self.assertTrue(response.json()["problems"])
+
+    def test_an_over_length_revision_is_unusable(self):
+        reply = json.dumps({"instructions": "x" * 6001, "changes": ["Longer."]})
+        self.gateway.preview.return_value = ("completed", reply, [])
+        self.assertEqual(self.revise().json()["error"], "revision_unusable")
+
+    def test_a_revision_that_changes_nothing_is_reported_as_unchanged(self):
+        reply = json.dumps({"instructions": INSTRUCTIONS + "  ", "changes": ["Nothing needed."]})
+        self.gateway.preview.return_value = ("completed", reply, [])
+        response = self.revise()
+        self.assertEqual((response.status_code, response.json()["error"]), (502, "revision_unchanged"))
+
+    def test_a_revision_request_is_checked_before_any_model_call(self):
+        self.assertEqual(self.revise(failed=[]).status_code, 400)
+        self.assertEqual(self.revise(failed=[FAILED] * 6).status_code, 400)
+        self.assertEqual(self.revise(failed=[{**FAILED, "failures": []}]).status_code, 400)
+        self.assertEqual(self.revise(failed=[{**FAILED, "failures": ["x" * 301]}]).status_code, 400)
+        self.assertEqual(self.revise(failed=[{**FAILED, "text": ""}]).status_code, 400)
+        self.assertEqual(self.revise(template_id=None).status_code, 400)
+        self.assertEqual(self.revise(template_id="missing").status_code, 400)
+        for confirm in (False, None):
+            self.assertEqual(self.revise(confirm_cost=confirm).status_code, 400)
+        bad = {**FAILED, "case": {**CASE, "checks": {"must_not_match": ["(a+)+$"]}}}
+        response = self.revise(failed=[bad])
+        self.assertEqual((response.status_code, response.json()["error"]), (400, "invalid_case"))
+        self.gateway.preview.assert_not_called()
+
+    def test_a_revision_reads_more_than_a_setup_but_not_without_limit(self):
+        self.gateway.preview.return_value = ("completed", REVISION, [])
+        failed = [{**FAILED, "text": "é" * 3500, "failures": ["Missing required text: 8:00"] * 8}] * 5
+        self.assertEqual(self.revise(instructions="x" * 6000, failed=failed).status_code, 200)
+        response = self.revise(failed=[{**FAILED, "text": "y" * 150000}])
+        self.assertEqual((response.status_code, response.json()["error"]), (413, "request_too_large"))
+
+    def test_the_revision_route_needs_the_same_origin_and_library_preview(self):
+        body = {"instructions": INSTRUCTIONS, "template_id": "document-analyst", "failed": [FAILED], "confirm_cost": True}
+        response = self.post("/api/agent-test-revisions", body, headers={"Origin": "https://testserver"})
+        self.assertEqual((response.status_code, response.json()["error"]), (403, "request_not_allowed"))
+        disabled = TestClient(create_app(replace(self.settings, library_preview=False), self.gateway))
+        response = self.post("/api/agent-test-revisions", body, client=disabled)
+        self.assertEqual((response.status_code, response.json()["error"]), (503, "library_preview_disabled"))
+        self.gateway.preview.assert_not_called()
+
+    def test_a_revision_call_can_fail_like_any_model_call(self):
+        self.gateway.preview.return_value = ("incomplete", "", [])
+        self.assertEqual(self.revise().json()["error"], "incomplete_response")
+        self.gateway.preview.side_effect = RuntimeError("down")
+        response = self.revise()
+        self.assertEqual((response.status_code, response.json()["error"]), (502, "backend_unavailable"))
 
 
 class DesignLoopBudgetTests(CapturedLabLogs, unittest.TestCase):

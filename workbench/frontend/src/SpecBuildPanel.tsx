@@ -42,11 +42,15 @@ export function SpecBuildPanel({
   templateId,
   templateLabel,
   build,
+  instructions = null,
 }: {
   spec: AgentSpec
   templateId: string
   templateLabel: string
   build: SpecBuild
+  // Task instructions the person accepted while testing this draft. They
+  // replace the prepared ones so what was tested is what gets published.
+  instructions?: string | null
 }) {
   const { capability, onCreated } = build
   const [open, setOpen] = useState(false)
@@ -130,7 +134,7 @@ export function SpecBuildPanel({
           idempotency_key: crypto.randomUUID(),
           template_id: draft.template_id,
           name: name.trim() ? name : draft.name,
-          instructions: draft.instructions,
+          instructions: instructions ?? draft.instructions,
           confirm_cost: true,
         }
         setPending(payload)
@@ -278,6 +282,13 @@ export function SpecBuildPanel({
           Closing this page does not stop it.
         </li>
         <li>Each chat message sent to it also uses the model.</li>
+        {instructions && (
+          <li>
+            It will use the task instructions you accepted while testing (
+            {[...instructions].length} characters), not the template&apos;s
+            prepared text.
+          </li>
+        )}
       </ul>
       <OperatorKeyField
         inputRef={keyField}
@@ -301,6 +312,9 @@ export function SpecBuildPanel({
           This request may already be saved. Retry the same request or check its
           status; do not start another. Request ID:{' '}
           <code>{pending.idempotency_key}</code>
+          {instructions !== null &&
+            pending.instructions !== instructions &&
+            ' The saved request keeps the instructions it was sent with, not the ones you accepted since.'}
         </p>
       )}
       {error && (

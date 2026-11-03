@@ -262,6 +262,8 @@ export function ConversationTurn({
   onRate: (rating: Rating | undefined) => void
   onTryAgain?: () => void
 }) {
+  // Task instructions the person accepted while testing this turn's draft.
+  const [revised, setRevised] = useState<string | null>(null)
   const designed = plain
     ? parseAgentSpec(turn.result.text)
     : { text: turn.result.text, spec: null }
@@ -313,6 +315,7 @@ export function ConversationTurn({
                   templateId={closest.id}
                   templateLabel={closest.label}
                   tests={tests}
+                  onAccept={setRevised}
                   disabled={busy}
                 />
               ) : undefined
@@ -324,6 +327,7 @@ export function ConversationTurn({
                   templateId={closest.id}
                   templateLabel={closest.label}
                   build={build}
+                  instructions={revised}
                 />
               ) : undefined
             }

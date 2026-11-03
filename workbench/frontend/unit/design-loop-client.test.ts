@@ -4,9 +4,17 @@ import {
   asFailure,
   describeChecks,
   designRequest,
+  failedRuns,
+  lineDiff,
+  MAX_ANSWER,
+  MAX_FAILED,
   parseCaseDraft,
   parseCaseRun,
+  parseRevision,
   pendingJobs,
+  regressions,
+  rerunScope,
+  revisionRequest,
   summarizeRuns,
   testFile,
   testFileName,
@@ -259,6 +267,241 @@ describe('testFile', () => {
       testFileName({ name: 'Renewal Checklist Helper' }),
       'renewal-checklist-helper.test-cases.json',
     )
+  })
+
+  it('keeps each earlier round with the reasons it was revised', () => {
+    const file = testFile({
+      name: 'Renewal helper',
+      templateId: 'document-intake',
+      instructions: 'Do the task. State times as written.',
+      cases: [test('one')],
+      results: { one: [run('one')] },
+      rounds: [
+        {
+          instructions: 'Do the task.',
+          changes: ['State times as written.'],
+          results: {
+            one: [run('one', { passed: false, failures: ['Missing text'] })],
+          },
+        },
+      ],
+    })
+    assert.equal(file.earlier_rounds.length, 1)
+    assert.equal(file.earlier_rounds[0]?.instructions, 'Do the task.')
+    assert.deepEqual(file.earlier_rounds[0]?.revised_because, [
+      'State times as written.',
+    ])
+    assert.equal(file.earlier_rounds[0]?.runs[0]?.passed, false)
+    assert.deepEqual(
+      testFile({
+        name: 'x',
+        templateId: 'y',
+        instructions: 'z',
+        cases: [],
+        results: {},
+      }).earlier_rounds,
+      [],
+    )
+  })
+})
+
+describe('failedRuns', () => {
+  it('returns the first failing run of each case in case order', () => {
+    const cases = [test('one'), test('two'), test('three')]
+    const failed = failedRuns(cases, {
+      one: [run('one')],
+      two: [run('two'), run('two', { passed: false, request_id: 'later' })],
+      three: [run('three', { passed: false, request_id: 'first' })],
+    })
+    assert.deepEqual(
+      failed.map((item) => [item.test.id, item.run.request_id]),
+      [
+        ['two', 'later'],
+        ['three', 'first'],
+      ],
+    )
+    assert.deepEqual(failedRuns(cases, {}), [])
+  })
+})
+
+describe('revisionRequest', () => {
+  const failing = (id: string, changes: Partial<CaseRun> = {}) => ({
+    test: test(id),
+    run: run(id, { passed: false, failures: ['Missing text'], ...changes }),
+  })
+
+  it('sends the instructions, the cases and the answers with the cost confirmation', () => {
+    const body = revisionRequest({
+      instructions: 'Do the task.',
+      templateId: 'document-intake',
+      failed: [failing('one', { text: 'Nothing changed.' })],
+    })
+    assert.equal(body.confirm_cost, true)
+    assert.equal(body.template_id, 'document-intake')
+    assert.equal(body.instructions, 'Do the task.')
+    assert.deepEqual(body.failed, [
+      {
+        case: test('one'),
+        text: 'Nothing changed.',
+        failures: ['Missing text'],
+      },
+    ])
+  })
+
+  it('bounds how many failures and how much of each answer is sent', () => {
+    const many = Array.from({ length: MAX_FAILED + 2 }, (_, index) =>
+      failing(`case-${index}`, { text: '😀'.repeat(MAX_ANSWER + 50) }),
+    )
+    const body = revisionRequest({
+      instructions: 'x',
+      templateId: 'y',
+      failed: many,
+    })
+    assert.equal(body.failed.length, MAX_FAILED)
+    assert.equal([...(body.failed[0]?.text ?? '')].length, MAX_ANSWER)
+    assert.doesNotThrow(() => JSON.stringify(body))
+  })
+
+  it('never sends an empty list of failures', () => {
+    const body = revisionRequest({
+      instructions: 'x',
+      templateId: 'y',
+      failed: [failing('one', { failures: [] })],
+    })
+    assert.deepEqual(body.failed[0]?.failures, ['Did not pass the checks'])
+  })
+})
+
+describe('parseRevision', () => {
+  const reply = (changes: object = {}) => ({
+    instructions: 'Do the task. State times as written.',
+    changes: ['State times as written.'],
+    usage,
+    ...changes,
+  })
+
+  it('reads the instructions, the reasons and the usage', () => {
+    const revision = parseRevision(reply())
+    assert.equal(revision.instructions, 'Do the task. State times as written.')
+    assert.deepEqual(revision.changes, ['State times as written.'])
+    assert.equal(revision.usage?.total_tokens, 15)
+  })
+
+  it('rejects a reply that is not a usable revision', () => {
+    for (const bad of [
+      null,
+      'text',
+      reply({ instructions: '   ' }),
+      reply({ instructions: 5 }),
+      reply({ instructions: 'x'.repeat(6001) }),
+      reply({ changes: [] }),
+      reply({ changes: 'one' }),
+      reply({ changes: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] }),
+      reply({ changes: [3] }),
+    ])
+      assert.throws(() => parseRevision(bad), /revision response is invalid/)
+  })
+})
+
+describe('rerunScope', () => {
+  it('runs every failed case plus a fixed sample of the passes, in case order', () => {
+    const cases = ['a', 'b', 'c', 'd', 'e'].map((id) => test(id))
+    const scope = rerunScope(cases, {
+      a: [run('a')],
+      b: [run('b', { passed: false })],
+      c: [run('c')],
+      d: [run('d')],
+      e: [run('e', { passed: false })],
+    })
+    assert.deepEqual(scope, ['a', 'b', 'c', 'e'])
+  })
+
+  it('counts a case with any failing repeat as failed', () => {
+    const cases = [test('a'), test('b'), test('c'), test('d')]
+    const scope = rerunScope(
+      cases,
+      {
+        a: [run('a'), run('a', { passed: false })],
+        b: [run('b')],
+        c: [run('c')],
+        d: [run('d')],
+      },
+      1,
+    )
+    assert.deepEqual(scope, ['a', 'b'])
+  })
+
+  it('includes a case that never ran', () => {
+    const cases = [test('a'), test('b'), test('c')]
+    assert.deepEqual(rerunScope(cases, { a: [run('a')] }, 0), ['b', 'c'])
+  })
+
+  it('is empty only when nothing failed and the sample is zero', () => {
+    assert.deepEqual(rerunScope([test('a')], { a: [run('a')] }, 0), [])
+  })
+})
+
+describe('regressions', () => {
+  const cases = [test('a'), test('b'), test('c'), test('d')]
+
+  it('names a case that passed every run before and fails one now', () => {
+    const before = {
+      a: [run('a')],
+      b: [run('b'), run('b')],
+      c: [run('c', { passed: false })],
+      d: [run('d')],
+    }
+    const after = {
+      a: [run('a', { passed: false })],
+      b: [run('b'), run('b', { passed: false })],
+      c: [run('c', { passed: false })],
+      d: [run('d')],
+    }
+    assert.deepEqual(regressions(cases, before, after), ['a', 'b'])
+  })
+
+  it('ignores cases without runs on either side', () => {
+    assert.deepEqual(
+      regressions(
+        cases,
+        { a: [run('a')] },
+        { b: [run('b', { passed: false })] },
+      ),
+      [],
+    )
+  })
+})
+
+describe('lineDiff', () => {
+  const kinds = (before: string, after: string) =>
+    lineDiff(before, after).map((line) => `${line.kind}:${line.text}`)
+
+  it('marks only the lines that changed', () => {
+    assert.deepEqual(kinds('one\ntwo\nthree', 'one\nTWO\nthree\nfour'), [
+      'same:one',
+      'remove:two',
+      'add:TWO',
+      'same:three',
+      'add:four',
+    ])
+  })
+
+  it('shows an unchanged text as all the same and ignores line ending style', () => {
+    assert.deepEqual(kinds('one\r\ntwo', 'one\ntwo'), ['same:one', 'same:two'])
+  })
+
+  it('shows a removal and an addition', () => {
+    assert.deepEqual(kinds('one\ntwo', 'one'), ['same:one', 'remove:two'])
+    assert.deepEqual(kinds('one', 'zero\none'), ['add:zero', 'same:one'])
+  })
+
+  it('falls back to remove-all then add-all when the texts are too large to compare', () => {
+    const big = Array.from({ length: 1200 }, (_, index) => `line ${index}`)
+    const other = big.map((line) => `${line}!`)
+    const diff = lineDiff(big.join('\n'), other.join('\n'))
+    assert.equal(diff.length, 2400)
+    assert.equal(diff[0]?.kind, 'remove')
+    assert.equal(diff.at(-1)?.kind, 'add')
   })
 })
 
