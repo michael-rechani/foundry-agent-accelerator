@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto">
+  <title id="title">How testing a draft works</title>
+  <desc id="desc">How testing a draft agent works, in eight numbered steps. Nothing is published while you test, and you read the answers and decide what to keep. Write and run the tests: in step 1, you choose Test this draft first on the spec card and tick the cost confirmation once, with no model call. In step 2, one model call writes three to eight sample test cases, about 1,700 tokens, and the Lab drops any case that breaks its rules and says how many it dropped. In step 3, each case runs one to three times, one call at a time, stopping at the first error, about 800 to 900 tokens per case, and the Lab screens each answer with its fixed checks. In step 4, you read each answer against its rubric, because passing the screen is not proof that an answer is right. The loop: if cases fail, step 5 is one model call, about 1,600 tokens, that rewrites the task instructions only and shows its reasons and a line diff. In step 6, you accept or discard the revision. Nothing changes until you accept, and accepting makes no model call. In step 7, the cases run again: the failed cases, any that never ran, and the first two that passed, so a fix that broke another answer shows up. Then you read the new answers, which takes you back to step 4. A revision can change the task instructions only. It cannot change the checks, the tools, the template, the Lab's own safety text, or your own task line, which the Lab puts back exactly if a reply drops it. Done or stuck: in step 8, you use the tested text. Create in Foundry publishes the text you tested, and Start from opens Create agent with that same text. You can accept two revisions at most per set of cases, and after that you read the failed answers and edit the text yourself. Start over with new cases drops the accepted text and the earlier rounds, and the cases stay in your browser. Every call needs the cost confirmation, and a revision the Lab rejects was still a call, so it may be charged. Token counts come from two live runs with fictional data.</desc>
+  <defs>
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#0078d4"/>
+    </marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #242424; }
+      .title { font-size: 34px; font-weight: 600; }
+      .sub { font-size: 21px; fill: #4d5b69; }
+      .name { font-size: 20px; font-weight: 600; }
+      .detail { font-size: 18px; }
+      .small { font-size: 18px; fill: #4d5b69; }
+      .pe { font-size: 18px; font-weight: 600; fill: #334e68; }
+      .boundary { font-size: 18px; font-weight: 600; fill: #4d5b69; letter-spacing: 0.4px; }
+      .num { font-family: 'Segoe UI', Arial, sans-serif; font-size: 17px; font-weight: 700; fill: #fff; }
+      .request { fill: none; stroke: #0078d4; stroke-width: 2.5; marker-end: url(#blue); }
+    </style>
+  </defs>
+  <rect width="1600" height="1100" fill="#fff"/>
+  <text x="24" y="50" class="title">How testing a draft works</text>
+  <text x="24" y="86" class="sub">Nothing is published while you test. You read the answers and decide what to keep.</text>
+  <rect x="24" y="122" width="1552" height="264" rx="16" fill="#fff" stroke="#8da6bb" stroke-width="1.5" stroke-dasharray="9 6"/>
+  <text x="40" y="153" class="boundary">WRITE AND RUN THE TESTS</text>
+  <rect x="48" y="172" width="330" height="196" rx="10" fill="#fff" stroke="#00786a" stroke-width="2"/>
+  <image href="azure-icons/users.svg" x="62" y="184" width="32" height="32"/>
+  <text x="102" y="208" class="name">Start testing</text>
+  <circle cx="350" cy="200" r="15" fill="#00786a" stroke="#fff" stroke-width="2.5"/>
+  <text x="350" y="206" class="num" text-anchor="middle">1</text>
+  <text x="64" y="238" class="detail">On the spec card, choose</text>
+  <text x="64" y="263" class="detail">Test this draft first. Tick</text>
+  <text x="64" y="288" class="detail">the cost confirmation once.</text>
+  <text x="64" y="313" class="detail">Nothing is published.</text>
+  <text x="64" y="343" class="pe">No model call</text>
+  <rect x="433" y="172" width="330" height="196" rx="10" fill="#fff" stroke="#0078d4" stroke-width="1.5"/>
+  <image href="azure-icons/foundry-models.svg" x="447" y="184" width="32" height="32"/>
+  <text x="487" y="208" class="name">Write test cases</text>
+  <circle cx="735" cy="200" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="735" y="206" class="num" text-anchor="middle">2</text>
+  <text x="449" y="238" class="detail">One call drafts 3 to 8 sample</text>
+  <text x="449" y="263" class="detail">cases. The Lab drops any case</text>
+  <text x="449" y="288" class="detail">that breaks its rules and says</text>
+  <text x="449" y="313" class="detail">how many it dropped.</text>
+  <text x="449" y="343" class="pe">1 call: about 1,700 tokens</text>
+  <rect x="818" y="172" width="330" height="196" rx="10" fill="#fff" stroke="#0078d4" stroke-width="1.5"/>
+  <image href="azure-icons/foundry-models.svg" x="832" y="184" width="32" height="32"/>
+  <text x="872" y="208" class="name">Run the cases</text>
+  <circle cx="1120" cy="200" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="1120" y="206" class="num" text-anchor="middle">3</text>
+  <text x="834" y="238" class="detail">Run each case 1 to 3 times,</text>
+  <text x="834" y="263" class="detail">one call at a time. The Lab</text>
+  <text x="834" y="288" class="detail">screens each answer with its</text>
+  <text x="834" y="313" class="detail">fixed checks.</text>
+  <text x="834" y="343" class="pe">About 800 to 900 tokens each</text>
+  <rect x="1203" y="172" width="330" height="196" rx="10" fill="#fff" stroke="#00786a" stroke-width="2"/>
+  <image href="azure-icons/users.svg" x="1217" y="184" width="32" height="32"/>
+  <text x="1257" y="208" class="name">Read the answers</text>
+  <circle cx="1505" cy="200" r="15" fill="#00786a" stroke="#fff" stroke-width="2.5"/>
+  <text x="1505" y="206" class="num" text-anchor="middle">4</text>
+  <text x="1219" y="238" class="detail">You read each answer against</text>
+  <text x="1219" y="263" class="detail">its rubric. The screen shows</text>
+  <text x="1219" y="288" class="detail">which check failed. Passing</text>
+  <text x="1219" y="313" class="detail">it isn't proof it's right.</text>
+  <text x="1219" y="343" class="pe">No model call</text>
+  <path d="M378 270H425" class="request"/>
+  <path d="M763 270H810" class="request"/>
+  <path d="M1148 270H1195" class="request"/>
+  <rect x="24" y="416" width="1552" height="284" rx="16" fill="#fff" stroke="#8da6bb" stroke-width="1.5" stroke-dasharray="9 6"/>
+  <text x="40" y="447" class="boundary">THE LOOP</text>
+  <path d="M1300 368V401H200V478" class="request"/>
+  <path d="M983 486V444H1440V376" class="request"/>
+  <text x="995" y="472" class="small">Then read the new answers</text>
+  <rect x="48" y="486" width="330" height="196" rx="10" fill="#fff" stroke="#0078d4" stroke-width="1.5"/>
+  <image href="azure-icons/foundry-models.svg" x="62" y="498" width="32" height="32"/>
+  <text x="102" y="522" class="name">Propose a revision</text>
+  <circle cx="350" cy="514" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="350" y="520" class="num" text-anchor="middle">5</text>
+  <text x="64" y="552" class="detail">If cases fail, one call</text>
+  <text x="64" y="577" class="detail">rewrites the task instructions</text>
+  <text x="64" y="602" class="detail">only. You see its reasons</text>
+  <text x="64" y="627" class="detail">and a line diff.</text>
+  <text x="64" y="657" class="pe">1 call: about 1,600 tokens</text>
+  <rect x="433" y="486" width="330" height="196" rx="10" fill="#fff" stroke="#00786a" stroke-width="2"/>
+  <image href="azure-icons/users.svg" x="447" y="498" width="32" height="32"/>
+  <text x="487" y="522" class="name">Accept or discard</text>
+  <circle cx="735" cy="514" r="15" fill="#00786a" stroke="#fff" stroke-width="2.5"/>
+  <text x="735" y="520" class="num" text-anchor="middle">6</text>
+  <text x="449" y="552" class="detail">Nothing changes until you</text>
+  <text x="449" y="577" class="detail">accept. Discard keeps the</text>
+  <text x="449" y="602" class="detail">text as it was. Accepting</text>
+  <text x="449" y="627" class="detail">makes no model call.</text>
+  <text x="449" y="657" class="pe">No model call</text>
+  <rect x="818" y="486" width="330" height="196" rx="10" fill="#fff" stroke="#0078d4" stroke-width="1.5"/>
+  <image href="azure-icons/foundry-models.svg" x="832" y="498" width="32" height="32"/>
+  <text x="872" y="522" class="name">Run again</text>
+  <circle cx="1120" cy="514" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="1120" y="520" class="num" text-anchor="middle">7</text>
+  <text x="834" y="552" class="detail">Re-runs the failed cases, any</text>
+  <text x="834" y="577" class="detail">that never ran, and two that</text>
+  <text x="834" y="602" class="detail">passed, so a fix that broke</text>
+  <text x="834" y="627" class="detail">another answer shows up.</text>
+  <text x="834" y="657" class="pe">Same cost per case</text>
+  <path d="M378 584H425" class="request"/>
+  <path d="M763 584H810" class="request"/>
+  <rect x="1203" y="486" width="330" height="196" rx="10" fill="#f3f8fc" stroke="#8abce0" stroke-width="1.5"/>
+  <text x="1219" y="522" class="name">A revision can't change</text>
+  <text x="1219" y="552" class="detail">The checks and the tools</text>
+  <text x="1219" y="577" class="detail">The template</text>
+  <text x="1219" y="602" class="detail">The Lab's own safety text</text>
+  <text x="1219" y="627" class="detail">Your own task line, put back</text>
+  <text x="1219" y="652" class="detail">exactly if a reply drops it</text>
+  <rect x="24" y="730" width="1552" height="264" rx="16" fill="#fff" stroke="#8da6bb" stroke-width="1.5" stroke-dasharray="9 6"/>
+  <text x="40" y="761" class="boundary">DONE OR STUCK</text>
+  <rect x="48" y="780" width="330" height="196" rx="10" fill="#fff" stroke="#00786a" stroke-width="2"/>
+  <image href="azure-icons/users.svg" x="62" y="792" width="32" height="32"/>
+  <text x="102" y="816" class="name">Use the tested text</text>
+  <circle cx="350" cy="808" r="15" fill="#00786a" stroke="#fff" stroke-width="2.5"/>
+  <text x="350" y="814" class="num" text-anchor="middle">8</text>
+  <text x="64" y="846" class="detail">Create in Foundry publishes</text>
+  <text x="64" y="871" class="detail">the text you tested. Start</text>
+  <text x="64" y="896" class="detail">from opens Create agent with</text>
+  <text x="64" y="921" class="detail">that same text.</text>
+  <text x="64" y="951" class="pe">No test calls</text>
+  <rect x="433" y="780" width="330" height="196" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="449" y="816" class="name">Two revisions at most</text>
+  <text x="449" y="846" class="detail">You can accept two revisions</text>
+  <text x="449" y="871" class="detail">per set of cases. After that,</text>
+  <text x="449" y="896" class="detail">read the failed answers and</text>
+  <text x="449" y="921" class="detail">edit the text yourself.</text>
+  <rect x="818" y="780" width="330" height="196" rx="10" fill="#fff" stroke="#aebdcb" stroke-width="1.5"/>
+  <text x="834" y="816" class="name">Start over</text>
+  <text x="834" y="846" class="detail">Choose Start over with new</text>
+  <text x="834" y="871" class="detail">cases to drop the accepted</text>
+  <text x="834" y="896" class="detail">text and earlier rounds.</text>
+  <text x="834" y="921" class="detail">Cases stay in your browser.</text>
+  <rect x="1203" y="780" width="330" height="196" rx="8" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="1219" y="816" class="name">Every call is billable</text>
+  <text x="1219" y="846" class="detail">Each call needs the one cost</text>
+  <text x="1219" y="871" class="detail">confirmation. A revision the</text>
+  <text x="1219" y="896" class="detail">Lab rejects was still a call,</text>
+  <text x="1219" y="921" class="detail">so it may be charged.</text>
+  <text x="24" y="1064" class="boundary">LEGEND</text>
+  <path d="M120 1058H176" class="request"/>
+  <text x="186" y="1064" class="small">Next step</text>
+  <circle cx="330" cy="1058" r="15" fill="#0078d4" stroke="#fff" stroke-width="2.5"/>
+  <text x="330" y="1064" class="num" text-anchor="middle">n</text>
+  <text x="356" y="1064" class="small">Model call</text>
+  <circle cx="500" cy="1058" r="15" fill="#00786a" stroke="#fff" stroke-width="2.5"/>
+  <text x="500" y="1064" class="num" text-anchor="middle">n</text>
+  <text x="526" y="1064" class="small">You decide</text>
+  <rect x="670" y="1044" width="44" height="28" rx="6" fill="#fff4ce" stroke="#b59e59" stroke-width="1.5"/>
+  <text x="724" y="1064" class="small">Caveat</text>
+  <text x="1576" y="1064" class="small" text-anchor="end">Token counts come from two live runs with fictional data.</text>
+</svg>

@@ -14,6 +14,17 @@ Pull request numbers link to the full discussion.
 
 ### Added
 
+- **A diagram of the test loop.** The "Test a draft before you create it" section
+  of the agent creation guide now includes a diagram of the whole loop: write
+  cases, run them, read the answers, propose a revision, accept or discard it,
+  and run again. It marks which steps call a model and which are your decisions, lists
+  what a revision can't change, and shows the measured token cost of each call.
+  It has light and dark versions like the other diagrams.
+- **Screenshots of the test panel.** The same section now shows two pictures of
+  the real panel, each in light and dark: a run with one case that did not pass,
+  and the proposed revision as a line diff with **Accept revision** and
+  **Discard**. They use fictional text and mocked routes, so taking them calls
+  no model.
 - **Test a draft before you create it.** When the Agent designer's spec points to
   a built-in template, the spec card offers **Test this draft first**. One model
   call writes sample test cases, and the Lab keeps only those that pass its
@@ -55,6 +66,11 @@ Pull request numbers link to the full discussion.
 
 ### Changed
 
+- **A plainer review lifecycle.** The document review diagram and its steps in
+  the review workflow guide now say what happens in everyday words: you add a
+  checklist, start the review, add what's missing, or recover an interrupted
+  one. The routes, ETags and status names moved into a short table for
+  developers.
 - **One place to find an agent.** The separate **Find an agent** page is gone.
   Its "What are you trying to do?" box now sits at the top of **All agents**,
   above the guided demos and the agent cards, so the sidebar has one agents
