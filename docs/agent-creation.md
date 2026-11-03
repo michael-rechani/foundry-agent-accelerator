@@ -88,8 +88,29 @@ The accepted text applies only while the template and the goal stay as they were
 when you accepted it. If you change either, the page says so and the prepared
 text is used. If a setup is already under review on that page, **Start from**
 leaves it as it is. **Start over with new cases** and publishing both drop the
-accepted text. Opening
-Create agent from a library template or `/#create` never carries accepted text.
+accepted text. Opening Create agent from a library template or `/#create` never
+carries accepted text.
+
+**Known limit.** A revision can remove the "Task described by the user" line that
+the card adds to the setup text, and nothing warns you. The line diff shows it as
+a removed line. Check for it before you accept, and read the text on the review
+step. The Lab doesn't yet restore it
+([#467](https://github.com/michael-rechani/foundry-agent-accelerator/issues/467)).
+
+**What two live runs measured.** One run of the whole loop and one re-run used
+the `document-intake` template with fictional data, one run per case, on one
+deployment. They show the scale of cost, not a promise:
+
+| Call | Tokens measured |
+| --- | --- |
+| Write test cases (1 call) | about 1,700 |
+| Run one test case (1 call each) | about 800 to 900 |
+| Propose a revision (1 call) | about 1,600 |
+
+The first run drafted five cases, ran three and revised once: 5,735 tokens in
+total. The re-run made four test calls: 3,338 tokens. Longer setups, longer
+answers or more repeats cost more, and the cost confirmation is the gate, so
+read the call count before you confirm.
 
 The panel uses three routes, all POST-only, same-origin and private-mode only:
 `/api/agent-test-cases` (writes the cases), `/api/agent-test-runs` (one model
