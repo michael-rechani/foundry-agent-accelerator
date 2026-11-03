@@ -12,12 +12,15 @@ export function AgentSpecCard({
   templateLabel,
   onCreateFromTemplate,
   build,
+  tests,
 }: {
   spec: AgentSpec
   templateLabel?: string
   onCreateFromTemplate?: () => void
   // Where the spec can be built into a real agent without leaving the chat.
   build?: ReactNode
+  // Where the draft can be tried first, before anything is published.
+  tests?: ReactNode
 }) {
   const details: [string, string][] = [
     ['Takes in', spec.inputs],
@@ -64,6 +67,7 @@ export function AgentSpecCard({
           </button>
         )}
       </div>
+      {tests}
       {build}
       {!spec.closest_template && (
         <p className="agent-spec-note">

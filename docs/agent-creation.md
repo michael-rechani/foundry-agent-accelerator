@@ -32,6 +32,43 @@ The file uses a model placeholder and has no configured tools. Any lookup needs
 or document sources listed on the card are notes only; configure them separately
 in Foundry, then test the agent before relying on it.
 
+### Test a draft before you create it
+
+When library previews are on and the spec card points to a built-in template, the
+card also offers **Test this draft first**. It tests the setup text that **Create
+this agent here** would publish, and it publishes nothing:
+
+1. Tick the one cost confirmation, then choose **Write test cases**. One model call
+   drafts three to eight sample cases (grounded, missing, conflict, injection and
+   decision-boundary). The Lab drops any case that breaks its rules and says how
+   many it dropped. A case can only use the Lab's fixed checks (required words,
+   guarded claims, an asked question, expected lookups). The model never writes
+   a pattern, and it never changes the template, the tools or the Lab's own
+   safety text.
+2. Choose how many times to repeat each test (1 to 3), then choose **Run N test
+   calls**. The browser sends one call at a time and stops at the first error.
+   **Continue** picks up where it stopped without repeating finished runs. **Stop**
+   ends the run, though a call already sent may still finish and use the model.
+3. Each result shows whether the answer passed the automatic checks, which check
+   failed, and the answer itself. A person still has to read each answer against
+   its rubric. Passing the screen isn't proof the answer is right.
+
+The cases and results stay in the browser. **Download cases and results** saves
+them as a file. Nothing is written to the Lab's own test cases, so a good case
+still has to be reviewed and added by a person. The panel needs no operator key
+and works when agent creation is off, but every call uses the shared model and
+may incur cost.
+
+The panel uses two routes, both POST-only, same-origin and private-mode only:
+`/api/agent-test-cases` (writes the cases) and `/api/agent-test-runs` (one model
+run of one case). Both need `confirm_cost: true`. They answer `403`
+`request_not_allowed`, `503` `library_preview_disabled`, `429` `busy` (with
+`Retry-After`), `400` `invalid_setup` or `invalid_case`, `502` `cases_unusable`
+or `backend_unavailable`, and `504` `timeout`. Each run uses the same
+instructions and simulated read-only lookups as a library preview. The Lab
+scores the answer with `workbench/case_scoring.py`, the same screen the offline
+library checks use.
+
 The Create page lists the Lab's 18 templates in three groups, named and ordered
 the same as the sectors in the **Agent library**: **Works in any sector** (five
 jobs), **Private sector** (nine jobs), and **Healthcare and public sector**
@@ -230,7 +267,7 @@ For non-Terraform operators, the equivalent server configuration is:
 | `WORKBENCH_CREATION_KEY_SHA256` | Lowercase, 64-character verifier from a secret reference. Never the raw key |
 | `WORKBENCH_MAX_CREATED_AGENTS` | Defaults to 5. Allowed range 1-20. Failed or unconfirmed attempts still count |
 | `WORKBENCH_PUBLICATION_TIMEOUT_SECONDS` | Defaults to 600. Allowed range 30-900 |
-| `WORKBENCH_LIBRARY_PREVIEW_ENABLED` | `true` (default) or `false`. When `true` in private mode with a creation model configured, **Chat** can run library definitions as unsaved previews on that model without publishing an agent. Previews use only simulated read-only lookups, and each message may incur model cost. Other values fail startup. |
+| `WORKBENCH_LIBRARY_PREVIEW_ENABLED` | `true` (default) or `false`. When `true` in private mode with a creation model configured, **Chat** can run library definitions as unsaved previews on that model without publishing an agent. Previews use only simulated read-only lookups, and each message may incur model cost. The same setting turns on **Test this draft first**, whose calls also use the model. Other values fail startup. |
 | `WORKBENCH_UNFINISHED_AGENTS_ENABLED` | `true` or `false` (default). When `false`, the Lab offers, previews, drafts and creates only **featured** library agents: those marked Focus or signed off as Reviewed. Everything else stays in the code but is hidden from the Library, Chat, Create and the job finder, and the API refuses it. Agents you already created keep working. Set by `unfinished_agents_enabled` in Terraform. Other values fail startup. Guided demos use agents that are not featured yet, so they show their "no matching agent" state until you turn this on. |
 
 The existing `WORKBENCH_MODE=private`, Foundry endpoint, managed identity,

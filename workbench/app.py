@@ -19,6 +19,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from history import CosmosHistory, history_router
 from review_runs import ReviewRuns
+from design_loop import DesignLoop
 from agent_creation import CREATED_ID, AgentCreations, CreationSettings
 from agent_scorecards import SCORECARDS
 from library_rules import DEPLOYMENT_NAME
@@ -336,7 +337,7 @@ class FoundryGateway:
             self._keep_session(key, session_id, leased[1] if leased and session_id == leased[0] else started)
         return response.status, response.output_text, response.model_dump().get("output", [])
 
-    async def preview(self, agent, prompt, thread=None, usage=None, admit_model_call=None):
+    async def preview(self, agent, prompt, thread=None, usage=None, admit_model_call=None, instructions=None):
         # A library preview calls the model deployment directly; there is no hosted agent or session to reuse.
         client = self._review_project().get_openai_client(
             timeout=self.settings.timeout, max_retries=0, http_client=self._http_client,
@@ -344,7 +345,7 @@ class FoundryGateway:
         status, text, output = await run_preview(
             client, template_id=agent["template_id"], model=self.settings.creation.model_for(agent["model_profile"]),
             prompt=prompt, reasoning=agent["model_profile"] != "tool_calling", usage=usage,
-            admit_model_call=admit_model_call,
+            admit_model_call=admit_model_call, instructions=instructions,
         )
         LOGGER.info(json.dumps({"event": "workbench_library_preview", "template_id": agent["template_id"],
                                 "status": status, "tool_calls": sum(item.get("type") == "function_call" for item in output)}))
@@ -576,6 +577,7 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
     review_runs = ReviewRuns(settings, registry, history_store, gateway, execution_receipts, model_gate, model_budgets)
     created_agents = AgentCreations(settings, history_store, publisher)
     chat = ChatReviews(settings, registry, gateway, created_agents, model_gate, model_budgets)
+    design_loop = DesignLoop(settings, gateway, execution_receipts, retry_after_seconds, model_gate, model_budgets)
     dependencies = DependencyMonitor(settings, gateway, agents, history_store)
 
     @asynccontextmanager
@@ -658,5 +660,6 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
     application.include_router(history_router(settings, registry, history_store, created_agents))
     application.include_router(review_runs.router)
     application.include_router(created_agents.router)
+    application.include_router(design_loop.router)
     application.mount("/", StaticFiles(directory=ROOT / "static", html=True, check_dir=False), name="static")
     return application

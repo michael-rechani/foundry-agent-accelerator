@@ -20,6 +20,7 @@ import {
 } from './answer-steps'
 import { AgentSpecCard } from './AgentSpecCard'
 import { SpecBuildPanel, type SpecBuild } from './SpecBuildPanel'
+import { SpecTestPanel, type SpecTests } from './SpecTestPanel'
 import { parseAgentSpec, specGoal } from './agent-spec'
 import { AnswerFeedback } from './AnswerFeedback'
 import type { Rating, Result, Turn } from './conversation-types'
@@ -234,6 +235,7 @@ export function ConversationTurn({
   templates,
   onCreateFromTemplate,
   build,
+  tests,
   onCopy,
   onRate,
   onTryAgain,
@@ -254,6 +256,8 @@ export function ConversationTurn({
   onCreateFromTemplate?: (templateId: string, goal?: string) => void
   // Lets the spec card publish the agent without leaving the chat.
   build?: SpecBuild
+  // Lets the spec card try the draft before publishing it.
+  tests?: SpecTests
   onCopy: (text: string) => void
   onRate: (rating: Rating | undefined) => void
   onTryAgain?: () => void
@@ -301,6 +305,17 @@ export function ConversationTurn({
                 ? () =>
                     onCreateFromTemplate(closest.id, specGoal(designed.spec!))
                 : undefined
+            }
+            tests={
+              closest && tests ? (
+                <SpecTestPanel
+                  spec={designed.spec}
+                  templateId={closest.id}
+                  templateLabel={closest.label}
+                  tests={tests}
+                  disabled={busy}
+                />
+              ) : undefined
             }
             build={
               closest && build?.capability.enabled && !busy ? (
