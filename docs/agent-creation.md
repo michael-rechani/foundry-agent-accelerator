@@ -57,8 +57,11 @@ this agent here** would publish, and it publishes nothing:
    that text only: the checks, the tools, the template and the Lab's own safety
    text stay as they are, and the Lab rejects a reply that tries to change
    anything else, copies a test's input into the instructions, is empty or too
-   long, or changes nothing. The panel shows the model's reasons and a line
-   diff. Nothing changes until you choose **Accept revision**; **Discard** leaves
+   long, or changes nothing. The "Task described by the user" line that the card
+   adds with your own words is not the model's to change either. The Lab puts
+   it back exactly as you wrote it if a reply drops or rewords it. The panel shows
+   the model's reasons and a line diff. Nothing changes until you choose **Accept
+   revision**; **Discard** leaves
    the text as it was. Accepting makes no model call. It replaces the text the
    panel tests and the text **Create in Foundry** publishes in the same card, so
    what you tested is what gets published. The note in the Create panel says when
@@ -90,12 +93,6 @@ text is used. If a setup is already under review on that page, **Start from**
 leaves it as it is. **Start over with new cases** and publishing both drop the
 accepted text. Opening Create agent from a library template or `/#create` never
 carries accepted text.
-
-**Known limit.** A revision can remove the "Task described by the user" line that
-the card adds to the setup text, and nothing warns you. The line diff shows it as
-a removed line. Check for it before you accept, and read the text on the review
-step. The Lab doesn't yet restore it
-([#467](https://github.com/michael-rechani/foundry-agent-accelerator/issues/467)).
 
 **What two live runs measured.** One run of the whole loop and one re-run used
 the `document-intake` template with fictional data, one run per case, on one
