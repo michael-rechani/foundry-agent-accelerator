@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  Check,
   ClipboardCheck,
   Download,
   LoaderCircle,
   Play,
+  Sparkles,
   Square,
+  X,
 } from 'lucide-react'
 import { creationRequest, parseDraft } from './agent-creation-client'
 import { specGoal, type AgentSpec } from './agent-spec'
@@ -13,14 +16,24 @@ import {
   asFailure,
   describeChecks,
   designRequest,
+  failedRuns,
+  lineDiff,
   MAX_REPEATS,
+  MAX_REVISIONS,
+  PASS_SAMPLE,
   parseCaseDraft,
   parseCaseRun,
+  parseRevision,
   pendingJobs,
+  regressions,
+  rerunScope,
+  revisionRequest,
   summarizeRuns,
   testFile,
   testFileName,
   type CaseRun,
+  type Revision,
+  type Round,
   type TestCase,
 } from './design-loop-client'
 import { saveFile } from './save-file'
@@ -40,28 +53,42 @@ const plural = (count: number, word: string) =>
 // setup Create agent would publish, prepared by the Lab from the template the
 // spec points to, so a pass or fail says something about that setup. Every
 // model call is one request the person asked for after confirming the cost.
+// When cases fail, a model may propose a revision of the task instructions
+// only; nothing changes until the person accepts it, and accepting hands the
+// text to the Create button so what is tested is what would be published.
 export function SpecTestPanel({
   spec,
   templateId,
   templateLabel,
   tests,
+  onAccept,
   disabled = false,
 }: {
   spec: AgentSpec
   templateId: string
   templateLabel: string
   tests: SpecTests
+  // Called with the accepted instructions, or null when the draft starts over.
+  onAccept?: (instructions: string | null) => void
   disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [consent, setConsent] = useState(false)
-  const [stage, setStage] = useState<'idle' | 'writing' | 'running'>('idle')
+  const [stage, setStage] = useState<
+    'idle' | 'writing' | 'running' | 'revising'
+  >('idle')
   const [instructions, setInstructions] = useState('')
   const [cases, setCases] = useState<TestCase[]>([])
   const [dropped, setDropped] = useState(0)
   const [writerUsage, setWriterUsage] = useState<Usage | null>(null)
   const [repeats, setRepeats] = useState(1)
   const [results, setResults] = useState<Record<string, CaseRun[]>>({})
+  // Earlier versions of the instructions with their results, and the cases a
+  // later round runs again. Null means every case runs.
+  const [rounds, setRounds] = useState<Round[]>([])
+  const [scope, setScope] = useState<string[] | null>(null)
+  const [revision, setRevision] = useState<Revision | null>(null)
+  const [revisionUsage, setRevisionUsage] = useState<(Usage | null)[]>([])
   const [failure, setFailure] = useState<ChatFailure | null>(null)
   const [notice, setNotice] = useState('')
   const controller = useRef<AbortController | null>(null)
@@ -69,15 +96,26 @@ export function SpecTestPanel({
 
   useEffect(() => () => controller.current?.abort(), [])
 
-  const jobs = pendingJobs(cases, results, repeats)
-  const summary = summarizeRuns(cases, results)
+  const scoped = scope ? cases.filter((test) => scope.includes(test.id)) : cases
+  const jobs = pendingJobs(scoped, results, repeats)
+  const summary = summarizeRuns(scoped, results)
+  const failed = failedRuns(scoped, results)
+  const lastRound = rounds.at(-1)
   const usage = totalUsage([
     ...(cases.length ? [writerUsage] : []),
+    ...revisionUsage,
     ...cases.flatMap((test) =>
-      (results[test.id] ?? []).map((run) => run.usage),
+      [...rounds.map((round) => round.results), results].flatMap((set) =>
+        (set[test.id] ?? []).map((run) => run.usage),
+      ),
     ),
   ])
   const started = summary.runs > 0
+  const slipped = lastRound
+    ? regressions(scoped, lastRound.results, results)
+    : []
+  const notRerun = cases.length - scoped.length
+  const nextScope = revision ? rerunScope(scoped, results) : []
 
   async function writeCases() {
     if (working || disabled || !consent) return
@@ -121,6 +159,11 @@ export function SpecTestPanel({
       setDropped(written.dropped)
       setWriterUsage(written.usage)
       setResults({})
+      setRounds([])
+      setScope(null)
+      setRevision(null)
+      setRevisionUsage([])
+      onAccept?.(null)
     } catch (problem) {
       if (run.signal.aborted) setNotice(stopped)
       else setFailure(asFailure(problem))
@@ -164,6 +207,49 @@ export function SpecTestPanel({
     }
   }
 
+  async function proposeRevision() {
+    if (working || disabled || !consent || !failed.length || revision) return
+    const run = new AbortController()
+    controller.current = run
+    setStage('revising')
+    setFailure(null)
+    setNotice('')
+    try {
+      const proposed = parseRevision(
+        await designRequest(
+          'agent-test-revisions',
+          revisionRequest({ instructions, templateId, failed }),
+          tests.timeoutMs,
+          run.signal,
+        ),
+      )
+      setRevision(proposed)
+      setRevisionUsage((previous) => [...previous, proposed.usage])
+    } catch (problem) {
+      if (run.signal.aborted) setNotice(stopped)
+      else setFailure(asFailure(problem))
+    } finally {
+      setStage('idle')
+    }
+  }
+
+  function accept() {
+    if (!revision || working) return
+    const rerun = rerunScope(scoped, results)
+    setRounds((previous) => [
+      ...previous,
+      { instructions, changes: revision.changes, results },
+    ])
+    setScope(rerun)
+    setResults({})
+    setInstructions(revision.instructions)
+    onAccept?.(revision.instructions)
+    setNotice(
+      `Revision accepted. Nothing is published yet. Run ${plural(rerun.length, 'case')} again to see whether it helped.`,
+    )
+    setRevision(null)
+  }
+
   function download() {
     saveFile(
       testFileName(spec),
@@ -174,6 +260,7 @@ export function SpecTestPanel({
           instructions,
           cases,
           results,
+          rounds,
         }),
         null,
         2,
@@ -214,6 +301,11 @@ export function SpecTestPanel({
           times to repeat them.
         </li>
         <li>
+          If tests fail, you can ask for a revised task text: one more call.
+          Nothing changes until you accept it, and you can do this{' '}
+          {MAX_REVISIONS} times at most.
+        </li>
+        <li>
           Simple checks screen the answers. A person still has to read each
           answer against its rubric.
         </li>
@@ -226,8 +318,8 @@ export function SpecTestPanel({
           onChange={(event) => setConsent(event.target.checked)}
         />
         <span>
-          I confirm each test call uses the shared Foundry model and can incur
-          charges.
+          I confirm each test or revision call uses the shared Foundry model and
+          can incur charges.
         </span>
       </label>
       {!cases.length && (
@@ -280,6 +372,8 @@ export function SpecTestPanel({
             {cases.map((test) => {
               const runs = results[test.id] ?? []
               const lines = describeChecks(test.checks)
+              const skipped = scope !== null && !scope.includes(test.id)
+              const before = lastRound?.results[test.id]
               return (
                 <li key={test.id}>
                   <p>
@@ -291,6 +385,21 @@ export function SpecTestPanel({
                   {!!lines.length && (
                     <p className="agent-spec-note">
                       Screen: {lines.join(' · ')}
+                    </p>
+                  )}
+                  {skipped && (
+                    <p className="agent-spec-note">
+                      Not run against the current instructions. It passed under
+                      an earlier version.
+                    </p>
+                  )}
+                  {!skipped && !!before?.length && (
+                    <p className="agent-spec-note">
+                      Earlier version:{' '}
+                      {before.every((run) => run.passed)
+                        ? 'passed'
+                        : 'did not pass'}{' '}
+                      the checks.
                     </p>
                   )}
                   {runs.map((run, index) => (
@@ -385,9 +494,121 @@ export function SpecTestPanel({
               disabled={working || disabled || !consent}
               onClick={() => void writeCases()}
             >
-              Write new cases
+              {rounds.length ? 'Start over with new cases' : 'Write new cases'}
             </button>
           </div>
+          {!!failed.length && !revision && stage !== 'revising' && (
+            <div className="spec-test-revise">
+              {rounds.length < MAX_REVISIONS ? (
+                <>
+                  <p>
+                    {plural(failed.length, 'case')} did not pass the checks. A
+                    model can propose a revision of the task instructions from{' '}
+                    {failed.length > 5 ? 'the first 5' : 'them'}. That is one
+                    more call, and the checks, the tools and the fixed policy
+                    stay as they are.
+                  </p>
+                  <div className="agent-spec-actions">
+                    <button
+                      type="button"
+                      className="library-secondary spec-test-revise-button"
+                      disabled={working || disabled || !consent}
+                      onClick={() => void proposeRevision()}
+                    >
+                      <Sparkles size={16} aria-hidden="true" /> Propose a
+                      revision (1 call)
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="agent-spec-note">
+                  {MAX_REVISIONS} revisions is the limit here. Read the failed
+                  answers and change the instructions yourself in Create agent.
+                </p>
+              )}
+            </div>
+          )}
+          {stage === 'revising' && (
+            <p className="spec-build-status" role="status">
+              <LoaderCircle size={16} className="spin" aria-hidden="true" />{' '}
+              Asking for a revision…
+              <button
+                type="button"
+                className="inline-link"
+                onClick={() => controller.current?.abort()}
+              >
+                Stop
+              </button>
+            </p>
+          )}
+          {revision && (
+            <div
+              className="spec-test-revision"
+              role="group"
+              aria-label="Proposed revision"
+            >
+              <h5>
+                Proposed revision {rounds.length + 1} of {MAX_REVISIONS}
+              </h5>
+              <ul>
+                {revision.changes.map((change) => (
+                  <li key={change}>{change}</li>
+                ))}
+              </ul>
+              <ul
+                className="spec-test-diff"
+                aria-label="Changes to the task instructions"
+              >
+                {lineDiff(instructions, revision.instructions).map(
+                  (line, index) => (
+                    <li key={`${index}:${line.kind}`} className={line.kind}>
+                      <span aria-hidden="true">
+                        {line.kind === 'add'
+                          ? '+ '
+                          : line.kind === 'remove'
+                            ? '− '
+                            : '  '}
+                      </span>
+                      <span className="visually-hidden">
+                        {line.kind === 'add'
+                          ? 'Added: '
+                          : line.kind === 'remove'
+                            ? 'Removed: '
+                            : 'Unchanged: '}
+                      </span>
+                      {line.text || ' '}
+                    </li>
+                  ),
+                )}
+              </ul>
+              <p className="agent-spec-note">
+                Accepting replaces the task instructions this panel tests and
+                the Create button below would publish. Nothing is published or
+                saved by accepting. You then run{' '}
+                {plural(nextScope.length, 'case')} again: the failed ones plus
+                up to {PASS_SAMPLE} that passed, to catch a change that broke
+                them. Cases outside that sample are not run again.
+              </p>
+              <div className="agent-spec-actions">
+                <button
+                  type="button"
+                  className="library-secondary spec-test-accept"
+                  disabled={working}
+                  onClick={accept}
+                >
+                  <Check size={16} aria-hidden="true" /> Accept revision
+                </button>
+                <button
+                  type="button"
+                  className="library-secondary spec-test-discard"
+                  disabled={working}
+                  onClick={() => setRevision(null)}
+                >
+                  <X size={16} aria-hidden="true" /> Discard
+                </button>
+              </div>
+            </div>
+          )}
           {stage === 'running' && (
             <p className="spec-build-status" role="status">
               <LoaderCircle size={16} className="spin" aria-hidden="true" />{' '}
@@ -397,8 +618,21 @@ export function SpecTestPanel({
           {started && (
             <p className="spec-test-summary" role="status">
               {summary.passed} of {plural(summary.runs, 'run')} passed the
-              automatic checks. That is not proof the draft is right: read each
-              answer against its rubric.
+              automatic checks
+              {rounds.length > 0 && ' under the revised instructions'}. That is
+              not proof the draft is right: read each answer against its rubric.
+            </p>
+          )}
+          {slipped.length > 0 && (
+            <p className="spec-build-error" role="status">
+              Passed before the revision but does not now: {slipped.join(', ')}.
+              The revision may have broken it.
+            </p>
+          )}
+          {notRerun > 0 && (
+            <p className="agent-spec-note">
+              {plural(notRerun, 'case')} not run against the current
+              instructions.
             </p>
           )}
           {usage.measured + usage.missing > 0 && (

@@ -1,8 +1,9 @@
-"""Design loop routes: draft test cases for task instructions, and run one draft case without publishing.
+"""Design loop routes: draft test cases for task instructions, run one draft case, and propose a revision.
 
-Both routes call the model deployment directly through the library preview path, so nothing is published
+Every route calls the model deployment directly through the library preview path, so nothing is published
 or stored. A model may write only the draft's task instructions and test cases. The fixed policy, the
-template's tools and the checks' vocabulary stay as they are, and a person reads every answer.
+template's tools and the checks' vocabulary stay as they are, and a person reads every answer and accepts
+or rejects every revision.
 """
 import asyncio
 import json
@@ -17,12 +18,16 @@ from agent_runtime.main import DEMO_POLICY
 from agent_templates import TEMPLATES
 from case_scoring import score
 from draft_cases import CASE_WRITER_INSTRUCTIONS, CaseDraftError, case_problems, case_prompt, parse_cases
+from draft_revision import (MAX_ANSWER, MAX_FAILED, MAX_FAILURE, REVISER_INSTRUCTIONS, RevisionError, RevisionUnchanged,
+                            parse_revision, revision_prompt)
 from history import StrictModel
 from library_preview import DESIGNER_ID, summarize_usage, preview_agent
 from model_budget import ModelBudgetWait, estimate_input_tokens
 from request_guard import MAX_SETUP_BYTES, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
 
 LOGGER = logging.getLogger("uvicorn.error")
+# Up to five failed answers travel with the instructions, so this route reads more than a setup does.
+MAX_REVISION_BYTES = 131072
 
 
 class Instructions(StrictModel):
@@ -47,8 +52,26 @@ class RunInput(Instructions):
     case: dict
 
 
+class FailedCase(StrictModel):
+    case: dict
+    text: str = Field(min_length=1, max_length=MAX_ANSWER + 1000)
+    failures: list[str] = Field(min_length=1, max_length=8)
+
+    @field_validator("failures")
+    @classmethod
+    def short_failures(cls, value):
+        if any(not 1 <= len(item.strip()) <= MAX_FAILURE for item in value):
+            raise ValueError("A failure is one short line")
+        return value
+
+
+class RevisionInput(Instructions):
+    template_id: str = Field(min_length=1, max_length=64)
+    failed: list[FailedCase] = Field(min_length=1, max_length=MAX_FAILED)
+
+
 class DesignLoop:
-    """POST /api/agent-test-cases writes cases for instructions; POST /api/agent-test-runs runs and screens one."""
+    """POST /api/agent-test-cases writes cases, /api/agent-test-runs runs and screens one, and /api/agent-test-revisions revises."""
 
     def __init__(self, settings, gateway, receipts, retry_after_seconds, gate, budgets):
         self.settings, self.gateway, self.receipts = settings, gateway, receipts
@@ -56,12 +79,13 @@ class DesignLoop:
         self.router = APIRouter()
         self.router.add_api_route("/api/agent-test-cases", self.draft_cases, methods=["POST"])
         self.router.add_api_route("/api/agent-test-runs", self.run_case, methods=["POST"])
+        self.router.add_api_route("/api/agent-test-revisions", self.revise, methods=["POST"])
 
     @staticmethod
     def error(request, status, code, retry_after=None, **extra):
         return api_error(request, status, code, retry_after=retry_after, **extra)
 
-    async def admitted(self, request, handler, model):
+    async def admitted(self, request, handler, model, limit=MAX_SETUP_BYTES):
         if not request_allowed(request, self.settings.origins):
             return self.error(request, 403, "request_not_allowed")
         if not self.settings.library_preview_enabled:
@@ -70,7 +94,7 @@ class DesignLoop:
             return self.error(request, 429, "busy", 60)
         async with self.gate.slots:
             try:
-                body = await read_json_body(request, MAX_SETUP_BYTES, wrong_type=(400, "invalid_setup"))
+                body = await read_json_body(request, limit, wrong_type=(400, "invalid_setup"))
                 data = model.model_validate_json(body)
             except RequestRejected as problem:
                 return self.error(request, problem.status, problem.code)
@@ -156,3 +180,30 @@ class DesignLoop:
         return {"request_id": request.state.request_id, "case_id": data.case["id"], "passed": passed,
                 "failures": failures, "text": text, "receipts": receipts, "elapsed_ms": elapsed,
                 "usage": summarize_usage(usage)}
+
+    async def revise(self, request: Request):
+        return await self.admitted(request, self.write_revision, RevisionInput, MAX_REVISION_BYTES)
+
+    async def write_revision(self, request, data):
+        agent = self.template_agent(data.template_id)
+        if agent is None:
+            return self.error(request, 400, "invalid_setup")
+        tools = tuple(agent["tools"])
+        failed = [item.model_dump() for item in data.failed]
+        problems = [problem for item in failed for problem in case_problems(item["case"], tools)]
+        if problems:
+            return self.error(request, 400, "invalid_case", problems=problems[:8])
+        writer = preview_agent(DESIGNER_ID, include_unfinished=False)
+        result, rejection = await self.ask(request, writer, revision_prompt(data.instructions, failed, tools),
+                                           REVISER_INSTRUCTIONS)
+        if rejection is not None:
+            return rejection
+        text, _, usage, elapsed = result
+        try:
+            revision = parse_revision(text, data.instructions, failed)
+        except RevisionUnchanged as problem:
+            return self.error(request, 502, "revision_unchanged", problems=problem.problems)
+        except RevisionError as problem:
+            return self.error(request, 502, "revision_unusable", problems=problem.problems)
+        return {"request_id": request.state.request_id, "template_id": data.template_id, **revision,
+                "elapsed_ms": elapsed, "usage": summarize_usage(usage)}

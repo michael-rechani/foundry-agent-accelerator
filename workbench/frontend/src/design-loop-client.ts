@@ -52,7 +52,22 @@ export type CaseDraft = {
 
 export type Job = { test: TestCase; repeat: number }
 
+export type Revision = {
+  instructions: string
+  changes: string[]
+  usage: Usage | null
+}
+
+export type DiffLine = { kind: 'same' | 'add' | 'remove'; text: string }
+
 export const MAX_REPEATS = 3
+// A fixed budget of tries: after this many accepted revisions the next change is the person's.
+export const MAX_REVISIONS = 2
+// How many cases that passed are run again after a revision, to catch a change that broke them.
+export const PASS_SAMPLE = 2
+// The most failed cases one revision call reads, and the most of each answer sent with it.
+export const MAX_FAILED = 5
+export const MAX_ANSWER = 3000
 
 const messages: Record<string, string> = {
   cases_unusable:
@@ -63,6 +78,10 @@ const messages: Record<string, string> = {
     'The setup was not accepted. Check that the draft is not too long and that its template can be tested.',
   response_too_large:
     'The answer was too large to check, so this test was stopped.',
+  revision_unusable:
+    'The proposed revision was not usable, so nothing changed, though the call was still used. It may have been too long, tried to change more than the instructions, or copied a test into them. You can try again.',
+  revision_unchanged:
+    'The model proposed no change to the instructions, so nothing changed, though the call was still used. The failures may need a person to look at them.',
 }
 
 export class TestRequestError extends Error {
@@ -102,7 +121,7 @@ export function asFailure(problem: unknown) {
 // One model call per request. A person stopping the work rethrows the abort so
 // the caller can tell it from a timeout.
 export async function designRequest(
-  path: 'agent-test-cases' | 'agent-test-runs',
+  path: 'agent-test-cases' | 'agent-test-runs' | 'agent-test-revisions',
   body: unknown,
   timeoutMs: number,
   signal?: AbortSignal,
@@ -308,8 +327,170 @@ export function summarizeRuns(
   }
 }
 
+export type FailedRun = { test: TestCase; run: CaseRun }
+
+// The first failing run of each case, in case order.
+export function failedRuns(
+  cases: TestCase[],
+  results: Record<string, CaseRun[]>,
+): FailedRun[] {
+  const failed: FailedRun[] = []
+  for (const test of cases) {
+    const run = results[test.id]?.find((item) => !item.passed)
+    if (run) failed.push({ test, run })
+  }
+  return failed
+}
+
+// Counted in characters, not UTF-16 units, to match how the Lab counts.
+const clip = (text: string, limit: number) =>
+  [...text].length <= limit ? text : [...text].slice(0, limit).join('')
+
+// What the Lab is told: the exact instructions that were tried and, for the
+// first few failures, the case, the answer and the checks it missed. A model
+// asked for a revision never sees the checks as anything it could edit.
+export function revisionRequest(input: {
+  instructions: string
+  templateId: string
+  failed: FailedRun[]
+}) {
+  return {
+    instructions: input.instructions,
+    template_id: input.templateId,
+    failed: input.failed.slice(0, MAX_FAILED).map(({ test, run }) => ({
+      case: test,
+      text: clip(run.text, MAX_ANSWER),
+      failures: run.failures.length
+        ? run.failures.slice(0, 8).map((item) => clip(item, 300))
+        : ['Did not pass the checks'],
+    })),
+    confirm_cost: true,
+  }
+}
+
+export function parseRevision(value: unknown): Revision {
+  const changes = isObject(value) ? strings(value.changes, 6) : null
+  if (
+    !isObject(value) ||
+    typeof value.instructions !== 'string' ||
+    ![...value.instructions.trim()].length ||
+    [...value.instructions].length > 6000 ||
+    !changes?.length
+  )
+    throw new Error('The revision response is invalid.')
+  return {
+    instructions: value.instructions,
+    changes,
+    usage: parseUsage(value.usage),
+  }
+}
+
+// A case that passed every run before a revision and fails a run after it.
+export function regressions(
+  cases: TestCase[],
+  before: Record<string, CaseRun[]>,
+  after: Record<string, CaseRun[]>,
+): string[] {
+  return cases
+    .filter((test) => {
+      const was = before[test.id]
+      return (
+        !!was?.length &&
+        was.every((run) => run.passed) &&
+        !!after[test.id]?.some((run) => !run.passed)
+      )
+    })
+    .map((test) => test.id)
+}
+
+// After a revision, run again every case that failed or never ran, plus a few
+// that passed, so a change that fixed one answer and broke another shows up.
+// The sample is the first passing cases in order, so the cost is predictable.
+export function rerunScope(
+  cases: TestCase[],
+  results: Record<string, CaseRun[]>,
+  sample = PASS_SAMPLE,
+): string[] {
+  const failed = new Set(failedRuns(cases, results).map((item) => item.test.id))
+  const passed = cases
+    .filter((test) => !failed.has(test.id) && results[test.id]?.length)
+    .slice(0, sample)
+    .map((test) => test.id)
+  const keep = new Set([
+    ...failed,
+    ...passed,
+    ...cases.filter((test) => !results[test.id]?.length).map((test) => test.id),
+  ])
+  return cases.filter((test) => keep.has(test.id)).map((test) => test.id)
+}
+
+// A line by line difference of two texts. Past a size where the comparison
+// would be slow it shows the whole old text removed and the whole new text added.
+export function lineDiff(before: string, after: string): DiffLine[] {
+  const split = (text: string) => text.replace(/\r\n?/g, '\n').split('\n')
+  const a = split(before)
+  const b = split(after)
+  if (a.length * b.length > 1_000_000)
+    return [
+      ...a.map((text): DiffLine => ({ kind: 'remove', text })),
+      ...b.map((text): DiffLine => ({ kind: 'add', text })),
+    ]
+  // common[i][j]: lines in common between a[i..] and b[j..].
+  const common = Array.from({ length: a.length + 1 }, () =>
+    new Array<number>(b.length + 1).fill(0),
+  )
+  const at = (i: number, j: number) => common[i]?.[j] ?? 0
+  for (let i = a.length - 1; i >= 0; i--)
+    for (let j = b.length - 1; j >= 0; j--)
+      common[i]![j] =
+        a[i] === b[j]
+          ? at(i + 1, j + 1) + 1
+          : Math.max(at(i + 1, j), at(i, j + 1))
+  const diff: DiffLine[] = []
+  let i = 0
+  let j = 0
+  while (i < a.length || j < b.length) {
+    if (i < a.length && j < b.length && a[i] === b[j]) {
+      diff.push({ kind: 'same', text: a[i]! })
+      i++
+      j++
+    } else if (
+      j >= b.length ||
+      (i < a.length && at(i + 1, j) >= at(i, j + 1))
+    ) {
+      diff.push({ kind: 'remove', text: a[i]! })
+      i++
+    } else {
+      diff.push({ kind: 'add', text: b[j]! })
+      j++
+    }
+  }
+  return diff
+}
+
 export const testFileName = (spec: Pick<AgentSpec, 'name'>) =>
   `${specSlug(spec)}.test-cases.json`
+
+// One tried version of the instructions, the answers it got, and the reasons
+// given for the revision a person accepted in its place.
+export type Round = {
+  instructions: string
+  changes: string[]
+  results: Record<string, CaseRun[]>
+}
+
+function fileRuns(cases: TestCase[], results: Record<string, CaseRun[]>) {
+  return cases.flatMap((test) =>
+    (results[test.id] ?? []).map((run) => ({
+      case_id: run.case_id,
+      passed: run.passed,
+      failures: run.failures,
+      answer: run.text,
+      tools_called: run.receipts.map((receipt) => receipt.tool),
+      elapsed_ms: run.elapsed_ms,
+    })),
+  )
+}
 
 // The cases and what came back, for a person to keep and to read against each
 // rubric. The note travels with the file so a pass is never mistaken for proof.
@@ -319,6 +500,7 @@ export function testFile(input: {
   instructions: string
   cases: TestCase[]
   results: Record<string, CaseRun[]>
+  rounds?: Round[]
 }) {
   return {
     note: 'The automatic checks only screen answers. A person must read each answer against its rubric before relying on this agent.',
@@ -326,15 +508,11 @@ export function testFile(input: {
     template_id: input.templateId,
     instructions: input.instructions,
     cases: input.cases,
-    runs: input.cases.flatMap((test) =>
-      (input.results[test.id] ?? []).map((run) => ({
-        case_id: run.case_id,
-        passed: run.passed,
-        failures: run.failures,
-        answer: run.text,
-        tools_called: run.receipts.map((receipt) => receipt.tool),
-        elapsed_ms: run.elapsed_ms,
-      })),
-    ),
+    runs: fileRuns(input.cases, input.results),
+    earlier_rounds: (input.rounds ?? []).map((round) => ({
+      instructions: round.instructions,
+      revised_because: round.changes,
+      runs: fileRuns(input.cases, round.results),
+    })),
   }
 }

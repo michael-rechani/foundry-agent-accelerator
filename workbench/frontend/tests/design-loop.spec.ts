@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
-import { type Page, expect, test } from '@playwright/test'
-import { openCreation, templates } from './helpers/creation-lab'
+import { type Locator, type Page, expect, test } from '@playwright/test'
+import { openCreation, operatorKey, templates } from './helpers/creation-lab'
 
 // Start without stored choices, as a first-time visitor would.
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -57,34 +57,89 @@ type RunBody = {
   confirm_cost: boolean
 }
 
-// Answers the two test routes without a model. `busyOnce` makes the named case
-// fail once with a busy Lab; `stall` leaves the named case unanswered.
+type RevisionBody = {
+  instructions: string
+  template_id: string
+  failed: { case: (typeof cases)[number]; text: string; failures: string[] }[]
+  confirm_cost: boolean
+}
+
+const addedLine = 'Ask for the start date when a notice leaves it out.'
+
+// Answers the test routes without a model. `busyOnce` makes the named case
+// fail once with a busy Lab; `stall` leaves the named case unanswered;
+// `extraCases` adds passing cases so a revision's re-run has to sample;
+// `revision` makes the revision route fail instead of proposing a change;
+// `fix: false` makes revisions change nothing that helps; `breaks` names a
+// case that starts failing once the instructions contain the added line. A
+// failing case passes once the instructions contain the added line.
 async function mockTests(
   page: Page,
-  options: { busyOnce?: string; stall?: string } = {},
+  options: {
+    busyOnce?: string
+    stall?: string
+    extraCases?: number
+    revision?: 'unchanged' | 'unusable'
+    fix?: boolean
+    breaks?: string
+  } = {},
 ) {
   const state = {
     writes: [] as Record<string, unknown>[],
     runs: [] as RunBody[],
+    revisions: [] as RevisionBody[],
     busyOnce: options.busyOnce,
   }
+  const written = [
+    ...cases,
+    ...Array.from({ length: options.extraCases ?? 0 }, (_, index) => ({
+      id: `extra-${index + 1}`,
+      category: 'grounded',
+      input: 'Sample notice: the help desk opens at 09:00.',
+      checks: { must_include: ['09:00'] },
+      rubric: 'States the opening hours.',
+    })),
+  ]
   await page.route('**/api/agent-test-*', async (route) => {
     const request = route.request()
     const body = request.postDataJSON()
     expect(request.method()).toBe('POST')
     expect(request.headers()['x-workbench-request']).toBe('1')
     expect(body.confirm_cost).toBe(true)
-    if (new URL(request.url()).pathname === '/api/agent-test-cases') {
+    const path = new URL(request.url()).pathname
+    if (path === '/api/agent-test-cases') {
       state.writes.push(body)
       return route.fulfill({
         json: {
           request_id: 'illustrative-cases-1',
           template_id: body.template_id,
-          cases,
+          cases: written,
           rejected: [
             { id: 'bad-one', problems: ['input must contain sample'] },
           ],
           elapsed_ms: 900,
+          usage,
+        },
+      })
+    }
+    if (path === '/api/agent-test-revisions') {
+      state.revisions.push(body)
+      if (options.revision)
+        return route.fulfill({
+          status: 502,
+          json: { error: `revision_${options.revision}`, problems: ['x'] },
+        })
+      return route.fulfill({
+        json: {
+          request_id: `illustrative-revision-${state.revisions.length}`,
+          template_id: body.template_id,
+          instructions: `${body.instructions}\n${
+            options.fix === false
+              ? `Revision note ${state.revisions.length}.`
+              : addedLine
+          }`,
+          changes: ['Asks for a start date when a notice gives none.'],
+          elapsed_ms: 1100,
           usage,
         },
       })
@@ -100,7 +155,9 @@ async function mockTests(
         json: { error: 'busy' },
       })
     }
-    const passed = id !== 'missing-date'
+    const revised = (body.instructions as string).includes(addedLine)
+    const passed =
+      id === options.breaks ? !revised : id !== 'missing-date' || revised
     return route.fulfill({
       json: {
         request_id: `illustrative-run-${state.runs.length}`,
@@ -292,4 +349,203 @@ test('a spec with no matching template cannot be tested', async ({ page }) => {
   await expect(
     card.getByRole('button', { name: 'Test this draft first' }),
   ).toHaveCount(0)
+})
+
+// Writes the cases and runs them once, so a failed case is ready to revise.
+async function runAll(card: Locator, calls: number) {
+  await card.getByRole('button', { name: 'Test this draft first' }).click()
+  const panel = card.getByRole('group', { name: 'Test this draft' })
+  await panel.getByRole('checkbox').check()
+  await panel.getByRole('button', { name: 'Write test cases' }).click()
+  await panel
+    .getByRole('button', { name: `Run ${calls} test calls`, exact: true })
+    .click()
+  await expect(panel).toContainText('passed the automatic checks')
+  return panel
+}
+
+const propose = 'Propose a revision (1 call)'
+
+test('a failed case can get a proposed revision that is applied only on accept', async ({
+  page,
+}) => {
+  const { tests, card } = await openPanel(page)
+  const panel = await runAll(card, 3)
+  expect(tests.revisions).toEqual([])
+  await expect(panel).toContainText('1 case did not pass the checks')
+
+  await panel.getByRole('button', { name: propose }).click()
+  const revision = panel.getByRole('group', { name: 'Proposed revision' })
+  await expect(revision).toContainText('Proposed revision 1 of 2')
+  await expect(revision).toContainText(
+    'Asks for a start date when a notice gives none.',
+  )
+  await expect(revision.locator('li.add')).toHaveCount(1)
+  await expect(revision.locator('li.add')).toContainText(addedLine)
+  await expect(revision.locator('li.remove')).toHaveCount(0)
+  await expect(revision).toContainText('Nothing is published or saved')
+
+  // The request carries the failed case and its answer, and nothing else.
+  expect(tests.revisions).toHaveLength(1)
+  const sent = tests.revisions[0]
+  expect(Object.keys(sent).sort()).toEqual([
+    'confirm_cost',
+    'failed',
+    'instructions',
+    'template_id',
+  ])
+  expect(sent.failed).toHaveLength(1)
+  expect(sent.failed[0].case.id).toBe('missing-date')
+  expect(sent.failed[0].text).toBe('ILLUSTRATIVE ANSWER for missing-date')
+  expect(sent.failed[0].failures).toEqual(['asks no question'])
+  expect(tests.runs).toHaveLength(3)
+
+  // Discarding changes nothing and allows asking again.
+  await revision.getByRole('button', { name: 'Discard' }).click()
+  await expect(revision).toHaveCount(0)
+  await panel.getByRole('button', { name: propose }).click()
+  await expect(revision).toContainText('Proposed revision 1 of 2')
+  expect(tests.revisions).toHaveLength(2)
+
+  await revision.getByRole('button', { name: 'Accept revision' }).click()
+  await expect(panel).toContainText('Revision accepted. Nothing is published')
+  expect(tests.runs).toHaveLength(3)
+  await expect(panel).toContainText('Earlier version: did not pass the checks')
+
+  await panel.getByRole('button', { name: 'Run 3 test calls' }).click()
+  await expect(panel).toContainText(
+    '3 of 3 runs passed the automatic checks under the revised instructions',
+  )
+  expect(tests.runs).toHaveLength(6)
+  for (const run of tests.runs.slice(0, 3))
+    expect(run.instructions).not.toContain(addedLine)
+  for (const run of tests.runs.slice(3))
+    expect(run.instructions.endsWith(addedLine)).toBe(true)
+  await expect(panel.getByRole('button', { name: propose })).toHaveCount(0)
+
+  const download = page.waitForEvent('download')
+  await panel
+    .getByRole('button', { name: 'Download cases and results' })
+    .click()
+  const file = JSON.parse(
+    await readFile((await (await download).path())!, 'utf8'),
+  )
+  expect(file.instructions.endsWith(addedLine)).toBe(true)
+  expect(file.earlier_rounds).toHaveLength(1)
+  expect(file.earlier_rounds[0].instructions).not.toContain(addedLine)
+  expect(file.earlier_rounds[0].revised_because).toEqual([
+    'Asks for a start date when a notice gives none.',
+  ])
+  expect(file.earlier_rounds[0].runs).toHaveLength(3)
+  await expect(panel).toContainText('tokens across')
+})
+
+test('the re-run covers the failures and a small sample of passes, and says what it skipped', async ({
+  page,
+}) => {
+  const { tests, card } = await openPanel(page, { tests: { extraCases: 2 } })
+  const panel = await runAll(card, 5)
+  await panel.getByRole('button', { name: propose }).click()
+  await panel.getByRole('button', { name: 'Accept revision' }).click()
+  await expect(panel).toContainText('Run 3 cases again')
+  await panel.getByRole('button', { name: 'Run 3 test calls' }).click()
+  await expect(panel).toContainText('3 of 3 runs passed')
+  expect(tests.runs.slice(5).map((run) => run.case.id)).toEqual([
+    'grounded-hours',
+    'missing-date',
+    'injection-approve',
+  ])
+  await expect(panel).toContainText('2 cases not run against the current')
+  await expect(panel.getByRole('list', { name: 'Test cases' })).toContainText(
+    'Not run against the current instructions',
+  )
+})
+
+test('a revision that breaks a case that passed is called out', async ({
+  page,
+}) => {
+  const { card } = await openPanel(page, {
+    tests: { breaks: 'grounded-hours' },
+  })
+  const panel = await runAll(card, 3)
+  await panel.getByRole('button', { name: propose }).click()
+  await panel.getByRole('button', { name: 'Accept revision' }).click()
+  await panel.getByRole('button', { name: 'Run 3 test calls' }).click()
+  await expect(panel).toContainText(
+    'Passed before the revision but does not now: grounded-hours',
+  )
+})
+
+test('revisions stop at the limit and the rest is left to the person', async ({
+  page,
+}) => {
+  const { tests, card } = await openPanel(page, { tests: { fix: false } })
+  const panel = await runAll(card, 3)
+  for (const round of [1, 2]) {
+    await panel.getByRole('button', { name: propose }).click()
+    await expect(
+      panel.getByRole('group', { name: 'Proposed revision' }),
+    ).toContainText(`Proposed revision ${round} of 2`)
+    await panel.getByRole('button', { name: 'Accept revision' }).click()
+    await panel.getByRole('button', { name: 'Run 3 test calls' }).click()
+    await expect(panel).toContainText('2 of 3 runs passed')
+  }
+  expect(tests.revisions).toHaveLength(2)
+  await expect(panel.getByRole('button', { name: propose })).toHaveCount(0)
+  await expect(panel).toContainText('2 revisions is the limit here')
+})
+
+for (const kind of ['unusable', 'unchanged'] as const)
+  test(`a revision that is ${kind} says the call was still used and changes nothing`, async ({
+    page,
+  }) => {
+    const { tests, card } = await openPanel(page, {
+      tests: { revision: kind },
+    })
+    const panel = await runAll(card, 3)
+    await panel.getByRole('button', { name: propose }).click()
+    await expect(panel.getByRole('alert')).toContainText('still used')
+    await expect(
+      panel.getByRole('group', { name: 'Proposed revision' }),
+    ).toHaveCount(0)
+    await expect(panel.getByRole('button', { name: propose })).toBeEnabled()
+    expect(tests.revisions).toHaveLength(1)
+  })
+
+test('an accepted revision is what Create publishes', async ({ page }) => {
+  const { state, card } = await openPanel(page, { creation: true })
+  const panel = await runAll(card, 3)
+  await panel.getByRole('button', { name: propose }).click()
+  await panel.getByRole('button', { name: 'Accept revision' }).click()
+
+  await card.getByRole('button', { name: 'Create this agent here' }).click()
+  const build = card.getByRole('group', { name: 'Create this agent' })
+  await expect(build).toContainText('task instructions you accepted')
+  await build.getByRole('checkbox').check()
+  await build.getByLabel('Operator key', { exact: true }).fill(operatorKey)
+  await build.getByRole('button', { name: 'Create in Foundry' }).click()
+  await expect(card.getByText(/is ready in Foundry/).first()).toBeVisible()
+  expect(state.posts).toHaveLength(1)
+  expect(state.posts[0].instructions).toBe(
+    `${template.instructions}\nRequested job: ${state.drafts[0].goal}\n${addedLine}`,
+  )
+})
+
+test('starting over with new cases drops an accepted revision', async ({
+  page,
+}) => {
+  const { card } = await openPanel(page, { creation: true })
+  const panel = await runAll(card, 3)
+  await panel.getByRole('button', { name: propose }).click()
+  await panel.getByRole('button', { name: 'Accept revision' }).click()
+  await card.getByRole('button', { name: 'Create this agent here' }).click()
+  const build = card.getByRole('group', { name: 'Create this agent' })
+  await expect(build).toContainText('task instructions you accepted')
+
+  await panel.getByRole('button', { name: 'Start over with new cases' }).click()
+  await expect(build).not.toContainText('task instructions you accepted')
+  await expect(
+    panel.getByRole('group', { name: 'Proposed revision' }),
+  ).toHaveCount(0)
+  await expect(panel).not.toContainText('under the revised instructions')
 })

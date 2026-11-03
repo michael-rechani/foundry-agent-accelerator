@@ -52,22 +52,50 @@ this agent here** would publish, and it publishes nothing:
 3. Each result shows whether the answer passed the automatic checks, which check
    failed, and the answer itself. A person still has to read each answer against
    its rubric. Passing the screen isn't proof the answer is right.
+4. If cases fail, choose **Propose a revision (1 call)**. A model reads the
+   failed cases and their answers and proposes new task instructions. It changes
+   that text only: the checks, the tools, the template and the Lab's own safety
+   text stay as they are, and the Lab rejects a reply that tries to change
+   anything else, copies a test's input into the instructions, is empty or too
+   long, or changes nothing. The panel shows the model's reasons and a line
+   diff. Nothing changes until you choose **Accept revision**; **Discard** leaves
+   the text as it was. Accepting makes no model call. It replaces the text the
+   panel tests and the text **Create in Foundry** publishes in the same card, so
+   what you tested is what gets published. The note in the Create panel says when
+   it will publish accepted text.
+5. After you accept, run again. The re-run covers the cases that failed, any that
+   never ran, and the first two that passed, so a change that fixed one answer
+   and broke another can show up. The panel names a case that passed before and
+   fails now, and says how many cases were not run against the current text.
+   Those cases passed under an earlier version, which is not proof about this
+   one. Read their earlier answers, or start over with new cases. You can
+   accept two revisions at most per set of cases. After that, read the failed
+   answers and edit the instructions yourself. **Start over with new cases**
+   drops accepted text and the earlier rounds.
 
 The cases and results stay in the browser. **Download cases and results** saves
-them as a file. Nothing is written to the Lab's own test cases, so a good case
-still has to be reviewed and added by a person. The panel needs no operator key
-and works when agent creation is off, but every call uses the shared model and
-may incur cost.
+them as a file, including the current instructions and each earlier version with
+its results and the reasons it was revised. Nothing is written to the Lab's own
+test cases, so a good case still has to be reviewed and added by a person. The
+panel needs no operator key and works when agent creation is off, but every call
+uses the shared model and may incur cost. A revision call that the Lab rejects
+is still a model call, so the message says so. The revision is only used by
+**Create in Foundry** in that card. **Start from** and the Create agent page
+begin from the template and the goal, not from accepted text.
 
-The panel uses two routes, both POST-only, same-origin and private-mode only:
-`/api/agent-test-cases` (writes the cases) and `/api/agent-test-runs` (one model
-run of one case). Both need `confirm_cost: true`. They answer `403`
-`request_not_allowed`, `503` `library_preview_disabled`, `429` `busy` (with
-`Retry-After`), `400` `invalid_setup` or `invalid_case`, `502` `cases_unusable`
-or `backend_unavailable`, and `504` `timeout`. Each run uses the same
-instructions and simulated read-only lookups as a library preview. The Lab
-scores the answer with `workbench/case_scoring.py`, the same screen the offline
-library checks use.
+The panel uses three routes, all POST-only, same-origin and private-mode only:
+`/api/agent-test-cases` (writes the cases), `/api/agent-test-runs` (one model
+run of one case) and `/api/agent-test-revisions` (proposes revised instructions
+from up to five failed cases and their answers). All need `confirm_cost: true`.
+They answer `403` `request_not_allowed`, `503` `library_preview_disabled`, `429`
+`busy` (with `Retry-After`), `400` `invalid_setup` or `invalid_case`, `413`
+`request_too_large`, `502` `cases_unusable`, `revision_unusable`,
+`revision_unchanged` or `backend_unavailable`, and `504` `timeout`. The routes
+keep no state, so the revision limit and the repeat count are enforced in the
+browser, and the Lab's per-deployment budget gate is the hard limit. Each run
+uses the same instructions and simulated read-only lookups as a library preview.
+The Lab scores the answer with `workbench/case_scoring.py`, the same screen the
+offline library checks use.
 
 The Create page lists the Lab's 18 templates in three groups, named and ordered
 the same as the sectors in the **Agent library**: **Works in any sector** (five
@@ -267,7 +295,7 @@ For non-Terraform operators, the equivalent server configuration is:
 | `WORKBENCH_CREATION_KEY_SHA256` | Lowercase, 64-character verifier from a secret reference. Never the raw key |
 | `WORKBENCH_MAX_CREATED_AGENTS` | Defaults to 5. Allowed range 1-20. Failed or unconfirmed attempts still count |
 | `WORKBENCH_PUBLICATION_TIMEOUT_SECONDS` | Defaults to 600. Allowed range 30-900 |
-| `WORKBENCH_LIBRARY_PREVIEW_ENABLED` | `true` (default) or `false`. When `true` in private mode with a creation model configured, **Chat** can run library definitions as unsaved previews on that model without publishing an agent. Previews use only simulated read-only lookups, and each message may incur model cost. The same setting turns on **Test this draft first**, whose calls also use the model. Other values fail startup. |
+| `WORKBENCH_LIBRARY_PREVIEW_ENABLED` | `true` (default) or `false`. When `true` in private mode with a creation model configured, **Chat** can run library definitions as unsaved previews on that model without publishing an agent. Previews use only simulated read-only lookups, and each message may incur model cost. The same setting turns on **Test this draft first**, whose test and revision calls also use the model. Other values fail startup. |
 | `WORKBENCH_UNFINISHED_AGENTS_ENABLED` | `true` or `false` (default). When `false`, the Lab offers, previews, drafts and creates only **featured** library agents: those marked Focus or signed off as Reviewed. Everything else stays in the code but is hidden from the Library, Chat, Create and the job finder, and the API refuses it. Agents you already created keep working. Set by `unfinished_agents_enabled` in Terraform. Other values fail startup. Guided demos use agents that are not featured yet, so they show their "no matching agent" state until you turn this on. |
 
 The existing `WORKBENCH_MODE=private`, Foundry endpoint, managed identity,
