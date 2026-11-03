@@ -12,6 +12,7 @@ export function CreationSetupReview({
   templateModel,
   name,
   instructions,
+  acceptedInstructions,
   consent,
   pending,
   busy,
@@ -31,6 +32,8 @@ export function CreationSetupReview({
   templateModel?: string | null
   name: string
   instructions: string
+  // Instructions the person accepted while testing a draft, if they apply.
+  acceptedInstructions?: string
   consent: boolean
   pending: CreatePayload | null
   busy: boolean
@@ -103,6 +106,31 @@ export function CreationSetupReview({
           onChange={(event) => onName(event.target.value)}
         />
       </label>
+      {acceptedInstructions !== undefined &&
+        acceptedInstructions !== draft.instructions &&
+        (instructions === acceptedInstructions ||
+          instructions === draft.instructions) && (
+          <p className="creation-help" role="status">
+            {instructions === acceptedInstructions
+              ? 'These are the task instructions you accepted while testing, not the template\u2019s prepared text. '
+              : 'These are the template\u2019s prepared instructions, not the ones you accepted while testing. '}
+            <button
+              className="inline-link"
+              disabled={busy || !!pending}
+              onClick={() =>
+                onInstructions(
+                  instructions === acceptedInstructions
+                    ? draft.instructions
+                    : acceptedInstructions,
+                )
+              }
+            >
+              {instructions === acceptedInstructions
+                ? 'Use the prepared text instead'
+                : 'Use the accepted text'}
+            </button>
+          </p>
+        )}
       <details className="creation-instructions-edit">
         <summary>
           Task instructions: {[...instructions].length.toLocaleString()}{' '}

@@ -79,9 +79,17 @@ its results and the reasons it was revised. Nothing is written to the Lab's own
 test cases, so a good case still has to be reviewed and added by a person. The
 panel needs no operator key and works when agent creation is off, but every call
 uses the shared model and may incur cost. A revision call that the Lab rejects
-is still a model call, so the message says so. The revision is only used by
-**Create in Foundry** in that card. **Start from** and the Create agent page
-begin from the template and the goal, not from accepted text.
+is still a model call, so the message says so. Accepted text is used by
+**Create in Foundry** in that card and by **Start from** on the same card. **Start
+from** opens the Create agent page with the goal and the accepted text. On the
+review step the text appears with a note that you accepted it while testing, and
+**Use the prepared text instead** switches to the template's own text and back.
+The accepted text applies only while the template and the goal stay as they were
+when you accepted it. If you change either, the page says so and the prepared
+text is used. If a setup is already under review on that page, **Start from**
+leaves it as it is. **Start over with new cases** and publishing both drop the
+accepted text. Opening
+Create agent from a library template or `/#create` never carries accepted text.
 
 The panel uses three routes, all POST-only, same-origin and private-mode only:
 `/api/agent-test-cases` (writes the cases), `/api/agent-test-runs` (one model

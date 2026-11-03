@@ -93,6 +93,7 @@ export default function ChatWorkspace() {
     id: string
     key: number
     goal?: string
+    instructions?: string
   } | null>(null)
   const { dependencyHealth, loadDependencyHealth } = useDependencyHealth(view)
   const {
@@ -308,11 +309,16 @@ export default function ChatWorkspace() {
     )
   }
 
-  function createFromTemplate(templateId: string, goal?: string) {
+  function createFromTemplate(
+    templateId: string,
+    goal?: string,
+    instructions?: string,
+  ) {
     setRequestedTemplate((current) => ({
       id: templateId,
       key: (current?.key ?? 0) + 1,
       goal,
+      instructions,
     }))
     setView('create')
   }
