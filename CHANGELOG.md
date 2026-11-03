@@ -14,6 +14,12 @@ Pull request numbers link to the full discussion.
 
 ### Added
 
+- **A diagram of the test loop.** The "Test a draft before you create it" section
+  of the agent creation guide now includes a diagram of the whole loop: write
+  cases, run them, read the answers, propose a revision, accept or discard it,
+  and run again. It marks which steps call a model and which are your decisions, lists
+  what a revision can't change, and shows the measured token cost of each call.
+  It has light and dark versions like the other diagrams.
 - **Test a draft before you create it.** When the Agent designer's spec points to
   a built-in template, the spec card offers **Test this draft first**. One model
   call writes sample test cases, and the Lab keeps only those that pass its

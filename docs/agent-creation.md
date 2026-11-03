@@ -36,7 +36,13 @@ in Foundry, then test the agent before relying on it.
 
 When library previews are on and the spec card points to a built-in template, the
 card also offers **Test this draft first**. It tests the setup text that **Create
-this agent here** would publish, and it publishes nothing:
+this agent here** would publish, and it publishes nothing.
+
+<img alt="How testing a draft works, in eight numbered steps. Nothing is published while you test. Write and run the tests: you start testing with no model call (1), one call writes three to eight sample cases, about 1,700 tokens (2), each case runs one to three times, about 800 to 900 tokens each (3), and you read the answers (4). The loop: if cases fail, one call proposes a revision to the task instructions only, about 1,600 tokens (5), you accept or discard it (6), and the Lab runs the cases again (7), which takes you back to reading the answers. A revision can't change the checks, the tools, the template, the Lab's safety text or your own task line. When you are done, you use the tested text (8). You can accept two revisions at most per set of cases, and you can start over with new cases. Every call is billable." src="images/agent-design-loop-dark.svg">
+
+[View full size](images/agent-design-loop-dark.svg) · [Edit the SVG template](images/agent-design-loop.template.svg)
+
+The steps are:
 
 1. Tick the one cost confirmation, then choose **Write test cases**. One model call
    drafts three to eight sample cases (grounded, missing, conflict, injection and

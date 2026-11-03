@@ -32,6 +32,7 @@ component:
 | [Lab components](lab-components.svg) | What runs in the browser, the Lab's internal container app, Microsoft Foundry, and the data store, and how they connect. | [Architecture guide](../architecture.md#component-interactions) | [Template](lab-components.template.svg) |
 | [Chat request flow](lab-request-flow.svg) | One chat request in sequence: admission, specialist delegation, receipts, and the separate save to shared history. | [Architecture guide](../architecture.md#chat-and-delegation) | [Template](lab-request-flow.template.svg) |
 | [Review lifecycle](review-lifecycle.svg) | What a document review saves before it runs, how results are checked, and how clarification resumes. | [Review workflow](../review-workflow.md#execution-and-persistence) | [Template](review-lifecycle.template.svg) |
+| [Testing a draft](agent-design-loop.svg) | The test, read, revise and re-run loop on the Agent designer's spec card: which steps call a model, which are your decisions, what a revision can't change, and the measured token costs. | [Agent creation](../agent-creation.md#test-a-draft-before-you-create-it) | [Template](agent-design-loop.template.svg) |
 | [Operations](foundry-operations.svg) | Independent telemetry, image-publishing, and state paths, plus secret ownership. | [Architecture guide](../architecture.md#operations) | [Template](foundry-operations.template.svg) |
 | [Terraform deployment](foundry-deployment.svg) | Which Terraform root owns what, what must exist first, and the separate release workflows. | [Extension guide](../architecture-assessment.md#terraform-first-deployment) | [Template](foundry-deployment.template.svg) |
 
@@ -73,7 +74,7 @@ unless the diagram says so.
 
 ## Diagram style
 
-All eleven diagrams follow the same rules, so the set reads as one family. They
+All twelve diagrams follow the same rules, so the set reads as one family. They
 borrow the layered layout of the
 [Azure Architecture Center](https://learn.microsoft.com/azure/architecture/browse/)
 reference diagrams, simplified for a workshop audience: official icons,
