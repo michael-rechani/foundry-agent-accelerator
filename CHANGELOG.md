@@ -20,8 +20,10 @@ Pull request numbers link to the full discussion.
   rules. You run them against the draft's setup text, and the Lab screens each
   answer with its fixed checks. If cases fail, **Propose a revision** asks a
   model to rewrite the task instructions only, shows the reasons and a line
-  diff, and changes nothing until you accept. Every model call needs the cost
-  confirmation, and nothing is published or written to the Lab's own test cases.
+  diff, and changes nothing until you accept. The line holding your own task is
+  never the model's to change; the Lab puts it back if a revision drops it. Every
+  model call needs the cost confirmation, and nothing is published or written to
+  the Lab's own test cases.
   ([#457](https://github.com/michael-rechani/foundry-agent-accelerator/issues/457),
   [#458](https://github.com/michael-rechani/foundry-agent-accelerator/issues/458),
   [#459](https://github.com/michael-rechani/foundry-agent-accelerator/issues/459),

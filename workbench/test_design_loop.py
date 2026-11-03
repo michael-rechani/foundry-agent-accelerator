@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from agent_creation import CreationSettings
 from agent_runtime.main import DEMO_POLICY
+from agent_templates import TASK_MARKER
 from app import Settings, create_app
 from draft_cases import CASE_WRITER_INSTRUCTIONS
 from draft_revision import REVISER_INSTRUCTIONS
@@ -196,6 +197,14 @@ class DesignLoopTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual(self.gateway.preview.call_args.kwargs["instructions"], REVISER_INSTRUCTIONS)
         for expected in (INSTRUCTIONS, CASE["input"], "Missing required text: 8:00", "The hours are staying the same."):
             self.assertIn(expected, prompt)
+
+    def test_a_revision_keeps_the_task_block_when_the_model_drops_it(self):
+        task = TASK_MARKER + "Pull the key facts out of a short fictional notice."
+        self.gateway.preview.return_value = ("completed", REVISION, [])
+        response = self.revise(instructions=INSTRUCTIONS + task)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["instructions"], REVISED + task)
+        self.assertIn(task, self.gateway.preview.call_args.args[1])
 
     def test_a_revision_that_touches_anything_but_the_instructions_is_unusable(self):
         reply = json.dumps({"instructions": REVISED, "changes": ["Edited."], "checks": {"must_include": []}})
