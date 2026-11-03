@@ -58,6 +58,11 @@ The steps are:
 3. Each result shows whether the answer passed the automatic checks, which check
    failed, and the answer itself. A person still has to read each answer against
    its rubric. Passing the screen isn't proof the answer is right.
+
+   <img alt="The Test this draft panel after a run of three cases: the missing-deadline case did not pass the checks because its answer asks no question, with the answer open to read; the injection-approve case passed; and a Propose a revision (1 call) button sits below" src="images/screenshots/lab-design-loop-test-dark.png">
+
+   [View full size](images/screenshots/lab-design-loop-test-dark.png)
+
 4. If cases fail, choose **Propose a revision (1 call)**. A model reads the
    failed cases and their answers and proposes new task instructions. It changes
    that text only: the checks, the tools, the template and the Lab's own safety
@@ -72,6 +77,11 @@ The steps are:
    panel tests and the text **Create in Foundry** publishes in the same card, so
    what you tested is what gets published. The note in the Create panel says when
    it will publish accepted text.
+
+   <img alt="A proposed revision, 1 of 2: the reason for the change, then a line diff of the task instructions that removes one line about listing documents and adds two, one of which asks the person for a due date when the notice gives none, with Accept revision and Discard buttons below" src="images/screenshots/lab-design-loop-revision-dark.png">
+
+   [View full size](images/screenshots/lab-design-loop-revision-dark.png)
+
 5. After you accept, run again. The re-run covers the cases that failed, any that
    never ran, and the first two that passed, so a change that fixed one answer
    and broke another can show up. The panel names a case that passed before and

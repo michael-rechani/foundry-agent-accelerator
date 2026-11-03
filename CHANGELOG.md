@@ -20,6 +20,11 @@ Pull request numbers link to the full discussion.
   and run again. It marks which steps call a model and which are your decisions, lists
   what a revision can't change, and shows the measured token cost of each call.
   It has light and dark versions like the other diagrams.
+- **Screenshots of the test panel.** The same section now shows two pictures of
+  the real panel, each in light and dark: a run with one case that did not pass,
+  and the proposed revision as a line diff with **Accept revision** and
+  **Discard**. They use fictional text and mocked routes, so taking them calls
+  no model.
 - **Test a draft before you create it.** When the Agent designer's spec points to
   a built-in template, the spec card offers **Test this draft first**. One model
   call writes sample test cases, and the Lab keeps only those that pass its

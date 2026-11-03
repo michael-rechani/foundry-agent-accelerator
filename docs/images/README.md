@@ -293,6 +293,12 @@ light and dark mode. To capture another look, change the `data-look` value in
 | [lab-demo-application.png](screenshots/lab-demo-application.png) / [dark](screenshots/lab-demo-application-dark.png) | Application completeness story in **Guided demos** | `demo-application.png` / `demo-application-dark.png` | Scenario tour, [showcase](../showcase.md) |
 | [lab-demo-invoice.png](screenshots/lab-demo-invoice.png) / [dark](screenshots/lab-demo-invoice-dark.png) | Supplier invoice story with sample findings | `demo-invoice.png` / `demo-invoice-dark.png` | Scenario tour and showcase |
 | [lab-demo-casework.png](screenshots/lab-demo-casework.png) / [dark](screenshots/lab-demo-casework-dark.png) | Casework story preserving facts, disagreements, and human decisions | `demo-casework.png` / `demo-casework-dark.png` | Scenario tour and showcase |
+| [lab-design-loop-test.png](screenshots/lab-design-loop-test.png) / [dark](screenshots/lab-design-loop-test-dark.png) | The **Test this draft** panel after a run: one case that did not pass, with its answer open, one that did, and **Propose a revision (1 call)** | `design-loop-test.png` / `design-loop-test-dark.png` | [Agent creation](../agent-creation.md#test-a-draft-before-you-create-it) |
+| [lab-design-loop-revision.png](screenshots/lab-design-loop-revision.png) / [dark](screenshots/lab-design-loop-revision-dark.png) | A proposed revision: its reason, the line diff of the task instructions, and **Accept revision** and **Discard** | `design-loop-revision.png` / `design-loop-revision-dark.png` | [Agent creation](../agent-creation.md#test-a-draft-before-you-create-it) |
+
+The two test-loop pictures come from `design-loop-docs.spec.ts`, which uses
+fictional text and mocked routes, so no model is called. The behavior itself is
+checked in `design-loop.spec.ts`.
 
 To refresh them, run the desktop browser tests, then the asset refresh script:
 
@@ -308,7 +314,7 @@ cd ../..
 The tests write 1440 x 1000 PNGs under `test-results/`, which Git ignores.
 The refresh script requires exactly one desktop result per selected source and
 validates every selected PNG before replacing documentation images. By default
-it refreshes all twenty-four images. For a focused UI change, run the relevant
+it refreshes all twenty-eight images. For a focused UI change, run the relevant
 desktop tests and refresh just the affected light/dark pairs:
 
 ```powershell
