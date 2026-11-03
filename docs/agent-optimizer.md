@@ -86,7 +86,10 @@ on every task.
    `python evaluations/optimizer_dataset.py` to refresh the baseline copy.
 5. Run the offline checks before deploying: the hosted-agent tests, and
    `python evaluations/library_checks.py score` on answers the new instructions
-   give for the cases (`library_checks.py inputs` prints each case input).
+   give for the cases (`library_checks.py inputs` prints each case input). For a
+   draft that isn't an agent yet, the Lab's **Test this draft first** panel does
+   a small version of this before you create it. See
+   [Agent creation](agent-creation.md#test-a-draft-before-you-create-it).
 6. Deploy with the sample's own `deploy.py`, as in the walkthrough.
 7. Record the measured token usage and scores in #275.
 

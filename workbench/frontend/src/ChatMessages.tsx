@@ -6,6 +6,7 @@ import { UserMessage } from './UserMessage'
 import type { Rating, Turn } from './conversation-types'
 import { ConversationTurn } from './ConversationTurn'
 import type { SpecBuild } from './SpecBuildPanel'
+import type { SpecTests } from './SpecTestPanel'
 import type { DemoScenario } from './demo-scenarios'
 import { DemoRunGuide } from './ExploreDemos'
 import { isHelpQuestion } from './help-prompt'
@@ -46,6 +47,7 @@ export function ChatMessages({
   templates,
   onCreateFromTemplate,
   build,
+  tests,
 }: {
   config: Config | null
   agent?: Agent
@@ -77,6 +79,7 @@ export function ChatMessages({
   templates?: { id: string; label: string }[]
   onCreateFromTemplate?: (templateId: string, goal?: string) => void
   build?: SpecBuild
+  tests?: SpecTests
 }) {
   const plain = agent?.id === DESIGNER_ID
   return (
@@ -125,6 +128,7 @@ export function ChatMessages({
               templates={templates}
               onCreateFromTemplate={onCreateFromTemplate}
               build={build}
+              tests={tests}
               onCopy={onCopy}
               onRate={(rating) => onRate(index, rating)}
               onTryAgain={

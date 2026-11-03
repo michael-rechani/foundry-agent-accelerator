@@ -3,6 +3,7 @@ import { ChatAside } from './ChatAside'
 import { ChatComposer } from './ChatComposer'
 import { ChatMessages } from './ChatMessages'
 import type { SpecBuild } from './SpecBuildPanel'
+import type { SpecTests } from './SpecTestPanel'
 import { saveStateText, type chatLimits } from './chat-helpers'
 import { withRating } from './answer-feedback'
 import { isDesignerId } from './agent-designer'
@@ -50,6 +51,7 @@ export function ChatConversation({
   templates,
   onCreateFromTemplate,
   build,
+  tests,
 }: {
   config: Config | null
   agent?: Agent
@@ -87,6 +89,7 @@ export function ChatConversation({
   templates?: { id: string; label: string }[]
   onCreateFromTemplate?: (templateId: string, goal?: string) => void
   build?: SpecBuild
+  tests?: SpecTests
 }) {
   const {
     draft,
@@ -169,6 +172,7 @@ export function ChatConversation({
           templates={templates}
           onCreateFromTemplate={onCreateFromTemplate}
           build={build}
+          tests={tests}
           onRetry={
             agent &&
             draft.trim() &&

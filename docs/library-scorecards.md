@@ -63,6 +63,11 @@ still do. Written dates such as "June 9" match `2027-06-09`. Passing the screen
 doesn't mean an answer is right. A person still reads each answer against the
 case's `rubric`.
 
+The screen lives in [case_scoring.py](../workbench/case_scoring.py), and
+`library_checks.py` imports it. The Lab's **Test this draft first** panel scores
+a draft's answers with the same code, so a drafted case is held to the same
+rules as these cases. See [Agent creation](agent-creation.md#test-a-draft-before-you-create-it).
+
 > [!NOTE]
 > **Five direct runs per case, 2026-09-29.** Every case ran five times (450
 > answers) directly against the Foundry project the Lab uses, on each agent's

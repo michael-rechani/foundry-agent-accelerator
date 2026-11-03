@@ -584,6 +584,11 @@ export default function ChatWorkspace() {
                   }
                 : undefined
             }
+            tests={
+              config?.library_preview?.enabled
+                ? { timeoutMs: config.review_timeout_ms }
+                : undefined
+            }
           />
         ) : view === 'catalog' ? (
           <AgentCatalog
