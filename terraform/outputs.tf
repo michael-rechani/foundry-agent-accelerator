@@ -58,6 +58,11 @@ output "management_virtual_network_name" {
   value       = one(azurerm_virtual_network.jumpbox[*].name)
 }
 
+output "monitor_private_link_scope_name" {
+  description = "Name of the Azure Monitor Private Link Scope. The Lab links its Log Analytics workspace to it and reads the name from remote state."
+  value       = azurerm_monitor_private_link_scope.this.name
+}
+
 output "cosmos_account_name" {
   description = "Name of the Cosmos DB account. The Lab stores its history there and reads the name from remote state."
   value       = azapi_resource.cosmos.name

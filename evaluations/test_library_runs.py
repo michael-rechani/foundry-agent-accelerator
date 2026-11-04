@@ -22,6 +22,9 @@ import scorecards
 # library_runs puts workbench/ on sys.path, which these imports need.
 from agent_runtime.main import DEMO_POLICY
 from agent_templates import TEMPLATE_METADATA, TEMPLATES
+from library_rules import CONTEXT_KEY, without_context
+# demo_tools is the top-level module scorecards reads the tools' test context from.
+import demo_tools
 
 TODAY = "2026-10-02"
 RECORDED = "2026-09-01"
@@ -33,6 +36,8 @@ CASE_IDS = {
     FLOW: ["workflow-coordinator-grounded-access", "workflow-coordinator-missing-request"],
 }
 MODELS = {DOC: "gpt-5.4", FLOW: "gpt-4.1"}
+CONTEXTS = {case["id"]: scorecards.context_digest(case) for case in lr.load_cases(lr.CASES_PATH)["cases"]
+            if case["id"] in {case_id for ids in CASE_IDS.values() for case_id in ids}}
 USAGE = {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150,
          "input_tokens_details": {"cached_tokens": 20}, "output_tokens_details": {"reasoning_tokens": 0}}
 LOOKUP = {"type": "function_call", "name": "lookup_demo_request", "call_id": "call-1",
@@ -100,11 +105,11 @@ class FakeFoundry:
 
 
 def run_row(template_id, case_id, run, **changes):
-    """One recorded run, the way the runner saves it, on the Lab's current instructions."""
+    """One recorded run, the way the runner saves it, on the Lab's current instructions and test context."""
     row = {"case_id": case_id, "run": run, "text": f"Recorded answer for {case_id}, run {run}.", "receipts": [],
            "model": MODELS[template_id], "seconds": 1.5, "input_tokens": 100, "cached_tokens": 20,
            "output_tokens": 50, "instructions_sha256": scorecards.instructions_digest(template_id),
-           "recorded_on": RECORDED}
+           "context_sha256": CONTEXTS[case_id], "recorded_on": RECORDED}
     row.update(changes)
     return row
 
@@ -147,6 +152,18 @@ def edited(template_id):
         yield
 
 
+@contextlib.contextmanager
+def new_sample_input(template_id):
+    """The Lab changes the input an agent's sample cases send, not its instructions."""
+    with mock.patch.dict(TEMPLATES[template_id], {"sample_input": TEMPLATES[template_id]["sample_input"] + " More."}):
+        yield
+
+
+def unstamped(rows):
+    """Rows as they were recorded before context fingerprints existed."""
+    return [{key: value for key, value in row.items() if key != CONTEXT_KEY} for row in rows]
+
+
 class Scratch(unittest.TestCase):
     def setUp(self):
         folder = tempfile.TemporaryDirectory()
@@ -171,7 +188,7 @@ class LabFiles(Scratch):
         self.files = lr.Files(
             cases=self.root / "cases.json", answers=self.root / "answers.jsonl", metrics=self.root / "metrics.jsonl",
             repeats=self.root / "repeats.jsonl", prices=self.root / "prices.json", signoffs=self.root / "signoffs.json",
-            journals=self.root / "journals")
+            baseline=self.root / "context-baseline.json", journals=self.root / "journals")
         self.files.cases.write_text(json.dumps(mini_cases()), encoding="utf-8")
         shutil.copyfile(scorecards.PRICES, self.files.prices)
         self.write_evidence()
@@ -234,7 +251,8 @@ class LabFiles(Scratch):
     def build(self):
         return scorecards.build(cases_path=self.files.cases, runs=(("direct", self.files.answers),),
                                 metrics_path=self.files.metrics, prices_path=self.files.prices,
-                                signoffs_path=self.files.signoffs, repeats_path=self.files.repeats)
+                                signoffs_path=self.files.signoffs, repeats_path=self.files.repeats,
+                                context_baseline_path=self.files.baseline)
 
     def dates(self):
         return {card["template_id"]: card["tested_on"] for card in self.build()["scorecards"]}
@@ -583,16 +601,19 @@ class RowFileTests(Scratch):
 
 
 class JournalTests(LabFiles):
+    def contexts(self):
+        return self.item(DOC).contexts
+
     def load(self, rows=(), tail=b"", model=MODELS[DOC]):
         path = self.journal(DOC, rows, tail)
-        return lr.load_journal(path, CASE_IDS[DOC], scorecards.instructions_digest(DOC), model)
+        return lr.load_journal(path, self.contexts(), scorecards.instructions_digest(DOC), model)
 
     def test_whole_runs_are_kept(self):
         rows = self.saved(DOC, 5) + self.saved(DOC, 2, case=1)
         self.assertEqual(self.load(rows), (rows, True))
 
     def test_no_journal_means_no_saved_runs(self):
-        self.assertEqual(lr.load_journal(self.files.journal(DOC), CASE_IDS[DOC], "any"), ([], True))
+        self.assertEqual(lr.load_journal(self.files.journal(DOC), self.contexts(), "any"), ([], True))
 
     def test_unusable_rows_are_dropped(self):
         good = self.saved(DOC, 1)[0]
@@ -605,6 +626,10 @@ class JournalTests(LabFiles):
             "another case": variant(case_id="no-such-case"), "run 0": variant(run=0), "run 6": variant(run=6),
             "run as text": variant(run="2"), "run as boolean": variant(run=True),
             "other instructions": variant(instructions_sha256="0" * 64), "other model": variant(model="gpt-other"),
+            "other test context": variant(context_sha256="0" * 64),
+            "context of another case": variant(context_sha256=CONTEXTS[CASE_IDS[DOC][1]]),
+            "no context fingerprint": {name: value for name, value in base.items() if name != "context_sha256"},
+            "context as number": variant(context_sha256=5),
             "empty text": variant(text=""), "blank text": variant(text="  "), "text as number": variant(text=5),
             "receipts as text": variant(receipts="x"), "negative tokens": variant(input_tokens=-1),
             "fractional tokens": variant(output_tokens=1.5), "cached more than input": variant(cached_tokens=101),
@@ -632,7 +657,7 @@ class JournalTests(LabFiles):
         path = self.files.journal(DOC)
         path.parent.mkdir(parents=True)
         path.write_bytes(first + b"\n\n[1]\n7\nnull\n" + second + b"\n")
-        loaded, clean = lr.load_journal(path, CASE_IDS[DOC], scorecards.instructions_digest(DOC), MODELS[DOC])
+        loaded, clean = lr.load_journal(path, self.contexts(), scorecards.instructions_digest(DOC), MODELS[DOC])
         self.assertEqual((len(loaded), clean), (2, False))
 
     def test_damage_anywhere_else_stops_the_run(self):
@@ -643,7 +668,7 @@ class JournalTests(LabFiles):
                             ("last complete line", first + b"\nnot json\n")):
             path.write_bytes(data)
             with self.subTest(label):
-                reason = self.assertStops(2, lr.load_journal, path, CASE_IDS[DOC], scorecards.instructions_digest(DOC))
+                reason = self.assertStops(2, lr.load_journal, path, self.contexts(), scorecards.instructions_digest(DOC))
                 self.assertIn("line 2 is damaged", reason)
                 self.assertIn("Delete the file", reason)
 
@@ -687,6 +712,55 @@ class StatusTests(LabFiles):
         self.assertIn("To see the plan (nothing is sent): python evaluations/library_runs.py record "
                       "--templates document-analyst\n", result.out)
         self.assertIn("Add --yes to record them. That calls Foundry and costs money.", result.out)
+
+    def test_a_changed_test_input_makes_only_that_cases_rows_stale(self):
+        with new_sample_input(DOC):
+            result = self.status()
+        self.assertEqual((result.code, result.err), (1, ""))
+        self.assertRegex(result.out, r"(?m)^document-analyst +stale +2026-09-01 +gpt-5\.4$")
+        self.assertRegex(result.out, r"(?m)^workflow-coordinator +current ")
+        self.assertIn("    6 of 12 recorded rows came from other test inputs or tools, "
+                      "or carry no context fingerprint", result.out)
+        self.assertNotIn("other instructions", result.out)
+
+    def test_changed_tool_data_makes_every_case_of_the_agents_rows_stale(self):
+        with mock.patch.dict(demo_tools._REQUESTS, {"REQ-NEW": {"status": "Example only"}}):
+            result = self.status()
+        self.assertEqual(result.code, 1)
+        self.assertRegex(result.out, r"(?m)^workflow-coordinator +stale ")
+        self.assertRegex(result.out, r"(?m)^document-analyst +current ")
+        self.assertIn("12 of 12 recorded rows came from other test inputs or tools", result.out)
+
+    def test_rows_recorded_before_context_fingerprints_are_current_only_with_a_baseline_entry(self):
+        self.write_evidence(replace={DOC: tuple(unstamped(rows) for rows in recorded_rows(DOC))})
+        contexts = self.item(DOC).contexts
+
+        def write_baseline(cases, **changes):
+            record = {"schema_version": 1, "basis": "Checked against history.", "generated_on": "2026-11-03",
+                      "cases": cases, **changes}
+            self.files.baseline.write_text(json.dumps(record), encoding="utf-8")
+
+        result = self.status()
+        self.assertRegex(result.out, r"(?m)^document-analyst +stale ")
+        self.assertIn("12 of 12 recorded rows came from other test inputs or tools, "
+                      "or carry no context fingerprint", result.out)
+        write_baseline(contexts)
+        result = self.status()
+        self.assertEqual((result.code, result.err), (0, ""))
+        self.assertRegex(result.out, r"(?m)^document-analyst +current ")
+        # An entry for only one case, or for a case's old context, leaves that case's rows stale.
+        write_baseline({CASE_IDS[DOC][0]: contexts[CASE_IDS[DOC][0]]})
+        self.assertRegex(self.status().out, r"(?m)^document-analyst +stale ")
+        write_baseline({**contexts, CASE_IDS[DOC][0]: "0" * 64})
+        self.assertRegex(self.status().out, r"(?m)^document-analyst +stale ")
+
+    def test_an_unreadable_baseline_stops_it(self):
+        for label, text in (("not json", "{"), ("wrong shape", json.dumps({"schema_version": 2}))):
+            self.files.baseline.write_text(text, encoding="utf-8")
+            with self.subTest(label):
+                result = self.status()
+                self.assertEqual((result.code, result.out), (2, ""))
+                self.assertIn("context-baseline.json can't be read", result.err)
 
     def test_missing_or_doubled_rows_make_an_agent_incomplete(self):
         answers, metrics, repeats = recorded_rows(DOC)
@@ -906,6 +980,7 @@ class RecordTests(Recording):
             for row in rows:
                 self.assertEqual(tuple(row), keys)
                 self.assertEqual((row["instructions_sha256"], row["recorded_on"]), (digest, TODAY))
+                self.assertEqual(row[CONTEXT_KEY], CONTEXTS[row["case_id"]])
         for row in metrics + repeats:
             self.assertEqual((row["model"], row["seconds"], row["input_tokens"], row["cached_tokens"], row["output_tokens"]),
                              ("gpt-5.4", 1.5, 100, 20, 50))
@@ -921,6 +996,37 @@ class RecordTests(Recording):
                       "Used 1,500 tokens, about $0.01.", result.out)
         self.assertIn("Next steps:", result.out)
         self.assertIn('python evaluations/scorecards.py signoff --reviewer "Name" document-analyst', result.out)
+
+    def test_recording_makes_rows_that_were_stale_on_a_changed_test_input_current(self):
+        with new_sample_input(DOC):
+            self.assertEqual(self.run_main("status").code, 1)
+            result = self.record()
+            self.assertEqual((result.code, result.err), (0, ""))
+            self.assertEqual(result.foundry.calls[0]["input"], as_input(self.prompt(CASE_IDS[DOC][0])))
+            self.assertIn("More.", json.dumps(result.foundry.calls[0]["input"]))
+            status = self.run_main("status")
+            self.assertEqual((status.code, status.err), (0, ""))
+            self.assertRegex(status.out, r"(?m)^document-analyst +current ")
+            self.assertEqual({row[CONTEXT_KEY] for row in self.rows(self.files.answers, DOC)},
+                             set(self.item(DOC).contexts.values()))
+            self.assertNotEqual(self.item(DOC).contexts[CASE_IDS[DOC][0]], CONTEXTS[CASE_IDS[DOC][0]])
+            self.assertEqual(self.build()["scorecards"][0]["template_id"], DOC)
+        # With the input back as it was, the new rows no longer match it.
+        with self.assertRaisesRegex(ValueError, "test input, fixtures or tools of document-analyst changed"):
+            self.build()
+
+    def test_recording_replaces_rows_that_carry_no_context_fingerprint_with_stamped_rows(self):
+        self.write_evidence(replace={DOC: tuple(unstamped(rows) for rows in recorded_rows(DOC))})
+        self.assertRegex(self.run_main("status").out, r"(?m)^document-analyst +stale ")
+        result = self.record()
+        self.assertEqual((result.code, result.err), (0, ""))
+        for path, keys in ((self.files.answers, lr.ANSWER_ROW), (self.files.metrics, lr.METRICS_ROW),
+                           (self.files.repeats, lr.RUN_ROW)):
+            rows = self.rows(path, DOC)
+            self.assertTrue(rows)
+            for row in rows:
+                self.assertEqual((tuple(row), row[CONTEXT_KEY]), (keys, CONTEXTS[row["case_id"]]))
+        self.assertRegex(self.run_main("status").out, r"(?m)^document-analyst +current ")
 
     def test_a_tool_agent_is_recorded_with_its_simulated_lookups(self):
         result = self.record(templates=(FLOW,))
@@ -1028,6 +1134,17 @@ class ResumeTests(Recording):
     def test_saved_runs_from_older_instructions_are_not_reused(self):
         self.journal(DOC, self.saved(DOC, 3))
         with edited(DOC):
+            result = self.record()
+        self.assertEqual((result.code, len(result.foundry.calls)), (0, 10))
+
+    def test_saved_runs_from_another_test_context_are_not_reused(self):
+        self.journal(DOC, [run_row(DOC, CASE_IDS[DOC][0], run, context_sha256="0" * 64) for run in range(1, 4)])
+        result = self.record()
+        self.assertEqual((result.code, len(result.foundry.calls)), (0, 10))
+
+    def test_saved_runs_from_before_a_changed_test_input_are_not_reused(self):
+        self.journal(DOC, self.saved(DOC, 3))
+        with new_sample_input(DOC):
             result = self.record()
         self.assertEqual((result.code, len(result.foundry.calls)), (0, 10))
 
@@ -1326,7 +1443,9 @@ class RepositoryTests(unittest.TestCase):
             rows = lr.read_rows(path)
             self.assertTrue(rows, path.name)
             for row in rows:
-                self.assertEqual(tuple(row), keys, path.name)
+                # Rows recorded before the context fingerprint lack that one key, and the baseline covers them.
+                legacy = CONTEXT_KEY not in row
+                self.assertEqual(tuple(row), without_context(keys) if legacy else keys, path.name)
 
     def test_a_plan_for_real_agents_changes_nothing_and_calls_nobody(self):
         files = lr.Files()

@@ -239,13 +239,15 @@ only deallocates when none of them is busy.
 ## Start, stop, and updates
 
 - **Starting.** The VM deallocates when idle. The
-  [`deploy-lab.yml`](../../.github/workflows/deploy-lab.yml) workflow starts it
-  for you (its identity may start this one VM and nothing else). For anything
-  else, start it before you need it:
+  [`deploy-lab.yml`](../../.github/workflows/deploy-lab.yml) and
+  [`record-library-answers.yml`](../../.github/workflows/record-library-answers.yml)
+  workflows start it for you, through the deploy identity, which may start this
+  one VM and nothing else. Recording starts it only after its reviewer has
+  approved. For anything else, start it before you need it:
   `az vm start --resource-group <runner-resource-group> --name <runner-vm-name>`.
   The runner service starts on boot. Queued jobs wait up to 24 hours for a runner.
-  There is no automatic start, because a webhook-driven start needs a public
-  endpoint.
+  There is no webhook-driven start, because it needs a public endpoint. Each
+  workflow starts the VM from its own GitHub-hosted job instead.
 - **Idle shutdown.** A systemd timer checks every five minutes. After 30 idle
   minutes (`idle_shutdown_minutes`) it deallocates the VM through its managed
   identity. It never acts before the runner is registered, and it skips while a

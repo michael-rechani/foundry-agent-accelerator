@@ -115,11 +115,17 @@ def _tidy(raw):
     return case
 
 
+def _same_input(text):
+    """An input's identity: the same words in any case and spacing count as one input."""
+    return " ".join(text.split()).casefold()
+
+
 def parse_cases(text, tool_names=()):
     """Return (cases, rejected) from the model's reply.
 
-    `rejected` lists {"id", "problems"} for each case that was dropped. Raises CaseDraftError when the
-    reply is not JSON or holds fewer than MIN_CASES usable cases.
+    `rejected` lists {"id", "problems"} for each case that was dropped. A case is dropped for breaking a
+    rule, for repeating an earlier kept case's id or input, or for going past MAX_CASES. Raises
+    CaseDraftError when the reply is not JSON or holds fewer than MIN_CASES usable cases.
     """
     start, end = text.find("{"), text.rfind("}")
     try:
@@ -129,17 +135,20 @@ def parse_cases(text, tool_names=()):
     raw = data.get("cases") if isinstance(data, dict) else None
     if not isinstance(raw, list):
         raise CaseDraftError("The reply did not hold a list of cases")
-    cases, rejected, seen = [], [], set()
+    cases, rejected, seen, inputs = [], [], set(), {}
     for item in raw:
         case = _tidy(item)
         problems = case_problems(case, tool_names)
         if not problems and case["id"] in seen:
             problems = ["duplicate id"]
+        elif not problems and _same_input(case["input"]) in inputs:
+            problems = [f"input repeats the case {inputs[_same_input(case['input'])]}"]
         if problems or len(cases) >= MAX_CASES:
             rejected.append({"id": case.get("id") if isinstance(case, dict) and type(case.get("id")) is str else None,
                              "problems": problems or [f"only {MAX_CASES} cases are kept"]})
             continue
         seen.add(case["id"])
+        inputs[_same_input(case["input"])] = case["id"]
         cases.append(case)
     if len(cases) < MIN_CASES:
         raise CaseDraftError(f"Only {len(cases)} usable cases; at least {MIN_CASES} are needed")

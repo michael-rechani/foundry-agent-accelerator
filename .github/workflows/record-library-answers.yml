@@ -5,7 +5,8 @@ name: Record library answers
 # own: start it by hand from the Actions tab, and the library-recording environment waits for its
 # reviewer before anything is sent. Foundry has no public access, and the runner reaches it through
 # the peered VNet. Azure holds no stored secret; the job signs in with GitHub's short-lived token.
-# One-time setup: terraform/identity (see docs/library-scorecards.md).
+# The runner VM deallocates when idle, so the start-runner job starts it once a reviewer has
+# approved the recording. One-time setup: terraform/identity (see docs/library-scorecards.md).
 #
 # This only records. It uploads the new evidence files as an artifact; commit them in a pull request,
 # then a person reads the answers and signs off. It never records a sign-off.
@@ -30,6 +31,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The runner VM deallocates itself when idle to save cost, and nothing else starts it. This job runs
+  # beside the approval-gated record job on a GitHub-hosted runner, waits until a reviewer has approved
+  # the recording, and only then starts that one VM. It signs in as the Lab deploy identity, whose
+  # role can read and start the runner VM and nothing else on it, so the recording identity gets no
+  # VM permission. It starts nothing for a rejected run, and starting a running VM does nothing.
+  # Don't add `needs` between the two jobs: the record job waits for approval, and this job waits for it.
+  start-runner:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 130
+    runs-on: ubuntu-24.04
+    environment: lab-deploy
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      LAB_RUNNER_VM: ${{ vars.LAB_RUNNER_VM }}
+      LAB_RUNNER_RESOURCE_GROUP: ${{ vars.LAB_RUNNER_RESOURCE_GROUP }}
+    steps:
+      # The default ref is this workflow's own commit on main. Never check out inputs.ref in this job.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Wait for the recording to be approved
+        id: approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/wait_for_approval.py --job record --timeout-minutes 120
+      - name: Sign in to Azure with the GitHub token
+        if: steps.approval.outputs.approved == 'true'
+        run: |
+          set -euo pipefail
+          token="$(curl -sSf -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" | jq -r .value)"
+          echo "::add-mask::$token"
+          az login --service-principal --username "$AZURE_CLIENT_ID" --tenant "$AZURE_TENANT_ID" --federated-token "$token" --allow-no-subscriptions --output none
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+      - name: Start the runner VM
+        if: steps.approval.outputs.approved == 'true'
+        run: |
+          set -euo pipefail
+          az vm start --name "$LAB_RUNNER_VM" --resource-group "$LAB_RUNNER_RESOURCE_GROUP" --output none
+          echo "The runner VM is started. The recording starts when its runner comes online."
+
   record:
     if: github.ref == 'refs/heads/main'
     timeout-minutes: 360
