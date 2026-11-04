@@ -1521,7 +1521,8 @@ class RepositoryTests(unittest.TestCase):
             for row in rows:
                 # Rows recorded before the context fingerprint lack that one key, and the baseline covers them.
                 legacy = CONTEXT_KEY not in row
-                self.assertEqual(tuple(row), without_context(keys) if legacy else keys, path.name)
+                expected = lr.project(row, without_context(keys) if legacy else keys)
+                self.assertEqual(tuple(row), tuple(expected), path.name)
 
     def test_a_plan_for_real_agents_changes_nothing_and_calls_nobody(self):
         files = lr.Files()

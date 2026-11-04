@@ -44,17 +44,32 @@ class EvidenceRowTests(unittest.TestCase):
         # A row recorded before the context fingerprint has every key but that one, and the committed
         # baseline then vouches for its case; a row that carries the fingerprint has all of them.
         baseline = scorecards.load_context_baseline(scorecards.CONTEXT_BASELINE)
+        cases = {case["id"]: case for case in library_checks.load_cases()["cases"]}
         for path, keys in ((scorecards.ANSWERS, library_rules.ANSWER_ROW), (scorecards.METRICS, library_rules.METRICS_ROW),
                            (scorecards.REPEATS, library_rules.RUN_ROW)):
             rows = scorecards._lines(path)
             self.assertTrue(rows, path.name)
             for row in rows:
                 where = f"{path.name}: {row.get('case_id')}"
-                if library_rules.CONTEXT_KEY in row:
-                    self.assertEqual(tuple(row), keys, where)
-                else:
-                    self.assertEqual(tuple(row), library_rules.without_context(keys), where)
+                expected = keys
+                if library_rules.CONTEXT_KEY not in row:
+                    expected = library_rules.without_context(keys)
                     self.assertIn(row["case_id"], baseline, f"{where} has no context baseline entry")
+                case = cases[row["case_id"]]
+                if "text" in keys and case.get("follow_ups"):
+                    expected += ("turns",)
+                    turns = row["turns"]
+                    turn_cases = library_checks.case_turns(case)
+                    self.assertEqual(len(turns), len(turn_cases), where)
+                    for turn, turn_case in zip(turns, turn_cases, strict=True):
+                        self.assertEqual(tuple(turn), ("input", "text", "receipts"), where)
+                        self.assertEqual(turn["input"], library_checks.case_input(turn_case), where)
+                        self.assertIsInstance(turn["text"], str, where)
+                        self.assertTrue(turn["text"].strip(), where)
+                        self.assertIsInstance(turn["receipts"], list, where)
+                    for key in ("text", "receipts"):
+                        self.assertEqual(turns[0][key], row[key], where)
+                self.assertEqual(tuple(row), expected, where)
 
     def test_the_context_key_sits_right_after_the_instructions_key_in_every_row(self):
         for keys in (library_rules.ANSWER_ROW, library_rules.METRICS_ROW, library_rules.RUN_ROW):

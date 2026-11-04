@@ -31,11 +31,16 @@ turns, with additional model requests possible for simulated lookups. The
 optional designer check adds one billable call. None of these calls is implied
 by browsing or loading an example.
 
-The revised medical demo (#362) and the multi-turn Benefits cases (#363) need
-fresh recorded answers, human review and live verification before being
-described as validated improvements. Browser tests use fixtures, not proof of
-model quality. Until that acceptance is complete, present the flow as a
-work-in-progress walkthrough, or use an existing reviewed story instead.
+The [approved November 4 recording](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/41876917113)
+captured all 75 medical and Benefits runs. It did not establish demo readiness:
+Benefits passed 34 of 35 automated screens, with one wrong document age, and
+medical passed 13 of 40. Medical misses include required estimate wording,
+a missing partial-share warning and an incomplete calculator input; a person
+must distinguish wording misses from substantive errors (#362, #363).
+Both templates remain **sample**, not reviewed. Human review, quality fixes
+and separately approved live verification remain required. Browser tests use
+fixtures, not proof of model quality. Present this as a work-in-progress
+walkthrough, or use an existing reviewed story instead.
 
 ## The pitch in two sentences
 

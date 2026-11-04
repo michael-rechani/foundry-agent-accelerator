@@ -414,8 +414,15 @@
             "must_include": ["Document A", "Document B", "Document C", "child care"],
             "must_include_any": [
               ["12 days", "12 calendar days"],
-              ["36 days", "out of date"],
+              ["36 days", "out of date", "out of range by 6 days"],
               ["doesn't match", "does not match", "mismatch", "differ", "disagree"]
+            ],
+            "must_not_claim": [
+              {
+                "pattern": "(?i)\\b34\\s+days\\s+before\\b",
+                "unless": "(?i)\\b(?:not|incorrect|wrong)\\b",
+                "why": "Document B is 36 days before signing, not 34"
+              }
             ],
             "guards": ["no_eligibility", "no_approval", "no_claimed_action"]
           },
@@ -2029,6 +2036,11 @@
             "pattern": "(?i)\\$360(?:\\.00)?(?!\\d)[^\\n]{0,80}\\bcontractual (?:adjustment|difference)",
             "unless": "(?i)\\b(?:not|incorrect|wrong)\\b",
             "why": "Says the ER contractual adjustment is $360; $900 billed minus $600 allowed is $300"
+          },
+          {
+            "pattern": "(?i)\\$360(?:\\.00)?\\s+(?:above|beyond|more than)[^\\n|]{0,60}\\b(?:this listed|the ER|ER) line\\b",
+            "unless": "(?i)\\b(?:not|incorrect|wrong)\\b",
+            "why": "Attributes the whole bill's $360 difference to the ER line instead of keeping the missing lab line separate"
           },
           {
             "pattern": "(?i)\\b(?:estimated patient share|patient[- ]share estimate|total patient[- ]share estimate|estimated amount (?:you|the patient) owe(?:s)?)\\b[^\\n]{0,60}\\$120(?:\\.00)?(?!\\d)",

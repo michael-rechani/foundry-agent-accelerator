@@ -744,6 +744,16 @@ class ScoreTests(unittest.TestCase):
         self.assertIn("missing 'Version 1'", failures)
         self.assertIn("asks no question", failures)
 
+    def test_a_whole_bill_gap_is_not_an_er_line_gap(self):
+        case = CASES["medical-bill-reviewer-missing-statement-line"]
+        text = GOOD[case["id"]]
+        receipts = receipts_for(case)
+        self.assertTrue(lc.score(case, text + " The whole bill difference is $360.00.", receipts)[0])
+        passed, failures = lc.score(
+            case, text + " $360.00 above statement share on this listed line.", receipts)
+        self.assertFalse(passed)
+        self.assertTrue(any("whole bill's $360 difference" in failure for failure in failures), failures)
+
     def test_missing_tool_call_fails_only_when_receipts_are_supplied(self):
         case, text = CASES["supplier-invoice-reviewer-clean"], GOOD["supplier-invoice-reviewer-clean"]
         self.assertTrue(lc.score(case, text)[0])
@@ -1056,6 +1066,20 @@ class ConversationTests(unittest.TestCase):
         passed, failures = lc.score_record(self.case, {**self.turns[0], "turns": self.turns})
         self.assertFalse(passed)
         self.assertTrue(any("Turn 1:" in failure for failure in failures))
+
+    def test_correct_window_offset_is_not_a_wrong_document_age(self):
+        self.turns[1]["text"] = (
+            "Document A is current. Document B is out of range by 6 days. "
+            "Document C household size differs from the form. Child care proof is missing. "
+            "There are 12 days left."
+        )
+        self.assertEqual(lc.score_record(self.case, self.record), (True, []))
+
+    def test_a_wrong_document_age_cannot_hide_behind_a_stale_label(self):
+        self.turns[1]["text"] += " Document B is out of date: 34 days before signing."
+        passed, failures = lc.score_record(self.case, self.record)
+        self.assertFalse(passed)
+        self.assertTrue(any("36 days before signing, not 34" in failure for failure in failures), failures)
 
     def test_follow_up_validation_uses_the_same_checks_as_first_turns(self):
         data = {"schema_version": 1, "dataset_version": "test", "description": "Sample",

@@ -18,7 +18,10 @@ Pull request numbers link to the full discussion.
   prompts against each run's own earlier answers, screen every turn and count
   the whole conversation's tokens and time. The Benefits showcase now covers
   ID-only intake, supplied documents, an unsent note, an eligibility challenge,
-  and urgency. New recordings and human review remain required (#363).
+  and urgency. The approved November 4 recording is retained with its failures
+  for review; Benefits and medical remain samples, not signed-off demos
+  (#362, #363). A correct six-day window offset is accepted, but a claimed
+  34-day document age is rejected because the actual age is 36 days.
 - **A Benefits-led presenter path.** The ten-minute script starts with the
   renewal conversation, with medical billing as a separately reviewed
   alternative. Chat links to the script before typing. The read-only preflight
