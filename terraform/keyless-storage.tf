@@ -68,7 +68,7 @@ resource "azurerm_private_endpoint" "agent_storage" {
   }
   private_dns_zone_group {
     name                 = "default"
-    private_dns_zone_ids = [azurerm_private_dns_zone.this["storage_blob"].id]
+    private_dns_zone_ids = [local.blob_private_dns_zone_id]
   }
   lifecycle { prevent_destroy = true }
 }

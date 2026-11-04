@@ -25,9 +25,19 @@ Lab on your own machine without Azure, use
 a new subscription: preflight checks, the state backend, the platform, the Lab
 foundation, the private image build, the Lab and the verification. Each Terraform
 stage shows its plan and applies only after you type `apply`; `-PlanOnly` stops at
-the first stage with changes. The state account is private, so run the stages after
+the first stage with changes and never runs image builds, runtime verification
+or agent publication, even if preceding plans have no changes. The state account is private, so run the stages after
 bootstrap from a host that can reach it. The build and verify stages need the
 private network too.
+
+For a fresh subscription without a private Terraform host, this is a staged
+process, not one uninterrupted run. Follow
+[bootstrap's private-access sequence](../terraform/bootstrap/README.md#fresh-subscription-staged-private-access):
+bootstrap locally, first platform apply with `-LocalState`, connect the
+management VNet to the state network/shared blob DNS zone, then migrate state
+and continue from an approved private host. No public backend fallback is used.
+The [existing-platform adoption guide](../terraform/bootstrap/README.md#adopt-an-existing-platform)
+keeps DNS records and state ownership changes separate from ordinary deployment.
 
 ```powershell
 ./deploy.ps1 -Subscription '<subscription-id>' -Stage preflight   # read-only checks

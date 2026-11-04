@@ -9,7 +9,8 @@ Runs each stage in order: preflight, bootstrap (state backend), platform, lab-fo
 never run by default: runner (the private CI VM; needs -ApproveSharedEgress and an SSH public key),
 identity (Entra apps, roles and GitHub environments; needs rights to create them and a GitHub
 token), and agents (billable). Every Terraform stage shows its plan and applies only after you
-type "apply". Nothing is applied without an approved plan, and no stage creates a public resource.
+type "apply". Nothing is applied without an approved plan. Public exposure needs separate,
+specific approval; reviewing a deployment plan does not authorize public resources.
 
 Committed, non-secret inputs live in environments/<Environment>/. They are passed with -var-file
 and an ignored overlay adds your subscription.
@@ -36,6 +37,7 @@ param(
     [ValidatePattern('^[a-z0-9][a-z0-9-]{1,5}[a-z0-9]$')][string]$BaseName = 'aifnd',
     [string]$Location = 'northcentralus',
     [string]$StateResourceGroup = 'rg-tfstate',
+    [string]$BlobPrivateDnsZoneId,
     [string]$Tag,
     [string[]]$Agent,
     [string]$ModelQuotaName = 'OpenAI.GlobalStandard.gpt-4.1',
@@ -282,7 +284,7 @@ function Test-Preflight([string[]]$Selected) {
 }
 
 function Invoke-BootstrapStage {
-    Write-NewFile (Join-Path $bootstrapDir 'dev.tfvars') "subscription_id = `"$Subscription`"`nlocation        = `"$Location`"`n"
+    Write-NewFile (Join-Path $bootstrapDir 'dev.tfvars') "subscription_id = `"$Subscription`"`nlocation        = `"$Location`"`nresource_group_name = `"$StateResourceGroup`"`n"
     Invoke-Native $TerraformCommand @("-chdir=$bootstrapDir", 'init', '-input=false')
     Invoke-ReviewedApply $bootstrapDir 'bootstrap' @('-var-file=dev.tfvars')
     if (-not $script:PlanOnlyStopped) {
@@ -291,12 +293,36 @@ function Invoke-BootstrapStage {
 }
 
 function Invoke-PlatformStage {
+    $zone = $null
+    $overlayPath = Join-Path $platformDir 'terraform.tfvars'
+    Initialize-PlatformRoot
+    if (-not (Test-Path -LiteralPath $overlayPath)) {
+        $state = Get-Native $TerraformCommand @("-chdir=$platformDir", 'show', '-json') | ConvertFrom-Json
+        if (-not $state -or $state.format_version -ne '1.0') {
+            throw 'Could not establish the platform state format. No DNS ownership change was inferred.'
+        }
+        if ($state.values) {
+            if ($BlobPrivateDnsZoneId) { throw 'Existing platform state requires the explicit shared DNS migration in terraform/bootstrap/README.md.' }
+            throw 'Existing platform state found without terraform.tfvars. Restore its reviewed inputs before deploying; no DNS ownership change was inferred.'
+        }
+        $zone = if ($BlobPrivateDnsZoneId) { $BlobPrivateDnsZoneId } else {
+            Get-Native $TerraformCommand @("-chdir=$bootstrapDir", 'output', '-raw', 'blob_private_dns_zone_id')
+        }
+        if ($zone -notmatch '^/subscriptions/[0-9a-fA-F-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/privatelink\.blob\.core\.windows\.net$') {
+            throw 'Bootstrap did not provide a valid blob DNS zone ID. Apply bootstrap first, or pass -BlobPrivateDnsZoneId for an approved shared zone.'
+        }
+        if ($zone.Split('/')[2] -ne $Subscription) { throw 'The shared blob DNS zone must be in the chosen subscription.' }
+    } elseif ($BlobPrivateDnsZoneId -and (Get-TfvarsValue $overlayPath 'blob_private_dns_zone_id') -ne $BlobPrivateDnsZoneId) {
+        throw 'An existing terraform.tfvars is never overwritten. Adopt the shared DNS zone explicitly using terraform/bootstrap/README.md, then set blob_private_dns_zone_id in the existing inputs.'
+    } else {
+        Write-Host 'Keeping existing platform inputs. Shared DNS adoption is a separate reviewed migration (terraform/bootstrap/README.md).'
+    }
     $overlay = "subscription_id = `"$Subscription`"`nlocation        = `"$Location`"`n"
+    if ($zone) { $overlay += "blob_private_dns_zone_id = `"$zone`"`n" }
     if (-not (Test-Path -LiteralPath (Join-Path $environmentDir 'platform.tfvars'))) {
         $overlay += "base_name       = `"$BaseName`"`nenvironment     = `"$Environment`"`n"
     }
-    Write-NewFile (Join-Path $platformDir 'terraform.tfvars') $overlay
-    Initialize-PlatformRoot
+    Write-NewFile $overlayPath $overlay
     Invoke-ReviewedApply $platformDir 'platform' (Get-EnvironmentArgument 'platform.tfvars')
 }
 
@@ -442,6 +468,10 @@ if (-not $Subscription) { throw '-Subscription is required.' }
 $selected = Get-StageOrder $Stage
 foreach ($name in $selected) {
     if ($script:PlanOnlyStopped) { break }
+    if ($PlanOnly -and $name -in @('image', 'verify', 'agents')) {
+        Write-Host "PlanOnly: stopped before $name. Builds, runtime checks and publication are not Terraform plans."
+        break
+    }
     Write-Host "`n== $name =="
     switch ($name) {
         'preflight' { Test-Preflight $selected }

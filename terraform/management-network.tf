@@ -40,6 +40,7 @@ resource "azurerm_virtual_network_peering" "jumpbox_to_workload" {
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "jumpbox" {
+  # Bootstrap owns the shared blob zone's state/management links and peering.
   for_each = local.management_network_enabled ? local.private_dns_zones : {}
 
   name                  = "link-jumpbox-${replace(each.key, "_", "-")}"

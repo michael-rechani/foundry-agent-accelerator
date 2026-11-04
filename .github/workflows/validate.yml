@@ -231,6 +231,10 @@ jobs:
         run: |
           terraform -chdir=terraform/bootstrap init -backend=false
           terraform -chdir=terraform/bootstrap validate
+          terraform -chdir=terraform/bootstrap test
+      - name: Test shared blob DNS ownership without Azure
+        shell: pwsh
+        run: ./scripts/terraform/test-state-dns.ps1
       - name: Validate isolated Standard Bastion without Azure
         run: |
           terraform -chdir=terraform/bastion init -backend=false

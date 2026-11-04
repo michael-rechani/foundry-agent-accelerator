@@ -8,6 +8,22 @@ variable "subscription_id" {
   }
 }
 
+variable "blob_private_dns_zone_id" {
+  type        = string
+  default     = null
+  description = "Bootstrap-owned blob private DNS zone ID in the platform subscription. Null preserves the existing platform-owned zone; adopting a shared zone requires the migration in terraform/bootstrap/README.md."
+
+  validation {
+    condition     = var.blob_private_dns_zone_id == null || can(regex("(?i)^/subscriptions/[0-9a-f-]{36}/resourceGroups/[^/]+/providers/Microsoft.Network/privateDnsZones/privatelink\\.blob\\.core\\.windows\\.net$", var.blob_private_dns_zone_id))
+    error_message = "blob_private_dns_zone_id must be the full resource ID of privatelink.blob.core.windows.net, or null."
+  }
+
+  validation {
+    condition     = var.blob_private_dns_zone_id == null || startswith(lower(coalesce(var.blob_private_dns_zone_id, "unset")), "/subscriptions/${lower(var.subscription_id)}/")
+    error_message = "The shared blob DNS zone must be in subscription_id; cross-subscription DNS links require a separately configured provider."
+  }
+}
+
 variable "deployment_principal_id" {
   type        = string
   default     = null
@@ -454,4 +470,3 @@ variable "tags" {
   description = "Additional tags to merge with the required workload tags."
   default     = {}
 }
-

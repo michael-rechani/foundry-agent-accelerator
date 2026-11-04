@@ -71,6 +71,110 @@ try {
     Assert-Equal 'python' $bound.PythonCommand 'the agent call does not shift the URL into PythonCommand'
     Assert-Equal $false $bound.SkipAgentCall 'verify runs the agent call when asked'
 
+    $originalPlatformDir = $platformDir
+    $originalBootstrapDir = $bootstrapDir
+    $platformDir = Join-Path $temporary 'platform'
+    $bootstrapDir = Join-Path $temporary 'bootstrap'
+    New-Item -ItemType Directory -Path $platformDir, $bootstrapDir | Out-Null
+    $zoneId = "/subscriptions/$subscription/resourceGroups/rg-state/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+    function Get-Native([string]$Command, [string[]]$Arguments) {
+        if ($Arguments[1] -eq 'show') {
+            Assert-Equal '-json' $Arguments[2] 'platform inspects existing state before choosing DNS ownership'
+            return $script:platformState
+        }
+        Assert-Equal 'output,-raw,blob_private_dns_zone_id' (($Arguments | Select-Object -Skip 1) -join ',') 'platform reads the bootstrap zone output'
+        $script:outputReads++
+        $script:zoneOutput
+    }
+    function Initialize-PlatformRoot { $script:platformInitialized = $true }
+    function Invoke-ReviewedApply([string]$Directory, [string]$Label, [string[]]$PlanArguments) {
+        $script:plannedLabel = $Label
+    }
+    $script:platformState = '{"format_version":"1.0"}'
+    $script:outputReads = 0; $script:zoneOutput = $zoneId; $script:platformInitialized = $false
+    Invoke-PlatformStage
+    $overlayPath = Join-Path $platformDir 'terraform.tfvars'
+    Assert-Equal $zoneId (Get-TfvarsValue $overlayPath 'blob_private_dns_zone_id') 'a new platform reuses the bootstrap zone'
+    Assert-Equal $true $script:platformInitialized 'platform initialization follows valid inputs'
+    Assert-Equal 'platform' $script:plannedLabel 'the platform still uses the reviewed-plan path'
+    $savedInputs = Get-Content -LiteralPath $overlayPath -Raw
+    Invoke-PlatformStage
+    Assert-Equal 1 $script:outputReads 'existing inputs do not require bootstrap output access'
+    Assert-Equal $savedInputs (Get-Content -LiteralPath $overlayPath -Raw) 'existing shared-zone inputs are preserved'
+    $BlobPrivateDnsZoneId = $zoneId
+    Invoke-PlatformStage
+    Assert-Equal $savedInputs (Get-Content -LiteralPath $overlayPath -Raw) 'repeating an explicit matching zone is safe'
+    $BlobPrivateDnsZoneId = $zoneId.Replace('rg-state', 'rg-other-state')
+    try { Invoke-PlatformStage; throw 'existing inputs accepted automatic migration' } catch {
+        if ($_.Exception.Message -notmatch 'never overwritten') { throw }
+    }
+    Remove-Item -LiteralPath $overlayPath
+    $BlobPrivateDnsZoneId = $zoneId
+    Invoke-PlatformStage
+    Assert-Equal 1 $script:outputReads 'an explicit shared zone does not require bootstrap state access'
+    Assert-Equal $zoneId (Get-TfvarsValue $overlayPath 'blob_private_dns_zone_id') 'the explicit zone is wired into fresh inputs'
+    Remove-Item -LiteralPath $overlayPath
+    $BlobPrivateDnsZoneId = $null; $script:zoneOutput = ''
+    $script:plannedLabel = $null
+    try { Invoke-PlatformStage; throw 'missing zone accepted' } catch {
+        if ($_.Exception.Message -notmatch 'valid blob DNS zone ID') { throw }
+    }
+    Assert-Equal $false (Test-Path -LiteralPath $overlayPath) 'a missing bootstrap output leaves no partial input file'
+    Assert-Equal $null $script:plannedLabel 'a missing bootstrap output cannot reach the plan'
+    $script:platformState = '{}'
+    try { Invoke-PlatformStage; throw 'unknown state format accepted' } catch {
+        if ($_.Exception.Message -notmatch 'platform state format') { throw }
+    }
+    Assert-Equal $false (Test-Path -LiteralPath $overlayPath) 'unknown state cannot be treated as a fresh deployment'
+    $script:platformState = '{"format_version":"1.0","values":{"root_module":{"resources":[]}}}'
+    try { Invoke-PlatformStage; throw 'existing state was silently adopted' } catch {
+        if ($_.Exception.Message -notmatch 'Restore its reviewed inputs') { throw }
+    }
+    Assert-Equal $false (Test-Path -LiteralPath $overlayPath) 'existing state without inputs cannot silently change zone ownership'
+    $script:platformState = '{"format_version":"1.0"}'
+    $script:zoneOutput = $zoneId.Replace($subscription, '99999999-2222-3333-4444-555555555555')
+    try { Invoke-PlatformStage; throw 'cross-subscription zone accepted' } catch {
+        if ($_.Exception.Message -notmatch 'chosen subscription') { throw }
+    }
+    Assert-Equal $false (Test-Path -LiteralPath $overlayPath) 'cross-subscription DNS cannot leave an invalid overlay'
+    $script:zoneOutput = $zoneId
+    Set-Content -LiteralPath $overlayPath -Value "subscription_id = `"$subscription`"`n"
+    $legacyInputs = Get-Content -LiteralPath $overlayPath -Raw
+    Invoke-PlatformStage
+    Assert-Equal $legacyInputs (Get-Content -LiteralPath $overlayPath -Raw) 'legacy inputs are not silently migrated'
+
+    $StateResourceGroup = 'rg-custom-state'
+    function Invoke-Native { }
+    Invoke-BootstrapStage
+    Assert-Equal 'rg-custom-state' (Get-TfvarsValue (Join-Path $bootstrapDir 'dev.tfvars') 'resource_group_name') 'bootstrap honors the chosen state resource group'
+    $platformDir = $originalPlatformDir; $bootstrapDir = $originalBootstrapDir
+
+    $entryAst = [Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script), [ref]$null, [ref]$null)
+    $dispatch = $entryAst.Find({
+            param($node)
+            $node -is [Management.Automation.Language.ForEachStatementAst] -and $node.Condition.Extent.Text -eq '$selected'
+        }, $false)
+    if (-not $dispatch) { throw 'Missing deployment stage dispatcher.' }
+    $dispatchBlock = [scriptblock]::Create($dispatch.Extent.Text)
+    $originalVerify = ${function:Invoke-VerifyStage}
+    function Invoke-PlatformStage { $script:dispatched.Add('platform') }
+    function Invoke-ImageStage { $script:dispatched.Add('image') }
+    function Invoke-VerifyStage { $script:dispatched.Add('verify') }
+    function Invoke-AgentsStage { $script:dispatched.Add('agents') }
+    foreach ($nonPlanStage in 'image', 'verify', 'agents') {
+        $script:dispatched = [Collections.Generic.List[string]]::new()
+        $script:PlanOnlyStopped = $false; $PlanOnly = [switch]$true
+        $selected = @('platform', $nonPlanStage)
+        . $dispatchBlock
+        Assert-Equal 'platform' ($script:dispatched -join ',') "PlanOnly never runs $nonPlanStage, even when earlier plans have no changes"
+    }
+    $PlanOnly = [switch]$false
+    $script:dispatched.Clear()
+    $selected = @('platform', 'image')
+    . $dispatchBlock
+    Assert-Equal 'platform,image' ($script:dispatched -join ',') 'normal deployment still dispatches the image stage'
+    Set-Item Function:Invoke-VerifyStage -Value $originalVerify
+
     # Runs the real verify stage with every external call replaced, to prove how it chooses the check's arguments.
     function Initialize-LabRoot { }
     function Get-Native { 'https://lab.internal' }

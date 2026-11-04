@@ -76,8 +76,13 @@ Follow this order for a new environment, or run `./deploy.ps1` to do it in one
 command (see [Deploy the Lab](../docs/lab-deployment.md#deployment)):
 
 1. For a new subscription, deploy `terraform/bootstrap/` once to create the
-   private state backend.
-2. Deploy the platform root in `terraform/`.
+   private state backend and the shared blob DNS zone.
+2. Deploy the platform root in `terraform/`, setting `blob_private_dns_zone_id`
+   to bootstrap's output. For first-run private access, use the
+   [staged bootstrap procedure](bootstrap/README.md#fresh-subscription-staged-private-access):
+   initial local state, management peering/DNS, then reviewed remote-state
+   migration from a private host. Existing platforms retain their DNS ownership
+   until the [explicit adoption](bootstrap/README.md#adopt-an-existing-platform).
 3. Publish the prebuilt agents from `hosted-agents/` after the platform outputs
    are available.
 4. Deploy the Lab from `workbench/infra/` with its separate state key.

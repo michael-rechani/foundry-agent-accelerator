@@ -48,6 +48,16 @@ output "virtual_network_id" {
   value       = azurerm_virtual_network.this.id
 }
 
+output "blob_private_dns_zone_id" {
+  description = "Effective blob DNS zone. Bootstrap owns it for shared-zone deployments."
+  value       = local.blob_private_dns_zone_id
+}
+
+output "management_virtual_network_id" {
+  description = "Management VNet to add to bootstrap peered_virtual_network_ids after the first platform apply."
+  value       = one(azurerm_virtual_network.jumpbox[*].id)
+}
+
 output "workload_virtual_network_name" {
   description = "Name of the private workload virtual network. The Lab reads it from remote state."
   value       = azurerm_virtual_network.this.name
