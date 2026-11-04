@@ -141,7 +141,7 @@ class PublisherTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(submitted["zip_name"], "agent.zip")
         self.assertEqual(hashlib.sha256(submitted["zip"]).hexdigest(), submitted["code_zip_sha256"])
         with ZipFile(io.BytesIO(submitted["zip"])) as archive:
-            self.assertEqual(set(archive.namelist()), {"main.py", "demo_tools.py", "requirements.txt"})
+            self.assertEqual(set(archive.namelist()), {"main.py", "demo_tools.py", "bill_math.py", "requirements.txt"})
         self.assertEqual(submitted["metadata"], ownership(self.document))
         self.assertTrue(self.document["publication_started"])
         self.assertEqual(self.events[0][0], "uploading")

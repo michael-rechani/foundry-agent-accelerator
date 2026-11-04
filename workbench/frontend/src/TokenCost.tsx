@@ -18,7 +18,7 @@ const billable = [
   ],
   [
     'Tool round trips',
-    'Each lookup sends the conversation back to the model, so an answer with tools uses several model calls.',
+    'Tool calls can send the conversation back to the model, so an answer with tools may use several model calls.',
   ],
   [
     'Hosted agent runtime',

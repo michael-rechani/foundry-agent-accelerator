@@ -269,6 +269,7 @@ jobs:
         run: |
           ./workbench/test-build.ps1
           ./workbench/test-private-checks.ps1
+          ./workbench/test-demo-check.ps1
 
   workbench-frontend:
     needs: changes

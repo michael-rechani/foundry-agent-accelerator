@@ -10,9 +10,9 @@ Foundry and costs money.
 
 ## Agent library acceptance cases
 
-[library-cases.json](../evaluations/library-cases.json) holds 90 acceptance cases, five for each
-of the 18 agents in the library. Every value in them is sample data. Each
-template has one case in each of five categories:
+[library-cases.json](../evaluations/library-cases.json) holds 99 acceptance cases
+across the 18 agents in the library. Every value in them is sample data. Each
+template covers five categories; some have extra cases:
 
 | Category | What the answer must show |
 | --- | --- |
@@ -47,7 +47,41 @@ python -m unittest test_library_checks
 - `score` screens recorded answers from a JSON Lines file of
   `{"case_id": "...", "text": "...", "receipts": [...]}`. `text` and `receipts`
   match the fields the Lab's chat response returns. When `receipts` is present,
-  the expected lookups must appear in it.
+  the expected lookups must appear in it. Medical-bill cases also require a
+  confirmed calculator receipt and check its copied amounts, line quantities,
+  unit prices and whether a statement total was actually printed. The showcase
+  also checks its matched claim pairs, duplicate and unmatched quantities, and
+  calculated reconciliation components against the sample documents.
+
+### Conversation cases
+
+A case can add one to four `follow_ups`, each with an `input` (or
+`use_sample_input`), `checks` and `rubric`. The recorder sends the first prompt,
+then supplies each follow-up with that run's actual earlier user messages and
+assistant answers, just like the Lab's text chat history. It does not substitute
+an expected answer, reuse another run's history, or save a conversation in
+Foundry. Tool results are local to each turn; the next turn receives the answer
+text, not a replay of earlier tool calls.
+
+The Benefits ID-only case covers four turns: start from the sample IDs, supply
+the renewal documents, request an unsent household note, and challenge the
+eligibility boundary. An additional case checks urgency without promising an
+eligibility decision. A person still checks the coverage summary, date maths,
+which proof the note requests, and the tone.
+
+Multi-turn evidence adds `turns`, an ordered list of `{input, text, receipts}`
+objects, to the answer and repeat rows. Every turn must pass its own checks;
+missing or reordered turns fail. The top-level `text` and `receipts` remain the
+first answer, while token counts, elapsed time and cost cover the whole
+conversation. Context fingerprints include every follow-up input, and a
+sign-off fingerprint covers all recorded turn content. Changing a follow-up
+therefore requires new evidence, not relabeling an old single-turn answer.
+
+The offline recording plan shows both repeated runs and conversation turns
+before tool calls. The current medical and Benefits batch is **75 runs and 90
+conversation turns**; tool rounds can make more model requests. Old evidence
+does not validate the revised cases. Recording and retaining the fictional
+answers needs approval (#362, #363); a person reviews them before sign-off.
 
 Scoring is a conservative screen, not a grade. It checks required labels,
 figures, and questions, and flags prohibited claims such as approvals,

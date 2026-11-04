@@ -14,6 +14,16 @@ Pull request numbers link to the full discussion.
 
 ### Added
 
+- **Benefits conversation acceptance.** The recording harness can run follow-up
+  prompts against each run's own earlier answers, screen every turn and count
+  the whole conversation's tokens and time. The Benefits showcase now covers
+  ID-only intake, supplied documents, an unsent note, an eligibility challenge,
+  and urgency. New recordings and human review remain required (#363).
+- **A Benefits-led presenter path.** The ten-minute script starts with the
+  renewal conversation, with medical billing as a separately reviewed
+  alternative. Chat links to the script before typing. The read-only preflight
+  rejects unreadable configuration, empty libraries and degraded dependencies,
+  with offline regression checks (#410).
 - **Next steps in Chat.** The Benefits renewal helper offers one-click buttons
   under its latest answer: the checklist, the draft note and questions for the
   caseworker.

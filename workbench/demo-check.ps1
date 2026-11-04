@@ -23,12 +23,16 @@ function Invoke-Lab {
     if ($null -ne $Body) { $arguments += @('-H', 'Content-Type: application/json', '--data-binary', '@-') }
     $arguments += "$BaseUrl$Path"
     $raw = if ($null -ne $Body) { ($Body | ConvertTo-Json -Depth 8 -Compress) | curl.exe @arguments } else { curl.exe @arguments }
+    if ($LASTEXITCODE -ne 0) { throw "The Lab request to $Path failed (curl exit $LASTEXITCODE). Check the approved network path." }
     $text = $raw -join "`n"
     if (-not $text) { return [pscustomobject]@{ Status = 0; Body = $null } }
     $split = $text -split "(?:\r?\n){2}", 2
     $status = [int](($split[0] -split '\s+')[1])
     $json = $null
-    if ($split.Count -gt 1 -and $split[1].Trim()) { try { $json = $split[1] | ConvertFrom-Json } catch { } }
+    if ($split.Count -gt 1 -and $split[1].Trim()) {
+        try { $json = $split[1] | ConvertFrom-Json }
+        catch { throw "The Lab returned invalid JSON for $Path (HTTP $status). Check the URL and access path." }
+    }
     [pscustomobject]@{ Status = $status; Body = $json }
 }
 
@@ -44,18 +48,22 @@ $health = Invoke-Lab GET '/healthz'
 Report ($health.Status -eq 200) "The Lab answers (/healthz returned $($health.Status)). If this fails, check you are on an allowed network."
 if ($health.Status -ne 200) { throw 'The Lab is not reachable from here, so nothing else can be checked.' }
 
-$config = (Invoke-Lab GET '/api/config').Body
-$agents = @($config.agents)
+$configResponse = Invoke-Lab GET '/api/config'
+if ($configResponse.Status -ne 200 -or $null -eq $configResponse.Body) {
+    throw "The Lab configuration could not be read (HTTP $($configResponse.Status))."
+}
+$config = $configResponse.Body
+$agents = @($config.agents | Where-Object { $null -ne $_ })
 Report ($agents.Count -gt 0) "$($agents.Count) agent(s) ready to chat. Default: $($config.default_agent)."
 Report ([bool]$config.library_preview.enabled) 'Library previews and the Agent designer are on.' -Warn
-Report ([bool]$config.agent_creation.enabled) 'Agent creation is on. Creating one is billable and takes up to 10 minutes, so skip it in a short demo.' -Warn
+Report ([bool]$config.agent_creation.enabled) 'Agent creation must be enabled for publication. Creating one is billable and takes up to 10 minutes, so skip it in a short demo.' -Warn
 
 $templates = Invoke-Lab GET '/api/agent-templates'
-$count = @($templates.Body.templates).Count
+$count = @($templates.Body.templates | Where-Object { $null -ne $_ }).Count
 Report ($templates.Status -eq 200 -and $count -gt 0) "The agent library loads ($count agent(s) shown)."
 
 $deps = Invoke-Lab GET '/api/health/dependencies'
-Report ($deps.Status -eq 200) "Foundry and the history store are healthy (/api/health/dependencies returned $($deps.Status))."
+Report ($deps.Status -eq 200 -and $deps.Body.status -eq 'ready') "Foundry and the history store are healthy (/api/health/dependencies returned $($deps.Status))."
 
 if ($Designer) {
     Write-Host 'Asking the Agent designer one question (one billable model call).'

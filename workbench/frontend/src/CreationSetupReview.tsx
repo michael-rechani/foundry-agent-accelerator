@@ -160,7 +160,11 @@ export function CreationSetupReview({
           {template.tools.map((tool) => (
             <li key={tool.name}>
               <code>{tool.name}</code> - {tool.description}
-              {tool.simulated ? ' (sample data)' : ''}
+              {tool.simulated
+                ? tool.name.startsWith('calculate_')
+                  ? ' (local calculation)'
+                  : ' (sample data)'
+                : ''}
             </li>
           ))}
         </ul>

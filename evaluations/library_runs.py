@@ -44,13 +44,14 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import scorecards
-from library_checks import CASES_PATH, case_input, load_cases
+from library_checks import CASES_PATH, case_input, case_turns, load_cases
 # library_checks puts workbench/ on sys.path, which these two imports need.
 from agent_templates import MODEL_PROFILES, TEMPLATE_METADATA, TEMPLATES
-from library_preview import run_preview, summarize_usage, usage_record
+from library_preview import PREVIEW_AGENT, run_preview, summarize_usage, usage_record
 from library_rules import (
     ANSWER_ROW, COUNT_KEYS, DEPLOYMENT_NAME, METRICS_ROW, RUN_ROW, is_int, is_number, is_profile_map, valid_date,
 )
+from tool_receipts import execution_receipts
 
 HERE = Path(__file__).resolve().parent
 JOURNALS = HERE / "results" / "library-runs"
@@ -129,7 +130,10 @@ def dump(row):
 
 
 def project(row, keys):
-    return {key: row[key] for key in keys}
+    projected = {key: row[key] for key in keys}
+    if "text" in keys and "turns" in row:
+        projected["turns"] = row["turns"]
+    return projected
 
 
 def write_atomic(updates):
@@ -420,8 +424,17 @@ def assess(template_id, cases, evidence):
 
 def usable(row, contexts, digest, model):
     """Whether a journal row is a whole, well-formed run of these cases on these instructions and inputs."""
-    if not isinstance(row, dict) or set(row) != set(RUN_ROW):
+    if not isinstance(row, dict) or set(row) - {"turns"} != set(RUN_ROW):
         return False
+    if "turns" in row:
+        turns = row["turns"]
+        if (not isinstance(turns, list) or not 2 <= len(turns) <= 5
+                or any(not isinstance(turn, dict) or set(turn) != {"input", "text", "receipts"}
+                       or not isinstance(turn["input"], str) or not turn["input"].strip()
+                       or not isinstance(turn["text"], str) or not turn["text"].strip()
+                       or not isinstance(turn["receipts"], list) for turn in turns)
+                or any(turns[0][key] != row[key] for key in ("text", "receipts"))):
+            return False
     counts = [row[key] for key in COUNT_KEYS]
     return (row["case_id"] in contexts and row["context_sha256"] == contexts[row["case_id"]]
             and is_int(row["run"]) and 1 <= row["run"] <= RUNS_PER_CASE
@@ -556,12 +569,15 @@ def plan_lines(items, files, evidence, pacer):
     for item in items:
         ids = [case["id"] for case in item.cases]
         total, limit = len(ids) * RUNS_PER_CASE, pacer.limit(item.model)
+        turns = sum(len(case_turns(case)) for case in item.cases) * RUNS_PER_CASE
         saved, _ = load_journal(files.journal(item.template_id), item.contexts, item.digest, item.model)
         pending += total - len(saved)
         state = assess(item.template_id, item.cases, evidence).state
         lines += [f"{item.template_id} ({item.profile})",
                   f"  {len(ids)} cases x {RUNS_PER_CASE} runs = {total} runs on {item.model} (model from {item.source})",
                   f"  recorded now: {state}"]
+        if turns != total:
+            lines.append(f"  {turns} conversation turns before tool calls; follow-ups reuse each run's own answers")
         if state == "current":
             lines.append("  its answers already match its instructions; recording again only refreshes them")
         if saved:
@@ -588,10 +604,24 @@ def plan_lines(items, files, evidence, pacer):
 async def record_run(item, case, run, client, today):
     """One run of one case, on the same code the Lab's Chat preview uses. Returns the row to save."""
     client.seconds = 0.0
-    usage = []
-    outcome = await run_preview(client, template_id=item.template_id, model=item.model, prompt=case_input(case),
-                                reasoning=item.profile != "tool_calling", usage=usage)
-    return finish_run(item, case, run, outcome, usage, client.seconds, today)
+    usage, messages, turns = [], [], []
+    for turn_case in case_turns(case):
+        prompt = case_input(turn_case)
+        messages.append({"role": "user", "content": prompt})
+        turn_usage = []
+        outcome = await run_preview(client, template_id=item.template_id, model=item.model,
+                                    prompt=messages, reasoning=item.profile != "tool_calling", usage=turn_usage)
+        row = finish_run(item, case, run, outcome, turn_usage, client.seconds, today)
+        usage.extend(turn_usage)
+        turns.append({"input": prompt, "text": row["text"], "receipts": row["receipts"]})
+        messages.append({"role": "assistant", "content": row["text"]})
+    total = summarize_usage(usage)
+    row.update(text=turns[0]["text"], receipts=turns[0]["receipts"],
+               input_tokens=total["input_tokens"], cached_tokens=total["cached_tokens"] or 0,
+               output_tokens=total["output_tokens"], seconds=round(client.seconds, 1))
+    if case.get("follow_ups"):
+        row["turns"] = turns
+    return row
 
 
 def finish_run(item, case, run, outcome, usage, seconds, today):
@@ -606,9 +636,15 @@ def finish_run(item, case, run, outcome, usage, seconds, today):
     cached = total["cached_tokens"] or 0
     if cached > total["input_tokens"]:
         raise Stop(f"{where}: Foundry reported more cached tokens than input tokens.")
+    receipts = []
+    for receipt in execution_receipts(transcript, {"calculate_bill_math": PREVIEW_AGENT}):
+        recorded = {"tool": receipt["tool"]}
+        if receipt["tool"] == "calculate_bill_math":
+            recorded.update(verified=receipt["verified"], output=receipt["output"])
+        receipts.append(recorded)
     return {
         "case_id": case["id"], "run": run, "text": text,
-        "receipts": [{"tool": call.get("name", "unknown")} for call in transcript if call.get("type") == "function_call"],
+        "receipts": receipts,
         "model": item.model, "seconds": round(seconds, 1), "input_tokens": total["input_tokens"],
         "cached_tokens": cached, "output_tokens": total["output_tokens"],
         "instructions_sha256": item.digest, "context_sha256": scorecards.context_digest(case), "recorded_on": today,

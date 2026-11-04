@@ -55,7 +55,8 @@ fixed tools return the sample purchase order and delivery record for
 
 With neither, **Guided demos** lets you read and copy the example and points
 you to the matching template. Preparing the template doesn't publish it.
-Publication still requires the operator key, cost approval, and the
+Publication still requires cost approval, the operator key unless explicit
+[private presenter mode](agent-creation.md#private-presenter-mode-no-operator-key) is enabled, and the
 existing [creation prerequisites](agent-creation.md).
 
 | Source | Expected finding | Human follow-up |
@@ -135,9 +136,12 @@ deep links continue to open their review directly.
 
 ## Present from the jump box
 
-Today an operator presents the Lab, and customers don't open it themselves. The
-Lab only answers requests from the jump box, so connect to the jump box, open
-the Lab there, and share your screen. See
+Today an operator presents the Lab, and customers don't open it themselves.
+The default private access path is the jump box: connect to it, open the Lab
+there, and share your screen. An explicitly approved Front Door deployment can
+also admit allowlisted client addresses through its Private Link origin; it
+does not provide customer sign-in or isolate shared records. Use only the access
+path approved for your environment. See
 [Who uses the Lab today](ingress-access.md#who-uses-the-lab-today).
 
 Before the customer joins:
@@ -146,8 +150,8 @@ Before the customer joins:
    whole [ten-minute demo script](demo-script.md).
 2. Open the Lab, start a chat and open **Privacy & sharing** under the
    message box. Check that it matches what you'll tell the customer.
-2. Choose one story and have its sample input ready. Use fictional data only.
-3. Expect about 30 seconds for the first answer in each new chat. Opening a chat
+3. Choose one story and have its sample input ready. Use fictional data only.
+4. Expect about 30 seconds for the first answer in each new chat. Opening a chat
    ahead of time doesn't speed up the next one, so there is nothing to warm up.
    See "Plan for the first wait" above.
 
@@ -159,8 +163,9 @@ After the customer leaves:
    clears the messages on your screen.
 2. Reviews can't be deleted in the Lab. They expire 30 days after their last
    update, so use sample content only.
-3. Leave created agents alone unless the owner asks. An operator deletes them with
-   the operator key.
+3. Leave created agents alone unless the owner asks. An operator deletes them
+   with the operator key, or without a key in explicitly enabled private
+   presenter mode. Deletion still asks for confirmation of the shared impact.
 
 ## One foundation. Repeatable agent releases.
 

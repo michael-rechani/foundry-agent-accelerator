@@ -590,10 +590,10 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 503)
         self.assertEqual(self.publisher.calls, [])
 
-    async def test_lookup_catalogs_report_only_fixed_simulated_lookup_tools(self):
+    async def test_lookup_catalogs_report_fixed_local_tools(self):
         expected = {
             "workflow-coordinator": {"lookup_demo_request", "lookup_demo_service"},
-            "medical-bill-reviewer": {"lookup_plan_benefits", "lookup_usual_price"},
+            "medical-bill-reviewer": {"lookup_plan_benefits", "lookup_usual_price", "calculate_bill_math"},
         }
         for template_id, tools in expected.items():
             with self.subTest(template_id=template_id):

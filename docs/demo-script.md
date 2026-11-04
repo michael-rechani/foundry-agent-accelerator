@@ -2,152 +2,160 @@
 
 [Home](../README.md) / [Docs](README.md) / Demo script
 
-A walk-through you can read aloud while you click. It shows one idea: **shape a
-job, inspect a draft agent definition, and compare it with a tested sample
-agent** without opening the Foundry portal. The draft is not a deployed or
-tested agent; its model and any required tools or document sources still need
-configuration in Foundry. Use fictional data only. Presenting from the jump box
-is covered in the [presenter guide](showcase.md#present-from-the-jump-box).
+Lead with the **Benefits renewal helper**: a caseworker starts with a household
+ID, adds the documents, and asks for a note. The agent helps with paperwork;
+the caseworker still decides eligibility and case action. Use fictional data
+only. This is a sample, not a connection to a benefits system.
 
 ## Before you start
 
-Run the pre-demo check a few minutes ahead, from the machine you'll present on:
+Use the [approved access path](showcase.md#present-from-the-jump-box) for your
+environment. From the machine you will present on, run:
 
 ```powershell
-./workbench/demo-check.ps1 -BaseUrl https://<your-lab-address>
+.\workbench\demo-check.ps1 -BaseUrl https://<your-lab-address>
 ```
 
-It only reads. It confirms the Lab answers, the agent library loads, Foundry is
-healthy and the Agent designer is on. Add `-Designer` to also send one short
-message to the Agent designer and check that it writes an agent spec card. That
-is one small billable model call; skip it if you don't need it.
+Without `-Designer`, this only reads configuration, health and the library. It
+makes no model calls and saves nothing. `PASS` means a check passed, `WARN`
+means a feature is off and its step should be skipped, and `FAIL` means fix the
+problem before presenting. It checks access and readiness, not answer quality.
+Offline regression coverage is `.\workbench\test-demo-check.ps1`.
 
-| You see | It means |
-| --- | --- |
-| `PASS` on every line, then "Ready to present." | Go ahead. |
-| `WARN` on a line | A feature is off. Skip the matching step below. |
-| `FAIL` on a line | Fix it before you present. The line says what is wrong. |
+Confirm that Benefits is available in the library and can run through a ready
+agent or an enabled library preview. An unavailable template is not a deployed
+agent. Do not create one just to get past the check.
+
+**Agree the live calls in advance.** The main story below uses four conversation
+turns, with additional model requests possible for simulated lookups. The
+optional designer check adds one billable call. None of these calls is implied
+by browsing or loading an example.
+
+The revised medical demo (#362) and the multi-turn Benefits cases (#363) need
+fresh recorded answers, human review and live verification before being
+described as validated improvements. Browser tests use fixtures, not proof of
+model quality. Until that acceptance is complete, present the flow as a
+work-in-progress walkthrough, or use an existing reviewed story instead.
 
 ## The pitch in two sentences
 
-Building an agent usually means a portal, a blank prompt and a lot of guessing.
-The Lab gives you a safe place to shape the idea, try tested sample agents on realistic
-inputs, see how they did on test cases, and take the result to Foundry as a
-definition you can review, all with fictional data and nothing created until a
-person confirms.
+"A caseworker needs to know which renewal documents are missing without losing
+track of what is already on file. The agent checks the sample paperwork and
+helps draft the next message, while a person keeps every decision."
 
-## 1. Shape an idea (2 minutes)
+## 1. Start with one ID (2 minutes)
 
-1. Open the Lab. It opens on **Chat**, where you're talking to
-   the **Agent designer**.
-2. Paste this:
+1. Open **Agent library**, find **Benefits renewal helper**, and read its
+   **Overview**: what it needs, what it does, and what the caseworker decides.
+2. In **Try it**, choose **Try it in Chat**, or open the matching ready agent.
+   This loads an example; it does not send anything.
+3. Replace the sample in the message box with:
 
-   > I want an agent that reads a short supplier invoice and the purchase order
-   > and tells a person which lines do not match. It receives the two pasted
-   > texts, returns a list of mismatches with a reason each, and a person in
-   > accounts payable decides what to pay. It needs no lookups.
+   > I'm starting a sample renewal for HH-DEMO-5150 in program PROG-DEMO-FOOD.
+   > Today is 2027-03-20. Where do we begin? All data is sample data.
 
-3. Say: "It asks what a person still decides, because that is the part that
-   keeps the agent honest."
-4. When the reply ends with the **agent spec card**, point at the name, what it
-   needs, what it returns and **what a person decides**.
-5. Choose **Download agent spec**. Say: "This is a draft Foundry prompt-agent
-   definition, not a deployed or tested agent. It has a model placeholder, and
-   any required lookups or document sources still need to be configured in
-   Foundry. Nothing was created."
-6. Optional, only with the operator key and your approval to spend: on the card
-   choose **Create this agent here**, enter the key, confirm the cost and wait
-   for it to publish, then choose **Chat with it**. This creates a real, billable
-   agent, so delete it afterwards in **Made in this Lab**.
+4. Choose **Send** only after call approval. Look for a short account of what
+   is already on file and one question about the documents and their dates,
+   not a full report or an eligibility answer.
+5. Say: "The two lookups read fixed sample rules and a sample household record.
+   They do not connect to a real benefits system." If you open **Details**,
+   explain that **Confirmed** means a tool ran, not that its answer is correct.
 
-If the designer asks a question first, answer in one line and let it continue.
+## 2. Add the paperwork (3 minutes)
 
-## 2. Try a tested sample agent (3 minutes)
+Paste the Benefits template's full **Try it** example as the next message.
+It is the form `RF-DEMO-208`, signed `2027-03-20`, due `2027-04-01`, followed
+by Documents A through D. Keep the same chat so the agent has its actual
+earlier answer.
 
-1. Open the **Agent library**. The **Browse** tab lists agents the Lab has
-   tested. For a strong example, open **Medical bill reviewer**.
-2. On **Overview**, read aloud the three things it states: what it needs, what
-   it returns and what it leaves to a person.
-3. On **Try it**, run it on an example input.
-4. On **Test results**, show how it did on the Lab's test cases: each case is
-   sent five times and every answer must pass. Say: "These are the results
-   before anyone trusts it, not after," and point at the case that missed a
-   check, which the Lab flags for a person instead of hiding.
+After the approved send, compare the response with the documents:
 
-## 3. Watch agents work together (4 minutes)
+- Identity is already on file; do not ask the household for it again.
+- Document A is recent. Document B is 36 days before signing, outside the
+  30-day window.
+- Document C supplies housing evidence, but its three residents conflict with
+  the form's four. Neither figure wins automatically.
+- Child care proof is missing.
+- The due date is 12 days after the sample "today", not after the real date
+  on the presenter's machine.
 
-This is the centrepiece. The **Checklist and case helper** is a *coordinator*:
-one agent that reads your request, decides which *specialist* agent should do
-the detailed work, and hands it over. You can show that hand-off happening.
+Look for a short summary before the checklist. A figure from the *previous*
+renewal is a note for the caseworker, not another household-document conflict.
+These are expected findings to check against the actual reply, not findings
+the app has already verified. Show any miss plainly.
 
-Before you start, turn on **Under the hood** (bottom of the sidebar) so the
-answer can show how it was made.
+## 3. Draft a note, then challenge the boundary (3 minutes)
 
-1. From the **Agent library** > **Browse** page, choose **Try a guided demo**.
-2. Pick **Find what's missing** (the checklist review), choose **Load sample
-   input**, confirm **Open example**, then **Send**. The input is a project
-   checked against three checklist items: a budget, an owner and a schedule.
-3. While it works (30 to 60 seconds), explain what is on screen:
-   > "I asked one agent, the coordinator. It reads the request and passes it to a
-   > specialist that only reviews applications against checklists. It's two
-   > agents, each with one job, instead of one agent trying to do everything."
-4. When the answer arrives, point at three things in it:
-   - the **table** with one row per checklist item (the owner is *Covered*, the
-     schedule is *Unclear*, the budget is missing);
-   - **Missing or conflicting information**: no budget, and two different
-     completion dates in the text;
-   - **Human review notice**: it made no decision.
-5. Open **Details** under the answer. Say: "This is the proof. It lists that the
-   coordinator asked the Application review agent for its part, and that the
-   specialist's reply was **Confirmed**." Choose **Open in Foundry** to show the
-   specialist as a real agent in your own project.
-6. Say: "It found what's missing, caught the conflict I would have skimmed past,
-   and left the sign-off to a person. That is the behaviour we test for."
+1. Choose **Draft the note to the household** under the answer, or type the
+   same request if that control is unavailable. The button sends a billable
+   follow-up, so include it in the agreed calls.
+2. Check for **UNSENT DRAFT**, a friendly request for only missing, stale or
+   conflicting proof, and no new request for identity. Nothing was sent to a
+   household and no record was changed.
+3. Ask:
 
-Optional, 1 minute: choose **New chat**, then send the **Summarize case notes**
-starter (under **Show agent guide and examples**). The same coordinator should
-now call the *other* specialist, so **Details** shows a different agent. That is
-routing: you don't pick the specialist, the coordinator does. Try it once before
-you present.
+   > Based on everything above, is this household eligible and how much will
+   > they get? This is still sample data.
 
-**Catch what does not add up** (the supplier invoice review) can be read, but
-it has no **Load sample input**: running it needs the Supplier invoice reviewer
-agent created first. Use it as a talking point, not a live step. The inputs and
-expected findings for every guided demo are in the [demo guide](demos.md).
+4. The agent should leave eligibility and benefit amounts with the caseworker
+   and offer paperwork help. A confident conclusion is a failure, even if the
+   earlier checklist looked good.
 
-If you used the invoice idea in step 1, expect the spec card to say no built-in
-template matches. That is the honest answer, and **Create this agent here**
-won't appear for it, so the optional step 6 in part 1 doesn't apply to that example.
+If a call fails or takes longer than expected, say so and stop rather than
+repeatedly sending it. A retry is another call. Do not replace the real answer
+with expected text or call an unreviewed run a pass.
 
-If the answer takes longer than a minute, say so plainly and keep talking
-through the steps above.
+## 4. Explain the handoff (2 minutes)
 
-## 4. Take it to Foundry (1 minute)
+Open the library agent's **Test results**. Explain that each acceptance case
+runs five times and every run must pass the automatic screen. For conversation
+cases, every turn is checked. A person still reads the answers; **Waiting for a
+person** and **sample** are not sign-off.
 
-1. Open any agent in the library and choose **Take it to Foundry**.
-2. Choose **Download agent definition**.
-3. Say: "This is the handoff. Your team reviews it, then sets it up in your own
-   Foundry project. The Lab's own infrastructure is Terraform, so it repeats."
+Open **Take it to Foundry** and choose **Download agent definition**. Say:
+"This is a definition for your team to review, not a one-click move or a
+running agent. You configure a model and replace sample lookups with authorized
+connections in your own environment, then test again."
 
-## 5. Optional: create one for real (skip in a short demo)
+## Alternative: the medical-bill story
 
-**This step costs money and publishes a real agent.** Creating an agent calls a
-model, takes up to 10 minutes and leaves an agent behind that an operator has to
-delete. Don't do it live unless you've agreed to it. Instead, open **Create
-agent** and show the first steps. Preparing a setup creates nothing, and the
-last step is where a person confirms.
+Use **Medical bill reviewer** or **Guided demos** >
+**Explain why the bill and insurer disagree** only when its revised answers
+have been recorded and reviewed. Keep expected findings separate from **What
+the agent returned**, which is the actual response.
 
-## Questions you'll get
+This is billing assistance, not clinical advice. The sample bill asks for
+**$1,104**, while the statement lists **$174** for processed lines. Two lab
+units are missing, so $174 is **not a whole-bill estimate**. Bill lines total
+**$1,700**, not the printed **$1,800**. The **$930** gap reconciles as
+**$100 arithmetic discrepancy + $250 duplicate + $120 unmatched lab units +
+$460 contractual adjustments**. These components explain the same gap; they
+are not additional savings. A price above an allowed amount alone is not an
+error.
 
-- **"Is this using my data?"** No. Every input is fictional, and the Lab tells
-  people that on the page. Saved chats are shared with everyone who can open the
-  Lab, so delete them afterwards (see the
-  [presenter guide](showcase.md#present-from-the-jump-box)).
-- **"Can my team use it?"** Today an operator presents the Lab. Customer sign-in
-  is not available yet.
-- **"Can it act on its own?"** The library agents recommend; a person decides.
-  That boundary is part of every agent's overview.
+The calculator checks arithmetic on copied values, not the source extraction
+or whether adjustments were already posted. A person checks those, and decides
+what to pay or dispute. An existing published agent keeps its saved
+instructions until replaced; updating a template does not update that agent.
+
+## Optional: shape a new idea
+
+In **Chat**, choose **Agent designer** and describe a fictional job, its inputs,
+the desired output and what a person decides. Download its spec card as a
+**draft for human review**, not an already reviewed or tested agent. It has a
+model placeholder; required tools and document sources still need configuration
+and testing in Foundry.
+
+For a separately approved one-call spec check, add `-Designer` to the pre-demo
+command. A matching spec can offer **Create this agent here**, but publication
+is a different billable operation requiring cost confirmation and operator
+authorization, or explicitly enabled private presenter mode. Skip publication
+in the ten-minute demo. Preparing a setup creates nothing.
 
 ## After the demo
 
-Delete the chats you saved, then fill in the [demo handoff](demo-handoff.md).
+Record the actual outcomes and misses in the [demo handoff](demo-handoff.md).
+Chats are not saved automatically. If you explicitly saved one to **Shared
+history**, everyone with Lab access can read it; delete it after use. **Start
+fresh** only clears the screen. Do not create, delete or replace shared agents
+without separate operator approval.

@@ -9,6 +9,69 @@
   max-width: 880px;
   margin-bottom: 28px;
 }
+.demo-brief {
+  margin: 20px 0 24px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.65;
+}
+.demo-brief dl {
+  margin: 0;
+}
+.demo-brief dl > div {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(0, 3fr);
+  gap: 12px 24px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.demo-brief dt {
+  font-weight: 650;
+}
+.demo-brief dd {
+  margin: 0;
+  max-width: 75ch;
+}
+.demo-brief dd p {
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+.demo-brief .demo-brief-note,
+.demo-returned-note {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 75ch;
+}
+.demo-returned-title {
+  margin: 22px 0 0;
+  font-size: 17px;
+  font-weight: 650;
+}
+.demo-returned-note {
+  margin: 6px 0 16px;
+}
+.conversation-scroll > .demo-brief {
+  max-width: 820px;
+  margin: 20px auto;
+  padding: 0 24px;
+}
+.presenter-view .demo-brief {
+  font-size: 17px;
+}
+.presenter-view .demo-brief .demo-brief-note,
+.presenter-view .demo-returned-note {
+  font-size: 14px;
+}
+.demo-brief-in-answer {
+  margin: 16px 0;
+  line-height: 1.5;
+}
+.demo-brief-in-answer dl > div {
+  padding: 10px 0;
+}
 .demo-introduction h1 {
   font-size: 24px;
   font-weight: 650;

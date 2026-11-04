@@ -503,6 +503,82 @@ class PacedClientTests(unittest.TestCase):
         self.assertEqual(len(foundry.calls), 3)
 
 
+class ReceiptRecordingTests(unittest.TestCase):
+    def test_only_a_correlated_successful_calculator_result_is_preserved(self):
+        item = lr.Item("medical-bill-reviewer", "reasoning", [], "digest", "model", "test")
+        case = next(case for case in lr.load_cases()["cases"]
+                    if case["id"] == "medical-bill-reviewer-sample-conflict")
+        call = {"type": "function_call", "name": "calculate_bill_math", "call_id": "math"}
+        output = {"type": "function_call_output", "call_id": "math", "output": json.dumps({
+            "status": "succeeded", "agent": lr.PREVIEW_AGENT,
+            "output": 'SAMPLE local arithmetic.\n{"line_amount_sum":"$1,700.00"}',
+        })}
+        usage = [lr.usage_record(SimpleNamespace(usage=USAGE))]
+
+        def finish(transcript):
+            return lr.finish_run(item, case, 1, ("completed", "Answer", transcript), usage, 1.0, TODAY)["receipts"]
+
+        result = finish([call, output])
+        self.assertEqual(result[0]["tool"], "calculate_bill_math")
+        self.assertTrue(result[0]["verified"])
+        self.assertIn("$1,700.00", result[0]["output"])
+        for transcript in ([call], [call, call, output], [call, {**output, "call_id": "other"}],
+                           [call, {**output, "output": json.dumps({"status": "failed"})}]):
+            with self.subTest(transcript=transcript):
+                self.assertFalse(any(receipt.get("verified") for receipt in finish(transcript)))
+
+
+class ConversationRecordingTests(unittest.TestCase):
+    def setUp(self):
+        self.case = next(case for case in lr.load_cases()["cases"]
+                         if case["id"] == "benefits-renewal-helper-id-only")
+        self.item = lr.Item(self.case["template_id"], "reasoning", [self.case],
+                            scorecards.instructions_digest(self.case["template_id"]), "model", "test")
+
+    def test_follow_ups_use_actual_prior_answers_and_count_all_tokens(self):
+        client = SimpleNamespace(seconds=0.0)
+        calls = []
+
+        async def preview(_, **options):
+            calls.append(copy.deepcopy(options["prompt"]))
+            client.seconds += 1.5
+            options["usage"].append(lr.usage_record(SimpleNamespace(usage=USAGE)))
+            return "completed", f"Actual answer {len(calls)}", []
+
+        with mock.patch.object(lr, "run_preview", side_effect=preview):
+            row = asyncio.run(lr.record_run(self.item, self.case, 1, client, TODAY))
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(calls[1][1], {"role": "assistant", "content": "Actual answer 1"})
+        self.assertEqual(calls[3][-2], {"role": "assistant", "content": "Actual answer 3"})
+        self.assertEqual([len(messages) for messages in calls], [1, 3, 5, 7])
+        self.assertEqual([turn["text"] for turn in row["turns"]],
+                         [f"Actual answer {number}" for number in range(1, 5)])
+        self.assertEqual((row["input_tokens"], row["cached_tokens"], row["output_tokens"], row["seconds"]),
+                         (400, 80, 200, 6.0))
+        self.assertEqual(row["text"], row["turns"][0]["text"])
+        self.assertIn("turns", lr.project(row, lr.ANSWER_ROW))
+        self.assertIn("turns", lr.project(row, lr.RUN_ROW))
+        self.assertNotIn("turns", lr.project(row, lr.METRICS_ROW))
+        self.assertTrue(lr.usable(row, self.item.contexts, self.item.digest, "model"))
+        row["turns"] = row["turns"][:1]
+        self.assertFalse(lr.usable(row, self.item.contexts, self.item.digest, "model"))
+
+    def test_a_failed_turn_stops_before_another_billable_turn(self):
+        client = SimpleNamespace(seconds=0.0)
+        with mock.patch.object(lr, "run_preview", return_value=("incomplete", "", [])) as preview:
+            with self.assertRaisesRegex(lr.Stop, "wasn't saved"):
+                asyncio.run(lr.record_run(self.item, self.case, 1, client, TODAY))
+        self.assertEqual(preview.call_count, 1)
+
+    def test_plan_exposes_conversation_turns_before_tool_calls(self):
+        files = lr.Files(journals=Path(tempfile.gettempdir()) / "nonexistent-lab-recording-test")
+        evidence = {"answers": [], "metrics": [], "repeats": []}
+        pacer = lr.Pacer({}, FakeClock(), FakeClock().sleep)
+        lines, pending = lr.plan_lines([self.item], files, evidence, pacer)
+        self.assertEqual(pending, 5)
+        self.assertIn("20 conversation turns before tool calls", "\n".join(lines))
+
+
 class RowFileTests(Scratch):
     DATA = b'{"case_id": "a", "n": 1}\n{"case_id": "b", "n": 2}\n\n{"case_id": "a", "n": 3}\n{"case_id": "c", "n": 4}\n'
 

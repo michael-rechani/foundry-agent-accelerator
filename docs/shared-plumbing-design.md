@@ -337,6 +337,8 @@ own `read_configuration`, prefixes a `DEMO_POLICY`, and ships in a fixed
 three-file package (`RUNTIME_FILES` in `workbench/agent_package.py`, each file at
 most 65,536 bytes). Adding a shared file would change that package's hash and
 size limits for a gain of about ten lines.
+The current runtime also packages `bill_math.py` for the medical reviewer; that
+later change does not add a dependency on the Lab to the hosted runtime.
 
 ## 4. Per-agent metadata
 

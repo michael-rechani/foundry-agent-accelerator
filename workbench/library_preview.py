@@ -8,7 +8,7 @@ import json
 import re
 
 from agent_runtime.demo_tools import TEMPLATE_IDS, create_demo_tools
-from agent_runtime.main import DEMO_POLICY
+from agent_runtime.main import demo_policy
 from agent_templates import TEMPLATES, is_available
 
 PREVIEW_ID = re.compile(r"library-([a-z0-9]+(?:-[a-z0-9]+)*)\Z")
@@ -152,7 +152,7 @@ async def run_preview(client, *, template_id, model, prompt, reasoning=False, us
     functions = {} if designer else {
         function.__name__: function for function in create_demo_tools(template_id, PREVIEW_AGENT)}
     if instructions is None:
-        instructions = DESIGNER_INSTRUCTIONS if designer else DEMO_POLICY + TEMPLATES[template_id]["instructions"]
+        instructions = DESIGNER_INSTRUCTIONS if designer else demo_policy(template_id) + TEMPLATES[template_id]["instructions"]
     options = {"model": model, "instructions": instructions, "store": False, "stream": False}
     if functions:
         options["tools"] = tool_specs(functions.values())

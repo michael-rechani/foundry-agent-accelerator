@@ -189,13 +189,18 @@ advice or use real patient data.
 | Template | You give it | You get back |
 | --- | --- | --- |
 | **Case summary writer** | Fictional case notes and any messages | A summary, a timeline, anything that conflicts or is missing, and draft follow-up questions |
-| **Medical bill reviewer** | A fictional hospital bill and the insurer's statement for the same visit | Likely mistakes (math errors, duplicate charges, amounts above the plan's allowed price) with the math shown, an estimate of what the documents support owing, and an unsent dispute letter. It doesn't contact anyone or pay or refuse the bill. |
+| **Medical bill reviewer** | A fictional hospital bill and the insurer's statement for the same visit | A statement-supported patient-share estimate when the documents support one, or a partial sum when statement lines are missing, plus distinct discrepancies and a reconciliation without double-counting. Normal billed-to-allowed adjustments aren't standalone errors. An unsent letter is included when requested. It doesn't contact anyone or pay or refuse the bill. |
 | **Insurance pre-approval helper** | A fictional pre-approval request packet | Each required document marked present, missing, or out of date, plus a network check and a draft note to the ordering office. It doesn't approve or submit the request. |
 | **Benefits renewal helper** | A family's fictional renewal form and supporting paperwork | What's missing, too old, or doesn't match, what's already on file, and a friendly draft note to the family. It doesn't decide eligibility. |
 
 The Medical bill reviewer, Insurance pre-approval helper, and Benefits renewal
 helper each use two fixed, sample, read-only lookups (for example, plan
-benefits and usual prices for the medical bill reviewer).
+benefits and usual prices for the medical bill reviewer). The medical reviewer
+also has a local calculator for values copied from the supplied documents. It
+calculates selected reconciliation components but cannot decide which lines
+match, detect omissions, or know whether an adjustment was already posted.
+Someone must verify those selections and the copied values. The sum of listed
+patient shares is not a complete statement total when a line is missing.
 
 Each template card shows the [model profile](#how-the-lab-picks-a-model) the
 job uses and whether it has sample lookups.
@@ -211,13 +216,13 @@ job uses and whether it has sample lookups.
 | Create in Foundry | Confirming creation publishes a new generated `lab-demo-...` named agent using the Foundry software development kit (SDK). Progress follows the actual application stages. | Progress isn't a timer pretending to be deployment progress. |
 | Try the agent | Ready means the hosted version is active and its Responses route was checked. Send the fictional sample in **Chat** to see its first actual answer and check quality yourself. | No hidden billable model smoke test runs. |
 
-Templates with tools have exactly two fixed, local, **simulated read-only**
-lookups each:
+Templates with tools have two fixed, local, **simulated read-only** lookups
+each. The medical bill reviewer also has a local calculator:
 
-| Template | Lookups |
+| Template | Local tools |
 | --- | --- |
 | Service request planner | `lookup_demo_request`, `lookup_demo_service` |
-| Medical bill reviewer | `lookup_plan_benefits`, `lookup_usual_price` |
+| Medical bill reviewer | `lookup_plan_benefits`, `lookup_usual_price`, `calculate_bill_math` |
 | Insurance pre-approval helper | `lookup_preapproval_rules`, `lookup_facility` |
 | Benefits renewal helper | `lookup_renewal_rules`, `lookup_documents_on_file` |
 | Supplier invoice reviewer | `lookup_purchase_order`, `lookup_delivery_record` |
@@ -260,8 +265,9 @@ settings later affects only new agents.
 
 ## Enable publication
 
-Creation is **disabled by default**. Keep the existing private access boundary
-and single worker/replica. Before enabling, complete these checks.
+Creation is **disabled by default**. Keep the existing private application
+boundary and single worker/replica, and review any public ingress separately.
+Before enabling, complete these checks.
 
 1. Confirm an approved Foundry project, existing model deployments with quota,
    working private connectivity, and the Lab's shared Cosmos container. Check
@@ -379,10 +385,17 @@ valid verifier or private presenter mode configured to allow deletion while crea
 
 ### Private presenter mode (no operator key)
 
-This mode is for a trusted presenter on a restricted private Lab, not customer
-self-service. **Everyone who can reach the Lab can create, resume and delete
-shared agents without a key.** The server must explicitly opt in; a browser
-setting, request header or chat message cannot enable it.
+This mode is for a trusted presenter, not customer self-service. **Everyone who
+can reach the Lab can create, resume and delete shared agents without a key.**
+The server must explicitly opt in; a browser setting, request header or chat
+message cannot enable it.
+
+The private Container Apps environment does not guarantee that the entire access
+path is private. An existing public Front Door, even one restricted to an IP
+allowlist, exposes these keyless actions through that endpoint. Prefer a
+private-only access path. Enabling this mode through any public endpoint needs
+separate explicit approval for that endpoint and duration; keep its existing
+network restrictions unchanged.
 
 After separate rollout approval, set the following in the reviewed Lab
 Terraform inputs, retaining the existing model, storage and network settings:
@@ -478,8 +491,8 @@ instructions or a test the Lab no longer uses. Each case includes the
 request that was sent, which the library's **Take it to Foundry** tab turns into
 a downloadable evaluation file.
 
-Only `main.py`, `demo_tools.py`, and `requirements.txt` enter the deterministic
-ZIP package. Prompts can't upload source, install dependencies, select
+Only `main.py`, `demo_tools.py`, `bill_math.py`, and `requirements.txt` enter the
+deterministic ZIP package. Prompts can't upload source, install dependencies, select
 endpoints, change the model, or register tools. Hosted allocation is fixed at
 0.5 CPU / 1 GiB. Remote build uses `python_3_14`, matching the existing
 deployer and the Lab container's Python 3.14 version.
@@ -541,7 +554,8 @@ exact matching runtime source. In the Lab, a library entry's **Take it to
 Foundry** tab downloads a ready agent's saved record (`GET /api/agents/{id}`).
 With **Under the hood** on, it also shows the `bundle.py export-created`,
 `inspect`, and `deploy` commands; building and deploying the bundle remain CLI
-steps in your own environment.
+steps in your own environment. An archived three-file runtime from before the
+calculator was added can still be exported when its hash matches the saved record.
 Library templates are marked exportable only through the `after_creation`
 path: first create and publish a saved Lab agent, then export its ready record.
 Browsing a template alone doesn't produce a bundle.

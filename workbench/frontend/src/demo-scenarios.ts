@@ -12,6 +12,9 @@ export type DemoScenario = {
   title: string
   task: string
   description: string
+  problem: string
+  agentDoes: string
+  expectedReturn: string
   templateId: string
   templateLabel: string
   catalogIds: string[]
@@ -30,6 +33,12 @@ const baseScenarios: Omit<DemoScenario, 'steps'>[] = [
     task: 'Checklist review',
     description:
       'A missing budget and two different schedules. See the open questions before anyone signs off.',
+    problem:
+      'A reviewer needs to check a project before sign-off, but the paperwork has no budget and gives two different completion dates.',
+    agentDoes:
+      'Checks each supplied checklist item against the project text, cites the evidence and separates covered items from gaps and conflicts.',
+    expectedReturn:
+      'A checklist table: budget missing, owner named, schedule conflicting. Follow-up questions for the reviewer, not an approval or rejection.',
     templateId: 'criteria-checker',
     templateLabel: 'Checklist gap finder',
     catalogIds: ['customer-review', 'application-review', 'review-coordinator'],
@@ -72,6 +81,12 @@ Section 3 (Timeline summary): Work starts on 2027-04-01 and completes on 2027-07
     task: 'Supplier invoice review',
     description:
       "Compare an invoice with the order and delivery record. See exactly what doesn't match, not just a summary.",
+    problem:
+      'An accounts payable clerk has a $9,850 invoice and needs to know whether it matches the order and what arrived before deciding what to pay.',
+    agentDoes:
+      'Compares the invoice with sample purchase-order and delivery lookups, checks quantities, prices and fees, and drafts a supplier email.',
+    expectedReturn:
+      'An $8,000 order compared with $9,850 billed: extra chairs, a price difference and a delivery fee to explain. Two damaged chairs need human review. The email is an unsent draft.',
     templateId: 'supplier-invoice-reviewer',
     templateLabel: 'Supplier invoice reviewer',
     catalogIds: [],
@@ -112,6 +127,12 @@ Invoice total: $9,850.00`,
     task: 'Case notes summary',
     description:
       "Keep facts, disagreements and open questions apart, without smoothing over what doesn't line up.",
+    problem:
+      'A caseworker needs a handoff brief, but scattered notes disagree about the intake date and proof of address is missing.',
+    agentDoes:
+      'Summarizes the supplied notes, preserves conflicting dates and links each fact or gap to its source.',
+    expectedReturn:
+      'A sourced brief with both intake dates, the agreed follow-up date and questions about the missing document. No eligibility decision or record update.',
     templateId: 'casework-assistant',
     templateLabel: 'Case summary writer',
     catalogIds: ['customer-review', 'case-review', 'review-coordinator'],
@@ -143,6 +164,67 @@ Note 3 (document checklist): Proof of address hasn't come in yet. No document is
     ],
     decision:
       'A caseworker checks the official record and what evidence is needed. No eligibility decision or system update is made.',
+  },
+  {
+    id: 'medical-bill',
+    title: 'Explain why the bill and insurer disagree',
+    task: 'Medical bill review',
+    description:
+      'Turn a confusing hospital bill into a sourced explanation and a letter a person can review.',
+    problem:
+      'A hospital asks for $1,104. The insurer says the patient share is $174 for the same visit. The patient needs the difference explained before contacting the hospital.',
+    agentDoes:
+      'Compares both documents, checks copied amounts with a local calculator, uses fictional plan and price lookups, and drafts an unsent dispute letter. This is billing assistance, not diagnosis, an insurer connection or a payment action.',
+    expectedReturn:
+      'The $174 share for processed lines, not a whole-bill estimate because two lab units are missing. The $930 document difference breaks down into a $100 total discrepancy, $250 duplicate X-ray, $120 unmatched lab units and $460 contractual adjustments. An unsent dispute letter, not confirmed savings.',
+    templateId: 'medical-bill-reviewer',
+    templateLabel: 'Medical bill reviewer',
+    catalogIds: [],
+    input: `I think this hospital bill is wrong. Can you check it against what my insurer says, show the math and help me write a dispute letter?
+
+HOSPITAL BILL HB-DEMO-0412 - Lakeside Demo Hospital - Patient: Pat Example - Plan: PLAN-DEMO-SILVER - Visit date: 2027-03-14
+Line 1: DEMO-ER-3 Emergency room visit, level 3 - qty 1 x $900.00 = $900.00
+Line 2: DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00
+Line 3: DEMO-XR-2 Chest X-ray, two views - qty 1 x $250.00 = $250.00
+Line 4: DEMO-LAB-7 Basic blood panel - qty 3 x $60.00 = $180.00
+Line 5: DEMO-SUP-1 Wrist splint - qty 1 x $120.00 = $120.00
+Total charges: $1,800.00 | Insurance payments: -$696.00 | Amount you owe: $1,104.00
+
+INSURER STATEMENT IS-DEMO-5521 - PLAN-DEMO-SILVER - Lakeside Demo Hospital, 2027-03-14
+DEMO-ER-3 qty 1 - billed $900.00 - allowed $600.00 - plan paid $480.00 - your share $120.00
+DEMO-XR-2 qty 1 - billed $250.00 - allowed $150.00 - plan paid $120.00 - your share $30.00
+DEMO-XR-2 qty 1 - billed $250.00 - allowed $0.00 - plan paid $0.00 - your share $0.00 - note: duplicate of a line already processed
+DEMO-LAB-7 qty 1 - billed $60.00 - allowed $40.00 - plan paid $32.00 - your share $8.00
+DEMO-SUP-1 qty 1 - billed $120.00 - allowed $80.00 - plan paid $64.00 - your share $16.00
+Total plan paid: $696.00 | Total your share: $174.00`,
+    findings: [
+      {
+        label: 'Balance to explain',
+        source: 'HB-DEMO-0412 / IS-DEMO-5521',
+        detail:
+          'The statement lists $174.00 for processed lines, $930.00 less than the $1,104.00 bill. Two lab units are missing from the statement, so this is not a whole-bill estimate.',
+      },
+      {
+        label: 'Total does not add up',
+        source: 'Bill lines 1-5 / printed total',
+        detail:
+          'The five lines total $1,700.00, not the printed $1,800.00: a $100.00 discrepancy.',
+      },
+      {
+        label: 'Duplicate and unmatched quantity',
+        source: 'Bill lines 3-4 / insurer statement',
+        detail:
+          'The statement marks the $250.00 second X-ray as a duplicate and lists one lab unit, not three. Two unmatched units add $120.00.',
+      },
+      {
+        label: 'Adjustments, not additional savings',
+        source: 'Processed services / insurer allowed amounts',
+        detail:
+          'The other $460.00 is billed-to-allowed adjustments. $100.00 + $250.00 + $120.00 + $460.00 explains the same $930.00 gap without double-counting.',
+      },
+    ],
+    decision:
+      'A person confirms the final balance with the hospital and insurer and decides whether to send the draft letter or make a payment. This is a fictional billing demo, not clinical advice or a live insurer connection.',
   },
 ]
 
@@ -206,6 +288,26 @@ const followUps: Record<string, DemoStep[]> = {
       ],
     },
   ],
+  'medical-bill': [
+    {
+      title: 'Explain the difference simply',
+      prompt:
+        'Explain the $930 difference in plain language. Separate the total error, duplicate, unmatched units and contractual adjustments without counting anything twice.',
+      expect: [
+        'Reconciles $100 + $250 + $120 + $460 = $930.',
+        'Does not label ordinary billed-to-allowed adjustments as separate errors or guaranteed savings.',
+      ],
+    },
+    {
+      title: 'Review the draft and the boundary',
+      prompt:
+        'Give me a short letter for the hospital that cites the bill and insurer statement. Do not send it or decide whether I should pay.',
+      expect: [
+        'Labels the letter UNSENT DRAFT and cites HB-DEMO-0412 and IS-DEMO-5521.',
+        'Leaves the final balance, sending the letter and payment decisions to a person.',
+      ],
+    },
+  ],
 }
 
 export const demoScenarios: DemoScenario[] = baseScenarios.map((scenario) => ({
@@ -219,6 +321,14 @@ export const demoScenarios: DemoScenario[] = baseScenarios.map((scenario) => ({
     ...(followUps[scenario.id] ?? []),
   ],
 }))
+
+export function demoForSample(templateId: string, input: string) {
+  return demoScenarios.find(
+    (scenario) =>
+      scenario.templateId === templateId &&
+      scenario.input.trim() === input.trim(),
+  )
+}
 
 // A configured agent wins, then a ready agent made from the template. The
 // library preview is the last resort: it runs the template on the Lab's model

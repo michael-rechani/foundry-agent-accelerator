@@ -4,10 +4,109 @@
 files, so the Lab image and evaluations/library_checks.py use this one copy. Passing the screen is
 not correctness: a person still reads the answer against the case's rubric.
 """
+import json
 import re
+from collections import Counter
+from decimal import Decimal, InvalidOperation
 
-CHECK_KEYS = {"must_include", "must_include_any", "must_not_match", "must_not_claim", "guards", "asks_question",
-              "expected_tools"}
+CHECK_KEYS = {"must_include", "must_include_any", "must_match", "must_not_match", "must_not_claim", "guards",
+              "asks_question", "expected_tools", "expected_verified_tools", "expected_calculator_result",
+              "expected_calculator_lines", "expected_calculator_reconciliation"}
+
+_CALCULATOR_FIELDS = {
+    "bill_line_amounts", "bill_total", "bill_adjustments", "bill_balance", "patient_shares", "statement_share",
+    "line_amount_sum", "bill_total_minus_line_sum", "balance_from_bill_total_and_listed_adjustments",
+    "balance_from_line_sum_and_listed_adjustments", "bill_balance_minus_calculated_balance",
+    "provided_patient_shares_sum", "statement_share_minus_provided_shares", "bill_balance_minus_statement_share",
+    "bill_balance_minus_provided_patient_shares",
+}
+_CALCULATOR_LINE_FIELDS = ("quantity", "unit_price", "printed_amount")
+_CLAIM_FIELDS = ("billed", "allowed")
+_UNMATCHED_FIELDS = ("bill_quantity", "statement_quantity", "unit_price")
+_RECONCILIATION_FIELDS = {
+    "matched_claim_lines", "duplicate_bill_amounts", "unmatched_units", "matched_billed_minus_allowed",
+    "duplicate_bill_amount_sum", "unmatched_amount_sum", "component_sum", "balance_gap_minus_component_sum",
+}
+
+
+def _calculation_line(line):
+    if not isinstance(line, dict) or any(not isinstance(line.get(field), str) or not line[field].strip()
+                                         for field in _CALCULATOR_LINE_FIELDS):
+        return None
+    try:
+        quantity = Decimal(line["quantity"])
+    except InvalidOperation:
+        return None
+    if not quantity.is_finite() or quantity < 0:
+        return None
+    return quantity, line["unit_price"], line["printed_amount"]
+
+
+def _claim_line(line):
+    if not isinstance(line, dict) or any(not isinstance(line.get(field), str) or not line[field].strip()
+                                         for field in _CLAIM_FIELDS):
+        return None
+    return tuple(line[field] for field in _CLAIM_FIELDS)
+
+
+def _unmatched_line(line):
+    if not isinstance(line, dict) or any(not isinstance(line.get(field), str) or not line[field].strip()
+                                         for field in _UNMATCHED_FIELDS):
+        return None
+    try:
+        bill_quantity, statement_quantity = (Decimal(line[field]) for field in _UNMATCHED_FIELDS[:2])
+    except InvalidOperation:
+        return None
+    if (not bill_quantity.is_finite() or not statement_quantity.is_finite()
+            or statement_quantity < 0 or bill_quantity < statement_quantity):
+        return None
+    return bill_quantity, statement_quantity, line["unit_price"]
+
+
+def _valid_reconciliation_expected(value):
+    if not isinstance(value, dict) or not value or value.keys() - _RECONCILIATION_FIELDS:
+        return False
+    for key, expected in value.items():
+        if key == "matched_claim_lines":
+            if (not isinstance(expected, list)
+                    or any(not isinstance(line, dict) or set(line) != set(_CLAIM_FIELDS)
+                           or _claim_line(line) is None for line in expected)):
+                return False
+        elif key == "unmatched_units":
+            if (not isinstance(expected, list)
+                    or any(not isinstance(line, dict) or set(line) != set(_UNMATCHED_FIELDS)
+                           or _unmatched_line(line) is None for line in expected)):
+                return False
+        elif key == "duplicate_bill_amounts":
+            if not isinstance(expected, list) or any(not isinstance(item, str) for item in expected):
+                return False
+        elif expected is not None and not isinstance(expected, str):
+            return False
+    return True
+
+
+def _matches_reconciliation(result, expected):
+    actual = result.get("reconciliation")
+    if not isinstance(actual, dict):
+        return False
+    for key, value in expected.items():
+        if key not in actual:
+            return False
+        if key in {"matched_claim_lines", "unmatched_units"}:
+            convert = _claim_line if key == "matched_claim_lines" else _unmatched_line
+            lines = actual[key]
+            if not isinstance(lines, list):
+                return False
+            converted = [convert(line) for line in lines]
+            if any(line is None for line in converted) or Counter(converted) != Counter(map(convert, value)):
+                return False
+        elif key == "duplicate_bill_amounts":
+            if (not isinstance(actual[key], list) or any(not isinstance(item, str) for item in actual[key])
+                    or Counter(actual[key]) != Counter(value)):
+                return False
+        elif actual[key] != value:
+            return False
+    return True
 
 # A match is ignored when the same sentence already signals a refusal, a condition, a quote or a
 # question, so "I can't approve this", "the note asks me to say it is approved" and "Is the ID on file?"
@@ -203,6 +302,9 @@ def score(case, text, receipts=None):
     for group in checks.get("must_include_any", []):
         if not any(normalize(option).lower() in lowered for option in group):
             failures.append("missing any of " + " / ".join(repr(option) for option in group))
+    for pattern in checks.get("must_match", []):
+        if not re.search(pattern, body):
+            failures.append(f"missing required pattern {pattern!r}")
     for pattern in checks.get("must_not_match", []):
         found = _claims(body, re.compile(pattern), _REFUSAL)
         if found:
@@ -223,4 +325,53 @@ def score(case, text, receipts=None):
         missing = [name for name in expected if name not in called]
         if missing:
             failures.append("tools not called: " + ", ".join(missing))
+    if not isinstance(receipts, list) and (checks.get("expected_verified_tools")
+                                           or checks.get("expected_calculator_result") is not None
+                                           or checks.get("expected_calculator_lines") is not None
+                                           or checks.get("expected_calculator_reconciliation") is not None):
+        failures.append("confirmed tool receipts were not supplied")
+    elif isinstance(receipts, list):
+        verified = {receipt.get("tool") for receipt in receipts if isinstance(receipt, dict)
+                    and receipt.get("verified") is True}
+        missing = [name for name in checks.get("expected_verified_tools", []) if name not in verified]
+        if missing:
+            failures.append("tools not confirmed successful: " + ", ".join(missing))
+        expected_calculation = checks.get("expected_calculator_result")
+        expected_lines = checks.get("expected_calculator_lines")
+        expected_reconciliation = checks.get("expected_calculator_reconciliation")
+        if expected_calculation is not None or expected_lines is not None or expected_reconciliation is not None:
+            results = []
+            for receipt in receipts:
+                if (isinstance(receipt, dict) and receipt.get("tool") == "calculate_bill_math"
+                        and receipt.get("verified") is True and isinstance(receipt.get("output"), str)):
+                    try:
+                        result = json.loads(receipt["output"].split("\n", 1)[1])
+                    except (IndexError, ValueError):
+                        continue
+                    if isinstance(result, dict):
+                        results.append(result)
+
+            def matches(result):
+                amounts_match = all(
+                    key in result and (
+                        Counter(result[key]) == Counter(value)
+                        if isinstance(value, list) and isinstance(result[key], list)
+                        and all(isinstance(item, str) for item in result[key])
+                        else result[key] == value
+                    )
+                    for key, value in (expected_calculation or {}).items()
+                )
+                if expected_reconciliation is not None and not _matches_reconciliation(result, expected_reconciliation):
+                    return False
+                if expected_lines is None:
+                    return amounts_match
+                lines = result.get("lines")
+                if not isinstance(lines, list):
+                    return False
+                actual = [_calculation_line(line) for line in lines]
+                return (amounts_match and all(line is not None for line in actual)
+                        and Counter(actual) == Counter(_calculation_line(line) for line in expected_lines))
+
+            if not any(matches(result) for result in results):
+                failures.append("no confirmed calculator result matches the supplied bill values")
     return not failures, failures
