@@ -19,9 +19,12 @@ Pull request numbers link to the full discussion.
   verified result for each expected date pair. Medical calculations reject
   omitted patient-share fields while preserving explicit unknowns and partial
   totals. Draft tests now use the same template-specific arithmetic policy as
-  previews and hosted agents. Existing failed recordings are preserved and
-  stale; revised-source recordings and human review still need approval
-  (#362, #363, #410).
+  previews and hosted agents. The separately approved revised-source recording
+  verifies all 35 required date-pair results, but answer acceptance is still
+  incomplete: Benefits passes 33/35 screens and medical 21/40. Real failures
+  remain in current, unsigned scorecards. Conditional on-file verification is
+  accepted without allowing unsupported on-file claims; human review and any
+  further recordings or deployment remain separate gates (#362, #363, #410).
 - **Benefits conversation acceptance.** The recording harness can run follow-up
   prompts against each run's own earlier answers, screen every turn and count
   the whole conversation's tokens and time. The Benefits showcase now covers

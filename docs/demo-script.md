@@ -31,23 +31,27 @@ turns, with additional model requests possible for simulated lookups. The
 optional designer check adds one billable call. None of these calls is implied
 by browsing or loading an example.
 
-The [approved November 4 recording](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/41876917113)
-captured all 75 medical and Benefits runs. It did not establish demo readiness:
-Benefits passed 34 of 35 automated screens, with one wrong document age, and
-medical passed 13 of 40. Medical misses include required estimate wording,
-a missing partial-share warning and an incomplete calculator input; a person
-must distinguish wording misses from substantive errors (#362, #363).
-Both templates remain **sample**, not reviewed. Human review, quality fixes
-and separately approved live verification remain required. Browser tests use
-fixtures, not proof of model quality. Present this as a work-in-progress
-walkthrough, or use an existing reviewed story instead.
+The [first approved November 4 recording](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/41876917113)
+captured all 75 medical and Benefits runs. Benefits passed 34 of 35 automated
+screens, with one wrong document age, and medical passed 13 of 40.
 
-The revised source adds a local signed-date calculator and requires explicit
-patient-share inputs in medical calculations, including explicit unknowns.
-Draft tests, previews and hosted agents use the same arithmetic policy. The
-recording above predates these safeguards: its answers remain unchanged and
-its fingerprints are now stale. Fresh recordings need separate call approval;
-they must pass before human review and demo-readiness sign-off (#362, #363, #410).
+After local date and patient-share safeguards, the
+[separately approved second recording](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/41897893815)
+completed another 75 runs against the revised source. All 35 required copied-date
+results were verified. Benefits passed **33 of 35 answer screens**; its remaining
+misses are a missing household ID and asking two questions during ID-only intake.
+Medical passed **21 of 40 screens**, but still treats partial shares as whole-bill
+estimates in some answers and supplies invented zero shares or wrong
+reconciliation quantities. Some other misses are required estimate or source wording,
+not numerical errors. A conditional request to verify what is on file is not
+treated as a claim that proof is on file; a regression still rejects that claim.
+
+The current scorecards retain the actual failed outputs, not fabricated passes.
+Both templates remain **sample**, unsigned and not reviewed (#362, #363).
+Human review, quality fixes and separately approved live verification remain
+required (#410). No additional batch or deployment is approved. Browser tests
+use fixtures, not proof of model quality. Present this as a work-in-progress
+walkthrough, or use an existing reviewed story instead.
 
 ## The pitch in two sentences
 

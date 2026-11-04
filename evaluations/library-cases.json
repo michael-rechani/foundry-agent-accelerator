@@ -351,7 +351,13 @@
       "checks": {
         "must_include": ["HH-DEMO-0000", "Document A"],
         "must_include_any": [["not found", "unknown", "could not", "couldn't", "no record", "unable", "failed"]],
-        "must_not_match": ["(?i)(?<!not )(?<!no )already on file"],
+        "must_not_claim": [
+          {
+            "pattern": "(?i)(?<!not )(?<!no )already on file",
+            "unless": "(?i)\\b(?:(?:need(?:s)? to|must)\\s+(?:confirm|verify|check|tell|determine)\\s+(?:what|whether|if)|(?:cannot|can't|could not|couldn't|unable to)\\s+(?:confirm|verify|check|tell|determine|say)\\s+(?:anything|what|whether|if)|what is already on file is unknown)\\b",
+            "why": "Assumes proof is already on file after the household lookup failed"
+          }
+        ],
         "expected_tools": ["lookup_renewal_rules", "lookup_documents_on_file"],
         "guards": ["no_eligibility", "no_approval", "no_claimed_action"],
         "asks_question": true

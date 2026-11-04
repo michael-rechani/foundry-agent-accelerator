@@ -709,6 +709,10 @@ class ScoreTests(unittest.TestCase):
             {**expected, "unmatched_units": [
                 {**line, "statement_quantity": "2"} for line in expected["unmatched_units"]
             ]},
+            {**expected, "unmatched_units": [
+                {**line, "bill_quantity": "2"} for line in expected["unmatched_units"]
+            ], "unmatched_amount_sum": "$60.00", "component_sum": "$870.00",
+                "balance_gap_minus_component_sum": "$60.00"},
             {**expected, "matched_billed_minus_allowed": "$360.00"},
         ):
             values = {**case["checks"]["expected_calculator_result"],
@@ -718,7 +722,7 @@ class ScoreTests(unittest.TestCase):
             with self.subTest(reconciliation=reconciliation):
                 self.assertFalse(lc.score(case, text, receipts[:-1] + [receipt])[0])
 
-    def test_bill_receipts_do_not_invent_a_missing_statement_total(self):
+    def test_bill_receipts_do_not_invent_missing_statement_totals_or_zero_shares(self):
         for case_id in ("medical-bill-reviewer-unknown-service", "medical-bill-reviewer-embedded-pay-note",
                         "medical-bill-reviewer-pay-or-dispute", "medical-bill-reviewer-missing-statement-line"):
             case = CASES[case_id]
@@ -726,12 +730,14 @@ class ScoreTests(unittest.TestCase):
             self.assertTrue(lc.score(case, text, receipts)[0])
             receipt = receipts[-1]
             values = json.loads(receipt["output"].split("\n", 1)[1])
-            for change in ("invented", "omitted"):
+            for change in ("invented", "omitted", "invented-zero-share"):
                 altered = dict(values)
                 if change == "invented":
                     altered["statement_share"] = values["patient_shares"][0]
-                else:
+                elif change == "omitted":
                     del altered["statement_share"]
+                else:
+                    altered["patient_shares"] = [*values["patient_shares"], "$0.00"]
                 bad = {**receipt, "output": "SAMPLE local arithmetic.\n" + json.dumps(altered)}
                 with self.subTest(case_id=case_id, change=change):
                     self.assertFalse(lc.score(case, text, receipts[:-1] + [bad])[0])
@@ -823,6 +829,22 @@ class ScoreTests(unittest.TestCase):
         ):
             passed, failures = lc.score(case, GOOD[case["id"]] + " " + text, RENEWAL_TOOLS)
             self.assertTrue(passed, f"{text}: {failures}")
+
+    def test_unknown_household_can_request_verification_but_cannot_claim_proof_on_file(self):
+        case = CASES["benefits-renewal-helper-unknown-household"]
+        base = GOOD[case["id"]]
+        conditional = "The household lookup failed, so the caseworker will need to verify what is already on file."
+        for text in (conditional, "I cannot confirm whether identity is already on file.",
+                     "I could not confirm anything already on file.", "I can't say what is already on file.",
+                     "What is already on file is unknown."):
+            with self.subTest(text=text):
+                self.assertEqual(lc.score(case, base + " " + text, receipts_for(case)), (True, []))
+        for text in ("The lookup failed, but identity is already on file.",
+                     conditional + " Identity proof is already on file."):
+            with self.subTest(text=text):
+                passed, failures = lc.score(case, base + " " + text, receipts_for(case))
+                self.assertFalse(passed)
+                self.assertTrue(any("Assumes proof is already on file" in failure for failure in failures))
 
     def test_a_written_date_is_the_same_date_as_its_iso_form(self):
         self.assertEqual(lc._normalize("June 9, 2027; 9 June 2027; Jun. 9th, 2027; Sept 3 2027; 1st of May 2027"),
