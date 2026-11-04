@@ -62,7 +62,7 @@ class RecordWorkflowTests(unittest.TestCase):
                 self.assertNotIn("needs:", without_comments(job))
 
     def test_the_start_job_waits_for_the_record_job_by_its_id(self):
-        self.assertIn("wait_for_approval.py --job record ", START)
+        self.assertIn("wait_for_approval.py --job record --environment library-recording ", START)
         self.assertIn("record", RECORD_JOBS)
         self.assertIsNone(re.search(r"^    name:", RECORDING, re.MULTILINE))
 
@@ -79,7 +79,7 @@ class RecordWorkflowTests(unittest.TestCase):
 
     def test_the_start_job_uses_the_deploy_identity_not_the_recording_one(self):
         self.assertEqual(field(START, "environment"), "lab-deploy")
-        self.assertNotIn("library-recording", START)
+        self.assertNotIn("environment: library-recording", START)
         self.assertNotIn("FOUNDRY_PROJECT_ENDPOINT", START)
         for name in ("AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID", "LAB_RUNNER_VM",
                      "LAB_RUNNER_RESOURCE_GROUP"):

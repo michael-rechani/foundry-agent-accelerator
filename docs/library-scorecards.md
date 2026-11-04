@@ -318,8 +318,9 @@ Foundry through the peered VNet.
   branch or commit whose instructions to record. It prints the plan first.
 - The runner VM deallocates itself after 30 idle minutes. The workflow's
   `start-runner` job runs on a GitHub-hosted runner beside the recording job and
-  waits until the reviewer has approved the recording. Only then does it start the
-  VM, so a rejected run starts nothing and the VM doesn't sit idle while the run
+  checks GitHub's review history for an explicit approval of the
+  `library-recording` environment. A queued job alone isn't approval. Only then
+  does it start the VM, so a rejected run starts nothing and the VM doesn't sit idle while the run
   waits for you. It signs in as the Lab deploy identity, whose **Lab runner
   starter** role can read and start that one VM and nothing else. The recording
   identity has no VM permission. The job waits up to two hours for an approval.
@@ -327,6 +328,9 @@ Foundry through the peered VNet.
   `az vm start --resource-group <runner-resource-group> --name <runner-vm-name>`
   and the recording job takes the runner when it comes online. Starting the VM
   costs compute for as long as it runs, about $0.19 an hour.
+- Dispatch a fresh workflow instead of using **Re-run jobs**. GitHub's review
+  history is scoped to the run, not an individual attempt, so automatic wake-up
+  fails closed on a rerun rather than reusing an earlier approval.
 - The `library-recording` environment holds a required reviewer, so nothing is
   sent until the owner approves. Check the `ref` in the approval prompt: the
   runner runs the code at that ref.

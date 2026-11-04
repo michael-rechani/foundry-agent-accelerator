@@ -32,9 +32,9 @@ concurrency:
 
 jobs:
   # The runner VM deallocates itself when idle to save cost, and nothing else starts it. This job runs
-  # beside the approval-gated record job on a GitHub-hosted runner, waits until a reviewer has approved
-  # the recording, and only then starts that one VM. It signs in as the Lab deploy identity, whose
-  # role can read and start the runner VM and nothing else on it, so the recording identity gets no
+  # beside the approval-gated record job on a GitHub-hosted runner, checks the recording environment's
+  # review history, and only starts that one VM after a reviewer approves. It signs in as the Lab
+  # deploy identity, whose role can read and start the runner VM and nothing else on it, so the recording identity gets no
   # VM permission. It starts nothing for a rejected run, and starting a running VM does nothing.
   # Don't add `needs` between the two jobs: the record job waits for approval, and this job waits for it.
   start-runner:
@@ -61,7 +61,7 @@ jobs:
         id: approval
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/wait_for_approval.py --job record --timeout-minutes 120
+        run: python3 .github/scripts/wait_for_approval.py --job record --environment library-recording --timeout-minutes 120
       - name: Sign in to Azure with the GitHub token
         if: steps.approval.outputs.approved == 'true'
         run: |
