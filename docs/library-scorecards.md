@@ -63,6 +63,11 @@ still do. Written dates such as "June 9" match `2027-06-09`. Passing the screen
 doesn't mean an answer is right. A person still reads each answer against the
 case's `rubric`.
 
+The screen lives in [case_scoring.py](../workbench/case_scoring.py), and
+`library_checks.py` imports it. The Lab's **Test this draft first** panel scores
+a draft's answers with the same code, so a drafted case is held to the same
+rules as these cases. See [Agent creation](agent-creation.md#test-a-draft-before-you-create-it).
+
 > [!NOTE]
 > **Five direct runs per case, 2026-09-29.** Every case ran five times (450
 > answers) directly against the Foundry project the Lab uses, on each agent's
@@ -123,6 +128,30 @@ case's `rubric`.
 > you change the shared policy or an agent's instructions, record its 25 answers again with
 > [library_runs.py](#record-an-agents-test-answers-again).
 >
+> **Test-context fingerprints.** Instructions aren't the only thing a result
+> depends on. A second fingerprint, `context_sha256`, covers a case's input
+> (the sample input when the case uses it), its fixtures and missing fixtures,
+> the agent's model profile, and the demo data and code behind its tools. It
+> leaves out the checks and the rubric, which are scored when the scorecard is
+> built, so tightening a check never needs a new recording. If any covered
+> part changes after an answer, metrics row or repeat run was recorded,
+> `scorecards.py` refuses to build and `library_runs.py status` reports the agent
+> as stale, so a scorecard can't pass on evidence from a different test.
+>
+> The 98 cases recorded before this fingerprint existed keep their rows
+> unchanged. They're checked against
+> [context-baseline.json](../evaluations/evidence/context-baseline.json), which
+> holds the fingerprint each case had when it was baselined, with the basis for
+> trusting it. A row's own `context_sha256` always wins over the baseline, so
+> new recordings never need an entry. `python scorecards.py baseline --basis
+> "<why these rows are trusted>"` adds entries for cases whose rows carry no
+> fingerprint, refuses to overwrite one, and writes nothing when every row is
+> already stamped. Don't run it to get past a stale agent: record the agent again.
+>
+> **Tool receipts.** Every recorded answer must carry `receipts`, the list of
+> `{"tool": name}` calls the agent made, so a case's `expected_tools` check is
+> always enforced. A row without it stops the build instead of skipping the check.
+>
 > The answers, metrics and repeat runs are in [evidence/](../evaluations/evidence/), which holds
 > only sample data. Score the first run with `python library_checks.py score
 > evidence/library-acceptance-2026-09-29.jsonl`, and the other four runs the same
@@ -179,6 +208,11 @@ copy. The tab then shows **Signed off** with their name and the date. If an
 answer changes later, `scorecards.py` fails until someone reads that agent's
 answers again. Don't run `signoff` on someone else's behalf.
 
+`--all` lists every agent that has recorded answers, even when an earlier
+sign-off of one of them is stale, and replaces that sign-off with the new one.
+Read the changed answers first: the new sign-off certifies exactly what the
+reviewer read. A normal `write` or `check` still fails on a stale sign-off.
+
 The library's **Reviewed** label comes from `workbench/agent_templates/`, not
 from the sign-off file, so every agent shows **Not yet reviewed** until you also set
 `"readiness": "reviewed"` in its file's `metadata` in
@@ -196,10 +230,10 @@ Foundry project yet.
 
 ### Record an agent's test answers again
 
-When you change the shared runtime policy or an agent's instructions in
-[agent_templates](../workbench/agent_templates), its recorded answers no
-longer describe it, and `scorecards.py` refuses to build until they're recorded
-again. [library_runs.py](../evaluations/library_runs.py) finds those agents and records them:
+When you change the shared runtime policy, an agent's instructions in
+[agent_templates](../workbench/agent_templates), or its test input, fixtures,
+model profile or demo tools, its recorded answers no longer describe it, and
+`scorecards.py` refuses to build until they're recorded again. [library_runs.py](../evaluations/library_runs.py) finds those agents and records them:
 
 ```powershell
 cd evaluations
@@ -209,8 +243,9 @@ python library_runs.py record --templates document-analyst --yes   # billable: r
 ```
 
 - `status` lists each agent as **current**, **stale** (its rows came from other
-  instructions), **incomplete** or **missing**, and exits 0 only when all are
-  current. It needs no network.
+  instructions, or from a different test input, fixtures, model profile or tools),
+  **incomplete** or **missing**, and exits 0 only when all are current. It needs
+  no network, and stops with exit code 2 if `context-baseline.json` can't be read.
 - `record` without `--yes` prints the plan and sends nothing: the runs, the
   model for each agent, the tokens, cost and time its last recording took, and
   the pacing.
@@ -250,7 +285,8 @@ the recording stops.
 **Interrupted?** Each finished run is saved at once in
 `evaluations/results/library-runs/<agent>.jsonl`, which Git ignores. Run the same
 command again and it picks up where it stopped, without sending the finished
-runs again. Saved runs from other instructions or another model are dropped.
+runs again. Saved runs from other instructions, another model or another test
+context are dropped.
 
 **What changes.** Only when all of an agent's runs are saved does it replace that
 agent's rows, and no one else's, in the three files in [evidence/](../evaluations/evidence/).
@@ -258,9 +294,11 @@ Each file is first written in full beside the original, so a failed write (a
 full disk, say) changes nothing. The three are then swapped in one after
 another. If a swap fails part-way, the saved runs are kept and the same command
 finishes the job without calling Foundry again. Every new row
-carries the instructions' fingerprint (`instructions_sha256`) and the date it was
-recorded (`recorded_on`), and the Lab's test date for an agent is the latest of
-those dates. Rows from two versions of an agent's instructions never mix. Agents
+carries the instructions' fingerprint (`instructions_sha256`), the test-context
+fingerprint (`context_sha256`) and the date it was recorded (`recorded_on`), and
+the Lab's test date for an agent is the latest of those dates. Rows from two
+versions of an agent's instructions or test never mix, and recording replaces any
+older rows that carry no context fingerprint. Agents
 are saved one at a time, so a later failure never undoes an earlier agent.
 
 It refuses to run when `CI` or `GITHUB_ACTIONS` is set, so CI never calls
@@ -278,6 +316,17 @@ Foundry through the peered VNet.
 
 - Start it by hand from the Actions tab, on `main`. Give it the agent ids and the
   branch or commit whose instructions to record. It prints the plan first.
+- The runner VM deallocates itself after 30 idle minutes. The workflow's
+  `start-runner` job runs on a GitHub-hosted runner beside the recording job and
+  waits until the reviewer has approved the recording. Only then does it start the
+  VM, so a rejected run starts nothing and the VM doesn't sit idle while the run
+  waits for you. It signs in as the Lab deploy identity, whose **Lab runner
+  starter** role can read and start that one VM and nothing else. The recording
+  identity has no VM permission. The job waits up to two hours for an approval.
+  If it gives up, or the VM is off for any other reason, start it by hand with
+  `az vm start --resource-group <runner-resource-group> --name <runner-vm-name>`
+  and the recording job takes the runner when it comes online. Starting the VM
+  costs compute for as long as it runs, about $0.19 an hour.
 - The `library-recording` environment holds a required reviewer, so nothing is
   sent until the owner approves. Check the `ref` in the approval prompt: the
   runner runs the code at that ref.

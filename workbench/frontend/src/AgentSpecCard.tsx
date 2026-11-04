@@ -10,14 +10,20 @@ import { saveFile } from './save-file'
 export function AgentSpecCard({
   spec,
   templateLabel,
+  carriesInstructions = false,
   onCreateFromTemplate,
   build,
+  tests,
 }: {
   spec: AgentSpec
   templateLabel?: string
+  // True when the person has accepted revised task instructions while testing.
+  carriesInstructions?: boolean
   onCreateFromTemplate?: () => void
   // Where the spec can be built into a real agent without leaving the chat.
   build?: ReactNode
+  // Where the draft can be tried first, before anything is published.
+  tests?: ReactNode
 }) {
   const details: [string, string][] = [
     ['Takes in', spec.inputs],
@@ -64,6 +70,13 @@ export function AgentSpecCard({
           </button>
         )}
       </div>
+      {templateLabel && onCreateFromTemplate && carriesInstructions && (
+        <p className="agent-spec-note">
+          The task instructions you accepted while testing come with it. You can
+          switch back to the template&apos;s prepared text on the review step.
+        </p>
+      )}
+      {tests}
       {build}
       {!spec.closest_template && (
         <p className="agent-spec-note">

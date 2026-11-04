@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { requestJson } from './request.ts'
+import { errorBody, requestJson } from './request.ts'
 
 const historyErrors: Record<string, string> = {
   request_timeout:
@@ -37,7 +37,7 @@ export function useHistoryClient(timeoutMs: number | undefined) {
       )
       if (!response.ok)
         throw new Error(
-          historyErrors[data.error] ||
+          historyErrors[errorBody(data).error ?? ''] ||
             'Saved history is unavailable. Your local messages are unchanged.',
         )
       return data

@@ -28,6 +28,7 @@ export function CreationTaskForm({
   onTemplateId,
   onGoal,
   onPrepare,
+  carryNote,
 }: {
   templates: AgentTemplate[]
   templateId: string
@@ -37,6 +38,8 @@ export function CreationTaskForm({
   onTemplateId: (id: string) => void
   onGoal: (goal: string) => void
   onPrepare: () => void
+  // Says whether instructions accepted during testing will be used.
+  carryNote?: string
 }) {
   const goalField = useRef<HTMLTextAreaElement>(null)
   const [search, setSearch] = useState('')
@@ -189,6 +192,11 @@ export function CreationTaskForm({
           Setup uses a prepared template and your task description. It does not
           call a model, generate runtime code or save an agent.
         </p>
+        {carryNote && (
+          <p className="creation-help" role="status">
+            {carryNote}
+          </p>
+        )}
         <button
           className="creation-primary"
           disabled={

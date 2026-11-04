@@ -1,7 +1,9 @@
 """Re-record an agent's test answers after its instructions change.
 
 Every recorded answer carries a fingerprint of the instructions its agent had when it ran, and
-scorecards.py refuses to build when the Lab's instructions no longer match. This finds the agents
+scorecards.py refuses to build when the Lab's instructions no longer match. It also carries a
+fingerprint of the test context (the case's input and fixtures, the model profile and the agent's
+tool data), so a changed test input or tool makes the agent's answers stale too. This finds the agents
 that need new answers and records them again:
 
     python library_runs.py status                      # offline: which agents need new answers
@@ -16,8 +18,9 @@ Foundry. It refuses to run in CI, except in the manually started "Record library
 Each finished run is saved at once under results/library-runs/, so an interrupted recording
 resumes where it stopped. Only when all of an agent's runs are saved does it replace that agent's
 rows, and no one else's, in the three evidence files, stamping every row with the instructions
-fingerprint and the date it was recorded. Rows from two versions of an agent's instructions never
-mix. Record one agent at a time per project, and one recording at a time.
+fingerprint, the context fingerprint and the date it was recorded. Rows from two versions of an
+agent's instructions or test context never mix. Record one agent at a time per project, and one
+recording at a time.
 
 Recording changes the answers, so an agent's sign-off stops matching. A person must read the new
 answers and sign off again; this never records a sign-off.
@@ -86,6 +89,7 @@ class Files:
     repeats: Path = scorecards.REPEATS
     prices: Path = scorecards.PRICES
     signoffs: Path = scorecards.SIGNOFFS
+    baseline: Path = scorecards.CONTEXT_BASELINE
     journals: Path = JOURNALS
 
     def journal(self, template_id):
@@ -102,6 +106,11 @@ class Item:
     digest: str
     model: str
     source: str
+
+    @property
+    def contexts(self):
+        """{case id: context fingerprint}: what a saved run must carry to belong to this recording."""
+        return {case["id"]: scorecards.context_digest(case) for case in self.cases}
 
 
 @dataclass(frozen=True)
@@ -356,8 +365,13 @@ def pick_templates(grouped, wanted):
 
 
 def load_evidence(files):
+    try:
+        baseline = scorecards.load_context_baseline(files.baseline)
+    except (OSError, ValueError) as error:
+        raise Stop(f"{shown(files.baseline)} can't be read ({error}). Rows recorded before context fingerprints "
+                   "can't be checked without it.", 2) from None
     return {"answers": read_rows(files.answers), "metrics": read_rows(files.metrics),
-            "repeats": read_rows(files.repeats)}
+            "repeats": read_rows(files.repeats), "baseline": baseline}
 
 
 def _dated(row):
@@ -366,15 +380,19 @@ def _dated(row):
 
 
 def assess(template_id, cases, evidence):
-    """Say whether an agent's recorded answers are current, stale (recorded on other instructions),
-    incomplete, or missing."""
+    """Say whether an agent's recorded answers are current, stale (recorded on other instructions, test
+    inputs or tools), incomplete, or missing."""
     ids = [case["id"] for case in cases]
-    mine = {kind: [row for row in rows if row.get("case_id") in ids] for kind, rows in evidence.items()}
+    mine = {kind: [row for row in evidence[kind] if row.get("case_id") in ids]
+            for kind in ("answers", "metrics", "repeats")}
     every = [row for rows in mine.values() for row in rows]
     if not every:
         return Assessment("missing", ["no answers are recorded for this agent"], None, None)
     digest = scorecards.instructions_digest(template_id)
     old = sum(row.get("instructions_sha256") != digest for row in every)
+    contexts, baseline = {case["id"]: scorecards.context_digest(case) for case in cases}, evidence.get("baseline", {})
+    moved = sum(scorecards.recorded_context(row, row["case_id"], baseline) != contexts[row["case_id"]]
+                for row in every)
     problems = []
     for case_id in ids:
         answers = sum(row["case_id"] == case_id for row in mine["answers"])
@@ -391,18 +409,22 @@ def assess(template_id, cases, evidence):
     models = sorted({str(row.get("model")) for row in mine["metrics"] + mine["repeats"]})
     if len(models) > 1:
         problems.append("more than one model was used: " + ", ".join(models))
-    reasons = ([f"{old} of {len(every)} recorded rows came from other instructions"] if old else []) + problems
-    state = "stale" if old else "incomplete" if problems else "current"
+    reasons = (([f"{old} of {len(every)} recorded rows came from other instructions"] if old else [])
+               + ([f"{moved} of {len(every)} recorded rows came from other test inputs or tools, "
+                   "or carry no context fingerprint"] if moved else [])
+               + problems)
+    state = "stale" if old or moved else "incomplete" if problems else "current"
     model = models[0] if len(models) == 1 else "mixed" if models else None
     return Assessment(state, reasons, model, max(filter(None, map(_dated, every)), default=None))
 
 
-def usable(row, ids, digest, model):
-    """Whether a journal row is a whole, well-formed run of these cases on these instructions."""
+def usable(row, contexts, digest, model):
+    """Whether a journal row is a whole, well-formed run of these cases on these instructions and inputs."""
     if not isinstance(row, dict) or set(row) != set(RUN_ROW):
         return False
     counts = [row[key] for key in COUNT_KEYS]
-    return (row["case_id"] in ids and is_int(row["run"]) and 1 <= row["run"] <= RUNS_PER_CASE
+    return (row["case_id"] in contexts and row["context_sha256"] == contexts[row["case_id"]]
+            and is_int(row["run"]) and 1 <= row["run"] <= RUNS_PER_CASE
             and row["instructions_sha256"] == digest and (model is None or row["model"] == model)
             and isinstance(row["text"], str) and bool(row["text"].strip()) and isinstance(row["receipts"], list)
             and all(is_int(count) and count >= 0 for count in counts) and row["cached_tokens"] <= row["input_tokens"]
@@ -410,11 +432,11 @@ def usable(row, ids, digest, model):
             and _dated(row) is not None)
 
 
-def load_journal(path, ids, digest, model=None):
+def load_journal(path, contexts, digest, model=None):
     """The usable saved runs of an interrupted recording, and whether the file holds nothing else.
 
-    A line cut short by a crash, a run from other instructions or another model, and repeats are
-    left out. A damaged line anywhere else means something else wrote to the file.
+    A line cut short by a crash, a run from other instructions, test inputs, tools or another model, and
+    repeats are left out. A damaged line anywhere else means something else wrote to the file.
     """
     path = Path(path)
     if not path.exists():
@@ -437,7 +459,7 @@ def load_journal(path, ids, digest, model=None):
                 continue
             raise Stop(f"{path}: line {number} is damaged. Delete the file to start this agent over; "
                        "nothing else depends on it.", 2) from None
-        key = (row["case_id"], row["run"]) if usable(row, ids, digest, model) else None
+        key = (row["case_id"], row["run"]) if usable(row, contexts, digest, model) else None
         if key is None or key in seen:
             clean = False
             continue
@@ -534,7 +556,7 @@ def plan_lines(items, files, evidence, pacer):
     for item in items:
         ids = [case["id"] for case in item.cases]
         total, limit = len(ids) * RUNS_PER_CASE, pacer.limit(item.model)
-        saved, _ = load_journal(files.journal(item.template_id), ids, item.digest, item.model)
+        saved, _ = load_journal(files.journal(item.template_id), item.contexts, item.digest, item.model)
         pending += total - len(saved)
         state = assess(item.template_id, item.cases, evidence).state
         lines += [f"{item.template_id} ({item.profile})",
@@ -589,14 +611,14 @@ def finish_run(item, case, run, outcome, usage, seconds, today):
         "receipts": [{"tool": call.get("name", "unknown")} for call in transcript if call.get("type") == "function_call"],
         "model": item.model, "seconds": round(seconds, 1), "input_tokens": total["input_tokens"],
         "cached_tokens": cached, "output_tokens": total["output_tokens"],
-        "instructions_sha256": item.digest, "recorded_on": today,
+        "instructions_sha256": item.digest, "context_sha256": scorecards.context_digest(case), "recorded_on": today,
     }
 
 
 def resume(files, item):
     """The saved runs of an interrupted recording, with anything unusable removed from the journal."""
     path = files.journal(item.template_id)
-    saved, clean = load_journal(path, [case["id"] for case in item.cases], item.digest, item.model)
+    saved, clean = load_journal(path, item.contexts, item.digest, item.model)
     if not clean:
         write_atomic([(path, b"".join(dump(row).encode("utf-8") + b"\n" for row in saved))])
     return {(row["case_id"], row["run"]): row for row in saved}
@@ -745,7 +767,8 @@ def saved_note(files, template_id, cases):
     if not path.exists():
         return None
     try:
-        saved, _ = load_journal(path, [case["id"] for case in cases], scorecards.instructions_digest(template_id))
+        saved, _ = load_journal(path, {case["id"]: scorecards.context_digest(case) for case in cases},
+                                scorecards.instructions_digest(template_id))
     except Stop:
         return f"its saved-runs file is damaged; delete {shown(path)} to start this agent over"
     total = len(cases) * RUNS_PER_CASE

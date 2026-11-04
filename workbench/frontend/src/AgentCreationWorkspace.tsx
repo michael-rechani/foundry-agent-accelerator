@@ -6,7 +6,6 @@ import {
   creationRequest,
   parseCreatedAgent,
   parseDraft,
-  parseTemplates,
   type AgentDraft,
   type AgentTemplate,
   type CreatedAgent,
@@ -18,6 +17,7 @@ import { CreationTaskForm } from './CreationTaskForm'
 import { CreationSetupReview } from './CreationSetupReview'
 import { CreatedAgentDetail, CreatedAgentList } from './CreatedAgents'
 import './agent-creation.css'
+import type { LibraryCatalogState } from './library-catalog-client'
 
 function problemText(problem: unknown) {
   return problem instanceof Error && problem.name !== 'AbortError'
@@ -26,6 +26,7 @@ function problemText(problem: unknown) {
 }
 
 export function AgentCreationWorkspace({
+  library,
   capability,
   state,
   view,
@@ -35,23 +36,35 @@ export function AgentCreationWorkspace({
   onView,
   onUse,
 }: {
+  library: LibraryCatalogState
   capability: CreationCapability
   state: CreatedAgentState
   view: 'create' | 'created'
   active: boolean
   chatBusy: boolean
-  requestedTemplate?: { id: string; key: number; goal?: string } | null
+  requestedTemplate?: {
+    id: string
+    key: number
+    goal?: string
+    instructions?: string
+  } | null
   onView: (view: 'create' | 'created') => void
   onUse: (agent: Agent) => void
 }) {
-  const [templates, setTemplates] = useState<AgentTemplate[]>([])
-  const [templateAttempt, setTemplateAttempt] = useState(0)
-  const [templateError, setTemplateError] = useState('')
+  const templates = library.catalog?.templates ?? []
+  const templateError = library.error
   const [templateId, setTemplateId] = useState('')
   const [goal, setGoal] = useState('')
   const [draft, setDraft] = useState<AgentDraft | null>(null)
   const [name, setName] = useState('')
   const [instructions, setInstructions] = useState('')
+  // Task instructions accepted while testing a draft, with the template and
+  // task they were accepted for. They apply only while both are unchanged.
+  const [carried, setCarried] = useState<{
+    templateId: string
+    goal: string
+    instructions: string
+  } | null>(null)
   const workspace = useRef<HTMLElement>(null)
   const keyField = useRef<HTMLInputElement>(null)
   const [consent, setConsent] = useState(false)
@@ -77,18 +90,8 @@ export function AgentCreationWorkspace({
     [...instructions.trim()].length >= 10 &&
     [...instructions].length <= 6000
   const canManage = capability.management_enabled ?? capability.enabled
-
-  useEffect(() => {
-    const abort = new AbortController()
-    void creationRequest('agent-templates', {}, abort.signal)
-      .then((value) => {
-        if (!abort.signal.aborted) setTemplates(parseTemplates(value))
-      })
-      .catch((problem) => {
-        if (!abort.signal.aborted) setTemplateError(problemText(problem))
-      })
-    return () => abort.abort()
-  }, [templateAttempt])
+  const carriedApplies =
+    !!carried && carried.templateId === templateId && carried.goal === goal
 
   useEffect(() => {
     if (!goal && !draft && !pending) return
@@ -137,6 +140,15 @@ export function AgentCreationWorkspace({
       setHandledRequest(requestedTemplate.key)
       if (!draft && !pending) {
         setTemplateId(found.id)
+        setCarried(
+          requestedTemplate.goal && requestedTemplate.instructions
+            ? {
+                templateId: found.id,
+                goal: requestedTemplate.goal,
+                instructions: requestedTemplate.instructions,
+              }
+            : null,
+        )
         if (requestedTemplate.goal) setGoal(requestedTemplate.goal)
         else if (
           !goal.trim() ||
@@ -178,7 +190,12 @@ export function AgentCreationWorkspace({
         )
       setDraft(prepared)
       setName(prepared.name)
-      setInstructions(prepared.instructions)
+      setInstructions(
+        carried && carriedApplies && prepared.template_id === carried.templateId
+          ? carried.instructions
+          : prepared.instructions,
+      )
+      if (carried && !carriedApplies) setCarried(null)
       setConsent(false)
       workspace.current?.scrollTo({ top: 0 })
     } catch (problem) {
@@ -193,6 +210,7 @@ export function AgentCreationWorkspace({
     setSelected(record)
     setPending(null)
     setDraft(null)
+    setCarried(null)
     setGoal('')
     setTemplateId('')
     setConsent(false)
@@ -410,14 +428,7 @@ export function AgentCreationWorkspace({
           {templateError ? (
             <div className="creation-error" role="alert">
               <p>{templateError}</p>
-              <button
-                onClick={() => {
-                  setTemplateError('')
-                  setTemplateAttempt((value) => value + 1)
-                }}
-              >
-                Retry templates
-              </button>
+              <button onClick={library.retry}>Retry templates</button>
             </div>
           ) : !templates.length ? (
             <p role="status">Loading prepared templates...</p>
@@ -432,6 +443,13 @@ export function AgentCreationWorkspace({
               onTemplateId={setTemplateId}
               onGoal={setGoal}
               onPrepare={() => void prepare()}
+              carryNote={
+                !carried
+                  ? undefined
+                  : carriedApplies
+                    ? 'The task instructions you accepted while testing will be used. You can switch back to the template\u2019s text on the next step.'
+                    : 'The instructions you accepted while testing no longer apply, because the task or template changed. The template\u2019s prepared text will be used.'
+              }
             />
           ) : (
             <CreationSetupReview
@@ -440,6 +458,9 @@ export function AgentCreationWorkspace({
               templateModel={templateModel}
               name={name}
               instructions={instructions}
+              acceptedInstructions={
+                carried && carriedApplies ? carried.instructions : undefined
+              }
               consent={consent}
               pending={pending}
               busy={busy}

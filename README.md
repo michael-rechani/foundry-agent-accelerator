@@ -11,9 +11,11 @@ Build, deploy, and explore agents on **Microsoft Foundry**. The Lab is a demo
 and workshop app backed by reusable code. In it you can:
 
 - browse a library of sample agents and read how each did on its test cases,
-- talk through an agent idea in a plain chat, or try a ready agent with sample
-  data and compare its answer with the source,
-- take an agent to your own Foundry, or publish a new one from a template,
+- try a ready agent with sample data and compare its answer with the source,
+- talk through an agent idea in a plain chat,
+  [test the draft on sample cases](docs/agent-creation.md#test-a-draft-before-you-create-it),
+  and publish it from a template,
+- take an agent to your own Foundry,
 - watch prebuilt agents work as a team.
 
 The Azure deployment runs privately in your subscription. Local preview makes
@@ -26,24 +28,23 @@ no model calls. This is a sample, not an official Microsoft product.
 <details>
 <summary><strong>What each step of the tour shows</strong></summary>
 
-1. **Find an agent.** Open **All agents** in the sidebar (the Lab itself opens
-   on Chat). At the top, describe the job in plain words, such as "check a
-   document against a checklist", and get matching ready agents and templates.
-   The match uses plain word matching, not an AI model. Nothing is sent or saved.
+1. **Find an agent.** Open **All agents** and describe the job in plain words,
+   such as "check a document against a checklist". You get matching ready
+   agents and templates. It's plain word matching, not an AI model, and nothing
+   is sent or saved.
 2. **Browse agents.** The library lists the featured sample agents: the ones
-   the Lab is building out in depth, plus any a person has signed off. An
-   operator can turn on the rest. **Start here** offers three ready-made
-   examples.
+   built out in depth, plus any a person has signed off. An operator can turn
+   on the rest. **Start here** offers three ready-made examples.
 3. **Test results.** See how many answers passed, how long they took, what they
    cost, and whether a person has signed the agent off.
-4. **Chat.** A plain conversation with the **Agent designer** to talk through
-   an agent you want to build. When the idea is clear, it ends with a draft
-   spec card to download. The draft uses a model placeholder; any needed tools
-   and document sources still need to be configured and tested in Foundry.
-   Building a matching template here also needs the configured access gate
-   (operator key by default, or opt-in [presenter mode](docs/agent-creation.md#private-presenter-mode-no-operator-key))
-   and a cost confirmation. Pick **Try a pre-built agent** to chat with a ready agent or a
-   library preview instead.
+4. **Chat.** Talk through an agent idea with the **Agent designer**. When the
+   idea is clear, it ends with a draft spec card to download. Tools and
+   document sources still need to be configured and tested in Foundry. For a
+   built-in template, **Test this draft first** tries it on sample cases and
+   publishes nothing. To publish from the card, you also need the operator key
+   (or [presenter mode](docs/agent-creation.md#private-presenter-mode-no-operator-key))
+   and a cost confirmation. **Try a pre-built agent** chats with a ready agent
+   or a library preview instead.
 5. **Take it to Foundry.** Download the agent definition and test requests, then
    follow the steps to create it in your own Foundry. There's no one-click move.
 6. **Create agent.** Prepare an agent from a library template. It stays off
@@ -54,13 +55,10 @@ no model calls. This is a sample, not an official Microsoft product.
 [Create agent screenshot](docs/images/screenshots/lab-create-agent-dark.png) ·
 [All screenshots](docs/images/README.md#lab-screenshots)
 
-The sidebar groups the pages: **Start here** (**Chat** and **Shared history**),
-**Agent library** (**All agents**, with the job finder), and **Operations**
-(health, response times, cost, and the request log), which appears when you turn
-on **Under the hood**. When creation is on, **Create agent** opens from the Chat
-spec card, the job finder and the library templates. **Document reviews** has no
-sidebar link, so open `/#reviews` or a saved-review link. See the
-[Lab guide](docs/lab-pages-and-access.md#pages).
+The sidebar has three groups: **Start here**, **Agent library**, and
+**Operations** (shown when you turn on **Under the hood**). **Document reviews**
+has no sidebar link, so open `/#reviews` or a saved-review link. See the
+[Lab guide](docs/lab-pages-and-access.md#pages) for every page.
 
 </details>
 
@@ -118,9 +116,8 @@ look for and a decision that stays with a person.
 | [Turn scattered notes into a brief](docs/showcase.md#turn-scattered-notes-into-a-brief) | Supported facts, conflicting dates, and missing evidence. | Verify the authoritative record and determine the next steps. |
 
 The invoice story runs on a **Supplier invoice reviewer** created from its
-template, or on the library preview of that template when library previews are
-on. Either way it uses built-in lookups with sample data and no finance
-integration.
+template, or on that template's library preview. Either way it uses built-in
+lookups on sample data, with no finance integration.
 
 [Watch all three stories](docs/images/scenario-tour-dark.svg)
 
@@ -145,11 +142,10 @@ Terraform input. Read the
 
 1. If enabled, a presenter opens Azure Bastion from the Azure portal.
 2. Bastion opens a remote desktop session to the optional private jumpbox.
-3. The jumpbox browser opens the Lab across the network peering. The default
-   ingress rule allows the management subnet, where the optional jumpbox would
-   reside. Front Door is the optional top route in the diagram: an allowed
-   client reaches its WAF-filtered endpoint, and Private Link carries the
-   request to the Lab. [Setup](docs/ingress-access.md#draft-front-door-limited-to-your-own-ip)
+3. The jumpbox browser opens the Lab across the network peering. By default,
+   only the management subnet, where the optional jumpbox would sit, can reach
+   it. The optional Front Door route at the top of the diagram reaches the Lab
+   through Private Link. [Setup](docs/ingress-access.md#draft-front-door-limited-to-your-own-ip)
 4. The Lab calls Foundry Agent Service over HTTPS using the Responses API
    through the Foundry private endpoint, signing in with its managed identity.
 5. Foundry hosts the agents in managed, VM-isolated session sandboxes. They call
@@ -164,10 +160,7 @@ are optional and off by default. The default ingress allow rule does not create
 an access machine. API Management isn't shown.*
 
 Wondering how customers or colleagues could reach the Lab? See
-[How people reach the Lab](docs/ingress-access.md): the management subnet is the
-only ingress source allowed by default. Bastion and the jumpbox are optional
-resources, and the Application Gateway and Front Door paths are optional designs
-that need end-user sign-in first.
+[How people reach the Lab](docs/ingress-access.md).
 
 [Full size](docs/images/azure-architecture-dark.svg) ·
 [SVG template](docs/images/azure-architecture.template.svg) ·
@@ -177,18 +170,12 @@ that need end-user sign-in first.
 ### Agents working together
 
 The default **Checklist and case helper** coordinates the prebuilt specialists.
-You still check the findings against the source.
+You ask in the Lab, and the coordinator calls one specialist as a tool.
+Specialists don't message each other. The coordinator returns the findings with
+a record of which specialist answered. You still check them against the source,
+because a completed tool call doesn't prove they're correct.
 
 <img alt="Default agent collaboration in four numbered steps: you ask in the Lab with supplied evidence; in Foundry Agent Service, the Checklist and case helper calls one specialist, the Checklist reviewer or the Case notes summarizer; the coordinator returns findings with a tool record; and a person checks the answer against the evidence" src="docs/images/agent-collaboration-dark.svg">
-
-1. **You ask in the Lab.** Its backend calls the coordinator agent in Foundry
-   with a managed identity.
-2. **The coordinator picks a specialist** and calls it as a tool. Specialists
-   don't message each other.
-3. **The coordinator returns the findings**, with a record of which specialist
-   answered.
-4. **You check the answer** against the source. A completed tool call doesn't
-   prove the findings are correct.
 
 *It calls one specialist by default, or both only if you ask. Nothing is
 approved, denied, or sent externally automatically.*
@@ -206,8 +193,7 @@ a hosted agent named `lab-demo-...` on the model that suits the template. When
 Foundry reports the version active and its route is confirmed, try it in
 **Chat**. See [agent creation](docs/agent-creation.md).
 
-More diagrams are in the [architecture guide](docs/architecture.md). They all
-share one [style guide](docs/images/README.md#diagram-style).
+More diagrams are in the [architecture guide](docs/architecture.md).
 
 ---
 
@@ -228,19 +214,18 @@ share one [style guide](docs/images/README.md#diagram-style).
 - Permission to deploy resources and assign roles.
 - Model quota and approved private network access.
 
-Foundry itself, with its project, model deployment, and Agent Service setup, is
-deployed with Terraform and
-[Azure Verified Modules](terraform/README.md). The
+**One command:** [`./deploy.ps1`](deploy.ps1) runs preflight, state backend,
+platform, Lab, and verify in order. It shows each Terraform plan and applies
+only after you type `apply`. Start with `-Stage preflight` or `-PlanOnly`.
+
+Foundry, with its project, model deployment, and Agent Service setup, is
+deployed with Terraform and [Azure Verified Modules](terraform/README.md). The
 [infrastructure guide](terraform/README.md#at-a-glance) lists every Terraform
 root and its state. The repo uses Terraform rather than Bicep. See
 [why](docs/architecture-assessment.md#terraform-first-deployment).
 
-**One command:** [`./deploy.ps1`](deploy.ps1) runs preflight, state backend,
-platform, Lab, and verify in order. It shows each Terraform plan and applies
-only after you type `apply`. Start with `-Stage preflight` or `-PlanOnly`. The
-steps below are the same stages, run by hand.
-
-**Deploy in this order:**
+<details>
+<summary><strong>Or deploy stage by stage</strong>, in this order</summary>
 
 1. **State backend:** [`terraform/bootstrap/`](terraform/bootstrap/README.md)
    creates the private state storage account. Run it once, first.
@@ -258,6 +243,8 @@ steps below are the same stages, run by hand.
    [agent creation](docs/agent-creation.md#enable-publication).
 6. **Verify:** run one scenario from the [demo guide](docs/demos.md) before you
    present it.
+
+</details>
 
 To deploy from a separate private machine, use the
 [private deployment runbook](docs/private-deployment.md).
@@ -278,14 +265,14 @@ To deploy from a separate private machine, use the
 - **Test results are evidence, not a guarantee.** Each library agent was asked
   five test cases, five times each, with sample data. A case passes only if
   every answer passes. An agent shows **Waiting for a person** until someone
-  reads the recorded answers and signs off. The test runner never records a
-  sign-off. See [agent library scorecards](docs/library-scorecards.md).
-- **Access is by network, not by user.** The Lab has no sign-in. It accepts
-  traffic only from the private admin network, such as the jumpbox reached
-  through Azure Bastion, or from the optional IP-limited Front Door, and
-  everyone with that access shares the same saved records. To let employees or
-  customers in, see [How people reach the Lab](docs/ingress-access.md), which
-  also covers the sign-in they'd need first. See the
+  reads the recorded answers and signs off; the test runner never records one.
+  See [agent library scorecards](docs/library-scorecards.md).
+- **Access is by network, not by user.** The Lab has no sign-in. Only the
+  private admin network (such as the jumpbox reached through Azure Bastion) or
+  the optional IP-limited Front Door can reach it, and everyone with that access
+  shares the same saved records. Letting employees or customers in needs
+  end-user sign-in first. See [How people reach the Lab](docs/ingress-access.md)
+  and the
   [production checklist](terraform/README.md#separately-scoped-production-considerations).
 - **Controls and gaps are mapped.** The
   [agent governance and risk map](docs/governance.md) lines up the sample's
@@ -313,54 +300,38 @@ To deploy from a separate private machine, use the
 ## Documentation
 
 The [documentation index](docs/README.md) lists every guide, with a glossary.
-The most used:
+Good places to start:
 
-- **Try and present:** [showcase](docs/showcase.md),
-  [demos](docs/demos.md), [agent creation](docs/agent-creation.md),
-  [document reviews](docs/review-workflow.md),
-  [demo handoff](docs/demo-handoff.md)
+- **Present:** the [showcase](docs/showcase.md) and the [demos](docs/demos.md).
 - **Deploy and operate:** [infrastructure](terraform/README.md),
-  [the Lab](workbench/README.md), [hosted agents](hosted-agents/README.md),
-  [private deployment](docs/private-deployment.md),
-  [credentials](docs/credentials.md), [permissions](docs/permissions.md),
-  [troubleshooting](docs/troubleshooting.md), [security policy](SECURITY.md)
-- **Build and extend:** [architecture](docs/architecture.md),
-  [agent governance](docs/governance.md),
-  [extension guide](docs/architecture-assessment.md),
-  [portable agent bundles](hosted-agents/README.md#portable-agent-bundles),
-  [coordinator profiles](docs/agent-profiles.md),
-  [evaluations](evaluations/README.md),
-  [cost comparison](cost-comparison/README.md),
-  [optional integrations](docs/optional-integrations.md)
+  [the Lab](workbench/README.md), and [troubleshooting](docs/troubleshooting.md).
+- **Build and extend:** [architecture](docs/architecture.md), the
+  [extension guide](docs/architecture-assessment.md), and
+  [portable agent bundles](hosted-agents/README.md#portable-agent-bundles).
 
 <a id="validation"></a>
 
 ## Automated checks
 
 On every pull request and push to `main`, GitHub Actions tests the Python,
-TypeScript, and Terraform code, including browser tests at desktop sizes. A docs
-check rebuilds every diagram from its template, fails if the committed SVGs
-differ, and checks that every relative link, image, and heading
-anchor in the Markdown resolves.
+TypeScript, and Terraform code, including desktop browser tests. A docs check
+rebuilds every diagram from its template, fails if the committed SVGs differ,
+and checks that every relative link, image, and heading anchor in the Markdown
+resolves. CodeQL and a weekly [Scorecard](.github/workflows/scorecard.yml) run
+cover supply-chain practices. See
+[supply-chain checks](docs/governance.md#supply-chain-checks).
 
-CodeQL scans the code through the repository's default setup, and a weekly
-[Scorecard](.github/workflows/scorecard.yml) run scores its supply-chain
-practices. See [supply-chain checks](docs/governance.md#supply-chain-checks).
-
-The checks use mocked service responses. They don't call live agents or create
-Azure resources, and they don't build the image or plan against live
-resources. For Docker and Terraform changes, verify a deployment too.
+The checks use mocked service responses. They don't call live agents, create
+Azure resources, build the image, or plan against live resources, so verify a
+deployment too for Docker and Terraform changes.
 
 <details>
 <summary>Dependency updates</summary>
 
-The **Validate** workflow runs gitleaks over every commit (see
-[`.gitleaks.toml`](.gitleaks.toml)). Dependabot alerts flag known
-vulnerabilities in pinned packages. Each month,
-[Dependabot](.github/dependabot.yml) also opens one grouped update pull request
-per ecosystem: GitHub Actions, Python, frontend, Docker, and Terraform. Merge an
-update only after its checks pass. Major versions and the preview agent hosting
-package are upgraded by hand. See
+Gitleaks scans every commit (see [`.gitleaks.toml`](.gitleaks.toml)).
+[Dependabot](.github/dependabot.yml) opens one grouped update pull request per
+ecosystem each month. Merge an update only after its checks pass. Major versions
+and the preview agent hosting package are upgraded by hand. See
 [tool versions and upgrades](docs/tool-versions.md#upgrade).
 
 </details>

@@ -1,13 +1,20 @@
+import contextlib
+import copy
+import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import scorecards
 from agent_templates import RETIRED_TEMPLATES, TEMPLATE_METADATA, TEMPLATES
+# scorecards puts workbench/agent_runtime on sys.path, which this import needs.
+import demo_tools
 
 RUNS_PER_CASE = 5
 RECORDED_ON = "2026-09-29"
+SUPPLIER_CASE = "supplier-invoice-reviewer-sample"
 PRICES = json.loads(scorecards.PRICES.read_text(encoding="utf-8"))
 
 
@@ -62,15 +69,17 @@ class ScorecardTests(unittest.TestCase):
                 path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
                 return path
 
-            first = write("first.jsonl", [{"case_id": case_id, "text": "Nothing useful.", "recorded_on": RECORDED_ON}])
+            first = write("first.jsonl", [{"case_id": case_id, "text": "Nothing useful.", "receipts": [],
+                                           "recorded_on": RECORDED_ON}])
             second = write("second.jsonl", [{
-                "case_id": case_id, "recorded_on": RECORDED_ON,
+                "case_id": case_id, "recorded_on": RECORDED_ON, "receipts": [],
                 "text": "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"}])
             metrics = write("metrics.jsonl", [{"case_id": case_id, **metric}])
 
             def card(runs):
                 return scorecards.build(cases_path=cases_file(folder, {case_id}), runs=runs, metrics_path=metrics,
-                                        repeats_path=None, verify_instructions=False)["scorecards"][0]
+                                        repeats_path=None, verify_instructions=False,
+                                        verify_context=False)["scorecards"][0]
 
             self.assertFalse(card((("first", first),))["cases"][0]["passed"])
             self.assertEqual(card((("first", first),))["answers_from"], "first")
@@ -88,14 +97,15 @@ class ScorecardTests(unittest.TestCase):
                 path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
                 return path
 
-            read = write("read.jsonl", [{"case_id": case_id, "recorded_on": RECORDED_ON,
+            read = write("read.jsonl", [{"case_id": case_id, "recorded_on": RECORDED_ON, "receipts": [],
                                          "text": "Notice 1 and Notice 2 differ. What is the date?"}])
-            changed = write("changed.jsonl", [{"case_id": case_id, "recorded_on": RECORDED_ON,
+            changed = write("changed.jsonl", [{"case_id": case_id, "recorded_on": RECORDED_ON, "receipts": [],
                                                "text": "A different answer."}])
             metrics = write("metrics.jsonl", [{"case_id": case_id, **metric}])
             signoffs = Path(folder) / "signoffs.json"
             options = {"cases_path": cases_file(folder, {case_id}), "metrics_path": metrics,
-                       "signoffs_path": signoffs, "repeats_path": None, "verify_instructions": False}
+                       "signoffs_path": signoffs, "repeats_path": None, "verify_instructions": False,
+                       "verify_context": False}
             runs = (("run", read),)
 
             self.assertFalse(scorecards.build(runs=runs, **options)["scorecards"][0]["signed_off"])
@@ -105,6 +115,74 @@ class ScorecardTests(unittest.TestCase):
                              (True, "Pat Reviewer", "2026-09-30"))
             with self.assertRaisesRegex(ValueError, "read them again"):
                 scorecards.build(runs=(("run", changed),), **options)
+
+    def test_signoff_all_replaces_a_stale_signoff_but_a_normal_build_still_rejects_it(self):
+        case_ids = {"document-analyst-sample": "document-analyst", "criteria-checker-sample": "criteria-checker",
+                    "casework-assistant-sample": "casework-assistant"}
+        metric = {"model": "gpt-5.4", "seconds": 1.0, "input_tokens": 10, "cached_tokens": 0, "output_tokens": 5,
+                  "recorded_on": RECORDED_ON}
+        with tempfile.TemporaryDirectory() as folder:
+            folder = Path(folder)
+
+            def answers_file(name, changed=()):
+                path = folder / name
+                path.write_text("".join(json.dumps({
+                    "case_id": case_id, "recorded_on": RECORDED_ON, "receipts": [],
+                    "text": ("A changed answer. " if case_id in changed else "") + "Answer for " + case_id,
+                }) + "\n" for case_id in case_ids), encoding="utf-8")
+                return path
+
+            read = answers_file("read.jsonl")
+            metrics = folder / "metrics.jsonl"
+            metrics.write_text("".join(json.dumps({"case_id": case_id, **metric}) + "\n" for case_id in case_ids),
+                               encoding="utf-8")
+            signoffs, output = folder / "signoffs.json", folder / "scorecards.json"
+            options = {"cases_path": cases_file(folder, set(case_ids)), "metrics_path": metrics,
+                       "signoffs_path": signoffs, "repeats_path": None, "verify_instructions": False,
+                       "verify_context": False}
+            real_build, real_record = scorecards.build, scorecards.record_signoff
+            runs = (("run", read),)
+
+            scorecards.record_signoff("Old Reviewer", "2026-09-30", ["document-analyst", "criteria-checker"],
+                                      path=signoffs, cases_path=options["cases_path"], runs=runs)
+            # One agent's answer changes after it was signed off, one stays current, one was never signed off.
+            runs = (("run", answers_file("changed.jsonl", changed={"criteria-checker-sample"})),)
+
+            def build(**keywords):
+                return real_build(runs=runs, **{**options, **keywords})
+
+            def record(reviewer, reviewed_on, template_ids, **keywords):
+                return real_record(reviewer, reviewed_on, template_ids, path=signoffs,
+                                   cases_path=options["cases_path"], runs=runs)
+
+            def command(*arguments):
+                with (mock.patch.object(scorecards, "build", build), mock.patch.object(scorecards, "OUTPUT", output),
+                      mock.patch.object(scorecards, "record_signoff", record),
+                      mock.patch.object(scorecards, "HERE", folder / "evaluations"),
+                      contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO())):
+                    return scorecards.main(list(arguments))
+
+            with self.assertRaisesRegex(ValueError, "criteria-checker: the answers changed after the sign-off"):
+                build()
+            self.assertEqual(len(build(verify_signoffs=False)["scorecards"]), 3)
+
+            # Naming only an agent that is current leaves the stale sign-off in place, and says so plainly.
+            with self.assertRaises(SystemExit) as raised:
+                command("signoff", "--reviewer", "Pat Reviewer", "--on", "2026-10-01", "casework-assistant")
+            self.assertEqual(raised.exception.code, 2)
+            self.assertFalse(output.exists())
+
+            self.assertEqual(command("signoff", "--reviewer", "Pat Reviewer", "--on", "2026-10-01", "--all"), 0)
+            cards = {card["template_id"]: card for card in build()["scorecards"]}
+            self.assertEqual({card["signed_off_by"] for card in cards.values()}, {"Pat Reviewer"})
+            self.assertEqual({card["signed_off_on"] for card in cards.values()}, {"2026-10-01"})
+            self.assertEqual(sorted(cards), sorted(set(case_ids.values())))
+            self.assertTrue(output.exists())
+
+            # The sign-off records the answers read now; a later change to them is rejected again.
+            runs = (("run", answers_file("later.jsonl", changed={"document-analyst-sample"})),)
+            with self.assertRaisesRegex(ValueError, "document-analyst: the answers changed after the sign-off"):
+                build()
 
     def test_a_sign_off_needs_a_named_reviewer_a_real_date_and_a_known_agent(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -317,14 +395,239 @@ class ScorecardTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "same number of runs"):
                 scorecards.build(**evidence)
 
-    def evidence(self, folder, recorded, repeats, changes=None, second_case=False, digest=None,
-                 answer_changes=None, metric_changes=None):
-        """Temporary evidence for document-analyst-sample: a recorded answer plus (run, text[, metric]) repeats.
+    def test_the_context_fingerprint_follows_the_input_fixtures_model_profile_and_tools(self):
+        case = next(item for item in scorecards.load_cases()["cases"] if item["id"] == SUPPLIER_CASE)
+        template_id = case["template_id"]
+        before = scorecards.context_digest(case)
+        self.assertRegex(before, r"^[0-9a-f]{64}$")
+        self.assertEqual(before, scorecards.context_digest(copy.deepcopy(case)))
 
-        Rows carry no instructions fingerprint, and the build doesn't check it, unless a digest is given.
-        changes, answer_changes and metric_changes edit the repeat, answer and metrics rows."""
+        def differs(label, changed_case=case):
+            self.assertNotEqual(before, scorecards.context_digest(changed_case), label)
+
+        differs("a changed fixture", {**case, "fixtures": {**case["fixtures"], "lookup_purchase_order": "PO-OTHER"}})
+        differs("a changed missing-fixture", {**case, "missing_fixtures": {"lookup_purchase_order": "PO-NONE"}})
+        differs("a changed input", {**case, "use_sample_input": False, "input": "A different request."})
+        with mock.patch.dict(TEMPLATES[template_id], {"sample_input": TEMPLATES[template_id]["sample_input"] + " More."}):
+            differs("a changed sample input")
+        with mock.patch.dict(TEMPLATES[template_id], {"model_profile": "another-profile"}):
+            differs("a changed model profile")
+        with mock.patch.dict(demo_tools._PURCHASE_ORDERS, {"PO-NEW": {"total": "$1"}}):
+            differs("a changed tool data table")
+        with mock.patch.dict(demo_tools._PURCHASE_ORDERS["PO-DEMO-2210"], {"total": "$1"}):
+            differs("a changed tool record")
+
+        def other_lookup(records, identifier):
+            return {"changed": True}
+
+        with mock.patch.object(demo_tools, "_lookup", other_lookup):
+            differs("a changed lookup helper")
+        # The checks and rubric are scored again from the recorded text on every build, so they aren't part of it.
+        self.assertEqual(before, scorecards.context_digest({**case, "rubric": "Different.", "checks": {"must_include": ["x"]}}))
+        self.assertEqual(before, scorecards.context_digest(case))
+
+    def test_the_tool_context_names_each_tool_its_description_and_its_receipt(self):
+        tools = scorecards.tool_context("supplier-invoice-reviewer")
+        self.assertEqual([tool["name"] for tool in tools], ["lookup_purchase_order", "lookup_delivery_record"])
+        for tool in tools:
+            self.assertTrue(tool["description"])
+            self.assertIn("po_number", tool["parameters"])
+            self.assertIn("_lookup", tool["helpers"])
+            self.assertIn("simulation", tool["receipt"])
+        self.assertIn("PO-DEMO-2210", tools[0]["records"]["_PURCHASE_ORDERS"])
+        self.assertEqual(scorecards.tool_context("document-analyst"), [])
+
+    def test_a_recorded_row_from_other_test_context_is_stale(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        case = next(item for item in scorecards.load_cases()["cases"] if item["id"] == "document-analyst-sample")
+        current = scorecards.context_digest(case)
+        command = r"library_runs\.py record --templates document-analyst --yes"
+        with tempfile.TemporaryDirectory() as folder:
+            self.assertEqual(scorecards.build(**self.evidence(folder, good, [(2, good)], context=current))
+                             ["scorecards"][0]["cases"][0]["runs_passed"], 2)
+            stale = {"context_sha256": "0" * 64}
+            for label, options in (
+                ("the answer", {"answer_changes": stale}), ("the metrics row", {"metric_changes": stale}),
+                ("a repeat", {"changes": stale}),
+            ):
+                with self.subTest(label), self.assertRaisesRegex(
+                        ValueError, rf"test input, fixtures or tools of document-analyst changed.*{command}"):
+                    scorecards.build(**self.evidence(folder, good, [(2, good)], context=current, **options))
+            for label, value in (("no fingerprint", None), ("not hex", "abc"), ("a number", 5), ("uppercase", "A" * 64)):
+                with self.subTest(label), self.assertRaisesRegex(ValueError, "no valid context fingerprint"):
+                    scorecards.build(**self.evidence(folder, good, [(2, good)], context=current,
+                                                     answer_changes={"context_sha256": value}))
+
+    def test_a_changed_test_input_under_the_same_case_id_makes_the_recorded_answers_stale(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        case = next(item for item in scorecards.load_cases()["cases"] if item["id"] == "document-analyst-sample")
+        with tempfile.TemporaryDirectory() as folder:
+            evidence = self.evidence(folder, good, [(2, good)], context=scorecards.context_digest(case))
+            self.assertTrue(scorecards.build(**evidence)["scorecards"])
+            sample = TEMPLATES["document-analyst"]["sample_input"]
+            with mock.patch.dict(TEMPLATES["document-analyst"], {"sample_input": sample + " A new question."}):
+                with self.assertRaisesRegex(ValueError, "test input, fixtures or tools of document-analyst changed"):
+                    scorecards.build(**evidence)
+            self.assertTrue(scorecards.build(**evidence)["scorecards"])
+
+    def test_changed_tool_data_makes_the_recorded_answers_stale(self):
+        case = next(item for item in scorecards.load_cases()["cases"] if item["id"] == SUPPLIER_CASE)
+        with tempfile.TemporaryDirectory() as folder:
+            evidence = self.evidence(folder, "x", [], context=scorecards.context_digest(case), case_id=SUPPLIER_CASE)
+            self.assertTrue(scorecards.build(**evidence)["scorecards"])
+            with mock.patch.dict(demo_tools._PURCHASE_ORDERS["PO-DEMO-2210"], {"total": "$1"}):
+                with self.assertRaisesRegex(ValueError, "test input, fixtures or tools of supplier-invoice-reviewer"):
+                    scorecards.build(**evidence)
+
+    def test_a_row_recorded_before_context_fingerprints_is_checked_against_the_baseline(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        case = next(item for item in scorecards.load_cases()["cases"] if item["id"] == "document-analyst-sample")
+        with tempfile.TemporaryDirectory() as folder:
+            legacy = {**self.evidence(folder, good, [(2, good)]), "verify_context": True}
+            baseline = Path(folder) / "baseline.json"
+
+            def write_baseline(value, **changes):
+                record = {"schema_version": 1, "basis": "Checked against history.", "generated_on": "2026-11-03",
+                          "cases": {"document-analyst-sample": value}, **changes}
+                baseline.write_text(json.dumps(record), encoding="utf-8")
+                return {**legacy, "context_baseline_path": baseline}
+
+            # No baseline, or no entry for the case: closed, with the way to record it again.
+            with self.assertRaisesRegex(ValueError, r"no valid context fingerprint.*library_runs\.py record"):
+                scorecards.build(**legacy)
+            with self.assertRaisesRegex(ValueError, "no valid context fingerprint"):
+                scorecards.build(**write_baseline("a" * 64, cases={"another-case": "a" * 64}))
+            # An entry for the current context vouches for the legacy rows; any other entry doesn't.
+            self.assertTrue(scorecards.build(**write_baseline(scorecards.context_digest(case)))["scorecards"])
+            with self.assertRaisesRegex(ValueError, "test input, fixtures or tools of document-analyst changed"):
+                scorecards.build(**write_baseline("a" * 64))
+            # A row's own fingerprint wins over the baseline, so a stamped row can't borrow an entry.
+            stamped = self.evidence(folder, good, [(2, good)], context="a" * 64)
+            with self.assertRaisesRegex(ValueError, "test input, fixtures or tools of document-analyst changed"):
+                scorecards.build(**{**stamped, "context_baseline_path": write_baseline(
+                    scorecards.context_digest(case))["context_baseline_path"], "verify_context": True})
+            # A baseline that is malformed stops the build rather than being ignored.
+            for label, changes in (("version", {"schema_version": 2}), ("basis", {"basis": " "}),
+                                   ("date", {"generated_on": "soon"}), ("cases", {"cases": []})):
+                with self.subTest(label), self.assertRaisesRegex(ValueError, "baseline.json: needs schema_version 1"):
+                    scorecards.build(**write_baseline(scorecards.context_digest(case), **changes))
+            with self.assertRaisesRegex(ValueError, "baseline.json: needs schema_version 1"):
+                scorecards.build(**write_baseline("not-a-digest"))
+            self.assertEqual(scorecards.load_context_baseline(Path(folder) / "missing.json"), {})
+
+    def test_the_baseline_command_records_what_each_unstamped_case_has_now_and_never_edits_it(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        case = next(item for item in scorecards.load_cases()["cases"] if item["id"] == "document-analyst-sample")
+        with tempfile.TemporaryDirectory() as folder:
+            evidence = self.evidence(folder, good, [(2, good)])
+            baseline = Path(folder) / "baseline.json"
+            options = {"path": baseline, "cases_path": evidence["cases_path"], "runs": evidence["runs"],
+                       "metrics_path": evidence["metrics_path"], "repeats_path": evidence["repeats_path"]}
+            for basis, date in (("", "2026-11-03"), ("  ", "2026-11-03"), ("Checked.", "03/11/2026")):
+                with self.assertRaises(ValueError):
+                    scorecards.write_context_baseline(basis, date, **options)
+            self.assertFalse(baseline.exists())
+
+            self.assertEqual(scorecards.write_context_baseline("Checked against history.", "2026-11-03", **options),
+                             ["document-analyst-sample"])
+            record = json.loads(baseline.read_text(encoding="utf-8"))
+            self.assertEqual(record, {"schema_version": 1, "basis": "Checked against history.",
+                                      "generated_on": "2026-11-03",
+                                      "cases": {"document-analyst-sample": scorecards.context_digest(case)}})
+            built = scorecards.build(**{**evidence, "verify_context": True, "context_baseline_path": baseline})
+            self.assertTrue(built["scorecards"])
+
+            before = baseline.read_bytes()
+            with self.assertRaisesRegex(ValueError, "already exists"):
+                scorecards.write_context_baseline("Other basis.", "2026-11-04", **options)
+            self.assertEqual(baseline.read_bytes(), before)
+
+    def test_the_baseline_command_has_nothing_to_do_when_every_row_is_stamped(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        case = next(item for item in scorecards.load_cases()["cases"] if item["id"] == "document-analyst-sample")
+        with tempfile.TemporaryDirectory() as folder:
+            evidence = self.evidence(folder, good, [(2, good)], context=scorecards.context_digest(case))
+            baseline = Path(folder) / "baseline.json"
+            with self.assertRaisesRegex(ValueError, "nothing to baseline"):
+                scorecards.write_context_baseline(
+                    "Checked.", "2026-11-03", path=baseline, cases_path=evidence["cases_path"], runs=evidence["runs"],
+                    metrics_path=evidence["metrics_path"], repeats_path=evidence["repeats_path"])
+            self.assertFalse(baseline.exists())
+
+    def test_the_baseline_command_line_needs_a_basis_and_reports_what_it_wrote(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        with tempfile.TemporaryDirectory() as folder:
+            evidence = self.evidence(folder, good, [(2, good)])
+            baseline = Path(folder) / "baseline.json"
+
+            def command(*arguments):
+                out, err = io.StringIO(), io.StringIO()
+                defaults = (evidence["cases_path"], evidence["runs"], evidence["metrics_path"], evidence["repeats_path"])
+                real = scorecards.write_context_baseline
+                with (mock.patch.object(scorecards, "write_context_baseline", lambda basis, on: real(
+                        basis, on, baseline, *defaults)), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err)):
+                    try:
+                        code = scorecards.main(list(arguments))
+                    except SystemExit as stop:
+                        code = stop.code
+                return code, out.getvalue(), err.getvalue()
+
+            code, _, err = command("baseline")
+            self.assertEqual(code, 2)
+            self.assertIn("baseline needs --basis", err)
+            self.assertFalse(baseline.exists())
+            code, out, _ = command("baseline", "--basis", "Checked against history.", "--on", "2026-11-03")
+            self.assertEqual(code, 0)
+            self.assertIn("for 1 case(s)", out)
+            self.assertTrue(baseline.exists())
+            code, _, err = command("baseline", "--basis", "Again.", "--on", "2026-11-04")
+            self.assertNotEqual(code, 0)
+            self.assertIn("already exists", err)
+
+    def test_every_recorded_answer_needs_a_list_of_tool_receipts(self):
+        good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
+        message = "the recorded answer needs receipts"
+        bad_receipts = (("none", None), ("text", "x"), ("a number in the list", [1]), ("no tool", [{"call": "x"}]),
+                        ("a blank tool", [{"tool": " "}]), ("a tool that isn't text", [{"tool": 5}]))
+        with tempfile.TemporaryDirectory() as folder:
+            for label, value in bad_receipts:
+                for where, options in (("answer", {"answer_changes": {"receipts": value}}),
+                                       ("repeat", {"changes": {"receipts": value}})):
+                    with self.subTest(label, where=where), self.assertRaisesRegex(ValueError, message):
+                        scorecards.build(**self.evidence(folder, good, [(2, good)], **options))
+            evidence = self.evidence(folder, good, [(2, good)])
+            for name in ("answers.jsonl", "repeats.jsonl"):
+                path = Path(folder) / name
+                rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+                for row in rows:
+                    del row["receipts"]
+                path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+                with self.subTest("a missing key", name=name), self.assertRaisesRegex(ValueError, message):
+                    scorecards.build(**evidence)
+                evidence = self.evidence(folder, good, [(2, good)])
+
+    def test_a_case_that_expects_tool_calls_fails_when_they_were_not_recorded(self):
+        case = next(item for item in scorecards.load_cases()["cases"] if item["id"] == SUPPLIER_CASE)
+        self.assertEqual(case["checks"]["expected_tools"], ["lookup_purchase_order", "lookup_delivery_record"])
+        with tempfile.TemporaryDirectory() as folder:
+            def notes(receipts):
+                evidence = self.evidence(folder, "x", [], case_id=SUPPLIER_CASE, answer_changes={"receipts": receipts})
+                return scorecards.build(**evidence)["scorecards"][0]["cases"][0]["notes"]
+
+            self.assertIn("tools not called: lookup_purchase_order, lookup_delivery_record", notes([]))
+            self.assertIn("tools not called: lookup_delivery_record", notes([{"tool": "lookup_purchase_order"}]))
+            called = notes([{"tool": "lookup_purchase_order"}, {"tool": "lookup_delivery_record"}])
+            self.assertFalse([note for note in called if note.startswith("tools not called")])
+
+    def evidence(self, folder, recorded, repeats, changes=None, second_case=False, digest=None,
+                 answer_changes=None, metric_changes=None, context=None, case_id="document-analyst-sample"):
+        """Temporary evidence for one case (document-analyst-sample unless case_id says otherwise): a recorded
+        answer plus (run, text[, metric]) repeats.
+
+        Rows carry no instructions fingerprint, and the build doesn't check it, unless a digest is given. The
+        same goes for the context fingerprint and `context`. changes, answer_changes and metric_changes edit
+        the repeat, answer and metrics rows."""
         changes = changes or {}
-        case_id = "document-analyst-sample"
 
         def write(name, records):
             path = Path(folder) / name
@@ -333,10 +636,10 @@ class ScorecardTests(unittest.TestCase):
 
         metric = {"model": "gpt-5.4", "seconds": 1.0, "input_tokens": 10, "cached_tokens": 0, "output_tokens": 5,
                   "recorded_on": RECORDED_ON}
-        answers = [{"case_id": case_id, "text": recorded, "recorded_on": RECORDED_ON}]
+        answers = [{"case_id": case_id, "text": recorded, "receipts": [], "recorded_on": RECORDED_ON}]
         metrics = [{"case_id": case_id, **metric}]
         if second_case:
-            answers.append({"case_id": "document-analyst-missing-version", "text": recorded,
+            answers.append({"case_id": "document-analyst-missing-version", "text": recorded, "receipts": [],
                             "recorded_on": RECORDED_ON})
             metrics.append({"case_id": "document-analyst-missing-version", **metric})
         rows = []
@@ -345,11 +648,15 @@ class ScorecardTests(unittest.TestCase):
             row = {"case_id": case_id, "run": run, "text": text, "receipts": [], **metric, **(extra[0] if extra else {})}
             if digest:
                 row["instructions_sha256"] = digest
+            if context:
+                row["context_sha256"] = context
             row.update(changes)
             rows.append(row)
-        if digest:
-            for row in answers + metrics:
+        for row in answers + metrics:
+            if digest:
                 row["instructions_sha256"] = digest
+            if context:
+                row["context_sha256"] = context
         for row in answers:
             row.update(answer_changes or {})
         for row in metrics:
@@ -358,7 +665,8 @@ class ScorecardTests(unittest.TestCase):
         return {"cases_path": cases_file(folder, referenced),
                 "runs": (("run", write("answers.jsonl", answers)),), "metrics_path": write("metrics.jsonl", metrics),
                 "repeats_path": write("repeats.jsonl", rows) if rows else None,
-                "signoffs_path": Path(folder) / "none.json", "verify_instructions": bool(digest)}
+                "signoffs_path": Path(folder) / "none.json", "verify_instructions": bool(digest),
+                "verify_context": bool(context), "context_baseline_path": Path(folder) / "no-baseline.json"}
 
     def test_token_cost_prices_cached_input_separately(self):
         prices = {"models": {"m": {"input": 2.0, "cached_input": 0.5, "output": 8.0}}}

@@ -8,3 +8,11 @@ description = "Synthetic Key Vault secret versions in historical offline Terrafo
 condition = "AND"
 paths = ['''^terraform/tests/[^/]+\.tftest\.hcl$''']
 regexes = ['''^0123456789abcdef0123456789abcdef$''']
+
+# Case ids such as "workflow-coordinator-grounded-access" next to a SHA-256 digest
+# match the generic API key rule. The digests are public content fingerprints.
+[[allowlists]]
+description = "SHA-256 context digests in the scorecard context baseline"
+condition = "AND"
+paths = ['''^evaluations/evidence/context-baseline\.json$''']
+regexes = ['''^[0-9a-f]{64}$''']

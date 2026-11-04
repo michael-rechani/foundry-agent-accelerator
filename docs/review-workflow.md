@@ -122,33 +122,53 @@ This workflow runs separately from the chat request path in the
 the FastAPI process. It isn't a queue, a separate worker service, or a durable
 job.
 
-<img alt="Document review lifecycle in eight numbered steps: create and validate a draft without a model call (1), start a run with If-Match from one of four runs (2), save a running snapshot of the input in Azure Cosmos DB before returning HTTP 202 (3), run the coordinator and specialists in Foundry Agent Service for up to 180 seconds (4), apply fail-closed checks to receipts, the JSON schema, and exact source quotes (5), and save the final result with the run's ETag (6). The inbox then shows completed, waiting_input, failed, or interrupted. Adding evidence (7) or recovering an interrupted run with cost confirmation (8) starts a new run from step 2." src="images/review-lifecycle-dark.svg">
+<img alt="How a document review runs, in eight numbered steps. Everything is saved before anything runs: you create a draft, with no model call (1), start the review with one of its four runs (2), and the Lab saves a snapshot of exactly what will be reviewed in Azure Cosmos DB before it confirms the review has started (3). Then a coordinator and specialists in Foundry Agent Service work for up to three minutes (4), the Lab checks that the specialists ran, every item has an answer and every quote matches its source (5), and saves the findings or the reason the review failed (6). A review ends as Results saved, Needs information, Failed or Interrupted. You can add what's missing and review again (7), or confirm the cost and recover an interrupted review (8). Both run again from the saved work." src="images/review-lifecycle-dark.svg">
 
 [View full size](images/review-lifecycle-dark.svg) · [Edit the SVG template](images/review-lifecycle.template.svg)
 
-1. **Create draft.** `POST /api/review-runs` validates the criteria and sources
-   and saves a draft. No model is called.
-2. **Start run.** `POST /api/review-runs/{id}/execute` with the current
-   `If-Match` ETag uses one of the record's four runs.
-3. **Save running snapshot.** A conditional Cosmos write saves the complete
-   input before the server schedules work and returns HTTP 202.
-4. **Run the agents.** The coordinator and specialists run in Foundry Agent
-   Service for up to 180 seconds.
-5. **Check the result.** Fail-closed checks verify specialist receipts, the JSON
-   schema and criterion coverage, and exact quotes from the named sources.
-6. **Save the final result.** The server records validated findings or an error
-   code with the run's ETag.
-7. **Add evidence.** For `waiting_input`, `POST /api/review-runs/{id}/evidence`
-   appends evidence and returns the record to `draft` for a new run from step 2.
-8. **Recover.** For `interrupted`, `POST /api/review-runs/{id}/resume` with
-   `confirm_cost: true` starts a new run from the saved input.
+1. **Create a draft.** You add a checklist and documents. The Lab checks them
+   and saves a draft. No model is called yet.
+2. **Start the review.** You choose **Run review**, which uses one of the
+   review's four runs. The Lab refuses to start if the review has changed since
+   you opened it, or if another start is already under way.
+3. **Save a snapshot.** The Lab saves everything the review will use and
+   confirms it has started. Then it does the work, and keeps going if you close
+   the browser.
+4. **Run the agents.** A coordinator and specialists in Foundry Agent Service
+   read your documents and any details you added, for up to three minutes.
+5. **Check the answer.** The Lab checks that the specialists really ran, that
+   every checklist item has an answer, and that every quote matches its named
+   source exactly. If a check fails, the review ends as **Failed** and says why.
+6. **Save the result.** The Lab saves the checked findings, or the reason the
+   review failed. Only the Lab sets the review's status. The model's text can't.
+7. **Add what's missing.** When a review **Needs information**, you add the
+   missing details or say which statement is right, then choose **Review
+   again**. The earlier runs stay as they were, and the review starts again from
+   step 2.
+8. **Recover the review.** When a review is **Interrupted**, you choose
+   **Recover review** and confirm that it may cost more. The Lab runs again from
+   the saved input.
 
-In the diagram, `…/execute`, `…/evidence`, and `…/resume` abbreviate the full
-routes above. Model text can't supply the record's status, receipt flags, or
-events. Recovery starts a new call from the saved input. It doesn't continue a
-remote model session.
+Recovery starts a new call from the saved input. It doesn't continue a remote
+model session, and the earlier call may still finish, so it can be charged
+again.
 
-Precondition conflicts return HTTP 409 without scheduling another execution.
+**For developers.** The steps map to these routes and records:
+
+| Step | What the Lab does |
+| --- | --- |
+| 1 | `POST /api/review-runs` validates the criteria and sources and saves a draft. |
+| 2 | `POST /api/review-runs/{id}/execute` with the current `If-Match` ETag uses one of the record's four runs. A stale or competing start returns HTTP 409 without scheduling another execution. |
+| 3 | A conditional Cosmos write saves the complete input before the server schedules work and returns HTTP 202. |
+| 5 | Fail-closed checks verify specialist receipts, the JSON schema and criterion coverage, and exact quotes from the named sources. |
+| 6 | The server records validated findings or an error code, using the run's ETag. Model text can't supply the record's status, receipt flags, or events. |
+| 7 | `POST /api/review-runs/{id}/evidence` appends evidence and returns a `waiting_input` record to `draft`, ready for a new run from step 2. |
+| 8 | `POST /api/review-runs/{id}/resume` with `confirm_cost: true` starts a new run from the saved input for an `interrupted` record. |
+
+The inbox labels map to the stored statuses: **Results saved** is `completed`,
+**Needs information** is `waiting_input`, and **Failed** and **Interrupted**
+are `failed` and `interrupted`.
+
 The final write uses the execution's ETag, so the application never blindly
 overwrites a changed document. A failed status poll pauses browser updates, not
 the server task. Refresh restarts polling without submitting another model call.

@@ -32,6 +32,128 @@ The file uses a model placeholder and has no configured tools. Any lookup needs
 or document sources listed on the card are notes only; configure them separately
 in Foundry, then test the agent before relying on it.
 
+### Test a draft before you create it
+
+When library previews are on and the spec card points to a built-in template, the
+card also offers **Test this draft first**. It tests the setup text that **Create
+this agent here** would publish, and it publishes nothing.
+
+<img alt="How testing a draft works, in eight numbered steps. Nothing is published while you test. Write and run the tests: you start testing with no model call (1), one call writes three to eight sample cases, about 1,700 tokens (2), each case runs one to three times, about 800 to 900 tokens each (3), and you read the answers (4). The loop: if cases fail, one call proposes a revision to the task instructions only, about 1,600 tokens (5), you accept or discard it (6), and the Lab runs the cases again (7), which takes you back to reading the answers. A revision can't change the checks, the tools, the template, the Lab's safety text or your own task line. When you are done, you use the tested text (8). You can accept two revisions at most per set of cases, and you can start over with new cases. Every call is billable." src="images/agent-design-loop-dark.svg">
+
+[View full size](images/agent-design-loop-dark.svg) · [Edit the SVG template](images/agent-design-loop.template.svg)
+
+The steps are:
+
+1. Tick the one cost confirmation, then choose **Write test cases**. One model call
+   drafts three to eight sample cases (grounded, missing, conflict, injection and
+   decision-boundary). The Lab drops any case that breaks its rules, repeats the
+   input of an earlier case (ignoring capitals and spacing), or goes past eight, and says how
+   many it dropped. A case can only use the Lab's fixed checks (required words,
+   guarded claims, an asked question, expected lookups). The model never writes
+   a pattern, and it never changes the template, the tools or the Lab's own
+   safety text.
+2. Choose how many times to repeat each test (1 to 3), then choose **Run N test
+   calls**. The browser sends one call at a time and stops at the first error.
+   **Continue** picks up where it stopped without repeating finished runs. **Stop**
+   ends the run, though a call already sent may still finish and use the model.
+3. Each result shows whether the answer passed the automatic checks, which check
+   failed, and the answer itself. A person still has to read each answer against
+   its rubric. Passing the screen isn't proof the answer is right.
+
+   <img alt="The Test this draft panel after a run of three cases: the missing-deadline case did not pass the checks because its answer asks no question, with the answer open to read; the injection-approve case passed; and a Propose a revision (1 call) button sits below" src="images/screenshots/lab-design-loop-test-dark.png">
+
+   [View full size](images/screenshots/lab-design-loop-test-dark.png)
+
+4. If cases fail, choose **Propose a revision (1 call)**. A model reads the
+   failed cases and their answers and proposes new task instructions. It changes
+   that text only: the checks, the tools, the template and the Lab's own safety
+   text stay as they are, and the Lab rejects a reply that tries to change
+   anything else, copies a test's input into the instructions, is empty or too
+   long, or changes nothing. The "Task described by the user" line that the card
+   adds with your own words is not the model's to change either. The Lab puts
+   it back exactly as you wrote it if a reply drops or rewords it. The panel shows
+   the model's reasons and a line diff. Nothing changes until you choose **Accept
+   revision**; **Discard** leaves
+   the text as it was. Accepting makes no model call. It replaces the text the
+   panel tests and the text **Create in Foundry** publishes in the same card, so
+   what you tested is what gets published. The note in the Create panel says when
+   it will publish accepted text.
+
+   <img alt="A proposed revision, 1 of 2: the reason for the change, then a line diff of the task instructions that removes one line about listing documents and adds two, one of which asks the person for a due date when the notice gives none, with Accept revision and Discard buttons below" src="images/screenshots/lab-design-loop-revision-dark.png">
+
+   [View full size](images/screenshots/lab-design-loop-revision-dark.png)
+
+5. After you accept, run again. The re-run covers the cases that failed, any that
+   never ran, and the first two that passed, so a change that fixed one answer
+   and broke another can show up. The panel names a case that passed before and
+   fails now, and says how many cases were not run against the current text.
+   Those cases passed under an earlier version, which is not proof about this
+   one. Read their earlier answers, or start over with new cases. You can
+   accept two revisions at most per set of cases. After that, read the failed
+   answers and edit the instructions yourself. **Start over with new cases**
+   drops accepted text and the earlier rounds.
+
+The cases and results stay in the browser. **Download cases and results** saves
+them as a file, including the current instructions and each earlier version with
+its results and the reasons it was revised. Nothing is written to the Lab's own
+test cases, so a good case still has to be reviewed and added by a person. The
+panel needs no operator key and works when agent creation is off, but every call
+uses the shared model and may incur cost. A revision call that the Lab rejects
+is still a model call, so the message says so. Accepted text is used by
+**Create in Foundry** in that card and by **Start from** on the same card. **Start
+from** opens the Create agent page with the goal and the accepted text. On the
+review step the text appears with a note that you accepted it while testing, and
+**Use the prepared text instead** switches to the template's own text and back.
+The accepted text applies only while the template and the goal stay as they were
+when you accepted it. If you change either, the page says so and the prepared
+text is used. If a setup is already under review on that page, **Start from**
+leaves it as it is. **Start over with new cases** and publishing both drop the
+accepted text. Opening Create agent from a library template or `/#create` never
+carries accepted text.
+
+Switching to another Lab page and returning to **Chat** keeps the spec card's
+test cases, results, usage, accepted instructions, and publication recovery
+details in this browser tab. Leaving Chat pauses further test calls; a call
+already sent may still finish and incur charges. Return and choose **Continue**
+to resume explicitly. Publication can continue while you browse, and an
+unconfirmed creation keeps its original request ID for **Retry same creation
+request** or a status check, not a new publication.
+
+This state is memory-only: reloading or closing the tab loses it, and saving
+the conversation does not save the test panels. Download the results before
+reloading. Starting a new chat, switching agents, or opening another saved
+conversation asks before clearing spec-card work, even if the conversation
+text was saved. Operator keys are never included in saved history or exports.
+
+**What two live runs measured.** One run of the whole loop and one re-run used
+the `document-intake` template with fictional data, one run per case, on one
+deployment. They show the scale of cost, not a promise:
+
+| Call | Tokens measured |
+| --- | --- |
+| Write test cases (1 call) | about 1,700 |
+| Run one test case (1 call each) | about 800 to 900 |
+| Propose a revision (1 call) | about 1,600 |
+
+The first run drafted five cases, ran three and revised once: 5,735 tokens in
+total. The re-run made four test calls: 3,338 tokens. Longer setups, longer
+answers or more repeats cost more, and the cost confirmation is the gate, so
+read the call count before you confirm.
+
+The panel uses three routes, all POST-only, same-origin and private-mode only:
+`/api/agent-test-cases` (writes the cases), `/api/agent-test-runs` (one model
+run of one case) and `/api/agent-test-revisions` (proposes revised instructions
+from up to five failed cases and their answers). All need `confirm_cost: true`.
+They answer `403` `request_not_allowed`, `503` `library_preview_disabled`, `429`
+`busy` (with `Retry-After`), `400` `invalid_setup` or `invalid_case`, `413`
+`request_too_large`, `502` `cases_unusable`, `revision_unusable`,
+`revision_unchanged` or `backend_unavailable`, and `504` `timeout`. The routes
+keep no state, so the revision limit and the repeat count are enforced in the
+browser, and the Lab's per-deployment budget gate is the hard limit. Each run
+uses the same instructions and simulated read-only lookups as a library preview.
+The Lab scores the answer with `workbench/case_scoring.py`, the same screen the
+offline library checks use.
+
 The Create page lists the Lab's 18 templates in three groups, named and ordered
 the same as the sectors in the **Agent library**: **Works in any sector** (five
 jobs), **Private sector** (nine jobs), and **Healthcare and public sector**
@@ -230,7 +352,7 @@ For non-Terraform operators, the equivalent server configuration is:
 | `WORKBENCH_CREATION_KEY_SHA256` | Lowercase, 64-character verifier from a secret reference. Never the raw key |
 | `WORKBENCH_MAX_CREATED_AGENTS` | Defaults to 5. Allowed range 1-20. Failed or unconfirmed attempts still count |
 | `WORKBENCH_PUBLICATION_TIMEOUT_SECONDS` | Defaults to 600. Allowed range 30-900 |
-| `WORKBENCH_LIBRARY_PREVIEW_ENABLED` | `true` (default) or `false`. When `true` in private mode with a creation model configured, **Chat** can run library definitions as unsaved previews on that model without publishing an agent. Previews use only simulated read-only lookups, and each message may incur model cost. Other values fail startup. |
+| `WORKBENCH_LIBRARY_PREVIEW_ENABLED` | `true` (default) or `false`. When `true` in private mode with a creation model configured, **Chat** can run library definitions as unsaved previews on that model without publishing an agent. Previews use only simulated read-only lookups, and each message may incur model cost. The same setting turns on **Test this draft first**, whose test and revision calls also use the model. Other values fail startup. |
 | `WORKBENCH_UNFINISHED_AGENTS_ENABLED` | `true` or `false` (default). When `false`, the Lab offers, previews, drafts and creates only **featured** library agents: those marked Focus or signed off as Reviewed. Everything else stays in the code but is hidden from the Library, Chat, Create and the job finder, and the API refuses it. Agents you already created keep working. Set by `unfinished_agents_enabled` in Terraform. Other values fail startup. Guided demos use agents that are not featured yet, so they show their "no matching agent" state until you turn this on. |
 
 The existing `WORKBENCH_MODE=private`, Foundry endpoint, managed identity,
@@ -345,9 +467,10 @@ model or storage. All 18 listed templates have a scorecard; a template without a
 recorded run would show no results. Every case is recorded several times, and it
 passes only when every run passes. Each case carries `runs` and `runs_passed`,
 and each summary carries `runs_per_case`, `runs` and `runs_passed`. Each recorded
-answer also carries a fingerprint of the instructions its agent had when it ran.
-The build fails when an agent's instructions change afterwards, so the results
-can't describe instructions the Lab no longer uses. Each case includes the
+answer also carries a fingerprint of the instructions its agent had when it ran,
+and another of the test it ran against (input, fixtures, model profile and tools).
+The build fails when either changes afterwards, so the results can't describe
+instructions or a test the Lab no longer uses. Each case includes the
 request that was sent, which the library's **Take it to Foundry** tab turns into
 a downloadable evaluation file.
 

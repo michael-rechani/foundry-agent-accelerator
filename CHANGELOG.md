@@ -17,6 +17,36 @@ Pull request numbers link to the full discussion.
 - **Next steps in Chat.** The Benefits renewal helper offers one-click buttons
   under its latest answer: the checklist, the draft note and questions for the
   caseworker.
+- **A diagram of the test loop.** The "Test a draft before you create it" section
+  of the agent creation guide now includes a diagram of the whole loop: write
+  cases, run them, read the answers, propose a revision, accept or discard it,
+  and run again. It marks which steps call a model and which are your decisions, lists
+  what a revision can't change, and shows the measured token cost of each call.
+  It has light and dark versions like the other diagrams.
+- **Screenshots of the test panel.** The same section now shows two pictures of
+  the real panel, each in light and dark: a run with one case that did not pass,
+  and the proposed revision as a line diff with **Accept revision** and
+  **Discard**. They use fictional text and mocked routes, so taking them calls
+  no model.
+- **Test a draft before you create it.** When the Agent designer's spec points to
+  a built-in template, the spec card offers **Test this draft first**. One model
+  call writes sample test cases, and the Lab keeps only those that pass its
+  rules. You run them against the draft's setup text, and the Lab screens each
+  answer with its fixed checks. If cases fail, **Propose a revision** asks a
+  model to rewrite the task instructions only, shows the reasons and a line
+  diff, and changes nothing until you accept. The line holding your own task is
+  never the model's to change; the Lab puts it back if a revision drops it. Every
+  model call needs the cost confirmation, and nothing is published or written to
+  the Lab's own test cases.
+  ([#457](https://github.com/michael-rechani/foundry-agent-accelerator/issues/457),
+  [#458](https://github.com/michael-rechani/foundry-agent-accelerator/issues/458),
+  [#459](https://github.com/michael-rechani/foundry-agent-accelerator/issues/459),
+  [#460](https://github.com/michael-rechani/foundry-agent-accelerator/issues/460))
+- **Carry accepted text into Create agent.** **Start from** on the spec card now
+  passes the instructions you accepted while testing. The review step shows them
+  with a note and a button to switch to the template's own text. They apply only
+  while the template and the goal are unchanged.
+  ([#465](https://github.com/michael-rechani/foundry-agent-accelerator/issues/465))
 - **Build an agent from the chat.** When the Agent designer's spec points to a
   built-in template and creation is on, the spec card offers **Create this agent
   here**. It shows the cost notes, asks for the operator key and a cost
@@ -39,6 +69,18 @@ Pull request numbers link to the full discussion.
 
 ### Changed
 
+- **A tighter main README.** The page says each thing once: access to the Lab is
+  explained in one place and linked, the tour steps and sidebar summary are
+  shorter, and the Documentation and Automated checks sections point to the
+  full guides instead of repeating them. `./deploy.ps1` now leads the deploy
+  steps, with the by-hand order folded away. The intro now mentions testing a
+  draft before you publish it. Every heading is unchanged, so existing links to
+  the page still work.
+- **A plainer review lifecycle.** The document review diagram and its steps in
+  the review workflow guide now say what happens in everyday words: you add a
+  checklist, start the review, add what's missing, or recover an interrupted
+  one. The routes, ETags and status names moved into a short table for
+  developers.
 - **One place to find an agent.** The separate **Find an agent** page is gone.
   Its "What are you trying to do?" box now sits at the top of **All agents**,
   above the guided demos and the agent cards, so the sidebar has one agents

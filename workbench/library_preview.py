@@ -139,16 +139,20 @@ def run_tool(functions, call):
         return json.dumps({"status": "failed", "error": str(problem)})
 
 
-async def run_preview(client, *, template_id, model, prompt, reasoning=False, usage=None, admit_model_call=None):
+async def run_preview(client, *, template_id, model, prompt, reasoning=False, usage=None, admit_model_call=None,
+                      instructions=None):
     """Return (status, text, output items) after a bounded simulated-tool loop.
 
     Output items include each function_call_output so the caller can verify receipts the same way it
     does for hosted agents. With store=False, reasoning models need their encrypted reasoning passed back.
+    `instructions` replaces the template's, for a draft that has not been published; the caller composes
+    the fixed policy into it.
     """
     designer = template_id == DESIGNER_TEMPLATE
     functions = {} if designer else {
         function.__name__: function for function in create_demo_tools(template_id, PREVIEW_AGENT)}
-    instructions = DESIGNER_INSTRUCTIONS if designer else DEMO_POLICY + TEMPLATES[template_id]["instructions"]
+    if instructions is None:
+        instructions = DESIGNER_INSTRUCTIONS if designer else DEMO_POLICY + TEMPLATES[template_id]["instructions"]
     options = {"model": model, "instructions": instructions, "store": False, "stream": False}
     if functions:
         options["tools"] = tool_specs(functions.values())

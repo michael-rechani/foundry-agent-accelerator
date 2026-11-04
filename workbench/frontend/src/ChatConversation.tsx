@@ -3,6 +3,7 @@ import { ChatAside } from './ChatAside'
 import { ChatComposer } from './ChatComposer'
 import { ChatMessages } from './ChatMessages'
 import type { SpecBuild } from './SpecBuildPanel'
+import type { SpecTests } from './SpecTestPanel'
 import { saveStateText, type chatLimits } from './chat-helpers'
 import { withRating } from './answer-feedback'
 import { isDesignerId } from './agent-designer'
@@ -14,6 +15,7 @@ import type { Agent, Config } from './workspace-config'
 // wide screens the agent's details beside them from the first screen on, so the
 // layout does not shift after the first reply.
 export function ChatConversation({
+  active,
   config,
   agent,
   agents,
@@ -51,7 +53,9 @@ export function ChatConversation({
   templates,
   onCreateFromTemplate,
   build,
+  tests,
 }: {
+  active: boolean
   config: Config | null
   agent?: Agent
   agents: Agent[]
@@ -87,8 +91,13 @@ export function ChatConversation({
   onAddOns: () => void
   onCreateAgent?: () => void
   templates?: { id: string; label: string }[]
-  onCreateFromTemplate?: (templateId: string, goal?: string) => void
+  onCreateFromTemplate?: (
+    templateId: string,
+    goal?: string,
+    instructions?: string,
+  ) => void
   build?: SpecBuild
+  tests?: SpecTests
 }) {
   const {
     draft,
@@ -114,7 +123,7 @@ export function ChatConversation({
       ? 'example'
       : 'typed'
   return (
-    <div className="conversation-layout">
+    <div className="conversation-layout" hidden={!active}>
       <main className="conversation-view">
         {agentNotice && (
           <p className="creation-error" role="alert">
@@ -172,6 +181,7 @@ export function ChatConversation({
           templates={templates}
           onCreateFromTemplate={onCreateFromTemplate}
           build={build}
+          tests={tests}
           onRetry={
             agent &&
             draft.trim() &&

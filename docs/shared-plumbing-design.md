@@ -206,6 +206,12 @@ two evaluation copies accepted any host and the three Lab and hosted copies
 accepted a URL with only a password (`https://:secret@...`) or with path
 parameters (`;x=1`).
 
+The answer screen followed the same route. `score()`, the guard phrase lists and
+the text normalization moved out of `library_checks.py` into
+`workbench/case_scoring.py`, because the Lab's draft test run now scores answers
+with them too. `library_checks.py` imports the names it uses, and
+`evaluations/test_shared_rules.py` asserts that it uses that one copy.
+
 The code can only be shared in one direction. The Lab image contains only
 `workbench/`, while `evaluations/` already puts `workbench/` on `sys.path`
 (`library_checks.py` lines 16 to 18). So the single source has to live in

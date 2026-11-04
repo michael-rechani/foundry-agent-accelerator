@@ -65,6 +65,15 @@ class LibraryPreviewTests(unittest.TestCase):
         self.assertNotIn("include", options)
         self.assertFalse(options["store"])
 
+    def test_instructions_replace_the_computed_ones_without_changing_the_tools(self):
+        custom = DEMO_POLICY + "Summarize the notice."
+        for template_id, expect_tools in ((text_template(), False), (tool_template(), True), (DESIGNER_TEMPLATE, False)):
+            client = FakeClient([Response([{"type": "message"}], text="Done")])
+            asyncio.run(run_preview(client, template_id=template_id, model="gpt-test", prompt="Go", reasoning=True,
+                                    instructions=custom))
+            self.assertEqual(client.calls[0]["instructions"], custom)
+            self.assertEqual("tools" in client.calls[0], expect_tools)
+
     def test_agent_designer_knows_the_real_export_path(self):
         for phrase in ("Take it to Foundry", "The Lab has no import", "hosted-agent package"):
             self.assertIn(phrase, DESIGNER_INSTRUCTIONS)

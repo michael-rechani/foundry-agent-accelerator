@@ -219,7 +219,7 @@ export function ReviewWorkspace({
     setSelected(null)
     setAdditional('')
     setError('')
-    window.history.replaceState(null, '', window.location.pathname)
+    window.history.replaceState(null, '', '#reviews')
   }
 
   function startReview() {

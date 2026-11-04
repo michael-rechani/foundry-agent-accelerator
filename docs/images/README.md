@@ -32,6 +32,7 @@ component:
 | [Lab components](lab-components.svg) | What runs in the browser, the Lab's internal container app, Microsoft Foundry, and the data store, and how they connect. | [Architecture guide](../architecture.md#component-interactions) | [Template](lab-components.template.svg) |
 | [Chat request flow](lab-request-flow.svg) | One chat request in sequence: admission, specialist delegation, receipts, and the separate save to shared history. | [Architecture guide](../architecture.md#chat-and-delegation) | [Template](lab-request-flow.template.svg) |
 | [Review lifecycle](review-lifecycle.svg) | What a document review saves before it runs, how results are checked, and how clarification resumes. | [Review workflow](../review-workflow.md#execution-and-persistence) | [Template](review-lifecycle.template.svg) |
+| [Testing a draft](agent-design-loop.svg) | The test, read, revise and re-run loop on the Agent designer's spec card: which steps call a model, which are your decisions, what a revision can't change, and the measured token costs. | [Agent creation](../agent-creation.md#test-a-draft-before-you-create-it) | [Template](agent-design-loop.template.svg) |
 | [Operations](foundry-operations.svg) | Independent telemetry, image-publishing, and state paths, plus secret ownership. | [Architecture guide](../architecture.md#operations) | [Template](foundry-operations.template.svg) |
 | [Terraform deployment](foundry-deployment.svg) | Which Terraform root owns what, what must exist first, and the separate release workflows. | [Extension guide](../architecture-assessment.md#terraform-first-deployment) | [Template](foundry-deployment.template.svg) |
 
@@ -73,7 +74,7 @@ unless the diagram says so.
 
 ## Diagram style
 
-All eleven diagrams follow the same rules, so the set reads as one family. They
+All twelve diagrams follow the same rules, so the set reads as one family. They
 borrow the layered layout of the
 [Azure Architecture Center](https://learn.microsoft.com/azure/architecture/browse/)
 reference diagrams, simplified for a workshop audience: official icons,
@@ -292,6 +293,12 @@ light and dark mode. To capture another look, change the `data-look` value in
 | [lab-demo-application.png](screenshots/lab-demo-application.png) / [dark](screenshots/lab-demo-application-dark.png) | Application completeness story in **Guided demos** | `demo-application.png` / `demo-application-dark.png` | Scenario tour, [showcase](../showcase.md) |
 | [lab-demo-invoice.png](screenshots/lab-demo-invoice.png) / [dark](screenshots/lab-demo-invoice-dark.png) | Supplier invoice story with sample findings | `demo-invoice.png` / `demo-invoice-dark.png` | Scenario tour and showcase |
 | [lab-demo-casework.png](screenshots/lab-demo-casework.png) / [dark](screenshots/lab-demo-casework-dark.png) | Casework story preserving facts, disagreements, and human decisions | `demo-casework.png` / `demo-casework-dark.png` | Scenario tour and showcase |
+| [lab-design-loop-test.png](screenshots/lab-design-loop-test.png) / [dark](screenshots/lab-design-loop-test-dark.png) | The **Test this draft** panel after a run: one case that did not pass, with its answer open, one that did, and **Propose a revision (1 call)** | `design-loop-test.png` / `design-loop-test-dark.png` | [Agent creation](../agent-creation.md#test-a-draft-before-you-create-it) |
+| [lab-design-loop-revision.png](screenshots/lab-design-loop-revision.png) / [dark](screenshots/lab-design-loop-revision-dark.png) | A proposed revision: its reason, the line diff of the task instructions, and **Accept revision** and **Discard** | `design-loop-revision.png` / `design-loop-revision-dark.png` | [Agent creation](../agent-creation.md#test-a-draft-before-you-create-it) |
+
+The two test-loop pictures come from `design-loop-docs.spec.ts`, which uses
+fictional text and mocked routes, so no model is called. The behavior itself is
+checked in `design-loop.spec.ts`.
 
 To refresh them, run the desktop browser tests, then the asset refresh script:
 
@@ -307,7 +314,7 @@ cd ../..
 The tests write 1440 x 1000 PNGs under `test-results/`, which Git ignores.
 The refresh script requires exactly one desktop result per selected source and
 validates every selected PNG before replacing documentation images. By default
-it refreshes all twenty-four images. For a focused UI change, run the relevant
+it refreshes all twenty-eight images. For a focused UI change, run the relevant
 desktop tests and refresh just the affected light/dark pairs:
 
 ```powershell

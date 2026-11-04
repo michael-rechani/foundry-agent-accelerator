@@ -20,6 +20,7 @@ import {
 } from './answer-steps'
 import { AgentSpecCard } from './AgentSpecCard'
 import { SpecBuildPanel, type SpecBuild } from './SpecBuildPanel'
+import { SpecTestPanel, type SpecTests } from './SpecTestPanel'
 import { parseAgentSpec, specGoal } from './agent-spec'
 import { AnswerFeedback } from './AnswerFeedback'
 import type { Rating, Result, Turn } from './conversation-types'
@@ -235,6 +236,7 @@ export function ConversationTurn({
   templates,
   onCreateFromTemplate,
   build,
+  tests,
   onCopy,
   onRate,
   onTryAgain,
@@ -254,15 +256,23 @@ export function ConversationTurn({
   busy?: boolean
   // Library templates the Agent designer's spec can point to.
   templates?: { id: string; label: string }[]
-  onCreateFromTemplate?: (templateId: string, goal?: string) => void
+  onCreateFromTemplate?: (
+    templateId: string,
+    goal?: string,
+    instructions?: string,
+  ) => void
   // Lets the spec card publish the agent without leaving the chat.
   build?: SpecBuild
+  // Lets the spec card try the draft before publishing it.
+  tests?: SpecTests
   onCopy: (text: string) => void
   onRate: (rating: Rating | undefined) => void
   onTryAgain?: () => void
   followUps?: FollowUp[]
   onFollowUp?: (text: string) => void
 }) {
+  // Task instructions the person accepted while testing this turn's draft.
+  const [revised, setRevised] = useState<string | null>(null)
   const designed = plain
     ? parseAgentSpec(turn.result.text)
     : { text: turn.result.text, spec: null }
@@ -316,19 +326,38 @@ export function ConversationTurn({
           <AgentSpecCard
             spec={designed.spec}
             templateLabel={closest?.label}
+            carriesInstructions={revised !== null}
             onCreateFromTemplate={
               closest && onCreateFromTemplate
                 ? () =>
-                    onCreateFromTemplate(closest.id, specGoal(designed.spec!))
+                    onCreateFromTemplate(
+                      closest.id,
+                      specGoal(designed.spec!),
+                      revised ?? undefined,
+                    )
                 : undefined
             }
+            tests={
+              closest && tests ? (
+                <SpecTestPanel
+                  spec={designed.spec}
+                  templateId={closest.id}
+                  templateLabel={closest.label}
+                  tests={tests}
+                  onAccept={setRevised}
+                  disabled={busy}
+                />
+              ) : undefined
+            }
             build={
-              closest && build?.capability.enabled && !busy ? (
+              closest && build?.capability.enabled ? (
                 <SpecBuildPanel
                   spec={designed.spec}
                   templateId={closest.id}
                   templateLabel={closest.label}
                   build={build}
+                  instructions={revised}
+                  disabled={busy}
                 />
               ) : undefined
             }

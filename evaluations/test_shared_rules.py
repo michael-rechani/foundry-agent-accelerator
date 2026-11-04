@@ -7,6 +7,7 @@ import json
 import unittest
 
 import library_checks  # puts workbench/ on sys.path
+import case_scoring
 import library_rules
 import library_runs
 import scorecards
@@ -40,12 +41,26 @@ class EvidenceRowTests(unittest.TestCase):
         self.assertTrue({"recorded_on", "instructions_sha256", "case_id"} <= set(library_rules.ANSWER_ROW))
 
     def test_every_row_in_the_recorded_evidence_has_exactly_those_keys_in_that_order(self):
+        # A row recorded before the context fingerprint has every key but that one, and the committed
+        # baseline then vouches for its case; a row that carries the fingerprint has all of them.
+        baseline = scorecards.load_context_baseline(scorecards.CONTEXT_BASELINE)
         for path, keys in ((scorecards.ANSWERS, library_rules.ANSWER_ROW), (scorecards.METRICS, library_rules.METRICS_ROW),
                            (scorecards.REPEATS, library_rules.RUN_ROW)):
             rows = scorecards._lines(path)
             self.assertTrue(rows, path.name)
             for row in rows:
-                self.assertEqual(tuple(row), keys, f"{path.name}: {row.get('case_id')}")
+                where = f"{path.name}: {row.get('case_id')}"
+                if library_rules.CONTEXT_KEY in row:
+                    self.assertEqual(tuple(row), keys, where)
+                else:
+                    self.assertEqual(tuple(row), library_rules.without_context(keys), where)
+                    self.assertIn(row["case_id"], baseline, f"{where} has no context baseline entry")
+
+    def test_the_context_key_sits_right_after_the_instructions_key_in_every_row(self):
+        for keys in (library_rules.ANSWER_ROW, library_rules.METRICS_ROW, library_rules.RUN_ROW):
+            self.assertEqual(keys[keys.index("instructions_sha256") + 1], library_rules.CONTEXT_KEY)
+            self.assertNotIn(library_rules.CONTEXT_KEY, library_rules.without_context(keys))
+            self.assertEqual(len(library_rules.without_context(keys)), len(keys) - 1)
 
 
 class OneCopyTests(unittest.TestCase):
@@ -55,6 +70,11 @@ class OneCopyTests(unittest.TestCase):
 
     def test_the_deployment_name_pattern_is_one_pattern(self):
         self.assertIs(library_runs.DEPLOYMENT_NAME, library_rules.DEPLOYMENT_NAME)
+
+    def test_the_answer_screen_is_one_module(self):
+        self.assertIs(library_checks.score, case_scoring.score)
+        self.assertIs(library_checks.CHECK_KEYS, case_scoring.CHECK_KEYS)
+        self.assertIs(library_checks.GUARDS, case_scoring.GUARDS)
 
     def test_the_date_rule_is_one_function(self):
         self.assertIs(scorecards.valid_date, library_rules.valid_date)

@@ -81,6 +81,10 @@ ANSWER_LAYOUT = (
     "yours and who makes it: "
 )
 
+# `prepare_draft` ends a draft's instructions with this line and the person's goal. A revision keeps
+# that block as it was (draft_revision.py), so the published agent still holds the person's own task.
+TASK_MARKER = "\n\nTask described by the user:\n"
+
 # Each agent is one file in agents/. TEMPLATES, TEMPLATE_METADATA and _MATCHERS follow the library's order with
 # retired agents last, so the `template_required` candidates come in the order the library lists them;
 # LIBRARY_ORDER holds only the listed agents.
@@ -235,7 +239,7 @@ def prepare_draft(goal, template_id=None, include_unfinished=True):
     if not isinstance(template_id, str) or not is_available(template_id, include_unfinished):
         raise ValueError("Unknown prepared template")
     template = TEMPLATES[template_id]
-    instructions = template["instructions"] + "\n\nTask described by the user:\n" + goal
+    instructions = template["instructions"] + TASK_MARKER + goal
     if len(instructions) > 6000:
         raise ValueError("Prepared task instructions exceed the limit")
     return {

@@ -63,6 +63,15 @@ describe('useHistoryClient', () => {
     await assert.rejects(historyRequest(5000)('/abc'), { message: unavailable })
   })
 
+  it('uses the generic message for unexpected JSON error shapes', async () => {
+    for (const value of [null, [], 'unavailable', 503, true, { error: [] }]) {
+      respond(JSON.stringify(value), 503)
+      await assert.rejects(historyRequest(5000)('/abc'), {
+        message: unavailable,
+      })
+    }
+  })
+
   it('rejects an unreadable successful response with a plain message', async () => {
     respond('<html>Welcome</html>', 200)
     await assert.rejects(historyRequest(5000)('/abc'), {

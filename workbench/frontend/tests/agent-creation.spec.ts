@@ -132,11 +132,17 @@ test('creation is the entry point with nine honest jobs in two groups and usable
   await expect(
     page.getByRole('button', { name: 'Prepare setup', exact: true }),
   ).toBeDisabled()
-  for (const label of ['All agents', 'Chat', 'Shared history', 'Performance']) {
+  for (const label of ['Chat', 'Shared history', 'Performance']) {
     await expect(
       workspaceNav(page).getByRole('button', { name: label, exact: true }),
     ).toBeVisible()
   }
+  await expect(
+    workspaceNav(page).getByRole('button', {
+      name: 'All agents 9',
+      exact: true,
+    }),
+  ).toBeVisible()
   await expect(
     workspaceNav(page).getByRole('button', { name: 'Document reviews' }),
   ).toHaveCount(0)

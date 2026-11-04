@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { requestJson } from './request'
+import { errorBody, requestJson } from './request'
 import {
   isObject,
   validAgent,
@@ -151,9 +151,7 @@ export async function creationRequest(
     )
     if (!response.ok)
       throw new CreationError(
-        isObject(data) && typeof data.error === 'string'
-          ? data.error
-          : 'operation_failed',
+        errorBody(data).error ?? 'operation_failed',
         response.status,
       )
     return data
@@ -175,49 +173,6 @@ function validProfile(value: unknown): value is ModelProfile {
       (text) => String(text).trim().length > 0,
     )
   )
-}
-
-export function parseTemplates(value: unknown): AgentTemplate[] {
-  if (
-    !isObject(value) ||
-    value.draft_mode !== 'template' ||
-    !Array.isArray(value.templates) ||
-    !value.templates.every(
-      (item): item is AgentTemplate =>
-        isObject(item) &&
-        strings(item, [
-          'id',
-          'category',
-          'label',
-          'description',
-          'input',
-          'output',
-          'limits',
-          'delegation',
-          'instructions',
-          'example_request',
-          'sample_input',
-        ]) &&
-        validProfile(item.model_profile) &&
-        Array.isArray(item.tools) &&
-        item.tools.every(
-          (tool) =>
-            isObject(tool) &&
-            strings(tool, ['name', 'description']) &&
-            typeof tool.simulated === 'boolean',
-        ),
-    )
-  )
-    throw new Error(
-      'The template response is invalid. Ask the Lab operator to check the server.',
-    )
-  if (
-    !value.templates.length ||
-    new Set(value.templates.map((item) => item.id)).size !==
-      value.templates.length
-  )
-    throw new Error('The template list is empty or contains duplicate IDs.')
-  return value.templates
 }
 
 export function groupTemplates(templates: AgentTemplate[]) {
