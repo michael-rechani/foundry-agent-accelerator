@@ -8,6 +8,7 @@ $network = Get-Content -LiteralPath (Join-Path $root 'network.tf') -Raw
 $management = Get-Content -LiteralPath (Join-Path $root 'management-network.tf') -Raw
 $storage = Get-Content -LiteralPath (Join-Path $root 'keyless-storage.tf') -Raw
 $variables = Get-Content -LiteralPath (Join-Path $root 'variables.tf') -Raw
+$backendEndpoint = Get-Content -LiteralPath (Join-Path $root 'state-backend-endpoint.tf') -Raw
 
 function Get-Block([string]$Source, [string]$Header) {
     $match = [regex]::Match($Source, "(?ms)^$([regex]::Escape($Header)) \{.*?^\}")
@@ -24,8 +25,19 @@ $blocks = @(
     (Get-Block $management 'resource "azurerm_private_dns_zone_virtual_network_link" "jumpbox"'),
     (Get-Block $network 'resource "azurerm_monitor_private_link_scope" "this"'),
     (Get-Block $network 'resource "azurerm_private_endpoint" "azure_monitor"'),
-    (Get-Block $storage 'resource "azurerm_private_endpoint" "agent_storage"')
+    (Get-Block $storage 'resource "azurerm_private_endpoint" "agent_storage"'),
+    (Get-Block $backendEndpoint 'variable "terraform_state_private_endpoint"'),
+    (Get-Block $backendEndpoint 'resource "azurerm_private_endpoint" "terraform_state"')
 )
+if ($backendEndpoint -notmatch 'to\s*=\s*azurerm_private_endpoint\.terraform_state\[0\]' -or
+    $backendEndpoint -notmatch 'for_each\s*=\s*var\.terraform_state_private_endpoint == null \? \{\} : \{ existing = var\.terraform_state_private_endpoint \}' -or
+    $backendEndpoint -notmatch '(?m)^\s*id\s*=\s*each\.value\.id\s*$') {
+    throw 'The backend endpoint import must be explicitly opted in and use the exact supplied existing resource ID.'
+}
+if ($backendEndpoint -notmatch 'lifecycle\s*\{\s*prevent_destroy\s*=\s*true' -or
+    $backendEndpoint -notmatch 'subnet_id\s*=\s*azurerm_subnet\.private_endpoints\.id') {
+    throw 'The backend endpoint must use the existing private subnet and be protected from destruction.'
+}
 foreach ($zoneSource in @(
         (Get-Block $network 'resource "azurerm_private_dns_zone" "this"'),
         (Get-Block (Get-Content -LiteralPath (Join-Path $root 'bootstrap/main.tf') -Raw) 'resource "azapi_resource" "dns_zone"'))) {
@@ -115,7 +127,8 @@ run "legacy_ownership_unchanged" {
     condition = (
       contains(keys(azurerm_private_dns_zone.this), "storage_blob") &&
       azurerm_private_dns_zone_virtual_network_link.this["storage_blob"].resource_group_name == "rg-platform" &&
-      contains(keys(azurerm_private_dns_zone_virtual_network_link.jumpbox), "storage_blob")
+      contains(keys(azurerm_private_dns_zone_virtual_network_link.jumpbox), "storage_blob") &&
+      length(azurerm_private_endpoint.terraform_state) == 0
     )
     error_message = "Null must preserve the existing platform zone and both links."
   }
@@ -178,6 +191,100 @@ run "reject_cross_subscription_zone" {
   }
   expect_failures = [var.blob_private_dns_zone_id]
 }
+
+run "adopt_backend_endpoint_without_taking_storage_ownership" {
+  command = plan
+  variables {
+    blob_private_dns_zone_id = "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-state/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+    terraform_state_private_endpoint = {
+      id                 = "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-platform/providers/Microsoft.Network/privateEndpoints/pe-existing-state"
+      storage_account_id = "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-external/providers/Microsoft.Storage/storageAccounts/stsharedstate"
+    }
+  }
+  assert {
+    condition = (
+      length(azurerm_private_endpoint.terraform_state) == 1 &&
+      azurerm_private_endpoint.terraform_state[0].name == "pe-existing-state" &&
+      length(azurerm_private_endpoint.terraform_state[0].tags) == 0 &&
+      azurerm_private_endpoint.terraform_state[0].private_service_connection[0].name == "tfstate-blob" &&
+      !azurerm_private_endpoint.terraform_state[0].private_service_connection[0].is_manual_connection
+    )
+    error_message = "The adopted endpoint must retain its existing name, automatic connection and empty tags."
+  }
+  assert {
+    condition = (
+      azurerm_private_endpoint.terraform_state[0].private_service_connection[0].private_connection_resource_id == var.terraform_state_private_endpoint.storage_account_id &&
+      toset(azurerm_private_endpoint.terraform_state[0].private_service_connection[0].subresource_names) == toset(["blob"]) &&
+      azurerm_private_endpoint.terraform_state[0].private_dns_zone_group[0].name == "blob" &&
+      contains(azurerm_private_endpoint.terraform_state[0].private_dns_zone_group[0].private_dns_zone_ids, var.blob_private_dns_zone_id)
+    )
+    error_message = "The backend endpoint must reference the external storage account and effective blob zone without creating either."
+  }
+}
+
+run "reject_backend_endpoint_in_another_platform" {
+  command = plan
+  variables {
+    terraform_state_private_endpoint = {
+      id                 = "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-other/providers/Microsoft.Network/privateEndpoints/pe-existing-state"
+      storage_account_id = "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-external/providers/Microsoft.Storage/storageAccounts/stsharedstate"
+    }
+  }
+  expect_failures = [azurerm_private_endpoint.terraform_state[0]]
+}
+
+run "adopt_backend_endpoint_with_platform_owned_zone" {
+  command = plan
+  variables {
+    terraform_state_private_endpoint = {
+      id                 = "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-platform/providers/Microsoft.Network/privateEndpoints/pe-existing-state"
+      storage_account_id = "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-external/providers/Microsoft.Storage/storageAccounts/stsharedstate"
+      tags               = { existing = "preserved" }
+    }
+  }
+  assert {
+    condition = (
+      contains(keys(azurerm_private_dns_zone.this), "storage_blob") &&
+      azurerm_private_endpoint.terraform_state[0].tags["existing"] == "preserved" &&
+      azurerm_private_endpoint.terraform_state[0].location == "northcentralus" &&
+      azurerm_private_endpoint.terraform_state[0].resource_group_name == "rg-platform"
+    )
+    error_message = "Adoption must support existing platform-owned DNS without modifying endpoint tags or placement."
+  }
+}
+
+run "reject_backend_endpoint_in_another_subscription" {
+  command = plan
+  variables {
+    terraform_state_private_endpoint = {
+      id                 = "/subscriptions/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/resourceGroups/rg-platform/providers/Microsoft.Network/privateEndpoints/pe-existing-state"
+      storage_account_id = "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-external/providers/Microsoft.Storage/storageAccounts/stsharedstate"
+    }
+  }
+  expect_failures = [azurerm_private_endpoint.terraform_state[0]]
+}
+
+run "reject_invalid_backend_endpoint_id" {
+  command = plan
+  variables {
+    terraform_state_private_endpoint = {
+      id                 = "pe-existing-state"
+      storage_account_id = "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-external/providers/Microsoft.Storage/storageAccounts/stsharedstate"
+    }
+  }
+  expect_failures = [var.terraform_state_private_endpoint]
+}
+
+run "reject_invalid_backend_storage_id" {
+  command = plan
+  variables {
+    terraform_state_private_endpoint = {
+      id                 = "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-platform/providers/Microsoft.Network/privateEndpoints/pe-existing-state"
+      storage_account_id = "stsharedstate"
+    }
+  }
+  expect_failures = [var.terraform_state_private_endpoint]
+}
 '@
     Set-Content -LiteralPath (Join-Path $temporary 'dns.tftest.hcl') -Value $tests
     & $TerraformCommand "-chdir=$temporary" init -backend=false -input=false -no-color
@@ -185,5 +292,15 @@ run "reject_cross_subscription_zone" {
     & $TerraformCommand "-chdir=$temporary" test -no-color
     if ($LASTEXITCODE -ne 0) { throw 'Shared DNS ownership tests failed.' }
 } finally {
-    Remove-Item -LiteralPath $temporary -Recurse -Force
+    for ($attempt = 0; $attempt -lt 5; $attempt++) {
+        try {
+            Remove-Item -LiteralPath $temporary -Recurse -Force -ErrorAction Stop
+            break
+        }
+        catch [System.UnauthorizedAccessException], [System.IO.IOException] {
+            if ($attempt -eq 4) { throw }
+            # Windows can briefly retain provider executable handles after Terraform exits.
+            Start-Sleep -Milliseconds (250 * ($attempt + 1))
+        }
+    }
 }

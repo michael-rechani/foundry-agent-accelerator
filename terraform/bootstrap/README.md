@@ -113,6 +113,11 @@ egress it proposes. A broad deployment approval does not cover public exposure.
 
 ### Adopt an existing platform
 
+This is an optional DNS ownership migration, **not** a prerequisite for
+reconciling the current Lab. To adopt its missing backend endpoint while
+keeping the existing shared account and platform-owned zone, use
+[existing backend endpoint adoption](../README.md#adopt-an-existing-backend-private-endpoint).
+
 Tracked under [#389](https://github.com/michael-rechani/foundry-agent-accelerator/issues/389)
 and [#393](https://github.com/michael-rechani/foundry-agent-accelerator/issues/393).
 **Do not simply set the shared-zone input and apply.** The old platform zone

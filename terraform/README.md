@@ -275,6 +275,49 @@ Foundry project as a resource instance, so live evaluation can store results.
 It doesn't change public network access. A rule already added by hand for the
 same project ID produces no change.
 
+### Adopt an existing backend private endpoint
+
+The existing Lab backend is not a fresh-subscription bootstrap deployment. Its
+shared storage account/container remain external, and its blob DNS zone and
+workload/management links already belong to the platform state. Do not deploy a
+second backend or move that zone merely to match the bootstrap layout.
+
+To adopt only the existing Lab-specific state backend private endpoint, retain
+this input in the installation's protected platform tfvars:
+
+```hcl
+terraform_state_private_endpoint = {
+  id                 = "/subscriptions/<subscription-id>/resourceGroups/<platform-rg>/providers/Microsoft.Network/privateEndpoints/pe-foundry-tfstate"
+  storage_account_id = "/subscriptions/<subscription-id>/resourceGroups/<state-rg>/providers/Microsoft.Storage/storageAccounts/<state-account>"
+  tags               = {}
+}
+```
+
+Null is the default and does not create or import an endpoint. When enabled,
+the platform imports `azurerm_private_endpoint.terraform_state[0]` using the
+exact supplied ID. It preserves the endpoint name, `tfstate-blob` automatic
+connection, `blob` subresource/zone group, existing workload endpoint subnet
+and effective blob DNS zone. Explicit empty tags preserve the existing
+untagged endpoint rather than adding platform tags. The shared storage
+account and container are not imported or created.
+
+From an approved private Terraform host, initialize the **existing**
+`ai-foundry/dev.tfstate` backend and use the installation's existing reviewed
+inputs. Generate and inspect a saved full-root plan. For this adoption, require
+**one import, zero infrastructure creates, changes or destroys**. Root output
+additions may update state metadata only. Stop for unexpected drift; do not
+hide it with targeting, disabled refresh or ignored attributes. Apply only
+that reviewed plan after approval, then require a fresh no-changes plan.
+Keep raw plans, state and sensitive inputs on the protected private host,
+never in GitHub or ordinary logs.
+
+The input must remain enabled in every subsequent platform plan. The
+endpoint has `prevent_destroy`; omitting the input after adoption must not be
+used to remove the endpoint through which Terraform reaches its own backend.
+Its nested DNS zone group and automatically registered A record do not need
+separate AzureRM import addresses. See #389 and #392 for the live inventory
+and reconciliation evidence.
+
 ## Coordinator agent access
 
 `coordinator_agent_access` is off by default. When set, Terraform assigns
