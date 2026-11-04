@@ -23,7 +23,7 @@ no model calls. This is a sample, not an official Microsoft product.
 
 <a id="take-a-tour"></a>
 
-<a href="docs/images/lab-tour-dark.svg"><img alt="Tour of the Foundry Agent Lab in six steps: find an agent by describing a job, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, and create an agent from a template." src="docs/images/lab-tour-dark.svg"></a>
+<a href="docs/images/lab-tour-dark.svg"><img alt="Tour of the Foundry Agent Lab in seven steps: find an agent by describing a job, browse the agent library, read an agent's test results, chat with it, see how to take it to Microsoft Foundry, create an agent from a template, and test a draft first, with the task instructions you accepted while testing carried into the Create agent review step." src="docs/images/lab-tour-dark.svg"></a>
 
 <details>
 <summary><strong>What each step of the tour shows</strong></summary>
@@ -50,6 +50,14 @@ no model calls. This is a sample, not an official Microsoft product.
 6. **Create agent.** Prepare an agent from a library template. It stays off
    until an operator turns it on, because publishing creates Azure resources
    that cost money.
+7. **Test a draft.** In **Chat**, **Test this draft first** runs a draft built
+   from a template against sample cases and shows which answers passed. The Lab
+   only proposes a revision of the task instructions. A person reads it and
+   chooses **Accept revision** or **Discard**. Nothing is published while you
+   test, though each test and revision call uses the shared model and may cost
+   money. **Start from** then opens the Create agent review step, which says the
+   text is the one you accepted and lets you switch back to the template's own
+   text. See [Agent creation](docs/agent-creation.md#test-a-draft-before-you-create-it).
 
 [Open the full tour](docs/images/lab-tour-dark.svg) ·
 [Create agent screenshot](docs/images/screenshots/lab-create-agent-dark.png) ·

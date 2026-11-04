@@ -33,6 +33,8 @@ $sources = [ordered]@{
     'lab-design-loop-test-dark.png' = 'design-loop-test-dark.png'
     'lab-design-loop-revision.png' = 'design-loop-revision.png'
     'lab-design-loop-revision-dark.png' = 'design-loop-revision-dark.png'
+    'lab-design-loop-review.png' = 'design-loop-review.png'
+    'lab-design-loop-review-dark.png' = 'design-loop-review-dark.png'
 }
 
 foreach ($selected in $Names) {
