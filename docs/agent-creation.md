@@ -100,10 +100,14 @@ test cases, so a good case still has to be reviewed and added by a person. The
 panel needs no operator key and works when agent creation is off, but every call
 uses the shared model and may incur cost. A revision call that the Lab rejects
 is still a model call, so the message says so. Accepted text is used by
-**Create in Foundry** in that card and by **Start from** on the same card. **Start
-from** opens the Create agent page with the goal and the accepted text. On the
+**Create in Foundry** in that card and by **Start from** on the same card. **Start from** opens the Create agent page with the goal and the accepted text. On the
 review step the text appears with a note that you accepted it while testing, and
 **Use the prepared text instead** switches to the template's own text and back.
+
+<img alt="The Create agent review step after Start from: a line says these are the task instructions you accepted while testing, not the template's prepared text, with a Use the prepared text instead link, and the open task instructions list six lines, including one that asks the person for a due date when the notice gives none" src="images/screenshots/lab-design-loop-review-dark.png">
+
+[View full size](images/screenshots/lab-design-loop-review-dark.png)
+
 The accepted text applies only while the template and the goal stay as they were
 when you accepted it. If you change either, the page says so and the prepared
 text is used. If a setup is already under review on that page, **Start from**

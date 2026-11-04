@@ -84,7 +84,7 @@ const usage = (input: number, output: number) => ({
 const bring = (target: Locator) =>
   target.evaluate((element) => element.scrollIntoView({ block: 'start' }))
 
-test('the test panel and a proposed revision, in both themes', async ({
+test('the test panel, a proposed revision and the accepted text in Create agent, in both themes', async ({
   page,
 }, testInfo) => {
   await openCreation(page, {
@@ -187,5 +187,31 @@ test('the test panel and a proposed revision, in both themes', async ({
   await docsScreenshot(page, testInfo, 'design-loop-revision.png')
   await page.emulateMedia({ colorScheme: 'dark' })
   await docsScreenshot(page, testInfo, 'design-loop-revision-dark.png')
+  await page.emulateMedia({ colorScheme: 'light' })
+
+  await revision.getByRole('button', { name: 'Accept revision' }).click()
+  await expect(panel).toContainText('Revision accepted. Nothing is published')
+  await card
+    .getByRole('button', { name: new RegExp(`Start from ${template.label}`) })
+    .click()
+  await expect(
+    page.getByRole('heading', { name: 'Create an agent', level: 1 }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Prepare setup', exact: true }).click()
+  const review = page.getByRole('heading', {
+    name: 'Review your agent setup',
+  })
+  await expect(review).toBeVisible()
+  await page.getByText(/Task instructions: .* characters/).click()
+  await expect(
+    page.getByText('These are the task instructions you accepted'),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('textbox', { name: 'Task instructions' }),
+  ).toHaveValue(revised)
+  await bring(review)
+  await docsScreenshot(page, testInfo, 'design-loop-review.png')
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await docsScreenshot(page, testInfo, 'design-loop-review-dark.png')
   await page.emulateMedia({ colorScheme: 'light' })
 })

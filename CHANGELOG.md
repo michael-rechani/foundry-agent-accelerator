@@ -17,7 +17,14 @@ Pull request numbers link to the full discussion.
 - **Next steps in Chat.** The Benefits renewal helper offers one-click buttons
   under its latest answer: the checklist, the draft note and questions for the
   caseworker.
-- **A diagram of the test loop.** The "Test a draft before you create it" section
+- **A tour step for testing a draft.** The README tour now has a seventh step,
+  **Test a draft**. It shows the Create agent review step after a person accepts
+  a revision while testing: the note that says the text is the one they accepted,
+  and **Use the prepared text instead**. The tour text says the Lab only proposes
+  a revision and a person decides. The new pictures also appear in the agent
+  creation guide. They use fictional text and mocked routes, so taking them
+  calls no model.
+  ([#470](https://github.com/michael-rechani/foundry-agent-accelerator/  issues/470))- **A diagram of the test loop.** The "Test a draft before you create it" section
   of the agent creation guide now includes a diagram of the whole loop: write
   cases, run them, read the answers, propose a revision, accept or discard it,
   and run again. It marks which steps call a model and which are your decisions, lists
