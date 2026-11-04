@@ -1,5 +1,6 @@
 import { type Page, expect, test } from '@playwright/test'
 import { openCreation, operatorKey, templates } from './helpers/creation-lab'
+import { openChat, workspaceNav } from './helpers/navigation'
 
 // Start without stored choices, as a first-time visitor would.
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -144,4 +145,63 @@ test('without creation the spec card offers only the download', async ({
   await expect(
     card.getByRole('button', { name: 'Download agent spec' }),
   ).toBeVisible()
+})
+
+test('an uncertain publication keeps the same request after navigation', async ({
+  page,
+}) => {
+  const state = await openCreation(page, { hash: '#chat', designerAnswer })
+  const card = await askDesigner(page)
+  await card.getByRole('button', { name: 'Create this agent here' }).click()
+  const panel = card.getByRole('group', { name: 'Create this agent' })
+  await panel.getByRole('checkbox').check()
+  await panel.getByLabel('Operator key', { exact: true }).fill(operatorKey)
+  state.loseResponse = true
+  await panel.getByRole('button', { name: 'Create in Foundry' }).click()
+  await expect(panel.getByRole('alert')).toBeVisible()
+  const request = state.posts[0]
+  await expect(panel).toContainText(request.idempotency_key)
+
+  await workspaceNav(page).getByRole('button', { name: 'All agents' }).click()
+  await openChat(page)
+  await expect(panel).toContainText(request.idempotency_key)
+  await panel
+    .getByRole('button', { name: 'Retry same creation request' })
+    .click()
+  await expect.poll(() => state.posts.length).toBe(2)
+  expect(state.posts[1]).toEqual(request)
+  await expect(panel).toContainText('is ready in Foundry')
+
+  const storage = await page.evaluate(() => ({
+    local: JSON.stringify(localStorage),
+    session: JSON.stringify(sessionStorage),
+  }))
+  expect(JSON.stringify(storage)).not.toContain(operatorKey)
+  expect(JSON.stringify(storage)).not.toContain(request.idempotency_key)
+})
+
+test('publication state survives a follow-up chat message', async ({
+  page,
+}) => {
+  const state = await openCreation(page, { hash: '#chat', designerAnswer })
+  const card = await askDesigner(page)
+  await card.getByRole('button', { name: 'Create this agent here' }).click()
+  const panel = card.getByRole('group', { name: 'Create this agent' })
+  await panel.getByRole('checkbox').check()
+  await panel.getByLabel('Operator key', { exact: true }).fill(operatorKey)
+  state.hold = true
+  await panel.getByRole('button', { name: 'Create in Foundry' }).click()
+  await expect(panel).toContainText('Publishing to Foundry')
+  const firstPanel = page
+    .getByRole('group', { name: 'Create this agent' })
+    .first()
+  await page
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Explain the next step')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect.poll(() => state.chat.length).toBe(2)
+  await expect(firstPanel).toContainText('Publishing to Foundry')
+  expect(state.posts).toHaveLength(1)
+  state.hold = false
+  await expect(firstPanel).toContainText('is ready in Foundry')
 })

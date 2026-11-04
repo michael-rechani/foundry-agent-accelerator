@@ -261,6 +261,7 @@ export async function openCreation(
     missingFromList: !!options.missingFromList,
     listFailure: !!options.listFailure,
     templateFailure: !!options.templateFailure,
+    templateLoads: 0,
   }
   function update(
     status: CreatedAgent['status'],
@@ -280,13 +281,22 @@ export async function openCreation(
   await mockApi(page, async ({ route, request, path, method, respond }) => {
     if (path === '/api/config') return respond(config)
     if (path === '/api/agent-templates') {
+      state.templateLoads++
       expect(request.headers()['x-workbench-request']).toBe('1')
       if (state.templateFailure)
         return respond({ error: 'agents_unavailable' }, 503)
       return respond(
         options.designerAnswer
           ? catalog
-          : { templates, draft_mode: 'template' },
+          : {
+              ...catalog,
+              templates: templates.map((template) => ({
+                ...catalog.templates.find(
+                  (entry: { id: string }) => entry.id === template.id,
+                ),
+                ...template,
+              })),
+            },
       )
     }
     if (path === '/api/agent-drafts') {
@@ -438,9 +448,7 @@ export async function navigate(page: Page, name: string) {
     return
   }
   // Create agent has no sidebar entry; it opens from cards and links.
-  // The hash stays on #create after another page is picked, so leave it first.
   if (name === 'Create agent') {
-    await followLink(page, '#chat')
     return followLink(page, '#create')
   }
   await workspaceNav(page).getByRole('button', { name, exact: true }).click()

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
-import { requestJson } from '../src/request.ts'
+import { errorBody, requestJson } from '../src/request.ts'
+import { failureFromResponse } from '../src/chat-failure.ts'
 
 const originalFetch = globalThis.fetch
 
@@ -29,6 +30,36 @@ describe('requestJson', () => {
     assert.deepEqual(data, { ok: true })
     assert.equal(received?.method, 'POST')
     assert.equal(received?.signal, signal)
+  })
+
+  describe('error bodies', () => {
+    it('keeps only string error codes and references', () => {
+      assert.deepEqual(
+        errorBody({ error: 'busy', request_id: 'sample-1', ignored: true }),
+        { error: 'busy', request_id: 'sample-1' },
+      )
+      for (const value of [null, [], '', 503, true, undefined])
+        assert.deepEqual(errorBody(value), {})
+      assert.deepEqual(errorBody({ error: [], request_id: 1 }), {
+        error: undefined,
+        request_id: undefined,
+      })
+    })
+
+    it('keeps HTTP errors distinct from connection failures', () => {
+      for (const value of [null, [], 'error', 503, true]) {
+        const failure = failureFromResponse(
+          new Response('', {
+            status: 503,
+            headers: { 'X-Correlation-ID': 'sample-reference' },
+          }),
+          value,
+        )
+        assert.match(failure.message, /could not get a reply from its service/)
+        assert.equal(failure.reference, 'sample-reference')
+        assert.match(failure.details, /HTTP 503/)
+      }
+    })
   })
 
   it('returns an empty body for unreadable error responses', async () => {

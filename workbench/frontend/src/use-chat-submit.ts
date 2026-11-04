@@ -9,7 +9,7 @@ import {
   type ChatFailure,
 } from './chat-failure'
 import { requestPayload } from './chat-helpers'
-import { requestJson } from './request'
+import { errorBody, requestJson } from './request'
 import { parseUsage } from './token-usage'
 import type { Agent, Config } from './workspace-config'
 
@@ -112,9 +112,9 @@ export function useChatSubmit({
         },
         abort.signal,
       )
-      if (typeof data.request_id === 'string') reference = data.request_id
+      reference = errorBody(data).request_id
       if (!response.ok) {
-        serverTimedOut = data.error === 'timeout'
+        serverTimedOut = errorBody(data).error === 'timeout'
         failure = failureFromResponse(response, data)
         throw new Error(failure.message)
       }

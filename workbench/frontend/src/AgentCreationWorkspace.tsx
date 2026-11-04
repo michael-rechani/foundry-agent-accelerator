@@ -6,7 +6,6 @@ import {
   creationRequest,
   parseCreatedAgent,
   parseDraft,
-  parseTemplates,
   type AgentDraft,
   type AgentTemplate,
   type CreatedAgent,
@@ -18,6 +17,7 @@ import { CreationTaskForm } from './CreationTaskForm'
 import { CreationSetupReview } from './CreationSetupReview'
 import { CreatedAgentDetail, CreatedAgentList } from './CreatedAgents'
 import './agent-creation.css'
+import type { LibraryCatalogState } from './library-catalog-client'
 
 function problemText(problem: unknown) {
   return problem instanceof Error && problem.name !== 'AbortError'
@@ -26,6 +26,7 @@ function problemText(problem: unknown) {
 }
 
 export function AgentCreationWorkspace({
+  library,
   capability,
   state,
   view,
@@ -35,6 +36,7 @@ export function AgentCreationWorkspace({
   onView,
   onUse,
 }: {
+  library: LibraryCatalogState
   capability: CreationCapability
   state: CreatedAgentState
   view: 'create' | 'created'
@@ -49,9 +51,8 @@ export function AgentCreationWorkspace({
   onView: (view: 'create' | 'created') => void
   onUse: (agent: Agent) => void
 }) {
-  const [templates, setTemplates] = useState<AgentTemplate[]>([])
-  const [templateAttempt, setTemplateAttempt] = useState(0)
-  const [templateError, setTemplateError] = useState('')
+  const templates = library.catalog?.templates ?? []
+  const templateError = library.error
   const [templateId, setTemplateId] = useState('')
   const [goal, setGoal] = useState('')
   const [draft, setDraft] = useState<AgentDraft | null>(null)
@@ -91,18 +92,6 @@ export function AgentCreationWorkspace({
   const canManage = capability.management_enabled ?? capability.enabled
   const carriedApplies =
     !!carried && carried.templateId === templateId && carried.goal === goal
-
-  useEffect(() => {
-    const abort = new AbortController()
-    void creationRequest('agent-templates', {}, abort.signal)
-      .then((value) => {
-        if (!abort.signal.aborted) setTemplates(parseTemplates(value))
-      })
-      .catch((problem) => {
-        if (!abort.signal.aborted) setTemplateError(problemText(problem))
-      })
-    return () => abort.abort()
-  }, [templateAttempt])
 
   useEffect(() => {
     if (!goal && !draft && !pending) return
@@ -439,14 +428,7 @@ export function AgentCreationWorkspace({
           {templateError ? (
             <div className="creation-error" role="alert">
               <p>{templateError}</p>
-              <button
-                onClick={() => {
-                  setTemplateError('')
-                  setTemplateAttempt((value) => value + 1)
-                }}
-              >
-                Retry templates
-              </button>
+              <button onClick={library.retry}>Retry templates</button>
             </div>
           ) : !templates.length ? (
             <p role="status">Loading prepared templates...</p>

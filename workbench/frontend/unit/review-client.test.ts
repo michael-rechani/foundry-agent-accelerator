@@ -66,6 +66,13 @@ describe('reviewRequest', () => {
     await assert.rejects(reviewRequest('/review-1'), { message: generic })
   })
 
+  it('uses the generic message for unexpected JSON error shapes', async () => {
+    for (const value of [null, [], 'unavailable', 503, true, { error: [] }]) {
+      respond(JSON.stringify(value), 503)
+      await assert.rejects(reviewRequest('/review-1'), { message: generic })
+    }
+  })
+
   it('rejects an unreadable successful response with a plain message', async () => {
     respond('<html>Welcome</html>', 200)
     await assert.rejects(reviewRequest('/review-1'), {

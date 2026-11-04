@@ -36,3 +36,21 @@ export async function requestJson(
     signal.removeEventListener('abort', cancel)
   }
 }
+
+export function errorBody(value: unknown): {
+  error?: string
+  request_id?: string
+} {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return {}
+  return {
+    error:
+      'error' in value && typeof value.error === 'string'
+        ? value.error
+        : undefined,
+    request_id:
+      'request_id' in value && typeof value.request_id === 'string'
+        ? value.request_id
+        : undefined,
+  }
+}

@@ -330,13 +330,14 @@ export function ConversationTurn({
               ) : undefined
             }
             build={
-              closest && build?.capability.enabled && !busy ? (
+              closest && build?.capability.enabled ? (
                 <SpecBuildPanel
                   spec={designed.spec}
                   templateId={closest.id}
                   templateLabel={closest.label}
                   build={build}
                   instructions={revised}
+                  disabled={busy}
                 />
               ) : undefined
             }

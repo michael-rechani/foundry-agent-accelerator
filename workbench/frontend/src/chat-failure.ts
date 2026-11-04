@@ -1,3 +1,5 @@
+import { errorBody } from './request.ts'
+
 // What a failed send tells the visitor: a plain sentence about what happened
 // and what to do, with the technical reference kept apart from the sentence.
 export type ChatFailure = {
@@ -62,12 +64,14 @@ export function makeFailure(
 // before it reaches the Lab.
 export function failureFromResponse(
   response: Response,
-  data: { error?: unknown; request_id?: unknown },
+  value: unknown,
 ): ChatFailure {
+  const data = errorBody(value)
   const code = typeof data.error === 'string' ? data.error : ''
   const status = response.status
   const reference =
     (typeof data.request_id === 'string' && data.request_id) ||
+    response.headers.get('x-correlation-id') ||
     response.headers.get('x-azure-ref') ||
     undefined
   const retryAfter =
