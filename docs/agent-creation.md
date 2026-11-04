@@ -110,6 +110,20 @@ leaves it as it is. **Start over with new cases** and publishing both drop the
 accepted text. Opening Create agent from a library template or `/#create` never
 carries accepted text.
 
+Switching to another Lab page and returning to **Chat** keeps the spec card's
+test cases, results, usage, accepted instructions, and publication recovery
+details in this browser tab. Leaving Chat pauses further test calls; a call
+already sent may still finish and incur charges. Return and choose **Continue**
+to resume explicitly. Publication can continue while you browse, and an
+unconfirmed creation keeps its original request ID for **Retry same creation
+request** or a status check, not a new publication.
+
+This state is memory-only: reloading or closing the tab loses it, and saving
+the conversation does not save the test panels. Download the results before
+reloading. Starting a new chat, switching agents, or opening another saved
+conversation asks before clearing spec-card work, even if the conversation
+text was saved. Operator keys are never included in saved history or exports.
+
 **What two live runs measured.** One run of the whole loop and one re-run used
 the `document-intake` template with fictional data, one run per case, on one
 deployment. They show the scale of cost, not a promise:

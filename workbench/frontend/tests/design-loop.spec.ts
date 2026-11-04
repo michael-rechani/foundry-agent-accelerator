@@ -6,6 +6,7 @@ import {
   operatorKey,
   templates,
 } from './helpers/creation-lab'
+import { openChat, workspaceNav } from './helpers/navigation'
 
 // Start without stored choices, as a first-time visitor would.
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -94,6 +95,7 @@ async function mockTests(
     runs: [] as RunBody[],
     revisions: [] as RevisionBody[],
     busyOnce: options.busyOnce,
+    stall: options.stall,
   }
   const written = [
     ...cases,
@@ -151,7 +153,7 @@ async function mockTests(
     }
     state.runs.push(body)
     const id: string = body.case.id
-    if (id === options.stall) return
+    if (id === state.stall) return
     if (id === state.busyOnce) {
       state.busyOnce = undefined
       return route.fulfill({
@@ -660,4 +662,89 @@ test('starting over with new cases means nothing is carried into Create agent', 
   await expect(
     page.getByText('These are the task instructions you accepted'),
   ).toHaveCount(0)
+})
+
+test('test evidence and accepted instructions survive a trip out of Chat', async ({
+  page,
+}) => {
+  const { state, card, tests } = await openPanel(page, { creation: true })
+  const panel = await runAll(card, 3)
+  await panel.getByRole('button', { name: propose }).click()
+  await panel.getByRole('button', { name: 'Accept revision' }).click()
+  await workspaceNav(page).getByRole('button', { name: 'All agents' }).click()
+  await expect(card).toBeHidden()
+  await openChat(page)
+  await expect(panel).toContainText('Revision accepted')
+  await expect(panel).toContainText('600 tokens')
+  expect(tests.writes).toHaveLength(1)
+  expect(tests.runs).toHaveLength(3)
+  expect(tests.revisions).toHaveLength(1)
+
+  const download = page.waitForEvent('download')
+  await panel
+    .getByRole('button', { name: 'Download cases and results' })
+    .click()
+  const file = JSON.parse(
+    await readFile((await (await download).path())!, 'utf8'),
+  )
+  expect(file.instructions).toContain(addedLine)
+  expect(file.earlier_rounds).toHaveLength(1)
+
+  await card.getByRole('button', { name: 'Create this agent here' }).click()
+  const build = card.getByRole('group', { name: 'Create this agent' })
+  await expect(build).toContainText('task instructions you accepted')
+  await build.getByLabel('Operator key', { exact: true }).fill(operatorKey)
+  await build.getByRole('checkbox').check()
+  await build.getByRole('button', { name: 'Create in Foundry' }).click()
+  await expect.poll(() => state.posts.length).toBe(1)
+  expect(state.posts[0].instructions).toContain(addedLine)
+})
+
+test('leaving Chat pauses tests without discarding finished calls or restarting them', async ({
+  page,
+}) => {
+  const { card, tests } = await openPanel(page, {
+    tests: { stall: 'missing-date' },
+  })
+  await card.getByRole('button', { name: 'Test this draft first' }).click()
+  const panel = card.getByRole('group', { name: 'Test this draft' })
+  await panel.getByRole('checkbox').check()
+  await panel.getByRole('button', { name: 'Write test cases' }).click()
+  await panel.getByRole('button', { name: 'Run 3 test calls' }).click()
+  await expect.poll(() => tests.runs.length).toBe(2)
+  await workspaceNav(page).getByRole('button', { name: 'All agents' }).click()
+  await openChat(page)
+  await expect(panel).toContainText('Stopped. A call already sent')
+  await expect(panel).toContainText('1 of 1 run passed')
+  expect(tests.runs.map((run) => run.case.id)).toEqual([
+    'grounded-hours',
+    'missing-date',
+  ])
+  tests.stall = undefined
+  await panel
+    .getByRole('button', { name: 'Continue (2 test calls left)' })
+    .click()
+  await expect(panel).toContainText('2 of 3 runs passed')
+  expect(tests.runs.map((run) => run.case.id)).toEqual([
+    'grounded-hours',
+    'missing-date',
+    'missing-date',
+    'injection-approve',
+  ])
+})
+
+test('discarding a saved conversation still warns about its local spec-card work', async ({
+  page,
+}) => {
+  const { card } = await openPanel(page)
+  const panel = await runAll(card, 3)
+  await page.getByRole('button', { name: 'Save to shared history' }).click()
+  await page.getByRole('button', { name: 'New chat', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toContainText('Spec-card tests')
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(panel).toContainText('2 of 3 runs passed')
+  await page.getByRole('button', { name: 'New chat', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Start new chat' }).click()
+  await expect(card).toHaveCount(0)
 })

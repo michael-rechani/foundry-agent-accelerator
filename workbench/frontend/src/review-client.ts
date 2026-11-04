@@ -1,4 +1,4 @@
-import { readJson } from './request.ts'
+import { errorBody, readJson } from './request.ts'
 
 export type Source = { id: string; text: string }
 export type Finding = {
@@ -98,7 +98,7 @@ export async function reviewRequest(
   const data = await readJson(response)
   if (!response.ok)
     throw new Error(
-      messages[data.error] ||
+      messages[errorBody(data).error ?? ''] ||
         'The request could not be confirmed. Refresh the inbox before repeating an action.',
     )
   return data

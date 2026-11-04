@@ -1,4 +1,30 @@
 import type { View } from './ChatSidebar'
+import { reviewIdFromHash } from './review-client.ts'
+
+export const viewHashes: Record<View, string> = {
+  library: '#library',
+  explore: '#demos',
+  addons: '#addons',
+  chat: '#chat',
+  catalog: '#agents',
+  operations: '#operations',
+  performance: '#performance',
+  log: '#logs',
+  history: '#history',
+  reviews: '#reviews',
+  create: '#create',
+  created: '#created',
+}
+
+export function viewForHash(hash: string): View {
+  if (reviewIdFromHash(hash)) return 'reviews'
+  if (hash === '#start') return 'library'
+  return (
+    (Object.keys(viewHashes) as View[]).find(
+      (view) => viewHashes[view] === hash,
+    ) ?? 'chat'
+  )
+}
 
 // Views shown as tabs inside the library; the sidebar treats them as one page.
 export const libraryViews: View[] = [

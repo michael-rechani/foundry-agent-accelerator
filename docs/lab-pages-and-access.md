@@ -14,6 +14,14 @@ says who can reach the Lab and what they share.
 
 ## Pages
 
+Workspace navigation updates the URL, so reloading, copying a page link, and
+browser Back/Forward follow the page you selected. Page links include
+`/#library` (Browse), `/#agents` (My agents), `/#created` (Made in this Lab),
+`/#history` (Shared history), and `/#create` (Create agent). Creation links
+fall back to Browse when the Lab does not advertise creation. Saved document
+reviews retain their own `/#review-...` links. These links select a page, not
+a particular chat, library filter, or unsaved setup.
+
 The sidebar groups the Lab's pages into three sections, in this order: **Start here**, **Agent library**, and **Operations**. **Start here** holds **Chat** and **Shared history**. The Lab opens on **Start here** > **Chat** (`/#chat`). Every agent lives under **Agent library** > **All agents**. At the top of its **Browse** tab, **Describe the job** asks "What are you trying to do?". Type a job, or choose one of the suggestions taken from the ready agents, and the Lab lists the matching ready agents with **Use this agent** and, when agent creation is on, matching library templates with **Start from this**. The match is plain word matching over the agent list and the library, so it uses no AI model, sends nothing and saves nothing. The old `/#start` link opens this page. **All agents** has three tabs: **Browse**, **My agents** and **Add-ons**. **My agents** links to **Made in this Lab** when creation is on, and **Browse** links to **Guided demos**. A small number beside **All agents** and **Shared history** says how many there are. **Browse** can show the agents as **Cards** or as a **List**, and the Lab remembers your choice in this browser. Under the heading, a note explains that every agent can be tried from its own page while **My agents** counts only the agents already set up to open in Chat. By default the library lists only **featured** agents (marked **Featured agent**, or signed off as reviewed). The operator setting `WORKBENCH_UNFINISHED_AGENTS_ENABLED` shows the other **Preview** agents too (see [agent creation](agent-creation.md#configuration-ownership)). An agent's page labels its own tabs **More about** the agent so they aren't mistaken for the library tabs.
 
 The Lab opens in a plain customer view. Turn on **Under the hood** at the bottom of the sidebar to show models, token counts, execution details, setup commands, and the **Operations** section. The Lab saves the choice in this browser. A breadcrumb in the top bar shows the current section and page.

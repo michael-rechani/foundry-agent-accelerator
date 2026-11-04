@@ -1,5 +1,8 @@
 /* The Chat screen's side column. Narrow windows keep the top bar's buttons and
    the "About this agent" pop-up, so nothing below 1000px changes. */
+.conversation-layout[hidden] {
+  display: none;
+}
 .conversation-layout {
   display: flex;
   flex: 1;

@@ -38,6 +38,9 @@ describe('agent library catalog', () => {
     const missing = structuredClone(raw)
     delete missing.templates[0].human_decision
     assert.throws(() => parseCatalog(missing))
+    const profile = structuredClone(raw)
+    delete profile.templates[0].model_profile.reason
+    assert.throws(() => parseCatalog(profile))
     assert.throws(() => parseCatalog({ ...raw, schema_version: 2 }))
     assert.throws(() => parseCatalog({ ...raw, templates: [] }))
   })

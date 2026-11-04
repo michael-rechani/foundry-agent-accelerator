@@ -15,6 +15,7 @@ import type { Agent, Config } from './workspace-config'
 // wide screens the agent's details beside them from the first screen on, so the
 // layout does not shift after the first reply.
 export function ChatConversation({
+  active,
   config,
   agent,
   agents,
@@ -53,6 +54,7 @@ export function ChatConversation({
   build,
   tests,
 }: {
+  active: boolean
   config: Config | null
   agent?: Agent
   agents: Agent[]
@@ -119,7 +121,7 @@ export function ChatConversation({
       ? 'example'
       : 'typed'
   return (
-    <div className="conversation-layout">
+    <div className="conversation-layout" hidden={!active}>
       <main className="conversation-view">
         {agentNotice && (
           <p className="creation-error" role="alert">

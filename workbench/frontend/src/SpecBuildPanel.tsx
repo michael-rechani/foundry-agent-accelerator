@@ -43,6 +43,7 @@ export function SpecBuildPanel({
   templateLabel,
   build,
   instructions = null,
+  disabled = false,
 }: {
   spec: AgentSpec
   templateId: string
@@ -51,6 +52,7 @@ export function SpecBuildPanel({
   // Task instructions the person accepted while testing this draft. They
   // replace the prepared ones so what was tested is what gets published.
   instructions?: string | null
+  disabled?: boolean
 }) {
   const { capability, onCreated } = build
   const [open, setOpen] = useState(false)
@@ -94,7 +96,7 @@ export function SpecBuildPanel({
   }, [recordId, running, pollPaused, onCreated])
 
   async function create() {
-    if (busy || !consent) return
+    if (busy || disabled || !consent) return
     const key = capability.requires_operator_key
       ? (keyField.current?.value ?? '')
       : ''
@@ -257,6 +259,7 @@ export function SpecBuildPanel({
         <button
           type="button"
           className="library-secondary"
+          disabled={disabled}
           onClick={() => setOpen(true)}
         >
           <Plus size={16} aria-hidden="true" /> Create this agent here
@@ -292,14 +295,14 @@ export function SpecBuildPanel({
       </ul>
       <OperatorKeyField
         inputRef={keyField}
-        disabled={busy}
+        disabled={busy || disabled}
         required={capability.requires_operator_key}
       />
       <label className="creation-consent">
         <input
           type="checkbox"
           checked={consent}
-          disabled={busy}
+          disabled={busy || disabled}
           onChange={(event) => setConsent(event.target.checked)}
         />
         <span>
@@ -326,7 +329,7 @@ export function SpecBuildPanel({
         <button
           type="button"
           className="library-secondary spec-build-confirm"
-          disabled={busy || !consent}
+          disabled={busy || disabled || !consent}
           onClick={() => void create()}
         >
           {busy ? (

@@ -41,7 +41,7 @@ import { formatTokens, totalUsage, type Usage } from './token-usage'
 
 // What the chat needs to run a draft's tests: the browser's time limit for one
 // model call. Only given when the Lab's library previews are on.
-export type SpecTests = { timeoutMs: number }
+export type SpecTests = { timeoutMs: number; active?: boolean }
 
 const stopped =
   'Stopped. A call already sent may still finish and use the model.'
@@ -95,6 +95,9 @@ export function SpecTestPanel({
   const working = stage !== 'idle'
 
   useEffect(() => () => controller.current?.abort(), [])
+  useEffect(() => {
+    if (tests.active === false) controller.current?.abort()
+  }, [tests.active])
 
   const scoped = scope ? cases.filter((test) => scope.includes(test.id)) : cases
   const jobs = pendingJobs(scoped, results, repeats)
@@ -308,6 +311,11 @@ export function SpecTestPanel({
         <li>
           Simple checks screen the answers. A person still has to read each
           answer against its rubric.
+        </li>
+        <li>
+          Switching pages keeps these results and pauses further test calls. A
+          call already sent may still finish and incur charges. Returning to
+          Chat does not restart it automatically.
         </li>
       </ul>
       <label className="creation-consent">

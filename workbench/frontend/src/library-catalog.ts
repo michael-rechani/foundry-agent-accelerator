@@ -127,6 +127,7 @@ function validTemplate(item: unknown): item is LibraryTemplate {
     isObject(profile) &&
     text(profile.id) &&
     text(profile.label) &&
+    text(profile.reason) &&
     choice(item.sector) &&
     choice(item.industry) &&
     Array.isArray(item.tasks) &&

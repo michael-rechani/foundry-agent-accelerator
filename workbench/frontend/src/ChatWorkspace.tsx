@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
 import './chat.css'
 import { useWorkspaceConfig, type Agent } from './workspace-config'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -25,6 +25,7 @@ import { AddOns } from './AddOns'
 import { JobFinder } from './JobFinder'
 import { isPreviewId, previewTemplateId } from './library-catalog'
 import { isDesignerId } from './agent-designer'
+import { parseAgentSpec } from './agent-spec'
 import { agentForDemo, type DemoScenario } from './demo-scenarios'
 import { useSimpleChat } from './simple-chat'
 import { hoodViews, loadUnderTheHood, saveUnderTheHood } from './under-the-hood'
@@ -113,6 +114,12 @@ export default function ChatWorkspace() {
     setView,
     setNotice,
   })
+  const loadLinkedHistory = useEffectEvent(() => {
+    if (!historyLoaded && !historyBusy) void listHistory()
+  })
+  useEffect(() => {
+    if (view === 'history' && config?.history_enabled) loadLinkedHistory()
+  }, [view, config?.history_enabled])
   const isPreview = isPreviewId(selected)
   const designing = isDesignerId(selected)
   const previewTemplate = designing ? undefined : previewTemplateId(selected)
@@ -135,7 +142,9 @@ export default function ChatWorkspace() {
     selected,
     thread: conversation.thread,
   })
-  const unsaved = dirty || !!draft || busy
+  const specWork =
+    designing && turns.some((turn) => parseAgentSpec(turn.result.text).spec)
+  const unsaved = dirty || !!draft || busy || specWork
   const libraryCount = library.catalog?.templates.length
   // Before the first message the chat is not about one agent yet, so the
   // agent's details and actions stay out of the way. They also stay out of the
@@ -200,7 +209,7 @@ export default function ChatWorkspace() {
     run: () => void,
   ) {
     const draftEdited = draft.trim() !== '' && draft !== seed
-    if (!dirty && !draftEdited) {
+    if (!dirty && !draftEdited && !specWork) {
       run()
       return
     }
@@ -212,8 +221,16 @@ export default function ChatWorkspace() {
     setChanging({
       title,
       confirmLabel,
-      message:
-        `${lead} Your unsaved ${lost} will be cleared. Saved history isn't deleted.`.trim(),
+      message: [
+        lead,
+        dirty || draftEdited ? `Your unsaved ${lost} will be cleared.` : '',
+        specWork
+          ? 'Spec-card tests, accepted instructions and publication recovery details will be cleared. Remote work may continue and incur charges.'
+          : '',
+        "Saved history isn't deleted.",
+      ]
+        .filter(Boolean)
+        .join(' '),
       run,
     })
   }
@@ -447,6 +464,7 @@ export default function ChatWorkspace() {
         )}
         {config?.agent_creation && (
           <AgentCreationWorkspace
+            library={library}
             capability={config.agent_creation}
             state={createdAgents}
             active={view === 'create' || view === 'created'}
@@ -522,81 +540,7 @@ export default function ChatWorkspace() {
             }
             onMore={() => void listHistory(true)}
           />
-        ) : view === 'chat' ? (
-          <ChatConversation
-            config={config}
-            agent={agent}
-            agents={availableAgents}
-            onSwitchAgent={() => setSwitcherOpen(true)}
-            onChooseAgent={newChat}
-            onAddOns={() => setView('addons')}
-            onCreateAgent={
-              config?.agent_creation ? () => setView('create') : undefined
-            }
-            conversation={conversation}
-            historyBusy={historyBusy}
-            isPreview={isPreview}
-            presenting={presenting}
-            showAside={showAside}
-            clean={clean}
-            agentLabels={agentLabels}
-            agentNotice={
-              selected.startsWith('created-') &&
-              !agent &&
-              !createdAgents.loading
-                ? createdAgents.error ||
-                  'The selected created agent is unavailable or no longer ready. Choose another agent; your local messages are preserved.'
-                : ''
-            }
-            previewNotice={
-              isPreview &&
-              !agent &&
-              (library.error || !previewCapability?.enabled)
-                ? previewNote ||
-                  'This library preview is unavailable. Choose another agent.'
-                : ''
-            }
-            welcomeInProgress={
-              !!previewOptions.find((item) => item.agent.id === selected)
-                ?.inProgress
-            }
-            limits={limits}
-            editor={editor}
-            bottom={bottom}
-            latestAnswer={latestAnswer}
-            saveDisabled={saveDisabled}
-            saveNote={saveNote}
-            onFreshDemo={loadDemo}
-            onCopy={copy}
-            onSubmit={() => void submit()}
-            onTryAgain={() => void retry()}
-            onStop={stop}
-            onContinue={() => setContinuing(true)}
-            onCatalog={() => setView('catalog')}
-            onSave={() => void saveChat()}
-            onExport={exportChat}
-            onCreateThis={createThis}
-            templates={library.catalog?.templates}
-            onCreateFromTemplate={
-              config?.agent_creation ? createFromTemplate : undefined
-            }
-            build={
-              config?.agent_creation?.enabled
-                ? {
-                    capability: config.agent_creation,
-                    onCreated: createdAgents.update,
-                    onChat: (item) => newChat(item.id),
-                    onOpenMade: () => setView('created'),
-                  }
-                : undefined
-            }
-            tests={
-              config?.library_preview?.enabled
-                ? { timeoutMs: config.review_timeout_ms }
-                : undefined
-            }
-          />
-        ) : view === 'catalog' ? (
+        ) : view === 'chat' ? null : view === 'catalog' ? (
           <AgentCatalog
             agents={availableAgents}
             selected={selected}
@@ -626,6 +570,81 @@ export default function ChatWorkspace() {
             onLog={() => setView('log')}
           />
         )}
+        <ChatConversation
+          active={view === 'chat'}
+          config={config}
+          agent={agent}
+          agents={availableAgents}
+          onSwitchAgent={() => setSwitcherOpen(true)}
+          onChooseAgent={newChat}
+          onAddOns={() => setView('addons')}
+          onCreateAgent={
+            config?.agent_creation ? () => setView('create') : undefined
+          }
+          conversation={conversation}
+          historyBusy={historyBusy}
+          isPreview={isPreview}
+          presenting={presenting}
+          showAside={showAside}
+          clean={clean}
+          agentLabels={agentLabels}
+          agentNotice={
+            selected.startsWith('created-') && !agent && !createdAgents.loading
+              ? createdAgents.error ||
+                'The selected created agent is unavailable or no longer ready. Choose another agent; your local messages are preserved.'
+              : ''
+          }
+          previewNotice={
+            isPreview &&
+            !agent &&
+            (library.error || !previewCapability?.enabled)
+              ? previewNote ||
+                'This library preview is unavailable. Choose another agent.'
+              : ''
+          }
+          welcomeInProgress={
+            !!previewOptions.find((item) => item.agent.id === selected)
+              ?.inProgress
+          }
+          limits={limits}
+          editor={editor}
+          bottom={bottom}
+          latestAnswer={latestAnswer}
+          saveDisabled={saveDisabled}
+          saveNote={saveNote}
+          onFreshDemo={loadDemo}
+          onCopy={copy}
+          onSubmit={() => void submit()}
+          onTryAgain={() => void retry()}
+          onStop={stop}
+          onContinue={() => setContinuing(true)}
+          onCatalog={() => setView('catalog')}
+          onSave={() => void saveChat()}
+          onExport={exportChat}
+          onCreateThis={createThis}
+          templates={library.catalog?.templates}
+          onCreateFromTemplate={
+            config?.agent_creation ? createFromTemplate : undefined
+          }
+          build={
+            config?.agent_creation?.enabled
+              ? {
+                  capability: config.agent_creation,
+                  onCreated: createdAgents.update,
+                  onChat: (item) => newChat(item.id),
+                  onOpenMade: () => setView('created'),
+                }
+              : undefined
+          }
+          tests={
+            config?.library_preview?.enabled
+              ? {
+                  timeoutMs: config.review_timeout_ms,
+                  active: view === 'chat',
+                }
+              : undefined
+          }
+        />
       </div>
       {changing && (
         <ConfirmDialog

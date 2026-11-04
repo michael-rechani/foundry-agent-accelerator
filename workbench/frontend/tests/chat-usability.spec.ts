@@ -41,6 +41,30 @@ test('a failed send puts the message back in the box', async ({ page }) => {
   await expect(message(page)).toHaveValue('Original question')
 })
 
+test('unexpected JSON error bodies keep the HTTP failure and correlation reference', async ({
+  page,
+}) => {
+  await openWorkspace(page)
+  let requests = 0
+  await page.route('**/api/reviews', async (route) => {
+    requests++
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: 'null',
+      headers: { 'X-Correlation-ID': 'sample-null-response' },
+    })
+  })
+  await message(page).fill('Original question')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('could not get a reply from its service')
+  await expect(alert).toContainText('sample-null-response')
+  await expect(alert).not.toContainText('Could not reach the Lab')
+  await expect(message(page)).toHaveValue('Original question')
+  expect(requests).toBe(1)
+})
+
 test('wide answer tables keep whole words and scroll sideways', async ({
   page,
 }) => {
