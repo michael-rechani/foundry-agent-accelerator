@@ -10,6 +10,7 @@ import type { SpecTests } from './SpecTestPanel'
 import type { DemoScenario } from './demo-scenarios'
 import { DemoRunGuide } from './ExploreDemos'
 import { isHelpQuestion } from './help-prompt'
+import { followUpsFor } from './follow-ups'
 import { DESIGNER_ID } from './agent-designer'
 import { WaitingIndicator } from './WaitingIndicator'
 import type { Agent, Config } from './workspace-config'
@@ -42,6 +43,7 @@ export function ChatMessages({
   onCopy,
   onRate,
   onTryAgain,
+  onFollowUp,
   onDismissError,
   onRetry,
   templates,
@@ -74,6 +76,7 @@ export function ChatMessages({
   onCopy: (text: string, done?: string) => void
   onRate: (index: number, rating: Rating | undefined) => void
   onTryAgain?: () => void
+  onFollowUp?: (text: string) => void
   onDismissError: () => void
   onRetry?: () => void
   templates?: { id: string; label: string }[]
@@ -139,6 +142,8 @@ export function ChatMessages({
                 index === turns.length - 1 && !pending ? onTryAgain : undefined
               }
               busy={busy || historyBusy}
+              followUps={followUpsFor(agent?.id)}
+              onFollowUp={onFollowUp}
             />
           ))}
           {pending && <UserMessage text={pending} />}

@@ -28,6 +28,7 @@ import { FoundryLink } from './FoundryLink'
 import { foundryAgentUrl } from './foundry-links'
 import { loadedMarkdown, preloadMarkdown } from './markdown-loader'
 import { usageDetail, usageLabel } from './token-usage'
+import type { FollowUp } from './follow-ups'
 import { UserMessage } from './UserMessage'
 
 const receiptLabels: Record<ReceiptState, string> = {
@@ -239,6 +240,8 @@ export function ConversationTurn({
   onCopy,
   onRate,
   onTryAgain,
+  followUps = [],
+  onFollowUp,
 }: {
   turn: Turn
   label?: string
@@ -265,6 +268,8 @@ export function ConversationTurn({
   onCopy: (text: string) => void
   onRate: (rating: Rating | undefined) => void
   onTryAgain?: () => void
+  followUps?: FollowUp[]
+  onFollowUp?: (text: string) => void
 }) {
   // Task instructions the person accepted while testing this turn's draft.
   const [revised, setRevised] = useState<string | null>(null)
@@ -302,6 +307,21 @@ export function ConversationTurn({
           </span>
         </div>
         <Markdown text={designed.text} />
+        {latest && onFollowUp && followUps.length > 0 && (
+          <div className="follow-ups" role="group" aria-label="Next steps">
+            {followUps.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                className="follow-up"
+                disabled={busy}
+                onClick={() => onFollowUp(item.text)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
         {designed.spec && (
           <AgentSpecCard
             spec={designed.spec}
