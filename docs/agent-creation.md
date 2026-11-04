@@ -46,7 +46,8 @@ The steps are:
 
 1. Tick the one cost confirmation, then choose **Write test cases**. One model call
    drafts three to eight sample cases (grounded, missing, conflict, injection and
-   decision-boundary). The Lab drops any case that breaks its rules and says how
+   decision-boundary). The Lab drops any case that breaks its rules, repeats the
+   input of an earlier case (ignoring capitals and spacing), or goes past eight, and says how
    many it dropped. A case can only use the Lab's fixed checks (required words,
    guarded claims, an asked question, expected lookups). The model never writes
    a pattern, and it never changes the template, the tools or the Lab's own
@@ -466,9 +467,10 @@ model or storage. All 18 listed templates have a scorecard; a template without a
 recorded run would show no results. Every case is recorded several times, and it
 passes only when every run passes. Each case carries `runs` and `runs_passed`,
 and each summary carries `runs_per_case`, `runs` and `runs_passed`. Each recorded
-answer also carries a fingerprint of the instructions its agent had when it ran.
-The build fails when an agent's instructions change afterwards, so the results
-can't describe instructions the Lab no longer uses. Each case includes the
+answer also carries a fingerprint of the instructions its agent had when it ran,
+and another of the test it ran against (input, fixtures, model profile and tools).
+The build fails when either changes afterwards, so the results can't describe
+instructions or a test the Lab no longer uses. Each case includes the
 request that was sent, which the library's **Take it to Foundry** tab turns into
 a downloadable evaluation file.
 

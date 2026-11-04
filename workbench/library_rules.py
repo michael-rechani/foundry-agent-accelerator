@@ -18,9 +18,17 @@ DEPLOYMENT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 # rows.
 COUNT_KEYS = ("input_tokens", "cached_tokens", "output_tokens")
 METRIC_KEYS = ("seconds", *COUNT_KEYS)
-ANSWER_ROW = ("case_id", "text", "receipts", "instructions_sha256", "recorded_on")
-METRICS_ROW = ("case_id", "model", *METRIC_KEYS, "instructions_sha256", "recorded_on")
-RUN_ROW = ("case_id", "run", "text", "receipts", "model", *METRIC_KEYS, "instructions_sha256", "recorded_on")
+ANSWER_ROW = ("case_id", "text", "receipts", "instructions_sha256", "context_sha256", "recorded_on")
+METRICS_ROW = ("case_id", "model", *METRIC_KEYS, "instructions_sha256", "context_sha256", "recorded_on")
+RUN_ROW = ("case_id", "run", "text", "receipts", "model", *METRIC_KEYS, "instructions_sha256", "context_sha256",
+           "recorded_on")
+CONTEXT_KEY = "context_sha256"
+
+
+def without_context(keys):
+    """The keys of a row recorded before the context fingerprint existed. Those rows stay in the evidence
+    unchanged, and scorecards.py accepts them only against the committed context baseline."""
+    return tuple(key for key in keys if key != CONTEXT_KEY)
 
 
 def is_int(value):

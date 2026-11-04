@@ -34,6 +34,9 @@ locals {
   foundry_account_name = var.foundry_account_name != null ? var.foundry_account_name : try(local.platform_outputs.foundry_account_name, null)
   foundry_project_name = var.foundry_project_name != null ? var.foundry_project_name : try(local.platform_outputs.foundry_project_name, null)
   cosmos_account_name  = var.cosmos_account_name != null ? var.cosmos_account_name : try(local.platform_outputs.cosmos_account_name, null)
+
+  # The literal keeps an existing dev state planning until the platform root is applied once with the new output.
+  monitor_private_link_scope_name = coalesce(var.monitor_private_link_scope_name, try(local.platform_outputs.monitor_private_link_scope_name, null), "ampls-aifnd-dev")
 }
 
 # Fails the plan with a clear message instead of a provider error on a null name.

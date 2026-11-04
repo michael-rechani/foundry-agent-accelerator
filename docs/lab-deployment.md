@@ -36,7 +36,11 @@ private network too.
 ```
 
 It creates any missing ignored input (`backend.hcl`, `terraform.tfvars`,
-`dev.tfvars`) with defaults and never overwrites one. The committed names in
+`dev.tfvars`) with defaults and never overwrites one. A newly generated registry
+name includes a hash of the subscription and, for any environment other than
+`dev`, the environment name, so two environments in one subscription don't claim
+the same global name. A `dev` registry keeps its original name, and an existing
+`dev.tfvars` keeps whatever name it holds. The committed names in
 [`environments/dev/`](../environments/README.md) are passed with `-var-file`, and
 `dev\lab.tfvars` sets `platform_state = {}`, which reads the platform's state from
 the account `terraform/bootstrap` creates. Three stages are opt-in:
@@ -116,11 +120,16 @@ platform root created. Set `platform_state` in `dev.tfvars` to the platform
 root's state location, and the Lab reads those names from the platform outputs
 (`resource_group_name`, `workload_virtual_network_name`,
 `management_virtual_network_name`, `foundry_account_name`,
-`foundry_project_name`, `cosmos_account_name`) through Microsoft Entra ID. Apply the
+`foundry_project_name`, `cosmos_account_name`, `monitor_private_link_scope_name`)
+through Microsoft Entra ID. Apply the
 platform root first. Set `platform_state = {}` to use the state account
 `terraform/bootstrap` creates: each field defaults to its names. A name you set explicitly still wins, so an existing Lab keeps
 working unchanged. The plan stops with a clear message if a name is missing, for
 example `management_vnet_name` when the platform's management network is off.
+If the platform state predates the `monitor_private_link_scope_name` output, the
+Lab falls back to `ampls-aifnd-dev` and warns. That's right for the dev platform
+only. Apply the platform root once to refresh its outputs, which changes no
+resources, before deploying another environment or base name.
 
 **Start from the canonical inputs, not an old local copy.** A stale
 `dev.tfvars` can plan to turn off agent creation, drop the creation-key secret,

@@ -10,7 +10,7 @@ TOOLS = ("lookup_demo_request", "lookup_demo_service")
 
 
 def case(case_id="grounded-one", category="grounded", **changes):
-    return {"id": case_id, "category": category, "input": "Sample notice: hours change to 8:00 on Monday.",
+    return {"id": case_id, "category": category, "input": f"Sample notice for {case_id}: hours change to 8:00 on Monday.",
             "checks": {"must_include": ["8:00"]}, "rubric": "States the new hours.", **changes}
 
 
@@ -99,6 +99,37 @@ class ParseCasesTests(unittest.TestCase):
         cases, rejected = parse_cases(reply(*three(), case("grounded-one")), TOOLS)
         self.assertEqual(len(cases), 3)
         self.assertEqual(rejected[0]["problems"], ["duplicate id"])
+
+    def test_a_repeated_input_is_rejected_and_the_first_case_is_kept(self):
+        twin = case("grounded-two", input=case()["input"], checks={"must_include": ["Monday"]})
+        cases, rejected = parse_cases(reply(*three(), twin), TOOLS)
+        self.assertEqual([item["id"] for item in cases], ["grounded-one", "missing-one", "injection-one"])
+        self.assertEqual(rejected, [{"id": "grounded-two", "problems": ["input repeats the case grounded-one"]}])
+
+    def test_an_input_that_differs_only_in_case_or_whitespace_is_a_repeat(self):
+        spaced = case("grounded-two", input="  SAMPLE notice for grounded-one:\n hours   change to 8:00 on Monday.\t")
+        cases, rejected = parse_cases(reply(*three(), spaced), TOOLS)
+        self.assertEqual(len(cases), 3)
+        self.assertEqual(rejected[0]["problems"], ["input repeats the case grounded-one"])
+
+    def test_an_input_that_differs_in_its_words_is_kept(self):
+        other = case("grounded-two", input="Sample notice: hours change to 9:00 on Monday.")
+        cases, rejected = parse_cases(reply(*three(), other), TOOLS)
+        self.assertEqual((len(cases), rejected), (4, []))
+
+    def test_a_rejected_case_does_not_make_a_later_input_a_repeat(self):
+        bad = case("bad-one", checks={"must_not_match": ["x"]}, input="Sample notice: the office closes early.")
+        later = case("grounded-two", input="Sample notice: the office closes early.")
+        cases, rejected = parse_cases(reply(bad, *three(), later), TOOLS)
+        self.assertEqual([item["id"] for item in cases][-1], "grounded-two")
+        self.assertEqual([item["id"] for item in rejected], ["bad-one"])
+
+    def test_repeats_do_not_count_toward_the_case_limits(self):
+        many = [case(f"case-{index}") for index in range(8)]
+        cases, rejected = parse_cases(reply(*many, case("case-extra", input=many[0]["input"].upper())), TOOLS)
+        self.assertEqual((len(cases), len(rejected)), (8, 1))
+        with self.assertRaises(CaseDraftError):
+            parse_cases(reply(*three()[:2], case("grounded-two", input=case()["input"])), TOOLS)
 
     def test_extra_cases_beyond_the_maximum_are_not_kept(self):
         many = [case(f"case-{index}") for index in range(10)]

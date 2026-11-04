@@ -87,8 +87,12 @@ function Test-PrivateHost([string]$HostName) {
     -not @($addresses | Where-Object { -not (Test-PrivateAddress $_.ToString()) })
 }
 
-function Get-RegistryName([string]$SubscriptionId, [string]$Base) {
-    $bytes = [Text.Encoding]::UTF8.GetBytes($SubscriptionId.ToLowerInvariant())
+function Get-RegistryName([string]$SubscriptionId, [string]$Base, [string]$EnvironmentName = 'dev') {
+    # Registry names are global. Other environments add their name to the hash so they can't collide with dev;
+    # dev keeps the original hash so an adopted dev registry keeps its name.
+    $seed = $SubscriptionId.ToLowerInvariant()
+    if ($EnvironmentName -ne 'dev') { $seed += "/$($EnvironmentName.ToLowerInvariant())" }
+    $bytes = [Text.Encoding]::UTF8.GetBytes($seed)
     $hash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant().Substring(0, 8)
     'acr' + ($Base -replace '[^a-z0-9]', '') + $hash
 }
@@ -334,7 +338,7 @@ recording_reviewer_user_ids = [$($reviewers -join ', ')]
 
 function Initialize-LabRoot {
     $account = Get-StateAccount
-    $registry = Get-RegistryName $Subscription $BaseName
+    $registry = Get-RegistryName $Subscription $BaseName $Environment
     Write-NewFile (Join-Path $labDir 'dev.tfvars') @"
 subscription_id = "$Subscription"
 registry_name   = "$registry"
@@ -372,7 +376,7 @@ function Invoke-ImageStage {
         return
     }
     $registry = Get-TfvarsValue (Join-Path $labDir 'dev.tfvars') 'registry_name'
-    if (-not $registry) { $registry = Get-RegistryName $Subscription $BaseName }
+    if (-not $registry) { $registry = Get-RegistryName $Subscription $BaseName $Environment }
     if (-not (Test-PrivateHost "$registry.azurecr.io")) {
         throw "This host can't reach the private registry $registry. Run the image stage from the private runner or jumpbox."
     }
@@ -392,19 +396,22 @@ function Invoke-LabStage {
     Invoke-ReviewedApply $labDir 'lab' (@(Get-EnvironmentArgument 'lab.tfvars') + @('-var-file=dev.tfvars'))
 }
 
+function Invoke-PrivateCheck([string]$Path, [string]$Url, [bool]$SkipAgentCall) {
+    # A hashtable binds by parameter name; an array of '-Name' strings would bind positionally.
+    $parameters = @{ BaseUrl = $Url }
+    if ($SkipAgentCall) { $parameters.SkipAgentCall = $true }
+    & $Path @parameters
+}
+
 function Invoke-VerifyStage {
     Initialize-LabRoot
     $url = Get-Native $TerraformCommand @("-chdir=$labDir", 'output', '-raw', 'private_url')
     $hostName = ([Uri]$url).Host
     if (-not (Test-PrivateHost $hostName)) { throw "$hostName doesn't resolve to a private address from this host. Run verify from the private network." }
-    $arguments = @('-BaseUrl', $url)
-    if ($IncludeAgentCall) {
-        if (-not (Confirm-Apply 'one billable sample agent request')) { throw 'The billable agent call was not approved.' }
-    } else {
-        $arguments += '-SkipAgentCall'
+    if ($IncludeAgentCall -and -not (Confirm-Apply 'one billable sample agent request')) {
+        throw 'The billable agent call was not approved.'
     }
-    $check = Join-Path $PSScriptRoot 'workbench/test-private.ps1'
-    & $check @arguments
+    Invoke-PrivateCheck (Join-Path $PSScriptRoot 'workbench/test-private.ps1') $url (-not $IncludeAgentCall)
 }
 
 function Invoke-AgentsStage {

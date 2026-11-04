@@ -15,26 +15,38 @@ build fails if either changes, so the test results can't describe instructions t
 uses; library_runs.py re-records an agent's answers. An agent's test date is the latest date on its
 rows.
 
+Rows also carry a fingerprint of their test context: the input the case sent, its fixtures, the model
+profile, and what the agent's tools returned (their descriptions, sample records and receipt shape). The
+build fails if a case's context changes after its rows were recorded. Rows recorded before this
+fingerprint existed are accepted only against evidence/context-baseline.json, which `baseline` writes
+once. Each answer must also carry its tool-call receipts, and a case that expects tool calls fails
+without them.
+
     python scorecards.py write   # regenerate the Lab's copy
     python scorecards.py check   # fail if the Lab's copy is out of date
     python scorecards.py signoff --reviewer "Name" --all   # record that a person read the answers
+    python scorecards.py baseline --basis "how you checked"   # one-time, for rows recorded before context fingerprints
 
 Run `signoff` only after a person has read the answers. It writes evidence/signoffs.json, which
 ties each sign-off to a fingerprint of the recorded answers that were read. If a recorded answer
-changes later, the build fails until someone reads the answers again.
+changes later, the build fails until someone reads the answers again. `--all` still lists every
+agent when one sign-off is stale, and replaces that sign-off with the new one.
 """
 from __future__ import annotations
 
 import argparse
 import datetime
 import hashlib
+import inspect
 import json
+import re
 import statistics
 import sys
 from pathlib import Path
 
 from library_checks import CASES_PATH, TEMPLATES, case_input, load_cases, score
-from library_rules import METRIC_KEYS, is_int, is_number, valid_date
+from demo_tools import create_demo_tools  # library_checks puts workbench/agent_runtime on sys.path
+from library_rules import CONTEXT_KEY, METRIC_KEYS, is_int, is_number, valid_date
 from agent_runtime.main import DEMO_POLICY
 
 HERE = Path(__file__).resolve().parent
@@ -51,6 +63,10 @@ METRICS = EVIDENCE / "library-acceptance-2026-09-29-metrics.jsonl"
 REPEATS = EVIDENCE / "library-repeat-2026-09-29.jsonl"
 PRICES = EVIDENCE / "model-prices-2026-09.json"
 SIGNOFFS = EVIDENCE / "signoffs.json"
+# Rows recorded before the context fingerprint existed are accepted only if this committed file holds the
+# fingerprint their case had when they were checked. `scorecards.py baseline` adds entries; it never edits one.
+CONTEXT_BASELINE = EVIDENCE / "context-baseline.json"
+_SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
 def _lines(path):
@@ -130,6 +146,82 @@ def _check_fingerprint(record, case, run, what="answer"):
                          f"python evaluations/library_runs.py record --templates {case['template_id']} --yes")
 
 
+def tool_context(template_id):
+    """What an agent's tools showed the model: each tool's name, description and parameters, the sample
+    records it can look up and the helpers that read them, and the shape of the receipt it returns."""
+    tools = []
+    for tool in create_demo_tools(template_id, "context-check"):
+        used = inspect.getclosurevars(tool)
+        receipt = used.nonlocals.get("receipt")
+        tools.append({
+            "name": tool.__name__, "description": inspect.getdoc(tool), "parameters": str(inspect.signature(tool)),
+            "records": {name: value for name, value in sorted(used.globals.items()) if isinstance(value, dict)},
+            "helpers": {name: inspect.getsource(value) for name, value in sorted(used.globals.items())
+                        if inspect.isfunction(value)},
+            "receipt": receipt({"example": 1}) if receipt else None,
+        })
+    return tools
+
+
+def context_digest(case):
+    """Fingerprint of everything besides the instructions that shapes what the agent answered: the input it
+    was sent, the sample fixtures the case relies on, the model profile, and the agent's tool context. The
+    case's checks and rubric are left out; answers are scored again from their recorded text on every build."""
+    context = {
+        "input": case_input(case), "fixtures": case.get("fixtures", {}),
+        "missing_fixtures": case.get("missing_fixtures", {}),
+        "model_profile": TEMPLATES[case["template_id"]]["model_profile"],
+        "tools": tool_context(case["template_id"]),
+    }
+    return hashlib.sha256(json.dumps(context, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def load_context_baseline(path):
+    """{case_id: fingerprint} for rows recorded before context fingerprints. A missing file means none."""
+    path = Path(path)
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    cases = data.get("cases")
+    if (data.get("schema_version") != 1 or not isinstance(cases, dict)
+            or not str(data.get("basis", "")).strip() or not valid_date(data.get("generated_on"))
+            or not all(isinstance(value, str) and _SHA256.fullmatch(value) for value in cases.values())):
+        raise ValueError(f"{path.name}: needs schema_version 1, a basis, a generated_on date, and a "
+                         "fingerprint for each case")
+    return cases
+
+
+def recorded_context(record, case_id, baseline):
+    """The context fingerprint a row claims: its own, or for a row recorded before they existed, its case's
+    entry in the committed baseline. None when there is no valid one."""
+    value = record[CONTEXT_KEY] if CONTEXT_KEY in record else baseline.get(case_id)
+    return value if isinstance(value, str) and _SHA256.fullmatch(value) else None
+
+
+def _check_context(record, case, run, expected, baseline, what="answer"):
+    recorded = recorded_context(record, case["id"], baseline)
+    if recorded is None:
+        raise ValueError(f"{case['id']} run {run}: this {what} has no valid context fingerprint, and the context "
+                         "baseline has no entry for its case; record its test answers again with: "
+                         f"python evaluations/library_runs.py record --templates {case['template_id']} --yes")
+    if recorded != expected:
+        raise ValueError(f"{case['id']} run {run}: the test input, fixtures or tools of {case['template_id']} "
+                         f"changed after this {what} was recorded; record its test answers again with: "
+                         f"python evaluations/library_runs.py record --templates {case['template_id']} --yes")
+
+
+def _receipts(record, case, run):
+    """The tool calls recorded with an answer. A scorecard can only pass a case that expects tool calls when
+    each call was recorded, so a missing or malformed list is an error, not an empty one."""
+    receipts = record.get("receipts")
+    if not isinstance(receipts, list) or not all(
+            isinstance(item, dict) and isinstance(item.get("tool"), str) and item["tool"].strip()
+            for item in receipts):
+        raise ValueError(f"{case['id']} run {run}: the recorded answer needs receipts, a list of "
+                         '{"tool": name} entries (an empty list when no tool was called)')
+    return receipts
+
+
 def _recorded_on(record, where):
     value = record.get("recorded_on")
     if not isinstance(value, str) or not valid_date(value):
@@ -191,9 +283,14 @@ def record_signoff(reviewer, reviewed_on, template_ids, path=SIGNOFFS, cases_pat
 
 
 def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PRICES, signoffs_path=SIGNOFFS,
-          repeats_path=REPEATS, verify_instructions=True):
+          repeats_path=REPEATS, verify_instructions=True, verify_signoffs=True,
+          context_baseline_path=CONTEXT_BASELINE, verify_context=True):
+    """Build the scorecards. `verify_signoffs=False` skips the sign-off file, only so that `signoff --all`
+    can list the agents a person may read even when an earlier sign-off is stale. A normal build, write
+    and check always verifies sign-offs and that every row's context still matches its case."""
     data = load_cases(cases_path)
     prices = json.loads(Path(prices_path).read_text(encoding="utf-8"))
+    baseline = load_context_baseline(context_baseline_path) if verify_context else {}
     cases = {case["id"]: case for case in data["cases"]}
     answers = load_answers(cases, runs)
     metrics = {}
@@ -222,15 +319,20 @@ def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PR
             for number, row in sorted(repeats.get(case["id"], {}).items())]
         dates = [_recorded_on(record, f"{case['id']} run 1 answer"), _recorded_on(measured, f"{case['id']} run 1 metrics")]
         dates += [_recorded_on(row, f"{case['id']} run {number}") for number, row, _ in attempts[1:]]
+        expected = context_digest(case) if verify_context else None
         if verify_instructions:
             _check_fingerprint(measured, case, 1, "metrics row")
+        if verify_context:
+            _check_context(measured, case, 1, expected, baseline, "metrics row")
         results = []
         for number, answer, metric in attempts:
             if verify_instructions:
                 _check_fingerprint(answer, case, number)
+            if verify_context:
+                _check_context(answer, case, number, expected, baseline)
             if metric["model"] != measured["model"]:
                 raise ValueError(f"{case['id']}: run {number} used a different model from run 1")
-            passed, failures = score(case, answer.get("text", ""), answer.get("receipts"))
+            passed, failures = score(case, answer.get("text", ""), _receipts(answer, case, number))
             cost = token_cost(prices, metric["model"], metric["input_tokens"], metric["cached_tokens"],
                               metric["output_tokens"])
             results.append({"run": number, "passed": passed, "failures": failures, "cost": cost, "metric": metric})
@@ -258,7 +360,7 @@ def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PR
             "cost_usd": round(statistics.fmean(item["cost"] for item in results), 6),
         })
 
-    signoffs = load_signoffs(signoffs_path)
+    signoffs = load_signoffs(signoffs_path) if verify_signoffs else {}
     unknown = sorted(set(signoffs) - set(scorecards))
     if unknown:
         raise ValueError("sign-off for agents with no recorded answers: " + ", ".join(unknown))
@@ -300,31 +402,75 @@ def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PR
     }
 
 
+def write_context_baseline(basis, generated_on, path=CONTEXT_BASELINE, cases_path=CASES_PATH, runs=RUNS,
+                           metrics_path=METRICS, repeats_path=REPEATS):
+    """Write the one-time baseline for rows recorded before context fingerprints existed.
+
+    Each case that has such a row gets the fingerprint its case has now, and `basis` says why that is the
+    one the row was recorded against. It refuses to overwrite a baseline, and never edits an entry: new
+    recordings carry their own fingerprint."""
+    basis = basis.strip()
+    if not basis:
+        raise ValueError("A basis is required: say how you checked that these cases are unchanged since recording")
+    if not valid_date(generated_on):
+        raise ValueError("The date must look like 2026-11-03")
+    path = Path(path)
+    if path.exists():
+        raise ValueError(f"{path.name} already exists; its entries are never edited. Re-record a case instead")
+    cases = {case["id"]: case for case in load_cases(cases_path)["cases"]}
+    rows = [record for _, record in load_answers(cases, runs).values()] + _lines(metrics_path)
+    rows += [row for by_run in load_repeats(repeats_path, cases).values() for row in by_run.values()]
+    legacy = sorted({row["case_id"] for row in rows if CONTEXT_KEY not in row})
+    if not legacy:
+        raise ValueError("No row lacks a context fingerprint, so there is nothing to baseline")
+    record = {"schema_version": 1, "basis": basis, "generated_on": generated_on,
+              "cases": {case_id: context_digest(cases[case_id]) for case_id in legacy}}
+    path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8", newline="\n")
+    return legacy
+
+
 def render(result):
     return json.dumps(result, indent=2, ensure_ascii=False) + "\n"
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("command", choices=("write", "check", "signoff"))
+    parser.add_argument("command", choices=("write", "check", "signoff", "baseline"))
     parser.add_argument("agents", nargs="*", help="agent IDs to sign off (signoff only)")
     parser.add_argument("--reviewer", help="name of the person who read the answers (signoff only)")
-    parser.add_argument("--on", default=None, help="review date, YYYY-MM-DD (default: today)")
+    parser.add_argument("--on", default=None, help="review or baseline date, YYYY-MM-DD (default: today)")
     parser.add_argument("--all", action="store_true", help="sign off every agent (signoff only)")
+    parser.add_argument("--basis", help="how you checked the cases are unchanged since recording (baseline only)")
     args = parser.parse_args(argv)
-    if args.command == "signoff":
+    if args.command == "baseline":
+        if not args.basis:
+            parser.error("baseline needs --basis")
+        try:
+            added = write_context_baseline(args.basis, args.on or datetime.date.today().isoformat())
+        except ValueError as error:
+            parser.error(str(error))
+        print(f"Wrote {CONTEXT_BASELINE.relative_to(HERE.parent)} for {len(added)} case(s).")
+        return 0
+    signing = args.command == "signoff"
+    if signing:
         if not args.reviewer:
             parser.error("signoff needs --reviewer")
         if args.all == bool(args.agents):
             parser.error("name the agents to sign off, or use --all, but not both")
-        ids = sorted({card["template_id"] for card in build()["scorecards"]}) if args.all else args.agents
         try:
+            ids = (sorted({card["template_id"] for card in build(verify_signoffs=False)["scorecards"]})
+                   if args.all else args.agents)
             done = record_signoff(args.reviewer, args.on or datetime.date.today().isoformat(), ids)
         except ValueError as error:
             parser.error(str(error))
         print(f"Recorded sign-off by {args.reviewer.strip()} for {len(done)} agent(s).")
         args.command = "write"
-    text = render(build())
+    try:
+        text = render(build())
+    except ValueError as error:
+        if signing:
+            parser.error(str(error))
+        raise
     if args.command == "write":
         OUTPUT.write_text(text, encoding="utf-8", newline="\n")
         print(f"Wrote {OUTPUT.relative_to(HERE.parent)}")

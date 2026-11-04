@@ -6,8 +6,8 @@ variable "alert_action_group_ids" {
 
 variable "monitor_private_link_scope_name" {
   type        = string
-  description = "Existing AMPLS linked to the workload and management networks."
-  default     = "ampls-aifnd-dev"
+  description = "Existing AMPLS linked to the workload and management networks. Null reads it from the platform state (platform_state). If the platform state predates that output, the Lab falls back to ampls-aifnd-dev and warns; apply the platform root to refresh its outputs."
+  default     = null
 }
 
 variable "private_monitoring_enabled" {
@@ -46,7 +46,15 @@ resource "azurerm_monitor_private_link_scoped_service" "logs" {
   linked_resource_id  = azapi_resource.logs.id
   name                = "law-${var.name}"
   resource_group_name = local.resource_group_name
-  scope_name          = var.monitor_private_link_scope_name
+  scope_name          = local.monitor_private_link_scope_name
+}
+
+# Warns, rather than fails, so a dev platform state that predates the output keeps planning.
+check "monitor_private_link_scope_source" {
+  assert {
+    condition     = var.monitor_private_link_scope_name != null || try(local.platform_outputs.monitor_private_link_scope_name, null) != null
+    error_message = "The platform state has no monitor_private_link_scope_name output, so the Lab uses the dev default ampls-aifnd-dev. Apply the platform root to refresh its outputs, or set monitor_private_link_scope_name, before deploying another environment or base name."
+  }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "this" {

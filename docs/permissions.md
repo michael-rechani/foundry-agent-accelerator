@@ -195,7 +195,10 @@ and assigned it to the Lab deploy identity on the runner VM only. It's now
 Terraform in [terraform/identity](../terraform/identity/README.md); import the
 live role and assignment before the first apply. It lets the
 [Deploy Lab image](lab-deployment.md#deploy-a-new-image-from-github-actions)
-workflow start the runner, which deallocates itself when idle. It can't stop,
+workflow start the runner, which deallocates itself when idle. The
+[Record library answers](library-scorecards.md#record-an-agents-test-answers-again)
+workflow starts it the same way, through the deploy identity, after its reviewer
+approves; the recording identity has no VM permission. It can't stop,
 change, delete or run commands on the VM.
 
 ### Adopt the Key Vault grant

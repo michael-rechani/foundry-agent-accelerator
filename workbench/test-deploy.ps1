@@ -25,6 +25,13 @@ $registry = Get-RegistryName $subscription 'aifnd'
 Assert-Equal $registry (Get-RegistryName $subscription.ToUpperInvariant() 'aifnd') 'registry name ignores subscription case'
 if ($registry -notmatch '^[a-z0-9]{5,50}$') { throw "Registry name '$registry' breaks the Lab's naming rule." }
 if ($registry -eq (Get-RegistryName '99999999-2222-3333-4444-555555555555' 'aifnd')) { throw 'Registry names must differ across subscriptions.' }
+Assert-Equal 'acraifnd666ff6cc' $registry 'the dev registry name is unchanged, so an adopted dev registry keeps it'
+Assert-Equal $registry (Get-RegistryName $subscription 'aifnd' 'dev') 'naming dev explicitly gives the same name'
+$testRegistry = Get-RegistryName $subscription 'aifnd' 'test'
+if ($testRegistry -eq $registry) { throw 'Dev and test must not generate the same registry name.' }
+if ($testRegistry -notmatch '^[a-z0-9]{5,50}$') { throw "Registry name '$testRegistry' breaks the Lab's naming rule." }
+Assert-Equal $testRegistry (Get-RegistryName $subscription.ToUpperInvariant() 'aifnd' 'test') 'a non-dev registry name is stable'
+if ($testRegistry -eq (Get-RegistryName $subscription 'aifnd' 'stage')) { throw 'Two non-dev environments must not share a registry name.' }
 
 $digest = 'sha256:' + ('a' * 64)
 Assert-Equal $digest (Get-ImageDigest @('building', "reg.azurecr.io/workbench@$digest", 'PRIVATE_BUILD_PUSH_AND_PULL_VERIFIED=True')) 'digest is read from the build output'
@@ -50,6 +57,44 @@ Assert-Equal 0 @(Get-EnvironmentArgument 'missing.tfvars').Count 'a missing envi
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('deploy-test-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temporary | Out-Null
 try {
+    # The stub keeps test-private.ps1's real parameter block, so a renamed or retyped parameter fails here.
+    $checkAst = [Management.Automation.Language.Parser]::ParseFile((Resolve-Path (Join-Path $PSScriptRoot 'test-private.ps1')), [ref]$null, [ref]$null)
+    $stub = Join-Path $temporary 'stub-check.ps1'
+    Set-Content -LiteralPath $stub -Value ($checkAst.ParamBlock.Extent.Text + "`n[pscustomobject]@{ BaseUrl = `$BaseUrl; PythonCommand = `$PythonCommand; SkipAgentCall = [bool]`$SkipAgentCall } | ConvertTo-Json -Compress")
+
+    $bound = Invoke-PrivateCheck $stub 'https://lab.internal' $true | ConvertFrom-Json
+    Assert-Equal 'https://lab.internal' $bound.BaseUrl 'verify passes the URL as BaseUrl'
+    Assert-Equal 'python' $bound.PythonCommand 'verify leaves PythonCommand at its default'
+    Assert-Equal $true $bound.SkipAgentCall 'verify skips the billable call by default'
+    $bound = Invoke-PrivateCheck $stub 'https://lab.internal' $false | ConvertFrom-Json
+    Assert-Equal 'https://lab.internal' $bound.BaseUrl 'verify passes the URL as BaseUrl with the agent call'
+    Assert-Equal 'python' $bound.PythonCommand 'the agent call does not shift the URL into PythonCommand'
+    Assert-Equal $false $bound.SkipAgentCall 'verify runs the agent call when asked'
+
+    # Runs the real verify stage with every external call replaced, to prove how it chooses the check's arguments.
+    function Initialize-LabRoot { }
+    function Get-Native { 'https://lab.internal' }
+    function Test-PrivateHost { $true }
+    function Invoke-PrivateCheck([string]$Path, [string]$Url, [bool]$SkipAgentCall) {
+        $script:verifyCall = [pscustomobject]@{ Path = $Path; Url = $Url; SkipAgentCall = $SkipAgentCall }
+    }
+    function Confirm-Apply([string]$Label) { $script:approvalAsked = $Label; $script:approval }
+    foreach ($case in @(
+            @{ Include = $false; Approve = $false; Asked = $false; Skip = $true; Name = 'default verify' },
+            @{ Include = $true; Approve = $true; Asked = $true; Skip = $false; Name = 'approved agent call' })) {
+        $script:verifyCall = $null; $script:approvalAsked = $null; $script:approval = $case.Approve
+        $IncludeAgentCall = [switch]$case.Include
+        Invoke-VerifyStage
+        Assert-Equal $case.Skip $script:verifyCall.SkipAgentCall "$($case.Name) sets SkipAgentCall"
+        Assert-Equal 'https://lab.internal' $script:verifyCall.Url "$($case.Name) passes the Lab URL"
+        Assert-Equal 'test-private.ps1' (Split-Path -Leaf $script:verifyCall.Path) "$($case.Name) runs the private check"
+        Assert-Equal $case.Asked ($null -ne $script:approvalAsked) "$($case.Name) asks for approval only for the billable call"
+    }
+    $script:verifyCall = $null; $script:approval = $false; $IncludeAgentCall = [switch]$true
+    try { Invoke-VerifyStage; throw 'an unapproved agent call ran' } catch { if ($_.Exception.Message -notmatch 'not approved') { throw } }
+    Assert-Equal $null $script:verifyCall 'a declined agent call never runs the check'
+    $IncludeAgentCall = [switch]$false
+
     $file = Join-Path $temporary 'x.tfvars'
     Set-Content -LiteralPath $file -Value "registry_name = `"abc123`"`n# image = `"no`""
     Assert-Equal 'abc123' (Get-TfvarsValue $file 'registry_name') 'tfvars value is read'
