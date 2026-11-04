@@ -209,6 +209,9 @@ def calculate_bill_values(bill_data_json):
 
     bill_total = _optional_money(data, "bill_total", warnings)
     bill_balance = _optional_money(data, "bill_balance", warnings)
+    if missing := {"patient_shares", "statement_share"} - data.keys():
+        raise ValueError("Missing bill calculation fields: " + ", ".join(sorted(missing))
+                         + ". Copy all listed patient shares; use null explicitly only for unavailable information.")
     statement_share = _optional_money(data, "statement_share", warnings)
     adjustments = _amount_list(data, "bill_adjustments", warnings, allow_empty=True)
     shares = _amount_list(data, "patient_shares", warnings)

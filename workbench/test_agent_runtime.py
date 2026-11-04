@@ -48,7 +48,8 @@ class RuntimeTests(unittest.TestCase):
         for identifier in TEMPLATE_IDS:
             with self.subTest(identifier=identifier):
                 tools = create_demo_tools(identifier, "lab-demo-fictional")
-                expected = 3 if identifier == "medical-bill-reviewer" else 2 if identifier in SAMPLE_LOOKUPS else 0
+                expected = (3 if identifier in {"medical-bill-reviewer", "benefits-renewal-helper"}
+                            else 2 if identifier in SAMPLE_LOOKUPS else 0)
                 self.assertEqual(len(tools), expected)
                 self.assertTrue(all("read" in tool.__doc__.lower() for tool in tools))
                 self.assertTrue(all("SAMPLE DATA" in tool.__doc__ for tool in tools))
@@ -59,6 +60,8 @@ class RuntimeTests(unittest.TestCase):
             expected = {call[0] for call in calls}
             if template == "medical-bill-reviewer":
                 expected.add("calculate_bill_math")
+            elif template == "benefits-renewal-helper":
+                expected.add("calculate_date_difference")
             self.assertEqual(set(tools), expected)
             seen = [TEMPLATES[template]["sample_input"]]
             for name, *arguments in calls:
@@ -125,7 +128,7 @@ class RuntimeTests(unittest.TestCase):
         from agent_framework.foundry import FoundryChatClient
 
         credential = MagicMock()
-        for identifier in ("document-analyst", "workflow-coordinator", "medical-bill-reviewer"):
+        for identifier in ("document-analyst", "workflow-coordinator", "medical-bill-reviewer", "benefits-renewal-helper"):
             with self.subTest(identifier=identifier), patch(
                 "agent_framework.foundry.FoundryChatClient", wraps=FoundryChatClient,
             ) as client, patch("agent_framework.Agent", wraps=Agent) as constructor:
@@ -138,12 +141,13 @@ class RuntimeTests(unittest.TestCase):
                 self.assertIn(environment()["AGENT_INSTRUCTIONS"], options["instructions"])
                 self.assertEqual(options["default_options"], {"store": False})
                 self.assertEqual(len(options["tools"]),
-                                 0 if identifier == "document-analyst" else 3 if identifier == "medical-bill-reviewer" else 2)
+                                 0 if identifier == "document-analyst" else 2 if identifier == "workflow-coordinator" else 3)
         credential.get_token.assert_not_called()
 
     def test_calculator_policy_does_not_change_other_agents(self):
         self.assertIn("sample-lookup and arithmetic tools", demo_policy("medical-bill-reviewer"))
-        for identifier in TEMPLATE_IDS - {"medical-bill-reviewer"}:
+        self.assertIn("sample-lookup and arithmetic tools", demo_policy("benefits-renewal-helper"))
+        for identifier in TEMPLATE_IDS - {"medical-bill-reviewer", "benefits-renewal-helper"}:
             self.assertEqual(demo_policy(identifier), DEMO_POLICY)
 
     def test_packaged_tools_calculate_without_access_to_the_workbench(self):
@@ -156,14 +160,41 @@ class RuntimeTests(unittest.TestCase):
                 "from demo_tools import create_demo_tools; "
                 "tool = next(t for t in create_demo_tools('medical-bill-reviewer', 'demo-agent') "
                 "if t.__name__ == 'calculate_bill_math'); "
-                "data = {'lines': [{'label': 'one', 'amount': '2', 'quantity': '1', 'unit_price': '2'}]}; "
+                "data = {'lines': [{'label': 'one', 'amount': '2', 'quantity': '1', 'unit_price': '2'}], "
+                "'patient_shares': None, 'statement_share': None}; "
                 "receipt = json.loads(tool(json.dumps(data))); "
                 "result = json.loads(receipt['output'].split('\\n', 1)[1]); "
-                "assert receipt['status'] == 'succeeded' and result['line_amount_sum'] == '$2.00'"
+                "assert receipt['status'] == 'succeeded' and result['line_amount_sum'] == '$2.00'; "
+                "dates = next(t for t in create_demo_tools('benefits-renewal-helper', 'demo-agent') "
+                "if t.__name__ == 'calculate_date_difference'); "
+                "receipt = json.loads(dates('2027-02-12', '2027-03-20')); "
+                "result = json.loads(receipt['output'].split('\\n', 1)[1]); "
+                "assert receipt['agent'] == 'demo-agent' and result['days'] == 36"
             )
             result = subprocess.run([sys.executable, "-I", "-c", script, directory],
                                     cwd=directory, capture_output=True, text=True, timeout=30, check=False)
             self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_date_arithmetic_echoes_copied_dates_and_signed_calendar_days(self):
+        tool = next(tool for tool in create_demo_tools("benefits-renewal-helper", "demo-agent")
+                    if tool.__name__ == "calculate_date_difference")
+        for start, end, days in (
+            ("2027-02-12", "2027-03-20", 36), ("2027-03-12", "2027-03-20", 8),
+            ("2027-03-20", "2027-04-01", 12), ("2028-02-28", "2028-03-01", 2),
+            ("2027-03-20", "2027-03-20", 0), ("2027-03-21", "2027-03-20", -1),
+        ):
+            with self.subTest(start=start, end=end):
+                receipt = json.loads(tool(start, end))
+                self.assertEqual((receipt["status"], receipt["agent"], receipt["simulation"]),
+                                 ("succeeded", "demo-agent", True))
+                self.assertIn("No external system was contacted or changed", receipt["output"])
+                result = json.loads(receipt["output"].split("\n", 1)[1])
+                self.assertEqual((result["start_date"], result["end_date"], result["days"]), (start, end, days))
+        for invalid in ("20270320", "2027-W11-6", "2027-3-20", "2027-03-20T00:00:00", " 2027-03-20",
+                        "2027-02-29", "2027-04-31", "", None, 20270320, True):
+            for arguments in ((invalid, "2027-03-20"), ("2027-03-20", invalid)):
+                with self.subTest(arguments=arguments), self.assertRaisesRegex(ValueError, "date"):
+                    tool(*arguments)
 
 
 if __name__ == "__main__":

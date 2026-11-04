@@ -383,7 +383,8 @@ class TemplateTests(unittest.TestCase):
             with self.subTest(identifier=identifier):
                 self.assertEqual(
                     len(template["tools"]),
-                    3 if identifier == "medical-bill-reviewer" else 2 if identifier in LOOKUP_JOBS else 0,
+                    3 if identifier in {"medical-bill-reviewer", "benefits-renewal-helper"}
+                    else 2 if identifier in LOOKUP_JOBS else 0,
                 )
                 self.assertTrue(all(tool["simulated"] for tool in template["tools"]))
                 for tool in template["tools"]:

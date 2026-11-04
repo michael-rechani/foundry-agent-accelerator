@@ -327,6 +327,10 @@
       },
       "checks": {
         "must_include": ["Document A", "Document B", "Document C", "child care", "unsent draft"],
+        "expected_date_differences": [
+          {"start_date": "2027-03-12", "end_date": "2027-03-20", "days": 8},
+          {"start_date": "2027-02-12", "end_date": "2027-03-20", "days": 36}
+        ],
         "must_include_any": [
           ["out of date", "older than 30", "more than 30 days", "outside the 30", "36 days", "outside 30 days", "outside the window", "out of window"],
           ["doesn't match", "does not match", "mismatch", "differ", "disagree"],
@@ -382,6 +386,10 @@
       },
       "checks": {
         "must_include": ["Document A", "Document B", "Document C", "Document D"],
+        "expected_date_differences": [
+          {"start_date": "2027-03-12", "end_date": "2027-03-20", "days": 8},
+          {"start_date": "2027-02-26", "end_date": "2027-03-20", "days": 22}
+        ],
         "must_include_any": [["received"], ["on file"]],
         "must_not_match": ["(?i)Document [ABCD][^\\n]{0,60}(?<!not )\\bout of date\\b"],
         "expected_tools": ["lookup_renewal_rules", "lookup_documents_on_file"],
@@ -412,6 +420,11 @@
           "use_sample_input": true,
           "checks": {
             "must_include": ["Document A", "Document B", "Document C", "child care"],
+            "expected_date_differences": [
+              {"start_date": "2027-03-12", "end_date": "2027-03-20", "days": 8},
+              {"start_date": "2027-02-12", "end_date": "2027-03-20", "days": 36},
+              {"start_date": "2027-03-20", "end_date": "2027-04-01", "days": 12}
+            ],
             "must_include_any": [
               ["12 days", "12 calendar days"],
               ["36 days", "out of date", "out of range by 6 days"],

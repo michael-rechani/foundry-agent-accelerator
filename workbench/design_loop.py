@@ -14,7 +14,7 @@ from typing import Literal
 from fastapi import APIRouter, Request
 from pydantic import Field, ValidationError, field_validator
 
-from agent_runtime.main import DEMO_POLICY
+from agent_runtime.main import demo_policy
 from agent_templates import TEMPLATES
 from case_scoring import score
 from draft_cases import CASE_WRITER_INSTRUCTIONS, CaseDraftError, case_problems, case_prompt, parse_cases
@@ -169,7 +169,8 @@ class DesignLoop:
         problems = case_problems(data.case, tuple(agent["tools"]))
         if problems:
             return self.error(request, 400, "invalid_case", problems=problems)
-        result, rejection = await self.ask(request, agent, data.case["input"], DEMO_POLICY + data.instructions)
+        result, rejection = await self.ask(request, agent, data.case["input"],
+                                           demo_policy(agent["template_id"]) + data.instructions)
         if rejection is not None:
             return rejection
         text, output, usage, elapsed = result

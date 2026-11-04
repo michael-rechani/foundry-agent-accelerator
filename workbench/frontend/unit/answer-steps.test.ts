@@ -46,6 +46,10 @@ describe('answer steps', () => {
       'Calculated the bill math',
     )
     assert.equal(
+      plainStep(current, receipt('calculate_date_difference', null)),
+      'Calculated the date difference',
+    )
+    assert.equal(
       plainStep(current, receipt('summarize', null)),
       'Used summarize',
     )
@@ -95,6 +99,10 @@ describe('answer steps', () => {
         ]),
       ),
       'Used 2 lookups and ran 1 calculation',
+    )
+    assert.equal(
+      stepsSummary(turn([receipt('calculate_date_difference', null)])),
+      'Ran 1 calculation',
     )
   })
 

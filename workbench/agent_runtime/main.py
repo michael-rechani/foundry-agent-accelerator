@@ -25,10 +25,31 @@ DEMO_POLICY = (
 
 
 def demo_policy(template_id):
-    if template_id == "medical-bill-reviewer":
-        return DEMO_POLICY.replace(
+    if template_id in {"medical-bill-reviewer", "benefits-renewal-helper"}:
+        policy = DEMO_POLICY.replace(
             "the fixed local sample-lookup tools.",
             "the fixed local sample-lookup and arithmetic tools.",
+        )
+        if template_id == "benefits-renewal-helper":
+            return policy + (
+                "Date arithmetic: call calculate_date_difference for each document age and each days-left "
+                "calculation you report. Copy the document date and signed date for age, and the supplied "
+                "sample today and due date for days left. Use the returned signed days, never mental "
+                "arithmetic or an absolute value. Verify both echoed dates. If today or another needed "
+                "date is missing, ask for it; do not substitute the signing date or the real clock. "
+                "A negative document age is a date conflict, not current proof. Calendar-month rules "
+                "remain calendar-month rules; do not convert them to a fixed day count. "
+                "A day count does not establish that proof is sufficient or that a household qualifies.\n\n"
+            )
+        return policy + (
+            "Bill arithmetic: include patient_shares and statement_share explicitly in every calculator "
+            "input. Copy every listed line share, including zero; use null only for genuinely unavailable "
+            "information. A missing printed total is null, not an inferred sum. Correct rejected inputs "
+            "before claiming the related math is checked. For a complete, resolved comparison, label "
+            "the result 'Estimated patient share (needs confirmation)', not an amount payable. If any "
+            "statement line or quantity is missing, say 'Partial shares only, not a whole-bill estimate' "
+            "in Result before the discrepancy table. Never attribute a whole-bill balance gap to one "
+            "line when the bill does not allocate its payments and adjustments by line.\n\n"
         )
     return DEMO_POLICY
 

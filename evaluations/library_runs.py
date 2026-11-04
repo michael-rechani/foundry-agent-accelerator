@@ -637,9 +637,10 @@ def finish_run(item, case, run, outcome, usage, seconds, today):
     if cached > total["input_tokens"]:
         raise Stop(f"{where}: Foundry reported more cached tokens than input tokens.")
     receipts = []
-    for receipt in execution_receipts(transcript, {"calculate_bill_math": PREVIEW_AGENT}):
+    calculations = {"calculate_bill_math", "calculate_date_difference"}
+    for receipt in execution_receipts(transcript, dict.fromkeys(calculations, PREVIEW_AGENT)):
         recorded = {"tool": receipt["tool"]}
-        if receipt["tool"] == "calculate_bill_math":
+        if receipt["tool"] in calculations:
             recorded.update(verified=receipt["verified"], output=receipt["output"])
         receipts.append(recorded)
     return {

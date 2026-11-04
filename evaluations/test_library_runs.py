@@ -504,6 +504,20 @@ class PacedClientTests(unittest.TestCase):
 
 
 class ReceiptRecordingTests(unittest.TestCase):
+    def test_date_results_are_preserved_only_when_bound_to_the_actual_preview_agent(self):
+        item = lr.Item("benefits-renewal-helper", "reasoning", [], "digest", "model", "test")
+        case = next(case for case in lr.load_cases()["cases"] if case["id"] == "benefits-renewal-helper-sample")
+        call = {"type": "function_call", "name": "calculate_date_difference", "call_id": "dates"}
+        result = 'SAMPLE local arithmetic.\n{"start_date":"2027-02-12","end_date":"2027-03-20","days":36}'
+        usage = [lr.usage_record(SimpleNamespace(usage=USAGE))]
+        for agent, verified in ((lr.PREVIEW_AGENT, True), ("other-agent", False)):
+            output = {"type": "function_call_output", "call_id": "dates", "output": json.dumps({
+                "status": "succeeded", "agent": agent, "output": result})}
+            receipts = lr.finish_run(item, case, 1, ("completed", "Answer", [call, output]),
+                                     usage, 1.0, TODAY)["receipts"]
+            self.assertEqual(receipts[0]["verified"], verified)
+            self.assertEqual(receipts[0]["output"], result if verified else None)
+
     def test_only_a_correlated_successful_calculator_result_is_preserved(self):
         item = lr.Item("medical-bill-reviewer", "reasoning", [], "digest", "model", "test")
         case = next(case for case in lr.load_cases()["cases"]

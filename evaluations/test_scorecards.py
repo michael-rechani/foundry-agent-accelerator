@@ -438,6 +438,22 @@ class ScorecardTests(unittest.TestCase):
         self.assertIn("PO-DEMO-2210", tools[0]["records"]["_PURCHASE_ORDERS"])
         self.assertEqual(scorecards.tool_context("document-analyst"), [])
 
+    def test_date_calculation_helper_changes_invalidate_only_its_agents_context(self):
+        case = next(case for case in scorecards.load_cases()["cases"]
+                    if case["id"] == "benefits-renewal-helper-sample")
+        before = scorecards.context_digest(case)
+        other = scorecards.tool_context("supplier-invoice-reviewer")
+        tool = next(tool for tool in scorecards.tool_context(case["template_id"])
+                    if tool["name"] == "calculate_date_difference")
+        self.assertIn("_date_difference", tool["helpers"])
+
+        def changed_dates(start_date, end_date):
+            return {"days": 34}
+
+        with mock.patch.object(demo_tools, "_date_difference", changed_dates):
+            self.assertNotEqual(before, scorecards.context_digest(case))
+            self.assertEqual(other, scorecards.tool_context("supplier-invoice-reviewer"))
+
     def test_follow_up_inputs_but_not_checks_change_the_context_fingerprint(self):
         case = next(case for case in scorecards.load_cases()["cases"]
                     if case["id"] == "benefits-renewal-helper-id-only")

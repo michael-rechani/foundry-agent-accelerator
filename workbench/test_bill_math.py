@@ -101,7 +101,7 @@ class BillMathTests(unittest.TestCase):
                 {"label": "Lab", "quantity": "1", "unit_price": "60", "amount": "60"},
             ],
             "bill_total": "960", "bill_adjustments": ["-480"], "bill_balance": "480",
-            "patient_shares": ["120"],
+            "patient_shares": ["120"], "statement_share": None,
             "reconciliation": {
                 "matched_claim_lines": [{"label": "ER", "billed": "900", "allowed": "600"}],
                 "duplicate_bill_amounts": [],
@@ -161,14 +161,16 @@ class BillMathTests(unittest.TestCase):
         self.assertEqual(result["statement_share_minus_provided_shares"], "$1.00")
 
     def test_fractional_cent_product_is_exact_and_requires_rounding_confirmation(self):
-        data = {"lines": [{"label": "Partial unit", "quantity": "0.5", "unit_price": "0.01", "amount": "0.01"}]}
+        data = {"lines": [{"label": "Partial unit", "quantity": "0.5", "unit_price": "0.01", "amount": "0.01"}],
+                "patient_shares": None, "statement_share": None}
         result = calculate(data)
         self.assertEqual(result["lines"][0]["quantity_times_unit_price_exact"], "$0.005")
         self.assertEqual(result["lines"][0]["printed_amount_minus_exact_product"], "$0.005")
         self.assertTrue(any("fractional cent" in warning for warning in result["warnings"]))
 
     def test_missing_values_never_become_zero_or_a_complete_total(self):
-        data = {"lines": [{"label": "First", "amount": "10.00"}, {"label": "Second", "amount": None}]}
+        data = {"lines": [{"label": "First", "amount": "10.00"}, {"label": "Second", "amount": None}],
+                "patient_shares": None, "statement_share": None}
         result = calculate(data)
         self.assertEqual(result["bill_line_amounts"], ["$10.00", None])
         for key in ("line_amount_sum", "bill_total_minus_line_sum", "balance_from_line_sum_and_listed_adjustments",
@@ -178,7 +180,8 @@ class BillMathTests(unittest.TestCase):
         self.assertTrue(any("bill_adjustments" in warning for warning in result["warnings"]))
 
     def test_explicit_no_adjustments_differs_from_missing_adjustments(self):
-        data = {"lines": [{"label": "One", "amount": "20.00"}], "bill_total": "20.00", "bill_adjustments": []}
+        data = {"lines": [{"label": "One", "amount": "20.00"}], "bill_total": "20.00", "bill_adjustments": [],
+                "patient_shares": None, "statement_share": None}
         self.assertEqual(calculate(data)["balance_from_bill_total_and_listed_adjustments"], "$20.00")
         del data["bill_adjustments"]
         self.assertIsNone(calculate(data)["balance_from_bill_total_and_listed_adjustments"])
@@ -203,10 +206,23 @@ class BillMathTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             calculate_bill_values(None)
 
+    def test_share_fields_cannot_be_omitted_but_explicit_unknowns_remain_unknown(self):
+        for field in ("patient_shares", "statement_share"):
+            data = deepcopy(SAMPLE)
+            del data[field]
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "Missing bill calculation fields: " + field):
+                calculate(data)
+        data = {**SAMPLE, "patient_shares": None, "statement_share": None}
+        result = calculate(data)
+        self.assertIsNone(result["provided_patient_shares_sum"])
+        self.assertIsNone(result["statement_share"])
+        self.assertTrue(any("patient_shares" in warning for warning in result["warnings"]))
+        self.assertTrue(any("statement_share" in warning for warning in result["warnings"]))
+
     def test_numeric_json_is_parsed_as_decimal_not_binary_float(self):
         result = calculate_bill_values(
             '{"lines":[{"label":"One","amount":0.1},{"label":"Two","amount":0.2}],'
-            '"bill_total":0.3,"bill_adjustments":[]}'
+            '"bill_total":0.3,"bill_adjustments":[],"patient_shares":null,"statement_share":null}'
         )
         self.assertEqual(result["line_amount_sum"], "$0.30")
         self.assertEqual(result["bill_total_minus_line_sum"], "$0.00")

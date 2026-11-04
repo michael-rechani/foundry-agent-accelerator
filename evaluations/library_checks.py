@@ -18,7 +18,8 @@ sys.path.insert(0, str(ROOT / "workbench" / "agent_runtime"))
 from agent_templates import TEMPLATES  # noqa: E402
 from case_scoring import (  # noqa: E402,F401
     CHECK_KEYS, GUARDS, _CALCULATOR_FIELDS, _CALCULATOR_LINE_FIELDS, _calculation_line,
-    _valid_reconciliation_expected, false_claims as _false_claims, normalize as _normalize, score,
+    _valid_date_differences, _valid_reconciliation_expected, false_claims as _false_claims,
+    normalize as _normalize, score,
 )
 from demo_tools import create_demo_tools  # noqa: E402
 from library_rules import CATEGORIES  # noqa: E402
@@ -177,6 +178,11 @@ def validate_cases(data):
         elif set(verified) - tool_names:
             errors.append(prefix + "expected_verified_tools not offered by the template: "
                           + ", ".join(sorted(set(verified) - tool_names)))
+        differences = checks.get("expected_date_differences")
+        if differences is not None and (
+            "calculate_date_difference" not in tool_names or not _valid_date_differences(differences)
+        ):
+            errors.append(prefix + "expected_date_differences must list valid copied date pairs and exact signed days")
         calculation = checks.get("expected_calculator_result")
         if calculation is not None and (
             "calculate_bill_math" not in tool_names or not isinstance(calculation, dict) or not calculation

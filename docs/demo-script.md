@@ -42,6 +42,13 @@ and separately approved live verification remain required. Browser tests use
 fixtures, not proof of model quality. Present this as a work-in-progress
 walkthrough, or use an existing reviewed story instead.
 
+The revised source adds a local signed-date calculator and requires explicit
+patient-share inputs in medical calculations, including explicit unknowns.
+Draft tests, previews and hosted agents use the same arithmetic policy. The
+recording above predates these safeguards: its answers remain unchanged and
+its fingerprints are now stale. Fresh recordings need separate call approval;
+they must pass before human review and demo-readiness sign-off (#362, #363, #410).
+
 ## The pitch in two sentences
 
 "A caseworker needs to know which renewal documents are missing without losing

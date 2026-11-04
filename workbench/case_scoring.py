@@ -7,11 +7,39 @@ not correctness: a person still reads the answer against the case's rubric.
 import json
 import re
 from collections import Counter
+from datetime import date
 from decimal import Decimal, InvalidOperation
+
+from library_rules import is_int, valid_date
 
 CHECK_KEYS = {"must_include", "must_include_any", "must_match", "must_not_match", "must_not_claim", "guards",
               "asks_question", "expected_tools", "expected_verified_tools", "expected_calculator_result",
-              "expected_calculator_lines", "expected_calculator_reconciliation"}
+              "expected_calculator_lines", "expected_calculator_reconciliation", "expected_date_differences"}
+
+
+def _valid_date_differences(values):
+    return isinstance(values, list) and bool(values) and all(
+        isinstance(value, dict) and set(value) == {"start_date", "end_date", "days"}
+        and isinstance(value["start_date"], str) and isinstance(value["end_date"], str)
+        and valid_date(value["start_date"]) and valid_date(value["end_date"]) and is_int(value["days"])
+        and (date.fromisoformat(value["end_date"]) - date.fromisoformat(value["start_date"])).days == value["days"]
+        for value in values
+    )
+
+
+def _confirmed_calculations(receipts, tool):
+    results = []
+    for receipt in receipts:
+        if (isinstance(receipt, dict) and receipt.get("tool") == tool
+                and receipt.get("verified") is True and isinstance(receipt.get("output"), str)):
+            try:
+                result = json.loads(receipt["output"].split("\n", 1)[1])
+            except (IndexError, ValueError):
+                continue
+            if isinstance(result, dict):
+                results.append(result)
+    return results
+
 
 _CALCULATOR_FIELDS = {
     "bill_line_amounts", "bill_total", "bill_adjustments", "bill_balance", "patient_shares", "statement_share",
@@ -328,7 +356,8 @@ def score(case, text, receipts=None):
     if not isinstance(receipts, list) and (checks.get("expected_verified_tools")
                                            or checks.get("expected_calculator_result") is not None
                                            or checks.get("expected_calculator_lines") is not None
-                                           or checks.get("expected_calculator_reconciliation") is not None):
+                                           or checks.get("expected_calculator_reconciliation") is not None
+                                           or checks.get("expected_date_differences") is not None):
         failures.append("confirmed tool receipts were not supplied")
     elif isinstance(receipts, list):
         verified = {receipt.get("tool") for receipt in receipts if isinstance(receipt, dict)
@@ -336,20 +365,16 @@ def score(case, text, receipts=None):
         missing = [name for name in checks.get("expected_verified_tools", []) if name not in verified]
         if missing:
             failures.append("tools not confirmed successful: " + ", ".join(missing))
+        date_results = _confirmed_calculations(receipts, "calculate_date_difference")
+        for expected_date in checks.get("expected_date_differences") or []:
+            if not any(is_int(result.get("days")) and all(result.get(key) == value
+                       for key, value in expected_date.items()) for result in date_results):
+                failures.append("no confirmed date difference matches " + repr(expected_date))
         expected_calculation = checks.get("expected_calculator_result")
         expected_lines = checks.get("expected_calculator_lines")
         expected_reconciliation = checks.get("expected_calculator_reconciliation")
         if expected_calculation is not None or expected_lines is not None or expected_reconciliation is not None:
-            results = []
-            for receipt in receipts:
-                if (isinstance(receipt, dict) and receipt.get("tool") == "calculate_bill_math"
-                        and receipt.get("verified") is True and isinstance(receipt.get("output"), str)):
-                    try:
-                        result = json.loads(receipt["output"].split("\n", 1)[1])
-                    except (IndexError, ValueError):
-                        continue
-                    if isinstance(result, dict):
-                        results.append(result)
+            results = _confirmed_calculations(receipts, "calculate_bill_math")
 
             def matches(result):
                 amounts_match = all(

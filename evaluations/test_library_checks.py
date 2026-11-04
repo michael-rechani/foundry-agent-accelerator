@@ -456,6 +456,9 @@ def receipts_for(case):
         if "expected_calculator_reconciliation" in checks:
             result["reconciliation"] = checks["expected_calculator_reconciliation"]
         receipts.append({"tool": name, "verified": True, "output": "SAMPLE local arithmetic.\n" + json.dumps(result)})
+    for difference in checks.get("expected_date_differences", []):
+        receipts.append({"tool": "calculate_date_difference", "verified": True,
+                         "output": "SAMPLE local arithmetic.\n" + json.dumps(difference)})
     return receipts
 
 
@@ -524,6 +527,19 @@ class DatasetTests(unittest.TestCase):
             case["checks"]["expected_calculator_lines"] = value
             with self.subTest(value=value):
                 self.assertIn("expected_calculator_lines must list", "\n".join(lc.validate_cases(broken)))
+
+    def test_validation_rejects_incorrect_or_malformed_date_expectations(self):
+        correct = {"start_date": "2027-02-12", "end_date": "2027-03-20", "days": 36}
+        for value in ([], "dates", [None], [{}], [{**correct, "days": 34}], [{**correct, "days": True}],
+                      [{**correct, "days": "36"}], [{**correct, "start_date": "20270212"}],
+                      [{**correct, "start_date": "2027-02-29"}], [{**correct, "end_date": None}]):
+            broken = json.loads(json.dumps(DATA))
+            case = next(c for c in broken["cases"] if c["id"] == "benefits-renewal-helper-sample")
+            case["checks"]["expected_date_differences"] = value
+            with self.subTest(value=value):
+                self.assertIn("expected_date_differences must list", "\n".join(lc.validate_cases(broken)))
+        broken["cases"][0]["checks"]["expected_date_differences"] = [correct]
+        self.assertIn("expected_date_differences must list", "\n".join(lc.validate_cases(broken)))
 
     def test_validation_reports_a_non_string_fixture_id_instead_of_raising(self):
         for value in (2210, None, True, ["PO-DEMO-2210"], {"id": "PO-DEMO-2210"}, "", "  "):
@@ -1033,7 +1049,7 @@ class ConversationTests(unittest.TestCase):
             "The caseworker decides eligibility and benefit amounts; I can help with paperwork.",
         ]
         self.turns = [
-            {"input": lc.case_input(turn), "text": text, "receipts": RENEWAL_TOOLS if number == 0 else []}
+            {"input": lc.case_input(turn), "text": text, "receipts": receipts_for(turn)}
             for number, (turn, text) in enumerate(zip(lc.case_turns(self.case), texts, strict=True))
         ]
         self.record = {**self.turns[0], "turns": self.turns}
@@ -1049,6 +1065,32 @@ class ConversationTests(unittest.TestCase):
                 self.assertFalse(passed)
                 self.assertTrue(any(f"Turn {number + 1}:" in failure for failure in failures))
                 self.turns[number]["text"] = original
+
+    def test_dates_need_verified_results_with_the_correct_copied_inputs_and_days(self):
+        case = lc.case_turns(self.case)[1]
+        text = self.turns[1]["text"]
+        valid = receipts_for(case)
+        self.assertEqual(lc.score(case, text, valid), (True, []))
+        for change in (
+            {"verified": False}, {"verified": 1}, {"output": "not JSON"},
+            {"output": 'SAMPLE local arithmetic.\n[]'},
+            {"output": 'SAMPLE local arithmetic.\n{"start_date":"2027-02-14","end_date":"2027-03-20","days":34}'},
+            {"output": 'SAMPLE local arithmetic.\n{"start_date":"2027-02-12","end_date":"2027-03-20","days":34}'},
+        ):
+            bad = [receipt if index != 1 else {**receipt, **change} for index, receipt in enumerate(valid)]
+            with self.subTest(change=change):
+                passed, failures = lc.score(case, text, bad)
+                self.assertFalse(passed)
+                self.assertTrue(any("no confirmed date difference" in failure for failure in failures))
+        for absent in ([], {"calculate_date_difference": 3}):
+            with self.subTest(receipts=absent):
+                self.assertFalse(lc.score(case, text, absent)[0])
+        one_day = {**case, "checks": {"expected_date_differences": [
+            {"start_date": "2027-03-19", "end_date": "2027-03-20", "days": 1}]}}
+        boolean = [{"tool": "calculate_date_difference", "verified": True,
+                    "output": 'SAMPLE local arithmetic.\n'
+                              '{"start_date":"2027-03-19","end_date":"2027-03-20","days":true}'}]
+        self.assertFalse(lc.score(one_day, text, boolean)[0])
 
     def test_missing_extra_or_reordered_turns_cannot_pass(self):
         for turns in (None, self.turns[:-1], [*self.turns, self.turns[-1]], self.turns[::-1]):

@@ -14,6 +14,14 @@ Pull request numbers link to the full discussion.
 
 ### Added
 
+- **Local showcase arithmetic safeguards.** Benefits uses exact, signed
+  calendar-day differences with echoed dates; acceptance checks require the
+  verified result for each expected date pair. Medical calculations reject
+  omitted patient-share fields while preserving explicit unknowns and partial
+  totals. Draft tests now use the same template-specific arithmetic policy as
+  previews and hosted agents. Existing failed recordings are preserved and
+  stale; revised-source recordings and human review still need approval
+  (#362, #363, #410).
 - **Benefits conversation acceptance.** The recording harness can run follow-up
   prompts against each run's own earlier answers, screen every turn and count
   the whole conversation's tokens and time. The Benefits showcase now covers

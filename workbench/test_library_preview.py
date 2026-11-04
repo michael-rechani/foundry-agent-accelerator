@@ -186,6 +186,45 @@ class LibraryPreviewTests(unittest.TestCase):
         self.assertEqual(result["bill_total_minus_line_sum"], "$100.00")
         self.assertEqual(result["bill_balance_minus_statement_share"], "$930.00")
 
+    def test_benefits_preview_executes_exact_dates_and_reports_invalid_dates_explicitly(self):
+        for start, succeeded in (("2027-02-12", True), ("2027-02-29", False)):
+            with self.subTest(start=start):
+                call = {"type": "function_call", "call_id": "dates", "name": "calculate_date_difference",
+                        "arguments": json.dumps({"start_date": start, "end_date": "2027-03-20"})}
+                client = FakeClient([Response([call]), Response([{"type": "message"}], text="Answer")])
+                status, _, transcript = asyncio.run(run_preview(
+                    client, template_id="benefits-renewal-helper", model="gpt-test", prompt="Check sample dates"))
+                self.assertEqual(status, "completed")
+                spec = next(tool for tool in client.calls[0]["tools"] if tool["name"] == "calculate_date_difference")
+                self.assertEqual(spec["parameters"]["required"], ["start_date", "end_date"])
+                receipts = execution_receipts(transcript, preview_agent("library-benefits-renewal-helper")["tools"])
+                self.assertEqual(receipts[0]["verified"], succeeded)
+                if succeeded:
+                    result = json.loads(receipts[0]["output"].split("\n", 1)[1])
+                    self.assertEqual(result["days"], 36)
+                else:
+                    failed = next(item for item in transcript if item["type"] == "function_call_output")
+                    self.assertEqual(json.loads(failed["output"])["status"], "failed")
+                    self.assertIn("valid calendar date", json.loads(failed["output"])["error"])
+                    self.assertIsNone(receipts[0]["output"])
+
+    def test_medical_missing_shares_fail_explicitly_and_can_be_corrected_in_the_next_round(self):
+        data = {"lines": [{"label": "One", "amount": "10"}], "statement_share": "1"}
+        calls = [{"type": "function_call", "call_id": name, "name": "calculate_bill_math",
+                  "arguments": json.dumps({"bill_data_json": json.dumps(value)})}
+                 for name, value in (("missing", data), ("copied", {**data, "patient_shares": ["1"]}))]
+        client = FakeClient([Response([calls[0]]), Response([calls[1]]),
+                             Response([{"type": "message"}], text="Answer")])
+        status, _, transcript = asyncio.run(run_preview(
+            client, template_id="medical-bill-reviewer", model="gpt-test", prompt="Check sample bill"))
+        self.assertEqual(status, "completed")
+        outputs = [json.loads(item["output"]) for item in transcript if item["type"] == "function_call_output"]
+        self.assertEqual(outputs[0]["status"], "failed")
+        self.assertIn("patient_shares", outputs[0]["error"])
+        receipts = execution_receipts(transcript, preview_agent("library-medical-bill-reviewer")["tools"])
+        self.assertEqual([receipt["verified"] for receipt in receipts], [False, True])
+        self.assertEqual(json.loads(receipts[1]["output"].split("\n", 1)[1])["provided_patient_shares_sum"], "$1.00")
+
     def test_usage_is_summed_across_tool_rounds(self):
         call = {"type": "function_call", "call_id": "call-1", "name": "lookup_demo_request",
                 "arguments": json.dumps({"request_id": "REQ-101"})}
