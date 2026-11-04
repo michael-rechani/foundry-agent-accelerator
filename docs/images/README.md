@@ -295,8 +295,9 @@ light and dark mode. To capture another look, change the `data-look` value in
 | [lab-demo-casework.png](screenshots/lab-demo-casework.png) / [dark](screenshots/lab-demo-casework-dark.png) | Casework story preserving facts, disagreements, and human decisions | `demo-casework.png` / `demo-casework-dark.png` | Scenario tour and showcase |
 | [lab-design-loop-test.png](screenshots/lab-design-loop-test.png) / [dark](screenshots/lab-design-loop-test-dark.png) | The **Test this draft** panel after a run: one case that did not pass, with its answer open, one that did, and **Propose a revision (1 call)** | `design-loop-test.png` / `design-loop-test-dark.png` | [Agent creation](../agent-creation.md#test-a-draft-before-you-create-it) |
 | [lab-design-loop-revision.png](screenshots/lab-design-loop-revision.png) / [dark](screenshots/lab-design-loop-revision-dark.png) | A proposed revision: its reason, the line diff of the task instructions, and **Accept revision** and **Discard** | `design-loop-revision.png` / `design-loop-revision-dark.png` | [Agent creation](../agent-creation.md#test-a-draft-before-you-create-it) |
+| [lab-design-loop-review.png](screenshots/lab-design-loop-review.png) / [dark](screenshots/lab-design-loop-review-dark.png) | The **Create agent** review step after **Start from**: the task instructions accepted while testing, with the note that says so and **Use the prepared text instead** | `design-loop-review.png` / `design-loop-review-dark.png` | [README tour](#readme-tour), [Agent creation](../agent-creation.md#test-a-draft-before-you-create-it) |
 
-The two test-loop pictures come from `design-loop-docs.spec.ts`, which uses
+The three test-loop pictures come from `design-loop-docs.spec.ts`, which uses
 fictional text and mocked routes, so no model is called. The behavior itself is
 checked in `design-loop.spec.ts`.
 
@@ -314,7 +315,7 @@ cd ../..
 The tests write 1440 x 1000 PNGs under `test-results/`, which Git ignores.
 The refresh script requires exactly one desktop result per selected source and
 validates every selected PNG before replacing documentation images. By default
-it refreshes all twenty-eight images. For a focused UI change, run the relevant
+it refreshes all thirty images. For a focused UI change, run the relevant
 desktop tests and refresh just the affected light/dark pairs:
 
 ```powershell
@@ -331,7 +332,7 @@ the pre-save form so the walkthrough still shows both stages.
 
 The root README opens with [lab-tour-dark.svg](lab-tour-dark.svg). Only the
 dark tour is generated and committed.
-The tour crossfades between six Lab screenshots, about four seconds each,
+The tour crossfades between seven Lab screenshots, about four seconds each,
 and loops:
 
 | Step | Light frame | Dark frame |
@@ -342,6 +343,7 @@ and loops:
 | 4 · Chat with it | `lab-chat-start.png` | `lab-chat-start-dark.png` |
 | 5 · Take it to Foundry | `lab-take-to-foundry.png` | `lab-take-to-foundry-dark.png` |
 | 6 · Create an agent | `lab-create-agent.png` | `lab-create-agent-dark.png` |
+| 7 · Test a draft | `lab-design-loop-review.png` | `lab-design-loop-review-dark.png` |
 
 [scenario-tour-dark.svg](scenario-tour-dark.svg)
 uses the application, invoice, and casework screenshots as three separate
