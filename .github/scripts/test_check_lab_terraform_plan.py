@@ -4,6 +4,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tarfile
@@ -627,6 +628,89 @@ class LabPlanReportTests(unittest.TestCase):
         change["after_unknown"] = False
         after["criteria"].append({"query": "private"})
         self.assertEqual(diagnostic.compare_alert_query(change), "unavailable")
+
+    @staticmethod
+    def container_environment(entries):
+        return {"template": [{"container": [{"name": "workbench", "env": entries}]}]}
+
+    def test_container_environment_classifies_only_known_keys_without_values(self):
+        before = self.container_environment([
+            {"name": "WORKBENCH_MODE", "value": "private-old"},
+            {"name": "WORKBENCH_TITLE", "value": "private-removed"},
+            {"name": "PRIVATE_DYNAMIC_NAME", "value": "private-dynamic-old"},
+            {"name": "WORKBENCH_CREATION_KEY_SHA256", "secret_name": "private-secret-ref"},
+        ])
+        after = self.container_environment([
+            {"name": "WORKBENCH_MODE", "value": "private-new"},
+            {"name": "WORKBENCH_UNFINISHED_AGENTS_ENABLED", "value": "private-added"},
+            {"name": "PRIVATE_DYNAMIC_NAME", "value": "private-dynamic-new"},
+            {"name": "WORKBENCH_CREATION_KEY_SHA256", "secret_name": "private-secret-ref"},
+        ])
+        change = {"before": before, "after": after}
+        result = diagnostic.compare_container_environment(change)
+        self.assertEqual(result, {
+            "status": "compared",
+            "changed": {
+                "WORKBENCH_MODE": "changed",
+                "WORKBENCH_TITLE": "removed",
+                "WORKBENCH_UNFINISHED_AGENTS_ENABLED": "added",
+            },
+            "other_entries_changed": True,
+            "order_changed": False,
+        })
+        rendered = json.dumps(result)
+        for private in (
+            "private-old", "private-removed", "PRIVATE_DYNAMIC_NAME", "private-dynamic-old",
+            "private-secret-ref", "private-new", "private-added", "private-dynamic-new",
+        ):
+            self.assertNotIn(private, rendered)
+
+    def test_environment_report_whitelist_covers_the_checked_in_lab_keys(self):
+        source = (diagnostic.ROOT / "workbench" / "infra" / "main.tf").read_text(encoding="utf-8")
+        blocks = source.split('dynamic "env" {')
+        self.assertEqual(len(blocks), 3)
+        dynamic = blocks[1].split("content {", 1)[0]
+        names = set(re.findall(r"(?m)^\s{12}([A-Z][A-Z0-9_]+)\s*=", dynamic))
+        secret = re.findall(r'(?m)^\s+name\s*=\s*"([A-Z][A-Z0-9_]+)"', blocks[2].split("}", 1)[0])
+        self.assertEqual(len(secret), 1)
+        self.assertEqual(names | set(secret), diagnostic.CONTAINER_ENVIRONMENT_KEYS)
+
+    def test_container_environment_rejects_unknown_duplicate_and_unexpected_shapes(self):
+        before = self.container_environment([
+            {"name": "WORKBENCH_MODE", "value": "private"},
+            {"name": "WORKBENCH_TITLE", "value": "title"},
+        ])
+        after = self.container_environment(list(reversed(before["template"][0]["container"][0]["env"])))
+        change = {"before": before, "after": after}
+        self.assertTrue(diagnostic.compare_container_environment(change)["order_changed"])
+        change["after_unknown"] = {"template": [{"container": [{"env": True}]}]}
+        self.assertEqual(diagnostic.compare_container_environment(change), {"status": "unknown"})
+        change["after_unknown"] = False
+        after["template"][0]["container"][0]["env"].append({"name": "WORKBENCH_MODE", "value": "duplicate"})
+        self.assertEqual(diagnostic.compare_container_environment(change), {"status": "unavailable"})
+        after["template"][0]["container"][0]["env"].pop()
+        after["template"][0]["container"][0]["name"] = "unexpected"
+        self.assertEqual(diagnostic.compare_container_environment(change), {"status": "unavailable"})
+
+    def test_container_environment_is_reported_for_the_exact_app_in_plan_and_drift(self):
+        value = plan()
+        app = {
+            "address": "azurerm_container_app.this[0]", "type": "azurerm_container_app", "mode": "managed",
+            "change": {
+                "actions": ["update"],
+                "before": self.container_environment([]),
+                "after": self.container_environment([
+                    {"name": "WORKBENCH_UNFINISHED_AGENTS_ENABLED", "value": "private-value"},
+                ]),
+            },
+        }
+        value["resource_changes"].append(app)
+        value["resource_drift"] = [deepcopy(app)]
+        summary = diagnostic.summarize_plan(value, 2, values())
+        expected = {"WORKBENCH_UNFINISHED_AGENTS_ENABLED": "added"}
+        self.assertEqual(summary["other_managed_details"][0]["environment_comparison"]["changed"], expected)
+        self.assertEqual(summary["other_refreshed_drift_details"][0]["environment_comparison"]["changed"], expected)
+        self.assertNotIn("private-value", json.dumps(summary))
 
     def test_target_comparisons_are_included_in_the_redacted_plan_and_drift(self):
         value = plan()
