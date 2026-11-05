@@ -239,13 +239,15 @@ def verify_runner_nsg(before, after, inputs, expected_rules):
 
 
 class Terraform:
-    def __init__(self, root, scratch, environ, key, inputs, *, input_suffix=".tfvars.json", deny_cli=False):
+    def __init__(self, root, scratch, environ, key, inputs, *, input_suffix=".tfvars.json"):
         self.root, self.scratch = root, scratch
         self.binary = shutil.which("terraform")
         if not self.binary:
             raise CheckError("Terraform is missing from the private runner.")
         if input_suffix not in (".tfvars", ".tfvars.json"):
             raise CheckError("Unsupported Terraform input format.")
+        if not isinstance(inputs, bytes):
+            raise CheckError("Terraform inputs must remain private bytes.")
         self.env = {
             key: value for key, value in environ.items()
             if not key.startswith(("TF_", "ARM_", "AZURE_", "MSI_", "IDENTITY_"))
@@ -261,10 +263,6 @@ class Terraform:
             "TF_DATA_DIR": str(scratch / "data"),
             "TF_CLI_CONFIG_FILE": str(scratch / "terraform.rc"),
         })
-        if deny_cli:
-            no_cli = scratch / "no-cli"
-            no_cli.mkdir(mode=0o700)
-            self.env["PATH"] = str(no_cli)
         (scratch / "terraform.rc").write_text("disable_checkpoint = true\n")
         self.inputs = scratch / f"inputs{input_suffix}"
         self.inputs.write_bytes(inputs)

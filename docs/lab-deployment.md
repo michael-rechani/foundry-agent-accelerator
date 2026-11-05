@@ -162,6 +162,9 @@ without changing either. It verifies ownership of the existing Container App,
 WAF, and all three alerts. If `platform_state` is set, that state must be the
 `ai-foundry/dev.tfstate` key in the same approved subscription, account and
 container; otherwise the check stops rather than contacting another backend.
+For the staged diagnostic only, the platform remote-state data source is
+rewritten to use the same OIDC identity instead of Azure CLI. The checked-in
+Terraform source is not modified.
 
 The canonical inputs normally omit `image_digest`. The check reads the
 immutable image digest from the existing app's active, ready, single revision
