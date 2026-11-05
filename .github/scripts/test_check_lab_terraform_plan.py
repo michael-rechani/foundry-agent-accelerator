@@ -454,6 +454,12 @@ class LabSourceAndTerraformTests(unittest.TestCase):
                 'resource "terraform_data" "request_failures" { input = var.name }\n'
                 'resource "terraform_data" "dependencies" { input = var.name }\n'
                 'resource "terraform_data" "heartbeat" { input = var.name }\n'
+                'check "monitor_private_link_scope_source" {\n'
+                '  assert {\n'
+                '    condition = var.bootstrap_only\n'
+                '    error_message = "Synthetic monitoring-scope warning."\n'
+                '  }\n'
+                '}\n'
             )
             (root / "inputs.tfvars.json").write_text(json.dumps({
                 key: value for key, value in values().items() if key != "platform_state"
@@ -486,9 +492,24 @@ class LabSourceAndTerraformTests(unittest.TestCase):
             summary = diagnostic.summarize_plan(actual, result.returncode, values())
             self.assertEqual(summary["plan_exit"], "changes")
             self.assertTrue(all(target["planned"]["action"] == "create" for target in summary["targets"].values()))
+            self.assertEqual(summary["known_checks"]["monitor_scope_source"], "fail")
+            self.assertEqual(summary["nonpassing_checks"], 1)
 
 
 class LabPlanReportTests(unittest.TestCase):
+    @staticmethod
+    def waf(match_values, tags):
+        return {
+            "custom_rule": [{
+                "name": "BlockUnlistedClients",
+                "match_condition": [{
+                    "match_variable": "SocketAddr", "operator": "IPMatch",
+                    "negation_condition": True, "match_values": match_values,
+                }],
+            }],
+            "tags": tags,
+        }
+
     def test_redacts_values_dynamic_keys_and_distinguishes_refreshed_drift(self):
         value = plan()
         waf = value["resource_changes"][0]
@@ -545,6 +566,129 @@ class LabPlanReportTests(unittest.TestCase):
         self.assertEqual(fields, ["criteria.dimension.name", "criteria.other", "criteria.query", "criteria.threshold"])
         self.assertEqual(pending, ["criteria.other", "criteria.threshold"])
 
+    def test_waf_comparisons_classify_membership_and_tag_changes_without_values(self):
+        first, second, third = "203.0.113.10/32", "203.0.113.11/32", "2001:db8::1/128"
+        cases = (
+            ([first, second], [first, second], "unchanged", 0, 0),
+            ([first, second], [second, first], "same-members", 0, 0),
+            ([first], [first, second], "adds-entries", 1, 0),
+            ([first, second], [first], "removes-entries", 0, 1),
+            ([first, second], [first, third], "replaces-entries", 1, 1),
+        )
+        for before, after, relation, added, removed in cases:
+            with self.subTest(relation=relation):
+                change = {
+                    "before": self.waf(before, {"TOP_SECRET_TAG": "old"}),
+                    "after": self.waf(after, {"workload": "sensitive-workload",
+                                               "managed-by": "sensitive-manager",
+                                               "TOP_SECRET_TAG": "new"}),
+                }
+                self.assertEqual(diagnostic.compare_waf_allowlist(change), {
+                    "status": "compared", "relation": relation, "added": added, "removed": removed,
+                })
+                self.assertEqual(diagnostic.compare_waf_tags(change), {
+                    "status": "compared", "workload": "added", "managed-by": "added",
+                    "other_keys_changed": True,
+                })
+                rendered = json.dumps({
+                    "allowlist": diagnostic.compare_waf_allowlist(change),
+                    "tags": diagnostic.compare_waf_tags(change),
+                })
+                for private in (first, second, third, "TOP_SECRET_TAG", "sensitive-workload", "sensitive-manager"):
+                    self.assertNotIn(private, rendered)
+
+    def test_waf_comparisons_reject_unknown_or_unexpected_shapes(self):
+        before = self.waf(["203.0.113.10/32"], {"workload": "old"})
+        after = self.waf(["203.0.113.11/32"], {"managed-by": "new"})
+        change = {"before": before, "after": after, "after_unknown": {"tags": True}}
+        self.assertEqual(diagnostic.compare_waf_allowlist(change), {"status": "unknown"})
+        self.assertEqual(diagnostic.compare_waf_tags(change), {"status": "unknown"})
+        change["after_unknown"] = False
+        self.assertEqual(diagnostic.compare_waf_tags(change), {
+            "status": "compared", "workload": "removed", "managed-by": "added",
+            "other_keys_changed": False,
+        })
+        after["custom_rule"][0]["name"] = "different-rule"
+        self.assertEqual(diagnostic.compare_waf_allowlist(change), {"status": "unavailable"})
+        del after["tags"]
+        self.assertEqual(diagnostic.compare_waf_tags(change), {"status": "unavailable"})
+
+    def test_alert_queries_report_only_safe_comparisons(self):
+        before = {"criteria": [{"query": "private-prefix\r\nprivate-suffix"}]}
+        after = {"criteria": [{"query": "private-prefix\nprivate-suffix"}]}
+        change = {"before": before, "after": after}
+        self.assertEqual(diagnostic.compare_alert_query(change), "line-endings-only")
+        after["criteria"][0]["query"] = "different-private-query"
+        self.assertEqual(diagnostic.compare_alert_query(change), "different")
+        after["criteria"][0]["query"] = before["criteria"][0]["query"]
+        self.assertEqual(diagnostic.compare_alert_query(change), "unchanged")
+        change["after_unknown"] = {"criteria": [{"query": True}]}
+        self.assertEqual(diagnostic.compare_alert_query(change), "unknown")
+        change["after_unknown"] = False
+        after["criteria"].append({"query": "private"})
+        self.assertEqual(diagnostic.compare_alert_query(change), "unavailable")
+
+    def test_target_comparisons_are_included_in_the_redacted_plan_and_drift(self):
+        value = plan()
+        waf = value["resource_changes"][0]
+        waf["change"] = {
+            "actions": ["update"],
+            "before": self.waf(["203.0.113.10/32"], None),
+            "after": self.waf(["203.0.113.10/32", "203.0.113.11/32"],
+                              {"workload": "private-value", "managed-by": "private-manager"}),
+        }
+        value["resource_changes"][1]["change"] = {
+            "actions": ["update"],
+            "before": {"criteria": [{"query": "private-query\r\n"}]},
+            "after": {"criteria": [{"query": "private-query\n"}]},
+        }
+        value["resource_drift"] = [deepcopy(waf)]
+        summary = diagnostic.summarize_plan(value, 2, values())
+        planned = summary["targets"]["waf"]["planned"]
+        drift = summary["targets"]["waf"]["refreshed_drift"][0]
+        self.assertEqual(planned["allowlist_comparison"]["relation"], "adds-entries")
+        self.assertEqual(drift["allowlist_comparison"]["added"], 1)
+        self.assertEqual(planned["tag_comparison"]["workload"], "added")
+        self.assertEqual(summary["targets"]["request_failures"]["planned"]["query_comparison"],
+                         "line-endings-only")
+        rendered = json.dumps(summary)
+        for private in ("203.0.113.10", "203.0.113.11", "private-value",
+                        "private-manager", "private-query"):
+            self.assertNotIn(private, rendered)
+
+    def test_other_changes_and_drift_use_only_fixed_labels_and_fields(self):
+        value = plan()
+        other = {
+            "address": "azapi_resource.logs", "type": "azapi_resource", "mode": "managed",
+            "change": {
+                "actions": ["update"],
+                "before": {"tags": {"private-tag-key": "private-old"},
+                           "body": {"properties": {"publicNetworkAccessForQuery": "old",
+                                                   "private-property": "private-old"}}},
+                "after": {"tags": {"private-tag-key": "private-new"},
+                          "body": {"properties": {"publicNetworkAccessForQuery": "new",
+                                                  "private-property": "private-new"}}},
+            },
+        }
+        value["resource_changes"].append(other)
+        value["resource_drift"] = [deepcopy(other)]
+        value["resource_drift"].append({
+            "address": "private-resource-address", "type": "private-type", "mode": "managed",
+            "change": {"actions": ["update"], "before": {"private-key": "old"},
+                       "after": {"private-key": "new"}},
+        })
+        summary = diagnostic.summarize_plan(value, 2, values())
+        self.assertEqual(summary["other_managed_details"][0]["resource"], "log_workspace")
+        self.assertEqual(summary["other_managed_details"][0]["fields"], [
+            "body.properties.other", "body.properties.publicNetworkAccessForQuery", "tags",
+        ])
+        self.assertEqual(summary["other_refreshed_drift_details"][0]["resource"], "log_workspace")
+        self.assertEqual(summary["other_refreshed_drift_details"][1]["resource"], "unclassified")
+        rendered = json.dumps(summary)
+        for private in ("azapi_resource.logs", "private-resource-address", "private-type",
+                        "private-tag-key", "private-property", "private-old", "private-new"):
+            self.assertNotIn(private, rendered)
+
     def test_malformed_incomplete_unknown_actions_and_missing_targets_fail(self):
         alterations = (
             {"complete": False}, {"errored": True}, {"deferred_changes": [{}]},
@@ -566,12 +710,21 @@ class LabPlanReportTests(unittest.TestCase):
 
     def test_nonpassing_checks_and_imports_are_never_reported_as_clean(self):
         value = plan()
-        value["checks"] = [{"status": "pass"}, {"status": "unknown"}, {"status": "fail"}]
+        value["checks"] = [
+            {"status": "pass", "address": {"to_display": "terraform_data.platform_names"}},
+            {"status": "unknown", "address": {"to_display": "check.monitor_private_link_scope_source"}},
+            {"status": "fail", "address": {"to_display": "private-check-name"},
+             "instances": [{"problems": [{"message": "private-check-message"}]}]},
+        ]
         value["resource_changes"][0]["change"]["importing"] = {"id": "secret-id"}
         summary = diagnostic.summarize_plan(value, 2, values())
         self.assertEqual(summary["nonpassing_checks"], 2)
+        self.assertEqual(summary["check_statuses"], {"pass": 1, "fail": 1, "unknown": 1, "error": 0})
+        self.assertEqual(summary["known_checks"], {"platform_names": "pass", "monitor_scope_source": "unknown"})
+        self.assertEqual(summary["unclassified_nonpassing_checks"], 1)
         self.assertEqual(summary["imports"], 1)
-        self.assertNotIn("secret-id", json.dumps(summary))
+        for private in ("secret-id", "private-check-name", "private-check-message"):
+            self.assertNotIn(private, json.dumps(summary))
         with self.assertRaises(diagnostic.CheckError):
             diagnostic.summarize_plan(value, 0, values())
 

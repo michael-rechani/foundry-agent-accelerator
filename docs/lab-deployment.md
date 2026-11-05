@@ -148,8 +148,12 @@ Before a separately approved run:
 2. Separately approve the least-privilege, temporary Reader grants needed for a
    full Lab refresh. The existing state identity does not currently have Reader
    over the WAF or alerts; other referenced platform resources may also need
-   read access. Remove temporary grants after the approved investigation. Do
-   not grant infrastructure-write permissions or use the VM's managed identity.
+   read access. AzureRM also calls `Microsoft.App/containerApps/listSecrets/action`
+   to refresh the existing app. This action can expose app secrets to the
+   provider: it requires separate, explicit approval and a temporary role scoped
+   to that single app. Stop if it is not approved. Remove the temporary grants
+   after the approved investigation. Do not grant infrastructure-write
+   permissions or use the VM's managed identity.
 3. Separately approve starting the private runner and dispatching the workflow;
    the runner has a compute cost while running. Approve the protected
    environment gate for that run. Do not start the jumpbox, change a firewall,
@@ -193,15 +197,17 @@ and verifies that the active revision did not change. The state content check
 cannot distinguish an identical concurrent rewrite from Terraform's own
 metadata-only ETag changes; the lease protects the state during the plan.
 
-Only fixed target labels, planned actions, whitelisted schema field names,
-unknown fields, refreshed-state drift, and aggregate counts are reported. Raw
-state, input values, addresses, IPs, plans, tokens, and raw provider diagnostics
-stay private. For `AuthorizationFailed`, only allowlisted Azure action names and
-provider resource types may appear in the error summary; resource IDs and names
-remain withheld. Normal completion and failure remove the run's scratch
-directory; if a runner crash or forced termination bypasses cleanup, privately
-inspect and remove only that run and attempt's scratch directory before reusing
-the runner. An
+Only fixed target and resource-type labels, planned actions, whitelisted schema
+field names, unknown fields, refreshed-state drift, and aggregate counts are
+reported. The report classifies allow-list additions and removals, known WAF tag
+changes, alert query line-ending differences, and known check statuses without
+printing their values. Raw state, input values, addresses, IPs, plans, tokens,
+and raw provider diagnostics stay private. For `AuthorizationFailed`, only
+allowlisted Azure action names and provider resource types may appear in the
+error summary; resource IDs and names remain withheld. Normal completion and
+failure remove the run's scratch directory; if a runner crash or forced
+termination bypasses cleanup, privately inspect and remove only that run and
+attempt's scratch directory before reusing the runner. An
 incomplete or failed plan, unexpected target, unknown check, detected concurrent
 change, or missing permission is a failure—not evidence of a clean plan. A
 completed plan is a point-in-time diagnostic, not approval to apply its proposed

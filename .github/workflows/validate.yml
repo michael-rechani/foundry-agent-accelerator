@@ -268,6 +268,8 @@ jobs:
           terraform -chdir=workbench/infra fmt -check
           terraform -chdir=workbench/infra init -backend=false
           terraform -chdir=workbench/infra validate
+      - name: Test Lab alert query line endings without Azure
+        run: python -m unittest discover -s .github/scripts -p 'test_lab_monitoring_query.py' -v
       - name: Validate the knowledge search add-on module without Azure
         run: |
           terraform -chdir=addons/knowledge-search/terraform fmt -check -recursive
