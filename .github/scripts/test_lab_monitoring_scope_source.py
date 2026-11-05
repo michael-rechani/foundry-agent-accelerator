@@ -70,7 +70,7 @@ class LabMonitoringScopeSourceTests(unittest.TestCase):
                 with self.subTest(case=name):
                     plan = root / "fixture.tfplan"
                     args = [
-                        terraform, f"-chdir={root}", "plan", "-input=false", "-lock=false",
+                        terraform, f"-chdir={root}", "plan", "-input=false",
                         "-no-color", f"-out={plan}", f"-var=platform_unknown={str(unknown).lower()}",
                     ]
                     if explicit is not None:
