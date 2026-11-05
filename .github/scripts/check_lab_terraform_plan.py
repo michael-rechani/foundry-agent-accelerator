@@ -690,7 +690,16 @@ def compare_container_environment(change):
     before, after = environment(change.get("before")), environment(change.get("after"))
     if before is None or after is None:
         return {"status": "unavailable"}
+    def kind(entry, attribute):
+        if attribute not in entry:
+            return "absent"
+        value = entry[attribute]
+        if value is None:
+            return "null"
+        return "empty" if value == "" else "set"
+
     changed = {}
+    attributes = {}
     for name in sorted(CONTAINER_ENVIRONMENT_KEYS):
         old, new = before.get(name, MISSING), after.get(name, MISSING)
         if old is MISSING and new is not MISSING:
@@ -699,11 +708,17 @@ def compare_container_environment(change):
             changed[name] = "removed"
         elif old != new:
             changed[name] = "changed"
+            attributes[name] = {
+                attribute: f"{kind(old, attribute)}->{kind(new, attribute)}"
+                for attribute in sorted(set(old) | set(new))
+                if old.get(attribute, MISSING) != new.get(attribute, MISSING)
+            }
     other_before = {name: value for name, value in before.items() if name not in CONTAINER_ENVIRONMENT_KEYS}
     other_after = {name: value for name, value in after.items() if name not in CONTAINER_ENVIRONMENT_KEYS}
     return {
         "status": "compared",
         "changed": changed,
+        "changed_attributes": attributes,
         "other_entries_changed": other_before != other_after,
         "order_changed": set(before) == set(after) and list(before) != list(after),
     }
