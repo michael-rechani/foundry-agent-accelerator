@@ -239,11 +239,13 @@ def verify_runner_nsg(before, after, inputs, expected_rules):
 
 
 class Terraform:
-    def __init__(self, root, scratch, environ, key, inputs):
+    def __init__(self, root, scratch, environ, key, inputs, *, input_suffix=".tfvars.json", deny_cli=False):
         self.root, self.scratch = root, scratch
         self.binary = shutil.which("terraform")
         if not self.binary:
             raise CheckError("Terraform is missing from the private runner.")
+        if input_suffix not in (".tfvars", ".tfvars.json"):
+            raise CheckError("Unsupported Terraform input format.")
         self.env = {
             key: value for key, value in environ.items()
             if not key.startswith(("TF_", "ARM_", "AZURE_", "MSI_", "IDENTITY_"))
@@ -259,8 +261,12 @@ class Terraform:
             "TF_DATA_DIR": str(scratch / "data"),
             "TF_CLI_CONFIG_FILE": str(scratch / "terraform.rc"),
         })
+        if deny_cli:
+            no_cli = scratch / "no-cli"
+            no_cli.mkdir(mode=0o700)
+            self.env["PATH"] = str(no_cli)
         (scratch / "terraform.rc").write_text("disable_checkpoint = true\n")
-        self.inputs = scratch / "inputs.tfvars.json"
+        self.inputs = scratch / f"inputs{input_suffix}"
         self.inputs.write_bytes(inputs)
         backend = scratch / "backend.hcl"
         backend.write_text(
@@ -270,10 +276,10 @@ class Terraform:
         )
         self.command("init", "-reconfigure", f"-backend-config={backend}")
 
-    def command(self, *args, allowed=(0,)):
+    def command(self, *args, allowed=(0,), input_data=None):
         result = subprocess.run(  # noqa: S603 -- fixed verbs and guarded private paths; no shell or user CLI arguments.
             [self.binary, f"-chdir={self.root}", args[0], "-no-color", *args[1:]],
-            env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+            env=self.env, input=input_data, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
         )
         if result.returncode not in allowed:
             text = (result.stdout + result.stderr).decode(errors="replace")

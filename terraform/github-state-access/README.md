@@ -64,6 +64,13 @@ permissions. Do not add deployment permissions to this identity silently.
 Do not remove the jumpbox exception until the intended
 replacement has been verified, unless explicitly directed to revoke it anyway.
 
+The separate [Lab plan diagnostic](../../docs/lab-deployment.md#diagnose-the-existing-lab-plan)
+also uses the private runner and this protected identity. It needs separately
+approved, temporary resource Reader access and runner startup; its full plan
+holds the state lease and writes temporary lock metadata, but does not persist
+state content or apply infrastructure. Those metadata writes can create blob
+versions under the existing retention policy.
+
 ## State adoption
 
 For initial setup, an approved administrator may create the exact identity,

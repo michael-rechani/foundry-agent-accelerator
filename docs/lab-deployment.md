@@ -10,6 +10,7 @@ Lab on your own machine without Azure, use
 ## In this guide
 
 - [1. Confirm prerequisites and state ownership](#1-confirm-prerequisites-and-state-ownership)
+- [Diagnose the existing Lab plan](#diagnose-the-existing-lab-plan)
 - [2. Configure and initialize](#2-configure-and-initialize)
 - [3. Bootstrap only a new Lab](#3-bootstrap-only-a-new-lab)
 - [4. Build and select an immutable image](#4-build-and-select-an-immutable-image)
@@ -112,6 +113,93 @@ attributes. Lab runtime access is keyless managed identity. Cosmos transcripts
 remain sensitive operational data, not vault secrets. Use keyless Azure Resource
 Manager (ARM) resource reads, and keep historical backups under their
 retention policy.
+
+### Diagnose the existing Lab plan
+
+The manual
+[`Diagnose private Lab Terraform plan`](../.github/workflows/check-lab-terraform-plan.yml)
+workflow is the read-only investigation path for #445. It uses the GitHub OIDC
+state identity on the private runner, the protected `terraform-state`
+environment, and the same concurrency group as other state operations. It does
+not start the runner, grant roles, apply a plan, or publish a plan artifact.
+Preparing or merging it is **not** approval to run it.
+
+Before a separately approved run:
+
+1. Review and merge the workflow to `main`. Configure the protected environment
+   secret `TF_LAB_PLAN_CONFIG` with the following JSON object. Its values must
+   match the existing `terraform-state` environment variables exactly; use the
+   existing state identity, not a new identity or credential. The secret masks
+   the configuration in Actions logs. Setting it is a separate environment
+   change, and the placeholders below are not valid values.
+
+   ```json
+   {
+     "AZURE_CLIENT_ID": "<existing state identity client ID>",
+     "AZURE_TENANT_ID": "<existing tenant ID>",
+     "AZURE_SUBSCRIPTION_ID": "<existing subscription ID>",
+     "TF_STATE_ACCOUNT": "<existing private state account>",
+     "TF_STATE_CONTAINER": "<existing state container>",
+     "TF_STATE_PREFIX": "ai-foundry/",
+     "TF_STATE_PRIVATE_ENDPOINT": "<approved private endpoint IPv4 address>"
+   }
+   ```
+
+2. Separately approve the least-privilege, temporary Reader grants needed for a
+   full Lab refresh. The existing state identity does not currently have Reader
+   over the WAF or alerts; other referenced platform resources may also need
+   read access. Remove temporary grants after the approved investigation. Do
+   not grant infrastructure-write permissions or use the VM's managed identity.
+3. Separately approve starting the private runner and dispatching the workflow;
+   the runner has a compute cost while running. Approve the protected
+   environment gate for that run. Do not start the jumpbox, change a firewall,
+   or enable public backend access as a fallback.
+
+The check requires private DNS to resolve only to the approved state endpoint,
+uses OIDC rather than Azure CLI or managed-identity fallback, and rejects proxy
+settings. It reads the existing Lab state and canonical `workbench-dev.tfvars`
+without changing either. It verifies ownership of the existing Container App,
+WAF, and all three alerts. If `platform_state` is set, that state must be the
+`ai-foundry/dev.tfstate` key in the same approved subscription, account and
+container; otherwise the check stops rather than contacting another backend.
+
+The canonical inputs normally omit `image_digest`. The check reads the
+immutable image digest from the existing app's active, ready, single revision
+through ARM and supplies it in a private supplemental auto-input file.
+Canonical inputs take precedence, and a different canonical digest stops the
+check rather than being silently replaced. The app's image remains owned by the
+image rollout workflow and ignored by later Terraform changes. An unavailable,
+mutable, or changing active image also stops the check.
+
+The workflow stages only the checked-in Lab Terraform source and agent catalogue
+from the dispatched commit, so ignored local inputs cannot affect the result.
+It adds a diagnostic-only provider configuration that disables the Front Door
+module's telemetry during refresh without changing the module's resources or
+inputs. It then runs a full plan with refresh and locking enabled; Terraform
+temporarily acquires and releases the state blob lease and writes and removes
+lock metadata, but the workflow never persists the refreshed state. With blob
+versioning enabled, those metadata writes create retained blob versions and
+change the state ETag even when the state content is unchanged. Those versions
+can retain Terraform lock details under the account's retention policy. Account
+for that effect when approving the run.
+
+The check compares Lab state contents and non-lock metadata before and after,
+and requires the lease and lock metadata to be cleared. It also compares the
+contents and ETags of the canonical inputs and any referenced platform state,
+and verifies that the active revision did not change. The state content check
+cannot distinguish an identical concurrent rewrite from Terraform's own
+metadata-only ETag changes; the lease protects the state during the plan.
+
+Only fixed target labels, planned actions, whitelisted schema field names,
+unknown fields, refreshed-state drift, and aggregate counts are reported. Raw
+state, input values, addresses, IPs, plans, tokens, and provider diagnostics stay
+private. Normal completion and failure remove the run's scratch directory; if a
+runner crash or forced termination bypasses cleanup, privately inspect and remove
+only that run and attempt's scratch directory before reusing the runner. An
+incomplete or failed plan, unexpected target, unknown check, detected concurrent
+change, or missing permission is a failure—not evidence of a clean plan. A
+completed plan is a point-in-time diagnostic, not approval to apply its proposed
+changes.
 
 ### 2. Configure and initialize
 
