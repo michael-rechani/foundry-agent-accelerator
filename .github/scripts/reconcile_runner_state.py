@@ -173,11 +173,14 @@ def guard_plan(plan, expected_imports):
         details = change.get("change", {})
         actions = details.get("actions")
         if actions != ["no-op"]:
-            mutations.append((change.get("address", "unknown"), actions))
+            before, after = details.get("before") or {}, details.get("after") or {}
+            attributes = sorted(name for name in set(before) | set(after) if before.get(name) != after.get(name))
+            mutations.append({"address": change.get("address", "unknown"), "actions": actions,
+                              "attributes": attributes})
         if details.get("importing") is not None:
             imports[change["address"]] = details["importing"].get("id")
     if mutations:
-        # Values and provider diagnostics can contain secrets; only addresses/actions are reported.
+        # Report schema field names, never the corresponding state/plan values.
         print("Rejected resource actions: " + json.dumps(mutations))
         raise CheckError("Plan contains resource mutations; no apply or refresh-only workaround is allowed.")
     if imports != expected_imports:

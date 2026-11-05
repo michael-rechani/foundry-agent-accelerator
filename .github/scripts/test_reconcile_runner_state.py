@@ -130,6 +130,17 @@ class ReconciliationTests(unittest.TestCase):
             with self.subTest(additions=additions), self.assertRaises(reconcile.CheckError):
                 reconcile.guard_plan({**plan(), **additions}, {})
 
+    def test_drift_reports_attribute_names_without_sensitive_values(self):
+        value = plan({"resource.example": "id"})
+        value["resource_changes"][0]["change"].update(
+            actions=["update"], before={"custom_data": "old-secret"}, after={"custom_data": "new-secret"},
+        )
+        with contextlib.redirect_stdout(io.StringIO()) as output, self.assertRaises(reconcile.CheckError):
+            reconcile.guard_plan(value, {})
+        self.assertIn("custom_data", output.getvalue())
+        self.assertNotIn("old-secret", output.getvalue())
+        self.assertNotIn("new-secret", output.getvalue())
+
     def test_canonical_inputs_use_create_only_and_never_overwrite_different_values(self):
         blobs = object.__new__(reconcile.Blobs)
         blobs.base, blobs.headers = "https://stfixture.blob.core.windows.net/tfstate/ai-foundry/", {}
