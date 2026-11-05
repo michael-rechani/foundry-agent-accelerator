@@ -263,6 +263,9 @@ jobs:
           terraform -chdir=terraform/identity fmt -check
           terraform -chdir=terraform/identity init -backend=false
           terraform -chdir=terraform/identity validate
+      - name: Test identity roles and GitHub environment boundaries
+        shell: pwsh
+        run: ./scripts/terraform/test-identity-validation.ps1
       - name: Validate isolated workbench infrastructure
         run: |
           terraform -chdir=workbench/infra fmt -check
