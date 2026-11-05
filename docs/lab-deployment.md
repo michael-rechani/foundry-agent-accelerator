@@ -283,8 +283,9 @@ plan clean; confirm that with a fresh approved plan.
 Run it only from reviewed `main` on the private runner, with the protected
 `terraform-state` environment and `TF_LAB_PLAN_CONFIG` described above. Starting
 the runner and approving that environment are separate operator decisions. The
-state identity also needs temporary Reader access to the Lab WAF policy (or its
-resource group); remove it after the run. The workflow never runs a Terraform
+state identity also needs temporary Reader access to the Lab WAF policy and the
+existing Container App (or their resource group), because the workflow verifies
+the active revision before it writes; remove both after the run. The workflow never runs a Terraform
 apply, changes the WAF, or changes any public access. Blob versioning and
 state-lock retention behave as described for the monitoring scope. It reports
 only fixed labels and counts and never publishes input values or IP addresses.
