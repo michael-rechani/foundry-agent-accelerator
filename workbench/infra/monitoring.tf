@@ -6,7 +6,7 @@ variable "alert_action_group_ids" {
 
 variable "monitor_private_link_scope_name" {
   type        = string
-  description = "Existing AMPLS linked to the workload and management networks. Null reads it from the platform state (platform_state). If the platform state predates that output, the Lab falls back to ampls-aifnd-dev and warns; apply the platform root to refresh its outputs."
+  description = "Existing AMPLS linked to the workload and management networks. Null or empty reads it from the platform state (platform_state). If neither source supplies a nonempty scope, the Lab falls back to ampls-aifnd-dev and warns; review a platform plan before applying to refresh its outputs."
   default     = null
 }
 
@@ -52,8 +52,11 @@ resource "azurerm_monitor_private_link_scoped_service" "logs" {
 # Warns, rather than fails, so a dev platform state that predates the output keeps planning.
 check "monitor_private_link_scope_source" {
   assert {
-    condition     = var.monitor_private_link_scope_name != null || try(local.platform_outputs.monitor_private_link_scope_name, null) != null
-    error_message = "The platform state has no monitor_private_link_scope_name output, so the Lab uses the dev default ampls-aifnd-dev. Apply the platform root to refresh its outputs, or set monitor_private_link_scope_name, before deploying another environment or base name."
+    condition = (
+      (var.monitor_private_link_scope_name != null && var.monitor_private_link_scope_name != "") ||
+      try(local.platform_outputs.monitor_private_link_scope_name != null && local.platform_outputs.monitor_private_link_scope_name != "", false)
+    )
+    error_message = "The explicit monitoring scope and platform-state output are missing or empty, so the Lab uses the dev default ampls-aifnd-dev. Review a platform plan before applying to refresh its outputs, or set monitor_private_link_scope_name, before deploying another environment or base name."
   }
 }
 
