@@ -5,7 +5,8 @@
 .DESCRIPTION
   The existing dev runner already has state. This legacy helper is only for a
   separately approved adoption of resources proven absent from that state. It
-  refuses unreadable, empty or mismatched runner state. Run it from
+  refuses unreadable, empty, mismatched or uninspectable runner state, including
+  invalid child modules or managed resources without IDs. Run it from
   terraform/runner after `terraform init -backend-config=backend.hcl`.
 
   The default is read-only and reports resource IDs. -Apply writes state and
@@ -37,6 +38,48 @@ function Get-TfvarsValue([string] $Name) {
   return $line.Matches[0].Groups[1].Value
 }
 
+function Add-RunnerModuleIds([object] $Module, [Collections.Generic.Dictionary[string, string]] $Ids) {
+  if ($null -eq $Module -or $Module -isnot [pscustomobject]) {
+    throw 'The existing runner state has invalid modules; refusing imports.'
+  }
+  if ($null -ne $Module.PSObject.Properties['resources']) {
+    if ($Module.resources -isnot [array]) {
+      throw 'The existing runner state has invalid resources; refusing imports.'
+    }
+    foreach ($resource in $Module.resources) {
+      if ($null -eq $resource -or $resource -isnot [pscustomobject] -or
+          $null -eq $resource.PSObject.Properties['address'] -or $resource.address -isnot [string] -or
+          [string]::IsNullOrWhiteSpace($resource.address) -or
+          $null -eq $resource.PSObject.Properties['mode'] -or $resource.mode -cnotin @('managed', 'data')) {
+        throw 'The existing runner state has invalid resources; refusing imports.'
+      }
+      if ($resource.mode -ceq 'data') { continue }
+      if ($Ids.ContainsKey($resource.address)) {
+        throw 'The existing runner state has duplicate resource addresses; refusing imports.'
+      }
+      if ($null -eq $resource.PSObject.Properties['values'] -or $null -eq $resource.values -or
+          $null -eq $resource.values.PSObject.Properties['id'] -or $resource.values.id -isnot [string] -or
+          [string]::IsNullOrWhiteSpace($resource.values.id)) {
+        throw 'The existing runner state has managed resources without IDs; refusing imports.'
+      }
+      $Ids.Add($resource.address, $resource.values.id)
+    }
+  }
+  if ($null -ne $Module.PSObject.Properties['child_modules']) {
+    if ($Module.child_modules -isnot [array]) {
+      throw 'The existing runner state has invalid modules; refusing imports.'
+    }
+    foreach ($child in $Module.child_modules) {
+      if ($null -eq $child -or $child -isnot [pscustomobject] -or
+          $null -eq $child.PSObject.Properties['address'] -or $child.address -isnot [string] -or
+          [string]::IsNullOrWhiteSpace($child.address)) {
+        throw 'The existing runner state has invalid modules; refusing imports.'
+      }
+      Add-RunnerModuleIds $child $Ids
+    }
+  }
+}
+
 function Get-ExistingRunnerIds([string] $GroupId, [string] $VmId) {
   $rawState = @(terraform show -json 2>$null)
   if ($LASTEXITCODE -ne 0) { throw 'Could not read the existing runner state; refusing imports.' }
@@ -55,22 +98,7 @@ function Get-ExistingRunnerIds([string] $GroupId, [string] $VmId) {
   }
 
   $ids = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::Ordinal)
-  foreach ($resource in @($state.values.root_module.resources)) {
-    if ($null -eq $resource -or $null -eq $resource.PSObject.Properties['address'] -or
-        $null -eq $resource.PSObject.Properties['mode'] -or [string]::IsNullOrWhiteSpace($resource.address)) {
-      throw 'The existing runner state has invalid resources; refusing imports.'
-    }
-    if ($resource.mode -ne 'managed') { continue }
-    if ($ids.ContainsKey($resource.address)) {
-      throw 'The existing runner state has duplicate resource addresses; refusing imports.'
-    }
-    $id = $null
-    if ($null -ne $resource.PSObject.Properties['values'] -and $null -ne $resource.values -and
-        $null -ne $resource.values.PSObject.Properties['id']) {
-      $id = $resource.values.id
-    }
-    $ids.Add($resource.address, $id)
-  }
+  Add-RunnerModuleIds $state.values.root_module $ids
   $expected = @{
     'azurerm_resource_group.runner' = $GroupId
     'azurerm_linux_virtual_machine.runner' = $VmId

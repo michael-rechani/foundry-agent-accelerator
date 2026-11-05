@@ -42,12 +42,16 @@ function New-Resource([string] $Address, [string] $Id) {
     [ordered]@{ address = $Address; mode = 'managed'; values = @{ id = $Id } }
 }
 
-function Set-State([object[]] $Resources) {
+function Set-State([object[]] $Resources, [object[]] $ChildModules) {
     $test.resources = @($Resources)
+    $rootModule = @{ resources = $test.resources }
+    if ($PSBoundParameters.ContainsKey('ChildModules')) {
+        $rootModule.child_modules = $ChildModules
+    }
     $test.stateJson = @{
         format_version = '1.0'
         values = @{
-            root_module = @{ resources = $test.resources }
+            root_module = $rootModule
             outputs = @{ fixture = @{ sensitive = $true; value = 'fictional-sensitive-state-value' } }
         }
     } | ConvertTo-Json -Depth 20 -Compress
@@ -205,6 +209,110 @@ try {
         )
         Expect-Failure "$failure state" 'runner state' { & $importer -VarFile $varFile -Apply }
         Assert-Equal 0 $test.imports.Count "$failure state performs no imports"
+    }
+
+    foreach ($target in 'network-security-group', 'role-definition', 'scoped-role-definition') {
+        Reset-Fakes
+        Set-Inputs '["10.1.2.3"]'
+        $ownedId = switch ($target) {
+            'network-security-group' { $nsg }
+            'role-definition' { $fixtureRoleId }
+            'scoped-role-definition' { "$fixtureRoleId|$resourceGroup" }
+        }
+        $childModules = @(
+            @{
+                address = 'module.unrelated'
+                resources = @((New-Resource 'module.unrelated.azurerm_network_security_group.other' "$nsg-other"))
+            }
+            @{
+                address = 'module.legacy'
+                child_modules = @(@{
+                    address = 'module.legacy.module.nested[0]'
+                    resources = @((New-Resource 'module.legacy.module.nested[0].azurerm_resource.existing' $ownedId))
+                })
+            }
+        )
+        Set-State -Resources @(
+            (New-Resource 'azurerm_resource_group.runner' $resourceGroup)
+            (New-Resource 'azurerm_linux_virtual_machine.runner' $vm)
+        ) -ChildModules $childModules
+        Expect-Failure "nested $target ownership" 'already owns an import target' {
+            & $importer -VarFile $varFile -Apply
+        }
+        Assert-Equal 0 $test.imports.Count "nested $target ownership performs no imports"
+    }
+
+    Reset-Fakes
+    Set-Inputs '["10.1.2.3"]'
+    Set-State -Resources $test.resources -ChildModules @(@{
+        address = 'module.legacy'
+        resources = @((New-Resource 'module.legacy.azurerm_network_security_group.old' $nsg))
+    })
+    Expect-Failure 'duplicate root and child ownership' 'already owns an import target' {
+        & $importer -VarFile $varFile -Apply
+    }
+    Assert-Equal 0 $test.imports.Count 'duplicate root and child ownership performs no imports'
+
+    foreach ($invalidModule in @(
+        @{ address = 'module.bad'; resources = @{ address = 'invalid' } }
+        @{ address = 'module.bad'; child_modules = 'invalid' }
+        @{ address = 'module.bad'; child_modules = @('invalid') }
+        @{ resources = @() }
+    )) {
+        Reset-Fakes
+        Set-Inputs '["10.1.2.3"]'
+        Set-State -Resources $test.resources -ChildModules @($invalidModule)
+        Expect-Failure 'invalid child module' 'runner state' { & $importer -VarFile $varFile -Apply }
+        Assert-Equal 0 $test.imports.Count 'invalid child module performs no imports'
+        Assert-Equal 0 $test.azureCalls.Count 'invalid child module avoids Azure lookups'
+    }
+
+    foreach ($invalidResource in @(
+        @{ address = 'module.bad.azurerm_resource.unknown'; mode = 'managed'; values = @{} }
+        @{ address = 'module.bad.azurerm_resource.unknown'; mode = 'managed'; values = @{ id = $null } }
+        @{ address = 'module.bad.azurerm_resource.unknown'; mode = 'managed'; values = @{ id = '  ' } }
+        @{ address = 'module.bad.azurerm_resource.unknown'; mode = 'managed'; values = @{ id = @('invalid') } }
+        @{ address = 'module.bad.azurerm_resource.unknown'; mode = 'invalid'; values = @{ id = $nsg } }
+    )) {
+        Reset-Fakes
+        Set-Inputs '["10.1.2.3"]'
+        Set-State -Resources $test.resources -ChildModules @(@{
+            address = 'module.bad'
+            resources = @($invalidResource)
+        })
+        Expect-Failure 'invalid managed resource' 'runner state' { & $importer -VarFile $varFile -Apply }
+        Assert-Equal 0 $test.imports.Count 'invalid managed resource performs no imports'
+        Assert-Equal 0 $test.azureCalls.Count 'invalid managed resource avoids Azure lookups'
+    }
+
+    Reset-Fakes
+    Set-Inputs '["10.1.2.3"]'
+    $duplicateResource = New-Resource 'module.bad.azurerm_resource.duplicate' "$nsg-other"
+    Set-State -Resources $test.resources -ChildModules @(@{
+        address = 'module.bad'
+        resources = @($duplicateResource, $duplicateResource)
+    })
+    Expect-Failure 'duplicate child addresses' 'duplicate resource addresses' {
+        & $importer -VarFile $varFile -Apply
+    }
+    Assert-Equal 0 $test.imports.Count 'duplicate child addresses perform no imports'
+    Assert-Equal 0 $test.azureCalls.Count 'duplicate child addresses avoid Azure lookups'
+
+    Reset-Fakes
+    Set-Inputs '["10.1.2.3"]'
+    $dataResource = @{
+        address = 'module.lookup.data.azurerm_network_security_group.existing'
+        mode = 'data'
+        values = @{ id = $nsg }
+    }
+    Set-State -Resources @(
+        (New-Resource 'azurerm_resource_group.runner' $resourceGroup)
+        (New-Resource 'azurerm_linux_virtual_machine.runner' $vm)
+    ) -ChildModules @(@{ address = 'module.lookup'; resources = @($dataResource) })
+    & $importer -VarFile $varFile -Apply 6>$null | Out-Null
+    Assert-Equal 6 $test.imports.Count 'data resources do not own managed import targets'
+    if (-not $test.imports.Contains('azurerm_network_security_group.runner')) {
+        throw 'A data resource incorrectly prevented the network security group import.'
     }
 
     Reset-Fakes
