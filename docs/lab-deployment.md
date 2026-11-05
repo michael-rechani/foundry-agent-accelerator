@@ -223,7 +223,9 @@ monitoring association or the WAF. Its default `inspect` operation writes no
 canonical inputs. The `pin-existing-scope` operation appends the existing dev
 scope to `workbench-dev.tfvars` only when neither an explicit scope nor a
 platform-state output already supplies it. It does not import addresses, change
-the allow-list, run a Terraform apply, or claim that a full plan is clean.
+the allow-list, run a Terraform apply, or claim that a full plan is clean. It
+refuses unexpected non-null source values, including empty strings, rather than
+rewriting ambiguous inputs.
 
 Run it only from reviewed `main` on the private runner, with the protected
 `terraform-state` environment and `TF_LAB_PLAN_CONFIG` described above. Starting
@@ -274,10 +276,14 @@ platform root first. Set `platform_state = {}` to use the state account
 `terraform/bootstrap` creates: each field defaults to its names. A name you set explicitly still wins, so an existing Lab keeps
 working unchanged. The plan stops with a clear message if a name is missing, for
 example `management_vnet_name` when the platform's management network is off.
-If the platform state predates the `monitor_private_link_scope_name` output, the
-Lab falls back to `ampls-aifnd-dev` and warns. That's right for the dev platform
-only. Apply the platform root once to refresh its outputs, which changes no
-resources, before deploying another environment or base name.
+An empty scope override does not count as a configured scope. If neither the
+override nor the platform state's `monitor_private_link_scope_name` output is
+nonempty, the Lab falls back to `ampls-aifnd-dev` and warns. That's right for
+the dev platform only. Review a platform plan before applying to refresh its
+outputs; an apply may include other infrastructure changes. For the existing dev Lab,
+the [guarded monitoring workflow](#pin-the-existing-lab-monitoring-scope) can
+pin its verified, already-live scope without an apply. For another environment,
+set its verified scope explicitly.
 
 **Start from the canonical inputs, not an old local copy.** A stale
 `dev.tfvars` can plan to turn off agent creation, drop the creation-key secret,

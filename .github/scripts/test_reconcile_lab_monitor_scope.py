@@ -324,8 +324,8 @@ class MonitorRunTests(unittest.TestCase):
         platform = {
             "subscription_id": None, "resource_group_name": "rg-state", "storage_account_name": "stfixture",
             "container_name": "tfstate", "key": "ai-foundry/dev.tfstate",
-        } if source == "platform" else None
-        platform_value = monitor.SCOPE_NAME if source == "platform" else None
+        } if source in ("platform", "platform-empty") else None
+        platform_value = {"platform": monitor.SCOPE_NAME, "platform-empty": ""}.get(source)
 
         class FakeBlobs:
             def __init__(self, _environment):
@@ -379,6 +379,8 @@ class MonitorRunTests(unittest.TestCase):
                 explicit = monitor.SCOPE_NAME if appended or source == "explicit" else None
                 if source == "wrong":
                     explicit = "wrong-private-scope"
+                elif source == "explicit-empty":
+                    explicit = ""
                 result = resolved_inputs(platform, explicit)
                 if appended and failure == "candidate":
                     result["name"] = "changed-private-app"
@@ -406,7 +408,7 @@ class MonitorRunTests(unittest.TestCase):
                   patch.object(monitor, "write_supplemental_files"),
                   patch.object(monitor, "MonitorTerraform", FakeTerraform),
                   contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors)):
-                if failure or source == "wrong":
+                if failure or source in ("wrong", "explicit-empty", "platform-empty"):
                     with self.assertRaises(diagnostic.CheckError):
                         monitor.run(env)
                 else:
@@ -452,6 +454,12 @@ class MonitorRunTests(unittest.TestCase):
                 self.assertEqual(errors, "")
         calls, _, _, _ = self.run_fixture(operation="pin-existing-scope", source="wrong")
         self.assertEqual(calls, [])
+
+    def test_empty_scope_sources_fail_closed_before_pinning(self):
+        for source in ("explicit-empty", "platform-empty"):
+            with self.subTest(source=source):
+                calls, _, _, _ = self.run_fixture(operation="pin-existing-scope", source=source)
+                self.assertEqual(calls, [])
 
     def test_ambiguous_write_fails_visibly_and_releases_the_lease(self):
         calls, _, errors, _ = self.run_fixture(operation="pin-existing-scope", failure="uncertain-write")
