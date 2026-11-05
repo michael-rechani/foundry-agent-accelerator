@@ -200,8 +200,9 @@ metadata-only ETag changes; the lease protects the state during the plan.
 Only fixed target and resource-type labels, planned actions, whitelisted schema
 field names, unknown fields, refreshed-state drift, and aggregate counts are
 reported. The report classifies allow-list additions and removals, known WAF tag
-changes, alert query line-ending differences, and known check statuses without
-printing their values. Raw state, input values, addresses, IPs, plans, tokens,
+changes, alert query line-ending differences, known Container App environment
+key changes, and known check statuses without printing their values or arbitrary
+environment key names. Raw state, input values, addresses, IPs, plans, tokens,
 and raw provider diagnostics stay private. For `AuthorizationFailed`, only
 allowlisted Azure action names and provider resource types may appear in the
 error summary; resource IDs and names remain withheld. Normal completion and
@@ -212,6 +213,43 @@ incomplete or failed plan, unexpected target, unknown check, detected concurrent
 change, or missing permission is a failure—not evidence of a clean plan. A
 completed plan is a point-in-time diagnostic, not approval to apply its proposed
 changes.
+
+### Pin the existing Lab monitoring scope
+
+The manual
+[`Reconcile private Lab monitoring scope input`](../.github/workflows/reconcile-lab-monitor-scope.yml)
+workflow addresses the missing scope source in #445 without changing the live
+monitoring association or the WAF. Its default `inspect` operation writes no
+canonical inputs. The `pin-existing-scope` operation appends the existing dev
+scope to `workbench-dev.tfvars` only when neither an explicit scope nor a
+platform-state output already supplies it. It does not import addresses, change
+the allow-list, run a Terraform apply, or claim that a full plan is clean.
+
+Run it only from reviewed `main` on the private runner, with the protected
+`terraform-state` environment and `TF_LAB_PLAN_CONFIG` described above. Starting
+the runner and approving that environment are separate operator decisions. The
+state identity also needs temporary Reader access to the existing Container App
+and monitoring scoped service; remove those grants after the run. Unlike a full
+AzureRM plan, this operation does not require the app's secret-list action.
+
+The workflow checks the saved association and the live, healthy association
+against the existing Lab workspace, verifies the active immutable image, and
+reads any configured platform state from the approved private backend. It
+resolves both the original and proposed inputs with Terraform before writing.
+It also compares the known unfinished-agent flag with the active revision; this
+is a partial app inspection, not a substitute for the full plan.
+Unexpected scopes, duplicate assignments, changed state or inputs, a changing
+revision, or unsupported blob properties stop the operation. The input update
+uses the original ETag and a short exclusive blob lease, preserves the existing
+input bytes and supported metadata, and verifies the result before releasing
+the lease. If the write outcome is uncertain, inspect the protected input
+privately before retrying.
+
+Blob versioning can retain the prior canonical inputs after an update, and
+Terraform's temporary state lock can retain lock metadata in state versions.
+Both follow the existing storage retention policy. The workflow reports only
+fixed status labels and removes its private scratch files; it never publishes
+input values, IP addresses, state, or plans.
 
 ### 2. Configure and initialize
 

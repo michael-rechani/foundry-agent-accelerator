@@ -142,6 +142,26 @@ CHECK_LABELS = {
     "azurerm_role_assignment.creation_key_verifier": "creation_key_configuration",
     "azurerm_consumption_budget_resource_group.lab": "budget_recipients",
 }
+CONTAINER_ENVIRONMENT_KEYS = frozenset({
+    "AZURE_CLIENT_ID",
+    "FOUNDRY_PROJECT_ENDPOINT",
+    "WORKBENCH_AGENT_CREATION_ENABLED",
+    "WORKBENCH_AGENT_CREATION_MODEL",
+    "WORKBENCH_AGENT_CREATION_MODELS",
+    "WORKBENCH_ALLOWED_HOSTS",
+    "WORKBENCH_BUDGET_ALERTS_ENABLED",
+    "WORKBENCH_COSMOS_ENDPOINT",
+    "WORKBENCH_CREATION_KEY_SHA256",
+    "WORKBENCH_DEFAULT_AGENT",
+    "WORKBENCH_FOUNDRY_PROJECT_ID",
+    "WORKBENCH_MODE",
+    "WORKBENCH_MODEL_LIMITS",
+    "WORKBENCH_ORIGINS",
+    "WORKBENCH_PRIVATE_PRESENTER_MODE",
+    "WORKBENCH_TITLE",
+    "WORKBENCH_UNFINISHED_AGENTS_ENABLED",
+    "WORKBENCH_VISIBLE_AGENTS",
+})
 ACTIONS = {
     ("no-op",): "no-op",
     ("create",): "create",
@@ -639,6 +659,56 @@ def compare_alert_query(change):
     return "different"
 
 
+def compare_container_environment(change):
+    if has_unknown(change.get("after_unknown", False)):
+        return {"status": "unknown"}
+
+    def environment(resource):
+        if not isinstance(resource, dict):
+            return None
+        templates = resource.get("template")
+        if not isinstance(templates, list) or len(templates) != 1 or not isinstance(templates[0], dict):
+            return None
+        containers = templates[0].get("container")
+        if not isinstance(containers, list) or len(containers) != 1 or not isinstance(containers[0], dict):
+            return None
+        if containers[0].get("name") != "workbench":
+            return None
+        entries = containers[0].get("env")
+        if not isinstance(entries, list):
+            return None
+        result = {}
+        for entry in entries:
+            if not isinstance(entry, dict) or not isinstance(entry.get("name"), str) or not entry["name"]:
+                return None
+            name = entry["name"]
+            if name in result:
+                return None
+            result[name] = {key: value for key, value in entry.items() if key != "name"}
+        return result
+
+    before, after = environment(change.get("before")), environment(change.get("after"))
+    if before is None or after is None:
+        return {"status": "unavailable"}
+    changed = {}
+    for name in sorted(CONTAINER_ENVIRONMENT_KEYS):
+        old, new = before.get(name, MISSING), after.get(name, MISSING)
+        if old is MISSING and new is not MISSING:
+            changed[name] = "added"
+        elif old is not MISSING and new is MISSING:
+            changed[name] = "removed"
+        elif old != new:
+            changed[name] = "changed"
+    other_before = {name: value for name, value in before.items() if name not in CONTAINER_ENVIRONMENT_KEYS}
+    other_after = {name: value for name, value in after.items() if name not in CONTAINER_ENVIRONMENT_KEYS}
+    return {
+        "status": "compared",
+        "changed": changed,
+        "other_entries_changed": other_before != other_after,
+        "order_changed": set(before) == set(after) and list(before) != list(after),
+    }
+
+
 def target_change_summary(entry, label):
     summary = change_summary(entry, WAF_FIELDS if label == "waf" else ALERT_FIELDS)
     change = entry["change"]
@@ -659,7 +729,10 @@ def other_change_summary(entry):
         label = OTHER_RESOURCE_TYPES.get(resource_type, "unclassified")
     else:
         label = "unclassified"
-    return {"resource": label, **change_summary(entry, OTHER_FIELDS)}
+    summary = {"resource": label, **change_summary(entry, OTHER_FIELDS)}
+    if known == ("azurerm_container_app", "container_app") and resource_type == known[0]:
+        summary["environment_comparison"] = compare_container_environment(entry["change"])
+    return summary
 
 
 def summarize_plan(plan, exit_code, values):
