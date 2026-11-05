@@ -124,6 +124,23 @@ class BackendCheckTests(unittest.TestCase):
         self.assertNotIn("terraform apply", workflow)
         self.assertNotIn("upload-artifact", workflow)
 
+    def test_transport_refuses_non_https_before_opening(self):
+        for url in ("file:///tmp/token", "http://example.test", "https://user:pass@example.test"):
+            with self.subTest(url=url):
+                with patch.object(probe.request, "build_opener") as opener:
+                    with self.assertRaises(probe.CheckError):
+                        probe.send(url)
+                    opener.assert_not_called()
+
+    def test_transport_does_not_follow_redirects_or_log_error_bodies(self):
+        redirect = probe.NoRedirect()
+        self.assertIsNone(redirect.redirect_request(None, None, 302, "", {}, "https://other.test"))
+        exc = probe.error.HTTPError("https://example.test", 403, "sensitive body", {}, None)
+        with patch.object(probe.request, "build_opener") as opener:
+            opener.return_value.open.side_effect = exc
+            with self.assertRaisesRegex(probe.CheckError, "^GET failed with HTTP 403.$"):
+                probe.send("https://example.test")
+
 
 if __name__ == "__main__":
     unittest.main()

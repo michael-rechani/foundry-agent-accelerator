@@ -21,8 +21,15 @@ class NoRedirect(request.HTTPRedirectHandler):
 
 def send(url, *, method="GET", headers=None, data=None, expected=(200,)):
     try:
+        target = parse.urlsplit(url)
+        if (target.scheme != "https" or not target.hostname or target.username
+                or target.password or target.port not in (None, 443)):
+            raise CheckError("Only HTTPS endpoints without embedded credentials are allowed.")
+    except ValueError:
+        raise CheckError("Invalid HTTPS endpoint.") from None
+    try:
         with request.build_opener(NoRedirect).open(
-            request.Request(url, data=data, headers=headers or {}, method=method),
+            request.Request(url, data=data, headers=headers or {}, method=method),  # noqa: S310 -- HTTPS checked above; redirects disabled.
             timeout=30,
         ) as response:
             if response.status not in expected:
