@@ -238,6 +238,38 @@ def verify_runner_nsg(before, after, inputs, expected_rules):
     return serial
 
 
+def authorization_failure_summary(text):
+    matches = re.compile(
+        r"perform action ['\"]([^'\"]+)['\"] over scope ['\"]([^'\"]+)['\"]", re.IGNORECASE,
+    )
+    action_pattern = re.compile(r"[A-Za-z][A-Za-z0-9.*-]*(?:/[A-Za-z0-9.*-]+)+")
+    name_pattern = re.compile(r"[A-Za-z][A-Za-z0-9]*")
+    details = []
+    for match in matches.finditer(text[:65536]):
+        action, scope = match.groups()
+        parts = [part for part in scope.split("/") if part]
+        providers = [index for index, part in enumerate(parts) if part.lower() == "providers"]
+        if (not action_pattern.fullmatch(action) or len(providers) != 1
+                or providers[0] + 2 >= len(parts)):
+            continue
+        provider_index = providers[0]
+        namespace, tail = parts[provider_index + 1], parts[provider_index + 2:]
+        types = tail[::2]
+        if (not re.fullmatch(r"[A-Za-z][A-Za-z0-9.]*", namespace)
+                or not tail or len(tail) % 2 or not all(name_pattern.fullmatch(item) for item in types)):
+            continue
+        detail = f"{action} on {namespace}/{'/'.join(types)}"
+        if detail not in details:
+            details.append(detail)
+        if len(details) == 4:
+            break
+    if not details:
+        return "AuthorizationFailed"
+    displayed = "; ".join(details[:3])
+    suffix = "; additional denied operations omitted" if len(details) > 3 else ""
+    return f"AuthorizationFailed; {displayed}{suffix}"
+
+
 class Terraform:
     def __init__(self, root, scratch, environ, key, inputs, *, input_suffix=".tfvars.json"):
         self.root, self.scratch = root, scratch
@@ -281,7 +313,7 @@ class Terraform:
         )
         if result.returncode not in allowed:
             text = (result.stdout + result.stderr).decode(errors="replace")
-            reason = next((name for name in (
+            reason = authorization_failure_summary(text) if "AuthorizationFailed" in text else next((name for name in (
                 "AuthorizationFailed", "403", "Error acquiring the state lock",
                 "Insufficient permissions", "Failed to query available provider packages",
                 "Unsupported argument", "Invalid value",

@@ -195,10 +195,13 @@ metadata-only ETag changes; the lease protects the state during the plan.
 
 Only fixed target labels, planned actions, whitelisted schema field names,
 unknown fields, refreshed-state drift, and aggregate counts are reported. Raw
-state, input values, addresses, IPs, plans, tokens, and provider diagnostics stay
-private. Normal completion and failure remove the run's scratch directory; if a
-runner crash or forced termination bypasses cleanup, privately inspect and remove
-only that run and attempt's scratch directory before reusing the runner. An
+state, input values, addresses, IPs, plans, tokens, and raw provider diagnostics
+stay private. For `AuthorizationFailed`, only allowlisted Azure action names and
+provider resource types may appear in the error summary; resource IDs and names
+remain withheld. Normal completion and failure remove the run's scratch
+directory; if a runner crash or forced termination bypasses cleanup, privately
+inspect and remove only that run and attempt's scratch directory before reusing
+the runner. An
 incomplete or failed plan, unexpected target, unknown check, detected concurrent
 change, or missing permission is a failure—not evidence of a clean plan. A
 completed plan is a point-in-time diagnostic, not approval to apply its proposed
