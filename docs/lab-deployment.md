@@ -201,7 +201,9 @@ Only fixed target and resource-type labels, planned actions, whitelisted schema
 field names, unknown fields, refreshed-state drift, and aggregate counts are
 reported. The report classifies allow-list additions and removals, known WAF tag
 changes, alert query line-ending differences, known Container App environment
-key changes, and known check statuses without printing their values or arbitrary
+key changes (including which attribute changed, such as `value` or
+`secret_name`, and only whether each side is absent, null, empty or set), and
+known check statuses without printing their values or arbitrary
 environment key names. Raw state, input values, addresses, IPs, plans, tokens,
 and raw provider diagnostics stay private. For `AuthorizationFailed`, only
 allowlisted Azure action names and provider resource types may appear in the

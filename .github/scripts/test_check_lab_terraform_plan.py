@@ -655,6 +655,7 @@ class LabPlanReportTests(unittest.TestCase):
                 "WORKBENCH_TITLE": "removed",
                 "WORKBENCH_UNFINISHED_AGENTS_ENABLED": "added",
             },
+            "changed_attributes": {"WORKBENCH_MODE": {"value": "set->set"}},
             "other_entries_changed": True,
             "order_changed": False,
         })
@@ -664,6 +665,35 @@ class LabPlanReportTests(unittest.TestCase):
             "private-secret-ref", "private-new", "private-added", "private-dynamic-new",
         ):
             self.assertNotIn(private, rendered)
+
+    def test_container_environment_names_changed_attributes_without_values(self):
+        key = "WORKBENCH_CREATION_KEY_SHA256"
+        cases = (
+            ({"secret_name": "private-ref", "value": ""}, {"secret_name": "private-ref", "value": None},
+             {"value": "empty->null"}),
+            ({"secret_name": "private-ref-old", "value": ""}, {"secret_name": "private-ref-new", "value": ""},
+             {"secret_name": "set->set"}),
+            ({"secret_name": "private-ref"}, {"secret_name": "private-ref", "value": "private-literal"},
+             {"value": "absent->set"}),
+        )
+        for old, new, expected in cases:
+            with self.subTest(expected=expected):
+                change = {
+                    "before": self.container_environment([{"name": key, **old}]),
+                    "after": self.container_environment([{"name": key, **new}]),
+                }
+                result = diagnostic.compare_container_environment(change)
+                self.assertEqual(result["changed"], {key: "changed"})
+                self.assertEqual(result["changed_attributes"], {key: expected})
+                rendered = json.dumps(result)
+                for private in ("private-ref", "private-literal"):
+                    self.assertNotIn(private, rendered)
+        unchanged = {"name": key, "secret_name": "private-ref", "value": ""}
+        result = diagnostic.compare_container_environment({
+            "before": self.container_environment([unchanged]),
+            "after": self.container_environment([dict(unchanged)]),
+        })
+        self.assertEqual((result["changed"], result["changed_attributes"]), ({}, {}))
 
     def test_environment_report_whitelist_covers_the_checked_in_lab_keys(self):
         source = (diagnostic.ROOT / "workbench" / "infra" / "main.tf").read_text(encoding="utf-8")
