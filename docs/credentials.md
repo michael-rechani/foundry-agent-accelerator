@@ -77,6 +77,12 @@ AzureRM provider refresh for Azure Container Apps requires
 and deployment identity. Reassess this permission if app secrets or provider
 behavior change. It isn't justification for broad subscription access.
 
+The state identity has no write role over Lab resources by default. The guarded
+[Lab apply](lab-deployment.md#apply-the-reviewed-lab-differences) needs a
+temporary custom role for the Container App, its environment and identity, and
+the WAF policy. Grant it at those four resources only, and remove every
+assignment once the run is verified.
+
 ## Optional virtual machine credentials
 
 The optional Windows admin virtual machine (VM) accepts a Key Vault reference,
