@@ -253,6 +253,11 @@ jobs:
           terraform -chdir=terraform/github-state-access init -backend=false
           terraform -chdir=terraform/github-state-access validate
           terraform -chdir=terraform/github-state-access test
+      - name: Validate scoped runner plan access without Azure
+        run: |
+          terraform -chdir=terraform/runner-plan-access init -backend=false
+          terraform -chdir=terraform/runner-plan-access validate
+          terraform -chdir=terraform/runner-plan-access test
       - name: Validate Entra and GitHub identity without Azure
         run: |
           terraform -chdir=terraform/identity fmt -check
