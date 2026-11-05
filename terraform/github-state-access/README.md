@@ -59,7 +59,7 @@ to the existing account's soft-delete/version retention policies.
 A successful check proves blob connectivity and locking, **not** permission to
 deploy Terraform-managed infrastructure. The separately approved
 [runner planning path](../runner-plan-access/README.md) adds only three scoped
-Reader grants and tests import-only state writes, without infrastructure-write
+Reader grants and tests guarded state-only writes, without infrastructure-write
 permissions. Do not add deployment permissions to this identity silently.
 Do not remove the jumpbox exception until the intended
 replacement has been verified, unless explicitly directed to revoke it anyway.

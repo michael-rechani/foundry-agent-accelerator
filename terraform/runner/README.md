@@ -75,6 +75,9 @@ For approval-gated import-only access adoption and a full runner plan, use the
 canonical private inputs, rejects resource mutations and verifies that a runner
 plan leaves existing state contents unchanged. A successful plan is not an
 infrastructure deployment or an apply of refreshed NSG state.
+After explicit approval, its `save-runner-state` operation applies only an exact
+full-root no-change saved plan, verifies the complete NSG persisted remotely,
+and requires a fresh clean plan. It does not grant infrastructure-write rights.
 
 The VM needs outbound internet access to reach GitHub. The repository already
 has a NAT gateway with a static public IP for the jumpbox subnet. A NAT gateway

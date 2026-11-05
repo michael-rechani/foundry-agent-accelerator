@@ -51,7 +51,17 @@ must already be online. This operation:
    applies the runner plan, and verifies the existing state contents are unchanged.
 
 `operation=plan` skips Reader adoption and runs only the full runner plan.
-Both operations can persist canonical inputs and acquire real backend leases;
+For an explicitly approved runner-state reconciliation (#318), choose
+`operation=save-runner-state`. It skips Reader adoption and requires a **normal
+full-root saved plan with exit code 0**, no imports, and no resource or output
+changes. Only that hash-guarded plan is applied, persisting refreshed state
+without changing Azure resources. The job privately rereads remote state,
+verifies ownership, lineage and the complete inline NSG against the guarded plan,
+then requires another full no-change plan with no further state-content changes.
+An already reconciled state is valid; a serial increment alone is not evidence
+that its NSG rules match.
+
+All three operations can persist canonical inputs and acquire real backend leases;
 they are not the disposable-blob connectivity probe. They never run
 `-target`, `-refresh=false`, refresh-only apply, state push or force-unlock.
 CLI/MSI fallback is disabled; only the approved GitHub OIDC identity is used.
@@ -60,12 +70,12 @@ probe. Plans, state and provider diagnostics stay off public logs/artifacts;
 private temporary files are removed when the helper exits, including failures,
 with an additional always-run cleanup restricted to that exact run/attempt.
 
-This verifies **planning and import-only state writes**, not permission to deploy
+This verifies **planning and guarded state-only writes**, not permission to deploy
 infrastructure. It does not start a VM, run a canary, touch the platform root or
 resolve its paused disk drift (#485). It does not revoke the jumpbox exception.
 The broader deployment permission design and administrative-root adoption remain
-in #389/#393. A clean runner plan alone does not persist refreshed NSG metadata:
-that requires a separately approved saved-plan state reconciliation under #318.
+in #389/#393. A clean runner plan alone does not persist refreshed NSG metadata;
+the separately approved `save-runner-state` operation does.
 
 ## Lab evidence
 

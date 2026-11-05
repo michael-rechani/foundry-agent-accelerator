@@ -446,6 +446,9 @@ These grants enable full runner refresh/planning and adoption of the grants
 themselves, not infrastructure deployment or RBAC modification. The runner VM
 identity receives none of them. The setup script creates only these approved
 Reader assignments; the GitHub workflow imports them without Azure mutations.
+Its separately approved `save-runner-state` operation can also persist a
+normal full-root no-change saved plan and verify the complete remote NSG state.
+It uses the same blob/Reader permissions, not infrastructure-write permissions.
 
 This follows the [credentials guide](credentials.md) and the deployment guides.
 

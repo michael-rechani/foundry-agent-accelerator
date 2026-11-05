@@ -64,15 +64,37 @@ def plan(imports=None):
     }
 
 
-def state():
+def nsg_rules():
+    return [
+        {"name": "AllowRegistryPrivateEndpointsOutbound", "destination_address_prefixes": ["10.42.0.24", "10.42.0.25"]},
+        {"name": "AllowFoundryPrivateEndpointsOutbound", "destination_address_prefixes": ["10.42.0.17"]},
+        {"name": "DenyVnetOutbound", "access": "Deny"},
+        {"name": "DenyAllInbound", "access": "Deny"},
+        {"name": "AllowStateBackendPrivateEndpointOutbound", "destination_address_prefix": "10.42.0.23"},
+    ]
+
+
+def runner_plan():
+    return {**plan(), "planned_values": {"root_module": {"resources": [{
+        "address": "azurerm_network_security_group.runner", "mode": "managed",
+        "values": {"security_rule": nsg_rules()},
+    }]}}}
+
+
+def state(rules=None, serial=7):
     return json.dumps({
-        "version": 4, "serial": 7, "lineage": SUBSCRIPTION,
+        "version": 4, "serial": serial, "lineage": SUBSCRIPTION,
         "resources": [
             {"mode": "managed", "type": "azurerm_resource_group", "name": "runner",
              "instances": [{"attributes": {"id": SCOPES["runner"]}}]},
             {"mode": "managed", "type": "azurerm_linux_virtual_machine", "name": "runner",
              "instances": [{"attributes": {"id": SCOPES["runner"]
                                           + "/providers/Microsoft.Compute/virtualMachines/vm-runner-aifnd-dev"}}]},
+            {"mode": "managed", "type": "azurerm_network_security_group", "name": "runner",
+             "instances": [{"attributes": {
+                 "id": SCOPES["runner"] + "/providers/Microsoft.Network/networkSecurityGroups/nsg-runner-aifnd-dev",
+                 "security_rule": nsg_rules()[:-1] if rules is None else rules,
+             }}]},
         ],
     }).encode()
 
@@ -112,6 +134,13 @@ class ReconciliationTests(unittest.TestCase):
         for unexpected in ({}, {"unexpected": ASSIGNMENTS["runner"]}):
             with self.assertRaises(reconcile.CheckError):
                 reconcile.guard_plan(plan(imports), unexpected)
+
+    def test_refreshed_drift_is_allowed_only_when_it_proposes_no_resource_actions(self):
+        value = runner_plan()
+        value["resource_drift"] = [{
+            "address": "azurerm_network_security_group.runner", "change": {"actions": ["update"]},
+        }]
+        reconcile.guard_plan(value, {})
 
     def test_create_update_delete_replace_and_forget_are_rejected(self):
         for actions in (["create"], ["update"], ["delete"], ["delete", "create"], ["forget"], ["read"]):
@@ -220,8 +249,49 @@ class ReconciliationTests(unittest.TestCase):
             saved = Path(folder) / "guarded.tfplan"
             saved.write_bytes(b"tampered")
             with self.assertRaisesRegex(reconcile.CheckError, "changed"):
-                cli.apply_imports(saved, b"wrong-digest")
+                cli.apply_saved(saved, b"wrong-digest")
             command.assert_not_called()
+
+    def test_exact_saved_plan_is_applied_without_refresh_only_or_targeting(self):
+        cli = object.__new__(reconcile.Terraform)
+        with tempfile.TemporaryDirectory() as folder, patch.object(cli, "command") as command:
+            saved = Path(folder) / "guarded.tfplan"
+            saved.write_bytes(b"guarded")
+            cli.apply_saved(saved, reconcile.hashlib.sha256(saved.read_bytes()).digest())
+            command.assert_called_once_with("apply", "-input=false", "-lock-timeout=60s", str(saved))
+
+    def test_complete_planned_nsg_is_required(self):
+        self.assertEqual(reconcile.planned_runner_nsg(runner_plan()), nsg_rules())
+        for value in (plan(), {"planned_values": {"root_module": {"resources": []}}}):
+            with self.subTest(value=value), self.assertRaisesRegex(reconcile.CheckError, "complete planned"):
+                reconcile.planned_runner_nsg(value)
+
+    def test_persisted_nsg_matches_all_planned_rules_without_relying_on_serial_increment(self):
+        reordered = list(reversed(nsg_rules()))
+        reordered[-1]["destination_address_prefixes"].reverse()
+        self.assertEqual(
+            reconcile.verify_runner_nsg(state(), state(reordered, serial=8), fixture()["runner"], nsg_rules()), 8,
+        )
+        self.assertEqual(
+            reconcile.verify_runner_nsg(state(nsg_rules()), state(nsg_rules()), fixture()["runner"], nsg_rules()), 7,
+        )
+
+    def test_missing_rules_wrong_owner_lineage_and_serial_are_rejected(self):
+        for mutate in (
+            lambda value: value.update(lineage="unexpected"),
+            lambda value: value.update(serial=6),
+            lambda value: value["resources"].pop(),
+            lambda value: value["resources"][-1]["instances"][0]["attributes"].update(id="unexpected"),
+            lambda value: value["resources"][-1]["instances"][0]["attributes"]["security_rule"].pop(),
+            lambda value: value["resources"][-1]["instances"][0]["attributes"]["security_rule"].pop(2),
+            lambda value: value["resources"][-1]["instances"][0]["attributes"]["security_rule"][-1].update(
+                destination_address_prefix="10.42.0.99",
+            ),
+        ):
+            value = json.loads(state(nsg_rules(), serial=8))
+            mutate(value)
+            with self.subTest(value=value), self.assertRaises(reconcile.CheckError):
+                reconcile.verify_runner_nsg(state(), json.dumps(value).encode(), fixture()["runner"], nsg_rules())
 
     def test_cleanup_is_limited_to_exact_run_directory(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -258,6 +328,8 @@ class ReconciliationTests(unittest.TestCase):
             self.assertNotIn(forbidden, workflow)
         self.assertIn("${{ secrets.TF_RUNNER_PLAN_CONFIG }}", workflow)
         self.assertNotIn("${{ vars.TF_RUNNER_PLAN_CONFIG }}", workflow)
+        self.assertIn("options: [plan, import-readers, save-runner-state]", workflow)
+        self.assertIn("default: plan", workflow)
 
     def test_orchestration_imports_only_access_and_cleans_private_files(self):
         self.orchestrate("import-readers")
@@ -266,11 +338,28 @@ class ReconciliationTests(unittest.TestCase):
         self.orchestrate("plan")
 
     def test_runner_drift_stops_without_applying_and_cleans_private_files(self):
-        self.orchestrate("import-readers", drift=True)
+        self.orchestrate("import-readers", failure="drift")
 
-    def orchestrate(self, operation, drift=False):
+    def test_save_runner_state_applies_only_runner_and_verifies_persisted_rules_and_fresh_plan(self):
+        self.orchestrate("save-runner-state")
+
+    def test_save_runner_state_is_idempotent_with_an_unchanged_serial(self):
+        self.orchestrate("save-runner-state", already_reconciled=True)
+
+    def test_save_runner_state_rejects_drift_missing_plan_rules_and_failed_persistence(self):
+        for failure in ("drift", "missing planned NSG", "missing persisted NSG"):
+            with self.subTest(failure=failure):
+                self.orchestrate("save-runner-state", failure=failure)
+
+    def test_save_runner_state_rejects_followup_drift_and_concurrent_state_writes(self):
+        for failure in ("follow-up drift", "concurrent state"):
+            with self.subTest(failure=failure):
+                self.orchestrate("save-runner-state", failure=failure)
+
+    def orchestrate(self, operation, failure=None, already_reconciled=False):
         calls = []
         reads = []
+        applied = False
 
         class FakeBlobs:
             def __init__(self, environ):
@@ -279,6 +368,10 @@ class ReconciliationTests(unittest.TestCase):
             def read(self, name):
                 reads.append(name)
                 if name == "runner-dev.tfstate":
+                    if applied or already_reconciled:
+                        rules = None if failure == "missing persisted NSG" else nsg_rules()
+                        serial = 9 if failure == "concurrent state" and reads.count(name) == 4 else 8
+                        return state(rules, serial=serial)
                     return state()
                 return json.dumps({"resources": [{"mode": "managed", "instances": [{}, {}, {}]}]}).encode()
 
@@ -297,12 +390,20 @@ class ReconciliationTests(unittest.TestCase):
 
             def plan(self, name, expected):
                 calls.append((self.name, name))
-                if self.name == "runner" and drift:
+                self.last_plan = plan() if failure == "missing planned NSG" else runner_plan()
+                if self.name == "runner" and failure == "drift":
                     raise reconcile.CheckError("runner drift")
+                if name == "runner-verify" and failure == "follow-up drift":
+                    raise reconcile.CheckError("follow-up drift")
                 return self.scratch / "private-plan", b"digest"
 
-            def apply_imports(self, saved, digest):
+            def apply_saved(self, saved, digest):
+                nonlocal applied
+                if saved != self.scratch / "private-plan" or digest != b"digest":
+                    raise AssertionError("Only the guarded saved plan may be applied.")
                 calls.append((self.name, "apply"))
+                if self.name == "runner":
+                    applied = True
 
         with tempfile.TemporaryDirectory() as folder:
             env = {**environment(), "RUNNER_TEMP": folder, "TF_RECONCILE_OPERATION": operation}
@@ -310,14 +411,22 @@ class ReconciliationTests(unittest.TestCase):
                   patch.object(reconcile, "Blobs", FakeBlobs),
                   patch.object(reconcile, "Terraform", FakeTerraform),
                   contextlib.redirect_stdout(io.StringIO())):
-                if drift:
-                    with self.assertRaisesRegex(reconcile.CheckError, "drift"):
+                if failure:
+                    with self.assertRaises(reconcile.CheckError):
                         reconcile.run(env)
                 else:
                     reconcile.run(env)
             self.assertEqual(list(Path(folder).iterdir()), [])
-        self.assertNotIn(("runner", "apply"), calls)
-        self.assertEqual(reads.count("runner-dev.tfstate"), 2)
+        saving = operation == "save-runner-state" and failure not in ("drift", "missing planned NSG")
+        self.assertEqual(("runner", "apply") in calls, saving)
+        self.assertEqual(
+            reads.count("runner-dev.tfstate"), 3 if saving and failure == "missing persisted NSG" else 4 if saving else 2,
+        )
+        if saving:
+            expected_calls = [("runner", "init"), ("runner", "runner"), ("runner", "apply")]
+            if failure != "missing persisted NSG":
+                expected_calls.append(("runner", "runner-verify"))
+            self.assertEqual(calls, expected_calls)
         if operation == "import-readers":
             self.assertEqual(calls[:4], [
                 ("runner-plan-access", "init"), ("runner-plan-access", "adopt"),

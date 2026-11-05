@@ -1,4 +1,4 @@
-"""Import approved Reader grants and plan the full runner without infrastructure writes."""
+"""Adopt Reader grants or reconcile runner state without infrastructure writes."""
 
 import hashlib
 from contextlib import contextmanager
@@ -194,6 +194,50 @@ def guard_plan(plan, expected_imports):
         raise CheckError("Unexpected output changes in the adoption plan.")
 
 
+def planned_runner_nsg(plan):
+    resources = (plan.get("planned_values") or {}).get("root_module", {}).get("resources", [])
+    matches = [
+        item for item in resources
+        if item.get("address") == "azurerm_network_security_group.runner" and item.get("mode") == "managed"
+    ]
+    rules = matches[0].get("values", {}).get("security_rule") if len(matches) == 1 else None
+    if not isinstance(rules, list) or not rules:
+        raise CheckError("The complete planned runner NSG rules are required before saving state.")
+    return rules
+
+
+def verify_runner_nsg(before, after, inputs, expected_rules):
+    serial = populated_runner_state(after, inputs)
+    original, persisted = object_json(before), object_json(after)
+    if persisted["lineage"] != original["lineage"] or serial < original["serial"]:
+        raise CheckError("Runner state lineage changed or its serial regressed.")
+    matches = [
+        item for item in persisted["resources"]
+        if item.get("mode") == "managed" and item.get("type") == "azurerm_network_security_group"
+        and item.get("name") == "runner" and not item.get("module")
+    ]
+    instances = matches[0].get("instances", []) if len(matches) == 1 else []
+    attributes = instances[0].get("attributes", {}) if len(instances) == 1 else {}
+    expected_id = (
+        f"/subscriptions/{inputs['subscription_id']}/resourceGroups/{inputs['runner_resource_group_name']}"
+        f"/providers/Microsoft.Network/networkSecurityGroups/nsg-runner-{inputs['base_name']}-{inputs['environment']}"
+    )
+    resource_id = attributes.get("id")
+    if not isinstance(resource_id, str) or resource_id.lower() != expected_id.lower():
+        raise CheckError("Remote state does not own the expected runner NSG.")
+
+    def normalized(value):
+        if isinstance(value, dict):
+            return {key: normalized(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return sorted((normalized(item) for item in value), key=lambda item: json.dumps(item, sort_keys=True))
+        return value
+
+    if normalized(attributes.get("security_rule")) != normalized(expected_rules):
+        raise CheckError("Remote state does not contain the complete guarded runner NSG rules.")
+    return serial
+
+
 class Terraform:
     def __init__(self, root, scratch, environ, key, inputs):
         self.root, self.scratch = root, scratch
@@ -251,9 +295,10 @@ class Terraform:
         guard_plan(plan, expected_imports)
         if not expected_imports and plan_exitcode != 0:
             raise CheckError("The follow-up plan must return Terraform's exact no-changes exit code 0.")
+        self.last_plan = plan
         return saved, hashlib.sha256(saved.read_bytes()).digest()
 
-    def apply_imports(self, saved, digest):
+    def apply_saved(self, saved, digest):
         if hashlib.sha256(saved.read_bytes()).digest() != digest:
             raise CheckError("The guarded saved plan changed; refusing to apply.")
         self.command("apply", "-input=false", "-lock-timeout=60s", str(saved))
@@ -262,7 +307,7 @@ class Terraform:
 def run(environ=os.environ):
     config = configuration(environ)
     operation = environ.get("TF_RECONCILE_OPERATION")
-    if operation not in ("plan", "import-readers"):
+    if operation not in ("plan", "import-readers", "save-runner-state"):
         raise CheckError("Unsupported reconciliation operation.")
     blobs = Blobs(environ)
     before = blobs.read("runner-dev.tfstate")
@@ -295,7 +340,7 @@ def run(environ=os.environ):
                 missing = {address: resource_id for address, resource_id in expected.items() if address not in owned}
                 saved, digest = access.plan("adopt", missing)
                 if missing:
-                    access.apply_imports(saved, digest)
+                    access.apply_saved(saved, digest)
                 access.plan("verify", {})
                 persisted = object_json(blobs.read("runner-plan-access-dev.tfstate"))
                 count = sum(len(item["instances"]) for item in persisted["resources"] if item["mode"] == "managed")
@@ -307,15 +352,28 @@ def run(environ=os.environ):
             runner = Terraform(ROOT / "terraform" / "runner", runner_path, environ,
                                "runner-dev.tfstate", inputs["runner"])
             try:
-                runner.plan("runner", {})
+                saved, digest = runner.plan("runner", {})
             finally:
                 if blobs.read("runner-dev.tfstate") != before:
                     raise CheckError("Runner state contents changed concurrently; the result needs investigation.")
-                print(f"Runner state serial {serial} and contents unchanged, including on rejected plans.")
-            print(f"Full runner plan: no changes; existing state serial {serial} and contents unchanged.")
+                print(f"Runner planning left state serial {serial} and contents unchanged, including on rejected plans.")
+            if operation == "save-runner-state":
+                expected_rules = planned_runner_nsg(runner.last_plan)
+                runner.apply_saved(saved, digest)
+                persisted = blobs.read("runner-dev.tfstate")
+                persisted_serial = verify_runner_nsg(before, persisted, config["runner"], expected_rules)
+                try:
+                    runner.plan("runner-verify", {})
+                finally:
+                    if blobs.read("runner-dev.tfstate") != persisted:
+                        raise CheckError("Runner state changed during follow-up verification; investigation is required.")
+                print(f"Runner state saved: serial {serial} -> {persisted_serial}; complete inline NSG matches "
+                      "the guarded plan, lineage preserved, zero Azure mutations; fresh full plan has no changes.")
+            else:
+                print(f"Full runner plan: no changes; existing state serial {serial} and contents unchanged.")
     finally:
         os.umask(old_umask)
-    print("Private canonical inputs persisted. No platform plan, canary, VM startup or infrastructure apply ran.")
+    print("Private canonical inputs verified. No platform plan, canary, VM startup or infrastructure mutation occurred.")
 
 
 if __name__ == "__main__":
