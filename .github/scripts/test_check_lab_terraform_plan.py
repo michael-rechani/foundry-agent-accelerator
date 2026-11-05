@@ -343,16 +343,42 @@ class LabSourceAndTerraformTests(unittest.TestCase):
             with self.assertRaises(diagnostic.CheckError):
                 diagnostic.write_supplemental_files(root, DIGEST)
 
+    def test_platform_state_cli_auth_is_replaced_with_oidc_in_private_stage_only(self):
+        source = (
+            'data "terraform_remote_state" "platform" {\n'
+            '  config = {\n'
+            '    use_azuread_auth     = true\n'
+            '    use_cli              = true\n'
+            '  }\n'
+            '}\n'
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / "workbench" / "infra"
+            root.mkdir(parents=True)
+            staged = root / "platform.tf"
+            staged.write_text(source)
+            diagnostic.configure_platform_oidc(root)
+            updated = staged.read_text()
+            self.assertIn("use_oidc             = true", updated)
+            self.assertIn("use_cli              = false", updated)
+            self.assertEqual(source.count("use_cli              = true"), 1)
+            self.assertNotIn("use_cli              = true", updated)
+            with self.assertRaises(diagnostic.CheckError):
+                diagnostic.configure_platform_oidc(root)
+
     def test_initialization_uses_hcl_and_blocks_cli_credential_fallback(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            env = {**environment(folder), **protected_config(), "TF_CLI_ARGS_plan": "-refresh=false"}
+            env = {
+                **environment(folder), **protected_config(), "TF_CLI_ARGS_plan": "-refresh=false",
+                "PATH": r"C:\Windows\System32;C:\Program Files\Git\cmd",
+            }
             with (patch.object(reconcile.shutil, "which", return_value="terraform"),
                   patch.object(diagnostic.LabTerraform, "command", return_value=b"") as command):
                 terraform = diagnostic.LabTerraform(root, root, env, b'name = "lab-fixture"\n')
             self.assertEqual(terraform.inputs.name, "inputs.tfvars")
             self.assertEqual(terraform.inputs.read_bytes(), b'name = "lab-fixture"\n')
-            self.assertEqual(terraform.env["PATH"], str(root / "no-cli"))
+            self.assertEqual(terraform.env["PATH"], env["PATH"])
             self.assertEqual(terraform.env["ARM_USE_CLI"], "false")
             self.assertEqual(terraform.env["ARM_USE_OIDC"], "true")
             self.assertNotIn("TF_CLI_ARGS_plan", terraform.env)
@@ -580,6 +606,8 @@ class LabRunTests(unittest.TestCase):
                     raise AssertionError("Only canonical inputs and the verified active digest may be used.")
                 if 'enabled = false' not in (root / "diagnostic-privacy.tf").read_text():
                     raise AssertionError("Provider telemetry must be disabled for the diagnostic.")
+                if "use_oidc             = true" not in (root / "platform.tf").read_text():
+                    raise AssertionError("Platform state must use OIDC and not CLI auth.")
                 (scratch / "private-plan").write_text("private")
 
             def inputs_resolved(self):
@@ -596,6 +624,9 @@ class LabRunTests(unittest.TestCase):
         def fake_stage(scratch, _environment):
             root = scratch / "staged"
             root.mkdir()
+            (root / "platform.tf").write_text(
+                '    use_azuread_auth     = true\n    use_cli              = true\n',
+            )
             return root
 
         revisions = [(REVISION, DIGEST), (REVISION + "-new", DIGEST) if failure == "revision" else (REVISION, DIGEST)]

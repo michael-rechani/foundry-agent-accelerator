@@ -317,9 +317,22 @@ def write_supplemental_files(root, digest):
         path.write_text(contents, encoding="utf-8")
 
 
+def configure_platform_oidc(root):
+    path = root / "platform.tf"
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError:
+        raise CheckError("The checked-in Lab platform-state configuration is unavailable.") from None
+    expected = "    use_azuread_auth     = true\n    use_cli              = true"
+    replacement = "    use_azuread_auth     = true\n    use_oidc             = true\n    use_cli              = false"
+    if source.count(expected) != 1:
+        raise CheckError("The checked-in Lab platform-state authentication block changed; review is required.")
+    path.write_text(source.replace(expected, replacement, 1), encoding="utf-8")
+
+
 class LabTerraform(Terraform):
     def __init__(self, root, scratch, environ, inputs):
-        super().__init__(root, scratch, environ, LAB_STATE, inputs, input_suffix=".tfvars", deny_cli=True)
+        super().__init__(root, scratch, environ, LAB_STATE, inputs, input_suffix=".tfvars")
 
     def command(self, *args, allowed=(0,), input_data=None):
         backend = f"-backend-config={self.scratch / 'backend.hcl'}"
@@ -568,6 +581,7 @@ def run(environ=os.environ):
     try:
         with private_scratch(runtime) as scratch:
             root = stage_sources(scratch, runtime)
+            configure_platform_oidc(root)
             write_supplemental_files(root, digest)
             terraform = LabTerraform(root, scratch, runtime, snapshots[LAB_INPUTS][0])
             values = terraform.inputs_resolved()
