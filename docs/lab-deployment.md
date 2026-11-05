@@ -221,7 +221,8 @@ changes.
 After the monitoring scope and WAF allow-list were pinned in the private inputs,
 the protected plan passes all checks and shows these differences. None of them is
 applied, and none changes who can reach the Lab. The owner is the repository
-owner; applying any of them needs a guarded runner apply path, tracked in #502.
+owner; the [guarded runner apply](#apply-the-reviewed-lab-differences), tracked
+in #502, can apply the first two.
 
 | Difference | What it is | Why it is left |
 | --- | --- | --- |
@@ -307,6 +308,64 @@ the active revision before it writes; remove both after the run. The workflow ne
 apply, changes the WAF, or changes any public access. Blob versioning and
 state-lock retention behave as described for the monitoring scope. It reports
 only fixed labels and counts and never publishes input values or IP addresses.
+
+### Apply the reviewed Lab differences
+
+The manual
+[`Apply reviewed private Lab Terraform changes`](../.github/workflows/apply-lab-terraform.yml)
+workflow is the only runner path that applies Lab Terraform. It exists for the
+two harmless differences in the table above: the WAF policy tags and the
+`WORKBENCH_UNFINISHED_AGENTS_ENABLED` setting. It runs from reviewed `main` on
+the private runner, in the protected `terraform-state` environment, with the
+same state identity and `TF_LAB_PLAN_CONFIG` as the plan diagnostic. It shares
+the `terraform-state-access` group with other state operations and the
+`deploy-lab` group with image rollouts, so a stale plan can't revert a newer
+image.
+
+It plans the whole Lab root and applies only when the plan holds nothing else:
+
+- The WAF policy changes only its two tags, and the allow-list is unchanged.
+- The Container App changes only its settings: it adds
+  `WORKBENCH_UNFINISHED_AGENTS_ENABLED` and may show the known
+  `WORKBENCH_CREATION_KEY_SHA256` representation difference. Its image,
+  secrets, ingress, scale and identity don't change.
+- The three alerts have no changes.
+- No resource is created, deleted, replaced or imported, no output changes, no
+  value is unknown, and every check passes.
+
+Anything else stops with nothing applied. The `check` operation, the default,
+plans and reports without applying. The `apply` operation re-checks that the
+state, the canonical inputs and the active image didn't change during planning,
+then applies the exact saved plan after verifying its digest. It never uses
+`-target`, `-refresh=false`, `-lock=false` or `-auto-approve`, and it doesn't
+change the allow-list or any public access.
+
+After the apply it verifies that the state recorded the change with the same
+lineage, the inputs are unchanged, and the active image digest is unchanged. It
+waits up to ten minutes for the new revision to become ready. A follow-up plan
+must again hold only reviewed changes; the creation-key representation
+difference may remain. The output has only actions, field names and counts.
+Locked plans and applies add retained state-blob versions, as the diagnostic
+does.
+
+The state identity has no write roles by default. A run needs these separately
+approved, temporary grants, all removed afterwards:
+
+1. The Reader and app `listSecrets` grants that the
+   [plan diagnostic](#diagnose-the-existing-lab-plan) needs.
+2. The custom role `Foundry Lab Terraform Apply`, scoped to the Lab resource
+   group, assigned at only four resources: the Container App
+   (`Microsoft.App/containerApps/write`), its managed environment
+   (`Microsoft.App/managedEnvironments/join/action`), its user-assigned identity
+   (`Microsoft.ManagedIdentity/userAssignedIdentities/assign/action`) and the
+   WAF policy (`Microsoft.Network/frontdoorWebApplicationFirewallPolicies/write`).
+   If a run fails with `AuthorizationFailed`, the log names the denied actions;
+   add only those and re-run.
+3. Starting the runner and approving the protected environment for that run.
+
+If only the WAF tags are planned, the app grants aren't used. Stop if any grant
+isn't approved, and don't use the VM's managed identity or a local apply as a
+fallback.
 
 ### 2. Configure and initialize
 
