@@ -78,7 +78,14 @@ changes, or only the differences you expect.
 
 ## Test without Azure or GitHub
 
+From the repository root:
+
 ```powershell
 terraform -chdir=terraform/identity init -backend=false
 terraform -chdir=terraform/identity validate
+./scripts/terraform/test-identity-validation.ps1
 ```
+
+The contract test plans a temporary copy with mocked providers. It checks the
+identity trust, scoped roles, GitHub branch restrictions, recording approval
+and disabled-recording behavior without creating Azure or GitHub resources.
