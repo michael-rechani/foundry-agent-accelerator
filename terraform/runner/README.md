@@ -67,6 +67,12 @@ workflow verifies a disposable blob lease, never an actual state write or an
 infrastructure apply. Existing jumpbox access is a separately documented
 maintenance exception, not the normal deployment path. See #389/#393.
 
+For approval-gated import-only access adoption and a full runner plan, use the
+[ARM-only planning workflow](../runner-plan-access/README.md). It persists
+canonical private inputs, rejects resource mutations and verifies that a runner
+plan leaves existing state contents unchanged. A successful plan is not an
+infrastructure deployment or an apply of refreshed NSG state.
+
 The VM needs outbound internet access to reach GitHub. The repository already
 has a NAT gateway with a static public IP for the jumpbox subnet. A NAT gateway
 serves every subnet in its VNet, so this stack adds `snet-runner` to that VNet

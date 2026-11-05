@@ -66,10 +66,11 @@ Two assignments use a role name directly: **AcrPull** in
 
 ## Assigned by this repository
 
-This table lists every role assignment declared in this repository's Terraform.
-A search for `role_assignment`, `roleAssignments`, `role_definition`, and AVM
-`role_assignments` inputs finds no others, and no script or application code
-creates role assignments. The Lab never grants roles itself.
+This table covers platform, Lab and monitoring assignments. Auxiliary runner and
+identity/access roots have their own guides. In particular, the explicitly
+approved [runner planning setup](../terraform/runner-plan-access/README.md)
+can create three narrowly scoped Reader assignments through management APIs
+before GitHub adopts them into state. The Lab application never grants roles itself.
 
 | Principal | Role | Scope | Assigned by | What breaks without it |
 | --- | --- | --- | --- | --- |
@@ -435,6 +436,16 @@ az role assignment create --assignee-object-id <Lab identity principal ID> --ass
 ```
 
 ## Least-privilege guidance
+
+The dedicated GitHub state identity's blob permissions are defined in
+[`terraform/github-state-access`](../terraform/github-state-access/README.md).
+The separately approved
+[`terraform/runner-plan-access`](../terraform/runner-plan-access/README.md)
+adds **Reader only** on the existing runner RG, management VNet and NAT gateway.
+These grants enable full runner refresh/planning and adoption of the grants
+themselves, not infrastructure deployment or RBAC modification. The runner VM
+identity receives none of them. The setup script creates only these approved
+Reader assignments; the GitHub workflow imports them without Azure mutations.
 
 This follows the [credentials guide](credentials.md) and the deployment guides.
 

@@ -36,6 +36,7 @@ Terraform implementation instead of deploying a second foundation.
 | CI runner | `terraform/runner/` | `ai-foundry/runner-dev.tfstate` | The private Ubuntu VM for approved main-only GitHub jobs, with a subnet on the existing management VNet and its NAT gateway. PR validation remains GitHub-hosted. Needs `approve_shared_egress`. |
 | Identity | `terraform/identity/` | `ai-foundry/identity-dev.tfstate` | The Entra apps, federated credentials, roles and GitHub environments the Lab deploy and library recording workflows use. Applied by someone with Entra and repo admin rights. See [its guide](identity/README.md). |
 | State access | `terraform/github-state-access/` | `ai-foundry/state-access-dev.tfstate` (adoption pending) | The dedicated OIDC blob-only identity and main-only approval environment for the private backend check. No infrastructure deployment rights. See [its guide](github-state-access/README.md). |
+| Runner planning access | `terraform/runner-plan-access/` | `ai-foundry/runner-plan-access-dev.tfstate` | Three scoped Reader assignments for runner planning, adopted by an import-only GitHub job. No Azure resource writes or Entra/GitHub administration rights. See [its guide](runner-plan-access/README.md). |
 
 Committed, non-secret inputs for each environment are in [`environments/`](../environments/README.md).
 

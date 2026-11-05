@@ -55,7 +55,7 @@ def json_response(url, **kwargs):
     return value
 
 
-def check(environ=os.environ):
+def validate_backend(environ=os.environ):
     required = (
         "AZURE_CLIENT_ID", "AZURE_TENANT_ID", "TF_STATE_ACCOUNT",
         "TF_STATE_CONTAINER", "TF_STATE_PREFIX", "TF_STATE_PRIVATE_ENDPOINT",
@@ -90,7 +90,13 @@ def check(environ=os.environ):
         raise CheckError("Backend DNS lookup failed.") from None
     if addresses != {str(approved_ip)}:
         raise CheckError("Backend DNS must resolve only to its approved private endpoint.")
+    return host
 
+
+def azure_token(environ=os.environ, scope="https://storage.azure.com/.default"):
+    validate_backend(environ)
+    if scope not in ("https://storage.azure.com/.default", "https://management.azure.com/.default"):
+        raise CheckError("Only storage and ARM token scopes are allowed.")
     oidc_url = parse.urlsplit(environ["ACTIONS_ID_TOKEN_REQUEST_URL"])
     if (oidc_url.scheme != "https" or not oidc_url.hostname
             or not oidc_url.hostname.endswith(".actions.githubusercontent.com")
@@ -111,14 +117,21 @@ def check(environ=os.environ):
         headers={"Content-Type": "application/x-www-form-urlencoded"},
         data=parse.urlencode({
             "client_id": environ["AZURE_CLIENT_ID"],
-            "scope": "https://storage.azure.com/.default",
+            "scope": scope,
             "grant_type": "client_credentials",
             "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
             "client_assertion": assertion,
         }).encode(),
     ).get("access_token")
     if not token:
-        raise CheckError("Azure did not return a storage access token.")
+        raise CheckError("Azure did not return an access token.")
+    return token
+
+
+def check(environ=os.environ):
+    host = validate_backend(environ)
+    container, prefix = environ["TF_STATE_CONTAINER"], environ["TF_STATE_PREFIX"]
+    token = azure_token(environ)
     headers = {"Authorization": f"Bearer {token}", "x-ms-version": "2023-11-03"}
     base = f"https://{host}/{container}"
     send(base + "?" + parse.urlencode({

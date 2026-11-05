@@ -1,0 +1,51 @@
+name: Reconcile private runner Terraform state
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Plan only, or adopt the three existing Reader grants before planning
+        type: choice
+        required: true
+        default: plan
+        options: [plan, import-readers]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-state-access
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 30
+    runs-on: [self-hosted, linux, lab-runner]
+    environment: terraform-state
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_STATE_ACCOUNT: ${{ vars.TF_STATE_ACCOUNT }}
+      TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+      TF_STATE_PREFIX: ${{ vars.TF_STATE_PREFIX }}
+      TF_STATE_PRIVATE_ENDPOINT: ${{ vars.TF_STATE_PRIVATE_ENDPOINT }}
+      TF_RUNNER_PLAN_CONFIG: ${{ vars.TF_RUNNER_PLAN_CONFIG }}
+      TF_RECONCILE_OPERATION: ${{ inputs.operation }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.16.4"
+          terraform_wrapper: false
+      - name: Guard imports, verify persisted grants, and plan the complete runner root
+        run: python3 .github/scripts/reconcile_runner_state.py
+      - name: Remove this run's private plans, inputs and provider scratch
+        if: always()
+        run: python3 .github/scripts/reconcile_runner_state.py --cleanup

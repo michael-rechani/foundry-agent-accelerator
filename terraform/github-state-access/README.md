@@ -57,9 +57,11 @@ publishes artifacts, or applies infrastructure. Probe deletion is still subject
 to the existing account's soft-delete/version retention policies.
 
 A successful check proves blob connectivity and locking, **not** permission to
-deploy Terraform-managed infrastructure. A future Terraform plan/apply workflow
-needs separate resource permissions and approval; do not add those to this probe
-identity silently. Do not remove the jumpbox exception until the intended
+deploy Terraform-managed infrastructure. The separately approved
+[runner planning path](../runner-plan-access/README.md) adds only three scoped
+Reader grants and tests import-only state writes, without infrastructure-write
+permissions. Do not add deployment permissions to this identity silently.
+Do not remove the jumpbox exception until the intended
 replacement has been verified, unless explicitly directed to revoke it anyway.
 
 ## State adoption
@@ -86,8 +88,11 @@ certificate-validated HTTPS were verified from the actual Linux runner without
 reading or writing state. No jumpbox startup, disk change, public exception or
 grant to the runner VM identity was involved.
 
-The new workflow must be integrated into `main` and approved before its OIDC
-blob/lease check can run. It is intentionally not permitted on the PR branch.
+PR #484 merged the connectivity workflow. Its approved main run
+[41948909763](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/41948909763)
+passed private DNS, OIDC, namespace isolation and disposable-blob lease checks
+on the actual runner. No Terraform state contents were read or changed by it.
+It is intentionally not permitted on a PR branch.
 The new access resources are defined in this root but **not yet imported into
 Terraform state**. The runner's next reviewed plan must also retain
 `state_backend_private_endpoint_ips` and the existing registry/Foundry inputs
