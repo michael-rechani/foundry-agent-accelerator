@@ -33,8 +33,9 @@ Terraform implementation instead of deploying a second foundation.
 | The Lab | `workbench/infra/` | `ai-foundry/workbench-dev.tfstate` | The browser app, backend, registry integration, history storage, and alert delivery described in the Lab guide. |
 | Bastion | `terraform/bastion/` | `ai-foundry/bastion-dev.tfstate` | The dedicated Standard Azure Bastion host, `AzureBastionSubnet`, and static public IP for browser-based private access. |
 | Agent monitoring | `terraform/monitoring/` | `ai-foundry/monitoring-dev.tfstate` | Workspace-based Application Insights and private trace routing for metadata-only hosted agent monitoring. |
-| CI runner | `terraform/runner/` | `ai-foundry/runner-dev.tfstate` | A draft private Ubuntu VM that runs `validate.yml` jobs, with a subnet on the existing management VNet and its NAT gateway. Needs `approve_shared_egress`. |
+| CI runner | `terraform/runner/` | `ai-foundry/runner-dev.tfstate` | The private Ubuntu VM for approved main-only GitHub jobs, with a subnet on the existing management VNet and its NAT gateway. PR validation remains GitHub-hosted. Needs `approve_shared_egress`. |
 | Identity | `terraform/identity/` | `ai-foundry/identity-dev.tfstate` | The Entra apps, federated credentials, roles and GitHub environments the Lab deploy and library recording workflows use. Applied by someone with Entra and repo admin rights. See [its guide](identity/README.md). |
+| State access | `terraform/github-state-access/` | `ai-foundry/state-access-dev.tfstate` (adoption pending) | The dedicated OIDC blob-only identity and main-only approval environment for the private backend check. No infrastructure deployment rights. See [its guide](github-state-access/README.md). |
 
 Committed, non-secret inputs for each environment are in [`environments/`](../environments/README.md).
 

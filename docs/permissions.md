@@ -315,6 +315,26 @@ Agent Service Key Vault no default role assignments or secrets, and doesn't
 connect it to the project. A module upgrade can change this list, so review it
 again with any version change.
 
+## GitHub state access
+
+The default Terraform state writer is a protected GitHub job on the private
+runner. A non-runner writer requires an explicitly documented maintenance
+exception. The runner VM identity is not the state-writing identity.
+
+[`terraform/github-state-access`](../terraform/github-state-access/README.md)
+defines a dedicated OIDC application, the `Lab Terraform state blob operator`
+custom role, a container-scoped ABAC assignment restricted to `ai-foundry/`,
+and the reviewed, main-only `terraform-state` environment. The role has blob
+read/write/delete/add and container metadata read, but no container mutation,
+infrastructure deployment, or role-assignment permissions. No client secret
+is created.
+
+The approved live identity/network setup exists, but authenticated GitHub
+blob/lease verification and Terraform adoption are pending #389/#393. The
+existing jumpbox grant has not been removed: replacement deployment capability
+must be verified first, or revocation separately directed. This is not a grant
+of permanent jumpbox deployment authority.
+
 ## Not assigned by this repository
 
 You or the environment owner must grant these. Foundry also grants some
@@ -323,7 +343,7 @@ permissions itself. The **Documented in** column is the source for each row.
 | Who | Permission | Scope | Documented in | Needed for |
 | --- | --- | --- | --- | --- |
 | Platform deployer | Contributor and User Access Administrator, or equivalent | The subscription, for a first apply. Confirmed from source: the platform root creates its own resource group, `azurerm_resource_group.this` in [`terraform/main.tf`](../terraform/main.tf), and puts every resource and role assignment in it. Per Microsoft Learn, roles assigned at a parent scope are inherited by child scopes ([scope levels](https://learn.microsoft.com/azure/role-based-access-control/scope-overview#scope-levels)). | [Infrastructure prerequisites](../terraform/README.md#prerequisites) | Creating the platform resources and the role assignments above. |
-| Anyone running Terraform against remote state: platform, Lab, Bastion, or monitoring | Storage Blob Data Contributor | The state container | [Infrastructure state](../terraform/README.md#state), [Bastion upgrade](../terraform/bastion/README.md#existing-host-upgrade) | The backend authorizes against Blob Storage with Microsoft Entra ID. |
+| A separately approved maintenance operator (exception to GitHub-only state writes) | Least-privilege blob data access; older runbooks use Storage Blob Data Contributor | The state container and approved key prefix | [Infrastructure state](../terraform/README.md#state), [GitHub state access](#github-state-access) | Temporary backend maintenance only; record the exception and remove it after the verified handoff. This is not default access for anyone running Terraform. |
 | Identity running Lab Terraform | `Microsoft.App/containerApps/listSecrets/action` | The specific Container App | [Terraform access](credentials.md#terraform-access) | AzureRM provider refresh of the Container App. |
 | Identity running Lab Terraform | Resource, role-assignment, and state-container access. No role is named. | Confirmed from source: the platform resource group in `resource_group_name`, where every Lab resource goes. The three role assignments target the Lab's registry, the Foundry project, and the platform Cosmos DB account's `workbench/conversations` container, all in that group ([`workbench/infra/main.tf`](../workbench/infra/main.tf), [`workbench/infra/history.tf`](../workbench/infra/history.tf)). When `agent_creation_key_secret_resource_id` is set, the identity also needs to create a role assignment at that Key Vault secret, which can be in another group. | [Lab prerequisites](lab-deployment.md#1-confirm-prerequisites-and-state-ownership) | Creating the Lab resources and its three role assignments, plus the optional operator-key verifier assignment. |
 | Platform deployer, when `jumpbox_admin_secret` is set | Key Vault Secrets User, per Microsoft Learn | That Key Vault secret. Per Microsoft Learn, this role can be assigned at secret scope ([secret scope role assignment](https://learn.microsoft.com/azure/key-vault/general/rbac-guide#secret-scope-role-assignment)). | [VM credentials](credentials.md#optional-virtual-machine-credentials) | Confirmed from source: the identity running platform Terraform reads the password with `ephemeral.azurerm_key_vault_secret.jumpbox_admin` in [`terraform/jumpbox-credentials.tf`](../terraform/jumpbox-credentials.tf). Per Microsoft Learn, Key Vault Secrets User can read secret contents on a vault that uses Azure RBAC ([Key Vault built-in roles](https://learn.microsoft.com/azure/key-vault/general/rbac-guide#azure-built-in-roles-for-key-vault-data-plane-operations)). |

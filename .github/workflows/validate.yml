@@ -247,6 +247,12 @@ jobs:
         run: |
           terraform -chdir=terraform/runner init -backend=false
           terraform -chdir=terraform/runner validate
+          terraform -chdir=terraform/runner test
+      - name: Validate dedicated GitHub state access without Azure
+        run: |
+          terraform -chdir=terraform/github-state-access init -backend=false
+          terraform -chdir=terraform/github-state-access validate
+          terraform -chdir=terraform/github-state-access test
       - name: Validate Entra and GitHub identity without Azure
         run: |
           terraform -chdir=terraform/identity fmt -check
