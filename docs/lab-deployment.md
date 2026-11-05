@@ -216,6 +216,22 @@ change, or missing permission is a failure—not evidence of a clean plan. A
 completed plan is a point-in-time diagnostic, not approval to apply its proposed
 changes.
 
+### Known remaining differences in the dev Lab plan
+
+After the monitoring scope and WAF allow-list were pinned in the private inputs,
+the protected plan passes all checks and shows these differences. None of them is
+applied, and none changes who can reach the Lab. The owner is the repository
+owner; applying any of them needs a guarded runner apply path, tracked in #502.
+
+| Difference | What it is | Why it is left |
+| --- | --- | --- |
+| WAF policy tags `managed-by` and `workload` | Configured tags the live policy lacks | Cosmetic |
+| `WORKBENCH_UNFINISHED_AGENTS_ENABLED` added | The app already treats an absent flag as false | Same behavior |
+| `WORKBENCH_CREATION_KEY_SHA256` shown as changed | Only the `value` attribute differs: live is empty, configured is unset. The Key Vault secret reference is the same | Representation only. It is not a different key and does not involve Entra sign-in (#278) |
+
+Differences that come from outside Terraform, such as the image moving through
+**Deploy Lab image**, are expected. Re-run the plan diagnostic before any apply.
+
 ### Pin the existing Lab monitoring scope
 
 The manual
