@@ -253,6 +253,42 @@ Both follow the existing storage retention policy. The workflow reports only
 fixed status labels and removes its private scratch files; it never publishes
 input values, IP addresses, state, or plans.
 
+### Pin the live Lab WAF allow-list
+
+Terraform plans from its inputs, not from state. A WAF allow-list entry added by
+hand in Azure therefore stays out of the saved inputs, and a full plan proposes
+to delete it. The manual
+[`Reconcile private Lab WAF allow-list input`](../.github/workflows/reconcile-lab-waf-allowlist.yml)
+workflow keeps those addresses without committing them to the repository. It
+appends the live entries that `workbench-dev.tfvars` lacks to that private
+input, next to the state, so the next plan stops proposing their removal.
+
+The default `inspect` operation writes nothing and reports only counts. The
+`pin-live-allowlist` operation also needs `expected_missing`, the reviewed
+number of live entries missing from the inputs (1 to 10). A different count
+stops the run, so unexpected live entries are never pinned. Run `inspect`
+first and review the count.
+
+It reads only the existing `foundry-workbench` Lab WAF, and only when that
+policy has exactly the expected enabled `BlockUnlistedClients` rule over the
+`SocketAddr` condition. It refuses duplicates, entries that are not single
+hosts, equivalent addresses written differently, and a list that would exceed
+ten entries. Terraform resolves the inputs before and after the change, and the
+only allowed difference is the appended entries. The write uses the original
+ETag and a short exclusive blob lease, preserves every other byte and the
+supported blob metadata, and verifies the result. Nothing is added when the
+inputs already hold every live entry. A completed pin does not make a full
+plan clean; confirm that with a fresh approved plan.
+
+Run it only from reviewed `main` on the private runner, with the protected
+`terraform-state` environment and `TF_LAB_PLAN_CONFIG` described above. Starting
+the runner and approving that environment are separate operator decisions. The
+state identity also needs temporary Reader access to the Lab WAF policy (or its
+resource group); remove it after the run. The workflow never runs a Terraform
+apply, changes the WAF, or changes any public access. Blob versioning and
+state-lock retention behave as described for the monitoring scope. It reports
+only fixed labels and counts and never publishes input values or IP addresses.
+
 ### 2. Configure and initialize
 
 Create or review the local `workbench/infra/dev.tfvars` using
