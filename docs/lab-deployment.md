@@ -216,19 +216,18 @@ change, or missing permission is a failure—not evidence of a clean plan. A
 completed plan is a point-in-time diagnostic, not approval to apply its proposed
 changes.
 
-### Known remaining differences in the dev Lab plan
+### Differences that were in the dev Lab plan
 
 After the monitoring scope and WAF allow-list were pinned in the private inputs,
-the protected plan passes all checks and shows these differences. None of them is
-applied, and none changes who can reach the Lab. The owner is the repository
-owner; the [guarded runner apply](#apply-the-reviewed-lab-differences), tracked
-in #502, can apply the first two.
+the protected plan passed all checks and showed three differences. None changed
+who can reach the Lab. The [guarded runner apply](#apply-the-reviewed-lab-differences)
+applied them from `main` (#502), and the follow-up plan showed no changes.
 
-| Difference | What it is | Why it is left |
+| Difference | What it was | Result |
 | --- | --- | --- |
-| WAF policy tags `managed-by` and `workload` | Configured tags the live policy lacks | Cosmetic |
-| `WORKBENCH_UNFINISHED_AGENTS_ENABLED` added | The app already treats an absent flag as false | Same behavior |
-| `WORKBENCH_CREATION_KEY_SHA256` shown as changed | Only the `value` attribute differs: live is empty, configured is unset. The Key Vault secret reference is the same | Representation only. It is not a different key and does not involve Entra sign-in (#278) |
+| WAF policy tags `managed-by` and `workload` | Configured tags the live policy lacked | Applied. The allow-list was unchanged |
+| `WORKBENCH_UNFINISHED_AGENTS_ENABLED` added | The app already treated an absent flag as false | Applied. Same behavior |
+| `WORKBENCH_CREATION_KEY_SHA256` shown as changed | Only the `value` attribute differed: live was empty, configured was unset. The Key Vault secret reference was the same | Cleared by the same app update. It was never a different key and does not involve Entra sign-in (#278) |
 
 Differences that come from outside Terraform, such as the image moving through
 **Deploy Lab image**, are expected. Re-run the plan diagnostic before any apply.
@@ -353,7 +352,8 @@ approved, temporary grants, all removed afterwards:
 
 1. The Reader and app `listSecrets` grants that the
    [plan diagnostic](#diagnose-the-existing-lab-plan) needs.
-2. The custom role `Foundry Lab Terraform Apply`, scoped to the Lab resource
+2. The custom role `Foundry Lab Terraform Apply`, created for the run and
+   deleted afterwards. Its assignable scope is the Lab resource
    group, assigned at only four resources: the Container App
    (`Microsoft.App/containerApps/write`), its managed environment
    (`Microsoft.App/managedEnvironments/join/action`), its user-assigned identity
