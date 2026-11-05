@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Plan only, or adopt the three existing Reader grants before planning
+        description: Plan only, adopt Reader grants, or save refreshed runner state with zero Azure changes
         type: choice
         required: true
         default: plan
-        options: [plan, import-readers]
+        options: [plan, import-readers, save-runner-state]
 
 permissions:
   contents: read
@@ -44,7 +44,7 @@ jobs:
         with:
           terraform_version: "1.16.4"
           terraform_wrapper: false
-      - name: Guard imports, verify persisted grants, and plan the complete runner root
+      - name: Guard the full plan and verify the selected state-only operation
         run: python3 .github/scripts/reconcile_runner_state.py
       - name: Remove this run's private plans, inputs and provider scratch
         if: always()
