@@ -164,11 +164,13 @@ and Docker need the headroom. Change `vm_size` if you want to try it.
    the legacy [`import-live.ps1`](../../scripts/terraform/import-live.ps1) is only
    for separately approved adoption of resources proven absent from it, not a
    reason to write state from the jumpbox. GitHub is the normal state writer.
-   The helper refuses unreadable, empty or mismatched runner state and requires
-   a nonempty single-line registry address list. It is not wired into a
-   protected import workflow; any non-GitHub writer needs a separately approved
-   and documented exception. The address check does not verify every live
-   exception; review the full plan and all private endpoint inputs.
+   The helper checks managed resources in the root and all child modules for
+   existing ownership. It refuses unreadable, empty or mismatched runner state,
+   malformed modules or managed resources without IDs, and requires a nonempty
+   single-line registry address list. It is not wired into a protected import
+   workflow; any non-GitHub writer needs a separately approved and documented
+   exception. The address check does not verify every live exception; review the
+   full plan and all private endpoint inputs.
 3. Copy `backend.hcl.example` to ignored `backend.hcl` and fill in the secured
    state account.
 4. Run:
