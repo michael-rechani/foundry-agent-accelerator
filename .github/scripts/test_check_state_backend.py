@@ -28,9 +28,10 @@ class BackendCheckTests(unittest.TestCase):
 
     def transport(self, url, **kwargs):
         self.calls.append((url, kwargs))
-        if ".actions.githubusercontent.com/" in url:
+        hostname = probe.parse.urlsplit(url).hostname
+        if hostname == "fixture.actions.githubusercontent.com":
             return b'{"value":"oidc-secret"}', {}
-        if "login.microsoftonline.com" in url:
+        if hostname == "login.microsoftonline.com":
             return b'{"access_token":"azure-secret"}', {}
         return b"", {}
 
