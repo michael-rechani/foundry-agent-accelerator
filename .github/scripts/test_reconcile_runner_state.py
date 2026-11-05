@@ -147,7 +147,9 @@ class ReconciliationTests(unittest.TestCase):
             "ARM_ACCESS_KEY": "secret", "ARM_CLIENT_SECRET": "secret",
             "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "short-lived",
         }
-        with tempfile.TemporaryDirectory() as folder, patch.object(reconcile.Terraform, "command"):
+        with (tempfile.TemporaryDirectory() as folder,
+              patch.object(reconcile.shutil, "which", return_value="/approved/terraform"),
+              patch.object(reconcile.Terraform, "command")):
             cli = reconcile.Terraform(Path("root"), Path(folder), env, "runner-dev.tfstate", b"{}")
             self.assertNotIn("TF_CLI_ARGS_plan", cli.env)
             self.assertNotIn("ARM_CLIENT_SECRET", cli.env)
@@ -158,6 +160,11 @@ class ReconciliationTests(unittest.TestCase):
             self.assertEqual(cli.env["TF_WORKSPACE"], "default")
             self.assertEqual(cli.env["ACTIONS_ID_TOKEN_REQUEST_TOKEN"], "short-lived")
             self.assertIn('key = "ai-foundry/runner-dev.tfstate"', (Path(folder) / "backend.hcl").read_text())
+
+    def test_missing_terraform_is_an_explicit_failure(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(reconcile.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(reconcile.CheckError, "Terraform is missing"):
+                reconcile.Terraform(Path("root"), Path(folder), environment(), "runner-dev.tfstate", b"{}")
 
     def test_raw_provider_diagnostics_are_not_logged(self):
         cli = object.__new__(reconcile.Terraform)
