@@ -33,8 +33,9 @@ Terraform implementation instead of deploying a second foundation.
 | The Lab | `workbench/infra/` | `ai-foundry/workbench-dev.tfstate` | The browser app, backend, registry integration, history storage, and alert delivery described in the Lab guide. |
 | Bastion | `terraform/bastion/` | `ai-foundry/bastion-dev.tfstate` | The dedicated Standard Azure Bastion host, `AzureBastionSubnet`, and static public IP for browser-based private access. |
 | Agent monitoring | `terraform/monitoring/` | `ai-foundry/monitoring-dev.tfstate` | Workspace-based Application Insights and private trace routing for metadata-only hosted agent monitoring. |
-| CI runner | `terraform/runner/` | `ai-foundry/runner-dev.tfstate` | A draft private Ubuntu VM that runs `validate.yml` jobs, with a subnet on the existing management VNet and its NAT gateway. Needs `approve_shared_egress`. |
+| CI runner | `terraform/runner/` | `ai-foundry/runner-dev.tfstate` | The private Ubuntu VM for approved main-only GitHub jobs, with a subnet on the existing management VNet and its NAT gateway. PR validation remains GitHub-hosted. Needs `approve_shared_egress`. |
 | Identity | `terraform/identity/` | `ai-foundry/identity-dev.tfstate` | The Entra apps, federated credentials, roles and GitHub environments the Lab deploy and library recording workflows use. Applied by someone with Entra and repo admin rights. See [its guide](identity/README.md). |
+| State access | `terraform/github-state-access/` | `ai-foundry/state-access-dev.tfstate` (adoption pending) | The dedicated OIDC blob-only identity and main-only approval environment for the private backend check. No infrastructure deployment rights. See [its guide](github-state-access/README.md). |
 
 Committed, non-secret inputs for each environment are in [`environments/`](../environments/README.md).
 
@@ -76,8 +77,13 @@ Follow this order for a new environment, or run `./deploy.ps1` to do it in one
 command (see [Deploy the Lab](../docs/lab-deployment.md#deployment)):
 
 1. For a new subscription, deploy `terraform/bootstrap/` once to create the
-   private state backend.
-2. Deploy the platform root in `terraform/`.
+   private state backend and the shared blob DNS zone.
+2. Deploy the platform root in `terraform/`, setting `blob_private_dns_zone_id`
+   to bootstrap's output. For first-run private access, use the
+   [staged bootstrap procedure](bootstrap/README.md#fresh-subscription-staged-private-access):
+   initial local state, management peering/DNS, then reviewed remote-state
+   migration from a private host. Existing platforms retain their DNS ownership
+   until the [explicit adoption](bootstrap/README.md#adopt-an-existing-platform).
 3. Publish the prebuilt agents from `hosted-agents/` after the platform outputs
    are available.
 4. Deploy the Lab from `workbench/infra/` with its separate state key.
@@ -269,6 +275,49 @@ The next apply also updates the agent storage account in place to admit the
 Foundry project as a resource instance, so live evaluation can store results.
 It doesn't change public network access. A rule already added by hand for the
 same project ID produces no change.
+
+### Adopt an existing backend private endpoint
+
+The existing Lab backend is not a fresh-subscription bootstrap deployment. Its
+shared storage account/container remain external, and its blob DNS zone and
+workload/management links already belong to the platform state. Do not deploy a
+second backend or move that zone merely to match the bootstrap layout.
+
+To adopt only the existing Lab-specific state backend private endpoint, retain
+this input in the installation's protected platform tfvars:
+
+```hcl
+terraform_state_private_endpoint = {
+  id                 = "/subscriptions/<subscription-id>/resourceGroups/<platform-rg>/providers/Microsoft.Network/privateEndpoints/pe-foundry-tfstate"
+  storage_account_id = "/subscriptions/<subscription-id>/resourceGroups/<state-rg>/providers/Microsoft.Storage/storageAccounts/<state-account>"
+  tags               = {}
+}
+```
+
+Null is the default and does not create or import an endpoint. When enabled,
+the platform imports `azurerm_private_endpoint.terraform_state[0]` using the
+exact supplied ID. It preserves the endpoint name, `tfstate-blob` automatic
+connection, `blob` subresource/zone group, existing workload endpoint subnet
+and effective blob DNS zone. Explicit empty tags preserve the existing
+untagged endpoint rather than adding platform tags. The shared storage
+account and container are not imported or created.
+
+From an approved private Terraform host, initialize the **existing**
+`ai-foundry/dev.tfstate` backend and use the installation's existing reviewed
+inputs. Generate and inspect a saved full-root plan. For this adoption, require
+**one import, zero infrastructure creates, changes or destroys**. Root output
+additions may update state metadata only. Stop for unexpected drift; do not
+hide it with targeting, disabled refresh or ignored attributes. Apply only
+that reviewed plan after approval, then require a fresh no-changes plan.
+Keep raw plans, state and sensitive inputs on the protected private host,
+never in GitHub or ordinary logs.
+
+The input must remain enabled in every subsequent platform plan. The
+endpoint has `prevent_destroy`; omitting the input after adoption must not be
+used to remove the endpoint through which Terraform reaches its own backend.
+Its nested DNS zone group and automatically registered A record do not need
+separate AzureRM import addresses. See #389 and #392 for the live inventory
+and reconciliation evidence.
 
 ## Coordinator agent access
 

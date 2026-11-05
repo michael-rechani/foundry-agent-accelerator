@@ -58,6 +58,7 @@ resource "azapi_resource" "dns_zone" {
   location  = "global"
   tags      = var.tags
   body      = {}
+  lifecycle { prevent_destroy = true }
 }
 
 resource "azapi_resource" "dns_link" {

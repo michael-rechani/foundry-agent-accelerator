@@ -215,6 +215,21 @@ variable "registry_private_endpoint_ips" {
   }
 }
 
+variable "state_backend_private_endpoint_ips" {
+  type        = list(string)
+  description = "Approved RFC1918 IPv4 addresses of the Terraform backend blob private endpoint. Allows TCP 443 only; grants no identity permissions. Empty disables this exception."
+  default     = []
+
+  validation {
+    condition = alltrue([for ip in var.state_backend_private_endpoint_ips :
+      can(regex("^[0-9]{1,3}(\\.[0-9]{1,3}){3}$", ip)) &&
+      can(cidrnetmask("${ip}/32")) &&
+      (startswith(ip, "10.") || startswith(ip, "192.168.") || can(regex("^172\\.(1[6-9]|2[0-9]|3[01])\\.", ip)))
+    ])
+    error_message = "state_backend_private_endpoint_ips must contain individual RFC1918 IPv4 addresses, not public addresses, CIDRs or hostnames."
+  }
+}
+
 variable "foundry_private_endpoint_ips" {
   type        = list(string)
   description = "Private IP addresses of the Foundry account's private endpoint. When set, the runner may reach only these on TCP 443 so the approved recording workflow can call the private Foundry account. Leave empty to keep all VNet traffic denied."

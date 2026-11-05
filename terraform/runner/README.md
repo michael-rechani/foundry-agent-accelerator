@@ -2,30 +2,32 @@
 
 [Home](../../README.md) / [Infrastructure](../README.md) / CI runner
 
-Draft a single Ubuntu 24.04 virtual machine (VM) that runs the
-[`validate.yml`](../../.github/workflows/validate.yml) jobs when GitHub-hosted
-Actions minutes run out. This Terraform root manages only a new resource group,
+Define a single Ubuntu 24.04 virtual machine (VM) for approved GitHub jobs.
+Pull request validation stays on GitHub-hosted runners.
+This Terraform root manages a resource group,
 one subnet in the existing management virtual network (VNet), and the runner VM.
 It reads the VNet and its NAT gateway without taking ownership of them.
 
 > [!IMPORTANT]
-> **This is a draft. Nothing has been applied.** Review it, approve the shared
-> egress described in [Outbound access](#outbound-access), and apply it yourself
-> from an authorized private-network environment.
+> **The dev runner already exists and has remote state.** Live-state inventory
+> confirmed it during #389. Reconciliation and clean-plan checks remain tracked
+> in #318/#348. Do not recreate it or reimport resources already owned by its
+> state. New installations still require explicit approval for shared egress.
 
 > [!WARNING]
 > **Public repository risk.** A persistent self-hosted runner executes the code in
 > pull requests on a machine inside your network, so no pull request workflow may
 > use it. `validate.yml` runs on GitHub-hosted `ubuntu-24.04` runners. Only the
-> [`deploy-lab.yml`](../../.github/workflows/deploy-lab.yml) build job targets this
-> runner, and it runs only from `main` behind the `lab-deploy` environment. Fork
+> approved deployment, recording and state-access jobs target this
+> runner, and they run only from `main` behind their GitHub environments. Fork
 > pull requests need approval from every outside contributor. To let it push images,
 > set `registry_private_endpoint_ips` so the NSG allows TCP 443 to the registry
 > private endpoint only. To let the approved
 > [`record-library-answers.yml`](../../.github/workflows/record-library-answers.yml)
 > workflow call the private Foundry account, set `foundry_private_endpoint_ips` the
 > same way (it runs only from `main`, behind the `library-recording` environment's
-> required reviewer). Everything else in the VNet stays denied.
+> required reviewer). The separate backend HTTPS exception below serves the
+> approval-gated state check. Everything else in the VNet stays denied.
 
 Run commands in `terraform/runner/`, not in the parent platform root. The runner
 is called the CI runner here to avoid confusion with the Windows jumpbox that
@@ -50,6 +52,21 @@ other guides call the private runner.
 
 ## Outbound access
 
+### Private Terraform backend
+
+Set `state_backend_private_endpoint_ips` to the approved backend blob private
+endpoint addresses. This adds only `AllowStateBackendPrivateEndpointOutbound`
+(priority 140, outbound TCP 443). Public addresses, ranges and hostnames are
+rejected. Keep registry/Foundry exceptions and all inbound/VNet deny rules.
+The management VNet must already resolve the backend privately and be peered
+to its endpoint VNet.
+
+Use the [dedicated GitHub OIDC state identity](../github-state-access/README.md), not
+the runner VM identity, for blob authorization. The approval-gated connectivity
+workflow verifies a disposable blob lease, never an actual state write or an
+infrastructure apply. Existing jumpbox access is a separately documented
+maintenance exception, not the normal deployment path. See #389/#393.
+
 The VM needs outbound internet access to reach GitHub. The repository already
 has a NAT gateway with a static public IP for the jumpbox subnet. A NAT gateway
 serves every subnet in its VNet, so this stack adds `snet-runner` to that VNet
@@ -70,7 +87,8 @@ creating one.
 
 The NSG limits outbound traffic to ports 80 and 443 (plus Azure's DNS and
 metadata endpoints) and **denies the VirtualNetwork destination**. Pull request
-code can't reach the jumpbox, the peered Foundry network, or private endpoints, except the registry exception above.
+code can't reach the jumpbox or arbitrary private endpoints. Only the explicit
+registry, Foundry and backend HTTPS exceptions are allowed.
 If you add an egress allowlist later, these hosts are needed:
 `github.com`, `api.github.com`, `*.actions.githubusercontent.com`,
 `objects.githubusercontent.com`, `pypi.org`, `files.pythonhosted.org`,
@@ -128,19 +146,12 @@ and Docker need the headroom. Change `vm_size` if you want to try it.
    adds `AllowFoundryPrivateEndpointOutbound` (priority 130, TCP 443 to those
    addresses only) through Terraform. Don't add it by hand (see #318). Find the
    addresses by resolving the account's private endpoint name from the runner.
-   **The dev runner already exists and is not yet in the state.** Don't apply this
-   stack against it. After step 3 and `terraform init`, run
-   [`../../scripts/terraform/import-live.ps1`](../../scripts/terraform/import-live.ps1)
-   from the jump box, keeping `terraform/runner/` as the working directory. It
-   refuses to run until `registry_private_endpoint_ips` is set in your tfvars,
-   prints the `terraform import` commands as a dry run, and writes to the state
-   only with `-Apply`. Then run the plan in step 4: it must show no change to the
-   VM and no public IP, and a second plan must show no changes at all.
-
-   ```powershell
-   ../../scripts/terraform/import-live.ps1 -VarFile dev.tfvars          # dry run
-   ../../scripts/terraform/import-live.ps1 -VarFile dev.tfvars -Apply   # writes to the shared state
-   ```
+   For backend access, also preserve the approved
+   `state_backend_private_endpoint_ips` input on every runner plan.
+   The existing dev runner already has remote state. Inventory that state first;
+   the legacy [`import-live.ps1`](../../scripts/terraform/import-live.ps1) is only
+   for separately approved adoption of resources proven absent from it, not a
+   reason to write state from the jumpbox. GitHub is the normal state writer.
 3. Copy `backend.hcl.example` to ignored `backend.hcl` and fill in the secured
    state account.
 4. Run:
@@ -150,7 +161,7 @@ and Docker need the headroom. Change `vm_size` if you want to try it.
    terraform plan -var-file=dev.tfvars -out=runner.tfplan
    ```
 
-5. Review the plan. It creates a resource group, an NSG, `snet-runner`, a
+5. Review the plan. For a new installation it creates a resource group, an NSG, `snet-runner`, a
    network interface, the VM, a custom role and assignment, and a shutdown
    schedule. It must contain **no public IP**.
 6. Apply only when the plan matches. The plan file and state can hold sensitive

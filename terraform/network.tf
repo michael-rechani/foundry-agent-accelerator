@@ -1,5 +1,5 @@
 locals {
-  private_dns_zones = {
+  private_dns_zone_names = {
     agentsvc           = "privatelink.agentsvc.azure-automation.net"
     ai_services        = "privatelink.services.ai.azure.com"
     cognitive_services = "privatelink.cognitiveservices.azure.com"
@@ -12,6 +12,15 @@ locals {
     search             = "privatelink.search.windows.net"
     storage_blob       = "privatelink.blob.core.windows.net"
   }
+
+  private_dns_zones = {
+    for key, name in local.private_dns_zone_names : key => name
+    if key != "storage_blob" || var.blob_private_dns_zone_id == null
+  }
+  blob_private_dns_zone_id = var.blob_private_dns_zone_id != null ? var.blob_private_dns_zone_id : azurerm_private_dns_zone.this["storage_blob"].id
+  blob_private_dns_zone_resource_group = (
+    var.blob_private_dns_zone_id != null ? split("/", var.blob_private_dns_zone_id)[4] : azurerm_resource_group.this.name
+  )
 }
 
 resource "azurerm_virtual_network" "this" {
@@ -52,14 +61,15 @@ resource "azurerm_private_dns_zone" "this" {
   name                = each.value
   resource_group_name = azurerm_resource_group.this.name
   tags                = local.tags
+  lifecycle { prevent_destroy = true }
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "this" {
-  for_each = local.private_dns_zones
+  for_each = local.private_dns_zone_names
 
   name                  = "link-${replace(each.key, "_", "-")}"
-  private_dns_zone_name = azurerm_private_dns_zone.this[each.key].name
-  resource_group_name   = azurerm_resource_group.this.name
+  private_dns_zone_name = each.key == "storage_blob" && var.blob_private_dns_zone_id != null ? each.value : azurerm_private_dns_zone.this[each.key].name
+  resource_group_name   = each.key == "storage_blob" ? local.blob_private_dns_zone_resource_group : azurerm_resource_group.this.name
   virtual_network_id    = azurerm_virtual_network.this.id
   tags                  = local.tags
 }
@@ -93,7 +103,7 @@ resource "azurerm_private_endpoint" "azure_monitor" {
       azurerm_private_dns_zone.this["monitor"].id,
       azurerm_private_dns_zone.this["ods"].id,
       azurerm_private_dns_zone.this["oms"].id,
-      azurerm_private_dns_zone.this["storage_blob"].id,
+      local.blob_private_dns_zone_id,
     ]
   }
 

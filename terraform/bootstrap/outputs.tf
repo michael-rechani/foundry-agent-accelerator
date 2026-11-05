@@ -19,7 +19,7 @@ output "virtual_network_id" {
 }
 
 output "blob_private_dns_zone_id" {
-  description = "Private DNS zone that resolves the state account. Link any other VNet that runs Terraform to it."
+  description = "Shared blob private DNS zone. Pass to the platform as blob_private_dns_zone_id; bootstrap owns state and peered-host VNet links."
   value       = azapi_resource.dns_zone.id
 }
 

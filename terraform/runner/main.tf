@@ -65,7 +65,7 @@ resource "azurerm_resource_group" "runner" {
 # No inbound rule is allowed, not even from inside the VNet, so the jumpbox and
 # Bastion can't reach the runner. Outbound is limited to web traffic over the NAT
 # gateway; the VirtualNetwork deny keeps PR code away from the jumpbox, the peered
-# Foundry network, and private endpoints.
+# Foundry network, and private endpoints except the explicit HTTPS rules below.
 resource "azurerm_network_security_group" "runner" {
   location            = local.location
   name                = "nsg-runner-${local.name_suffix}"
@@ -129,6 +129,21 @@ resource "azurerm_network_security_group" "runner" {
       destination_port_range       = "443"
       source_address_prefix        = "*"
       destination_address_prefixes = var.foundry_private_endpoint_ips
+    }
+  }
+
+  dynamic "security_rule" {
+    for_each = length(var.state_backend_private_endpoint_ips) > 0 ? [1] : []
+    content {
+      name                         = "AllowStateBackendPrivateEndpointOutbound"
+      priority                     = 140
+      direction                    = "Outbound"
+      access                       = "Allow"
+      protocol                     = "Tcp"
+      source_port_range            = "*"
+      destination_port_range       = "443"
+      source_address_prefix        = "*"
+      destination_address_prefixes = var.state_backend_private_endpoint_ips
     }
   }
 
