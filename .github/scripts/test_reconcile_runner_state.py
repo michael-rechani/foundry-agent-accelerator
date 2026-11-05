@@ -236,12 +236,46 @@ class ReconciliationTests(unittest.TestCase):
     def test_raw_provider_diagnostics_are_not_logged(self):
         cli = object.__new__(reconcile.Terraform)
         cli.root, cli.env, cli.binary = Path("root"), {}, "terraform"
-        result = subprocess.CompletedProcess([], 1, b"", b"AuthorizationFailed: private-token")
+        result = subprocess.CompletedProcess([], 1, b"", (
+            b"AuthorizationFailed: private-token; the client 'principal-secret' "
+            b"cannot perform action 'Microsoft.Insights/scheduledQueryRules/read' over scope "
+            b"'/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/private-rg/"
+            b"providers/Microsoft.Insights/scheduledQueryRules/private-alert'."
+        ))
         with patch.object(reconcile.subprocess, "run", return_value=result) as process:
-            with self.assertRaisesRegex(reconcile.CheckError, "AuthorizationFailed") as caught:
+            with self.assertRaisesRegex(
+                reconcile.CheckError,
+                r"AuthorizationFailed; Microsoft\.Insights/scheduledQueryRules/read "
+                r"on Microsoft\.Insights/scheduledQueryRules",
+            ) as caught:
                 cli.command("show", "-json", "private.tfplan")
             self.assertNotIn("private-token", str(caught.exception))
+            for value in ("principal-secret", "12345678-1234-1234-1234-123456789012",
+                          "private-rg", "private-alert"):
+                self.assertNotIn(value, str(caught.exception))
             self.assertEqual(process.call_args.args[0][-1], "private.tfplan")
+
+    def test_authorization_summary_omits_unparseable_scope_and_caps_unique_details(self):
+        types = ("virtualMachines", "disks", "networkInterfaces", "publicIPAddresses")
+        message = "\n".join(
+            "AuthorizationFailed: perform action 'Microsoft.Compute/" + resource_type + "/read' over scope "
+            "'/subscriptions/123/resourceGroups/private/providers/Microsoft.Compute/"
+            + resource_type + "/private-resource'"
+            for resource_type in types
+        )
+        self.assertEqual(
+            reconcile.authorization_failure_summary(message),
+            "AuthorizationFailed; Microsoft.Compute/virtualMachines/read on Microsoft.Compute/virtualMachines; "
+            "Microsoft.Compute/disks/read on Microsoft.Compute/disks; "
+            "Microsoft.Compute/networkInterfaces/read on Microsoft.Compute/networkInterfaces; "
+            "additional denied operations omitted",
+        )
+        self.assertEqual(
+            reconcile.authorization_failure_summary(
+                "AuthorizationFailed: perform action 'read' over scope '/subscriptions/private'"
+            ),
+            "AuthorizationFailed",
+        )
 
     def test_saved_plan_tampering_prevents_apply(self):
         cli = object.__new__(reconcile.Terraform)
