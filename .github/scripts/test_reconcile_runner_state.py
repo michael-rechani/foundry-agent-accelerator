@@ -141,14 +141,41 @@ class ReconciliationTests(unittest.TestCase):
         self.assertNotIn("old-secret", output.getvalue())
         self.assertNotIn("new-secret", output.getvalue())
 
-    def test_canonical_inputs_use_create_only_and_never_overwrite_different_values(self):
+    def test_existing_canonical_inputs_are_compared_without_a_write(self):
         blobs = object.__new__(reconcile.Blobs)
         blobs.base, blobs.headers = "https://stfixture.blob.core.windows.net/tfstate/ai-foundry/", {}
         with patch.object(reconcile, "send", return_value=(b'{"value":1}', {})) as send:
             self.assertEqual(blobs.inputs("runner-dev.tfvars.json", {"value": 1}), b'{"value":1}')
-            self.assertEqual(send.call_args_list[0].kwargs["headers"]["If-None-Match"], "*")
-            self.assertEqual(send.call_args_list[0].kwargs["expected"], (201, 412))
+            self.assertEqual(send.call_count, 1)
+            self.assertNotIn("method", send.call_args.kwargs)
         with patch.object(reconcile, "send", return_value=(b'{"value":2}', {})):
+            with self.assertRaisesRegex(reconcile.CheckError, "differ"):
+                blobs.inputs("runner-dev.tfvars.json", {"value": 1})
+
+    def test_only_a_proven_missing_input_blob_is_conditionally_created(self):
+        blobs = object.__new__(reconcile.Blobs)
+        blobs.base, blobs.headers = "https://stfixture.blob.core.windows.net/tfstate/ai-foundry/", {}
+        responses = [
+            (b"", {"x-ms-error-code": "BlobNotFound"}), (b"", {}), (b'{"value":1}', {}),
+        ]
+        with patch.object(reconcile, "send", side_effect=responses) as send:
+            self.assertEqual(blobs.inputs("runner-dev.tfvars.json", {"value": 1}), b'{"value":1}')
+            self.assertEqual(send.call_args_list[1].kwargs["headers"]["If-None-Match"], "*")
+            self.assertEqual(send.call_args_list[1].kwargs["expected"], (201, 412))
+        with patch.object(reconcile, "send", return_value=(b"", {"x-ms-error-code": "ContainerNotFound"})) as send:
+            with self.assertRaisesRegex(reconcile.CheckError, "unexpected storage error"):
+                blobs.inputs("runner-dev.tfvars.json", {"value": 1})
+            self.assertEqual(send.call_count, 1)
+
+    def test_concurrent_input_creation_never_replaces_different_content(self):
+        blobs = object.__new__(reconcile.Blobs)
+        blobs.base, blobs.headers = "https://stfixture.blob.core.windows.net/tfstate/ai-foundry/", {}
+        responses = [
+            (b"", {"x-ms-error-code": "BlobNotFound"}),
+            (b"", {"x-ms-error-code": "ConditionNotMet"}),
+            (b'{"value":2}', {}),
+        ]
+        with patch.object(reconcile, "send", side_effect=responses):
             with self.assertRaisesRegex(reconcile.CheckError, "differ"):
                 blobs.inputs("runner-dev.tfvars.json", {"value": 1})
 

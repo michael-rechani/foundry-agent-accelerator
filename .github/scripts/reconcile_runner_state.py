@@ -127,11 +127,16 @@ class Blobs:
 
     def inputs(self, name, values):
         encoded = json.dumps(values, sort_keys=True, indent=2).encode() + b"\n"
-        # A conditional create never overwrites previously reviewed canonical inputs.
-        send(self.base + name, method="PUT", headers={
-            **self.headers, "x-ms-blob-type": "BlockBlob", "If-None-Match": "*",
-        }, data=encoded, expected=(201, 412))
-        existing = self.read(name)
+        existing, headers = send(self.base + name, headers=self.headers, expected=(200, 404))
+        code = headers.get("x-ms-error-code")
+        if code == "BlobNotFound":
+            # Do not retry PUTs against an existing blob: Azure can return 409, not 412.
+            send(self.base + name, method="PUT", headers={
+                **self.headers, "x-ms-blob-type": "BlockBlob", "If-None-Match": "*",
+            }, data=encoded, expected=(201, 412))
+            existing = self.read(name)
+        elif code:
+            raise CheckError("Canonical input lookup returned an unexpected storage error.")
         if object_json(existing) != values:
             raise CheckError("Existing canonical inputs differ; a separate reviewed input change is required.")
         return existing
