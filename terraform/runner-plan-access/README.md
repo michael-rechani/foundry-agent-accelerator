@@ -38,8 +38,10 @@ must already be online. This operation:
 1. Verifies the exact private backend DNS address and GitHub OIDC authentication.
 2. Refuses an empty/wrong runner state before initializing its backend.
 3. Persists reviewed inputs as `ai-foundry/runner-dev.tfvars.json` and
-   `ai-foundry/runner-plan-access-dev.tfvars.json`. Conditional creation and
-   semantic comparison prohibit overwriting different existing canonical inputs.
+   `ai-foundry/runner-plan-access-dev.tfvars.json`. Existing blobs are read and
+   semantically compared without writing; only a proven `BlobNotFound` permits
+   conditional creation. Different existing inputs and other storage errors stop
+   the run rather than overwriting canonical inputs or treating every 404 as absence.
 4. Initializes this dedicated root, saves a complete plan and verifies the exact
    missing import IDs with **zero resource creates, updates or deletes**.
 5. Applies only that guarded saved plan, then requires a fresh no-change plan and
