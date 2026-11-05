@@ -229,6 +229,8 @@ class ReconciliationTests(unittest.TestCase):
             self.assertIn(required, workflow)
         for forbidden in ("pull_request", "upload-artifact", "az vm start", "azure/login"):
             self.assertNotIn(forbidden, workflow)
+        self.assertIn("${{ secrets.TF_RUNNER_PLAN_CONFIG }}", workflow)
+        self.assertNotIn("${{ vars.TF_RUNNER_PLAN_CONFIG }}", workflow)
 
     def test_orchestration_imports_only_access_and_cleans_private_files(self):
         self.orchestrate("import-readers")
@@ -241,12 +243,14 @@ class ReconciliationTests(unittest.TestCase):
 
     def orchestrate(self, operation, drift=False):
         calls = []
+        reads = []
 
         class FakeBlobs:
             def __init__(self, environ):
                 pass
 
             def read(self, name):
+                reads.append(name)
                 if name == "runner-dev.tfstate":
                     return state()
                 return json.dumps({"resources": [{"mode": "managed", "instances": [{}, {}, {}]}]}).encode()
@@ -286,6 +290,7 @@ class ReconciliationTests(unittest.TestCase):
                     reconcile.run(env)
             self.assertEqual(list(Path(folder).iterdir()), [])
         self.assertNotIn(("runner", "apply"), calls)
+        self.assertEqual(reads.count("runner-dev.tfstate"), 2)
         if operation == "import-readers":
             self.assertEqual(calls[:4], [
                 ("runner-plan-access", "init"), ("runner-plan-access", "adopt"),

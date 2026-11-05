@@ -37,7 +37,7 @@ run "backend_https_only_preserving_other_rules" {
       rule.name != "AllowStateBackendPrivateEndpointOutbound" || (
         rule.access == "Allow" && rule.direction == "Outbound" && rule.protocol == "Tcp" &&
         rule.destination_port_range == "443" && rule.priority == 140 &&
-        rule.destination_address_prefixes == toset(["10.42.0.23"])
+        rule.destination_address_prefix == "10.42.0.23"
       )
     ])
     error_message = "The backend exception must allow only HTTPS to the supplied private endpoint."
@@ -48,6 +48,20 @@ run "backend_https_only_preserving_other_rules" {
       "DenyVirtualNetworkOutbound", "DenyAllOutbound", "DenyAllInbound",
     ] : contains([for rule in azurerm_network_security_group.runner.security_rule : rule.name], name)])
     error_message = "Backend access must not remove registry/Foundry exceptions or the network denies."
+  }
+}
+
+run "multiple_backend_addresses_use_plural_field" {
+  command = plan
+  variables {
+    state_backend_private_endpoint_ips = ["10.42.0.23", "10.42.0.26"]
+  }
+  assert {
+    condition = alltrue([for rule in azurerm_network_security_group.runner.security_rule :
+      rule.name != "AllowStateBackendPrivateEndpointOutbound" ||
+      rule.destination_address_prefixes == toset(["10.42.0.23", "10.42.0.26"])
+    ])
+    error_message = "Multiple approved backend addresses must retain the plural API field."
   }
 }
 

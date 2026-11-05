@@ -58,6 +58,9 @@ Set `state_backend_private_endpoint_ips` to the approved backend blob private
 endpoint addresses. This adds only `AllowStateBackendPrivateEndpointOutbound`
 (priority 140, outbound TCP 443). Public addresses, ranges and hostnames are
 rejected. Keep registry/Foundry exceptions and all inbound/VNet deny rules.
+One backend address uses Azure's singular address field; multiple addresses use
+the plural field. This preserves the existing single-endpoint rule without a
+format-only NSG update.
 The management VNet must already resolve the backend privately and be peered
 to its endpoint VNet.
 

@@ -143,7 +143,8 @@ resource "azurerm_network_security_group" "runner" {
       source_port_range            = "*"
       destination_port_range       = "443"
       source_address_prefix        = "*"
-      destination_address_prefixes = var.state_backend_private_endpoint_ips
+      destination_address_prefix   = length(var.state_backend_private_endpoint_ips) == 1 ? var.state_backend_private_endpoint_ips[0] : null
+      destination_address_prefixes = length(var.state_backend_private_endpoint_ips) > 1 ? var.state_backend_private_endpoint_ips : null
     }
   }
 

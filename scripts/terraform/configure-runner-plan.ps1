@@ -141,6 +141,10 @@ $config = @{
     }
     runner = $runner
 } | ConvertTo-Json -Depth 15 -Compress
-$config | & gh variable set TF_RUNNER_PLAN_CONFIG --repo $repository --env $environment
+$config | & gh secret set TF_RUNNER_PLAN_CONFIG --repo $repository --env $environment
 if ($LASTEXITCODE -ne 0) { throw 'Reader grants exist, but saving the reviewed bootstrap configuration failed.' }
+if ($environmentVariables.ContainsKey('TF_RUNNER_PLAN_CONFIG')) {
+    & gh variable delete TF_RUNNER_PLAN_CONFIG --repo $repository --env $environment
+    if ($LASTEXITCODE -ne 0) { throw 'Masked configuration is saved, but removal of its old unmasked variable failed.' }
+}
 Write-Output 'Three scoped Reader grants and protected bootstrap configuration are ready; no Terraform state was accessed.'

@@ -282,7 +282,7 @@ def run(environ=os.environ):
                 state = object_json(access.command("show", "-json"))
                 owned = {
                     item["address"]: item["values"]["id"]
-                    for item in state.get("values", {}).get("root_module", {}).get("resources", [])
+                    for item in (state.get("values") or {}).get("root_module", {}).get("resources", [])
                     if item.get("mode") == "managed"
                 }
                 if any(expected.get(address) != resource_id for address, resource_id in owned.items()):
@@ -301,9 +301,12 @@ def run(environ=os.environ):
             runner_path.mkdir()
             runner = Terraform(ROOT / "terraform" / "runner", runner_path, environ,
                                "runner-dev.tfstate", inputs["runner"])
-            runner.plan("runner", {})
-            if blobs.read("runner-dev.tfstate") != before:
-                raise CheckError("Runner state contents changed concurrently; the result needs investigation.")
+            try:
+                runner.plan("runner", {})
+            finally:
+                if blobs.read("runner-dev.tfstate") != before:
+                    raise CheckError("Runner state contents changed concurrently; the result needs investigation.")
+                print(f"Runner state serial {serial} and contents unchanged, including on rejected plans.")
             print(f"Full runner plan: no changes; existing state serial {serial} and contents unchanged.")
     finally:
         os.umask(old_umask)
