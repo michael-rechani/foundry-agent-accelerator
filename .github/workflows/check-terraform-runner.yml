@@ -34,7 +34,7 @@ jobs:
       TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
       TF_STATE_PREFIX: ${{ vars.TF_STATE_PREFIX }}
       TF_STATE_PRIVATE_ENDPOINT: ${{ vars.TF_STATE_PRIVATE_ENDPOINT }}
-      TF_RUNNER_PLAN_CONFIG: ${{ vars.TF_RUNNER_PLAN_CONFIG }}
+      TF_RUNNER_PLAN_CONFIG: ${{ secrets.TF_RUNNER_PLAN_CONFIG }}
       TF_RECONCILE_OPERATION: ${{ inputs.operation }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

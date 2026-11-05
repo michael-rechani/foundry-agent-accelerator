@@ -21,7 +21,10 @@ with explicit subscription, principal, runner and management network arguments
 and `-ApproveReaderGrants`. Review those scopes first. The script inventories
 existing VM, subnet, shutdown and private HTTPS settings; it creates only missing
 Reader assignments and records their IDs plus non-secret inputs in the existing
-reviewed `terraform-state` environment's `TF_RUNNER_PLAN_CONFIG` variable.
+reviewed `terraform-state` environment's `TF_RUNNER_PLAN_CONFIG` **secret**.
+Although these inputs contain no credential, storing the JSON as a variable
+would expose it in GitHub's automatic step-environment logging. The setup removes
+the old unmasked variable after successfully saving its masked replacement.
 It never connects to the private backend or writes state. Reruns reuse existing
 exact-scope assignments. No operator credentials are copied to GitHub.
 
@@ -61,3 +64,17 @@ resolve its paused disk drift (#485). It does not revoke the jumpbox exception.
 The broader deployment permission design and administrative-root adoption remain
 in #389/#393. A clean runner plan alone does not persist refreshed NSG metadata:
 that requires a separately approved saved-plan state reconciliation under #318.
+
+## Lab evidence
+
+The approved first main run after #486 imported the three Reader assignments,
+verified three persisted instances and passed a fresh no-change plan. Its full
+runner plan rejected a format-only backend NSG difference without applying it.
+The source now matches Azure's single-address representation while retaining
+plural support for multiple approved endpoints. Bootstrap configuration is
+masked because GitHub automatically logs ordinary step-environment variables;
+the first run's unmasked configuration-only log was removed.
+
+Latest full-runner verification and remaining acceptance are recorded in
+#389/#318. The original Entra/GitHub/blob-role root is still a separate adoption
+task; these Reader imports do not silently adopt it or grant deployer rights.
