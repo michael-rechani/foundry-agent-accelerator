@@ -70,6 +70,78 @@ ALERT_FIELDS = {
     },
     "action": {"action_groups": True, "custom_properties": True},
 }
+OTHER_RESOURCE_LABELS = {
+    "terraform_data.platform_names": ("terraform_data", "platform_names"),
+    "azapi_resource.logs": ("azapi_resource", "log_workspace"),
+    "azurerm_container_app.this[0]": ("azurerm_container_app", "container_app"),
+    "azurerm_container_app_environment.this": ("azurerm_container_app_environment", "container_environment"),
+    "azurerm_container_registry.this": ("azurerm_container_registry", "container_registry"),
+    "azurerm_subnet.this": ("azurerm_subnet", "container_subnet"),
+    "azurerm_user_assigned_identity.this": ("azurerm_user_assigned_identity", "lab_identity"),
+    "azurerm_monitor_private_link_scoped_service.logs": (
+        "azurerm_monitor_private_link_scoped_service", "monitor_private_link",
+    ),
+    "azurerm_monitor_diagnostic_setting.this": ("azurerm_monitor_diagnostic_setting", "container_logs"),
+    "azurerm_monitor_diagnostic_setting.front_door": ("azurerm_monitor_diagnostic_setting", "front_door_logs"),
+    "azurerm_consumption_budget_resource_group.lab[0]": (
+        "azurerm_consumption_budget_resource_group", "lab_budget",
+    ),
+}
+OTHER_RESOURCE_TYPES = {
+    "terraform_data": "terraform_data",
+    "azapi_resource": "azapi_resource",
+    "azurerm_cdn_frontdoor_endpoint": "front_door_endpoint",
+    "azurerm_cdn_frontdoor_origin": "front_door_origin",
+    "azurerm_cdn_frontdoor_origin_group": "front_door_origin_group",
+    "azurerm_cdn_frontdoor_profile": "front_door_profile",
+    "azurerm_cdn_frontdoor_route": "front_door_route",
+    "azurerm_cdn_frontdoor_security_policy": "front_door_security_policy",
+    "azurerm_consumption_budget_resource_group": "budget",
+    "azurerm_container_app": "container_app",
+    "azurerm_container_app_environment": "container_environment",
+    "azurerm_container_registry": "container_registry",
+    "azurerm_cosmosdb_sql_container": "history_container",
+    "azurerm_cosmosdb_sql_database": "history_database",
+    "azurerm_cosmosdb_sql_role_assignment": "history_role",
+    "azurerm_monitor_action_group": "alert_action_group",
+    "azurerm_monitor_diagnostic_setting": "diagnostic_setting",
+    "azurerm_monitor_private_link_scoped_service": "monitor_private_link",
+    "azurerm_private_dns_a_record": "private_dns_record",
+    "azurerm_private_dns_zone": "private_dns_zone",
+    "azurerm_private_dns_zone_virtual_network_link": "private_dns_link",
+    "azurerm_private_endpoint": "private_endpoint",
+    "azurerm_role_assignment": "role_assignment",
+    "azurerm_subnet": "subnet",
+    "azurerm_user_assigned_identity": "user_identity",
+}
+OTHER_FIELDS = {
+    "id": True, "name": True, "resource_group_name": True, "location": True, "tags": True,
+    "sku": True, "sku_name": True, "enabled": True, "description": True,
+    "identity": True, "registry": True, "secret": True, "ingress": True,
+    "template": {
+        "container": {"name": True, "image": True, "cpu": True, "memory": True, "env": True},
+        "min_replicas": True, "max_replicas": True, "revision_suffix": True,
+    },
+    "body": {
+        "properties": {
+            "sku": True, "retentionInDays": True, "workspaceCapping": True,
+            "publicNetworkAccessForIngestion": True, "publicNetworkAccessForQuery": True,
+            "features": True,
+        },
+    },
+    "workload_profile": True, "public_network_access": True, "public_network_access_enabled": True,
+    "admin_enabled": True, "logs_destination": True, "scope": True, "principal_id": True,
+    "role_definition_id": True, "role_definition_name": True, "target_resource_id": True,
+    "log_analytics_workspace_id": True, "enabled_log": True, "metric": True,
+    "input": True, "output": True,
+}
+CHECK_LABELS = {
+    "check.monitor_private_link_scope_source": "monitor_scope_source",
+    "terraform_data.platform_names": "platform_names",
+    "azurerm_container_app.this": "container_app_configuration",
+    "azurerm_role_assignment.creation_key_verifier": "creation_key_configuration",
+    "azurerm_consumption_budget_resource_group.lab": "budget_recipients",
+}
 ACTIONS = {
     ("no-op",): "no-op",
     ("create",): "create",
@@ -461,7 +533,7 @@ def change_summary(entry, schema):
     action, importing = change_action(entry)
     change = entry["change"]
     if "before" not in change or "after" not in change:
-        raise CheckError("Terraform returned an incomplete target resource change.")
+        raise CheckError("Terraform returned an incomplete resource change.")
     changed, unknown = changed_fields(
         change.get("before"), change.get("after"), change.get("after_unknown", False), schema,
     )
@@ -470,6 +542,124 @@ def change_summary(entry, schema):
     return {
         "action": action, "fields": changed, "unknown_fields": unknown, "import": importing,
     }
+
+
+def waf_match_values(resource):
+    if not isinstance(resource, dict):
+        return None
+    rules = resource.get("custom_rule")
+    if not isinstance(rules, list) or len(rules) != 1 or not isinstance(rules[0], dict):
+        return None
+    rule = rules[0]
+    conditions = rule.get("match_condition")
+    if (rule.get("name") != "BlockUnlistedClients" or not isinstance(conditions, list)
+            or len(conditions) != 1 or not isinstance(conditions[0], dict)):
+        return None
+    condition = conditions[0]
+    if (condition.get("match_variable") != "SocketAddr" or condition.get("operator") != "IPMatch"
+            or condition.get("negation_condition") is not True):
+        return None
+    values = condition.get("match_values")
+    if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
+        return None
+    return values
+
+
+def compare_waf_allowlist(change):
+    if has_unknown(change.get("after_unknown", False)):
+        return {"status": "unknown"}
+    before = waf_match_values(change.get("before"))
+    after = waf_match_values(change.get("after"))
+    if before is None or after is None:
+        return {"status": "unavailable"}
+    added, removed = set(after) - set(before), set(before) - set(after)
+    if before == after:
+        relation = "unchanged"
+    elif not added and not removed:
+        relation = "same-members"
+    elif not removed:
+        relation = "adds-entries"
+    elif not added:
+        relation = "removes-entries"
+    else:
+        relation = "replaces-entries"
+    return {"status": "compared", "relation": relation, "added": len(added), "removed": len(removed)}
+
+
+def compare_waf_tags(change):
+    if has_unknown(change.get("after_unknown", False)):
+        return {"status": "unknown"}
+
+    def tags(resource):
+        if not isinstance(resource, dict) or "tags" not in resource:
+            return None
+        value = resource["tags"]
+        return {} if value is None else value if isinstance(value, dict) else None
+
+    before, after = tags(change.get("before")), tags(change.get("after"))
+    if before is None or after is None:
+        return {"status": "unavailable"}
+    known = ("workload", "managed-by")
+    result = {"status": "compared"}
+    for key in known:
+        old, new = before.get(key, MISSING), after.get(key, MISSING)
+        if old is MISSING and new is not MISSING:
+            result[key] = "added"
+        elif old is not MISSING and new is MISSING:
+            result[key] = "removed"
+        else:
+            result[key] = "unchanged" if old == new else "changed"
+    result["other_keys_changed"] = (
+        {key: value for key, value in before.items() if key not in known}
+        != {key: value for key, value in after.items() if key not in known}
+    )
+    return result
+
+
+def compare_alert_query(change):
+    if has_unknown(change.get("after_unknown", False)):
+        return "unknown"
+
+    def query(resource):
+        if not isinstance(resource, dict):
+            return None
+        criteria = resource.get("criteria")
+        if not isinstance(criteria, list) or len(criteria) != 1 or not isinstance(criteria[0], dict):
+            return None
+        value = criteria[0].get("query")
+        return value if isinstance(value, str) else None
+
+    before, after = query(change.get("before")), query(change.get("after"))
+    if before is None or after is None:
+        return "unavailable"
+    if before == after:
+        return "unchanged"
+    if before.replace("\r\n", "\n") == after.replace("\r\n", "\n"):
+        return "line-endings-only"
+    return "different"
+
+
+def target_change_summary(entry, label):
+    summary = change_summary(entry, WAF_FIELDS if label == "waf" else ALERT_FIELDS)
+    change = entry["change"]
+    if label == "waf":
+        summary["allowlist_comparison"] = compare_waf_allowlist(change)
+        summary["tag_comparison"] = compare_waf_tags(change)
+    else:
+        summary["query_comparison"] = compare_alert_query(change)
+    return summary
+
+
+def other_change_summary(entry):
+    resource_type = entry.get("type")
+    known = OTHER_RESOURCE_LABELS.get(entry["address"])
+    if known and resource_type == known[0]:
+        label = known[1]
+    elif isinstance(resource_type, str):
+        label = OTHER_RESOURCE_TYPES.get(resource_type, "unclassified")
+    else:
+        label = "unclassified"
+    return {"resource": label, **change_summary(entry, OTHER_FIELDS)}
 
 
 def summarize_plan(plan, exit_code, values):
@@ -492,6 +682,7 @@ def summarize_plan(plan, exit_code, values):
         raise CheckError("Terraform returned an incomplete plan summary.")
     targets = {label: {"planned": None, "refreshed_drift": []} for label in TARGETS.values()}
     other_changes = data_reads = other_drift = imports = unknown_resources = 0
+    other_details, drift_details = [], []
     other_actions = dict.fromkeys((action for action in ACTIONS.values() if action != "no-op"), 0)
     drift_actions = dict.fromkeys(other_actions, 0)
     output_actions = dict.fromkeys(("create", "update", "delete"), 0)
@@ -506,11 +697,12 @@ def summarize_plan(plan, exit_code, values):
         if label:
             if entry.get("mode") != "managed" or targets[label]["planned"] is not None:
                 raise CheckError("A target resource appeared more than once or with an unexpected mode.")
-            targets[label]["planned"] = change_summary(entry, WAF_FIELDS if label == "waf" else ALERT_FIELDS)
+            targets[label]["planned"] = target_change_summary(entry, label)
         elif entry.get("mode") == "managed":
             other_changes += action != "no-op"
             if action != "no-op":
                 other_actions[action] += 1
+                other_details.append(other_change_summary(entry))
         elif entry.get("mode") == "data":
             data_reads += action != "no-op"
         else:
@@ -525,11 +717,12 @@ def summarize_plan(plan, exit_code, values):
         if label:
             if entry.get("mode") != "managed" or targets[label]["refreshed_drift"]:
                 raise CheckError("A target has duplicate or unexpected refreshed-drift entries.")
-            targets[label]["refreshed_drift"].append(change_summary(entry, WAF_FIELDS if label == "waf" else ALERT_FIELDS))
+            targets[label]["refreshed_drift"].append(target_change_summary(entry, label))
         elif entry.get("mode") == "managed":
             other_drift += action != "no-op"
             if action != "no-op":
                 drift_actions[action] += 1
+                drift_details.append(other_change_summary(entry))
         else:
             raise CheckError("Terraform returned an unsupported refreshed-drift mode.")
     output_count = unknown_outputs = 0
@@ -547,7 +740,22 @@ def summarize_plan(plan, exit_code, values):
     if any(not isinstance(check, dict) or check.get("status") not in ("pass", "fail", "unknown", "error")
            for check in checks):
         raise CheckError("Terraform returned invalid check results.")
-    nonpassing_checks = sum(check["status"] != "pass" for check in checks)
+    check_statuses = dict.fromkeys(("pass", "fail", "unknown", "error"), 0)
+    known_checks = {}
+    unclassified_nonpassing_checks = 0
+    for check in checks:
+        status = check["status"]
+        check_statuses[status] += 1
+        address = check.get("address")
+        name = address.get("to_display") if isinstance(address, dict) else None
+        label = CHECK_LABELS.get(name) if isinstance(name, str) else None
+        if label:
+            if label in known_checks:
+                raise CheckError("Terraform returned a duplicate known check.")
+            known_checks[label] = status
+        elif status != "pass":
+            unclassified_nonpassing_checks += 1
+    nonpassing_checks = len(checks) - check_statuses["pass"]
     planned_changes = (
         other_changes + output_count + imports
         + sum(target["planned"]["action"] != "no-op" for target in targets.values())
@@ -559,8 +767,10 @@ def summarize_plan(plan, exit_code, values):
         "targets": targets,
         "other_managed_changes": other_changes,
         "other_managed_actions": other_actions,
+        "other_managed_details": other_details,
         "other_refreshed_drift": other_drift,
         "other_refreshed_drift_actions": drift_actions,
+        "other_refreshed_drift_details": drift_details,
         "data_reads": data_reads,
         "output_changes": output_count,
         "output_actions": output_actions,
@@ -568,6 +778,9 @@ def summarize_plan(plan, exit_code, values):
         "outputs_with_unknown_values": unknown_outputs,
         "imports": imports,
         "nonpassing_checks": nonpassing_checks,
+        "check_statuses": check_statuses,
+        "known_checks": known_checks,
+        "unclassified_nonpassing_checks": unclassified_nonpassing_checks,
     }
 
 

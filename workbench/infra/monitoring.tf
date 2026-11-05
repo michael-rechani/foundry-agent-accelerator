@@ -70,11 +70,13 @@ resource "azurerm_monitor_diagnostic_setting" "this" {
 }
 
 locals {
-  request_log_query = <<-KQL
+  request_log_query_raw = <<-KQL
     union isfuzzy=true ContainerAppConsoleLogs_CL, ContainerAppConsoleLogs
     | where tostring(column_ifexists("ContainerAppName_s", column_ifexists("ContainerAppName", ""))) == "${var.name}"
     | extend payload = parse_json(extract(@"(\{.*\})", 1, tostring(column_ifexists("Log_s", column_ifexists("Log", "")))))
   KQL
+  # Existing alerts use CRLF in this prefix; keep it stable across checkout platforms (#445).
+  request_log_query = replace(replace(local.request_log_query_raw, "\r\n", "\n"), "\n", "\r\n")
   operational_alerts = {
     request-failures = {
       query     = "${local.request_log_query}\n| where payload.event == 'workbench_request' and (toint(payload.status) >= 500 or toint(payload.status) == 429)"
