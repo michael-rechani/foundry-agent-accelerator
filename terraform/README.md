@@ -38,7 +38,9 @@ Terraform implementation instead of deploying a second foundation.
 | State access | `terraform/github-state-access/` | `ai-foundry/state-access-dev.tfstate` (adoption pending) | The dedicated OIDC blob-only identity and main-only approval environment for the private backend check. No infrastructure deployment rights. See [its guide](github-state-access/README.md). |
 | Runner planning access | `terraform/runner-plan-access/` | `ai-foundry/runner-plan-access-dev.tfstate` | Three scoped Reader assignments for runner planning, adopted by an import-only GitHub job. No Azure resource writes or Entra/GitHub administration rights. See [its guide](runner-plan-access/README.md). |
 
-Committed, non-secret inputs for each environment are in [`environments/`](../environments/README.md).
+`deploy.ps1` uses Terraform defaults and creates missing ignored input files in each
+root. `-BaseName` and `-Environment` set naming in new platform inputs; existing
+input files are never overwritten.
 
 ## In this guide
 
