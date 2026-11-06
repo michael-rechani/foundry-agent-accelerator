@@ -12,6 +12,7 @@ update them together and keep the images readable at README width.
 | --- | --- | --- |
 | Diagrams | `.template.svg` files such as `azure-architecture.template.svg` | `./docs/images/build-architecture.ps1` |
 | Azure service icons | Unmodified SVG files in `azure-icons/` | Copied unchanged from the official Azure Architecture Center icon set. |
+| README headline | `readme-header.template.svg` | `./docs/images/build-architecture.ps1 -Name readme-header` generates the light and dark banners. |
 | Lab screenshots | Playwright tests in `workbench/frontend/tests/` | `npm test -- --project=desktop` in `workbench/frontend/`, then `./docs/images/refresh-screenshots.ps1` from the repo root |
 | README and scenario tours | Screenshots in `screenshots/` | `./docs/images/build-tour.ps1`, then `./docs/images/build-tour.ps1 -Tour scenarios` |
 | GitHub social preview card (`social-preview.png`, 1280 x 640) | `screenshots/lab-test-results-dark.png` | `python docs/images/build-social-preview.py`, then upload it under **Settings > General > Social preview**. GitHub has no API for that upload. |
@@ -182,6 +183,12 @@ agent-triggered email, and don't depict an enterprise landing zone or gateway
 as deployed by default.
 
 ## Azure icons in architecture diagrams
+
+The README headline pairs the official Foundry service icon with the
+**Microsoft Foundry** name as its caption. It names the service the sample
+builds on. It isn't a logo for the Accelerator, so keep the icon unchanged and
+keep the caption. Edit `readme-header.template.svg` and rebuild its two
+self-contained variants with the command above.
 
 The diagrams use unmodified Microsoft Azure service icons from the
 official [Azure Architecture Center icon set](https://learn.microsoft.com/azure/architecture/icons/),
