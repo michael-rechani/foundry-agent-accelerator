@@ -20,6 +20,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from history import CosmosHistory, history_router
 from review_runs import ReviewRuns
 from design_loop import DesignLoop
+from agent_bundle import AgentBundles
 from agent_creation import CREATED_ID, AgentCreations, CreationSettings
 from agent_scorecards import SCORECARDS
 from library_rules import DEPLOYMENT_NAME
@@ -661,5 +662,6 @@ def create_app(settings=None, gateway=None, history_store=None, publisher=None):
     application.include_router(review_runs.router)
     application.include_router(created_agents.router)
     application.include_router(design_loop.router)
+    application.include_router(AgentBundles(settings).router)
     application.mount("/", StaticFiles(directory=ROOT / "static", html=True, check_dir=False), name="static")
     return application

@@ -55,7 +55,11 @@ person confirms.
    definition, not a deployed or tested agent. It has a model placeholder, and
    any required lookups or document sources still need to be configured in
    Foundry. Nothing was created."
-6. Optional, only with the operator key and your approval to spend: on the card
+6. Optional, no model call: choose **Download hosted agent bundle**. Say: "The
+   Lab builds a ready-to-deploy file from this spec's instructions. It runs the
+   plain Responses agent, with no lookups or documents. Nothing was published;
+   my team deploys it into our own project."
+7. Optional, only with the operator key and your approval to spend: on the card
    choose **Create this agent here**, enter the key, confirm the cost and wait
    for it to publish, then choose **Chat with it**. This creates a real, billable
    agent, so delete it afterwards in **Made in this Lab**.

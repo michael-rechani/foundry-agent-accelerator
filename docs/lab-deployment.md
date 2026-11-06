@@ -452,7 +452,10 @@ pattern to `.dockerignore` only to keep a file out of the image or to ship a new
 data file. A package directory such as `agent_templates/` is the exception. It
 needs its own `COPY` line in the Dockerfile, a rule block in `.dockerignore` and a
 staging step in `build.ps1` (copy the `agent_runtime/` or `agent_templates/`
-pattern). `agent_templates/agents/` holds one JSON file per library agent, and its
+pattern). `basic_agent_source/` is another example: a vendored copy of
+`hosted-agents/basic-responses-agent/` that the spec card's bundle download
+packages offline, because only `workbench/` is in the image context. A test
+fails if it drifts from the original. `agent_templates/agents/` holds one JSON file per library agent, and its
 `.dockerignore` rules and `build.ps1` step ship every `*.json` file in it, so a new
 library agent needs no edit to either. `test_image_context.py` fails if a module or
 package that `app.py` imports isn't in the image, or if a library agent file isn't

@@ -16,6 +16,10 @@ try {
     foreach ($name in @("main.py", "demo_tools.py", "requirements.txt")) {
         Copy-Item (Join-Path $PSScriptRoot "agent_runtime/$name") (Join-Path $stage "agent_runtime")
     }
+    New-Item -ItemType Directory -Path (Join-Path $stage "basic_agent_source") | Out-Null
+    foreach ($name in @("main.py", "requirements.txt", "instructions.md")) {
+        Copy-Item (Join-Path $PSScriptRoot "basic_agent_source/$name") (Join-Path $stage "basic_agent_source")
+    }
     New-Item -ItemType Directory -Path (Join-Path $stage "agent_templates/agents") -Force | Out-Null
     Copy-Item (Join-Path $PSScriptRoot "agent_templates/*.py") (Join-Path $stage "agent_templates")
     Copy-Item (Join-Path $PSScriptRoot "agent_templates/agents/*.json") (Join-Path $stage "agent_templates/agents")
@@ -32,7 +36,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Registry login failed" }
         & docker build --pull --platform linux/amd64 --tag $image --file (Join-Path $stage "Dockerfile") $stage
         if ($LASTEXITCODE -ne 0) { throw "Local image build failed" }
-        & docker run --rm --platform linux/amd64 --entrypoint python $image -c "import importlib, os; from pathlib import Path; [importlib.import_module(m.stem) for m in sorted(Path('.').glob('*.py'))]; import agent_publisher; assert os.getuid() != 0; assert agent_publisher.runtime_package()[0]; assert Path('agents.json').read_text(); assert Path('static/index.html').read_text()"
+        & docker run --rm --platform linux/amd64 --entrypoint python $image -c "import importlib, os; from pathlib import Path; [importlib.import_module(m.stem) for m in sorted(Path('.').glob('*.py'))]; import agent_publisher; assert os.getuid() != 0; assert agent_publisher.runtime_package()[0]; import agent_bundle; assert agent_bundle.agent_package()[0]; assert Path('agents.json').read_text(); assert Path('static/index.html').read_text()"
         if ($LASTEXITCODE -ne 0) { throw "Image validation failed" }
         & docker push $image
         if ($LASTEXITCODE -ne 0) { throw "Image push failed" }

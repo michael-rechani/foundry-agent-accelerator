@@ -77,6 +77,9 @@
 .agent-spec .spec-build-error {
   color: var(--danger-fg);
 }
+.agent-spec .spec-bundle .spec-build-error {
+  margin-top: 10px;
+}
 .spec-test h5 + h5,
 .spec-test ol + .agent-spec-actions {
   margin-top: 4px;

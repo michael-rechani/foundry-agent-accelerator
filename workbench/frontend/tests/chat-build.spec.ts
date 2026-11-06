@@ -134,7 +134,7 @@ test('private presenter mode builds from chat without a key and keeps cost conse
   )
 })
 
-test('without creation the spec card offers only the download', async ({
+test('without creation the spec card offers only downloads', async ({
   page,
 }) => {
   await openCreation(page, { hash: '#chat', designerAnswer, disabled: true })
@@ -144,6 +144,9 @@ test('without creation the spec card offers only the download', async ({
   ).toHaveCount(0)
   await expect(
     card.getByRole('button', { name: 'Download agent spec' }),
+  ).toBeVisible()
+  await expect(
+    card.getByRole('button', { name: 'Download hosted agent bundle' }),
   ).toBeVisible()
 })
 

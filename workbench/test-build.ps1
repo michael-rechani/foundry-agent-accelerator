@@ -68,7 +68,7 @@ function docker {
     switch ($operation) {
         'docker build' {
             $stage = $args[-1]
-            $expected = @(Get-ImageContextFile $PSScriptRoot) + @('agent_runtime', 'agent_templates', 'frontend')
+            $expected = @(Get-ImageContextFile $PSScriptRoot) + @('agent_runtime', 'agent_templates', 'basic_agent_source', 'frontend')
             $actual = @(Get-ChildItem -LiteralPath $stage -Force | Select-Object -ExpandProperty Name)
             if (Compare-Object $expected $actual) { throw 'Unexpected build context contents' }
             foreach ($module in Get-LocalModuleClosure) {
@@ -78,6 +78,8 @@ function docker {
             if (Test-Path (Join-Path $stage 'frontend/public')) { throw 'Unexpected frontend public files staged' }
             $runtimeFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'agent_runtime') -Force | Select-Object -ExpandProperty Name)
             if (Compare-Object @('main.py', 'demo_tools.py', 'requirements.txt') $runtimeFiles) { throw 'Unexpected hosted runtime bundle contents' }
+            $basicAgentFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'basic_agent_source') -Force | Select-Object -ExpandProperty Name)
+            if (Compare-Object @('main.py', 'requirements.txt', 'instructions.md') $basicAgentFiles) { throw 'Unexpected basic agent source contents' }
             $templateFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'agent_templates') -Force | Select-Object -ExpandProperty Name)
             if (Compare-Object (@(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'agent_templates') -Filter '*.py' -Name) + 'agents') $templateFiles) { throw 'Unexpected agent templates package contents' }
             $agentFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'agent_templates/agents') -Force | Select-Object -ExpandProperty Name)
@@ -86,6 +88,7 @@ function docker {
         'docker run' {
             if ($args[-1] -notmatch 'os.getuid\(\) != 0') { throw 'Missing non-root validation' }
             if ($args[-1] -notmatch 'agent_publisher.runtime_package\(\)') { throw 'Missing hosted runtime package validation' }
+            if ($args[-1] -notmatch 'agent_bundle.agent_package\(\)') { throw 'Missing hosted agent bundle source validation' }
             if ($args[-1] -notmatch "import_module\(m\.stem\) for m in sorted\(Path\('\.'\)\.glob\('\*\.py'\)\)") {
                 throw 'Image validation must import every module in the image'
             }

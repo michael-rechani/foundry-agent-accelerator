@@ -126,7 +126,16 @@ and makes no model call. **Download agent spec** downloads only the proposed
 agent definition, not the conversation. It is a draft with a model placeholder
 and an empty tools list; any listed lookup needs and document sources are
 descriptive only and must be configured separately in Foundry. Review and test
-the result there before relying on it.
+the result there before relying on it. **Download hosted agent bundle** builds a
+`.agent-bundle.zip` from the spec's name, summary and instructions. The Lab
+builds it itself, so it makes no model call and costs nothing, and nothing is
+published. The bundle runs the standard Responses agent with those instructions
+only: no lookups, no documents, and none of the Lab's safety text or checks. It
+works for a spec with no matching template. Review it, check it with
+`hosted-agents/bundle.py inspect`, and deploy it into a Foundry project you
+control with `bundle.py deploy` (see
+[portable agent bundles](../hosted-agents/README.md#portable-agent-bundles)). It
+needs library previews on, like the Agent designer.
 Visiting another Lab page preserves the current chat in this browser tab;
 refreshing or closing the tab loses anything not saved or exported.
 
