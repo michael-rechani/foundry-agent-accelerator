@@ -51,8 +51,6 @@ $defaultStages = @($Stage)
 foreach ($optIn in 'runner', 'identity', 'agents') {
     if ($defaultStages -contains $optIn) { throw "$optIn must be opt-in, not a default stage." }
 }
-Assert-Equal 1 @(Get-EnvironmentArgument 'lab.tfvars').Count 'the committed dev lab inputs are passed with -var-file'
-Assert-Equal 0 @(Get-EnvironmentArgument 'missing.tfvars').Count 'a missing environment file adds no argument'
 
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('deploy-test-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temporary | Out-Null
@@ -87,14 +85,18 @@ try {
         $script:zoneOutput
     }
     function Initialize-PlatformRoot { $script:platformInitialized = $true }
-    function Invoke-ReviewedApply([string]$Directory, [string]$Label, [string[]]$PlanArguments) {
+    function Invoke-ReviewedApply([string]$Directory, [string]$Label, [string[]]$PlanArguments = @()) {
         $script:plannedLabel = $Label
+        $script:plannedArguments = @($PlanArguments)
     }
     $script:platformState = '{"format_version":"1.0"}'
     $script:outputReads = 0; $script:zoneOutput = $zoneId; $script:platformInitialized = $false
     Invoke-PlatformStage
     $overlayPath = Join-Path $platformDir 'terraform.tfvars'
     Assert-Equal $zoneId (Get-TfvarsValue $overlayPath 'blob_private_dns_zone_id') 'a new platform reuses the bootstrap zone'
+    Assert-Equal 'aifnd' (Get-TfvarsValue $overlayPath 'base_name') 'new platform inputs preserve the default base name'
+    Assert-Equal 'dev' (Get-TfvarsValue $overlayPath 'environment') 'new platform inputs preserve the default environment'
+    Assert-Equal 0 $script:plannedArguments.Count 'platform uses its ignored inputs without a committed var-file'
     Assert-Equal $true $script:platformInitialized 'platform initialization follows valid inputs'
     Assert-Equal 'platform' $script:plannedLabel 'the platform still uses the reviewed-plan path'
     $savedInputs = Get-Content -LiteralPath $overlayPath -Raw
@@ -147,6 +149,33 @@ try {
     function Invoke-Native { }
     Invoke-BootstrapStage
     Assert-Equal 'rg-custom-state' (Get-TfvarsValue (Join-Path $bootstrapDir 'dev.tfvars') 'resource_group_name') 'bootstrap honors the chosen state resource group'
+    Remove-Item -LiteralPath $overlayPath
+    $BaseName = 'custom'; $Environment = 'test'
+    Invoke-PlatformStage
+    Assert-Equal 'custom' (Get-TfvarsValue $overlayPath 'base_name') 'new platform inputs honor the chosen base name'
+    Assert-Equal 'test' (Get-TfvarsValue $overlayPath 'environment') 'new platform inputs honor the chosen environment'
+
+    $originalLabDir = $labDir
+    $labDir = Join-Path $temporary 'lab'
+    New-Item -ItemType Directory -Path $labDir | Out-Null
+    function Get-StateAccount { 'stexample' }
+    function Initialize-Backend([string]$Directory, [string]$Key) { $script:labStateKey = $Key }
+    function Test-LabAppExists { $false }
+    Invoke-LabFoundationStage
+    Assert-Equal 'lab-foundation' $script:plannedLabel 'foundation still uses the reviewed-plan path'
+    Assert-Equal '-var-file=dev.tfvars,-var=bootstrap_only=true' ($script:plannedArguments -join ',') 'foundation uses only the ignored Lab inputs'
+    Assert-Equal 'ai-foundry/workbench-test.tfstate' $script:labStateKey 'Lab backend uses the chosen environment'
+    $labInputs = Get-Content -LiteralPath (Join-Path $labDir 'dev.tfvars') -Raw
+    foreach ($expected in 'platform_state = {', 'resource_group_name  = "rg-custom-state"', 'storage_account_name = "stexample"', 'key                  = "ai-foundry/test.tfstate"') {
+        if ($labInputs -notmatch [regex]::Escape($expected)) { throw "Lab platform-state connection lacks: $expected" }
+    }
+    Set-Content -LiteralPath (Join-Path $labDir 'image.auto.tfvars') -Value "image_digest = `"$digest`"`n"
+    Invoke-LabStage
+    Assert-Equal 'lab' $script:plannedLabel 'Lab still uses the reviewed-plan path'
+    Assert-Equal '-var-file=dev.tfvars' ($script:plannedArguments -join ',') 'Lab uses only its ignored inputs'
+    Assert-Equal $labInputs (Get-Content -LiteralPath (Join-Path $labDir 'dev.tfvars') -Raw) 'existing Lab inputs are preserved'
+    $labDir = $originalLabDir
+    $BaseName = 'aifnd'; $Environment = 'dev'
     $platformDir = $originalPlatformDir; $bootstrapDir = $originalBootstrapDir
 
     $entryAst = [Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script), [ref]$null, [ref]$null)

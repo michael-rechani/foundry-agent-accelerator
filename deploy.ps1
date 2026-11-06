@@ -12,8 +12,8 @@ token), and agents (billable). Every Terraform stage shows its plan and applies 
 type "apply". Nothing is applied without an approved plan. Public exposure needs separate,
 specific approval; reviewing a deployment plan does not authorize public resources.
 
-Committed, non-secret inputs live in environments/<Environment>/. They are passed with -var-file
-and an ignored overlay adds your subscription.
+Terraform defaults supply the Lab's title and visible agents. Ignored input files hold your
+subscription, platform naming, and the Lab's platform-state connection.
 
 The state account is private, so after bootstrap run the remaining stages from a host on a
 network that can reach it (see terraform/bootstrap/README.md). The first platform run can use
@@ -59,12 +59,6 @@ $platformDir = Join-Path $PSScriptRoot 'terraform'
 $runnerDir = Join-Path $PSScriptRoot 'terraform/runner'
 $identityDir = Join-Path $PSScriptRoot 'terraform/identity'
 $labDir = Join-Path $PSScriptRoot 'workbench/infra'
-$environmentDir = Join-Path $PSScriptRoot "environments/$Environment"
-$environmentBase = if (Test-Path -LiteralPath (Join-Path $environmentDir 'platform.tfvars')) {
-    $line = Select-String -LiteralPath (Join-Path $environmentDir 'platform.tfvars') -Pattern '^\s*base_name\s*=\s*"([^"]+)"' | Select-Object -First 1
-    if ($line) { $line.Matches[0].Groups[1].Value }
-}
-if ($environmentBase -and -not $PSBoundParameters.ContainsKey('BaseName')) { $BaseName = $environmentBase }
 $requiredProviders = @(
     'Microsoft.App', 'Microsoft.Authorization', 'Microsoft.CognitiveServices', 'Microsoft.Compute',
     'Microsoft.ContainerRegistry', 'Microsoft.DocumentDB', 'Microsoft.Insights', 'Microsoft.KeyVault',
@@ -199,11 +193,6 @@ function Initialize-PlatformRoot {
     Initialize-Backend $platformDir "ai-foundry/$Environment.tfstate"
 }
 
-function Get-EnvironmentArgument([string]$FileName) {
-    $path = Join-Path $environmentDir $FileName
-    if (Test-Path -LiteralPath $path) { @("-var-file=$path") } else { @() }
-}
-
 function New-StateObject([string]$Account, [string]$Key) {
     @"
 {
@@ -319,11 +308,9 @@ function Invoke-PlatformStage {
     }
     $overlay = "subscription_id = `"$Subscription`"`nlocation        = `"$Location`"`n"
     if ($zone) { $overlay += "blob_private_dns_zone_id = `"$zone`"`n" }
-    if (-not (Test-Path -LiteralPath (Join-Path $environmentDir 'platform.tfvars'))) {
-        $overlay += "base_name       = `"$BaseName`"`nenvironment     = `"$Environment`"`n"
-    }
+    $overlay += "base_name       = `"$BaseName`"`nenvironment     = `"$Environment`"`n"
     Write-NewFile $overlayPath $overlay
-    Invoke-ReviewedApply $platformDir 'platform' (Get-EnvironmentArgument 'platform.tfvars')
+    Invoke-ReviewedApply $platformDir 'platform'
 }
 
 function Invoke-RunnerStage {
@@ -391,7 +378,7 @@ function Invoke-LabFoundationStage {
         Write-Host 'The Lab app already exists. Skipping foundation; bootstrap_only must never run against an existing app.'
         return
     }
-    Invoke-ReviewedApply $labDir 'lab-foundation' (@(Get-EnvironmentArgument 'lab.tfvars') + @('-var-file=dev.tfvars', '-var=bootstrap_only=true'))
+    Invoke-ReviewedApply $labDir 'lab-foundation' @('-var-file=dev.tfvars', '-var=bootstrap_only=true')
 }
 
 function Invoke-ImageStage {
@@ -419,7 +406,7 @@ function Invoke-LabStage {
         throw 'No image digest. Run -Stage image first.'
     }
     Initialize-LabRoot
-    Invoke-ReviewedApply $labDir 'lab' (@(Get-EnvironmentArgument 'lab.tfvars') + @('-var-file=dev.tfvars'))
+    Invoke-ReviewedApply $labDir 'lab' @('-var-file=dev.tfvars')
 }
 
 function Invoke-PrivateCheck([string]$Path, [string]$Url, [bool]$SkipAgentCall) {

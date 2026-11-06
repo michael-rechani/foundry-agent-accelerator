@@ -51,10 +51,12 @@ It creates any missing ignored input (`backend.hcl`, `terraform.tfvars`,
 name includes a hash of the subscription and, for any environment other than
 `dev`, the environment name, so two environments in one subscription don't claim
 the same global name. A `dev` registry keeps its original name, and an existing
-`dev.tfvars` keeps whatever name it holds. The committed names in
-[`environments/dev/`](../environments/README.md) are passed with `-var-file`, and
-`dev\lab.tfvars` sets `platform_state = {}`, which reads the platform's state from
-the account `terraform/bootstrap` creates. Three stages are opt-in:
+`dev.tfvars` keeps whatever name it holds. New platform inputs include `-BaseName`
+and `-Environment`. Terraform defaults supply the Lab's title and visible agents;
+the generated `workbench/infra/dev.tfvars` connects it to the platform's state in
+the account `terraform/bootstrap` creates, using the chosen state resource group
+and environment. Customize the ignored input files for deployment-specific
+overrides. Three stages are opt-in:
 
 ```powershell
 ./deploy.ps1 -Subscription '<subscription-id>' -Stage runner -ApproveSharedEgress   # private CI VM; shares the jumpbox NAT IP
