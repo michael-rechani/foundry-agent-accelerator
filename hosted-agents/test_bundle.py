@@ -96,7 +96,8 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(manifest["instructions"], record["instructions"])
         self.assertEqual(manifest["smoke_test_prompt"], "")
         self.assertNotIn("must-not-be-exported", json.dumps(manifest))
-        self.assertEqual(set(bundle.zip_contents(code)), {"main.py", "demo_tools.py", "requirements.txt"})
+        self.assertEqual(set(bundle.zip_contents(code)),
+                         {"main.py", "demo_tools.py", "bill_math.py", "requirements.txt"})
 
     def test_created_export_requires_ready_record_and_matching_runtime(self):
         record, path, _ = self.created_record()
@@ -121,6 +122,34 @@ class BundleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Runtime changed"):
             bundle.export_created(path, runtime)
         self.assertGreater(len(original), 0)
+
+    def test_created_export_accepts_matching_legacy_runtime_source(self):
+        record, path, _ = self.created_record()
+        runtime = self.directory / "legacy-runtime"
+        runtime.mkdir()
+        for name in ("main.py", "demo_tools.py", "requirements.txt"):
+            (runtime / name).write_text(f"# archived {name}\n", encoding="utf-8")
+        from agent_package import runtime_package
+        original, record["runtime_hash"] = runtime_package(runtime, legacy=True)
+        path.write_text(json.dumps(record))
+        for extra in (False, True):
+            with self.subTest(extra_calculator=extra):
+                if extra:
+                    (runtime / "bill_math.py").write_text("# not part of this archive\n", encoding="utf-8")
+                self.path.write_bytes(bundle.export_created(path, runtime))
+                manifest, code, _ = bundle.read_bundle(self.path)
+                self.assertEqual(code, original)
+                self.assertEqual(set(manifest["files"]), {"main.py", "demo_tools.py", "requirements.txt"})
+
+    def test_missing_calculator_cannot_export_a_new_runtime(self):
+        _, path, code = self.created_record()
+        runtime = self.directory / "incomplete-runtime"
+        runtime.mkdir()
+        for name, content in bundle.zip_contents(code).items():
+            if name != "bill_math.py":
+                (runtime / name).write_bytes(content)
+        with self.assertRaisesRegex(ValueError, "Runtime changed"):
+            bundle.export_created(path, runtime)
 
     def test_corrupt_hashes_unknown_fields_and_environments_are_rejected(self):
         original = bundle.export_sample("case-review-agent")

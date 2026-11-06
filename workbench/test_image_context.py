@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from agent_package import RUNTIME_FILES
+
 ROOT = Path(__file__).parent
 
 
@@ -143,6 +145,15 @@ class ImageContextTests(unittest.TestCase):
         self.assertFalse(in_context(rules, "agent_templates/agents/__pycache__/x.json"))
         self.assertIn("agent_templates/agents/*.json", (ROOT / "build.ps1").read_text(encoding="utf-8"),
                       "Stage library agent files in workbench/build.ps1")
+
+    def test_every_hosted_runtime_file_is_allowed_and_staged(self):
+        rules = dockerignore_rules(ROOT)
+        script = (ROOT / "build.ps1").read_text(encoding="utf-8")
+        for name in RUNTIME_FILES:
+            with self.subTest(file=name):
+                self.assertTrue(in_context(rules, f"agent_runtime/{name}"),
+                                "Allow hosted runtime files in workbench/.dockerignore")
+                self.assertIn(f'"{name}"', script, "Stage hosted runtime files in workbench/build.ps1")
 
 
 if __name__ == "__main__":

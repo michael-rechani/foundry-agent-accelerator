@@ -1,6 +1,12 @@
 import json
 import re
 from copy import deepcopy
+from datetime import date
+
+if __package__:
+    from .bill_math import calculate_bill_values
+else:
+    from bill_math import calculate_bill_values
 
 
 TEMPLATE_IDS = frozenset({
@@ -237,17 +243,38 @@ def _lookup(records, identifier):
     return deepcopy(records[key])
 
 
+def _date_difference(start_date, end_date):
+    dates = []
+    for field, value in (("start_date", start_date), ("end_date", end_date)):
+        if not isinstance(value, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+            raise ValueError(f"{field} must be a calendar date in YYYY-MM-DD format")
+        try:
+            dates.append(date.fromisoformat(value))
+        except ValueError as error:
+            raise ValueError(f"{field} must be a valid calendar date") from error
+    return {
+        "start_date": start_date, "end_date": end_date, "days": (dates[1] - dates[0]).days,
+        "note": "Signed calendar days, end_date minus start_date. Copied dates are not source-verified. "
+                "This does not decide proof sufficiency, eligibility or case action.",
+    }
+
+
 def create_demo_tools(template_id, agent_name):
     if template_id not in TEMPLATE_IDS:
         raise ValueError("Unsupported demo template")
     if not isinstance(agent_name, str) or not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", agent_name):
         raise ValueError("Invalid hosted agent name")
 
-    def receipt(record):
+    def receipt(record, calculation=False):
+        description = (
+            "SAMPLE local arithmetic. Compare the copied values with the supplied documents. "
+            "No external system was contacted or changed."
+            if calculation else
+            "SAMPLE read-only lookup. No external system was contacted or changed."
+        )
         return json.dumps({
             "status": "succeeded", "agent": agent_name, "simulation": True,
-            "output": "SAMPLE read-only lookup. No external system was contacted or changed.\n"
-                      + json.dumps(record, sort_keys=True),
+            "output": description + "\n" + json.dumps(record, sort_keys=True),
         })
 
     def lookup_demo_request(request_id: str) -> str:
@@ -266,6 +293,32 @@ def create_demo_tools(template_id, agent_name):
         """Read the sample plan's usual allowed price for one service code. SAMPLE DATA, read-only; not a real price list."""
         return receipt(_lookup(_USUAL_PRICES, service_code))
 
+    def calculate_bill_math(bill_data_json: str) -> str:
+        """Calculate bill math from copied SAMPLE DATA, read-only; no external system is contacted.
+
+        bill_data_json is a JSON object with a lines array. Each line has label and amount, and,
+        when shown, quantity and unit_price. Required fields also include patient_shares
+        (every listed statement line's share) and statement_share (only a total explicitly
+        printed on the statement). Use null explicitly when that information is unavailable;
+        never omit these fields or infer a printed total from individual shares.
+        Optional fields are bill_total, bill_adjustments
+        (a list of signed amounts, negative for credits or payments), bill_balance,
+        and reconciliation. Use decimal strings;
+        copy every bill line and value from the documents. Omit unavailable optional fields
+        or use null, not guessed zeros. Use [] for adjustments only when the bill shows there are none.
+
+        For a component reconciliation, optionally provide reconciliation with all three lists:
+        matched_claim_lines (objects with label, billed and allowed from matched non-duplicate
+        statement quantities), duplicate_bill_amounts (billed amounts for duplicate lines), and
+        unmatched_units (objects with label, bill_quantity, statement_quantity and unit_price).
+        Use empty lists only when the documents support none. The caller must identify the
+        matches and verify that categories do not overlap; the tool cannot do this or detect
+        omitted lines. Its component sum does not account for already-posted adjustments:
+        compare the returned remainder and check the bill before drawing a conclusion.
+        Compare all returned inputs with the original documents.
+        """
+        return receipt(calculate_bill_values(bill_data_json), calculation=True)
+
     def lookup_preapproval_rules(plan_id: str, service_code: str) -> str:
         """Read a fixed sample insurer's pre-approval document list for a plan ID and service code. SAMPLE DATA, read-only; never submits a request."""
         if not isinstance(plan_id, str) or not isinstance(service_code, str):
@@ -283,6 +336,17 @@ def create_demo_tools(template_id, agent_name):
     def lookup_documents_on_file(household_id: str) -> str:
         """Read which sample proofs a household already has on file by household ID. SAMPLE DATA, read-only; never changes a record."""
         return receipt(_lookup(_ON_FILE, household_id))
+
+    def calculate_date_difference(start_date: str, end_date: str) -> str:
+        """Calculate signed calendar days between two copied YYYY-MM-DD dates. SAMPLE DATA, read-only.
+
+        For document age, start_date is the document date and end_date is the signed form date.
+        For days left, start_date is the supplied sample today and end_date is the due date.
+        Never substitute a signed date for a missing today. Negative days flag reversed or
+        future dates; do not take an absolute value. No external system is contacted.
+        Compare both returned dates with the documents. This is arithmetic, not a proof or eligibility decision.
+        """
+        return receipt(_date_difference(start_date, end_date), calculation=True)
 
     def lookup_purchase_order(po_number: str) -> str:
         """Read a fixed sample purchase order by PO number. SAMPLE DATA, read-only; never changes an order."""
@@ -310,9 +374,9 @@ def create_demo_tools(template_id, agent_name):
 
     return {
         "workflow-coordinator": [lookup_demo_request, lookup_demo_service],
-        "medical-bill-reviewer": [lookup_plan_benefits, lookup_usual_price],
+        "medical-bill-reviewer": [lookup_plan_benefits, lookup_usual_price, calculate_bill_math],
         "insurance-preapproval-helper": [lookup_preapproval_rules, lookup_facility],
-        "benefits-renewal-helper": [lookup_renewal_rules, lookup_documents_on_file],
+        "benefits-renewal-helper": [lookup_renewal_rules, lookup_documents_on_file, calculate_date_difference],
         "supplier-invoice-reviewer": [lookup_purchase_order, lookup_delivery_record],
         "expense-report-checker": [lookup_expense_policy, lookup_trip_request],
         "order-delay-helper": [lookup_order, lookup_shipment],

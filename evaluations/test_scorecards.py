@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest import mock
 
 import scorecards
+from agent_runtime import main as runtime
 from agent_templates import RETIRED_TEMPLATES, TEMPLATE_METADATA, TEMPLATES
 # scorecards puts workbench/agent_runtime on sys.path, which this import needs.
 import demo_tools
@@ -376,17 +377,17 @@ class ScorecardTests(unittest.TestCase):
         self.assertNotEqual(scorecards.instructions_digest("document-analyst"),
                             scorecards.instructions_digest("criteria-checker"))
         original = TEMPLATES["document-analyst"]["instructions"]
-        original_policy = scorecards.DEMO_POLICY
+        original_policy = runtime.DEMO_POLICY
         try:
             before = scorecards.instructions_digest("document-analyst")
             TEMPLATES["document-analyst"]["instructions"] = original + " "
             self.assertNotEqual(before, scorecards.instructions_digest("document-analyst"))
             TEMPLATES["document-analyst"]["instructions"] = original
-            scorecards.DEMO_POLICY = original_policy + " "
+            runtime.DEMO_POLICY = original_policy + " "
             self.assertNotEqual(before, scorecards.instructions_digest("document-analyst"))
         finally:
             TEMPLATES["document-analyst"]["instructions"] = original
-            scorecards.DEMO_POLICY = original_policy
+            runtime.DEMO_POLICY = original_policy
 
     def test_every_case_of_an_agent_needs_the_same_number_of_runs(self):
         good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"
@@ -436,6 +437,43 @@ class ScorecardTests(unittest.TestCase):
             self.assertIn("simulation", tool["receipt"])
         self.assertIn("PO-DEMO-2210", tools[0]["records"]["_PURCHASE_ORDERS"])
         self.assertEqual(scorecards.tool_context("document-analyst"), [])
+
+    def test_date_calculation_helper_changes_invalidate_only_its_agents_context(self):
+        case = next(case for case in scorecards.load_cases()["cases"]
+                    if case["id"] == "benefits-renewal-helper-sample")
+        before = scorecards.context_digest(case)
+        other = scorecards.tool_context("supplier-invoice-reviewer")
+        tool = next(tool for tool in scorecards.tool_context(case["template_id"])
+                    if tool["name"] == "calculate_date_difference")
+        self.assertIn("_date_difference", tool["helpers"])
+
+        def changed_dates(start_date, end_date):
+            return {"days": 34}
+
+        with mock.patch.object(demo_tools, "_date_difference", changed_dates):
+            self.assertNotEqual(before, scorecards.context_digest(case))
+            self.assertEqual(other, scorecards.tool_context("supplier-invoice-reviewer"))
+
+    def test_follow_up_inputs_but_not_checks_change_the_context_fingerprint(self):
+        case = next(case for case in scorecards.load_cases()["cases"]
+                    if case["id"] == "benefits-renewal-helper-id-only")
+        before = scorecards.context_digest(case)
+        changed = copy.deepcopy(case)
+        changed["follow_ups"][1]["input"] += " One more question."
+        self.assertNotEqual(before, scorecards.context_digest(changed))
+        changed = copy.deepcopy(case)
+        changed["follow_ups"][1]["checks"] = {"must_include": ["different"]}
+        self.assertEqual(before, scorecards.context_digest(changed))
+
+    def test_a_sign_off_covers_follow_up_answers_too(self):
+        cases = {"sample": {"template_id": "benefits-renewal-helper"}}
+        answers = {"sample": ("direct", {"text": "First", "turns": [
+            {"input": "Sample", "text": "First", "receipts": []},
+            {"input": "Next", "text": "Second", "receipts": []},
+        ]})}
+        before = scorecards.template_digests(cases, answers)
+        answers["sample"][1]["turns"][1]["text"] = "Changed second answer"
+        self.assertNotEqual(before, scorecards.template_digests(cases, answers))
 
     def test_a_recorded_row_from_other_test_context_is_stale(self):
         good = "Notice 1 and Notice 2 move opening to 8:00. What is the implementation date?"

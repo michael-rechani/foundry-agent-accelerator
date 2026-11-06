@@ -1,6 +1,6 @@
 """Writes the hosted runtime's list of library agent ids from `agents/*.json`.
 
-The runtime ships inside a created agent's package (`main.py`, `demo_tools.py`, `requirements.txt`) and can't
+The runtime ships inside a created agent's package (`main.py`, `demo_tools.py`, `bill_math.py`, `requirements.txt`) and can't
 import the catalog, so `agent_runtime/demo_tools.py` holds the ids it accepts as a literal. That literal is
 generated, not edited by hand. From the `workbench` directory:
 

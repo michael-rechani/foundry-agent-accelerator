@@ -2,7 +2,11 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { describe, it } from 'node:test'
 import type { CreatedAgent } from '../src/agent-creation-client.ts'
-import { agentForDemo, demoScenarios } from '../src/demo-scenarios.ts'
+import {
+  agentForDemo,
+  demoForSample,
+  demoScenarios,
+} from '../src/demo-scenarios.ts'
 import { parseCatalog, previewAgents } from '../src/library-catalog.ts'
 import type { Agent } from '../src/workspace-config.ts'
 
@@ -56,6 +60,41 @@ function created(
 }
 
 describe('guided demo agent choice', () => {
+  it('gives every demo an explicit problem, agent job and expected output', () => {
+    for (const scenario of demoScenarios) {
+      assert.ok(scenario.problem.trim(), scenario.id)
+      assert.ok(scenario.agentDoes.trim(), scenario.id)
+      assert.ok(scenario.expectedReturn.trim(), scenario.id)
+    }
+  })
+
+  it('keeps the medical demo input identical to the real catalog sample', () => {
+    const medical = demoScenarios.find(
+      (scenario) => scenario.id === 'medical-bill',
+    )!
+    const template = catalog.templates.find(
+      (item) => item.id === medical.templateId,
+    )!
+    assert.equal(medical.input, template.sample_input)
+    assert.equal(demoForSample(template.id, template.sample_input), medical)
+    assert.equal(
+      demoForSample(template.id, `${template.sample_input}\nChanged request.`),
+      undefined,
+    )
+    assert.equal(
+      demoForSample('customer-support-brief', template.sample_input),
+      undefined,
+    )
+  })
+
+  it('does not present the medical statement share as a whole-bill estimate', () => {
+    const medical = demoScenarios.find(
+      (scenario) => scenario.id === 'medical-bill',
+    )!
+    assert.match(medical.expectedReturn, /not a whole-bill estimate/i)
+    assert.match(medical.findings[0].detail, /not a whole-bill estimate/i)
+  })
+
   it('has a library preview for every demo template', () => {
     for (const scenario of demoScenarios)
       assert.ok(previewFor(scenario.templateId), scenario.templateId)

@@ -44,6 +44,17 @@ test('chat opens clean, with no agent details, and sends nothing', async ({
     'placeholder',
     /Describe the agent you want to build/,
   )
+  const script = page.getByRole('link', {
+    name: 'Read the ten-minute demo script',
+  })
+  await expect(script).toBeVisible()
+  await expect(script).toHaveAttribute(
+    'href',
+    'https://github.com/michael-rechani/foundry-agent-accelerator/blob/main/docs/demo-script.md',
+  )
+  await expect(script).toHaveAttribute('rel', 'noreferrer')
+  await editor(page).fill('My own unsent agent idea')
+  await expect(script).toHaveCount(0)
   expect(state.requests).toEqual([])
 })
 

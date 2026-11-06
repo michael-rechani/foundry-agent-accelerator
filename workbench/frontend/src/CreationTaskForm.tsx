@@ -129,9 +129,13 @@ export function CreationTaskForm({
                         {item.model_profile.label}
                       </span>
                       <small className="creation-chip creation-chip-tools">
-                        {item.tools.length
-                          ? 'Sample read-only lookups'
-                          : 'Supplied text; no tools'}
+                        {!item.tools.length
+                          ? 'Supplied text; no tools'
+                          : item.tools.some((tool) =>
+                                tool.name.startsWith('calculate_'),
+                              )
+                            ? 'Sample lookups + calculator'
+                            : 'Sample read-only lookups'}
                       </small>
                     </span>
                   </button>

@@ -14,6 +14,30 @@ Pull request numbers link to the full discussion.
 
 ### Added
 
+- **Local showcase arithmetic safeguards.** Benefits uses exact, signed
+  calendar-day differences with echoed dates; acceptance checks require the
+  verified result for each expected date pair. Medical calculations reject
+  omitted patient-share fields while preserving explicit unknowns and partial
+  totals. Draft tests now use the same template-specific arithmetic policy as
+  previews and hosted agents. The separately approved revised-source recording
+  verifies all 35 required date-pair results, but answer acceptance is still
+  incomplete: Benefits passes 33/35 screens and medical 21/40. Real failures
+  remain in current, unsigned scorecards. Conditional on-file verification is
+  accepted without allowing unsupported on-file claims; human review and any
+  further recordings or deployment remain separate gates (#362, #363, #410).
+- **Benefits conversation acceptance.** The recording harness can run follow-up
+  prompts against each run's own earlier answers, screen every turn and count
+  the whole conversation's tokens and time. The Benefits showcase now covers
+  ID-only intake, supplied documents, an unsent note, an eligibility challenge,
+  and urgency. The approved November 4 recording is retained with its failures
+  for review; Benefits and medical remain samples, not signed-off demos
+  (#362, #363). A correct six-day window offset is accepted, but a claimed
+  34-day document age is rejected because the actual age is 36 days.
+- **A Benefits-led presenter path.** The ten-minute script starts with the
+  renewal conversation, with medical billing as a separately reviewed
+  alternative. Chat links to the script before typing. The read-only preflight
+  rejects unreadable configuration, empty libraries and degraded dependencies,
+  with offline regression checks (#410).
 - **Next steps in Chat.** The Benefits renewal helper offers one-click buttons
   under its latest answer: the checklist, the draft note and questions for the
   caseworker.

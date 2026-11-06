@@ -59,6 +59,7 @@ export async function openLibrary(
   page: Page,
   options: {
     ready?: boolean
+    record?: CreatedAgent
     preview?: boolean
     hash?: string
     catalogFailure?: boolean
@@ -66,6 +67,7 @@ export async function openLibrary(
     withoutResultsFor?: string
     libraryPreview?: boolean
     stallChat?: boolean
+    chatAnswer?: string
     slowCatalog?: boolean
     withoutCreation?: boolean
   } = {},
@@ -87,9 +89,11 @@ export async function openLibrary(
       ? {}
       : { agent_creation: creationCapability({ preview: options.preview }) }),
   })
-  const record = options.ready
-    ? { ...readyRecord(support), runtime_hash: runtimeHash }
-    : null
+  const record =
+    options.record ??
+    (options.ready
+      ? { ...readyRecord(support), runtime_hash: runtimeHash }
+      : null)
   let releaseCatalog = () => {}
   const catalogGate = options.slowCatalog
     ? new Promise<void>((resolve) => {
@@ -137,7 +141,9 @@ export async function openLibrary(
         request_id: 'fictional-request-0001',
         status: 'completed',
         agent: record?.runtime_name || guidedReview.agent,
-        text: 'ILLUSTRATIVE ANSWER: GRANT-2 claims 40 sessions; ATTENDANCE-1 shows 32. A person decides compliance.',
+        text:
+          options.chatAnswer ??
+          'ILLUSTRATIVE ANSWER: GRANT-2 claims 40 sessions; ATTENDANCE-1 shows 32. A person decides compliance.',
         elapsed_ms: 900,
         receipts: [],
       })

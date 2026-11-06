@@ -14,6 +14,7 @@ verify_private.py
 agent_runtime/*
 !agent_runtime/main.py
 !agent_runtime/demo_tools.py
+!agent_runtime/bill_math.py
 !agent_runtime/requirements.txt
 # The agent code the designer's hosted-agent bundle carries, a copy of hosted-agents/basic-responses-agent.
 !basic_agent_source/

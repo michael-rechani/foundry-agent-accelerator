@@ -42,6 +42,14 @@ describe('answer steps', () => {
       'Checked the case',
     )
     assert.equal(
+      plainStep(current, receipt('calculate_bill_math', null)),
+      'Calculated the bill math',
+    )
+    assert.equal(
+      plainStep(current, receipt('calculate_date_difference', null)),
+      'Calculated the date difference',
+    )
+    assert.equal(
       plainStep(current, receipt('summarize', null)),
       'Used summarize',
     )
@@ -81,6 +89,20 @@ describe('answer steps', () => {
         ]),
       ),
       'Asked another agent and used 1 lookup',
+    )
+    assert.equal(
+      stepsSummary(
+        turn([
+          receipt('lookup_plan_benefits', null),
+          receipt('lookup_usual_price', null),
+          receipt('calculate_bill_math', null),
+        ]),
+      ),
+      'Used 2 lookups and ran 1 calculation',
+    )
+    assert.equal(
+      stepsSummary(turn([receipt('calculate_date_difference', null)])),
+      'Ran 1 calculation',
     )
   })
 

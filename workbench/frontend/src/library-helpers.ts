@@ -14,7 +14,7 @@ export const inProgressNote =
 // The one explanation of a library preview, used on the welcome screen, the
 // side column and the top bar menu.
 export const previewBlurb =
-  "This preview runs on the Lab's model with sample lookups. Nothing is published, and preview chats aren't saved."
+  "This preview runs on the Lab's model with any listed local tools. Nothing is published, and preview chats aren't saved."
 
 export const publishedBlurb =
   'This agent already has a published setup. Your message gives it a task; it does not change its tools or permanent instructions.'

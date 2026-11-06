@@ -37,6 +37,7 @@ export function ChatConversation({
   saveNote,
   onFreshDemo,
   onCopy,
+  onPrompt,
   onSubmit,
   onTryAgain,
   onFollowUp,
@@ -77,6 +78,7 @@ export function ChatConversation({
   saveNote?: string
   onFreshDemo: (scenario: DemoScenario) => void
   onCopy: (text: string, done?: string) => void
+  onPrompt: (text: string) => void
   onSubmit: () => void
   onTryAgain: () => void
   onFollowUp: (text: string) => void
@@ -156,6 +158,7 @@ export function ChatConversation({
           pending={pending}
           error={error}
           activeDemo={activeDemo}
+          isDemoInput={draft.trim() === activeDemo?.input.trim()}
           bottom={bottom}
           latestAnswer={latestAnswer}
           onFreshDemo={onFreshDemo}
@@ -167,8 +170,7 @@ export function ChatConversation({
           onAsk={() => editor.current?.focus()}
           onSwitch={onSwitchAgent}
           onPrompt={(text) => {
-            prefill(text)
-            setActiveDemo(null)
+            onPrompt(text)
             editor.current?.focus()
           }}
           onCopy={onCopy}

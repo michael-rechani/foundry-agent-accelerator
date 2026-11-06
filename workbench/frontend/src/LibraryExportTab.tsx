@@ -95,7 +95,7 @@ export function LibraryExportTab({
               Instructions and settings for a Foundry prompt agent. Add your own
               model deployment.
               {template.tools.length > 0 &&
-                ' The tools list in the file is empty. The sample lookups are named under metadata.tools_to_connect so you can replace them with your own connectors.'}
+                ' The tools list in the file is empty. The local sample tools are named under metadata.tools_to_connect; configure equivalents before using this definition.'}
             </p>
           </div>
           <div className="library-download">
@@ -196,8 +196,8 @@ export function LibraryExportTab({
           </li>
           {template.tool_mode.id !== 'none' && (
             <li>
-              Replace the sample lookups with reviewed connectors to your own
-              systems.
+              Replace the sample lookups with reviewed connectors and configure
+              any other tools the agent needs.
             </li>
           )}
           {testCases && (

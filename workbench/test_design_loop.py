@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 from agent_creation import CreationSettings
-from agent_runtime.main import DEMO_POLICY
+from agent_runtime.main import DEMO_POLICY, demo_policy
 from agent_templates import TASK_MARKER
 from app import Settings, create_app
 from draft_cases import CASE_WRITER_INSTRUCTIONS
@@ -98,6 +98,15 @@ class DesignLoopTests(CapturedLabLogs, unittest.TestCase):
         self.assertFalse(body["passed"])
         self.assertTrue(body["failures"])
         self.assertEqual(body["text"], "The hours are staying the same.")
+
+    def test_arithmetic_drafts_use_the_same_template_policy_as_the_runtime(self):
+        self.gateway.preview.return_value = ("completed", "8:00", [])
+        for template in ("medical-bill-reviewer", "benefits-renewal-helper"):
+            with self.subTest(template=template):
+                response = self.run_case(template_id=template)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(self.gateway.preview.call_args.kwargs["instructions"],
+                                 demo_policy(template) + INSTRUCTIONS)
 
     def test_tool_calls_are_verified_and_scored(self):
         output = [{"type": "function_call", "call_id": "one", "name": "lookup_demo_request"},
