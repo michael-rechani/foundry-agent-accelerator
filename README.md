@@ -6,7 +6,7 @@
 <h1>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/readme-header-dark.svg">
-    <img src="docs/images/readme-header.svg" alt="Foundry Agent Accelerator. Built on Microsoft Foundry." width="800">
+    <img src="docs/images/readme-header.svg" alt="Foundry Agent Accelerator. Built on Microsoft Foundry." width="400">
   </picture>
 </h1>
 
