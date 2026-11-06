@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="316" viewBox="0 0 1600 316" role="img" aria-labelledby="title desc">
+  <title id="title">Foundry Agent Accelerator</title>
+  <desc id="desc">Foundry Agent Accelerator in large type, beside the official Microsoft Foundry service icon captioned with its product name. The icon names the service the sample builds on. It isn't a logo for the Accelerator.</desc>
+  <rect width="1600" height="316" fill="#fff"/>
+  <image href="azure-icons/foundry.svg" x="65" y="29" width="204" height="204"/>
+  <text x="167" y="268" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="30" font-weight="600" fill="#4d5b69">Microsoft Foundry</text>
+  <g font-family="'Segoe UI', Arial, sans-serif" font-size="132" font-weight="700" letter-spacing="-2" fill="#242424">
+    <text x="366" y="132">Foundry Agent</text>
+    <text x="366" y="268">Accelerator</text>
+  </g>
+</svg>

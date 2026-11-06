@@ -1,11 +1,18 @@
 <a id="validate-your-ai-use-case-in-foundry"></a>
 <a id="foundry-agent-lab"></a>
 
-# Foundry Agent Accelerator
+<a id="foundry-agent-accelerator"></a>
 
-[![Validate](https://github.com/michael-rechani/foundry-agent-accelerator/actions/workflows/validate.yml/badge.svg)](https://github.com/michael-rechani/foundry-agent-accelerator/actions/workflows/validate.yml)
-[![Latest release](https://img.shields.io/github/v/release/michael-rechani/foundry-agent-accelerator?include_prereleases&sort=semver)](https://github.com/michael-rechani/foundry-agent-accelerator/releases)
-[![License: MIT](https://img.shields.io/github/license/michael-rechani/foundry-agent-accelerator)](LICENSE)
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/readme-header-dark.svg">
+    <img src="docs/images/readme-header.svg" alt="Foundry Agent Accelerator. Built on Microsoft Foundry." width="1600">
+  </picture>
+</h1>
+
+[Validation](https://github.com/michael-rechani/foundry-agent-accelerator/actions/workflows/validate.yml) ·
+[Latest release](https://github.com/michael-rechani/foundry-agent-accelerator/releases) ·
+[MIT license](LICENSE)
 
 Build, deploy, and explore agents on **Microsoft Foundry**. The Lab is a demo
 and workshop app backed by reusable code. In it you can:
