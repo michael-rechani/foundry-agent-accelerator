@@ -283,6 +283,45 @@
   background: var(--danger-action);
   color: var(--on-danger);
 }
+.mic-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.mic-button:hover {
+  background: var(--surface-subtle);
+  color: var(--accent);
+}
+.mic-button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  animation: mic-listening 1.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+@keyframes mic-listening {
+  from {
+    box-shadow: 0 0 0 0 var(--accent-glow);
+  }
+  to {
+    box-shadow: 0 0 0 9px transparent;
+  }
+}
+.composer-voice-status {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.composer-voice-status:empty {
+  margin: 0;
+}
 .over-limit {
   border-color: var(--danger);
 }

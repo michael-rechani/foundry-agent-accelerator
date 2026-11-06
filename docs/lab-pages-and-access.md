@@ -175,6 +175,14 @@ The Lab has no permanent warning banner. The **Privacy & sharing** details
 are available in Chat on desktop, but they're informational only. They don't
 control access, and they don't check that submitted data is sample data.
 
+In browsers that support speech recognition, the message box also has a
+**Dictate message** microphone. Dictation only fills the draft, which stays
+editable until you press Send. The browser, not the Lab, handles the audio: it
+asks for microphone access and may send the audio to the browser's speech
+service provider. The Lab never receives the audio, only the text you send, and
+the **Privacy & sharing** details say so. The microphone doesn't appear in
+browsers without speech recognition, and typing always works.
+
 ### How the Lab checks where a request came from
 
 Every API call that reads or changes Lab data (chat, saved chats, reviews, and
