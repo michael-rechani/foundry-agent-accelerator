@@ -42,6 +42,11 @@ describe('bundleFileName and bundleRequest', () => {
       instructions: spec.instructions,
     })
   })
+
+  it('keeps a long summary within the length the Lab accepts', () => {
+    const long = { ...spec, summary: 'é'.repeat(900) }
+    assert.equal([...bundleRequest(long).description].length, 500)
+  })
 })
 
 describe('fetchBundle', () => {
@@ -81,15 +86,27 @@ describe('fetchBundle', () => {
       fetchBundle(spec),
       (problem) =>
         problem instanceof BundleError &&
-        /at least 10 characters/.test(problem.failure.message) &&
+        /instructions are too short/.test(problem.failure.message) &&
+        /try again/.test(problem.failure.message) &&
         problem.failure.reference === 'r-1',
     )
   })
 
-  it('uses the shared message for codes the chat already explains', async () => {
+  it('explains turned-off library previews in terms of this download', async () => {
     respond('{"error":"library_preview_disabled"}', 503)
+    await assert.rejects(
+      fetchBundle(spec),
+      (problem) =>
+        problem instanceof BundleError &&
+        /Library previews are turned off/.test(problem.failure.message) &&
+        !/Library\./.test(problem.failure.message),
+    )
+  })
+
+  it('uses the shared message for other codes the chat already explains', async () => {
+    respond('{"error":"request_not_allowed"}', 403)
     await assert.rejects(fetchBundle(spec), {
-      message: /Library previews are turned off/,
+      message: /browser origin is not permitted/,
     })
   })
 
@@ -103,11 +120,11 @@ describe('fetchBundle', () => {
   it('does not treat a successful page of another type as a bundle', async () => {
     respond('<html>Sign in</html>', 200, { 'Content-Type': 'text/html' })
     await assert.rejects(fetchBundle(spec), {
-      message: /did not send a bundle file/,
+      message: /didn't send back a file/,
     })
   })
 
-  it('reports a timeout, and says nothing was published', async () => {
+  it('reports a timeout, and says nothing was sent to Foundry', async () => {
     globalThis.fetch = (_url, options) =>
       new Promise((_resolve, reject) =>
         options?.signal?.addEventListener('abort', () =>
@@ -119,7 +136,7 @@ describe('fetchBundle', () => {
       (problem) =>
         problem instanceof BundleError &&
         /took too long/.test(problem.failure.message) &&
-        /Nothing was published/.test(problem.failure.message),
+        /Nothing was sent to Foundry/.test(problem.failure.message),
     )
   })
 

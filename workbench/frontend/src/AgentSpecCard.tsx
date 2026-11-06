@@ -83,8 +83,8 @@ export function AgentSpecCard({
       {!spec.closest_template && (
         <p className="agent-spec-note">
           No built-in template matches this idea, so the Lab can&apos;t create
-          it here. Download the draft and configure it in your Foundry project,
-          or download the hosted agent bundle to deploy it there.
+          it here. Download the draft and set it up in your Foundry project, or
+          download the ready-to-deploy agent and deploy it there.
         </p>
       )}
       <p className="agent-spec-note">

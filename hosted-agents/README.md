@@ -292,15 +292,15 @@ project, model deployment, and agent name every time.
 
 ### Export a bundle from the Lab's Agent designer
 
-The Lab's spec card has a **Download hosted agent bundle** button. It calls
+The Lab's spec card has a **Download ready-to-deploy agent** button. It calls
 `POST /api/agent-bundles`, which needs library previews on and builds the file
 with no model call. The bundle holds the standard
 [`basic-responses-agent`](basic-responses-agent/) with the spec's instructions
 and nothing else, so it works for a spec that matches no library template. The
 Lab keeps its own copy of that source in `workbench/basic_agent_source/`, and a
 test fails if the two copies drift apart. Check the download with `inspect`,
-review the instructions, then deploy it as below. Nothing is published from the
-Lab.
+review the instructions, then deploy it as below. Nothing is sent to Foundry from
+the Lab.
 
 ### Export a prebuilt agent
 

@@ -1,4 +1,4 @@
-// The browser side of "Download hosted agent bundle". The Lab builds the file
+// The browser side of "Download ready-to-deploy agent". The Lab builds the file
 // from the Agent designer's spec without a model call and stores nothing; the
 // person checks it with bundle.py and deploys it to their own Foundry project.
 // Uses erasable TypeScript only so `node --test` can import it directly.
@@ -14,11 +14,15 @@ import { errorBody, readJson } from './request.ts'
 
 const messages: Record<string, string> = {
   invalid_bundle:
-    'The Lab did not accept this spec for a bundle. Its instructions need at least 10 characters.',
+    "The Lab couldn't build this file because the spec's instructions are too short. Ask the designer to add more detail, then try again.",
+  library_preview_disabled:
+    "Library previews are turned off in this Lab, so it can't build this file.",
 }
 const timeoutMessage =
-  'Building the bundle took too long. Nothing was published; try again.'
-const unreadableMessage = 'The Lab did not send a bundle file. Try again.'
+  'Building the file took too long. Nothing was sent to Foundry. Try again.'
+const unreadableMessage = "The Lab didn't send back a file. Try again."
+// The Lab refuses a longer description. The summary is one sentence, so this only trims a stray long one.
+const maxDescription = 500
 
 export class BundleError extends Error {
   readonly failure: ChatFailure
@@ -35,7 +39,7 @@ export const bundleFileName = (spec: Pick<AgentSpec, 'name'>) =>
 // The same words as the "Download agent spec" file, so both carry one design.
 export const bundleRequest = (spec: AgentSpec) => ({
   name: specSlug(spec),
-  description: spec.summary,
+  description: [...spec.summary].slice(0, maxDescription).join(''),
   instructions: spec.instructions,
 })
 

@@ -252,7 +252,7 @@ async function openBundleCard(page: Page) {
   return card
 }
 
-test('the spec card downloads a hosted agent bundle built by the Lab', async ({
+test('the spec card downloads a ready-to-deploy agent built by the Lab', async ({
   page,
 }, testInfo) => {
   const card = await openBundleCard(page)
@@ -268,10 +268,10 @@ test('the spec card downloads a hosted agent bundle built by the Lab', async ({
       body: zip,
     })
   })
-  await expect(card).toContainText('Nothing is published from here.')
+  await expect(card).toContainText('Nothing is sent to Foundry from here.')
   const download = page.waitForEvent('download')
   await card
-    .getByRole('button', { name: 'Download hosted agent bundle' })
+    .getByRole('button', { name: 'Download ready-to-deploy agent' })
     .click()
   const file = await download
   expect(file.suggestedFilename()).toBe(
@@ -303,11 +303,12 @@ test('a spec the Lab will not bundle shows why and keeps the button usable', asy
     }),
   )
   const button = card.getByRole('button', {
-    name: 'Download hosted agent bundle',
+    name: 'Download ready-to-deploy agent',
   })
   await button.click()
   const alert = card.getByRole('alert')
-  await expect(alert).toContainText('did not accept this spec')
+  await expect(alert).toContainText("couldn't build this file")
+  await expect(alert).toContainText('instructions are too short')
   await expect(alert).toContainText('Reference: bundle-request-1')
   await expect(button).toBeEnabled()
   expect(downloads).toBe(0)

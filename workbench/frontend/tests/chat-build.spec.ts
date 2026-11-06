@@ -146,7 +146,7 @@ test('without creation the spec card offers only downloads', async ({
     card.getByRole('button', { name: 'Download agent spec' }),
   ).toBeVisible()
   await expect(
-    card.getByRole('button', { name: 'Download hosted agent bundle' }),
+    card.getByRole('button', { name: 'Download ready-to-deploy agent' }),
   ).toBeVisible()
 })
 

@@ -44,7 +44,7 @@ export function SpecBundleDownload({ spec }: { spec: AgentSpec }) {
           ) : (
             <Archive size={16} aria-hidden="true" />
           )}
-          Download hosted agent bundle
+          Download ready-to-deploy agent
         </button>
       </div>
       {failure && (
@@ -59,11 +59,11 @@ export function SpecBundleDownload({ spec }: { spec: AgentSpec }) {
         </p>
       )}
       <p className="agent-spec-note">
-        A ready-to-deploy file for your own Foundry project. It runs the
-        standard Responses agent with this spec&apos;s instructions, and nothing
-        else: no lookups, no documents, and none of the Lab&apos;s safety text
-        or checks. Review it before you rely on it. Nothing is published from
-        here.
+        A file you can deploy to your own Foundry project. The agent follows
+        this spec&apos;s instructions, like a plain chat assistant. It
+        can&apos;t look anything up or read documents, and it doesn&apos;t have
+        the Lab&apos;s built-in safety rules. Check it over before you use it.
+        Nothing is sent to Foundry from here.
       </p>
       <pre className="library-sample library-command hood-only">
         {`python hosted-agents/bundle.py inspect ${file}
