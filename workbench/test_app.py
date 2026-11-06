@@ -49,13 +49,15 @@ class WorkbenchTests(CapturedLabLogs, unittest.TestCase):
 
         async def review(agent, prompt, thread=None, usage=None):
             usage.append({"input_tokens": 40, "output_tokens": 10, "total_tokens": 50,
-                          "cached_tokens": None, "reasoning_tokens": 0})
+                          "cached_tokens": None, "reasoning_tokens": 0,
+                          "reported_model": "gpt-4.1", "model_status": "reported"})
             return "completed", "Finding APP-1", []
 
         self.gateway.review.side_effect = review
         response = self.client.post("/api/reviews", json=self.body, headers=self.headers)
         self.assertEqual(response.json()["usage"], {"input_tokens": 40, "output_tokens": 10, "total_tokens": 50,
                                                     "cached_tokens": None, "reasoning_tokens": 0})
+        self.assertNotIn("model_observation", response.json())
 
     def test_large_responses_are_compressed_and_keep_their_headers(self):
         accept = {**self.headers, "Accept-Encoding": "gzip"}
@@ -777,8 +779,12 @@ class LibraryPreviewTests(CapturedLabLogs, unittest.TestCase):
         )
         for deployment, include in cases:
             with self.subTest(deployment=deployment):
-                first = SimpleNamespace(status="completed", output_text="", model_dump=lambda **_: {"output": [call]})
-                second = SimpleNamespace(status="completed", output_text="Preview", model_dump=lambda **_: {"output": []})
+                first = SimpleNamespace(status="completed", output_text="", model="gpt-4.1",
+                                        usage={"input_tokens": 10, "output_tokens": 2, "total_tokens": 12},
+                                        model_dump=lambda **_: {"output": [call]})
+                second = SimpleNamespace(status="completed", output_text="Preview", model="gpt-4.1-mini",
+                                         usage={"input_tokens": 20, "output_tokens": 3, "total_tokens": 23},
+                                         model_dump=lambda **_: {"output": []})
                 openai_client, project = MagicMock(), MagicMock()
                 openai_client.responses.create = AsyncMock(side_effect=[first, second])
                 project.get_openai_client.return_value = openai_client
@@ -797,6 +803,17 @@ class LibraryPreviewTests(CapturedLabLogs, unittest.TestCase):
                     )
                 self.assertEqual(response.status_code, 200, response.text)
                 self.assertTrue(response.json()["receipts"][0]["verified"])
+                self.assertEqual(response.json()["model_observation"], {
+                    "deployment": deployment,
+                    "calls": [
+                        {"reported_model": "gpt-4.1", "model_status": "reported",
+                         "usage": {"input_tokens": 10, "output_tokens": 2, "total_tokens": 12,
+                                   "cached_tokens": None, "reasoning_tokens": None}},
+                        {"reported_model": "gpt-4.1-mini", "model_status": "reported",
+                         "usage": {"input_tokens": 20, "output_tokens": 3, "total_tokens": 23,
+                                   "cached_tokens": None, "reasoning_tokens": None}},
+                    ],
+                })
                 calls = openai_client.responses.create.await_args_list
                 self.assertEqual(len(calls), 2)
                 for request in calls:

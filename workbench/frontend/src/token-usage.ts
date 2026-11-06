@@ -38,7 +38,7 @@ export function usageLabel(usage: Usage | null | undefined) {
   if (usage === undefined) return null
   return usage?.total_tokens != null
     ? `${formatTokens(usage.total_tokens)} tokens`
-    : 'Tokens not reported'
+    : 'Token total not reported'
 }
 
 export function usageDetail(usage: Usage) {

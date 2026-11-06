@@ -24,7 +24,9 @@ from agent_bundle import AgentBundles
 from agent_creation import CREATED_ID, AgentCreations, CreationSettings
 from agent_scorecards import SCORECARDS
 from library_rules import DEPLOYMENT_NAME
-from library_preview import PREVIEW_AGENT, PREVIEW_ID, preview_agent, run_preview, summarize_usage, usage_record
+from library_preview import (
+    PREVIEW_AGENT, PREVIEW_ID, model_observation, preview_agent, run_preview, summarize_usage, usage_record,
+)
 from model_budget import ModelBudgetWait, ModelBudgets, estimate_input_tokens, measured_answer_tokens, validate_model_limits
 from request_guard import MAX_REQUEST_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
 from tool_receipts import execution_receipts
@@ -493,10 +495,12 @@ class ChatReviews:
             receipts = execution_receipts(output, agent["tools"])
             if len(receipts) > 32 or any(len(receipt["output"] or "") > 100000 for receipt in receipts):
                 return self.error(request, 502, "response_too_large")
-            return JSONResponse({"request_id": request_id, "status": status, "agent": agent["agent"],
-                                 "text": text, "receipts": receipts, "elapsed_ms": round((time.monotonic() - started) * 1000),
-                                 "usage": summarize_usage(usage)},
-                                headers={"X-Correlation-ID": request_id})
+            result = {"request_id": request_id, "status": status, "agent": agent["agent"],
+                      "text": text, "receipts": receipts, "elapsed_ms": round((time.monotonic() - started) * 1000),
+                      "usage": summarize_usage(usage)}
+            if agent.get("preview") and usage:
+                result["model_observation"] = model_observation(self.deployment_for(agent), usage)
+            return JSONResponse(result, headers={"X-Correlation-ID": request_id})
         except ModelBudgetWait as problem:
             return self.busy(request, problem.retry_after)
         except TimeoutError as problem:

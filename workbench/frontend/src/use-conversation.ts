@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ChatFailure } from './chat-failure'
 import type { Turn } from './conversation-types'
 import type { DemoScenario } from './demo-scenarios'
+import { readModelObservation } from './model-observation'
 
 export type SavedVersion = { id: string; _etag: string }
 
@@ -49,7 +50,25 @@ export function useConversation(defaultAgent: string | undefined) {
     setSaved(version)
     setSelected(agentId)
     setThread(newThread())
-    setTurns(stored.map((turn) => ({ ...turn, stored: true })))
+    setTurns(
+      stored.map((turn) => {
+        const observed = readModelObservation(
+          turn.result.model_observation,
+          agentId.startsWith('library-'),
+        )
+        return {
+          ...turn,
+          result: {
+            ...turn.result,
+            ...('model_observation' in turn.result
+              ? { model_observation: observed.observation }
+              : {}),
+          },
+          stored: true,
+          modelObservationInvalid: observed.invalid || undefined,
+        }
+      }),
+    )
     setDirty(false)
     setDraft('')
     setSeed('')

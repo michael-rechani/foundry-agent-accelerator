@@ -68,6 +68,8 @@ export async function openLibrary(
     libraryPreview?: boolean
     stallChat?: boolean
     chatAnswer?: string
+    chatObservation?: unknown
+    chatUsage?: unknown
     slowCatalog?: boolean
     withoutCreation?: boolean
   } = {},
@@ -145,6 +147,12 @@ export async function openLibrary(
           options.chatAnswer ??
           'ILLUSTRATIVE ANSWER: GRANT-2 claims 40 sessions; ATTENDANCE-1 shows 32. A person decides compliance.',
         elapsed_ms: 900,
+        ...(options.chatUsage !== undefined
+          ? { usage: options.chatUsage }
+          : {}),
+        ...(options.chatObservation !== undefined
+          ? { model_observation: options.chatObservation }
+          : {}),
         receipts: [],
       })
     }

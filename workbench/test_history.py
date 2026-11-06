@@ -17,7 +17,7 @@ from agent_creation import CreationSettings
 from agent_templates import TEMPLATES
 from app import Settings, create_app
 from history import CosmosHistory
-from library_preview import DESIGNER_ID, PREVIEW_AGENT
+from library_preview import DESIGNER_ID, MAX_TOOL_ROUNDS, PREVIEW_AGENT
 from log_capture import CapturedLabLogs
 
 CREATED_AGENT_FIELDS = {
@@ -124,6 +124,70 @@ class HistoryTests(CapturedLabLogs, unittest.TestCase):
             response = self.client.post("/api/conversations", json=self.body, headers=self.headers)
             self.assertEqual(response.status_code, 400, bad)
         self.store.create.assert_not_called()
+
+    def test_designer_model_observations_round_trip_as_unverified_saved_values(self):
+        settings = replace(self.settings, creation=CreationSettings(False, "model-router"))
+        client = TestClient(create_app(settings, AsyncMock(), self.store))
+        body = deepcopy(self.body)
+        body["agent_id"] = DESIGNER_ID
+        result = body["turns"][0]["result"]
+        result["agent"] = PREVIEW_AGENT
+        observation = {"deployment": "model-router", "calls": [
+            {"reported_model": "gpt-4.1", "model_status": "reported",
+             "usage": {"input_tokens": 40, "output_tokens": 10, "total_tokens": 50,
+                       "cached_tokens": None, "reasoning_tokens": 0}},
+            {"reported_model": None, "model_status": "not_reported", "usage": None},
+            {"reported_model": None, "model_status": "invalid", "usage": None},
+        ]}
+        result["model_observation"] = observation
+        response = client.post("/api/conversations", json=body, headers=self.headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        saved = self.store.create.call_args.args[0]
+        self.assertEqual(saved["turns"][0]["result"]["model_observation"], observation)
+        self.store.get.return_value = {**saved, "_etag": response.json()["_etag"]}
+        reopened = client.get(f"/api/conversations/{saved['id']}", headers=self.headers)
+        self.assertEqual(reopened.json()["turns"][0]["result"]["model_observation"], observation)
+
+    def test_model_observations_are_bounded_and_only_accepted_for_direct_previews(self):
+        settings = replace(self.settings, creation=CreationSettings(False, "model-router"))
+        client = TestClient(create_app(settings, AsyncMock(), self.store))
+        body = deepcopy(self.body)
+        body["agent_id"] = DESIGNER_ID
+        result = body["turns"][0]["result"]
+        result["agent"] = PREVIEW_AGENT
+        call = {"reported_model": "gpt-4.1", "model_status": "reported", "usage": None}
+        valid = {"deployment": "model-router", "calls": [call]}
+        malformed = (
+            {**valid, "deployment": "bad\nname"},
+            {**valid, "deployment": "model-router\n"},
+            {**valid, "deployment": "x" * 129},
+            {**valid, "calls": []},
+            {**valid, "calls": [call] * (MAX_TOOL_ROUNDS + 2)},
+            {**valid, "calls": [{**call, "reported_model": "bad\nname"}]},
+            {**valid, "calls": [{**call, "reported_model": "gpt-4.1\n"}]},
+            {**valid, "calls": [{**call, "reported_model": None}]},
+            {**valid, "calls": [{**call, "model_status": "not_reported"}]},
+            {**valid, "calls": [{**call, "model_status": "unknown"}]},
+            {**valid, "calls": [{**call, "usage": {"input_tokens": 3}}]},
+            {**valid, "calls": [{**call, "extra": "not allowed"}]},
+            {**valid, "extra": "not allowed"},
+        )
+        for observation in malformed:
+            with self.subTest(observation=observation):
+                result["model_observation"] = observation
+                response = client.post("/api/conversations", json=body, headers=self.headers)
+                self.assertEqual(response.status_code, 400, response.text)
+        hosted = deepcopy(self.body)
+        hosted["turns"][0]["result"]["model_observation"] = valid
+        self.assertEqual(client.post("/api/conversations", json=hosted, headers=self.headers).status_code, 400)
+        self.store.create.assert_not_called()
+
+    def test_legacy_replies_do_not_gain_an_empty_model_observation_when_saved(self):
+        self.assertEqual(self.client.post("/api/conversations", json=self.body, headers=self.headers).status_code, 200)
+        saved = self.store.create.call_args.args[0]["turns"][0]["result"]
+        self.assertNotIn("model_observation", saved)
+        reopened = self.client.get(f"/api/conversations/{self.identifier}", headers=self.headers)
+        self.assertNotIn("model_observation", reopened.json()["turns"][0]["result"])
 
     def test_saved_replies_may_include_a_bounded_rating(self):
         turn = self.body["turns"][0]

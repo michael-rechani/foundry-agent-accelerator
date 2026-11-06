@@ -47,10 +47,11 @@ export async function openWorkspace(
     // A Front Door block: no body, only the x-azure-ref header.
     blockedReview?: boolean
     preview?: boolean
-    startup?: 'stalled' | 'invalid' | 'invalid-guidance' | 'failed'
+    startup?: true | 'stalled' | 'invalid' | 'invalid-guidance' | 'failed'
     config?: Partial<Config>
     receipts?: Receipt[]
     usage?: unknown
+    modelObservation?: unknown
     answer?: string
     answers?: string[]
   } = {},
@@ -151,6 +152,9 @@ export async function openWorkspace(
           'Section 1 is missing a budget.',
         elapsed_ms: 1000,
         ...(options.usage !== undefined ? { usage: options.usage } : {}),
+        ...(options.modelObservation !== undefined
+          ? { model_observation: options.modelObservation }
+          : {}),
         receipts: options.receipts ?? [
           {
             tool: 'inspect_application',

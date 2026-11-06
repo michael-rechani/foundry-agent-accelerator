@@ -10,9 +10,10 @@ from azure.cosmos.aio import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
 from azure.identity.aio import ManagedIdentityCredential
 from fastapi import APIRouter, Request
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from library_preview import DESIGNER_ID, preview_agent
+from library_preview import DESIGNER_ID, MAX_TOOL_ROUNDS, preview_agent
+from library_rules import DEPLOYMENT_NAME, REPORTED_MODEL_NAME
 from request_guard import MAX_CONVERSATION_BYTES, RateGate, RequestRejected, api_error, cosmos_failure, read_json_body, record_request_failure, request_allowed
 
 
@@ -36,6 +37,37 @@ class Usage(StrictModel):
     reasoning_tokens: int | None = Field(ge=0)
 
 
+class ModelCall(StrictModel):
+    reported_model: str | None = Field(max_length=128)
+    model_status: Literal["reported", "not_reported", "invalid"]
+    usage: Usage | None
+
+    @field_validator("reported_model")
+    @classmethod
+    def valid_reported_model(cls, value):
+        if value is not None and not REPORTED_MODEL_NAME.fullmatch(value):
+            raise ValueError("Invalid reported model name")
+        return value
+
+    @model_validator(mode="after")
+    def consistent_model_status(self):
+        if (self.model_status == "reported") != (self.reported_model is not None):
+            raise ValueError("Reported model and its status must agree")
+        return self
+
+
+class ModelObservation(StrictModel):
+    deployment: str = Field(max_length=128)
+    calls: list[ModelCall] = Field(min_length=1, max_length=MAX_TOOL_ROUNDS + 1)
+
+    @field_validator("deployment")
+    @classmethod
+    def valid_deployment(cls, value):
+        if not DEPLOYMENT_NAME.fullmatch(value):
+            raise ValueError("Invalid model deployment name")
+        return value
+
+
 class Result(StrictModel):
     request_id: str = Field(min_length=1, max_length=128)
     status: Literal["completed"] = "completed"
@@ -44,6 +76,7 @@ class Result(StrictModel):
     receipts: list[Receipt] = Field(max_length=32)
     elapsed_ms: int = Field(ge=0)
     usage: Usage | None = None
+    model_observation: ModelObservation | None = None
 
 
 class Rating(StrictModel):
@@ -215,7 +248,11 @@ class ConversationHistory:
             return history_error(request, problem.status, problem.code)
         conversation = Conversation.model_validate_json(body)
         agent = await self.resolve(conversation.agent_id)
-        if agent is None or any(turn.result.agent != agent["agent"] for turn in conversation.turns):
+        if agent is None or any(
+            turn.result.agent != agent["agent"]
+            or (turn.result.model_observation is not None and not agent.get("preview"))
+            for turn in conversation.turns
+        ):
             return history_error(request, 400, "invalid_conversation")
         if existing and existing["agent_id"] != conversation.agent_id:
             return history_error(request, 400, "invalid_conversation")
@@ -224,6 +261,8 @@ class ConversationHistory:
                     "updated_at": datetime.now(timezone.utc).isoformat(), "ttl": 2592000}
         document["turns"] = unverified_turns(document["turns"])
         for turn in document["turns"]:
+            if turn["result"]["model_observation"] is None:
+                del turn["result"]["model_observation"]
             rating = turn.pop("rating")
             if rating is not None:
                 turn["rating"] = {key: value for key, value in rating.items() if value is not None}

@@ -287,6 +287,12 @@ request. Model Router's behavior with these settings has not yet been verified
 live. After any deployment or routing change, verify routing and allow it to
 take effect before running approved private inference and tool-call checks.
 Do not assume the map proves that a route or model is currently serving.
+With **Under the hood** enabled, direct library preview chats, including the
+preview-backed Agent designer, show their requested deployment and each call's
+reported model name and token counts. A reported name
+may be an alias, not proof of the model that served the call; missing or invalid
+values are labeled instead of inferred. Hosted-agent responses do not provide
+complete per-call attribution, and saved designer values aren't reverified.
 
 Unknown models and custom or mixed Router subsets are not inferred from their
 deployment names. For backward compatibility, they retain the previous behavior:

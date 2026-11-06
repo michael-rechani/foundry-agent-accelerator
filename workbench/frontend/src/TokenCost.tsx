@@ -42,6 +42,7 @@ export function TokenCost({
   budgetAlerts?: boolean
 }) {
   const totals = totalUsage(usages)
+  const noCompleteUsage = totals.measured === 0 && totals.missing > 0
   const [rates, setRates] = useState<Rates | null>(() => loadRates())
   const [input, setInput] = useState(() => rates?.input.toString() ?? '')
   const [output, setOutput] = useState(() => rates?.output.toString() ?? '')
@@ -66,22 +67,28 @@ export function TokenCost({
         <div>
           <ArrowDownToLine size={18} />
           <span>Input tokens</span>
-          <strong>{formatTokens(totals.input)}</strong>
+          <strong>
+            {noCompleteUsage ? 'Unavailable' : formatTokens(totals.input)}
+          </strong>
         </div>
         <div>
           <ArrowUpFromLine size={18} />
           <span>Output tokens</span>
-          <strong>{formatTokens(totals.output)}</strong>
+          <strong>
+            {noCompleteUsage ? 'Unavailable' : formatTokens(totals.output)}
+          </strong>
         </div>
         <div>
           <Coins size={18} />
           <span>Estimated cost</span>
           <strong>
-            {rates
-              ? estimateCost(totals, rates).toLocaleString('en-US', {
-                  maximumFractionDigits: 4,
-                })
-              : 'Add your rates'}
+            {!rates
+              ? 'Add your rates'
+              : totals.measured === 0
+                ? 'No complete usage'
+                : estimateCost(totals, rates).toLocaleString('en-US', {
+                    maximumFractionDigits: 4,
+                  })}
           </strong>
         </div>
       </div>
@@ -89,10 +96,11 @@ export function TokenCost({
         Totals cover {totals.measured} completed{' '}
         {totals.measured === 1 ? 'reply' : 'replies'} in this tab
         {totals.missing
-          ? `; ${totals.missing} did not report tokens and are not counted`
+          ? `; ${totals.missing} did not report complete token counts and are not counted`
           : ''}
         . Output includes reasoning tokens. A coordinator&apos;s count may not
-        include the specialists it calls.
+        include the specialists it calls. Failed, stopped, or timed-out requests
+        can still incur charges and aren&apos;t included.
       </p>
       <form
         className="rate-form"
@@ -133,8 +141,10 @@ export function TokenCost({
       </form>
       <p className="table-note">
         The Lab doesn&apos;t include prices. Rates you enter stay in this
-        browser. The estimate is in the same currency as your rates, prices
-        cached input at the full input rate, and isn&apos;t invoiced spend.
+        browser. The same input and output rates apply to all models, even when
+        their prices differ or Model Router selects different models. The
+        estimate uses your rates&apos; currency, prices cached input at the full
+        input rate, and isn&apos;t invoiced spend.
       </p>
       <h3 className="cost-heading">What costs money in the Lab</h3>
       <ul className="cost-list">

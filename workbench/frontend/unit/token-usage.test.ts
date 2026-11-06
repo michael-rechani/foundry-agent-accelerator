@@ -33,7 +33,11 @@ describe('token usage', () => {
 
   it('labels missing usage as not reported, never zero', () => {
     assert.equal(usageLabel(undefined), null)
-    assert.equal(usageLabel(null), 'Tokens not reported')
+    assert.equal(usageLabel(null), 'Token total not reported')
+    assert.equal(
+      usageLabel({ ...reported, total_tokens: null }),
+      'Token total not reported',
+    )
     assert.equal(usageLabel(reported), '1,500 tokens')
     assert.equal(
       usageDetail(reported),
@@ -46,13 +50,21 @@ describe('token usage', () => {
   })
 
   it('totals reported replies and counts the rest as missing', () => {
-    assert.deepEqual(totalUsage([reported, null, reported]), {
-      input: 2400,
-      output: 600,
-      total: 3000,
-      measured: 2,
-      missing: 1,
-    })
+    assert.deepEqual(
+      totalUsage([
+        reported,
+        null,
+        { ...reported, output_tokens: null },
+        reported,
+      ]),
+      {
+        input: 2400,
+        output: 600,
+        total: 3000,
+        measured: 2,
+        missing: 2,
+      },
+    )
   })
 
   it('estimates from user rates per million tokens', () => {
