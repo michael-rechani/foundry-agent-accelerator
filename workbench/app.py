@@ -340,7 +340,8 @@ class FoundryGateway:
         )
         status, text, output = await run_preview(
             client, template_id=agent["template_id"], model=self.settings.creation.model_for(agent["model_profile"]),
-            prompt=prompt, reasoning=agent["model_profile"] != "tool_calling", usage=usage,
+            prompt=prompt, reasoning=self.settings.creation.preview_includes_encrypted_reasoning(agent["model_profile"]),
+            usage=usage,
             admit_model_call=admit_model_call, instructions=instructions,
         )
         LOGGER.info(json.dumps({"event": "workbench_library_preview", "template_id": agent["template_id"],

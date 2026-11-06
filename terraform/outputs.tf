@@ -46,6 +46,13 @@ output "model_router_deployment_name" {
   value       = var.model_router_deployment == null ? null : module.model_router.model_router_deployment_name
 }
 
+output "model_preview_encrypted_reasoning" {
+  description = "Stateless-preview encrypted-reasoning settings derived from configured models. Unlisted deployments have no inferred setting."
+  value       = module.model_preview_capabilities.preview_encrypted_reasoning
+
+  depends_on = [module.ai_foundry, module.model_router]
+}
+
 output "log_analytics_workspace_id" {
   description = "Resource ID of the workspace receiving Foundry diagnostics."
   value       = azapi_resource.platform_logs.id

@@ -1,5 +1,6 @@
 """Check the private Lab's Model Router change without applying it."""
 
+import json
 import os
 import re
 import sys
@@ -29,6 +30,7 @@ from reconcile_runner_state import cleanup, object_json, private_scratch
 
 APP = "azurerm_container_app.this[0]"
 MODEL = "WORKBENCH_AGENT_CREATION_MODEL"
+PREVIEW = "WORKBENCH_PREVIEW_ENCRYPTED_REASONING"
 
 
 def platform_context(raw, subscription):
@@ -45,6 +47,7 @@ def platform_context(raw, subscription):
     endpoint = output("foundry_project_endpoint")
     primary = output("model_deployment_name")
     names = output("model_deployment_names")
+    preview = output("model_preview_encrypted_reasoning")
     if (not isinstance(account_name, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,64}", account_name)
             or account_name.lower() != platform["account"].rsplit("/", 1)[-1].lower()
             or not isinstance(project_name, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", project_name)
@@ -55,11 +58,13 @@ def platform_context(raw, subscription):
             or primary == "model-router" or output("model_router_deployment_name") != "model-router"
             or not isinstance(names, list) or not names or names[0] != primary
             or names[-1] != "model-router" or names.count("model-router") != 1
-            or any(not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", name) for name in names)):
+            or any(not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", name) for name in names)
+            or not isinstance(preview, dict) or preview.get("model-router") is not False
+            or any(name not in names or enabled is not False for name, enabled in preview.items())):
         raise CheckError("Platform state does not identify the expected project and Router deployment.")
     return {
         "account": platform["account"], "project_id": project_id, "endpoint": endpoint,
-        "primary": primary, "router": "model-router",
+        "primary": primary, "router": "model-router", "preview": preview,
     }
 
 
@@ -147,10 +152,27 @@ def review_plan(plan, exit_code, values, app, platform):
             and re.fullmatch(r"[^@\s]+@" + re.escape(values["image_digest"]), image) is not None
         )
 
+    def preview_literal(environment):
+        entry = environment.get(PREVIEW)
+        if (not isinstance(entry, dict) or set(entry) - {"value", "secret_name"}
+                or not isinstance(entry.get("value"), str) or entry.get("secret_name") not in (None, "")):
+            return None
+        try:
+            value = json.loads(entry["value"])
+        except json.JSONDecodeError:
+            return None
+        if (not isinstance(value, dict) or any(
+            not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", name)
+            or type(enabled) is not bool for name, enabled in value.items()
+        )):
+            return None
+        return value
+
     if (not literal(after_env, "WORKBENCH_MODE", "private")
             or not literal(after_env, "FOUNDRY_PROJECT_ENDPOINT", platform["endpoint"])
             or not literal(after_env, "WORKBENCH_FOUNDRY_PROJECT_ID", platform["project_id"])
             or not literal(after_env, MODEL, platform["router"])
+            or preview_literal(after_env) != platform["preview"]
             or not uses_active_image(before) or not uses_active_image(after)
             or ("WORKBENCH_LIBRARY_PREVIEW_ENABLED" in after_env
                 and not literal(after_env, "WORKBENCH_LIBRARY_PREVIEW_ENABLED", "true"))):
@@ -163,21 +185,33 @@ def review_plan(plan, exit_code, values, app, platform):
             raise CheckError("The no-change Lab plan is inconsistent.")
         return "already-configured"
 
+    changed, attributes = {}, {}
+    if literal(before_env, MODEL, platform["primary"]):
+        changed[MODEL] = "changed"
+        attributes[MODEL] = {"value": "set->set"}
+    elif not literal(before_env, MODEL, platform["router"]):
+        raise CheckError("Only the existing fixed model may change to Router.")
+    if PREVIEW not in before_env:
+        changed[PREVIEW] = "added"
+    elif preview_literal(before_env) is None:
+        raise CheckError("The existing Lab preview capability setting is not a literal boolean map.")
+    elif before_env[PREVIEW] != after_env[PREVIEW]:
+        changed[PREVIEW] = "changed"
+        attributes[PREVIEW] = {"value": "set->set"}
     expected_comparison = {
-        "status": "compared", "changed": {MODEL: "changed"},
-        "changed_attributes": {MODEL: {"value": "set->set"}},
+        "status": "compared", "changed": changed, "changed_attributes": attributes,
         "other_entries_changed": False, "order_changed": False,
     }
-    if (exit_code != 2 or not literal(before_env, MODEL, platform["primary"])
+    if (exit_code != 2 or not changed
             or summary["other_managed_changes"] != 1 or len(details) != 1
             or summary["other_managed_actions"]["update"] != 1):
-        raise CheckError("Only the existing fixed model may change to Router.")
+        raise CheckError("Only the reviewed Router model and preview settings may change.")
     detail = details[0]
     if (detail.get("resource") != "container_app" or detail.get("action") != "update"
             or detail.get("fields") != ["template.container.env"] or detail.get("unknown_fields")
             or detail.get("import") or detail.get("environment_comparison") != expected_comparison):
-        raise CheckError("The Lab plan changes more than the reviewed Router model value.")
-    return "model-update"
+        raise CheckError("The Lab plan changes more than the reviewed Router model and preview settings.")
+    return "model-update" if MODEL in changed else "preview-update"
 
 
 def run(environ=os.environ):

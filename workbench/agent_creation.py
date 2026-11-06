@@ -45,6 +45,7 @@ class CreationSettings:
     timeout_seconds: int = 600
     models: dict = field(default_factory=dict)
     private_presenter_mode: bool = False
+    preview_encrypted_reasoning: dict[str, bool] = field(default_factory=dict)
 
     @classmethod
     def from_env(cls):
@@ -58,6 +59,10 @@ class CreationSettings:
             models = json.loads(os.getenv("WORKBENCH_AGENT_CREATION_MODELS") or "{}")
         except json.JSONDecodeError as problem:
             raise ValueError("WORKBENCH_AGENT_CREATION_MODELS must be a JSON object") from problem
+        try:
+            preview_encrypted_reasoning = json.loads(os.getenv("WORKBENCH_PREVIEW_ENCRYPTED_REASONING") or "{}")
+        except json.JSONDecodeError as problem:
+            raise ValueError("WORKBENCH_PREVIEW_ENCRYPTED_REASONING must be a JSON object") from problem
         return cls(
             enabled=flag == "true",
             model=os.getenv("WORKBENCH_AGENT_CREATION_MODEL", ""),
@@ -66,6 +71,7 @@ class CreationSettings:
             max_agents=int(os.getenv("WORKBENCH_MAX_CREATED_AGENTS", "5")),
             timeout_seconds=int(os.getenv("WORKBENCH_PUBLICATION_TIMEOUT_SECONDS", "600")),
             private_presenter_mode=presenter == "true",
+            preview_encrypted_reasoning=preview_encrypted_reasoning,
         )
 
     def validate(self, mode):
@@ -83,6 +89,10 @@ class CreationSettings:
             raise ValueError("Configure a lowercase SHA-256 operator-key verifier")
         if not is_profile_map(self.models, MODEL_PROFILES):
             raise ValueError("Map only known model profiles to model deployment names")
+        if (not isinstance(self.preview_encrypted_reasoning, dict)
+                or any(not isinstance(name, str) or not DEPLOYMENT_NAME.fullmatch(name) or type(enabled) is not bool
+                       for name, enabled in self.preview_encrypted_reasoning.items())):
+            raise ValueError("WORKBENCH_PREVIEW_ENCRYPTED_REASONING must map deployment names to booleans")
         if self.enabled and (
             mode != "private"
             or not isinstance(self.model, str) or not DEPLOYMENT_NAME.fullmatch(self.model)
@@ -92,6 +102,9 @@ class CreationSettings:
 
     def model_for(self, profile):
         return self.models.get(profile) or self.model
+
+    def preview_includes_encrypted_reasoning(self, profile):
+        return self.preview_encrypted_reasoning.get(self.model_for(profile), profile != "tool_calling")
 
 
 class DraftInput(StrictModel):

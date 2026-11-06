@@ -135,8 +135,9 @@ uses the same private runner, protected environment, configuration and separate
 approvals as the Lab diagnostic below, plus Reader access to the existing
 Foundry deployment. It verifies the platform's project and the live Router's
 model version, SKU, capacity and routing, then accepts only a full Lab plan
-changing the existing fixed creation model to Router, or a no-change plan
-already configured for Router. It rejects unrelated changes, drift, unknown
+changing the existing fixed creation model to Router and/or updating the
+preview capability setting to match platform state, or a no-change plan
+already configured for both. It rejects unrelated changes, drift, unknown
 values, changed images or inputs, and an explicit setting disabling private
 library preview. It also requires the planned image to match the active
 revision's digest. It cannot verify that the active image supports preview,

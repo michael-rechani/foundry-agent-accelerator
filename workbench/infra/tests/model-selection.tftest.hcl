@@ -90,6 +90,11 @@ run "default_without_platform_state" {
     )
     error_message = "Without platform state or an override, the Lab must configure model-router."
   }
+
+  assert {
+    condition     = length(local.preview_encrypted_reasoning) == 0
+    error_message = "A Router deployment name alone must not imply a particular model subset."
+  }
 }
 
 run "use_platform_router" {
@@ -118,6 +123,133 @@ run "use_platform_router" {
     )
     error_message = "The platform Router output must become the Lab's creation model."
   }
+}
+
+run "platform_preview_capabilities_reach_the_lab" {
+  command = plan
+
+  variables {
+    platform_state = {}
+  }
+
+  override_data {
+    target = data.terraform_remote_state.platform[0]
+    values = {
+      outputs = {
+        model_router_deployment_name      = "platform-router"
+        model_deployment_name             = "fixed-alias"
+        model_preview_encrypted_reasoning = { "platform-router" = false, "fixed-alias" = false }
+      }
+    }
+  }
+
+  assert {
+    condition = jsonencode(jsondecode(one([
+      for env in azurerm_container_app.this[0].template[0].container[0].env :
+      env.value if env.name == "WORKBENCH_PREVIEW_ENCRYPTED_REASONING"
+    ]))) == jsonencode({ "platform-router" = false, "fixed-alias" = false })
+    error_message = "The platform's known preview settings must be passed to the Lab by deployment name."
+  }
+}
+
+run "operator_preview_capability_override_wins" {
+  command = plan
+
+  variables {
+    platform_state              = {}
+    preview_encrypted_reasoning = { "platform-router" = true, "custom-reasoning" = true }
+  }
+
+  override_data {
+    target = data.terraform_remote_state.platform[0]
+    values = {
+      outputs = {
+        model_router_deployment_name      = "platform-router"
+        model_deployment_name             = "fixed-model"
+        model_preview_encrypted_reasoning = { "platform-router" = false, "fixed-model" = false }
+      }
+    }
+  }
+
+  assert {
+    condition = jsonencode(local.preview_encrypted_reasoning) == jsonencode({
+      "platform-router" = true, "custom-reasoning" = true, "fixed-model" = false
+    })
+    error_message = "Explicit per-deployment overrides must take precedence without discarding other known settings."
+  }
+}
+
+run "reject_platform_preview_capability_non_boolean" {
+  command = plan
+
+  variables {
+    platform_state = {}
+  }
+
+  override_data {
+    target = data.terraform_remote_state.platform[0]
+    values = {
+      outputs = {
+        model_router_deployment_name      = "model-router"
+        model_deployment_name             = "fixed-model"
+        model_preview_encrypted_reasoning = { "model-router" = "false" }
+      }
+    }
+  }
+
+  expect_failures = [azurerm_container_app.this]
+}
+
+run "reject_platform_preview_capability_non_map" {
+  command = plan
+
+  variables {
+    platform_state = {}
+  }
+
+  override_data {
+    target = data.terraform_remote_state.platform[0]
+    values = {
+      outputs = {
+        model_router_deployment_name      = "model-router"
+        model_deployment_name             = "fixed-model"
+        model_preview_encrypted_reasoning = ["model-router"]
+      }
+    }
+  }
+
+  expect_failures = [azurerm_container_app.this]
+}
+
+run "reject_platform_preview_capability_null" {
+  command = plan
+
+  variables {
+    platform_state = {}
+  }
+
+  override_data {
+    target = data.terraform_remote_state.platform[0]
+    values = {
+      outputs = {
+        model_router_deployment_name      = "model-router"
+        model_deployment_name             = "fixed-model"
+        model_preview_encrypted_reasoning = null
+      }
+    }
+  }
+
+  expect_failures = [azurerm_container_app.this]
+}
+
+run "reject_invalid_preview_capability_override" {
+  command = plan
+
+  variables {
+    preview_encrypted_reasoning = { "bad name" = false }
+  }
+
+  expect_failures = [var.preview_encrypted_reasoning]
 }
 
 run "fallback_when_router_is_disabled" {
@@ -162,6 +294,10 @@ run "fallback_for_older_platform_state" {
   assert {
     condition     = local.agent_creation_model == "fixed-model"
     error_message = "Platform state predating the Router output must keep using its fixed deployment."
+  }
+  assert {
+    condition     = length(local.preview_encrypted_reasoning) == 0
+    error_message = "Older platform state must not imply a model's preview capabilities."
   }
 }
 

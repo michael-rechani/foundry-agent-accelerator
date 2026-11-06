@@ -224,6 +224,7 @@ class GuardRejectionTests(unittest.TestCase):
              '{"reasoning":"private-router"}'),
             ("WORKBENCH_PREBUILT_AGENT_MODELS", '{"customer-review":"private-fixed"}',
              '{"customer-review":"private-router"}'),
+            ("WORKBENCH_PREVIEW_ENCRYPTED_REASONING", '{"private-fixed":true}', '{"private-fixed":false}'),
         )
         for name, old, new in cases:
             with self.subTest(name=name):
@@ -237,6 +238,20 @@ class GuardRejectionTests(unittest.TestCase):
                 self.assertNotIn(old, json.dumps(summary))
                 self.assertNotIn(new, json.dumps(summary))
                 self.rejected(value)
+
+    def test_adding_preview_capability_is_not_approved(self):
+        value = approved_plan(waf_tags=False)
+        app_env(app_change(value), "after").append({
+            "name": "WORKBENCH_PREVIEW_ENCRYPTED_REASONING", "value": '{"model-router":false}',
+        })
+        summary = summarize(value)
+        self.assertEqual(
+            summary["other_managed_details"][0]["environment_comparison"]["changed"][
+                "WORKBENCH_PREVIEW_ENCRYPTED_REASONING"
+            ],
+            "added",
+        )
+        self.rejected(value)
 
     def test_imports_outputs_and_non_passing_checks_are_rejected(self):
         def imported(value):

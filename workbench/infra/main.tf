@@ -132,6 +132,19 @@ variable "agent_creation_models" {
     error_message = "Use only the reasoning, extraction, and tool_calling keys, each set to an existing model deployment name."
   }
 }
+variable "preview_encrypted_reasoning" {
+  type        = map(bool)
+  default     = {}
+  nullable    = false
+  description = "Optional per-deployment override for requesting encrypted reasoning in stateless library previews. Values override known platform capabilities; configure custom models and Router subsets only after verifying their support."
+  validation {
+    condition = alltrue([
+      for deployment, enabled in var.preview_encrypted_reasoning :
+      can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", deployment)) && enabled != null
+    ])
+    error_message = "Key preview_encrypted_reasoning by valid deployment name and use true or false for each value."
+  }
+}
 variable "prebuilt_agent_models" {
   type        = map(string)
   default     = {}
@@ -215,6 +228,13 @@ locals {
     try(local.platform_outputs.model_router_deployment_name, null),
     try(local.platform_outputs.model_deployment_name, null),
     "model-router",
+  )
+  platform_preview_encrypted_reasoning = try(local.platform_outputs.model_preview_encrypted_reasoning, {})
+  preview_encrypted_reasoning = merge(
+    { for deployment in try(keys(local.platform_preview_encrypted_reasoning), []) :
+      deployment => local.platform_preview_encrypted_reasoning[deployment]
+    },
+    var.preview_encrypted_reasoning,
   )
 }
 
@@ -351,6 +371,14 @@ resource "azurerm_container_app" "this" {
       error_message = "The selected agent creation model must be a valid model deployment name."
     }
     precondition {
+      condition = can(keys(local.platform_preview_encrypted_reasoning)) && try(alltrue([
+        for deployment, enabled in local.platform_preview_encrypted_reasoning :
+        can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", deployment)) &&
+        contains(["true", "false"], jsonencode(enabled))
+      ]), false)
+      error_message = "The platform preview encrypted-reasoning output must map valid deployment names to booleans."
+    }
+    precondition {
       condition     = !var.agent_creation_enabled || (local.agent_creation_model != "" && (var.private_presenter_mode || var.agent_creation_key_secret_id != null))
       error_message = "Agent creation requires an existing model deployment and either an operator-key verifier secret or explicit private presenter mode."
     }
@@ -425,6 +453,9 @@ resource "azurerm_container_app" "this" {
           },
           length(var.agent_creation_models) == 0 ? {} : {
             WORKBENCH_AGENT_CREATION_MODELS = jsonencode(var.agent_creation_models)
+          },
+          length(local.preview_encrypted_reasoning) == 0 ? {} : {
+            WORKBENCH_PREVIEW_ENCRYPTED_REASONING = jsonencode(local.preview_encrypted_reasoning)
           },
           length(var.prebuilt_agent_models) == 0 ? {} : {
             WORKBENCH_PREBUILT_AGENT_MODELS = jsonencode(var.prebuilt_agent_models)

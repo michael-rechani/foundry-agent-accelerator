@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import io
 import json
@@ -5,7 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from zipfile import ZipFile
 
 from agent_package import runtime_package
@@ -143,6 +144,41 @@ class RuntimeTests(unittest.TestCase):
                 self.assertEqual(len(options["tools"]),
                                  0 if identifier == "document-analyst" else 2 if identifier == "workflow-coordinator" else 3)
         credential.get_token.assert_not_called()
+
+    def test_real_sdk_hosted_requests_respect_encrypted_reasoning_opt_in(self):
+        from agent_framework import Message
+
+        async def exercise():
+            credential = MagicMock()
+            config = {**environment("workflow-coordinator"), "FOUNDRY_MODEL_NAME": "model-router"}
+            agent = build_agent(credential, config)
+            response = MagicMock(
+                id="response_1", model="fixture", created_at=1000000000, metadata={}, output_parsed=None,
+                output=[], usage=None, finish_reason=None, conversation=None, status="completed",
+            )
+            raw_response = MagicMock(headers={})
+            raw_response.parse.return_value = response
+            try:
+                target = agent.client.client.responses.with_raw_response
+                with patch.object(target, "create", new_callable=AsyncMock, return_value=raw_response) as create:
+                    await agent.run("Summarize the sample request.")
+                    request = create.await_args.kwargs
+                    self.assertEqual(request["model"], "model-router")
+                    self.assertIs(request["store"], False)
+                    self.assertTrue(request["tools"])
+                    self.assertNotIn("reasoning.encrypted_content", request.get("include") or [])
+
+                    await agent.client.get_response(
+                        [Message("user", ["Summarize the sample request."])],
+                        options={"store": False, "include": ["reasoning.encrypted_content"]},
+                    )
+                    self.assertIn("reasoning.encrypted_content", create.await_args.kwargs["include"])
+                    self.assertEqual(create.await_count, 2)
+            finally:
+                await agent.client.close()
+            credential.get_token.assert_not_called()
+
+        asyncio.run(exercise())
 
     def test_calculator_policy_does_not_change_other_agents(self):
         self.assertIn("sample-lookup and arithmetic tools", demo_policy("medical-bill-reviewer"))

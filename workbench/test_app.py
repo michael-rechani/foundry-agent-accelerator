@@ -764,6 +764,48 @@ class LibraryPreviewTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual([call.kwargs["model"] for call in calls], ["model-router", "reason-model"])
         self.assertTrue(all(call.kwargs["store"] is False for call in calls))
 
+    def test_preview_api_uses_selected_deployment_capability_through_the_tool_loop(self):
+        call = {
+            "type": "function_call", "call_id": "lookup-1", "name": "lookup_purchase_order",
+            "arguments": json.dumps({"po_number": "PO-DEMO-2210"}),
+        }
+        cases = (
+            ("model-router", False),
+            ("fixed-alias", False),
+            ("reason-model", True),
+            ("unknown-router", True),
+        )
+        for deployment, include in cases:
+            with self.subTest(deployment=deployment):
+                first = SimpleNamespace(status="completed", output_text="", model_dump=lambda **_: {"output": [call]})
+                second = SimpleNamespace(status="completed", output_text="Preview", model_dump=lambda **_: {"output": []})
+                openai_client, project = MagicMock(), MagicMock()
+                openai_client.responses.create = AsyncMock(side_effect=[first, second])
+                project.get_openai_client.return_value = openai_client
+                creation = CreationSettings(
+                    False, "model-router", models={"reasoning": deployment},
+                    preview_encrypted_reasoning={"model-router": False, "fixed-alias": False, "reason-model": True},
+                )
+                settings = replace(self.settings, creation=creation)
+                gateway = FoundryGateway(settings)
+                client = TestClient(create_app(settings, gateway))
+                with patch.object(gateway, "_review_project", return_value=project):
+                    response = client.post(
+                        "/api/reviews",
+                        json={"agent_id": "library-supplier-invoice-reviewer", "input": "Check PO-DEMO-2210"},
+                        headers=self.headers,
+                    )
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertTrue(response.json()["receipts"][0]["verified"])
+                calls = openai_client.responses.create.await_args_list
+                self.assertEqual(len(calls), 2)
+                for request in calls:
+                    self.assertEqual(request.kwargs["model"], deployment)
+                    self.assertFalse(request.kwargs["store"])
+                    self.assertTrue(request.kwargs["tools"])
+                    self.assertEqual(request.kwargs.get("include"), ["reasoning.encrypted_content"] if include else None)
+                self.assertTrue(any(item.get("type") == "function_call_output" for item in calls[1].kwargs["input"]))
+
     def test_agent_designer_chat_uses_the_preview_path(self):
         response = self.client.post("/api/reviews", json={"agent_id": "library-agent-designer", "input": "Good morning"},
                                     headers=self.headers)

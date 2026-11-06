@@ -55,11 +55,16 @@ def plan():
             "routing": deepcopy(body["properties"]["routing"]),
         },
     }
+    variables = {key: {"value": value} for key, value in values().items() if key != "jumpbox_secret_required"}
+    variables.update({
+        "model_deployment": {"value": {
+            "deployment_name": "gpt-4.1", "format": "OpenAI", "name": "gpt-4.1", "version": "2025-04-14",
+        }},
+        "additional_model_deployments": {"value": {}},
+    })
     return {
         "format_version": "1.0", "errored": False, "complete": True,
-        "variables": {
-            key: {"value": value} for key, value in values().items() if key != "jumpbox_secret_required"
-        },
+        "variables": variables,
         "resource_changes": [
             {
                 "address": diagnostic.DEPLOYMENT, "mode": "managed",
@@ -97,6 +102,10 @@ def plan():
             "model_deployment_names": {
                 "actions": ["update"], "before": ["gpt-4.1"],
                 "after": ["gpt-4.1", None], "after_unknown": [False, True],
+            },
+            "model_preview_encrypted_reasoning": {
+                "actions": ["create"], "before": None,
+                "after": {"gpt-4.1": False, "model-router": False}, "after_unknown": False,
             },
             "foundry_account_id": {"actions": ["no-op"]},
         },
@@ -443,6 +452,10 @@ class PlanTests(unittest.TestCase):
             "actions": ["no-op"], "before": ["gpt-4.1", "model-router"],
             "after": ["gpt-4.1", "model-router"], "after_unknown": False,
         }
+        capabilities = {"gpt-4.1": False, "model-router": False}
+        value["output_changes"]["model_preview_encrypted_reasoning"] = {
+            "actions": ["no-op"], "before": capabilities, "after": dict(capabilities), "after_unknown": False,
+        }
         value["checks"][0]["status"] = "pass"
         result = diagnostic.summarize_plan(value, 0, values(), ACCOUNT)
         self.assertEqual(result["router_deployment"], "no-op")
@@ -455,6 +468,38 @@ class PlanTests(unittest.TestCase):
             change(item)
             with self.subTest(item=item), self.assertRaises(diagnostic.CheckError):
                 diagnostic.summarize_plan(item, 0, values(), ACCOUNT)
+
+    def test_preview_output_tracks_known_model_versions_and_deployment_aliases(self):
+        value = plan()
+        value["variables"]["additional_model_deployments"]["value"] = {
+            "known-alias": {"format": "OpenAI", "name": "gpt-4.1-mini", "version": "2025-04-14"},
+            "unknown-alias": {"format": "OpenAI", "name": "gpt-4.1", "version": "other"},
+        }
+        names = ["gpt-4.1", "known-alias", "unknown-alias"]
+        value["output_changes"]["model_deployment_names"].update(
+            before=names, after=names + [None], after_unknown=[False, False, False, True],
+        )
+        value["output_changes"]["model_preview_encrypted_reasoning"]["after"]["known-alias"] = False
+        result = diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
+        self.assertEqual(result["preview_capability_output"], "create")
+        for change in (
+            lambda item: item["output_changes"]["model_preview_encrypted_reasoning"]["after"].update(
+                **{"unknown-alias": False}),
+            lambda item: item["output_changes"]["model_preview_encrypted_reasoning"]["after"].update(
+                **{"known-alias": True}),
+            lambda item: item["output_changes"]["model_preview_encrypted_reasoning"]["after"].update(
+                **{"known-alias": 0}),
+            lambda item: item["output_changes"]["model_preview_encrypted_reasoning"].update(after_unknown=True),
+            lambda item: item["output_changes"]["model_preview_encrypted_reasoning"].update(actions=["delete"]),
+            lambda item: item["output_changes"].pop("model_preview_encrypted_reasoning"),
+            lambda item: item["variables"]["model_deployment"].update(value="invalid"),
+            lambda item: item["variables"]["additional_model_deployments"].update(value="invalid"),
+            lambda item: item["output_changes"]["model_deployment_names"].update(before=["gpt-4.1"]),
+        ):
+            item = deepcopy(value)
+            change(item)
+            with self.subTest(change=change), self.assertRaises(diagnostic.CheckError):
+                diagnostic.summarize_plan(item, 2, values(), ACCOUNT)
 
     def test_unrelated_jumpbox_and_role_changes_are_reported_but_not_approved(self):
         value = plan()

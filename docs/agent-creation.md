@@ -273,6 +273,43 @@ work without its own deployment uses the default one, so a Lab with a single
 model still works. Each agent keeps the model it was created with; changing the
 settings later affects only new agents.
 
+### Tool-enabled previews and encrypted reasoning
+
+Library chat and draft case runs use stateless model calls. Some reasoning models
+need encrypted reasoning returned and passed back between tool calls; other models
+can reject that request. When configured, the Lab chooses whether to request it
+by **deployment**, not by the kind of work in the template. Platform Terraform supplies a map for
+the configured `gpt-4.1` / `gpt-4.1-mini` versions and for a Router restricted
+entirely to those versions, so those previews omit encrypted reasoning.
+
+The map describes the configured models, not the model that actually served a
+request. Model Router's behavior with these settings has not yet been verified
+live. After any deployment or routing change, verify routing and allow it to
+take effect before running approved private inference and tool-call checks.
+Do not assume the map proves that a route or model is currently serving.
+
+Unknown models and custom or mixed Router subsets are not inferred from their
+deployment names. For backward compatibility, they retain the previous behavior:
+tool-enabled `reasoning` and `extraction` previews request encrypted reasoning,
+while `tool_calling` previews do not. Older or absent platform state has no
+capability map. After verifying the relevant deployment, an operator can override
+its setting in Lab Terraform, for example:
+
+```hcl
+preview_encrypted_reasoning = {
+  "verified-reasoning-deployment" = true
+  "verified-non-reasoning-alias"  = false
+}
+```
+
+These settings affect previews and draft case runs only, not published agents.
+The hosted runtime also uses stateless calls, but its Foundry client does not
+request encrypted reasoning implicitly. Tool-enabled hosted agents using a
+reasoning-model override may need an explicit opt-in to replay tool calls; this
+is tracked for verification and any needed runtime change in #522. An incorrect
+preview override can also break a stateless tool loop. Verify each selected
+deployment and repeat the check when its model or Router subset changes.
+
 ## Enable publication
 
 Creation is **disabled by default**. Keep the existing private application
@@ -375,6 +412,7 @@ For non-Terraform operators, the equivalent server configuration is:
 | `WORKBENCH_AGENT_CREATION_MODEL` | Default existing model deployment, used for any kind of work without its own entry. Not editable in the browser |
 | `WORKBENCH_MODEL_LIMITS` | Optional JSON object that maps each model deployment name to its `requests_per_minute` and `tokens_per_minute`, so the Lab answers busy before a chat turn would pass that deployment's limit. Set by `model_limits` in Terraform. See [Model limits](lab-configuration-and-cost.md#model-limits) |
 | `WORKBENCH_AGENT_CREATION_MODELS` | Optional JSON object that maps `reasoning`, `extraction`, and `tool_calling` to existing model deployments, for example `{"reasoning":"gpt-5.4","extraction":"gpt-5.4-mini"}` |
+| `WORKBENCH_PREVIEW_ENCRYPTED_REASONING` | Optional JSON object mapping deployment names to booleans. `true` requests encrypted reasoning for tool-enabled previews; `false` omits it. Terraform combines platform settings with `preview_encrypted_reasoning` overrides. Invalid maps stop startup. See [Tool-enabled previews](#tool-enabled-previews-and-encrypted-reasoning). |
 | `WORKBENCH_CREATION_KEY_SHA256` | Lowercase, 64-character verifier from a secret reference. Never the raw key |
 | `WORKBENCH_MAX_CREATED_AGENTS` | Defaults to 5. Allowed range 1-20. Failed or unconfirmed attempts still count |
 | `WORKBENCH_PUBLICATION_TIMEOUT_SECONDS` | Defaults to 600. Allowed range 30-900 |

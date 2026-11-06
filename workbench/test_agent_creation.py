@@ -728,6 +728,40 @@ class CreationSettingsTests(unittest.TestCase):
                 with self.subTest(value=value), self.assertRaises(ValueError):
                     CreationSettings.from_env()
 
+    def test_preview_reasoning_uses_the_selected_deployment_not_the_work_profile(self):
+        settings = CreationSettings(
+            False, "model-router",
+            models={"reasoning": "reason-model", "tool_calling": "fixed-alias"},
+            preview_encrypted_reasoning={"model-router": False, "reason-model": True, "fixed-alias": False},
+        )
+        settings.validate("private")
+        self.assertTrue(settings.preview_includes_encrypted_reasoning("reasoning"))
+        self.assertFalse(settings.preview_includes_encrypted_reasoning("extraction"))
+        self.assertFalse(settings.preview_includes_encrypted_reasoning("tool_calling"))
+
+        unknown = CreationSettings(False, "custom-router")
+        self.assertTrue(unknown.preview_includes_encrypted_reasoning("reasoning"))
+        self.assertTrue(unknown.preview_includes_encrypted_reasoning("extraction"))
+        self.assertFalse(unknown.preview_includes_encrypted_reasoning("tool_calling"))
+        overridden = CreationSettings(False, "reason-model", preview_encrypted_reasoning={"reason-model": True})
+        self.assertTrue(overridden.preview_includes_encrypted_reasoning("tool_calling"))
+
+    def test_preview_reasoning_environment_requires_a_deployment_to_boolean_map(self):
+        with patch.dict("os.environ", {"WORKBENCH_PREVIEW_ENCRYPTED_REASONING": '{"model-router":false,"r":true}'}):
+            settings = CreationSettings.from_env()
+        settings.validate("private")
+        self.assertEqual(settings.preview_encrypted_reasoning, {"model-router": False, "r": True})
+
+        for value in ("not json", "[1"):
+            with self.subTest(value=value), patch.dict("os.environ", {"WORKBENCH_PREVIEW_ENCRYPTED_REASONING": value}):
+                with self.assertRaisesRegex(ValueError, "WORKBENCH_PREVIEW_ENCRYPTED_REASONING"):
+                    CreationSettings.from_env()
+        for value in ("null", "[]", '{"model-router":"false"}', '{"model-router":0}', '{"bad name":false}',
+                      '{"model-router":null}'):
+            with self.subTest(value=value), patch.dict("os.environ", {"WORKBENCH_PREVIEW_ENCRYPTED_REASONING": value}):
+                with self.assertRaisesRegex(ValueError, "WORKBENCH_PREVIEW_ENCRYPTED_REASONING"):
+                    CreationSettings.from_env().validate("private")
+
     def test_default_is_disabled_and_environment_enablement_is_explicit(self):
         CreationSettings().validate("preview")
         with patch.dict("os.environ", {"WORKBENCH_AGENT_CREATION_ENABLED": "perhaps"}):

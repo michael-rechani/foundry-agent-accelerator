@@ -232,6 +232,9 @@ jobs:
           terraform -chdir=terraform/modules/model-router init -backend=false
           terraform -chdir=terraform/modules/model-router validate
           terraform -chdir=terraform/modules/model-router test
+          terraform -chdir=terraform/modules/model-preview-capabilities init -backend=false
+          terraform -chdir=terraform/modules/model-preview-capabilities validate
+          terraform -chdir=terraform/modules/model-preview-capabilities test
       - name: Validate private state backend without Azure
         run: |
           terraform -chdir=terraform/bootstrap init -backend=false

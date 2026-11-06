@@ -229,6 +229,32 @@ def router_change_matches(address, entry, account):
     )
 
 
+def preview_capabilities(variables):
+    primary_input = variables.get("model_deployment")
+    additional_input = variables.get("additional_model_deployments")
+    primary = primary_input.get("value") if isinstance(primary_input, dict) else None
+    additional = additional_input.get("value") if isinstance(additional_input, dict) else None
+    if (not isinstance(primary, dict) or not isinstance(additional, dict)
+            or any(not isinstance(name, str) for name in additional)):
+        raise CheckError("The plan must identify its fixed model inputs.")
+    primary_name = primary.get("deployment_name")
+    names = [primary_name, *sorted(additional)]
+    if (any(not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", name)
+            for name in names)
+            or len(set(names)) != len(names) or "model-router" in names):
+        raise CheckError("The plan must identify unique fixed model deployment names.")
+    models = {primary_name: primary, **additional}
+    known = {(item["format"], item["name"], item["version"]) for item in ROUTER_MODELS}
+    expected = {"model-router": False}
+    for deployment, model in models.items():
+        if (not isinstance(model, dict)
+                or any(not isinstance(model.get(key), str) or not model[key] for key in ("format", "name", "version"))):
+            raise CheckError("The plan must identify fixed model formats, names and versions.")
+        if tuple(model[key] for key in ("format", "name", "version")) in known:
+            expected[deployment] = False
+    return names, expected
+
+
 def summarize_plan(plan, exit_code, values, account):
     if (plan.get("errored") is not False or plan.get("complete") is not True
             or plan.get("deferred_changes") or plan.get("action_invocations")
@@ -292,12 +318,37 @@ def summarize_plan(plan, exit_code, values, account):
             ["no-op"], ["create"], ["update"], ["delete"],
         ):
             raise CheckError("Terraform returned an invalid platform output change.")
-        if name not in ("model_router_deployment_name", "model_deployment_names"):
+        if name not in ("model_router_deployment_name", "model_deployment_names", "model_preview_encrypted_reasoning"):
             other_outputs += change["actions"] != ["no-op"]
         elif change["actions"] == ["delete"]:
             raise CheckError("The Router plan must not remove model outputs.")
     router_output = outputs.get("model_router_deployment_name")
     model_names = outputs.get("model_deployment_names")
+    preview_output = outputs.get("model_preview_encrypted_reasoning")
+    fixed_names, expected_preview = preview_capabilities(variables)
+
+    def valid_preview_map(value):
+        return isinstance(value, dict) and all(
+            isinstance(name, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", name)
+            and type(enabled) is bool for name, enabled in value.items()
+        )
+
+    if (not isinstance(preview_output, dict)
+            or preview_output.get("actions") not in (["create"], ["update"], ["no-op"])
+            or preview_output.get("after_unknown") is not False
+            or not valid_preview_map(preview_output.get("after"))
+            or set(preview_output["after"]) != set(expected_preview)
+            or any(value is not False for value in preview_output["after"].values())
+            or (preview_output["actions"] == ["create"] and preview_output.get("before") is not None)
+            or (preview_output["actions"] == ["no-op"] and (
+                not valid_preview_map(preview_output.get("before"))
+                or preview_output["before"] != preview_output["after"]
+            ))
+            or (preview_output["actions"] == ["update"] and (
+                not valid_preview_map(preview_output.get("before"))
+                or preview_output["before"] == preview_output["after"]
+            ))):
+        raise CheckError("The planned preview capability output does not match the reviewed model inputs.")
     if actions[DEPLOYMENT] == "create":
         if (not isinstance(router_output, dict) or router_output.get("actions") not in (["create"], ["update"])
                 or not isinstance(model_names, dict) or model_names.get("actions") != ["update"]
@@ -308,7 +359,7 @@ def summarize_plan(plan, exit_code, values, account):
             raise CheckError("The Router plan must expose its name without removing existing model outputs.")
         before, after = model_names.get("before"), model_names.get("after")
         unknown = model_names.get("after_unknown")
-        if (not isinstance(before, list) or not isinstance(after, list) or len(after) != len(before) + 1
+        if (before != fixed_names or not isinstance(after, list) or len(after) != len(before) + 1
                 or after[:-1] != before or not isinstance(unknown, list) or len(unknown) != len(after)
                 or any(unknown[:-1]) or not (
                     after[-1] == "model-router" and unknown[-1] is False
@@ -318,8 +369,7 @@ def summarize_plan(plan, exit_code, values, account):
     elif (not isinstance(router_output, dict) or router_output.get("actions") != ["no-op"]
             or router_output.get("after") != "model-router" or router_output.get("after_unknown") is not False
             or not isinstance(model_names, dict) or model_names.get("actions") != ["no-op"]
-            or not isinstance(model_names.get("after"), list) or not model_names["after"]
-            or model_names["after"][-1] != "model-router"
+            or model_names.get("after") != [*fixed_names, "model-router"]
             or model_names.get("before") != model_names["after"] or model_names.get("after_unknown") is not False):
         raise CheckError("The existing Router outputs are missing, changed or unknown.")
     if any(not isinstance(check, dict) or check.get("status") not in ("pass", "fail", "unknown", "error")
@@ -339,12 +389,14 @@ def summarize_plan(plan, exit_code, values, account):
         raise CheckError("Terraform returned duplicate deferred Router readback checks.")
     if exit_code not in (0, 2) or exit_code == 0 and (
         any(action != "no-op" for action in actions.values()) or other_managed or imports or other_outputs
+        or preview_output["actions"] != ["no-op"]
     ):
         raise CheckError("Terraform's plan exit status does not match the platform changes.")
     return {
         "plan_exit": "changes" if exit_code == 2 else "no-changes",
         "router_deployment": actions[DEPLOYMENT],
         "router_patch": actions[PATCH],
+        "preview_capability_output": preview_output["actions"][0],
         "other_managed_changes": other_managed,
         "other_deferred_reads": other_reads,
         "other_output_changes": other_outputs,

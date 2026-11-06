@@ -40,6 +40,7 @@ def platform_state():
         "model_deployment_name": {"value": "gpt-4.1"},
         "model_router_deployment_name": {"value": "model-router"},
         "model_deployment_names": {"value": ["gpt-4.1", "model-router"]},
+        "model_preview_encrypted_reasoning": {"value": {"gpt-4.1": False, "model-router": False}},
     })
     return state
 
@@ -74,6 +75,9 @@ def plan(action="update"):
     }]}]}
     after = deepcopy(before)
     after["template"][0]["container"][0]["env"][1]["value"] = "model-router"
+    after["template"][0]["container"][0]["env"].append({
+        "name": diagnostic.PREVIEW, "value": '{"gpt-4.1":false,"model-router":false}',
+    })
     if action == "no-op":
         before = deepcopy(after)
     result["resource_changes"].append({
@@ -97,6 +101,12 @@ class PlatformAndReadbackTests(unittest.TestCase):
             lambda item: item["outputs"]["model_deployment_names"].update(value=["gpt-4.1", {}, "model-router"]),
             lambda item: item["outputs"]["model_deployment_names"].update(
                 value=["gpt-4.1", "model-router", "model-router"],
+            ),
+            lambda item: item["outputs"]["model_preview_encrypted_reasoning"].update(value=None),
+            lambda item: item["outputs"]["model_preview_encrypted_reasoning"].update(value={"model-router": True}),
+            lambda item: item["outputs"]["model_preview_encrypted_reasoning"].update(value={"model-router": 0}),
+            lambda item: item["outputs"]["model_preview_encrypted_reasoning"].update(
+                value={"model-router": False, "unknown": False},
             ),
         )
         for change in alterations:
@@ -152,6 +162,41 @@ class PlanTests(unittest.TestCase):
     def test_only_the_fixed_model_to_router_update_is_accepted(self):
         self.assertEqual(self.review(plan()), "model-update")
         self.assertEqual(self.review(plan("no-op"), 0), "already-configured")
+        already_routed = plan()
+        already_routed["resource_changes"][-1]["change"]["before"]["template"][0]["container"][0]["env"][1][
+            "value"
+        ] = "model-router"
+        self.assertEqual(self.review(already_routed), "preview-update")
+
+    def test_preview_setting_must_match_the_checked_platform_output(self):
+        def set_after(item, value):
+            item["resource_changes"][-1]["change"]["after"]["template"][0]["container"][0]["env"][-1]["value"] = value
+
+        for value in ('{"model-router":false}', '{"gpt-4.1":false,"model-router":true}',
+                      '{"gpt-4.1":false,"model-router":0}', '{"gpt-4.1":false,"model-router":false,"other":false}',
+                      "not json"):
+            item = plan()
+            set_after(item, value)
+            with self.subTest(value=value), self.assertRaises(diagnostic.CheckError):
+                self.review(item)
+        item = plan()
+        item["resource_changes"][-1]["change"]["after"]["template"][0]["container"][0]["env"][-1][
+            "secret_name"
+        ] = "unexpected"
+        with self.assertRaises(diagnostic.CheckError):
+            self.review(item)
+
+    def test_existing_preview_setting_must_be_a_literal_boolean_map(self):
+        item = plan()
+        item["resource_changes"][-1]["change"]["before"]["template"][0]["container"][0]["env"].append({
+            "name": diagnostic.PREVIEW, "value": '{"gpt-4.1":false,"model-router":true}',
+        })
+        self.assertEqual(self.review(item), "model-update")
+        item["resource_changes"][-1]["change"]["before"]["template"][0]["container"][0]["env"][-1]["value"] = (
+            '{"model-router":"false"}'
+        )
+        with self.assertRaises(diagnostic.CheckError):
+            self.review(item)
 
     def test_rejects_other_environment_or_resource_changes(self):
         def append_environment(item):

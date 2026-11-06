@@ -318,7 +318,8 @@ Before a separately approved run:
 
 The diagnostic stages the checked-in platform source, verifies that the state
 identifies a Foundry account in the approved subscription, and requires the
-reviewed default Router inputs. It rejects imports, unrelated managed-resource
+reviewed default Router inputs and checks the preview capability output against
+the planned model inputs. It rejects imports, unrelated managed-resource
 changes, other deferred reads, unrelated output changes, drift, and nonpassing
 checks. The previously paused jumpbox disk and dependent role changes in #485 are not
 authorized by a Router plan and must be resolved separately. The report contains
@@ -594,9 +595,17 @@ with a nonempty `models` list of `{ format, name, version }` entries. Set it to
 before applying. After a successful apply, `model_router_deployment_name`
 contains its name and `model_deployment_names` includes it.
 
-The Lab reads that output through `platform_state` and uses Router for new
-agents. Set `agent_creation_model` to an existing deployment such as `gpt-4.1`
-to use a fixed model for new agents
+The `model_preview_encrypted_reasoning` output records which configured
+deployments should omit encrypted reasoning in stateless Lab previews. It
+includes the known `gpt-4.1` and `gpt-4.1-mini` versions and a Router only when
+its entire configured subset contains those versions. Unknown or mixed subsets
+are left unclassified. The output follows the declared configuration, not live
+inference; see [tool-enabled previews](../docs/agent-creation.md#tool-enabled-previews-and-encrypted-reasoning)
+for overrides and verification.
+
+The Lab reads the Router and preview outputs through `platform_state` and uses
+Router for new agents. Set `agent_creation_model` to an existing deployment
+such as `gpt-4.1` to use a fixed model for new agents
 without a profile-specific choice. If Router is explicitly disabled, the Lab
 uses the primary fixed deployment instead. If configured platform state contains
 neither model output, or a present Router output is invalid, the Lab plan requires
@@ -775,6 +784,7 @@ terraform -chdir=terraform output -raw foundry_project_endpoint
 terraform -chdir=terraform output -raw model_router_deployment_name
 terraform -chdir=terraform output -raw model_deployment_name
 terraform -chdir=terraform output -json model_deployment_names
+terraform -chdir=terraform output -json model_preview_encrypted_reasoning
 ```
 
 Use `model_router_deployment_name` for standard hosted-agent publishing and
