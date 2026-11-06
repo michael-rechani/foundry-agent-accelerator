@@ -32,6 +32,16 @@ The file uses a model placeholder and has no configured tools. Any lookup needs
 or document sources listed on the card are notes only; configure them separately
 in Foundry, then test the agent before relying on it.
 
+**Download ready-to-deploy agent** is the other way out of the spec card. It
+works for any spec, including one with no matching template. The Lab builds a
+`.agent-bundle.zip` itself (`POST /api/agent-bundles`, no model call, no cost,
+nothing sent to Foundry). The agent follows the spec's instructions like a plain
+chat assistant. It can't look anything up or read documents, and it doesn't have
+the Lab's built-in safety rules. Check it with `hosted-agents\bundle.py inspect`
+and deploy it into a project you control with `bundle.py deploy`; see
+[portable agent bundles](../hosted-agents/README.md#portable-agent-bundles).
+Deploying is billable and happens in your own environment, not in the Lab.
+
 ### Test a draft before you create it
 
 When library previews are on and the spec card points to a built-in template, the

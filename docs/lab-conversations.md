@@ -126,7 +126,16 @@ and makes no model call. **Download agent spec** downloads only the proposed
 agent definition, not the conversation. It is a draft with a model placeholder
 and an empty tools list; any listed lookup needs and document sources are
 descriptive only and must be configured separately in Foundry. Review and test
-the result there before relying on it.
+the result there before relying on it. **Download ready-to-deploy agent** builds
+a file you can deploy to your own Foundry project, even when the spec matches no
+template. The Lab builds it itself, so it makes no model call and costs
+nothing, and nothing is sent to Foundry. The agent follows the spec's
+instructions like a plain chat assistant. It can't look anything up or read
+documents, and it doesn't have the Lab's built-in safety rules. Check it over,
+then use `hosted-agents/bundle.py inspect` to confirm the file and
+`bundle.py deploy` to put it in a project you control (see
+[portable agent bundles](../hosted-agents/README.md#portable-agent-bundles)). It
+needs library previews on, like the Agent designer.
 Visiting another Lab page preserves the current chat in this browser tab;
 refreshing or closing the tab loses anything not saved or exported.
 

@@ -15,6 +15,12 @@ agent_runtime/*
 !agent_runtime/main.py
 !agent_runtime/demo_tools.py
 !agent_runtime/requirements.txt
+# The agent code the designer's hosted-agent bundle carries, a copy of hosted-agents/basic-responses-agent.
+!basic_agent_source/
+basic_agent_source/*
+!basic_agent_source/main.py
+!basic_agent_source/requirements.txt
+!basic_agent_source/instructions.md
 # Packages ship by directory: add one here and in the Dockerfile and build.ps1.
 # agent_templates/agents/ holds one JSON file per library agent, so a new agent needs no edit here.
 !agent_templates/

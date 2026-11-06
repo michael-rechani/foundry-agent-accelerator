@@ -1,5 +1,5 @@
-export function saveFile(name: string, text: string, type: string) {
-  const url = URL.createObjectURL(new Blob([text], { type }))
+export function saveFile(name: string, data: string | Blob, type: string) {
+  const url = URL.createObjectURL(new Blob([data], { type }))
   const link = document.createElement('a')
   link.href = url
   link.download = name

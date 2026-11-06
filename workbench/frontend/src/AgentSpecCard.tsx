@@ -2,9 +2,10 @@ import type { ReactNode } from 'react'
 import { ArrowRight, Download } from 'lucide-react'
 import { specDefinition, specFileName, type AgentSpec } from './agent-spec'
 import { saveFile } from './save-file'
+import { SpecBundleDownload } from './SpecBundleDownload'
 
-// What the Agent designer's spec turns into. Both actions are the person's
-// choice: the download only saves a file, and the template button only opens
+// What the Agent designer's spec turns into. Every action is the person's
+// choice: the downloads only save a file, and the template button only opens
 // Create agent with the task filled in, where nothing is made until the last
 // step is confirmed.
 export function AgentSpecCard({
@@ -78,10 +79,12 @@ export function AgentSpecCard({
       )}
       {tests}
       {build}
+      <SpecBundleDownload spec={spec} />
       {!spec.closest_template && (
         <p className="agent-spec-note">
           No built-in template matches this idea, so the Lab can&apos;t create
-          it here. Download the draft and configure it in your Foundry project.
+          it here. Download the draft and set it up in your Foundry project, or
+          download the ready-to-deploy agent and deploy it there.
         </p>
       )}
       <p className="agent-spec-note">

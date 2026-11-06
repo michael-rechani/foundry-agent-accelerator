@@ -21,6 +21,7 @@ updates:
       - /hosted-agents/review-coordinator-agent
       - /workbench
       - /workbench/agent_runtime
+      - /workbench/basic_agent_source
     schedule:
       interval: monthly
     groups:

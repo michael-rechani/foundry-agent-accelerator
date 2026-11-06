@@ -228,6 +228,92 @@ test('the Agent designer can end with a downloadable agent spec', async ({
   )
 })
 
+const bundleSpec = {
+  name: 'Renewal Checklist Helper',
+  summary: 'Turns a renewal notice into a short checklist.',
+  instructions: 'List what the person must send before the renewal date.',
+  inputs: 'A renewal notice',
+  outputs: 'A checklist',
+  tools_needed: [],
+  human_decision: 'A caseworker decides eligibility.',
+  closest_template: null,
+}
+
+async function openBundleCard(page: Page) {
+  await openWorkspace(page, {
+    config: withDesigner,
+    startup: true,
+    answer: `Here is the idea.\n\n\`\`\`agent-spec\n${JSON.stringify(bundleSpec)}\n\`\`\`\n`,
+  })
+  await editor(page).fill('Help people renew benefits')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  const card = page.getByRole('region', { name: 'Agent spec' })
+  await expect(card).toContainText('Renewal Checklist Helper')
+  return card
+}
+
+test('the spec card downloads a ready-to-deploy agent built by the Lab', async ({
+  page,
+}, testInfo) => {
+  const card = await openBundleCard(page)
+  const zip = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x01, 0x02])
+  const requests: { headers: Record<string, string>; body: unknown }[] = []
+  await page.route('**/api/agent-bundles', (route) => {
+    const request = route.request()
+    expect(request.method()).toBe('POST')
+    requests.push({ headers: request.headers(), body: request.postDataJSON() })
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/zip',
+      body: zip,
+    })
+  })
+  await expect(card).toContainText('Nothing is sent to Foundry from here.')
+  const download = page.waitForEvent('download')
+  await card
+    .getByRole('button', { name: 'Download ready-to-deploy agent' })
+    .click()
+  const file = await download
+  expect(file.suggestedFilename()).toBe(
+    'renewal-checklist-helper.agent-bundle.zip',
+  )
+  const saved = testInfo.outputPath('bundle.zip')
+  await file.saveAs(saved)
+  expect(await readFile(saved)).toEqual(zip)
+  expect(requests).toHaveLength(1)
+  expect(requests[0].headers['x-workbench-request']).toBe('1')
+  expect(requests[0].body).toEqual({
+    name: 'renewal-checklist-helper',
+    description: bundleSpec.summary,
+    instructions: bundleSpec.instructions,
+  })
+  await expect(card.getByRole('alert')).toHaveCount(0)
+})
+
+test('a spec the Lab will not bundle shows why and keeps the button usable', async ({
+  page,
+}) => {
+  const card = await openBundleCard(page)
+  let downloads = 0
+  page.on('download', () => downloads++)
+  await page.route('**/api/agent-bundles', (route) =>
+    route.fulfill({
+      status: 400,
+      json: { error: 'invalid_bundle', request_id: 'bundle-request-1' },
+    }),
+  )
+  const button = card.getByRole('button', {
+    name: 'Download ready-to-deploy agent',
+  })
+  await button.click()
+  const alert = card.getByRole('alert')
+  await expect(alert).toContainText("couldn't build this file")
+  await expect(alert).toContainText('instructions are too short')
+  await expect(alert).toContainText('Reference: bundle-request-1')
+  await expect(button).toBeEnabled()
+  expect(downloads).toBe(0)
+})
+
 test('designer conversation exports and survives saving, reopening, updating and deletion', async ({
   page,
 }, testInfo) => {
