@@ -25,7 +25,7 @@ The custom role allows only blob read/write/delete/add and container metadata
 read. Its assignment is at the existing container, with an ABAC condition
 restricting blob paths and list prefixes to `ai-foundry/`. It cannot change or
 delete containers, storage settings, networking or infrastructure. Terraform
-workspace keys outside that prefix are deliberately not authorized.
+workspace keys outside that prefix are not authorized.
 
 Only `main` can use the `terraform-state` environment, and each job requires a
 reviewer. An owner may review their own manually dispatched check; this is still
@@ -99,7 +99,7 @@ PR #484 merged the connectivity workflow. Its approved main run
 [41948909763](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/41948909763)
 passed private DNS, OIDC, namespace isolation and disposable-blob lease checks
 on the actual runner. No Terraform state contents were read or changed by it.
-It is intentionally not permitted on a PR branch.
+It isn't permitted on a PR branch.
 The new access resources are defined in this root but **not yet imported into
 Terraform state**. The runner's next reviewed plan must also retain
 `state_backend_private_endpoint_ips` and the existing registry/Foundry inputs

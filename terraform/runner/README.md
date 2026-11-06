@@ -56,8 +56,8 @@ other guides call the private runner.
 
 Set `state_backend_private_endpoint_ips` to the approved backend blob private
 endpoint addresses. This adds only `AllowStateBackendPrivateEndpointOutbound`
-(priority 140, outbound TCP 443). Public addresses, ranges and hostnames are
-rejected. Keep registry/Foundry exceptions and all inbound/VNet deny rules.
+(priority 140, outbound TCP 443). Variable validation rejects public addresses,
+ranges and hostnames. Keep registry/Foundry exceptions and all inbound/VNet deny rules.
 One backend address uses Azure's singular address field; multiple addresses use
 the plural field. This preserves the existing single-endpoint rule without a
 format-only NSG update.
@@ -231,7 +231,7 @@ stored in code, the Terraform state, the pull request, or chat.
 > [!NOTE]
 > Run Command works for registration, as long as the token is passed as
 > `RUNNER_TOKEN=<token>`. The bracketed `[{name:...,value:...}]` form doesn't
-> work with `az vm run-command create`: the CLI treats the whole string as one
+> work with `az vm run-command create`. The CLI treats the whole string as one
 > value called `arg1`, and the script never sees `RUNNER_TOKEN`. If Run Command
 > stops working, ask for approval to use Azure Bastion or the serial console
 > instead. Neither is enabled here. Serial console doesn't work with the
@@ -283,7 +283,7 @@ only deallocates when none of them is busy.
   identity. It never acts before the runner is registered, and it skips while a
   job or an apt update is running.
 - **Backstop.** A daily shutdown at 03:00 UTC (`auto_shutdown`) deallocates the VM
-  even if the idle check fails. A job running then is stopped.
+  even if the idle check fails. It stops a job running then.
 - **Updates.** `unattended-upgrades` installs security and standard updates and
   reboots at 04:30 if needed, and a reboot can interrupt a running job. The runner
   updates itself. Don't pass `--disableupdate`.

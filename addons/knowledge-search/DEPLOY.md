@@ -4,7 +4,7 @@
 > **This is a draft package, and nothing in it has been run against Azure.** The
 > module is a copy of the grant the platform root already makes for the dev
 > pilot (`knowledge_search_access` in [`terraform/`](../../terraform/README.md#knowledge-search-access)).
-> Don't use both for the same index: a second assignment of the same role fails
+> Don't use both for the same index, because a second assignment of the same role fails
 > with `RoleAssignmentExists`. Moving the platform's grant into this module is
 > tracked on [#121](https://github.com/michael-rechani/foundry-agent-accelerator/issues/121).
 
@@ -72,7 +72,7 @@ exactly one change:
 | Principal type | ServicePrincipal |
 | Scope | `<search service id>/indexes/<index name>` |
 
-Anything else, stop and ask.
+If the plan shows anything else, stop and ask.
 
 ## Approval
 
@@ -96,8 +96,8 @@ A person runs, from the private network:
 terraform apply knowledge-search.tfplan
 ```
 
-Apply the saved file, not a fresh plan. Terraform refuses it if the state moved
-since the plan, which is the point.
+Apply the saved file, not a fresh plan. Terraform refuses the file if the state changed
+since the plan, so a stale plan can't apply.
 
 ## Verify
 

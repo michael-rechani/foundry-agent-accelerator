@@ -12,7 +12,7 @@
     "summary": "Gives an agent a private place to keep the files it works from, such as policies, forms and reports.",
     "example": "A grant team keeps its policy PDFs in one place. Knowledge search and document extraction read them from there.",
     "cost": [
-      "Billed for how much is stored each month, by how quickly the files need to be reached.",
+      "Billed for the amount stored each month, at a rate set by the access tier.",
       "Reading and writing files adds a small charge each time."
     ],
     "needs": [

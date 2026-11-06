@@ -238,9 +238,10 @@ Each card's `group` decides which heading it sits under and its badge:
 storage or a cache. The **What can I create?** answers in Chat read the same file, so a new
 add-on appears there with no other change.
 
-Each card's job decides which heading the Add-ons tab lists it under:
-nswers (**Find answers**), documents (**Work with documents**), memory`n(**Remember and reuse**) or work (**Do the work and tell people**). Within a
-heading, cards follow order. The summary says what the add-on does in one
+Each card's job decides which heading the Add-ons tab lists it under: `answers`
+(**Find answers**), `documents` (**Work with documents**), `memory` (**Remember
+and reuse**) or `work` (**Do the work and tell people**).
+Within a heading, cards follow order. The summary says what the add-on does in one
 sentence.
 
 Each card also has a **Copy request for your coding agent** button, shown with

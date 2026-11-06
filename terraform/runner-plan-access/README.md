@@ -24,7 +24,7 @@ Reader assignments and records their IDs plus non-secret inputs in the existing
 reviewed `terraform-state` environment's `TF_RUNNER_PLAN_CONFIG` **secret**.
 Although these inputs contain no credential, storing the JSON as a variable
 would expose it in GitHub's automatic step-environment logging. The setup removes
-the old unmasked variable after successfully saving its masked replacement.
+the old unmasked variable after saving its masked replacement.
 It never connects to the private backend or writes state. Reruns reuse existing
 exact-scope assignments. No operator credentials are copied to GitHub.
 

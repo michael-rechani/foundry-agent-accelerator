@@ -156,7 +156,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Coordinator deployment or verification failed'
 
 The deployer checks the model and specialists and snapshots the previous endpoint
 before creating an immutable version. After activation it verifies the endpoint
-hasn't changed, promotes the candidate while preserving authorization. It reads
+hasn't changed and promotes the candidate while preserving authorization. It reads
 the exact active route back before and after the general smoke test and both
 mandatory delegation checks. Clients may reach the candidate during testing.
 
@@ -164,7 +164,7 @@ mandatory delegation checks. Clients may reach the candidate during testing.
 
 Treat the update as complete only when you have all of this evidence:
 
-- New version becomes active.
+- The new version becomes active.
 - Application and case delegation checks each report success.
 - Deployment exits with code zero and reports the promoted version.
 - A fresh inventory shows that version receiving the intended endpoint traffic.

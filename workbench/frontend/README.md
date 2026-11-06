@@ -35,7 +35,7 @@ configuration, including nullability and implicit types.
 `npm test` builds production assets and starts an isolated preview server on
 `127.0.0.1:4174`. Playwright tests run at desktop size with
 mocked APIs that return sample data. They use no Azure resources or credentials.
-Screenshots and failure traces are written to ignored `test-results/`. On Linux,
+Playwright writes screenshots and failure traces to ignored `test-results/`. On Linux,
 install browser system dependencies with `npx playwright install --with-deps chromium`.
 
 Specs share their setup through `tests/helpers/`. `mock-api.ts` answers every

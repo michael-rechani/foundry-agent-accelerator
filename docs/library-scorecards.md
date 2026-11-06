@@ -146,7 +146,7 @@ rules as these cases. See [Agent creation](agent-creation.md#test-a-draft-before
 > new recordings never need an entry. `python scorecards.py baseline --basis
 > "<why these rows are trusted>"` adds entries for cases whose rows carry no
 > fingerprint, refuses to overwrite one, and writes nothing when every row is
-> already stamped. Don't run it to get past a stale agent: record the agent again.
+> already stamped. Don't run it to get past a stale agent. Record the agent again.
 >
 > **Tool receipts.** Every recorded answer must carry `receipts`, the list of
 > `{"tool": name}` calls the agent made, so a case's `expected_tools` check is
@@ -192,7 +192,7 @@ instructions changed after its answers were recorded.
 them again. It also fails if any case has no recorded answer, so a new case
 can't drop out of the results unnoticed. `test_scorecards.py` fails if the
 Lab's copy drifts from the
-evidence, or if an agent's **Reviewed** label doesn't match it: an agent is
+evidence, or if an agent's **Reviewed** label doesn't match it. An agent is
 marked **Reviewed** exactly when a person has signed off its answers and every
 run passed.
 
@@ -210,7 +210,7 @@ answers again. Don't run `signoff` on someone else's behalf.
 
 `--all` lists every agent that has recorded answers, even when an earlier
 sign-off of one of them is stale, and replaces that sign-off with the new one.
-Read the changed answers first: the new sign-off certifies exactly what the
+Read the changed answers first. The new sign-off certifies exactly what the
 reviewer read. A normal `write` or `check` still fails on a stale sign-off.
 
 The library's **Reviewed** label comes from `workbench/agent_templates/`, not
@@ -332,11 +332,11 @@ Foundry through the peered VNet.
   history is scoped to the run, not an individual attempt, so automatic wake-up
   fails closed on a rerun rather than reusing an earlier approval.
 - The `library-recording` environment holds a required reviewer, so nothing is
-  sent until the owner approves. Check the `ref` in the approval prompt: the
+  sent until the owner approves. Check the `ref` in the approval prompt, because the
   runner runs the code at that ref.
 - It signs in as its own identity, `gh-library-recording`, with no stored secret.
   That identity has one role, Foundry User, on the Lab's Foundry account only,
-  and Azure accepts it only from that environment.   Terraform creates it,
+  and Azure accepts it only from that environment. Terraform creates it,
     with the environment and its required reviewer, in
     [terraform/identity](../terraform/identity/README.md).
 - A full recording outlasts one GitHub sign-in token, so the job asks GitHub for a

@@ -94,7 +94,7 @@ pinned version.
 
 | Option | Status in the pinned versions | Why not chosen now |
 | --- | --- | --- |
-| **Foundry Azure AI Search tool**, called directly through `FoundryChatClient.get_azure_ai_search_tool(...)` | The Foundry tool is GA. The Agent Framework wrapper is marked experimental (`FOUNDRY_TOOLS`) in `agent-framework-foundry` 1.13.1 and emits an experimental warning. | Keyless auth uses the Foundry project managed identity with **Search Index Data Contributor** and **Search Service Contributor** (write and admin-capable), shared by every agent in the project. It needs a project connection ID. Microsoft Learn lists a vector-configured index as a prerequisite. Tool calls are hosted by Foundry, so the repository can't enforce a field allowlist or label content as untrusted. Its receipts don't use the specialist receipt shape. |
+| **Foundry Azure AI Search tool**, called directly through `FoundryChatClient.get_azure_ai_search_tool(...)` | The Foundry tool is GA. The Agent Framework wrapper is marked experimental (`FOUNDRY_TOOLS`) in `agent-framework-foundry` 1.13.1 and emits an experimental warning. | Keyless auth uses the Foundry project managed identity with **Search Index Data Contributor** and **Search Service Contributor** (write and admin-capable), shared by every agent in the project. It needs a project connection ID. Microsoft Learn lists a vector-configured index as a prerequisite. Foundry hosts the tool calls, so the repository can't enforce a field allowlist or label content as untrusted. Its receipts don't use the specialist receipt shape. |
 | **Foundry toolbox** exposing Azure AI Search over MCP (`FoundryToolbox`) | Microsoft Learn recommends toolboxes for hosted agents. The toolbox itself is created in the project (`project.toolboxes.create_toolbox_version`). | Same identity and role model as the direct tool, plus an Azure-side toolbox resource to create and version. That is an Azure change this scope excludes. |
 | **`AzureAISearchContextProvider`** from `agent-framework-azure-ai-search` | Beta (`1.0.0b260910`). Requires `agent-framework-core>=1.18`, `aiohttp`, and `azure-search-documents>=12,<13`. Agentic mode needs a Search Knowledge Base and an Azure OpenAI resource. | Injects retrieved context on every turn instead of through a tool call, so there's no function-call receipt to verify, and the model can't decide when a lookup is relevant. Adds a beta package. |
 | **Bespoke retrieval service** | Not applicable. | The [extension guide](architecture-assessment.md#features-to-evaluate-only-when-needed) discourages it. It would add a new service, identity, and network path. |
@@ -114,9 +114,9 @@ could blur that boundary. Enabling it there is an
 
 ## What the flag changes
 
-The flag is read when you run
-[`case-review-agent/deploy.py`](../hosted-agents/case-review-agent/deploy.py),
-and again by the runtime inside the container.
+[`case-review-agent/deploy.py`](../hosted-agents/case-review-agent/deploy.py)
+reads the flag when you run it, and the runtime reads it again inside the
+container.
 
 | Setting | Default | Rules |
 | --- | --- | --- |
@@ -194,8 +194,8 @@ default profile, and bundle validation rejects the overlay files and
 - The query must be nonempty and at most 500 characters. Invalid queries return
   a failed receipt without calling Search.
 - Calls `search(search_text=query, search_mode="all", top=KNOWLEDGE_TOP_K,
-  select=<allowlist>, query_type="simple", include_total_count=False)`. No filter,
-  facets, vector, semantic ranker, or write operations.
+  select=<allowlist>, query_type="simple", include_total_count=False)`. It uses no
+  filter, facets, vector, semantic ranker, or write operations.
 - **Every query word must match.** `search_mode="all"` returns a passage only if
   its title, section, and content together contain every word of the query, in any
   order. Search drops common words such as "the" or "is" first. The tool
@@ -226,7 +226,7 @@ default profile, and bundle validation rejects the overlay files and
   `source_ids`, so the answer can say so. The deploy smoke check treats
   an empty result as a failure. Errors and timeouts (20 seconds) return `failed`
   with a generic message and no exception details, endpoint, or principal.
-- The search client gives up on its own: 5 seconds to connect, 10 seconds for the
+- The search client sets its own timeouts: 5 seconds to connect, 10 seconds for the
   response, and no retries. A slow search request therefore ends before the
   20-second deadline instead of running on in a worker thread after the tool has
   already answered. Token acquisition has its own limits in the identity library.
@@ -237,13 +237,13 @@ See the [permissions reference](permissions.md) for all current assignments.
 
 | Who | Role | Scope | When |
 | --- | --- | --- | --- |
-| `case-review-agent` hosted-agent runtime identity (its `instance_identity.principal_id`) | **Search Index Data Reader** (`1407120a-92aa-4202-b7e9-c0e197c71c8f`) | The single approved index: `.../searchServices/<service>/indexes/<index>` | Before publishing a retrieval-enabled version. Terraform can assign it: see [Knowledge search access](../terraform/README.md#knowledge-search-access). |
+| `case-review-agent` hosted-agent runtime identity (its `instance_identity.principal_id`) | **Search Index Data Reader** (`1407120a-92aa-4202-b7e9-c0e197c71c8f`) | The single approved index: `.../searchServices/<service>/indexes/<index>` | Before publishing a retrieval-enabled version. Terraform can assign it. See [Knowledge search access](../terraform/README.md#knowledge-search-access). |
 | The person who runs the [index script](#sample-documents-and-the-index-script), signed in with their own account | **Search Service Contributor** (reads the index definition, creates or deletes the index) and **Search Index Data Contributor** (lists, loads, and deletes passages) | The Search service. The index doesn't exist yet when `load` creates it, so the data role can't be scoped to it for that first run. | Only while running `load` or `remove`. Remove both roles afterward. |
 
 - Search Index Data Reader can query indexes but can't load documents, change
   definitions, or read admin keys.
-- Scope the reader role to the index, not the service. Per-index scoping is
-  supported by Azure AI Search.
+- Scope the reader role to the index, not the service. Azure AI Search
+  supports per-index scoping.
 - Don't use API keys. The service has local authentication disabled.
 - Grant the role before publishing. Token caching can delay a late grant, and
   the retrieval smoke check fails closed without it.
@@ -274,7 +274,7 @@ The existing platform already provides the path. This design doesn't change it.
 - The Foundry account uses network injection into `snet-agent-services`, so
   hosted-agent egress is expected to resolve and reach the private endpoint.
 
-Verify this in staging before relying on it: the retrieval smoke check proves
+Verify this in staging before relying on it. The retrieval smoke check proves
 DNS, network, and RBAC together. The dev environment's result is in
 [Pilot results](#pilot-results-2026-10-01). If you use a different Search
 service, it needs its own private endpoint and DNS link; don't enable public

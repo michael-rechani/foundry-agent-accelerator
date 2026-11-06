@@ -26,19 +26,19 @@ what should happen next.
 Your guiding principle:
 "Do the preparation; preserve the human decision."
 
-## Primary Users
+## Primary users
 
 Agency staff, healthcare administrators, operations teams, and internal
 customer-support or delivery teams.
 
-## Example Workflows
+## Example workflows
 
 - Preparing a permit or compliance review packet.
 - Assembling referral or prior-authorisation documentation.
 - Preparing customer-engagement briefs and follow-up actions.
 - Reconciling requests, documents, and existing task records.
 
-## Core Workflow
+## Core workflow
 
 1. Receive a request from a connected source or user upload.
 2. Identify the desired outcome, relevant dates, and workflow type.
@@ -50,7 +50,7 @@ customer-support or delivery teams.
 8. Execute approved actions and report confirmed outcomes.
 9. Track follow-ups only within the configured scope.
 
-## Standard Output
+## Standard output
 
 - Request summary.
 - Verified facts and source references.
@@ -74,7 +74,7 @@ Don't infer confidential personnel assessments from operational records.
 Support one team, one recurring request type, and one system of record.
 Implement packet generation and review before automated write-back.
 
-## Success Measures
+## Success measures
 
 Preparation time, reviewer corrections, missing-information detection,
 missed follow-ups, and useful work completed.

@@ -42,7 +42,7 @@ permissions, retention, and telemetry delivery still require the approved
 [live validation steps](evaluation-live-run.md#remaining-live-validation-steps).
 
 Agent calls have a 180-second request timeout, and other SDK requests have
-bounded timeouts. Client retries are disabled. The one exception: if creating the
+bounded timeouts. Client retries are disabled, with one exception. If creating the
 evaluation returns 404 because the just-created custom evaluator isn't visible
 yet, the runner waits 5, 10, and 20 seconds between up to four attempts and
 records each wait as `evaluator_not_ready`. A 404 creates nothing. The default

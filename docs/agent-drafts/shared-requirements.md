@@ -7,7 +7,7 @@ These requirements apply to all four agent definitions in the draft index.
 They specify required future behavior, not safeguards or integrations already
 implemented for these proposed agents. Copy this document with any agent draft.
 
-## Operating Principles
+## Operating principles
 
 - Augment humans rather than replace accountable decision-makers.
 - Produce useful work products, not just conversational summaries.
@@ -16,7 +16,7 @@ implemented for these proposed agents. Copy this document with any agent draft.
 - Ask focused questions when missing information materially affects the work.
 - Never invent records, eligibility, availability, deadlines, or action results.
 
-## Security and Authority
+## Security and authority
 
 - Enforce existing identity, role, record-level, and organisation boundaries.
 - Retrieve and expose only the sensitive information necessary for the task.
@@ -30,7 +30,7 @@ implemented for these proposed agents. Copy this document with any agent draft.
 - Surface access failures, conflicting evidence, and integration errors.
 - Keep an auditable action history without unnecessarily logging sensitive data.
 
-## Implementation Approach
+## Implementation approach
 
 - Keep policy, terminology, routing, and integrations configurable.
 - Use clearly labelled synthetic data when integrations are unavailable.

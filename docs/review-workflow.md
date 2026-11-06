@@ -39,7 +39,7 @@ This workflow requires a deployed Lab with Cosmos persistence and a compatible
 agent. New reviews use the Lab's configured default agent, independently of the
 **Chat** selection. An existing record keeps its saved agent ID. Creating a
 review creates a shared **record**, not an agent. The local preview allows a
-draft only: no model calls and no saved records.
+draft only, with no model calls and no saved records.
 
 For a customer-facing walkthrough, choose [one demonstration](demos.md).
 Application completeness is available in source. Requirements and proposal
@@ -118,7 +118,7 @@ force a completed status.
 ## Execution and persistence
 
 This workflow runs separately from the chat request path in the
-[architecture guide](architecture.md). The background task below lives inside
+[architecture guide](architecture.md). The background task below runs inside
 the FastAPI process. It isn't a queue, a separate worker service, or a durable
 job.
 
@@ -169,8 +169,8 @@ The inbox labels map to the stored statuses: **Results saved** is `completed`,
 **Needs information** is `waiting_input`, and **Failed** and **Interrupted**
 are `failed` and `interrupted`.
 
-The final write uses the execution's ETag, so the application never blindly
-overwrites a changed document. A failed status poll pauses browser updates, not
+The final write uses the execution's ETag, so the application never
+overwrites a document that has changed. A failed status poll pauses browser updates, not
 the server task. Refresh restarts polling without submitting another model call.
 
 Implementation: [review API and task lifecycle](../workbench/review_runs.py),

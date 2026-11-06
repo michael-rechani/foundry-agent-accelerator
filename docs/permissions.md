@@ -100,7 +100,7 @@ least privilege or live access.
 
 ### Coordinator agent access
 
-The coordinator's agent identity is created by Foundry, not Terraform, so you
+Foundry creates the coordinator's agent identity, not Terraform, so you
 supply its principal ID.
 
 - **Where the ID comes from.** Per Microsoft Learn, an agent created with the
@@ -131,11 +131,11 @@ supply its principal ID.
 
 ### Knowledge search access
 
-The case-review agent's runtime identity is created by Foundry, not Terraform,
+Foundry creates the case-review agent's runtime identity, not Terraform,
 so you supply its principal ID, as for the coordinator. Copy the
 `Agent identity principal ID` that the hosted-agent deployer prints for
 `case-review-agent` into `knowledge_search_access.principal_id`. The index
-itself isn't a Terraform resource: `knowledge_index.py` creates it, and it has
+itself isn't a Terraform resource. `knowledge_index.py` creates it, and it has
 to exist before the grant is useful. See
 [Knowledge search access](../terraform/README.md#knowledge-search-access).
 
@@ -310,7 +310,7 @@ identity, so that identity needs these roles before agents run
 
 The module also has account-level user-assigned identity variants of the last
 two rows and a Key Vault Crypto User assignment for customer-managed keys. This
-repository creates neither: it sets `user_assigned_resource_ids = []` and
+repository creates neither. It sets `user_assigned_resource_ids = []` and
 supplies no customer-managed key. Confirmed from source: the module gives the
 Agent Service Key Vault no default role assignments or secrets, and doesn't
 connect it to the project. A module upgrade can change this list, so review it
@@ -411,7 +411,7 @@ Manager's role assignment right covers only the Foundry User role
 ([hosted agent permissions](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agent-permissions#agent-creation)).
 Only a live create settles it, because nothing here exercises Foundry's own
 first-agent setup. A first attempt on 2026-10-04 stopped before it created
-anything: the key holder wasn't available, so the role was removed for about a
+anything. The key holder wasn't available, so the role was removed for about a
 minute and then assigned again with the same scope and description.
 
 The dev Lab identity got Foundry Project Manager by hand on 2026-09-23. While

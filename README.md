@@ -119,7 +119,7 @@ look for and a decision that stays with a person.
 
 | Story | What to spot | People decide |
 | --- | --- | --- |
-| [Find what’s missing](docs/showcase.md#find-whats-missing) | A missing budget, a named owner, and conflicting schedules. | Verify the documents and determine the application outcome. |
+| [Find what's missing](docs/showcase.md#find-whats-missing) | A missing budget, a named owner, and conflicting schedules. | Verify the documents and determine the application outcome. |
 | [Catch what does not add up](docs/showcase.md#catch-what-does-not-add-up) | Billed quantities and prices that differ from the purchase order. | Resolve damaged items and determine what to pay. |
 | [Turn scattered notes into a brief](docs/showcase.md#turn-scattered-notes-into-a-brief) | Supported facts, conflicting dates, and missing evidence. | Verify the authoritative record and determine the next steps. |
 
@@ -226,8 +226,8 @@ More diagrams are in the [architecture guide](docs/architecture.md).
 platform, Lab, and verify in order. It shows each Terraform plan and applies
 only after you type `apply`. Start with `-Stage preflight` or `-PlanOnly`.
 
-Foundry, with its project, model deployment, and Agent Service setup, is
-deployed with Terraform and [Azure Verified Modules](terraform/README.md). The
+Terraform and [Azure Verified Modules](terraform/README.md) deploy Foundry, with
+its project, model deployment, and Agent Service setup. The
 [infrastructure guide](terraform/README.md#at-a-glance) lists every Terraform
 root and its state. The repo uses Terraform rather than Bicep. See
 [why](docs/architecture-assessment.md#terraform-first-deployment).

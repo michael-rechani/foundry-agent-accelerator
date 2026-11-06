@@ -47,7 +47,7 @@ $description = if ($Tour -eq 'scenarios') {
 }
 
 # Each frame holds for $frameSeconds, including a $fadeSeconds crossfade into
-# the next one. The last frame fades back to the first, so the loop is seamless.
+# the next one. The last frame fades back to the first, so the loop has no visible jump.
 $frameSeconds = 4
 $fadeSeconds = 0.6
 $cycle = $steps.Count * $frameSeconds

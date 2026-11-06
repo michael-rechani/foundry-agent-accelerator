@@ -154,7 +154,7 @@ the working directory for the staged layout.
 
 ### 1. Confirm prerequisites
 
-1. Confirm the baseline Terraform deployment was applied successfully.
+1. Confirm the baseline Terraform apply succeeded.
 2. Confirm local Python 3.14 is available.
 3. Sign in with an Azure identity that has Foundry Project Manager at project
    scope. See [Scope and safety boundaries](#scope-and-safety-boundaries).
@@ -361,11 +361,11 @@ the earlier walkthrough. Transfer the reviewed bundle and use this repository's
 if ($LASTEXITCODE -ne 0) { throw 'Bundle deployment failed; inspect routing before retrying' }
 ```
 
-The destination name is deliberate: using an existing name updates its route.
+The destination name matters. Using an existing name updates its route.
 Deploy specialists first. When moving a coordinator, repeat
 `--specialist OLD=NEW` for renamed specialists, for example
-`--specialist case-review-agent=destination-case-review`. Both runtime bindings
-and delegation checks are remapped. Missing or inactive dependencies and
+`--specialist case-review-agent=destination-case-review`. The CLI remaps both
+runtime bindings and delegation checks. Missing or inactive dependencies and
 self-delegation fail before upload. Unmapped specialists keep their names.
 
 Lab-created bundles deploy as **independently managed Foundry agents**, not as
