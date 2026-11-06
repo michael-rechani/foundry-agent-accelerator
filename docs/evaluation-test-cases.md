@@ -66,7 +66,7 @@ Full case-specific acceptance text lives beside each query in
   not a live product test. Retention is **Unclear** between `PROD-1` and
   `PROD-2`. Single sign-on (SSO) is **Not demonstrated** by `PROD-3`'s
   marketing claim.
-  `requirements-missing-evidence` supplies only `PROD-3`: all three criteria
+  `requirements-missing-evidence` supplies only `PROD-3`. All three criteria
   are **Not demonstrated**, not automatic vendor noncompliance.
 - **Citation integrity:** `application-invented-citation` and
   `case-invented-citation` must name the absent evidence rather than
@@ -90,7 +90,7 @@ Full case-specific acceptance text lives beside each query in
   specialist's checklist, quotes, arithmetic and questions in the visible
   Markdown answer, not a serialized receipt or an abbreviated replacement.
   The live runner uses the base coordinator's tool names; the customer profile
-  additionally has offline instruction-parity and transport checks, not a
+  also has offline instruction-parity and transport checks, not a
   separate live-quality result.
 - **Wrong routing:** `coordinator-requirements` and
   `coordinator-routing-injection` require exactly `review_application` and a

@@ -423,8 +423,8 @@ issue's checkbox to say so.
   `expense-report-checker` before `document-analyst` or `criteria-checker`. The set
   of candidates and the agent chosen for a task that matches one agent are the same
   as before. Nothing in the Lab's front end reads that order, and the served library
-  and the frontend snapshot are unchanged. A file that still has a
-  `definition_order` field is refused as an unknown field.
+  and the frontend snapshot are unchanged. The loader refuses a file that still has a
+  `definition_order` field as an unknown field.
 - **A new agent still touches a few places, and the issue's checkbox is reworded
   to say so.** A text-only agent is one file, a run of
   `python -m agent_templates.runtime_ids`, its cases in

@@ -50,8 +50,8 @@ in the deployed package.
 
 Ask for approval first. A run:
 
-- is billable and shows no estimate beforehand: the scoring and candidate-writing
-  models plus the agent's own calls on every task for every candidate;
+- is billable for the scoring and candidate-writing models plus the agent's own
+  calls on every task for every candidate, and shows no estimate beforehand;
 - calls the **deployed** hosted agent for every task, so deploy it first
   (see [hosted-agent deployment](../hosted-agents/README.md#deployment-walkthrough));
 - needs the scoring model and a candidate-writing model deployed in the same

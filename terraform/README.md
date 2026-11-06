@@ -201,7 +201,7 @@ For dedicated browser-based access, the separate
 and upgrade it without changing the VM or platform resources. The Bastion root
 uses its own protected state key and incurs continuous Bastion charges. Applying
 this parent configuration doesn't enable Bastion. The Bastion root requires
-`approve_bastion_public_ip = true` for the same reason: Standard Bastion needs a
+`approve_bastion_public_ip = true` for the same reason. Standard Bastion needs a
 static public IP.
 
 For a new VM, pre-provision a strong Windows administrator password in an
@@ -416,9 +416,9 @@ work without a separate private management endpoint.
 > [!IMPORTANT]
 > Standard v2 is billed continuously, even with no API traffic. Set
 > `enable_api_management = false` in environments that don't need the gateway.
-> Azure Managed Redis and APIM semantic caching are deliberately excluded because
-> they're separate recurring-cost resources and agent-to-agent communication
-> doesn't need them.
+> This configuration excludes Azure Managed Redis and APIM semantic caching
+> because they're separate recurring-cost resources and agent-to-agent
+> communication doesn't need them.
 
 After apply, inspect the deployed gateway with:
 
@@ -432,7 +432,7 @@ terraform -chdir=terraform output -raw api_management_gateway_url
 
 After deploying and testing a coordinator, configure `review_api` to select its
 named endpoint and a specific Microsoft Entra ID audience, caller object IDs, and
-client app IDs. The default is null: no API is published. See the
+client app IDs. The default is null, so no API is published. See the
 [publication runbook and acceptance gates](../docs/apim-review-api.md).
 
 Run `./scripts/terraform/test-review-api-validation.ps1` for isolated input validation
@@ -546,7 +546,7 @@ changing `ai_search_sku` replaces the service, its private endpoint and its role
 assignments, and it deletes any indexes. The service keeps its name, so the
 project's connection and capability host stay valid. Before switching, confirm
 the service has no indexes and the project has no vector stores. The service
-stays private: public network access is off and it uses Microsoft Entra ID only.
+stays private. Public network access is off, and it uses Microsoft Entra ID only.
 
 Configure a pre-created backend as described in [State](#state). Authenticate
 before running Terraform, and keep credentials out of configuration. Preserve
@@ -669,8 +669,8 @@ empty state for resources that already belong to another state.
 session and authorize directly against the Blob Storage data plane. The user
 needs the Storage Blob Data Contributor role on the state container.
 
-The dependency lock file should be committed and updated deliberately with
-`terraform init -upgrade` after reviewing provider and module changes.
+Commit the dependency lock file, and update it with
+`terraform init -upgrade` after you review provider and module changes.
 
 ## Outputs
 
@@ -699,9 +699,9 @@ key authentication are foundations. They don't prove production suitability. See
 controls. Before production use:
 
 - Decide which backing services should have a separate platform owner. The AVM
-  bring-your-own-resources (BYOR) path is already enabled with Agent Service:
-  this root owns Cosmos and agent storage, while the AVM creates Search and Key
-  Vault.   Moving resources to another state requires an ownership
+  bring-your-own-resources (BYOR) path is already enabled with Agent Service.
+  This root owns Cosmos and agent storage, while the AVM creates Search and Key
+  Vault. Moving resources to another state requires an ownership
   migration, not another copy of the module.
 - Integrate the workload virtual network and private DNS zones with the
   landing-zone hub, firewall, DNS resolver, and on-premises routing design.

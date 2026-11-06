@@ -23,7 +23,7 @@ Existing platforms keep their own zone until the explicit adoption below.
 1. Copy `dev.tfvars.example` to an ignored `dev.tfvars` and set your
    subscription. Set `peered_virtual_network_ids` to existing VNets that run
    Terraform. They get two-way peering and a link to the shared blob DNS zone.
-   The runner is a subnet of the management VNet: add that VNet once, not a
+   The runner is a subnet of the management VNet, so add that VNet once, not a
    second runner entry. Do not link a VNet that still uses a different zone
    with this namespace; follow the adoption procedure first.
 2. Run from this directory, then review the saved plan before applying:
@@ -98,7 +98,7 @@ egress it proposes. A broad deployment approval does not cover public exposure.
    workload link; do not add that workload VNet to this map as well.
 4. Use an approved private host with DNS and routing to the state VNet.
    Transfer the local bootstrap and platform state and reviewed inputs
-   securely if changing hosts. State contains secrets: never put it in Git,
+   securely if changing hosts. State contains secrets, so never put it in Git,
    issues, workflow artifacts, or shared chat.
 5. Before migrating, check that the state account, platform agent storage and
    Azure Monitor blob names resolve through the shared zone to their private
@@ -118,9 +118,9 @@ reconciling the current Lab. To adopt its missing backend endpoint while
 keeping the existing shared account and platform-owned zone, use
 [existing backend endpoint adoption](../README.md#adopt-an-existing-backend-private-endpoint).
 
-Tracked under [#389](https://github.com/michael-rechani/foundry-agent-accelerator/issues/389)
+This is tracked under [#389](https://github.com/michael-rechani/foundry-agent-accelerator/issues/389)
 and [#393](https://github.com/michael-rechani/foundry-agent-accelerator/issues/393).
-**Do not simply set the shared-zone input and apply.** The old platform zone
+**Do not set the shared-zone input and apply.** The old platform zone
 would leave Terraform's managed resource set; `prevent_destroy` blocks its
 deletion until ownership is explicitly relinquished. Adoption is a separately approved maintenance operation, with a
 possible DNS interruption, not an automatic `deploy.ps1` stage.

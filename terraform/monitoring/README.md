@@ -121,8 +121,8 @@ telemetry.
    query the trace by response/operation ID. Confirm spans, timings, status, and
    token counts are present, and that prompt, response, and tool-content fields
    and the marker are absent from telemetry. Exercise delegation too, so tool
-   argument/result exclusion is checked. Include `AppGenAIContent` when present:
-   it can contain tool schemas even with message capture disabled. Check that
+   argument/result exclusion is checked. Include `AppGenAIContent` when present.
+   It can contain tool schemas even with message capture disabled. Check that
    `InputMessages`, `OutputMessages`, `SystemInstructions`, `ToolCallArguments`,
    and `ToolCallResult` are empty. Don't assume that any row means a leak or
    that a protected table means content exclusion.

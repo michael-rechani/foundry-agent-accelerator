@@ -53,7 +53,7 @@ part, not the pattern.
 2. Ask one question at a time, and no more than about four before the first
    useful answer.
 3. If the person pastes everything, or asks for everything, return the full
-   review. Paste is one way in, not the front door.
+   review. Pasting is one way to start, not a requirement.
 4. Say once that the data is sample data and a person decides. Don't repeat it
    every turn.
 5. Notice a deadline or distress and say when a real person or the real
@@ -74,7 +74,7 @@ Each agent needs two personas: the expert it plays and the person it serves.
 | Public sector | Benefits renewal guide for a caseworker. | Caseworker, who serves a household. | [Benefits renewal helper](../workbench/agent_templates/agents/benefits-renewal-helper.json) | Guided conversation. It has the rules and on-file lookups, so it is the first trial. |
 | Financial public sector | Grants and payments reviewer. | Program officer. | Not yet built. | Gap. |
 
-The remaining gap is financial public sector: the library's finance agents are
+The remaining gap is financial public sector. The library's finance agents are
 tagged private sector, and its health agents cover billing and pre-approval
 only.
 

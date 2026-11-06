@@ -104,7 +104,7 @@ created sample agent ready rather than promising instant deployment.
    quality pass.
 7. Open it in **Chat**, select its sample, and send it. Keep the source
    text visible and ask a follow-up. Watch for tool receipts only when tools
-   actually run.
+   run.
 8. Record findings and export anything you need before an operator deletes the
    created agent. Closing a tab doesn't stop its cloud costs.
 

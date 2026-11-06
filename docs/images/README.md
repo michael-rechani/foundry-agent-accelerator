@@ -271,7 +271,7 @@ the plain view a customer sees. The `docsScreenshot` helper in
 puts it back afterwards, so every test still runs with it on.
 
 The same helper switches the page to the **Aurora** look for the capture, so
-every screenshot shows the Lab's glowing, futuristic style while the tests
+every screenshot shows the Aurora look while the tests
 themselves keep running in the default look. Aurora keeps its contrast in both
 light and dark mode. To capture another look, change the `data-look` value in
 `docsScreenshot`.

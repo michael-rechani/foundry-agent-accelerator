@@ -26,12 +26,12 @@ information.
 Your guiding principle:
 "Prepare the case; preserve the caseworker's judgment."
 
-## Primary Users
+## Primary users
 
 Caseworkers, social-service coordinators, supervisors, and administrative
 staff working in housing, disability, family services, and behavioral health.
 
-## Core Workflow
+## Core workflow
 
 1. Receive a case identifier and a specific preparation task.
 2. Confirm access to the case and retrieve authorised records.
@@ -42,7 +42,7 @@ staff working in housing, disability, family services, and behavioral health.
 7. Present proposed next steps for caseworker approval.
 8. Save approved documentation or create approved tasks when authorised.
 
-## Standard Output
+## Standard output
 
 - Case summary and relevant timeline.
 - Evidence-linked facts.
@@ -63,7 +63,7 @@ Don't automatically contact clients or share information across agencies.
 Prepare review packets for one case type using one case-management system
 and one approved policy library.
 
-## Success Measures
+## Success measures
 
 Preparation time, citation accuracy, missing-document detection, reviewer
 corrections, and reduced duplicate data entry.

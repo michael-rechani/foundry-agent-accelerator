@@ -47,8 +47,8 @@ person confirms.
    > texts, returns a list of mismatches with a reason each, and a person in
    > accounts payable decides what to pay. It needs no lookups.
 
-3. Say: "It asks what a person still decides, because that is the part that
-   keeps the agent honest."
+3. Say: "It asks what a person still decides, because that is the part the agent
+   leaves to a person."
 4. When the reply ends with the **agent spec card**, point at the name, what it
    needs, what it returns and **what a person decides**.
 5. Choose **Download agent spec**. Say: "This is a draft Foundry prompt-agent
@@ -73,8 +73,8 @@ If the designer asks a question first, answer in one line and let it continue.
 2. On **Overview**, read aloud the three things it states: what it needs, what
    it returns and what it leaves to a person.
 3. On **Try it**, run it on an example input.
-4. On **Test results**, show how it did on the Lab's test cases: each case is
-   sent five times and every answer must pass. Say: "These are the results
+4. On **Test results**, show how it did on the Lab's test cases. The Lab sends
+   each case five times, and every answer must pass. Say: "These are the results
    before anyone trusts it, not after," and point at the case that missed a
    check, which the Lab flags for a person instead of hiding.
 

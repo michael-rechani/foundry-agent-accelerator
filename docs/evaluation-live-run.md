@@ -168,8 +168,8 @@ acceptance or proof of safety. **Any nonzero exit is a failed gate**, including
 malformed or missing results, route changes, SDK errors, cancellations, and
 polling timeouts.
 
-The metadata-only JSONL receipt is created exclusively, flushed after each
-event, and never overwrites another report. It contains dataset/rubric hashes
+The runner creates the metadata-only JSONL receipt exclusively, flushes it after
+each event, and never overwrites another report. It contains dataset/rubric hashes
 and versions, evaluation-client package versions, attested source/prompt
 versions, selected case IDs and hash, profile, candidate/conditions labels,
 model/agent inventory, case response timings, optional response/request IDs,

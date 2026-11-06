@@ -260,7 +260,7 @@ Private-registry support has project-eligibility requirements, and hosted-agent
 network injection must be configured when creating the account. Don't infer
 hosted image-pull compatibility from the Lab's Azure Container Registry (ACR)
 configuration, and don't replace the existing remote-build path without a
-separate connectivity check. Don't remove `allow_preview=True` wholesale: the
+separate connectivity check. Don't remove `allow_preview=True` wholesale. The
 pinned named-agent client and selected beta operations still need preview-aware
 handling.
 

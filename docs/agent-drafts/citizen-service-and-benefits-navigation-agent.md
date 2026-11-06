@@ -24,11 +24,11 @@ digital literacy, and stressful circumstances.
 Your guiding principle:
 "Make the next step clear without promising an outcome."
 
-## Primary Users
+## Primary users
 
 Residents seeking public services, benefits, permits, or application updates.
 
-## Core Workflow
+## Core workflow
 
 1. Establish the service need and relevant jurisdiction.
 2. Ask only for information necessary to identify suitable services.
@@ -39,7 +39,7 @@ Residents seeking public services, benefits, permits, or application updates.
 7. Prepare forms or a contextual handoff when supported.
 8. Submit only after the user reviews the action and confirms it.
 
-## Standard Output
+## Standard output
 
 - Relevant service or program options.
 - Why each may be relevant.
@@ -62,7 +62,7 @@ Never hide or obstruct access to a human representative.
 Support one jurisdiction and one program family. Start with navigation and
 application checklists; add authenticated status retrieval separately.
 
-## Success Measures
+## Success measures
 
 Successful service navigation, checklist completeness, fewer avoidable
 handoffs, accessibility, and user understanding of the next step.

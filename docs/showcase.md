@@ -13,7 +13,7 @@ that stays with a person. You can read them without Azure.
 - [Turn scattered notes into a brief](#turn-scattered-notes-into-a-brief)
 - [Present without hiding the boundaries](#present-without-hiding-the-boundaries)
 - [Present from the jump box](#present-from-the-jump-box)
-- [One foundation. Repeatable agent releases.](#one-foundation-repeatable-agent-releases)
+- [One foundation, repeatable agent releases](#one-foundation-repeatable-agent-releases)
 - [Related content](#related-content)
 
 ## Find what's missing
@@ -162,7 +162,7 @@ After the customer leaves:
 3. Leave created agents alone unless the owner asks. An operator deletes them with
    the operator key.
 
-## One foundation. Repeatable agent releases.
+## One foundation, repeatable agent releases
 
 <img alt="Agent release journey in six numbered steps. Private foundation, built with Terraform and Azure Verified Modules: review the plan, provision separate roots, and verify private access. A configuration handoff carries the project endpoint, model deployments, identity, and private connectivity to agent releases: package the agent, publish and verify a new hosted version, then route, review, and iterate. People approve infrastructure changes, publication costs, and business decisions." src="images/agent-release-journey-dark.svg">
 

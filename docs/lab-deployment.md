@@ -150,7 +150,7 @@ Before a separately approved run:
    over the WAF or alerts; other referenced platform resources may also need
    read access. AzureRM also calls `Microsoft.App/containerApps/listSecrets/action`
    to refresh the existing app. This action can expose app secrets to the
-   provider: it requires separate, explicit approval and a temporary role scoped
+   provider. It requires separate, explicit approval and a temporary role scoped
    to that single app. Stop if it is not approved. Remove the temporary grants
    after the approved investigation. Do not grant infrastructure-write
    permissions or use the VM's managed identity.
@@ -197,9 +197,9 @@ and verifies that the active revision did not change. The state content check
 cannot distinguish an identical concurrent rewrite from Terraform's own
 metadata-only ETag changes; the lease protects the state during the plan.
 
-Only fixed target and resource-type labels, planned actions, whitelisted schema
-field names, unknown fields, refreshed-state drift, and aggregate counts are
-reported. The report classifies allow-list additions and removals, known WAF tag
+The report lists only fixed target and resource-type labels, planned actions,
+whitelisted schema field names, unknown fields, refreshed-state drift, and
+aggregate counts. It classifies allow-list additions and removals, known WAF tag
 changes, alert query line-ending differences, known Container App environment
 key changes (including which attribute changed, such as `value` or
 `secret_name`, and only whether each side is absent, null, empty or set), and
@@ -212,7 +212,7 @@ failure remove the run's scratch directory; if a runner crash or forced
 termination bypasses cleanup, privately inspect and remove only that run and
 attempt's scratch directory before reusing the runner. An
 incomplete or failed plan, unexpected target, unknown check, detected concurrent
-change, or missing permission is a failure—not evidence of a clean plan. A
+change, or missing permission is a failure, not evidence of a clean plan. A
 completed plan is a point-in-time diagnostic, not approval to apply its proposed
 changes.
 
@@ -387,7 +387,7 @@ root's state location, and the Lab reads those names from the platform outputs
 `foundry_project_name`, `cosmos_account_name`, `monitor_private_link_scope_name`)
 through Microsoft Entra ID. Apply the
 platform root first. Set `platform_state = {}` to use the state account
-`terraform/bootstrap` creates: each field defaults to its names. A name you set explicitly still wins, so an existing Lab keeps
+`terraform/bootstrap` creates. Each field defaults to its names. A name you set explicitly still wins, so an existing Lab keeps
 working unchanged. The plan stops with a clear message if a name is missing, for
 example `management_vnet_name` when the platform's management network is off.
 An empty scope override does not count as a configured scope. If neither the
@@ -692,7 +692,7 @@ drift. Look for these signs:
 - The app looks like a placeholder, with no replicas.
 - `az account show` still says `Enabled`. The CLI caches that value.
 
-Recover in this order. Don't taint, replace or destroy the app: it has
+Recover in this order. Don't taint, replace or destroy the app. It has
 `prevent_destroy`, and a replacement isn't needed.
 
 1. Read the live subscription state from Azure Resource Manager, not the CLI
@@ -723,9 +723,9 @@ Recover in this order. Don't taint, replace or destroy the app: it has
 
 The record of the first suspension is
 [#255](https://github.com/michael-rechani/foundry-agent-accelerator/issues/255).
-Apart from that, state and settings that stay out of the repository on purpose
-(`dev.tfvars`, `backend.hcl`, `image.auto.tfvars`, your allowed IP and the
-Terraform state) have to be backed up privately, because they aren't in Git.
+Apart from that, back up privately the state and settings that stay out of the
+repository on purpose (`dev.tfvars`, `backend.hcl`, `image.auto.tfvars`, your
+allowed IP and the Terraform state), because they aren't in Git.
 
 ## Related content
 

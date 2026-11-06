@@ -22,8 +22,8 @@ agent-management service.
 
 ## What a participant can do
 
-**Describe the job -> prepare a setup -> review and confirm -> create in Foundry
--> try it in Chat.**
+**Describe the job, prepare a setup, review and confirm, create it in Foundry,
+then try it in Chat.**
 
 You can also start from **Chat**. When the Agent designer's spec card points to a template, **Create this agent here** runs the same steps (template assembly, configured access gate, cost confirmation, publish) inside the card, then offers **Chat with it**. The access gate normally requires the operator key; explicitly enabled private presenter mode does not.
 
@@ -218,7 +218,7 @@ job uses and whether it has sample lookups.
 | --- | --- | --- |
 | Prepare a draft | The Lab uses deterministic templates and the supplied description. | It doesn't ask a model to design an agent, save a resource, or spend model tokens. An ambiguous description asks for a template instead of guessing. |
 | Review setup | You can edit the display name and task instructions before creation. | The selected template fixes the tools and runtime policy, and a prompt can't add any. Eleven of the 18 templates have no tools, and no template uses specialist delegation. |
-| Create in Foundry | Confirming creation publishes a new generated `lab-demo-...` named agent using the Foundry software development kit (SDK). Progress follows the actual application stages. | Progress isn't a timer pretending to be deployment progress. |
+| Create in Foundry | Confirming creation publishes a new generated `lab-demo-...` named agent using the Foundry software development kit (SDK). Progress follows the actual application stages. | Progress isn't driven by a timer. |
 | Try the agent | Ready means the hosted version is active and its Responses route was checked. Send the fictional sample in **Chat** to see its first actual answer and check quality yourself. | No hidden billable model smoke test runs. |
 
 Templates with tools have exactly two fixed, local, **simulated read-only**
