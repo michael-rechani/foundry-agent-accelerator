@@ -2,6 +2,8 @@ import { ArrowRight, Copy, MessageSquare } from 'lucide-react'
 import type { LibraryTemplate } from './library-catalog'
 import { creationNote, type ReadyAgent } from './library-helpers'
 import type { Agent, CreationCapability } from './workspace-config'
+import { demoForSample } from './demo-scenarios'
+import { DemoBrief } from './DemoBrief'
 
 export function LibraryTryTab({
   template,
@@ -23,6 +25,7 @@ export function LibraryTryTab({
   onNotice: (text: string) => void
 }) {
   const runnable = template.tool_mode.id !== 'connected-required'
+  const demo = demoForSample(template.id, template.sample_input)
 
   async function copySample() {
     try {
@@ -34,80 +37,83 @@ export function LibraryTryTab({
   }
 
   return (
-    <div className="library-columns">
-      <section className="library-panel">
-        <h2>Example to try</h2>
-        <pre className="library-sample">{template.sample_input}</pre>
-        <div className="library-actions">
-          {!runnable ? (
-            <p className="library-muted">
-              This agent needs a connection to your own system and cannot run in
-              the Lab.
-            </p>
-          ) : preview ? (
+    <>
+      {demo && <DemoBrief scenario={demo} showExpected />}
+      <div className="library-columns">
+        <section className="library-panel">
+          <h2>Example to try</h2>
+          <pre className="library-sample">{template.sample_input}</pre>
+          <div className="library-actions">
+            {!runnable ? (
+              <p className="library-muted">
+                This agent needs a connection to your own system and cannot run
+                in the Lab.
+              </p>
+            ) : preview ? (
+              <button
+                type="button"
+                className="library-primary"
+                disabled={busy}
+                onClick={() => onTest(preview, template.sample_input)}
+              >
+                <MessageSquare size={16} /> Try it in Chat
+              </button>
+            ) : null}
+            {runnable && ready ? (
+              <button
+                type="button"
+                className={preview ? 'library-secondary' : 'library-primary'}
+                disabled={busy}
+                onClick={() => onTest(ready.agent, template.sample_input)}
+              >
+                Open your created agent <ArrowRight size={16} />
+              </button>
+            ) : runnable && !preview ? (
+              <button
+                type="button"
+                className="library-primary"
+                disabled={!capability || busy}
+                onClick={onCreate}
+              >
+                Create this agent to test it <ArrowRight size={16} />
+              </button>
+            ) : null}
             <button
               type="button"
-              className="library-primary"
-              disabled={busy}
-              onClick={() => onTest(preview, template.sample_input)}
+              className="library-secondary"
+              onClick={() => void copySample()}
             >
-              <MessageSquare size={16} /> Try it in Chat
+              <Copy size={15} /> Copy example
             </button>
-          ) : null}
-          {runnable && ready ? (
-            <button
-              type="button"
-              className={preview ? 'library-secondary' : 'library-primary'}
-              disabled={busy}
-              onClick={() => onTest(ready.agent, template.sample_input)}
-            >
-              Open your created agent <ArrowRight size={16} />
-            </button>
-          ) : runnable && !preview ? (
-            <button
-              type="button"
-              className="library-primary"
-              disabled={!capability || busy}
-              onClick={onCreate}
-            >
-              Create this agent to test it <ArrowRight size={16} />
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="library-secondary"
-            onClick={() => void copySample()}
-          >
-            <Copy size={15} /> Copy example
-          </button>
-        </div>
-        <p className="library-muted">
-          {preview
-            ? 'Opens Chat with this example ready to send. Nothing happens until you press Send, which calls the model and has a small cost. Preview chats aren\u2019t saved.'
-            : ready
-              ? `Uses ${ready.agent.label}. Opens Chat with this example ready to send. Nothing happens until you press Send, which calls the model and has a small cost.`
-              : creationNote(capability)}
-        </p>
-        {preview && (
-          <p className="library-muted hood-only">
-            A preview calls the model directly rather than running as a hosted
-            agent, so test the created agent before handing it to a customer.
+          </div>
+          <p className="library-muted">
+            {preview
+              ? 'Opens Chat with this example ready to send. Nothing happens until you press Send, which calls the model and has a small cost. Preview chats aren\u2019t saved.'
+              : ready
+                ? `Uses ${ready.agent.label}. Opens Chat with this example ready to send. Nothing happens until you press Send, which calls the model and has a small cost.`
+                : creationNote(capability)}
           </p>
-        )}
-      </section>
-      <section className="library-panel">
-        <h2>What to look for in the answer</h2>
-        <ul className="library-checks">
-          <li>{template.expected_behavior}</li>
-          <li>It stays within its limits. {template.limits}</li>
-          <li>It leaves the decision to a person.</li>
-        </ul>
-        <p className="library-muted">
-          {preview
-            ? 'Use sample data only. Preview chats are not saved; create the agent to save or share conversations.'
-            : 'Use sample data only. Chat responses are not saved unless you choose Save to shared history.'}
-        </p>
-      </section>
-    </div>
+          {preview && (
+            <p className="library-muted hood-only">
+              A preview calls the model directly rather than running as a hosted
+              agent, so test the created agent before handing it to a customer.
+            </p>
+          )}
+        </section>
+        <section className="library-panel">
+          <h2>What to look for in the answer</h2>
+          <ul className="library-checks">
+            <li>{template.expected_behavior}</li>
+            <li>It stays within its limits. {template.limits}</li>
+            <li>It leaves the decision to a person.</li>
+          </ul>
+          <p className="library-muted">
+            {preview
+              ? 'Use sample data only. Preview chats are not saved; create the agent to save or share conversations.'
+              : 'Use sample data only. Chat responses are not saved unless you choose Save to shared history.'}
+          </p>
+        </section>
+      </div>
+    </>
   )
 }

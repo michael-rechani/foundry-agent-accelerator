@@ -20,7 +20,7 @@ Cosmos DB storage.
 | Agent library | Browse agent definitions by sector or industry (one list), task, readiness, and tool mode. A plain-word job finder at the top sends and saves nothing. By default only featured agents show. Compare a sample example with expected behavior. Create, test, and export. |
 | Guided demos | Three sample customer stories with expected findings and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
 | Add-ons | A preview of optional tools and skills an agent could connect to later, such as knowledge search or a calculator. It shows what each would do, what it would cost, and what it needs. The page turns nothing on. Knowledge search also runs as a small sample pilot in Checklist and case helper. |
-| Agent creation | **Create agent** prepares instructions from built-in templates. Publication is a separate operator-protected action. **Chat doesn't create or configure agents.** |
+| Agent creation | **Create agent** prepares instructions from built-in templates. A matching designer spec card in Chat can also offer template publication, after operator authorization and cost confirmation. Chat does not freely configure tools or agent runtime. |
 | Prebuilt agents | The prebuilt agents remain available. **Checklist and case helper** is the default visible prebuilt agent. |
 | Document reviews | **Document reviews** saves one structured check per checklist item and keeps the original text beside the result. |
 | Data boundary | Use sample data only. The Lab doesn't connect to customer systems or perform business writes. |

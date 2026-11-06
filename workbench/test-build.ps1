@@ -77,7 +77,7 @@ function docker {
             if (!(Test-Path (Join-Path $stage 'frontend/src'))) { throw 'Frontend source not staged' }
             if (Test-Path (Join-Path $stage 'frontend/public')) { throw 'Unexpected frontend public files staged' }
             $runtimeFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'agent_runtime') -Force | Select-Object -ExpandProperty Name)
-            if (Compare-Object @('main.py', 'demo_tools.py', 'requirements.txt') $runtimeFiles) { throw 'Unexpected hosted runtime bundle contents' }
+            if (Compare-Object @('main.py', 'demo_tools.py', 'bill_math.py', 'requirements.txt') $runtimeFiles) { throw 'Unexpected hosted runtime bundle contents' }
             $basicAgentFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'basic_agent_source') -Force | Select-Object -ExpandProperty Name)
             if (Compare-Object @('main.py', 'requirements.txt', 'instructions.md') $basicAgentFiles) { throw 'Unexpected basic agent source contents' }
             $templateFiles = @(Get-ChildItem -LiteralPath (Join-Path $stage 'agent_templates') -Force | Select-Object -ExpandProperty Name)

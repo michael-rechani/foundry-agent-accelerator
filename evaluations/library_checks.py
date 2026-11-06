@@ -16,7 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "workbench"))
 sys.path.insert(0, str(ROOT / "workbench" / "agent_runtime"))
 from agent_templates import TEMPLATES  # noqa: E402
-from case_scoring import CHECK_KEYS, GUARDS, false_claims as _false_claims, normalize as _normalize, score  # noqa: E402,F401
+from case_scoring import (  # noqa: E402,F401
+    CHECK_KEYS, GUARDS, _CALCULATOR_FIELDS, _CALCULATOR_LINE_FIELDS, _calculation_line,
+    _valid_date_differences, _valid_reconciliation_expected, false_claims as _false_claims,
+    normalize as _normalize, score,
+)
 from demo_tools import create_demo_tools  # noqa: E402
 from library_rules import CATEGORIES  # noqa: E402
 
@@ -31,6 +35,37 @@ def case_input(case):
     if case.get("use_sample_input"):
         return TEMPLATES[case["template_id"]]["sample_input"]
     return case["input"]
+
+
+def case_turns(case):
+    return [case, *[{"template_id": case["template_id"], **turn} for turn in case.get("follow_ups", [])]]
+
+
+def score_record(case, record):
+    if not case.get("follow_ups"):
+        return score(case, record.get("text", ""), record.get("receipts"))
+    turns = record.get("turns")
+    expected = case_turns(case)
+    if not isinstance(turns, list) or len(turns) != len(expected):
+        return False, [f"expected {len(expected)} recorded conversation turns"]
+    if not isinstance(turns[0], dict) or any(
+        turns[0].get(key) != record.get(key) for key in ("text", "receipts")
+    ):
+        return False, ["first conversation turn does not match the recorded answer"]
+    failures = []
+    for number, (turn_case, answer) in enumerate(zip(expected, turns, strict=True), 1):
+        if not isinstance(answer, dict) or answer.get("input") != case_input(turn_case):
+            failures.append(f"Turn {number}: recorded input does not match the case")
+            continue
+        if not isinstance(answer.get("receipts"), list) or any(
+            not isinstance(receipt, dict) or not isinstance(receipt.get("tool"), str)
+            or not receipt["tool"].strip() for receipt in answer.get("receipts", [])
+        ):
+            failures.append(f"Turn {number}: tool receipts were not supplied")
+            continue
+        _, problems = score(turn_case, answer.get("text", ""), answer["receipts"])
+        failures.extend(f"Turn {number}: {problem}" for problem in problems)
+    return not failures, failures
 
 
 def _metadata_errors(data):
@@ -54,8 +89,23 @@ def validate_cases(data):
     cases = data.get("cases")
     if not isinstance(cases, list) or not cases:
         return errors + ["cases must be a non-empty list"]
-    seen, coverage = set(), {}
+    expanded = []
     for case in cases:
+        expanded.append(case)
+        if not isinstance(case, dict) or "follow_ups" not in case:
+            continue
+        turns = case["follow_ups"]
+        if not isinstance(turns, list) or not 1 <= len(turns) <= 4:
+            errors.append(f"{case.get('id')}: follow_ups must contain one to four turns")
+            continue
+        for number, turn in enumerate(turns, 2):
+            if not isinstance(turn, dict) or set(turn) - {"input", "use_sample_input", "checks", "rubric"}:
+                errors.append(f"{case.get('id')}: turn {number} needs input, checks and rubric only")
+                continue
+            expanded.append({**turn, "id": f"{case.get('id')}-turn-{number}",
+                             "template_id": case.get("template_id"), "category": case.get("category")})
+    seen, coverage = set(), {}
+    for case in expanded:
         if not isinstance(case, dict):
             errors.append(f"every case must be an object, not {case!r}")
             continue
@@ -92,11 +142,16 @@ def validate_cases(data):
         unknown = set(checks) - CHECK_KEYS
         if unknown:
             errors.append(prefix + "unknown checks " + ", ".join(sorted(unknown)))
-        for pattern in checks.get("must_not_match", []):
-            try:
-                re.compile(pattern)
-            except re.error as exc:
-                errors.append(prefix + f"bad regex {pattern!r}: {exc}")
+        for key in ("must_match", "must_not_match"):
+            patterns = checks.get(key, [])
+            if not isinstance(patterns, list) or any(not isinstance(pattern, str) for pattern in patterns):
+                errors.append(prefix + f"{key} must be a list of regex strings")
+                continue
+            for pattern in patterns:
+                try:
+                    re.compile(pattern)
+                except re.error as exc:
+                    errors.append(prefix + f"bad regex {pattern!r}: {exc}")
         for rule in checks.get("must_not_claim", []):
             if (not isinstance(rule, dict) or set(rule) - {"pattern", "unless", "why"}
                     or not str(rule.get("pattern", "")).strip() or not str(rule.get("why", "")).strip()):
@@ -117,6 +172,39 @@ def validate_cases(data):
         expected = set(checks.get("expected_tools", []))
         if not expected <= tool_names:
             errors.append(prefix + "expected_tools not offered by the template: " + ", ".join(sorted(expected - tool_names)))
+        verified = checks.get("expected_verified_tools", [])
+        if not isinstance(verified, list) or any(not isinstance(name, str) or not name for name in verified):
+            errors.append(prefix + "expected_verified_tools must be a list of tool names")
+        elif set(verified) - tool_names:
+            errors.append(prefix + "expected_verified_tools not offered by the template: "
+                          + ", ".join(sorted(set(verified) - tool_names)))
+        differences = checks.get("expected_date_differences")
+        if differences is not None and (
+            "calculate_date_difference" not in tool_names or not _valid_date_differences(differences)
+        ):
+            errors.append(prefix + "expected_date_differences must list valid copied date pairs and exact signed days")
+        calculation = checks.get("expected_calculator_result")
+        if calculation is not None and (
+            "calculate_bill_math" not in tool_names or not isinstance(calculation, dict) or not calculation
+            or bool(calculation.keys() - _CALCULATOR_FIELDS)
+            or any(not isinstance(key, str) or not key or not (
+                value is None or isinstance(value, str)
+                or isinstance(value, list) and all(isinstance(item, str) for item in value))
+                for key, value in calculation.items())
+        ):
+            errors.append(prefix + "expected_calculator_result must map result fields to null, text or lists of text")
+        lines = checks.get("expected_calculator_lines")
+        if lines is not None and (
+            "calculate_bill_math" not in tool_names or not isinstance(lines, list) or not lines
+            or any(not isinstance(line, dict) or set(line) != set(_CALCULATOR_LINE_FIELDS)
+                   or _calculation_line(line) is None for line in lines)
+        ):
+            errors.append(prefix + "expected_calculator_lines must list quantities, unit prices and printed amounts")
+        reconciliation = checks.get("expected_calculator_reconciliation")
+        if reconciliation is not None and (
+            "calculate_bill_math" not in tool_names or not _valid_reconciliation_expected(reconciliation)
+        ):
+            errors.append(prefix + "expected_calculator_reconciliation must describe valid reconciliation inputs and results")
         errors.extend(prefix + problem for problem in _fixture_problems(case, tool_names))
     for template_id, categories in coverage.items():
         missing = CATEGORIES - categories
@@ -166,7 +254,7 @@ def score_file(data, answers_path):
         case = cases.get(record.get("case_id"))
         if case is None:
             raise ValueError(f"line {number}: unknown case_id {record.get('case_id')!r}")
-        passed, failures = score(case, record.get("text", ""), record.get("receipts"))
+        passed, failures = score_record(case, record)
         results.append({"case_id": case["id"], "template_id": case["template_id"], "passed": passed,
                         "failures": failures, "rubric": case["rubric"]})
     return results
@@ -194,6 +282,8 @@ def main(argv=None):
         for case in data["cases"]:
             if args.template in (None, case["template_id"]):
                 print(f"### {case['id']} ({case['template_id']}, {case['category']})\n{case_input(case)}\n")
+                for number, turn in enumerate(case_turns(case)[1:], 2):
+                    print(f"Follow-up {number - 1} (turn {number}, same conversation):\n{case_input(turn)}\n")
         return 0
     results = score_file(data, args.answers)
     for result in results:

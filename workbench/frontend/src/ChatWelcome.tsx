@@ -114,6 +114,19 @@ export function ChatWelcome({
       {isPreview && !simple && (
         <p className="welcome-preview-note">{previewBlurb}</p>
       )}
+      {!!config && draftMode !== 'typed' && (
+        <p className="welcome-preview-note">
+          Presenting?{' '}
+          <a
+            href="https://github.com/michael-rechani/foundry-agent-accelerator/blob/main/docs/demo-script.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Read the ten-minute demo script
+          </a>
+          . It starts with the Benefits renewal helper.
+        </p>
+      )}
       {simple && !!config && draftMode !== 'typed' && (
         <div className="welcome-modes welcome-simple-modes">
           <button type="button" disabled={switchDisabled} onClick={onSwitch}>

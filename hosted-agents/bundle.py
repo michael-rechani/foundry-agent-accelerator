@@ -20,8 +20,9 @@ from deployment import SAMPLES, SHARED_FILES, AgentProfile, create_package, depl
 HERE = Path(__file__).resolve().parent
 MAX_BYTES = 2 * 1024 * 1024
 MAX_FILE_BYTES = 256 * 1024
-# Every file a source-built package may hold; a Lab-created package holds main.py, requirements.txt and demo_tools.py.
+# Every file a prebuilt package may hold. Lab-created packages have a separate allowlist.
 PACKAGE_FILES = {"main.py", "requirements.txt", "instructions.md", "configuration.py", *SHARED_FILES}
+LAB_RUNTIME_FILES = {"main.py", "requirements.txt", "demo_tools.py"}
 NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_-]{0,63}")
 MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 SHA256 = re.compile(r"[a-f0-9]{64}")
@@ -122,7 +123,8 @@ def validate_archive(manifest, code):
     required = {"main.py", "requirements.txt"}
     allowed = PACKAGE_FILES
     if manifest["kind"] == "lab-created":
-        required = allowed = required | {"demo_tools.py"}
+        required = LAB_RUNTIME_FILES
+        allowed = LAB_RUNTIME_FILES | {"bill_math.py"}
     if not required <= files.keys() <= allowed:
         raise ValueError("Runtime archive has missing or unsupported files")
     if manifest["files"] != {name: digest(content) for name, content in files.items()}:
@@ -252,7 +254,13 @@ def export_created(record_path, runtime_directory=None):
     try:
         sys.path.insert(0, str(HERE.parent / "workbench"))
         from agent_package import RUNTIME_DIRECTORY, runtime_package
-        code, runtime_hash = runtime_package(runtime_directory or RUNTIME_DIRECTORY)
+        directory = runtime_directory or RUNTIME_DIRECTORY
+        legacy = runtime_directory is not None and not (directory / "bill_math.py").is_file()
+        code, runtime_hash = runtime_package(directory, legacy=legacy)
+        if runtime_directory is not None and not legacy and runtime_hash != record["runtime_hash"]:
+            legacy_code, legacy_hash = runtime_package(directory, legacy=True)
+            if legacy_hash == record["runtime_hash"]:
+                code, runtime_hash = legacy_code, legacy_hash
     finally:
         sys.path[:] = previous_path
     if runtime_hash != record["runtime_hash"]:

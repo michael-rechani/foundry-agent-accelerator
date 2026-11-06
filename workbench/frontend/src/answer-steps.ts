@@ -9,7 +9,7 @@ export function receiptState(turn: Turn, receipt: Receipt): ReceiptState {
 }
 
 // A receipt is a handoff only when it names another agent. Created agents
-// bind simulated lookups to their own runtime name; those are tool calls.
+// bind local tools to their own runtime name; those are tool calls.
 export function isHandoff(turn: Turn, receipt: Receipt) {
   return Boolean(receipt.agent) && receipt.agent !== turn.result.agent
 }
@@ -49,6 +49,7 @@ export function plainStep(
   const object = rest.join(' ')
   if (verb && object && lookupVerbs.has(verb)) return `Looked up the ${object}`
   if (verb && object && checkVerbs.has(verb)) return `Checked the ${object}`
+  if (verb === 'calculate' && object) return `Calculated the ${object}`
   return `Used ${[verb, ...rest].join(' ')}`
 }
 
@@ -82,13 +83,25 @@ export function stepsSummary(turn: Turn) {
   const handoffs = turn.result.receipts.filter((receipt) =>
     isHandoff(turn, receipt),
   ).length
-  const tools = turn.result.receipts.length - handoffs
+  const toolCalls = turn.result.receipts.filter(
+    (receipt) => !isHandoff(turn, receipt),
+  )
+  const calculations = toolCalls.filter(
+    (receipt) => words(receipt.tool)[0] === 'calculate',
+  ).length
+  const tools = toolCalls.length - calculations
   const parts = []
   if (handoffs)
     parts.push(
       handoffs === 1 ? 'asked another agent' : `asked ${handoffs} other agents`,
     )
   if (tools) parts.push(tools === 1 ? 'used 1 lookup' : `used ${tools} lookups`)
+  if (calculations)
+    parts.push(
+      calculations === 1
+        ? 'ran 1 calculation'
+        : `ran ${calculations} calculations`,
+    )
   if (!parts.length) return 'No lookups or other agents recorded'
   const text = parts.join(' and ')
   return text.charAt(0).toUpperCase() + text.slice(1)

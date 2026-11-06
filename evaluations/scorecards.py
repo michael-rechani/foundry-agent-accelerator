@@ -44,10 +44,10 @@ import statistics
 import sys
 from pathlib import Path
 
-from library_checks import CASES_PATH, TEMPLATES, case_input, load_cases, score
+from library_checks import CASES_PATH, TEMPLATES, case_input, case_turns, load_cases, score_record
 from demo_tools import create_demo_tools  # library_checks puts workbench/agent_runtime on sys.path
 from library_rules import CONTEXT_KEY, METRIC_KEYS, is_int, is_number, valid_date
-from agent_runtime.main import DEMO_POLICY
+from agent_runtime.main import demo_policy
 
 HERE = Path(__file__).resolve().parent
 EVIDENCE = HERE / "evidence"
@@ -131,8 +131,8 @@ def _whole_number(value):
 
 
 def instructions_digest(template_id):
-    """Fingerprint of the shared runtime policy and template instructions the Lab serves."""
-    effective_instructions = DEMO_POLICY + TEMPLATES[template_id]["instructions"]
+    """Fingerprint the runtime policy and template instructions the Lab serves."""
+    effective_instructions = demo_policy(template_id) + TEMPLATES[template_id]["instructions"]
     return hashlib.sha256(effective_instructions.encode("utf-8")).hexdigest()
 
 
@@ -173,6 +173,8 @@ def context_digest(case):
         "model_profile": TEMPLATES[case["template_id"]]["model_profile"],
         "tools": tool_context(case["template_id"]),
     }
+    if case.get("follow_ups"):
+        context["follow_ups"] = [case_input(turn) for turn in case_turns(case)[1:]]
     return hashlib.sha256(json.dumps(context, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
@@ -233,7 +235,8 @@ def template_digests(cases, answers):
     """Fingerprint each agent's recorded answers, so a sign-off covers only what the person read."""
     texts = {}
     for case_id, (_, record) in answers.items():
-        texts.setdefault(cases[case_id]["template_id"], []).append((case_id, record.get("text", "")))
+        answer = record.get("turns", record.get("text", ""))
+        texts.setdefault(cases[case_id]["template_id"], []).append((case_id, answer))
     return {
         template_id: hashlib.sha256(
             json.dumps(sorted(items), ensure_ascii=False).encode("utf-8")).hexdigest()
@@ -332,7 +335,8 @@ def build(cases_path=CASES_PATH, runs=RUNS, metrics_path=METRICS, prices_path=PR
                 _check_context(answer, case, number, expected, baseline)
             if metric["model"] != measured["model"]:
                 raise ValueError(f"{case['id']}: run {number} used a different model from run 1")
-            passed, failures = score(case, answer.get("text", ""), _receipts(answer, case, number))
+            _receipts(answer, case, number)
+            passed, failures = score_record(case, answer)
             cost = token_cost(prices, metric["model"], metric["input_tokens"], metric["cached_tokens"],
                               metric["output_tokens"])
             results.append({"run": number, "passed": passed, "failures": failures, "cost": cost, "metric": metric})
