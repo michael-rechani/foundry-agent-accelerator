@@ -79,10 +79,10 @@ test('sharing details omit saved records when both services are disabled', async
   })
   const privacy = page.locator('.composer-privacy')
   await privacy.getByText('Privacy & sharing').click()
-  await expect(privacy.locator('details > p')).toHaveCount(1)
-  await expect(privacy.locator('details > p')).toHaveText(
-    'No personal or confidential data.',
-  )
+  // Dictation's note depends on the browser, so it is checked in voice-input.
+  const records = privacy.locator('details > p:not(.dictation-note)')
+  await expect(records).toHaveCount(1)
+  await expect(records).toHaveText('No personal or confidential data.')
   await expect(privacy).not.toContainText('Anyone with Lab access can')
   await expect(privacy).not.toContainText(
     'Saved chats contain completed messages',

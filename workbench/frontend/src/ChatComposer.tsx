@@ -1,7 +1,16 @@
 import type { RefObject } from 'react'
-import { ArrowUp, Copy, FlaskConical, GitBranch, Square } from 'lucide-react'
+import {
+  ArrowUp,
+  Copy,
+  FlaskConical,
+  GitBranch,
+  Mic,
+  Square,
+} from 'lucide-react'
 import { saveStateText } from './chat-helpers'
 import { DESIGNER_ID } from './agent-designer'
+import { useVoiceInput } from './use-voice-input'
+import { DICTATION_DISCLOSURE } from './voice-input'
 import type { Agent, Config } from './workspace-config'
 
 export function ChatComposer({
@@ -49,6 +58,7 @@ export function ChatComposer({
   onContinue: () => void
 }) {
   const exceedsLimit = limitReasons.length > 0
+  const voice = useVoiceInput(draft, onDraft)
   // Local preview never calls a model, so Send would only ever fail.
   const localPreview = config?.mode === 'preview'
   // Limits and save state only matter once there is something to lose.
@@ -134,6 +144,18 @@ export function ChatComposer({
             )}
           </span>
           <div>
+            {voice.supported && (
+              <button
+                type="button"
+                className="mic-button"
+                aria-label="Dictate message"
+                aria-pressed={voice.listening}
+                title="Dictate with your microphone. Your browser's speech service may send audio to its provider."
+                onClick={voice.toggle}
+              >
+                <Mic size={18} aria-hidden="true" />
+              </button>
+            )}
             {busy ? (
               <button
                 key="stop"
@@ -178,6 +200,11 @@ export function ChatComposer({
         </div>
       </form>
       {!inToolbar && hint}
+      {voice.supported && (
+        <p className="composer-voice-status" aria-live="polite">
+          {voice.status}
+        </p>
+      )}
       {config?.mode === 'private' && (
         <div className="composer-privacy">
           <p id="chat-privacy">
@@ -191,6 +218,9 @@ export function ChatComposer({
           <details>
             <summary>Privacy &amp; sharing</summary>
             <p>No personal or confidential data.</p>
+            {voice.supported && (
+              <p className="dictation-note">{DICTATION_DISCLOSURE}</p>
+            )}
             {!unsavedPreview && config.history_enabled && (
               <p>
                 Saved chats contain completed messages and expire{' '}
