@@ -7,7 +7,7 @@ terraform {
     }
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 4.81"
+      version = "~> 5.12"
     }
     # Needed by the Front Door AVM module (front-door.tf).
     modtm = {
