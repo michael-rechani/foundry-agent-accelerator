@@ -329,7 +329,8 @@ Before enabling, complete these checks.
 
    ```hcl
    agent_creation_enabled = true
-   agent_creation_model   = "gpt-4.1" # default for any kind of work not listed below
+   # Omit agent_creation_model to use the platform Model Router deployment.
+   # Set it to an existing fixed deployment to opt out for the default profile.
    agent_creation_models = {
      reasoning    = "gpt-5.4"
      extraction   = "gpt-5.4-mini"
@@ -341,7 +342,12 @@ Before enabling, complete these checks.
    ```
 
    These names are examples, so use deployment names that exist in your Foundry
-   project. `agent_creation_models` is optional.
+   project. `agent_creation_models` is optional; when omitted, new agents use
+   the platform's Model Router deployment, or its primary model if Router is
+   disabled or absent from older state. Set `agent_creation_model` to an existing
+   fixed model to retain a fixed-model path for unlisted work profiles. An
+   explicit empty string leaves the model unconfigured and disables library
+   previews; agent creation must remain off in that case.
 
    The secret must contain the **verifier**, not the raw key. The Lab identity
    needs Key Vault Secrets User on that one secret. Either the environment owner

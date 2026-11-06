@@ -217,6 +217,27 @@ class GuardRejectionTests(unittest.TestCase):
                 mutate(value)
                 self.rejected(value)
 
+    def test_router_model_changes_remain_outside_the_approved_apply(self):
+        cases = (
+            ("WORKBENCH_AGENT_CREATION_MODEL", "private-fixed", "private-router"),
+            ("WORKBENCH_AGENT_CREATION_MODELS", '{"reasoning":"private-fixed"}',
+             '{"reasoning":"private-router"}'),
+            ("WORKBENCH_PREBUILT_AGENT_MODELS", '{"customer-review":"private-fixed"}',
+             '{"customer-review":"private-router"}'),
+        )
+        for name, old, new in cases:
+            with self.subTest(name=name):
+                value = approved_plan(waf_tags=False)
+                change = app_change(value)
+                app_env(change, "before").append({"name": name, "value": old})
+                app_env(change, "after").append({"name": name, "value": new})
+                summary = summarize(value)
+                comparison = summary["other_managed_details"][0]["environment_comparison"]
+                self.assertEqual(comparison["changed"][name], "changed")
+                self.assertNotIn(old, json.dumps(summary))
+                self.assertNotIn(new, json.dumps(summary))
+                self.rejected(value)
+
     def test_imports_outputs_and_non_passing_checks_are_rejected(self):
         def imported(value):
             value["resource_changes"][0]["change"]["importing"] = {"id": "private-id"}

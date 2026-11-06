@@ -74,6 +74,7 @@ class Settings:
     budget_alerts: bool = False
     foundry_project_id: str = ""
     model_limits: dict = field(default_factory=dict)
+    prebuilt_agent_models: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_env(cls):
@@ -95,13 +96,18 @@ class Settings:
             model_limits = json.loads(os.getenv("WORKBENCH_MODEL_LIMITS") or "{}")
         except json.JSONDecodeError as problem:
             raise ValueError("WORKBENCH_MODEL_LIMITS must be a JSON object") from problem
+        try:
+            prebuilt_agent_models = json.loads(os.getenv("WORKBENCH_PREBUILT_AGENT_MODELS") or "{}")
+        except json.JSONDecodeError as problem:
+            raise ValueError("WORKBENCH_PREBUILT_AGENT_MODELS must be a JSON object") from problem
         return cls(mode, endpoint, hosts, origins, Path(os.getenv("WORKBENCH_AGENTS_FILE", ROOT / "agents.json")),
                visible_agents=visible_agents, default_agent=os.getenv("WORKBENCH_DEFAULT_AGENT") or None,
                title=os.getenv("WORKBENCH_TITLE", "Foundry Agent Lab"), creation=CreationSettings.from_env(),
                session_reuse_seconds=float(os.getenv("WORKBENCH_SESSION_REUSE_SECONDS", "600")),
                library_preview=library_preview == "true", unfinished_agents=unfinished_agents == "true",
                budget_alerts=budget_alerts == "true",
-               foundry_project_id=os.getenv("WORKBENCH_FOUNDRY_PROJECT_ID", ""), model_limits=model_limits)
+               foundry_project_id=os.getenv("WORKBENCH_FOUNDRY_PROJECT_ID", ""), model_limits=model_limits,
+               prebuilt_agent_models=prebuilt_agent_models)
 
     def validate(self):
         if not isinstance(self.title, str) or not self.title.strip() or len(self.title) > 80 or any(ord(char) < 32 for char in self.title):
@@ -121,6 +127,11 @@ class Settings:
         if type(self.budget_alerts) is not bool:
             raise ValueError("Budget alert status must be a boolean")
         validate_model_limits(self.model_limits)
+        if not isinstance(self.prebuilt_agent_models, dict) or any(
+                not isinstance(agent_id, str) or not NAME.fullmatch(agent_id)
+                or not isinstance(model, str) or not DEPLOYMENT_NAME.fullmatch(model)
+                for agent_id, model in self.prebuilt_agent_models.items()):
+            raise ValueError("WORKBENCH_PREBUILT_AGENT_MODELS must map agent IDs to model deployment names")
         if not isinstance(self.foundry_project_id, str):
             raise ValueError("Foundry project ID must be a string")
         if self.foundry_project_id:
@@ -214,7 +225,7 @@ def validate_agent(agent):
             raise ValueError("Invalid starter prompt")
 
 
-def load_agents(path):
+def load_agents(path, model_overrides=None):
     agents = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(agents, list) or not 1 <= len(agents) <= 16:
         raise ValueError("Configure between one and sixteen agents")
@@ -224,6 +235,10 @@ def load_agents(path):
         if agent["id"] in identifiers:
             raise ValueError("Duplicate agent identifier")
         identifiers.add(agent["id"])
+        if model_overrides is not None and agent["id"] in model_overrides:
+            agent["model"] = model_overrides[agent["id"]]
+    if model_overrides is not None and set(model_overrides) - identifiers:
+        raise ValueError("WORKBENCH_PREBUILT_AGENT_MODELS must name configured agents")
     return agents
 
 
@@ -539,7 +554,7 @@ class DependencyMonitor:
 def create_app(settings=None, gateway=None, history_store=None, publisher=None):
     settings = settings or Settings.from_env()
     settings.validate()
-    agents = load_agents(settings.agents_path)
+    agents = load_agents(settings.agents_path, settings.prebuilt_agent_models)
     known_agents = {agent["id"] for agent in agents}
     if not settings.visible_agents or not set(settings.visible_agents) <= known_agents:
         raise ValueError("WORKBENCH_VISIBLE_AGENTS must name configured agents")

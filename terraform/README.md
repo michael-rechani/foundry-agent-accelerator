@@ -50,6 +50,7 @@ input files are never overwritten.
 - [Private access](#private-access)
 - [Optional administration resources](#optional-administration-resources)
 - [Existing deployments](#existing-deployments)
+- [Diagnose the existing platform Router plan](#diagnose-the-existing-platform-router-plan)
 - [Coordinator agent access](#coordinator-agent-access)
 - [API Management gateway](#api-management-gateway)
 - [Local validation](#local-validation)
@@ -278,6 +279,59 @@ The next apply also updates the agent storage account in place to admit the
 Foundry project as a resource instance, so live evaluation can store results.
 It doesn't change public network access. A rule already added by hand for the
 same project ID produces no change.
+
+### Diagnose the existing platform Router plan
+
+The manual
+[`Diagnose private platform Router plan`](../.github/workflows/check-platform-router-plan.yml)
+workflow prepares a full, normally refreshed plan for the existing dev platform
+on the private GitHub runner. It is a diagnostic only: it cannot apply,
+publish agents, change the Lab, grant permissions, or start the runner. A clean
+plan is not approval for deployment. Live rollout remains tracked in #522.
+
+Before a separately approved run:
+
+1. Review and merge the workflow and Router configuration to `main`. Coordinate
+   the merge with the automatic Lab image workflow; merging workbench changes can
+   also roll out a new image.
+2. Reuse the protected `TF_LAB_PLAN_CONFIG` secret described in the
+   [Lab plan runbook](../docs/lab-deployment.md#diagnose-the-existing-lab-plan).
+   Set the protected `TF_PLATFORM_INPUT_BLOB` secret to the confirmed canonical
+   platform tfvars blob's path relative to `ai-foundry/`, such as
+   `platform/example.tfvars.json`. The example is not a known deployed path.
+   The workflow reads this existing blob; it does not create or modify inputs.
+3. Confirm that the protected inputs explicitly set `deployment_principal_id`
+   to the existing platform deployer recorded in state. Otherwise planning under
+   the state identity could propose unrelated role replacements. The diagnostic
+   stops if the IDs do not match. It also stops before planning if the configured
+   jumpbox would require reading its Key Vault secret; that access needs separate
+   review, not an automatic new grant.
+4. Review and separately approve the least-privileged, temporary read permissions
+   required by the **full platform refresh**. The state identity's existing
+   runner Reader grants are not platform deployment permissions and may not be
+   sufficient for this plan. Do not silently add deployment, secret-access, or
+   role-assignment permissions to the state-only identity.
+5. Separately approve starting the private runner, which incurs compute cost,
+   dispatch the workflow from `main`, and approve its `terraform-state`
+   environment gate. Never use public access or a different identity as a
+   fallback.
+
+The diagnostic stages the checked-in platform source, verifies that the state
+identifies a Foundry account in the approved subscription, and requires the
+reviewed default Router inputs. It rejects imports, unrelated managed-resource
+changes, other deferred reads, unrelated output changes, drift, and nonpassing
+checks. The previously paused jumpbox disk and dependent role changes in #485 are not
+authorized by a Router plan and must be resolved separately. The report contains
+only fixed labels and action counts; raw plans, state, inputs, and provider
+diagnostics stay private and are cleaned from the run's scratch directory.
+
+Terraform's backend lease temporarily changes state lock metadata and can create
+retained blob versions even when state contents are unchanged. The diagnostic
+checks the state contents and post-lock metadata, and the input contents and
+version, before accepting its result. A Router readback may be deferred until an
+eventual apply; neither a plan nor management-plane readback verifies inference.
+The separate deployment identity, guarded apply, Lab configuration change, and
+live verification still require review.
 
 ### Adopt an existing backend private endpoint
 
@@ -510,8 +564,12 @@ the matching optional piece and have approved its public exposure.
 Review [all input defaults](variables.tf), especially model capacity, network
 ranges, and optional resources.
 
-The platform deploys one model, `gpt-4.1`, by default. The prebuilt agents use
-it. To let [agents created in the Lab](../docs/agent-creation.md#how-the-lab-picks-a-model)
+The platform deploys the fixed `gpt-4.1` model and a Model Router deployment by
+default. New hosted-agent versions use Router when published with the standard
+deployment inputs; already-published versions do not change until republished.
+The Lab keeps its existing prebuilt-agent budget declarations until each hosted
+version is republished. To let
+[agents created in the Lab](../docs/agent-creation.md#how-the-lab-picks-a-model)
 use a different model for each kind of work, add deployments keyed by
 deployment name. Check regional availability and quota first:
 
@@ -526,6 +584,39 @@ Each entry defaults to the `OpenAI` format and the `GlobalStandard` SKU, which
 bills per token rather than for idle capacity. Don't overwrite an existing environment's
 values or reuse another deployment's names and state. Check other automatically
 loaded variable files and remove unintended command-line overrides.
+
+Model Router is deployed by default with a balanced route across `gpt-4.1` and
+`gpt-4.1-mini`. The `gpt-4.1` deployment remains available as a fixed-model
+fallback. To change the Router subset or route, override `model_router_deployment`
+with a nonempty `models` list of `{ format, name, version }` entries. Set it to
+`null` only when intentionally disabling Router. Check
+[supported models, regional availability, and quota](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/model-router)
+before applying. After a successful apply, `model_router_deployment_name`
+contains its name and `model_deployment_names` includes it.
+
+The Lab reads that output through `platform_state` and uses Router for new
+agents. Set `agent_creation_model` to an existing deployment such as `gpt-4.1`
+to use a fixed model for new agents
+without a profile-specific choice. If Router is explicitly disabled, the Lab
+uses the primary fixed deployment instead. If configured platform state contains
+neither model output, or a present Router output is invalid, the Lab plan requires
+an explicit `agent_creation_model` or refreshed platform outputs instead of
+assuming a deployment exists. After a prebuilt hosted agent is republished and
+its active model is verified, set that Lab agent's entry in
+`prebuilt_agent_models` to its actual deployment name. This
+changes admission budgeting only; it does not switch the hosted agent. Unlisted
+agents keep their `agents.json` declarations. The Router can select its
+underlying model internally, so fixed-model limits cannot account for that
+choice; Router requests are subject to the Lab's global caps unless you
+configure an explicit limit for the Router deployment.
+
+Terraform checks the returned management-plane routing mode and subset, but a
+failed apply can leave a deployment using a different or unrestricted model
+set. Do not send requests to it until its settings are corrected and verified.
+Azure notes that routing changes can take up to five minutes to take effect;
+management-plane readback alone does not verify inference behavior. Further
+guidance and live verification are tracked in the
+[follow-up issue](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522).
 
 The default `gpt-4.1` capacity of 10 allows 10,000 tokens and 10 requests per
 minute. That is enough for the agents, but too little to use the deployment as
@@ -681,12 +772,15 @@ After apply, retrieve the exact values consumed by the hosted agent deployer:
 ```powershell
 terraform -chdir=terraform output -raw resource_group_name
 terraform -chdir=terraform output -raw foundry_project_endpoint
+terraform -chdir=terraform output -raw model_router_deployment_name
 terraform -chdir=terraform output -raw model_deployment_name
 terraform -chdir=terraform output -json model_deployment_names
 ```
 
-`model_deployment_name` is the primary deployment that the prebuilt agents use.
-`model_deployment_names` lists it first, followed by any extra deployments.
+Use `model_router_deployment_name` for standard hosted-agent publishing and
+`model_deployment_name` when intentionally choosing the fixed primary model.
+`model_deployment_names` lists the primary deployment first, followed by any
+extra deployments and Model Router unless it was explicitly disabled.
 
 ## Separately scoped production considerations
 

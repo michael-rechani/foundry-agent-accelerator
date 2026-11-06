@@ -10,6 +10,7 @@ Lab on your own machine without Azure, use
 ## In this guide
 
 - [1. Confirm prerequisites and state ownership](#1-confirm-prerequisites-and-state-ownership)
+- [Diagnose the existing platform Router plan](../terraform/README.md#diagnose-the-existing-platform-router-plan)
 - [Diagnose the existing Lab plan](#diagnose-the-existing-lab-plan)
 - [2. Configure and initialize](#2-configure-and-initialize)
 - [3. Bootstrap only a new Lab](#3-bootstrap-only-a-new-lab)
@@ -70,6 +71,12 @@ assignments, plus `GITHUB_TOKEN` or a signed-in `gh` with repo admin. The verify
 stage skips the billable agent call unless you add `-IncludeAgentCall`. The steps
 below are the same sequence by hand, and the reference for each one.
 
+The agents stage uses the platform's Model Router output by default, or its fixed
+primary output when Router is disabled or absent from older state. Pass
+`-AgentModel '<existing-deployment-name>'` to choose a fixed deployment
+explicitly. Publishing changes the hosted version; afterward, verify its active
+model before updating the Lab's per-agent budget declaration.
+
 Run these steps from the repository root in one PowerShell session. Stop
 if any command fails. Terraform deploys the Lab infrastructure and selects its
 image. Image building and runtime smoke tests are separate steps that you run
@@ -115,6 +122,27 @@ attributes. Lab runtime access is keyless managed identity. Cosmos transcripts
 remain sensitive operational data, not vault secrets. Use keyless Azure Resource
 Manager (ARM) resource reads, and keep historical backups under their
 retention policy.
+
+For the default Model Router rollout, the separate
+[platform plan diagnostic](../terraform/README.md#diagnose-the-existing-platform-router-plan)
+does not deploy Router or change the Lab. The Lab's current guarded apply also
+does not yet accept the Router model settings; review and a separate runner
+apply path are still required (#522).
+
+The manual [`Check private Lab Router plan`](../.github/workflows/check-lab-router-plan.yml)
+is a **plan-only** check to run after Router has been deployed and reviewed. It
+uses the same private runner, protected environment, configuration and separate
+approvals as the Lab diagnostic below, plus Reader access to the existing
+Foundry deployment. It verifies the platform's project and the live Router's
+model version, SKU, capacity and routing, then accepts only a full Lab plan
+changing the existing fixed creation model to Router, or a no-change plan
+already configured for Router. It rejects unrelated changes, drift, unknown
+values, changed images or inputs, and an explicit setting disabling private
+library preview. It also requires the planned image to match the active
+revision's digest. It cannot verify that the active image supports preview,
+apply the change, or verify inference. Work profiles can still override the
+default model, and existing hosted-agent versions are unaffected. A reviewed
+apply and a live UI test remain separate steps.
 
 ### Diagnose the existing Lab plan
 

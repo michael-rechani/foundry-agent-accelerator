@@ -168,7 +168,7 @@ From a private backend-connected administrative environment, read:
 
 ```powershell
 terraform -chdir=terraform output -raw foundry_project_endpoint
-terraform -chdir=terraform output -raw model_deployment_name
+terraform -chdir=terraform output -raw model_router_deployment_name
 ```
 
 Set these non-secret output values in the deployment session. The deployment
@@ -176,8 +176,15 @@ runner doesn't need a copy of Terraform state:
 
 ```powershell
 $env:FOUNDRY_PROJECT_ENDPOINT = '<verified-project-endpoint>'
-$env:FOUNDRY_MODEL_NAME = '<verified-model-deployment-name>'
+$env:FOUNDRY_MODEL_NAME = '<verified-model-router-deployment-name>'
 ```
+
+The platform deploys Model Router by default; use `model_deployment_name`
+instead only when deliberately publishing against the fixed primary model.
+After a prebuilt agent's new hosted version is active and verified, update its
+`prebuilt_agent_models` entry in the Lab's reviewed Terraform inputs to match
+the actual deployment. That setting affects Lab budget accounting only; it
+doesn't publish or switch an agent.
 
 ### 3. Prepare the selected sample
 

@@ -34,8 +34,16 @@ output "model_deployment_name" {
 }
 
 output "model_deployment_names" {
-  description = "All model deployment names in the project: the primary one first, then any extra deployments."
-  value       = concat([var.model_deployment.deployment_name], sort(keys(var.additional_model_deployments)))
+  description = "All model deployment names in the project: the primary one first, extra deployments next, and Model Router last unless explicitly disabled."
+  value = var.model_router_deployment == null ? concat(
+    [var.model_deployment.deployment_name],
+    sort(keys(var.additional_model_deployments)),
+  ) : module.model_router.model_deployment_names
+}
+
+output "model_router_deployment_name" {
+  description = "Model Router deployment name, or null when explicitly disabled. A successful apply verifies its requested routing configuration through the Azure management API."
+  value       = var.model_router_deployment == null ? null : module.model_router.model_router_deployment_name
 }
 
 output "log_analytics_workspace_id" {
