@@ -225,6 +225,7 @@ class GuardRejectionTests(unittest.TestCase):
             ("WORKBENCH_PREBUILT_AGENT_MODELS", '{"customer-review":"private-fixed"}',
              '{"customer-review":"private-router"}'),
             ("WORKBENCH_PREVIEW_ENCRYPTED_REASONING", '{"private-fixed":true}', '{"private-fixed":false}'),
+            ("WORKBENCH_HOSTED_ENCRYPTED_REASONING", '{"private-fixed":true}', '{"private-fixed":false}'),
         )
         for name, old, new in cases:
             with self.subTest(name=name):
@@ -248,6 +249,20 @@ class GuardRejectionTests(unittest.TestCase):
         self.assertEqual(
             summary["other_managed_details"][0]["environment_comparison"]["changed"][
                 "WORKBENCH_PREVIEW_ENCRYPTED_REASONING"
+            ],
+            "added",
+        )
+        self.rejected(value)
+
+    def test_adding_hosted_reasoning_capability_is_not_approved(self):
+        value = approved_plan(waf_tags=False)
+        app_env(app_change(value), "after").append({
+            "name": "WORKBENCH_HOSTED_ENCRYPTED_REASONING", "value": '{"reason-model":true}',
+        })
+        summary = summarize(value)
+        self.assertEqual(
+            summary["other_managed_details"][0]["environment_comparison"]["changed"][
+                "WORKBENCH_HOSTED_ENCRYPTED_REASONING"
             ],
             "added",
         )

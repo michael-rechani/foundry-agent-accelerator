@@ -95,6 +95,49 @@ run "default_without_platform_state" {
     condition     = length(local.preview_encrypted_reasoning) == 0
     error_message = "A Router deployment name alone must not imply a particular model subset."
   }
+
+  assert {
+    condition = length([for env in azurerm_container_app.this[0].template[0].container[0].env :
+      env if env.name == "WORKBENCH_HOSTED_ENCRYPTED_REASONING"
+    ]) == 0
+    error_message = "Hosted encrypted reasoning must be off unless explicitly configured."
+  }
+}
+
+run "hosted_reasoning_capabilities_reach_the_lab" {
+  command = plan
+
+  variables {
+    hosted_agent_encrypted_reasoning = { "reason-model" = true, "model-router" = false }
+  }
+
+  assert {
+    condition = jsonencode(jsondecode(one([
+      for env in azurerm_container_app.this[0].template[0].container[0].env :
+      env.value if env.name == "WORKBENCH_HOSTED_ENCRYPTED_REASONING"
+    ]))) == jsonencode({ "reason-model" = true, "model-router" = false })
+    error_message = "Explicit hosted settings must reach the Lab by deployment name."
+  }
+}
+
+run "reject_hosted_reasoning_invalid_deployment" {
+  command = plan
+
+  variables {
+    hosted_agent_encrypted_reasoning = { "bad name" = true }
+  }
+
+  expect_failures = [var.hosted_agent_encrypted_reasoning]
+}
+
+run "reject_hosted_reasoning_null_value" {
+  command = plan
+
+  variables {
+    hosted_agent_encrypted_reasoning = { "model-router" = null }
+  }
+
+  expect_failures = [var.hosted_agent_encrypted_reasoning]
 }
 
 run "use_platform_router" {

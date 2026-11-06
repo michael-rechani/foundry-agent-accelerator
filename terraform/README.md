@@ -601,7 +601,10 @@ includes the known `gpt-4.1` and `gpt-4.1-mini` versions and a Router only when
 its entire configured subset contains those versions. Unknown or mixed subsets
 are left unclassified. The output follows the declared configuration, not live
 inference; see [tool-enabled previews](../docs/agent-creation.md#tool-enabled-previews-and-encrypted-reasoning)
-for overrides and verification.
+for overrides and verification. Hosted agents use a separate, default-off
+`hosted_agent_encrypted_reasoning` Lab input; the preview output does not enable
+it. See [tool-enabled hosted agents](../docs/agent-creation.md#tool-enabled-hosted-agents-and-encrypted-reasoning)
+before opting in for a verified deployment.
 
 The Lab reads the Router and preview outputs through `platform_state` and uses
 Router for new agents. Set `agent_creation_model` to an existing deployment

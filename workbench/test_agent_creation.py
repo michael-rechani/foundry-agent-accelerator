@@ -142,9 +142,68 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         record = await self.ready()
         persisted = await self.store.get(record["id"])
         self.assertEqual(record["runtime_hash"], persisted["runtime_hash"])
+        self.assertIs(record["include_encrypted_reasoning"], False)
+        self.assertIs(persisted["include_encrypted_reasoning"], False)
         self.assertRegex(record["runtime_hash"], r"^[a-f0-9]{64}$")
         self.assertNotIn("setup_hash", record)
         self.assertNotIn("project", record)
+
+    async def test_hosted_reasoning_setting_is_snapshotted_across_retries_and_resume(self):
+        settings = replace(self.settings, creation=replace(
+            self.settings.creation, models={"tool_calling": "reason-model"},
+            hosted_encrypted_reasoning={"reason-model": True},
+        ))
+        self.body["template_id"] = "workflow-coordinator"
+        async with self.make_client(settings) as first:
+            response = await first.post("/api/agents", json=self.body, headers=self.operator)
+            self.assertEqual(response.status_code, 202, response.text)
+            await asyncio.wait_for(self.publisher.done.wait(), 1)
+            identifier = response.json()["id"]
+            original = (await first.get("/api/agents/" + identifier)).json()
+            self.assertEqual(original["model"], "reason-model")
+            self.assertIs(original["include_encrypted_reasoning"], True)
+            self.assertIs(self.publisher.calls[0][1]["include_encrypted_reasoning"], True)
+
+        changed = replace(settings, creation=replace(
+            settings.creation, hosted_encrypted_reasoning={"reason-model": False},
+        ))
+        async with self.make_client(changed) as later:
+            repeated = await later.post("/api/agents", json=self.body, headers=self.operator)
+            self.assertEqual(repeated.status_code, 200, repeated.text)
+            self.assertIs(repeated.json()["include_encrypted_reasoning"], True)
+            self.assertEqual(len(self.publisher.calls), 1)
+            self.store.rows[identifier].update(status="creating", stage="provisioning")
+            current = (await later.get("/api/agents/" + identifier)).json()
+            self.publisher.done.clear()
+            resumed = await later.post("/api/agents/" + identifier + "/resume",
+                                       headers={**self.operator, "If-Match": current["_etag"]})
+            self.assertEqual(resumed.status_code, 202, resumed.text)
+            await asyncio.wait_for(self.publisher.done.wait(), 1)
+            self.assertEqual(self.publisher.calls[-1][0], "resume")
+            self.assertIs(self.publisher.calls[-1][1]["include_encrypted_reasoning"], True)
+            self.assertIs((await later.get("/api/agents/" + identifier)).json()["include_encrypted_reasoning"], True)
+
+    async def test_legacy_and_invalid_saved_hosted_reasoning_values(self):
+        record = await self.ready()
+        identifier = record["id"]
+        row = self.store.rows[identifier]
+        del row["include_encrypted_reasoning"]
+        legacy = await self.client.get("/api/agents/" + identifier)
+        self.assertEqual(legacy.status_code, 200, legacy.text)
+        self.assertNotIn("include_encrypted_reasoning", legacy.json())
+        for invalid in ("true", 1, None):
+            with self.subTest(invalid=invalid):
+                row["include_encrypted_reasoning"] = invalid
+                before = deepcopy(row)
+                response = await self.client.post("/api/agents/" + identifier + "/resume",
+                                                  headers={**self.operator, "If-Match": row["_etag"]})
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.json()["error"], "invalid_runtime_settings")
+                fetched = await self.client.get("/api/agents/" + identifier)
+                self.assertEqual(fetched.status_code, 503)
+                self.assertEqual(fetched.json()["error"], "invalid_runtime_settings")
+                self.assertEqual(row, before)
+        self.assertEqual(len(self.publisher.calls), 1)
 
     async def test_templates_and_drafts_do_not_use_storage_or_models(self):
         templates = await self.client.get("/api/agent-templates")
@@ -256,6 +315,7 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
     async def test_strict_setup_never_accepts_endpoint_tools_model_or_implicit_cost(self):
         invalid = [
             {"endpoint": ENDPOINT}, {"tools": ["write_external_record"]}, {"model": "different-model"},
+            {"include_encrypted_reasoning": True},
             {"confirm_cost": False}, {"confirm_cost": 1}, {"confirm_cost": "true"},
             {"idempotency_key": "not-a-uuid"}, {"template_id": "hidden-existing-agent"},
             {"name": "\x7f"}, {"name": " "}, {"name": "a" * 81},
@@ -760,6 +820,26 @@ class CreationSettingsTests(unittest.TestCase):
                       '{"model-router":null}'):
             with self.subTest(value=value), patch.dict("os.environ", {"WORKBENCH_PREVIEW_ENCRYPTED_REASONING": value}):
                 with self.assertRaisesRegex(ValueError, "WORKBENCH_PREVIEW_ENCRYPTED_REASONING"):
+                    CreationSettings.from_env().validate("private")
+
+    def test_hosted_reasoning_requires_an_explicit_deployment_to_boolean_map(self):
+        with patch.dict("os.environ", {
+            "WORKBENCH_HOSTED_ENCRYPTED_REASONING": '{"reason-model":true,"model-router":false}',
+        }, clear=True):
+            settings = CreationSettings.from_env()
+        settings.validate("private")
+        self.assertEqual(settings.hosted_encrypted_reasoning, {"reason-model": True, "model-router": False})
+        selected = replace(settings, model="model-router", models={"tool_calling": "reason-model"})
+        self.assertTrue(selected.hosted_includes_encrypted_reasoning("tool_calling"))
+        self.assertFalse(selected.hosted_includes_encrypted_reasoning("reasoning"))
+        self.assertFalse(CreationSettings(False, "unknown-model").hosted_includes_encrypted_reasoning("reasoning"))
+
+        for value in ("not json", "[1", "null", "[]", '{"reason-model":"true"}',
+                      '{"reason-model":1}', '{"bad name":true}', '{"reason-model":null}'):
+            with self.subTest(value=value), patch.dict(
+                "os.environ", {"WORKBENCH_HOSTED_ENCRYPTED_REASONING": value}, clear=True,
+            ):
+                with self.assertRaisesRegex(ValueError, "WORKBENCH_HOSTED_ENCRYPTED_REASONING"):
                     CreationSettings.from_env().validate("private")
 
     def test_default_is_disabled_and_environment_enablement_is_explicit(self):

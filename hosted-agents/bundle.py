@@ -26,6 +26,8 @@ LAB_RUNTIME_FILES = {"main.py", "requirements.txt", "demo_tools.py"}
 NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_-]{0,63}")
 MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 SHA256 = re.compile(r"[a-f0-9]{64}")
+ENCRYPTED_REASONING = "AGENT_INCLUDE_ENCRYPTED_REASONING"
+REASONING_CAPABILITY = b'HOSTED_RUNTIME_CAPABILITIES = ("encrypted_reasoning_v1",)'
 FIELDS = {
     "schema_version", "kind", "name", "description", "instructions", "model",
     "runtime", "cpu", "memory", "environment", "smoke_test_prompt",
@@ -132,11 +134,19 @@ def validate_archive(manifest, code):
     return files
 
 
-def validate_lab_environment(manifest, environment, checks):
-    if (set(environment) != {"DEMO_TEMPLATE_ID"} or checks
+def supports_encrypted_reasoning(files):
+    return files["main.py"].splitlines().count(REASONING_CAPABILITY) == 1
+
+
+def validate_lab_environment(manifest, environment, checks, files):
+    if (not {"DEMO_TEMPLATE_ID"} <= set(environment) <= {"DEMO_TEMPLATE_ID", ENCRYPTED_REASONING} or checks
             or not isinstance(environment["DEMO_TEMPLATE_ID"], str)
             or not re.fullmatch(r"[a-z][a-z-]{0,63}", environment["DEMO_TEMPLATE_ID"])):
-        raise ValueError("Lab bundles require one template ID and no specialist bindings")
+        raise ValueError("Lab bundles require a template ID, reviewed runtime settings, and no specialist bindings")
+    if ENCRYPTED_REASONING in environment and (
+        environment[ENCRYPTED_REASONING] not in ("true", "false") or not supports_encrypted_reasoning(files)
+    ):
+        raise ValueError("Encrypted reasoning requires a supported runtime and a true or false setting")
     if not 10 <= len(manifest["instructions"].strip()) <= 6000:
         raise ValueError("Lab instructions must contain 10 to 6000 characters")
     if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", manifest["name"]):
@@ -182,7 +192,7 @@ def validate_manifest(manifest, code):
     if not isinstance(environment, dict) or not isinstance(checks, list):
         raise ValueError("Invalid environment or delegation checks")
     if manifest["kind"] == "lab-created":
-        validate_lab_environment(manifest, environment, checks)
+        validate_lab_environment(manifest, environment, checks, files)
     elif environment:
         validate_delegation(manifest, environment, checks, files)
     elif checks:
@@ -265,10 +275,16 @@ def export_created(record_path, runtime_directory=None):
         sys.path[:] = previous_path
     if runtime_hash != record["runtime_hash"]:
         raise ValueError("Runtime changed: supply the original runtime source; exporting newer code is not a backup")
+    environment = {"DEMO_TEMPLATE_ID": record["template_id"]}
+    if "include_encrypted_reasoning" in record:
+        requested = record["include_encrypted_reasoning"]
+        if type(requested) is not bool:
+            raise ValueError("Saved encrypted reasoning setting must be a boolean")
+        environment[ENCRYPTED_REASONING] = str(requested).lower()
     profile = AgentProfile(
         HERE, record["runtime_name"], "Portable Lab demonstration agent",
         record["instructions"], "",
-        environment_variables=(("DEMO_TEMPLATE_ID", record["template_id"]),),
+        environment_variables=tuple(environment.items()),
     )
     return make_bundle(profile, code, kind="lab-created", model=record["model"])
 
@@ -286,7 +302,8 @@ def valid_project_endpoint(value):
             and re.fullmatch(r"/api/projects/[A-Za-z0-9_-]+", endpoint.path) is not None)
 
 
-def deployment_profile(manifest, code, name, mappings):
+def deployment_profile(manifest, code, name, mappings, include_encrypted_reasoning=None):
+    validate_manifest(manifest, code)
     manifest = deepcopy(manifest)
     manifest["name"] = name
     mapping = {}
@@ -296,6 +313,19 @@ def deployment_profile(manifest, code, name, mappings):
             raise ValueError("Use distinct --specialist OLD=NEW mappings")
         mapping[old] = new
     environment = manifest["environment"]
+    if include_encrypted_reasoning is not None and type(include_encrypted_reasoning) is not bool:
+        raise ValueError("Destination encrypted reasoning setting must be a boolean")
+    if manifest["kind"] != "lab-created" and include_encrypted_reasoning is not None:
+        raise ValueError("Destination encrypted reasoning is only supported for compatible Lab-created bundles")
+    if manifest["kind"] == "lab-created":
+        source_setting = environment.get(ENCRYPTED_REASONING)
+        if source_setting == "true" and include_encrypted_reasoning is None:
+            raise ValueError("Choose --encrypted-reasoning or --no-encrypted-reasoning for the destination model")
+        supported = supports_encrypted_reasoning(zip_contents(code))
+        if include_encrypted_reasoning is not None and not supported:
+            raise ValueError("This archived runtime cannot honor destination encrypted reasoning options")
+        if supported and (source_setting is not None or include_encrypted_reasoning is not None):
+            environment[ENCRYPTED_REASONING] = str(include_encrypted_reasoning is True).lower()
     if mapping:
         if "SPECIALIST_CONFIG" not in environment:
             raise ValueError("This bundle has no specialists to remap")
@@ -339,6 +369,11 @@ def main(argv=None):
     publish.add_argument("--model", required=True)
     publish.add_argument("--agent-name", required=True, help="Explicit destination agent name; an existing name is updated")
     publish.add_argument("--specialist", action="append", default=[], metavar="OLD=NEW")
+    reasoning = publish.add_mutually_exclusive_group()
+    reasoning.add_argument("--encrypted-reasoning", dest="include_encrypted_reasoning", action="store_true",
+                           default=None, help="Enable for the verified destination model and compatible Lab runtime")
+    reasoning.add_argument("--no-encrypted-reasoning", dest="include_encrypted_reasoning", action="store_false",
+                           help="Disable for the destination model")
     publish.add_argument("--poll-seconds", type=int, default=10)
     publish.add_argument("--max-polls", type=int, default=120)
     args = parser.parse_args(argv)
@@ -357,20 +392,27 @@ def main(argv=None):
             return
         manifest, code, bundle_hash = read_bundle(args.bundle)
         if args.command == "inspect":
-            print(json.dumps({
+            details = {
                 "schema_version": manifest["schema_version"], "kind": manifest["kind"],
                 "name": manifest["name"], "source_model": manifest["model"],
                 "runtime": manifest["runtime"], "cpu": manifest["cpu"], "memory": manifest["memory"],
                 "files": manifest["files"], "code_sha256": manifest["code_sha256"],
                 "bundle_sha256": bundle_hash,
                 "specialists": sorted({check[2] for check in manifest["delegation_checks"]}),
-            }, indent=2))
+            }
+            if manifest["kind"] == "lab-created":
+                source_setting = manifest["environment"].get(ENCRYPTED_REASONING)
+                details["source_encrypted_reasoning"] = (
+                    source_setting == "true" if source_setting is not None else None
+                )
+                details["runtime_supports_encrypted_reasoning"] = supports_encrypted_reasoning(zip_contents(code))
+            print(json.dumps(details, indent=2))
             return
         if not valid_project_endpoint(args.endpoint):
             raise ValueError("Supply the verified destination Foundry HTTPS project endpoint")
         if not MODEL.fullmatch(args.model):
             raise ValueError("Invalid destination model deployment name")
-        profile = deployment_profile(manifest, code, args.agent_name, args.specialist)
+        profile = deployment_profile(manifest, code, args.agent_name, args.specialist, args.include_encrypted_reasoning)
         options = parse_args(profile, [
             "--endpoint", args.endpoint, "--model", args.model, "--agent-name", args.agent_name,
             "--cpu", manifest["cpu"], "--memory", manifest["memory"], "--runtime", manifest["runtime"],

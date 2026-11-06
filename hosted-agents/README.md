@@ -359,12 +359,16 @@ python hosted-agents\bundle.py inspect agent-exports\created.agent-bundle.zip
 ```
 
 The record must be ready. The CLI takes its instructions, template ID, model,
-and runtime name. It doesn't export project IDs, operator keys, events, chat
+runtime name, and (when present) its saved encrypted-reasoning setting. It
+doesn't export project IDs, operator keys, events, chat
 records, or resource ownership metadata. It requires the shared runtime ZIP
 hash to match the saved hash. If the Lab runtime changed since publication,
 use `--runtime-directory <original-agent_runtime-folder>` from the matching
 source revision. A mismatched or missing hash is an error, not permission to
 substitute today's code.
+`inspect` shows the saved source setting and whether the archived runtime
+declares support for it. Old records and runtimes remain exportable; the CLI
+does not claim that an older runtime supports a setting it cannot honor.
 
 ### Deploy into a prepared destination
 
@@ -393,6 +397,16 @@ Lab-managed resource. They keep the Lab's no-hidden-model-smoke-call behavior,
 so an active runtime and confirmed routing don't prove answer quality. After
 deployment, test their fictional prompts yourself. Adding an independent agent
 to a destination Lab catalog is a separate operator change.
+
+For a Lab-created bundle whose source setting was `true`, choose explicitly
+between `--no-encrypted-reasoning` and `--encrypted-reasoning` when deploying:
+the source project's capability does not establish support in the destination,
+even if deployment names match. Other Lab-created bundles default to off. Use
+`--encrypted-reasoning` only after verifying the destination model and all
+possible Router submodels support it. The CLI rejects it for an older runtime
+without the capability marker, and rejects `--no-encrypted-reasoning` there as
+well because an older runtime cannot honor that override. Neither option
+applies to prebuilt bundles.
 
 ### Transfer boundaries
 

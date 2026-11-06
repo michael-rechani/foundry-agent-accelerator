@@ -23,7 +23,7 @@ from log_capture import CapturedLabLogs
 CREATED_AGENT_FIELDS = {
     "id", "kind", "project", "name", "template_id", "instructions", "runtime_name", "version", "status", "stage",
     "created_at", "updated_at", "_etag", "error", "events", "operation", "model", "runtime_hash", "model_profile",
-    "template",
+    "template", "include_encrypted_reasoning",
 }
 
 
@@ -362,7 +362,8 @@ def created_agent(project, number, updated_at, *, kind="created-agent", status="
         "name": f"Fictional helper {number}", "instructions": "Analyze only fictional supplied text.",
         "setup_hash": "a" * 64, "runtime_hash": "b" * 64, "runtime_name": resource_name(identifier),
         "model": "test-model", "model_profile": {"id": "standard"}, "template": template, "version": "1",
-        "publication_started": True, "status": status, "stage": status, "operation": "create",
+        "publication_started": True, "include_encrypted_reasoning": True,
+        "status": status, "stage": status, "operation": "create",
         "created_at": updated_at, "updated_at": updated_at, "error": None, "events": [], "ttl": -1,
         "_etag": f'"{number}"', "_ts": 1,
     }
@@ -413,6 +414,15 @@ class CreatedAgentQueryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({item["id"]: item["status"] for item in response.json()["items"]},
                          {self.rows[0]["id"]: "ready", self.rows[2]["id"]: "failed"})
         self.assertEqual(len(self.container.queries), 1)
+
+    async def test_legacy_record_without_reasoning_setting_survives_the_query(self):
+        del self.container.rows[self.rows[0]["id"]]["include_encrypted_reasoning"]
+        async with self.make_client() as client:
+            response = await client.get("/api/agents", headers=self.headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        records = {item["id"]: item for item in response.json()["items"]}
+        self.assertNotIn("include_encrypted_reasoning", records[self.rows[0]["id"]])
+        self.assertIs(records[self.rows[2]["id"]]["include_encrypted_reasoning"], True)
 
     async def test_conversation_of_a_republished_agent_updates_once_it_is_ready_again(self):
         agent = self.rows[0]

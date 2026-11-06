@@ -219,6 +219,11 @@ class PlanTests(unittest.TestCase):
                 {"name": "WORKBENCH_AGENT_CREATION_MODELS", "value": '{"reasoning":"other"}'},
             )
 
+        def enable_hosted_reasoning(item):
+            item["resource_changes"][-1]["change"]["after"]["template"][0]["container"][0]["env"].append(
+                {"name": "WORKBENCH_HOSTED_ENCRYPTED_REASONING", "value": '{"verified-model":true}'},
+            )
+
         def add_unrelated_change(item):
             item["resource_changes"].append({
                 "address": "azurerm_subnet.this", "type": "azurerm_subnet", "mode": "managed",
@@ -236,6 +241,7 @@ class PlanTests(unittest.TestCase):
             change_project,
             change_model_source,
             change_profile,
+            enable_hosted_reasoning,
             add_unrelated_change,
             image_not_active,
             lambda item: item["resource_changes"][0]["change"].update(actions=["update"], after={"enabled": False}),

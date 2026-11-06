@@ -66,7 +66,7 @@ class Conversation(StrictModel):
 CREATED_AGENTS_QUERY = (
     "SELECT c.id, c.kind, c.project, c.name, c.template_id, c.instructions, c.runtime_name, c.version, c.status, "
     "c.stage, c.created_at, c.updated_at, c._etag, c.error, c.events, c.operation, c.model, c.runtime_hash, "
-    "c.model_profile, c.template FROM c "
+    "c.model_profile, c.include_encrypted_reasoning, c.template FROM c "
     "WHERE c.kind = 'created-agent' AND c.project = @project ORDER BY c.updated_at DESC"
 )
 

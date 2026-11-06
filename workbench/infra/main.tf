@@ -145,6 +145,19 @@ variable "preview_encrypted_reasoning" {
     error_message = "Key preview_encrypted_reasoning by valid deployment name and use true or false for each value."
   }
 }
+variable "hosted_agent_encrypted_reasoning" {
+  type        = map(bool)
+  default     = {}
+  nullable    = false
+  description = "Explicit per-deployment opt-in for encrypted reasoning in newly published, tool-enabled hosted agents. Defaults to false for unlisted deployments; verify support for the deployment and its routed models before enabling it."
+  validation {
+    condition = alltrue([
+      for deployment, enabled in var.hosted_agent_encrypted_reasoning :
+      can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", deployment)) && enabled != null
+    ])
+    error_message = "Key hosted_agent_encrypted_reasoning by valid deployment name and use true or false for each value."
+  }
+}
 variable "prebuilt_agent_models" {
   type        = map(string)
   default     = {}
@@ -456,6 +469,9 @@ resource "azurerm_container_app" "this" {
           },
           length(local.preview_encrypted_reasoning) == 0 ? {} : {
             WORKBENCH_PREVIEW_ENCRYPTED_REASONING = jsonencode(local.preview_encrypted_reasoning)
+          },
+          length(var.hosted_agent_encrypted_reasoning) == 0 ? {} : {
+            WORKBENCH_HOSTED_ENCRYPTED_REASONING = jsonencode(var.hosted_agent_encrypted_reasoning)
           },
           length(var.prebuilt_agent_models) == 0 ? {} : {
             WORKBENCH_PREBUILT_AGENT_MODELS = jsonencode(var.prebuilt_agent_models)

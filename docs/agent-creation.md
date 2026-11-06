@@ -303,12 +303,40 @@ preview_encrypted_reasoning = {
 ```
 
 These settings affect previews and draft case runs only, not published agents.
-The hosted runtime also uses stateless calls, but its Foundry client does not
-request encrypted reasoning implicitly. Tool-enabled hosted agents using a
-reasoning-model override may need an explicit opt-in to replay tool calls; this
-is tracked for verification and any needed runtime change in #522. An incorrect
-preview override can also break a stateless tool loop. Verify each selected
+An incorrect override can break a stateless tool loop. Verify each selected
 deployment and repeat the check when its model or Router subset changes.
+
+### Tool-enabled hosted agents and encrypted reasoning
+
+The hosted runtime also uses stateless calls, but does not request encrypted
+reasoning by default. Some reasoning models need it to replay a tool call, while
+other models reject it. For **new** Lab-created hosted agents, operators can
+separately opt in by verified deployment name in Lab Terraform:
+
+```hcl
+hosted_agent_encrypted_reasoning = {
+  "verified-reasoning-deployment" = true
+}
+```
+
+Unlisted deployments, including Model Router, default to `false`; neither the
+preview map nor a model's name enables this setting. Enable it only after
+checking the chosen deployment and every model in a Router subset. The runtime
+requests `reasoning.encrypted_content` only when the setting is true **and**
+the agent has tools; it still uses `store=false`. The selected model and
+setting are saved together before publication. Retries and recovery use the
+saved values even if operator settings change; legacy records without the field
+keep the earlier `false` behavior. Existing hosted versions do not change.
+
+The SDK request and stateless tool replay are tested offline, but this does not
+prove that a live deployment or Router route supports the option. Approved
+private inference and tool-loop checks remain tracked in #522. A new Lab image
+changes the runtime package hash: an interrupted setup that never started
+publication may fail safely with `runtime_changed`; a publication that already
+started is reconciled against its saved version rather than uploaded again.
+The existing private-runner Router diagnostic and narrow Lab apply guard do not
+approve a hosted-reasoning setting change; a separately reviewed rollout is
+required.
 
 ## Enable publication
 
@@ -413,6 +441,7 @@ For non-Terraform operators, the equivalent server configuration is:
 | `WORKBENCH_MODEL_LIMITS` | Optional JSON object that maps each model deployment name to its `requests_per_minute` and `tokens_per_minute`, so the Lab answers busy before a chat turn would pass that deployment's limit. Set by `model_limits` in Terraform. See [Model limits](lab-configuration-and-cost.md#model-limits) |
 | `WORKBENCH_AGENT_CREATION_MODELS` | Optional JSON object that maps `reasoning`, `extraction`, and `tool_calling` to existing model deployments, for example `{"reasoning":"gpt-5.4","extraction":"gpt-5.4-mini"}` |
 | `WORKBENCH_PREVIEW_ENCRYPTED_REASONING` | Optional JSON object mapping deployment names to booleans. `true` requests encrypted reasoning for tool-enabled previews; `false` omits it. Terraform combines platform settings with `preview_encrypted_reasoning` overrides. Invalid maps stop startup. See [Tool-enabled previews](#tool-enabled-previews-and-encrypted-reasoning). |
+| `WORKBENCH_HOSTED_ENCRYPTED_REASONING` | Optional JSON object mapping deployment names to booleans, set by `hosted_agent_encrypted_reasoning`. Unlisted deployments default to `false`; invalid maps stop startup. This affects new hosted versions, not previews or existing versions. See [Tool-enabled hosted agents](#tool-enabled-hosted-agents-and-encrypted-reasoning). |
 | `WORKBENCH_CREATION_KEY_SHA256` | Lowercase, 64-character verifier from a secret reference. Never the raw key |
 | `WORKBENCH_MAX_CREATED_AGENTS` | Defaults to 5. Allowed range 1-20. Failed or unconfirmed attempts still count |
 | `WORKBENCH_PUBLICATION_TIMEOUT_SECONDS` | Defaults to 600. Allowed range 30-900 |
@@ -495,7 +524,7 @@ in #442.
 | [`agent_templates`](../workbench/agent_templates) | One JSON file per library agent in `agents/`: job description, prepared instructions, examples, conservative matching, fixed public tool metadata, each template's kind of work, its readiness and its place in the library |
 | [`agent_runtime`](../workbench/agent_runtime) | Reviewed runtime code, immutable policy, allowed tools, and pinned remote-build requirements |
 | [`agent_package.py`](../workbench/agent_package.py) | Deterministic runtime packaging shared by publication and the offline export CLI |
-| Creation request and saved record | Chosen template metadata snapshot, edited name/instructions, model deployment chosen for the template's kind of work, generated resource identity, and setup/runtime hashes |
+| Creation request and saved record | Chosen template metadata snapshot, edited name/instructions, model deployment and hosted encrypted-reasoning setting, generated resource identity, and setup/runtime hashes |
 | [`agent_publisher.py`](../workbench/agent_publisher.py) | SDK publication, version/ownership checks, activation polling, route verification, and retirement |
 | Server environment / [Lab Terraform](../workbench/infra/main.tf) | Enablement, the default and per-kind model deployments, operator-key verifier or explicit private presenter mode, and operational limits |
 | Existing [`agents.json`](../workbench/agents.json) and coordinator profiles | Unchanged prebuilt agent catalog, visibility, and specialist bindings. Creation doesn't overwrite them |
@@ -678,6 +707,7 @@ ContainerAppConsoleLogs
 | `publication_timeout` or `publication_unconfirmed` | The Lab couldn't confirm the outcome. Foundry work may still be running. | Select **Refresh status**, then **Resume setup** on the same record. Don't start a new creation. |
 | `resource_changed` | The Foundry agent, its versions, or its route no longer match this record, often after a change made outside the Lab. | Inspect the agent in Foundry with an operator. The Lab stops making automatic changes. |
 | `runtime_changed` | The runtime bundle changed, usually after a new Lab image, before this setup was published. | Delete the unused record and prepare a new setup. |
+| `invalid_runtime_settings` | A saved hosted-runtime setting has an invalid value. | Ask an operator to inspect the saved record; the Lab stops rather than guessing or starting a publication. |
 | `deletion_unconfirmed` | The Lab couldn't confirm that the hosted agent was removed. | Select **Delete created agent** again on the same record. If Foundry is still building or provisioning, it rejects deletion with 409 `agent_operation_running`, so wait a few minutes first. |
 
 ## Verification and honest status
