@@ -494,7 +494,6 @@ class DeploymentSDKTests(unittest.TestCase):
         self.assertEqual(self.uploaded, package.getvalue())
 
 
-@unittest.skipUnless(SDK_AVAILABLE, "Install requirements-deploy.txt for the real deployment SDK")
     def test_candidate_check_precedes_promotion_and_post_smoke(self):
         def check(*args):
             self.events.append("candidate")
@@ -538,6 +537,7 @@ class DeploymentSDKTests(unittest.TestCase):
         self.candidate.assert_not_called()
         self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
 
+@unittest.skipUnless(SDK_AVAILABLE, "Install requirements-deploy.txt for the real deployment SDK")
 class DeploymentTimeoutTests(unittest.TestCase):
     class Credential:
         def __enter__(self):
