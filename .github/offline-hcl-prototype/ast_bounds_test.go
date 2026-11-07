@@ -2,6 +2,7 @@ package hclprototype
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -146,9 +147,9 @@ func TestLongOperatorChainWithinIndependentBounds(t *testing.T) {
 
 func TestOperatorBudgetExactBoundary(t *testing.T) {
 	tests := []struct {
-		name        string
-		operators   int
-		categories  []string
+		name         string
+		operators    int
+		categories   []string
 		earlyRefusal bool
 	}{
 		{"at budget", MaxOperatorTokens, []string{"bounds_refused", "unsupported_expression"}, false},
@@ -219,24 +220,69 @@ func TestOperatorBudgetTokenKinds(t *testing.T) {
 }
 
 func TestLongOperatorLookingTextRemainsInert(t *testing.T) {
-	text := strings.Repeat("1+", 4092) + "1"
-	sources := []string{
-		`locals { value = "` + text + `" }`,
-		"# " + text + "\nlocals { value = 1 }\n",
-		"/* " + text + " */\nlocals { value = 1 }\n",
-		"locals {\n value = <<EOF\n" + text + "\nEOF\n}\n",
+	texts := []string{
+		strings.Repeat("1+", 4092) + "1",
+		strings.Repeat("+ - * / % == != < <= > >= && || ! ? ", 300),
 	}
-	for index, source := range sources {
-		if len(source) > MaxBytes {
-			t.Fatal("inert text case exceeds byte bound")
+	for _, text := range texts {
+		sources := []string{
+			`locals { value = "` + text + `" }`,
+			"# " + text + "\nlocals { value = 1 }\n",
+			"/* " + text + " */\nlocals { value = 1 }\n",
+			"locals {\n value = <<EOF\n" + text + "\nEOF\n}\n",
 		}
-		evidence, _, _ := measureProcessing(t, []byte(source))
-		if evidence.binaryOps != 0 {
-			t.Fatal("inert text unexpectedly produced operator nodes")
-		}
-		result := Analyze(NativeHCL, []byte(source))
-		if result.Outcome != "accepted_predicate" || len(result.Categories) != 0 {
-			t.Fatalf("inert operator-looking text case %d refused: %+v", index, result)
+		for index, source := range sources {
+			if len(source) > MaxBytes {
+				t.Fatal("inert text case exceeds byte bound")
+			}
+			evidence, _, _ := measureProcessing(t, []byte(source))
+			if evidence.binaryOps != 0 {
+				t.Fatal("inert text unexpectedly produced operator nodes")
+			}
+			result := Analyze(NativeHCL, []byte(source))
+			if result.Outcome != "accepted_predicate" || len(result.Categories) != 0 {
+				t.Fatalf("inert operator-looking text case %d refused: %+v", index, result)
+			}
 		}
 	}
+	var source strings.Builder
+	source.WriteString("locals {\n")
+	for index := 0; index < MaxOperatorTokens+1; index++ {
+		source.WriteString(" value-")
+		source.WriteString(strconv.Itoa(index))
+		source.WriteString(" = var.items.name\n")
+	}
+	source.WriteString("}\n")
+	result := Analyze(NativeHCL, []byte(source.String()))
+	if result.Outcome != "accepted_predicate" || len(result.Categories) != 0 {
+		t.Fatalf("ordinary assignments or hyphenated identifiers refused: %+v", result)
+	}
+}
+
+func TestWalkerDoesNotPruneAtNodeCountThreshold(t *testing.T) {
+	// Fabricated AST: this is not a claim that an admitted source can produce
+	// this many nodes under the independent token limit.
+	body := &hclsyntax.Body{}
+	for index := 0; index < MaxNodes/4+16; index++ {
+		body.Blocks = append(body.Blocks, &hclsyntax.Block{
+			Type: "ordinary", Body: &hclsyntax.Body{},
+		})
+	}
+	body.Blocks = append(body.Blocks, &hclsyntax.Block{
+		Type: "provider", Body: &hclsyntax.Body{},
+	})
+	var evidence processingEvidence
+	hclsyntax.Walk(body, &evidence)
+	if evidence.nodes <= MaxNodes {
+		t.Fatal("fabricated AST did not exceed the refusal threshold")
+	}
+	state := &analysis{categories: make(map[string]bool)}
+	hclsyntax.Walk(body, state)
+	result := state.finish()
+	if result.Nodes != MaxNodes || result.Outcome != "refused" ||
+		!reflect.DeepEqual(result.Categories, []string{"bounds_refused", "provider_block"}) {
+		t.Fatalf("node threshold pruned or failed to cap reporting: %+v", result)
+	}
+	t.Logf("fabricated_ast_visited_nodes=%d reported_nodes=%d final_provider_visited=true",
+		evidence.nodes, result.Nodes)
 }
