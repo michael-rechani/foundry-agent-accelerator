@@ -92,19 +92,26 @@ Terraform helper is changed.
 The reviewed root source has one unaliased `azapi` provider, the local Router
 module declares the same provider requirement without a provider block or alias,
 and root module calls have no `providers` remapping. The exact-root source digest
-continues to reject any root configuration mutation. The hosted actual-root test
-initializes the exact root with Terraform 1.16.4 and the public module/provider
-closure, then rejects AzAPI provider blocks, provider aliases, explicit resource
-provider selectors, and `providers` remappings in every loaded descendant module.
-Any future alias/remapping or dependency source that introduces an independent
-AzAPI configuration therefore fails this test rather than being assumed covered by
-the root default override. Dependency versions and hashes are still reviewed inputs;
-this is not an immutable guarantee against future changes to the module graph.
+continues to reject any root configuration mutation. Descendant provider routing
+is checked conservatively: every Terraform HCL file is rejected if its text
+contains the case-insensitive token `provider` anywhere, including comments and
+strings, rather than attempting partial HCL parsing. `.tf.json` files are parsed
+with duplicate-key and malformed-input rejection; decoded keys and strings
+containing `provider` are rejected. This covers provider configurations, selectors,
+module remappings and aliases without relying on line-oriented regexes. Symlinked,
+unreadable, or invalidly encoded source entries fail closed. No HCL parser package
+is added; this check is intentionally stricter than Terraform syntax and may reject
+benign comments or strings.
 
-This test is credential-free, backend-disabled and uses only Terraform init,
-provider/module source inspection, and validate on a disposable copy of the exact
-public root. It does not contact Azure, refresh state, produce a plan, or prove the
-provider's live ARM request behavior. No protected workflow is enabled or dispatched.
+The earlier actual-root CI run initialized the exact root with Terraform 1.16.4 and
+captured a public module/provider closure, but it used the earlier partial-regex
+scanner. That downloaded closure was not retained, so its descendants have not been
+re-inspected using this stricter check. The new adversarial tests are synthetic and
+do not establish what the earlier observed closure contained. Do not treat closure
+coverage as verified until a future authorized credential-free run applies this
+scanner to a freshly captured closure. This source check does not contact Azure,
+refresh state, produce a plan, or prove the provider's live ARM request behavior.
+No protected workflow is enabled or dispatched.
 ## Still unresolved
 
 Successful init/validate does not prove provider/runtime provenance, authenticated
@@ -114,14 +121,13 @@ or safe recovery. The disabled rollout/apply paths must remain disabled until th
 independent technical gates are met. The user has authorized necessary work; these
 are not a pending generic approval request.
 
-The new backend-disabled hosted integration test inspects every descendant module
-in Terraform's downloaded module manifest and rejects explicit AzAPI provider
-blocks, aliases, selectors, configuration aliases, and remappings. This covers the
-observed dependency closure at test time, not future dependency changes. It does not
-exercise runtime refresh, plan or provider registration requests. No telemetry
-resource Read/plan was invoked; no AVM `enable_telemetry` input is changed to hide
-desired resources or drift. Authenticated diagnostic execution still needs its own
-review.
+Synthetic tests cover HCL selectors/configurations/remappings/aliases (including
+same-line and comment-separated tokens), Terraform JSON provider-routing shapes,
+escaped JSON keys, malformed/duplicate JSON, nested source, and benign source with
+no provider references. They exercise the conservative scanner only; they are not
+evidence about the exact downloaded dependency closure. No telemetry resource
+Read/plan was invoked; no AVM `enable_telemetry` input is changed to hide desired
+resources or drift. Authenticated diagnostic execution still needs its own review.
 
 Do not enable or dispatch protected diagnostics on the strength of this regression.
 Any future protected plan/apply must retain `terraform-state-access` serialization;
