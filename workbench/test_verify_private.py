@@ -30,7 +30,7 @@ class FakeClient:
         if path == "/api/health/dependencies":
             return {"status": "ready", "foundry": "ready", "cosmos": "ready"}
         if path == "/api/reviews":
-            return {"status": "completed", "text": "Synthetic answer", "agent": "coordinator", "receipts": [
+            return {"request_id": "fictional-agent-request", "status": "completed", "text": "Synthetic answer", "agent": "coordinator", "receipts": [
                 {"tool": "inspect", "agent": "specialist", "verified": True, "call_id": str(number), "output": "Finding"}
                 for number in range(self.receipt_count)
             ] if self.receipt else []}
@@ -87,10 +87,11 @@ class StorageClient(FakeClient):
     identifier = "11111111-1111-4111-8111-111111111111"
     sensitive = "Fictional content must not appear in diagnostics"
 
-    def __init__(self, *, faults=None, external_read=None, delete_race=False, accepted_stale=False):
+    def __init__(self, *, faults=None, external_read=None, update_race=False, delete_race=False, accepted_stale=False):
         super().__init__()
         self.faults = faults or {}
         self.external_read = external_read
+        self.update_race = update_race
         self.delete_race = delete_race
         self.accepted_stale = accepted_stale
         self.requests = []
@@ -126,6 +127,8 @@ class StorageClient(FakeClient):
             response = {}
         elif method == "PUT":
             stage = "update"
+            if self.update_race:
+                self.etag = "external"
             if etag != self.etag:
                 raise CheckError(self.sensitive)
             self.etag = "two"
@@ -398,6 +401,114 @@ class PrivateVerificationTests(unittest.TestCase):
             verify(client, check_storage=True)
         self.assertTrue(client.deleted)
         self.assertEqual(sum(request[0] == "DELETE" for request in client.requests), 1)
+
+    def test_initial_read_update_race_refuses_mutation_without_cleanup(self):
+        client = StorageClient(update_race=True)
+        self.assert_storage_failure(client, "conditional update confirmation")
+        self.assertEqual(client.etag, "external")
+        self.assertEqual(client.requests[-1][2], "one")
+
+    def test_missing_expected_request_id_fails_explicitly_without_cleanup(self):
+        client = CustomerReviewClient()
+        client.overrides[2] = {"request_id": None}
+        original = client.call
+
+        def without_request_id(method, path, body=None, etag=None, expected=200):
+            result = original(method, path, body, etag, expected)
+            if path == "/api/reviews":
+                result.pop("request_id", None)
+            return result
+
+        with patch.object(client, "call", side_effect=without_request_id), \
+                self.assertRaisesRegex(CheckError, "initial record verification"):
+            verify(client, check_storage=True, check_review_specialists=True)
+        self.assertFalse(client.deleted)
+        self.assertFalse(any(method in {"PUT", "DELETE"} for method, _ in client.calls))
+
+    def test_http_failures_after_possible_mutation_commit_never_start_cleanup(self):
+        cases = (("timeout", None), ("connection", None), ("invalid-json", b"not JSON"),
+                 ("invalid-object", b"[]"), ("missing-version", b"{}"),
+                 ("duplicate-id", b'{"id":"11111111-1111-4111-8111-111111111111","id":"content-not-for-logs"}'))
+        for stage in ("update", "stale"):
+            for name, payload in cases:
+                with self.subTest(stage=stage, failure=name):
+                    fixture = StorageClient()
+                    puts = 0
+
+                    def respond(request, timeout):
+                        nonlocal puts
+                        method = request.get_method()
+                        path = request.full_url.removeprefix("https://lab.example.invalid")
+                        expected = 200
+                        current_stage = None
+                        if method == "PUT":
+                            puts += 1
+                            current_stage = "update" if puts == 1 else "stale"
+                            expected = 200 if puts == 1 else 409
+                        body = json.loads(request.data) if request.data else None
+                        result = fixture.call(method, path, body, request.get_header("If-match"), expected)
+                        if current_stage == stage:
+                            if stage == "stale":
+                                fixture.etag = "three"
+                            if name == "timeout":
+                                raise TimeoutError(fixture.sensitive)
+                            if name == "connection":
+                                raise URLError(fixture.sensitive)
+                            response = io.BytesIO(payload)
+                        elif expected == 409:
+                            raise HTTPError(request.full_url, 409, "fictional conflict", None, None)
+                        else:
+                            response = io.BytesIO(json.dumps(result).encode("utf-8"))
+                        response.status = expected
+                        return response
+
+                    output, error = io.StringIO(), io.StringIO()
+                    with patch("verify_private.build_opener") as opener, redirect_stdout(output), redirect_stderr(error):
+                        opener.return_value.open.side_effect = respond
+                        code = main(["--base-url", "https://lab.example.invalid", "--check-storage"])
+                    self.assertEqual(code, 1)
+                    self.assertEqual(output.getvalue(), "")
+                    message = json.loads(error.getvalue())["error"]
+                    self.assertIn("conditional update" if stage == "update" else "stale-update conflict", message)
+                    self.assertIn(fixture.identifier, message)
+                    self.assertNotIn(fixture.sensitive, error.getvalue())
+                    self.assertNotIn("content-not-for-logs", error.getvalue())
+                    self.assertFalse(fixture.deleted)
+                    self.assertEqual(fixture.read_count, 1)
+                    self.assertFalse(any(method == "DELETE" for method, _, _, _ in fixture.requests))
+                    self.assertEqual(puts, 1 if stage == "update" else 2)
+
+    def test_http_accepted_stale_update_retains_record_without_cleanup(self):
+        fixture = StorageClient()
+        puts = 0
+
+        def respond(request, timeout):
+            nonlocal puts
+            method = request.get_method()
+            path = request.full_url.removeprefix("https://lab.example.invalid")
+            if method == "PUT":
+                puts += 1
+                if puts == 2:
+                    fixture.etag = "three"
+                    response = io.BytesIO(json.dumps({"id": fixture.identifier, "_etag": fixture.etag}).encode())
+                    response.status = 200
+                    return response
+            body = json.loads(request.data) if request.data else None
+            result = fixture.call(method, path, body, request.get_header("If-match"))
+            response = io.BytesIO(json.dumps(result).encode())
+            response.status = 200
+            return response
+
+        output, error = io.StringIO(), io.StringIO()
+        with patch("verify_private.build_opener") as opener, redirect_stdout(output), redirect_stderr(error):
+            opener.return_value.open.side_effect = respond
+            code = main(["--base-url", "https://lab.example.invalid", "--check-storage"])
+        self.assertEqual(code, 1)
+        self.assertEqual(output.getvalue(), "")
+        self.assertIn("stale-update conflict confirmation", json.loads(error.getvalue())["error"])
+        self.assertFalse(fixture.deleted)
+        self.assertEqual(puts, 2)
+        self.assertEqual(fixture.read_count, 1)
 
     def test_private_client_rejects_invalid_mutation_etags_before_request(self):
         with patch("verify_private.build_opener") as opener:

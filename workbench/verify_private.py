@@ -160,7 +160,7 @@ def verify_storage(client, body):
         expected_turn = body["turns"][0]
         require(read.get("agent_id") == body["agent_id"]
                 and turns[0].get("question") == expected_turn["question"]
-                and all(turns[0]["result"].get(field) == expected_turn["result"][field]
+                and all(field in expected_turn["result"] and turns[0]["result"].get(field) == expected_turn["result"][field]
                         for field in ("request_id", "agent", "text")), "Saved transcript did not match")
         path = "/api/conversations/" + identifier
         created_etag = owned_etag
