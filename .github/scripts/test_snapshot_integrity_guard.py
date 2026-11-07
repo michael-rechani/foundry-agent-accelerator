@@ -1,3 +1,4 @@
+import asyncio
 import copy
 import contextlib
 import io
@@ -88,7 +89,7 @@ class Tests(unittest.TestCase):
                 self.assertEqual(guard.compare_snapshots(EXPECTED, before, after), guard.UNVERIFIED)
 
     def test_all_failure_paths_recheck_both_roles_and_redact(self):
-        for phase in ('success', 'error', 'timeout', 'cancel', 'before-state', 'before-input', 'after-state', 'after-input'):
+        for phase in ('success', 'error', 'timeout', 'cancel', 'async-cancel', 'before-state', 'before-input', 'after-state', 'after-input'):
             with self.subTest(phase=phase):
                 calls = []
                 stdout, stderr = io.StringIO(), io.StringIO()
@@ -104,12 +105,13 @@ class Tests(unittest.TestCase):
                     if phase == 'error': raise RuntimeError('FICTIONAL_SECRET')
                     if phase == 'timeout': raise TimeoutError('FICTIONAL_SECRET')
                     if phase == 'cancel': raise KeyboardInterrupt('FICTIONAL_SECRET')
+                    if phase == 'async-cancel': raise asyncio.CancelledError('FICTIONAL_SECRET')
                     return guard.DIAGNOSTIC_SUCCESS
                 with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                     outcome = guard.guarded_diagnostic(EXPECTED, read, diagnostic)
                 self.assertEqual(calls, ['platform_state', 'input'] * 2)
                 expected = guard.PASSED if phase == 'success' else (
-                    guard.FAILED if phase in ('error', 'timeout', 'cancel') else guard.UNVERIFIED)
+                    guard.FAILED if phase in ('error', 'timeout', 'cancel', 'async-cancel') else guard.UNVERIFIED)
                 self.assertEqual(outcome, expected)
                 self.assertEqual(stdout.getvalue() + stderr.getvalue(), '')
 
@@ -313,6 +315,35 @@ class Tests(unittest.TestCase):
         self.assertEqual(guard.guarded_diagnostic(EXPECTED, read, diagnostic), guard.UNVERIFIED)
         self.assertEqual(calls, ['platform_state', 'input'] * 2)
         self.assertEqual(invoked, [])
+
+    def test_suspended_coroutine_and_unresolved_future_are_not_awaited_or_cancelled(self):
+        events = []
+        class Pause:
+            def __await__(self):
+                events.append('began')
+                yield 'paused'
+                events.append('resumed')
+        async def unfinished():
+            await Pause()
+            return guard.DIAGNOSTIC_SUCCESS
+        coroutine = unfinished()
+        self.assertEqual(coroutine.send(None), 'paused')
+        loop = asyncio.new_event_loop()
+        try:
+            future = loop.create_future()
+            for result in (coroutine, future):
+                calls = []
+                def read(role):
+                    calls.append(role)
+                    return fixture()[role]
+                self.assertEqual(guard.guarded_diagnostic(EXPECTED, read, lambda: result), guard.FAILED)
+                self.assertEqual(calls, ['platform_state', 'input'] * 2)
+            self.assertEqual(events, ['began'])
+            self.assertFalse(future.done())
+        finally:
+            coroutine.close()
+            future.cancel()
+            loop.close()
 
 if __name__ == '__main__':
     unittest.main()
