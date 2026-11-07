@@ -625,7 +625,12 @@ configure an explicit limit for the Router deployment.
 Terraform checks the returned management-plane routing mode and model list,
 ignoring order but rejecting duplicates or missing or extra models. A failed
 apply can leave a deployment using a different or unrestricted model set. Do
-not send requests to it until its settings are corrected and verified.
+not send requests to it until its settings are corrected and verified. The
+[documented custom-routing example](https://learn.microsoft.com/azure/foundry/openai/how-to/model-router#configure-custom-settings-with-the-rest-api)
+uses a preview PUT; this module's subsequent `2025-12-01` PATCH of routing
+properties has not been verified against the live service. Before approving an
+apply, review a private-runner recovery path for a partial create or failed
+PATCH; neither retrying nor deleting the deployment is automatically safe.
 Azure notes that routing changes can take up to five minutes to take effect;
 management-plane readback alone does not verify inference behavior. Further
 guidance and live verification are tracked in the

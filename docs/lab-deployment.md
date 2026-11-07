@@ -680,6 +680,16 @@ state locks can change blob metadata and create retained versions. See
 [rollout issue #522](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522)
 and the paused platform decision in #485.
 
+The Router module's routing PATCH is not yet verified against the live service.
+A failed create, PATCH, or readback can leave a deployment present with an
+unverified model subset, and state may reflect only part of the operation.
+Do not route requests to it or blindly retry or delete it. Use an approved
+private-runner path to inspect the deployment and state, then separately review
+the necessary reconciliation or removal; no such recovery path is approved
+yet. For example, a no-change deployment with a pending PATCH is rejected by
+the forward diagnostic's matching-action guard and requires a separately
+reviewed recovery path, not a targeted apply or a weaker forward guard.
+
 Before rollout:
 
 1. Confirm the fixed primary model deployment is available. Record the current

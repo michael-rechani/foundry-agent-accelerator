@@ -469,6 +469,16 @@ class PlanTests(unittest.TestCase):
             with self.subTest(item=item), self.assertRaises(diagnostic.CheckError):
                 diagnostic.summarize_plan(item, 0, values(), ACCOUNT)
 
+    def test_partial_router_apply_requires_separate_recovery(self):
+        value = plan()
+        deployment = value["resource_changes"][0]["change"]
+        deployment.update(actions=["no-op"], before=deepcopy(deployment["after"]))
+        patch_change = value["resource_changes"][1]["change"]
+        patch_change["after"]["resource_id"] = ACCOUNT + "/deployments/model-router"
+        patch_change["after_unknown"] = {}
+        with self.assertRaisesRegex(diagnostic.CheckError, "must have matching actions"):
+            diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
+
     def test_preview_output_tracks_known_model_versions_and_deployment_aliases(self):
         value = plan()
         value["variables"]["additional_model_deployments"]["value"] = {
