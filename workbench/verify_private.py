@@ -41,15 +41,17 @@ class PrivateClient:
         if loopback:
             host = os.getenv("WORKBENCH_ALLOWED_HOSTS", "")
             require(os.getenv("WORKBENCH_MODE") == "private" and host and "," not in host,
-                    "Loopback verification must run inside the configured private Lab container")
+                    "Loopback verification requires private mode and one allowed host in the environment")
             self.base_url, self.origin = "http://127.0.0.1:8080", f"https://{host}"
             self.host = host
         else:
-            parsed = urlsplit(base_url or "")
+            origin = base_url or ""
+            parsed = urlsplit(origin)
             require(parsed.scheme == "https" and parsed.hostname and not parsed.username and not parsed.password
-                    and parsed.path in {"", "/"} and not parsed.query and not parsed.fragment,
-                    "Supply the exact private HTTPS origin, not a path or credentials")
-            self.base_url = base_url.rstrip("/")
+                    and parsed.path in {"", "/"} and not parsed.query and not parsed.fragment
+                    and "?" not in origin and "#" not in origin,
+                    "Supply the exact HTTPS origin, not a path, query, fragment, or credentials")
+            self.base_url = origin.rstrip("/")
             self.origin, self.host = self.base_url, parsed.netloc
         self.opener = build_opener(NoRedirects)
 
@@ -71,7 +73,7 @@ class PrivateClient:
                 return {}
             raise CheckError(f"{method} {path}: HTTP {problem.code}; no automatic retry performed") from problem
         except (URLError, TimeoutError) as problem:
-            raise CheckError(f"{method} {path}: private connection unavailable or timed out") from problem
+            raise CheckError(f"{method} {path}: connection unavailable or timed out") from problem
         except (ValueError, UnicodeError) as problem:
             raise CheckError(f"{method} {path}: invalid JSON response") from problem
         require(isinstance(data, dict), f"{method} {path}: expected a JSON object")
@@ -159,10 +161,11 @@ def verify(client, *, check_storage=False, run_agent=False, check_review_special
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Verify the existing Lab without deploying resources or logging review content.")
+    parser = argparse.ArgumentParser(description="Check Lab API responses without deploying resources or logging review content.")
     target = parser.add_mutually_exclusive_group(required=True)
-    target.add_argument("--base-url", help="Verified private HTTPS origin")
-    target.add_argument("--loopback", action="store_true", help="Existing-container runtime check only; not an ingress test")
+    target.add_argument("--base-url", help="HTTPS origin; API success does not verify private ingress")
+    target.add_argument("--loopback", action="store_true",
+                        help="Check fixed loopback HTTP; this does not verify ingress or container isolation")
     parser.add_argument("--check-storage", action="store_true", help="Create, read, update, and delete one fictional conversation")
     agent_check = parser.add_mutually_exclusive_group()
     agent_check.add_argument("--run-agent", action="store_true",
@@ -177,8 +180,10 @@ def main(argv=None):
     except CheckError as problem:
         print(json.dumps({"status": "failed", "error": str(problem)}), file=sys.stderr)
         return 1
-    print(json.dumps({"status": "passed", "path": "container_loopback" if arguments.loopback else "private_https",
-                      "checks": checks, "ingress_verified": not arguments.loopback,
+    print(json.dumps({"status": "passed", "path": "loopback_http" if arguments.loopback else "https_origin",
+                      "checks": checks, "https_origin_reached": not arguments.loopback,
+                      "ingress_verified": False, "private_network_verified": False,
+                      "rendered_ui_verified": False, "container_isolation_verified": False,
                       "model_quality_verified": False}))
     return 0
 

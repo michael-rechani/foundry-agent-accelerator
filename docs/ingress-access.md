@@ -470,6 +470,33 @@ deployments. For a private demonstration without sign-in, record those
 capabilities as **not implemented**, verify the private-demo boundary below, and
 don't describe the result as ready for public or confidential multi-user access.
 
+The `workbench/verify_private.py --base-url <HTTPS-origin>` command checks API
+responses from the supplied HTTPS origin. A successful report uses
+`"path": "https_origin"` and `"https_origin_reached": true`; the supplied host
+might be localhost or publicly routed, so this is not proof of the intended Lab's
+provenance, private DNS or routes, proxy path, management-subnet access, or
+private ingress. `--loopback` instead reports `"path": "loopback_http"` and
+`"https_origin_reached": false`: it checks the fixed HTTP loopback endpoint and
+required environment variables, not whether the process is in a container or
+whether that container is isolated. In both modes `"ingress_verified"`,
+`"private_network_verified"`, `"rendered_ui_verified"`,
+`"container_isolation_verified"`, and `"model_quality_verified"` remain false
+because the CLI does not establish those properties. It does not establish the
+actual served model or cost either.
+
+This reporting contract intentionally replaces the earlier `private_https` and
+`container_loopback` path values and no longer sets `ingress_verified` to true
+for HTTPS. Consumers must not interpret `"status": "passed"` as private-network
+or browser/UI acceptance. The default CLI only reads the configuration and
+cached dependency status; storage checks and potentially billable agent calls
+remain explicit opt-ins.
+
+Independently authorize, perform, and record the private-network boundary checks
+(including origin provenance, private DNS and routing, proxies, source subnets,
+and allowed and denied ingress) and rendered browser/UI checks from the intended
+management network and other appropriate locations. The API result does not
+substitute for the acceptance checks below.
+
 | Check | Required result |
 | --- | --- |
 | DNS and TLS | Browser reaches the intended listener. The gateway resolves and reaches its private origin. Certificates validate on both hops. |
