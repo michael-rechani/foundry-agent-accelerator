@@ -54,6 +54,23 @@ invoke Terraform. Failure output uses generic identity pin, input mismatch,
 protected state invalid, snapshot instability, read failure, secret-read review
 required or unexpected categories
 without revealing values. Multiple independent blockers may be reported.
+Protected state failures distinguish the envelope, resource inventory, account
+and project outputs, role representation, role scope mismatch, and disk
+representation, without printing their contents. An unclassified state failure
+remains generic.
+Disk failures use fixed categories for missing or duplicate resources, instance
+shape and selection, body shape, and each required nested object or identity
+being absent or of the wrong type. These report shape only, never field values;
+they do not diagnose disk health or establish the correct representation.
+The comparison also accepts a strictly validated Terraform dynamic-value
+wrapper around an object body. It rejects ambiguous wrappers and type/value
+disagreement as `disk_dynamic_invalid`, then applies the same disk identity
+checks; it does not compare the persisted disk tier. This representation is
+supported by [AzAPI 2.12's dynamic body schema](https://github.com/Azure/terraform-provider-azapi/blob/v2.12.0/docs/resources/resource.md)
+and Terraform's [instance encoding](https://github.com/hashicorp/terraform/blob/v1.16.6/internal/states/instance_object.go)
+using [cty dynamic serialization](https://github.com/zclconf/go-cty/blob/v1.18.1/cty/json/marshal.go).
+These sources establish a possible encoding, not the encoding of any particular
+private state. Unsupported or malformed descriptors fail closed.
 The secret-read category checks only whether the reference is non-null; it
 does not inspect the reference or access a secret. No run is implied by adding
 this workflow. A separate generic category indicates only whether a Router

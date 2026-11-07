@@ -57,6 +57,23 @@ def encode(value):
     return json.dumps(value).encode()
 
 
+def typed_body(value):
+    def descriptor(item):
+        if isinstance(item, dict):
+            return ["object", {key: descriptor(child) for key, child in item.items()}]
+        if isinstance(item, list):
+            return ["tuple", [descriptor(child) for child in item]]
+        if type(item) is bool:
+            return "bool"
+        if type(item) in (int, float):
+            return "number"
+        if isinstance(item, str):
+            return "string"
+        return "dynamic"
+
+    return {"type": descriptor(value), "value": deepcopy(value)}
+
+
 def headers(etag='"v1"', lease="unlocked", locked=False):
     result = Message()
     result["ETag"] = etag
@@ -130,6 +147,77 @@ class CompareTests(unittest.TestCase):
         attrs = state["resources"][2]["instances"][0]["attributes"]
         attrs["body"] = json.dumps(attrs["body"])
         probe.compare(encode(inputs), encode(state), SUB)
+
+    def test_cty_dynamic_object_body_and_disk_identity(self):
+        inputs, state = fixture()
+        attrs = state["resources"][2]["instances"][0]["attributes"]
+        body = attrs["body"]
+        body["properties"].update(
+            hardwareProfile={"vmSize": "synthetic"},
+            networkProfile={"networkInterfaces": [{"id": "synthetic", "properties": {"primary": True}}]},
+            dataDisks=[], optional=None,
+        )
+        attrs["body"] = typed_body(body)
+        probe.compare(encode(inputs), encode(state), SUB)
+        nested = deepcopy(state)
+        nested_body = nested["resources"][2]["instances"][0]["attributes"]["body"]
+        nested_body["type"][1]["properties"] = "dynamic"
+        nested_body["value"]["properties"] = typed_body(nested_body["value"]["properties"])
+        probe.compare(encode(inputs), encode(nested), SUB)
+        for field in ("id", "name"):
+            altered = deepcopy(state)
+            os_disk = altered["resources"][2]["instances"][0]["attributes"]["body"]["value"]["properties"][
+                "storageProfile"]["osDisk"]
+            target = os_disk["managedDisk"] if field == "id" else os_disk
+            target[field] += "-different"
+            with self.subTest(field=field), self.assertRaises(probe.CandidateError):
+                probe.compare(encode(inputs), encode(altered), SUB)
+
+    def test_dynamic_type_and_value_are_strictly_consistent(self):
+        inputs, state = fixture()
+        attrs = state["resources"][2]["instances"][0]["attributes"]
+        original = typed_body(attrs["body"])
+        cases = []
+        for mutate in (
+            lambda b: b.pop("type"),
+            lambda b: b.pop("value"),
+            lambda b: b.update(properties=deepcopy(b["value"]["properties"])),
+            lambda b: b.update(type=["object", {}]),
+            lambda b: b.update(type=["object", "not-an-object"]),
+            lambda b: b.update(type=["object", {}, []]),
+            lambda b: b.update(type=["unknown", {}]),
+            lambda b: b.update(type="dynamic"),
+            lambda b: b["type"][1].update(extra="string"),
+            lambda b: b["value"].update(extra="private-value"),
+            lambda b: b["type"][1]["properties"][1]["storageProfile"][1]["osDisk"][1].update(name="number"),
+            lambda b: b["value"]["properties"]["storageProfile"]["osDisk"].update(name=True),
+            lambda b: b.update(value=[]),
+        ):
+            changed = deepcopy(original)
+            mutate(changed)
+            cases.append(changed)
+        for case in cases:
+            attrs["body"] = case
+            with self.subTest(case=cases.index(case)), self.assertRaises(probe.StateDiskDetailError) as caught:
+                probe.compare(encode(inputs), encode(state), SUB)
+            self.assertEqual(caught.exception.category, "disk_dynamic_invalid")
+
+    def test_cty_collection_types_and_nested_dynamic_values(self):
+        descriptor = ["object", {
+            "map": ["map", "string"], "list": ["list", "number"],
+            "set": ["set", "bool"], "tuple": ["tuple", ["string", "dynamic"]],
+        }]
+        value = {"map": {"key": "value"}, "list": [1, 2.5], "set": [True, False],
+                 "tuple": ["synthetic", {"type": "string", "value": "synthetic"}]}
+        self.assertTrue(probe.valid_cty_type(descriptor))
+        self.assertTrue(probe.valid_cty_value(descriptor, value))
+        for key, invalid in (("map", {"key": 1}), ("list", [True]), ("set", [0]),
+                             ("set", [True, True]),
+                             ("tuple", ["synthetic", {"type": "number", "value": "not-number"}])):
+            changed = deepcopy(value)
+            changed[key] = invalid
+            with self.subTest(key=key):
+                self.assertFalse(probe.valid_cty_value(descriptor, changed))
 
     def test_other_project_role_even_with_matching_assignment_id_is_rejected(self):
         inputs, state = fixture()
@@ -261,6 +349,243 @@ class SnapshotTests(unittest.TestCase):
                 self.assertEqual((out.getvalue(), err.getvalue()),
                                  ("", f"candidate_platform_comparison_failed={category}\n"
                                   + ("candidate_router_override=absent\n" if category == "input_mismatch_or_missing" else "")))
+
+    def test_state_failure_categories_are_fixed_and_preserve_secret_blocker(self):
+        def malformed_envelope(state):
+            state["serial"] = True
+
+        def malformed_inventory(state):
+            state["resources"].append(deepcopy(state["resources"][0]))
+
+        def malformed_outputs(state):
+            state["outputs"]["foundry_project_id"]["value"] = "private-project"
+
+        def malformed_role(state):
+            state["resources"][1]["instances"][0]["attributes"]["principal_id"] = "private-identity"
+
+        def malformed_disk(state):
+            state["resources"][2]["instances"][0]["attributes"]["body"] = {"private-field": "private-value"}
+
+        for mutate, category in (
+            (malformed_envelope, "state_envelope_invalid"),
+            (malformed_inventory, "state_inventory_invalid"),
+            (malformed_outputs, "state_outputs_invalid"),
+            (malformed_role, "state_role_invalid"),
+            (malformed_disk, "disk_parent_missing"),
+        ):
+            for secret in (False, True):
+                with self.subTest(category=category, secret=secret):
+                    state = deepcopy(self.state)
+                    mutate(state)
+                    inputs = deepcopy(self.inputs)
+                    if secret:
+                        inputs["jumpbox_admin_secret"] = {"private-field": "private-value"}
+                    results = [
+                        (encode(inputs), headers()), (encode(state), headers()),
+                        (encode(state), headers()), (encode(inputs), headers()),
+                    ]
+                    out, err = io.StringIO(), io.StringIO()
+                    with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                            patch.object(probe, "Blobs", return_value=self.blobs), \
+                            patch.object(probe.backend, "send", side_effect=results), \
+                            contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                        self.assertEqual(probe.main(), 1)
+                    expected = ("candidate_platform_comparison_failed=secret_read_review_required\n" if secret else "")
+                    expected += f"candidate_platform_comparison_failed={category}\n"
+                    expected += "candidate_router_override=absent\n"
+                    self.assertEqual((out.getvalue(), err.getvalue()), ("", expected))
+
+    def test_resource_specific_categories_are_redacted(self):
+        for resource, mode, category in (
+            (0, "missing", "state_inventory_invalid"),
+            (0, "duplicate", "state_inventory_invalid"),
+            (1, "missing", "state_role_invalid"),
+            (1, "duplicate", "state_role_invalid"),
+            (1, "instance", "state_role_invalid"),
+            (1, "scope", "state_role_scope_mismatch"),
+            (1, "bad_scope", "state_role_invalid"),
+            (2, "missing", "disk_resource_missing"),
+            (2, "duplicate", "disk_resource_multiple"),
+            (2, "instance", "disk_instance_missing"),
+        ):
+            with self.subTest(resource=resource, mode=mode):
+                state = deepcopy(self.state)
+                item = state["resources"][resource]
+                if mode == "missing":
+                    state["resources"].pop(resource)
+                elif mode == "duplicate":
+                    state["resources"].append(deepcopy(item))
+                elif mode == "instance":
+                    item["instances"] = []
+                elif mode == "scope":
+                    item["instances"][0]["attributes"]["scope"] = ACCOUNT + "/projects/private-project"
+                else:
+                    item["instances"][0]["attributes"]["scope"] = None
+                results = [(encode(self.inputs), headers()), (encode(state), headers()),
+                           (encode(state), headers()), (encode(self.inputs), headers())]
+                out, err = io.StringIO(), io.StringIO()
+                with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                        patch.object(probe, "Blobs", return_value=self.blobs), \
+                        patch.object(probe.backend, "send", side_effect=results), \
+                        contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    self.assertEqual(probe.main(), 1)
+                self.assertEqual((out.getvalue(), err.getvalue()),
+                                 ("", f"candidate_platform_comparison_failed={category}\n"
+                                  "candidate_router_override=absent\n"))
+
+    def test_disk_guard_detailed_categories_are_bounded_and_redacted(self):
+        def mutate(state, case):
+            resources = state["resources"]
+            resource = resources[2]
+            instance = resource["instances"][0]
+            attrs = instance["attributes"]
+            if case == "disk_resource_missing":
+                resources.pop(2)
+            elif case == "disk_resource_multiple":
+                resources.append(deepcopy(resource))
+            elif case == "disk_instances_invalid":
+                resource["instances"] = "private-value"
+            elif case == "disk_instance_missing":
+                resource["instances"] = []
+            elif case == "disk_instance_multiple":
+                resource["instances"].append(deepcopy(instance))
+            elif case == "disk_instance_invalid":
+                resource["instances"][0] = "private-value"
+            elif case == "disk_instance_deposed":
+                instance["deposed"] = "private-value"
+            elif case == "disk_instance_index_invalid":
+                instance["index_key"] = 1
+            elif case == "disk_attributes_invalid":
+                instance["attributes"] = "private-value"
+            elif case == "disk_body_missing":
+                attrs.pop("body")
+            elif case == "disk_body_invalid":
+                attrs["body"] = []
+            elif case == "disk_body_json_invalid":
+                attrs["body"] = '{"private-field":"private-value",'
+            elif case == "disk_dynamic_invalid":
+                attrs["body"] = {"type": ["object", {}], "value": {"private-field": "private-value"}}
+            elif case.startswith(("disk_parent_", "disk_storage_", "disk_os_", "disk_managed_",
+                                  "disk_id_", "disk_name_")):
+                body = attrs["body"]
+                parents = {
+                    "parent": (body, "properties"),
+                    "storage": (body["properties"], "storageProfile"),
+                    "os": (body["properties"]["storageProfile"], "osDisk"),
+                    "managed": (body["properties"]["storageProfile"]["osDisk"], "managedDisk"),
+                    "id": (body["properties"]["storageProfile"]["osDisk"]["managedDisk"], "id"),
+                    "name": (body["properties"]["storageProfile"]["osDisk"], "name"),
+                }
+                _, kind, status = case.split("_")
+                parent, key = parents[kind]
+                if status == "missing":
+                    parent.pop(key)
+                else:
+                    parent[key] = ["private-value"]
+            else:
+                self.fail("unhandled category")
+
+        for category in sorted(probe.DISK_FAILURE_CATEGORIES):
+            for secret in (False, True):
+                with self.subTest(category=category, secret=secret):
+                    state, inputs = deepcopy(self.state), deepcopy(self.inputs)
+                    mutate(state, category)
+                    if secret:
+                        inputs["jumpbox_admin_secret"] = {"private-field": "private-value"}
+                    results = [(encode(inputs), headers()), (encode(state), headers()),
+                               (encode(state), headers()), (encode(inputs), headers())]
+                    out, err = io.StringIO(), io.StringIO()
+                    with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                            patch.object(probe, "Blobs", return_value=self.blobs), \
+                            patch.object(probe.backend, "send", side_effect=results), \
+                            contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                        self.assertEqual(probe.main(), 1)
+                    expected = "candidate_platform_comparison_failed=secret_read_review_required\n" if secret else ""
+                    expected += f"candidate_platform_comparison_failed={category}\ncandidate_router_override=absent\n"
+                    self.assertEqual((out.getvalue(), err.getvalue()), ("", expected))
+
+    def test_jumpbox_index_requires_integer_zero(self):
+        for value in (False, 0.0, "0", None):
+            with self.subTest(value=value):
+                state = deepcopy(self.state)
+                instance = state["resources"][2]["instances"][0]
+                if value is None:
+                    instance.pop("index_key")
+                else:
+                    instance["index_key"] = value
+                results = [(encode(self.inputs), headers()), (encode(state), headers()),
+                           (encode(state), headers()), (encode(self.inputs), headers())]
+                out, err = io.StringIO(), io.StringIO()
+                with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                        patch.object(probe, "Blobs", return_value=self.blobs), \
+                        patch.object(probe.backend, "send", side_effect=results), \
+                        contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    self.assertEqual(probe.main(), 1)
+                self.assertEqual((out.getvalue(), err.getvalue()),
+                                 ("", "candidate_platform_comparison_failed=disk_instance_index_invalid\n"
+                                  "candidate_router_override=absent\n"))
+
+    def test_unstable_snapshots_override_disk_detail_and_secret(self):
+        state, inputs = deepcopy(self.state), deepcopy(self.inputs)
+        state["resources"][2]["instances"][0]["attributes"].pop("body")
+        inputs["jumpbox_admin_secret"] = {"private-field": "private-value"}
+        results = [(encode(inputs), headers()), (encode(state), headers()),
+                   (encode(state), headers(etag='"changed"')), (encode(inputs), headers())]
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                patch.object(probe, "Blobs", return_value=self.blobs), \
+                patch.object(probe.backend, "send", side_effect=results), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(probe.main(), 1)
+        self.assertEqual((out.getvalue(), err.getvalue()),
+                         ("", "candidate_platform_comparison_failed=snapshot_unstable\n"))
+
+    def test_unstable_snapshots_override_dynamic_error_and_secret(self):
+        state, inputs = deepcopy(self.state), deepcopy(self.inputs)
+        state["resources"][2]["instances"][0]["attributes"]["body"] = {"type": "private-value"}
+        inputs["jumpbox_admin_secret"] = {"private-field": "private-value"}
+        results = [(encode(inputs), headers()), (encode(state), headers()),
+                   (encode(state), headers(etag='"changed"')), (encode(inputs), headers())]
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                patch.object(probe, "Blobs", return_value=self.blobs), \
+                patch.object(probe.backend, "send", side_effect=results), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(probe.main(), 1)
+        self.assertEqual((out.getvalue(), err.getvalue()),
+                         ("", "candidate_platform_comparison_failed=snapshot_unstable\n"))
+
+    def test_synthetic_provider_shape_rejects_identity_mismatches(self):
+        for field in ("id", "name"):
+            for body_as_json in (False, True):
+                with self.subTest(field=field, body_as_json=body_as_json):
+                    state = deepcopy(self.state)
+                    attrs = state["resources"][2]["instances"][0]["attributes"]
+                    os_disk = attrs["body"]["properties"]["storageProfile"]["osDisk"]
+                    if field == "id":
+                        os_disk["managedDisk"]["id"] = DISK + "-other"
+                    else:
+                        os_disk["name"] = "other"
+                    if body_as_json:
+                        attrs["body"] = json.dumps(attrs["body"])
+                    with self.assertRaises(probe.CandidateError):
+                        probe.compare(encode(self.inputs), encode(state), SUB)
+
+    def test_unstable_snapshots_override_state_and_secret_categories(self):
+        state = deepcopy(self.state)
+        state["serial"] = True
+        inputs = deepcopy(self.inputs)
+        inputs["jumpbox_admin_secret"] = {"private-field": "private-value"}
+        results = [(encode(inputs), headers()), (encode(state), headers()),
+                   (encode(state), headers(etag='"changed"')), (encode(inputs), headers())]
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                patch.object(probe, "Blobs", return_value=self.blobs), \
+                patch.object(probe.backend, "send", side_effect=results), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(probe.main(), 1)
+        self.assertEqual((out.getvalue(), err.getvalue()),
+                         ("", "candidate_platform_comparison_failed=snapshot_unstable\n"))
 
     def test_independent_secret_and_input_categories_are_sanitized(self):
         candidate = deepcopy(self.inputs)
