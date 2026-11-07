@@ -78,7 +78,7 @@ class ClosureTests(unittest.TestCase):
 
     def test_version_revision_and_unreviewed_provenance_fail_closed(self):
         for key, value in (('terraform', '1.17.0'), ('source_sha', '0' * 40), ('platform', 'windows_amd64'),
-                           ('provenance', 'trusted')):
+                           ('provenance', 'trusted'), ('providers', {})):
             with self.subTest(key=key), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 manifest = self.fixture(root)
@@ -163,6 +163,21 @@ class ClosureTests(unittest.TestCase):
                             closure.terraform('terraform', root, root, args)
 
 
+    def test_copied_scratch_mutation_does_not_verify(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory)
+            self.fixture(bundle)
+            selected = hashlib.sha256((bundle / 'manifest.json').read_bytes()).hexdigest()
+            def simulated(binary, working, home, args):
+                if args == ['version', '-json']:
+                    return json.dumps({'terraform_version': closure.VERSION, 'platform': 'linux_amd64',
+                                       'provider_selections': {'registry.terraform.io/example/provider': '1.0.0'}}).encode()
+                if args == ['providers', 'schema', '-json']:
+                    (working / 'main.tf').write_text('scratch changed during schema loading')
+                return b'{}'
+            with patch.object(closure, 'terraform', side_effect=simulated):
+                with self.assertRaisesRegex(closure.ClosureError, 'Scratch closure changed'):
+                    closure.verify(bundle, 'terraform', selected)
     @unittest.skipUnless(os.environ.get('PUBLIC_CLOSURE_TEST_BUNDLE'), 'Public integration bundle not selected.')
     def test_captured_provider_and_module_artifacts_fail_closed(self):
         import shutil

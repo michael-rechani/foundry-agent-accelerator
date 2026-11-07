@@ -24,6 +24,9 @@ jobs:
           persist-credentials: false
       - name: Resolve public dependencies without a backend or credentials
         run: python3 .github/scripts/platform_dependency_closure.py capture "$RUNNER_TEMP/public-closure" --source reviewed-source/terraform
+      - name: Report public resolved dependency graph
+        run: |
+          python3 -c 'import json, os; from pathlib import Path; m=json.loads((Path(os.environ["RUNNER_TEMP"])/"public-closure"/"manifest.json").read_bytes()); print(json.dumps({k:m[k] for k in ("source_sha", "terraform", "platform", "providers", "modules")}, indent=2)); print("Artifact records:", len(m["files"]))'
       - name: Reinstall and load schemas from offline verified packages
         run: |
           sudo unshare --net -- /usr/sbin/runuser -u "$(id -un)" -- /usr/bin/python3 "$PWD/.github/scripts/platform_dependency_closure.py" verify "$RUNNER_TEMP/public-closure" --terraform "$(command -v terraform)" --manifest-sha256 "$(sha256sum "$RUNNER_TEMP/public-closure/manifest.json" | cut -d ' ' -f 1)"

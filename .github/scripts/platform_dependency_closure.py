@@ -232,6 +232,7 @@ def verify(bundle, binary, digest):
         working = Path(directory)
         root = working / "root"
         shutil.copytree(bundle / "root", root)
+        original_scratch = inventory(root)
         home = working / "home"
         home.mkdir(mode=0o700)
         mirror = (bundle / "mirror").resolve().as_posix()
@@ -245,7 +246,14 @@ def verify(bundle, binary, digest):
         providers = json.loads(terraform(binary, root, home, ["version", "-json"]))["provider_selections"]
         if providers != baseline["providers"]:
             raise ClosureError("Installed provider selections differ from captured closure.")
+        installed_scratch = inventory(root)
+        source_scratch = {name: record for name, record in installed_scratch.items()
+                          if name != ".terraform/providers" and not name.startswith(".terraform/providers/")}
+        if source_scratch != original_scratch:
+            raise ClosureError("Scratch source/module closure changed during reinstall.")
         terraform(binary, root, home, ["providers", "schema", "-json"])
+        if inventory(root) != installed_scratch:
+            raise ClosureError("Scratch closure changed during schema loading.")
         if (root / ".terraform.lock.hcl").read_bytes() != (bundle / "root" / ".terraform.lock.hcl").read_bytes():
             raise ClosureError("Provider lock changed during verification.")
         if module_graph(root) != baseline["modules"]:
