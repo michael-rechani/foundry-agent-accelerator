@@ -123,10 +123,12 @@ No namespace/cgroup/privilege escalation or unrelated process control is used.
 
 `run()` persists and closes an `unverified` teardown receipt before entering `check()`.
 On refusal it retains root and receipt without `rmtree` or unlink. Separate `--cleanup`
-requires explicit verified state and rejects unverified, legacy/missing, unknown,
+requires explicit `no_process_started` state and rejects historical `verified`,
+unverified, legacy/missing, unknown,
 null or partial records even if the root is absent. Crash-before-promotion remains
 conservative. Normal pre-command failures retain their original classification and
-legacy cleanup behavior; they are not evidence of successful process supervision.
+cleanup behavior for runs that never started a process; they are not evidence of
+successful process supervision.
 A receipt describing a completed group is never promoted by the disabled launcher.
 The previous selector output capture (including its 1 MiB bound) is removed rather
 than retained as a reachable unsafe execution path; no command output is captured.
@@ -142,7 +144,8 @@ cannot be certified here without an independently reviewed supervision boundary.
 Escaped descendants and hostile shared-host/same-UID races are separate unresolved
 problems, as are shared-workspace and recursive-cleanup safety. This change neither
 solves them nor authorizes prerequisite workflow execution. Existing historical
-verified receipts do not retrospectively prove complete group teardown.
+verified receipts do not retrospectively prove complete group teardown and are
+refused by separate cleanup, rather than accepted as proof.
 
 Ordinary pre-command failures can remove scratch in `finally`; disabled-launcher
 refusal retains it. No command group cleanup is certified. An `always()` step retries cleanup
@@ -150,14 +153,14 @@ using this run's exclusive receipt and ownership marker, then removes only this
 run's source directory. Invalid ownership fails closed, without deleting an
 unowned directory. No software can guarantee cleanup after runner loss or a hard
 kill that also prevents the `always()` step; such a run must not be reported as
-success. Dependencies are intentionally removed, so this verifies setup without
-making them available to a later job.
+success. No dependencies can be installed by this disabled launcher.
 
-Run the deterministic offline tests with:
+Run only the focused disabled-launcher synthetic tests (in hosted CI):
 
 ```text
-python -m unittest discover -s .github/scripts -p test_check_foundry_prerequisites.py -v
+python -m unittest test_check_foundry_prerequisites.ProcessTests test_check_foundry_prerequisites.ProcessRetentionTests test_check_foundry_prerequisites.CleanupTests test_check_foundry_prerequisites.FailureStageTests -v
 ```
 
-Tests use fake downloads, archives, commands, and configuration. They never
-install tools or extensions and never access Azure or the network.
+Historical full-file tests that expect prerequisite setup success no longer describe
+this disabled execution boundary. They were not run as proof of readiness. Focused
+tests never install Foundry tools/extensions or access Azure or private data.

@@ -586,11 +586,12 @@ class CleanupTests(unittest.TestCase):
         self.unowned.write_bytes(b"preserve")
 
     def write_receipt(self, name, owner):
-        self.receipt.write_text(json.dumps({"name": name, "owner": owner, "process_teardown": "verified"}))
+        self.receipt.write_text(json.dumps({"name": name, "owner": owner, "process_teardown": "no_process_started"}))
 
     def test_missing_partial_or_unverified_state_never_allows_cleanup(self):
         records = [
             json.dumps({"name": self.name, "owner": self.owner}),
+            json.dumps({"name": self.name, "owner": self.owner, "process_teardown": "verified"}),
             json.dumps({"name": self.name, "owner": self.owner, "process_teardown": "unverified"}),
             json.dumps({"name": self.name, "owner": self.owner, "process_teardown": "unknown"}),
             json.dumps({"name": self.name, "owner": self.owner, "process_teardown": None}),

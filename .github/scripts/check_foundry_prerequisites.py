@@ -248,7 +248,7 @@ def cleanup(temp, receipt_name):
     if (
         not isinstance(record, dict)
         or set(record) != {"name", "owner", "process_teardown"}
-        or record["process_teardown"] != "verified"
+        or record["process_teardown"] != "no_process_started"
         or not isinstance(record["name"], str)
         or not re.fullmatch(r"foundry-prerequisites-[a-z0-9_]{8}", record["name"])
         or not isinstance(record["owner"], str)
@@ -295,7 +295,7 @@ def run():
             if root is not None:
                 try:
                     if record is not None:
-                        record["process_teardown"] = "verified"
+                        record["process_teardown"] = "no_process_started"
                         with receipt.open("w") as output:
                             json.dump(record, output)
                     shutil.rmtree(root)
