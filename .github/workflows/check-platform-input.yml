@@ -1,29 +1,142 @@
-name: Check historical platform input candidate
-
+name: Observe public release signatures
 on:
   workflow_dispatch:
-
 permissions:
   contents: read
-
-concurrency:
-  group: terraform-state-access
-  cancel-in-progress: false
-
 jobs:
-  check:
-    if: github.ref == 'refs/heads/main'
+  verify:
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
-    runs-on: [self-hosted, linux, lab-runner]
-    environment: terraform-state
-    permissions:
-      contents: read
-      id-token: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the capture-run Terraform version without its wrapper
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
         with:
-          persist-credentials: false
-      - name: Check candidate presence
-        env:
-          TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
-        run: python3 .github/scripts/check_platform_input.py
+          terraform_version: "1.16.4"
+          terraform_wrapper: false
+      - name: Verify provider and Terraform release signatures
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import io
+          import json
+          import os
+          from pathlib import Path
+          import shutil
+          import subprocess
+          import urllib.request
+          import zipfile
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "public-release-verification"
+          root.mkdir(mode=0o700)
+          home = root / "gnupg"
+          home.mkdir(mode=0o700)
+          env = {"PATH": os.environ["PATH"], "HOME": str(root), "GNUPGHOME": str(home), "LANG": "C.UTF-8"}
+          opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+          def fetch(url, limit=2_000_000):
+              request = urllib.request.Request(url, headers={"User-Agent": "public-release-observation"})
+              with opener.open(request, timeout=60) as response:
+                  data = response.read(limit + 1)
+              if len(data) > limit:
+                  raise RuntimeError("Public release response is unexpectedly large.")
+              return data
+          def gpg(*args):
+              result = subprocess.run(["gpg", "--batch", "--homedir", str(home), *args], env=env,
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=60)
+              if result.returncode:
+                  raise RuntimeError("Public signing-key or signature verification failed.")
+              return result.stdout.decode("utf-8")
+          def import_key(name, data, expected):
+              path = root / f"{name}.asc"
+              path.write_bytes(data)
+              report = gpg("--with-colons", "--show-keys", str(path))
+              pending = False
+              fingerprints = []
+              for line in report.splitlines():
+                  fields = line.split(":")
+                  if fields[0] == "pub":
+                      pending = True
+                  elif fields[0] == "fpr" and pending:
+                      fingerprints.append(fields[9])
+                      pending = False
+              if fingerprints != [expected]:
+                  raise RuntimeError("Public key does not match the independently observed fingerprint.")
+              gpg("--import", str(path))
+          hashicorp_fingerprint = "C874011F0AB405110D02105534365D9472D7468F"
+          azure_fingerprint = "404BCB5E66712DE36720E0C36F0B91BDE98478CF"
+          import_key("hashicorp", fetch("https://www.hashicorp.com/.well-known/pgp-key.txt"), hashicorp_fingerprint)
+          azure_metadata = []
+          for name, version in (("azapi", "2.12.0"), ("modtm", "0.4.0")):
+              url = f"https://registry.terraform.io/v1/providers/azure/{name}/{version}/download/linux/amd64"
+              azure_metadata.append(json.loads(fetch(url)))
+          keys = [item["ascii_armor"] for item in azure_metadata[0]["signing_keys"]["gpg_public_keys"]
+          if len(keys) != 1:
+              raise RuntimeError("Unexpected Azure provider signing-key set.")
+          normalized = "".join(keys[0].split())
+          for document in azure_metadata[1:]:
+              other = [item["ascii_armor"] for item in document["signing_keys"]["gpg_public_keys"]]
+              if len(other) != 1 or "".join(other[0].split()) != normalized:
+                  raise RuntimeError("Azure provider signing keys differ.")
+          import_key("azure", keys[0].encode(), azure_fingerprint)
+          def signed_checksum(product, version, base, expected_fingerprint, expected_archive=None):
+              stem = f"{product}_{version}"
+              sums = fetch(f"{base}/{stem}_SHA256SUMS")
+              suffix = ".72D7468F.sig" if expected_fingerprint == hashicorp_fingerprint else ".sig"
+              signature = fetch(f"{base}/{stem}_SHA256SUMS{suffix}")
+              sums_file = root / f"{stem}.sums"
+              signature_file = root / f"{stem}.sig"
+              sums_file.write_bytes(sums)
+              signature_file.write_bytes(signature)
+              status = gpg("--status-fd", "1", "--verify", str(signature_file), str(sums_file))
+              lines = [line.split() for line in status.splitlines() if line.startswith("[GNUPG:]")]
+              invalid = {"BADSIG", "ERRSIG", "EXPSIG", "EXPKEYSIG", "REVKEYSIG", "KEYEXPIRED", "SIGEXPIRED", "NO_PUBKEY"}
+              signatures = [parts for parts in lines if len(parts) > 2 and parts[1] == "VALIDSIG"]
+              if (any(len(parts) > 1 and parts[1] in invalid for parts in lines) or len(signatures) != 1
+                      or expected_fingerprint not in (signatures[0][2], signatures[0][-1])):
+                  raise RuntimeError("Release signature did not verify with the expected current key.")
+              filename = f"{stem}_linux_amd64.zip"
+              matches = []
+              for line in sums.decode("utf-8").splitlines():
+                  fields = line.split()
+                  if len(fields) == 2 and fields[1].lstrip("*") == filename:
+                      matches.append(fields[0].lower())
+              if len(matches) != 1 or len(matches[0]) != 64 or (expected_archive and matches[0] != expected_archive):
+                  raise RuntimeError("Signed checksum does not match the observed archive.")
+              print(f"Signed checksum verified for {filename}.")
+              return matches[0]
+          entries = [
+              ("terraform-provider-azurerm", "4.81.0", "79a8d17fefe647040fcb9ee8821a4f09f395427c4fd49493489b9a93a9a1038e"),
+              ("terraform-provider-random", "3.9.1", "60b4f8a8ef18f52bf8e19215229dae408bee732825964092db7c989fd2de4097"),
+              ("terraform-provider-time", "0.14.2", "0aa1028d91041f4dceba193e3707dac57358d0063d97e20700e554758b67baca"),
+          ]
+          for product, version, checksum in entries:
+              signed_checksum(product, version, f"https://releases.hashicorp.com/{product}/{version}", hashicorp_fingerprint, checksum)
+          for product, version, checksum in (("azapi", "2.12.0", "71402acfa1ad35788a5d1669bdd59040434a45aea990d062dcc41f17163c8e1b"),
+                                             ("modtm", "0.4.0", "6968bbd28ccdeefa33a77393e1695a896b02e6eeab6ca3384a371675e86587f4")):
+              signed_checksum(f"terraform-provider-{product}", version,
+                              f"https://github.com/Azure/terraform-provider-{product}/releases/download/v{version}",
+                              azure_fingerprint, checksum)
+          terraform_checksum = signed_checksum("terraform", "1.16.4", "https://releases.hashicorp.com/terraform/1.16.4", hashicorp_fingerprint)
+          archive_data = fetch("https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_amd64.zip", 100_000_000)
+          if hashlib.sha256(archive_data).hexdigest() != terraform_checksum:
+              raise RuntimeError("Terraform archive differs from its signed checksum.")
+          with zipfile.ZipFile(io.BytesIO(archive_data)) as archive:
+              binaries = [item for item in archive.infolist() if item.filename == "terraform" and not item.is_dir()]
+              if len(binaries) != 1 or binaries[0].file_size > 250_000_000:
+                  raise RuntimeError("Terraform archive lacks one expected binary.")
+              digest = hashlib.sha256()
+              with archive.open(binaries[0]) as source:
+                  while chunk := source.read(1024 * 1024):
+                      digest.update(chunk)
+          installed = shutil.which("terraform")
+          if not installed:
+              raise RuntimeError("Setup action did not install Terraform.")
+          installed_digest = hashlib.sha256()
+          with open(installed, "rb") as source:
+              while chunk := source.read(1024 * 1024):
+                  installed_digest.update(chunk)
+          if installed_digest.digest() != digest.digest():
+              raise RuntimeError("Setup-action Terraform binary differs from the signed release.")
+          print(f"Signed Terraform release and setup-action binary match: {digest.hexdigest()}.")
+          print("Signature verification does not establish private-host integrity or authorize deployment.")
+          PY
