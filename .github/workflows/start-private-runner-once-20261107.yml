@@ -1,0 +1,145 @@
+name: Start private runner once 20261107
+
+# Dispatch from protected main after privately reviewing the existing VM's ARM ID.
+# Input is its lowercase SHA-256 fingerprint: lowercase the full ID, UTF-8, no newline.
+# Never submit the ID itself; this public repository exposes dispatch inputs.
+# This distinct workflow has a new one-shot authorization: only run number 1,
+# attempt 1 may authenticate or start. It must first be reviewed and merged.
+# A failed/cancelled first run consumes this authorization; do not retry.
+# Uses the existing lab-deploy principal (which also has Lab/ACR permissions);
+# this job deliberately does not exercise those broader permissions.
+# Starting the VM incurs compute cost until its existing idle shutdown runs.
+# The smoke job proves only the named registration ran, not both registrations.
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_main_sha:
+        description: Reviewed protected main commit SHA (40 lowercase hex characters)
+        required: true
+        type: string
+      reviewed_vm_sha256:
+        description: Lowercase SHA-256 of the reviewed lowercased VM ARM ID (no newline)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: start-private-runner
+  cancel-in-progress: false
+
+jobs:
+  start-runner:
+    if: github.repository_owner == 'michael-rechani' && github.actor_id == '97264614' && github.repository == 'michael-rechani/foundry-agent-accelerator' && github.workflow_ref == 'michael-rechani/foundry-agent-accelerator/.github/workflows/start-private-runner-once-20261107.yml@refs/heads/main' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.reviewed_main_sha == github.sha && github.run_number == 1 && github.run_attempt == 1
+    timeout-minutes: 10
+    runs-on: ubuntu-24.04
+    environment: lab-deploy
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      LAB_RUNNER_VM: ${{ vars.LAB_RUNNER_VM }}
+      LAB_RUNNER_RESOURCE_GROUP: ${{ vars.LAB_RUNNER_RESOURCE_GROUP }}
+      REVIEWED_VM_SHA256: ${{ inputs.reviewed_vm_sha256 }}
+      REVIEWED_MAIN_SHA: ${{ inputs.reviewed_main_sha }}
+      GH_TOKEN: ${{ github.token }}
+      RUN_NUMBER: ${{ github.run_number }}
+      RUN_ATTEMPT: ${{ github.run_attempt }}
+      AZURE_CORE_COLLECT_TELEMETRY: "false"
+    steps:
+      - name: Validate target, authenticate and start only the reviewed VM
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+          [[ "$GITHUB_REPOSITORY_OWNER" == "michael-rechani" ]] || fail "Unexpected repository owner."
+          [[ "${GITHUB_ACTOR_ID:-}" == "97264614" ]] || fail "Unexpected dispatch actor."
+          [[ "${REVIEWED_MAIN_SHA:-}" =~ ^[0-9a-f]{40}$ ]] || fail "Invalid reviewed main SHA."
+          [[ "${GITHUB_SHA:-}" == "$REVIEWED_MAIN_SHA" ]] || fail "Workflow SHA differs from reviewed main."
+          [[ -n "${GH_TOKEN:-}" ]] || fail "GitHub token is missing."
+          [[ "$GITHUB_REPOSITORY" == "michael-rechani/foundry-agent-accelerator" ]] || fail "Unexpected repository."
+          [[ "$GITHUB_WORKFLOW_REF" == "michael-rechani/foundry-agent-accelerator/.github/workflows/start-private-runner-once-20261107.yml@refs/heads/main" ]] || fail "Unexpected workflow source."
+          [[ "$GITHUB_REF" == "refs/heads/main" && "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]] || fail "Unexpected ref or event."
+          [[ "$RUN_NUMBER" == "1" && "$RUN_ATTEMPT" == "1" ]] || fail "One-shot authorization consumed; a new reviewed authorization is required."
+          uuid='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+          [[ "$AZURE_SUBSCRIPTION_ID" =~ ^${uuid}$ ]] || fail "Invalid configured subscription ID."
+          [[ "$AZURE_CLIENT_ID" =~ ^${uuid}$ ]] || fail "Invalid configured client ID."
+          [[ "$AZURE_TENANT_ID" =~ ^${uuid}$ ]] || fail "Invalid configured tenant ID."
+          [[ "$LAB_RUNNER_RESOURCE_GROUP" =~ ^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,89}$ ]] || fail "Invalid configured resource group."
+          [[ "$LAB_RUNNER_VM" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$ ]] || fail "Invalid configured VM name."
+          [[ "$REVIEWED_VM_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail "Invalid reviewed VM fingerprint."
+          expected_id="/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$LAB_RUNNER_RESOURCE_GROUP/providers/Microsoft.Compute/virtualMachines/$LAB_RUNNER_VM"
+          expected_sha256="$(printf '%s' "${expected_id,,}" | sha256sum)"
+          expected_sha256="${expected_sha256%% *}"
+          [[ "$REVIEWED_VM_SHA256" == "$expected_sha256" ]] || fail "Reviewed fingerprint differs from the configured target."
+          for value in "$AZURE_SUBSCRIPTION_ID" "$LAB_RUNNER_RESOURCE_GROUP" "$LAB_RUNNER_VM" \
+            "$expected_id" "${expected_id,,}" "$AZURE_CLIENT_ID" "$AZURE_TENANT_ID"; do
+            echo "::add-mask::$value"
+          done
+
+          # This flag does not establish review rules or prevent main moving after this check.
+          branch_response="$(curl --disable --silent --show-error --max-time 30 --max-redirs 0 --proto '=https' \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --write-out '\n%{http_code}' \
+            'https://api.github.com/repos/michael-rechani/foundry-agent-accelerator/branches/main')" || fail "Main branch verification request failed."
+          http_status="${branch_response##*$'\n'}"
+          branch_body="${branch_response%$'\n'*}"
+          [[ "$http_status" == "200" ]] || fail "Main branch verification returned a non-200 response."
+          jq -e -s --arg sha "$REVIEWED_MAIN_SHA" \
+            'length == 1 and (.[0] | type == "object" and .name == "main" and .protected == true and (.commit | type == "object" and .sha == $sha))' \
+            <<< "$branch_body" >/dev/null || fail "Main branch is unprotected, moved, or returned malformed data."
+          unset branch_response branch_body GH_TOKEN
+
+          token="$(curl --silent --show-error --fail --max-time 30 \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" | jq -er '.value | select(type == "string" and length > 0)')" || fail "OIDC token request failed."
+          echo "::add-mask::$token"
+          az login --service-principal --username "$AZURE_CLIENT_ID" --tenant "$AZURE_TENANT_ID" --federated-token "$token" --allow-no-subscriptions --output none || fail "Azure authentication failed."
+          unset token
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID" || fail "Azure subscription selection failed."
+
+          actual_id="$(az vm show --subscription "$AZURE_SUBSCRIPTION_ID" --resource-group "$LAB_RUNNER_RESOURCE_GROUP" --name "$LAB_RUNNER_VM" --query id --output tsv)" || fail "Azure VM identity read failed."
+          [[ "${actual_id,,}" == "${expected_id,,}" ]] || fail "Azure VM ID differs from the configured and reviewed target."
+          echo "::add-mask::$actual_id"
+          power_state() {
+            az vm get-instance-view --ids "$actual_id" --query "instanceView.statuses[?starts_with(code, 'PowerState/')].code | [0]" --output tsv
+          }
+          state="$(power_state)" || fail "Azure VM power-state read failed."
+          case "$state" in
+            PowerState/running) ;;
+            PowerState/stopped|PowerState/deallocated)
+              az vm start --ids "$actual_id" --no-wait --output none || fail "Azure VM start failed." ;;
+            PowerState/starting) ;;
+            *) fail "VM power state is missing or not safe to start." ;;
+          esac
+          deadline=$((SECONDS + 300))
+          until [[ "$state" == "PowerState/running" ]]; do
+            (( SECONDS < deadline )) || fail "VM did not become running within five minutes."
+            sleep 10
+            state="$(power_state)" || fail "Azure VM power-state confirmation failed."
+            case "$state" in
+              PowerState/running|PowerState/starting|PowerState/stopped|PowerState/deallocated) ;;
+              *) fail "VM entered an unexpected or missing power state." ;;
+            esac
+          done
+          echo "Private runner VM confirmed running." >> "$GITHUB_STEP_SUMMARY"
+
+  smoke:
+    needs: start-runner
+    if: github.repository_owner == 'michael-rechani' && github.actor_id == '97264614' && github.repository == 'michael-rechani/foundry-agent-accelerator' && github.workflow_ref == 'michael-rechani/foundry-agent-accelerator/.github/workflows/start-private-runner-once-20261107.yml@refs/heads/main' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.reviewed_main_sha == github.sha && github.run_number == 1 && github.run_attempt == 1
+    timeout-minutes: 2
+    runs-on: [self-hosted, linux, lab-runner]
+    permissions: {}
+    steps:
+      - name: Report the registration that executed this job
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'Runner registration: %s\n' "$RUNNER_NAME"
+          printf 'Runner registration: %s\n' "$RUNNER_NAME" >> "$GITHUB_STEP_SUMMARY"
