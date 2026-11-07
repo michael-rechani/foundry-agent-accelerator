@@ -1,0 +1,30 @@
+name: Temporary private verification regression
+
+on:
+  push:
+    branches:
+      - copilot/private-verification-evidence-20261107-c5fff5f0
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Fetch only the verifier and its tests
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /workbench/verify_private.py
+            /workbench/test_verify_private.py
+          sparse-checkout-cone-mode: false
+      - name: Confirm unprivileged execution
+        run: |
+          test "$(id -u)" -ne 0
+          command -v python3
+      - name: Run offline regression tests
+        working-directory: workbench
+        run: python3 -m unittest -v test_verify_private

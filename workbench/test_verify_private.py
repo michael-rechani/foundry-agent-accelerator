@@ -3,6 +3,7 @@ import json
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import patch
+from urllib.error import HTTPError, URLError
 
 from verify_private import APPLICATION_PROMPT, CASE_PROMPT, CheckError, PrivateClient, main, verify
 
@@ -203,6 +204,118 @@ class PrivateVerificationTests(unittest.TestCase):
                 verify(client, check_storage=True)
             self.assertTrue(client.deleted)
             self.assertEqual(sum(method == "POST" for method, _ in client.calls), 1)
+
+    def run_mocked_api_checks(self, arguments):
+        fixture = FakeClient()
+        responses = []
+        for path in ("/api/config", "/api/health/dependencies"):
+            response = io.BytesIO(json.dumps(fixture.call("GET", path)).encode("utf-8"))
+            response.status = 200
+            responses.append(response)
+        output = io.StringIO()
+        with patch("verify_private.build_opener") as build_opener, redirect_stdout(output):
+            build_opener.return_value.open.side_effect = responses
+            code = main(arguments)
+        return code, output.getvalue(), build_opener.return_value.open.call_args_list
+
+    def assert_api_only_report(self, output, *, path, https_origin_reached):
+        self.assertEqual(json.loads(output), {
+            "status": "passed",
+            "path": path,
+            "checks": ["private_configuration", "cached_dependencies"],
+            "https_origin_reached": https_origin_reached,
+            "ingress_verified": False,
+            "private_network_verified": False,
+            "rendered_ui_verified": False,
+            "container_isolation_verified": False,
+            "model_quality_verified": False,
+        })
+
+    def test_https_origins_report_api_evidence_not_private_ingress_or_ui(self):
+        for origin in ("https://localhost:8443", "https://lab.example.invalid", "https://lab.example.invalid/"):
+            with self.subTest(origin=origin):
+                code, output, calls = self.run_mocked_api_checks(["--base-url", origin])
+                self.assertEqual(code, 0)
+                self.assert_api_only_report(output, path="https_origin", https_origin_reached=True)
+                requests = [call.args[0] for call in calls]
+                base = origin.rstrip("/")
+                self.assertEqual([request.full_url for request in requests],
+                                 [base + "/api/config", base + "/api/health/dependencies"])
+                self.assertEqual([request.get_method() for request in requests], ["GET", "GET"])
+                self.assertEqual([request.get_header("Origin") for request in requests], [base, base])
+
+    def test_loopback_reports_http_api_evidence_not_container_or_ingress(self):
+        environment = {"WORKBENCH_MODE": "private", "WORKBENCH_ALLOWED_HOSTS": "lab.example.invalid"}
+        with patch.dict("os.environ", environment, clear=True):
+            code, output, calls = self.run_mocked_api_checks(["--loopback"])
+        self.assertEqual(code, 0)
+        self.assert_api_only_report(output, path="loopback_http", https_origin_reached=False)
+        requests = [call.args[0] for call in calls]
+        self.assertEqual([request.full_url for request in requests],
+                         ["http://127.0.0.1:8080/api/config", "http://127.0.0.1:8080/api/health/dependencies"])
+        self.assertEqual([request.get_method() for request in requests], ["GET", "GET"])
+        self.assertEqual([request.get_header("Origin") for request in requests],
+                         ["https://lab.example.invalid", "https://lab.example.invalid"])
+
+    def test_empty_query_and_fragment_delimiters_fail_before_opening_a_connection(self):
+        for suffix in ("?", "/?", "#", "/#"):
+            with self.subTest(suffix=suffix):
+                output, error = io.StringIO(), io.StringIO()
+                with patch("verify_private.build_opener", side_effect=AssertionError("Unexpected opener")) as opener, \
+                        redirect_stdout(output), redirect_stderr(error):
+                    code = main(["--base-url", "https://lab.example.invalid" + suffix])
+                self.assertEqual(code, 1)
+                self.assertEqual(output.getvalue(), "")
+                report = json.loads(error.getvalue())
+                self.assertEqual(report["status"], "failed")
+                self.assertIn("HTTPS origin", report["error"])
+                opener.assert_not_called()
+
+    def test_loopback_requires_private_mode_and_one_host_before_opening_a_connection(self):
+        for environment in ({}, {"WORKBENCH_MODE": "private", "WORKBENCH_ALLOWED_HOSTS": "one,two"},
+                            {"WORKBENCH_MODE": "public", "WORKBENCH_ALLOWED_HOSTS": "lab.example.invalid"}):
+            with self.subTest(environment=environment):
+                output, error = io.StringIO(), io.StringIO()
+                with patch.dict("os.environ", environment, clear=True), \
+                        patch("verify_private.build_opener") as opener, \
+                        redirect_stdout(output), redirect_stderr(error):
+                    code = main(["--loopback"])
+                self.assertEqual(code, 1)
+                self.assertEqual(output.getvalue(), "")
+                report = json.loads(error.getvalue())
+                self.assertEqual(report["status"], "failed")
+                self.assertIn("Loopback verification", report["error"])
+                opener.assert_not_called()
+
+    def test_api_errors_fail_without_retry_or_success_report(self):
+        failures = ((URLError("synthetic outage"), "connection unavailable or timed out"),
+                    (HTTPError("https://lab.example.invalid/api/config", 503, "unavailable", None, None), "HTTP 503"))
+        for failure, expected in failures:
+            with self.subTest(failure=type(failure).__name__):
+                output, error = io.StringIO(), io.StringIO()
+                with patch("verify_private.build_opener") as opener, redirect_stdout(output), redirect_stderr(error):
+                    opener.return_value.open.side_effect = failure
+                    code = main(["--base-url", "https://lab.example.invalid"])
+                self.assertEqual(code, 1)
+                self.assertEqual(output.getvalue(), "")
+                report = json.loads(error.getvalue())
+                self.assertEqual(report["status"], "failed")
+                self.assertIn(expected, report["error"])
+                opener.return_value.open.assert_called_once()
+
+    def test_invalid_api_json_fails_without_retry_or_success_report(self):
+        response = io.BytesIO(b"not JSON")
+        response.status = 200
+        output, error = io.StringIO(), io.StringIO()
+        with patch("verify_private.build_opener") as opener, redirect_stdout(output), redirect_stderr(error):
+            opener.return_value.open.return_value = response
+            code = main(["--base-url", "https://lab.example.invalid"])
+        self.assertEqual(code, 1)
+        self.assertEqual(output.getvalue(), "")
+        report = json.loads(error.getvalue())
+        self.assertEqual(report["status"], "failed")
+        self.assertIn("invalid JSON response", report["error"])
+        opener.return_value.open.assert_called_once()
 
     def test_requires_private_https_or_the_explicit_runtime_context(self):
         for url in ("http://lab.example.invalid", "https://user:secret@lab.example.invalid", "https://lab.example.invalid/api/config"):
