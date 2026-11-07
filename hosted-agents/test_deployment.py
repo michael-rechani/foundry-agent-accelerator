@@ -388,6 +388,24 @@ class DeploymentRollbackTests(unittest.TestCase):
         )
         self.assertEqual(self.client.agents.get.return_value.agent_endpoint, self.original)
 
+    def test_restored_route_retains_sessions_and_reports_retention(self):
+        self.client.agents.list_sessions.return_value = [SimpleNamespace(status="active")]
+        with redirect_stdout(io.StringIO()) as output:
+            cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
+        self.assertEqual(self.client.agents.get.return_value.agent_endpoint, self.original)
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.delete_session.assert_not_called()
+        self.assertIn("Retained failed version 2", output.getvalue())
+        self.assertNotIn("Deleted", output.getvalue())
+
+    def test_before_promotion_failure_reports_retention_without_deletion(self):
+        self.client.agents.get.return_value.agent_endpoint = self.original
+        with redirect_stdout(io.StringIO()) as output:
+            cleanup_failed_version(self.client, "agent", "2", self.original, None)
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.assertIn("Retained failed version 2", output.getvalue())
+
     def test_failed_restore_retains_candidate(self) -> None:
         self.client.agents.update_details.side_effect = RuntimeError("unavailable")
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
