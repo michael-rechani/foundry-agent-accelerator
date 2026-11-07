@@ -256,26 +256,107 @@ class ReconciliationTests(unittest.TestCase):
             self.assertEqual(process.call_args.args[0][-1], "private.tfplan")
 
     def test_authorization_summary_omits_unparseable_scope_and_caps_unique_details(self):
-        types = ("virtualMachines", "disks", "networkInterfaces", "publicIPAddresses")
+        operations = (("Microsoft.Compute", "virtualMachines"), ("Microsoft.Compute", "disks"),
+                      ("Microsoft.Network", "networkInterfaces"), ("Microsoft.Network", "publicIPAddresses"))
         message = "\n".join(
-            "AuthorizationFailed: perform action 'Microsoft.Compute/" + resource_type + "/read' over scope "
-            "'/subscriptions/123/resourceGroups/private/providers/Microsoft.Compute/"
-            + resource_type + "/private-resource'"
-            for resource_type in types
+            f"AuthorizationFailed: perform action '{namespace}/{kind}/read' over scope "
+            f"'{BASE}private/providers/{namespace}/{kind}/private-resource'"
+            for namespace, kind in operations
         )
         self.assertEqual(
             reconcile.authorization_failure_summary(message),
             "AuthorizationFailed; Microsoft.Compute/virtualMachines/read on Microsoft.Compute/virtualMachines; "
             "Microsoft.Compute/disks/read on Microsoft.Compute/disks; "
-            "Microsoft.Compute/networkInterfaces/read on Microsoft.Compute/networkInterfaces; "
+            "Microsoft.Network/networkInterfaces/read on Microsoft.Network/networkInterfaces; "
             "additional denied operations omitted",
         )
         self.assertEqual(
             reconcile.authorization_failure_summary(
                 "AuthorizationFailed: perform action 'read' over scope '/subscriptions/private'"
             ),
-            "AuthorizationFailed",
+            reconcile.UNKNOWN_AUTHORIZATION_DENIAL,
         )
+
+    def test_known_denial_pairs_return_only_canonical_literals(self):
+        for (action, scope_type), detail in reconcile.AUTHORIZATION_DENIAL_LITERALS.items():
+            namespace, *types = scope_type.split("/")
+            scope_tail = "/".join(part for kind in types for part in (kind, "SecretCanary"))
+            for uppercase in (False, True):
+                scope = BASE + f"SecretCanary/providers/{namespace}/{scope_tail}"
+                message = f"AuthorizationFailed SecretCanary: perform action '{action}' over scope '{scope}'"
+                if uppercase:
+                    message = message.upper()
+                with self.subTest(action=action, uppercase=uppercase):
+                    result = reconcile.authorization_failure_summary(message)
+                    self.assertEqual(result, "AuthorizationFailed; " + detail)
+                    self.assertNotIn("SecretCanary", result)
+                    self.assertNotIn("SECRETCANARY", result)
+
+    def test_canary_unknown_malformed_contradictory_and_overlong_pairs_are_withheld(self):
+        action = "Microsoft.Compute/virtualMachines/read"
+        scope = BASE + "private/providers/Microsoft.Compute/virtualMachines/SecretCanary"
+        def denial(action=action, scope=scope):
+            return f"AuthorizationFailed: perform action '{action}' over scope '{scope}'"
+        known = denial()
+        cases = [None, 1, b"AuthorizationFailed", "", "AuthorizationFailed: SecretCanary",
+                 denial("Microsoft.Compute/SecretCanary/read"),
+                 denial(scope=scope.replace("virtualMachines", "SecretCanary")),
+                 denial(scope=scope.replace("Microsoft.Compute", "Microsoft.SecretCanary")),
+                 denial(scope=scope + "/SecretCanary/resource"),
+                 denial("Microsoft.Compute/disks/read"),
+                 denial("Microsoft.Compute/virtualMachines/write"),
+                 denial("Microsoft.Compute/*/read"),
+                 denial(scope=scope.replace("/subscriptions/", "subscriptions/")),
+                 denial(scope=scope.replace(SUBSCRIPTION, "SecretCanary")),
+                 denial(scope=scope.replace("/providers/", "//providers/")),
+                 denial(scope=scope + "/"), denial(scope=scope + "/providers/Microsoft.SecretCanary/type/name"),
+                 denial(scope=scope.replace("resourceGroups", "SecretCanary")),
+                 denial(scope=scope.replace("SecretCanary", "SecretCanary\n")),
+                 denial(scope=scope.replace("SecretCanary", "SecretCanary" * 20)),
+                 known + " perform action 'SecretCanary' over scope 'malformed'",
+                 known + " perform action SecretCanary over scope malformed",
+                 "\n".join([known] * 33), "SecretCanary" * 6000 + known,
+                 known + "\n" + denial("Microsoft.Compute/SecretCanary/read")]
+        for message in cases:
+            with self.subTest(message=type(message).__name__):
+                result = reconcile.authorization_failure_summary(message)
+                self.assertEqual(result, reconcile.UNKNOWN_AUTHORIZATION_DENIAL)
+                self.assertNotIn("SecretCanary", result)
+
+    def test_duplicate_known_denials_and_subscription_scopes_remain_bounded(self):
+        message = (
+            "AuthorizationFailed: perform action 'Microsoft.Authorization/roleDefinitions/read' over scope "
+            f"'/subscriptions/{SUBSCRIPTION}/providers/Microsoft.Authorization/roleDefinitions/SecretCanary'"
+        )
+        result = reconcile.authorization_failure_summary("\n".join([message] * 32))
+        self.assertEqual(result, "AuthorizationFailed; Microsoft.Authorization/roleDefinitions/read "
+                         "on Microsoft.Authorization/roleDefinitions")
+        self.assertLess(len(result), 512)
+        all_known = []
+        for action, scope_type in reconcile.AUTHORIZATION_DENIAL_LITERALS:
+            namespace, *types = scope_type.split("/")
+            tail = "/".join(part for kind in types for part in (kind, "SecretCanary"))
+            all_known.append(f"AuthorizationFailed: perform action '{action}' over scope "
+                             f"'{BASE}private/providers/{namespace}/{tail}'")
+        self.assertLess(len(reconcile.authorization_failure_summary("\n".join(all_known))), 512)
+
+    def test_command_unknown_denials_never_echo_canary_or_turn_into_success(self):
+        cli = object.__new__(reconcile.Terraform)
+        cli.root, cli.env, cli.binary = Path("root"), {}, "terraform"
+        for body in (
+            "AuthorizationFailed: perform action 'Microsoft.Compute/SecretCanary/read' over scope "
+            f"'{BASE}private/providers/Microsoft.Compute/virtualMachines/name'",
+            "AuthorizationFailed: perform action 'Microsoft.Compute/virtualMachines/read' over scope "
+            f"'{BASE}private/providers/Microsoft.SecretCanary/SecretCanary/name'",
+            "AuthorizationFailed " + "SecretCanary" * 6000,
+        ):
+            result = subprocess.CompletedProcess([], 1, b"", body.encode())
+            with patch.object(reconcile.subprocess, "run", return_value=result):
+                with self.assertRaises(reconcile.CheckError) as caught:
+                    cli.command("show", "-json", "private.tfplan")
+                self.assertEqual(str(caught.exception),
+                                 "Terraform show failed (exit 1; AuthorizationFailed; unknown denial details withheld).")
+                self.assertNotIn("SecretCanary", str(caught.exception))
 
     def test_saved_plan_tampering_prevents_apply(self):
         cli = object.__new__(reconcile.Terraform)

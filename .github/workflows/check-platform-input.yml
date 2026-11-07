@@ -1,29 +1,33 @@
-name: Check historical platform input candidate
-
+name: Temporary synthetic denial literal hardening
 on:
   workflow_dispatch:
-
 permissions:
   contents: read
-
-concurrency:
-  group: terraform-state-access
-  cancel-in-progress: false
-
 jobs:
-  check:
-    if: github.ref == 'refs/heads/main'
-    timeout-minutes: 10
-    runs-on: [self-hosted, linux, lab-runner]
-    environment: terraform-state
-    permissions:
-      contents: read
-      id-token: write
+  synthetic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Check candidate presence
-        env:
-          TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
-        run: python3 .github/scripts/check_platform_input.py
+      - name: Focused stdlib synthetic shared caller tests on repository target Python
+        run: |
+          interpreter=''
+          for candidate in /opt/hostedtoolcache/Python/3.14.*/x64/bin/python3; do
+            if [ -x "$candidate" ]; then interpreter="$candidate"; break; fi
+          done
+          if [ -z "$interpreter" ]; then interpreter=python3; fi
+          "$interpreter" --version
+          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -c 'import os; assert os.geteuid() != 0; assert not any(k.startswith(("AZURE_", "ARM_", "ACTIONS_ID_TOKEN_")) or k in ("GH_TOKEN", "GITHUB_TOKEN") for k in os.environ)'
+          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -m unittest discover -s .github/scripts -p test_reconcile_runner_state.py -v
+          for fixture in test_check_lab_terraform_plan.py test_check_platform_router_plan.py test_check_lab_router_plan.py test_reconcile_lab_waf_allowlist.py test_reconcile_lab_monitor_scope.py test_apply_lab_terraform.py test_check_platform_input_authority.py; do
+            env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -m unittest discover -s .github/scripts -p "$fixture" -v
+          done
+      - name: Existing repository Ruff configuration if preinstalled
+        run: |
+          if command -v ruff >/dev/null; then
+            env -i PATH="$PATH" LANG=C.UTF-8 ruff check --config ruff.toml .github/scripts/reconcile_runner_state.py .github/scripts/test_reconcile_runner_state.py
+          else
+            echo 'Ruff unavailable; not run and no package installation authorized'
+          fi

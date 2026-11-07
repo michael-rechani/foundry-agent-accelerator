@@ -238,33 +238,70 @@ def verify_runner_nsg(before, after, inputs, expected_rules):
     return serial
 
 
+UNKNOWN_AUTHORIZATION_DENIAL = "AuthorizationFailed; unknown denial details withheld"
+AUTHORIZATION_DENIAL_LITERALS = {
+    ("microsoft.compute/virtualmachines/read", "microsoft.compute/virtualmachines"):
+        "Microsoft.Compute/virtualMachines/read on Microsoft.Compute/virtualMachines",
+    ("microsoft.compute/disks/read", "microsoft.compute/disks"):
+        "Microsoft.Compute/disks/read on Microsoft.Compute/disks",
+    ("microsoft.insights/scheduledqueryrules/read", "microsoft.insights/scheduledqueryrules"):
+        "Microsoft.Insights/scheduledQueryRules/read on Microsoft.Insights/scheduledQueryRules",
+    ("microsoft.network/networkinterfaces/read", "microsoft.network/networkinterfaces"):
+        "Microsoft.Network/networkInterfaces/read on Microsoft.Network/networkInterfaces",
+    ("microsoft.network/publicipaddresses/read", "microsoft.network/publicipaddresses"):
+        "Microsoft.Network/publicIPAddresses/read on Microsoft.Network/publicIPAddresses",
+    ("microsoft.network/networksecuritygroups/read", "microsoft.network/networksecuritygroups"):
+        "Microsoft.Network/networkSecurityGroups/read on Microsoft.Network/networkSecurityGroups",
+    ("microsoft.network/virtualnetworks/read", "microsoft.network/virtualnetworks"):
+        "Microsoft.Network/virtualNetworks/read on Microsoft.Network/virtualNetworks",
+    ("microsoft.network/virtualnetworks/subnets/read", "microsoft.network/virtualnetworks/subnets"):
+        "Microsoft.Network/virtualNetworks/subnets/read on Microsoft.Network/virtualNetworks/subnets",
+    ("microsoft.network/natgateways/read", "microsoft.network/natgateways"):
+        "Microsoft.Network/natGateways/read on Microsoft.Network/natGateways",
+    ("microsoft.authorization/roleassignments/read", "microsoft.authorization/roleassignments"):
+        "Microsoft.Authorization/roleAssignments/read on Microsoft.Authorization/roleAssignments",
+    ("microsoft.authorization/roledefinitions/read", "microsoft.authorization/roledefinitions"):
+        "Microsoft.Authorization/roleDefinitions/read on Microsoft.Authorization/roleDefinitions",
+}
+
+
 def authorization_failure_summary(text):
-    matches = re.compile(
-        r"perform action ['\"]([^'\"]+)['\"] over scope ['\"]([^'\"]+)['\"]", re.IGNORECASE,
-    )
-    action_pattern = re.compile(r"[A-Za-z][A-Za-z0-9.*-]*(?:/[A-Za-z0-9.*-]+)+")
-    name_pattern = re.compile(r"[A-Za-z][A-Za-z0-9]*")
+    """Classify provider-reported denials; never render a captured input token."""
+    if not isinstance(text, str) or len(text) > 65536:
+        return UNKNOWN_AUTHORIZATION_DENIAL
+    matches = list(re.finditer(
+        r"perform action ['\"]([^'\"]+)['\"] over scope ['\"]([^'\"]+)['\"]", text, re.IGNORECASE,
+    ))
+    markers = re.findall(r"\bperform\s+action\b", text, re.IGNORECASE)
+    if not matches or len(matches) != len(markers) or len(matches) > 32:
+        return UNKNOWN_AUTHORIZATION_DENIAL
     details = []
-    for match in matches.finditer(text[:65536]):
+    for match in matches:
         action, scope = match.groups()
-        parts = [part for part in scope.split("/") if part]
-        providers = [index for index, part in enumerate(parts) if part.lower() == "providers"]
-        if (not action_pattern.fullmatch(action) or len(providers) != 1
-                or providers[0] + 2 >= len(parts)):
-            continue
-        provider_index = providers[0]
+        if (len(action) > 128 or len(scope) > 2048
+                or not re.fullmatch(r"[A-Za-z][A-Za-z0-9.]*(?:/[A-Za-z][A-Za-z0-9]*)+", action)
+                or not scope.startswith("/")):
+            return UNKNOWN_AUTHORIZATION_DENIAL
+        parts = scope[1:].split("/")
+        if (len(parts) > 32 or len(parts) < 6
+                or parts[0].lower() != "subscriptions" or not re.fullmatch(GUID, parts[1])
+                or not all(re.fullmatch(r"[A-Za-z0-9_.()-]{1,128}", part) for part in parts)):
+            return UNKNOWN_AUTHORIZATION_DENIAL
+        provider_index = 2
+        if parts[2].lower() == "resourcegroups":
+            provider_index = 4
+        if (provider_index + 3 >= len(parts) or parts[provider_index].lower() != "providers"
+                or sum(part.lower() == "providers" for part in parts) != 1):
+            return UNKNOWN_AUTHORIZATION_DENIAL
         namespace, tail = parts[provider_index + 1], parts[provider_index + 2:]
-        types = tail[::2]
-        if (not re.fullmatch(r"[A-Za-z][A-Za-z0-9.]*", namespace)
-                or not tail or len(tail) % 2 or not all(name_pattern.fullmatch(item) for item in types)):
-            continue
-        detail = f"{action} on {namespace}/{'/'.join(types)}"
+        if len(tail) % 2:
+            return UNKNOWN_AUTHORIZATION_DENIAL
+        scope_type = namespace + "/" + "/".join(tail[::2])
+        detail = AUTHORIZATION_DENIAL_LITERALS.get((action.lower(), scope_type.lower()))
+        if detail is None:
+            return UNKNOWN_AUTHORIZATION_DENIAL
         if detail not in details:
             details.append(detail)
-        if len(details) == 4:
-            break
-    if not details:
-        return "AuthorizationFailed"
     displayed = "; ".join(details[:3])
     suffix = "; additional denied operations omitted" if len(details) > 3 else ""
     return f"AuthorizationFailed; {displayed}{suffix}"
