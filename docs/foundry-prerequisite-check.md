@@ -120,7 +120,8 @@ Captured stdout and stderr share an aggregate 1 MiB raw-byte limit. The selector
 checks the limit before extending either buffer, fails with fixed `output_limit`,
 and performs the same identity-bound teardown; captured bytes are never logged.
 
-A distinct `TeardownUnverified` failure covers pidfd acquisition, lost ownership,
+A distinct `TeardownUnverified` failure conservatively covers launcher/Popen errors,
+pidfd acquisition, lost ownership,
 group signaling and leader-reaping failures after launch. Before any check/command,
 `run()` persists an `unverified` process-teardown state in the run-owned receipt.
 On that failure it retains both root and receipt without invoking recursive cleanup

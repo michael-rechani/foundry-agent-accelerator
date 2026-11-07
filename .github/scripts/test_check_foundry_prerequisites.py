@@ -930,7 +930,7 @@ with patch.dict("os.environ", {
 
 class ProcessRetentionTests(unittest.TestCase):
     def test_unverified_command_failures_retain_root_and_veto_separate_cleanup(self):
-        for stage in ("pidfd", "ownership", "signal", "reap"):
+        for stage in ("launch", "pidfd", "ownership", "signal", "reap"):
             with self.subTest(stage=stage), tempfile.TemporaryDirectory() as folder:
                 temp = Path(folder)
                 receipt_name = "foundry-prerequisites-12345-1.json"
@@ -953,7 +953,8 @@ class ProcessRetentionTests(unittest.TestCase):
                 with patch.object(probe, "context", return_value=(temp, receipt_name)), \
                         patch.object(probe, "invocation_user_agent", return_value="synthetic"), \
                         patch.object(probe, "check", side_effect=check), \
-                        patch.object(probe.subprocess, "Popen", return_value=process), \
+                        patch.object(probe.subprocess, "Popen", return_value=process,
+                                     side_effect=OSError("private-token") if stage == "launch" else None), \
                         patch.object(probe.os, "pidfd_open", side_effect=OSError("private-token") if stage == "pidfd" else None,
                                      return_value=456), \
                         patch.object(probe.os, "close"), \
@@ -1036,6 +1037,39 @@ class ProcessRetentionTests(unittest.TestCase):
                         self.assertEqual(probe.failure_stage(raised.exception), expected)
                     process.wait.assert_called_once_with(timeout=5)
                     self.assertEqual(list(temp.iterdir()), [])
+
+    def test_abrupt_launcher_exit_before_child_launch_leaves_cleanup_veto(self):
+        script = """
+import os
+import sys
+from pathlib import Path
+from unittest.mock import patch
+import check_foundry_prerequisites as probe
+root = Path(sys.argv[1])
+with patch.object(probe, "context", return_value=(root, "foundry-prerequisites-12345-1.json")), \
+        patch.object(probe, "invocation_user_agent", return_value="synthetic"), \
+        patch.object(probe, "check", side_effect=lambda *_args: os._exit(77)):
+    probe.run()
+"""
+        with tempfile.TemporaryDirectory() as folder:
+            result = subprocess.run(
+                [sys.executable, "-c", script, folder], cwd=Path(probe.__file__).parent,
+                env={"PATH": probe.SYSTEM_PATH}, stdin=subprocess.DEVNULL,
+                capture_output=True, text=True, timeout=10, check=False,
+            )
+            self.assertEqual((result.returncode, result.stdout, result.stderr), (77, "", ""))
+            temp = Path(folder)
+            receipt_name = "foundry-prerequisites-12345-1.json"
+            receipt = temp / receipt_name
+            before = receipt.read_bytes()
+            record = json.loads(before)
+            self.assertEqual(record["process_teardown"], "unverified")
+            with patch.object(probe.shutil, "rmtree") as remove:
+                with self.assertRaises(probe.CheckError):
+                    probe.cleanup(temp, receipt_name)
+                remove.assert_not_called()
+            self.assertTrue((temp / record["name"] / ".run-owned").exists())
+            self.assertEqual(receipt.read_bytes(), before)
 
     def test_ordinary_cleanup_failure_keeps_verified_receipt_for_safe_retry(self):
         with tempfile.TemporaryDirectory() as folder:

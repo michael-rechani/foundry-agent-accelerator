@@ -215,11 +215,15 @@ def _signal_owned_group(process, pidfd):
 
 def command(args, cwd, env):
     _require_process_supervision()
-    process = subprocess.Popen(  # noqa: S603 -- pinned script or selected executable, fixed arguments and isolated environment.
-        args, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        text=True, start_new_session=True,
-    )
+    try:
+        process = subprocess.Popen(  # noqa: S603 -- pinned script or selected executable, fixed arguments and isolated environment.
+            args, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, start_new_session=True,
+        )
+    except BaseException:
+        # No returned handle means child creation/teardown cannot be certified here.
+        raise TeardownUnverified("cleanup") from None
     teardown_verified = False
     try:
         with contextlib.ExitStack() as handles:
