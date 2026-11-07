@@ -15,7 +15,7 @@ import subprocess
 import tempfile
 
 VERSION = "1.16.4"
-SHA = "5e5d20db25519657bc9205e8436641f958066c48"
+SHA = "446b078df12c9a08daec7bc5e9f0b5a57d8d7a5d"
 
 class ClosureError(Exception):
     pass

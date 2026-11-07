@@ -19,7 +19,7 @@ jobs:
         run: python3 -m unittest discover -s .github/scripts -p test_platform_dependency_closure.py -v
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: 5e5d20db25519657bc9205e8436641f958066c48
+          ref: 446b078df12c9a08daec7bc5e9f0b5a57d8d7a5d
           path: reviewed-source
           persist-credentials: false
       - name: Resolve public dependencies without a backend or credentials

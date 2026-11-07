@@ -8,12 +8,14 @@ GitHub environments, or private-runner workflow behavior.
 
 ## Scope and provenance
 
-The source is exactly `5e5d20db25519657bc9205e8436641f958066c48`, rooted at
+The source is exactly `446b078df12c9a08daec7bc5e9f0b5a57d8d7a5d`, rooted at
 `terraform`, using Terraform **1.16.4 / linux_amd64**. Capture checks all source
 files and executable modes against that commit's Git blob objects; it rejects
 untracked, missing, changed, redirected, or unsupported source entries. Nested
 Terraform directories are inventoried but are not separate execution roots.
 No telemetry/provider overlay or module input change is made.
+The implementation branch preserves its original parent/history; its capture
+source is a separate exact checkout of the newer reviewed main after #538.
 
 Terraform's provider lockfile records selected versions and package checksums;
 it does **not** lock remote modules. Exact direct registry module versions do not
@@ -51,7 +53,7 @@ path-escaping, symlinked, hard-linked and special artifacts; duplicate JSON keys
 and ambiguous module graphs also fail. It copies the captured root into disposable
 scratch, reinstalls exclusively from its filesystem mirror with
 `-backend=false -get=false -lockfile=readonly -input=false`, and loads provider
-schemas. Provider selections, lock bytes, module graph and original bundle are
+schemas. Copied scratch inventory, provider selections, lock bytes, module graph and original bundle are
 checked afterward. Arbitrary Terraform arguments, plan, apply, refresh, import,
 state operations, backend initialization and upgrade are not exposed.
 
