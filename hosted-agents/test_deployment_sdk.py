@@ -1112,6 +1112,9 @@ class DeploymentTimeoutTests(unittest.TestCase):
         payloads = [
             {"name": "fictional-agent", "state": "enabled", "configuration_state": "enabled"},
             {"name": "different-agent", "state": "enabled", "configuration_state": "enabled"},
+            {"name": "Fictional-agent", "state": "enabled", "configuration_state": "enabled"},
+            {"name": "fictional-agent ", "state": "enabled", "configuration_state": "enabled"},
+            {"name": "", "state": "enabled", "configuration_state": "enabled"},
             {"state": "enabled", "configuration_state": "enabled"},
             {"name": None, "state": "enabled", "configuration_state": "enabled"},
             {"name": True, "state": "enabled", "configuration_state": "enabled"},
