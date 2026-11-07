@@ -229,7 +229,9 @@ class GitlessTests(unittest.TestCase):
                 if case == 'output':
                     stages = list(parent.iterdir())
                     self.assertEqual(len(stages), 1)
-                    self.assertTrue((stages[0] / 'bundle/root/main.tf').is_symlink())
+                    links = [path for path in stages[0].rglob('main.tf') if path.is_symlink()]
+                    self.assertEqual(len(links), 1)
+                    self.assertEqual(links[0].readlink(), outside / 'main.tf')
                 else:
                     self.assertEqual(list(parent.iterdir()), [])
 
