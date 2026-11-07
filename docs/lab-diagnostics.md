@@ -50,8 +50,9 @@ the observed snapshots; it does **not** establish current canonical authority,
 validate all inputs, or prove that infrastructure matches desired disk intent.
 Missing or ambiguous information, a mismatch, a lock or changing versions
 fails closed. It does not list blobs, write Azure resources, acquire leases, or
-invoke Terraform. Failure output uses generic input mismatch, protected state
-invalid, read failure, secret-read review required or unexpected categories
+invoke Terraform. Failure output uses generic identity pin, input mismatch,
+protected state invalid, snapshot instability, read failure, secret-read review
+required or unexpected categories
 without revealing values. Multiple independent blockers may be reported.
 The secret-read category checks only whether the reference is non-null; it
 does not inspect the reference or access a secret. No run is implied by adding

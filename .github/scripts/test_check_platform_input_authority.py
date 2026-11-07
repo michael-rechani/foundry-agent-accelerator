@@ -143,9 +143,9 @@ class CompareTests(unittest.TestCase):
         inputs, state = fixture()
         inputs["jumpbox_admin_secret"] = {"private-field": "private-value"}
         for missing_pin, invalid_state, expected in (
-            (False, False, (False, True, False)),
-            (True, False, (True, True, False)),
-            (False, True, (False, True, True)),
+            (False, False, (False, False, True, False)),
+            (True, False, (False, True, True, False)),
+            (False, True, (False, False, True, True)),
         ):
             with self.subTest(missing_pin=missing_pin, invalid_state=invalid_state):
                 candidate = deepcopy(inputs)
@@ -154,7 +154,7 @@ class CompareTests(unittest.TestCase):
                 with self.assertRaises(probe.PreconditionError) as caught:
                     probe.compare(encode(candidate), b"{" if invalid_state else encode(state), SUB)
                 exc = caught.exception
-                self.assertEqual((exc.input_mismatch, exc.secret_read, exc.state_invalid), expected)
+                self.assertEqual((exc.input_mismatch, exc.pin_invalid, exc.secret_read, exc.state_invalid), expected)
 
 
 class SnapshotTests(unittest.TestCase):
@@ -191,6 +191,32 @@ class SnapshotTests(unittest.TestCase):
                 with self.subTest(index=index, changed=changed), self.assertRaises(probe.backend.CheckError):
                     self.invoke(results)
 
+    def test_comparison_occurs_between_reads_and_instability_wins(self):
+        events = []
+        results = self.normal()
+        candidate = deepcopy(self.inputs)
+        candidate.pop("deployment_principal_id")
+        candidate["jumpbox_admin_secret"] = {"private-field": "private-value"}
+        results[0] = (encode(candidate), headers())
+        results[3] = (encode(candidate), headers(etag='"changed"'))
+        def send(*args, **kwargs):
+            events.append("read")
+            return results.pop(0)
+        original = probe.compare
+        def compare(*args):
+            events.append("compare")
+            return original(*args)
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                patch.object(probe, "Blobs", return_value=self.blobs), \
+                patch.object(probe.backend, "send", side_effect=send), \
+                patch.object(probe, "compare", side_effect=compare), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(probe.main(), 1)
+        self.assertEqual(events, ["read", "read", "compare", "read", "read"])
+        self.assertEqual((out.getvalue(), err.getvalue()),
+                         ("", "candidate_platform_comparison_failed=snapshot_unstable\n"))
+
     def test_lock_or_bad_metadata_fails_at_each_read(self):
         for index in range(4):
             for hdr in (headers(lease="locked"), headers(locked=True),
@@ -220,7 +246,7 @@ class SnapshotTests(unittest.TestCase):
         cases.append((results, "input_mismatch_or_missing"))
         results = self.normal()
         results[1] = (results[1][0], headers(lease="locked"))
-        cases.append((results, "protected_state_invalid"))
+        cases.append((results, "snapshot_unstable"))
         results = self.normal()
         results[0] = probe.backend.CheckError("private-url private-token")
         cases.append((results, "read_failure"))
@@ -250,7 +276,7 @@ class SnapshotTests(unittest.TestCase):
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             self.assertEqual(probe.main(), 1)
         self.assertEqual(out.getvalue(), "")
-        self.assertEqual(err.getvalue(), "candidate_platform_comparison_failed=input_mismatch_or_missing\n"
+        self.assertEqual(err.getvalue(), "candidate_platform_comparison_failed=identity_pin_missing_or_invalid\n"
                          "candidate_platform_comparison_failed=secret_read_review_required\n"
                          "candidate_router_override=absent\n")
 
@@ -271,7 +297,7 @@ class SnapshotTests(unittest.TestCase):
                         contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
                     self.assertEqual(probe.main(), 1 if fail else 0)
                 if fail:
-                    self.assertEqual(err.getvalue(), "candidate_platform_comparison_failed=input_mismatch_or_missing\n"
+                    self.assertEqual(err.getvalue(), "candidate_platform_comparison_failed=identity_pin_missing_or_invalid\n"
                                      "candidate_router_override=explicit\n")
                     self.assertEqual(out.getvalue(), "")
                 else:
@@ -283,7 +309,9 @@ class SnapshotTests(unittest.TestCase):
         sensitive = "private-endpoint private-token private-header private-state"
         for result, category in (
             (probe.CandidateError(sensitive), "input_mismatch_or_missing"),
+            (probe.PinError(sensitive), "identity_pin_missing_or_invalid"),
             (probe.StateError(sensitive), "protected_state_invalid"),
+            (probe.SnapshotError(sensitive), "snapshot_unstable"),
             (probe.ReadError(sensitive), "read_failure"),
             (probe.backend.CheckError(sensitive), "unexpected"),
             (URLError(sensitive), "unexpected"), (OSError(sensitive), "unexpected"),

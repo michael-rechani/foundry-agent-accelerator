@@ -18,7 +18,15 @@ class CandidateError(backend.CheckError):
     pass
 
 
+class PinError(CandidateError):
+    pass
+
+
 class StateError(backend.CheckError):
+    pass
+
+
+class SnapshotError(backend.CheckError):
     pass
 
 
@@ -27,9 +35,10 @@ class ReadError(backend.CheckError):
 
 
 class PreconditionError(backend.CheckError):
-    def __init__(self, *, input_mismatch=False, secret_read=False, state_invalid=False):
+    def __init__(self, *, input_mismatch=False, pin_invalid=False, secret_read=False, state_invalid=False):
         super().__init__("Candidate preconditions failed.")
         self.input_mismatch = input_mismatch
+        self.pin_invalid = pin_invalid
         self.secret_read = secret_read
         self.state_invalid = state_invalid
 
@@ -64,7 +73,7 @@ def snapshot(blobs, name):
     if (not isinstance(etag, str) or not etag or headers.get("x-ms-blob-type") != "BlockBlob"
             or headers.get("x-ms-lease-status") != "unlocked"
             or "x-ms-meta-terraformlockid" in headers):
-        raise StateError("Blob version or lock is ambiguous.")
+        raise SnapshotError("Blob version or lock is ambiguous.")
     return body, etag
 
 
@@ -104,6 +113,10 @@ def compare(input_bytes, state_bytes, subscription):
         raise StateError("Invalid state.") from None
     try:
         compare_validated(inputs, state, subscription)
+    except PinError:
+        if secret_read:
+            raise PreconditionError(pin_invalid=True, secret_read=True) from None
+        raise
     except CandidateError:
         if secret_read:
             raise PreconditionError(input_mismatch=True, secret_read=True) from None
@@ -118,7 +131,7 @@ def compare(input_bytes, state_bytes, subscription):
 
 def compare_validated(inputs, state, subscription):
     input_subscription = guid(inputs.get("subscription_id"), CandidateError)
-    principal = guid(inputs.get("deployment_principal_id"), CandidateError)
+    principal = guid(inputs.get("deployment_principal_id"), PinError)
     if input_subscription != guid(subscription, StateError):
         raise CandidateError("Subscription mismatch.")
     disk = inputs.get("jumpbox_existing_os_disk")
@@ -208,20 +221,23 @@ def check(environ=os.environ):
         raise ReadError("Authentication or configuration failed.") from None
     first_input = snapshot(blobs, INPUT)
     first_state = snapshot(blobs, STATE)
+    comparison_failure = None
+    override = None
+    try:
+        inputs = strict_object(first_input[0])
+        override = "explicit" if "model_router_deployment" in inputs else "absent"
+        compare(first_input[0], first_state[0], runtime["AZURE_SUBSCRIPTION_ID"])
+    except (CandidateError, StateError, PreconditionError) as exc:
+        comparison_failure = exc
+    except (ValueError, UnicodeError, backend.CheckError):
+        comparison_failure = CandidateError("Invalid input.")
     second_state = snapshot(blobs, STATE)
     second_input = snapshot(blobs, INPUT)
     if first_input != second_input or first_state != second_state:
-        raise StateError("Protected blob changed during comparison.")
-    try:
-        inputs = strict_object(first_input[0])
-    except (backend.CheckError, ValueError, UnicodeError):
-        raise CandidateError("Invalid input.") from None
-    override = "explicit" if "model_router_deployment" in inputs else "absent"
-    try:
-        compare(first_input[0], first_state[0], runtime["AZURE_SUBSCRIPTION_ID"])
-    except (CandidateError, StateError, PreconditionError) as exc:
-        exc.router_override = override
-        raise
+        raise SnapshotError("Protected blob changed during comparison.")
+    if comparison_failure:
+        comparison_failure.router_override = override
+        raise comparison_failure from None
     return override
 
 
@@ -231,10 +247,16 @@ def main():
     except PreconditionError as exc:
         if exc.input_mismatch:
             print("candidate_platform_comparison_failed=input_mismatch_or_missing", file=sys.stderr)
+        if exc.pin_invalid:
+            print("candidate_platform_comparison_failed=identity_pin_missing_or_invalid", file=sys.stderr)
         if exc.secret_read:
             print("candidate_platform_comparison_failed=secret_read_review_required", file=sys.stderr)
         if exc.state_invalid:
             print("candidate_platform_comparison_failed=protected_state_invalid", file=sys.stderr)
+        print_router_override(exc)
+        return 1
+    except PinError as exc:
+        print("candidate_platform_comparison_failed=identity_pin_missing_or_invalid", file=sys.stderr)
         print_router_override(exc)
         return 1
     except CandidateError as exc:
@@ -244,6 +266,9 @@ def main():
     except StateError as exc:
         print("candidate_platform_comparison_failed=protected_state_invalid", file=sys.stderr)
         print_router_override(exc)
+        return 1
+    except SnapshotError:
+        print("candidate_platform_comparison_failed=snapshot_unstable", file=sys.stderr)
         return 1
     except ReadError:
         print("candidate_platform_comparison_failed=read_failure", file=sys.stderr)
