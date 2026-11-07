@@ -495,6 +495,48 @@ class DeploymentSDKTests(unittest.TestCase):
 
 
 @unittest.skipUnless(SDK_AVAILABLE, "Install requirements-deploy.txt for the real deployment SDK")
+    def test_candidate_check_precedes_promotion_and_post_smoke(self):
+        def check(*args):
+            self.events.append("candidate")
+            self.assertEqual(args[2], "2")
+            self.assertEqual(self.endpoint, self.original)
+        self.candidate.side_effect = check
+        deploy(self.profile, self.args)
+        self.assertLess(self.events.index("candidate"), self.events.index("update"))
+        self.smoke.assert_called_once_with(self.client, self.profile.name, self.args.smoke_test_prompt)
+
+    def test_candidate_failure_never_promotes(self):
+        self.candidate.side_effect = RuntimeError("candidate failure")
+        with self.assertRaisesRegex(RuntimeError, "candidate failure"):
+            deploy(self.profile, self.args)
+        self.client.agents.update_details.assert_not_called()
+        self.smoke.assert_not_called()
+        self.assertEqual(self.endpoint, self.original)
+
+    def test_route_changed_during_candidate_check_never_promotes(self):
+        def race(*args):
+            self.endpoint = self.route("3")
+        self.candidate.side_effect = race
+        with self.assertRaisesRegex(RuntimeError, "changed during deployment"):
+            deploy(self.profile, self.args)
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+
+    def test_candidate_inactive_after_smoke_never_promotes(self):
+        def check(*args):
+            self.client.agents.get_version.side_effect = lambda *, agent_version, **kwargs: (
+                {"status": "failed"} if agent_version == "2" else {"status": "active"})
+        self.candidate.side_effect = check
+        with self.assertRaisesRegex(RuntimeError, "candidate agent version is not active"):
+            deploy(self.profile, self.args)
+        self.client.agents.update_details.assert_not_called()
+
+    def test_first_publication_does_not_claim_candidate_isolation(self):
+        self.missing = True
+        deploy(self.profile, self.args)
+        self.candidate.assert_not_called()
+        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
+
 class DeploymentTimeoutTests(unittest.TestCase):
     class Credential:
         def __enter__(self):
