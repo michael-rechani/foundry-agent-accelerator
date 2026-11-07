@@ -1,6 +1,8 @@
 """Offline tests for the manually staged Lab image workflow."""
 
 import copy
+import io
+import json
 import os
 import re
 import shutil
@@ -8,6 +10,7 @@ import subprocess
 import tempfile
 import textwrap
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -65,6 +68,16 @@ def recovery_snapshot():
     current = snapshot()
     current["app"]["latest"] = "lab--attempted"
     current["app"]["containers"][0]["image"] = f"{REGISTRY}/workbench@sha256:" + "c" * 64
+    return current
+
+
+def deployed_snapshot():
+    current = recovery_snapshot()
+    current["app"]["ready"] = "lab--attempted"
+    current["revisions"][0].update(
+        name="lab--attempted", id=APP_ID + "/revisions/lab--attempted",
+        containers=copy.deepcopy(current["app"]["containers"]),
+    )
     return current
 
 
@@ -171,6 +184,49 @@ class ReleaseGuardTests(unittest.TestCase):
             with self.subTest(key=key, value=value), self.assertRaises(guard.CheckError):
                 guard.verify_live_image(invalid, IMAGE, recovery_snapshot(), recovery=True)
 
+    def test_recovery_and_post_restore_do_not_depend_on_current_main_or_github(self):
+        env = environment()
+        env["ATTEMPTED_REVISION"] = "lab--attempted"
+        env["ATTEMPTED_IMAGE"] = f"{REGISTRY}/workbench@sha256:" + "c" * 64
+        env["GITHUB_API_URL"] = "https://unavailable.example"
+        for flag, current in (("--recovery", recovery_snapshot()), ("--restored", snapshot()),
+                              ("--deployed", deployed_snapshot())):
+            with self.subTest(flag=flag), patch.object(guard.sys, "stdin", io.StringIO(json.dumps(current))), \
+                    patch.object(guard, "verify_main") as verify, redirect_stdout(io.StringIO()):
+                self.assertEqual(guard.main(["--live", flag], env), 0)
+                verify.assert_not_called()
+        with patch.object(guard, "verify_main", side_effect=guard.CheckError("main unavailable")) as verify, \
+                redirect_stderr(io.StringIO()):
+            self.assertEqual(guard.main([], env), 1)
+            verify.assert_called_once()
+        env["GITHUB_SHA"] = "b" * 40
+        for flag in ("--recovery", "--restored", "--deployed"):
+            with self.subTest(flag=flag), patch.object(guard, "verify_main") as verify, redirect_stderr(io.StringIO()):
+                self.assertEqual(guard.main(["--live", flag], env), 1)
+                verify.assert_not_called()
+
+    def test_deployed_readback_requires_attempted_revision_and_pushed_digest(self):
+        env = environment()
+        env["ATTEMPTED_REVISION"] = "lab--attempted"
+        env["ATTEMPTED_IMAGE"] = f"{REGISTRY}/workbench@sha256:" + "c" * 64
+        guard.verify_deployed_image(env, IMAGE, deployed_snapshot())
+        changes = (
+            lambda s: s["app"]["containers"][0].update(image=IMAGE),
+            lambda s: s["revisions"][0]["containers"][0].update(image=IMAGE),
+            lambda s: s["revisions"][1].update(active=True),
+            lambda s: s["revisions"][0].update(active=False),
+            lambda s: s["app"].update(latest="different"),
+            lambda s: s["revisions"][0].update(name="other"),
+        )
+        for change in changes:
+            current = deployed_snapshot()
+            change(current)
+            with self.subTest(snapshot=current), self.assertRaises(guard.CheckError):
+                guard.verify_deployed_image(env, IMAGE, current)
+        env["ATTEMPTED_REVISION"] = "other"
+        with self.assertRaises(guard.CheckError):
+            guard.verify_deployed_image(env, IMAGE, deployed_snapshot())
+
 
 class WorkflowTests(unittest.TestCase):
     def test_manual_main_only_and_no_hosted_vm_start(self):
@@ -187,12 +243,13 @@ class WorkflowTests(unittest.TestCase):
         self.assertRegex(APPLY_WORKFLOW, r"(?s)concurrency:\s+group: deploy-lab\s+cancel-in-progress: false")
 
     def test_live_check_precedes_both_registry_push_and_app_update(self):
-        self.assertEqual(WORKFLOW.count("bash .github/scripts/check_lab_live_image.sh"), 5)
+        self.assertEqual(WORKFLOW.count("bash .github/scripts/check_lab_live_image.sh"), 6)
         build = WORKFLOW.split("- name: Build, check and push", 1)[1]
         self.assertLess(build.index("check_lab_live_image.sh"), build.index("docker push"))
         rollout = WORKFLOW.split("- name: Roll the Container App", 1)[1]
         self.assertLess(rollout.index("check_lab_live_image.sh"), rollout.index("az containerapp update"))
         self.assertIn('if [ "$latest" != "$attempted" ]', rollout)
+        self.assertIn("check_lab_live_image.sh --deployed", rollout)
         self.assertIn("check_lab_live_image.sh --recovery", rollout)
         self.assertIn('if [ "$latest" != "$restored" ]', rollout)
         self.assertIn('if [ "$ready_revision" = "$restored" ]', rollout)
@@ -228,7 +285,10 @@ az() {
         if [[ "$SCENARIO" != missing-attempt ]]; then echo lab--attempted; fi
       fi ;;
     *"containerapp show"*"latestReadyRevisionName"*)
-      if [[ "$(cat "$MOCK_PHASE")" == restored && "$SCENARIO" != failed-restore ]]; then
+      phase="$(cat "$MOCK_PHASE")"
+      if [[ "$phase" == attempted && ( "$SCENARIO" == forward-success || "$SCENARIO" == bad-readback ) ]]; then
+        echo lab--attempted
+      elif [[ "$phase" == restored && "$SCENARIO" != failed-restore ]]; then
         echo lab--restored
       else
         echo lab--old
@@ -249,6 +309,10 @@ bash() {
     echo AMBIGUOUS >&2
     return 1
   fi
+  if [[ "$*" == *"--deployed"* ]]; then
+    echo VERIFY_DEPLOYED >&2
+    if [[ "$SCENARIO" == bad-readback ]]; then return 1; fi
+  fi
   echo GUARD >&2
 }
 sleep() { :; }
@@ -261,6 +325,7 @@ seq() { printf '%s\n' 1 2; }
             env = os.environ.copy()
             env.update({
                 "MOCK_PHASE": path, "SCENARIO": scenario, "LAB_REGISTRY": "private",
+                "GITHUB_STEP_SUMMARY": path + "-summary",
                 "LAB_CONTAINER_APP": "lab", "AZURE_RESOURCE_GROUP": "lab-rg",
                 "EXPECTED_CURRENT_IMAGE": IMAGE,
                 "IMAGE_SOURCE": f"{REGISTRY}/workbench@sha256:" + "c" * 64,
@@ -291,6 +356,16 @@ seq() { printf '%s\n' 1 2; }
         self.assertIn("RESTORE", result.stderr)
         self.assertIn("Recovery did not reach a verified running revision", result.stdout)
         self.assertNotIn("prior image is running again", result.stdout)
+
+    def test_forward_success_requires_deployed_image_readback(self):
+        success = self.run_rollout("forward-success")
+        self.assertEqual(success.returncode, 0, success.stderr)
+        self.assertIn("VERIFY_DEPLOYED", success.stderr)
+        wrong = self.run_rollout("bad-readback")
+        self.assertNotEqual(wrong.returncode, 0)
+        self.assertIn("VERIFY_DEPLOYED", wrong.stderr)
+        self.assertIn("deployed revision or image could not be verified", wrong.stdout)
+        self.assertNotIn("RESTORE", wrong.stderr)
 
 
 if __name__ == "__main__":

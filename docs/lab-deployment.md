@@ -755,7 +755,13 @@ ready running revision has a known immutable image. It fails instead when those
 observations differ. After a restore, it checks that the recovery revision is
 the only active, running, ready revision with the prior immutable image. A
 failed or ambiguous check is reported as unverified. These checks do not prove
-application or agent response health.
+application or agent response health. Once the forward update has started,
+recovery and post-restore checks still require the pinned dispatch and live
+revision/image evidence, but do not depend on the current `main` ref or on
+GitHub availability. Forward push and app update checks still require current
+`main` to match the reviewed SHA. Before reporting a successful update, it
+also verifies that the attempted revision is the sole active, running, ready
+revision and that its actual image is the exact pushed digest.
 
 The image workflow and the existing Lab apply job share the `deploy-lab`
 concurrency group with cancellation disabled. Only cooperating GitHub jobs

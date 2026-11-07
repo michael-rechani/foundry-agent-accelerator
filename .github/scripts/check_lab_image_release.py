@@ -129,26 +129,46 @@ def verify_live_image(environ, expected_image, snapshot, *, recovery=False):
         raise CheckError("The active Lab revision or its immutable image is not confirmed.")
 
 
+def verify_deployed_image(environ, previous_image, snapshot):
+    revision = environ.get("ATTEMPTED_REVISION", "")
+    image = environ.get("ATTEMPTED_IMAGE", "")
+    if not REVISION.fullmatch(revision) or not IMAGE.fullmatch(image) or image == previous_image:
+        raise CheckError("The attempted revision or its immutable image is not confirmed.")
+    verify_live_image(environ, image, snapshot)
+    if snapshot["app"]["latest"] != revision:
+        raise CheckError("The running revision is not the revision attempted by this release.")
+
+
 def main(argv=None, environ=os.environ):
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument("--live", action="store_true", help="Also verify the active revision snapshot on stdin.")
-    parser.add_argument("--recovery", action="store_true", help="Check the attempted rollout before restoration.")
+    recovery = parser.add_mutually_exclusive_group()
+    recovery.add_argument("--recovery", action="store_true", help="Check the attempted rollout before restoration.")
+    recovery.add_argument("--restored", action="store_true", help="Check the restored active image.")
+    recovery.add_argument("--deployed", action="store_true", help="Check the newly deployed active image.")
     args = parser.parse_args(argv)
     try:
-        if args.recovery and not args.live:
-            raise CheckError("Recovery requires a live revision snapshot.")
+        if (args.recovery or args.restored or args.deployed) and not args.live:
+            raise CheckError("Post-update verification requires a live revision snapshot.")
         reviewed, expected_image = validate_dispatch(environ)
-        verify_main(environ, reviewed)
+        if not (args.recovery or args.restored or args.deployed):
+            verify_main(environ, reviewed)
         if args.live:
             try:
                 snapshot = json.load(sys.stdin)
             except (ValueError, UnicodeError):
                 raise CheckError("The active Lab revision snapshot is invalid.") from None
-            verify_live_image(environ, expected_image, snapshot, recovery=args.recovery)
+            if args.deployed:
+                verify_deployed_image(environ, expected_image, snapshot)
+            else:
+                verify_live_image(environ, expected_image, snapshot, recovery=args.recovery)
     except CheckError as error:
         print(f"::error::{error}", file=sys.stderr)
         return 1
-    print("Reviewed main and Lab image release inputs are confirmed.")
+    if args.recovery or args.restored or args.deployed:
+        print("Pinned dispatch and live Lab revision are confirmed.")
+    else:
+        print("Reviewed current main and Lab image release inputs are confirmed.")
     return 0
 
 
