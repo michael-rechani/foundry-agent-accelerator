@@ -223,8 +223,14 @@ Run from the repository root without Azure access or runtime software
 development kit (SDK) packages:
 
 ```powershell
-python hosted-agents/review-coordinator-agent/deploy.py --profile hosted-agents/review-coordinator-agent/profiles/evidence-review.example.json --validate-profile
+$profile = 'hosted-agents/review-coordinator-agent/profiles/evidence-review.example.json'
+$profileSha256 = (Get-FileHash -LiteralPath $profile -Algorithm SHA256).Hash.ToLowerInvariant()
+python hosted-agents/review-coordinator-agent/deploy.py --profile $profile --profile-sha256 $profileSha256 --validate-profile
 ```
+
+Retain the reviewed digest for publication. The byte-bound path checks both
+profile schema and deployable endpoint names; without the digest, the legacy
+schema-only validation behavior is preserved.
 
 ### 3. Prepare and inventory the private deployment
 
@@ -240,7 +246,7 @@ From the staged `hosted-agents` directory, use the runbook's `$python`
 executable:
 
 ```powershell
-& $python review-coordinator-agent/deploy.py --profile review-coordinator-agent/profiles/evidence-review.example.json
+& $python review-coordinator-agent/deploy.py --profile review-coordinator-agent/profiles/evidence-review.example.json --profile-sha256 $profileSha256
 if ($LASTEXITCODE -ne 0) { throw 'Profile deployment or specialist verification failed' }
 ```
 
@@ -301,6 +307,18 @@ coordinator name. The check is not just a pre-launch hash followed by an
 unchecked reopen. Direct `deploy.py` callers can also opt in with
 `--profile-sha256` (64 lowercase hexadecimal characters, requiring `--profile`);
 omitting it retains existing path-based behavior.
+
+On this opt-in byte-bound path, coordinator `name` and every specialist `agent`
+reference must meet the published [Foundry agent-name contract](https://learn.microsoft.com/en-us/azure/foundry/reference/rest/agents-create-agent-agents-create-agent-from-code):
+1-63 ASCII characters, alphanumeric at both ends, with only alphanumerics and
+hyphens inside. One-character and numeric-leading names are allowed. Underscores,
+leading/trailing hyphens, 64-character names, and non-ASCII names fail offline
+before any batch approval or publication. Tool names such as
+`inspect_application` are a different namespace and keep their existing rules.
+The deployment check reuses shared profile schema and self-delegation validation
+with validation-only endpoint aliases; actual names and bindings are preserved.
+It does not change `configuration.py`'s shared runtime semantics or the legacy
+path-only deployment behavior.
 
 This is **not source immutability, a filesystem lock, or protection against a
 compromised same-user host**. Source code, arguments, the expected digest itself,

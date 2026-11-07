@@ -19,6 +19,34 @@ def profile_digest(value: str) -> str:
     return value
 
 
+def deployment_endpoint_alias(value: object) -> str:
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", value):
+        raise ValueError(
+            "Deployment profile agent endpoint names must be 1-63 ASCII alphanumeric characters "
+            "with hyphens only in the middle"
+        )
+    # Shared runtime validation needs a letter first; this validation-only prefix
+    # preserves endpoint equality and self-delegation checks, including numeric names.
+    return "a" + value
+
+
+def validate_deployment_profile(value):
+    if not isinstance(value, dict) or not isinstance(value.get("specialists"), list):
+        return validate_profile(value)
+    if any(not isinstance(item, dict) for item in value["specialists"]):
+        return validate_profile(value)
+    checked = {
+        **value,
+        "name": deployment_endpoint_alias(value.get("name")),
+        "specialists": [
+            {**item, "agent": deployment_endpoint_alias(item.get("agent"))}
+            for item in value["specialists"]
+        ],
+    }
+    validate_profile(checked)
+    return value
+
+
 def profile_from_file(path: Path, expected_sha256: str | None = None) -> AgentProfile:
     if expected_sha256 is None:
         document = path.read_text(encoding="utf-8")
@@ -28,7 +56,8 @@ def profile_from_file(path: Path, expected_sha256: str | None = None) -> AgentPr
         if hashlib.sha256(content).hexdigest() != expected_sha256:
             raise ValueError("Coordinator profile SHA-256 does not match the approved content")
         document = content.decode("utf-8")
-    configuration = validate_profile(json.loads(document))
+    value = json.loads(document)
+    configuration = validate_profile(value) if expected_sha256 is None else validate_deployment_profile(value)
     bindings = {item["tool"]: item["agent"] for item in configuration["specialists"]}
     return AgentProfile(
         source_directory=SOURCE_DIRECTORY,

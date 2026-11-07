@@ -1,0 +1,32 @@
+name: Temporary coordinator profile offline checks
+on:
+  push:
+    branches: [copilot/coordinator-profile-opt-in-20261107]
+    paths:
+      - deploy.ps1
+      - workbench/test-deploy.ps1
+      - hosted-agents/review-coordinator-agent/deploy.py
+      - hosted-agents/review-coordinator-agent/test_profiles.py
+      - .github/workflows/coordinator-profile-offline-20261107.yml
+permissions:
+  contents: read
+jobs:
+  offline:
+    if: github.repository == 'michael-rechani/foundry-agent-accelerator' && github.ref == 'refs/heads/copilot/coordinator-profile-opt-in-20261107'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Run only deployment helper and fictional profile checks
+        shell: pwsh
+        run: |
+          ./workbench/test-deploy.ps1
+          Push-Location hosted-agents/review-coordinator-agent
+          try {
+            python -m unittest test_profiles
+            if ($LASTEXITCODE -ne 0) { throw 'Offline profile tests failed.' }
+          } finally { Pop-Location }

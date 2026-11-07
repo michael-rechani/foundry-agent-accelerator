@@ -284,6 +284,11 @@ try {
             if ($Arguments[4] -cne (Get-FileHash -LiteralPath $script:profileFile -Algorithm SHA256).Hash.ToLowerInvariant()) {
                 throw 'Fictional profile digest mismatch.'
             }
+            if ($script:useRealProfileValidation) {
+                $output = & $Command @Arguments 2>&1
+                if ($LASTEXITCODE -ne 0) { throw "Real offline profile validation failed with exit code $LASTEXITCODE." }
+                return $output
+            }
             if ($script:validationError) { throw $script:validationError }
             if ($script:ambiguousTarget) { return @('Valid profile: customer-review-coordinator', 'Valid profile: other-coordinator') }
             $target = if ($script:changeTargetAt -and $script:validations -ge $script:changeTargetAt) { 'changed-coordinator' } else { $script:profileTarget }
@@ -375,6 +380,23 @@ try {
         if ($script:declineCoordinator -and $Label -match 'customer-review-coordinator') { return $false }
         $script:approval
     }
+    $script:useRealProfileValidation = $true
+    foreach ($field in 'coordinator', 'specialist') {
+        foreach ($name in '_coordinator', 'agent_name', '-agent', 'agent-', ('a' * 64), "caf$([char]0x00e9)", '-') {
+            $configuration = $fictionalProfile | ConvertTo-Json -Depth 5 | ConvertFrom-Json -AsHashtable
+            if ($field -eq 'coordinator') { $configuration.name = $name } else { $configuration.specialists[0].agent = $name }
+            Set-Content -LiteralPath $script:profileFile -Value ($configuration | ConvertTo-Json -Depth 5)
+            $before = $script:publicationCalls.Count; $approvalsBefore = $script:approvalLabels.Count
+            try { Invoke-AgentsStage; throw 'invalid deployment endpoint name accepted' } catch {
+                if ($_.Exception.Message -notmatch 'Real offline profile validation failed') { throw }
+            }
+            Assert-Equal $before $script:publicationCalls.Count "real Python rejects invalid $field endpoint before any batch publication"
+            Assert-Equal $approvalsBefore $script:approvalLabels.Count "real Python rejects invalid $field endpoint before any batch approval"
+        }
+    }
+    $global:LASTEXITCODE = 0
+    $script:useRealProfileValidation = $false
+    Set-Content -LiteralPath $script:profileFile -Value ($fictionalProfile | ConvertTo-Json -Depth 5)
     $before = $script:publicationCalls.Count
     $stageOutput = (Invoke-AgentsStage 6>&1 | Out-String)
     $calls = @($script:publicationCalls | Select-Object -Skip $before)
