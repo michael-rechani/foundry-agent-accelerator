@@ -4,10 +4,10 @@ import json
 import os
 import re
 import shutil
-from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import check_platform_router_plan as diagnostic
