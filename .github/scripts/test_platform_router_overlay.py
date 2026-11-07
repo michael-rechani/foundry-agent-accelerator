@@ -1,0 +1,163 @@
+"""Credential-free Linux regression against exact public root and module cache."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+import unittest
+from unittest.mock import patch
+
+import check_platform_router_plan as diagnostic
+
+
+class OverlayTests(unittest.TestCase):
+    def root(self, path):
+        source = Path(__file__).resolve().parents[2] / "terraform"
+        for name in diagnostic.DIAGNOSTIC_ROOT_FILES:
+            shutil.copyfile(source / name, path / name)
+
+    def test_exact_root_unchanged_and_minimal_override(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.root(root)
+            before = {p.name: p.read_bytes() for p in root.iterdir()}
+            diagnostic.write_backend(root)
+            self.assertEqual(before, {name: (root / name).read_bytes() for name in before})
+            value = json.loads((root / diagnostic.DIAGNOSTIC_OVERLAY).read_bytes())
+            self.assertEqual(value, {
+                "terraform": {"backend": {"azurerm": {}}, "required_providers": {
+                    "modtm": {"source": "azure/modtm", "version": "~> 0.3"}}},
+                "provider": {"modtm": {"enabled": False}},
+            })
+
+    def test_unreviewed_definitions_collisions_links_and_changes(self):
+        cases = {
+            "backend.tf": 'terraform { backend "local" {} }',
+            "added.tf": 'terraform { required_providers { modtm = { source = "hashicorp/modtm" } } }',
+            "telemetry.tf": 'provider "modtm" { enabled = true }',
+            "alias.tf": 'provider "modtm" { alias = "extra" }',
+            "override.tf": 'terraform { required_providers { azurerm = { version = "0.0.0" } } }',
+            "unrelated_override.tf.json": '{}',
+            "runner-diagnostic.tf": 'terraform { backend "azurerm" {} }',
+            diagnostic.DIAGNOSTIC_OVERLAY: '{}',
+            "versions.tf": 'terraform { required_providers {} }',
+        }
+        for name, content in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                self.root(root)
+                (root / name).write_text(content)
+                with self.assertRaises(diagnostic.CheckError):
+                    diagnostic.write_backend(root)
+                if name != diagnostic.DIAGNOSTIC_OVERLAY:
+                    self.assertFalse((root / diagnostic.DIAGNOSTIC_OVERLAY).exists())
+        for mutation in ("missing", "symlink", "hardlink", "reserved-dangling", "reserved-directory"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                self.root(root)
+                if mutation == "missing":
+                    (root / "versions.tf").unlink()
+                elif mutation == "symlink":
+                    (root / "versions.tf").rename(root / "version-copy")
+                    (root / "versions.tf").symlink_to(root / "version-copy")
+                elif mutation == "hardlink":
+                    os.link(root / "versions.tf", root / "duplicate")
+                elif mutation == "reserved-dangling":
+                    (root / diagnostic.DIAGNOSTIC_OVERLAY).symlink_to(root / "missing")
+                else:
+                    (root / diagnostic.DIAGNOSTIC_OVERLAY).mkdir()
+                with self.assertRaises(diagnostic.CheckError):
+                    diagnostic.write_backend(root)
+
+    def test_exclusive_write_rejects_late_collision(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.root(root)
+            real_open = Path.open
+            target = root / diagnostic.DIAGNOSTIC_OVERLAY
+            def collision(path, *args, **kwargs):
+                if path == target and args and args[0] == "x":
+                    with real_open(target, "w") as stream:
+                        stream.write("external concurrent file")
+                return real_open(path, *args, **kwargs)
+            with patch.object(Path, "open", collision):
+                with self.assertRaises(diagnostic.CheckError):
+                    diagnostic.write_backend(root)
+            self.assertEqual(target.read_text(), "external concurrent file")
+
+    @unittest.skipUnless(os.environ.get("PUBLIC_OVERLAY_BUNDLE"), "Public module/mirror fixture not selected.")
+    def test_actual_root_module_graph_reinstall_validate_and_requirements(self):
+        bundle = Path(os.environ["PUBLIC_OVERLAY_BUNDLE"])
+        original = json.loads((bundle / "manifest.json").read_bytes())
+        self.assertEqual(original["source_sha"], diagnostic.DIAGNOSTIC_SOURCE_SHA)
+        self.assertEqual(original["terraform"], "1.16.4")
+        self.assertEqual(original["providers"]["registry.terraform.io/azure/modtm"], "0.4.0")
+        self.assertEqual(original["providers"]["registry.terraform.io/azure/azapi"], "2.12.0")
+        self.assertEqual(original["providers"]["registry.terraform.io/hashicorp/azurerm"], "4.81.0")
+        results = []
+        for overlay in (False, True):
+            with tempfile.TemporaryDirectory() as folder:
+                base = Path(folder)
+                root = base / "root"
+                shutil.copytree(bundle / "root", root)
+                original_root = {name: (root / name).read_bytes() for name in diagnostic.DIAGNOSTIC_ROOT_FILES}
+                original_lock = (root / ".terraform.lock.hcl").read_bytes()
+                original_modules = (root / ".terraform/modules/modules.json").read_bytes()
+                if overlay:
+                    diagnostic.write_backend(root)
+                home = base / "home"
+                home.mkdir(mode=0o700)
+                config = home / "terraform.rc"
+                config.write_text('disable_checkpoint = true\nprovider_installation {\n filesystem_mirror {\n path = '
+                                  + json.dumps(str(bundle / "mirror")) + '\n }\n}\n')
+                env = {"PATH": os.environ["PATH"], "HOME": str(home), "LANG": "C.UTF-8",
+                       "TF_CLI_CONFIG_FILE": str(config), "TF_IN_AUTOMATION": "true", "TF_INPUT": "0",
+                       "CHECKPOINT_DISABLE": "1"}
+                def run(args):
+                    allowed = (
+                        ["version", "-json"],
+                        ["init", "-backend=false", "-get=false", "-lockfile=readonly", "-input=false", "-no-color"],
+                        ["providers"], ["providers", "schema", "-json"], ["validate", "-json"],
+                    )
+                    self.assertIn(args, allowed)
+                    result = subprocess.run([os.environ["OVERLAY_TERRAFORM"], f"-chdir={root}", *args],
+                                            env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+                    self.assertEqual(result.returncode, 0, "Public offline Terraform " + args[0] + " failed")
+                    return result.stdout
+                version = json.loads(run(["version", "-json"]))
+                self.assertEqual((version["terraform_version"], version["platform"]), ("1.16.4", "linux_amd64"))
+                run(["init", "-backend=false", "-get=false", "-lockfile=readonly", "-input=false", "-no-color"])
+                selections = json.loads(run(["version", "-json"]))["provider_selections"]
+                self.assertEqual(selections, original["providers"])
+                providers = run(["providers"]).decode()
+                self.assertNotIn("hashicorp/modtm", providers)
+                schema = json.loads(run(["providers", "schema", "-json"]))
+                self.assertEqual(set(schema["provider_schemas"]), set(original["providers"]))
+                validation = json.loads(run(["validate", "-json"]))
+                self.assertTrue(validation["valid"])
+                self.assertEqual(validation["error_count"], 0)
+                self.assertEqual(original_lock, (root / ".terraform.lock.hcl").read_bytes())
+                self.assertEqual(original_modules, (root / ".terraform/modules/modules.json").read_bytes())
+                self.assertEqual(original_root, {name: (root / name).read_bytes() for name in original_root})
+                self.assertFalse((root / ".terraform/terraform.tfstate").exists())
+                self.assertFalse((root / "terraform.tfstate").exists())
+                results.append(providers)
+        def requirements(text, provider):
+            match = re.search(r"provider\[" + re.escape(provider) + r"\]([^\n]*)", text)
+            self.assertIsNotNone(match)
+            return match.group(1).strip()
+        for provider, expected in (("registry.terraform.io/azure/azapi", "~> 2.12.0"),
+                                   ("registry.terraform.io/hashicorp/azurerm", ">= 4.81.0, < 5.0.0")):
+            self.assertEqual(requirements(results[0], provider), expected)
+            self.assertEqual(requirements(results[1], provider), expected)
+        self.assertIn("~> 0.3", requirements(results[1], "registry.terraform.io/azure/modtm"))
+        print("Exact root/full module graph: unchanged AzureRM/AzAPI requirements and all selections; azure/modtm override; backend-disabled init/schema/validate passed.")
+
+
+if __name__ == "__main__":
+    if os.name != "posix":
+        raise SystemExit("Linux fixture validation required.")
+    unittest.main()
