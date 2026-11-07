@@ -58,6 +58,10 @@ Protected state failures distinguish the envelope, resource inventory, account
 and project outputs, role representation, role scope mismatch, and disk
 representation, without printing their contents. An unclassified state failure
 remains generic.
+Disk failures use fixed categories for missing or duplicate resources, instance
+shape and selection, body shape, and each required nested object or identity
+being absent or of the wrong type. These report shape only, never field values;
+they do not diagnose disk health or establish the correct representation.
 The secret-read category checks only whether the reference is non-null; it
 does not inspect the reference or access a secret. No run is implied by adding
 this workflow. A separate generic category indicates only whether a Router
