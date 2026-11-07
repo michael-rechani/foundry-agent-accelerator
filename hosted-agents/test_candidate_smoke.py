@@ -133,7 +133,7 @@ class SmokeTransportTests(unittest.TestCase):
                                        extra_body={"agent_session_id": "session-1"})
 
     def test_real_openai_sdk_serializes_session_body_without_network(self):
-        import httpx
+        import httpx2 as httpx
         from openai import OpenAI
 
         captured = []
