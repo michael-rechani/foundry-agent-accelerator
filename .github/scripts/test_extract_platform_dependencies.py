@@ -197,6 +197,14 @@ class ExtractionTests(unittest.TestCase):
         checksum = sum(raw[long_offset:long_offset + 512])
         raw[long_offset + 148:long_offset + 156] = f'{checksum:06o}\0 '.encode()
         self.attempt(gzip.compress(raw), True)
+        # Reject a disagreeing following header even if both individual paths look safe.
+        raw = bytearray(data)
+        following = long_offset + 1024
+        raw[following:following + 100] = b'public-closure/root/different'.ljust(100, b'\0')
+        raw[following + 148:following + 156] = b'        '
+        checksum = sum(raw[following:following + 512])
+        raw[following + 148:following + 156] = f'{checksum:06o}\0 '.encode()
+        self.attempt(gzip.compress(raw), True)
         # Dangling long-name extension has no regular member; no partial file is exposed.
         raw = bytearray(data)
         raw[(long_offset + 1024):] = b'\0' * (len(raw) - long_offset - 1024)
@@ -278,6 +286,31 @@ class ExtractionTests(unittest.TestCase):
                 else:
                     self.assertTrue(reserved.is_symlink())
                     reserved.unlink()
+    def test_failed_fsync_zero_write_and_staging_identity_stop_publication(self):
+        with patch.object(extractor.os, 'fsync', side_effect=OSError('fictional fsync failure')):
+            self.attempt(transport(BASE), True)
+        with patch.object(extractor.os, 'write', return_value=0):
+            self.attempt(transport(BASE), True)
+        real_verify = extractor.same_directory
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            parent = base / 'parent'
+            parent.mkdir(mode=0o700)
+            source = base / 'source.gz'
+            data = transport(BASE)
+            source.write_bytes(data)
+            count = 0
+            def ownership_failure(parent_fd, name, directory_fd):
+                nonlocal count
+                count += 1
+                if count >= 2:
+                    raise extractor.ExtractionError('fictional ownership mismatch')
+                return real_verify(parent_fd, name, directory_fd)
+            with patch.object(extractor, 'same_directory', ownership_failure), patch.object(extractor, 'publish_exclusive') as publish:
+                with self.assertRaisesRegex(extractor.ExtractionError, 'cleanup could not be verified'):
+                    extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
+                publish.assert_not_called()
+            self.assertFalse((parent / 'out').exists())
     def test_no_decompression_before_selected_digest_and_full_validation_before_write(self):
         with tempfile.TemporaryDirectory() as directory:
             parent = Path(directory)

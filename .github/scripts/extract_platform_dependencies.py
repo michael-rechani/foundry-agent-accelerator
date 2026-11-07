@@ -212,7 +212,8 @@ def validate_tar(stream, length):
             raise ExtractionError("Tar member length escapes decompressed bytes.")
         offset = stream.tell()
         if kind == b"L":
-            if long_name is not None or name != "././@LongLink" or not 1 < size <= MAX_PATH + 1:
+            if (long_name is not None or name != "././@LongLink" or mode not in (0, 0o644)
+                    or not 1 < size <= MAX_PATH + 1):
                 raise ExtractionError("Unbounded or ambiguous GNU long-name header.")
             value = stream.read(size)
             if value[-1:] != b"\0" or b"\0" in value[:-1]:
@@ -225,6 +226,8 @@ def validate_tar(stream, length):
         if kind not in (b"0", b"\0", b"5"):
             raise ExtractionError("PAX, sparse, links and special tar members are forbidden.")
         if long_name is not None:
+            if name != long_name[:100]:
+                raise ExtractionError("GNU long-name and regular header names disagree.")
             name = long_name
             long_name = None
         directory = kind == b"5"
