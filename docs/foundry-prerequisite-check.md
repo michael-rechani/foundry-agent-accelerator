@@ -18,10 +18,27 @@ Job-level PATH is fixed to `/usr/local/bin:/usr/bin:/bin`, and `BASH_ENV` and
 `ENV` point to `/dev/null` before Bash starts. Both Python launches use
 `/usr/bin/env -i` and `python3 -I`. Their complete environment allowlist is
 PATH, `GITHUB_REF`, `GITHUB_REF_PROTECTED`, `GITHUB_EVENT_NAME`,
-`GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT`, and `RUNNER_TEMP`.
+`GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT`, `RUNNER_TEMP`, and `GITHUB_EVENT_PATH`.
+The helper reads only the required, non-secret `user_agent` dispatch field
+from the run event file (limited to 1 MiB). The raw input is not placed in
+job or step environment mappings or interpolated into shell source.
+There is no committed
+default. Supply the invocation-only value specified by the Foundry azd guidance;
+do not use repository/environment variables, secrets, or azd project config to
+persist it. Input is accepted only as a 1-64 character ASCII token starting
+with an alphanumeric character and containing alphanumerics, underscores,
+periods, or hyphens. Invalid or absent values fail with the fixed `context`
+category before scratch creation, downloads, or commands. After downloading and
+hash-verifying the official script, the helper requires exactly one strict
+user-agent export declaration and an exact input match before any command or
+azd invocation, including the final direct version command. A safe but wrong
+token fails with `context` and cleanup. No other event fields enter subprocesses.
+The helper does not print the input, and no raw evaluated job environment
+exposes it in step headers. It remains non-secret dispatch metadata visible
+to people with access to the workflow event; this is not a secrecy guarantee.
 Python startup cannot inherit PYTHONPATH, user site packages, credentials,
 loader settings, or shell hooks. Launcher errors are suppressed and replaced
-with fixed nonsecret diagnostics. No extra runtime variables are passed;
+with fixed nonsecret diagnostics. No other runtime variables are passed;
 real-run compatibility has not yet been verified.
 The prerequisite helper creates a unique
 private temporary directory, with a separate HOME, every XDG directory,
@@ -47,7 +64,8 @@ bits, or unsafe alternatives. It copies only the regular, owner-executable
 `azd-linux-amd64` into the run-owned `bin/azd` with mode 0700; the notice is
 not extracted. No archive-provided paths are used as extraction destinations.
 This corrects the `archive` failure observed in run 42392877753, attempt 1;
-that run's cleanup succeeded. This fix has not been retried live.
+that run's cleanup succeeded. The archive correction subsequently succeeded
+in run 42393796257 with azd 1.37.3 and cleanup.
 An existing azd
 executable is reused, with extension state still isolated. The official script
 is rerun after the fallback; it installs `microsoft.foundry` when absent.
@@ -59,6 +77,16 @@ The official extension installer also requires outbound access to its official
 registry and release assets. This is not an offline runtime check and does not
 create publicly reachable resources. The extension release is selected by the
 official script, not separately pinned by this helper.
+
+The official pinned dependency script itself sets its prescribed user agent
+before its extension commands. Its unchanged, hash-verified source (also used
+as an offline test fixture) is upstream behavior, not project configuration.
+The helper's other azd invocation receives the caller-supplied token only after
+exact comparison with that declaration. The upstream script sets the same
+validated value; the product does not embed a default or expected literal.
+Removing that
+upstream assignment would invalidate the requirement to execute the exact
+official script. This invocation-input follow-up has not run on the private runner.
 
 Only a sanitized azd version and readiness are printed on success. Failures
 print the fixed `foundry_prerequisites_check_failed` marker and an allowlisted
