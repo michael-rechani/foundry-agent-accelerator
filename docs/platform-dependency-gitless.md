@@ -102,7 +102,9 @@ output-link substitution, initial/late collisions, partial writes, cleanup
 failures, bounded inventory and simulated endless copy growth. All trees were
 disposable hosted temp trees; outside sentinels were preserved.
 
-Terraform ran as a non-root user in a network namespace checked to have only
+The semantic step used privileged setup (`sudo unshare --net` followed by
+`runuser`); the entire check was **not unprivileged or rootless**. Terraform
+then ran as a non-root user in a network namespace checked to have only
 loopback and no external routes, with fixed command allowlists, filesystem
 provider mirrors, readonly locks, empty temporary HOME and narrowly constructed
 environments without Azure/GitHub/OIDC credential values. A PATH Git executable
@@ -111,6 +113,14 @@ operation ran. This is not syscall-level proof that an arbitrary provider cannot
 read another host path or attempt a loopback/network operation, nor proof the
 host or available identities are isolated. Checkout/bootstrap Git outside the
 Terraform experiment is separate from module metadata use.
+
+The hosted runner user can invoke sudo. Therefore this no-external-route namespace
+is not an enforceable adversarial sandbox against arbitrary provider code and does
+not independently prevent exfiltration. UID dropping and a sanitized child
+environment do not prove host/token isolation. The supplied rootless hosted
+Ubuntu probe did not establish the required combined namespace; no rootless
+sandbox claim is supported. No further privileged hosted or private-runner
+execution is authorized by this evidence correction.
 
 ## Restoration and remaining gates
 
