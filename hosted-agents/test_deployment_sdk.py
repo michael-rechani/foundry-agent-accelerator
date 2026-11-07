@@ -10,14 +10,15 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from deployment import (
-    KNOWLEDGE_CHECK_PROMPT, AgentProfile, create_package, deploy, recovery_endpoint, smoke_test as real_smoke_test,
+    KNOWLEDGE_CHECK_PROMPT, AgentProfile, active_release, create_package, deploy, enabled_endpoint, recovery_endpoint,
+    smoke_test as real_smoke_test,
 )
 
 try:
     import requests
     from azure.ai.projects import AIProjectClient
     from azure.ai.projects.models import (
-        AgentEndpointConfig, AgentIdentity, AgentVersionDetails, EntraAuthorizationScheme,
+        AgentDetails, AgentEndpointConfig, AgentIdentity, AgentVersionDetails, EntraAuthorizationScheme,
         FixedRatioVersionSelectionRule, McpProtocolConfiguration, ProtocolConfiguration,
         ResponsesProtocolConfiguration, VersionSelector,
     )
@@ -58,7 +59,7 @@ class DeploymentSDKTests(unittest.TestCase):
         self.client.agents.get.side_effect = self.get
         self.client.agents.create_version_from_code.side_effect = self.create
         self.client.agents.update_details.side_effect = self.update
-        self.client.agents.get_version.return_value = {"status": "active"}
+        self.client.agents.get_version.side_effect = self.read_version
 
     def route(self, version):
         return AgentEndpointConfig(
@@ -75,7 +76,14 @@ class DeploymentSDKTests(unittest.TestCase):
         self.events.append("read")
         if self.missing:
             raise ResourceNotFoundError()
-        return SimpleNamespace(state=self.state, configuration_state=self.configuration_state, agent_endpoint=deepcopy(self.endpoint))
+        endpoint = self.endpoint.as_dict() if self.endpoint is not None else None
+        return AgentDetails({
+            "name": kwargs["agent_name"], "state": self.state,
+            "configuration_state": self.configuration_state, "agent_endpoint": endpoint,
+        })
+
+    def read_version(self, *, agent_name, agent_version):
+        return AgentVersionDetails({"name": agent_name, "version": agent_version, "status": "active"})
 
     def create(self, **kwargs):
         self.events.append("create")
@@ -148,6 +156,9 @@ class DeploymentSDKTests(unittest.TestCase):
         self.assertEqual(details.state, "enabled")
         self.assertEqual(details.get("configuration_state"), "enabled")
         self.assertFalse(hasattr(details, "configuration_state"))
+        self.state, self.configuration_state = AgentState.ENABLED, AgentState.ENABLED
+        deploy(self.profile, self.args)
+        self.candidate.assert_called_once()
 
     def test_state_flip_before_promotion_refuses_route_write(self):
         def check(*args, **kwargs):
@@ -200,7 +211,10 @@ class DeploymentSDKTests(unittest.TestCase):
                 self.assert_no_agent_mutations()
 
     def test_inactive_recovery_stops_without_mutation(self):
-        self.client.agents.get_version.return_value = {"status": "failed"}
+        self.client.agents.get_version.side_effect = None
+        self.client.agents.get_version.return_value = {
+            "name": self.args.agent_name, "version": "1", "status": "failed",
+        }
         with self.assertRaisesRegex(RuntimeError, "not an active release"):
             deploy(self.profile, self.args)
         self.assert_no_agent_mutations()
@@ -225,9 +239,12 @@ class DeploymentSDKTests(unittest.TestCase):
         self.client.agents.create_version_from_code.assert_not_called()
 
     def test_inactive_or_draft_recovery_version_prevents_version_creation(self):
+        self.client.agents.get_version.side_effect = None
         for details in ({"status": "creating"}, {"status": "failed"}, {"status": "active", "draft": True}):
             with self.subTest(details=details):
-                self.client.agents.get_version.return_value = AgentVersionDetails(details)
+                self.client.agents.get_version.return_value = AgentVersionDetails({
+                    "name": self.args.agent_name, "version": "1", **details,
+                })
                 with self.assertRaisesRegex(RuntimeError, "not an active release"):
                     deploy(self.profile, self.args)
                 self.client.agents.create_version_from_code.assert_not_called()
@@ -249,7 +266,7 @@ class DeploymentSDKTests(unittest.TestCase):
                 status = "active" if reads["recovery"] == 1 else "failed"
             else:
                 status = "active"
-            return AgentVersionDetails({"status": status, "draft": False})
+            return AgentVersionDetails({"name": kwargs["agent_name"], "version": agent_version, "status": status, "draft": False})
 
         self.client.agents.get_version.side_effect = read_version
         with self.assertRaisesRegex(RuntimeError, "not an active release"):
@@ -267,7 +284,7 @@ class DeploymentSDKTests(unittest.TestCase):
                 reads["recovery"] += 1
                 if reads["recovery"] == 2:
                     self.endpoint = self.route("3")
-            return AgentVersionDetails({"status": "active", "draft": False})
+            return AgentVersionDetails({"name": kwargs["agent_name"], "version": agent_version, "status": "active", "draft": False})
 
         self.client.agents.get_version.side_effect = read_version
         with self.assertRaisesRegex(RuntimeError, "changed during deployment"):
@@ -327,7 +344,7 @@ class DeploymentSDKTests(unittest.TestCase):
 
         def read_version(*, agent_version, **kwargs):
             status = "active" if agent_version != "1" or state["recovery_active"] else "failed"
-            return AgentVersionDetails({"status": status, "draft": False})
+            return AgentVersionDetails({"name": kwargs["agent_name"], "version": agent_version, "status": status, "draft": False})
 
         def fail_smoke(*args):
             state["recovery_active"] = False
@@ -542,8 +559,10 @@ class DeploymentSDKTests(unittest.TestCase):
 
     def test_candidate_inactive_after_smoke_never_promotes(self):
         def check(*args, **kwargs):
-            self.client.agents.get_version.side_effect = lambda *, agent_version, **kwargs: (
-                {"status": "failed"} if agent_version == "2" else {"status": "active"})
+            self.client.agents.get_version.side_effect = lambda *, agent_version, **kwargs: {
+                "name": kwargs["agent_name"], "version": agent_version,
+                "status": "failed" if agent_version == "2" else "active",
+            }
         self.candidate.side_effect = check
         with self.assertRaisesRegex(RuntimeError, "candidate agent version is not active"):
             deploy(self.profile, self.args)
@@ -600,6 +619,10 @@ class DeploymentTimeoutTests(unittest.TestCase):
             {"state": "enabled", "configuration_state": True},
             {"state": "enabled", "configuration_state": {}},
             {"state": "enabled"},
+            {"state": "disabled", "configuration_state": "enabled"},
+            {"state": "unknown", "configuration_state": "enabled"},
+            {"state": True, "configuration_state": "enabled"},
+            {"configuration_state": "enabled"},
         ]
         sent = []
         remaining = iter(payloads)
@@ -623,15 +646,63 @@ class DeploymentTimeoutTests(unittest.TestCase):
                     with self.subTest(payload=payload):
                         details = client.agents.get(agent_name="fictional-agent")
                         self.assertIsInstance(details, AgentDetails)
-                        self.assertEqual(details.state, "enabled")
+                        self.assertEqual(details.get("state"), payload.get("state"))
                         self.assertEqual(
                             details.get("configuration_state"), payload.get("configuration_state"),
                         )
                         self.assertEqual("configuration_state" in details, "configuration_state" in payload)
                         self.assertFalse(hasattr(details, "configuration_state"))
+                        fictional = SimpleNamespace(agents=SimpleNamespace(get=lambda **kwargs: details))
+                        if payload.get("state") == payload.get("configuration_state") == "enabled":
+                            self.assertIsNone(enabled_endpoint(fictional, "fictional-agent"))
+                        else:
+                            with self.assertRaisesRegex(RuntimeError, "explicitly enabled"):
+                                enabled_endpoint(fictional, "fictional-agent")
         self.assertEqual(len(sent), len(payloads))
         for method, url in sent:
             self.assertEqual(method, "GET")
+            self.assertEqual(parse_qs(urlsplit(url).query).get("api-version"), ["v1"])
+
+    def test_real_sdk_deserializes_exact_agent_version_identity(self):
+        from urllib.parse import parse_qs, urlsplit
+
+        responses = [
+            {"name": "fictional-agent", "version": "2", "status": "active", "draft": False},
+            {"name": "other", "version": "2", "status": "active", "draft": False},
+            {"name": "fictional-agent", "version": "3", "status": "active", "draft": False},
+            {"version": "2", "status": "active"},
+            {"name": "fictional-agent", "status": "active"},
+            {"name": "fictional-agent", "version": 2, "status": "active"},
+        ]
+        remaining = iter(responses)
+        sent = []
+
+        def respond(adapter, request, **kwargs):
+            sent.append((request.method, request.url))
+            response = requests.Response()
+            response.status_code = 200
+            response._content = json.dumps(next(remaining)).encode()
+            response.raw = io.BytesIO(response._content)
+            response.headers["Content-Type"] = "application/json"
+            response.request = request
+            return response
+
+        with patch.object(requests.adapters.HTTPAdapter, "send", respond):
+            with AIProjectClient(
+                endpoint="https://fictional.services.ai.azure.com/api/projects/demo",
+                credential=self.Credential(), allow_preview=True, retry_total=0,
+            ) as client:
+                for index, payload in enumerate(responses):
+                    with self.subTest(payload=payload):
+                        details = client.agents.get_version(agent_name="fictional-agent", agent_version="2")
+                        self.assertIsInstance(details, AgentVersionDetails)
+                        self.assertEqual(details.get("name"), payload.get("name"))
+                        self.assertEqual(details.get("version"), payload.get("version"))
+                        self.assertEqual(active_release(details, "fictional-agent", "2"), index == 0)
+        self.assertEqual(len(sent), len(responses))
+        for method, url in sent:
+            self.assertEqual(method, "GET")
+            self.assertIn("/agents/fictional-agent/versions/2", urlsplit(url).path)
             self.assertEqual(parse_qs(urlsplit(url).query).get("api-version"), ["v1"])
 
     def test_a_stalled_foundry_call_fails_once_on_the_clients_own_deadline(self):
