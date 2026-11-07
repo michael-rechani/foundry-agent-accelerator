@@ -142,6 +142,26 @@ class PrivateScratch:
                 or stat.S_IMODE(opened.st_mode) != 0o700):
             raise ScratchError("The owned scratch directory was replaced or changed.")
 
+    def _record_created_file(self, name, fd):
+        info = os.fstat(fd)
+        identity = _inode(info)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
+                or stat.S_IMODE(info.st_mode) != 0o600):
+            raise ScratchError("The created scratch file is not safely owned.")
+        try:
+            named = os.stat(name, dir_fd=self._fd, follow_symlinks=False)
+        except OSError:
+            raise ScratchError("The created scratch file name is unavailable.") from None
+        if (not stat.S_ISREG(named.st_mode) or _inode(named) != identity
+                or named.st_uid != os.geteuid() or stat.S_IMODE(named.st_mode) != 0o600):
+            raise ScratchError("The created scratch file name no longer matches its descriptor.")
+        self._entries[name] = ("file", identity, None)
+
+    def _record_created_file_after_error(self, name, fd):
+        try:
+            self._record_created_file(name, fd)
+        except (OSError, ScratchError):
+            raise ScratchError("A created scratch file could not be safely recorded and may remain.") from None
     def create_file(self, name, content):
         if not isinstance(name, str) or not _NAME.fullmatch(name):
             raise ScratchError("A single safe file name is required.")
@@ -165,11 +185,16 @@ class PrivateScratch:
                     except FileExistsError:
                         raise ScratchError("The scratch file name is already in use.") from None
                     try:
-                        os.fchmod(fd, 0o600)
-                        info = os.fstat(fd)
-                        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid():
-                            raise ScratchError("The created scratch file is not owned by this identity.")
-                        self._entries[name] = ("file", _inode(info), None)
+                        try:
+                            os.fchmod(fd, 0o600)
+                        except OSError:
+                            self._record_created_file_after_error(name, fd)
+                            raise
+                        try:
+                            self._record_created_file(name, fd)
+                        except OSError:
+                            self._record_created_file_after_error(name, fd)
+                            raise
                         while view:
                             written = os.write(fd, view)
                             if written <= 0:

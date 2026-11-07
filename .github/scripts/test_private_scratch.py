@@ -247,6 +247,119 @@ class PrivateScratchTests(TestCase):
         child.cleanup()
         self.assertNotIn("nested", scratch._entries)
         scratch.cleanup()
+    def test_fchmod_failure_records_bound_file_for_parent_cleanup(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        scratch.create_file("earlier.bin", b"fictional-sensitive")
+        with patch("private_scratch.os.fchmod", side_effect=OSError("synthetic fchmod failure")):
+            with self.assertRaises(OSError):
+                scratch.create_file("new.bin", b"fictional")
+        self.assertIn("new.bin", scratch._entries)
+        scratch.cleanup()
+        self.assertFalse((self.parent / scratch.name).exists())
+
+    def test_transient_fstat_failure_recovers_bound_file_for_cleanup(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        scratch.create_file("earlier.bin", b"fictional-sensitive")
+        opened = {}
+        real_open = os.open
+        real_fstat = os.fstat
+        failed = False
+
+        def capture_open(path, *args, **kwargs):
+            fd = real_open(path, *args, **kwargs)
+            if path == "new.bin":
+                opened["fd"] = fd
+            return fd
+
+        def fail_once(fd):
+            nonlocal failed
+            if fd == opened.get("fd") and not failed:
+                failed = True
+                raise OSError("synthetic transient fstat failure")
+            return real_fstat(fd)
+
+        with patch("private_scratch.os.open", side_effect=capture_open), \
+                patch("private_scratch.os.fstat", side_effect=fail_once):
+            with self.assertRaises(OSError):
+                scratch.create_file("new.bin", b"fictional")
+        self.assertTrue(failed)
+        self.assertIn("new.bin", scratch._entries)
+        scratch.cleanup()
+        self.assertFalse((self.parent / scratch.name).exists())
+
+    def test_persistent_fstat_failure_retains_unverified_orphan(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        scratch.create_file("earlier.bin", b"fictional-sensitive")
+        opened = {}
+        real_open = os.open
+        real_fstat = os.fstat
+
+        def capture_open(path, *args, **kwargs):
+            fd = real_open(path, *args, **kwargs)
+            if path == "new.bin":
+                opened["fd"] = fd
+            return fd
+
+        def fail_created_file(fd):
+            if fd == opened.get("fd"):
+                raise OSError("synthetic persistent fstat failure")
+            return real_fstat(fd)
+
+        with patch("private_scratch.os.open", side_effect=capture_open), \
+                patch("private_scratch.os.fstat", side_effect=fail_created_file):
+            with self.assertRaisesRegex(ScratchError, "could not be safely recorded"):
+                scratch.create_file("new.bin", b"fictional")
+        root = self.parent / scratch.name
+        self.assertEqual((root / "earlier.bin").read_bytes(), b"fictional-sensitive")
+        self.assertTrue((root / "new.bin").is_file())
+        self.assertNotIn("new.bin", scratch._entries)
+        with self.assertRaises(ScratchError):
+            scratch.cleanup()
+        self.assertTrue((root / "earlier.bin").exists())
+        self.assertTrue((root / "new.bin").exists())
+        scratch.close_descriptors()
+
+    def test_fstat_recovery_refuses_renamed_original_and_replacement_name(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        scratch.create_file("earlier.bin", b"fictional-sensitive")
+        opened = {}
+        real_open = os.open
+        real_fstat = os.fstat
+        renamed = False
+
+        def capture_open(path, *args, **kwargs):
+            fd = real_open(path, *args, **kwargs)
+            if path == "new.bin":
+                opened["fd"] = fd
+            return fd
+
+        def rename_before_recovery(fd):
+            nonlocal renamed
+            if fd == opened.get("fd") and not renamed:
+                renamed = True
+                os.rename("new.bin", "held-original.bin", src_dir_fd=scratch._fd, dst_dir_fd=scratch._fd)
+                replacement = real_open(
+                    "new.bin", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=scratch._fd
+                )
+                os.close(replacement)
+                raise OSError("synthetic fstat failure after name replacement")
+            return real_fstat(fd)
+
+        with patch("private_scratch.os.open", side_effect=capture_open), \
+                patch("private_scratch.os.fstat", side_effect=rename_before_recovery):
+            with self.assertRaisesRegex(ScratchError, "could not be safely recorded"):
+                scratch.create_file("new.bin", b"fictional")
+        root = self.parent / scratch.name
+        self.assertTrue(renamed)
+        self.assertTrue((root / "held-original.bin").is_file())
+        self.assertTrue((root / "new.bin").is_file())
+        self.assertNotIn("new.bin", scratch._entries)
+        with self.assertRaises(ScratchError):
+            scratch.cleanup()
+        self.assertTrue((root / "earlier.bin").exists())
+        self.assertTrue((root / "held-original.bin").exists())
+        self.assertTrue((root / "new.bin").exists())
+        scratch.close_descriptors()
     def test_partial_byte_writes_preserve_formatted_memoryview_bytes(self):
         scratch = PrivateScratch.create(str(self.parent))
         values = array("I", range(1, 24))
