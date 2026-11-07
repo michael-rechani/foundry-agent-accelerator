@@ -69,19 +69,25 @@ text=$(</dev/stdin)
 """
 
 
-def archive_bytes(name="azd", kind=tarfile.REGTYPE, duplicate=False):
+def archive_bytes(name="azd-linux-amd64", kind=tarfile.REGTYPE, duplicate=False, mode=0o775, extra=None, linkname=None):
     stream = io.BytesIO()
     with gzip.GzipFile(fileobj=stream, mode="wb", mtime=0) as compressed, tarfile.open(fileobj=compressed, mode="w") as package:
         for _ in range(2 if duplicate else 1):
             member = tarfile.TarInfo(name)
             member.type = kind
+            member.mode = mode
             member.size = len(FAKE_AZD) if kind == tarfile.REGTYPE else 0
-            member.linkname = "/unowned/private-file"
+            member.linkname = linkname if linkname is not None else ("/unowned/private-file" if kind != tarfile.REGTYPE else "")
             package.addfile(member, io.BytesIO(FAKE_AZD) if member.size else None)
-        # Even a verified archive must never extract other members.
-        unrelated = tarfile.TarInfo("../unowned")
-        unrelated.size = 6
-        package.addfile(unrelated, io.BytesIO(b"ignore"))
+        # Observed hash-verified official layout: one executable and one notice.
+        notice = tarfile.TarInfo("NOTICE.txt")
+        notice.mode = 0o775
+        notice.size = 6
+        package.addfile(notice, io.BytesIO(b"notice"))
+        if extra is not None:
+            unrelated = tarfile.TarInfo(extra)
+            unrelated.size = 6
+            package.addfile(unrelated, io.BytesIO(b"ignore"))
     return stream.getvalue()
 
 
@@ -388,16 +394,52 @@ class PrerequisiteTests(unittest.TestCase):
 
     def test_archive_never_extracts_unsafe_or_duplicate_binary_members(self):
         for name, kind, duplicate in (
+            ("azd", tarfile.REGTYPE, False),
             ("../azd", tarfile.REGTYPE, False),
-            ("azd", tarfile.SYMTYPE, False),
-            ("azd", tarfile.LNKTYPE, False),
-            ("azd", tarfile.DIRTYPE, False),
-            ("azd", tarfile.REGTYPE, True),
+            ("../azd-linux-amd64", tarfile.REGTYPE, False),
+            ("./azd-linux-amd64", tarfile.REGTYPE, False),
+            ("/azd-linux-amd64", tarfile.REGTYPE, False),
+            ("nested/azd-linux-amd64", tarfile.REGTYPE, False),
+            ("azd-linux-amd64", tarfile.SYMTYPE, False),
+            ("azd-linux-amd64", tarfile.LNKTYPE, False),
+            ("azd-linux-amd64", tarfile.DIRTYPE, False),
+            ("azd-linux-amd64", tarfile.FIFOTYPE, False),
+            ("azd-linux-amd64", tarfile.REGTYPE, True),
         ):
             with self.subTest(name=name, kind=kind, duplicate=duplicate):
                 self.archive = archive_bytes(name, kind, duplicate)
                 probe.AZD_SHA256 = hashlib.sha256(self.archive).hexdigest()
-                self.assert_failed(self.invoke())
+                self.assert_failed(self.invoke(), "archive")
+                self.assertEqual(list(self.temp.iterdir()), [])
+
+    def test_observed_official_layout_extracts_only_executable_to_owned_bin(self):
+        with tarfile.open(fileobj=io.BytesIO(self.archive), mode="r:gz") as package:
+            self.assertEqual([(member.name, member.type, member.mode) for member in package.getmembers()], [
+                ("azd-linux-amd64", tarfile.REGTYPE, 0o775),
+                ("NOTICE.txt", tarfile.REGTYPE, 0o775),
+            ])
+        root = self.temp / "owned"
+        root.mkdir()
+        (root / "bin").mkdir()
+        probe.install_azd(root)
+        self.assertEqual((root / "bin" / "azd").read_bytes(), FAKE_AZD)
+        self.assertEqual(list((root / "bin").iterdir()), [root / "bin" / "azd"])
+        self.assertFalse((root / "NOTICE.txt").exists())
+        self.assertFalse((root / "azd-linux-amd64").exists())
+
+    def test_unsafe_alternatives_and_modes_fail_before_any_extraction(self):
+        for options in (
+            {"extra": "../unowned"}, {"extra": "azd"},
+            {"extra": "./azd-linux-amd64"}, {"extra": "NOTICE.txt"},
+            {"mode": 0o644}, {"mode": 0o4775},
+            {"mode": 0o2775}, {"linkname": "/unowned/private-file"},
+        ):
+            with self.subTest(options=options):
+                self.archive = archive_bytes(**options)
+                probe.AZD_SHA256 = hashlib.sha256(self.archive).hexdigest()
+                with patch.object(probe.tarfile.TarFile, "extractfile") as extract:
+                    self.assert_failed(self.invoke(), "archive")
+                    extract.assert_not_called()
                 self.assertEqual(list(self.temp.iterdir()), [])
 
     def test_official_fixture_and_release_pins_are_exact(self):
