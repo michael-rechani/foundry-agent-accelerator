@@ -116,7 +116,7 @@ def _experimental_supervisor(request):
                         if count > limit:
                             outcome = "output_limit"
                             break
-            # Retained pidfd-bound leader is never reaped before this signal.
+            # Under dedicated-interpreter test assumptions, retain the leader until signaling.
             os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
             if os.getpgid(proc.pid) != proc.pid or os.getsid(proc.pid) != proc.pid:
                 return None

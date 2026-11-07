@@ -105,6 +105,8 @@ class OwnedProcessTests(unittest.TestCase):
         proc.pid = 123
         proc.returncode = None
         proc._child_created = False
+        external_reaper = mock.Mock(return_value=(123, 7 << 8))
+        self.assertEqual(os.waitstatus_to_exitcode(external_reaper()[1]), 7)
         with mock.patch.object(os, "waitpid", side_effect=ChildProcessError) as reap:
             pid, status = proc._try_wait(0)
         reap.assert_called_once_with(123, 0)
@@ -267,6 +269,8 @@ class OwnershipFailureTests(unittest.TestCase):
                     fail == "external_waitid_race" and events.count("observe") == 2 or
                     fail == "lost_terminal_status" and consuming):
                 raise ChildProcessError()
+            if fail == "no_terminal_status" and consuming:
+                return None
             return mock.Mock(si_code=subject.os.CLD_EXITED, si_status=7 if abnormal else 0)
 
         def group(_pid, _signal):
@@ -285,6 +289,9 @@ class OwnershipFailureTests(unittest.TestCase):
         with (
             mock.patch.object(subject, "_set_subreaper"),
             mock.patch.object(subject, "_has_no_children", return_value=True),
+            mock.patch.object(subject.time, "monotonic", side_effect=iter(
+                (0, 0, 3) if fail == "no_terminal_status" else [0] * 100)),
+            mock.patch.object(subject.time, "sleep"),
             mock.patch.object(subject.subprocess, "Popen", return_value=proc),
             mock.patch.object(subject.os, "pidfd_open", return_value=7),
             mock.patch.object(subject.os, "close"),
@@ -328,6 +335,11 @@ class OwnershipFailureTests(unittest.TestCase):
                     self.assertNotIn("reap", events)
                 if failure == "lost_terminal_status":
                     self.assertNotIn("reap", events)
+
+    def test_no_terminal_waitid_status_cannot_certify_before_deadline(self):
+        result, events = self.flow(fail="no_terminal_status")
+        self.assertIsNone(result)
+        self.assertEqual(events, ["observe", "observe", "signal", "consume"])
 
     def test_queued_output_exact_boundary_and_aggregate(self):
         for chunks, limit, expected in (([b"abc", b"def", b""], 6, "success"),
