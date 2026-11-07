@@ -17,7 +17,7 @@ jobs:
           terraform_wrapper: false
       - name: Existing and added synthetic regressions
         run: |
-          python3 -m unittest discover -s .github/scripts -p test_check_platform_router_plan.py -v
+          sudo unshare --net -- /usr/sbin/runuser -u "$(id -un)" -- /usr/bin/env PATH="$PATH" /usr/bin/python3 -m unittest discover -s .github/scripts -p test_check_platform_router_plan.py -v
           python3 -m unittest discover -s .github/scripts -p test_platform_router_overlay.py -v
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

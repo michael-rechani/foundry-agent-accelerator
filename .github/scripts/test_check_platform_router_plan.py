@@ -23,10 +23,10 @@ PRINCIPAL = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 INPUT_NAME = "platform/private.tfvars"
 
 
-
 def reviewed_root(root):
     for name in diagnostic.DIAGNOSTIC_ROOT_FILES:
         shutil.copyfile(lab.ROOT / "terraform" / name, root / name)
+
 
 def state_object():
     return {
@@ -236,6 +236,41 @@ class SourceAndTerraformTests(unittest.TestCase):
                         instance.command(*args)
                 self.assertEqual(command.call_count, 1)
 
+    @unittest.skipUnless(shutil.which("terraform"), "Terraform is not installed")
+    def test_console_secret_preflight_evaluates_without_reading_a_vault(self):
+        executable = shutil.which("terraform")
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "main.tf").write_text(
+                'variable "subscription_id" { default = "fixture" }\n'
+                'variable "deployment_principal_id" { default = "fixture" }\n'
+                'variable "model_router_deployment" { default = null }\n'
+                'variable "enable_jumpbox" { type = bool }\n'
+                'variable "jumpbox_admin_secret" { type = object({ name = string }) }\n',
+                encoding="utf-8",
+            )
+            env = {
+                key: value for key, value in os.environ.items()
+                if not key.startswith(("TF_", "ARM_", "AZURE_", "MODTM_"))
+            }
+            env.update({"TF_IN_AUTOMATION": "true", "TF_INPUT": "0"})
+            for enabled, secret, expected in (
+                ("false", '{name="fixture"}', False), ("true", "null", False),
+                ("true", '{name="fixture"}', True),
+            ):
+                with self.subTest(enabled=enabled, secret=secret):
+                    result = subprocess.run(
+                        [executable, f"-chdir={root}", "console", "-no-color",
+                         f"-var=enable_jumpbox={enabled}", f"-var=jumpbox_admin_secret={secret}"],
+                        env=env, input=diagnostic.CONSOLE_INPUT, stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE, check=False,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+                    decoded = json.loads(json.loads(result.stdout))
+                    self.assertIs(decoded["jumpbox_secret_required"], expected)
+
+
+class DiagnosticRunTests(unittest.TestCase):
     def run_fixture(self, failure=None):
         state = json.dumps(state_object()).encode()
         private_inputs = b'{"value": "private-input-content"}'
