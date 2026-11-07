@@ -25,6 +25,10 @@ else:
 @unittest.skipUnless(SDK_AVAILABLE, "Install requirements.txt to run the real SDK contract tests")
 class SDKContractTests(unittest.TestCase):
     def test_interrupted_smoke_test_attempts_cleanup_and_reraises(self):
+        from azure.ai.projects.models import (
+            AgentEndpointConfig, FixedRatioVersionSelectionRule,
+            ProtocolConfiguration, ResponsesProtocolConfiguration, VersionSelector,
+        )
         sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
         try:
             from deployment import AgentProfile, deploy
@@ -53,7 +57,14 @@ class SDKContractTests(unittest.TestCase):
               patch("deployment.cleanup_failed_version") as cleanup):
             client = project.return_value.__enter__.return_value
             client.agents.create_version_from_code.return_value.version = "2"
-            original_endpoint = client.agents.get.return_value.agent_endpoint
+            original_endpoint = AgentEndpointConfig(
+                version_selector=VersionSelector(version_selection_rules=[
+                    FixedRatioVersionSelectionRule(agent_version="1", traffic_percentage=100),
+                ]),
+                protocol_configuration=ProtocolConfiguration(responses=ResponsesProtocolConfiguration()),
+            )
+            client.agents.get.return_value.agent_endpoint = original_endpoint
+            client.agents.get_version.return_value = {"status": "active"}
             snapshot.return_value = original_endpoint
             with self.assertRaises(KeyboardInterrupt):
                 deploy(profile, args)

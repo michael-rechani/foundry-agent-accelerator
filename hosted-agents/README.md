@@ -242,9 +242,11 @@ portable regular-file permissions. Review agents also include the shared
 deploying source rather than a portable bundle.
 
 Before upload, the deployer checks the model and specialists and snapshots the
-existing route. Existing routes must use specific versions. A symbolic
-`@latest` route or an unrouted existing agent needs operator reconciliation
-before another version is created.
+existing route. Existing routes must use specific versions, have valid traffic
+percentages totaling 100, and send traffic only to active, non-draft versions.
+A symbolic `@latest` route or an unrouted existing agent needs operator
+reconciliation before another version is created. The recovery versions are
+checked again before promotion.
 
 It then uploads an immutable hosted-agent version with a source hash and waits
 for activation. Next it checks that the previous endpoint hasn't changed,
@@ -259,14 +261,17 @@ only when the endpoint still matches its attempted promotion; an endpoint
 already matching the captured route needs no update. If it observes any other
 route or endpoint configuration, it leaves it unchanged and retains the
 candidate. After restoration, it requires the full endpoint to match the
-captured snapshot before deleting the candidate. A failed, unconfirmed, unknown
-or symbolic route, or a first promotion without a previous route, also retains
-the candidate for inspection. Before deleting any failed version, it checks
-that a fresh route doesn't reference it.
+captured snapshot before deleting the candidate. It checks the recovery
+versions' status before and after restoring. If the first check fails, it
+doesn't overwrite the current endpoint; if either check fails, it retains the
+candidate. An unconfirmed, unknown or symbolic route, or a first deployment
+without a previous route, also retains the candidate for inspection. Before
+deleting any failed version, it checks that a fresh route doesn't reference it.
 
 Serialize all deployments and route edits for the same agent. The read and
 restore aren't an atomic conditional update, and the cleanup flow doesn't
-provide a distributed lock. Confirm that the restored version is still usable.
+provide a distributed lock. An active status doesn't prove that a version can
+serve a healthy response; verify that separately.
 
 The Foundry client allows 30 seconds to connect and 60 seconds for each response,
 with no automatic retries, so a stalled call fails in about 90 seconds instead

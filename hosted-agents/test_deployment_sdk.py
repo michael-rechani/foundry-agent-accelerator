@@ -17,8 +17,9 @@ try:
     import requests
     from azure.ai.projects import AIProjectClient
     from azure.ai.projects.models import (
-        AgentEndpointConfig, AgentIdentity, EntraAuthorizationScheme, FixedRatioVersionSelectionRule, McpProtocolConfiguration,
-        ProtocolConfiguration, ResponsesProtocolConfiguration, VersionSelector,
+        AgentEndpointConfig, AgentIdentity, AgentVersionDetails, EntraAuthorizationScheme,
+        FixedRatioVersionSelectionRule, McpProtocolConfiguration, ProtocolConfiguration,
+        ResponsesProtocolConfiguration, VersionSelector,
     )
     from azure.core.credentials import AccessToken
     from azure.core.exceptions import AzureError, ResourceNotFoundError
@@ -160,6 +161,76 @@ class DeploymentSDKTests(unittest.TestCase):
             deploy(self.profile, self.args)
         self.client.agents.create_version_from_code.assert_not_called()
 
+    def test_inactive_or_draft_recovery_version_prevents_version_creation(self):
+        for details in ({"status": "creating"}, {"status": "failed"}, {"status": "active", "draft": True}):
+            with self.subTest(details=details):
+                self.client.agents.get_version.return_value = AgentVersionDetails(details)
+                with self.assertRaisesRegex(RuntimeError, "not an active release"):
+                    deploy(self.profile, self.args)
+                self.client.agents.create_version_from_code.assert_not_called()
+                self.client.agents.update_details.assert_not_called()
+
+    def test_missing_recovery_version_is_not_treated_as_a_missing_agent(self):
+        self.client.agents.get_version.side_effect = ResourceNotFoundError()
+        with self.assertRaises(ResourceNotFoundError):
+            deploy(self.profile, self.args)
+        self.client.agents.create_version_from_code.assert_not_called()
+        self.client.agents.update_details.assert_not_called()
+
+    def test_recovery_version_lost_during_build_prevents_promotion_and_retains_candidate(self):
+        reads = {"recovery": 0}
+
+        def read_version(*, agent_version, **kwargs):
+            if agent_version == "1":
+                reads["recovery"] += 1
+                status = "active" if reads["recovery"] == 1 else "failed"
+            else:
+                status = "active"
+            return AgentVersionDetails({"status": status, "draft": False})
+
+        self.client.agents.get_version.side_effect = read_version
+        with self.assertRaisesRegex(RuntimeError, "not an active release"):
+            deploy(self.profile, self.args)
+        self.client.agents.create_version_from_code.assert_called_once()
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.assertEqual(self.endpoint, self.original)
+
+    def test_route_changed_during_recovery_status_check_prevents_promotion(self):
+        reads = {"recovery": 0}
+
+        def read_version(*, agent_version, **kwargs):
+            if agent_version == "1":
+                reads["recovery"] += 1
+                if reads["recovery"] == 2:
+                    self.endpoint = self.route("3")
+            return AgentVersionDetails({"status": "active", "draft": False})
+
+        self.client.agents.get_version.side_effect = read_version
+        with self.assertRaisesRegex(RuntimeError, "changed during deployment"):
+            deploy(self.profile, self.args)
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "3")
+
+    def test_first_deployment_route_changed_before_promotion_is_not_overwritten(self):
+        self.missing = True
+        reads = 0
+
+        def read_with_route_change(**kwargs):
+            nonlocal reads
+            reads += 1
+            if reads == 3:
+                self.endpoint = self.route("3")
+            return self.get(**kwargs)
+
+        self.client.agents.get.side_effect = read_with_route_change
+        with self.assertRaisesRegex(RuntimeError, "changed during deployment"):
+            deploy(self.profile, self.args)
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "3")
+
     def test_failed_or_interrupted_smoke_restores_exact_endpoint_before_deletion(self):
         for error in (RuntimeError("smoke failed"), KeyboardInterrupt()):
             with self.subTest(error=type(error).__name__):
@@ -222,6 +293,25 @@ class DeploymentSDKTests(unittest.TestCase):
             deploy(self.profile, self.args)
         self.assertEqual(self.endpoint, self.original)
         self.client.agents.delete_version.assert_called_once()
+
+    def test_recovery_version_lost_after_promotion_leaves_candidate_untouched(self):
+        state = {"recovery_active": True}
+
+        def read_version(*, agent_version, **kwargs):
+            status = "active" if agent_version != "1" or state["recovery_active"] else "failed"
+            return AgentVersionDetails({"status": status, "draft": False})
+
+        def fail_smoke(*args):
+            state["recovery_active"] = False
+            raise RuntimeError("smoke failed")
+
+        self.client.agents.get_version.side_effect = read_version
+        self.smoke.side_effect = fail_smoke
+        with self.assertRaisesRegex(RuntimeError, "smoke failed"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
+        self.assertEqual(self.client.agents.update_details.call_count, 1)
+        self.client.agents.delete_version.assert_not_called()
 
     def test_server_populated_endpoint_fields_are_preserved_during_recovery(self):
         state = self.endpoint.as_dict()
@@ -357,6 +447,7 @@ class DeploymentSDKTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "changed during deployment"):
             deploy(self.profile, self.args)
         self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
         self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "3")
 
     def test_route_readback_failure_does_not_claim_success(self):

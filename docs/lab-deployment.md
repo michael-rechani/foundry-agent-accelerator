@@ -708,12 +708,14 @@ If recovery is needed:
    Lab, including the browser.
 
 The publisher checks the current endpoint before attempting to restore its
-captured prior route after a failed promotion or smoke check. It retains the
-candidate if it observes another route or can't confirm the restored snapshot.
-This isn't an atomic lock, a substitute for serialized route edits, or a
-recovery path for problems discovered later. Inspect the live route before
-retrying or deleting a version. Recovery doesn't reverse charges or requests
-already made.
+captured prior route after a failed promotion or smoke check. It verifies that
+the prior traffic-serving versions report active, non-draft status before
+promotion and around restoration. It retains the candidate if it observes
+another route or can't confirm the recovery versions or restored snapshot;
+that candidate may still receive traffic. These checks aren't an atomic lock or
+proof of response health, and don't provide a recovery path for problems
+discovered later. Inspect the live route before retrying or deleting a version.
+Recovery doesn't reverse charges or requests already made.
 
 ## Deploy a new image from GitHub Actions
 

@@ -155,10 +155,12 @@ if ($LASTEXITCODE -ne 0) { throw 'Coordinator deployment or verification failed'
 ```
 
 The deployer checks the model and specialists and snapshots the previous endpoint
-before creating an immutable version. After activation it verifies the endpoint
-hasn't changed and promotes the candidate while preserving authorization. It reads
-the exact active route back before and after the general smoke test and both
-mandatory delegation checks. Clients may reach the candidate during testing.
+before creating an immutable version. It checks that the previous route's
+positive-traffic versions are active, non-draft releases, then checks them again
+after activation and before promotion. It verifies the endpoint hasn't changed
+and promotes the candidate while preserving authorization. It reads the exact
+active route back before and after the general smoke test and both mandatory
+delegation checks. Clients may reach the candidate during testing.
 
 ## 6. Verify deployment and routing
 
@@ -177,17 +179,18 @@ a specialist call; the verifier checks correlated structured tool results.
 
 On failure after a promotion attempt, the deployer first reads the endpoint. It
 restores the captured route only if the endpoint still matches the attempted
-promotion; an observed different route or endpoint configuration is left
-untouched. It requires the complete restored endpoint to match the snapshot and
-a fresh route read to show that the candidate isn't referenced before deletion.
-If restoration or verification fails, or no previous route is available, it
-keeps the candidate.
+promotion and the prior traffic-serving versions are still active releases; an
+observed different route or endpoint configuration is left untouched. It
+requires the complete restored endpoint to match the snapshot, rechecks those
+versions, and confirms that the candidate isn't referenced before deletion. If
+restoration or verification fails, or no previous route is available, it keeps
+the candidate, which can still be receiving traffic.
 
 Inspect the actual endpoint before retrying or deleting anything. Restore a
 known-good version under the same deployment lock, verify the route and version,
 then clean up unrouted candidates deliberately. The deployer's read and restore
-aren't atomic, so serialize all route edits as well as deployments. Retained
-versions may incur costs.
+aren't atomic, so serialize all route edits as well as deployments. An active
+status alone doesn't prove response health. Retained versions may incur costs.
 
 > [!CAUTION]
 > Don't weaken delegation assertions to get a green deployment. If the service

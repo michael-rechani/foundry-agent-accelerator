@@ -295,6 +295,33 @@ def concrete_route(endpoint) -> bool:
     )
 
 
+def validate_traffic_rules(rules, description: str) -> None:
+    percentages = [getattr(rule, "traffic_percentage", None) for rule in rules]
+    if any(type(value) not in (int, float) or not 0 <= value <= 100 for value in percentages):
+        raise RuntimeError(f"{description} has unsupported traffic rules")
+    if not math.isclose(sum(percentages), 100):
+        raise RuntimeError(f"{description} traffic must total 100 percent")
+
+
+def active_release(details) -> bool:
+    return details.get("status") == "active" and details.get("draft", False) is False
+
+
+def verify_recovery_targets(client, agent_name: str, endpoint) -> None:
+    if not concrete_route(endpoint):
+        raise RuntimeError(
+            "Pin the existing agent route to explicit versions before redeploying; "
+            "an unrouted or symbolic route such as @latest is not a safe recovery target"
+        )
+    rules = endpoint.version_selector.version_selection_rules
+    validate_traffic_rules(rules, "Recovery route")
+    versions = {rule.agent_version for rule in rules if rule.traffic_percentage > 0}
+    for version in sorted(versions):
+        details = client.agents.get_version(agent_name=agent_name, agent_version=version)
+        if not active_release(details):
+            raise RuntimeError(f"Recovery version {version} is not an active release")
+
+
 def endpoint_snapshot(client, agent_name: str):
     from azure.core.exceptions import ResourceNotFoundError
 
@@ -302,11 +329,7 @@ def endpoint_snapshot(client, agent_name: str):
         endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
     except ResourceNotFoundError:
         return None
-    if not concrete_route(endpoint):
-        raise RuntimeError(
-            "Pin the existing agent route to explicit versions before redeploying; "
-            "an unrouted or symbolic route such as @latest is not a safe recovery target"
-        )
+    verify_recovery_targets(client, agent_name, endpoint)
     return deepcopy(endpoint)
 
 
@@ -327,7 +350,7 @@ def verify_route(client, agent_name: str, version: str) -> None:
     if not routes_to_version(endpoint, version):
         raise RuntimeError("The promoted Responses route was not confirmed")
     details = client.agents.get_version(agent_name=agent_name, agent_version=version)
-    if details["status"] != "active" or getattr(details, "draft", False):
+    if not active_release(details):
         raise RuntimeError("The promoted agent version is not active")
 
 
@@ -345,17 +368,21 @@ def recovery_endpoint(original_endpoint):
 def cleanup_failed_version(
     client, agent_name: str, version: str, original_endpoint, attempted_endpoint
 ) -> None:
-    if attempted_endpoint is not None and (
-        not concrete_route(original_endpoint) or not routes_to_version(attempted_endpoint, version)
+    if not concrete_route(original_endpoint) or (
+        attempted_endpoint is not None and not routes_to_version(attempted_endpoint, version)
     ):
         print(f"Warning: recovery route is not confirmed; retained version {version}")
         return
 
     try:
         endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
-        if attempted_endpoint is not None and endpoint != original_endpoint:
-            if endpoint != attempted_endpoint:
-                print(f"Warning: route changed since promotion; retained version {version}")
+        if endpoint != original_endpoint and (attempted_endpoint is None or endpoint != attempted_endpoint):
+            print(f"Warning: route changed during deployment; retained version {version}")
+            return
+        verify_recovery_targets(client, agent_name, original_endpoint)
+        if endpoint != original_endpoint:
+            if client.agents.get(agent_name=agent_name).agent_endpoint != endpoint:
+                print(f"Warning: route changed during recovery; retained version {version}")
                 return
             try:
                 client.agents.update_details(
@@ -368,6 +395,11 @@ def cleanup_failed_version(
             if endpoint != original_endpoint:
                 print(f"Warning: restored route was not confirmed; retained version {version}")
                 return
+            verify_recovery_targets(client, agent_name, endpoint)
+        endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+        if endpoint != original_endpoint:
+            print(f"Warning: route changed during cleanup; retained version {version}")
+            return
         selector = getattr(endpoint, "version_selector", None)
         rules = getattr(selector, "version_selection_rules", None)
         if not concrete_route(endpoint) or any(str(rule.agent_version) == str(version) for rule in rules):
@@ -378,7 +410,7 @@ def cleanup_failed_version(
         )
         print(f"Deleted failed version {version}")
     except Exception:
-        print(f"Warning: cleanup incomplete; retained version {version} if present")
+        print(f"Warning: recovery status or cleanup incomplete; retained version {version} if present")
 
 
 def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name: str) -> None:
@@ -392,17 +424,13 @@ def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name:
         rules = getattr(selector, "version_selection_rules", None)
         if getattr(protocols, "responses", None) is None or not rules:
             raise RuntimeError(f"Specialist {agent_name} has no routed Responses endpoint")
-        percentages = [getattr(rule, "traffic_percentage", None) for rule in rules]
-        if any(type(value) not in (int, float) or not 0 <= value <= 100 for value in percentages):
-            raise RuntimeError(f"Specialist {agent_name} has unsupported traffic rules")
-        if not math.isclose(sum(percentages), 100):
-            raise RuntimeError(f"Specialist {agent_name} traffic must total 100 percent")
+        validate_traffic_rules(rules, f"Specialist {agent_name}")
         versions = {str(rule.agent_version) for rule in rules if rule.traffic_percentage > 0 and rule.agent_version}
         if any(not rule.agent_version for rule in rules if rule.traffic_percentage > 0):
             raise RuntimeError(f"Specialist {agent_name} has an unversioned traffic rule")
         for version in sorted(versions):
             details = client.agents.get_version(agent_name=agent_name, agent_version=version)
-            if details["status"] != "active":
+            if not active_release(details):
                 raise RuntimeError(f"Specialist {agent_name} version {version} is not active")
         print(f"Specialist preflight passed: {agent_name}")
 
@@ -495,6 +523,8 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 ).agent_endpoint
                 if original_endpoint is not None and current_endpoint != original_endpoint:
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
+                if original_endpoint is not None:
+                    verify_recovery_targets(client, args.agent_name, original_endpoint)
                 protocols = deepcopy(getattr(current_endpoint, "protocol_configuration", None))
                 if protocols is None:
                     protocols = ProtocolConfiguration()
@@ -514,6 +544,8 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 ]
                 endpoint_config.version_selector = selector
                 endpoint_config.protocol_configuration = protocols
+                if client.agents.get(agent_name=args.agent_name).agent_endpoint != current_endpoint:
+                    raise RuntimeError("The agent route changed during deployment; refusing promotion")
                 attempted_endpoint = deepcopy(endpoint_config)
                 client.agents.update_details(
                     agent_name=args.agent_name,
