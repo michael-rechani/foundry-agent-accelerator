@@ -47,7 +47,7 @@ def assert_no_azapi_bypass(directory):
                 document = json.loads(
                     source,
                     object_pairs_hook=_unique_json_object,
-                    parse_constant=lambda value: (_ for _ in ()).throw(ValueError("invalid JSON constant")),
+                    parse_constant=_reject_json_constant,
                 )
             except (json.JSONDecodeError, ValueError):
                 raise AssertionError("descendant module JSON is malformed or ambiguous") from None
@@ -97,7 +97,7 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
                     assert_no_azapi_bypass(Path(folder))
 
     def test_malformed_and_duplicate_tf_json_fail_closed(self):
-        for source in ('{"resource":', '{"provider":{},"provider":{}}'):
+        for source in ('{"resource":', '{"provider":{},"provider":{}}', '{"value":NaN}'):
             with self.subTest(source=source), tempfile.TemporaryDirectory() as folder:
                 Path(folder, "main.tf.json").write_text(source, encoding="utf-8")
                 with self.assertRaises(AssertionError):
