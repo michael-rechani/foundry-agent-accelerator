@@ -19,8 +19,8 @@ be independently trusted and protected.
 The response must be 200 with one valid nonzero Content-Length of at most
 64,000,000 bytes, no Content-Range or Transfer-Encoding, and exactly that many
 bytes read. It does not decode content encodings. It preserves the parser's raw
-header pairs in order and rejects duplicate names, malformed values and ambiguous
-framing. Unsupported headers are not dropped: the existing guard rejects them.
+header pairs in order and rejects duplicate names, parser defects, malformed
+values and ambiguous framing. Unsupported headers are not dropped: the existing guard rejects them.
 In particular `x-ms-access-tier` is documented as possible for Blob responses but
 is not accepted by the current fictional guard. The actual Azure Blob response
 profile has not been observed or approved. HTTP framing bounds the returned body

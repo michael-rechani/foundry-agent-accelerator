@@ -18,6 +18,9 @@ class SnapshotTransport:
 
     __slots__ = ("_targets", "_token", "_context")
 
+    def __setattr__(self, name, value):
+        raise AttributeError("Snapshot transport configuration is frozen.")
+
     @classmethod
     def create(cls, targets, token, ca_file):
         try:
@@ -38,9 +41,9 @@ class SnapshotTransport:
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             context.load_verify_locations(cafile=ca_file)
             instance = cls()
-            instance._targets = frozen
-            instance._token = token
-            instance._context = context
+            object.__setattr__(instance, "_targets", frozen)
+            object.__setattr__(instance, "_token", token)
+            object.__setattr__(instance, "_context", context)
             return instance
         except BaseException:
             return FAILURE
@@ -67,7 +70,7 @@ class SnapshotTransport:
                 },
             )
             response = connection.getresponse()
-            if response.status != 200:
+            if response.status != 200 or response.headers.defects:
                 return FAILURE
             headers = tuple(response.headers.raw_items())
             if not 0 < len(headers) <= 128:

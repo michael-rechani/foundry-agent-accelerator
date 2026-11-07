@@ -113,6 +113,8 @@ class TransportTests(unittest.TestCase):
         reader = transport.SnapshotTransport.create(targets, TOKEN, "/fictional/ca.pem")
         targets["platform_state"] = "https://attacker.example.invalid/container/other"
         self.assertEqual(reader("platform_state")["identity"], TARGETS["platform_state"])
+        with self.assertRaises(AttributeError):
+            reader._targets = (("platform_state", targets["platform_state"]),)
         self.assertIsNone(reader("https://attacker.example.invalid/container/other"))
         self.assertEqual(FixtureConnection.made[-1].host, "state.example.invalid")
         self.assertIsNone(transport.SnapshotTransport.create(
@@ -182,6 +184,8 @@ class TransportTests(unittest.TestCase):
         for token in ("", "token\r\nX-Injected: yes", "token with spaces", "x" * 16385):
             self.assertIsNone(transport.SnapshotTransport.create(TARGETS, token, "/fictional/ca.pem"))
         FixtureConnection.raw = wire(headers=HEADERS + (("X-Fictional", "value\r\n folded"),))
+        self.assertIsNone(self.reader("input"))
+        FixtureConnection.raw = wire().replace(b"\r\n\r\n", b"\r\nmalformed\r\n\r\n", 1)
         self.assertIsNone(self.reader("input"))
 
     def test_exception_and_constructor_failure_are_redacted(self):
