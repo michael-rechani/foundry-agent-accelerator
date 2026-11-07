@@ -77,6 +77,24 @@ this workflow. A separate generic category indicates only whether a Router
 override key is absent or explicitly present, including null; it does not
 inspect the override or establish its Terraform-resolved value.
 
+After stable snapshots and a successful comparison, the workflow additionally
+reports `candidate_storage_inventory` and `candidate_apim_inventory` as
+`present`, `absent`, or `ambiguous`. These describe active, non-deposed managed
+instances in the whole recorded state, including child modules; they never
+report counts or identities. Malformed, duplicate, deposed, or otherwise
+ambiguous resource or instance envelopes produce `ambiguous`, not `absent`.
+`candidate_pinned_secret_read` uses the same three categories for the
+candidate's optional jumpbox secret reference and its pinned-version shape;
+it does not fetch a secret. The categories are also reported when the only
+comparison blocker is secret-read review. Other comparison failures suppress
+them, and changed or locked snapshots take precedence over all results.
+
+Inventory is a snapshot of recorded instances, not a prediction of resources or
+data actions a future plan may evaluate, proof of effective permissions, or
+evidence that a broader plan is safe. Provider refresh behavior, a separate
+plan identity and trust boundary, and the full dependency graph remain subject
+to review in #534. The paused disk-tier decision in #485 is unchanged.
+
 ### Agent session reuse
 
 The cache holds at most 512 idle chat/agent sessions per process. Its default
