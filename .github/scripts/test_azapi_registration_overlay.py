@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -24,29 +25,96 @@ def _reject_json_constant(_value):
     raise ValueError("invalid JSON constant")
 
 
+_ROUTING_MARKER = re.compile(r"(?i)(?<![A-Za-z0-9_-])(?:provider|configuration_aliases)(?![A-Za-z0-9_-])")
+
+
+def _has_routing_marker(value):
+    return _ROUTING_MARKER.search(value) is not None
+
+
+def _validate_hcl_structure(source):
+    pairs = {"}": "{", "]": "[", ")": "("}
+    stack = []
+    quote = False
+    escaped = False
+    line_comment = False
+    block_comment = False
+    index = 0
+    while index < len(source):
+        char = source[index]
+        following = source[index:index + 2]
+        if line_comment:
+            if char == "\n":
+                line_comment = False
+        elif block_comment:
+            if following == "*/":
+                block_comment = False
+                index += 1
+        elif quote:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif ord(char) == 34:
+                quote = False
+        elif ord(char) == 34:
+            quote = True
+        elif char == "#" or following == "//":
+            line_comment = True
+            if following == "//":
+                index += 1
+        elif following == "/*":
+            block_comment = True
+            index += 1
+        elif following == "<<":
+            raise AssertionError("descendant module HCL uses unsupported heredoc syntax")
+        elif char in "{[(":
+            stack.append(char)
+        elif char in "})]":
+            if not stack or stack.pop() != pairs[char]:
+                raise AssertionError("descendant module HCL has ambiguous delimiter structure")
+        index += 1
+    if quote or block_comment or stack:
+        raise AssertionError("descendant module HCL is incomplete or ambiguous")
+
+
 def _contains_provider_reference(value):
     if isinstance(value, dict):
         return any(
-            ("provider" in key.casefold() or "configuration_aliases" in key.casefold()) or _contains_provider_reference(item)
+            _has_routing_marker(key) or _contains_provider_reference(item)
             for key, item in value.items()
         )
     if isinstance(value, list):
         return any(_contains_provider_reference(item) for item in value)
-    return isinstance(value, str) and ("provider" in value.casefold() or "configuration_aliases" in value.casefold())
+    return isinstance(value, str) and _has_routing_marker(value)
+
+
+def _iter_source_files(directory):
+    pending = [directory]
+    while pending:
+        current = pending.pop()
+        try:
+            with os.scandir(current) as entries:
+                for entry in entries:
+                    if entry.is_symlink():
+                        raise AssertionError("descendant module contains a symlinked source entry")
+                    if entry.is_dir(follow_symlinks=False):
+                        pending.append(Path(entry.path))
+                    elif entry.is_file(follow_symlinks=False):
+                        path = Path(entry.path)
+                        if path.suffix == ".tf" or path.name.endswith(".tf.json"):
+                            yield path
+        except OSError:
+            raise AssertionError("descendant module source tree could not be inspected") from None
 
 
 def assert_no_azapi_bypass(directory):
-    for path in sorted(directory.rglob("*")):
-        if path.is_symlink():
-            raise AssertionError("descendant module contains a symlinked source entry")
-        is_tf_json = path.name.endswith(".tf.json")
-        if not path.is_file() or (path.suffix != ".tf" and not is_tf_json):
-            continue
+    for path in sorted(_iter_source_files(directory)):
         try:
             source = path.read_text(encoding="utf-8")
         except (OSError, UnicodeError):
             raise AssertionError("descendant module source is unreadable or invalid") from None
-        if path.name.endswith(".tf.json") or path.suffix == ".json":
+        if path.name.endswith(".tf.json"):
             try:
                 document = json.loads(
                     source,
@@ -59,9 +127,10 @@ def assert_no_azapi_bypass(directory):
                 raise AssertionError("descendant module JSON has an unexpected root shape")
             if _contains_provider_reference(document):
                 raise AssertionError("descendant module JSON contains provider routing syntax")
-        elif "provider" in source.casefold() or "configuration_aliases" in source.casefold():
-            raise AssertionError("descendant module HCL contains provider routing syntax")
-
+        else:
+            if _has_routing_marker(source):
+                raise AssertionError("descendant module HCL contains provider routing syntax")
+            _validate_hcl_structure(source)
 
 class AzapiRegistrationOverlayTests(unittest.TestCase):
     def test_hcl_provider_routing_is_rejected_conservatively(self):
