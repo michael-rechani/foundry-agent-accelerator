@@ -124,24 +124,32 @@ class DeploymentSDKTests(unittest.TestCase):
             "allow_preview": True, "retry_total": 0, "connection_timeout": 30, "read_timeout": 60,
         })
 
-    def test_first_deployment_pins_default_latest_route(self):
+    def assert_no_agent_mutations(self):
+        for method in ("create_version_from_code", "create_version", "create_session", "update_details",
+                       "delete", "delete_version", "delete_session"):
+            getattr(self.client.agents, method).assert_not_called()
+        self.candidate.assert_not_called()
+        self.smoke.assert_not_called()
+
+    def test_missing_agent_stops_before_version_creation(self):
         self.missing = True
-        deploy(self.profile, self.args)
-        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
-        self.assertEqual(len(self.endpoint.authorization_schemes), 1)
+        with self.assertRaisesRegex(RuntimeError, "First publication is unsupported"):
+            deploy(self.profile, self.args)
+        self.assert_no_agent_mutations()
 
-    def test_first_deployment_can_create_a_missing_endpoint(self):
-        self.missing = True
+    def test_missing_or_unconfirmed_endpoint_stops_without_mutation(self):
+        for endpoint in (None, self.route("@latest"), self.route("")):
+            with self.subTest(endpoint=endpoint):
+                self.endpoint = endpoint
+                with self.assertRaisesRegex(RuntimeError, "Pin the existing"):
+                    deploy(self.profile, self.args)
+                self.assert_no_agent_mutations()
 
-        def create_without_endpoint(**kwargs):
-            created = self.create(**kwargs)
-            self.endpoint = None
-            return created
-
-        self.client.agents.create_version_from_code.side_effect = create_without_endpoint
-        deploy(self.profile, self.args)
-        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
-        self.assertIsNotNone(self.endpoint.protocol_configuration.responses)
+    def test_inactive_recovery_stops_without_mutation(self):
+        self.client.agents.get_version.return_value = {"status": "failed"}
+        with self.assertRaisesRegex(RuntimeError, "not an active release"):
+            deploy(self.profile, self.args)
+        self.assert_no_agent_mutations()
 
     def test_symbolic_existing_route_is_rejected_before_creating_version(self):
         self.endpoint = self.route("@latest")
@@ -208,24 +216,6 @@ class DeploymentSDKTests(unittest.TestCase):
             return AgentVersionDetails({"status": "active", "draft": False})
 
         self.client.agents.get_version.side_effect = read_version
-        with self.assertRaisesRegex(RuntimeError, "changed during deployment"):
-            deploy(self.profile, self.args)
-        self.client.agents.update_details.assert_not_called()
-        self.client.agents.delete_version.assert_not_called()
-        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "3")
-
-    def test_first_deployment_route_changed_before_promotion_is_not_overwritten(self):
-        self.missing = True
-        reads = 0
-
-        def read_with_route_change(**kwargs):
-            nonlocal reads
-            reads += 1
-            if reads == 3:
-                self.endpoint = self.route("3")
-            return self.get(**kwargs)
-
-        self.client.agents.get.side_effect = read_with_route_change
         with self.assertRaisesRegex(RuntimeError, "changed during deployment"):
             deploy(self.profile, self.args)
         self.client.agents.update_details.assert_not_called()
@@ -431,13 +421,6 @@ class DeploymentSDKTests(unittest.TestCase):
         self.assertEqual(calls, 2)
         self.assert_rolled_back_and_deleted()
 
-    def test_failed_first_deployment_retains_candidate_without_recovery_target(self):
-        self.missing = True
-        self.smoke.side_effect = RuntimeError("smoke failed")
-        with self.assertRaises(RuntimeError):
-            deploy(self.profile, self.args)
-        self.client.agents.delete_version.assert_not_called()
-
     def test_changed_route_before_promotion_is_not_overwritten(self):
         def creating(**kwargs):
             result = self.create(**kwargs)
@@ -530,12 +513,6 @@ class DeploymentSDKTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "candidate agent version is not active"):
             deploy(self.profile, self.args)
         self.client.agents.update_details.assert_not_called()
-
-    def test_first_publication_does_not_claim_candidate_isolation(self):
-        self.missing = True
-        deploy(self.profile, self.args)
-        self.candidate.assert_not_called()
-        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
 
 @unittest.skipUnless(SDK_AVAILABLE, "Install requirements-deploy.txt for the real deployment SDK")
 class DeploymentTimeoutTests(unittest.TestCase):
