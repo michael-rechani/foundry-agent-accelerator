@@ -8,7 +8,9 @@ shared temporary ancestor), and whose final directory is owned by the current
 UID and not group/world writable. It creates a random child with mode `0700`
 and files with mode `0600`, uses exclusive creation and `O_NOFOLLOW`, retains
 open directory descriptors, and verifies recorded device/inode identities
-before cleanup. Cleanup refuses unexpected entries or replaced names and only
+before cleanup. If nested-directory setup fails after its exclusive `mkdir`, the opened descriptor is closed and the untracked empty directory is deliberately left in place; cleanup refuses it as unexpected rather than guessing ownership. The operator may inspect it under the trusted parent.
+
+Cleanup refuses unexpected entries or replaced names and only
 removes entries created through the in-memory ownership records. It never uses
 a wildcard or follows a symbolic link.
 

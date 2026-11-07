@@ -152,5 +152,89 @@ class PrivateScratchTests(TestCase):
         self.assertFalse((self.parent / scratch.name).exists())
 
 
+    def _assert_child_setup_failure(self, failure_kind):
+        scratch = PrivateScratch.create(str(self.parent))
+        opened = {}
+        real_open = os.open
+        real_fchmod = os.fchmod
+        real_fstat = os.fstat
+
+        def capture_open(path, *args, **kwargs):
+            fd = real_open(path, *args, **kwargs)
+            if path == "nested":
+                opened["fd"] = fd
+            return fd
+
+        with patch("private_scratch.os.open", side_effect=capture_open):
+            if failure_kind == "fchmod":
+                def fail_fchmod(fd, mode):
+                    if fd == opened.get("fd"):
+                        raise OSError("synthetic fchmod failure")
+                    return real_fchmod(fd, mode)
+                failure = patch("private_scratch.os.fchmod", side_effect=fail_fchmod)
+                expected = OSError
+            elif failure_kind == "fstat":
+                def fail_fstat(fd):
+                    if fd == opened.get("fd"):
+                        raise OSError("synthetic fstat failure")
+                    return real_fstat(fd)
+                failure = patch("private_scratch.os.fstat", side_effect=fail_fstat)
+                expected = OSError
+            else:
+                real_verify = PrivateScratch._verify_link
+                def fail_child_verify(instance):
+                    if instance.name == "nested":
+                        raise ScratchError("synthetic link verification failure")
+                    return real_verify(instance)
+                failure = patch.object(PrivateScratch, "_verify_link", autospec=True,
+                                       side_effect=fail_child_verify)
+                expected = ScratchError
+            with failure, self.assertRaises(expected):
+                scratch.create_directory("nested")
+
+        child_fd = opened["fd"]
+        with self.assertRaises(OSError):
+            os.fstat(child_fd)
+        orphan = self.parent / scratch.name / "nested"
+        self.assertTrue(orphan.is_dir())
+        self.assertEqual(list(orphan.iterdir()), [])
+        with self.assertRaises(ScratchError):
+            scratch.cleanup()
+        scratch.close_descriptors()
+
+    def test_child_fchmod_failure_closes_descriptor_and_leaves_empty_orphan(self):
+        self._assert_child_setup_failure("fchmod")
+
+    def test_child_fstat_failure_closes_descriptor_and_leaves_empty_orphan(self):
+        self._assert_child_setup_failure("fstat")
+
+    def test_child_link_verification_failure_closes_descriptor_and_leaves_empty_orphan(self):
+        self._assert_child_setup_failure("verify")
+
+    def test_untrusted_filesystem_root_is_rejected(self):
+        real_open = os.open
+        real_fstat = os.fstat
+        root_fd = {}
+
+        def capture_root(path, *args, **kwargs):
+            fd = real_open(path, *args, **kwargs)
+            if path == "/":
+                root_fd["fd"] = fd
+            return fd
+
+        def make_root_unsafe(fd):
+            info = real_fstat(fd)
+            if fd != root_fd.get("fd"):
+                return info
+            fields = list(info)
+            fields[0] = stat.S_IFDIR | 0o777
+            fields[4] = 0
+            return os.stat_result(fields)
+
+        with patch("private_scratch.os.open", side_effect=capture_root):
+            with patch("private_scratch.os.fstat", side_effect=make_root_unsafe):
+                with self.assertRaises(ScratchError):
+                    PrivateScratch.create(str(self.parent))
+        self.assertEqual(list(self.parent.iterdir()), [])
 if __name__ == "__main__":
     main()

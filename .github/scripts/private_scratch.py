@@ -35,6 +35,12 @@ def _open_trusted_parent(path):
     current = os.open("/", _DIR_FLAGS)
     uid = os.geteuid()
     try:
+        root = os.fstat(current)
+        root_mode = stat.S_IMODE(root.st_mode)
+        root_sticky_tmp = root.st_uid == 0 and bool(root.st_mode & stat.S_ISVTX)
+        if (not stat.S_ISDIR(root.st_mode) or root.st_uid not in (0, uid)
+                or (root_mode & 0o022 and not root_sticky_tmp)):
+            raise ScratchError("The filesystem root is not trusted.")
         for index, part in enumerate(parts):
             child = None
             try:
@@ -177,12 +183,18 @@ class PrivateScratch:
             except FileExistsError:
                 raise ScratchError("The scratch directory name is already in use.") from None
             child_fd = os.open(name, _DIR_FLAGS, dir_fd=self._fd)
-            os.fchmod(child_fd, 0o700)
-            info = os.fstat(child_fd)
-            child = PrivateScratch(self._fd, child_fd, name, _inode(info), owns_parent=False, lock=self._lock)
-            child._verify_link()
-            self._entries[name] = ("directory", _inode(info), child)
-            return child
+            keep = False
+            try:
+                os.fchmod(child_fd, 0o700)
+                info = os.fstat(child_fd)
+                child = PrivateScratch(self._fd, child_fd, name, _inode(info), owns_parent=False, lock=self._lock)
+                child._verify_link()
+                self._entries[name] = ("directory", _inode(info), child)
+                keep = True
+                return child
+            finally:
+                if not keep:
+                    os.close(child_fd)
 
     def _verify_file(self, name, identity):
         try:
