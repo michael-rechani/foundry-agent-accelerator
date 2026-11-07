@@ -44,13 +44,23 @@ def resource_name(identifier):
     return "lab-demo-" + identifier.removeprefix("created-").replace("-", "")
 
 
+def encrypted_reasoning_requested(document):
+    requested = document.get("include_encrypted_reasoning", False)
+    if type(requested) is not bool:
+        raise PublicationError("invalid_runtime_settings")
+    return requested
+
+
 def ownership(document):
-    return {
+    metadata = {
         "workbench_creation_id": document["id"],
         "workbench_template_id": document["template_id"],
         "workbench_setup_hash": document["setup_hash"],
         "workbench_runtime_hash": document["runtime_hash"],
     }
+    if "include_encrypted_reasoning" in document:
+        metadata["workbench_encrypted_reasoning"] = str(encrypted_reasoning_requested(document)).lower()
+    return metadata
 
 
 class FoundryPublisher:
@@ -180,6 +190,7 @@ class FoundryPublisher:
             CodeConfiguration, CodeDependencyResolution, HostedAgentDefinition, ProtocolVersionRecord,
         )
 
+        include_encrypted_reasoning = encrypted_reasoning_requested(document)
         package, digest = runtime_package()
         if digest != document["runtime_hash"]:
             raise PublicationError("runtime_changed")
@@ -213,6 +224,7 @@ class FoundryPublisher:
                             "AGENT_NAME": document["runtime_name"],
                             "AGENT_INSTRUCTIONS": document["instructions"],
                             "AGENT_STORE_RESPONSES": "false",
+                            "AGENT_INCLUDE_ENCRYPTED_REASONING": str(include_encrypted_reasoning).lower(),
                             "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT": "false",
                             "ENABLE_SENSITIVE_DATA": "false",
                             "AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED": "false",

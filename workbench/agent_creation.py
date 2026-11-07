@@ -16,7 +16,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import Field, ValidationError, field_validator
 
-from agent_publisher import FoundryPublisher, PublicationError, resource_name, runtime_package
+from agent_publisher import (
+    FoundryPublisher, PublicationError, encrypted_reasoning_requested, resource_name, runtime_package,
+)
 from agent_scorecards import SCORECARDS
 from agent_templates import (
     MODEL_PROFILES, TEMPLATES, TemplateRequiredError, catalog_facets, is_available, is_listed, list_templates,
@@ -36,6 +38,20 @@ def timestamp():
     return datetime.now(timezone.utc).isoformat()
 
 
+def boolean_map_from_env(name):
+    try:
+        return json.loads(os.getenv(name) or "{}")
+    except json.JSONDecodeError as problem:
+        raise ValueError(f"{name} must be a JSON object") from problem
+
+
+def valid_deployment_boolean_map(value):
+    return isinstance(value, dict) and all(
+        isinstance(name, str) and DEPLOYMENT_NAME.fullmatch(name) and type(enabled) is bool
+        for name, enabled in value.items()
+    )
+
+
 @dataclass(frozen=True)
 class CreationSettings:
     enabled: bool = False
@@ -45,6 +61,8 @@ class CreationSettings:
     timeout_seconds: int = 600
     models: dict = field(default_factory=dict)
     private_presenter_mode: bool = False
+    preview_encrypted_reasoning: dict[str, bool] = field(default_factory=dict)
+    hosted_encrypted_reasoning: dict[str, bool] = field(default_factory=dict)
 
     @classmethod
     def from_env(cls):
@@ -66,6 +84,8 @@ class CreationSettings:
             max_agents=int(os.getenv("WORKBENCH_MAX_CREATED_AGENTS", "5")),
             timeout_seconds=int(os.getenv("WORKBENCH_PUBLICATION_TIMEOUT_SECONDS", "600")),
             private_presenter_mode=presenter == "true",
+            preview_encrypted_reasoning=boolean_map_from_env("WORKBENCH_PREVIEW_ENCRYPTED_REASONING"),
+            hosted_encrypted_reasoning=boolean_map_from_env("WORKBENCH_HOSTED_ENCRYPTED_REASONING"),
         )
 
     def validate(self, mode):
@@ -83,6 +103,12 @@ class CreationSettings:
             raise ValueError("Configure a lowercase SHA-256 operator-key verifier")
         if not is_profile_map(self.models, MODEL_PROFILES):
             raise ValueError("Map only known model profiles to model deployment names")
+        for name, mapping in (
+            ("WORKBENCH_PREVIEW_ENCRYPTED_REASONING", self.preview_encrypted_reasoning),
+            ("WORKBENCH_HOSTED_ENCRYPTED_REASONING", self.hosted_encrypted_reasoning),
+        ):
+            if not valid_deployment_boolean_map(mapping):
+                raise ValueError(f"{name} must map deployment names to booleans")
         if self.enabled and (
             mode != "private"
             or not isinstance(self.model, str) or not DEPLOYMENT_NAME.fullmatch(self.model)
@@ -92,6 +118,12 @@ class CreationSettings:
 
     def model_for(self, profile):
         return self.models.get(profile) or self.model
+
+    def preview_includes_encrypted_reasoning(self, profile):
+        return self.preview_encrypted_reasoning.get(self.model_for(profile), profile != "tool_calling")
+
+    def hosted_includes_encrypted_reasoning(self, profile):
+        return self.hosted_encrypted_reasoning.get(self.model_for(profile), False)
 
 
 class DraftInput(StrictModel):
@@ -277,6 +309,8 @@ class AgentCreations:
         )}
         result["template_label"] = document["template"]["label"]
         result["model_profile"] = deepcopy(document.get("model_profile"))
+        if "include_encrypted_reasoning" in document:
+            result["include_encrypted_reasoning"] = encrypted_reasoning_requested(document)
         result["status"] = self.effective_status(document)
         if result["status"] == "interrupted" and document["status"] != "interrupted":
             result.update(stage="interrupted", error="publication_unconfirmed")
@@ -340,6 +374,9 @@ class AgentCreations:
         except TimeoutError as problem:
             record_request_failure(request, problem, "cosmos")
             return self.error(request, 504, "agents_timeout")
+        except PublicationError as problem:
+            record_request_failure(request, problem, "agent_runtime")
+            return self.error(request, 503, problem.code)
         except Exception as problem:
             record_request_failure(request, problem, "cosmos")
             return self.error(request, 503, "agents_unavailable")
@@ -363,6 +400,7 @@ class AgentCreations:
         document = await self.storage(self.store.get(identifier))
         if not self.owned(document):
             return self.error(request, 404, "agent_not_found")
+        encrypted_reasoning_requested(document)
         if request.headers.get("if-match") != document["_etag"]:
             return self.error(request, 409, "agent_changed")
         if identifier in self.tasks:
@@ -419,7 +457,9 @@ class AgentCreations:
         document = {
             **setup, "id": identifier, "kind": "created-agent", "workspace": "shared", "project": self.project,
             "setup_hash": digest, "runtime_hash": bundle_hash, "runtime_name": resource_name(identifier),
-            "model": self.config.model_for(profile["id"]), "model_profile": profile, "template": template, "version": None, "publication_started": False,
+            "model": self.config.model_for(profile["id"]), "model_profile": profile, "template": template, "version": None,
+            "include_encrypted_reasoning": self.config.hosted_includes_encrypted_reasoning(profile["id"]),
+            "publication_started": False,
             "status": "creating", "stage": "queued", "operation": "create", "created_at": now, "updated_at": now,
             "error": None, "events": [{"name": "queued", "at": now}], "ttl": -1,
         }

@@ -9,13 +9,14 @@ from agent_runtime.main import demo_policy
 from agent_templates import RETIRED_TEMPLATES, TEMPLATES, is_available
 from app import execution_receipts
 from library_preview import (DESIGNER_ID, DESIGNER_INSTRUCTIONS, DESIGNER_TEMPLATE, MAX_TOOL_ROUNDS, PREVIEW_AGENT,
-                             preview_agent, run_preview, run_tool, summarize_usage, tool_specs, usage_record)
+                             model_observation, preview_agent, run_preview, run_tool, summarize_usage, tool_specs,
+                             usage_record)
 from model_budget import ModelBudgetWait, estimate_input_tokens
 
 
 class Response:
-    def __init__(self, output, status="completed", text="", usage=None):
-        self.output, self.status, self.output_text, self.usage = output, status, text, usage
+    def __init__(self, output, status="completed", text="", usage=None, model=None):
+        self.output, self.status, self.output_text, self.usage, self.model = output, status, text, usage, model
 
     def model_dump(self, exclude_none=False):
         return {"output": [dict(item) for item in self.output]}
@@ -232,11 +233,44 @@ class LibraryPreviewTests(unittest.TestCase):
                  "input_tokens_details": {"cached_tokens": 0}, "output_tokens_details": {"reasoning_tokens": 8}}
         second = {"input_tokens": 150, "output_tokens": 40, "total_tokens": 190,
                   "input_tokens_details": {"cached_tokens": 64}, "output_tokens_details": {"reasoning_tokens": 12}}
-        client = FakeClient([Response([call], usage=first), Response([{"type": "message"}], text="Answer", usage=second)])
+        client = FakeClient([Response([call], usage=first, model="gpt-4.1-2025-04-14"),
+                             Response([{"type": "message"}], text="Answer", usage=second,
+                                      model="gpt-4.1-mini-2025-04-14")])
         usage = []
-        asyncio.run(run_preview(client, template_id="workflow-coordinator", model="gpt-test", prompt="Check", usage=usage))
+        asyncio.run(run_preview(client, template_id="workflow-coordinator", model="model-router", prompt="Check", usage=usage))
         self.assertEqual(summarize_usage(usage), {"input_tokens": 250, "output_tokens": 60, "total_tokens": 310,
                                                   "cached_tokens": 64, "reasoning_tokens": 20})
+        self.assertEqual(model_observation("model-router", usage), {
+            "deployment": "model-router",
+            "calls": [
+                {"reported_model": "gpt-4.1-2025-04-14", "model_status": "reported",
+                 "usage": {"input_tokens": 100, "output_tokens": 20, "total_tokens": 120,
+                           "cached_tokens": 0, "reasoning_tokens": 8}},
+                {"reported_model": "gpt-4.1-mini-2025-04-14", "model_status": "reported",
+                 "usage": {"input_tokens": 150, "output_tokens": 40, "total_tokens": 190,
+                           "cached_tokens": 64, "reasoning_tokens": 12}},
+            ],
+        })
+        self.assertEqual([call["model"] for call in client.calls], ["model-router", "model-router"])
+
+    def test_model_observations_distinguish_missing_and_invalid_metadata(self):
+        self.assertIsNone(model_observation("model-router", []))
+        for model, expected in ((None, "not_reported"), ("", "invalid"), (True, "invalid"),
+                                ("bad\nprivate", "invalid"), ("gpt-4.1\n", "invalid"), ("a" * 129, "invalid"),
+                                ("org/model:v1", "reported")):
+            with self.subTest(model=model):
+                record = usage_record(Response([], model=model, usage={"input_tokens": 10, "output_tokens": False}))
+                observed = model_observation("fixed-model", [record])
+                self.assertEqual(observed["deployment"], "fixed-model")
+                call = observed["calls"][0]
+                self.assertEqual(call["model_status"], expected)
+                self.assertEqual(call["reported_model"], model if expected == "reported" else None)
+                self.assertEqual(call["usage"], {"input_tokens": 10, "output_tokens": None, "total_tokens": None,
+                                                 "cached_tokens": None, "reasoning_tokens": None})
+                if expected == "invalid" and isinstance(model, str) and model:
+                    self.assertNotIn(model, json.dumps(observed))
+        missing = model_observation("model-router", [usage_record(Response([]))])["calls"][0]
+        self.assertEqual(missing, {"reported_model": None, "model_status": "not_reported", "usage": None})
 
     def test_each_preview_model_call_is_admitted_with_its_current_input_history(self):
         template_id = "workflow-coordinator"
@@ -265,9 +299,13 @@ class LibraryPreviewTests(unittest.TestCase):
                    usage_record(Response([], usage={"input_tokens": 5, "output_tokens": True, "total_tokens": -1}))]
         self.assertEqual(summarize_usage(partial), {"input_tokens": 15, "output_tokens": None, "total_tokens": None,
                                                     "cached_tokens": None, "reasoning_tokens": None})
+        self.assertIsNone(summarize_usage([partial[0], usage_record(Response([]))]))
         dumped = SimpleNamespace(usage=SimpleNamespace(model_dump=lambda: {"input_tokens": 3, "output_tokens": 4,
-                                                                            "total_tokens": 7}))
-        self.assertEqual(usage_record(dumped)["total_tokens"], 7)
+                                                                            "total_tokens": 7}),
+                                 model="gpt-4.1")
+        sdk_record = usage_record(dumped)
+        self.assertEqual(sdk_record["total_tokens"], 7)
+        self.assertEqual((sdk_record["model_status"], sdk_record["reported_model"]), ("reported", "gpt-4.1"))
 
     def test_tool_calling_profile_omits_reasoning_include(self):
         template_id = tool_template()

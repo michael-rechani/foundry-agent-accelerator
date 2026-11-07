@@ -10,6 +10,7 @@ Lab on your own machine without Azure, use
 ## In this guide
 
 - [1. Confirm prerequisites and state ownership](#1-confirm-prerequisites-and-state-ownership)
+- [Diagnose the existing platform Router plan](../terraform/README.md#diagnose-the-existing-platform-router-plan)
 - [Diagnose the existing Lab plan](#diagnose-the-existing-lab-plan)
 - [2. Configure and initialize](#2-configure-and-initialize)
 - [3. Bootstrap only a new Lab](#3-bootstrap-only-a-new-lab)
@@ -17,6 +18,7 @@ Lab on your own machine without Azure, use
 - [5. Plan and review the image rollout](#5-plan-and-review-the-image-rollout)
 - [6. Apply the approved plan and clean up](#6-apply-the-approved-plan-and-clean-up)
 - [7. Verify the deployed application](#7-verify-the-deployed-application)
+- [Prepare a Model Router rollback](#prepare-a-model-router-rollback)
 - [Deploy a new image from GitHub Actions](#deploy-a-new-image-from-github-actions)
 - [Recover after a subscription suspension](#recover-after-a-subscription-suspension)
 
@@ -70,6 +72,12 @@ assignments, plus `GITHUB_TOKEN` or a signed-in `gh` with repo admin. The verify
 stage skips the billable agent call unless you add `-IncludeAgentCall`. The steps
 below are the same sequence by hand, and the reference for each one.
 
+The agents stage uses the platform's Model Router output by default, or its fixed
+primary output when Router is disabled or absent from older state. Pass
+`-AgentModel '<existing-deployment-name>'` to choose a fixed deployment
+explicitly. Publishing changes the hosted version; afterward, verify its active
+model before updating the Lab's per-agent budget declaration.
+
 Run these steps from the repository root in one PowerShell session. Stop
 if any command fails. Terraform deploys the Lab infrastructure and selects its
 image. Image building and runtime smoke tests are separate steps that you run
@@ -115,6 +123,28 @@ attributes. Lab runtime access is keyless managed identity. Cosmos transcripts
 remain sensitive operational data, not vault secrets. Use keyless Azure Resource
 Manager (ARM) resource reads, and keep historical backups under their
 retention policy.
+
+For the default Model Router rollout, the separate
+[platform plan diagnostic](../terraform/README.md#diagnose-the-existing-platform-router-plan)
+does not deploy Router or change the Lab. The Lab's current guarded apply also
+does not yet accept the Router model settings; review and a separate runner
+apply path are still required (#522).
+
+The manual [`Check private Lab Router plan`](../.github/workflows/check-lab-router-plan.yml)
+is a **plan-only** check to run after Router has been deployed and reviewed. It
+uses the same private runner, protected environment, configuration and separate
+approvals as the Lab diagnostic below, plus Reader access to the existing
+Foundry deployment. It verifies the platform's project and the live Router's
+model version, SKU, capacity and routing, then accepts only a full Lab plan
+changing the existing fixed creation model to Router and/or updating the
+preview capability setting to match platform state, or a no-change plan
+already configured for both. It rejects unrelated changes, drift, unknown
+values, changed images or inputs, and an explicit setting disabling private
+library preview. It also requires the planned image to match the active
+revision's digest. It cannot verify that the active image supports preview,
+apply the change, or verify inference. Work profiles can still override the
+default model, and existing hosted-agent versions are unaffected. A reviewed
+apply and a live UI test remain separate steps.
 
 ### Diagnose the existing Lab plan
 
@@ -562,7 +592,18 @@ terraform -chdir=workbench/infra output -raw private_url
 ```
 
 Confirm the intended revision and immutable image are ready before using this
-URL. From authorized private-network access, run the sample-data runtime check:
+URL. For the runner-only rollout, retrieve this output through an authorized
+read-only state access path on the protected private runner; an approved runner
+bootstrap and an output-specific runner workflow are not yet established. Do
+not expose the full Terraform state or guess the URL. Open the resulting URL in
+a browser on the authorized private network and approved source subnet; see
+[Access](lab-pages-and-access.md#access). The documented default allows the
+management subnet; VPN or peering alone does not satisfy that restriction.
+The prior operator-presented path uses the optional jumpbox (#103), but its
+current availability and the live allowlist have not been verified here. Do
+not start it or change ingress as a fallback without specific approval. The Lab
+has shared data and no end-user sign-in, so use fictional examples. From
+approved access, run the sample-data runtime check:
 
 ```powershell
 ./workbench/test-private.ps1 -BaseUrl '<verified-private-url>'
@@ -582,6 +623,24 @@ cached dependency checks:
 ```powershell
 python workbench/verify_private.py --base-url '<verified-private-url>'
 ```
+
+For the default **Checklist and case helper**, an additional, explicitly
+approved check can exercise both specialist handoffs through the same private
+API used by the Lab:
+
+```powershell
+python workbench/verify_private.py --base-url '<verified-private-url>' --check-review-specialists
+```
+
+This sends up to two fictional, billable coordinator requests; each can also
+invoke a billable specialist, including when a request fails. It first requires
+the expected coordinator and both specialist bindings, then requires exactly
+one verified receipt for the expected specialist in each response. It stops on a
+failure without retrying and does not save a Lab conversation unless
+`--check-storage` is also supplied. In that case it saves and deletes the final
+case-review turn. Do not combine it with `--run-agent`, which is the separate
+single-request check. Receipt checks do not prove which model a hosted agent
+used, establish answer quality, or replace a browser-based private UI check.
 
 The verifier also supports `--loopback` inside the existing Lab container. This
 can check the runtime through approved container-console access without starting
@@ -610,33 +669,153 @@ resources, and the runtime never creates them.
 Browser tests use controlled API responses, so they don't replace this
 deployment check.
 
+## Prepare a Model Router rollback
+
+This is a preparation checklist, not an already authorized or live-tested
+rollback. The existing environment still needs reviewed, protected GitHub-runner
+paths for Router-related platform and Lab applies and hosted-agent publication
+or route restoration. The Router diagnostics are plan-only; the Lab diagnostic
+checks the forward change, not a rollback. Neither authorizes an apply. Their
+state locks can change blob metadata and create retained versions. See
+[rollout issue #522](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522)
+and the paused platform decision in #485.
+
+The Router module's routing PATCH is not yet verified against the live service.
+A failed create, PATCH, or readback can leave a deployment present with an
+unverified model subset, and state may reflect only part of the operation.
+Do not route requests to it or blindly retry or delete it. Use an approved
+private-runner path to inspect the deployment and state, then separately review
+the necessary reconciliation or removal; no such recovery path is approved
+yet. For example, a no-change deployment with a pending PATCH is rejected by
+the forward diagnostic's matching-action guard and requires a separately
+reviewed recovery path, not a targeted apply or a weaker forward guard.
+
+Before rollout:
+
+1. Confirm the fixed primary model deployment is available. Record the current
+   concrete endpoint routes, versions, and model deployments for each affected
+   coordinator and specialist; retain usable recovery versions. Include any
+   Lab-created agents whose routes may change.
+2. Record the Lab's creation model, profile-specific model overrides, preview
+   and hosted reasoning settings, and per-agent budget associations. Record the
+   running Lab image digest separately. Keep protected inputs and state private;
+   don't commit them to the repository.
+3. Agree on the quality, latency, throttling, and cost signals that would
+   trigger recovery. Approve the required runner operations and any billable
+   verification separately.
+
+If recovery is needed:
+
+1. Use only a reviewed, approved private-runner path. If one isn't available,
+   stop rather than applying locally, granting ad hoc permissions, hiding drift,
+   or opening a public endpoint.
+2. Restore the recorded routes for affected specialists and then the
+   coordinator, or publish fixed-model versions if the previous versions aren't
+   usable. Verify each resulting route and model configuration. Address
+   already-published Lab-created agents individually as well: changing the Lab
+   default doesn't change their existing versions.
+3. Restore the Lab's fixed `agent_creation_model`, replace any
+   `agent_creation_models` overrides still pointing to Router, and restore the
+   relevant reasoning settings. Update `prebuilt_agent_models` only to match
+   verified active hosted versions; it changes budget accounting, not agent
+   routing.
+4. If the Lab image itself needs recovery, use a separately reviewed runner
+   procedure for the recorded digest. Terraform ignores later image updates, so
+   applying a model setting alone doesn't restore the image.
+5. Keep Router deployed until all active and future consumers have been
+   accounted for. Remove it only through a separately approved full platform
+   plan after no agent or direct client needs it. With approval for billable
+   calls, verify the restored routes and specialist receipts through the private
+   Lab, including the browser.
+
+The publisher checks the current endpoint before attempting to restore its
+captured prior route after a failed promotion or smoke check. It verifies that
+the prior traffic-serving versions report active, non-draft status before
+promotion and around restoration. It retains the candidate if it observes
+another route or can't confirm the recovery versions or restored snapshot;
+that candidate may still receive traffic. These checks aren't an atomic lock or
+proof of response health, and don't provide a recovery path for problems
+discovered later. Inspect the live route before retrying or deleting a version.
+Recovery doesn't reverse charges or requests already made.
+
 ## Deploy a new image from GitHub Actions
 
-The **Deploy Lab image** workflow (`.github/workflows/deploy-lab.yml`) ships the
-current `main` to a running Lab without a jumpbox. It runs on its own when an
-application change under `workbench/` merges to `main`; docs, tests, and Terraform
-changes alone don't start it. Before starting the private runner, it waits for the
-**Validate** workflow to succeed for the exact same `main` commit. A manual run
-from the Actions tab on `main` uses the same gate and cannot bypass validation.
-It:
+The draft **Deploy Lab image** workflow (`.github/workflows/deploy-lab.yml`)
+requires a manual dispatch from `main`, the exact reviewed main commit, a
+recorded current `registry/workbench@sha256:...` image, and confirmation that
+the staged rollout and recovery inventory have been reviewed. The checkbox
+is an operator acknowledgment, not an independent approval, and does **not**
+prove that platform, Lab, hosted-agent routes, recovery, or billing approvals
+are ready. **Validate** must also succeed for the exact commit.
 
-1. Starts the runner VM if it is deallocated. This step runs on a GitHub-hosted
-   runner, and the deploy identity can only start that one VM.
-2. Builds the image on the repository's self-hosted runner (see
-   [`terraform/runner`](../terraform/runner/README.md)) and checks it as its
-   non-root user. The runner has Docker but
-   no Azure CLI, so the workflow runs the CLI from Microsoft's `azure-cli` image.
-3. Signs in to Azure with a short-lived GitHub token. No secret is stored.
-4. Pushes the image to the private registry through its private endpoint, which
-   the runner reaches over the peered VNet. Nothing is published to GitHub
-   Packages, and nothing in Azure is made public.
-5. Updates the Container App to the new digest, waits for the new revision to be
-   healthy, and restores the previous image if it isn't.
+The deployment job is disabled until an independent, fail-closed approval gate
+is designed and reviewed (#522). The current `lab-deploy` environment does not
+require a reviewer. Reusing the `terraform-state` environment solely for
+approval would need separate review and does not satisfy the proposed
+secret-free gate used by the runner-start design. Do not remove the disabled
+guard or dispatch a rollout as a substitute for that review.
+
+One unapproved candidate is a separate `lab-image-release-review` environment
+with no secrets and no Azure identity. A read-only preflight would verify its
+exact owner-only reviewer, explicit self-review setting, disabled administrator
+bypass, protected `main`, main-only branch policy, and empty secret inventory.
+It would record those settings with the run ID, first attempt, workflow, source
+SHA and immutable previous-image input, and stop if any evidence is unavailable.
+After the environment review, the
+credentialed job would recheck the snapshot and require exactly one approved
+review by that owner for only that environment, with a comment binding the run,
+SHA and input fingerprint before requesting Azure credentials. It must reject
+reruns, ambiguous approval history, changed settings and a moved `main`.
+GitHub's documented API response
+does not guarantee every required field, and the workflow token's access to
+environment-secret metadata has not been established. Missing proof must
+block the job, not trigger a PAT or a weaker fallback. Creating or configuring
+the proposed environment, and adopting this design, require separate review
+and approval. Concurrent administrator changes remain non-atomic.
+
+The proposed approval would bind the source and recorded previous image, not a
+pre-reviewed new image digest: the current workflow builds that image after
+approval. It must not be represented as approval of an already-built artifact.
+Once an update has started, recovery and readback must not depend on GitHub
+remaining available.
+
+This workflow also does not start the runner VM. An approved bootstrap mechanism
+must bring a private runner online first; a queued job cannot start itself.
+Neither the existing GitHub-hosted recording starter nor an ad-hoc local or
+jumpbox write is an approved substitute for this rollout. See #522.
+
+When prerequisites are separately approved and the runner is online, the
+workflow checks the current main SHA and requires exactly one running, ready,
+active revision with the recorded immutable image from the configured registry.
+It repeats those checks before pushing the built image and before updating the
+Container App. The existing deploy identity builds and pushes on the private
+runner, then updates the app to the new digest. If the new revision fails to
+become ready, it requests restoration of the recorded prior image only while
+the app still identifies the attempted revision and image, and exactly one
+ready running revision has a known immutable image. It fails instead when those
+observations differ. After a restore, it checks that the recovery revision is
+the only active, running, ready revision with the prior immutable image. A
+failed or ambiguous check is reported as unverified. These checks do not prove
+application or agent response health. Once the forward update has started,
+recovery and post-restore checks still require the pinned dispatch and live
+revision/image evidence, but do not depend on the current `main` ref or on
+GitHub availability. Forward push and app update checks still require current
+`main` to match the reviewed SHA. Before reporting a successful update, it
+also verifies that the attempted revision is the sole active, running, ready
+revision and that its actual image is the exact pushed digest.
+
+The image workflow and the existing Lab apply job share the `deploy-lab`
+concurrency group with cancellation disabled. Only cooperating GitHub jobs
+are serialized; external Azure writes and workflows using another group are
+not. The checks and writes aren't atomic, so a change can still occur after a
+check and before a push, update, or restoration. Review the live state and
+investigate before retrying. Other future rollout or recovery workflows must
+participate in the same coordination and add their own scoped guards.
 
 The runner deallocates itself after 30 idle minutes, so a deploy costs about
 $0.15 of compute ($0.192 an hour for `Standard_D4s_v5`).
 
-The run summary shows the new digest and the previous image to recover to.
+On success the run summary shows the new digest and the previous image.
 
 **The workflow owns the running image.** Terraform sets `image_digest` only when
 it first creates the Container App and ignores later image changes

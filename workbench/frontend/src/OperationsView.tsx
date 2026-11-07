@@ -8,6 +8,7 @@ import {
 import type { Measurement } from './performance-stats'
 import {
   estimateCost,
+  formatEstimatedCost,
   formatTokens,
   loadRates,
   totalUsage,
@@ -195,17 +196,26 @@ export function OperationsView({
         <div>
           <Coins size={18} />
           <span>Tokens this tab</span>
-          <strong>{formatTokens(totals.total)}</strong>
+          <strong>
+            {totals.measured === 0 && totals.missing > 0
+              ? 'Unavailable'
+              : formatTokens(totals.total)}
+          </strong>
           <small>
-            {rates
-              ? `Estimated at your rates: ${estimateCost(
-                  totals,
-                  rates,
-                ).toLocaleString('en-US', {
-                  maximumFractionDigits: 4,
-                })}`
-              : 'Add your prices on the Performance page to see an estimate'}
+            {rates && totals.measured > 0
+              ? `Estimated at your rates for all models: ${formatEstimatedCost(
+                  estimateCost(totals, rates),
+                )}`
+              : rates
+                ? 'No complete token totals to estimate'
+                : 'Add your prices on the Performance page to see an estimate'}
           </small>
+          {totals.missing > 0 && (
+            <small>
+              {totals.missing} {totals.missing === 1 ? 'request' : 'requests'}{' '}
+              without complete counts
+            </small>
+          )}
         </div>
       </div>
 

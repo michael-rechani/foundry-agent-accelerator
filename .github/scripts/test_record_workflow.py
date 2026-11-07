@@ -10,7 +10,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
 RECORD = (WORKFLOWS / "record-library-answers.yml").read_text(encoding="utf-8")
-DEPLOY = (WORKFLOWS / "deploy-lab.yml").read_text(encoding="utf-8")
 JOB_HEADING = re.compile(r"^  ([A-Za-z][\w-]*):[ \t]*$", re.MULTILINE)
 PINNED = re.compile(r"^\s*(?:- )?uses:\s*[\w./-]+@[0-9a-f]{40}\b", re.MULTILINE)
 
@@ -29,7 +28,6 @@ def without_comments(text):
 
 
 RECORD_JOBS = jobs_of(RECORD)
-DEPLOY_JOBS = jobs_of(DEPLOY)
 START = RECORD_JOBS["start-runner"]
 RECORDING = RECORD_JOBS["record"]
 
@@ -110,13 +108,11 @@ class RecordWorkflowTests(unittest.TestCase):
         self.assertNotIn("ref:", code)
         self.assertIn("persist-credentials: false", code)
 
-    def test_the_start_job_matches_the_deploy_workflows_start_command(self):
-        deploy = DEPLOY_JOBS["start-runner"]
+    def test_the_start_job_uses_the_existing_scoped_vm_start_command(self):
         for text in ('az vm start --name "$LAB_RUNNER_VM" --resource-group "$LAB_RUNNER_RESOURCE_GROUP" --output none',
                      "--federated-token \"$token\" --allow-no-subscriptions --output none"):
-            self.assertIn(text, deploy)
             self.assertIn(text, START)
-        self.assertEqual(field(deploy, "environment"), field(START, "environment"))
+        self.assertEqual(field(START, "environment"), "lab-deploy")
 
     def test_the_start_job_has_a_timeout_longer_than_its_wait(self):
         timeout = int(field(START, "timeout-minutes"))

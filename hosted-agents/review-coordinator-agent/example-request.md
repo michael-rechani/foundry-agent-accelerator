@@ -1,7 +1,12 @@
 # Synthetic review requests
 
 These fixtures contain no real applicant or case data. Submit each request
-separately so a single specialist should handle it.
+separately so a single specialist should handle it. The Lab's default
+**Checklist and case helper** uses the example profile aliases
+`inspect_application` and `inspect_case`; **Checklist and case helper (base
+setup)** uses `review_application` and `review_case` for the same specialist
+targets. Check the deployed profile and its matching receipt instead of
+assuming that both configurations use the same tool names.
 
 ## Application review
 
@@ -14,9 +19,10 @@ and identify missing evidence without making an approval or denial decision.
 
 Return the application specialist's finding and a clarification question.
 
-Expected verification: `review_application` executes; its matching successful
-tool result is nonempty. The result should identify the missing budget using
-CRIT-1 and APP-1. Do not infer that a budget is absent from records not supplied.
+Expected verification: `inspect_application` (example profile) or
+`review_application` (base setup) executes; its matching successful tool result
+is nonempty. The result should identify the missing budget using CRIT-1 and
+APP-1. Do not infer that a budget is absent from records not supplied.
 
 ## Case review
 
@@ -30,6 +36,7 @@ Preserve source IDs and avoid deciding which source is correct without support.
 Return the case specialist's findings and the clarification needed to reconcile
 the household size. Do not decide liability, eligibility, or an enforcement outcome.
 
-Expected verification: `review_case` executes; its matching successful tool
-result is nonempty. The result should identify the CASE-1/CASE-2 household-size
-conflict and report the missing evidence in CASE-3 separately.
+Expected verification: `inspect_case` (example profile) or `review_case` (base
+setup) executes; its matching successful tool result is nonempty. The result
+should identify the CASE-1/CASE-2 household-size conflict and report the
+missing evidence in CASE-3 separately.

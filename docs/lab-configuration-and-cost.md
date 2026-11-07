@@ -49,7 +49,7 @@ map aligned with the deployed profile. It isn't a second runtime tool registry.
 | Configuration item | Limit or behavior |
 | --- | --- |
 | Optional `guidance` in `agents.json` | Contains `input`, `output`, `limits`, `delegation`, and `configuration`. Each value must be a nonempty string up to 1,200 trimmed characters. These are presentation text only. Older catalogs without guidance still load, with a message that the getting-started guide is unavailable. |
-| Optional `model` in `agents.json` | The model deployment name the agent's hosted runtime uses. Keep it aligned with the actual deployment, including when you change the platform's default model. The Lab only uses it to pick the per-model budget ([Model limits](#model-limits)); it doesn't change the hosted agent, and the browser never sees it. |
+| Optional `model` in `agents.json` and `prebuilt_agent_models` overrides | The model deployment name each agent's hosted runtime actually uses. Keep it aligned with the active version, including during a staged rollout. The Lab only uses it to pick the per-model budget ([Model limits](#model-limits)); it doesn't change the hosted agent, and the browser never sees it. |
 | Optional `prompts` arrays | Accept up to six entries. Each entry has `label` up to 80 characters and `text` up to 4,000 characters. Starters use sample inputs, and selecting one never submits it. |
 | `visible_agents` | Controls direct access. Terraform validates IDs against `agents.json`, and the backend independently validates the deployed registry. |
 | `default_agent` | Must be visible. When omitted, the first `visible_agents` entry is selected. Locally, use `WORKBENCH_DEFAULT_AGENT`. |
@@ -166,11 +166,14 @@ How the Lab counts a model request:
   with a retry hint instead of making that call.
 - The deployment is the one the template's work type maps to (`agent_creation_models`)
   for a library preview, the model saved with the record for a created agent, and the
-  optional `model` key on a prebuilt agent in `workbench/agents.json`. For example,
+  optional `model` key on a prebuilt agent in `workbench/agents.json`, unless its
+  Lab agent ID has an entry in `prebuilt_agent_models`. For example,
   `"model": "gpt-4.1"` charges that agent's chat turns and document-review runs to
   `gpt-4.1`. The Lab doesn't send `model` to the browser, and it must be a deployment
   name. A prebuilt agent with no `model` key has no known deployment here, so only the
-  global caps apply to it.
+  global caps apply to it. Set an override only after verifying that agent's active
+  hosted version uses that deployment; it doesn't change the hosted version. The
+  server equivalent is the JSON object `WORKBENCH_PREBUILT_AGENT_MODELS`.
 - A document-review run is budgeted the same way when it starts or resumes. It uses the
   largest token estimate of any template, because a review isn't tied to one. A run the
   budget refuses answers `busy` before any model call and counts toward nothing.

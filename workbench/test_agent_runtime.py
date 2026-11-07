@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import io
 import json
@@ -5,7 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from zipfile import ZipFile
 
 from agent_package import runtime_package
@@ -117,11 +118,17 @@ class RuntimeTests(unittest.TestCase):
             {"DEMO_TEMPLATE_ID": "unknown"}, {"AGENT_INSTRUCTIONS": "x" * 6001},
             {"AGENT_STORE_RESPONSES": "true"}, {"FOUNDRY_PROJECT_ENDPOINT": "http://untrusted.test"},
             {"FOUNDRY_PROJECT_ENDPOINT": "https://fictional.services.ai.azure.com/api/projects/demo?token=invalid"},
+            {"AGENT_INCLUDE_ENCRYPTED_REASONING": "TRUE"}, {"AGENT_INCLUDE_ENCRYPTED_REASONING": ""},
+            {"AGENT_INCLUDE_ENCRYPTED_REASONING": True}, {"AGENT_INCLUDE_ENCRYPTED_REASONING": None},
         ):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 read_configuration({**config, **values})
         self.assertIn("SAMPLE DATA", DEMO_POLICY)
         self.assertIn("not an executed action", DEMO_POLICY)
+        self.assertIs(read_configuration(config)["AGENT_INCLUDE_ENCRYPTED_REASONING"], False)
+        self.assertIs(read_configuration({
+            **config, "AGENT_INCLUDE_ENCRYPTED_REASONING": "true",
+        })["AGENT_INCLUDE_ENCRYPTED_REASONING"], True)
 
     def test_real_sdk_agent_uses_fixed_policy_and_template_tool_set(self):
         from agent_framework import Agent
@@ -143,6 +150,96 @@ class RuntimeTests(unittest.TestCase):
                 self.assertEqual(len(options["tools"]),
                                  0 if identifier == "document-analyst" else 2 if identifier == "workflow-coordinator" else 3)
         credential.get_token.assert_not_called()
+
+    def test_encrypted_reasoning_is_only_added_to_tool_enabled_agents(self):
+        from agent_framework import Agent
+
+        credential = MagicMock()
+        for template, flag, expected in (
+            ("document-analyst", "true", {"store": False}),
+            ("workflow-coordinator", "false", {"store": False}),
+            ("workflow-coordinator", "true", {"store": False, "include": ["reasoning.encrypted_content"]}),
+        ):
+            with self.subTest(template=template, flag=flag), patch("agent_framework.Agent", wraps=Agent) as constructor:
+                build_agent(credential, {**environment(template), "AGENT_INCLUDE_ENCRYPTED_REASONING": flag})
+                self.assertEqual(constructor.call_args.kwargs["default_options"], expected)
+
+    def test_real_sdk_hosted_requests_respect_encrypted_reasoning_opt_in(self):
+        from agent_framework import Message
+
+        async def exercise():
+            credential = MagicMock()
+            config = {**environment("workflow-coordinator"), "FOUNDRY_MODEL_NAME": "model-router"}
+            agent = build_agent(credential, config)
+            response = MagicMock(
+                id="response_1", model="fixture", created_at=1000000000, metadata={}, output_parsed=None,
+                output=[], usage=None, finish_reason=None, conversation=None, status="completed",
+            )
+            raw_response = MagicMock(headers={})
+            raw_response.parse.return_value = response
+            try:
+                target = agent.client.client.responses.with_raw_response
+                with patch.object(target, "create", new_callable=AsyncMock, return_value=raw_response) as create:
+                    await agent.run("Summarize the sample request.")
+                    request = create.await_args.kwargs
+                    self.assertEqual(request["model"], "model-router")
+                    self.assertIs(request["store"], False)
+                    self.assertTrue(request["tools"])
+                    self.assertNotIn("reasoning.encrypted_content", request.get("include") or [])
+
+                    await agent.client.get_response(
+                        [Message("user", ["Summarize the sample request."])],
+                        options={"store": False, "include": ["reasoning.encrypted_content"]},
+                    )
+                    self.assertIn("reasoning.encrypted_content", create.await_args.kwargs["include"])
+                    self.assertEqual(create.await_count, 2)
+            finally:
+                await agent.client.close()
+            credential.get_token.assert_not_called()
+
+        asyncio.run(exercise())
+
+    def test_encrypted_reasoning_is_replayed_through_a_stateless_tool_loop(self):
+        from openai.types.responses import ResponseFunctionToolCall, ResponseReasoningItem
+
+        async def exercise():
+            credential = MagicMock()
+            agent = build_agent(credential, {
+                **environment("workflow-coordinator"), "AGENT_INCLUDE_ENCRYPTED_REASONING": "true",
+            })
+            reason = ResponseReasoningItem(id="rs_1", type="reasoning", summary=[],
+                                           encrypted_content="opaque-synthetic")
+            call = ResponseFunctionToolCall(type="function_call", id="fc_1", call_id="call_1",
+                                            name="lookup_demo_request", arguments='{"request_id":"REQ-101"}',
+                                            status="completed")
+
+            def raw(identifier, output):
+                response = MagicMock(id=identifier, model="fixture", created_at=1000000000, metadata={},
+                                     output_parsed=None, output=output, usage=None, finish_reason=None,
+                                     conversation=None, status="completed")
+                result = MagicMock(headers={})
+                result.parse.return_value = response
+                return result
+
+            try:
+                target = agent.client.client.responses.with_raw_response
+                with patch.object(target, "create", new_callable=AsyncMock,
+                                  side_effect=[raw("response_1", [reason, call]), raw("response_2", [])]) as create:
+                    await agent.run("Review REQ-101.")
+                    self.assertEqual(create.await_count, 2)
+                    for request in create.await_args_list:
+                        self.assertIs(request.kwargs["store"], False)
+                        self.assertEqual(request.kwargs["include"], ["reasoning.encrypted_content"])
+                    replay = create.await_args_list[1].kwargs["input"]
+                    self.assertTrue(any(item.get("type") == "reasoning"
+                                        and item.get("encrypted_content") == "opaque-synthetic" for item in replay))
+                    self.assertTrue(any(item.get("type") == "function_call_output"
+                                        and item.get("call_id") == "call_1" for item in replay))
+            finally:
+                await agent.client.close()
+            credential.get_token.assert_not_called()
+
+        asyncio.run(exercise())
 
     def test_calculator_policy_does_not_change_other_agents(self):
         self.assertIn("sample-lookup and arithmetic tools", demo_policy("medical-bill-reviewer"))

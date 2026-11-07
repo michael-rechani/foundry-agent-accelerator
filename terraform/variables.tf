@@ -437,6 +437,31 @@ variable "additional_model_deployments" {
   }
 }
 
+variable "model_router_deployment" {
+  type = object({
+    deployment_name = optional(string, "model-router")
+    sku_name        = optional(string, "GlobalStandard")
+    capacity        = optional(number, 10)
+    routing_mode    = optional(string, "balanced")
+    models = list(object({
+      format  = string
+      name    = string
+      version = string
+    }))
+  })
+  description = "Model Router deployment used by default. Set null only to disable it; Azure must return the requested settings before the deployment is considered verified."
+  default = {
+    deployment_name = "model-router"
+    sku_name        = "GlobalStandard"
+    capacity        = 10
+    routing_mode    = "balanced"
+    models = [
+      { format = "OpenAI", name = "gpt-4.1", version = "2025-04-14" },
+      { format = "OpenAI", name = "gpt-4.1-mini", version = "2025-04-14" },
+    ]
+  }
+}
+
 variable "enable_agent_service" {
   type        = bool
   description = "Creates the Agent Service capability host and its development supporting resources."

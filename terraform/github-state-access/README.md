@@ -71,6 +71,11 @@ holds the state lease and writes temporary lock metadata, but does not persist
 state content or apply infrastructure. Those metadata writes can create blob
 versions under the existing retention policy.
 
+The [platform Router plan diagnostic](../README.md#diagnose-the-existing-platform-router-plan)
+uses the same state identity and approval boundary. It is also plan-only and
+requires separately reviewed platform read access; it does not authorize
+infrastructure deployment, role changes, or a jumpbox secret read.
+
 ## State adoption
 
 For initial setup, an approved administrator may create the exact identity,

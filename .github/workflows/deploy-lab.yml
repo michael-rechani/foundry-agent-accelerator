@@ -1,29 +1,24 @@
 name: Deploy Lab image
 
-# After Validate succeeds for the exact main commit, builds the Lab image on the
-# private runner, pushes it to the private registry, and rolls the Container App to
-# it by digest. A manual run uses the same validation gate. One-time setup:
-# terraform/identity creates the identity, its roles and this environment
-# (see docs/lab-deployment.md).
-#
-# The registry has no public access. The runner reaches its private endpoint through the
-# peered VNet, so nothing is published to GitHub Packages or anywhere public, and Azure
-# holds no stored secret for this workflow. It runs only from main, and the lab-deploy
-# environment gates the sign-in, so pull request code never reaches the runner.
+# Explicitly dispatch a reviewed main commit after Validate succeeds and the
+# separate platform, Lab, agent and recovery prerequisites have been reviewed.
+# An approved way to bring the private runner online is still required.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'workbench/**'
-      - '!workbench/infra/**'
-      - '!workbench/**/*.md'
-      - '!workbench/frontend/tests/**'
-      - '!workbench/frontend/unit/**'
-      - '!workbench/**/tests/**'
-      - '!workbench/**/test_*.py'
-      - '!workbench/**/*.test.*'
-      - '!workbench/test-*.ps1'
   workflow_dispatch:
+    inputs:
+      reviewed_source_sha:
+        description: Exact reviewed main commit SHA
+        required: true
+        type: string
+      expected_current_image:
+        description: Recorded current registry/workbench image with immutable sha256 digest
+        required: true
+        type: string
+      confirm_rollout:
+        description: Staged prerequisites and recovery inventory were separately reviewed
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -33,8 +28,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # GitHub starts push workflows independently. Wait for Validate on this exact
-  # main SHA before starting the private runner or requesting Azure credentials.
+  # This read-only job does not start the private runner or request Azure credentials.
   validate-source:
     if: github.ref == 'refs/heads/main'
     timeout-minutes: 35
@@ -48,8 +42,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           SOURCE_SHA: ${{ github.sha }}
+          REVIEWED_SOURCE_SHA: ${{ inputs.reviewed_source_sha }}
+          CONFIRM_ROLOUT: ${{ inputs.confirm_rollout }}
         run: |
           set -euo pipefail
+          [[ "$REVIEWED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ && "$REVIEWED_SOURCE_SHA" == "$SOURCE_SHA" && "$CONFIRM_ROLLOUT" == "true" ]] || {
+            echo "::error::Select the reviewed main commit and confirm the staged rollout inventory."
+            exit 1
+          }
           deadline=$((SECONDS + 1800))
           while (( SECONDS < deadline )); do
             runs="$(gh run list --repo "$REPOSITORY" --workflow validate.yml --branch main \
@@ -69,41 +69,10 @@ jobs:
           echo "::error::Timed out waiting for Validate to succeed for $SOURCE_SHA."
           exit 1
 
-  # The runner VM deallocates itself when idle to save cost, and nothing else starts it.
-  # This job runs on a GitHub-hosted runner and starts only that VM. Its role can't stop,
-  # change or run commands on the VM. Starting a running VM does nothing.
-  start-runner:
-    needs: validate-source
-    if: github.ref == 'refs/heads/main'
-    timeout-minutes: 15
-    runs-on: ubuntu-24.04
-    environment: lab-deploy
-    permissions:
-      contents: read
-      id-token: write
-    env:
-      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      LAB_RUNNER_VM: ${{ vars.LAB_RUNNER_VM }}
-      LAB_RUNNER_RESOURCE_GROUP: ${{ vars.LAB_RUNNER_RESOURCE_GROUP }}
-    steps:
-      - name: Sign in to Azure with the GitHub token
-        run: |
-          set -euo pipefail
-          token="$(curl -sSf -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" | jq -r .value)"
-          echo "::add-mask::$token"
-          az login --service-principal --username "$AZURE_CLIENT_ID" --tenant "$AZURE_TENANT_ID" --federated-token "$token" --allow-no-subscriptions --output none
-          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
-      - name: Start the runner VM
-        run: |
-          set -euo pipefail
-          az vm start --name "$LAB_RUNNER_VM" --resource-group "$LAB_RUNNER_RESOURCE_GROUP" --output none
-          echo "The runner VM is started. The build job starts when its runner comes online."
-
   deploy:
-    needs: start-runner
-    if: github.ref == 'refs/heads/main'
+    needs: validate-source
+    # Disabled until the independent approval gate tracked in #522 is reviewed.
+    if: ${{ false }}
     timeout-minutes: 45
     runs-on: [self-hosted, linux, lab-runner]
     environment: lab-deploy
@@ -117,12 +86,17 @@ jobs:
       AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       LAB_REGISTRY: ${{ vars.LAB_REGISTRY }}
       LAB_CONTAINER_APP: ${{ vars.LAB_CONTAINER_APP }}
+      REVIEWED_SOURCE_SHA: ${{ inputs.reviewed_source_sha }}
+      EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}
+      CONFIRM_ROLLOUT: ${{ inputs.confirm_rollout }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # The self-hosted runner has Docker but no Azure CLI, and the runner user can't install one.
-      # This wrapper runs the same CLI from Microsoft's image, with its sign-in kept in the job's temp folder.
+      - name: Verify the reviewed dispatch and current main
+        run: python3 .github/scripts/check_lab_image_release.py
+      # The private runner has Docker but no Azure CLI; keep its sign-in in job scratch.
       - name: Use the Azure CLI from Microsoft's image
         run: |
           set -euo pipefail
@@ -139,25 +113,26 @@ jobs:
       - name: Sign in to Azure with the GitHub token
         run: |
           set -euo pipefail
-          token="$(curl -sSf -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" | jq -r .value)"
+          token="$(curl -sSf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" | jq -r .value)"
           echo "::add-mask::$token"
           az login --service-principal --username "$AZURE_CLIENT_ID" --tenant "$AZURE_TENANT_ID" --federated-token "$token" --allow-no-subscriptions --output none
           az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+      - name: Verify the current active Lab image
+        run: bash .github/scripts/check_lab_live_image.sh
       - name: Build, check and push the image to the private registry
         run: |
           set -euo pipefail
           server="$(az acr show --name "$LAB_REGISTRY" --query loginServer --output tsv)"
           tag="${GITHUB_SHA::12}-r${GITHUB_RUN_ID}"
           image="${server}/workbench:${tag}"
-          # The runner is persistent, so don't leave the registry login behind.
           trap 'docker logout "$server" >/dev/null 2>&1 || true' EXIT
           acr_token="$(az acr login --name "$LAB_REGISTRY" --expose-token --output tsv --query accessToken)"
           echo "::add-mask::$acr_token"
           echo "$acr_token" | docker login "$server" --username 00000000-0000-0000-0000-000000000000 --password-stdin
-          # .dockerignore is an allow-list, so this context matches what build.ps1 stages.
-          # The runner is linux/amd64 and its Docker has no buildx plugin, so use the classic builder.
+          # The context is allow-listed; this runner uses the classic linux/amd64 builder.
           docker build --pull --file workbench/Dockerfile --tag "$image" workbench
           docker run --rm --entrypoint python "$image" -c "import importlib, os; from pathlib import Path; [importlib.import_module(m.stem) for m in sorted(Path('.').glob('*.py'))]; import agent_publisher; assert os.getuid() != 0; assert agent_publisher.runtime_package()[0]; assert Path('agents.json').read_text(); assert Path('static/index.html').read_text()"
+          bash .github/scripts/check_lab_live_image.sh
           docker push "$image"
           source="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')"
           [[ "$source" =~ @sha256:[a-f0-9]{64}$ ]] || { echo "Pushed image digest not found"; exit 1; }
@@ -168,23 +143,69 @@ jobs:
           digest="sha256:${IMAGE_SOURCE##*@sha256:}"
           server="$(az acr show --name "$LAB_REGISTRY" --query loginServer --output tsv)"
           new_image="${server}/workbench@${digest}"
-          previous="$(az containerapp show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --query 'properties.template.containers[0].image' --output tsv)"
+          bash .github/scripts/check_lab_live_image.sh
+          previous="$EXPECTED_CURRENT_IMAGE"
           echo "Previous image: $previous"
           if [ "$previous" = "$new_image" ]; then echo "The Lab already runs this image."; exit 0; fi
-          az containerapp update --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --image "$new_image" --output none
+          attempted="$(az containerapp update --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --image "$new_image" --query 'properties.latestRevisionName' --output tsv)"
+          [[ "$attempted" =~ ^[A-Za-z0-9-]+$ ]] || {
+            echo "::error::The updated revision could not be identified. Inspect the live app before recovery."
+            exit 1
+          }
           ready=false
           for _ in $(seq 1 36); do
             latest="$(az containerapp show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --query 'properties.latestRevisionName' --output tsv)"
             ready_revision="$(az containerapp show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --query 'properties.latestReadyRevisionName' --output tsv)"
-            if [ "$latest" = "$ready_revision" ]; then
+            if [ "$latest" != "$attempted" ]; then
+              echo "::error::The latest revision changed during rollout. Inspect the live app before recovery."
+              exit 1
+            fi
+            if [ "$attempted" = "$ready_revision" ]; then
               running="$(az containerapp revision show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --revision "$latest" --query 'properties.runningState' --output tsv)"
-              if [[ "$running" == Running* ]]; then ready=true; break; fi
+              if [[ "$running" == Running || "$running" == RunningAtMaxScale ]]; then
+                if ! ATTEMPTED_REVISION="$attempted" ATTEMPTED_IMAGE="$new_image" \
+                  bash .github/scripts/check_lab_live_image.sh --deployed; then
+                  echo "::error::The deployed revision or image could not be verified. Inspect the app."
+                  exit 1
+                fi
+                ready=true
+                break
+              fi
             fi
             sleep 10
           done
           if [ "$ready" != true ]; then
-            echo "::error::The new revision did not become healthy. Restoring the previous image."
-            az containerapp update --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --image "$previous" --output none
+            if ! ATTEMPTED_REVISION="$attempted" ATTEMPTED_IMAGE="$new_image" \
+              bash .github/scripts/check_lab_live_image.sh --recovery; then
+              echo "::error::The new revision did not become healthy or recovery is ambiguous. Inspect the app."
+              exit 1
+            fi
+            echo "::error::The new revision did not become healthy. Attempting to restore the recorded previous image."
+            restored="$(az containerapp update --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --image "$previous" --query 'properties.latestRevisionName' --output tsv)"
+            if [[ ! "$restored" =~ ^[A-Za-z0-9-]+$ || "$restored" == "$attempted" ]]; then
+              echo "::error::The recovery revision could not be identified. Inspect the app before retrying."
+              exit 1
+            fi
+            recovered=false
+            for _ in $(seq 1 36); do
+              latest="$(az containerapp show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --query 'properties.latestRevisionName' --output tsv)"
+              ready_revision="$(az containerapp show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --query 'properties.latestReadyRevisionName' --output tsv)"
+              if [ "$latest" != "$restored" ]; then
+                echo "::error::The latest revision changed during recovery. Inspect the app."
+                exit 1
+              fi
+              if [ "$ready_revision" = "$restored" ]; then
+                bash .github/scripts/check_lab_live_image.sh --restored
+                recovered=true
+                break
+              fi
+              sleep 10
+            done
+            if [ "$recovered" != true ]; then
+              echo "::error::Recovery did not reach a verified running revision. Inspect the app."
+            else
+              echo "::error::The prior image is running again; application and agent response health still need verification."
+            fi
             exit 1
           fi
           {

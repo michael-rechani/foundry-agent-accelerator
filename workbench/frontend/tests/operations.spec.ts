@@ -179,9 +179,19 @@ test('replies show reported tokens and Performance estimates cost from user rate
   await cost.getByLabel('Input rate per 1M tokens').fill('2')
   await cost.getByLabel('Output rate per 1M tokens').fill('8')
   await cost.getByRole('button', { name: 'Use rates' }).click()
+  await expect(cost).toContainText(
+    'same input and output rates apply to all models',
+  )
+  await expect(cost).toContainText(
+    'Failed, stopped, or timed-out requests can still incur charges',
+  )
   // 1,200 x 2 / 1M + 300 x 8 / 1M
   await expect(cost.locator('.metric-strip > div').nth(2)).toContainText(
     '0.0048',
+  )
+  await openOverview(page)
+  await expect(page.locator('.metric-strip-4 > div').last()).toContainText(
+    'Estimated at your rates for all models',
   )
   await page.reload()
   await nav.getByRole('button', { name: 'Performance', exact: true }).click()
@@ -207,21 +217,115 @@ test('Performance says when an Azure budget alerts on Lab spend', async ({
   await expect(status).not.toContainText('aren’t set up')
 })
 
+test('small positive cost estimates never appear as zero', async ({ page }) => {
+  await openWorkspace(page, {
+    usage: {
+      input_tokens: 10,
+      output_tokens: 10,
+      total_tokens: 20,
+      cached_tokens: 0,
+      reasoning_tokens: 0,
+    },
+  })
+  await page.evaluate(() => localStorage.removeItem('foundry-lab-token-rates'))
+  await page
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Hello')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-heading')).toContainText('20 tokens')
+  const nav = workspaceNav(page)
+  await nav.getByRole('button', { name: 'Performance', exact: true }).click()
+  const cost = page.getByRole('region', { name: 'Token usage and cost' })
+  await cost.getByLabel('Input rate per 1M tokens').fill('0.4')
+  await cost.getByLabel('Output rate per 1M tokens').fill('1.6')
+  await cost.getByRole('button', { name: 'Use rates' }).click()
+  await expect(cost.locator('.metric-strip > div').nth(2)).toContainText(
+    '<0.0001',
+  )
+  await openOverview(page)
+  await expect(page.locator('.metric-strip-4 > div').last()).toContainText(
+    'Estimated at your rates for all models: <0.0001',
+  )
+  await nav.getByRole('button', { name: 'Performance', exact: true }).click()
+  await cost.getByLabel('Input rate per 1M tokens').fill('0')
+  await cost.getByLabel('Output rate per 1M tokens').fill('0')
+  await cost.getByRole('button', { name: 'Use rates' }).click()
+  await expect(cost.locator('.metric-strip > div').nth(2)).toHaveText(
+    /Estimated cost\s*0$/,
+  )
+})
+
 test('replies without reported tokens say so instead of showing zero', async ({
   page,
-}) => {
+}, testInfo) => {
   await openWorkspace(page, { usage: null })
   await page
     .getByRole('textbox', { name: 'Message', exact: true })
     .fill('Review the fictional application')
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect(page.locator('.assistant-heading')).toContainText(
-    'Tokens not reported',
+    'Token total not reported',
   )
   await workspaceNav(page)
     .getByRole('button', { name: 'Performance', exact: true })
     .click()
-  await expect(
-    page.getByRole('region', { name: 'Token usage and cost' }),
-  ).toContainText('1 did not report tokens and are not counted')
+  const cost = page.getByRole('region', { name: 'Token usage and cost' })
+  await expect(cost).toContainText(
+    '1 did not report complete token counts and are not counted',
+  )
+  await expect(cost.locator('.metric-strip > div').first()).toContainText(
+    'Unavailable',
+  )
+  await cost.getByLabel('Input rate per 1M tokens').fill('2')
+  await cost.getByLabel('Output rate per 1M tokens').fill('8')
+  await cost.getByRole('button', { name: 'Use rates' }).click()
+  await expect(cost.locator('.metric-strip > div').nth(2)).toContainText(
+    'No complete usage',
+  )
+  await openOverview(page)
+  await expect(page.locator('.metric-strip-4 > div').last()).toContainText(
+    'Unavailable',
+  )
+  await expect(page.locator('.metric-strip-4 > div').last()).toContainText(
+    '1 request without complete counts',
+  )
+  await expect(page.locator('.metric-strip-4 > div').last()).toContainText(
+    'No complete token totals to estimate',
+  )
+  await page.screenshot({
+    path: testInfo.outputPath('incomplete-usage-overview.png'),
+  })
+})
+
+test('partial token reports are excluded rather than estimated as free', async ({
+  page,
+}) => {
+  await openWorkspace(page, {
+    usage: { input_tokens: 1200, output_tokens: null, total_tokens: 1500 },
+  })
+  await page
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Review the fictional application')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-heading')).toContainText('1,500 tokens')
+  await workspaceNav(page)
+    .getByRole('button', { name: 'Performance', exact: true })
+    .click()
+  const cost = page.getByRole('region', { name: 'Token usage and cost' })
+  await expect(cost).toContainText(
+    '1 did not report complete token counts and are not counted',
+  )
+  await expect(cost.locator('.metric-strip > div').first()).toContainText(
+    'Unavailable',
+  )
+  await cost.getByLabel('Input rate per 1M tokens').fill('2')
+  await cost.getByLabel('Output rate per 1M tokens').fill('8')
+  await cost.getByRole('button', { name: 'Use rates' }).click()
+  await expect(cost.locator('.metric-strip > div').nth(2)).toContainText(
+    'No complete usage',
+  )
+  await openOverview(page)
+  await expect(page.locator('.metric-strip-4 > div').last()).toContainText(
+    'Unavailable',
+  )
 })

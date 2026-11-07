@@ -12,8 +12,10 @@ $variables = foreach ($name in @('agent_creation_enabled', 'private_presenter_mo
     if (!$match.Success) { throw "Missing Terraform variable: $name" }
     $match.Value
 }
-$guard = [regex]::Match($source, '(?ms)^resource "azurerm_container_app" "this"\s*\{.*?precondition\s*\{\s*condition\s*=\s*(?<condition>[^\r\n]+)\s*error_message\s*=\s*(?<message>"[^"\r\n]+")')
+$guard = [regex]::Match($source, '(?ms)^resource "azurerm_container_app" "this"\s*\{.*?precondition\s*\{\s*condition\s*=\s*(?<condition>!var\.agent_creation_enabled[^\r\n]+)\s*error_message\s*=\s*(?<message>"[^"\r\n]+")')
 if (!$guard.Success) { throw 'Missing Container App creation precondition.' }
+$creationModel = [regex]::Match($source, '(?ms)^  agent_creation_model\s*=\s*(?<value>.*?^  \))')
+if (!$creationModel.Success) { throw 'Missing resolved agent creation model.' }
 $keyEnvironment = [regex]::Match($source, '(?s)dynamic "env"\s*\{\s*for_each\s*=\s*(?<selector>[^\r\n]+)\s*content\s*\{\s*name\s*=\s*"WORKBENCH_CREATION_KEY_SHA256"\s*secret_name\s*=\s*"agent-creation-key-verifier"')
 if (!$keyEnvironment.Success) { throw 'Missing conditional operator-key environment setting.' }
 
@@ -35,6 +37,11 @@ try {
     $configuration = @"
 $($variables -join "`n")
 
+locals {
+  platform_outputs = {}
+  agent_creation_model = $($creationModel.Groups['value'].Value)
+}
+
 resource "terraform_data" "settings" {
   input = {
 $($environmentSettings -join "`n")
@@ -53,11 +60,14 @@ $($environmentSettings -join "`n")
     if ($LASTEXITCODE -ne 0) { throw "Isolated initialization failed: $initialization" }
 
     $cases = @(
-        @{ Name = 'presenter mode defaults off'; Arguments = @(); Valid = $true; Presenter = 'false'; Creation = 'false'; Model = ''; KeyCount = 0 },
+        @{ Name = 'presenter mode defaults off'; Arguments = @(); Valid = $true; Presenter = 'false'; Creation = 'false'; Model = 'model-router'; KeyCount = 0 },
         @{ Name = 'creation requires a key by default'; Arguments = @('-var=agent_creation_enabled=true', '-var=agent_creation_model=demo-model'); Valid = $false },
+        @{ Name = 'default Router still requires a key'; Arguments = @('-var=agent_creation_enabled=true'); Valid = $false },
         @{ Name = 'presenter mode permits keyless creation'; Arguments = @('-var=agent_creation_enabled=true', '-var=agent_creation_model=demo-model', '-var=private_presenter_mode=true'); Valid = $true; Presenter = 'true'; Creation = 'true'; Model = 'demo-model'; KeyCount = 0 },
-        @{ Name = 'presenter mode still requires a model'; Arguments = @('-var=agent_creation_enabled=true', '-var=private_presenter_mode=true'); Valid = $false },
+        @{ Name = 'presenter mode permits the default Router'; Arguments = @('-var=agent_creation_enabled=true', '-var=private_presenter_mode=true'); Valid = $true; Presenter = 'true'; Creation = 'true'; Model = 'model-router'; KeyCount = 0 },
+        @{ Name = 'presenter mode still requires a model'; Arguments = @('-var=agent_creation_enabled=true', '-var=private_presenter_mode=true', '-var=agent_creation_model='); Valid = $false },
         @{ Name = 'operator key still works without presenter mode'; Arguments = @('-var=agent_creation_enabled=true', '-var=agent_creation_model=demo-model', '-var=agent_creation_key_secret_id=https://unit-test.vault.azure.net/secrets/verifier'); Valid = $true; Presenter = 'false'; Creation = 'true'; Model = 'demo-model'; KeyCount = 1 },
+        @{ Name = 'operator key permits the default Router'; Arguments = @('-var=agent_creation_enabled=true', '-var=agent_creation_key_secret_id=https://unit-test.vault.azure.net/secrets/verifier'); Valid = $true; Presenter = 'false'; Creation = 'true'; Model = 'model-router'; KeyCount = 1 },
         @{ Name = 'presenter mode preserves an existing verifier'; Arguments = @('-var=agent_creation_enabled=true', '-var=agent_creation_model=demo-model', '-var=private_presenter_mode=true', '-var=agent_creation_key_secret_id=https://unit-test.vault.azure.net/secrets/verifier'); Valid = $true; Presenter = 'true'; Creation = 'true'; Model = 'demo-model'; KeyCount = 1 }
     )
     foreach ($case in $cases) {

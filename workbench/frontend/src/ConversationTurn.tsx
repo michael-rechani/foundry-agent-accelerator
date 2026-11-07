@@ -27,7 +27,12 @@ import type { Rating, Result, Turn } from './conversation-types'
 import { FoundryLink } from './FoundryLink'
 import { foundryAgentUrl } from './foundry-links'
 import { loadedMarkdown, preloadMarkdown } from './markdown-loader'
-import { usageDetail, usageLabel } from './token-usage'
+import {
+  formatTokens,
+  usageDetail,
+  usageLabel,
+  type Usage,
+} from './token-usage'
 import type { FollowUp } from './follow-ups'
 import { UserMessage } from './UserMessage'
 import { DemoBrief } from './DemoBrief'
@@ -224,6 +229,59 @@ function EarlierAnswers({ answers }: { answers: Result[] }) {
   )
 }
 
+function ModelObservationDetails({ turn }: { turn: Turn }) {
+  const observation = turn.result.model_observation
+  if (!observation && !turn.modelObservationInvalid) return null
+  const tokens = (usage: Usage | null) => {
+    if (!usage) return 'Token usage not reported.'
+    const count = (value: number | null, label: string) =>
+      value === null
+        ? `${label} not reported`
+        : `${formatTokens(value)} ${label}`
+    return `Tokens: ${[
+      count(usage.input_tokens, 'input'),
+      count(usage.cached_tokens, 'cached input'),
+      count(usage.output_tokens, 'output'),
+      count(usage.reasoning_tokens, 'reasoning'),
+      count(usage.total_tokens, 'total'),
+    ].join(' · ')}.`
+  }
+  return (
+    <section className="model-observation" aria-label="Direct model calls">
+      {observation ? (
+        <>
+          <h4>Direct model calls</h4>
+          <p>
+            Requested deployment: <strong>{observation.deployment}</strong>
+          </p>
+          <ol aria-label="Reported model calls">
+            {observation.calls.map((call, index) => (
+              <li key={index}>
+                {call.model_status === 'reported'
+                  ? `Reported model: ${call.reported_model}`
+                  : call.model_status === 'invalid'
+                    ? 'The reported model name was invalid.'
+                    : 'Model name not reported.'}
+                <br />
+                {tokens(call.usage)}
+              </li>
+            ))}
+          </ol>
+          <p>
+            {turn.stored
+              ? 'Saved values are not reverified after reopening. '
+              : 'Model names and token counts were reported by the service. '}
+            A reported name may be an alias and does not by itself prove which
+            model served the request.
+          </p>
+        </>
+      ) : (
+        <p>Model details could not be read.</p>
+      )}
+    </section>
+  )
+}
+
 export function ConversationTurn({
   turn,
   demo,
@@ -399,6 +457,15 @@ export function ConversationTurn({
           )}
           <AnswerFeedback rating={turn.rating} onRate={onRate} />
         </div>
+        {plain &&
+          (turn.result.model_observation || turn.modelObservationInvalid) && (
+            <details className="receipt-details hood-only">
+              <summary>
+                <Activity size={14} aria-hidden="true" /> Model details
+              </summary>
+              <ModelObservationDetails turn={turn} />
+            </details>
+          )}
         {!plain && (
           <details className="answer-details">
             <summary>
@@ -433,11 +500,15 @@ export function ConversationTurn({
                 <p className="usage-detail">
                   {turn.result.usage
                     ? `Tokens: ${usageDetail(turn.result.usage)}.`
-                    : 'The service did not report token usage for this answer.'}{' '}
-                  Counts come from the answering agent&apos;s response. A
-                  coordinator&apos;s count may not include specialists it calls.
+                    : turn.result.model_observation
+                      ? 'Complete token totals were not reported for this answer.'
+                      : 'The service did not report token usage for this answer.'}{' '}
+                  {turn.result.model_observation
+                    ? 'Totals combine direct calls; a count missing from any call is not totaled.'
+                    : "Counts come from the answering agent's response. A coordinator's count may not include specialists it calls."}
                 </p>
               )}
+              <ModelObservationDetails turn={turn} />
               {turn.result.receipts.length ? (
                 turn.result.receipts.map((receipt, index) => (
                   <div className="receipt" key={`${receipt.call_id}-${index}`}>

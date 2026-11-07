@@ -12,6 +12,9 @@ function Assert-Equal($Expected, $Actual, [string]$Name) {
 $parse = $null
 [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script), [ref]$null, [ref]$parse)
 Assert-Equal 0 $parse.Count 'deploy.ps1 parses without errors'
+try { & { . $script -Subscription $subscription -AgentModel 'invalid model' }; throw 'invalid agent model accepted' } catch {
+    if ($_.Exception.Message -notmatch 'AgentModel') { throw }
+}
 
 Assert-Equal 'preflight,platform,verify' ((Get-StageOrder @('verify', 'platform', 'preflight')) -join ',') 'stages run in the fixed order'
 Assert-Equal 'platform,runner,lab,identity,verify' ((Get-StageOrder @('identity', 'verify', 'lab', 'runner', 'platform')) -join ',') 'runner follows platform and identity follows lab'
@@ -36,6 +39,31 @@ if ($testRegistry -eq (Get-RegistryName $subscription 'aifnd' 'stage')) { throw 
 $digest = 'sha256:' + ('a' * 64)
 Assert-Equal $digest (Get-ImageDigest @('building', "reg.azurecr.io/workbench@$digest", 'PRIVATE_BUILD_PUSH_AND_PULL_VERIFIED=True')) 'digest is read from the build output'
 try { Get-ImageDigest @('no digest here'); throw 'missing digest accepted' } catch { if ($_.Exception.Message -notmatch 'did not report') { throw } }
+
+$routerOutputs = '{"model_router_deployment_name":{"value":"custom-router"},"model_deployment_name":{"value":"gpt-4.1"},"private_output":{"value":"private-sensitive-value","sensitive":true}}'
+$fixedOutputs = '{"model_deployment_name":{"value":"gpt-4.1"}}'
+$nullRouterOutputs = '{"model_router_deployment_name":{"value":null},"model_deployment_name":{"value":"gpt-4.1"}}'
+$selectedModel = Get-AgentModelFromOutputs $routerOutputs
+Assert-Equal 'custom-router' $selectedModel.Name 'Router output is the default agent model'
+Assert-Equal 'router' $selectedModel.Source 'Router selection identifies its source'
+if (($selectedModel | ConvertTo-Json -Compress) -match 'private-sensitive-value') { throw 'Unrelated Terraform output was exposed.' }
+foreach ($outputs in $fixedOutputs, $nullRouterOutputs) {
+    $selectedModel = Get-AgentModelFromOutputs $outputs
+    Assert-Equal 'gpt-4.1' $selectedModel.Name 'missing or null Router falls back to the fixed model'
+    Assert-Equal 'fixed' $selectedModel.Source 'fixed-model fallback identifies its source'
+}
+foreach ($bad in @(
+        @{ Json = '{invalid'; Error = 'valid JSON' },
+        @{ Json = '[]'; Error = 'JSON object' },
+        @{ Json = '{"model_router_deployment_name":{},"model_deployment_name":{"value":"gpt-4.1"}}'; Error = 'must contain a value' },
+        @{ Json = '{"model_router_deployment_name":{"value":"invalid model"},"model_deployment_name":{"value":"gpt-4.1"}}'; Error = 'valid model deployment name' },
+        @{ Json = '{"model_router_deployment_name":{"value":""},"model_deployment_name":{"value":"gpt-4.1"}}'; Error = 'valid model deployment name' },
+        @{ Json = '{"model_deployment_name":{"value":null}}'; Error = 'valid model deployment name' },
+        @{ Json = '{}'; Error = 'no primary model deployment output' })) {
+    try { Get-AgentModelFromOutputs $bad.Json; throw 'invalid platform outputs were accepted' } catch {
+        if ($_.Exception.Message -notmatch $bad.Error) { throw }
+    }
+}
 
 $hcl = New-BackendHcl 'stexample' 'ai-foundry/dev.tfstate'
 foreach ($expected in 'storage_account_name = "stexample"', 'key                  = "ai-foundry/dev.tfstate"', 'use_azuread_auth     = true', "subscription_id      = ""$subscription""") {
@@ -186,6 +214,7 @@ try {
     if (-not $dispatch) { throw 'Missing deployment stage dispatcher.' }
     $dispatchBlock = [scriptblock]::Create($dispatch.Extent.Text)
     $originalVerify = ${function:Invoke-VerifyStage}
+    $originalAgents = ${function:Invoke-AgentsStage}
     function Invoke-PlatformStage { $script:dispatched.Add('platform') }
     function Invoke-ImageStage { $script:dispatched.Add('image') }
     function Invoke-VerifyStage { $script:dispatched.Add('verify') }
@@ -203,6 +232,7 @@ try {
     . $dispatchBlock
     Assert-Equal 'platform,image' ($script:dispatched -join ',') 'normal deployment still dispatches the image stage'
     Set-Item Function:Invoke-VerifyStage -Value $originalVerify
+    Set-Item Function:Invoke-AgentsStage -Value $originalAgents
 
     # Runs the real verify stage with every external call replaced, to prove how it chooses the check's arguments.
     function Initialize-LabRoot { }
@@ -227,6 +257,56 @@ try {
     try { Invoke-VerifyStage; throw 'an unapproved agent call ran' } catch { if ($_.Exception.Message -notmatch 'not approved') { throw } }
     Assert-Equal $null $script:verifyCall 'a declined agent call never runs the check'
     $IncludeAgentCall = [switch]$false
+
+    # Publication uses only test doubles; no process, Azure, or Terraform is invoked.
+    function Initialize-PlatformRoot { }
+    function Get-Native([string]$Command, [string[]]$Arguments) {
+        switch (($Arguments | Select-Object -Skip 1) -join ',') {
+            'output,-raw,foundry_project_endpoint' { return 'https://foundry-test.services.ai.azure.com/api/projects/project-test' }
+            'output,-json' {
+                $script:modelOutputReads++
+                if ($script:failModelOutput) { throw 'Terraform output failed.' }
+                return $script:agentOutputs
+            }
+            default { throw 'Unexpected Terraform output request.' }
+        }
+    }
+    function Invoke-Native([string]$Command, [string[]]$Arguments) {
+        if ($Arguments.Count -eq 1 -and $Arguments[0] -match 'deploy\.py$') {
+            $script:publishedModels.Add($env:FOUNDRY_MODEL_NAME)
+        }
+    }
+    $Agent = @('basic-responses-agent')
+    $script:approval = $true
+    $script:modelOutputReads = 0
+    $script:failModelOutput = $false
+    $script:publishedModels = [Collections.Generic.List[string]]::new()
+    $script:agentOutputs = $routerOutputs
+    $stageOutput = (Invoke-AgentsStage 6>&1 | Out-String)
+    if ($stageOutput -match 'private-sensitive-value') { throw 'Agent publication logged a sensitive Terraform output.' }
+    Assert-Equal 'custom-router' $script:publishedModels[-1] 'agents stage publishes with the Router output'
+    Assert-Equal 1 $script:modelOutputReads 'agents stage reads model outputs once'
+    $script:agentOutputs = $fixedOutputs
+    Invoke-AgentsStage
+    Assert-Equal 'gpt-4.1' $script:publishedModels[-1] 'agents stage uses the fixed fallback for older state'
+    $script:failModelOutput = $true
+    $before = $script:publishedModels.Count
+    try { Invoke-AgentsStage; throw 'failed Terraform output was ignored' } catch {
+        if ($_.Exception.Message -notmatch 'Terraform output failed') { throw }
+    }
+    Assert-Equal $before $script:publishedModels.Count 'a Terraform output failure cannot publish an agent'
+    $script:failModelOutput = $false
+    $script:approval = $false
+    try { Invoke-AgentsStage; throw 'unapproved publication ran' } catch {
+        if ($_.Exception.Message -notmatch 'not approved') { throw }
+    }
+    Assert-Equal $before $script:publishedModels.Count 'a declined publication never starts'
+    $script:approval = $true
+    $AgentModel = 'explicit-fixed'
+    $script:modelOutputReads = 0
+    Invoke-AgentsStage
+    Assert-Equal 'explicit-fixed' $script:publishedModels[-1] 'explicit agent model overrides the Router'
+    Assert-Equal 0 $script:modelOutputReads 'explicit agent model does not read all platform outputs'
 
     $file = Join-Path $temporary 'x.tfvars'
     Set-Content -LiteralPath $file -Value "registry_name = `"abc123`"`n# image = `"no`""

@@ -40,6 +40,7 @@ param(
     [string]$BlobPrivateDnsZoneId,
     [string]$Tag,
     [string[]]$Agent,
+    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$')][string]$AgentModel,
     [string]$ModelQuotaName = 'OpenAI.GlobalStandard.gpt-4.1',
     [int]$ModelCapacity = 10,
     [string]$GitHubRepository,
@@ -115,6 +116,27 @@ function Get-ImageDigest([string[]]$BuildOutput) {
     $found = @($BuildOutput | ForEach-Object { [regex]::Match("$_", '@(sha256:[a-f0-9]{64})\s*$') } | Where-Object Success)
     if ($found.Count -eq 0) { throw 'The image build did not report a digest.' }
     $found[-1].Groups[1].Value
+}
+
+function Get-AgentModelFromOutputs([string]$Json) {
+    try { $outputs = ConvertFrom-Json -InputObject $Json -AsHashtable -ErrorAction Stop } catch [System.ArgumentException] {
+        throw 'Platform Terraform outputs must be valid JSON.'
+    }
+    if ($outputs -isnot [System.Collections.IDictionary]) { throw 'Platform Terraform outputs must be a JSON object.' }
+    foreach ($name in 'model_router_deployment_name', 'model_deployment_name') {
+        if (-not $outputs.Contains($name)) { continue }
+        $entry = $outputs[$name]
+        if ($entry -isnot [System.Collections.IDictionary] -or -not $entry.Contains('value')) {
+            throw "Platform Terraform output $name must contain a value."
+        }
+        $value = $entry['value']
+        if ($name -eq 'model_router_deployment_name' -and $null -eq $value) { continue }
+        if ($value -isnot [string] -or $value -cnotmatch '^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$') {
+            throw "Platform Terraform output $name must be a valid model deployment name."
+        }
+        return [pscustomobject]@{ Name = $value; Source = if ($name -eq 'model_router_deployment_name') { 'router' } else { 'fixed' } }
+    }
+    throw 'Platform Terraform state has no primary model deployment output.'
 }
 
 function Write-NewFile([string]$Path, [string]$Content) {
@@ -431,7 +453,20 @@ function Invoke-AgentsStage {
     if (-not $Agent) { throw 'Name the agents to publish with -Agent, specialists before coordinators. Publishing is billable and changes routing.' }
     Initialize-PlatformRoot
     $endpoint = Get-Native $TerraformCommand @("-chdir=$platformDir", 'output', '-raw', 'foundry_project_endpoint')
-    $model = Get-Native $TerraformCommand @("-chdir=$platformDir", 'output', '-raw', 'model_deployment_name')
+    if ($AgentModel) {
+        $model = $AgentModel
+        Write-Host 'Using the explicitly selected model deployment for agent publication.'
+    } else {
+        # A null or older Router output may be omitted from Terraform state. Do not log the JSON,
+        # which can include other sensitive outputs.
+        $selection = Get-AgentModelFromOutputs (Get-Native $TerraformCommand @("-chdir=$platformDir", 'output', '-json'))
+        $model = $selection.Name
+        if ($selection.Source -eq 'router') {
+            Write-Host 'Using the platform Model Router output for agent publication.'
+        } else {
+            Write-Host 'No Model Router output is present; using the platform fixed-model output for agent publication.'
+        }
+    }
     foreach ($name in $Agent) {
         $sample = Join-Path $PSScriptRoot "hosted-agents/$name"
         if ($name -notmatch '^[a-z0-9-]+$' -or -not (Test-Path -LiteralPath (Join-Path $sample 'deploy.py'))) { throw "No deployable agent named $name under hosted-agents." }

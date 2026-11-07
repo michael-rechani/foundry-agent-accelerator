@@ -217,6 +217,57 @@ class GuardRejectionTests(unittest.TestCase):
                 mutate(value)
                 self.rejected(value)
 
+    def test_router_model_changes_remain_outside_the_approved_apply(self):
+        cases = (
+            ("WORKBENCH_AGENT_CREATION_MODEL", "private-fixed", "private-router"),
+            ("WORKBENCH_AGENT_CREATION_MODELS", '{"reasoning":"private-fixed"}',
+             '{"reasoning":"private-router"}'),
+            ("WORKBENCH_PREBUILT_AGENT_MODELS", '{"customer-review":"private-fixed"}',
+             '{"customer-review":"private-router"}'),
+            ("WORKBENCH_PREVIEW_ENCRYPTED_REASONING", '{"private-fixed":true}', '{"private-fixed":false}'),
+            ("WORKBENCH_HOSTED_ENCRYPTED_REASONING", '{"private-fixed":true}', '{"private-fixed":false}'),
+        )
+        for name, old, new in cases:
+            with self.subTest(name=name):
+                value = approved_plan(waf_tags=False)
+                change = app_change(value)
+                app_env(change, "before").append({"name": name, "value": old})
+                app_env(change, "after").append({"name": name, "value": new})
+                summary = summarize(value)
+                comparison = summary["other_managed_details"][0]["environment_comparison"]
+                self.assertEqual(comparison["changed"][name], "changed")
+                self.assertNotIn(old, json.dumps(summary))
+                self.assertNotIn(new, json.dumps(summary))
+                self.rejected(value)
+
+    def test_adding_preview_capability_is_not_approved(self):
+        value = approved_plan(waf_tags=False)
+        app_env(app_change(value), "after").append({
+            "name": "WORKBENCH_PREVIEW_ENCRYPTED_REASONING", "value": '{"model-router":false}',
+        })
+        summary = summarize(value)
+        self.assertEqual(
+            summary["other_managed_details"][0]["environment_comparison"]["changed"][
+                "WORKBENCH_PREVIEW_ENCRYPTED_REASONING"
+            ],
+            "added",
+        )
+        self.rejected(value)
+
+    def test_adding_hosted_reasoning_capability_is_not_approved(self):
+        value = approved_plan(waf_tags=False)
+        app_env(app_change(value), "after").append({
+            "name": "WORKBENCH_HOSTED_ENCRYPTED_REASONING", "value": '{"reason-model":true}',
+        })
+        summary = summarize(value)
+        self.assertEqual(
+            summary["other_managed_details"][0]["environment_comparison"]["changed"][
+                "WORKBENCH_HOSTED_ENCRYPTED_REASONING"
+            ],
+            "added",
+        )
+        self.rejected(value)
+
     def test_imports_outputs_and_non_passing_checks_are_rejected(self):
         def imported(value):
             value["resource_changes"][0]["change"]["importing"] = {"id": "private-id"}
