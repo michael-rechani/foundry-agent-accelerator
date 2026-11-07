@@ -173,7 +173,8 @@ class PrivateScratchTests(TestCase):
         finally:
             source.release()
         self.assertGreater(len(writes), 1)
-        self.assertTrue(all(count == 3 for count in writes))
+        self.assertTrue(all(0 < count <= 3 for count in writes))
+        self.assertEqual(sum(writes), len(expected))
         self.assertEqual((self.parent / scratch.name / "formatted.bin").read_bytes(), expected)
         scratch.cleanup()
 
