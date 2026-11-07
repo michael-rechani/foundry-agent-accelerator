@@ -391,6 +391,11 @@ def candidate_model_matches(details, model: str) -> bool:
         and environment.get("FOUNDRY_MODEL_NAME") == model
     )
 
+def has_responses(endpoint) -> bool:
+    protocols = getattr(endpoint, "protocol_configuration", None)
+    return isinstance(getattr(protocols, "responses", None), Mapping)
+
+
 def enabled_endpoint(client, agent_name: str):
     details = client.agents.get(agent_name=agent_name)
     for field in ("state", "configuration_state"):
@@ -407,7 +412,7 @@ def verify_recovery_targets(client, agent_name: str, endpoint) -> None:
             "Pin the existing agent route to explicit versions before redeploying; "
             "an unrouted or symbolic route such as @latest is not a safe recovery target"
         )
-    if getattr(getattr(endpoint, "protocol_configuration", None), "responses", None) is None:
+    if not has_responses(endpoint):
         raise RuntimeError("Recovery route has no Responses endpoint")
     enabled_endpoint(client, agent_name)
     rules = endpoint.version_selector.version_selection_rules
@@ -423,7 +428,7 @@ def endpoint_snapshot(client, agent_name: str):
     from azure.core.exceptions import ResourceNotFoundError
 
     try:
-        endpoint = enabled_endpoint(client, agent_name)
+        endpoint = deepcopy(enabled_endpoint(client, agent_name))
     except ResourceNotFoundError:
         return None
     verify_recovery_targets(client, agent_name, endpoint)
@@ -435,7 +440,7 @@ def endpoint_snapshot(client, agent_name: str):
 def routes_to_version(endpoint, version: str) -> bool:
     rules = getattr(getattr(endpoint, "version_selector", None), "version_selection_rules", None)
     return (
-        getattr(getattr(endpoint, "protocol_configuration", None), "responses", None) is not None
+        has_responses(endpoint)
         and isinstance(rules, list)
         and len(rules) == 1
         and concrete_version(version)
@@ -446,7 +451,7 @@ def routes_to_version(endpoint, version: str) -> bool:
 
 
 def verify_route(client, agent_name: str, version: str, model: str) -> None:
-    endpoint = enabled_endpoint(client, agent_name)
+    endpoint = deepcopy(enabled_endpoint(client, agent_name))
     if not routes_to_version(endpoint, version):
         raise RuntimeError("The promoted Responses route was not confirmed")
     details = client.agents.get_version(agent_name=agent_name, agent_version=version)
@@ -454,6 +459,8 @@ def verify_route(client, agent_name: str, version: str, model: str) -> None:
         raise RuntimeError("The promoted agent version is not active")
     if not candidate_model_matches(details, model):
         raise RuntimeError("The promoted hosted definition does not confirm the requested model")
+    if enabled_endpoint(client, agent_name) != endpoint:
+        raise RuntimeError("The promoted Responses route changed during verification")
 
 
 def recovery_endpoint(original_endpoint):
@@ -477,7 +484,7 @@ def cleanup_failed_version(
         return
 
     try:
-        endpoint = enabled_endpoint(client, agent_name)
+        endpoint = deepcopy(enabled_endpoint(client, agent_name))
         if endpoint != original_endpoint and (attempted_endpoint is None or endpoint != attempted_endpoint):
             print(f"Warning: route changed during deployment; retained version {version}; manual recovery required")
             return
@@ -517,11 +524,10 @@ def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name:
     for agent_name in agent_names:
         if agent_name == coordinator_name:
             raise ValueError("A coordinator cannot delegate to its own endpoint")
-        endpoint = enabled_endpoint(client, agent_name)
-        protocols = getattr(endpoint, "protocol_configuration", None)
+        endpoint = deepcopy(enabled_endpoint(client, agent_name))
         selector = getattr(endpoint, "version_selector", None)
         rules = getattr(selector, "version_selection_rules", None)
-        if getattr(protocols, "responses", None) is None or not rules:
+        if not has_responses(endpoint) or not rules:
             raise RuntimeError(f"Specialist {agent_name} has no routed Responses endpoint")
         validate_traffic_rules(rules, f"Specialist {agent_name}")
         if not concrete_route(endpoint):
@@ -531,6 +537,8 @@ def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name:
             details = client.agents.get_version(agent_name=agent_name, agent_version=version)
             if not active_release(details, agent_name, version):
                 raise RuntimeError(f"Specialist {agent_name} version {version} is not active")
+        if enabled_endpoint(client, agent_name) != endpoint:
+            raise RuntimeError(f"Specialist {agent_name} route changed during preflight")
         print(f"Specialist preflight passed: {agent_name}")
 
 
@@ -627,13 +635,15 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 if not candidate_model_matches(candidate, args.model):
                     raise RuntimeError("The candidate hosted definition does not confirm the requested model")
                 if original_endpoint is not None:
+                    if enabled_endpoint(client, args.agent_name) != original_endpoint:
+                        raise RuntimeError("The agent route changed during deployment; refusing candidate smoke")
                     candidate_check_in_progress = True
                     candidate_smoke_test(
                         client, args.agent_name, created.version, args.smoke_test_prompt,
                         profile.delegation_checks, poll_seconds=args.poll_seconds, max_polls=args.max_polls,
                     )
                     candidate_check_in_progress = False
-                current_endpoint = enabled_endpoint(client, args.agent_name)
+                current_endpoint = deepcopy(enabled_endpoint(client, args.agent_name))
                 if original_endpoint is not None and current_endpoint != original_endpoint:
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
                 if original_endpoint is not None:
