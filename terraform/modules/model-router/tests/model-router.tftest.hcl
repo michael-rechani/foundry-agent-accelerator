@@ -379,7 +379,7 @@ run "plan_routing_mode_update" {
 }
 
 run "update_routing_mode" {
-  command = apply
+  command   = apply
   state_key = "standard-default-subset"
 
   variables {
