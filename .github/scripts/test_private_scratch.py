@@ -459,6 +459,32 @@ class PrivateScratchTests(TestCase):
         with self.assertRaises(OSError):
             os.fstat(owned_fd)
 
+    def test_explicit_descriptor_close_error_is_reported_without_retry(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        scratch.create_file("owned.bin", b"fictional")
+        owned_fd = scratch._entries["owned.bin"][2]
+        real_close = os.close
+        failed = False
+
+        def close_then_report_error(fd):
+            nonlocal failed
+            if fd == owned_fd and not failed:
+                failed = True
+                real_close(fd)
+                raise OSError("synthetic close error")
+            return real_close(fd)
+
+        with patch("private_scratch.os.close", side_effect=close_then_report_error):
+            with self.assertRaisesRegex(ScratchError, "descriptors could not be closed"):
+                scratch.close_descriptors()
+        self.assertTrue(failed)
+        self.assertTrue(scratch._handles_closed)
+        self.assertIsNone(scratch._entries["owned.bin"][2])
+        self.assertTrue((self.parent / scratch.name / "owned.bin").exists())
+        with self.assertRaises(ScratchError):
+            scratch.cleanup()
+        with self.assertRaises(OSError):
+            os.fstat(owned_fd)
     def test_partial_byte_writes_preserve_formatted_memoryview_bytes(self):
         scratch = PrivateScratch.create(str(self.parent))
         values = array("I", range(1, 24))

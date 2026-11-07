@@ -27,7 +27,7 @@ unowned entries, assuming the parent and process identity are trusted. They do
 has no unlink-by-inode operation, so a same-UID process can race a name check
 against `unlinkat`/`rmdir`. Do not use this helper where untrusted processes
 share the UID or can mutate the parent. `chmod`, random names, inode checks, and
-retained descriptors are not a same-UID security boundary. Held descriptors prevent inode reuse while open, but do not eliminate hostile same-UID check-to-unlink races. An enforceable OS
+retained descriptors are not a same-UID security boundary. Held descriptors prevent inode reuse while open, but do not eliminate hostile same-UID check-to-unlink races. A descriptor-close error is surfaced and is not retried because the descriptor number may already have been reused; explicit close failure may therefore leave contents for operator cleanup. An enforceable OS
 identity or mount boundary is required for that threat model.
 
 A process or host failure can leave scratch behind. This helper deliberately
