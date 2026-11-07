@@ -414,6 +414,27 @@ class SnapshotTests(unittest.TestCase):
                     expected += f"candidate_platform_comparison_failed={category}\ncandidate_router_override=absent\n"
                     self.assertEqual((out.getvalue(), err.getvalue()), ("", expected))
 
+    def test_jumpbox_index_requires_integer_zero(self):
+        for value in (False, 0.0, "0", None):
+            with self.subTest(value=value):
+                state = deepcopy(self.state)
+                instance = state["resources"][2]["instances"][0]
+                if value is None:
+                    instance.pop("index_key")
+                else:
+                    instance["index_key"] = value
+                results = [(encode(self.inputs), headers()), (encode(state), headers()),
+                           (encode(state), headers()), (encode(self.inputs), headers())]
+                out, err = io.StringIO(), io.StringIO()
+                with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                        patch.object(probe, "Blobs", return_value=self.blobs), \
+                        patch.object(probe.backend, "send", side_effect=results), \
+                        contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    self.assertEqual(probe.main(), 1)
+                self.assertEqual((out.getvalue(), err.getvalue()),
+                                 ("", "candidate_platform_comparison_failed=disk_instance_index_invalid\n"
+                                  "candidate_router_override=absent\n"))
+
     def test_unstable_snapshots_override_disk_detail_and_secret(self):
         state, inputs = deepcopy(self.state), deepcopy(self.inputs)
         state["resources"][2]["instances"][0]["attributes"].pop("body")

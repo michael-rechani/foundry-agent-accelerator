@@ -315,7 +315,7 @@ def jumpbox_attributes(resources):
         raise StateDiskDetailError("disk_instance_invalid")
     if instance.get("deposed"):
         raise StateDiskDetailError("disk_instance_deposed")
-    if instance.get("index_key") != 0:
+    if type(instance.get("index_key")) is not int or instance["index_key"] != 0:
         raise StateDiskDetailError("disk_instance_index_invalid")
     attributes = instance.get("attributes")
     if not isinstance(attributes, dict):
