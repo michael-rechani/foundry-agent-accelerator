@@ -46,16 +46,23 @@ def safe_relative(value):
     return path
 
 
-def inventory(folder):
+def inventory(folder, include_directories=True):
     if folder.is_symlink() or not folder.is_dir():
         raise ClosureError("Closure must be a regular directory.")
     result = {}
     for directory, dirs, files in os.walk(folder, followlinks=False):
         for name in dirs + files:
             path = Path(directory) / name
-            mode = path.lstat().st_mode
+            metadata = path.lstat()
+            mode = metadata.st_mode
+            if stat.S_ISREG(mode) and metadata.st_nlink != 1:
+                raise ClosureError("Hard-linked artifacts are ambiguous.")
             if not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
                 raise ClosureError("Links or special files are not closure artifacts.")
+        if include_directories:
+            for name in dirs:
+                path = Path(directory) / name
+                result[path.relative_to(folder).as_posix()] = {"sha256": "directory", "mode": stat.S_IMODE(path.stat().st_mode)}
         for name in files:
             path = Path(directory) / name
             relative = path.relative_to(folder).as_posix()
@@ -116,7 +123,7 @@ def source_inventory(source):
         if hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest() != digest:
             raise ClosureError("Source bytes differ from reviewed Git objects.")
         expected[relative] = {"sha256": hashlib.sha256(raw).hexdigest(), "mode": int(mode, 8) & 0o777}
-    if not expected or inventory(source) != expected:
+    if not expected or inventory(source, include_directories=False) != expected:
         raise ClosureError("Source contains missing, extra or changed files.")
     return expected
 

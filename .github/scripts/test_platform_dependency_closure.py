@@ -35,7 +35,7 @@ class ClosureTests(unittest.TestCase):
             closure.check(root, hashlib.sha256((root / "manifest.json").read_bytes()).hexdigest())
 
     def test_missing_extra_changed_and_nested_artifacts(self):
-        for mutation in ('missing', 'extra', 'changed', 'nested', 'mode', 'lock'):
+        for mutation in ('missing', 'extra', 'emptydir', 'changed', 'nested', 'mode', 'lock'):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 self.fixture(root)
@@ -43,6 +43,8 @@ class ClosureTests(unittest.TestCase):
                     (root / 'mirror' / 'provider.zip').unlink()
                 elif mutation == 'extra':
                     (root / 'mirror' / 'extra.zip').write_bytes(b'extra')
+                elif mutation == 'emptydir':
+                    (root / 'mirror' / 'extra').mkdir()
                 elif mutation == 'mode':
                     (root / 'root' / 'main.tf').chmod(0o777)
                 elif mutation == 'lock':
@@ -54,7 +56,7 @@ class ClosureTests(unittest.TestCase):
                     closure.check(root, hashlib.sha256((root / "manifest.json").read_bytes()).hexdigest())
 
     def test_escaping_graph_and_symlinks(self):
-        for mutation in ('escape', 'link', 'duplicate'):
+        for mutation in ('escape', 'link', 'hardlink', 'duplicate'):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 manifest = self.fixture(root)
@@ -66,6 +68,8 @@ class ClosureTests(unittest.TestCase):
                     (root / 'manifest.json').write_text(json.dumps(manifest))
                 elif mutation == 'link':
                     (root / 'root' / 'redirect').symlink_to(root / 'mirror', target_is_directory=True)
+                elif mutation == 'hardlink':
+                    os.link(root / 'mirror' / 'provider.zip', root / 'mirror' / 'duplicate.zip')
                 else:
                     (root / 'manifest.json').write_text('{"format":1,"format":1}')
                 with self.assertRaises(closure.ClosureError):
