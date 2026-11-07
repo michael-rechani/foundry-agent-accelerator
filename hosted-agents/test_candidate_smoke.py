@@ -144,6 +144,20 @@ class SmokeTransportTests(unittest.TestCase):
         self.assertEqual(profile.smoke_test_prompt, "")
         self.assertEqual([item[1] for item in profile.delegation_checks],
                          ["inspect_application", "inspect_case", "inspect_case"])
+        client = Mock()
+        client.agents.create_session.return_value = SimpleNamespace(
+            agent_session_id="session-1", status="active",
+            version_indicator=SimpleNamespace(type="version_ref", agent_version="7"),
+        )
+        with patch("deployment.smoke_test") as check:
+            candidate_smoke_test(client, profile.name, "7", profile.smoke_test_prompt,
+                                 profile.delegation_checks)
+        self.assertEqual(check.call_count, 4)
+        self.assertEqual([call.args[3] for call in check.call_args_list[1:]],
+                         ["inspect_application", "inspect_case", "inspect_case"])
+        self.assertTrue(all(call.kwargs["agent_session_id"] == "session-1"
+                            for call in check.call_args_list))
+        client.agents.delete_session.assert_called_once()
 
 
 if __name__ == "__main__":
