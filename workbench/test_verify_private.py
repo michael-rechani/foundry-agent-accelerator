@@ -495,8 +495,8 @@ class PrivateVerificationTests(unittest.TestCase):
                                 raise HTTPError(request.full_url, 409, "fictional conflict", None, io.BytesIO(payload))
                             response = io.BytesIO(payload)
                         elif expected == 409:
-                            payload = b'{"error":"conversation_changed","request_id":"fictional-error-request"}'
-                            raise HTTPError(request.full_url, 409, "fictional conflict", None, io.BytesIO(payload))
+                            conflict_payload = b'{"error":"conversation_changed","request_id":"fictional-error-request"}'
+                            raise HTTPError(request.full_url, 409, "fictional conflict", None, io.BytesIO(conflict_payload))
                         else:
                             response = io.BytesIO(json.dumps(result).encode("utf-8"))
                         response.status = expected
