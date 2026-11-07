@@ -36,6 +36,18 @@ MISSING_AZD = (
 READY = "Dependencies are ready: azd and the microsoft.foundry extension are ready.\n"
 SYSTEM_PATH = "/usr/local/bin:/usr/bin:/bin"
 VERSION = r"[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*)?"
+FAILURE_STAGES = {
+    "context": "context",
+    "arguments": "context",
+    "download": "download",
+    "checksum": "checksum",
+    "archive": "archive",
+    "bash": "missing_bash",
+    "skill": "skill_execution",
+    "version": "version",
+    "cleanup": "cleanup",
+    "interrupted": "interruption",
+}
 
 
 class CheckError(Exception):
@@ -232,13 +244,35 @@ def run():
     finally:
         registration.close()
         if root is not None:
-            shutil.rmtree(root)
-        receipt.unlink()
+            try:
+                shutil.rmtree(root)
+                receipt.unlink()
+            except OSError as failure:
+                raise CheckError("cleanup") from failure
+        else:
+            receipt.unlink()
     return version
 
 
 def interrupted(signum, frame):
     raise CheckError("interrupted")
+
+
+def failure_stage(failure):
+    if isinstance(failure, CheckError):
+        return FAILURE_STAGES.get(str(failure), "unexpected_io")
+    if isinstance(failure, subprocess.TimeoutExpired):
+        return "timeout"
+    if isinstance(failure, error.URLError):
+        return "download"
+    if isinstance(failure, tarfile.TarError):
+        return "archive"
+    return "unexpected_io"
+
+
+def report_failure(failure):
+    print(f"failure_stage={failure_stage(failure)}")
+    print("foundry_prerequisites_check_failed", file=sys.stderr)
 
 
 def main():
@@ -247,7 +281,11 @@ def main():
         for signum in (signal.SIGINT, signal.SIGTERM):
             previous_handlers[signum] = signal.signal(signum, interrupted)
         if sys.argv[1:] == ["--cleanup"]:
-            cleanup(*context())
+            temp, receipt_name = context()
+            try:
+                cleanup(temp, receipt_name)
+            except (OSError, ValueError) as failure:
+                raise CheckError("cleanup") from failure
             print("foundry_prerequisites_cleanup=complete")
         elif not sys.argv[1:]:
             version = run()
@@ -256,8 +294,8 @@ def main():
         else:
             raise CheckError("arguments")
         return 0
-    except (CheckError, OSError, ValueError, error.URLError, tarfile.TarError, subprocess.SubprocessError):
-        print("foundry_prerequisites_check_failed", file=sys.stderr)
+    except (CheckError, OSError, ValueError, error.URLError, tarfile.TarError, subprocess.SubprocessError) as failure:
+        report_failure(failure)
         return 1
     finally:
         for signum, handler in previous_handlers.items():
@@ -265,5 +303,5 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.excepthook = lambda *_: print("foundry_prerequisites_check_failed", file=sys.stderr)
+    sys.excepthook = lambda _kind, failure, _traceback: report_failure(failure)
     raise SystemExit(main())

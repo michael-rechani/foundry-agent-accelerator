@@ -183,8 +183,12 @@ class PrerequisiteTests(unittest.TestCase):
                 code = probe.main()
         return code, out.getvalue(), err.getvalue()
 
-    def assert_failed(self, result):
-        self.assertEqual(result, (1, "", "foundry_prerequisites_check_failed\n"))
+    def assert_failed(self, result, stage=None):
+        self.assertEqual(result[0], 1)
+        self.assertEqual(result[2], "foundry_prerequisites_check_failed\n")
+        self.assertIn(result[1], {f"failure_stage={value}\n" for value in set(probe.FAILURE_STAGES.values()) | {"timeout", "unexpected_io"}})
+        if stage is not None:
+            self.assertEqual(result[1], f"failure_stage={stage}\n")
 
     def test_missing_azd_checks_first_then_downloads_and_reruns(self):
         self.assertEqual(self.invoke(), (0, "azd_version=1.37.3\nfoundry_prerequisites=ready\n", ""))
@@ -231,14 +235,14 @@ class PrerequisiteTests(unittest.TestCase):
 
     def test_skill_checksum_mismatch_never_executes_anything(self):
         with patch.object(probe, "SKILL_SHA256", "0" * 64):
-            self.assert_failed(self.invoke())
+            self.assert_failed(self.invoke(), "checksum")
         self.executor.assert_not_called()
         self.assertEqual(self.downloads, [probe.SKILL_URL])
         self.assertEqual(list(self.temp.iterdir()), [])
 
     def test_azd_checksum_mismatch_never_extracts_or_reruns(self):
         with patch.object(probe, "AZD_SHA256", "0" * 64), patch.object(probe.tarfile, "open") as extract:
-            self.assert_failed(self.invoke())
+            self.assert_failed(self.invoke(), "checksum")
         extract.assert_not_called()
         self.assertEqual(len(self.commands), 1)
         self.assertEqual(list(self.temp.iterdir()), [])
@@ -328,7 +332,7 @@ class PrerequisiteTests(unittest.TestCase):
     def test_cleanup_failure_emits_no_readiness_and_always_can_retry(self):
         original = shutil.rmtree
         with patch.object(probe.shutil, "rmtree", side_effect=OSError("private-path")):
-            self.assert_failed(self.invoke())
+            self.assert_failed(self.invoke(), "cleanup")
         self.assertEqual(len(list(self.temp.iterdir())), 2)
         with patch.object(probe.shutil, "rmtree", side_effect=original):
             self.assertEqual(self.invoke(cleanup=True), (0, "foundry_prerequisites_cleanup=complete\n", ""))
@@ -470,6 +474,35 @@ class CleanupTests(unittest.TestCase):
                 self.assertEqual(self.unowned.read_bytes(), b"preserve")
 
 
+class FailureStageTests(unittest.TestCase):
+    def test_only_fixed_categories_are_emitted_without_exception_details(self):
+        failures = [(probe.CheckError(code), stage) for code, stage in probe.FAILURE_STAGES.items()]
+        failures.extend([
+            (probe.CheckError("private-url private-token private-path"), "unexpected_io"),
+            (OSError("private-url private-token private-path"), "unexpected_io"),
+            (ValueError("private-url private-token private-path"), "unexpected_io"),
+            (error.URLError("private-url private-token private-path"), "download"),
+            (tarfile.ReadError("private-url private-token private-path"), "archive"),
+            (subprocess.TimeoutExpired("private-command", 1, output="private-output"), "timeout"),
+            (RuntimeError("private-url private-token private-path"), "unexpected_io"),
+        ])
+        for failure, stage in failures:
+            with self.subTest(kind=type(failure).__name__, stage=stage):
+                out, err = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    probe.report_failure(failure)
+                self.assertEqual((out.getvalue(), err.getvalue()), (f"failure_stage={stage}\n", "foundry_prerequisites_check_failed\n"))
+                if not isinstance(failure, RuntimeError):
+                    with (
+                        patch.object(sys, "argv", ["check_foundry_prerequisites.py"]),
+                        patch.object(probe, "run", side_effect=failure),
+                        contextlib.redirect_stdout(out := io.StringIO()),
+                        contextlib.redirect_stderr(err := io.StringIO()),
+                    ):
+                        self.assertEqual(probe.main(), 1)
+                    self.assertEqual((out.getvalue(), err.getvalue()), (f"failure_stage={stage}\n", "foundry_prerequisites_check_failed\n"))
+
+
 class ProcessTests(unittest.TestCase):
     def test_process_group_stops_before_return_or_failure(self):
         with (
@@ -515,7 +548,7 @@ with patch.dict("os.environ", {
             stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=10, check=False,
         )
         self.assertNotEqual(result.returncode, 0)
-        self.assertEqual((result.stdout, result.stderr), ("", "foundry_prerequisites_check_failed\n"))
+        self.assertEqual((result.stdout, result.stderr), ("failure_stage=unexpected_io\n", "foundry_prerequisites_check_failed\n"))
 
 
 class OfficialScriptFixtureTests(unittest.TestCase):
@@ -586,6 +619,17 @@ class WorkflowTests(unittest.TestCase):
     def workflow():
         return (Path(__file__).parents[1] / "workflows" / "check-foundry-prerequisites.yml").read_text()
 
+    def blocks(self):
+        blocks = []
+        for part in self.workflow().split("        run: |\n")[1:]:
+            lines = []
+            for line in part.splitlines():
+                if line and not line.startswith("          "):
+                    break
+                lines.append(line)
+            blocks.append(textwrap.dedent("\n".join(lines)) + "\n")
+        return blocks
+
     def test_main_only_approval_gated_read_only_private_runner_contract(self):
         workflow = self.workflow()
         for expected in (
@@ -610,18 +654,17 @@ class WorkflowTests(unittest.TestCase):
             self.assertNotIn(forbidden, workflow)
         self.assertEqual(workflow.count("contents: read"), 2)
         self.assertEqual(workflow.count("uses:"), 1)
+        for expected in ("BASH_ENV: /dev/null", "ENV: /dev/null", "PATH: /usr/local/bin:/usr/bin:/bin"):
+            self.assertIn(expected, workflow)
+        self.assertIn(
+            "    env:\n      PATH: /usr/local/bin:/usr/bin:/bin\n      BASH_ENV: /dev/null\n      ENV: /dev/null\n",
+            workflow,
+        )
 
     def test_workflow_shell_syntax_and_exclusive_source_cleanup_offline(self):
         bash = shutil.which("bash")
         self.assertIsNotNone(bash, "Use existing Bash only; no installation is permitted.")
-        blocks = []
-        for part in self.workflow().split("        run: |\n")[1:]:
-            lines = []
-            for line in part.splitlines():
-                if line and not line.startswith("          "):
-                    break
-                lines.append(line)
-            blocks.append(textwrap.dedent("\n".join(lines)) + "\n")
+        blocks = self.blocks()
         self.assertEqual(len(blocks), 3)
         for block in blocks:
             result = subprocess.run(
@@ -674,12 +717,135 @@ class WorkflowTests(unittest.TestCase):
             marker = source / ".run-owned"
             marker.write_text("unowned")
             rejected = execute(blocks[2])
-            self.assertEqual((rejected.returncode, rejected.stdout, rejected.stderr), (1, "", "prerequisite_cleanup_failed\n"))
+            self.assertEqual((rejected.returncode, rejected.stdout, rejected.stderr), (1, "failure_stage=cleanup\n", "prerequisite_cleanup_failed\n"))
             self.assertTrue(sentinel.exists())
             marker.write_text("12345:1\n")
             removed = execute(blocks[2])
             self.assertEqual((removed.returncode, removed.stdout, removed.stderr), (0, "", ""))
             self.assertEqual(list(root.iterdir()), [unowned])
+
+    def test_both_launchers_have_exact_environment_and_isolated_python_offline(self):
+        bash = shutil.which("bash")
+        self.assertIsNotNone(bash)
+        blocks = self.blocks()
+        keys = (
+            "PATH", "GITHUB_REF", "GITHUB_REF_PROTECTED", "GITHUB_EVENT_NAME",
+            "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "RUNNER_TEMP",
+        )
+        for block in (blocks[1], blocks[2]):
+            launch = block.split("/usr/bin/env -i \\\n", 1)[1].split("python3 -I", 1)[0]
+            self.assertEqual(
+                tuple(line.strip().split("=", 1)[0] for line in launch.splitlines() if line.strip()),
+                keys,
+            )
+        # Replace only the env executable in the test, never run the live helper.
+        fixture = """
+fake_env() {
+  [[ "$#" == "$EXPECTED_COUNT" && "$1" == -i ]] || return 20
+  shift
+  [[ "$1" == PATH=/usr/local/bin:/usr/bin:/bin ]] || return 21
+  shift
+  [[ "$1" == GITHUB_REF=refs/heads/main ]] || return 22
+  shift
+  [[ "$1" == GITHUB_REF_PROTECTED=true ]] || return 23
+  shift
+  [[ "$1" == GITHUB_EVENT_NAME=workflow_dispatch ]] || return 24
+  shift
+  [[ "$1" == GITHUB_RUN_ID=12345 ]] || return 25
+  shift
+  [[ "$1" == GITHUB_RUN_ATTEMPT=1 ]] || return 26
+  shift
+  [[ "$1" == RUNNER_TEMP=fixture-temp ]] || return 27
+  shift
+  [[ "$1" == python3 && "$2" == -I ]] || return 28
+  shift 2
+  [[ "$1" == foundry-prerequisite-source-12345-1/checkout/.github/scripts/check_foundry_prerequisites.py ]] || return 29
+  shift
+  [[ "${1:-}" == "$EXPECTED_ARGUMENT" ]] || return 30
+  if [[ "$FAIL_LAUNCH" == true ]]; then
+    printf '%s\\n' "$FAILURE_OUTPUT"
+    echo "private-loader-error private-machine-path" >&2
+    return 31
+  fi
+  if [[ "$EXPECTED_ARGUMENT" == --cleanup ]]; then
+    echo "foundry_prerequisites_cleanup=complete"
+  else
+    printf 'azd_version=1.37.3\\nfoundry_prerequisites=ready\\n'
+  fi
+}
+"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "foundry-prerequisite-source-12345-1"
+            script = source / "checkout" / ".github" / "scripts" / "check_foundry_prerequisites.py"
+            env = {
+                "PATH": "/usr/bin:/bin",
+                "BASH_ENV": "/dev/null", "ENV": "/dev/null",
+                "PYTHONPATH": "untrusted-pythonpath",
+                "PYTHONHOME": "untrusted-pythonhome",
+                "GH_TOKEN": "private-token",
+                "GITHUB_REF": "refs/heads/main",
+                "GITHUB_REF_PROTECTED": "true",
+                "GITHUB_EVENT_NAME": "workflow_dispatch",
+                "GITHUB_RUN_ID": "12345", "GITHUB_RUN_ATTEMPT": "1",
+                "RUNNER_TEMP": "fixture-temp",
+            }
+            for index in (1, 2):
+                for failure_output in (
+                    None, *(f"failure_stage={stage}" for stage in set(probe.FAILURE_STAGES.values()) | {"timeout", "unexpected_io"}),
+                    "", "private-loader-error", "failure_stage=download\nprivate-path",
+                ):
+                    fail = failure_output is not None
+                    with self.subTest(index=index, failure_output=failure_output):
+                        script.parent.mkdir(parents=True, exist_ok=True)
+                        script.write_bytes(b"never-execute-fixture")
+                        (source / ".run-owned").write_text("12345:1\n")
+                        env.update({
+                            "EXPECTED_COUNT": "11" if index == 1 else "12",
+                            "EXPECTED_ARGUMENT": "" if index == 1 else "--cleanup",
+                            "FAIL_LAUNCH": "true" if fail else "false",
+                            "FAILURE_OUTPUT": failure_output or "",
+                        })
+                        result = subprocess.run(
+                            [bash], input=fixture + blocks[index].replace("/usr/bin/env", "fake_env"),
+                            cwd=root, env=env, capture_output=True, text=True,
+                            timeout=10, check=False,
+                        )
+                        expected_error = "foundry_prerequisites_check_failed\n" if index == 1 else "prerequisite_cleanup_failed\n"
+                        expected_stage = failure_output.split("=", 1)[1] if failure_output and failure_output.startswith("failure_stage=") and "\n" not in failure_output else "launcher"
+                        expected_success = "azd_version=1.37.3\nfoundry_prerequisites=ready\n" if index == 1 else "foundry_prerequisites_cleanup=complete\n"
+                        self.assertEqual(
+                            (result.returncode, result.stdout, result.stderr),
+                            (1, f"failure_stage={expected_stage}\n", expected_error) if fail else (0, expected_success, ""),
+                        )
+
+    def test_job_environment_neutralizes_bash_startup_hooks_before_launch(self):
+        bash = shutil.which("bash")
+        self.assertIsNotNone(bash)
+        assignments = self.workflow().split("    env:\n", 1)[1].split("    defaults:", 1)[0]
+        job_env = dict(line.strip().split(": ", 1) for line in assignments.splitlines() if line.strip())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            hook = root / "untrusted-startup.sh"
+            hook.write_text("echo 'untrusted-startup-executed' >&2\nexit 71\n")
+            env = {"BASH_ENV": str(hook), "ENV": str(hook)}
+            env.update(job_env)
+            result = subprocess.run(
+                [bash], input="echo shell_startup=isolated\n", cwd=root, env=env,
+                capture_output=True, text=True, timeout=10, check=False,
+            )
+            self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "shell_startup=isolated\n", ""))
+
+    def test_python_isolated_mode_ignores_poisoned_python_startup_offline(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "sitecustomize.py").write_text("raise RuntimeError('untrusted startup executed')")
+            env = {"PATH": probe.SYSTEM_PATH, "PYTHONPATH": str(root), "PYTHONHOME": str(root)}
+            result = subprocess.run(
+                [sys.executable, "-I", "-c", "import sys; assert sys.flags.isolated == 1; print('isolated_python=ready')"],
+                cwd=root, env=env, capture_output=True, text=True, timeout=10, check=False,
+            )
+            self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "isolated_python=ready\n", ""))
 
 
 if __name__ == "__main__":

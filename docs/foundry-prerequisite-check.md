@@ -14,6 +14,14 @@ It does not replace the Model Router rollout checks.
 The source checkout is exclusive to this run, does not persist credentials, and
 does not clean an existing checkout. Every shell step validates positive numeric
 run and attempt identifiers before constructing a run-owned path.
+Job-level PATH is fixed to `/usr/local/bin:/usr/bin:/bin`, and `BASH_ENV` and
+`ENV` point to `/dev/null` before Bash starts. Both Python launches use
+`/usr/bin/env -i` and `python3 -I`. Their complete environment allowlist is
+PATH, `GITHUB_REF`, `GITHUB_REF_PROTECTED`, `GITHUB_EVENT_NAME`,
+`GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT`, and `RUNNER_TEMP`.
+Python startup cannot inherit PYTHONPATH, user site packages, credentials,
+loader settings, or shell hooks. Launcher errors are suppressed and replaced
+with fixed nonsecret diagnostics; no extra runtime variables are needed.
 The prerequisite helper creates a unique
 private temporary directory, with a separate HOME, every XDG directory,
 `AZD_CONFIG_DIR`, `AZURE_CONFIG_DIR`, and temporary-file directory. Subprocesses
@@ -42,8 +50,17 @@ registry and release assets. This is not an offline runtime check and does not
 create publicly reachable resources. The extension release is selected by the
 official script, not separately pinned by this helper.
 
-Only a sanitized azd version and readiness are printed by the helper; child
-output, exceptions, paths, commits, and identifiers are suppressed. Standard
+Only a sanitized azd version and readiness are printed on success. Failures
+print the fixed `foundry_prerequisites_check_failed` marker and an allowlisted
+`failure_stage`: `context`, `download`, `checksum`, `archive`, `missing_bash`,
+`skill_execution`, `version`, `cleanup`, `timeout`, `interruption`, or
+`unexpected_io`. Unrecognized exceptions map to `unexpected_io`, without
+exception text. The launcher accepts only these exact categories or exact
+success output; empty, malformed, or unrecognized launcher output maps to
+`launcher`. Source reservation and path validation use fixed failure markers;
+source ownership failures report `cleanup`. Cleanup's outer failure marker
+is `prerequisite_cleanup_failed`.
+Child output, exceptions, URLs, paths, commits, and identifiers are suppressed. Standard
 GitHub checkout action logs are separate from this sanitized helper output.
 Checks fail closed on unexpected official-script output, mismatched hashes,
 unsafe archives, unsupported platforms, or missing tools.
