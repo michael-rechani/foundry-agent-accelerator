@@ -431,6 +431,27 @@ class DeploymentSDKTests(unittest.TestCase):
         self.client.agents.delete_version.assert_not_called()
         self.client.agents.enable.assert_not_called()
 
+    def test_unrecognized_provisioning_status_is_redacted(self):
+        marker = "fictional-sensitive-status"
+        for status in (None, True, {"fictional": marker}, marker):
+            with self.subTest(status_type=type(status).__name__):
+                def invalid(*, agent_name, agent_version, status=status):
+                    details = self.read_version(agent_name=agent_name, agent_version=agent_version)
+                    if agent_version == "2":
+                        details["status"] = status
+                    return details
+
+                self.client.agents.get_version.side_effect = invalid
+                with redirect_stdout(io.StringIO()) as output:
+                    with self.assertRaises(RuntimeError) as caught:
+                        deploy(self.profile, self.args)
+                self.assertEqual(str(caught.exception), "The agent version provisioning status was not confirmed")
+                self.assertNotIn(marker, output.getvalue())
+                self.candidate.assert_not_called()
+                self.client.agents.update_details.assert_not_called()
+                self.client.agents.delete_version.assert_not_called()
+                self.client.agents.enable.assert_not_called()
+
     def test_parent_states_fail_closed_before_creation(self):
         for state, configuration in (("disabled", "enabled"), ("enabled", "disabled"),
                                       (None, "enabled"), ("enabled", None),
