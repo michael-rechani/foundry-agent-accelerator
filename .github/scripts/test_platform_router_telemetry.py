@@ -128,7 +128,7 @@ def inspect_graph(bundle, binary):
         cli_config(home, bundle / "mirror")
         checked_process(binary, root, home, ["init", "-backend=false", "-get=false", "-lockfile=readonly", "-input=false", "-no-color"])
         graph = checked_process(binary, root, home, ["graph", "-type=plan"]).decode()
-    provider_nodes = sorted(set(re.findall(r'provider\["registry\.terraform\.io/azure/modtm"\](?:\.[A-Za-z0-9_]+)?', graph.replace('\"', '"'))))
+    provider_nodes = sorted(set(re.findall(r'provider\["registry\.terraform\.io/azure/modtm"\](?:\.[A-Za-z0-9_]+)?', graph.replace(chr(92) + chr(34), chr(34)))))
     references = [line.strip() for line in graph.splitlines() if "modtm_telemetry" in line and "provider" in line]
     if len(references) != len(telemetry) or provider_nodes != ['provider["' + PROVIDER + '"]']:
         raise RuntimeError("Missing or aliased resolved telemetry graph edges.")
