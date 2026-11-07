@@ -170,3 +170,10 @@ extraction; hostile synthetic and actual retained-archive tests passed. It remai
 unintegrated and does not establish provenance, trusted same-UID/host isolation or
 an immutable credentialed handoff. Its constraints are narrower than generic tar
 and it does not make retained `.git` metadata trusted.
+
+A separate [metadata-free derivation prototype](platform-dependency-gitless.md)
+now omits only independently inventoried module-cache `.git` directories in a
+fresh derived bundle. The exact retained archive passed credential-free Linux
+readonly init, full schema/module-graph comparison and validate without those
+directories. This is an unapproved observation, not credentialed integration or
+proof of immutable handoff, source/provider provenance or shared-host isolation.
