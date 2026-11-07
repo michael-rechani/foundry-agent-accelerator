@@ -4,7 +4,6 @@ No general tar/PAX/sparse support, credentials, Terraform, or trust derivation.
 """
 import argparse
 import ctypes
-import errno
 import hashlib
 import os
 from pathlib import Path
@@ -128,10 +127,12 @@ def field(raw):
         raise ExtractionError("Non-ASCII tar field is outside the transport contract.") from None
 
 
-def number(raw, maximum):
+def number(raw, maximum, empty_zero=False):
     if raw[0] & 0x80:
         raise ExtractionError("Base256/sparse numeric headers are unsupported.")
     value = raw.strip(b"\0 ")
+    if not value and empty_zero:
+        return 0
     if not value or not re.fullmatch(b"[0-7]+", value):
         raise ExtractionError("Malformed octal tar metadata.")
     value = int(value, 8)
@@ -187,9 +188,10 @@ def validate_tar(stream, length):
         gid = number(header[116:124], 2**31 - 1)
         size = number(header[124:136], MAX_FILE)
         number(header[136:148], 2**40)
-        field(header[265:297])
-        field(header[297:329])
-        if number(header[329:337], 0) or number(header[337:345], 0):
+        for metadata_name in (field(header[265:297]), field(header[297:329])):
+            if metadata_name and not re.fullmatch(r"[A-Za-z0-9_.-]{1,32}", metadata_name):
+                raise ExtractionError("Unsafe owner/group metadata.")
+        if number(header[329:337], 0, empty_zero=True) or number(header[337:345], 0, empty_zero=True):
             raise ExtractionError("Device metadata is not accepted.")
         kind = header[156:157]
         name = field(header[:100])
@@ -326,13 +328,15 @@ def cleanup_owned(root_fd):
 
 def publish_exclusive(parent_fd, staging, destination):
     libc = ctypes.CDLL(None, use_errno=True)
-    rename = libc.renameat2
+    try:
+        rename = libc.renameat2
+    except AttributeError:
+        raise ExtractionError("Linux no-replace publication is unavailable.") from None
     rename.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
     rename.restype = ctypes.c_int
     if rename(parent_fd, staging.encode(), parent_fd, destination.encode(), 1) != 0:
         code = ctypes.get_errno()
         raise OSError(code, "Exclusive extraction publication failed.")
-    os.fsync(parent_fd)
 
 
 def extract(archive, expected_sha256, parent, destination):
@@ -340,7 +344,10 @@ def extract(archive, expected_sha256, parent, destination):
         raise ExtractionError("A separately supplied archive SHA256 is required.")
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", destination or ""):
         raise ExtractionError("Destination must be one bounded child name.")
-    parent_fd = trusted_parent(parent)
+    try:
+        parent_fd = trusted_parent(parent)
+    except OSError:
+        raise ExtractionError("Trusted parent descriptor access failed.") from None
     stage_fd = None
     staging = ".closure-extract-" + secrets.token_hex(16)
     created = False
@@ -365,11 +372,14 @@ def extract(archive, expected_sha256, parent, destination):
             same_directory(parent_fd, staging, stage_fd)
             extract_validated(expanded, entries, stage_fd)
         same_directory(parent_fd, staging, stage_fd)
+        os.fsync(stage_fd)
+        os.fsync(parent_fd)
         publish_exclusive(parent_fd, staging, destination)
         published = True
-        same_directory(parent_fd, destination, stage_fd)
         return Path(parent) / destination / ROOT
     except (OSError, zlib.error, ExtractionError) as exc:
+        if created and not published and stage_fd is None:
+            raise ExtractionError("Extraction failed; reserved staging descriptor ownership unavailable.") from None
         if created and not published and stage_fd is not None:
             try:
                 same_directory(parent_fd, staging, stage_fd)
