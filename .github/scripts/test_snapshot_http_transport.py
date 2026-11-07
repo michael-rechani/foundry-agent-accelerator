@@ -218,6 +218,14 @@ class TransportTests(unittest.TestCase):
                 self.assertEqual([connection.host for connection in FixtureConnection.made],
                                  ["state.example.invalid", "input.example.invalid"] * 2)
 
+    def test_bound_invalid_baseline_still_rechecks_both_approved_roles(self):
+        FixtureConnection.close_failure = "fictional-close-token fictional-close-body"
+        diagnostic = mock.Mock(return_value=guard.DIAGNOSTIC_SUCCESS)
+        self.assertEqual(self.reader.guarded_diagnostic(TARGETS, diagnostic), guard.UNVERIFIED)
+        diagnostic.assert_not_called()
+        self.assertEqual([connection.host for connection in FixtureConnection.made],
+                         ["state.example.invalid", "input.example.invalid"] * 2)
+
     def test_sealed_replacement_after_validation_cannot_send_to_new_target(self):
         def diagnostic():
             object.__setattr__(self.reader, "_targets", (

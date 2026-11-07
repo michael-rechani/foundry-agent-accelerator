@@ -1,5 +1,4 @@
 import asyncio
-import copy
 import contextlib
 import io
 import os
@@ -93,14 +92,14 @@ class Tests(unittest.TestCase):
             with self.subTest(phase=phase):
                 calls = []
                 stdout, stderr = io.StringIO(), io.StringIO()
-                def read(role):
+                def read(role, calls=calls, phase=phase):
                     calls.append(role)
                     print('FICTIONAL_SECRET')
                     stage = 'before' if len(calls) <= 2 else 'after'
                     if phase == stage + ('-state' if role == 'platform_state' else '-input'):
                         raise TimeoutError('FICTIONAL_SECRET')
                     return fixture()[role]
-                def diagnostic():
+                def diagnostic(phase=phase):
                     print('FICTIONAL_SECRET')
                     if phase == 'error': raise RuntimeError('FICTIONAL_SECRET')
                     if phase == 'timeout': raise TimeoutError('FICTIONAL_SECRET')
@@ -119,13 +118,13 @@ class Tests(unittest.TestCase):
         for role in guard.ROLES:
             for failed in (False, True):
                 calls = []
-                def read(name):
+                def read(name, calls=calls, role=role):
                     calls.append(name)
                     pair = fixture()
                     if len(calls) > 2:
                         change(pair, role, 'ETag', '"changed"')
                     return pair[name]
-                def diagnostic():
+                def diagnostic(failed=failed):
                     if failed: raise RuntimeError('FICTIONAL_SECRET')
                 self.assertEqual(guard.guarded_diagnostic(EXPECTED, read, diagnostic), guard.UNVERIFIED)
                 self.assertEqual(calls, ['platform_state', 'input'] * 2)
@@ -149,7 +148,7 @@ class Tests(unittest.TestCase):
         for case in ('identity', 'schema', 'locked', 'both-read-errors'):
             with self.subTest(case=case):
                 calls = []
-                def read(role):
+                def read(role, calls=calls, case=case):
                     calls.append(role)
                     if case == 'both-read-errors': raise RuntimeError('FICTIONAL_SECRET')
                     pair = fixture()
@@ -252,10 +251,10 @@ class Tests(unittest.TestCase):
         for value in (guard.DIAGNOSTIC_SUCCESS,) + values:
             with self.subTest(value_type=type(value).__name__):
                 calls = []
-                def read(role):
+                def read(role, calls=calls):
                     calls.append(role)
                     return fixture()[role]
-                outcome = guard.guarded_diagnostic(EXPECTED, read, lambda: value)
+                outcome = guard.guarded_diagnostic(EXPECTED, read, lambda value=value: value)
                 self.assertEqual(outcome, guard.PASSED if value is guard.DIAGNOSTIC_SUCCESS else guard.FAILED)
                 self.assertEqual(calls, ['platform_state', 'input'] * 2)
 
@@ -272,7 +271,7 @@ class Tests(unittest.TestCase):
         for factory in (FictionalAwaitable, unexecuted):
             with self.subTest(factory=factory.__name__):
                 calls = []
-                def read(role):
+                def read(role, calls=calls):
                     calls.append(role)
                     return fixture()[role]
                 stdout, stderr = io.StringIO(), io.StringIO()
@@ -294,7 +293,7 @@ class Tests(unittest.TestCase):
             for invalid in ('state-change', 'input-invalid', 'input-read-failure'):
                 with self.subTest(outcome=outcome, invalid=invalid):
                     calls = []
-                    def read(role):
+                    def read(role, calls=calls, invalid=invalid):
                         calls.append(role)
                         snap = fixture()
                         if len(calls) > 2 and role == 'platform_state' and invalid == 'state-change':
@@ -304,7 +303,7 @@ class Tests(unittest.TestCase):
                         if len(calls) > 2 and role == 'input' and invalid == 'input-read-failure':
                             raise TimeoutError('FICTIONAL_SECRET')
                         return snap[role]
-                    def diagnostic():
+                    def diagnostic(outcome=outcome):
                         if outcome == 'raise': raise RuntimeError('FICTIONAL_SECRET')
                         if outcome == 'cancel': raise KeyboardInterrupt('FICTIONAL_SECRET')
                         return {'success': guard.DIAGNOSTIC_SUCCESS, 'false': False,
@@ -348,10 +347,10 @@ class Tests(unittest.TestCase):
             future = loop.create_future()
             for result in (coroutine, future):
                 calls = []
-                def read(role):
+                def read(role, calls=calls):
                     calls.append(role)
                     return fixture()[role]
-                self.assertEqual(guard.guarded_diagnostic(EXPECTED, read, lambda: result), guard.FAILED)
+                self.assertEqual(guard.guarded_diagnostic(EXPECTED, read, lambda result=result: result), guard.FAILED)
                 self.assertEqual(calls, ['platform_state', 'input'] * 2)
             self.assertEqual(events, ['began'])
             self.assertFalse(future.done())
