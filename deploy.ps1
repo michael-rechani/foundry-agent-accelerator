@@ -41,6 +41,7 @@ param(
     [string]$Tag,
     [string[]]$Agent,
     [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$')][string]$AgentModel,
+    [ValidateNotNullOrEmpty()][string]$CoordinatorProfile,
     [string]$ModelQuotaName = 'OpenAI.GlobalStandard.gpt-4.1',
     [int]$ModelCapacity = 10,
     [string]$GitHubRepository,
@@ -449,8 +450,47 @@ function Invoke-VerifyStage {
     Invoke-PrivateCheck (Join-Path $PSScriptRoot 'workbench/test-private.ps1') $url (-not $IncludeAgentCall)
 }
 
+function Get-ValidatedCoordinatorTarget([string]$ProfilePath) {
+    $validation = @(Invoke-Native 'python' @(
+        (Join-Path $PSScriptRoot 'hosted-agents/review-coordinator-agent/deploy.py'),
+        '--profile', $ProfilePath, '--validate-profile'
+    ))
+    $targets = @($validation | Where-Object { "$_" -cmatch '^Valid profile: (.+)$' })
+    if ($targets.Count -ne 1) { throw 'Coordinator validation did not report one unambiguous profile target.' }
+    $target = ([regex]::Match("$($targets[0])", '^Valid profile: (.+)$')).Groups[1].Value
+    foreach ($line in $validation) { Write-Host "$line" }
+    $target
+}
+
 function Invoke-AgentsStage {
     if (-not $Agent) { throw 'Name the agents to publish with -Agent, specialists before coordinators. Publishing is billable and changes routing.' }
+    $profilePath = $null
+    $coordinatorTarget = $null
+    if ($CoordinatorProfile) {
+        if ($Stage -notcontains 'agents') { throw '-CoordinatorProfile requires -Stage agents.' }
+        if ([string]::IsNullOrWhiteSpace($CoordinatorProfile)) { throw '-CoordinatorProfile must name one file.' }
+        $coordinators = @($Agent | Where-Object { $_ -ceq 'review-coordinator-agent' })
+        if ($coordinators.Count -ne 1 -or $Agent[-1] -cne 'review-coordinator-agent') {
+            throw '-CoordinatorProfile requires exactly one review-coordinator-agent, last in -Agent (specialists before coordinator).'
+        }
+        if (@($Agent | Select-Object -Unique).Count -ne $Agent.Count) { throw 'A profiled batch must not repeat agent names.' }
+        foreach ($name in $Agent) {
+            if ($name -cnotmatch '^[a-z0-9-]+$' -or -not (Test-Path -LiteralPath (Join-Path $PSScriptRoot "hosted-agents/$name/deploy.py") -PathType Leaf)) {
+                throw "No deployable agent named $name under hosted-agents."
+            }
+        }
+        $requestedPath = if ([IO.Path]::IsPathRooted($CoordinatorProfile)) { $CoordinatorProfile } else { Join-Path $PSScriptRoot $CoordinatorProfile }
+        $resolved = @(Resolve-Path -LiteralPath $requestedPath -ErrorAction Stop)
+        if ($resolved.Count -ne 1 -or $resolved[0].Provider.Name -ne 'FileSystem' -or -not (Test-Path -LiteralPath $resolved[0].ProviderPath -PathType Leaf)) {
+            throw '-CoordinatorProfile must resolve to one filesystem file.'
+        }
+        $profilePath = $resolved[0].ProviderPath
+        $coordinatorTarget = Get-ValidatedCoordinatorTarget $profilePath
+        if ($Agent -ccontains $coordinatorTarget -and $coordinatorTarget -cne 'review-coordinator-agent') {
+            throw 'The coordinator profile target conflicts with another agent in this batch.'
+        }
+        Write-Host "Selected coordinator profile: $profilePath; publication target: $coordinatorTarget. Validation is offline, not publication approval."
+    }
     Initialize-PlatformRoot
     $endpoint = Get-Native $TerraformCommand @("-chdir=$platformDir", 'output', '-raw', 'foundry_project_endpoint')
     if ($AgentModel) {
@@ -474,10 +514,20 @@ function Invoke-AgentsStage {
         Invoke-Native 'python' @('-m', 'venv', $venv)
         $python = Join-Path $venv $(if ($IsWindows) { 'Scripts/python.exe' } else { 'bin/python' })
         Invoke-Native $python @('-m', 'pip', 'install', '--quiet', '-r', (Join-Path $sample 'requirements-deploy.txt'))
-        if (-not (Confirm-Apply "publishing $name (creates a billable version and changes routing)")) { throw "Publishing $name was not approved." }
+        $arguments = @((Join-Path $sample 'deploy.py'))
+        $publicationTarget = $name
+        if ($profilePath -and $name -ceq 'review-coordinator-agent') {
+            $arguments += @('--profile', $profilePath)
+            if ((Get-ValidatedCoordinatorTarget $profilePath) -cne $coordinatorTarget) { throw 'Coordinator profile target changed after batch validation; stop and review the batch again.' }
+            $publicationTarget = "$coordinatorTarget from profile $profilePath"
+        }
+        if (-not (Confirm-Apply "publishing $publicationTarget (creates a billable version and changes routing)")) { throw "Publishing $publicationTarget was not approved." }
+        if ($profilePath -and $name -ceq 'review-coordinator-agent') {
+            if ((Get-ValidatedCoordinatorTarget $profilePath) -cne $coordinatorTarget) { throw 'Coordinator profile target changed after approval; stop and review the batch again.' }
+        }
         $env:FOUNDRY_PROJECT_ENDPOINT = $endpoint
         $env:FOUNDRY_MODEL_NAME = $model
-        try { Invoke-Native $python @((Join-Path $sample 'deploy.py')) } finally {
+        try { Invoke-Native $python $arguments } finally {
             Remove-Item Env:FOUNDRY_PROJECT_ENDPOINT, Env:FOUNDRY_MODEL_NAME -ErrorAction SilentlyContinue
         }
     }
@@ -486,6 +536,7 @@ function Invoke-AgentsStage {
 # Dot-sourcing loads only the functions, so tests can call them.
 if ($MyInvocation.InvocationName -eq '.') { return }
 if (-not $Subscription) { throw '-Subscription is required.' }
+if ($CoordinatorProfile -and $Stage -notcontains 'agents') { throw '-CoordinatorProfile requires -Stage agents.' }
 
 $selected = Get-StageOrder $Stage
 foreach ($name in $selected) {

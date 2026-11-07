@@ -15,6 +15,9 @@ Assert-Equal 0 $parse.Count 'deploy.ps1 parses without errors'
 try { & { . $script -Subscription $subscription -AgentModel 'invalid model' }; throw 'invalid agent model accepted' } catch {
     if ($_.Exception.Message -notmatch 'AgentModel') { throw }
 }
+try { & { . $script -Subscription $subscription -CoordinatorProfile '' }; throw 'empty coordinator profile accepted' } catch {
+    if ($_.Exception.Message -notmatch 'CoordinatorProfile') { throw }
+}
 
 Assert-Equal 'preflight,platform,verify' ((Get-StageOrder @('verify', 'platform', 'preflight')) -join ',') 'stages run in the fixed order'
 Assert-Equal 'platform,runner,lab,identity,verify' ((Get-StageOrder @('identity', 'verify', 'lab', 'runner', 'platform')) -join ',') 'runner follows platform and identity follows lab'
@@ -272,8 +275,20 @@ try {
         }
     }
     function Invoke-Native([string]$Command, [string[]]$Arguments) {
-        if ($Arguments.Count -eq 1 -and $Arguments[0] -match 'deploy\.py$') {
+        if ($Arguments -contains '--validate-profile') {
+            $script:validations++
+            Assert-Equal 'python' $Command 'profile validation uses offline system Python before dependencies'
+            Assert-Equal 4 $Arguments.Count 'validation forwards only profile and offline flag'
+            Assert-Equal $script:profileFile $Arguments[2] 'validation keeps the literal profile path as one argument'
+            if ($script:validationError) { throw $script:validationError }
+            if ($script:ambiguousTarget) { return @('Valid profile: customer-review-coordinator', 'Valid profile: other-coordinator') }
+            $target = if ($script:changeTargetAt -and $script:validations -ge $script:changeTargetAt) { 'changed-coordinator' } else { $script:profileTarget }
+            return @("Valid profile: $target", '  inspect_application -> application-review-agent', '  inspect_case -> case-review-agent')
+        }
+        if ($Arguments[0] -match 'deploy\.py$') {
             $script:publishedModels.Add($env:FOUNDRY_MODEL_NAME)
+            $script:publicationCalls.Add([pscustomobject]@{ Command = $Command; Arguments = @($Arguments); Endpoint = $env:FOUNDRY_PROJECT_ENDPOINT })
+            if ($script:publicationError) { throw 'Fictional publication failure.' }
         }
     }
     $Agent = @('basic-responses-agent')
@@ -281,6 +296,7 @@ try {
     $script:modelOutputReads = 0
     $script:failModelOutput = $false
     $script:publishedModels = [Collections.Generic.List[string]]::new()
+    $script:publicationCalls = [Collections.Generic.List[object]]::new()
     $script:agentOutputs = $routerOutputs
     $stageOutput = (Invoke-AgentsStage 6>&1 | Out-String)
     if ($stageOutput -match 'private-sensitive-value') { throw 'Agent publication logged a sensitive Terraform output.' }
@@ -307,6 +323,144 @@ try {
     Invoke-AgentsStage
     Assert-Equal 'explicit-fixed' $script:publishedModels[-1] 'explicit agent model overrides the Router'
     Assert-Equal 0 $script:modelOutputReads 'explicit agent model does not read all platform outputs'
+
+    $AgentModel = $null
+    $Stage = @('agents')
+    $script:agentOutputs = $routerOutputs
+    $script:profileFile = Join-Path $temporary 'fictional profile; literal.json'
+    $fictionalProfile = @{
+        schema_version = 1; name = 'customer-review-coordinator'
+        description = 'Fictional offline profile'; instructions = 'Review fictional supplied evidence only.'
+        specialists = @(
+            @{ tool = 'inspect_application'; agent = 'application-review-agent'; description = 'Fictional checklist' },
+            @{ tool = 'inspect_case'; agent = 'case-review-agent'; description = 'Fictional case notes' })
+        smoke_tests = @(
+            @{ tool = 'inspect_application'; prompt = 'APP-TEST has no fictional budget.' },
+            @{ tool = 'inspect_case'; prompt = 'CASE-TEST has conflicting fictional dates.' })
+    }
+    Set-Content -LiteralPath $script:profileFile -Value ($fictionalProfile | ConvertTo-Json -Depth 5)
+    # Exercise the coordinator's real standard-library-only validator, never its publication path.
+    $validator = Join-Path (Split-Path $script) 'hosted-agents/review-coordinator-agent/deploy.py'
+    $actualValidation = & python $validator --profile $script:profileFile --validate-profile
+    Assert-Equal 0 $LASTEXITCODE 'fictional profile passes the real offline validator without SDK dependencies'
+    Assert-Equal 'Valid profile: customer-review-coordinator' $actualValidation[0] 'real validator identifies the actual profile target'
+    $badProfileFile = Join-Path $temporary 'invalid-profile.json'
+    Set-Content -LiteralPath $badProfileFile -Value '{}'
+    $null = & python $validator --profile $badProfileFile --validate-profile 2>&1
+    if ($LASTEXITCODE -eq 0) { throw 'The real validator accepted an invalid profile.' }
+    $env:FOUNDRY_HOSTED_AGENT_NAME = 'incompatible-test-override'
+    try {
+        $null = & python $validator --profile $script:profileFile --validate-profile 2>&1
+        if ($LASTEXITCODE -eq 0) { throw 'The real validator accepted an incompatible environment name override.' }
+    } finally { Remove-Item Env:FOUNDRY_HOSTED_AGENT_NAME }
+    $null = & python $validator --profile $script:profileFile --validate-profile --agent-name incompatible-test-override 2>&1
+    if ($LASTEXITCODE -eq 0) { throw 'The real validator accepted an incompatible CLI name override.' }
+
+    $CoordinatorProfile = $script:profileFile
+    $Agent = @('application-review-agent', 'case-review-agent', 'review-coordinator-agent')
+    $script:profileTarget = 'customer-review-coordinator'
+    $script:validations = 0
+    $script:approvalLabels = [Collections.Generic.List[string]]::new()
+    function Confirm-Apply([string]$Label) {
+        $script:approvalLabels.Add($Label)
+        if ($script:declineCoordinator -and $Label -match 'customer-review-coordinator') { return $false }
+        $script:approval
+    }
+    $before = $script:publicationCalls.Count
+    $stageOutput = (Invoke-AgentsStage 6>&1 | Out-String)
+    $calls = @($script:publicationCalls | Select-Object -Skip $before)
+    Assert-Equal 3 $calls.Count 'profiled batch publishes all approved agents'
+    Assert-Equal 'application-review-agent,case-review-agent,review-coordinator-agent' (($calls | ForEach-Object { Split-Path (Split-Path $_.Arguments[0]) -Leaf }) -join ',') 'specialists publish before coordinator'
+    foreach ($call in $calls[0..1]) { Assert-Equal 1 $call.Arguments.Count 'specialists receive no coordinator profile arguments' }
+    Assert-Equal 3 $calls[2].Arguments.Count 'coordinator receives script and two profile arguments'
+    Assert-Equal '--profile' $calls[2].Arguments[1] 'coordinator receives the explicit profile flag'
+    Assert-Equal $script:profileFile $calls[2].Arguments[2] 'spaces and shell metacharacters remain one literal argument'
+    Assert-Equal 'custom-router' $script:publishedModels[-1] 'profile forwarding preserves Router default'
+    Assert-Equal 3 $script:approvalLabels.Count 'every publication still requires separate approval'
+    if ($script:approvalLabels[-1] -notmatch 'publishing customer-review-coordinator from profile' -or $script:approvalLabels[-1] -notmatch [regex]::Escape($script:profileFile)) {
+        throw 'Coordinator approval did not identify the actual profile target and file.'
+    }
+    if ($stageOutput -notmatch 'publication target: customer-review-coordinator') { throw 'Batch preflight did not identify the selected target.' }
+    Assert-Equal $false (Test-Path Env:FOUNDRY_PROJECT_ENDPOINT) 'successful profile publication clears project environment'
+    Assert-Equal $false (Test-Path Env:FOUNDRY_MODEL_NAME) 'successful profile publication clears model environment'
+    $CoordinatorProfile = [IO.Path]::GetRelativePath((Split-Path $script), $script:profileFile)
+    $script:agentOutputs = $fixedOutputs
+    Invoke-AgentsStage
+    Assert-Equal $script:profileFile $script:publicationCalls[-1].Arguments[2] 'repository-relative profile resolves to the same literal file'
+    Assert-Equal 'gpt-4.1' $script:publishedModels[-1] 'profile forwarding preserves fixed-model recovery'
+    $AgentModel = 'explicit-fixed'; $script:modelOutputReads = 0
+    Invoke-AgentsStage
+    Assert-Equal 'explicit-fixed' $script:publishedModels[-1] 'explicit model override still wins for a profile'
+    Assert-Equal 0 $script:modelOutputReads 'profile with explicit model does not read model outputs'
+    $AgentModel = $null; $script:agentOutputs = $routerOutputs
+
+    foreach ($case in @(
+            @{ Profile = (Join-Path $temporary 'missing.json'); Agents = $Agent; Stages = @('agents'); Error = 'does not exist|Cannot find path' },
+            @{ Profile = (Join-Path $temporary 'fictional*.json'); Agents = $Agent; Stages = @('agents'); Error = 'does not exist|Cannot find path' },
+            @{ Profile = $temporary; Agents = $Agent; Stages = @('agents'); Error = 'one filesystem file' },
+            @{ Profile = '   '; Agents = $Agent; Stages = @('agents'); Error = 'must name one file' },
+            @{ Profile = $script:profileFile; Agents = @('application-review-agent'); Stages = @('agents'); Error = 'exactly one' },
+            @{ Profile = $script:profileFile; Agents = @('review-coordinator-agent', 'case-review-agent'); Stages = @('agents'); Error = 'last in' },
+            @{ Profile = $script:profileFile; Agents = @('review-coordinator-agent', 'review-coordinator-agent'); Stages = @('agents'); Error = 'exactly one' },
+            @{ Profile = $script:profileFile; Agents = @('application-review-agent', 'application-review-agent', 'review-coordinator-agent'); Stages = @('agents'); Error = 'must not repeat' },
+            @{ Profile = $script:profileFile; Agents = @('nonexistent-agent', 'review-coordinator-agent'); Stages = @('agents'); Error = 'No deployable agent' },
+            @{ Profile = $script:profileFile; Agents = $Agent; Stages = @('verify'); Error = 'requires -Stage agents' },
+            @{ Profile = $script:profileFile; Agents = $Agent; Stages = @('agents'); ValidationError = 'Fictional invalid profile.'; Error = 'invalid profile' },
+            @{ Profile = $script:profileFile; Agents = $Agent; Stages = @('agents'); ValidationError = 'Unset FOUNDRY_HOSTED_AGENT_NAME when using a profile'; Error = 'Unset FOUNDRY_HOSTED_AGENT_NAME' },
+            @{ Profile = $script:profileFile; Agents = $Agent; Stages = @('agents'); Ambiguous = $true; Error = 'unambiguous profile target' },
+            @{ Profile = $script:profileFile; Agents = $Agent; Stages = @('agents'); Target = 'application-review-agent'; Error = 'conflicts with another agent' })) {
+        $CoordinatorProfile = $case.Profile; $Agent = $case.Agents; $Stage = $case.Stages
+        $script:validationError = $case.ValidationError; $script:ambiguousTarget = $case.Ambiguous
+        $script:profileTarget = if ($case.Target) { $case.Target } else { 'customer-review-coordinator' }
+        $before = $script:publicationCalls.Count; $approvalsBefore = $script:approvalLabels.Count
+        try { Invoke-AgentsStage; throw 'invalid profile batch accepted' } catch {
+            if ($_.Exception.Message -notmatch $case.Error) { throw }
+        }
+        Assert-Equal $before $script:publicationCalls.Count 'profile preflight rejection occurs before any batch publication'
+        Assert-Equal $approvalsBefore $script:approvalLabels.Count 'profile preflight rejection occurs before publication approvals'
+    }
+    $script:validationError = $null; $script:ambiguousTarget = $false; $script:profileTarget = 'customer-review-coordinator'
+    $CoordinatorProfile = $script:profileFile; $Stage = @('agents')
+    $Agent = @('review-coordinator-agent')
+    $script:approval = $false
+    $before = $script:publicationCalls.Count
+    try { Invoke-AgentsStage; throw 'declined profile publication accepted' } catch {
+        if ($_.Exception.Message -notmatch 'not approved') { throw }
+    }
+    Assert-Equal $before $script:publicationCalls.Count 'declining coordinator approval publishes nothing'
+    Assert-Equal $false (Test-Path Env:FOUNDRY_PROJECT_ENDPOINT) 'declined profile approval leaves no project environment'
+    Assert-Equal $false (Test-Path Env:FOUNDRY_MODEL_NAME) 'declined profile approval leaves no model environment'
+    $script:approval = $true
+    $Agent = @('application-review-agent', 'case-review-agent', 'review-coordinator-agent')
+    $script:declineCoordinator = $true
+    try { Invoke-AgentsStage; throw 'declined coordinator after specialists accepted' } catch {
+        if ($_.Exception.Message -notmatch 'not approved') { throw }
+    }
+    Assert-Equal ($before + 2) $script:publicationCalls.Count 'declined coordinator leaves only separately approved specialists published'
+    Assert-Equal $false (Test-Path Env:FOUNDRY_PROJECT_ENDPOINT) 'declined coordinator after specialists clears project environment'
+    Assert-Equal $false (Test-Path Env:FOUNDRY_MODEL_NAME) 'declined coordinator after specialists clears model environment'
+    $script:declineCoordinator = $false; $Agent = @('review-coordinator-agent')
+    $before = $script:publicationCalls.Count
+    foreach ($changeAt in 2, 3) {
+        $script:validations = 0; $script:changeTargetAt = $changeAt
+        try { Invoke-AgentsStage; throw 'changed profile target accepted' } catch {
+            if ($_.Exception.Message -notmatch 'profile target changed') { throw }
+        }
+        Assert-Equal $before $script:publicationCalls.Count 'observed target changes before or after approval stop coordinator publication'
+    }
+    $script:changeTargetAt = $null
+    $script:publicationError = $true
+    try { Invoke-AgentsStage; throw 'publication failure ignored' } catch {
+        if ($_.Exception.Message -notmatch 'Fictional publication failure') { throw }
+    }
+    Assert-Equal $false (Test-Path Env:FOUNDRY_PROJECT_ENDPOINT) 'failed profile publication clears project environment'
+    Assert-Equal $false (Test-Path Env:FOUNDRY_MODEL_NAME) 'failed profile publication clears model environment'
+    $script:publicationError = $false
+    $CoordinatorProfile = $null
+    $before = $script:validations
+    Invoke-AgentsStage
+    Assert-Equal 1 $script:publicationCalls[-1].Arguments.Count 'omitting the profile preserves base coordinator invocation'
+    Assert-Equal $before $script:validations 'omitting the profile never silently validates or selects the example'
 
     $file = Join-Path $temporary 'x.tfvars'
     Set-Content -LiteralPath $file -Value "registry_name = `"abc123`"`n# image = `"no`""

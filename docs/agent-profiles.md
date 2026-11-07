@@ -257,6 +257,53 @@ Profiles hold configuration and smoke-test prompts, never credentials or
 customer records. They don't create specialists or grant role-based access
 control (RBAC) automatically.
 
+### Opt in through the agents stage
+
+The existing `deploy.ps1 -Stage agents` entry point also accepts an explicit
+`-CoordinatorProfile` file. This is an invocation example, **not authorization
+to run it**; private execution and publication/promotion remain separately gated:
+
+```powershell
+./deploy.ps1 -Subscription <reviewed-subscription-id> -Stage agents `
+  -Agent application-review-agent,case-review-agent,review-coordinator-agent `
+  -CoordinatorProfile hosted-agents/review-coordinator-agent/profiles/evidence-review.example.json
+```
+
+No profile is selected when this option is omitted: the coordinator remains
+`review-coordinator-agent`, not the Lab's `customer-review-coordinator` target.
+The example is never selected implicitly. Relative profile paths resolve from
+the repository root containing `deploy.ps1`, not the caller's current directory;
+absolute filesystem paths are also supported. Paths are literal, with no glob
+expansion, and are forwarded as separate arguments, not executable shell text.
+
+A profiled batch requires exactly one `review-coordinator-agent`, last in the
+agent list, with no repeated or missing agent entries. Before platform
+initialization, dependency installation, or any publication, the stage resolves
+one existing profile file and invokes the coordinator's own offline
+`--validate-profile` using system Python. That validator owns profile rules and
+continues to reject incompatible `FOUNDRY_HOSTED_AGENT_NAME` and CLI name
+overrides. Validation failure, ambiguous target output, a target conflicting with
+another selected agent, or an option outside the agents stage stops the batch.
+The selected target and file are displayed before the first publication.
+Specialists still precede the coordinator, and each publication still needs its
+own interactive approval; coordinator approval identifies the profile's actual
+target and file. Profile arguments go only to the coordinator. Router output
+preference, fixed-model fallback, explicit `-AgentModel` override, and cleanup of
+the project/model environment variables after publication remain unchanged.
+
+The profile is validated again before coordinator approval and after approval;
+an observed target-name change stops coordinator publication. These are
+point-in-time checks, **not source immutability or a filesystem lock**. The file,
+instructions, bindings, source code, or name-override environment can still
+change between checks and use, including changes made by another process with
+the same user identity. Specialists already published are not undone when a
+later check or approval fails. Specialist routing can also change independently
+between validation and live checks; named bindings do not pin versions.
+Serialize profile/source and routing changes, review the staged artifacts and
+recovery inventory, and retain the existing live delegation and promotion
+gates. This offline wiring does not demonstrate readiness for private execution,
+grant privileges, publish an agent, or remove any existing deployment blocker.
+
 ## Swap lifecycle
 
 1. Deploy and independently test the replacement specialist. Verify its named
