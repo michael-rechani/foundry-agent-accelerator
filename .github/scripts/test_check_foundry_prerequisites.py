@@ -745,6 +745,27 @@ class ProcessTests(unittest.TestCase):
                 probe._signal_owned_group(process, 456)
             kill.assert_not_called()
 
+    def test_missing_group_is_not_success_for_a_live_or_uninspectable_leader(self):
+        process = MagicMock(pid=123, returncode=None)
+        with patch.object(probe.os, "waitid", return_value=None), \
+                patch.object(probe.os, "getpgid", side_effect=ProcessLookupError), \
+                patch.object(probe.os, "killpg") as kill:
+            with self.assertRaises(probe.CheckError):
+                probe._signal_owned_group(process, 456)
+            kill.assert_not_called()
+        with patch.object(probe.os, "waitid", return_value=None), \
+                patch.object(probe.os, "getpgid", return_value=123), \
+                patch.object(probe.os, "killpg", side_effect=ProcessLookupError) as kill:
+            with self.assertRaises(probe.CheckError):
+                probe._signal_owned_group(process, 456)
+            kill.assert_called_once()
+        status = MagicMock(si_pid=123, si_code=os.CLD_EXITED)
+        with patch.object(probe.os, "waitid", return_value=status), \
+                patch.object(probe.os, "getpgid", return_value=123), \
+                patch.object(probe.os, "killpg", side_effect=ProcessLookupError) as kill:
+            probe._signal_owned_group(process, 456)
+            kill.assert_called_once()
+
     def test_wrong_group_or_wait_status_is_refused(self):
         process = MagicMock(pid=123, returncode=None)
         with patch.object(probe.os, "waitid", return_value=None), \

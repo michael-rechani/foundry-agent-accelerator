@@ -193,15 +193,19 @@ def _signal_owned_group(process, pidfd):
     _require_process_supervision()
     _owned_child_status(process, pidfd)
     try:
-        if os.getpgid(process.pid) != process.pid:
-            raise CheckError("cleanup")
-        # WNOWAIT retains the owned leader (including its zombie) until after signaling.
-        _owned_child_status(process, pidfd)
+        group = os.getpgid(process.pid)
+    except OSError:
+        raise CheckError("cleanup") from None
+    if group != process.pid:
+        raise CheckError("cleanup")
+    # WNOWAIT retains the owned leader (including its zombie) until after signaling.
+    _owned_child_status(process, pidfd)
+    try:
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
-        # No group to signal; do not retry a numeric group after reaping.
-        _owned_child_status(process, pidfd)
-
+        # Absence is acceptable only for an exited, still-owned leader.
+        if _owned_child_status(process, pidfd) is None:
+            raise CheckError("cleanup") from None
 
 def command(args, cwd, env):
     _require_process_supervision()
