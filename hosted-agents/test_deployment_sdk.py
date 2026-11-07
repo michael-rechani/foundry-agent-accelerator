@@ -231,9 +231,7 @@ class DeploymentSDKTests(unittest.TestCase):
                 with self.assertRaises(type(error)):
                     deploy(self.profile, self.args)
                 self.assertEqual(self.endpoint, self.original)
-                self.client.agents.delete_version.assert_called_once_with(
-                    agent_name=self.profile.name, agent_version="2", force=True,
-                )
+                self.client.agents.delete_version.assert_not_called()
 
     def test_restore_removes_only_the_responses_protocol_added_by_promotion(self):
         for protocols in (ProtocolConfiguration(mcp=McpProtocolConfiguration()), None):
@@ -261,7 +259,7 @@ class DeploymentSDKTests(unittest.TestCase):
                 else:
                     self.assertIsNone(restore["protocol_configuration"]["responses"])
                     self.assertEqual(restore["protocol_configuration"]["mcp"], {})
-                self.client.agents.delete_version.assert_called_once()
+                self.client.agents.delete_version.assert_not_called()
 
     def test_existing_responses_configuration_is_preserved_during_recovery(self):
         self.endpoint.protocol_configuration.responses["extra_setting"] = "preserved"
@@ -271,7 +269,7 @@ class DeploymentSDKTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "smoke failed"):
             deploy(self.profile, self.args)
         self.assertEqual(self.endpoint, self.original)
-        self.client.agents.delete_version.assert_called_once()
+        self.client.agents.delete_version.assert_not_called()
 
     def test_split_route_is_restored_exactly_after_smoke_failure(self):
         self.endpoint.version_selector.version_selection_rules = [
@@ -283,7 +281,7 @@ class DeploymentSDKTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "smoke failed"):
             deploy(self.profile, self.args)
         self.assertEqual(self.endpoint, self.original)
-        self.client.agents.delete_version.assert_called_once()
+        self.client.agents.delete_version.assert_not_called()
 
     def test_recovery_version_lost_after_promotion_leaves_candidate_untouched(self):
         state = {"recovery_active": True}
@@ -313,7 +311,7 @@ class DeploymentSDKTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "smoke failed"):
             deploy(self.profile, self.args)
         self.assertEqual(self.endpoint, self.original)
-        self.client.agents.delete_version.assert_called_once()
+        self.client.agents.delete_version.assert_not_called()
 
     def test_promotion_timeout_after_server_update_restores_the_original_route(self):
         def accepted_then_failed(**kwargs):
@@ -326,7 +324,7 @@ class DeploymentSDKTests(unittest.TestCase):
             deploy(self.profile, self.args)
         self.assertEqual(self.endpoint, self.original)
         self.assertEqual(self.client.agents.update_details.call_count, 2)
-        self.client.agents.delete_version.assert_called_once()
+        self.client.agents.delete_version.assert_not_called()
         self.smoke.assert_not_called()
 
     def test_attempted_route_is_snapshotted_before_the_sdk_call(self):
@@ -340,7 +338,7 @@ class DeploymentSDKTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "promotion response lost"):
             deploy(self.profile, self.args)
         self.assertEqual(self.endpoint, self.original)
-        self.client.agents.delete_version.assert_called_once()
+        self.client.agents.delete_version.assert_not_called()
 
     def test_failure_after_another_operator_changes_the_route_does_not_overwrite_it(self):
         def change_route(*args):
@@ -396,11 +394,9 @@ class DeploymentSDKTests(unittest.TestCase):
             {"type": "function_call_output", "call_id": "call-1", "output": json.dumps(receipt)},
         ])
 
-    def assert_rolled_back_and_deleted(self):
+    def assert_rolled_back_and_retained(self):
         self.assertEqual(self.endpoint, self.original)
-        self.client.agents.delete_version.assert_called_once_with(
-            agent_name=self.profile.name, agent_version="2", force=True,
-        )
+        self.client.agents.delete_version.assert_not_called()
 
     def test_a_lookup_skipped_once_is_retried_and_the_new_version_stays_promoted(self):
         calls, error = self.run_with_lookup_check(self.reply([]), self.lookup())
@@ -409,17 +405,17 @@ class DeploymentSDKTests(unittest.TestCase):
         self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
         self.client.agents.delete_version.assert_not_called()
 
-    def test_a_lookup_skipped_twice_rolls_back_and_deletes_the_new_version(self):
+    def test_a_lookup_skipped_twice_rolls_back_and_retains_the_new_version(self):
         calls, error = self.run_with_lookup_check(self.reply([]), self.reply([]), self.lookup())
         self.assertEqual(str(error), "Expected exactly one search_policy_guidance tool call")
         self.assertEqual(calls, 3)
-        self.assert_rolled_back_and_deleted()
+        self.assert_rolled_back_and_retained()
 
-    def test_a_wrong_tool_fails_on_the_first_attempt_and_rolls_back_and_deletes_the_new_version(self):
+    def test_a_wrong_tool_fails_on_the_first_attempt_and_rolls_back_and_retains_the_new_version(self):
         calls, error = self.run_with_lookup_check(self.lookup(tool="other_tool"), self.lookup())
         self.assertIsInstance(error, RuntimeError)
         self.assertEqual(calls, 2)
-        self.assert_rolled_back_and_deleted()
+        self.assert_rolled_back_and_retained()
 
     def test_changed_route_before_promotion_is_not_overwritten(self):
         def creating(**kwargs):
