@@ -29,9 +29,12 @@ def supervise(argv, *, timeout=2.0, grace=2.0, output_limit=65536):
     """Run a bounded command; never treat an unverified result as teardown proof."""
     if (
         sys.platform != "linux"
+        or not hasattr(os, "pidfd_open")
+        or not hasattr(signal, "pidfd_send_signal")
         or not isinstance(argv, list)
         or not argv
-        or any(not isinstance(arg, str) or "\x00" in arg for arg in argv)
+        or len(argv) > 128
+        or any(not isinstance(arg, str) or len(arg) > _REQUEST_LIMIT or "\x00" in arg for arg in argv)
         or not os.path.isabs(argv[0])
         or not isinstance(timeout, (int, float))
         or not isinstance(grace, (int, float))
@@ -64,7 +67,9 @@ def supervise(argv, *, timeout=2.0, grace=2.0, output_limit=65536):
         return _unverified()
     data = bytearray()
     valid = True
+    supervisor_fd = None
     try:
+        supervisor_fd = os.pidfd_open(proc.pid, 0)
         proc.stdin.write(request)
         proc.stdin.close()
         os.set_blocking(proc.stdout.fileno(), False)
@@ -95,15 +100,22 @@ def supervise(argv, *, timeout=2.0, grace=2.0, output_limit=65536):
                     valid = proc.wait(timeout=remaining) == 0
                 except subprocess.TimeoutExpired:
                     valid = False
-    except (OSError, ValueError):
+    except (OSError, ValueError, AttributeError, KeyboardInterrupt):
         valid = False
     finally:
-        if not valid:
+        proc.stdin.close()
+        if not valid and supervisor_fd is not None:
             try:
-                proc.kill()
+                # A pidfd remains bound even if the supervisor has exited or been reaped.
+                signal.pidfd_send_signal(supervisor_fd, signal.SIGKILL)
                 proc.wait(timeout=0.2)
             except (OSError, subprocess.TimeoutExpired):
-                pass
+                valid = False
+        if supervisor_fd is not None:
+            try:
+                os.close(supervisor_fd)
+            except OSError:
+                valid = False
         proc.stdout.close()
     if not valid:
         return _unverified()
@@ -117,7 +129,8 @@ def supervise(argv, *, timeout=2.0, grace=2.0, output_limit=65536):
 
 def _has_no_children():
     try:
-        os.waitpid(-1, os.WNOHANG)
+        # Refuse a preexisting child without reaping or otherwise controlling it.
+        os.waitid(os.P_ALL, 0, os.WEXITED | os.WNOHANG | os.WNOWAIT)
     except ChildProcessError:
         return True
     return False

@@ -186,5 +186,157 @@ class OwnedProcessTests(unittest.TestCase):
         self.assertEqual(subject.supervise(command("pass"), timeout=0), subject.Result(False, "unverified"))
 
 
+
+class OwnershipFailureTests(unittest.TestCase):
+    def request(self, **kwargs):
+        return {"argv": command("pass"), "timeout": 1, "grace": 1,
+                "output_limit": 0, **kwargs}
+
+    def flow(self, *, fail=None, chunks=(), limit=0):
+        """Mock only OS ownership operations; execute the real supervision loop."""
+        events = []
+        proc = mock.Mock(pid=123, stdout=io.BytesIO(), stderr=io.BytesIO())
+        selector = mock.MagicMock()
+        selector.__enter__.return_value = selector
+        queued = list(chunks)
+
+        def select(_timeout):
+            if not queued:
+                return []
+            key = mock.Mock(fd=9)
+            return [(key, 1)]
+
+        def read(_fd, _size):
+            return queued.pop(0)
+
+        def observe(*_args):
+            events.append("observe")
+            if fail == "waitid":
+                raise ChildProcessError()
+            return mock.Mock(si_code=subject.os.CLD_EXITED, si_status=0)
+
+        def group(_pid, _signal):
+            events.append("signal")
+            if fail == "signal":
+                raise PermissionError()
+
+        def reap(*_args):
+            events.append("reap")
+            if fail == "reap":
+                raise PermissionError()
+            if events.count("reap") == 1:
+                return 123, 0
+            raise ChildProcessError()
+
+        selector.select.side_effect = select
+        selector.get_map.side_effect = lambda: bool(queued)
+        with (
+            mock.patch.object(subject, "_set_subreaper"),
+            mock.patch.object(subject, "_has_no_children", return_value=True),
+            mock.patch.object(subject.subprocess, "Popen", return_value=proc),
+            mock.patch.object(subject.os, "pidfd_open", return_value=7),
+            mock.patch.object(subject.os, "close"),
+            mock.patch.object(subject.os, "set_blocking"),
+            mock.patch.object(subject.os, "getpgrp", return_value=456),
+            mock.patch.object(subject.os, "getpgid", return_value=456 if fail == "pgid" else 123),
+            mock.patch.object(subject.os, "getsid", return_value=456 if fail == "sid" else 123),
+            mock.patch.object(subject.os, "waitid", side_effect=observe),
+            mock.patch.object(subject.os, "waitpid", side_effect=reap),
+            mock.patch.object(subject.os, "killpg", side_effect=group),
+            mock.patch.object(subject.os, "read", side_effect=read),
+            mock.patch.object(subject.selectors, "DefaultSelector", return_value=selector),
+        ):
+            if fail in ("waitid", "signal", "reap"):
+                with self.assertRaises(OSError):
+                    subject._supervisor(self.request(output_limit=limit))
+                result = None
+            else:
+                result = subject._supervisor(self.request(output_limit=limit))
+        return result, events
+
+    def test_signal_precedes_every_reap_and_echild_is_required(self):
+        result, events = self.flow()
+        self.assertEqual(result, "success")
+        self.assertEqual(events, ["observe", "observe", "signal", "reap", "reap"])
+
+    def test_ownership_and_signal_reap_errors_never_certify(self):
+        for failure in ("waitid", "pgid", "sid", "signal", "reap"):
+            with self.subTest(failure=failure):
+                result, events = self.flow(fail=failure)
+                self.assertIsNone(result)
+                if failure in ("waitid", "pgid", "sid"):
+                    self.assertNotIn("signal", events)
+                    self.assertNotIn("reap", events)
+                elif failure == "signal":
+                    self.assertNotIn("reap", events)
+                else:
+                    self.assertLess(events.index("signal"), events.index("reap"))
+                    self.assertEqual(events.count("signal"), 1)
+
+    def test_queued_output_exact_boundary_and_aggregate(self):
+        for chunks, limit, expected in (
+            ([b"abc", b"def", b""], 6, "success"),
+            ([b"abc", b"def", b""], 5, "output_limit"),
+        ):
+            with self.subTest(limit=limit):
+                result, _ = self.flow(chunks=chunks, limit=limit)
+                self.assertEqual(result, expected)
+
+    def test_preexisting_children_are_observed_not_reaped(self):
+        for observed in (None, mock.Mock(si_pid=99)):
+            with (
+                mock.patch.object(subject.os, "waitid", return_value=observed),
+                mock.patch.object(subject.os, "waitpid") as reap,
+            ):
+                self.assertFalse(subject._has_no_children())
+                reap.assert_not_called()
+        with mock.patch.object(subject.os, "waitid", side_effect=ChildProcessError):
+            self.assertTrue(subject._has_no_children())
+        with (
+            mock.patch.object(subject, "_set_subreaper"),
+            mock.patch.object(subject, "_has_no_children", return_value=False),
+            mock.patch.object(subject.subprocess, "Popen") as spawn,
+        ):
+            self.assertIsNone(subject._supervisor(self.request()))
+            spawn.assert_not_called()
+
+    def test_outer_interrupt_uses_bound_pidfd_not_numeric_signal(self):
+        proc = mock.Mock(stdin=io.BytesIO(), stdout=io.BytesIO())
+        selector = mock.MagicMock()
+        selector.__enter__.return_value = selector
+        selector.select.side_effect = KeyboardInterrupt()
+        with (
+            mock.patch.object(subject.subprocess, "Popen", return_value=proc),
+            mock.patch.object(subject.os, "pidfd_open", return_value=7),
+            mock.patch.object(subject.os, "set_blocking"),
+            mock.patch.object(subject.os, "close") as close,
+            mock.patch.object(subject.signal, "pidfd_send_signal") as signal_fd,
+            mock.patch.object(subject.selectors, "DefaultSelector", return_value=selector),
+        ):
+            self.assertEqual(subject.supervise(command("pass")), subject.Result(False, "unverified"))
+        signal_fd.assert_called_once_with(7, signal.SIGKILL)
+        close.assert_called_once_with(7)
+        proc.kill.assert_not_called()
+        proc.wait.assert_called_once_with(timeout=.2)
+
+    def test_outer_missing_binding_does_not_signal(self):
+        proc = mock.Mock(stdin=io.BytesIO(), stdout=io.BytesIO())
+        with (
+            mock.patch.object(subject.subprocess, "Popen", return_value=proc),
+            mock.patch.object(subject.os, "pidfd_open", side_effect=OSError),
+            mock.patch.object(subject.signal, "pidfd_send_signal") as signal_fd,
+        ):
+            self.assertEqual(subject.supervise(command("pass")), subject.Result(False, "unverified"))
+        signal_fd.assert_not_called()
+        proc.kill.assert_not_called()
+        proc.wait.assert_not_called()
+        self.assertTrue(proc.stdin.closed)
+
+    def test_input_allocation_bound_before_serialization(self):
+        with mock.patch.object(subject.json, "dumps") as serialize:
+            for argv in ([sys.executable] * 129, [sys.executable, "x" * 4097]):
+                self.assertEqual(subject.supervise(argv), subject.Result(False, "unverified"))
+            serialize.assert_not_called()
+
 if __name__ == "__main__":
     unittest.main()

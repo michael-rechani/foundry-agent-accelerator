@@ -166,3 +166,12 @@ python -m unittest test_check_foundry_prerequisites.ProcessTests test_check_foun
 Historical full-file tests that expect prerequisite setup success no longer describe
 this disabled execution boundary. They were not run as proof of readiness. Focused
 tests never install Foundry tools/extensions or access Azure or private data.
+## Meta-package readiness is not component-closure verification
+
+The exact pinned public dependency script considers `microsoft.foundry`
+present by matching that ID in `azd extension list --installed`. It does not
+independently verify component versions, executables, or hashes. Microsoft
+documents [seven independently versioned core extensions in the bundle](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/install-cli-foundry-extensions).
+A ready message is therefore not independent authenticated-closure evidence.
+This source-level limitation does not imply that an actual runner is missing
+anything; no Foundry or azd execution was performed.

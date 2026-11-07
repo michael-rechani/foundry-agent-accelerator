@@ -48,3 +48,12 @@ supervisor calls plus injected faults, and retain the existing focused
 disabled-launcher receipt and cleanup tests. They do not execute Foundry setup
 or access Azure. Passing those tests is conditional evidence under the above
 trust and cooperation assumptions, not a claim about a hostile host.
+
+The outer caller binds the supervisor itself with a pidfd before submitting
+work. Failure or interruption cleanup signals only that retained descriptor,
+never a numeric supervisor PID or worker group. A missing binding closes the
+request pipe and returns unverified without signaling. The supervisor owns
+all of its children exclusively; its Python runtime and no-other-reaper
+assumption are part of the trust model. Before spawn, child observation uses
+WNOWAIT and does not reap a preexisting child. Input count and character
+length are bounded before serialization, with a separate encoded-wire cap.
