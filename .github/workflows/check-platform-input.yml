@@ -1,30 +1,29 @@
-name: Offline literal-peer snapshot tests
+name: Check historical platform input candidate
+
 on:
-  push:
-    branches: [michael-rechani-snapshot-peer-offline]
+  workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: terraform-state-access
+  cancel-in-progress: false
+
 jobs:
-  synthetic:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
+  check:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+    runs-on: [self-hosted, linux, lab-runner]
+    environment: terraform-state
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
-        with:
-          python-version: "3.14"
-      - name: Run fictional tests without credentials
-        run: |
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python --version
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python -m unittest discover -s .github/scripts -p 'test_snapshot*.py' -v
-      - name: Check focused Python files with pinned Ruff
-        run: |
-          availability=$(env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python -c 'import importlib.util; print("present" if importlib.util.find_spec("ruff") else "missing")')
-          if [ "$availability" = "missing" ]; then
-            env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python -m pip install --quiet --disable-pip-version-check ruff==0.17.3
-          elif [ "$availability" != "present" ]; then
-            exit 1
-          fi
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python -m ruff check --config ruff.toml .github/scripts/snapshot_http_transport.py .github/scripts/snapshot_peer_transport.py .github/scripts/test_snapshot_peer_transport.py
+      - name: Check candidate presence
+        env:
+          TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
+        run: python3 .github/scripts/check_platform_input.py

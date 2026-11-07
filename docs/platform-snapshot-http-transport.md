@@ -243,3 +243,21 @@ separate supervision. Concurrent external configuration/library/context mutation
 and hostile same-process code are not isolated here. Snapshots remain sequential
 and non-atomic. No rollout, Azure/Foundry, provider/Terraform, protected workflow,
 identity/role change, private runner, PR, merge or live integration is introduced.
+
+Peer prototype tested head:
+`9fb4cea1a88469a342d2705e333d5b95462874f5` on
+`michael-rechani-snapshot-peer-offline`.
+[Hosted run 42423547921](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42423547921)
+passed **68 test executions** on Python 3.14.10: all 50 baseline tests, 12 new
+peer/TLS tests and 6 inherited TLS regressions repeated for the peer fixture.
+Root-config Ruff 0.17.3 passed on the base transport, peer module and new tests.
+The temporary branch-only workflow used pinned checkout/setup-python,
+`contents: read` only, scrubbed non-root execution, no environment, OIDC,
+credentials, sudo, Docker, private runner or artifacts. Only missing pinned Ruff
+was installed; local OpenSSL generated fictional ephemeral test certificates.
+No project code was executed locally.
+
+Before handoff, the temporary workflow is restored to original blob
+`13fea116e0cd70aa8f5d8cabcb9b893743e23c95`; final code/test blobs match the tested
+head. The baseline guard and all original test blobs are unchanged. This records
+synthetic mechanics, not real port-443 or Azure/private-network authorization.
