@@ -306,6 +306,46 @@ class GitlessTests(unittest.TestCase):
                 derivation.verify_derived(wrapper, source, digest)
             self.assertEqual(closure.inventory(source), before)
 
+    def test_inventory_bounds_and_copy_growth_stop_before_publication(self):
+        for bound in ('MAX_ENTRIES', 'MAX_TOTAL_BYTES', 'MAX_FILE_BYTES'):
+            with self.subTest(bound=bound), tempfile.TemporaryDirectory() as folder:
+                base = Path(folder)
+                source = base / 'source'
+                source.mkdir()
+                digest = fixture(source)
+                parent = base / 'parent'
+                parent.mkdir(mode=0o700)
+                with patch.object(derivation, bound, 2):
+                    with self.assertRaises(derivation.DerivationError):
+                        derivation.derive(source, digest, parent, 'out')
+                self.assertEqual(list(parent.iterdir()), [])
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            source = base / 'source'
+            source.mkdir()
+            digest = fixture(source)
+            parent = base / 'parent'
+            parent.mkdir(mode=0o700)
+            real_read = derivation.os.read
+            real_copy = derivation.copy_inventory
+            active = False
+            count = 0
+            def start(source_fd, output_fd, records):
+                nonlocal active
+                active = True
+                real_copy(source_fd, output_fd, records)
+            def endless(fd, size):
+                nonlocal count
+                if active:
+                    count += 1
+                    return b'x' * size
+                return real_read(fd, size)
+            with patch.object(derivation, 'copy_inventory', start), patch.object(derivation.os, 'read', endless):
+                with self.assertRaisesRegex(derivation.DerivationError, 'grew beyond verified size'):
+                    derivation.derive(source, digest, parent, 'out')
+            self.assertLess(count, 4)
+            self.assertEqual(list(parent.iterdir()), [])
+
 if __name__ == '__main__':
     if os.name != 'posix':
         raise SystemExit('Linux required')

@@ -16,6 +16,11 @@ import extract_platform_dependencies as extraction
 import platform_dependency_closure as closure
 
 
+MAX_ENTRIES = 20000
+MAX_TOTAL_BYTES = 2_000_000_000
+MAX_FILE_BYTES = 150_000_000
+
+
 class DerivationError(Exception):
     pass
 
@@ -48,11 +53,20 @@ def open_absolute_directory(path):
         raise
 
 
-def fd_inventory(root_fd, prefix="", expected=None):
+def fd_inventory(root_fd, prefix="", expected=None, budget=None):
+    if budget is None:
+        budget = {"entries": 0, "bytes": 0}
+    if len(prefix.split("/")) > 34:
+        raise DerivationError("Source inventory depth bound exceeded.")
+    names = []
+    with os.scandir(root_fd) as entries:
+        for entry in entries:
+            budget["entries"] += 1
+            if budget["entries"] > MAX_ENTRIES:
+                raise DerivationError("Source inventory entry bound exceeded.")
+            names.append(entry.name)
     records = {}
-    for name in sorted(os.listdir(root_fd)):
-        if len(records) > 20000 or len(prefix.split("/")) > 34:
-            raise DerivationError("Source inventory count/depth bound exceeded.")
+    for name in sorted(names):
         relative = prefix + name
         closure.safe_relative(relative)
         if expected is not None and relative not in expected:
@@ -65,7 +79,7 @@ def fd_inventory(root_fd, prefix="", expected=None):
                 if (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino):
                     raise DerivationError("Source directory changed during inventory.")
                 records[relative] = {"sha256": "directory", "mode": stat.S_IMODE(current.st_mode)}
-                records.update(fd_inventory(fd, relative + "/", expected))
+                records.update(fd_inventory(fd, relative + "/", expected, budget))
             finally:
                 os.close(fd)
         elif stat.S_ISREG(info.st_mode) and info.st_nlink == 1:
@@ -74,13 +88,16 @@ def fd_inventory(root_fd, prefix="", expected=None):
                 current = os.fstat(fd)
                 if (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino) or current.st_nlink != 1:
                     raise DerivationError("Source file changed during inventory.")
-                if current.st_size > 150_000_000:
+                if current.st_size > MAX_FILE_BYTES:
                     raise DerivationError("Source file exceeds captured transport bound.")
                 digest = hashlib.sha256()
                 read = 0
                 while chunk := os.read(fd, 65536):
                     read += len(chunk)
-                    if read > 150_000_000:
+                    budget["bytes"] += len(chunk)
+                    if budget["bytes"] > MAX_TOTAL_BYTES:
+                        raise DerivationError("Source inventory aggregate byte bound exceeded.")
+                    if read > MAX_FILE_BYTES:
                         raise DerivationError("Source file grew beyond captured transport bound.")
                     digest.update(chunk)
                 after = os.fstat(fd)
@@ -161,18 +178,24 @@ def select_omissions(manifest):
 
 def copy_regular(source_fd, output_fd, name, expected):
     parts = name.split("/")
-    source_parent = extraction.open_relative(source_fd, parts[:-1])
-    output_parent = extraction.open_relative(output_fd, parts[:-1])
-    source_file = output_file = None
+    source_parent = output_parent = source_file = output_file = None
     try:
+        source_parent = extraction.open_relative(source_fd, parts[:-1])
+        output_parent = extraction.open_relative(output_fd, parts[:-1])
         source_file = os.open(parts[-1], extraction.FLAGS, dir_fd=source_parent)
         before = os.fstat(source_file)
         if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or stat.S_IMODE(before.st_mode) != expected["mode"]:
             raise DerivationError("Source copy file type/mode changed.")
+        if before.st_size > MAX_FILE_BYTES:
+            raise DerivationError("Source copy file byte bound exceeded.")
         output_file = os.open(parts[-1], os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
                               0o600, dir_fd=output_parent)
         digest = hashlib.sha256()
+        copied = 0
         while chunk := os.read(source_file, 65536):
+            copied += len(chunk)
+            if copied > MAX_FILE_BYTES or copied > before.st_size:
+                raise DerivationError("Source copy grew beyond verified size bound.")
             extraction.write_all(output_file, chunk)
             digest.update(chunk)
         after = os.fstat(source_file)
@@ -218,7 +241,8 @@ def write_json(root_fd, name, value):
 
 
 def verify_derived(wrapper, original, original_digest):
-    manifest = closure.check(original, original_digest)
+    manifest, original_fd, original_inventory = selected_source(original, original_digest)
+    os.close(original_fd)
     omitted, roots = select_omissions(manifest)
     expected_files = {name: value for name, value in manifest["files"].items() if name not in omitted}
     derived = dict(manifest, files=expected_files)
