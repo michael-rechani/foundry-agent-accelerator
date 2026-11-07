@@ -28,13 +28,14 @@ jobs:
           import json
           import os
           import re
+          import secrets
           import sys
           import time
           from urllib import parse, request
 
           REPOSITORY = "michael-rechani/foundry-agent-accelerator"
           ENVIRONMENT = "platform-plan-read"
-          AUDIENCE = "api://AzureADTokenExchange"
+          AUDIENCE_PREFIX = "urn:platform-plan-claim-preview:"
           ISSUER = "https://token.actions.githubusercontent.com"
           REPOSITORY_URL = "https://api.github.com/repos/" + REPOSITORY
 
@@ -94,10 +95,12 @@ jobs:
                   raise ValueError("Unexpected repository metadata")
               return str(owner["id"]), str(repo_id)
 
-          def request_assertion(opener, env):
+          def request_assertion(opener, env, audience):
               raw = env.get("ACTIONS_ID_TOKEN_REQUEST_URL", "")
               bearer = env.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "")
-              if (not isinstance(raw, str) or not raw or len(raw) > 16384
+              if (not isinstance(audience, str) or not re.fullmatch(
+                      r"urn:platform-plan-claim-preview:[0-9a-f]{64}", audience)
+                      or not isinstance(raw, str) or not raw or len(raw) > 16384
                       or not isinstance(bearer, str) or not bearer or len(bearer) > 16384
                       or "\r" in bearer or "\n" in bearer):
                   raise ValueError("Invalid OIDC request")
@@ -110,7 +113,7 @@ jobs:
                   raise ValueError("Invalid OIDC endpoint")
               query = [(key, value) for key, value in parse.parse_qsl(
                   url.query, keep_blank_values=True, max_num_fields=100) if key != "audience"]
-              query.append(("audience", AUDIENCE))
+              query.append(("audience", audience))
               target = parse.urlunsplit(url._replace(query=parse.urlencode(query)))
               obj = read_json(opener, target, {
                   "Authorization": "Bearer " + bearer,
@@ -133,7 +136,7 @@ jobs:
                   raise ValueError("JWT payload too large")
               return strict_object(payload)
 
-          def classify_claims(claims, owner_id, repo_id, now):
+          def classify_claims(claims, owner_id, repo_id, audience, now):
               owner, repo = REPOSITORY.split("/", 1)
               immutable = f"repo:{owner}@{owner_id}/{repo}@{repo_id}:environment:{ENVIRONMENT}"
               legacy = f"repo:{REPOSITORY}:environment:{ENVIRONMENT}"
@@ -148,7 +151,7 @@ jobs:
               expiry, not_before = claims.get("exp"), claims.get("nbf")
               lifetime = (type(expiry) is int and expiry > now
                           and (not_before is None or type(not_before) is int and not_before <= now + 60))
-              return claims.get("iss") == ISSUER, claims.get("aud") == AUDIENCE, subject_kind, binding, lifetime
+              return claims.get("iss") == ISSUER, claims.get("aud") == audience, subject_kind, binding, lifetime
 
           def main(env=os.environ):
               try:
@@ -163,7 +166,8 @@ jobs:
                   print("plan_oidc_check_failed=repository_lookup", file=sys.stderr)
                   return 1
               try:
-                  assertion = request_assertion(opener, env)
+                  audience = AUDIENCE_PREFIX + secrets.token_hex(32)
+                  assertion = request_assertion(opener, env, audience)
               except (OSError, ValueError, TypeError):
                   print("plan_oidc_check_failed=token_request", file=sys.stderr)
                   return 1
@@ -173,7 +177,7 @@ jobs:
                   print("plan_oidc_check_failed=token_invalid", file=sys.stderr)
                   return 1
               issuer, audience, subject, binding, lifetime = classify_claims(
-                  claims, owner_id, repo_id, int(time.time()))
+                  claims, owner_id, repo_id, audience, int(time.time()))
               print("plan_oidc_issuer=matched" if issuer else "plan_oidc_issuer=mismatched")
               print("plan_oidc_audience=matched" if audience else "plan_oidc_audience=mismatched")
               if subject == "id_qualified":

@@ -1,6 +1,5 @@
 import base64
 import contextlib
-from copy import deepcopy
 from email.message import Message
 import io
 import json
@@ -18,6 +17,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "check-platform-plan-federation.yml"
 REPOSITORY = "michael-rechani/foundry-agent-accelerator"
 SHA = "a" * 40
 SENTINEL = "synthetic-private-exception-content"
+AUDIENCE = "urn:platform-plan-claim-preview:" + "a" * 64
 CONTEXT = {
     "GITHUB_REPOSITORY": REPOSITORY,
     "GITHUB_EVENT_NAME": "workflow_dispatch",
@@ -31,7 +31,7 @@ CONTEXT = {
 }
 CLAIMS = {
     "iss": "https://token.actions.githubusercontent.com",
-    "aud": "api://AzureADTokenExchange",
+    "aud": AUDIENCE,
     "sub": "repo:michael-rechani@123/foundry-agent-accelerator@456:environment:platform-plan-read",
     "repository": REPOSITORY,
     "repository_owner_id": "123",
@@ -94,7 +94,7 @@ class PlanOidcTests(unittest.TestCase):
                          "runs-on: [self-hosted, linux, lab-runner]", "environment: platform-plan-read",
                          "id-token: write", "python3 -I - <<'PY'"):
             self.assertIn(expected, workflow)
-        for forbidden in ("actions/checkout", "upload-artifact", "pull_request:", "${{ secrets.", "AZURE_"):
+        for forbidden in ("actions/checkout", "upload-artifact", "pull_request:", "${{ secrets.", "AZURE_", "api://AzureADTokenExchange"): 
             self.assertNotIn(forbidden, workflow)
 
     def test_context_requires_exact_protected_workflow(self):
@@ -126,6 +126,7 @@ class PlanOidcTests(unittest.TestCase):
         output, errors = io.StringIO(), io.StringIO()
         with patch.object(request, "build_opener", return_value=Opener()) as builder, \
                 patch.object(ns["time"], "time", return_value=1000), \
+                patch.object(ns["secrets"], "token_hex", return_value="a" * 64), \
                 contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
             self.assertEqual(ns["main"](CONTEXT), 0)
         self.assertEqual(errors.getvalue(), "")
@@ -140,7 +141,7 @@ class PlanOidcTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertEqual(calls[0][0].full_url, ns["REPOSITORY_URL"])
         query = parse.parse_qs(parse.urlsplit(calls[1][0].full_url).query)
-        self.assertEqual(query["audience"], [ns["AUDIENCE"]])
+        self.assertEqual(query["audience"], [AUDIENCE])
         self.assertEqual(calls[1][0].get_header("Authorization"), "Bearer synthetic-request-token")
         self.assertTrue(all(timeout == 15 for _, timeout in calls))
 
@@ -153,20 +154,22 @@ class PlanOidcTests(unittest.TestCase):
                     "https://x.actions.githubusercontent.com/oidc#fragment"):
             env = dict(CONTEXT, ACTIONS_ID_TOKEN_REQUEST_URL=url)
             with self.subTest(url=url), self.assertRaises(ValueError):
-                self.ns["request_assertion"](None, env)
+                self.ns["request_assertion"](None, env, AUDIENCE)
         with self.assertRaises(ValueError):
-            self.ns["request_assertion"](None, dict(CONTEXT, ACTIONS_ID_TOKEN_REQUEST_TOKEN="bad\nvalue"))
+            self.ns["request_assertion"](None, dict(CONTEXT, ACTIONS_ID_TOKEN_REQUEST_TOKEN="bad\nvalue"), AUDIENCE)
 
     def test_responses_reject_redirects_oversize_and_invalid_json(self):
         ns = self.ns
         url = "https://api.github.com/example"
-        for response in (Response(url, b"{}", status=302), Response(url, b"{}", target=url + "/other"),
-                         Response(url, b"x" * 12), Response(url, b'{"a":1,"a":2}'),
-                         Response(url, b'{"a":NaN}')):
+        for response, limit in ((Response(url, b"{}", status=302), 100),
+                                (Response(url, b"{}", target=url + "/other"), 100),
+                                (Response(url, b"x" * 12), 10),
+                                (Response(url, b'{"a":1,"a":2}'), 100),
+                                (Response(url, b'{"a":NaN}'), 100)):
             opener = Mock()
             opener.open.return_value = response
             with self.subTest(response=response), self.assertRaises(ValueError):
-                ns["read_json"](opener, url, {}, 10)
+                ns["read_json"](opener, url, {}, limit)
 
     def test_repository_ids_require_exact_public_metadata(self):
         opener = Mock()
@@ -184,13 +187,13 @@ class PlanOidcTests(unittest.TestCase):
 
     def test_classification_rejects_legacy_wrong_binding_and_expiry(self):
         classify = self.ns["classify_claims"]
-        self.assertEqual(classify(CLAIMS, "123", "456", 1000), (True, True, "id_qualified", True, True))
+        self.assertEqual(classify(CLAIMS, "123", "456", AUDIENCE, 1000), (True, True, "id_qualified", True, True))
         legacy = dict(CLAIMS, sub="repo:" + REPOSITORY + ":environment:platform-plan-read")
-        self.assertEqual(classify(legacy, "123", "456", 1000)[2], "name_only")
+        self.assertEqual(classify(legacy, "123", "456", AUDIENCE, 1000)[2], "name_only")
         wrong = dict(CLAIMS, repository_id="999", aud="wrong", exp=999)
-        self.assertEqual(classify(wrong, "123", "456", 1000), (True, False, "id_qualified", False, False))
+        self.assertEqual(classify(wrong, "123", "456", AUDIENCE, 1000), (True, False, "id_qualified", False, False))
         future = dict(CLAIMS, nbf=1061)
-        self.assertFalse(classify(future, "123", "456", 1000)[4])
+        self.assertFalse(classify(future, "123", "456", AUDIENCE, 1000)[4])
 
     def test_context_failure_never_fetches_metadata(self):
         lookup = Mock()

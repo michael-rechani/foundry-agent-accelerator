@@ -24,7 +24,8 @@ The manual **Check platform plan OIDC claims** workflow runs only on protected
 `main` and the private Lab runner, after `platform-plan-read` environment
 approval. It uses no checkout, Azure identity, protected input, or Terraform
 state. It reads public repository metadata and requests a GitHub OIDC assertion
-for Azure token exchange over direct HTTPS without redirects or proxies.
+with a fresh random preview-only audience over direct HTTPS without redirects or
+proxies. The requested audience is not an Azure token-exchange audience.
 
 The assertion is decoded in memory and only fixed issuer, audience, subject,
 repository-binding, and lifetime categories are printed. An ID-qualified
@@ -33,7 +34,7 @@ unexpected claims fail the check. No assertion, request token, repository IDs,
 or response contents are printed or saved.
 
 This is a claim preview over HTTPS, not JWT signature verification, proof that
-an Azure federated credential exists, effective Azure authorization, or proof
+an Azure token-exchange audience or federated credential works, effective Azure authorization, or proof
 of private-runner host isolation. The environment is main-only and has a
 required reviewer, but repository administrators can bypass that approval.
 Do not treat this check as authority to run a Terraform plan or apply.
