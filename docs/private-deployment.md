@@ -210,9 +210,18 @@ restores the captured route only if the endpoint still matches the attempted
 promotion and the prior traffic-serving versions are still active releases; an
 observed different route or endpoint configuration is left untouched. It
 requires the complete restored endpoint to match the snapshot, rechecks those
-versions, and confirms that the candidate isn't referenced before deletion. If
+versions, and confirms the observed route no longer references the candidate. Automatic
+version deletion is disabled, even after successful restoration: user sessions
+may already be bound to the candidate. If
 restoration or verification fails, or no previous route is available, it keeps
 the candidate, which can still be receiving traffic.
+
+Microsoft's [delete-version API](https://learn.microsoft.com/en-us/azure/foundry/reference/rest/agents-delete-agent-version)
+states that force deletion cascades all sessions for that version. Restoring a
+route does not drain existing sessions or make a subsequent deletion atomic.
+Failed candidates are deliberately retained and can incur costs. Inspect their
+sessions and consumers before separately authorizing later cleanup; this deployer
+never automatically deletes a candidate version, with or without force.
 
 Inspect the actual endpoint before retrying or deleting anything. Restore a
 known-good version under the same deployment lock, verify the route and version,
