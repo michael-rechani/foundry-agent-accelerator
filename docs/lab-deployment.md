@@ -18,6 +18,7 @@ Lab on your own machine without Azure, use
 - [5. Plan and review the image rollout](#5-plan-and-review-the-image-rollout)
 - [6. Apply the approved plan and clean up](#6-apply-the-approved-plan-and-clean-up)
 - [7. Verify the deployed application](#7-verify-the-deployed-application)
+- [Prepare a Model Router rollback](#prepare-a-model-router-rollback)
 - [Deploy a new image from GitHub Actions](#deploy-a-new-image-from-github-actions)
 - [Recover after a subscription suspension](#recover-after-a-subscription-suspension)
 
@@ -656,6 +657,60 @@ resources, and the runtime never creates them.
 
 Browser tests use controlled API responses, so they don't replace this
 deployment check.
+
+## Prepare a Model Router rollback
+
+This is a preparation checklist, not an already authorized or live-tested
+rollback. The existing environment still needs reviewed, protected GitHub-runner
+paths for Router-related platform and Lab applies and hosted-agent publication
+or route restoration. The Router diagnostics are plan-only; the Lab diagnostic
+checks the forward change, not a rollback. Neither authorizes an apply. Their
+state locks can change blob metadata and create retained versions. See
+[rollout issue #522](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522)
+and the paused platform decision in #485.
+
+Before rollout:
+
+1. Confirm the fixed primary model deployment is available. Record the current
+   concrete endpoint routes, versions, and model deployments for each affected
+   coordinator and specialist; retain usable recovery versions. Include any
+   Lab-created agents whose routes may change.
+2. Record the Lab's creation model, profile-specific model overrides, preview
+   and hosted reasoning settings, and per-agent budget associations. Record the
+   running Lab image digest separately. Keep protected inputs and state private;
+   don't commit them to the repository.
+3. Agree on the quality, latency, throttling, and cost signals that would
+   trigger recovery. Approve the required runner operations and any billable
+   verification separately.
+
+If recovery is needed:
+
+1. Use only a reviewed, approved private-runner path. If one isn't available,
+   stop rather than applying locally, granting ad hoc permissions, hiding drift,
+   or opening a public endpoint.
+2. Restore the recorded routes for affected specialists and then the
+   coordinator, or publish fixed-model versions if the previous versions aren't
+   usable. Verify each resulting route and model configuration. Address
+   already-published Lab-created agents individually as well: changing the Lab
+   default doesn't change their existing versions.
+3. Restore the Lab's fixed `agent_creation_model`, replace any
+   `agent_creation_models` overrides still pointing to Router, and restore the
+   relevant reasoning settings. Update `prebuilt_agent_models` only to match
+   verified active hosted versions; it changes budget accounting, not agent
+   routing.
+4. If the Lab image itself needs recovery, use a separately reviewed runner
+   procedure for the recorded digest. Terraform ignores later image updates, so
+   applying a model setting alone doesn't restore the image.
+5. Keep Router deployed until all active and future consumers have been
+   accounted for. Remove it only through a separately approved full platform
+   plan after no agent or direct client needs it. With approval for billable
+   calls, verify the restored routes and specialist receipts through the private
+   Lab, including the browser.
+
+The publisher attempts to restore its captured prior route when a promotion or
+smoke check fails, but that restoration can fail and doesn't automatically
+cover problems discovered later. Inspect the live route before retrying or
+deleting a version. Recovery doesn't reverse charges or requests already made.
 
 ## Deploy a new image from GitHub Actions
 
