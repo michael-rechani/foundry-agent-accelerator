@@ -149,7 +149,7 @@ def terraform(binary, root, home, args):
     process = subprocess.run([binary, f"-chdir={root}", *args], env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     if process.returncode:
-        raise ClosureError("Credential-free Terraform prerequisite failed; no raw output published.")
+        raise ClosureError(f"Credential-free Terraform {args[0]} failed (exit {process.returncode}); raw output withheld.")
     return process.stdout
 
 
@@ -224,4 +224,4 @@ if __name__ == "__main__":
             verify(args.bundle, args.terraform)
         print("Public dependency byte closure verified; independent review and rollout gates remain required.")
     except (ClosureError, OSError, KeyError) as error:
-        raise SystemExit(f"Dependency closure stopped: {type(error).__name__}; details withheld.") from None
+        raise SystemExit(f"Dependency closure stopped: {str(error) if isinstance(error, ClosureError) else type(error).__name__}") from None
