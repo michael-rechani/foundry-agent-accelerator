@@ -349,11 +349,10 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
             with mock.patch.object(diagnostic, "write_backend", side_effect=write_overlay), \
                     mock.patch("subprocess.run", side_effect=fake_run) as run:
                 _run_bundle_integration(self, bundle, "mock-terraform")
-            self.assertEqual(run.call_count, 4)
-            fail_validate = True
-            with self.assertRaisesRegex(AssertionError, "captured public Terraform validate failed"):
-                _run_bundle_integration(self, bundle, "mock-terraform")
-
+                self.assertEqual(run.call_count, 4)
+                fail_validate = True
+                with self.assertRaisesRegex(AssertionError, "captured public Terraform validate failed"):
+                    _run_bundle_integration(self, bundle, "mock-terraform")
     @unittest.skipUnless(os.environ.get("PUBLIC_OVERLAY_BUNDLE") and os.environ.get("OVERLAY_TERRAFORM"), "requires credential-free public closure fixture")
     def test_actual_reviewed_root_init_validate_and_descendant_provider_graph(self):
         terraform = shutil.which(os.environ.get("OVERLAY_TERRAFORM", "terraform"))
