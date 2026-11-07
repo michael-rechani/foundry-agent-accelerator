@@ -74,6 +74,7 @@ var examples = []example{
 	{"duplicate bare object key", `locals { settings = { safe = 1, safe = 2 } }`, "duplicate_object_key"},
 	{"duplicate decoded object key", `locals { settings = { safe = 1, "\u0073afe" = 2 } }`, "duplicate_object_key"},
 	{"duplicate parenthesized object key", `locals { settings = { "safe" = 1, ("safe") = 2 } }`, "duplicate_object_key"},
+	{"duplicate Unicode normalized key", "locals { settings = { caf\u00e9 = 1, \"cafe\\u0301\" = 2 } }", "duplicate_object_key"},
 	{"duplicate body attributes", "locals {\n safe = 1\n safe = 2\n}\n", "syntax_refused"},
 	{"duplicate routing attributes", "resource \"x\" \"y\" {\n provider = azapi.a\n provider = azapi.b\n}\n", "syntax_refused"},
 	{"dynamic block", "resource \"x\" \"y\" {\n dynamic \"settings\" {\n for_each = var.items\n content { safe = 1 }\n }\n}\n", "unsupported_structure"},
@@ -159,6 +160,15 @@ func TestFormatEncodingAndBounds(t *testing.T) {
 	atByteBound := []byte("#" + strings.Repeat("x", MaxBytes-2) + "\n")
 	if got := Analyze(NativeHCL, atByteBound); got.Outcome != "accepted_predicate" {
 		t.Fatalf("exact byte boundary unexpectedly refused: %+v", got)
+	}
+	atTokenBound := []byte(strings.Repeat("\n", MaxTokens-1))
+	if got := Analyze(NativeHCL, atTokenBound); got.Outcome != "accepted_predicate" {
+		t.Fatalf("exact token boundary unexpectedly refused: %+v", got)
+	}
+	atLexDepth := []byte("locals { value = " + strings.Repeat("(", MaxLexDepth-1) +
+		"1" + strings.Repeat(")", MaxLexDepth-1) + " }")
+	if got := Analyze(NativeHCL, atLexDepth); got.Outcome != "accepted_predicate" {
+		t.Fatalf("exact lexical depth boundary unexpectedly refused: %+v", got)
 	}
 }
 

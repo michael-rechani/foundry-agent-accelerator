@@ -130,7 +130,7 @@ func keyName(expr hclsyntax.Expression) (string, bool) {
 	}
 	if !key.ForceNonLiteral {
 		if name := hcl.ExprAsKeyword(key.Wrapped); name != "" {
-			return name, true
+			return cty.StringVal(name).AsString(), true
 		}
 	}
 	return literalString(key.Wrapped)
