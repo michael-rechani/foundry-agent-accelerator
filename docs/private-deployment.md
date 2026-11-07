@@ -178,7 +178,12 @@ version upload, route update, or agent deletion. There is no bypass flag. Creati
 a first version may activate an `@latest` default before explicit promotion;
 the code-upload API used here has no verified draft control. A separately reviewed
 first-publication mechanism remains unresolved; this restriction does not supply
-one or establish identity/RBAC readiness.
+one or establish identity/RBAC readiness. Microsoft's [hosted-agent draft
+preview documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/manage-hosted-agent#create-a-draft-version-preview)
+states that generic JSON draft creation must be enabled for the subscription;
+otherwise `draft: true` creates a normal release. Checking the response afterward
+cannot prevent any initial exposure. This does not establish draft support for
+multipart code upload.
 
 Clients can reach the candidate after promotion during its fresh default-route
 checks. These checks do not establish runner host isolation or safe temporary-directory
