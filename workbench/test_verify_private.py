@@ -469,7 +469,8 @@ class PrivateVerificationTests(unittest.TestCase):
                     self.assertEqual(code, 1)
                     self.assertEqual(output.getvalue(), "")
                     message = json.loads(error.getvalue())["error"]
-                    expected_phase = ("create outcome is unconfirmed" if stage == "create"
+                    expected_phase = ("usable conversation ID" if stage == "create" and name == "missing-version"
+                                      else "create outcome is unconfirmed" if stage == "create"
                                       else "conditional update" if stage == "update"
                                       else "cleanup version confirmation" if name == "missing-version"
                                       else "stale-update conflict")
