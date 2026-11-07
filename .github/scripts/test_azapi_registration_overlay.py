@@ -107,9 +107,9 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
                             report = json.loads(result.stdout)
                             diagnostics = report.get("diagnostics", [])
                             detail = "; ".join(
-                                (str(item.get("summary", "")) + ": " + str(item.get("detail", "")))[:320]
+                                (str(item.get("summary", "")) + ": " + str(item.get("detail", "")))[:1200]
                                 for item in diagnostics if isinstance(item, dict)
-                            )[:640]
+                            )[:3200]
                         except (json.JSONDecodeError, AttributeError):
                             detail = "unclassified"
                     self.fail(f"captured public Terraform {args[0]} failed: {detail or 'unclassified'}")
