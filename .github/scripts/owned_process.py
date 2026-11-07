@@ -29,12 +29,14 @@ def supervise(argv, *, timeout=2.0, grace=2.0, output_limit=65536):
     """Run a bounded command; never treat an unverified result as teardown proof."""
     if (
         sys.platform != "linux"
-        or not isinstance(argv, list)
+        or type(argv) is not list
         or not argv
-        or any(not isinstance(arg, str) or "\x00" in arg for arg in argv)
+        or len(argv) > 128
+        or any(type(arg) is not str or len(arg) > 2048 or "\x00" in arg for arg in argv)
+        or sum(map(len, argv)) > 2048
         or not os.path.isabs(argv[0])
-        or not isinstance(timeout, (int, float))
-        or not isinstance(grace, (int, float))
+        or type(timeout) not in (int, float)
+        or type(grace) not in (int, float)
         or not 0 < timeout <= 30
         or not 0 < grace <= 30
         or type(output_limit) is not int
@@ -237,7 +239,12 @@ def _main():
             or set(request) != {"argv", "timeout", "grace", "output_limit"}
             or type(request["argv"]) is not list
             or not request["argv"]
-            or any(type(arg) is not str or "\x00" in arg for arg in request["argv"])
+            or len(request["argv"]) > 128
+            or any(
+                type(arg) is not str or len(arg) > 2048 or "\x00" in arg
+                for arg in request["argv"]
+            )
+            or sum(map(len, request["argv"])) > 2048
             or not os.path.isabs(request["argv"][0])
             or type(request["timeout"]) not in (int, float)
             or type(request["grace"]) not in (int, float)

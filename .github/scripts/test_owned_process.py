@@ -181,9 +181,11 @@ class OwnedProcessTests(unittest.TestCase):
         self.assertTrue(proc.stdout.closed)
 
     def test_invalid_inputs_fail_closed(self):
-        for argv in ([], ["relative"], ["/bin/echo", "\x00"]):
+        for argv in ([], ["relative"], ["/bin/echo", "\x00"], ["/bin/echo", "x" * 2049],
+                     ["/bin/echo"] + ["x"] * 128):
             self.assertEqual(subject.supervise(argv), subject.Result(False, "unverified"))
         self.assertEqual(subject.supervise(command("pass"), timeout=0), subject.Result(False, "unverified"))
+        self.assertEqual(subject.supervise(command("pass"), timeout=True), subject.Result(False, "unverified"))
 
 
 if __name__ == "__main__":
