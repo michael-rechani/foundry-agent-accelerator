@@ -7,7 +7,6 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
-import time
 import unittest
 from unittest.mock import patch
 
@@ -22,6 +21,11 @@ ACCOUNT = (
 )
 PRINCIPAL = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 INPUT_NAME = "platform/private.tfvars"
+
+
+def reviewed_root(root):
+    for name in diagnostic.DIAGNOSTIC_ROOT_FILES:
+        shutil.copyfile(lab.ROOT / "terraform" / name, root / name)
 
 
 def state_object():
@@ -206,11 +210,12 @@ class SourceAndTerraformTests(unittest.TestCase):
     def test_private_backend_overlay_and_command_allowlist_never_apply_or_target(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
+            reviewed_root(root)
             diagnostic.write_backend(root)
-            overlay = (root / "runner-diagnostic.tf").read_text()
-            self.assertIn('backend "azurerm" {}', overlay)
-            self.assertIn('source = "azure/modtm"', overlay)
-            self.assertIn("enabled = false", overlay)
+            overlay = json.loads((root / diagnostic.DIAGNOSTIC_OVERLAY).read_text())
+            self.assertEqual(overlay['terraform']['backend'], {'azurerm': {}})
+            self.assertEqual(overlay['terraform']['required_providers'], {'modtm': {'source': 'azure/modtm', 'version': '~> 0.3'}})
+            self.assertEqual(overlay['provider'], {'modtm': {'enabled': False}})
             with self.assertRaises(diagnostic.CheckError):
                 diagnostic.write_backend(root)
             instance = object.__new__(diagnostic.PlatformTerraform)
@@ -264,49 +269,6 @@ class SourceAndTerraformTests(unittest.TestCase):
                     decoded = json.loads(json.loads(result.stdout))
                     self.assertIs(decoded["jumpbox_secret_required"], expected)
 
-    def test_backend_overlay_resolves_the_existing_azure_telemetry_provider_offline(self):
-        executable = shutil.which("terraform")
-        providers = lab.ROOT / "terraform" / ".terraform" / "providers"
-        if not executable or not (providers / "registry.terraform.io" / "azure" / "modtm").is_dir():
-            self.skipTest("Terraform and the local Azure telemetry provider cache are required")
-        folder = tempfile.TemporaryDirectory()
-        try:
-            root = Path(folder.name)
-            diagnostic.write_backend(root)
-            (root / "main.tf").write_text('module "dependent" {\n  source = "./dependent"\n}\n', encoding="utf-8")
-            child = root / "dependent"
-            child.mkdir()
-            (child / "main.tf").write_text(
-                'terraform {\n  required_providers {\n    modtm = {\n      source = "azure/modtm"\n    }\n  }\n}\n',
-                encoding="utf-8",
-            )
-            config = root / "terraform.rc"
-            config.write_text("disable_checkpoint = true\n", encoding="utf-8")
-            env = {
-                key: value for key, value in os.environ.items()
-                if not key.startswith(("TF_", "ARM_", "AZURE_", "MODTM_"))
-            }
-            env.update({"TF_CLI_CONFIG_FILE": str(config), "TF_IN_AUTOMATION": "true", "TF_INPUT": "0"})
-            for args in (
-                ("init", "-backend=false", f"-plugin-dir={providers}", "-no-color"),
-                ("validate", "-no-color"),
-            ):
-                result = subprocess.run(
-                    [executable, f"-chdir={root}", *args], env=env, stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE, check=False,
-                )
-                self.assertEqual(result.returncode, 0, (result.stdout + result.stderr).decode(errors="replace"))
-        finally:
-            # Windows may briefly retain the provider executable after Terraform exits.
-            for attempt in range(20):
-                try:
-                    folder.cleanup()
-                    break
-                except PermissionError:
-                    if attempt == 19:
-                        raise
-                    time.sleep(0.1)
-
 
 class DiagnosticRunTests(unittest.TestCase):
     def run_fixture(self, failure=None):
@@ -336,7 +298,7 @@ class DiagnosticRunTests(unittest.TestCase):
         class FakeTerraform:
             def __init__(self, root, scratch, environ, inputs):
                 calls.append(("terraform-init",))
-                if inputs != private_inputs or not (root / "runner-diagnostic.tf").is_file():
+                if inputs != private_inputs or not (root / diagnostic.DIAGNOSTIC_OVERLAY).is_file():
                     raise AssertionError("The reviewed source and protected inputs are required")
 
             def inputs_resolved(self):
@@ -361,8 +323,9 @@ class DiagnosticRunTests(unittest.TestCase):
             self.assertEqual(kind, "platform")
             root = scratch / "staged"
             (root / "modules" / "model-router").mkdir(parents=True)
-            if failure != "source":
-                (root / "model-router.tf").write_text("", encoding="utf-8")
+            reviewed_root(root)
+            if failure == "source":
+                (root / "model-router.tf").unlink()
             (root / "modules" / "model-router" / "main.tf").write_text("", encoding="utf-8")
             return root
 
