@@ -7,7 +7,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import requests
 from azure.ai.projects import AIProjectClient
@@ -96,7 +96,7 @@ class CandidateSessionTests(unittest.TestCase):
 
 class SmokeTransportTests(unittest.TestCase):
     def test_response_is_bound_to_session_and_not_stored(self):
-        client = Mock()
+        client = MagicMock()
         response = SimpleNamespace(status="completed", output_text="fictional answer")
         create = client.get_openai_client.return_value.__enter__.return_value.responses.create
         create.return_value = response
