@@ -1,5 +1,6 @@
 """Diagnose the existing platform's Model Router plan on the private runner."""
 
+import hashlib
 import json
 import os
 from pathlib import PurePosixPath
@@ -133,19 +134,39 @@ def validate_inputs(values, platform, subscription):
         raise CheckError("A platform plan requiring access to the jumpbox secret needs a separate review.")
 
 
-def write_backend(root):
-    if (root / "backend.tf").exists():
-        raise CheckError("The checked-in platform backend requires separate review.")
-    target = root / "runner-diagnostic.tf"
-    if target.exists():
-        raise CheckError("A reserved platform diagnostic source file already exists.")
-    target.write_text(
-        'terraform {\n  backend "azurerm" {}\n  required_providers {\n'
-        '    modtm = {\n      source = "azure/modtm"\n      version = "~> 0.3"\n    }\n  }\n}\n'
-        'provider "modtm" {\n  enabled = false\n}\n',
-        encoding="utf-8",
-    )
+# Root configuration additions or edits require independent overlay review.
+DIAGNOSTIC_SOURCE_SHA = "446b078df12c9a08daec7bc5e9f0b5a57d8d7a5d"
+DIAGNOSTIC_ROOT_FILES = {"providers.tf":"355571d608e61e0984db28152d7766c4828b6cbebaab746f56d3b2ec4ff95c06","model-router.tf":"3427df2f1844c601290c0d5f704657f17367eb3b4fc218ffe49d7951fbea88f7","keyless-storage.tf":"e9d74ddaca86d479f205724c8a0e7ddc46d0b0719d944155463c29712a5394d8","review-api.tf":"28d38fe85e60f4c46cfaf2a902cb1bf751c316964750ce0503fce4cbf39345b6","versions.tf":"6db8e491dec8c9e679638eb8abadb08d7b8f4a228233251816dc20ea7bf09520","jumpbox-credentials.tf":"82879dc64bf75a4d1e11b0b3f21ae9a1e40db9f8f607760bb98133894b77c2f8","key-vault-access.tf":"6100ec68d172e08deba381b50f9c342bec833b298fd4b807a958ba5812371b93","apim.tf":"0e81f4db2c48825a0911fb8e1da4a129c8c857644f06d4a17692192d87886c24","outputs.tf":"7a194cb2af1cf400b41087c92d5d21f44e2cc5190137d932963a8ea9105379c6","agent-access.tf":"120d591d96d6b5c7f9979ff30a40f843bf0bfde3e2d07557f00f7640a55f3b0f","jumpbox.tf":"d9d1b36ba60815607f72ae607714cce96b4b9e82f11c05dbfed526365651f70d","variables.tf":"166b5d364ca444a86c9d2cdde2e9e6d726a9cff03ed11916c845820d7fdc697a","management-network.tf":"cad8e5ba832a3cceaa297aa29f6df41554ee631c4d55739e362d2cf0535e758c","main.tf":"c10ea65e57904ae6dbcc5ac26a49faa3d4d8de95110f2c75bfc3eddc0e670cb2","model-preview-capabilities.tf":"dd35e0aeb79d446887fec4473456fcd121667cbf827e832b7f7746d07fa56ea3","network.tf":"fd6b50892f099804334a8f1b528371f4a214a544ef599ccf9f1ede37968f8656","state-backend-endpoint.tf":"7583b0a2d177308a155b093aaa12e8daeecfac20f4e064c0e3c3372ca53adbac","naming.tf":"fc7b917da28af2ddb67aaef6c1ace666396053586965a4f3970016bc7ae714bc","keyless-accounts.tf":"b50c7cea3a58d907925c3d433170e302d7abcfa5fb18a95e36cad5495739c845","region-preferences.tf":"3f60afb52b4f4a1912c1480b927879e4e1bd848f542c1baec514513a643ca851"}
+DIAGNOSTIC_OVERLAY = "runner-diagnostic_override.tf.json"
 
+
+def write_backend(root):
+    if root.is_symlink() or not root.is_dir():
+        raise CheckError("The platform diagnostic root is not a regular directory.")
+    target = root / DIAGNOSTIC_OVERLAY
+    if os.path.lexists(target):
+        raise CheckError("A reserved platform diagnostic source file already exists.")
+    actual = {}
+    for path in root.iterdir():
+        if path.name.endswith((".tf", ".tf.json")):
+            if path.is_symlink() or not path.is_file() or path.stat().st_nlink != 1:
+                raise CheckError("The platform root contains redirected or ambiguous configuration.")
+            actual[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual != DIAGNOSTIC_ROOT_FILES:
+        raise CheckError("The platform root differs from the exact reviewed diagnostic configuration.")
+    # Override merging adds only modtm; the reviewed root has no backend or modtm provider.
+    overlay = {
+        "terraform": {
+            "backend": {"azurerm": {}},
+            "required_providers": {"modtm": {"source": "azure/modtm", "version": "~> 0.3"}},
+        },
+        "provider": {"modtm": {"enabled": False}},
+    }
+    try:
+        with target.open("x", encoding="utf-8") as stream:
+            stream.write(json.dumps(overlay, indent=2) + "\n")
+    except FileExistsError:
+        raise CheckError("A reserved platform diagnostic source file appeared concurrently.") from None
 
 class PlatformTerraform(Terraform):
     def __init__(self, root, scratch, environ, inputs):

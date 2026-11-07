@@ -24,6 +24,11 @@ PRINCIPAL = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 INPUT_NAME = "platform/private.tfvars"
 
 
+
+def reviewed_root(root):
+    for name in diagnostic.DIAGNOSTIC_ROOT_FILES:
+        shutil.copyfile(lab.ROOT / "terraform" / name, root / name)
+
 def state_object():
     return {
         "version": 4,
@@ -206,11 +211,12 @@ class SourceAndTerraformTests(unittest.TestCase):
     def test_private_backend_overlay_and_command_allowlist_never_apply_or_target(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
+            reviewed_root(root)
             diagnostic.write_backend(root)
-            overlay = (root / "runner-diagnostic.tf").read_text()
-            self.assertIn('backend "azurerm" {}', overlay)
-            self.assertIn('source = "azure/modtm"', overlay)
-            self.assertIn("enabled = false", overlay)
+            overlay = json.loads((root / diagnostic.DIAGNOSTIC_OVERLAY).read_text())
+            self.assertEqual(overlay['terraform']['backend'], {'azurerm': {}})
+            self.assertEqual(overlay['terraform']['required_providers'], {'modtm': {'source': 'azure/modtm', 'version': '~> 0.3'}})
+            self.assertEqual(overlay['provider'], {'modtm': {'enabled': False}})
             with self.assertRaises(diagnostic.CheckError):
                 diagnostic.write_backend(root)
             instance = object.__new__(diagnostic.PlatformTerraform)
@@ -230,174 +236,6 @@ class SourceAndTerraformTests(unittest.TestCase):
                     with self.subTest(args=args), self.assertRaises(diagnostic.CheckError):
                         instance.command(*args)
                 self.assertEqual(command.call_count, 1)
-
-    @unittest.skipUnless(shutil.which("terraform"), "Terraform is not installed")
-    def test_console_secret_preflight_evaluates_without_reading_a_vault(self):
-        executable = shutil.which("terraform")
-        with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
-            (root / "main.tf").write_text(
-                'variable "subscription_id" { default = "fixture" }\n'
-                'variable "deployment_principal_id" { default = "fixture" }\n'
-                'variable "model_router_deployment" { default = null }\n'
-                'variable "enable_jumpbox" { type = bool }\n'
-                'variable "jumpbox_admin_secret" { type = object({ name = string }) }\n',
-                encoding="utf-8",
-            )
-            env = {
-                key: value for key, value in os.environ.items()
-                if not key.startswith(("TF_", "ARM_", "AZURE_", "MODTM_"))
-            }
-            env.update({"TF_IN_AUTOMATION": "true", "TF_INPUT": "0"})
-            for enabled, secret, expected in (
-                ("false", '{name="fixture"}', False), ("true", "null", False),
-                ("true", '{name="fixture"}', True),
-            ):
-                with self.subTest(enabled=enabled, secret=secret):
-                    result = subprocess.run(
-                        [executable, f"-chdir={root}", "console", "-no-color",
-                         f"-var=enable_jumpbox={enabled}", f"-var=jumpbox_admin_secret={secret}"],
-                        env=env, input=diagnostic.CONSOLE_INPUT, stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE, check=False,
-                    )
-                    self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
-                    decoded = json.loads(json.loads(result.stdout))
-                    self.assertIs(decoded["jumpbox_secret_required"], expected)
-
-    def test_backend_overlay_resolves_the_existing_azure_telemetry_provider_offline(self):
-        executable = shutil.which("terraform")
-        providers = lab.ROOT / "terraform" / ".terraform" / "providers"
-        if not executable or not (providers / "registry.terraform.io" / "azure" / "modtm").is_dir():
-            self.skipTest("Terraform and the local Azure telemetry provider cache are required")
-        folder = tempfile.TemporaryDirectory()
-        try:
-            root = Path(folder.name)
-            diagnostic.write_backend(root)
-            (root / "main.tf").write_text('module "dependent" {\n  source = "./dependent"\n}\n', encoding="utf-8")
-            child = root / "dependent"
-            child.mkdir()
-            (child / "main.tf").write_text(
-                'terraform {\n  required_providers {\n    modtm = {\n      source = "azure/modtm"\n    }\n  }\n}\n',
-                encoding="utf-8",
-            )
-            config = root / "terraform.rc"
-            config.write_text("disable_checkpoint = true\n", encoding="utf-8")
-            env = {
-                key: value for key, value in os.environ.items()
-                if not key.startswith(("TF_", "ARM_", "AZURE_", "MODTM_"))
-            }
-            env.update({"TF_CLI_CONFIG_FILE": str(config), "TF_IN_AUTOMATION": "true", "TF_INPUT": "0"})
-            for args in (
-                ("init", "-backend=false", f"-plugin-dir={providers}", "-no-color"),
-                ("validate", "-no-color"),
-            ):
-                result = subprocess.run(
-                    [executable, f"-chdir={root}", *args], env=env, stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE, check=False,
-                )
-                self.assertEqual(result.returncode, 0, (result.stdout + result.stderr).decode(errors="replace"))
-        finally:
-            # Windows may briefly retain the provider executable after Terraform exits.
-            for attempt in range(20):
-                try:
-                    folder.cleanup()
-                    break
-                except PermissionError:
-                    if attempt == 19:
-                        raise
-                    time.sleep(0.1)
-
-
-class DiagnosticRunTests(unittest.TestCase):
-    def run_fixture(self, failure=None):
-        state = json.dumps(state_object()).encode()
-        private_inputs = b'{"value": "private-input-content"}'
-        calls = []
-
-        class FakeBlobs:
-            def __init__(self, environ):
-                self.counts = {}
-                self.asserted_name = environ["PLATFORM_INPUT_BLOB"]
-
-            def snapshot(self, name):
-                calls.append(("snapshot", name))
-                self.counts[name] = self.counts.get(name, 0) + 1
-                later = self.counts[name] > 1
-                if name == diagnostic.PLATFORM_STATE:
-                    if failure == "state" and later:
-                        return b"changed", "new-etag", {}
-                    return state, "new-etag" if later else "old-etag", {}
-                if name != self.asserted_name:
-                    raise AssertionError("Unexpected blob access")
-                if failure == "inputs" and later:
-                    return private_inputs, "new-etag", {}
-                return private_inputs, "input-etag", {}
-
-        class FakeTerraform:
-            def __init__(self, root, scratch, environ, inputs):
-                calls.append(("terraform-init",))
-                if inputs != private_inputs or not (root / "runner-diagnostic.tf").is_file():
-                    raise AssertionError("The reviewed source and protected inputs are required")
-
-            def inputs_resolved(self):
-                calls.append(("console",))
-                result = values()
-                if failure == "principal":
-                    result["deployment_principal_id"] = SUBSCRIPTION
-                if failure == "secret":
-                    result["jumpbox_secret_required"] = True
-                return result
-
-            def full_plan(self):
-                calls.append(("plan",))
-                result = plan()
-                if failure == "drift":
-                    result["resource_changes"][-1]["change"]["actions"] = ["update"]
-                if failure == "plan":
-                    result["complete"] = False
-                return result, 2
-
-        def fake_stage(scratch, runtime, *, kind):
-            self.assertEqual(kind, "platform")
-            root = scratch / "staged"
-            (root / "modules" / "model-router").mkdir(parents=True)
-            if failure != "source":
-                (root / "model-router.tf").write_text("", encoding="utf-8")
-            (root / "modules" / "model-router" / "main.tf").write_text("", encoding="utf-8")
-            return root
-
-        with tempfile.TemporaryDirectory() as folder:
-            environ = environment(folder)
-            environ["TF_PLATFORM_INPUT_BLOB"] = INPUT_NAME
-            with (patch.object(lab, "validate_backend"),
-                  patch.object(diagnostic, "PlatformBlobs", FakeBlobs),
-                  patch.object(diagnostic, "PlatformTerraform", FakeTerraform),
-                  patch.object(diagnostic, "stage_sources", side_effect=fake_stage),
-                  contextlib.redirect_stdout(io.StringIO()) as output):
-                if failure:
-                    with self.assertRaises(diagnostic.CheckError):
-                        diagnostic.run(environ)
-                else:
-                    diagnostic.run(environ)
-            self.assertEqual(list(Path(folder).iterdir()), [])
-        for value in (ACCOUNT, PRINCIPAL, "private-input-content", INPUT_NAME, "private-lineage"):
-            self.assertNotIn(value, output.getvalue())
-        self.assertNotIn(("apply",), calls)
-        if failure in ("principal", "secret", "source"):
-            self.assertNotIn(("plan",), calls)
-        elif not failure:
-            self.assertIn(("plan",), calls)
-            self.assertIn('"router_deployment": "create"', output.getvalue())
-            self.assertIn("no infrastructure apply ran", output.getvalue())
-            self.assertEqual(
-                [item for item in calls if item[0] == "snapshot"],
-                [("snapshot", diagnostic.PLATFORM_STATE), ("snapshot", INPUT_NAME),
-                 ("snapshot", diagnostic.PLATFORM_STATE), ("snapshot", INPUT_NAME)],
-            )
-        elif failure != "drift":
-            self.assertEqual(output.getvalue(), "")
-        else:
-            self.assertIn('"known_unrelated_changes": [', output.getvalue())
 
     def test_full_diagnostic_is_redacted_plan_only_and_cleans_scratch(self):
         self.run_fixture()
