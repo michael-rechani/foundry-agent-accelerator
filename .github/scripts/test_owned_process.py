@@ -21,6 +21,9 @@ class OwnedProcessTests(unittest.TestCase):
     def test_success_and_nonzero(self):
         self.assertEqual(self.invoke("pass"), subject.Result(True, "success"))
         self.assertEqual(self.invoke("raise SystemExit(7)"), subject.Result(True, "nonzero"))
+        start = time.monotonic()
+        self.assertEqual(self.invoke("import time;time.sleep(.2)"), subject.Result(True, "success"))
+        self.assertGreaterEqual(time.monotonic() - start, .18)
 
     def test_rapid_exit_race(self):
         for _ in range(20):
@@ -36,18 +39,20 @@ class OwnedProcessTests(unittest.TestCase):
         self.assertEqual(self.invoke(parent), subject.Result(True, "success"))
 
     def test_escaped_adopted_child_is_waited_for_without_numeric_signal(self):
-        child = (
-            "import os,time;os.setsid();print('ready',flush=True);"
-            "os.close(1);os.close(2);time.sleep(.5)"
-        )
-        parent = (
-            "import subprocess,sys;"
-            f"p=subprocess.Popen([sys.executable,'-c',{child!r}],stdout=subprocess.PIPE);"
-            "p.stdout.readline()"
-        )
-        start = time.monotonic()
-        self.assertEqual(self.invoke(parent), subject.Result(True, "success"))
-        self.assertGreaterEqual(time.monotonic() - start, .4)
+        for escape in ("os.setsid()", "os.setpgid(0,0)"):
+            child = (
+                f"import os,time;{escape};print('ready',flush=True);"
+                "os.close(1);os.close(2);time.sleep(.5)"
+            )
+            parent = (
+                "import subprocess,sys;"
+                f"p=subprocess.Popen([sys.executable,'-c',{child!r}],stdout=subprocess.PIPE);"
+                "p.stdout.readline()"
+            )
+            with self.subTest(escape=escape):
+                start = time.monotonic()
+                self.assertEqual(self.invoke(parent), subject.Result(True, "success"))
+                self.assertGreaterEqual(time.monotonic() - start, .4)
 
     def test_output_budget_and_timeout(self):
         self.assertEqual(self.invoke("import os;os.write(1,b'x'*100000)", output_limit=64),
@@ -77,14 +82,14 @@ class OwnedProcessTests(unittest.TestCase):
                          subject.Result(False, "unverified"))
         time.sleep(1)
 
-    def fake_supervisor(self, code, timeout=.2):
+    def fake_supervisor(self, code, timeout=.2, worker="pass"):
         real = subprocess.Popen
 
         def fake(_argv, **kwargs):
             return real(command(code), **kwargs)
 
         with mock.patch.object(subject.subprocess, "Popen", side_effect=fake):
-            return subject.supervise(command("pass"), timeout=timeout, grace=.2)
+            return subject.supervise(command(worker), timeout=timeout, grace=.2)
 
     def test_crash_before_and_after_spawn(self):
         self.assertEqual(self.fake_supervisor("raise SystemExit(3)"), subject.Result(False, "unverified"))
@@ -96,6 +101,39 @@ class OwnedProcessTests(unittest.TestCase):
         )
         self.assertEqual(self.fake_supervisor(code), subject.Result(False, "unverified"))
         time.sleep(.5)
+
+    def test_real_supervisor_crash_after_worker_spawn(self):
+        code = (
+            "import os,owned_process;"
+            "owned_process.os.pidfd_open=lambda *args:os._exit(7);"
+            "raise SystemExit(owned_process._main())"
+        )
+        self.assertEqual(self.fake_supervisor(code, worker="import time;time.sleep(.5)"),
+                         subject.Result(False, "unverified"))
+        time.sleep(.7)
+
+    def test_actual_supervisor_support_failures(self):
+        for injection in (
+            "del owned_process.os.pidfd_open",
+            "owned_process._set_subreaper=lambda:(_ for _ in ()).throw(OSError())",
+            "signal.signal(signal.SIGCHLD,signal.SIG_IGN)",
+            "owned_process.os.pidfd_open=lambda *args:(_ for _ in ()).throw(OSError())",
+        ):
+            code = (
+                "import os,signal,owned_process;"
+                f"{injection};"
+                "raise SystemExit(owned_process._main())"
+            )
+            with self.subTest(injection=injection):
+                self.assertEqual(self.fake_supervisor(code, worker="import time;time.sleep(.3)"),
+                                 subject.Result(False, "unverified"))
+        time.sleep(.5)
+
+    def test_terminal_frame_without_exit_cannot_certify(self):
+        code = "import time;print('{\"verified\":true,\"outcome\":\"success\"}',flush=True);time.sleep(4)"
+        start = time.monotonic()
+        self.assertEqual(self.fake_supervisor(code), subject.Result(False, "unverified"))
+        self.assertLess(time.monotonic() - start, 3.5)
 
     def test_protocol_rejects_malformed_duplicate_truncated_and_nonzero(self):
         frame = '{"verified":true,"outcome":"success"}\\n'
