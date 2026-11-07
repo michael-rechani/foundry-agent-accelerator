@@ -2,6 +2,8 @@ import contextlib
 from email.message import Message
 import io
 import json
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -101,16 +103,38 @@ class CandidateCheckTests(unittest.TestCase):
             self.assertNotIn(forbidden, workflow)
 
     def test_output_is_generic_even_for_sensitive_exception(self):
-        for result in ("present", "absent", URLError("private-account private-container private-token ai-foundry/dev.tfvars.json")):
+        sensitive = "private-account private-container private-token ai-foundry/dev.tfvars.json private-headers"
+        for result in (
+            "present", "absent", probe.backend.CheckError(sensitive), URLError(sensitive),
+            OSError(sensitive), ValueError(sensitive), SystemExit(sensitive),
+        ):
             with self.subTest(result=result):
                 out, err = io.StringIO(), io.StringIO()
-                with patch.object(probe, "candidate_status", side_effect=result if isinstance(result, Exception) else None,
+                with patch.object(probe, "candidate_status", side_effect=result if isinstance(result, BaseException) else None,
                                   return_value=result), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
                     code = probe.main()
-                if isinstance(result, Exception):
+                if isinstance(result, BaseException):
                     self.assertEqual((code, out.getvalue(), err.getvalue()), (1, "", "candidate_platform_input_check_failed\n"))
                 else:
                     self.assertEqual((code, out.getvalue(), err.getvalue()), (0, f"candidate_platform_input={result}\n", ""))
+
+    def test_unexpected_error_is_sanitized_by_cli_exception_hook(self):
+        script = """
+import runpy
+from unittest.mock import patch
+import check_lab_terraform_plan
+with patch.object(check_lab_terraform_plan, "configuration",
+                  side_effect=RuntimeError("private-endpoint private-token private-headers")):
+    runpy.run_path("check_platform_input.py", run_name="__main__")
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=Path(probe.__file__).parent,
+            capture_output=True, text=True, check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr, "candidate_platform_input_check_failed\n")
 
 
 class ConfigurationIntegrationTests(unittest.TestCase):

@@ -39,12 +39,18 @@ def candidate_status(environ=os.environ):
 def main():
     try:
         status = candidate_status()
-    except Exception:  # noqa: BLE001 -- exceptions can contain private endpoint details.
+    except (backend.CheckError, error.URLError, OSError, ValueError, SystemExit):
         print("candidate_platform_input_check_failed", file=sys.stderr)
         return 1
     print(f"candidate_platform_input={status}")
     return 0
 
 
+def report_unexpected_failure(_type, _value, _traceback):
+    # Unhandled exceptions may contain private request details.
+    print("candidate_platform_input_check_failed", file=sys.stderr)
+
+
 if __name__ == "__main__":
+    sys.excepthook = report_unexpected_failure
     sys.exit(main())
