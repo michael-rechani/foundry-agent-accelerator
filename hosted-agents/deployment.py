@@ -545,6 +545,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
             report_agent_identity(created)
 
             attempted_endpoint = None
+            candidate_check_in_progress = False
             try:
                 wait_until_active(
                     client,
@@ -554,10 +555,12 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                     args.max_polls,
                 )
                 if original_endpoint is not None:
+                    candidate_check_in_progress = True
                     candidate_smoke_test(
                         client, args.agent_name, created.version, args.smoke_test_prompt,
                         profile.delegation_checks,
                     )
+                    candidate_check_in_progress = False
                 current_endpoint = client.agents.get(
                     agent_name=args.agent_name,
                 ).agent_endpoint
@@ -602,10 +605,13 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                     smoke_test(client, args.agent_name, *check)
                 verify_route(client, args.agent_name, created.version)
             except (Exception, KeyboardInterrupt):
-                cleanup_failed_version(
-                    client, args.agent_name, created.version,
-                    original_endpoint, attempted_endpoint,
-                )
+                if candidate_check_in_progress:
+                    print(f"Warning: candidate check did not finish; retained version {created.version}")
+                else:
+                    cleanup_failed_version(
+                        client, args.agent_name, created.version,
+                        original_endpoint, attempted_endpoint,
+                    )
                 raise
 
             print(
