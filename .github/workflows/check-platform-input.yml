@@ -88,6 +88,7 @@ jobs:
               sums_file.write_bytes(sums)
               signature_file.write_bytes(signature)
               status = gpg("--status-fd", "1", "--verify", str(signature_file), str(sums_file))
+              print(f"Public GPG status for {product} {version}: {status.strip()}", flush=True)
               lines = [line.split() for line in status.splitlines() if line.startswith("[GNUPG:]")]
               invalid = {"BADSIG", "ERRSIG", "EXPSIG", "EXPKEYSIG", "REVKEYSIG", "KEYEXPIRED", "SIGEXPIRED", "NO_PUBKEY"}
               signatures = [parts for parts in lines if len(parts) > 2 and parts[1] == "VALIDSIG"]
