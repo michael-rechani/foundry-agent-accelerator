@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 from zipfile import ZipFile
 
 from deployment import (
-    KNOWLEDGE_CHECK_PROMPT, AgentProfile, cleanup_failed_version, create_package, smoke_test,
+    KNOWLEDGE_CHECK_PROMPT, AgentProfile, candidate_model_matches, cleanup_failed_version, create_package, smoke_test,
     verify_delegation, verify_specialist_endpoints, concrete_route, verify_recovery_targets, verify_route,
 )
 
@@ -662,6 +662,23 @@ class DeploymentRollbackTests(unittest.TestCase):
                 self.client.agents.delete_version.assert_not_called()
 
 
+class CandidateModelTests(unittest.TestCase):
+    def test_requires_exact_hosted_model_configuration(self):
+        for definition in (
+            None, {}, {"kind": "prompt", "environment_variables": {"FOUNDRY_MODEL_NAME": "model"}},
+            {"kind": "hosted"}, {"kind": "hosted", "environment_variables": None},
+            {"kind": "hosted", "environment_variables": []},
+            {"kind": "hosted", "environment_variables": {}},
+            {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": True}},
+            {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "other"}},
+        ):
+            with self.subTest(definition=definition):
+                self.assertFalse(candidate_model_matches({"definition": definition}, "model"))
+        self.assertTrue(candidate_model_matches(
+            {"definition": {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "model"}}},
+            "model",
+        ))
+
 class RouteVerificationTests(unittest.TestCase):
     def test_refuses_unsafe_parent_states_and_version_identity(self):
         client = MagicMock()
@@ -672,14 +689,17 @@ class RouteVerificationTests(unittest.TestCase):
         )
         client.agents.get.return_value.state = "enabled"
         client.agents.get.return_value.configuration_state = "enabled"
-        client.agents.get_version.return_value = {"name": "agent", "version": "2", "status": "active"}
-        verify_route(client, "agent", "2")
+        client.agents.get_version.return_value = {
+            "name": "agent", "version": "2", "status": "active",
+            "definition": {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "model"}},
+        }
+        verify_route(client, "agent", "2", "model")
         for field in ("state", "configuration_state"):
             for value in (None, "disabled", "unknown", True, {}):
                 with self.subTest(field=field, value=value):
                     setattr(client.agents.get.return_value, field, value)
                     with self.assertRaisesRegex(RuntimeError, "explicitly enabled"):
-                        verify_route(client, "agent", "2")
+                        verify_route(client, "agent", "2", "model")
                     setattr(client.agents.get.return_value, field, "enabled")
         for response in (
             {"name": "other", "version": "2", "status": "active"},
@@ -689,7 +709,13 @@ class RouteVerificationTests(unittest.TestCase):
             with self.subTest(response=response):
                 client.agents.get_version.return_value = response
                 with self.assertRaisesRegex(RuntimeError, "not active"):
-                    verify_route(client, "agent", "2")
+                    verify_route(client, "agent", "2", "model")
+        client.agents.get_version.return_value = {
+            "name": "agent", "version": "2", "status": "active",
+            "definition": {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "different"}},
+        }
+        with self.assertRaisesRegex(RuntimeError, "does not confirm the requested model"):
+            verify_route(client, "agent", "2", "model")
         client.agents.update_details.assert_not_called()
         client.agents.delete_version.assert_not_called()
         client.agents.enable.assert_not_called()
@@ -704,19 +730,22 @@ class RouteVerificationTests(unittest.TestCase):
         client.agents.get.return_value.state = "enabled"
         client.agents.get.return_value.configuration_state = "enabled"
         client.agents.get.return_value.agent_endpoint = endpoint
-        client.agents.get_version.return_value = {"name": "agent", "version": "2", "status": "active"}
-        verify_route(client, "agent", "2")
+        client.agents.get_version.return_value = {
+            "name": "agent", "version": "2", "status": "active",
+            "definition": {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "model"}},
+        }
+        verify_route(client, "agent", "2", "model")
         for version, percentage in (("@latest", 100), ("1", 100), ("2", 50), ("2", True)):
             with self.subTest(version=version, percentage=percentage), self.assertRaises(RuntimeError):
                 rule.agent_version, rule.traffic_percentage = version, percentage
-                verify_route(client, "agent", "2")
+                verify_route(client, "agent", "2", "model")
         rule.agent_version, rule.traffic_percentage = "2", 100
         client.agents.get_version.return_value = {"name": "agent", "version": "2", "status": "creating"}
         with self.assertRaisesRegex(RuntimeError, "not active"):
-            verify_route(client, "agent", "2")
+            verify_route(client, "agent", "2", "model")
         client.agents.get_version.return_value = {"name": "agent", "version": "2", "status": "active", "draft": True}
         with self.assertRaisesRegex(RuntimeError, "not active"):
-            verify_route(client, "agent", "2")
+            verify_route(client, "agent", "2", "model")
 
 
 if __name__ == "__main__":
