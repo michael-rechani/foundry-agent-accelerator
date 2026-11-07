@@ -36,8 +36,8 @@ def assert_no_azapi_bypass(directory):
 
 class AzapiRegistrationOverlayTests(unittest.TestCase):
     def test_actual_reviewed_root_init_validate_and_descendant_provider_graph(self):
-        terraform = os.environ.get("OVERLAY_TERRAFORM")
-        self.assertTrue(terraform and Path(terraform).is_file(), "pinned Terraform executable required")
+        terraform = shutil.which(os.environ.get("OVERLAY_TERRAFORM", "terraform"))
+        self.assertTrue(terraform, "pinned Terraform executable required")
         source_root = Path(__file__).resolve().parents[2] / "terraform"
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder)
