@@ -91,7 +91,7 @@ official script. This invocation-input follow-up has not run on the private runn
 Only a sanitized azd version and readiness are printed on success. Failures
 print the fixed `foundry_prerequisites_check_failed` marker and an allowlisted
 `failure_stage`: `context`, `download`, `checksum`, `archive`, `missing_bash`,
-`skill_execution`, `version`, `cleanup`, `timeout`, `interruption`, or
+`skill_execution`, `version`, `cleanup`, `timeout`, `interruption`, `output_limit`, or
 `unexpected_io`. Unrecognized exceptions map to `unexpected_io`, without
 exception text. The launcher accepts only these exact categories or exact
 success output; empty, malformed, or unrecognized launcher output maps to
