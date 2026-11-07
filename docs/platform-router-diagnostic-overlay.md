@@ -100,11 +100,14 @@ provider configurations, selectors, remappings and aliases. Terraform JSON is
 parsed with duplicate-key and malformed-input rejection, then the same identifier
 check is applied recursively to every decoded key and string. HCL delimiter,
 string and comment structure is checked; unsupported heredocs and incomplete or
-mismatched structure fail closed. Traversal uses `os.scandir` without following
-symlinks, and symlinked entries, unreadable/invalid source, or directory scan
-errors fail with fixed diagnostics. This is a conservative lexical guard, not a
-full HCL parser or proof of every future Terraform syntax; no parser dependency is
-added.
+mismatched structure fail closed. Traversal uses `os.scandir` and explicitly stats each enumerated entry with
+`follow_symlinks=False`. Vanished or uninspectable entries fail the scan; symlinks
+and every non-directory, non-regular filesystem entry (including FIFOs, sockets
+and devices) are refused rather than silently skipped. Only regular source files
+are parsed. Synthetic FIFO and mocked socket/device/stat-error tests cover these
+paths, but do not prove the unverified earlier public dependency closure contains
+no special entries. This remains a conservative lexical guard, not a full HCL
+parser or proof of every future Terraform syntax; no parser dependency is added.
 
 The committed Router `versions.tf` and benign HCL/JSON `required_providers`
 declarations are synthetic scanner test data and must pass. Adversarial routing,
