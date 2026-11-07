@@ -98,7 +98,7 @@ class OverlayTests(unittest.TestCase):
         self.assertEqual(original["providers"]["registry.terraform.io/azure/azapi"], "2.12.0")
         self.assertEqual(original["providers"]["registry.terraform.io/hashicorp/azurerm"], "4.81.0")
         results = []
-        for overlay in (False, True):
+        for overlay in (False, True, "legacy"):
             with tempfile.TemporaryDirectory() as folder:
                 base = Path(folder)
                 root = base / "root"
@@ -106,7 +106,10 @@ class OverlayTests(unittest.TestCase):
                 original_root = {name: (root / name).read_bytes() for name in diagnostic.DIAGNOSTIC_ROOT_FILES}
                 original_lock = (root / ".terraform.lock.hcl").read_bytes()
                 original_modules = (root / ".terraform/modules/modules.json").read_bytes()
-                if overlay:
+                if overlay == "legacy":
+                    (root / "runner-diagnostic.tf").write_text(
+                        'terraform {\n required_providers {\n modtm = {\n source = "azure/modtm"\n version = "~> 0.3"\n }\n }\n}\n')
+                elif overlay:
                     diagnostic.write_backend(root)
                 home = base / "home"
                 home.mkdir(mode=0o700)
@@ -116,7 +119,7 @@ class OverlayTests(unittest.TestCase):
                 env = {"PATH": os.environ["PATH"], "HOME": str(home), "LANG": "C.UTF-8",
                        "TF_CLI_CONFIG_FILE": str(config), "TF_IN_AUTOMATION": "true", "TF_INPUT": "0",
                        "CHECKPOINT_DISABLE": "1"}
-                def run(args):
+                def run(args, duplicate=False):
                     allowed = (
                         ["version", "-json"],
                         ["init", "-backend=false", "-get=false", "-lockfile=readonly", "-input=false", "-no-color"],
@@ -125,13 +128,34 @@ class OverlayTests(unittest.TestCase):
                     self.assertIn(args, allowed)
                     result = subprocess.run([os.environ["OVERLAY_TERRAFORM"], f"-chdir={root}", *args],
                                             env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
-                    self.assertEqual(result.returncode, 0, "Public offline Terraform " + args[0] + " failed")
+                    if duplicate:
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertIn(b"Duplicate required providers configuration", result.stderr + result.stdout)
+                    else:
+                        categories = (b"Backend initialization required", b"Duplicate required providers configuration",
+                                      b"Invalid provider configuration", b"Missing required argument")
+                        category = next((value.decode() for value in categories if value in result.stderr + result.stdout), "unclassified")
+                        self.assertEqual(result.returncode, 0, "Public offline Terraform " + args[0] + " failed: " + category)
                     return result.stdout
+                if overlay == "legacy":
+                    run(["init", "-backend=false", "-get=false", "-lockfile=readonly", "-input=false", "-no-color"], duplicate=True)
+                    print("Legacy second required_providers block rejected by real Terraform.")
+                    continue
                 version = json.loads(run(["version", "-json"]))
                 self.assertEqual((version["terraform_version"], version["platform"]), ("1.16.4", "linux_amd64"))
                 run(["init", "-backend=false", "-get=false", "-lockfile=readonly", "-input=false", "-no-color"])
                 selections = json.loads(run(["version", "-json"]))["provider_selections"]
                 self.assertEqual(selections, original["providers"])
+                # Validate the actual generated backend-bearing overlay without initializing its backend.
+                validation = json.loads(run(["validate", "-json"]))
+                self.assertTrue(validation["valid"])
+                self.assertEqual(validation["error_count"], 0)
+                if overlay:
+                    # providers/schema inspect backend state; isolate requirement inspection from that backend.
+                    value = json.loads((root / diagnostic.DIAGNOSTIC_OVERLAY).read_bytes())
+                    self.assertEqual(value["terraform"].pop("backend"), {"azurerm": {}})
+                    (root / diagnostic.DIAGNOSTIC_OVERLAY).write_text(json.dumps(value))
+                    run(["init", "-backend=false", "-get=false", "-lockfile=readonly", "-input=false", "-no-color"])
                 providers = run(["providers"]).decode()
                 self.assertNotIn("hashicorp/modtm", providers)
                 schema = json.loads(run(["providers", "schema", "-json"]))
