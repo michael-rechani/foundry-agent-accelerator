@@ -186,7 +186,7 @@ def wait_until_active(
     version: str,
     poll_seconds: int,
     max_polls: int,
-) -> None:
+) -> Mapping[str, object]:
     if not concrete_version(version):
         raise RuntimeError("The candidate version must be explicit")
     for attempt in range(1, max_polls + 1):
@@ -200,9 +200,9 @@ def wait_until_active(
         print(f"Version {version}: {status} ({attempt}/{max_polls})")
 
         if status == "active":
-            return
+            return details
         if status == "failed":
-            raise RuntimeError(f"Agent version provisioning failed: {dict(details)}")
+            raise RuntimeError("Agent version provisioning failed")
         time.sleep(poll_seconds)
 
     raise TimeoutError(f"Agent version {version} did not become active")
@@ -378,6 +378,19 @@ def active_release(details, agent_name: str, version: str) -> bool:
     )
 
 
+def candidate_model_matches(details, model: str) -> bool:
+    if not isinstance(details, Mapping) or not isinstance(model, str) or not model:
+        return False
+    definition = details.get("definition")
+    if not isinstance(definition, Mapping) or definition.get("kind") != "hosted":
+        return False
+    environment = definition.get("environment_variables")
+    return (
+        isinstance(environment, Mapping)
+        and isinstance(environment.get("FOUNDRY_MODEL_NAME"), str)
+        and environment.get("FOUNDRY_MODEL_NAME") == model
+    )
+
 def enabled_endpoint(client, agent_name: str):
     details = client.agents.get(agent_name=agent_name)
     for field in ("state", "configuration_state"):
@@ -432,13 +445,15 @@ def routes_to_version(endpoint, version: str) -> bool:
     )
 
 
-def verify_route(client, agent_name: str, version: str) -> None:
+def verify_route(client, agent_name: str, version: str, model: str) -> None:
     endpoint = enabled_endpoint(client, agent_name)
     if not routes_to_version(endpoint, version):
         raise RuntimeError("The promoted Responses route was not confirmed")
     details = client.agents.get_version(agent_name=agent_name, agent_version=version)
     if not active_release(details, agent_name, version):
         raise RuntimeError("The promoted agent version is not active")
+    if not candidate_model_matches(details, model):
+        raise RuntimeError("The promoted hosted definition does not confirm the requested model")
 
 
 def recovery_endpoint(original_endpoint):
@@ -600,13 +615,17 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
             attempted_endpoint = None
             candidate_check_in_progress = False
             try:
-                wait_until_active(
+                candidate = wait_until_active(
                     client,
                     args.agent_name,
                     created.version,
                     args.poll_seconds,
                     args.max_polls,
                 )
+                if not active_release(candidate, args.agent_name, created.version):
+                    raise RuntimeError("The candidate agent version is not an active release")
+                if not candidate_model_matches(candidate, args.model):
+                    raise RuntimeError("The candidate hosted definition does not confirm the requested model")
                 if original_endpoint is not None:
                     candidate_check_in_progress = True
                     candidate_smoke_test(
@@ -644,6 +663,8 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 candidate = client.agents.get_version(agent_name=args.agent_name, agent_version=created.version)
                 if not active_release(candidate, args.agent_name, created.version):
                     raise RuntimeError("The candidate agent version is not active")
+                if not candidate_model_matches(candidate, args.model):
+                    raise RuntimeError("The candidate hosted definition does not confirm the requested model")
                 if enabled_endpoint(client, args.agent_name) != current_endpoint:
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
                 attempted_endpoint = deepcopy(endpoint_config)
@@ -651,11 +672,11 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                     agent_name=args.agent_name,
                     agent_endpoint=endpoint_config,
                 )
-                verify_route(client, args.agent_name, created.version)
+                verify_route(client, args.agent_name, created.version, args.model)
                 smoke_test(client, args.agent_name, args.smoke_test_prompt)
                 for check in profile.delegation_checks:
                     smoke_test(client, args.agent_name, *check)
-                verify_route(client, args.agent_name, created.version)
+                verify_route(client, args.agent_name, created.version, args.model)
             except (Exception, KeyboardInterrupt):
                 if candidate_check_in_progress:
                     print(f"Warning: candidate check did not finish; retained version {created.version}")
