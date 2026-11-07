@@ -87,7 +87,7 @@ def parse_args(profile: AgentProfile, argv=None) -> argparse.Namespace:
     parser.add_argument(
         "--smoke-test-prompt",
         default=profile.smoke_test_prompt,
-        help="Prompt sent after routing the new version (empty to skip).",
+        help="Optional prompt for candidate and post-promotion smoke tests (empty to skip).",
     )
     parser.add_argument("--poll-seconds", type=int, default=10)
     parser.add_argument("--max-polls", type=int, default=60)
