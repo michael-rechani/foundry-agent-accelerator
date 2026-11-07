@@ -1,6 +1,7 @@
 """Compare one historical candidate with persisted platform state in memory."""
 
 import json
+import math
 import os
 import re
 import sys
@@ -54,7 +55,7 @@ DISK_FAILURE_CATEGORIES = frozenset({
     "disk_resource_missing", "disk_resource_multiple", "disk_instances_invalid",
     "disk_instance_missing", "disk_instance_multiple", "disk_instance_invalid",
     "disk_instance_deposed", "disk_instance_index_invalid", "disk_attributes_invalid",
-    "disk_body_missing", "disk_body_invalid", "disk_body_json_invalid",
+    "disk_body_missing", "disk_body_invalid", "disk_body_json_invalid", "disk_dynamic_invalid",
     "disk_parent_missing", "disk_parent_invalid", "disk_storage_missing", "disk_storage_invalid",
     "disk_os_missing", "disk_os_invalid", "disk_managed_missing", "disk_managed_invalid",
     "disk_id_missing", "disk_id_invalid", "disk_name_missing", "disk_name_invalid",
@@ -265,6 +266,13 @@ def compare_validated(inputs, state, subscription):
             raise StateDiskDetailError("disk_body_json_invalid") from None
     if not isinstance(body, dict):
         raise StateDiskDetailError("disk_body_invalid")
+    if "type" in body or "value" in body:
+        if (set(body) != {"type", "value"} or not valid_cty_type(body["type"])
+                or not isinstance(body["type"], list) or body["type"][0] not in ("object", "map")
+                or not valid_cty_value(body["type"], body["value"])
+                or not isinstance(body["value"], dict)):
+            raise StateDiskDetailError("disk_dynamic_invalid")
+        body = unwrap_cty_value(body["type"], body["value"])
     properties = disk_object(body, "properties", "disk_parent_missing", "disk_parent_invalid")
     storage = disk_object(properties, "storageProfile", "disk_storage_missing", "disk_storage_invalid")
     os_disk = disk_object(storage, "osDisk", "disk_os_missing", "disk_os_invalid")
@@ -273,6 +281,75 @@ def compare_validated(inputs, state, subscription):
     state_disk_name = disk_string(os_disk, "name", "disk_name_missing", "disk_name_invalid")
     if state_disk_id.lower() != disk_id.lower() or state_disk_name.lower() != disk_name.lower():
         raise CandidateError("Jumpbox disk identity mismatch.")
+
+
+def valid_cty_type(descriptor, depth=0):
+    if depth > 64:
+        return False
+    if isinstance(descriptor, str):
+        return descriptor in ("string", "number", "bool", "dynamic")
+    if not isinstance(descriptor, list) or len(descriptor) != 2 or not isinstance(descriptor[0], str):
+        return False
+    kind, element = descriptor
+    if kind == "object":
+        return isinstance(element, dict) and all(valid_cty_type(item, depth + 1) for item in element.values())
+    if kind == "tuple":
+        return isinstance(element, list) and all(valid_cty_type(item, depth + 1) for item in element)
+    if kind in ("list", "set", "map"):
+        return valid_cty_type(element, depth + 1)
+    return False
+
+
+def valid_cty_value(descriptor, value, depth=0):
+    if depth > 64:
+        return False
+    if value is None:
+        return True
+    if descriptor == "dynamic":
+        return (isinstance(value, dict) and set(value) == {"type", "value"}
+                and valid_cty_type(value["type"], depth + 1)
+                and valid_cty_value(value["type"], value["value"], depth + 1))
+    if descriptor == "string":
+        return isinstance(value, str)
+    if descriptor == "bool":
+        return type(value) is bool
+    if descriptor == "number":
+        return type(value) in (int, float) and (type(value) is int or math.isfinite(value))
+    if not isinstance(descriptor, list) or len(descriptor) != 2:
+        return False
+    kind, element = descriptor
+    if kind == "object":
+        return (isinstance(value, dict) and set(value) == set(element)
+                and all(valid_cty_value(item, value[key], depth + 1) for key, item in element.items()))
+    if kind == "map":
+        return isinstance(value, dict) and all(valid_cty_value(element, item, depth + 1) for item in value.values())
+    if kind == "tuple":
+        return (isinstance(value, list) and len(value) == len(element)
+                and all(valid_cty_value(item_type, item, depth + 1)
+                        for item_type, item in zip(element, value, strict=True)))
+    if kind == "set":
+        return (isinstance(value, list) and all(valid_cty_value(element, item, depth + 1) for item in value)
+                and all(item not in value[:index] for index, item in enumerate(value)))
+    if kind == "list":
+        return isinstance(value, list) and all(valid_cty_value(element, item, depth + 1) for item in value)
+    return False
+
+
+def unwrap_cty_value(descriptor, value):
+    if value is None:
+        return None
+    if descriptor == "dynamic":
+        return unwrap_cty_value(value["type"], value["value"])
+    if not isinstance(descriptor, list):
+        return value
+    kind, element = descriptor
+    if kind == "object":
+        return {key: unwrap_cty_value(item, value[key]) for key, item in element.items()}
+    if kind == "map":
+        return {key: unwrap_cty_value(element, item) for key, item in value.items()}
+    if kind == "tuple":
+        return [unwrap_cty_value(item_type, item) for item_type, item in zip(element, value, strict=True)]
+    return [unwrap_cty_value(element, item) for item in value]
 
 
 def disk_object(parent, key, missing, invalid):

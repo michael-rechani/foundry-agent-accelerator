@@ -57,6 +57,23 @@ def encode(value):
     return json.dumps(value).encode()
 
 
+def typed_body(value):
+    def descriptor(item):
+        if isinstance(item, dict):
+            return ["object", {key: descriptor(child) for key, child in item.items()}]
+        if isinstance(item, list):
+            return ["tuple", [descriptor(child) for child in item]]
+        if type(item) is bool:
+            return "bool"
+        if type(item) in (int, float):
+            return "number"
+        if isinstance(item, str):
+            return "string"
+        return "dynamic"
+
+    return {"type": descriptor(value), "value": deepcopy(value)}
+
+
 def headers(etag='"v1"', lease="unlocked", locked=False):
     result = Message()
     result["ETag"] = etag
@@ -130,6 +147,77 @@ class CompareTests(unittest.TestCase):
         attrs = state["resources"][2]["instances"][0]["attributes"]
         attrs["body"] = json.dumps(attrs["body"])
         probe.compare(encode(inputs), encode(state), SUB)
+
+    def test_cty_dynamic_object_body_and_disk_identity(self):
+        inputs, state = fixture()
+        attrs = state["resources"][2]["instances"][0]["attributes"]
+        body = attrs["body"]
+        body["properties"].update(
+            hardwareProfile={"vmSize": "synthetic"},
+            networkProfile={"networkInterfaces": [{"id": "synthetic", "properties": {"primary": True}}]},
+            dataDisks=[], optional=None,
+        )
+        attrs["body"] = typed_body(body)
+        probe.compare(encode(inputs), encode(state), SUB)
+        nested = deepcopy(state)
+        nested_body = nested["resources"][2]["instances"][0]["attributes"]["body"]
+        nested_body["type"][1]["properties"] = "dynamic"
+        nested_body["value"]["properties"] = typed_body(nested_body["value"]["properties"])
+        probe.compare(encode(inputs), encode(nested), SUB)
+        for field in ("id", "name"):
+            altered = deepcopy(state)
+            os_disk = altered["resources"][2]["instances"][0]["attributes"]["body"]["value"]["properties"][
+                "storageProfile"]["osDisk"]
+            target = os_disk["managedDisk"] if field == "id" else os_disk
+            target[field] += "-different"
+            with self.subTest(field=field), self.assertRaises(probe.CandidateError):
+                probe.compare(encode(inputs), encode(altered), SUB)
+
+    def test_dynamic_type_and_value_are_strictly_consistent(self):
+        inputs, state = fixture()
+        attrs = state["resources"][2]["instances"][0]["attributes"]
+        original = typed_body(attrs["body"])
+        cases = []
+        for mutate in (
+            lambda b: b.pop("type"),
+            lambda b: b.pop("value"),
+            lambda b: b.update(properties=deepcopy(b["value"]["properties"])),
+            lambda b: b.update(type=["object", {}]),
+            lambda b: b.update(type=["object", "not-an-object"]),
+            lambda b: b.update(type=["object", {}, []]),
+            lambda b: b.update(type=["unknown", {}]),
+            lambda b: b.update(type="dynamic"),
+            lambda b: b["type"][1].update(extra="string"),
+            lambda b: b["value"].update(extra="private-value"),
+            lambda b: b["type"][1]["properties"][1]["storageProfile"][1]["osDisk"][1].update(name="number"),
+            lambda b: b["value"]["properties"]["storageProfile"]["osDisk"].update(name=True),
+            lambda b: b.update(value=[]),
+        ):
+            changed = deepcopy(original)
+            mutate(changed)
+            cases.append(changed)
+        for case in cases:
+            attrs["body"] = case
+            with self.subTest(case=cases.index(case)), self.assertRaises(probe.StateDiskDetailError) as caught:
+                probe.compare(encode(inputs), encode(state), SUB)
+            self.assertEqual(caught.exception.category, "disk_dynamic_invalid")
+
+    def test_cty_collection_types_and_nested_dynamic_values(self):
+        descriptor = ["object", {
+            "map": ["map", "string"], "list": ["list", "number"],
+            "set": ["set", "bool"], "tuple": ["tuple", ["string", "dynamic"]],
+        }]
+        value = {"map": {"key": "value"}, "list": [1, 2.5], "set": [True, False],
+                 "tuple": ["synthetic", {"type": "string", "value": "synthetic"}]}
+        self.assertTrue(probe.valid_cty_type(descriptor))
+        self.assertTrue(probe.valid_cty_value(descriptor, value))
+        for key, invalid in (("map", {"key": 1}), ("list", [True]), ("set", [0]),
+                             ("set", [True, True]),
+                             ("tuple", ["synthetic", {"type": "number", "value": "not-number"}])):
+            changed = deepcopy(value)
+            changed[key] = invalid
+            with self.subTest(key=key):
+                self.assertFalse(probe.valid_cty_value(descriptor, changed))
 
     def test_other_project_role_even_with_matching_assignment_id_is_rejected(self):
         inputs, state = fixture()
@@ -375,6 +463,8 @@ class SnapshotTests(unittest.TestCase):
                 attrs["body"] = []
             elif case == "disk_body_json_invalid":
                 attrs["body"] = '{"private-field":"private-value",'
+            elif case == "disk_dynamic_invalid":
+                attrs["body"] = {"type": ["object", {}], "value": {"private-field": "private-value"}}
             elif case.startswith(("disk_parent_", "disk_storage_", "disk_os_", "disk_managed_",
                                   "disk_id_", "disk_name_")):
                 body = attrs["body"]
@@ -438,6 +528,21 @@ class SnapshotTests(unittest.TestCase):
     def test_unstable_snapshots_override_disk_detail_and_secret(self):
         state, inputs = deepcopy(self.state), deepcopy(self.inputs)
         state["resources"][2]["instances"][0]["attributes"].pop("body")
+        inputs["jumpbox_admin_secret"] = {"private-field": "private-value"}
+        results = [(encode(inputs), headers()), (encode(state), headers()),
+                   (encode(state), headers(etag='"changed"')), (encode(inputs), headers())]
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                patch.object(probe, "Blobs", return_value=self.blobs), \
+                patch.object(probe.backend, "send", side_effect=results), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(probe.main(), 1)
+        self.assertEqual((out.getvalue(), err.getvalue()),
+                         ("", "candidate_platform_comparison_failed=snapshot_unstable\n"))
+
+    def test_unstable_snapshots_override_dynamic_error_and_secret(self):
+        state, inputs = deepcopy(self.state), deepcopy(self.inputs)
+        state["resources"][2]["instances"][0]["attributes"]["body"] = {"type": "private-value"}
         inputs["jumpbox_admin_secret"] = {"private-field": "private-value"}
         results = [(encode(inputs), headers()), (encode(state), headers()),
                    (encode(state), headers(etag='"changed"')), (encode(inputs), headers())]
