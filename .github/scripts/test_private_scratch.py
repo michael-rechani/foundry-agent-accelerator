@@ -359,6 +359,7 @@ class PrivateScratchTests(TestCase):
         self.assertTrue((root / "held-original.bin").exists())
         self.assertTrue((root / "new.bin").exists())
         scratch.close_descriptors()
+
     def test_owned_file_descriptor_lives_until_verified_cleanup(self):
         scratch = PrivateScratch.create(str(self.parent))
         scratch.create_file("owned.bin", b"fictional")
@@ -457,6 +458,7 @@ class PrivateScratchTests(TestCase):
         scratch.cleanup()
         with self.assertRaises(OSError):
             os.fstat(owned_fd)
+
     def test_partial_byte_writes_preserve_formatted_memoryview_bytes(self):
         scratch = PrivateScratch.create(str(self.parent))
         values = array("I", range(1, 24))

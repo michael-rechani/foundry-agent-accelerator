@@ -288,6 +288,18 @@ class PrivateScratch:
             resource._removed = True
             resource.close_descriptors()
             del self._entries[name]
+    def _verify_parent_entry(self):
+        if self._owns_parent:
+            return None
+        parent = self._parent_owner
+        if parent is None:
+            raise ScratchError("The scratch directory has no recorded owner.")
+        parent._verify_link()
+        entry = parent._entries.get(self.name)
+        if (not isinstance(entry, tuple) or len(entry) != 3
+                or entry[0] != "directory" or entry[1] != self._identity or entry[2] is not self):
+            raise ScratchError("The parent no longer records this scratch directory.")
+        return parent, entry
     def cleanup(self):
         with self._lock:
             if self._removed:
