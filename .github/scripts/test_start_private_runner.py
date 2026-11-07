@@ -193,13 +193,22 @@ class ShellTests(unittest.TestCase):
         self.assertIn("confirmed running", summary)
 
     def test_azure_id_mismatch_fails_before_power_read_or_start(self):
-        for actual in ("", VM_ID.upper(), VM_ID.replace("runner-vm", "other")):
+        for actual in ("", VM_ID.replace("runner-vm", "other"),
+                       VM_ID.replace("runner-rg", "other"),
+                       VM_ID.replace(SUBSCRIPTION, "22222222-2222-2222-2222-222222222222")):
             with self.subTest(actual=actual):
                 result, calls, summary = self.execute(ACTUAL_ID=actual)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn("<get-instance-view>", calls)
                 self.assertNotIn("<start>", calls)
                 self.assertEqual(summary, "")
+
+    def test_azure_id_comparison_normalizes_case(self):
+        result, calls, summary = self.execute(ACTUAL_ID=VM_ID.upper())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(calls.count("az <vm> <start>"), 1)
+        self.assertIn(f"<--ids> <{VM_ID.upper()}>", calls)
+        self.assertIn("confirmed running", summary)
 
     def test_authentication_and_read_failures_never_start(self):
         for stage in ("oidc", "token", "login", "account", "show", "state"):

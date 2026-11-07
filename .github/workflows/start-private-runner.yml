@@ -75,7 +75,8 @@ jobs:
           az account set --subscription "$AZURE_SUBSCRIPTION_ID" || fail "Azure subscription selection failed."
 
           actual_id="$(az vm show --subscription "$AZURE_SUBSCRIPTION_ID" --resource-group "$LAB_RUNNER_RESOURCE_GROUP" --name "$LAB_RUNNER_VM" --query id --output tsv)" || fail "Azure VM identity read failed."
-          [[ "$actual_id" == "$expected_id" ]] || fail "Azure VM ID differs from the configured and reviewed target."
+          [[ "${actual_id,,}" == "${expected_id,,}" ]] || fail "Azure VM ID differs from the configured and reviewed target."
+          echo "::add-mask::$actual_id"
           power_state() {
             az vm get-instance-view --ids "$actual_id" --query "instanceView.statuses[?starts_with(code, 'PowerState/')].code | [0]" --output tsv
           }
