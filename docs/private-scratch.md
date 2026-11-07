@@ -11,8 +11,12 @@ open directory descriptors, and verifies recorded device/inode identities
 before cleanup. If nested-directory setup fails after its exclusive `mkdir`, the opened descriptor is closed and the untracked empty directory is deliberately left in place; cleanup refuses it as unexpected rather than guessing ownership. The operator may inspect it under the trusted parent.
 
 Cleanup refuses unexpected entries or replaced names and only
-removes entries created through the in-memory ownership records. It never uses
-a wildcard or follows a symbolic link.
+removes entries created through the in-memory ownership records. A child cleanup
+updates its parent inventory only after verified child removal succeeds; parent-driven
+cleanup remains supported. Unknown dynamically created files (including files a
+Terraform process might create) are never recursively swept and cause cleanup to
+stop for explicit operator inspection. Cleanup never uses a wildcard or follows a
+symbolic link.
 
 These controls protect against stale-name collisions, symlink traversal,
 ancestor path redirection after opening the parent, and accidental cleanup of

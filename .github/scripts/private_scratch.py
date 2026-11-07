@@ -78,12 +78,13 @@ def _open_trusted_parent(path):
 class PrivateScratch:
     """Own one private directory beneath a trusted parent; never follows links."""
 
-    def __init__(self, parent_fd, fd, name, identity, *, owns_parent, lock=None):
+    def __init__(self, parent_fd, fd, name, identity, *, owns_parent, parent_owner=None, lock=None):
         self.name = name
         self._parent_fd = parent_fd
         self._fd = fd
         self._identity = identity
         self._owns_parent = owns_parent
+        self._parent_owner = parent_owner
         self._entries = {}
         self._lock = lock or threading.RLock()
         self._removed = False
@@ -199,7 +200,7 @@ class PrivateScratch:
             try:
                 os.fchmod(child_fd, 0o700)
                 info = os.fstat(child_fd)
-                child = PrivateScratch(self._fd, child_fd, name, _inode(info), owns_parent=False, lock=self._lock)
+                child = PrivateScratch(self._fd, child_fd, name, _inode(info), owns_parent=False, parent_owner=self, lock=self._lock)
                 child._verify_link()
                 self._entries[name] = ("directory", _inode(info), child)
                 keep = True
@@ -251,14 +252,33 @@ class PrivateScratch:
                 child.close_descriptors()
             del self._entries[name]
 
+    def _verify_parent_entry(self):
+        if self._owns_parent:
+            return None
+        parent = self._parent_owner
+        if parent is None:
+            raise ScratchError("The scratch directory has no recorded owner.")
+        parent._verify_link()
+        entry = parent._entries.get(self.name)
+        if (not isinstance(entry, tuple) or len(entry) != 3
+                or entry[0] != "directory" or entry[1] != self._identity or entry[2] is not self):
+            raise ScratchError("The parent no longer records this scratch directory.")
+        return parent, entry
+
     def cleanup(self):
         with self._lock:
             if self._removed:
                 return
+            parent_entry = self._verify_parent_entry()
             self._preflight()
             self._remove_contents()
             self._verify_link()
             os.rmdir(self.name, dir_fd=self._parent_fd)
+            if parent_entry is not None:
+                parent, entry = parent_entry
+                if parent._entries.get(self.name) is not entry:
+                    raise ScratchError("The parent scratch ownership record changed during cleanup.")
+                del parent._entries[self.name]
             self._removed = True
             self.close_descriptors()
 

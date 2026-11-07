@@ -153,6 +153,100 @@ class PrivateScratchTests(TestCase):
         self.assertFalse((self.parent / scratch.name).exists())
 
 
+    def test_nested_context_managers_remove_child_inventory_before_parent_exit(self):
+        with PrivateScratch.create(str(self.parent)) as scratch:
+            with scratch.create_directory("nested") as child:
+                child.create_file("payload.bin", b"fictional")
+                self.assertIn("nested", scratch._entries)
+            self.assertNotIn("nested", scratch._entries)
+            self.assertFalse((self.parent / scratch.name / "nested").exists())
+        self.assertFalse((self.parent / scratch.name).exists())
+
+    def test_explicit_and_repeated_child_cleanup_detaches_once(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        child = scratch.create_directory("nested")
+        child.create_file("payload.bin", b"fictional")
+        child.cleanup()
+        self.assertNotIn("nested", scratch._entries)
+        child.cleanup()
+        self.assertNotIn("nested", scratch._entries)
+        scratch.cleanup()
+        self.assertFalse((self.parent / scratch.name).exists())
+
+    def test_nested_grandchild_cleanup_updates_each_ownership_level(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        child = scratch.create_directory("child")
+        grandchild = child.create_directory("grandchild")
+        grandchild.create_file("payload.bin", b"fictional")
+        grandchild.cleanup()
+        self.assertNotIn("grandchild", child._entries)
+        child.cleanup()
+        self.assertNotIn("child", scratch._entries)
+        scratch.cleanup()
+        self.assertFalse((self.parent / scratch.name).exists())
+
+    def test_successfully_removed_child_name_can_be_reused(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        first = scratch.create_directory("nested")
+        first.cleanup()
+        second = scratch.create_directory("nested")
+        second.create_file("new.bin", b"fictional")
+        scratch.cleanup()
+        self.assertFalse((self.parent / scratch.name).exists())
+
+    def test_concurrent_parent_and_child_cleanup_is_serialized(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        child = scratch.create_directory("nested")
+        child.create_file("payload.bin", b"fictional")
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(scratch.cleanup), pool.submit(child.cleanup)]
+            for future in futures:
+                future.result()
+        child.cleanup()
+        scratch.cleanup()
+        self.assertFalse((self.parent / scratch.name).exists())
+
+    def test_child_failure_retains_parent_ownership_and_refuses_unknown_files(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        child = scratch.create_directory("nested")
+        unexpected = self.parent / scratch.name / "nested" / "provider-generated.cache"
+        unexpected.write_bytes(b"synthetic")
+        record = scratch._entries["nested"]
+        with self.assertRaises(ScratchError):
+            child.cleanup()
+        self.assertIs(scratch._entries.get("nested"), record)
+        self.assertTrue(unexpected.exists())
+        with self.assertRaises(ScratchError):
+            scratch.cleanup()
+        self.assertIs(scratch._entries.get("nested"), record)
+        unexpected.unlink()
+        child.cleanup()
+        self.assertNotIn("nested", scratch._entries)
+        scratch.cleanup()
+
+    def test_child_rmdir_failure_retains_parent_ownership_for_retry(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        child = scratch.create_directory("nested")
+        record = scratch._entries["nested"]
+        real_rmdir = os.rmdir
+        failed = False
+
+        def fail_child_once(name, *, dir_fd=None):
+            nonlocal failed
+            if name == "nested" and dir_fd == child._parent_fd and not failed:
+                failed = True
+                raise OSError("synthetic rmdir failure")
+            return real_rmdir(name, dir_fd=dir_fd)
+
+        with patch("private_scratch.os.rmdir", side_effect=fail_child_once):
+            with self.assertRaises(OSError):
+                child.cleanup()
+        self.assertTrue(failed)
+        self.assertIs(scratch._entries.get("nested"), record)
+        self.assertTrue((self.parent / scratch.name / "nested").is_dir())
+        child.cleanup()
+        self.assertNotIn("nested", scratch._entries)
+        scratch.cleanup()
     def test_partial_byte_writes_preserve_formatted_memoryview_bytes(self):
         scratch = PrivateScratch.create(str(self.parent))
         values = array("I", range(1, 24))
