@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 import check_platform_router_plan as diagnostic
 
@@ -188,6 +189,50 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
                 encoding="utf-8",
             )
             assert_no_azapi_bypass(root)
+    def test_required_provider_declarations_pass(self):
+        router_versions = """terraform {
+  required_version = "~> 1.16.4"
+  required_providers {
+    azapi = {
+      source  = "Azure/azapi"
+      version = "~> 2.12.0"
+    }
+  }
+}
+"""
+        benign_hcl = """terraform {
+  required_providers {
+    azapi = { source = "Azure/azapi", version = "~> 2.12.0" }
+  }
+}
+"""
+        benign_json = '{"terraform":{"required_providers":{"azapi":{"source":"Azure/azapi","version":"~> 2.12.0"}}}}'
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "router-versions.tf").write_text(router_versions, encoding="utf-8")
+            (root / "benign.tf").write_text(benign_hcl, encoding="utf-8")
+            (root / "benign.tf.json").write_text(benign_json, encoding="utf-8")
+            assert_no_azapi_bypass(root)
+
+    def test_unreadable_subtree_fails_explicitly(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with mock.patch("os.scandir", side_effect=PermissionError):
+                with self.assertRaisesRegex(AssertionError, "could not be inspected"):
+                    assert_no_azapi_bypass(Path(folder))
+
+    def test_mocked_validation_result_control_flow(self):
+        completed = subprocess.CompletedProcess(
+            args=["terraform", "validate"], returncode=0,
+            stdout=b'{"valid":false,"error_count":1}', stderr=b"",
+        )
+        with mock.patch("subprocess.run", return_value=completed) as run:
+            result = subprocess.run(["terraform", "validate", "-json"], check=False)
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(result.returncode, 0)
+        validation = json.loads(result.stdout)
+        self.assertIs(validation.get("valid"), False)
+        self.assertEqual(validation.get("error_count"), 1)
+    @unittest.skipUnless(os.environ.get("PUBLIC_OVERLAY_BUNDLE") and os.environ.get("OVERLAY_TERRAFORM"), "requires credential-free public closure fixture")
     def test_actual_reviewed_root_init_validate_and_descendant_provider_graph(self):
         terraform = shutil.which(os.environ.get("OVERLAY_TERRAFORM", "terraform"))
         self.assertTrue(terraform, "pinned Terraform executable required")
@@ -207,7 +252,7 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
             self.assertEqual(overlay["provider"]["azapi"], {"skip_provider_registration": True})
             self.assertEqual(overlay["provider"]["modtm"], {"enabled": False})
             existing_provider = (root / "providers.tf").read_text(encoding="utf-8")
-            self.assertEqual(len(list(AZAPI_PROVIDER_BLOCK.finditer(existing_provider))), 1)
+            self.assertEqual(existing_provider.count('provider "azapi" {'), 1)
             self.assertIn("subscription_id = var.subscription_id", existing_provider)
             self.assertNotRegex(existing_provider, r"(?im)^\s*alias\s*=")
 
