@@ -165,7 +165,9 @@ rejects new requests even if its selector and version remain active. The pinned
 `azure-ai-projects==2.6.1` SDK preserves the documented
 [`configuration_state` response field](https://learn.microsoft.com/en-us/azure/foundry/reference/rest/agents-get-agent)
 in the `AgentDetails` mapping, not as a declared attribute; if the service omits
-it, this deployer stops rather than assuming it is enabled. Positive-traffic
+it, this deployer stops rather than assuming it is enabled. Every parent-agent
+read must return a string name exactly matching the requested agent; a missing,
+malformed or mismatched name stops further automated route writes. Positive-traffic
 version reads must also return the exact requested agent name and version.
 Reconcile `@latest`, unknown aliases, missing Responses support, or an unrouted
 agent with an operator instead of letting a new version change a symbolic or
@@ -199,10 +201,17 @@ before creating a version. For an existing agent with a concrete recovery route,
 it opens a session bound to the exact active candidate version and runs the
 configured general smoke prompt and every mandatory profile delegation check
 before attempting promotion. An empty optional prompt does not skip profile
-checks; if neither exists, promotion fails. It deletes the candidate session;
-a session creation response lost or lacking a usable ID cannot be cleaned up
-by the deployer and needs operator inspection. Cleanup errors stop promotion. A candidate
-whose pre-promotion check fails is retained for inspection rather than force-deleted.
+checks; if neither exists, promotion fails. It attempts to delete the temporary
+candidate session; a session creation response lost or lacking a usable ID cannot
+be cleaned up by the deployer and needs operator inspection. Cleanup errors stop
+promotion. The documented [delete-session API](https://learn.microsoft.com/en-us/azure/foundry/reference/rest/agents-delete-session)
+returns 204 both when deleted and when already absent, and lists no conditional-delete
+header. If another actor deletes and recreates the same ID concurrently, success
+does not prove which instance was deleted or prevent later recreation. Coordinate
+session-ID operations externally; a 204 does not establish atomic instance
+ownership or global absence. The published documentation does not rule out
+undocumented controls. A candidate version whose pre-promotion check fails is
+retained for inspection rather than force-deleted.
 
 Before the first candidate smoke, immediately before promotion, and in the
 post-promotion route checks, the deployer requires the returned hosted candidate
@@ -270,11 +279,12 @@ a specialist call; the verifier checks correlated structured tool results.
 ## 7. Handle failure and cleanup
 
 On failure after a promotion attempt, the deployer first reads the endpoint. It
-restores the captured route only if both parent states are explicitly enabled,
-the endpoint still matches the attempted promotion, and prior traffic-serving
-versions remain exact active releases. A disabled or unknown state, or an observed
-different route or endpoint configuration, is left untouched and requires manual
-recovery; the deployer never enables an agent. It
+restores the captured route only if the parent name matches, both parent states
+are explicitly enabled, the endpoint still matches the attempted promotion, and
+prior traffic-serving versions remain exact active releases. A missing or mismatched
+parent identity, disabled or unknown state, or an observed different route or
+endpoint configuration is left untouched and requires manual recovery; the
+deployer never enables an agent. It
 requires the complete restored endpoint to match the snapshot, rechecks those
 versions, and confirms the observed route no longer references the candidate. Automatic
 version deletion is disabled, even after successful restoration: user sessions
