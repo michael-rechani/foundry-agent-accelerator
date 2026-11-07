@@ -31,6 +31,7 @@ jobs:
           for interpreter in /opt/hostedtoolcache/Python/3.14.*/x64/bin/python3; do
             if [ -x "$interpreter" ]; then
               env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -m unittest discover -s .github/scripts -p 'test_*dependencies.py' -v
+              env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -m unittest discover -s .github/scripts -p test_ledger_cleanup_scaling.py -v
               found=true
               break
             fi

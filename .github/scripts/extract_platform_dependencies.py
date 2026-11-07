@@ -18,6 +18,7 @@ MAX_DECOMPRESSED = 1_000_000_000
 MAX_TOTAL = 800_000_000
 MAX_FILE = 150_000_000
 MAX_ENTRIES = 20000
+MAX_CLEANUP_ENUMERATION = 2_000_000
 MAX_PATH = 4096
 MAX_DEPTH = 32
 BLOCK = 512
@@ -407,6 +408,10 @@ def cleanup_owned(root_fd, ledger=None):
     for name in ledger.entries:
         parent, _, basename = name.rpartition("/")
         children.setdefault(parent, set()).add(basename)
+    # Every deletion still checks the full current parent inventory.
+    work = sum(len(names) * (len(names) + 1) // 2 for names in children.values())
+    if work > MAX_CLEANUP_ENUMERATION:
+        raise ExtractionError("Cleanup enumeration budget exceeded; staging requires reviewed recovery.")
     for name in sorted(ledger.entries, key=lambda value: (value.count("/"), value), reverse=True):
         parent, _, basename = name.rpartition("/")
         parent_fd = root_fd if not parent else ledger.entries[parent]

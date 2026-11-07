@@ -56,19 +56,33 @@ class CleanupScalingTests(unittest.TestCase):
                     calls += 1
                     enumerated += len(names)
                     return names
-                start = time.monotonic()
-                with patch.object(extractor.os, "listdir", counted):
-                    extractor.cleanup_owned(root_fd, ledger)
-                seconds = time.monotonic() - start
-                self.assertEqual(os.listdir(root_fd), [])
-                self.assertEqual(calls, count + fanout)
                 sizes = [((count - fanout) // fanout) + (index < (count - fanout) % fanout)
                          for index in range(fanout)] if fanout else [count]
                 expected = sum(size * (size + 1) // 2 for size in sizes)
                 if fanout:
                     expected += fanout * (fanout + 1) // 2
-                self.assertEqual(enumerated, expected)
-                print(f"synthetic inventory entries={count} directories={fanout} creation_seconds={create_seconds:.6f} cleanup_seconds={seconds:.6f} listing_calls={calls} enumerated_names={enumerated}", flush=True)
+                refused = expected > extractor.MAX_CLEANUP_ENUMERATION
+                start = time.monotonic()
+                with patch.object(extractor.os, "listdir", counted):
+                    if refused:
+                        with patch.object(extractor.os, "unlink", wraps=os.unlink) as unlink, patch.object(extractor.os, "rmdir", wraps=os.rmdir) as rmdir:
+                            with self.assertRaisesRegex(extractor.ExtractionError, "enumeration budget exceeded"):
+                                extractor.cleanup_owned(root_fd, ledger)
+                            unlink.assert_not_called()
+                            rmdir.assert_not_called()
+                    else:
+                        extractor.cleanup_owned(root_fd, ledger)
+                seconds = time.monotonic() - start
+                if refused:
+                    ledger.verify(root_fd)
+                    self.assertEqual(calls, 0)
+                    self.assertEqual(enumerated, 0)
+                    self.assertEqual(len(ledger.entries), count)
+                else:
+                    self.assertEqual(os.listdir(root_fd), [])
+                    self.assertEqual(calls, count + fanout)
+                    self.assertEqual(enumerated, expected)
+                print(f"synthetic inventory entries={count} directories={fanout} creation_seconds={create_seconds:.6f} cleanup_seconds={seconds:.6f} budget_refused={refused} listing_calls={calls} enumerated_names={enumerated} initial_enumeration_work={expected}", flush=True)
             finally:
                 ledger.close()
                 os.close(root_fd)
@@ -82,6 +96,15 @@ class CleanupScalingTests(unittest.TestCase):
     def test_maximum_flat_fictional_inventory(self):
         self.measure(20000, 0)
 
+
+    def test_maximum_distributed_fictional_inventory(self):
+        self.measure(20000, 100)
+
+    def test_exact_enumeration_budget_boundary(self):
+        with patch.object(extractor, "MAX_CLEANUP_ENUMERATION", 6):
+            self.measure(3, 0)
+        with patch.object(extractor, "MAX_CLEANUP_ENUMERATION", 5):
+            self.measure(3, 0)
 
     def test_late_unknown_high_sibling_data_is_not_swept(self):
         with tempfile.TemporaryDirectory() as folder:
