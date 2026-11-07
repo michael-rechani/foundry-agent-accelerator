@@ -103,7 +103,10 @@ def supervise(argv, *, timeout=2.0, grace=2.0, output_limit=65536):
     except (OSError, ValueError, AttributeError, KeyboardInterrupt):
         valid = False
     finally:
-        proc.stdin.close()
+        try:
+            proc.stdin.close()
+        except OSError:
+            valid = False
         if not valid and supervisor_fd is not None:
             try:
                 # A pidfd remains bound even if the supervisor has exited or been reaped.
@@ -116,7 +119,10 @@ def supervise(argv, *, timeout=2.0, grace=2.0, output_limit=65536):
                 os.close(supervisor_fd)
             except OSError:
                 valid = False
-        proc.stdout.close()
+        try:
+            proc.stdout.close()
+        except OSError:
+            valid = False
     if not valid:
         return _unverified()
     # One exact terminal frame, with no trailing or duplicate bytes.

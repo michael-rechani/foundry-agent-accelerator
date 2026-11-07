@@ -195,7 +195,11 @@ class OwnershipFailureTests(unittest.TestCase):
     def flow(self, *, fail=None, chunks=(), limit=0):
         """Mock only OS ownership operations; execute the real supervision loop."""
         events = []
-        proc = mock.Mock(pid=123, stdout=io.BytesIO(), stderr=io.BytesIO())
+        stdout = mock.Mock()
+        stdout.fileno.return_value = 9
+        stderr = mock.Mock()
+        stderr.fileno.return_value = 10
+        proc = mock.Mock(pid=123, stdout=stdout, stderr=stderr)
         selector = mock.MagicMock()
         selector.__enter__.return_value = selector
         queued = list(chunks)
@@ -301,7 +305,9 @@ class OwnershipFailureTests(unittest.TestCase):
             spawn.assert_not_called()
 
     def test_outer_interrupt_uses_bound_pidfd_not_numeric_signal(self):
-        proc = mock.Mock(stdin=io.BytesIO(), stdout=io.BytesIO())
+        stdout = mock.Mock()
+        stdout.fileno.return_value = 9
+        proc = mock.Mock(stdin=io.BytesIO(), stdout=stdout)
         selector = mock.MagicMock()
         selector.__enter__.return_value = selector
         selector.select.side_effect = KeyboardInterrupt()
