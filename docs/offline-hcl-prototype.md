@@ -53,7 +53,8 @@ full evaluator might determine a constant result.
 Supported expression nodes are literal values, scope/relative traversals,
 tuples, object constructors and their key wrappers, parentheses, and
 single-literal `TemplateExpr` nodes. Traversals are opaque references, not
-evaluated values. All other expression types are refused, including function
+evaluated values, but every traversal step must pass the explicit attribute-only
+allowlist described below. All other expression types are refused, including function
 calls, operators, indexing, splats, comprehensions, template controls, and all
 interpolation, including constant interpolation. Nested expressions/blocks and
 every object constructor are visited; a routing refusal does not end AST
@@ -110,8 +111,9 @@ exceptions. The successful run verified all downloaded modules and required
 
 | Tested file under `.github/offline-hcl-prototype` | Git blob |
 | --- | --- |
-| `analyzer.go` | `2005b01d549a47b21a92cf63e752be38a187c343` |
+| `analyzer.go` | `9a0a9989647130b5f200ebe2c3d339ecbcafcf59` |
 | `analyzer_test.go` | `a2376fe15276c39a45dc705f54f7fb95cba698d0` |
+| `traversal_test.go` | `d8e5c764c70c1c0d2dd481b7936d8093c9638515` |
 | `go.mod` | `55d5890a9bf5287923c1319d9363f72400c5d6a3` |
 | `go.sum` | `046687d7d66f447e1e737be3c1b6c147ab26e178` |
 
@@ -134,7 +136,7 @@ line endings, removal of an unused manifest entry, and six additional checksum
 lines for public dependency test packages. Module verification passed. Those
 changes were checked in via the GitHub API; no stale-lock acceptance was added.
 
-Successful tested head:
+Original prototype tested head (before traversal correction):
 `ac472033add028843ccb4e7cf82f27857325a422`,
 [run 42421484518](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42421484518).
 All actual-analyzer tests passed: 24 positive and 64 negative/adversarial examples,
@@ -161,10 +163,50 @@ was configured.
 
 After validation, `.github/workflows/hcl-syntax-prototype.yml` was removed.
 The final documentation/removal head is recorded in the session handoff.
-Final source and manifest blobs match the successful tested head. Existing
-workflows and all parent source files, including the conservative HCL/JSON
-scanner and runtime/protected gates, remain byte-identical to the exact base.
+Final corrected source and manifest blobs match the correction tested head.
+Existing workflows and all parent files other than the isolated prototype
+analyzer and this documentation remain byte-identical to the correction base.
+The conservative HCL/JSON scanner and runtime/protected gates are unchanged.
 No PR, merge or main change was made.
+
+### Traversal-index correction
+
+The previous tested head `ac472033add028843ccb4e7cf82f27857325a422` did
+**not** enforce its documented indexing refusal: the pinned HCL parser folds
+literal indexes into traversal steps rather than always producing `IndexExpr`.
+Synthetic reproduction head `6451cfa55d4be9835791e17ea5440d03eaa0141d`,
+[run 42421971889](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42421971889),
+confirmed all 12 literal-index examples were incorrectly accepted.
+Ordinary non-index traversals remained accepted.
+
+The isolated correction checks every absolute and relative traversal's step
+types. An absolute traversal must start with one nonempty `TraverseRoot`,
+followed only by nonempty `TraverseAttr` steps; a relative traversal must be a
+nonempty sequence of nonempty `TraverseAttr` steps. `TraverseIndex`,
+`TraverseSplat`, nil, pointer forms, misplaced roots and any future or unknown
+step kind are refused as `unsupported_expression`. No traversal is evaluated.
+
+Fixed source head `b4bf5bff09c1058ff1a4e44c26865ec7ee7e5df9`,
+[run 42422092698](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42422092698),
+failed before the analyzer tests due to a misplaced brace in the newly added
+synthetic test harness. The harness was corrected; the guard was unchanged.
+Successful correction tested head `7e332165776687fd7c08477900fc581341f24a7e`,
+[run 42422186512](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42422186512),
+passed all tests and `go vet`; statement coverage was 94.6%. Parser-backed
+tests explicitly verified actual `TraverseIndex` steps and refusal for 12
+numeric, quoted/escaped string, legacy `.0`, chained and relative forms.
+Six ordinary attribute-only/literal examples passed; nested refusal and 17
+direct allowlist/visitor cases tested malformed, nil, and unsupported steps.
+A 10-second configured fuzz run completed 125701 executions without failure.
+Fuzzing and finite tests are not proof of completeness.
+
+This correction used the previous temporary workflow with only `contents: read`;
+its offline-first compile probe reported missing public packages before they
+were restored, and `go mod verify` passed. No dependency manifest changed.
+The temporary workflow was removed after CI; the final documentation/removal
+head is recorded in the session handoff. No captured artifact or real closure
+source was read.
+
 
 ## Uncovered meaning and protected boundaries
 
