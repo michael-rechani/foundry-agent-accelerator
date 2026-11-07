@@ -180,6 +180,32 @@ func (a *analysis) checkObject(object *hclsyntax.ObjectConsExpr) {
 	}
 }
 
+// Traversals stay opaque: never evaluate their source or steps. Only a
+// well-formed absolute root followed by attributes, or a nonempty relative
+// sequence of attributes, is within the prototype predicate.
+func attributeOnlyTraversal(steps hcl.Traversal, absolute bool) bool {
+	if len(steps) == 0 {
+		return false
+	}
+	for index, step := range steps {
+		switch value := step.(type) {
+		case hcl.TraverseRoot:
+			if !absolute || index != 0 || value.Name == "" {
+				return false
+			}
+		case hcl.TraverseAttr:
+			if absolute && index == 0 || value.Name == "" {
+				return false
+			}
+		default:
+			// Includes TraverseIndex, TraverseSplat, nil and future step kinds.
+			return false
+		}
+	}
+	return true
+}
+
+
 func (a *analysis) Enter(node hclsyntax.Node) hcl.Diagnostics {
 	a.depth++
 	if a.result.Nodes < MaxNodes {
@@ -224,8 +250,15 @@ func (a *analysis) Enter(node hclsyntax.Node) hcl.Diagnostics {
 	}
 	if expr, ok := node.(hclsyntax.Expression); ok {
 		switch value := expr.(type) {
-		case *hclsyntax.LiteralValueExpr, *hclsyntax.ScopeTraversalExpr,
-			*hclsyntax.RelativeTraversalExpr, *hclsyntax.TupleConsExpr,
+		case *hclsyntax.ScopeTraversalExpr:
+			if !attributeOnlyTraversal(value.Traversal, true) {
+				a.refuse("unsupported_expression")
+			}
+		case *hclsyntax.RelativeTraversalExpr:
+			if !attributeOnlyTraversal(value.Traversal, false) {
+				a.refuse("unsupported_expression")
+			}
+		case *hclsyntax.LiteralValueExpr, *hclsyntax.TupleConsExpr,
 			*hclsyntax.ObjectConsExpr, *hclsyntax.ObjectConsKeyExpr, *hclsyntax.ParenthesesExpr:
 		case *hclsyntax.TemplateExpr:
 			if !value.IsStringLiteral() {
