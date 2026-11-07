@@ -1,0 +1,28 @@
+name: Test scratch file descriptor ownership
+
+on:
+  push:
+    branches: [michael-rechani-scratch-file-fds]
+
+permissions:
+  contents: read
+
+jobs:
+  linux-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.14"
+      - name: Run Ruff with repository configuration
+        run: |
+          if ! python -m ruff --version >/dev/null 2>&1; then
+            python -m pip install -r .github/requirements-validation.txt
+          fi
+          python -m ruff check .github/scripts/private_scratch.py .github/scripts/test_private_scratch.py
+      - name: Run Linux scratch boundary tests
+        run: python3 -m unittest discover -s .github/scripts -p test_private_scratch.py -v

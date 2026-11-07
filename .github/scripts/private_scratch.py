@@ -148,15 +148,25 @@ class PrivateScratch:
         if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
                 or stat.S_IMODE(info.st_mode) != 0o600):
             raise ScratchError("The created scratch file is not safely owned.")
+        owned_fd = os.dup(fd)
+        keep = False
         try:
-            named = os.stat(name, dir_fd=self._fd, follow_symlinks=False)
-        except OSError:
-            raise ScratchError("The created scratch file name is unavailable.") from None
-        if (not stat.S_ISREG(named.st_mode) or _inode(named) != identity
-                or named.st_uid != os.geteuid() or stat.S_IMODE(named.st_mode) != 0o600):
-            raise ScratchError("The created scratch file name no longer matches its descriptor.")
-        self._entries[name] = ("file", identity, None)
-
+            opened = os.fstat(owned_fd)
+            if (_inode(opened) != identity or not stat.S_ISREG(opened.st_mode)
+                    or opened.st_uid != os.geteuid() or stat.S_IMODE(opened.st_mode) != 0o600):
+                raise ScratchError("The retained scratch file descriptor changed.")
+            try:
+                named = os.stat(name, dir_fd=self._fd, follow_symlinks=False)
+            except OSError:
+                raise ScratchError("The created scratch file name is unavailable.") from None
+            if (not stat.S_ISREG(named.st_mode) or _inode(named) != identity
+                    or named.st_uid != os.geteuid() or stat.S_IMODE(named.st_mode) != 0o600):
+                raise ScratchError("The created scratch file name no longer matches its descriptor.")
+            self._entries[name] = ("file", identity, owned_fd)
+            keep = True
+        finally:
+            if not keep:
+                os.close(owned_fd)
     def _record_created_file_after_error(self, name, fd):
         try:
             self._record_created_file(name, fd)
@@ -234,62 +244,50 @@ class PrivateScratch:
                 if not keep:
                     os.close(child_fd)
 
-    def _verify_file(self, name, identity):
+    def _verify_file(self, name, identity, owned_fd):
+        if not isinstance(owned_fd, int):
+            raise ScratchError("An owned scratch file descriptor is unavailable.")
         try:
+            opened = os.fstat(owned_fd)
+            if (_inode(opened) != identity or not stat.S_ISREG(opened.st_mode)
+                    or opened.st_uid != os.geteuid() or stat.S_IMODE(opened.st_mode) != 0o600):
+                raise ScratchError("An owned scratch file descriptor changed.")
             named = os.stat(name, dir_fd=self._fd, follow_symlinks=False)
-            if (not stat.S_ISREG(named.st_mode) or _inode(named) != identity
+            if (not stat.S_ISREG(named.st_mode) or _inode(named) != _inode(opened)
                     or named.st_uid != os.geteuid() or stat.S_IMODE(named.st_mode) != 0o600):
                 raise ScratchError("An owned scratch file was replaced or changed.")
-            fd = os.open(name, _FILE_FLAGS, dir_fd=self._fd)
-            try:
-                opened = os.fstat(fd)
-                if (_inode(opened) != identity or not stat.S_ISREG(opened.st_mode)
-                        or opened.st_uid != os.geteuid() or stat.S_IMODE(opened.st_mode) != 0o600):
-                    raise ScratchError("An owned scratch file changed during open.")
-            finally:
-                os.close(fd)
         except OSError:
             raise ScratchError("An owned scratch file is unavailable.") from None
-
     def _preflight(self):
         self._verify_link()
         names = os.listdir(self._fd)
         if len(names) != len(self._entries) or set(names) != set(self._entries):
             raise ScratchError("Unexpected scratch contents prevent cleanup.")
-        for name, (kind, identity, child) in self._entries.items():
+        for name, (kind, identity, resource) in self._entries.items():
             if kind == "file":
-                self._verify_file(name, identity)
+                self._verify_file(name, identity, resource)
             elif kind == "directory":
-                child._preflight()
+                resource._preflight()
             else:
                 raise ScratchError("Unknown scratch ownership record.")
 
     def _remove_contents(self):
-        for name, (kind, identity, child) in tuple(self._entries.items()):
+        for name, (kind, identity, resource) in tuple(self._entries.items()):
             if kind == "file":
-                self._verify_file(name, identity)
+                self._verify_file(name, identity, resource)
                 os.unlink(name, dir_fd=self._fd)
-            else:
-                child._remove_contents()
-                child._verify_link()
-                os.rmdir(name, dir_fd=self._fd)
-                child._removed = True
-                child.close_descriptors()
+                del self._entries[name]
+                try:
+                    os.close(resource)
+                except OSError:
+                    raise ScratchError("A removed scratch file descriptor could not be closed.") from None
+                continue
+            resource._remove_contents()
+            resource._verify_link()
+            os.rmdir(name, dir_fd=self._fd)
+            resource._removed = True
+            resource.close_descriptors()
             del self._entries[name]
-
-    def _verify_parent_entry(self):
-        if self._owns_parent:
-            return None
-        parent = self._parent_owner
-        if parent is None:
-            raise ScratchError("The scratch directory has no recorded owner.")
-        parent._verify_link()
-        entry = parent._entries.get(self.name)
-        if (not isinstance(entry, tuple) or len(entry) != 3
-                or entry[0] != "directory" or entry[1] != self._identity or entry[2] is not self):
-            raise ScratchError("The parent no longer records this scratch directory.")
-        return parent, entry
-
     def cleanup(self):
         with self._lock:
             if self._removed:
@@ -311,10 +309,32 @@ class PrivateScratch:
         with self._lock:
             if self._handles_closed:
                 return
-            for kind, _identity, child in self._entries.values():
+            close_failed = False
+            for name, (kind, identity, resource) in tuple(self._entries.items()):
                 if kind == "directory":
-                    child.close_descriptors()
-            os.close(self._fd)
+                    try:
+                        resource.close_descriptors()
+                    except ScratchError:
+                        close_failed = True
+                elif kind == "file" and resource is not None:
+                    self._entries[name] = (kind, identity, None)
+                    try:
+                        os.close(resource)
+                    except OSError:
+                        close_failed = True
+            fd = self._fd
+            self._fd = -1
+            try:
+                os.close(fd)
+            except OSError:
+                close_failed = True
             if self._owns_parent:
-                os.close(self._parent_fd)
+                parent_fd = self._parent_fd
+                self._parent_fd = -1
+                try:
+                    os.close(parent_fd)
+                except OSError:
+                    close_failed = True
             self._handles_closed = True
+            if close_failed:
+                raise ScratchError("One or more scratch descriptors could not be closed.")

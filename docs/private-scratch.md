@@ -7,7 +7,7 @@ root/current-user owned and not group/world writable (except a root-owned sticky
 shared temporary ancestor), and whose final directory is owned by the current
 UID and not group/world writable. It creates a random child with mode `0700`
 and files with mode `0600`, uses exclusive creation and `O_NOFOLLOW`, retains
-open directory descriptors, and verifies recorded device/inode identities
+open directory descriptors, and verifies recorded device/inode identities and holds a non-inheritable duplicate descriptor for each file until verified unlink or explicit descriptor closure, preventing inode reuse from making a same-name replacement look owned
 before cleanup. If nested-directory setup fails after its exclusive `mkdir`, the opened descriptor is closed and the untracked empty directory is deliberately left in place; cleanup refuses it as unexpected rather than guessing ownership. The operator may inspect it under the trusted parent.
 
 File creation records ownership only after the open descriptor and no-follow name lookup agree on the same regular, current-UID inode with mode `0600`. If `fchmod` or `fstat` fails, the helper attempts that same verified binding before propagating the error. A transient failure can therefore leave a recorded entry that ordinary parent cleanup can remove. If identity cannot be re-established, or the name was replaced/renamed, the helper never unlinks it; the unverified entry remains and blocks cleanup, potentially retaining earlier files until an operator inspects it. This deliberate residual leak is fail-closed, not a recovery guarantee.
@@ -27,7 +27,7 @@ unowned entries, assuming the parent and process identity are trusted. They do
 has no unlink-by-inode operation, so a same-UID process can race a name check
 against `unlinkat`/`rmdir`. Do not use this helper where untrusted processes
 share the UID or can mutate the parent. `chmod`, random names, inode checks, and
-retained descriptors are not a same-UID security boundary. An enforceable OS
+retained descriptors are not a same-UID security boundary. Held file descriptors prevent inode reuse while open, but do not eliminate hostile same-UID check-to-unlink races. An enforceable OS
 identity or mount boundary is required for that threat model.
 
 A process or host failure can leave scratch behind. This helper deliberately

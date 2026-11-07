@@ -359,6 +359,104 @@ class PrivateScratchTests(TestCase):
         self.assertTrue((root / "held-original.bin").exists())
         self.assertTrue((root / "new.bin").exists())
         scratch.close_descriptors()
+    def test_owned_file_descriptor_lives_until_verified_cleanup(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        scratch.create_file("owned.bin", b"fictional")
+        owned_fd = scratch._entries["owned.bin"][2]
+        self.assertIsInstance(owned_fd, int)
+        self.assertFalse(os.get_inheritable(owned_fd))
+        os.fstat(owned_fd)
+        scratch.cleanup()
+        with self.assertRaises(OSError):
+            os.fstat(owned_fd)
+
+    def test_held_inode_prevents_reused_inode_replacement_from_being_adopted(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        scratch.create_file("owned.bin", b"fictional")
+        owned_fd = scratch._entries["owned.bin"][2]
+        original_info = os.fstat(owned_fd)
+        path = self.parent / scratch.name / "owned.bin"
+        path.unlink()
+        path.write_bytes(b"replacement")
+        os.chmod(path, 0o600)
+        replacement_info = path.stat()
+        self.assertNotEqual((original_info.st_dev, original_info.st_ino),
+                            (replacement_info.st_dev, replacement_info.st_ino))
+        with self.assertRaises(ScratchError):
+            scratch.cleanup()
+        self.assertEqual(path.read_bytes(), b"replacement")
+        self.assertEqual(os.fstat(owned_fd).st_ino, original_info.st_ino)
+        scratch.close_descriptors()
+        with self.assertRaises(OSError):
+            os.fstat(owned_fd)
+
+    def test_duplicate_failure_leaves_unowned_file_and_preserves_prior_file(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        scratch.create_file("earlier.bin", b"fictional-sensitive")
+        with patch("private_scratch.os.dup", side_effect=OSError("synthetic dup failure")):
+            with self.assertRaisesRegex(ScratchError, "could not be safely recorded"):
+                scratch.create_file("new.bin", b"fictional")
+        root = self.parent / scratch.name
+        self.assertEqual((root / "earlier.bin").read_bytes(), b"fictional-sensitive")
+        self.assertTrue((root / "new.bin").is_file())
+        self.assertNotIn("new.bin", scratch._entries)
+        with self.assertRaises(ScratchError):
+            scratch.cleanup()
+        (root / "new.bin").unlink()
+        scratch.cleanup()
+
+    def test_duplicate_fstat_failure_closes_duplicate_and_fails_closed(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        duplicated = set()
+        real_dup = os.dup
+        real_fstat = os.fstat
+
+        def capture_dup(fd):
+            duplicate = real_dup(fd)
+            duplicated.add(duplicate)
+            return duplicate
+
+        def fail_duplicate_fstat(fd):
+            if fd in duplicated:
+                raise OSError("synthetic duplicate fstat failure")
+            return real_fstat(fd)
+
+        with patch("private_scratch.os.dup", side_effect=capture_dup), \
+                patch("private_scratch.os.fstat", side_effect=fail_duplicate_fstat):
+            with self.assertRaisesRegex(ScratchError, "could not be safely recorded"):
+                scratch.create_file("new.bin", b"fictional")
+        self.assertTrue(duplicated)
+        for fd in duplicated:
+            with self.assertRaises(OSError):
+                real_fstat(fd)
+        self.assertNotIn("new.bin", scratch._entries)
+        (self.parent / scratch.name / "new.bin").unlink()
+        scratch.cleanup()
+
+    def test_owned_descriptor_close_error_is_reported_without_retry(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        scratch.create_file("owned.bin", b"fictional")
+        owned_fd = scratch._entries["owned.bin"][2]
+        real_close = os.close
+        failed = False
+
+        def close_then_report_error(fd):
+            nonlocal failed
+            if fd == owned_fd and not failed:
+                failed = True
+                real_close(fd)
+                raise OSError("synthetic close error")
+            return real_close(fd)
+
+        with patch("private_scratch.os.close", side_effect=close_then_report_error):
+            with self.assertRaisesRegex(ScratchError, "could not be closed"):
+                scratch.cleanup()
+        self.assertTrue(failed)
+        self.assertFalse((self.parent / scratch.name / "owned.bin").exists())
+        self.assertNotIn("owned.bin", scratch._entries)
+        scratch.cleanup()
+        with self.assertRaises(OSError):
+            os.fstat(owned_fd)
     def test_partial_byte_writes_preserve_formatted_memoryview_bytes(self):
         scratch = PrivateScratch.create(str(self.parent))
         values = array("I", range(1, 24))
