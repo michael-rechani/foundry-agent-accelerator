@@ -8,8 +8,10 @@ import math
 import os
 import re
 import stat
+import sys
 import tempfile
 import time
+from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -86,7 +88,7 @@ def parse_args(profile: AgentProfile, argv=None) -> argparse.Namespace:
     parser.add_argument(
         "--smoke-test-prompt",
         default=profile.smoke_test_prompt,
-        help="Prompt sent after routing the new version (empty to skip).",
+        help="Optional prompt for candidate and post-promotion smoke tests (empty to skip).",
     )
     parser.add_argument("--poll-seconds", type=int, default=10)
     parser.add_argument("--max-polls", type=int, default=60)
@@ -184,19 +186,25 @@ def wait_until_active(
     version: str,
     poll_seconds: int,
     max_polls: int,
-) -> None:
+) -> Mapping[str, object]:
+    if not concrete_version(version):
+        raise RuntimeError("The candidate version must be explicit")
     for attempt in range(1, max_polls + 1):
         details = client.agents.get_version(
             agent_name=agent_name,
             agent_version=version,
         )
-        status = details["status"]
+        if not version_identity_matches(details, agent_name, version):
+            raise RuntimeError("The polled agent version identity was not confirmed")
+        status = details.get("status")
+        if not isinstance(status, str) or status not in ("creating", "active", "failed", "deleting", "deleted"):
+            raise RuntimeError("The agent version provisioning status was not confirmed")
         print(f"Version {version}: {status} ({attempt}/{max_polls})")
 
         if status == "active":
-            return
+            return details
         if status == "failed":
-            raise RuntimeError(f"Agent version provisioning failed: {dict(details)}")
+            raise RuntimeError("Agent version provisioning failed")
         time.sleep(poll_seconds)
 
     raise TimeoutError(f"Agent version {version} did not become active")
@@ -253,7 +261,7 @@ def verify_delegation(response, expected_tool: str, expected_agent: str | None =
 
 def smoke_test(
     client: AIProjectClient, agent_name: str, prompt: str, expected_tool: str | None = None,
-    expected_agent: str | None = None,
+    expected_agent: str | None = None, *, agent_session_id: str | None = None,
 ) -> None:
     if not prompt:
         print("Skipped hosted-agent smoke test")
@@ -265,7 +273,10 @@ def smoke_test(
     attempts = 2 if expected_tool == TOOL_NAME else 1
     for attempt in range(1, attempts + 1):
         with client.get_openai_client(agent_name=agent_name, timeout=180, max_retries=0) as openai_client:
-            response = openai_client.responses.create(input=prompt, store=False)
+            kwargs = {"input": prompt, "store": False}
+            if agent_session_id is not None:
+                kwargs["extra_body"] = {"agent_session_id": agent_session_id}
+            response = openai_client.responses.create(**kwargs)
 
         if response.status != "completed" or not response.output_text.strip():
             raise RuntimeError("Hosted-agent smoke test did not return a completed, nonempty response")
@@ -284,14 +295,61 @@ def smoke_test(
     print(f"Smoke test passed: {expected_tool or agent_name}")
 
 
+def candidate_smoke_test(
+    client, agent_name: str, version: str, prompt: str, checks, *, poll_seconds: int = 1, max_polls: int = 60,
+) -> None:
+    from azure.ai.projects.models import VersionRefIndicator
+
+    if not concrete_version(version):
+        raise RuntimeError("The candidate version must be explicit")
+    if not prompt and not checks:
+        raise RuntimeError("An existing agent requires a candidate smoke check")
+    session = client.agents.create_session(
+        agent_name=agent_name, version_indicator=VersionRefIndicator(agent_version=version),
+    )
+    session_id = getattr(session, "agent_session_id", None)
+    if not isinstance(session_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", session_id):
+        raise RuntimeError("Candidate session has no safe ID; cleanup could not be confirmed")
+    try:
+        for attempt in range(max_polls):
+            indicator = getattr(session, "version_indicator", None)
+            if (getattr(session, "agent_session_id", None) != session_id
+                    or getattr(indicator, "type", None) != "version_ref"
+                    or getattr(indicator, "agent_version", None) != version):
+                raise RuntimeError("Candidate session binding or status was not confirmed")
+            status = getattr(session, "status", None)
+            if status in ("active", "idle"):
+                break
+            if status not in ("creating", "updating"):
+                raise RuntimeError("Candidate session binding or status was not confirmed")
+            if attempt + 1 == max_polls:
+                raise TimeoutError("Candidate session did not become ready")
+            time.sleep(poll_seconds)
+            session = client.agents.get_session(agent_name=agent_name, session_id=session_id)
+        else:
+            raise RuntimeError("Candidate session polling limit is invalid")
+        smoke_test(client, agent_name, prompt, agent_session_id=session_id)
+        for check in checks:
+            smoke_test(client, agent_name, *check, agent_session_id=session_id)
+    finally:
+        primary_failure = sys.exc_info()[0] is not None
+        try:
+            client.agents.delete_session(agent_name=agent_name, session_id=session_id)
+        except BaseException:
+            if not primary_failure:
+                raise
+            print("Warning: candidate session cleanup failed; manual inspection is required")
+
+
+def concrete_version(version) -> bool:
+    return isinstance(version, str) and bool(version) and version == version.strip() and not version.startswith("@")
+
+
 def concrete_route(endpoint) -> bool:
     selector = getattr(endpoint, "version_selector", None)
     rules = getattr(selector, "version_selection_rules", None)
     return isinstance(rules, list) and bool(rules) and all(
-        isinstance(getattr(rule, "agent_version", None), str)
-        and rule.agent_version
-        and not rule.agent_version.startswith("@")
-        for rule in rules
+        concrete_version(getattr(rule, "agent_version", None)) for rule in rules
     )
 
 
@@ -303,8 +361,55 @@ def validate_traffic_rules(rules, description: str) -> None:
         raise RuntimeError(f"{description} traffic must total 100 percent")
 
 
-def active_release(details) -> bool:
-    return details.get("status") == "active" and details.get("draft", False) is False
+def version_identity_matches(details, agent_name: str, version: str) -> bool:
+    return (
+        isinstance(details, Mapping)
+        and concrete_version(version)
+        and isinstance(details.get("name"), str)
+        and details.get("name") == agent_name
+        and isinstance(details.get("version"), str)
+        and details.get("version") == version
+    )
+
+
+def active_release(details, agent_name: str, version: str) -> bool:
+    return (
+        version_identity_matches(details, agent_name, version)
+        and details.get("status") == "active"
+        and details.get("draft", False) is False
+    )
+
+
+def candidate_model_matches(details, model: str) -> bool:
+    if not isinstance(details, Mapping) or not isinstance(model, str) or not model:
+        return False
+    definition = details.get("definition")
+    if not isinstance(definition, Mapping) or definition.get("kind") != "hosted":
+        return False
+    environment = definition.get("environment_variables")
+    return (
+        isinstance(environment, Mapping)
+        and isinstance(environment.get("FOUNDRY_MODEL_NAME"), str)
+        and environment.get("FOUNDRY_MODEL_NAME") == model
+    )
+
+
+def has_responses(endpoint) -> bool:
+    protocols = getattr(endpoint, "protocol_configuration", None)
+    return isinstance(getattr(protocols, "responses", None), Mapping)
+
+
+def enabled_endpoint(client, agent_name: str):
+    details = client.agents.get(agent_name=agent_name)
+    name = details.get("name") if isinstance(details, Mapping) else getattr(details, "name", None)
+    if not isinstance(name, str) or name != agent_name:
+        raise RuntimeError("The agent identity was not confirmed")
+    for field in ("state", "configuration_state"):
+        # SDK 2.6.1 preserves the unmodeled configuration_state wire field in its mapping.
+        value = details.get(field) if isinstance(details, Mapping) else getattr(details, field, None)
+        if not isinstance(value, str) or value != "enabled":
+            raise RuntimeError("Agent operational and administrative states must both be explicitly enabled")
+    return getattr(details, "agent_endpoint", None)
 
 
 def verify_recovery_targets(client, agent_name: str, endpoint) -> None:
@@ -313,12 +418,15 @@ def verify_recovery_targets(client, agent_name: str, endpoint) -> None:
             "Pin the existing agent route to explicit versions before redeploying; "
             "an unrouted or symbolic route such as @latest is not a safe recovery target"
         )
+    if not has_responses(endpoint):
+        raise RuntimeError("Recovery route has no Responses endpoint")
+    enabled_endpoint(client, agent_name)
     rules = endpoint.version_selector.version_selection_rules
     validate_traffic_rules(rules, "Recovery route")
     versions = {rule.agent_version for rule in rules if rule.traffic_percentage > 0}
     for version in sorted(versions):
         details = client.agents.get_version(agent_name=agent_name, agent_version=version)
-        if not active_release(details):
+        if not active_release(details, agent_name, version):
             raise RuntimeError(f"Recovery version {version} is not an active release")
 
 
@@ -326,32 +434,39 @@ def endpoint_snapshot(client, agent_name: str):
     from azure.core.exceptions import ResourceNotFoundError
 
     try:
-        endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+        endpoint = deepcopy(enabled_endpoint(client, agent_name))
     except ResourceNotFoundError:
         return None
     verify_recovery_targets(client, agent_name, endpoint)
-    return deepcopy(endpoint)
+    if enabled_endpoint(client, agent_name) != endpoint:
+        raise RuntimeError("The recovery route changed before version creation")
+    return endpoint
 
 
 def routes_to_version(endpoint, version: str) -> bool:
     rules = getattr(getattr(endpoint, "version_selector", None), "version_selection_rules", None)
     return (
-        getattr(getattr(endpoint, "protocol_configuration", None), "responses", None) is not None
+        has_responses(endpoint)
         and isinstance(rules, list)
         and len(rules) == 1
-        and str(getattr(rules[0], "agent_version", "")) == str(version)
+        and concrete_version(version)
+        and getattr(rules[0], "agent_version", None) == version
         and type(getattr(rules[0], "traffic_percentage", None)) in (int, float)
         and rules[0].traffic_percentage == 100
     )
 
 
-def verify_route(client, agent_name: str, version: str) -> None:
-    endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+def verify_route(client, agent_name: str, version: str, model: str) -> None:
+    endpoint = deepcopy(enabled_endpoint(client, agent_name))
     if not routes_to_version(endpoint, version):
         raise RuntimeError("The promoted Responses route was not confirmed")
     details = client.agents.get_version(agent_name=agent_name, agent_version=version)
-    if not active_release(details):
+    if not active_release(details, agent_name, version):
         raise RuntimeError("The promoted agent version is not active")
+    if not candidate_model_matches(details, model):
+        raise RuntimeError("The promoted hosted definition does not confirm the requested model")
+    if enabled_endpoint(client, agent_name) != endpoint:
+        raise RuntimeError("The promoted Responses route changed during verification")
 
 
 def recovery_endpoint(original_endpoint):
@@ -371,46 +486,43 @@ def cleanup_failed_version(
     if not concrete_route(original_endpoint) or (
         attempted_endpoint is not None and not routes_to_version(attempted_endpoint, version)
     ):
-        print(f"Warning: recovery route is not confirmed; retained version {version}")
+        print(f"Warning: recovery route is not confirmed; retained version {version}; manual recovery required")
         return
 
     try:
-        endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+        endpoint = deepcopy(enabled_endpoint(client, agent_name))
         if endpoint != original_endpoint and (attempted_endpoint is None or endpoint != attempted_endpoint):
-            print(f"Warning: route changed during deployment; retained version {version}")
+            print(f"Warning: route changed during deployment; retained version {version}; manual recovery required")
             return
         verify_recovery_targets(client, agent_name, original_endpoint)
         if endpoint != original_endpoint:
-            if client.agents.get(agent_name=agent_name).agent_endpoint != endpoint:
-                print(f"Warning: route changed during recovery; retained version {version}")
+            if enabled_endpoint(client, agent_name) != endpoint:
+                print(f"Warning: route changed during recovery; retained version {version}; manual recovery required")
                 return
             try:
                 client.agents.update_details(
                     agent_name=agent_name, agent_endpoint=recovery_endpoint(original_endpoint)
                 )
             except Exception:
-                print(f"Warning: rollback failed; retained version {version}")
+                print(f"Warning: rollback failed; retained version {version}; manual recovery required")
                 return
-            endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+            endpoint = enabled_endpoint(client, agent_name)
             if endpoint != original_endpoint:
-                print(f"Warning: restored route was not confirmed; retained version {version}")
+                print(f"Warning: restored route was not confirmed; retained version {version}; manual recovery required")
                 return
             verify_recovery_targets(client, agent_name, endpoint)
-        endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+        endpoint = enabled_endpoint(client, agent_name)
         if endpoint != original_endpoint:
-            print(f"Warning: route changed during cleanup; retained version {version}")
+            print(f"Warning: route changed during cleanup; retained version {version}; manual recovery required")
             return
         selector = getattr(endpoint, "version_selector", None)
         rules = getattr(selector, "version_selection_rules", None)
         if not concrete_route(endpoint) or any(str(rule.agent_version) == str(version) for rule in rules):
-            print(f"Warning: route not confirmed safe; retained version {version}")
+            print(f"Warning: route not confirmed safe; retained version {version}; manual recovery required")
             return
-        client.agents.delete_version(
-            agent_name=agent_name, agent_version=version, force=True
-        )
-        print(f"Deleted failed version {version}")
+        print(f"Retained failed version {version}; inspect its sessions before deliberate cleanup")
     except Exception:
-        print(f"Warning: recovery status or cleanup incomplete; retained version {version} if present")
+        print(f"Warning: recovery status or cleanup incomplete; retained version {version} if present; manual recovery required")
 
 
 def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name: str) -> None:
@@ -418,20 +530,21 @@ def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name:
     for agent_name in agent_names:
         if agent_name == coordinator_name:
             raise ValueError("A coordinator cannot delegate to its own endpoint")
-        endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
-        protocols = getattr(endpoint, "protocol_configuration", None)
+        endpoint = deepcopy(enabled_endpoint(client, agent_name))
         selector = getattr(endpoint, "version_selector", None)
         rules = getattr(selector, "version_selection_rules", None)
-        if getattr(protocols, "responses", None) is None or not rules:
+        if not has_responses(endpoint) or not rules:
             raise RuntimeError(f"Specialist {agent_name} has no routed Responses endpoint")
         validate_traffic_rules(rules, f"Specialist {agent_name}")
-        versions = {str(rule.agent_version) for rule in rules if rule.traffic_percentage > 0 and rule.agent_version}
-        if any(not rule.agent_version for rule in rules if rule.traffic_percentage > 0):
-            raise RuntimeError(f"Specialist {agent_name} has an unversioned traffic rule")
+        if not concrete_route(endpoint):
+            raise RuntimeError(f"Specialist {agent_name} requires concrete version traffic rules")
+        versions = {rule.agent_version for rule in rules if rule.traffic_percentage > 0}
         for version in sorted(versions):
             details = client.agents.get_version(agent_name=agent_name, agent_version=version)
-            if not active_release(details):
+            if not active_release(details, agent_name, version):
                 raise RuntimeError(f"Specialist {agent_name} version {version} is not active")
+        if enabled_endpoint(client, agent_name) != endpoint:
+            raise RuntimeError(f"Specialist {agent_name} route changed during preflight")
         print(f"Specialist preflight passed: {agent_name}")
 
 
@@ -474,6 +587,10 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
             verify_specialist_endpoints(client, profile, args.agent_name)
             client.deployments.get(name=args.model)
             original_endpoint = endpoint_snapshot(client, args.agent_name)
+            if original_endpoint is None:
+                raise RuntimeError(
+                    "First publication is unsupported: a confirmed existing concrete recovery route is required"
+                )
             created = client.agents.create_version_from_code(
                 agent_name=args.agent_name,
                 description=profile.description,
@@ -510,21 +627,34 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
             report_agent_identity(created)
 
             attempted_endpoint = None
+            candidate_check_in_progress = False
             try:
-                wait_until_active(
+                candidate = wait_until_active(
                     client,
                     args.agent_name,
                     created.version,
                     args.poll_seconds,
                     args.max_polls,
                 )
-                current_endpoint = client.agents.get(
-                    agent_name=args.agent_name,
-                ).agent_endpoint
+                if not active_release(candidate, args.agent_name, created.version):
+                    raise RuntimeError("The candidate agent version is not an active release")
+                if not candidate_model_matches(candidate, args.model):
+                    raise RuntimeError("The candidate hosted definition does not confirm the requested model")
+                if original_endpoint is not None:
+                    if enabled_endpoint(client, args.agent_name) != original_endpoint:
+                        raise RuntimeError("The agent route changed during deployment; refusing candidate smoke")
+                    candidate_check_in_progress = True
+                    candidate_smoke_test(
+                        client, args.agent_name, created.version, args.smoke_test_prompt,
+                        profile.delegation_checks, poll_seconds=args.poll_seconds, max_polls=args.max_polls,
+                    )
+                    candidate_check_in_progress = False
+                current_endpoint = deepcopy(enabled_endpoint(client, args.agent_name))
                 if original_endpoint is not None and current_endpoint != original_endpoint:
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
                 if original_endpoint is not None:
                     verify_recovery_targets(client, args.agent_name, original_endpoint)
+                verify_specialist_endpoints(client, profile, args.agent_name)
                 protocols = deepcopy(getattr(current_endpoint, "protocol_configuration", None))
                 if protocols is None:
                     protocols = ProtocolConfiguration()
@@ -544,23 +674,33 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 ]
                 endpoint_config.version_selector = selector
                 endpoint_config.protocol_configuration = protocols
-                if client.agents.get(agent_name=args.agent_name).agent_endpoint != current_endpoint:
+                if original_endpoint is not None:
+                    verify_recovery_targets(client, args.agent_name, original_endpoint)
+                candidate = client.agents.get_version(agent_name=args.agent_name, agent_version=created.version)
+                if not active_release(candidate, args.agent_name, created.version):
+                    raise RuntimeError("The candidate agent version is not active")
+                if not candidate_model_matches(candidate, args.model):
+                    raise RuntimeError("The candidate hosted definition does not confirm the requested model")
+                if enabled_endpoint(client, args.agent_name) != current_endpoint:
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
                 attempted_endpoint = deepcopy(endpoint_config)
                 client.agents.update_details(
                     agent_name=args.agent_name,
                     agent_endpoint=endpoint_config,
                 )
-                verify_route(client, args.agent_name, created.version)
+                verify_route(client, args.agent_name, created.version, args.model)
                 smoke_test(client, args.agent_name, args.smoke_test_prompt)
                 for check in profile.delegation_checks:
                     smoke_test(client, args.agent_name, *check)
-                verify_route(client, args.agent_name, created.version)
+                verify_route(client, args.agent_name, created.version, args.model)
             except (Exception, KeyboardInterrupt):
-                cleanup_failed_version(
-                    client, args.agent_name, created.version,
-                    original_endpoint, attempted_endpoint,
-                )
+                if candidate_check_in_progress:
+                    print(f"Warning: candidate check did not finish; retained version {created.version}")
+                else:
+                    cleanup_failed_version(
+                        client, args.agent_name, created.version,
+                        original_endpoint, attempted_endpoint,
+                    )
                 raise
 
             print(

@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 from zipfile import ZipFile
 
 from deployment import (
-    KNOWLEDGE_CHECK_PROMPT, AgentProfile, cleanup_failed_version, create_package, smoke_test,
+    KNOWLEDGE_CHECK_PROMPT, AgentProfile, candidate_model_matches, cleanup_failed_version, create_package, smoke_test,
     verify_delegation, verify_specialist_endpoints, concrete_route, verify_recovery_targets, verify_route,
 )
 
@@ -254,17 +254,67 @@ class SpecialistPreflightTests(unittest.TestCase):
         ))
         self.rule = SimpleNamespace(agent_version="1", traffic_percentage=100)
         self.endpoint = SimpleNamespace(
-            protocol_configuration=SimpleNamespace(responses=SimpleNamespace()),
+            protocol_configuration=SimpleNamespace(responses={}),
             version_selector=SimpleNamespace(version_selection_rules=[self.rule]),
         )
+        self.client.agents.get.return_value.name = "specialist"
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.endpoint
-        self.client.agents.get_version.return_value = {"status": "active"}
+        self.client.agents.get_version.return_value = {"name": "specialist", "version": "1", "status": "active"}
 
-    def test_checks_each_dependency_once_without_mutations(self) -> None:
+    def test_parent_states_and_symbolic_routes_refuse_specialists(self):
+        for field in ("state", "configuration_state"):
+            for value in (None, "disabled", "unknown", True, {}, 1):
+                with self.subTest(field=field, value=value):
+                    setattr(self.client.agents.get.return_value, field, value)
+                    with self.assertRaisesRegex(RuntimeError, "explicitly enabled"):
+                        verify_specialist_endpoints(self.client, self.profile, "coordinator")
+                    self.client.agents.get_version.assert_not_called()
+                    self.client.agents.enable.assert_not_called()
+                    self.client.agents.update_details.assert_not_called()
+                    setattr(self.client.agents.get.return_value, field, "enabled")
+        self.rule.agent_version = "@latest"
+        with self.assertRaisesRegex(RuntimeError, "concrete"):
+            verify_specialist_endpoints(self.client, self.profile, "coordinator")
+        self.client.agents.get_version.assert_not_called()
+
+    def test_refuses_specialist_version_identity_mismatch(self):
+        for name, version in (("other", "1"), ("specialist", "2"), (None, "1"), ("specialist", None)):
+            with self.subTest(name=name, version=version):
+                self.client.agents.get_version.return_value = {"name": name, "version": version, "status": "active"}
+                with self.assertRaisesRegex(RuntimeError, "not active"):
+                    verify_specialist_endpoints(self.client, self.profile, "coordinator")
+                self.client.agents.update_details.assert_not_called()
+                self.client.agents.delete_version.assert_not_called()
+                self.client.agents.enable.assert_not_called()
+
+    def test_checks_each_dependency_with_consistent_state_without_mutations(self) -> None:
         verify_specialist_endpoints(self.client, self.profile, "coordinator")
-        self.assertEqual([call[0] for call in self.client.agents.mock_calls], ["get", "get_version"])
-        self.client.agents.get.assert_called_once_with(agent_name="specialist")
+        self.assertEqual([call[0] for call in self.client.agents.mock_calls], ["get", "get_version", "get"])
+        self.assertEqual(self.client.agents.get.call_count, 2)
+        self.client.agents.get.assert_called_with(agent_name="specialist")
         self.client.agents.get_version.assert_called_once_with(agent_name="specialist", agent_version="1")
+
+    def test_rechecks_specialist_state_and_route_after_version_read(self):
+        for change in ("state", "configuration_state", "route"):
+            with self.subTest(change=change):
+                self.setUp()
+
+                def read_version(*, agent_name, agent_version, change=change):
+                    if change == "route":
+                        self.rule.agent_version = "2"
+                    else:
+                        setattr(self.client.agents.get.return_value, change, "disabled")
+                    return {"name": agent_name, "version": agent_version, "status": "active"}
+
+                self.client.agents.get_version.side_effect = read_version
+                with self.assertRaises(RuntimeError):
+                    verify_specialist_endpoints(self.client, self.profile, "coordinator")
+                self.client.agents.create_version_from_code.assert_not_called()
+                self.client.agents.update_details.assert_not_called()
+                self.client.agents.delete_version.assert_not_called()
+                self.client.agents.enable.assert_not_called()
 
     def test_rejects_missing_or_unrouted_responses_endpoint(self) -> None:
         for endpoint in (None, SimpleNamespace(), SimpleNamespace(
@@ -272,8 +322,20 @@ class SpecialistPreflightTests(unittest.TestCase):
             version_selector=self.endpoint.version_selector,
         )):
             with self.subTest(endpoint=endpoint), self.assertRaisesRegex(RuntimeError, "Responses endpoint"):
+                self.client.agents.get.return_value.state = "enabled"
+                self.client.agents.get.return_value.configuration_state = "enabled"
                 self.client.agents.get.return_value.agent_endpoint = endpoint
                 verify_specialist_endpoints(self.client, self.profile, "coordinator")
+
+    def test_rejects_malformed_responses_protocol(self) -> None:
+        for responses in (False, True, 0, "responses", []):
+            with self.subTest(responses=responses), self.assertRaisesRegex(RuntimeError, "Responses endpoint"):
+                self.endpoint.protocol_configuration.responses = responses
+                verify_specialist_endpoints(self.client, self.profile, "coordinator")
+        self.client.agents.get_version.assert_not_called()
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
 
     def test_rejects_invalid_traffic_rules(self) -> None:
         for percentage in (None, True, -1, 0, 50, 101, float("nan")):
@@ -282,14 +344,14 @@ class SpecialistPreflightTests(unittest.TestCase):
                 verify_specialist_endpoints(self.client, self.profile, "coordinator")
 
     def test_rejects_inactive_or_missing_versions(self) -> None:
-        self.client.agents.get_version.return_value = {"status": "creating"}
+        self.client.agents.get_version.return_value = {"name": "specialist", "version": "1", "status": "creating"}
         with self.assertRaisesRegex(RuntimeError, "not active"):
             verify_specialist_endpoints(self.client, self.profile, "coordinator")
-        self.client.agents.get_version.return_value = {"status": "active", "draft": True}
+        self.client.agents.get_version.return_value = {"name": "specialist", "version": "1", "status": "active", "draft": True}
         with self.assertRaisesRegex(RuntimeError, "not active"):
             verify_specialist_endpoints(self.client, self.profile, "coordinator")
         self.rule.agent_version = None
-        with self.assertRaisesRegex(RuntimeError, "unversioned"):
+        with self.assertRaisesRegex(RuntimeError, "concrete"):
             verify_specialist_endpoints(self.client, self.profile, "coordinator")
 
     def test_checks_all_routed_versions_but_not_unrouted_versions(self) -> None:
@@ -298,6 +360,9 @@ class SpecialistPreflightTests(unittest.TestCase):
             SimpleNamespace(agent_version="2", traffic_percentage=40),
             SimpleNamespace(agent_version="3", traffic_percentage=0),
         ])
+        self.client.agents.get_version.side_effect = lambda *, agent_name, agent_version: {
+            "name": agent_name, "version": agent_version, "status": "active",
+        }
         verify_specialist_endpoints(self.client, self.profile, "coordinator")
         self.assertEqual(self.client.agents.get_version.call_count, 2)
 
@@ -313,11 +378,33 @@ class SpecialistPreflightTests(unittest.TestCase):
 class RecoveryPreflightTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = MagicMock()
-        self.client.agents.get_version.return_value = {"status": "active"}
+        self.client.agents.get.return_value.name = "agent"
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
+        self.client.agents.get_version.return_value = {"name": "agent", "version": "1", "status": "active"}
         self.rule = SimpleNamespace(agent_version="1", traffic_percentage=100)
         self.endpoint = SimpleNamespace(
             version_selector=SimpleNamespace(version_selection_rules=[self.rule]),
+            protocol_configuration=SimpleNamespace(responses={}),
         )
+
+    def test_refuses_mismatched_missing_or_malformed_version_identity(self):
+        for details in (
+            {"name": "other", "version": "1", "status": "active"},
+            {"name": "agent", "version": "2", "status": "active"},
+            {"version": "1", "status": "active"},
+            {"name": "agent", "status": "active"},
+            {"name": "agent", "version": 1, "status": "active"},
+            {"name": "agent", "version": "@latest", "status": "active"},
+        ):
+            with self.subTest(details=details):
+                self.client.agents.get_version.return_value = details
+                with self.assertRaisesRegex(RuntimeError, "not an active release"):
+                    verify_recovery_targets(self.client, "agent", self.endpoint)
+                self.client.agents.create_version_from_code.assert_not_called()
+                self.client.agents.update_details.assert_not_called()
+                self.client.agents.delete_version.assert_not_called()
+                self.client.agents.enable.assert_not_called()
 
     def test_checks_only_positive_traffic_versions_once(self):
         self.endpoint.version_selector.version_selection_rules = [
@@ -326,6 +413,9 @@ class RecoveryPreflightTests(unittest.TestCase):
             SimpleNamespace(agent_version="2", traffic_percentage=40),
             SimpleNamespace(agent_version="3", traffic_percentage=0),
         ]
+        self.client.agents.get_version.side_effect = lambda *, agent_name, agent_version: {
+            "name": agent_name, "version": agent_version, "status": "active",
+        }
         verify_recovery_targets(self.client, "agent", self.endpoint)
         self.assertEqual(
             [call.kwargs["agent_version"] for call in self.client.agents.get_version.call_args_list],
@@ -336,8 +426,19 @@ class RecoveryPreflightTests(unittest.TestCase):
         for details in ({"status": "creating"}, {"status": "failed"}, {}, {"status": "active", "draft": True},
                         {"status": "active", "draft": None}, {"status": "active", "draft": "false"}):
             with self.subTest(details=details), self.assertRaisesRegex(RuntimeError, "not an active release"):
-                self.client.agents.get_version.return_value = details
+                self.client.agents.get_version.return_value = {"name": "agent", "version": "1", **details}
                 verify_recovery_targets(self.client, "agent", self.endpoint)
+
+    def test_rejects_absent_or_malformed_responses_protocol(self):
+        for responses in (None, False, True, 0, "responses", []):
+            with self.subTest(responses=responses), self.assertRaisesRegex(RuntimeError, "no Responses endpoint"):
+                self.endpoint.protocol_configuration.responses = responses
+                verify_recovery_targets(self.client, "agent", self.endpoint)
+        self.client.agents.get_version.assert_not_called()
+        self.client.agents.create_version_from_code.assert_not_called()
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
 
     def test_rejects_unsupported_or_incomplete_traffic_rules(self):
         for percentage in (None, True, -1, 0, 50, 101, float("nan"), float("inf")):
@@ -362,9 +463,12 @@ class RecoveryPreflightTests(unittest.TestCase):
 class DeploymentRollbackTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = MagicMock()
-        self.client.agents.get_version.return_value = {"status": "active"}
+        self.client.agents.get_version.return_value = {"name": "agent", "version": "1", "status": "active"}
         self.original = self.route("1")
         self.attempted = self.route("2")
+        self.client.agents.get.return_value.name = "agent"
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.attempted
         self.client.agents.update_details.side_effect = self.restore
 
@@ -373,20 +477,65 @@ class DeploymentRollbackTests(unittest.TestCase):
             version_selector=SimpleNamespace(
                 version_selection_rules=[SimpleNamespace(agent_version=version, traffic_percentage=100)]
             ),
-            protocol_configuration=SimpleNamespace(responses=SimpleNamespace()),
+            protocol_configuration=SimpleNamespace(responses={}),
             authorization_schemes=["original"],
         )
 
     def restore(self, **kwargs):
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = kwargs["agent_endpoint"]
 
-    def test_deletes_only_after_restoration_and_route_read(self) -> None:
+    def test_restores_route_without_deleting_candidate(self) -> None:
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.assertEqual(
             [call[0] for call in self.client.agents.mock_calls],
-            ["get", "get_version", "get", "update_details", "get", "get_version", "get", "delete_version"],
+            ["get", "get", "get_version", "get", "update_details", "get", "get", "get_version", "get"],
         )
         self.assertEqual(self.client.agents.get.return_value.agent_endpoint, self.original)
+
+    def test_parent_state_flip_during_recovery_never_changes_route(self):
+        for field in ("state", "configuration_state"):
+            for value in ("disabled", None, "unknown", True):
+                with self.subTest(field=field, value=value):
+                    self.client.reset_mock()
+                    self.client.agents.get.return_value.state = "enabled"
+                    self.client.agents.get.return_value.configuration_state = "enabled"
+                    self.client.agents.get.return_value.agent_endpoint = self.attempted
+
+                    def read_version(*, agent_name, agent_version, field=field, value=value):
+                        setattr(self.client.agents.get.return_value, field, value)
+                        return {"name": agent_name, "version": agent_version, "status": "active"}
+
+                    self.client.agents.get_version.side_effect = read_version
+                    output = io.StringIO()
+                    with redirect_stdout(output):
+                        cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
+                    self.assertIn("manual recovery required", output.getvalue())
+                    self.client.agents.update_details.assert_not_called()
+                    self.client.agents.delete_version.assert_not_called()
+                    self.client.agents.delete_session.assert_not_called()
+                    self.client.agents.enable.assert_not_called()
+
+    def test_restored_route_retains_sessions_and_reports_retention(self):
+        self.client.agents.list_sessions.return_value = [SimpleNamespace(status="active")]
+        with redirect_stdout(io.StringIO()) as output:
+            cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
+        self.assertEqual(self.client.agents.get.return_value.agent_endpoint, self.original)
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.delete_session.assert_not_called()
+        self.assertIn("Retained failed version 2", output.getvalue())
+        self.assertNotIn("Deleted", output.getvalue())
+
+    def test_before_promotion_failure_reports_retention_without_deletion(self):
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
+        self.client.agents.get.return_value.agent_endpoint = self.original
+        with redirect_stdout(io.StringIO()) as output:
+            cleanup_failed_version(self.client, "agent", "2", self.original, None)
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.assertIn("Retained failed version 2", output.getvalue())
 
     def test_failed_restore_retains_candidate(self) -> None:
         self.client.agents.update_details.side_effect = RuntimeError("unavailable")
@@ -405,44 +554,56 @@ class DeploymentRollbackTests(unittest.TestCase):
         self.client.agents.delete_version.assert_not_called()
 
     def test_first_deployment_without_route_retains_candidate(self) -> None:
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.original
         cleanup_failed_version(self.client, "agent", "2", None, self.attempted)
         self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_not_called()
 
     def test_failed_build_preserves_existing_route(self) -> None:
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.original
         cleanup_failed_version(self.client, "agent", "2", self.original, None)
         self.client.agents.update_details.assert_not_called()
         self.client.agents.get_version.assert_called_once_with(agent_name="agent", agent_version="1")
-        self.client.agents.delete_version.assert_called_once()
+        self.client.agents.delete_version.assert_not_called()
 
     def test_failed_first_build_without_previous_route_retains_candidate(self):
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.original
         cleanup_failed_version(self.client, "agent", "2", None, None)
         self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_not_called()
 
     def test_changed_route_before_promotion_retains_candidate(self):
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.route("3")
         cleanup_failed_version(self.client, "agent", "2", self.original, None)
         self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_not_called()
 
     def test_failed_promotion_that_left_original_route_does_not_restore_it(self):
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.original
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.client.agents.update_details.assert_not_called()
-        self.client.agents.delete_version.assert_called_once()
+        self.client.agents.delete_version.assert_not_called()
 
     def test_changed_route_or_endpoint_configuration_is_not_overwritten(self):
         changed_authorization = deepcopy(self.attempted)
         changed_authorization.authorization_schemes = ["different"]
         changed_protocol = deepcopy(self.attempted)
-        changed_protocol.protocol_configuration.responses = SimpleNamespace(extra=True)
+        changed_protocol.protocol_configuration.responses = {"extra": True}
         for endpoint in (self.route("3"), self.route("@latest"), changed_authorization, changed_protocol):
             with self.subTest(endpoint=endpoint):
                 self.client.reset_mock()
+                self.client.agents.get.return_value.state = "enabled"
+                self.client.agents.get.return_value.configuration_state = "enabled"
                 self.client.agents.get.return_value.agent_endpoint = endpoint
                 cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
                 self.client.agents.update_details.assert_not_called()
@@ -452,6 +613,8 @@ class DeploymentRollbackTests(unittest.TestCase):
         for endpoint in (self.attempted, self.route("3")):
             with self.subTest(endpoint=endpoint):
                 self.client.reset_mock()
+                self.client.agents.get.return_value.state = "enabled"
+                self.client.agents.get.return_value.configuration_state = "enabled"
                 self.client.agents.get.return_value.agent_endpoint = self.attempted
                 self.client.agents.update_details.side_effect = (
                     lambda endpoint=endpoint, **kwargs: setattr(
@@ -472,6 +635,8 @@ class DeploymentRollbackTests(unittest.TestCase):
         for details in ({"status": "failed"}, {"status": "active", "draft": True}, {}):
             with self.subTest(details=details):
                 self.client.reset_mock()
+                self.client.agents.get.return_value.state = "enabled"
+                self.client.agents.get.return_value.configuration_state = "enabled"
                 self.client.agents.get.return_value.agent_endpoint = self.attempted
                 self.client.agents.get_version.return_value = details
                 output = io.StringIO()
@@ -483,8 +648,8 @@ class DeploymentRollbackTests(unittest.TestCase):
 
     def test_route_changed_while_checking_recovery_is_not_overwritten(self):
         self.client.agents.get.side_effect = [
-            SimpleNamespace(agent_endpoint=self.attempted),
-            SimpleNamespace(agent_endpoint=self.route("3")),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.route("3")),
         ]
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.client.agents.update_details.assert_not_called()
@@ -492,10 +657,11 @@ class DeploymentRollbackTests(unittest.TestCase):
 
     def test_route_changed_after_recovery_status_checks_prevents_candidate_deletion(self):
         self.client.agents.get.side_effect = [
-            SimpleNamespace(agent_endpoint=self.attempted),
-            SimpleNamespace(agent_endpoint=self.attempted),
-            SimpleNamespace(agent_endpoint=self.original),
-            SimpleNamespace(agent_endpoint=self.attempted),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.original),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
         ]
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.client.agents.update_details.assert_called_once()
@@ -503,15 +669,18 @@ class DeploymentRollbackTests(unittest.TestCase):
 
     def test_route_changed_after_unpromoted_cleanup_check_prevents_candidate_deletion(self):
         self.client.agents.get.side_effect = [
-            SimpleNamespace(agent_endpoint=self.original),
-            SimpleNamespace(agent_endpoint=self.attempted),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.original),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
         ]
         cleanup_failed_version(self.client, "agent", "2", self.original, None)
         self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_not_called()
 
     def test_recovery_that_becomes_inactive_after_restore_retains_the_candidate(self):
-        self.client.agents.get_version.side_effect = [{"status": "active"}, {"status": "failed"}]
+        self.client.agents.get_version.side_effect = [
+            {"name": "agent", "version": "1", "status": "active"},
+            {"name": "agent", "version": "1", "status": "failed"},
+        ]
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.assertEqual(self.client.agents.get.return_value.agent_endpoint, self.original)
         self.client.agents.update_details.assert_called_once()
@@ -538,28 +707,128 @@ class DeploymentRollbackTests(unittest.TestCase):
                 self.client.agents.delete_version.assert_not_called()
 
 
+class CandidateModelTests(unittest.TestCase):
+    def test_requires_exact_hosted_model_configuration(self):
+        for definition in (
+            None, {}, {"kind": "prompt", "environment_variables": {"FOUNDRY_MODEL_NAME": "model"}},
+            {"kind": "hosted"}, {"kind": "hosted", "environment_variables": None},
+            {"kind": "hosted", "environment_variables": []},
+            {"kind": "hosted", "environment_variables": {}},
+            {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": True}},
+            {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "other"}},
+        ):
+            with self.subTest(definition=definition):
+                self.assertFalse(candidate_model_matches({"definition": definition}, "model"))
+        self.assertTrue(candidate_model_matches(
+            {"definition": {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "model"}}},
+            "model",
+        ))
+
 class RouteVerificationTests(unittest.TestCase):
+    def test_refuses_unsafe_parent_states_and_version_identity(self):
+        client = MagicMock()
+        rule = SimpleNamespace(agent_version="2", traffic_percentage=100)
+        client.agents.get.return_value.agent_endpoint = SimpleNamespace(
+            version_selector=SimpleNamespace(version_selection_rules=[rule]),
+            protocol_configuration=SimpleNamespace(responses={}),
+        )
+        client.agents.get.return_value.name = "agent"
+        client.agents.get.return_value.state = "enabled"
+        client.agents.get.return_value.configuration_state = "enabled"
+        client.agents.get_version.return_value = {
+            "name": "agent", "version": "2", "status": "active",
+            "definition": {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "model"}},
+        }
+        verify_route(client, "agent", "2", "model")
+        for field in ("state", "configuration_state"):
+            for value in (None, "disabled", "unknown", True, {}):
+                with self.subTest(field=field, value=value):
+                    setattr(client.agents.get.return_value, field, value)
+                    with self.assertRaisesRegex(RuntimeError, "explicitly enabled"):
+                        verify_route(client, "agent", "2", "model")
+                    setattr(client.agents.get.return_value, field, "enabled")
+        for response in (
+            {"name": "other", "version": "2", "status": "active"},
+            {"name": "agent", "version": "3", "status": "active"},
+            {"name": "agent", "version": 2, "status": "active"},
+        ):
+            with self.subTest(response=response):
+                client.agents.get_version.return_value = response
+                with self.assertRaisesRegex(RuntimeError, "not active"):
+                    verify_route(client, "agent", "2", "model")
+        client.agents.get_version.return_value = {
+            "name": "agent", "version": "2", "status": "active",
+            "definition": {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "different"}},
+        }
+        with self.assertRaisesRegex(RuntimeError, "does not confirm the requested model"):
+            verify_route(client, "agent", "2", "model")
+        client.agents.update_details.assert_not_called()
+        client.agents.delete_version.assert_not_called()
+        client.agents.enable.assert_not_called()
+
+    def test_rechecks_promoted_state_and_route_after_version_read(self):
+        for change in ("state", "configuration_state", "route"):
+            with self.subTest(change=change):
+                client = MagicMock()
+                rule = SimpleNamespace(agent_version="2", traffic_percentage=100)
+                endpoint = SimpleNamespace(
+                    version_selector=SimpleNamespace(version_selection_rules=[rule]),
+                    protocol_configuration=SimpleNamespace(responses={}),
+                )
+                client.agents.get.return_value.name = "agent"
+                client.agents.get.return_value.state = "enabled"
+                client.agents.get.return_value.configuration_state = "enabled"
+                client.agents.get.return_value.agent_endpoint = endpoint
+
+                def read_version(*, agent_name, agent_version, change=change, rule=rule, client=client):
+                    if change == "route":
+                        rule.agent_version = "3"
+                    else:
+                        setattr(client.agents.get.return_value, change, "disabled")
+                    return {
+                        "name": agent_name, "version": agent_version, "status": "active",
+                        "definition": {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "model"}},
+                    }
+
+                client.agents.get_version.side_effect = read_version
+                with self.assertRaises(RuntimeError):
+                    verify_route(client, "agent", "2", "model")
+                client.agents.update_details.assert_not_called()
+                client.agents.delete_version.assert_not_called()
+                client.agents.enable.assert_not_called()
+
     def test_requires_exact_active_responses_route(self):
         client = MagicMock()
         rule = SimpleNamespace(agent_version="2", traffic_percentage=100)
         endpoint = SimpleNamespace(
             version_selector=SimpleNamespace(version_selection_rules=[rule]),
-            protocol_configuration=SimpleNamespace(responses=SimpleNamespace()),
+            protocol_configuration=SimpleNamespace(responses={}),
         )
+        client.agents.get.return_value.name = "agent"
+        client.agents.get.return_value.state = "enabled"
+        client.agents.get.return_value.configuration_state = "enabled"
         client.agents.get.return_value.agent_endpoint = endpoint
-        client.agents.get_version.return_value = {"status": "active"}
-        verify_route(client, "agent", "2")
+        client.agents.get_version.return_value = {
+            "name": "agent", "version": "2", "status": "active",
+            "definition": {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "model"}},
+        }
+        verify_route(client, "agent", "2", "model")
+        for responses in (None, False, True, 0, "responses", []):
+            with self.subTest(responses=responses), self.assertRaisesRegex(RuntimeError, "route was not confirmed"):
+                endpoint.protocol_configuration.responses = responses
+                verify_route(client, "agent", "2", "model")
+        endpoint.protocol_configuration.responses = {}
         for version, percentage in (("@latest", 100), ("1", 100), ("2", 50), ("2", True)):
             with self.subTest(version=version, percentage=percentage), self.assertRaises(RuntimeError):
                 rule.agent_version, rule.traffic_percentage = version, percentage
-                verify_route(client, "agent", "2")
+                verify_route(client, "agent", "2", "model")
         rule.agent_version, rule.traffic_percentage = "2", 100
-        client.agents.get_version.return_value = {"status": "creating"}
+        client.agents.get_version.return_value = {"name": "agent", "version": "2", "status": "creating"}
         with self.assertRaisesRegex(RuntimeError, "not active"):
-            verify_route(client, "agent", "2")
-        client.agents.get_version.return_value = {"status": "active", "draft": True}
+            verify_route(client, "agent", "2", "model")
+        client.agents.get_version.return_value = {"name": "agent", "version": "2", "status": "active", "draft": True}
         with self.assertRaisesRegex(RuntimeError, "not active"):
-            verify_route(client, "agent", "2")
+            verify_route(client, "agent", "2", "model")
 
 
 if __name__ == "__main__":
