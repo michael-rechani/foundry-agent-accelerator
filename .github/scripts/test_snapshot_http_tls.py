@@ -253,6 +253,37 @@ class LoopbackTLSTests(unittest.TestCase):
                 self.assertEqual(attempts, [])
         self.assertEqual(server.peers, [])
 
+    def test_bound_entry_runs_only_approved_tls_rechecks(self):
+        with self.server() as server:
+            with loopback_only(server) as attempts:
+                with mock.patch.dict(os.environ, self.environment("unrelated.pem"), clear=True):
+                    reader = transport.SnapshotTransport.create(
+                        TARGETS, TOKEN, str(self.root / "trusted.pem")
+                    )
+                    self.assertIsNotNone(reader)
+                    self.assertEqual(reader.guarded_diagnostic(
+                        TARGETS, lambda: guard.DIAGNOSTIC_SUCCESS), guard.PASSED)
+                    self.assertEqual(attempts, [("state.example.invalid", 443),
+                                                ("input.example.invalid", 443)] * 2)
+        self.assertEqual(server.names, ["state.example.invalid", "input.example.invalid"] * 2)
+        self.assertEqual(len(server.requests), 4)
+
+    def test_bound_mismatch_creates_no_loopback_connection(self):
+        with self.server() as server:
+            with loopback_only(server) as attempts:
+                with mock.patch.dict(os.environ, self.environment("unrelated.pem"), clear=True):
+                    reader = transport.SnapshotTransport.create(
+                        TARGETS, TOKEN, str(self.root / "trusted.pem")
+                    )
+                    diagnostic = mock.Mock(return_value=guard.DIAGNOSTIC_SUCCESS)
+                    expected = dict(TARGETS, input="https://wrong.example.invalid/container/input.json")
+                    self.assertEqual(reader.guarded_diagnostic(expected, diagnostic), guard.UNVERIFIED)
+                    diagnostic.assert_not_called()
+                    self.assertEqual(attempts, [])
+        self.assertEqual(server.peers, [])
+        self.assertEqual(server.names, [])
+        self.assertEqual(server.requests, [])
+
 
 if __name__ == "__main__":
     unittest.main()

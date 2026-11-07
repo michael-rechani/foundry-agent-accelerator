@@ -62,12 +62,26 @@ supplied identity labels are not authentication or evidence of input authority.
 `compare_snapshots` returns a fixed result only. `guarded_diagnostic` freezes
 canonical records immediately after each read, including immutable body bytes and
 header tuples, and freezes target identities before diagnostic execution. It
-attempts both roles at the pre-boundary and again at the post-boundary, even if
-one read fails. Invalid baseline skips the operation but still attempts both
-post-reads. All catchable success/error/timeout/cancellation paths recheck before
+returns fixed `UNVERIFIED` without invoking either callback when the expected
+role map or identities are invalid, duplicated or malformed. Raw URL controls,
+whitespace, aliases and even empty query/fragment delimiters are rejected, not
+normalized into a destination. After that validation succeeds, it attempts both
+roles at the pre-boundary and again at the post-boundary, even if one read fails.
+Invalid baseline skips the operation but still attempts both post-reads.
+All catchable success/error/timeout/cancellation paths recheck before
 returning any diagnostic outcome. Missing/invalid/changed post-snapshots take
 precedence over diagnostic failures. Callback result and exception details are
 never returned; diagnostic failure with equal endpoints is separately fixed.
+
+The generic guard validates returned identities **after** invoking the reader;
+it cannot establish where an arbitrary reader will send credentials. For the
+offline HTTP prototype, use `SnapshotTransport.guarded_diagnostic(expected,
+diagnostic)`, described in [the transport document](platform-snapshot-http-transport.md).
+That narrow entry point checks both independently supplied expected identities
+against the sealed transport targets before any connection. Calling the generic
+guard directly is not that binding. Even the bound entry point does not establish
+destination or CA authority, trusted DNS/routing, process/host isolation or
+worker supervision.
 
 The synchronous callback must explicitly return the exact singleton object
 `DIAGNOSTIC_SUCCESS` to indicate its own completed, successfully interpreted work.

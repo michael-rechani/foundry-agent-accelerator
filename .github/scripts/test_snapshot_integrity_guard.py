@@ -171,15 +171,30 @@ class Tests(unittest.TestCase):
             pair['input']['identity'] = expected['input']
         self.assertEqual(guard.guarded_diagnostic(expected, lambda role: pair[role], diagnostic), guard.UNVERIFIED)
 
-    def test_invalid_expected_still_checks_both_boundaries(self):
-        for expected in (None, {}, {'input': 'FICTIONAL_SECRET'},
-                         {'platform_state': EXPECTED['input'], 'input': EXPECTED['input']}):
-            calls = []
-            def read(role):
-                calls.append(role)
-                return fixture()[role]
-            self.assertEqual(guard.guarded_diagnostic(expected, read, lambda: self.fail('must skip')), guard.UNVERIFIED)
-            self.assertEqual(calls, ['platform_state', 'input'] * 2)
+    def test_invalid_expected_invokes_no_callbacks(self):
+        invalid = (None, {}, {'input': 'FICTIONAL_SECRET'},
+                   dict(EXPECTED, extra=EXPECTED['input']),
+                   {'platform_state': EXPECTED['input'], 'input': EXPECTED['input']},
+                   dict(EXPECTED, input=None), dict(EXPECTED, input=1),
+                   dict(EXPECTED, input='https://fictional.invalid/cache/input?'),
+                   dict(EXPECTED, input='https://fictional.invalid/cache/input#'),
+                   dict(EXPECTED, input='https://fictional.invalid/cache/in\nput'),
+                   dict(EXPECTED, input=' HTTPS://fictional.invalid/cache/input'),
+                   dict(EXPECTED, input='https://fictional.invalid/cache/input?FICTIONAL_SECRET'))
+        for expected in invalid:
+            with self.subTest(expected_type=type(expected).__name__):
+                calls = []
+
+                def forbidden(*args, calls=calls):
+                    calls.append(True)
+                    raise AssertionError('Unapproved invocation FICTIONAL_SECRET')
+
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                    result = guard.guarded_diagnostic(expected, forbidden, forbidden)
+                self.assertEqual(result, guard.UNVERIFIED)
+                self.assertEqual(calls, [])
+                self.assertEqual(stdout.getvalue() + stderr.getvalue(), '')
 
     def test_execution_is_non_root_without_credential_environment(self):
         self.assertNotEqual(os.geteuid(), 0)

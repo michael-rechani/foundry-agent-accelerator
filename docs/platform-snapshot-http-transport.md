@@ -131,6 +131,49 @@ Azure requests or real credentials/data were used. Public runtime/dependency
 installation is not part of the loopback networking test. Potential hosted sudo
 availability remains a host-trust limitation, not a privilege-isolation claim.
 
-After successful verification, the workflow was restored to original blob
+In that cleanup branch, after successful verification, the workflow was restored to original blob
 `13fea116e0cd70aa8f5d8cabcb9b893743e23c95`; no workflow integration or later
-dispatch was added. Final transport and both test blobs match the tested head.
+dispatch was added. Its final transport and both test blobs match that tested head.
+
+## Stacked offline destination-binding follow-up
+
+This separate offline follow-up starts at cleanup head
+`04f3099be5b67489fd5efa2522ae2fb93388f0a8`. Invalid expected maps now return
+fixed `UNVERIFIED` from the generic guard before invoking a reader or diagnostic.
+Identity validation rejects raw whitespace/control characters, noncanonical
+scheme aliases and even empty query/fragment delimiters instead of normalizing
+them into another identity. The shared validator is used by the constructor,
+guard and comparator; the strict body/header comparison is unchanged.
+
+For the HTTP prototype, `reader.guarded_diagnostic(independent_expected,
+diagnostic)` is the narrowly bound entry point. It requires the exact transport
+type, validates both expected role identities and their distinctness, and checks
+the complete ordered role-to-target map against the transport's sealed map before
+creating any HTTPS connection. Missing/extra roles, swapped roles, duplicated
+targets, malformed values, mismatches and changed caller maps submitted after
+transport construction yield zero connection attempts, no bearer sends and no
+diagnostic. These checks establish consistency only: the expected destinations
+and CA/token authority must be independently trusted inputs, not deemed trusted
+because this parser accepted them.
+
+After preflight succeeds, a separate frozen expected copy is supplied to the
+generic guard. Later mutation of the caller's expected dictionary cannot rebind
+the approved destinations. Replacement of the sealed target tuple during a
+diagnostic is detected before post-reads and yields snapshot instability without
+creating connections to the replacement targets. Both-role boundary attempts,
+invalid-baseline skipping, cleanup-failure behavior and instability precedence
+remain intact after preflight.
+
+Calling `guarded_diagnostic(expected, reader, diagnostic)` from the generic guard
+directly **is not destination binding**: a generic reader may send credentials to
+its configured destination before its returned identity is compared. A fictional
+test explicitly demonstrates this limitation; production callers must not treat
+post-read identity rejection as approval of a credential destination.
+
+This is a synchronous consistency boundary, not an adversarial in-process
+sandbox. Trusted destination/CA authority, token selection, DNS/private routing,
+same-process/host isolation and independent total-deadline worker supervision
+remain external assumptions. Malicious same-UID code, class/library modification,
+mutable SSL contexts or concurrent mutation between a check and a network call
+are not isolated by Python's sealed tuple or this entry point. No real tokens,
+Azure requests, private runner, PR, merge or live integration are introduced.

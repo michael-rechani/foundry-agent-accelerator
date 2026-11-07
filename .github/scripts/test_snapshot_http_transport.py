@@ -115,6 +115,121 @@ class TransportTests(unittest.TestCase):
             self.assertNotIn("Range", headers)
             self.assertNotIn("x-ms-range", headers)
 
+    def test_bound_entry_rejects_unapproved_expected_without_connections(self):
+        cases = [None, {}, dict(TARGETS, extra=TARGETS["input"]),
+                 {"platform_state": TARGETS["input"], "input": TARGETS["platform_state"]},
+                 dict.fromkeys(guard.ROLES, TARGETS["input"]),
+                 dict(TARGETS, input=None), dict(TARGETS, input=1),
+                 dict(TARGETS, input="https://unapproved.example.invalid/container/input.json"),
+                 dict(TARGETS, input=TARGETS["input"] + "?"),
+                 dict(TARGETS, input=TARGETS["input"] + "#"),
+                 dict(TARGETS, input="https://input.example.invalid/container/in\nput.json")]
+        for expected in cases:
+            with self.subTest(expected_type=type(expected).__name__):
+                diagnostic = mock.Mock(return_value=guard.DIAGNOSTIC_SUCCESS)
+                output, errors = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+                    result = self.reader.guarded_diagnostic(expected, diagnostic)
+                self.assertEqual(result, guard.UNVERIFIED)
+                self.assertEqual(FixtureConnection.made, [])
+                diagnostic.assert_not_called()
+                self.assertEqual((output.getvalue(), errors.getvalue()), ("", ""))
+
+    def test_bound_entry_checks_both_roles_before_first_connection(self):
+        for role in guard.ROLES:
+            with self.subTest(role=role):
+                expected = dict(TARGETS)
+                expected[role] = "https://unapproved.example.invalid/container/blob"
+                diagnostic = mock.Mock(return_value=guard.DIAGNOSTIC_SUCCESS)
+                self.assertEqual(self.reader.guarded_diagnostic(expected, diagnostic), guard.UNVERIFIED)
+                diagnostic.assert_not_called()
+                self.assertEqual(FixtureConnection.made, [])
+
+    def test_generic_guard_is_not_destination_binding(self):
+        configured = dict(TARGETS, input="https://unapproved.example.invalid/container/input")
+        reader = transport.SnapshotTransport.create(configured, TOKEN, "/fictional/ca.pem")
+        diagnostic = mock.Mock(return_value=guard.DIAGNOSTIC_SUCCESS)
+        self.assertEqual(guard.guarded_diagnostic(TARGETS, reader, diagnostic), guard.UNVERIFIED)
+        diagnostic.assert_not_called()
+        self.assertEqual([connection.host for connection in FixtureConnection.made],
+                         ["state.example.invalid", "unapproved.example.invalid"] * 2)
+
+    def test_post_construction_caller_mutation_is_rejected_before_io(self):
+        for role in guard.ROLES:
+            with self.subTest(role=role):
+                configured = dict(TARGETS)
+                reader = transport.SnapshotTransport.create(configured, TOKEN, "/fictional/ca.pem")
+                expected = dict(TARGETS)
+                configured[role] = "https://unapproved.example.invalid/container/configured"
+                expected[role] = configured[role]
+                diagnostic = mock.Mock(return_value=guard.DIAGNOSTIC_SUCCESS)
+                self.assertEqual(reader.guarded_diagnostic(expected, diagnostic), guard.UNVERIFIED)
+                diagnostic.assert_not_called()
+                self.assertEqual(FixtureConnection.made, [])
+                self.assertEqual(dict(reader._targets), TARGETS)
+
+    def test_bound_entry_rejects_replaced_or_malformed_sealed_targets(self):
+        for sealed in (None, (), list(TARGETS.items()), (("input",),),
+                       (("platform_state", TARGETS["input"]), ("input", TARGETS["platform_state"])),
+                       (("platform_state", TARGETS["input"]), ("input", TARGETS["input"])),
+                       (("platform_state", TARGETS["platform_state"]), ("input", None))):
+            with self.subTest(sealed_type=type(sealed).__name__):
+                reader = transport.SnapshotTransport.create(TARGETS, TOKEN, "/fictional/ca.pem")
+                object.__setattr__(reader, "_targets", sealed)
+                diagnostic = mock.Mock(return_value=guard.DIAGNOSTIC_SUCCESS)
+                self.assertEqual(reader.guarded_diagnostic(TARGETS, diagnostic), guard.UNVERIFIED)
+                diagnostic.assert_not_called()
+                self.assertEqual(FixtureConnection.made, [])
+
+    def test_bound_entry_rejects_other_reader_types_and_uninitialized_transport(self):
+        for reader in (None, object(), transport.SnapshotTransport()):
+            diagnostic = mock.Mock(return_value=guard.DIAGNOSTIC_SUCCESS)
+            self.assertEqual(transport.SnapshotTransport.guarded_diagnostic(
+                reader, TARGETS, diagnostic), guard.UNVERIFIED)
+            diagnostic.assert_not_called()
+            self.assertEqual(FixtureConnection.made, [])
+
+    def test_bound_entry_copies_expected_and_keeps_approved_rechecks(self):
+        expected = dict(TARGETS)
+
+        def diagnostic():
+            expected["input"] = "https://unapproved.example.invalid/container/changed"
+            return guard.DIAGNOSTIC_SUCCESS
+
+        self.assertEqual(self.reader.guarded_diagnostic(expected, diagnostic), guard.PASSED)
+        self.assertEqual([connection.host for connection in FixtureConnection.made],
+                         ["state.example.invalid", "input.example.invalid"] * 2)
+        self.assertTrue(all(connection.calls[0][2]["Authorization"] == "Bearer " + TOKEN
+                            for connection in FixtureConnection.made))
+
+    def test_bound_entry_preserves_failure_and_instability_precedence(self):
+        for unstable in (False, True):
+            with self.subTest(unstable=unstable):
+                FixtureConnection.close_failure = None
+                FixtureConnection.made = []
+
+                def diagnostic(unstable=unstable):
+                    if unstable:
+                        FixtureConnection.close_failure = "fictional-close-token fictional-close-body"
+                    raise RuntimeError("fictional-diagnostic-token fictional-diagnostic-body")
+
+                result = self.reader.guarded_diagnostic(TARGETS, diagnostic)
+                self.assertEqual(result, guard.UNVERIFIED if unstable else guard.FAILED)
+                self.assertEqual([connection.host for connection in FixtureConnection.made],
+                                 ["state.example.invalid", "input.example.invalid"] * 2)
+
+    def test_sealed_replacement_after_validation_cannot_send_to_new_target(self):
+        def diagnostic():
+            object.__setattr__(self.reader, "_targets", (
+                ("platform_state", TARGETS["platform_state"]),
+                ("input", "https://unapproved.example.invalid/container/input"),
+            ))
+            return guard.DIAGNOSTIC_SUCCESS
+
+        self.assertEqual(self.reader.guarded_diagnostic(TARGETS, diagnostic), guard.UNVERIFIED)
+        self.assertEqual([connection.host for connection in FixtureConnection.made],
+                         ["state.example.invalid", "input.example.invalid"])
+
     def test_frozen_independent_targets_and_no_override(self):
         targets = TARGETS.copy()
         reader = transport.SnapshotTransport.create(targets, TOKEN, "/fictional/ca.pem")

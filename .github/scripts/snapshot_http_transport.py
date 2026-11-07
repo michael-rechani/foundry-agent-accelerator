@@ -7,7 +7,9 @@ import ssl
 from email.utils import formatdate
 from urllib.parse import urlsplit
 
-from snapshot_integrity_guard import ROLES, _identity
+from snapshot_integrity_guard import (
+    ROLES, UNVERIFIED, _expected_identities, guarded_diagnostic as _guarded_diagnostic,
+)
 
 MAX_BODY = 64_000_000
 TIMEOUT = 10
@@ -25,12 +27,7 @@ class SnapshotTransport:
     @classmethod
     def create(cls, targets, token, ca_file):
         try:
-            if type(targets) is not dict or set(targets) != set(ROLES):
-                return FAILURE
-            frozen = tuple((role, _identity(targets[role])) for role in ROLES)
-            if (len({identity for _, identity in frozen}) != len(ROLES)
-                    or any("?" in identity or "#" in identity for _, identity in frozen)):
-                return FAILURE
+            frozen = tuple(_expected_identities(targets).items())
             if (type(token) is not str or len(token) > 16384
                     or re.fullmatch(r"[A-Za-z0-9._~+/-]+=*", token) is None):
                 return FAILURE
@@ -48,6 +45,29 @@ class SnapshotTransport:
             return instance
         except BaseException:
             return FAILURE
+
+    def guarded_diagnostic(self, expected, diagnostic):
+        """Match independent expected destinations before any authenticated GET."""
+        try:
+            if type(self) is not SnapshotTransport:
+                return UNVERIFIED
+            frozen = tuple(_expected_identities(expected).items())
+            sealed = self._targets
+            if (type(sealed) is not tuple or len(sealed) != len(ROLES)
+                    or any(type(pair) is not tuple or len(pair) != 2
+                           or type(pair[0]) is not str or type(pair[1]) is not str
+                           for pair in sealed)
+                    or frozen != sealed):
+                return UNVERIFIED
+        except BaseException:
+            return UNVERIFIED
+
+        def read(role):
+            if self._targets is not sealed:
+                return FAILURE
+            return self(role)
+
+        return _guarded_diagnostic(dict(frozen), read, diagnostic)
 
     def __call__(self, role):
         try:

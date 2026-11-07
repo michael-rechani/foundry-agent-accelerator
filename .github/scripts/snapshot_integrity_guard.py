@@ -31,7 +31,9 @@ class _Discard:
 
 
 def _identity(value):
-    if type(value) is not str or len(value) > 2048:
+    if (type(value) is not str or len(value) > 2048
+            or not value.startswith("https://") or "?" in value or "#" in value
+            or any(ord(char) < 33 or ord(char) > 126 for char in value)):
         raise SnapshotError(UNVERIFIED)
     parsed = urlsplit(value)
     if (parsed.scheme != "https" or not parsed.netloc or parsed.username is not None
@@ -41,6 +43,17 @@ def _identity(value):
             or any(part in (".", "..") for part in parsed.path.split("/"))):
         raise SnapshotError(UNVERIFIED)
     return value
+
+
+def _expected_identities(expected):
+    if (type(expected) is not dict or len(expected) != len(ROLES)
+            or any(type(role) is not str for role in expected)
+            or set(expected) != set(ROLES)):
+        raise SnapshotError(UNVERIFIED)
+    identities = {role: _identity(expected[role]) for role in ROLES}
+    if len(set(identities.values())) != len(ROLES):
+        raise SnapshotError(UNVERIFIED)
+    return identities
 
 
 def _snapshot(value, identity):
@@ -97,13 +110,10 @@ def _snapshot(value, identity):
 def compare_snapshots(expected, before, after):
     """Fixed output only. Unknown properties fail closed; no lease ID is fabricated."""
     try:
-        if (type(expected) is not dict or set(expected) != set(ROLES)
-                or type(before) is not dict or set(before) != set(ROLES)
+        if (type(before) is not dict or set(before) != set(ROLES)
                 or type(after) is not dict or set(after) != set(ROLES)):
             raise SnapshotError(UNVERIFIED)
-        identities = {role: _identity(expected[role]) for role in ROLES}
-        if len(set(identities.values())) != 2:
-            raise SnapshotError(UNVERIFIED)
+        identities = _expected_identities(expected)
         left = {role: _snapshot(before[role], identities[role]) for role in ROLES}
         right = {role: _snapshot(after[role], identities[role]) for role in ROLES}
         return PASSED if left == right else UNVERIFIED
@@ -114,29 +124,27 @@ def compare_snapshots(expected, before, after):
 def guarded_diagnostic(expected, read, diagnostic):
     """Single-thread synchronous callbacks must finish and be fully supervised.
 
-    Every boundary attempts both roles even when a read fails. The frozen baseline
-    is captured immediately; callback data cannot rewrite it. Stream redirection
-    is not a subprocess/security sandbox. This helper does not implement timeouts.
+    Invalid expected identities return before either callback is invoked. After
+    validation, every boundary attempts both roles even when a read fails. The
+    frozen baseline is captured immediately; callback data cannot rewrite it.
+    A generic reader's destinations are not bound by this post-read comparator.
+    Stream redirection is not a sandbox. This helper does not implement timeouts.
 
     Only returning the exact DIAGNOSTIC_SUCCESS singleton signals success.
     All other returns fail, including raw exit codes and unexecuted awaitables.
     """
     with contextlib.redirect_stdout(_Discard()), contextlib.redirect_stderr(_Discard()):
         try:
-            if type(expected) is not dict or set(expected) != set(ROLES):
-                raise SnapshotError(UNVERIFIED)
-            identities = {role: _identity(expected[role]) for role in ROLES}
-            if len(set(identities.values())) != 2:
-                raise SnapshotError(UNVERIFIED)
+            identities = _expected_identities(expected)
         except (SnapshotError, ValueError, TypeError, KeyError):
-            identities = None
+            return UNVERIFIED
 
         def capture():
             pair = {}
             for role in ROLES:
                 try:
                     value = read(role)
-                    pair[role] = _snapshot(value, identities[role]) if identities is not None else None
+                    pair[role] = _snapshot(value, identities[role])
                 except BaseException:
                     pair[role] = None
             return pair
