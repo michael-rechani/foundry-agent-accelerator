@@ -94,7 +94,8 @@ class PlanOidcTests(unittest.TestCase):
                          "runs-on: [self-hosted, linux, lab-runner]", "environment: platform-plan-read",
                          "id-token: write", "python3 -I - <<'PY'"):
             self.assertIn(expected, workflow)
-        for forbidden in ("actions/checkout", "upload-artifact", "pull_request:", "${{ secrets.", "AZURE_", "api://AzureADTokenExchange"): 
+        for forbidden in ("actions/checkout", "upload-artifact", "pull_request:", "${{ secrets.",
+                          "AZURE_", "api://AzureADTokenExchange"):
             self.assertNotIn(forbidden, workflow)
 
     def test_context_requires_exact_protected_workflow(self):
@@ -157,6 +158,8 @@ class PlanOidcTests(unittest.TestCase):
                 self.ns["request_assertion"](None, env, AUDIENCE)
         with self.assertRaises(ValueError):
             self.ns["request_assertion"](None, dict(CONTEXT, ACTIONS_ID_TOKEN_REQUEST_TOKEN="bad\nvalue"), AUDIENCE)
+        with self.assertRaises(ValueError):
+            self.ns["request_assertion"](None, CONTEXT, "api://AzureADTokenExchange")
 
     def test_responses_reject_redirects_oversize_and_invalid_json(self):
         ns = self.ns
@@ -225,6 +228,37 @@ class PlanOidcTests(unittest.TestCase):
                 self.assertEqual(result.stdout, "")
                 self.assertEqual(result.stderr, "plan_oidc_check_failed=unexpected\n")
                 self.assertNotIn(SENTINEL, result.stderr)
+
+
+    def test_name_only_subject_fails_without_exposing_claims(self):
+        legacy = dict(CLAIMS, sub="repo:" + REPOSITORY + ":environment:platform-plan-read")
+        output, errors = io.StringIO(), io.StringIO()
+        replacements = {
+            "repository_ids": lambda _opener: ("123", "456"),
+            "request_assertion": lambda _opener, _env, _audience: token(json.dumps(legacy).encode()),
+        }
+        with patch.object(request, "build_opener", return_value=object()), \
+                patch.object(self.ns["time"], "time", return_value=1000), \
+                patch.object(self.ns["secrets"], "token_hex", return_value="a" * 64), \
+                patch.dict(self.ns, replacements), contextlib.redirect_stdout(output), \
+                contextlib.redirect_stderr(errors):
+            self.assertEqual(self.ns["main"](CONTEXT), 1)
+        self.assertIn("plan_oidc_subject=name_only\n", output.getvalue())
+        self.assertNotIn(legacy["sub"], output.getvalue() + errors.getvalue())
+        self.assertNotIn("synthetic-request-token", output.getvalue() + errors.getvalue())
+
+    def test_token_request_and_invalid_token_failures_are_redacted(self):
+        def fail(*_args):
+            raise ValueError(SENTINEL)
+
+        for assertion, expected in ((fail, "token_request"), (lambda *_args: SENTINEL, "token_invalid")):
+            errors = io.StringIO()
+            replacements = {"repository_ids": lambda _opener: ("123", "456"), "request_assertion": assertion}
+            with self.subTest(expected=expected), patch.object(request, "build_opener", return_value=object()), \
+                    patch.dict(self.ns, replacements), contextlib.redirect_stderr(errors):
+                self.assertEqual(self.ns["main"](CONTEXT), 1)
+            self.assertEqual(errors.getvalue(), "plan_oidc_check_failed=" + expected + "\n")
+            self.assertNotIn(SENTINEL, errors.getvalue())
 
 
 if __name__ == "__main__":

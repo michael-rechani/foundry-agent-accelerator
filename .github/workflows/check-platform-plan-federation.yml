@@ -176,10 +176,10 @@ jobs:
               except (ValueError, TypeError):
                   print("plan_oidc_check_failed=token_invalid", file=sys.stderr)
                   return 1
-              issuer, audience, subject, binding, lifetime = classify_claims(
+              issuer, audience_matches, subject, binding, lifetime = classify_claims(
                   claims, owner_id, repo_id, audience, int(time.time()))
               print("plan_oidc_issuer=matched" if issuer else "plan_oidc_issuer=mismatched")
-              print("plan_oidc_audience=matched" if audience else "plan_oidc_audience=mismatched")
+              print("plan_oidc_audience=matched" if audience_matches else "plan_oidc_audience=mismatched")
               if subject == "id_qualified":
                   print("plan_oidc_subject=id_qualified")
               elif subject == "name_only":
@@ -188,7 +188,7 @@ jobs:
                   print("plan_oidc_subject=unexpected")
               print("plan_oidc_binding=matched" if binding else "plan_oidc_binding=mismatched")
               print("plan_oidc_lifetime=valid" if lifetime else "plan_oidc_lifetime=invalid")
-              return 0 if issuer and audience and subject == "id_qualified" and binding and lifetime else 1
+              return 0 if issuer and audience_matches and subject == "id_qualified" and binding and lifetime else 1
 
           if __name__ == "__main__":
               try:

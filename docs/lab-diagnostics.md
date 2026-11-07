@@ -34,10 +34,11 @@ unexpected claims fail the check. No assertion, request token, repository IDs,
 or response contents are printed or saved.
 
 This is a claim preview over HTTPS, not JWT signature verification, proof that
-an Azure token-exchange audience or federated credential works, effective Azure authorization, or proof
-of private-runner host isolation. The environment is main-only and has a
+an Azure token-exchange audience or federated credential works, effective Azure
+authorization, or proof of private-runner host isolation. The environment is main-only and has a
 required reviewer, but repository administrators can bypass that approval.
 Do not treat this check as authority to run a Terraform plan or apply.
+
 ### Historical platform-input candidate
 
 The manually dispatched **Check historical platform input candidate** workflow
