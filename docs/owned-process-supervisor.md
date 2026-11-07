@@ -95,3 +95,88 @@ Meta-package ID-only readiness still does not verify the seven independently
 versioned core extensions or provide authenticated component-closure evidence.
 The prerequisite gate and receipt veto remain untouched pending independent
 review of these blockers.
+
+
+## Birth-bound bootstrap transport (separate, worker-free component)
+
+`birth_bound_bootstrap.bootstrap_probe(exit_code=0, timeout=2, grace=1)` now
+exercises an actual private self-pidfd transfer and consumes explicit kernel
+terminal status. It accepts **no command or worker**. This is a working
+bootstrap-only transport under the premises below, **not a working public
+supervisor**. `owned_process.supervise()` still refuses; its module, production
+`check()`/`command()`/`run()`/`cleanup()` gates and existing tests are unchanged.
+The conditional `_experimental_supervisor` is neither called nor integrated.
+The remaining boundary is tracked in
+[#522](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522#issuecomment-6714181075).
+
+### Ownership protocol and premises
+
+The outer component uses no `Popen`, destructor, numeric wait/signal, or
+`pidfd_open(spawned_pid)`. A fresh absolute trusted Python interpreter runs
+`-I -S` with an empty environment. Ordered `POSIX_SPAWN_DUP2` actions replace
+standard streams with `/dev/null`, map a private unnamed AF_UNIX SOCK_SEQPACKET
+socket to fd 3, then `POSIX_SPAWN_CLOSEFROM` closes everything >=4. Source
+descriptors are duplicated >=4 so actions cannot clobber a source. All parent
+descriptors are CLOEXEC. Missing CLOSEFROM or other required primitives refuses
+**before socket creation/spawn**, without an unsafe fallback.
+
+Parent sends a fresh 32-byte challenge; the trusted child opens
+`os.pidfd_open(os.getpid())` to **itself while alive**, before any worker exists.
+It transfers exactly that one reference via SCM_RIGHTS. Parent checks the
+strict frame/nonce, one SCM_RIGHTS, one kernel SCM_CREDENTIALS and expected
+sender PID/UID/GID, truncation flags and actual FD_CLOEXEC after atomic
+MSG_CMSG_CLOEXEC receive. All delivered descriptors close on rejection; the
+kernel closes excess truncated rights. Unknown/duplicate ancillary messages,
+extra fds, wrong credentials, malformed/duplicate/out-of-order frames refuse.
+Parent uses `waitid(P_PIDFD, WNOWAIT|WNOHANG)` to reject non-pidfds and missing
+direct-child status/waitability, before ACK. The child sends the strict DONE
+frame, closes its self-pidfd and channel, then exits without creating workers.
+Parent requires DONE and EOF before any signal or terminal processing. Only
+explicit consuming `waitid(P_PIDFD)` status yields success/nonzero; timeout
+can signal **only the validated pidfd**, followed by bounded explicit consuming
+waitid. ECHILD (ignored SIGCHLD/SA_NOCLDWAIT, competing waiter or reparenting),
+unknown status and syscall failures are unverified, never fabricated zero.
+No caller-global SIGCHLD disposition is changed.
+
+Authentication depends on the private endpoint being inherited **only** by the
+exact trusted executable, and that executable/helper remaining trustworthy
+through launch. The spawned integer PID is used only in SCM_CREDENTIALS
+comparison, never to bind, signal, inspect proc identity or wait. SO_PASSCRED
+identifies the actual message sender; socketpair SO_PEERCRED would describe its
+creator and is deliberately not used. Same UID or being on the same host is
+not authentication. Type/direct-child validation alone would not establish
+self identity; the trusted child's self-open/private-channel protocol does.
+Once transferred, the open description remains bound even after external
+reaping/PID reuse. External reaping is tested only by mocks, not broad waits.
+
+### Scope and failure limits
+
+This component proves the bootstrap child's terminal status only. It does not
+prove inner process-group ownership, descendant closure, arbitrary workload
+completion, or scratch cleanup. The conditional inner experiment still has
+post-spawn/group races and is unreviewed. No public API is enabled.
+
+Before transfer, parent timeout/crash/interrupt/malformed handshake cannot
+safely signal or reap a numeric child: it returns unverified and closes its
+endpoint. The worker-free child independently times out challenge/ACK reads
+after one second and self-terminates; an unreaped zombie may remain. A parent
+crash after transfer can also lose its only fd; there is no unsafe recovery.
+Protocol failures even after receiving a plausible fd never signal. Parent
+protocol operations share a monotonic deadline; child challenge and ACK each
+have a one-second socket bound. Polling cannot provide a hard wallclock limit
+on blocked spawn, kernel calls, scheduling or uninterruptible/device I/O.
+No escaped live survivors are tested.
+
+Compromised host/trusted executable/filesystem, same-UID endpoint theft or
+ptrace, hostile namespace/parentage changes, group races, delegated external
+service work, asynchronous kernel/device writes and durability, shared-workspace
+path-based scratch cleanup remain outside the proof. No privilege, namespace,
+cgroup, Azure, Foundry, protected input, credential, public exposure, deployment
+or production workflow was used. Meta-package ID-only readiness still does not
+validate the seven independently versioned core extensions.
+
+Source references:
+[Python 3.14 spawn file actions](https://docs.python.org/3.14/library/os.html#os.posix_spawn)
+(CLOSEFROM maps to `posix_spawn_file_actions_addclosefrom_np` when available);
+[Linux unix SCM_RIGHTS/SCM_CREDENTIALS](https://man7.org/linux/man-pages/man7/unix.7.html);
+[Linux pidfd_open](https://man7.org/linux/man-pages/man2/pidfd_open.2.html).
