@@ -510,6 +510,7 @@ class DeploymentSDKTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "candidate failure"):
             deploy(self.profile, self.args)
         self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
         self.smoke.assert_not_called()
         self.assertEqual(self.endpoint, self.original)
 
