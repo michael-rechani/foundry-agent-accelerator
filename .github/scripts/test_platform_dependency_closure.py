@@ -97,6 +97,52 @@ class ClosureTests(unittest.TestCase):
                 closure.check(root, selected)
             with self.assertRaises(closure.ClosureError):
                 closure.check(root, None)
+    def test_git_source_missing_changed_extra_and_mode(self):
+        for mutation in ('none', 'missing', 'changed', 'extra', 'mode'):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                file = root / 'main.tf'
+                raw = b'synthetic exact Git bytes'
+                file.write_bytes(raw)
+                file.chmod(0o644)
+                oid = hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+                if mutation == 'missing':
+                    file.unlink()
+                elif mutation == 'changed':
+                    file.write_bytes(b'changed')
+                elif mutation == 'extra':
+                    (root / 'extra.tf').write_text('extra')
+                elif mutation == 'mode':
+                    file.chmod(0o755)
+                with patch.object(closure.subprocess, 'run') as run:
+                    run.return_value.returncode = 0
+                    run.return_value.stdout = f'100644 blob {oid}\tterraform/main.tf\n'.encode()
+                    if mutation == 'none':
+                        self.assertIn('main.tf', closure.source_inventory(root))
+                    else:
+                        with self.assertRaises(closure.ClosureError):
+                            closure.source_inventory(root)
+
+    def test_schema_mutation_or_terraform_failure_does_not_verify(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.fixture(root)
+            selected = hashlib.sha256((root / 'manifest.json').read_bytes()).hexdigest()
+            def simulated(binary, working, home, args):
+                if args == ['version', '-json']:
+                    return json.dumps({'terraform_version': closure.VERSION, 'platform': 'linux_amd64'}).encode()
+                if args == ['providers', 'schema', '-json']:
+                    (root / 'mirror' / 'provider.zip').write_bytes(b'swap during verification')
+                return b'{}'
+            with patch.object(closure, 'terraform', side_effect=simulated):
+                with self.assertRaises(closure.ClosureError):
+                    closure.verify(root, 'terraform', selected)
+            with patch.object(closure.subprocess, 'run') as run:
+                run.return_value.returncode = 1
+                run.return_value.stdout = b'provider output withheld'
+                run.return_value.stderr = b''
+                with self.assertRaises(closure.ClosureError):
+                    closure.terraform('terraform', root, root, ['providers', 'schema', '-json'])
     def test_no_credentials_and_exact_command_allowlist(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
