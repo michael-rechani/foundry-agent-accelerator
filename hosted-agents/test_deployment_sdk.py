@@ -73,7 +73,7 @@ class DeploymentSDKTests(unittest.TestCase):
         self.events.append("read")
         if self.missing:
             raise ResourceNotFoundError()
-        return SimpleNamespace(agent_endpoint=deepcopy(self.endpoint))
+        return SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=deepcopy(self.endpoint))
 
     def create(self, **kwargs):
         self.events.append("create")
