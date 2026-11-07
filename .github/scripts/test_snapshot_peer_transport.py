@@ -84,6 +84,27 @@ class PeerMechanicsTests(unittest.TestCase):
         self.assertEqual(guard.guarded_diagnostic(TARGETS, self.reader, mock.Mock()), guard.UNVERIFIED)
         self.assertEqual(self.events, [])
 
+    def test_constructor_rejects_non443_ports_and_ambiguous_ipv6_before_tls_setup(self):
+        peer.ssl.SSLContext.reset_mock()
+        for endpoint in (("127.0.0.1", 23456), ("127.0.0.1", "443"),
+                         ("::ffff:7f00:1", 443), ("0:0:0:0:0:0:0:1", 443),
+                         ("::1%0", 443), ("::", 443), ("ff02::1", 443)):
+            with self.subTest(endpoint=endpoint):
+                configured = dict(PEERS, input=endpoint)
+                self.assertIsNone(peer.PeerSnapshotTransport.create(
+                    TARGETS, configured, TOKEN, "/fictional/ca.pem"))
+        peer.ssl.SSLContext.assert_not_called()
+        peer.socket.socket.assert_not_called()
+
+    def test_swapped_role_peer_bindings_are_rejected_before_connection(self):
+        configured = dict(PEERS, input=("127.0.0.2", 443))
+        reader = peer.PeerSnapshotTransport.create(TARGETS, configured, TOKEN, "/fictional/ca.pem")
+        swapped = {"input": configured["platform_state"], "platform_state": configured["input"]}
+        diagnostic = mock.Mock()
+        self.assertEqual(reader.guarded_diagnostic(TARGETS, swapped, diagnostic), guard.UNVERIFIED)
+        diagnostic.assert_not_called()
+        peer.socket.socket.assert_not_called()
+
     def test_wrong_target_map_and_mutated_caller_bindings_send_nothing(self):
         configured = dict(PEERS)
         reader = peer.PeerSnapshotTransport.create(TARGETS, configured, TOKEN, "/fictional/ca.pem")
@@ -104,7 +125,7 @@ class PeerMechanicsTests(unittest.TestCase):
         connection.close()
 
     def test_wrong_peer_or_bad_tls_never_sends_authorization(self):
-        for phase in ("raw-ip", "raw-port", "tls-peer", "tls-error", "disabled-verification"):
+        for phase in ("raw-ip", "raw-port", "tls-peer", "tls-port", "tls-error", "disabled-verification"):
             with self.subTest(phase=phase):
                 self.events.clear()
                 self.encrypted.sendall.reset_mock()
@@ -113,7 +134,8 @@ class PeerMechanicsTests(unittest.TestCase):
                                                     444 if phase == "raw-port" else 443)
                 self.encrypted.getpeername.side_effect = None
                 self.encrypted.getpeername.return_value = (
-                    "127.0.0.2" if phase == "tls-peer" else "127.0.0.1", 443
+                    "127.0.0.2" if phase == "tls-peer" else "127.0.0.1",
+                    444 if phase == "tls-port" else 443
                 )
                 self.context.wrap_socket.side_effect = (
                     ssl.SSLError("fictional-sensitive-error") if phase == "tls-error" else None
