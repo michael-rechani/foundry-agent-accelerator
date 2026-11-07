@@ -31,20 +31,25 @@ jobs:
           python3 closure-tool/.github/scripts/platform_dependency_closure.py
           capture "$RUNNER_TEMP/public-overlay-bundle"
           --source "$GITHUB_WORKSPACE/terraform" --terraform terraform
-      - name: Run focused overlay regressions against captured closure
+      - name: Prepare public Python container for network-disabled checks
+        run: docker pull python:3.13-slim
+      - name: Run focused overlay regressions and actual-root validation without a network
         env:
           PUBLIC_OVERLAY_BUNDLE: ${{ runner.temp }}/public-overlay-bundle
           OVERLAY_TERRAFORM: terraform
-        run: >-
-          unshare -n -- env PUBLIC_OVERLAY_BUNDLE="$PUBLIC_OVERLAY_BUNDLE"
-          OVERLAY_TERRAFORM="$OVERLAY_TERRAFORM"
-          python3 -m unittest discover -s .github/scripts
-          -p test_platform_router_overlay.py -v
-      - name: Validate provider inheritance on captured dependency closure
-        env:
-          PUBLIC_OVERLAY_BUNDLE: ${{ runner.temp }}/public-overlay-bundle
-          OVERLAY_TERRAFORM: terraform
-        run: >-
-          unshare -n -- env PUBLIC_OVERLAY_BUNDLE="$PUBLIC_OVERLAY_BUNDLE"
-          OVERLAY_TERRAFORM="$OVERLAY_TERRAFORM"
-          python3 .github/scripts/test_azapi_registration_overlay.py -v
+        run: |
+          image=$(docker image inspect --format '{{index .RepoDigests 0}}' python:3.13-slim)
+          terraform_bin=$(readlink -f "$(command -v terraform)")
+          docker run --rm --network none --read-only --user "$(id -u):$(id -g)" \
+            --tmpfs /tmp:rw,nosuid,nodev,size=2g \
+            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/repo,readonly" \
+            --mount "type=bind,src=$RUNNER_TEMP/public-overlay-bundle,dst=/bundle,readonly" \
+            --mount "type=bind,src=$terraform_bin,dst=/usr/local/bin/terraform,readonly" \
+            --env HOME=/tmp/home --env PYTHONDONTWRITEBYTECODE=1 --env LANG=C.UTF-8 \
+            --env PUBLIC_OVERLAY_BUNDLE=/bundle --env OVERLAY_TERRAFORM=/usr/local/bin/terraform \
+            --entrypoint /bin/sh "$image" -ec '
+              mkdir -p "$HOME"
+              cd /repo
+              python3 -m unittest discover -s .github/scripts -p test_platform_router_overlay.py -v
+              python3 .github/scripts/test_azapi_registration_overlay.py -v
+            '
