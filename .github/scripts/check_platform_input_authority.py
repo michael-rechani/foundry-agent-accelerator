@@ -26,6 +26,35 @@ class StateError(backend.CheckError):
     pass
 
 
+class StateEnvelopeError(StateError):
+    pass
+
+
+class StateInventoryError(StateError):
+    pass
+
+
+class StateOutputsError(StateError):
+    pass
+
+
+class StateRoleError(StateError):
+    pass
+
+
+class StateDiskError(StateError):
+    pass
+
+
+STATE_FAILURE_CATEGORIES = {
+    StateEnvelopeError: "state_envelope_invalid",
+    StateInventoryError: "state_inventory_invalid",
+    StateOutputsError: "state_outputs_invalid",
+    StateRoleError: "state_role_invalid",
+    StateDiskError: "state_disk_invalid",
+}
+
+
 class SnapshotError(backend.CheckError):
     pass
 
@@ -35,12 +64,14 @@ class ReadError(backend.CheckError):
 
 
 class PreconditionError(backend.CheckError):
-    def __init__(self, *, input_mismatch=False, pin_invalid=False, secret_read=False, state_invalid=False):
+    def __init__(self, *, input_mismatch=False, pin_invalid=False, secret_read=False, state_invalid=False,
+                 state_error=None):
         super().__init__("Candidate preconditions failed.")
         self.input_mismatch = input_mismatch
         self.pin_invalid = pin_invalid
         self.secret_read = secret_read
         self.state_invalid = state_invalid
+        self.state_error = state_error
 
 
 def strict_object(raw):
@@ -90,12 +121,12 @@ def target_instances(resources, resource_type, name, index=None):
         and item.get("type") == resource_type and item.get("name") == name
     ]
     if len(matches) != 1 or not isinstance(matches[0].get("instances"), list):
-        raise StateError("Required state resource is missing or ambiguous.")
+        raise StateInventoryError("Required state resource is missing or ambiguous.")
     instances = matches[0]["instances"]
     if (len(instances) != 1 or not isinstance(instances[0], dict)
             or instances[0].get("deposed") or instances[0].get("index_key") != index
             or not isinstance(instances[0].get("attributes"), dict)):
-        raise StateError("Required state resource is incomplete or ambiguous.")
+        raise StateInventoryError("Required state resource is incomplete or ambiguous.")
     return instances[0]["attributes"]
 
 
@@ -109,8 +140,8 @@ def compare(input_bytes, state_bytes, subscription):
         state = strict_object(state_bytes)
     except (backend.CheckError, ValueError, UnicodeError):
         if secret_read:
-            raise PreconditionError(secret_read=True, state_invalid=True) from None
-        raise StateError("Invalid state.") from None
+            raise PreconditionError(secret_read=True, state_invalid=True, state_error=StateEnvelopeError) from None
+        raise StateEnvelopeError("Invalid state.") from None
     try:
         compare_validated(inputs, state, subscription)
     except PinError:
@@ -121,9 +152,9 @@ def compare(input_bytes, state_bytes, subscription):
         if secret_read:
             raise PreconditionError(input_mismatch=True, secret_read=True) from None
         raise
-    except StateError:
+    except StateError as exc:
         if secret_read:
-            raise PreconditionError(secret_read=True, state_invalid=True) from None
+            raise PreconditionError(secret_read=True, state_invalid=True, state_error=type(exc)) from None
         raise
     if secret_read:
         raise PreconditionError(secret_read=True)
@@ -132,7 +163,7 @@ def compare(input_bytes, state_bytes, subscription):
 def compare_validated(inputs, state, subscription):
     input_subscription = guid(inputs.get("subscription_id"), CandidateError)
     principal = guid(inputs.get("deployment_principal_id"), PinError)
-    if input_subscription != guid(subscription, StateError):
+    if input_subscription != guid(subscription, StateEnvelopeError):
         raise CandidateError("Subscription mismatch.")
     disk = inputs.get("jumpbox_existing_os_disk")
     if inputs.get("enable_jumpbox") is not True or not isinstance(disk, dict):
@@ -152,30 +183,31 @@ def compare_validated(inputs, state, subscription):
 
     resources = state.get("resources")
     if (state.get("version") != 4 or type(state.get("serial")) is not int or state["serial"] < 0
-            or not isinstance(state.get("lineage"), str) or not state["lineage"]
-            or not isinstance(resources, list) or not resources
+            or not isinstance(state.get("lineage"), str) or not state["lineage"]):
+        raise StateEnvelopeError("Platform state is invalid or empty.")
+    if (not isinstance(resources, list) or not resources
             or any(not isinstance(item, dict) for item in resources)):
-        raise StateError("Platform state is invalid or empty.")
+        raise StateInventoryError("Platform inventory is invalid or empty.")
     group = target_instances(resources, "azurerm_resource_group", "this")
     group_id = group.get("id")
     if (not isinstance(group_id, str)
             or not re.fullmatch(r"/subscriptions/" + GUID + r"/resourceGroups/[^/]+", group_id, re.IGNORECASE)
             or group_id.split("/")[2].lower() != input_subscription):
-        raise StateError("Platform state subscription mismatch.")
+        raise StateInventoryError("Platform state subscription mismatch.")
     outputs = state.get("outputs")
     if not isinstance(outputs, dict):
-        raise StateError("Platform outputs are invalid.")
+        raise StateOutputsError("Platform outputs are invalid.")
     account_output, project_output = outputs.get("foundry_account_id"), outputs.get("foundry_project_id")
     if (not isinstance(account_output, dict) or not isinstance(project_output, dict)
             or account_output.get("type") != "string" or project_output.get("type") != "string"):
-        raise StateError("Platform outputs are incomplete.")
+        raise StateOutputsError("Platform outputs are incomplete.")
     account_id, project_id = account_output.get("value"), project_output.get("value")
     if (not isinstance(account_id, str)
             or not re.fullmatch(re.escape(group_id) + r"/providers/Microsoft\.CognitiveServices/accounts/[^/]+",
                                 account_id, re.IGNORECASE)
             or not isinstance(project_id, str)
             or not re.fullmatch(re.escape(account_id) + r"/projects/[^/]+", project_id, re.IGNORECASE)):
-        raise StateError("Platform outputs are inconsistent.")
+        raise StateOutputsError("Platform outputs are inconsistent.")
     role = target_instances(resources, "azurerm_role_assignment", "deployer_foundry_user")
     role_scope = role.get("scope")
     role_definition = role.get("role_definition_id")
@@ -189,8 +221,8 @@ def compare_validated(inputs, state, subscription):
                 f"/subscriptions/{input_subscription}/providers/microsoft.authorization/"
                 "roledefinitions/53ca6127-db72-4b80-b1b0-d745d6d5456d"
             )):
-        raise StateError("Platform deployer assignment is invalid.")
-    if guid(role.get("principal_id"), StateError) != principal:
+        raise StateRoleError("Platform deployer assignment is invalid.")
+    if guid(role.get("principal_id"), StateRoleError) != principal:
         raise CandidateError("Platform deployer assignment mismatch.")
     jumpbox = target_instances(resources, "azapi_resource", "jumpbox", index=0)
     body = jumpbox.get("body")
@@ -198,9 +230,9 @@ def compare_validated(inputs, state, subscription):
         try:
             body = strict_object(body)
         except (backend.CheckError, ValueError, UnicodeError):
-            raise StateError("Jumpbox body is invalid.") from None
+            raise StateDiskError("Jumpbox body is invalid.") from None
     if not isinstance(body, dict):
-        raise StateError("Jumpbox body is missing.")
+        raise StateDiskError("Jumpbox body is missing.")
     properties = body.get("properties")
     storage = properties.get("storageProfile") if isinstance(properties, dict) else None
     os_disk = storage.get("osDisk") if isinstance(storage, dict) else None
@@ -208,7 +240,7 @@ def compare_validated(inputs, state, subscription):
     state_disk_id = managed_disk.get("id") if isinstance(managed_disk, dict) else None
     state_disk_name = os_disk.get("name") if isinstance(os_disk, dict) else None
     if not isinstance(state_disk_id, str) or not isinstance(state_disk_name, str):
-        raise StateError("Jumpbox disk identity is incomplete.")
+        raise StateDiskError("Jumpbox disk identity is incomplete.")
     if state_disk_id.lower() != disk_id.lower() or state_disk_name.lower() != disk_name.lower():
         raise CandidateError("Jumpbox disk identity mismatch.")
 
@@ -252,7 +284,7 @@ def main():
         if exc.secret_read:
             print("candidate_platform_comparison_failed=secret_read_review_required", file=sys.stderr)
         if exc.state_invalid:
-            print("candidate_platform_comparison_failed=protected_state_invalid", file=sys.stderr)
+            print_state_failure(exc.state_error)
         print_router_override(exc)
         return 1
     except PinError as exc:
@@ -264,7 +296,7 @@ def main():
         print_router_override(exc)
         return 1
     except StateError as exc:
-        print("candidate_platform_comparison_failed=protected_state_invalid", file=sys.stderr)
+        print_state_failure(type(exc))
         print_router_override(exc)
         return 1
     except SnapshotError:
@@ -285,6 +317,11 @@ def print_router_override(exc):
     override = getattr(exc, "router_override", None)
     if override in ("absent", "explicit"):
         print(f"candidate_router_override={override}", file=sys.stderr)
+
+
+def print_state_failure(error_type):
+    category = STATE_FAILURE_CATEGORIES.get(error_type, "protected_state_invalid")
+    print(f"candidate_platform_comparison_failed={category}", file=sys.stderr)
 
 
 def report_unexpected_failure(_type, _value, _traceback):
