@@ -35,8 +35,10 @@ or response contents are printed or saved.
 
 This is a claim preview over HTTPS, not JWT signature verification, proof that
 an Azure token-exchange audience or federated credential works, effective Azure
-authorization, or proof of private-runner host isolation. The environment is main-only and has a
-required reviewer, but repository administrators can bypass that approval.
+authorization, or proof of private-runner host isolation. The environment is
+main-only and has a required reviewer, but self-approval is allowed. Repository
+administrators can change environment protections; verify the live administrator
+bypass setting before relying on an approval.
 Do not treat this check as authority to run a Terraform plan or apply.
 
 ### Historical platform-input candidate
