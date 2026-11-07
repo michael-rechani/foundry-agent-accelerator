@@ -455,10 +455,7 @@ def cleanup_failed_version(
         if not concrete_route(endpoint) or any(str(rule.agent_version) == str(version) for rule in rules):
             print(f"Warning: route not confirmed safe; retained version {version}")
             return
-        client.agents.delete_version(
-            agent_name=agent_name, agent_version=version, force=True
-        )
-        print(f"Deleted failed version {version}")
+        print(f"Retained failed version {version}; inspect its sessions before deliberate cleanup")
     except Exception:
         print(f"Warning: recovery status or cleanup incomplete; retained version {version} if present")
 
