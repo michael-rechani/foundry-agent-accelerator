@@ -1,5 +1,6 @@
 """Offline tests for the inert, fixed Model Router bootstrap proposal."""
 
+import base64
 import importlib.util
 from pathlib import Path
 import re
@@ -51,6 +52,7 @@ data "azapi_resource" "model_router_routing" {
         )
         self.assertIn('body = local.model_router_body', result)
         self.assertIn('data "azapi_resource" "model_router_routing"', result)
+        self.assertIn("depends_on = [azapi_resource.model_router]", result)
         self.assertNotIn("azapi_resource_action", result)
         self.assertNotIn("PATCH", result)
 
@@ -64,6 +66,7 @@ data "azapi_resource" "model_router_routing" {
 }
 run "enabled_request" {
       azapi_resource.model_router[0].body.properties.routing.mode == "balanced" &&
+      azapi_resource.model_router[0].ignore_missing_property == false &&
       azapi_resource_action.model_router_routing[0].method == "PATCH" &&
       azapi_resource_action.model_router_routing[0].body.sku == azapi_resource.model_router[0].body.sku &&
       azapi_resource_action.model_router_routing[0].body.properties.model == azapi_resource.model_router[0].body.properties.model &&
@@ -80,6 +83,7 @@ run "plan_routing_mode_update" {
   error_message = "A routing update must plan both the deployment change and the PATCH."
 }
 run "update_routing_mode" {
+  command = apply
       azapi_resource.model_router[0].body.properties.routing.mode == "cost" &&
       azapi_resource_action.model_router_routing[0].body.properties.routing.mode == "cost" &&
       output.model_router_deployment_name == "model-router"
@@ -93,6 +97,9 @@ run "update_routing_mode" {
         self.assertNotIn("PATCH", result)
         self.assertIn('body.properties.routing.mode == "balanced"', result)
         self.assertIn('body.properties.routing.mode == "cost"', result)
+        self.assertIn("azapi_resource.model_router[0].ignore_missing_property == false\n", result)
+        self.assertNotIn("ignore_missing_property == false &&\n    )", result)
+        self.assertIn('state_key = "standard-default-subset"', result)
         self.assertIn("verified before exposing its output", result)
 
     def test_documentation_preserves_unverified_behavior_and_partial_create_warning(self):
@@ -144,6 +151,15 @@ class WorkflowContractTests(unittest.TestCase):
 
 
 class GuardAndCommitTests(unittest.TestCase):
+    def test_api_requests_reject_non_github_or_non_https_urls(self):
+        for url in (
+            "http://api.github.com/repos/example",
+            "https://example.com/repos/example",
+            "file:///etc/passwd",
+        ):
+            with self.subTest(url=url), self.assertRaises(bootstrap.BootstrapError):
+                bootstrap._request(url, "offline-token")
+
     def test_only_the_first_owner_dispatch_from_main_is_accepted(self):
         environ = {
             "GITHUB_REPOSITORY": bootstrap.REPOSITORY,
@@ -179,18 +195,25 @@ class GuardAndCommitTests(unittest.TestCase):
 
         with patch.object(bootstrap, "_request", side_effect=fake_request):
             commit = bootstrap._commit("offline-token", {
-                "terraform/modules/model-router/main.tf": "fixed output\n",
+                "terraform/modules/model-router/main.tf": "fixed output \N{LATIN SMALL LETTER A WITH DIAERESIS}\n",
             })
         variables = captured["body"]["variables"]["input"]
         self.assertEqual(captured["method"], "POST")
         self.assertEqual(variables["expectedHeadOid"], bootstrap.TARGET_HEAD)
         self.assertEqual(variables["branch"]["branchName"], bootstrap.TARGET_BRANCH)
         self.assertEqual(variables["branch"]["repositoryNameWithOwner"], bootstrap.REPOSITORY)
-        self.assertEqual(variables["fileChanges"]["additions"], [{
-            "path": "terraform/modules/model-router/main.tf",
-            "contents": "fixed output\n",
-        }])
+        additions = variables["fileChanges"]["additions"]
+        self.assertEqual(len(additions), 1)
+        self.assertEqual(additions[0]["path"], "terraform/modules/model-router/main.tf")
+        self.assertEqual(
+            base64.b64decode(additions[0]["contents"], validate=True).decode("utf-8"),
+            "fixed output \N{LATIN SMALL LETTER A WITH DIAERESIS}\n",
+        )
         self.assertEqual(variables["fileChanges"]["deletions"], [])
+        self.assertEqual(
+            variables["message"]["body"],
+            "Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>",
+        )
         self.assertEqual(commit["oid"], "a" * 40)
 
     def test_target_identity_and_source_blobs_are_fixed(self):

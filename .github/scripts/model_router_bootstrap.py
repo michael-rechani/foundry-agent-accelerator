@@ -66,8 +66,8 @@ resource "azapi_resource_action" "model_router_routing" {
         return _replace_once(
             text,
             "  depends_on = [azapi_resource_action.model_router_routing]\n",
-            "",
-            "the PATCH dependency",
+            "  depends_on = [azapi_resource.model_router]\n",
+            "the fresh-read dependency",
         )
 
     if path == "terraform/modules/model-router/tests/model-router.tftest.hcl":
@@ -79,12 +79,13 @@ resource "azapi_resource_action" "model_router_routing" {
         )
         text = _replace_once(
             text,
-            """      azapi_resource_action.model_router_routing[0].method == "PATCH" &&
+            """      azapi_resource.model_router[0].ignore_missing_property == false &&
+      azapi_resource_action.model_router_routing[0].method == "PATCH" &&
       azapi_resource_action.model_router_routing[0].body.sku == azapi_resource.model_router[0].body.sku &&
       azapi_resource_action.model_router_routing[0].body.properties.model == azapi_resource.model_router[0].body.properties.model &&
       azapi_resource_action.model_router_routing[0].body.properties.routing == azapi_resource.model_router[0].body.properties.routing
 """,
-            "",
+            "      azapi_resource.model_router[0].ignore_missing_property == false\n",
             "the PATCH request assertions",
         )
         text = _replace_once(
@@ -129,11 +130,17 @@ resource "azapi_resource_action" "model_router_routing" {
 """,
             "the routing-apply PATCH assertion",
         )
-        return _replace_once(
+        text = _replace_once(
             text,
             "A routing change must update both the deployment and PATCH and verify the resulting mode.",
             "A routing change must send the requested PUT body and verify the resulting mode.",
             "the routing-apply assertion message",
+        )
+        return _replace_once(
+            text,
+            'run "update_routing_mode" {\n  command = apply\n',
+            'run "update_routing_mode" {\n  command = apply\n  state_key = "standard-default-subset"\n',
+            "the routing update state key",
         )
 
     if path == "terraform/README.md":
@@ -163,8 +170,11 @@ neither retrying nor deleting a partial deployment is automatically safe.
 
 
 def _request(url, token, method="GET", body=None):
+    parsed_url = urllib.parse.urlsplit(url)
+    if parsed_url.scheme != "https" or parsed_url.netloc != "api.github.com":
+        raise BootstrapError("A required GitHub API request failed.")
     data = None if body is None else json.dumps(body, separators=(",", ":")).encode()
-    request = urllib.request.Request(
+    request = urllib.request.Request(  # noqa: S310  # URL is restricted to GitHub's HTTPS API above.
         url,
         data=data,
         method=method,
@@ -176,7 +186,7 @@ def _request(url, token, method="GET", body=None):
         },
     )
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with urllib.request.urlopen(request, timeout=20) as response:  # noqa: S310  # URL is restricted above.
             result = json.loads(response.read())
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
         raise BootstrapError("A required GitHub API request failed.") from error
@@ -251,7 +261,13 @@ def _read_fixed_files(token):
 
 
 def _commit(token, changes):
-    additions = [{"path": path, "contents": content} for path, content in changes.items()]
+    additions = [
+        {
+            "path": path,
+            "contents": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+        }
+        for path, content in changes.items()
+    ]
     query = """
       mutation($input: CreateCommitOnBranchInput!) {
         createCommitOnBranch(input: $input) {
@@ -268,7 +284,10 @@ def _commit(token, changes):
                     "branchName": TARGET_BRANCH,
                 },
                 "expectedHeadOid": TARGET_HEAD,
-                "message": {"headline": "Correct Model Router routing API request"},
+                "message": {
+                    "headline": "Correct Model Router routing API request",
+                    "body": "Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>",
+                },
                 "fileChanges": {"additions": additions, "deletions": []},
             }
         },
@@ -302,4 +321,4 @@ if __name__ == "__main__":
         main()
     except BootstrapError as error:
         print(f"::error::{error}", file=sys.stderr)
-        raise SystemExit(1)
+        raise SystemExit(1) from error
