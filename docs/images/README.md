@@ -185,10 +185,10 @@ as deployed by default.
 ## Azure icons in architecture diagrams
 
 The README headline pairs the official Foundry service icon with the
-**Microsoft Foundry** name as its caption. It names the service the sample
-builds on. It isn't a logo for the Accelerator, so keep the icon unchanged and
-keep the caption. Keep **Foundry Agent Accelerator** on one line in the
-400px-wide README banner. Edit `readme-header.template.svg` and rebuild its two
+**Built on Microsoft Foundry** line under the title. It names the service the
+sample builds on. It isn't a logo for the Accelerator, so keep the icon
+unchanged and keep the line. Keep **Foundry Agent Accelerator** on one line in
+the 400px-wide README banner. Edit `readme-header.template.svg` and rebuild its two
 self-contained variants with the command above.
 
 The diagrams use unmodified Microsoft Azure service icons from the
