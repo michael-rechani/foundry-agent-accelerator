@@ -19,9 +19,18 @@ Job-level PATH is fixed to `/usr/local/bin:/usr/bin:/bin`, and `BASH_ENV` and
 `/usr/bin/env -i` and `python3 -I`. Their complete environment allowlist is
 PATH, `GITHUB_REF`, `GITHUB_REF_PROTECTED`, `GITHUB_EVENT_NAME`,
 `GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT`, and `RUNNER_TEMP`.
+The only additional value passed is `AZURE_DEV_USER_AGENT`, supplied explicitly
+as the required, non-secret `user_agent` dispatch input. There is no committed
+default. Supply the invocation-only value specified by the Foundry azd guidance;
+do not use repository/environment variables, secrets, or azd project config to
+persist it. Input is passed through an environment mapping, never interpolated
+into shell source, and is accepted only as a 1-64 character ASCII token starting
+with an alphanumeric character and containing alphanumerics, underscores,
+periods, or hyphens. Invalid or absent values fail with the fixed `context`
+category before scratch creation, downloads, or commands. It is never printed.
 Python startup cannot inherit PYTHONPATH, user site packages, credentials,
 loader settings, or shell hooks. Launcher errors are suppressed and replaced
-with fixed nonsecret diagnostics. No extra runtime variables are passed;
+with fixed nonsecret diagnostics. No other runtime variables are passed;
 real-run compatibility has not yet been verified.
 The prerequisite helper creates a unique
 private temporary directory, with a separate HOME, every XDG directory,
@@ -59,6 +68,16 @@ The official extension installer also requires outbound access to its official
 registry and release assets. This is not an offline runtime check and does not
 create publicly reachable resources. The extension release is selected by the
 official script, not separately pinned by this helper.
+
+The official pinned dependency script itself sets its prescribed user agent
+before its extension commands. Its unchanged, hash-verified source (also used
+as an offline test fixture) is upstream behavior, not project configuration.
+The helper's other azd invocation receives only the caller-supplied token.
+Validation checks token safety, not whether the caller followed the guidance;
+the upstream script may overwrite a different supplied value. Removing that
+upstream assignment would invalidate the requirement to execute the exact
+official script. This follow-up has not run on the private runner; the preceding
+archive fix succeeded in run 42393796257 with azd 1.37.3 and cleanup.
 
 Only a sanitized azd version and readiness are printed on success. Failures
 print the fixed `foundry_prerequisites_check_failed` marker and an allowlisted

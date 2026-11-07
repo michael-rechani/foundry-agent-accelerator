@@ -108,7 +108,14 @@ def context():
     return temp.resolve(), f"foundry-prerequisites-{run_id}-{attempt}.json"
 
 
-def isolated_environment(root):
+def invocation_user_agent():
+    value = os.environ.get("AZURE_DEV_USER_AGENT", "")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", value):
+        raise CheckError("context")
+    return value
+
+
+def isolated_environment(root, user_agent):
     directories = {
         "HOME": "home",
         "XDG_CONFIG_HOME": "xdg-config",
@@ -129,7 +136,7 @@ def isolated_environment(root):
         "PATH": f"{root / 'bin'}:{SYSTEM_PATH}",
         "LANG": "C",
         "LC_ALL": "C",
-        "AZURE_DEV_USER_AGENT": "microsoft_foundry_skill",
+        "AZURE_DEV_USER_AGENT": user_agent,
         "AZURE_DEV_COLLECT_TELEMETRY": "no",
         "AZD_NO_PROMPT": "true",
     })
@@ -183,8 +190,8 @@ def install_azd(root):
     (root / "bin" / "azd").chmod(0o700)
 
 
-def check(root):
-    env = isolated_environment(root)
+def check(root, user_agent):
+    env = isolated_environment(root, user_agent)
     (root / "bin").mkdir(mode=0o700)
     skill_root = root / "skill"
     scripts = skill_root / "scripts"
@@ -244,6 +251,7 @@ def cleanup(temp, receipt_name):
 
 def run():
     temp, receipt_name = context()
+    user_agent = invocation_user_agent()
     receipt = temp / receipt_name
     # Reserve the receipt exclusively: retries must not overwrite another invocation.
     registration = os.fdopen(os.open(receipt, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), "w")
@@ -254,7 +262,7 @@ def run():
         (root / ".run-owned").write_text(owner)
         json.dump({"name": root.name, "owner": owner}, registration)
         registration.close()
-        version = check(root)
+        version = check(root, user_agent)
     finally:
         registration.close()
         if root is not None:

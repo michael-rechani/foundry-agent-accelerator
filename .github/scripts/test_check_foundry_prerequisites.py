@@ -103,6 +103,7 @@ class PrerequisiteTests(unittest.TestCase):
             "GITHUB_RUN_ID": "12345",
             "GITHUB_RUN_ATTEMPT": "1",
             "RUNNER_TEMP": str(self.temp),
+            "AZURE_DEV_USER_AGENT": "fixture_invocation_agent",
             "PATH": "untrusted-inherited-path",
             "HOME": "private-shared-home",
             "AZD_CONFIG_DIR": "private-shared-extension-state",
@@ -160,7 +161,7 @@ class PrerequisiteTests(unittest.TestCase):
         root = cwd.parent
         self.assertEqual(cwd, root / "skill")
         self.assertEqual((cwd / "scripts" / "check-and-setup-dependencies.sh").read_bytes(), SKILL)
-        self.assertEqual(env["AZURE_DEV_USER_AGENT"], "microsoft_foundry_skill")
+        self.assertEqual(env["AZURE_DEV_USER_AGENT"], "fixture_invocation_agent")
         self.assertEqual(env["AZURE_DEV_COLLECT_TELEMETRY"], "no")
         self.assertEqual(env["PATH"], f"{root / 'bin'}:{probe.SYSTEM_PATH}")
         self.assertEqual(set(env), {
@@ -238,6 +239,41 @@ class PrerequisiteTests(unittest.TestCase):
         )
         self.assertEqual(executable.read_bytes(), b"untrusted-never-execute")
         self.assertEqual(list(self.temp.iterdir()), [untrusted])
+
+    def test_invocation_user_agent_is_required_and_rejects_injection_before_work(self):
+        for value in (
+            "", "a" * 65, " agent", "agent value", "agent\nvalue",
+            "$(touch unowned)", "`touch unowned`", "agent;touch unowned",
+            "agent=value", "/path/to/agent", "-agent", "\u00e9",
+        ):
+            with self.subTest(value=value), patch.dict(os.environ, {"AZURE_DEV_USER_AGENT": value}):
+                self.assert_failed(self.invoke(), "context")
+                self.assertEqual(list(self.temp.iterdir()), [])
+        with patch.dict(os.environ, clear=True):
+            with self.assertRaises(probe.CheckError):
+                probe.invocation_user_agent()
+        self.opener.open.assert_not_called()
+        self.executor.assert_not_called()
+
+    def test_safe_runtime_values_propagate_without_default_or_persistence(self):
+        for index, value in enumerate(("caller-agent", "a", "A1_.-", "a" * 64)):
+            root = self.temp / f"owned{index}"
+            root.mkdir()
+            with patch.dict(os.environ, {"AZURE_DEV_USER_AGENT": value}):
+                env = probe.isolated_environment(root, probe.invocation_user_agent())
+            self.assertEqual(env["AZURE_DEV_USER_AGENT"], value)
+            self.assertEqual(set(env), {
+                "HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME",
+                "XDG_STATE_HOME", "XDG_RUNTIME_DIR", "AZD_CONFIG_DIR", "AZURE_CONFIG_DIR",
+                "TMPDIR", "PATH", "LANG", "LC_ALL", "AZURE_DEV_USER_AGENT",
+                "AZURE_DEV_COLLECT_TELEMETRY", "AZD_NO_PROMPT",
+            })
+            self.assertTrue(all(not list(path.iterdir()) for path in root.iterdir()))
+        source = Path(probe.__file__).read_text()
+        self.assertNotIn("microsoft_foundry_skill", source)
+        workflow = (Path(__file__).parents[1] / "workflows" / "check-foundry-prerequisites.yml").read_text()
+        self.assertNotIn("microsoft_foundry_skill", workflow)
+        self.assertNotIn("${{ inputs.user_agent }}", "\n".join(WorkflowTests().blocks()))
 
     def test_skill_checksum_mismatch_never_executes_anything(self):
         with patch.object(probe, "SKILL_SHA256", "0" * 64):
@@ -688,7 +724,7 @@ class WorkflowTests(unittest.TestCase):
         ):
             self.assertIn(expected, workflow)
         for forbidden in (
-            "id-token:", "secrets.", "vars.", "inputs:", "pull_request:", "push:",
+            "id-token:", "secrets.", "vars.", "pull_request:", "push:",
             "schedule:", "ubuntu-", "start-private-runner", "azure/login", "az login",
             "setup-terraform", "upload-artifact", "GITHUB_TOKEN", "GH_TOKEN", "curl ",
             "sudo ", "setup-azd", "deploy-lab.yml", "check_lab_image_review",
@@ -696,6 +732,8 @@ class WorkflowTests(unittest.TestCase):
             self.assertNotIn(forbidden, workflow)
         self.assertEqual(workflow.count("contents: read"), 2)
         self.assertEqual(workflow.count("uses:"), 1)
+        self.assertIn("AZURE_DEV_USER_AGENT: ${{ inputs.user_agent }}", workflow)
+        self.assertNotIn("default:", workflow)
         for expected in ("BASH_ENV: /dev/null", "ENV: /dev/null", "PATH: /usr/local/bin:/usr/bin:/bin"):
             self.assertIn(expected, workflow)
         self.assertIn(
@@ -772,7 +810,7 @@ class WorkflowTests(unittest.TestCase):
         blocks = self.blocks()
         keys = (
             "PATH", "GITHUB_REF", "GITHUB_REF_PROTECTED", "GITHUB_EVENT_NAME",
-            "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "RUNNER_TEMP",
+            "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "RUNNER_TEMP", "AZURE_DEV_USER_AGENT",
         )
         for block in (blocks[1], blocks[2]):
             launch = block.split("/usr/bin/env -i \\\n", 1)[1].split("python3 -I", 1)[0]
@@ -798,6 +836,8 @@ fake_env() {
   [[ "$1" == GITHUB_RUN_ATTEMPT=1 ]] || return 26
   shift
   [[ "$1" == RUNNER_TEMP=fixture-temp ]] || return 27
+  shift
+  [[ "$1" == AZURE_DEV_USER_AGENT=fixture_invocation_agent ]] || return 32
   shift
   [[ "$1" == python3 && "$2" == -I ]] || return 28
   shift 2
@@ -831,6 +871,7 @@ fake_env() {
                 "GITHUB_EVENT_NAME": "workflow_dispatch",
                 "GITHUB_RUN_ID": "12345", "GITHUB_RUN_ATTEMPT": "1",
                 "RUNNER_TEMP": "fixture-temp",
+                "AZURE_DEV_USER_AGENT": "fixture_invocation_agent",
             }
             for index in (1, 2):
                 for failure_output in (
@@ -843,7 +884,7 @@ fake_env() {
                         script.write_bytes(b"never-execute-fixture")
                         (source / ".run-owned").write_text("12345:1\n")
                         env.update({
-                            "EXPECTED_COUNT": "11" if index == 1 else "12",
+                            "EXPECTED_COUNT": "12" if index == 1 else "13",
                             "EXPECTED_ARGUMENT": "" if index == 1 else "--cleanup",
                             "FAIL_LAUNCH": "true" if fail else "false",
                             "FAILURE_OUTPUT": failure_output or "",
