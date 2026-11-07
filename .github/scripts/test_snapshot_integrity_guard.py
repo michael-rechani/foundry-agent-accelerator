@@ -138,5 +138,41 @@ class Tests(unittest.TestCase):
         self.assertEqual(guard.guarded_diagnostic(EXPECTED, lambda role: pair[role], diagnostic), guard.PASSED)
 
 
+    def test_invalid_before_skips_operation_and_every_read_still_attempted(self):
+        for case in ('identity', 'schema', 'locked', 'both-read-errors'):
+            with self.subTest(case=case):
+                calls = []
+                def read(role):
+                    calls.append(role)
+                    if case == 'both-read-errors': raise RuntimeError('FICTIONAL_SECRET')
+                    pair = fixture()
+                    if len(calls) <= 2:
+                        if case == 'identity': pair[role]['identity'] += '?secret=FICTIONAL_SECRET'
+                        elif case == 'schema': pair[role]['unknown'] = None
+                        else: change(pair, role, 'x-ms-lease-status', 'locked')
+                    return pair[role]
+                def forbidden():
+                    self.fail('Invalid baseline must not execute diagnostic')
+                self.assertEqual(guard.guarded_diagnostic(EXPECTED, read, forbidden), guard.UNVERIFIED)
+                self.assertEqual(calls, ['platform_state', 'input'] * 2)
+
+    def test_expected_mutation_cannot_rebind_identity(self):
+        expected = dict(EXPECTED)
+        pair = fixture()
+        def diagnostic():
+            expected['input'] = 'https://fictional.invalid/cache/replacement'
+            pair['input']['identity'] = expected['input']
+        self.assertEqual(guard.guarded_diagnostic(expected, lambda role: pair[role], diagnostic), guard.UNVERIFIED)
+
+    def test_invalid_expected_still_checks_both_boundaries(self):
+        for expected in (None, {}, {'input': 'FICTIONAL_SECRET'},
+                         {'platform_state': EXPECTED['input'], 'input': EXPECTED['input']}):
+            calls = []
+            def read(role):
+                calls.append(role)
+                return fixture()[role]
+            self.assertEqual(guard.guarded_diagnostic(expected, read, lambda: self.fail('must skip')), guard.UNVERIFIED)
+            self.assertEqual(calls, ['platform_state', 'input'] * 2)
+
 if __name__ == '__main__':
     unittest.main()

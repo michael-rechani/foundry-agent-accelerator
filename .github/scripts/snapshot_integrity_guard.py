@@ -101,38 +101,42 @@ def compare_snapshots(expected, before, after):
 
 
 def guarded_diagnostic(expected, read, diagnostic):
-    """Synchronous callbacks must finish, be read-only, bounded and fully supervised.
+    """Single-thread synchronous callbacks must finish and be fully supervised.
 
-    Captures both roles on each boundary even if a read fails. No callback value or
-    exception is surfaced. Global Python stream redirection is not thread-safe or
-    a subprocess/security sandbox; this unintegrated helper is single-thread only.
+    Every boundary attempts both roles even when a read fails. The frozen baseline
+    is captured immediately; callback data cannot rewrite it. Stream redirection
+    is not a subprocess/security sandbox. This helper does not implement timeouts.
     """
-    def capture():
-        pair = {}
-        for role in ROLES:
-            try:
-                pair[role] = read(role)
-            except BaseException:
-                pair[role] = None
-        return pair
-
     with contextlib.redirect_stdout(_Discard()), contextlib.redirect_stderr(_Discard()):
+        try:
+            if type(expected) is not dict or set(expected) != set(ROLES):
+                raise SnapshotError(UNVERIFIED)
+            identities = {role: _identity(expected[role]) for role in ROLES}
+            if len(set(identities.values())) != 2:
+                raise SnapshotError(UNVERIFIED)
+        except (SnapshotError, ValueError, TypeError, KeyError):
+            identities = None
+
+        def capture():
+            pair = {}
+            for role in ROLES:
+                try:
+                    value = read(role)
+                    pair[role] = _snapshot(value, identities[role]) if identities is not None else None
+                except BaseException:
+                    pair[role] = None
+            return pair
+
         before = capture()
-        valid = compare_snapshots(expected, before, before) == PASSED
+        valid = all(before[role] is not None for role in ROLES)
         failed = False
         try:
             if valid:
-                # A frozen canonical baseline cannot be mutated by the callback.
-                identities = {role: _identity(expected[role]) for role in ROLES}
-                baseline = {role: _snapshot(before[role], identities[role]) for role in ROLES}
                 diagnostic()
         except BaseException:
             failed = True
         finally:
             after = capture()
-        if not valid or compare_snapshots(expected, before, after) != PASSED:
-            return UNVERIFIED
-        final = {role: _snapshot(after[role], identities[role]) for role in ROLES}
-        if baseline != final:
+        if not valid or before != after or any(after[role] is None for role in ROLES):
             return UNVERIFIED
         return FAILED if failed else PASSED
