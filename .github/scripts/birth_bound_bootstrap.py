@@ -61,7 +61,8 @@ def _supported():
         sys.platform == "linux"
         and all(hasattr(os, name) for name in (
             "posix_spawn", "POSIX_SPAWN_CLOSEFROM", "POSIX_SPAWN_DUP2",
-            "pidfd_open", "P_PIDFD", "WNOWAIT", "WNOHANG",
+            "pidfd_open", "waitid", "P_PIDFD", "WNOWAIT", "WNOHANG", "WEXITED",
+            "CLD_EXITED", "CLD_KILLED", "CLD_DUMPED",
         ))
         and hasattr(signal, "pidfd_send_signal")
         and all(hasattr(socket, name) for name in (

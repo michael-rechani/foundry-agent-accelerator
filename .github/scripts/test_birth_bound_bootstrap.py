@@ -33,6 +33,10 @@ class FrameTests(unittest.TestCase):
             (b"wrong", [credentials(), rights(7)], 0),
             (b"frame", [rights(7)], 0),
             (b"frame", [credentials(456), rights(7)], 0),
+            (b"frame", [(socket.SOL_SOCKET, socket.SCM_CREDENTIALS,
+                         struct.pack("3i", 123, os.getuid() + 1, os.getgid())), rights(7)], 0),
+            (b"frame", [(socket.SOL_SOCKET, socket.SCM_CREDENTIALS,
+                         struct.pack("3i", 123, os.getuid(), os.getgid() + 1)), rights(7)], 0),
             (b"frame", [credentials(), credentials(), rights(7)], 0),
             (b"frame", [credentials(), rights(7, 8)], 0),
             (b"frame", [credentials(), rights(7), rights(8)], 0),
@@ -219,6 +223,61 @@ class TerminalTests(unittest.TestCase):
             self.assertFalse(subject._terminal(7, 10, 1).verified)
 
 
+class ChildAndSetupTests(unittest.TestCase):
+    def test_child_self_opens_once_and_independently_times_out_missing_ack(self):
+        channel = mock.MagicMock()
+        channel.__enter__.return_value = channel
+        nonce = b"x" * 32
+        with mock.patch.object(subject.socket, "socket", return_value=channel), \
+                mock.patch.object(subject.os, "set_inheritable"), \
+                mock.patch.object(subject.os, "getpid", return_value=42), \
+                mock.patch.object(subject.os, "pidfd_open", return_value=7) as bind, \
+                mock.patch.object(subject.os, "close") as close, \
+                mock.patch.object(subject, "_receive", side_effect=[(b"B1C" + nonce, None), TimeoutError()]), \
+                mock.patch.object(subject, "_send") as send, \
+                mock.patch.object(subject.time, "sleep") as sleep:
+            self.assertEqual(subject._child(0, 0, False), 73)
+            bind.assert_called_once_with(42, 0)
+            close.assert_called_once_with(7)
+            channel.settimeout.assert_called_once_with(1.0)
+            channel.__exit__.assert_called_once()
+            sleep.assert_not_called()
+            self.assertEqual(send.call_count, 1)
+            self.assertEqual(send.call_args.args[1], b"B1P" + nonce)
+
+    def test_child_early_exit_and_bad_challenge_never_open_pidfd(self):
+        with mock.patch.object(subject.os, "pidfd_open") as bind:
+            self.assertEqual(subject._child(0, 0, True), 71)
+            channel = mock.MagicMock()
+            channel.__enter__.return_value = channel
+            with mock.patch.object(subject.socket, "socket", return_value=channel), \
+                    mock.patch.object(subject.os, "set_inheritable"), \
+                    mock.patch.object(subject, "_receive", return_value=(b"bad", None)):
+                self.assertEqual(subject._child(0, 0, False), 72)
+            bind.assert_not_called()
+
+    def test_setup_failures_close_only_acquired_fds_and_do_not_spawn(self):
+        for dup_errors, open_error, expected in (
+            ([OSError("channel dup")], None, set()),
+            ([21], OSError("devnull open"), {21}),
+            ([21, OSError("null dup")], None, {21, 22}),
+        ):
+            with self.subTest(expected=expected):
+                parent, child = mock.Mock(), mock.Mock()
+                child.fileno.return_value = 20
+                with mock.patch.object(subject, "_supported", return_value=True), \
+                        mock.patch.object(subject.socket, "socketpair", return_value=(parent, child)), \
+                        mock.patch.object(subject.fcntl, "fcntl", side_effect=dup_errors), \
+                        mock.patch.object(subject.os, "open", return_value=22, side_effect=open_error), \
+                        mock.patch.object(subject.os, "close") as close, \
+                        mock.patch.object(subject.os, "posix_spawn") as spawn:
+                    self.assertFalse(subject.bootstrap_probe().verified)
+                    parent.close.assert_called_once()
+                    child.close.assert_called_once()
+                    self.assertEqual({call.args[0] for call in close.call_args_list}, expected)
+                    spawn.assert_not_called()
+
+
 @unittest.skipUnless(subject._supported(), "Linux self-pidfd/CLOSEFROM primitives unavailable")
 class RealTransportTests(unittest.TestCase):
     def test_real_success_and_nonzero_self_transfer_no_numeric_operations(self):
@@ -237,6 +296,31 @@ class RealTransportTests(unittest.TestCase):
         self.assertEqual(subject._launch(exit_code=0, delay=.3, early_exit=False,
                                          timeout=.15, grace=1),
                          subject.BootstrapResult(True, "timeout"))
+
+    def test_real_missing_ack_child_selfterminates_with_explicit_status(self):
+        retained = []
+        real_receive, real_send = subject._receive, subject._send
+        def receive(*args, **kwargs):
+            data, fd = real_receive(*args, **kwargs)
+            if fd is not None:
+                retained.append(os.dup(fd))
+            return data, fd
+        def send(channel, frame, ancillary=()):
+            if not frame.startswith(b"B1A"):
+                return real_send(channel, frame, ancillary)
+            return None  # Parent alive but withholds ACK; child's own timer fires.
+        try:
+            with mock.patch.object(subject, "_receive", side_effect=receive), \
+                    mock.patch.object(subject, "_send", side_effect=send), \
+                    mock.patch.object(subject.signal, "pidfd_send_signal") as signal_send:
+                self.assertFalse(subject.bootstrap_probe().verified)
+                signal_send.assert_not_called()
+            self.assertEqual(len(retained), 1)
+            # This test owns a duplicate of the authenticated self-pidfd only.
+            self.assertEqual(subject._terminal(retained[0], subject.time.monotonic() + 1, 1),
+                             subject.BootstrapResult(True, "nonzero"))
+        finally:
+            subject._release(fds=retained)
 
     def test_real_descriptor_lifetimes_and_secret_environment_not_inherited(self):
         before = len(os.listdir("/proc/self/fd"))

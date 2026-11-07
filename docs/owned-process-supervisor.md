@@ -27,8 +27,9 @@ An exact success frame followed by `Popen.wait() == 0` can therefore appear to
 succeed even when another waiter consumed an abnormal real exit status. EOF,
 signal delivery, an assumed exclusive reaper, and Python's zero are not proof.
 
-No rigorous atomic birth-bound launch helper or trustworthy terminal-status
-handling under external waiters is implemented. Re-enabling the public API
+No public arbitrary-workload atomic launch helper or complete descendant
+termination proof is implemented. The separate worker-free birth-bound
+transport below is not integrated into public supervision. Re-enabling the public API
 requires an independently reviewed atomic CLONE_PIDFD launch and explicit
 `waitid(P_PIDFD)` status, with missing status/ECHILD a failure, plus proof of
 every signaling/reaping race. This change does not use ctypes fork in threaded
