@@ -137,8 +137,8 @@ with ManagedIdentityCredential() as credential, AIProjectClient(
 ```
 
 Record the currently routed versions before continuing. Don't redeploy healthy
-specialists merely to update the coordinator. If a specialist is missing, stage
-its equivalent five source files and deploy it first using its own requirements.
+specialists merely to update the coordinator. If a specialist is missing, stop:
+this deployer cannot perform first publication without a confirmed recovery route.
 An inventory error other than not-found is a blocker, not permission to recreate.
 An existing agent must route to a named version before redeployment.
 Reconcile `@latest`, unknown aliases, or an unrouted agent with an operator
@@ -172,13 +172,18 @@ A pinned coordinator session does not pin specialist sessions: delegation receip
 prove the invocation, not the stability of a symbolic downstream route or reused
 session. Verify specialist routes and session freshness separately.
 
-For first publication, creating the first version may activate an `@latest`
-default before the explicit route update. The code-upload API used here has no
-verified draft control, so there is no pre-promotion isolation guarantee for a
-new agent. Clients can also reach the candidate after promotion during its fresh
-default-route checks. These checks do not establish runner host isolation or
-safe temporary-directory cleanup under concurrent same-UID mutation; verify the
-private runner and its Python patch level separately before deployment.
+First publication is intentionally unsupported by this deployer. A missing agent
+or unconfirmed existing concrete recovery route stops the operation before any
+version upload, route update, or agent deletion. There is no bypass flag. Creating
+a first version may activate an `@latest` default before explicit promotion;
+the code-upload API used here has no verified draft control. A separately reviewed
+first-publication mechanism remains unresolved; this restriction does not supply
+one or establish identity/RBAC readiness.
+
+Clients can reach the candidate after promotion during its fresh default-route
+checks. These checks do not establish runner host isolation or safe temporary-directory
+cleanup under concurrent same-UID mutation; verify the private runner and its
+Python patch level separately before deployment.
 
 ## 6. Verify deployment and routing
 
@@ -221,7 +226,7 @@ status alone doesn't prove response health. Retained versions may incur costs.
 | --- | --- | --- |
 | Azure CLI works, but Foundry calls fail. | The runner can reach ARM but lacks private Foundry DNS or routing. | Move to an approved private-network runner and verify the project endpoint path. |
 | Dependency installation fails. | The private runner lacks a working Python 3.14 environment or package access. | Fix the runner environment before setting deployment variables or mutating agents. |
-| Inventory shows `not deployed` for a specialist. | The coordinator update depends on a missing specialist. | Stage that specialist's equivalent five source files and deploy it first. |
+| Inventory shows `not deployed` for a specialist. | The coordinator update depends on a missing specialist. | Stop and resolve the missing specialist through a separately reviewed first-publication mechanism. |
 | Deployment starts but the client disconnects. | Remote execution can outlive the initiating client connection. | Use the recorded task name, exit code, and restricted log location to confirm the result. |
 | Promotion fails after candidate creation. | Route restoration may have retained the candidate. | Inspect the actual endpoint, restore a known-good route under the lock, and clean up deliberately. |
 
