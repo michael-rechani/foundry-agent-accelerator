@@ -495,7 +495,7 @@ class DeploymentSDKTests(unittest.TestCase):
 
 
     def test_candidate_check_precedes_promotion_and_post_smoke(self):
-        def check(*args):
+        def check(*args, **kwargs):
             self.events.append("candidate")
             self.assertEqual(args[2], "2")
             self.assertEqual(self.endpoint, self.original)
@@ -514,7 +514,7 @@ class DeploymentSDKTests(unittest.TestCase):
         self.assertEqual(self.endpoint, self.original)
 
     def test_route_changed_during_candidate_check_never_promotes(self):
-        def race(*args):
+        def race(*args, **kwargs):
             self.endpoint = self.route("3")
         self.candidate.side_effect = race
         with self.assertRaisesRegex(RuntimeError, "changed during deployment"):
@@ -523,7 +523,7 @@ class DeploymentSDKTests(unittest.TestCase):
         self.client.agents.delete_version.assert_not_called()
 
     def test_candidate_inactive_after_smoke_never_promotes(self):
-        def check(*args):
+        def check(*args, **kwargs):
             self.client.agents.get_version.side_effect = lambda *, agent_version, **kwargs: (
                 {"status": "failed"} if agent_version == "2" else {"status": "active"})
         self.candidate.side_effect = check
