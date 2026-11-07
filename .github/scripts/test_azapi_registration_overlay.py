@@ -2,9 +2,9 @@
 
 import json
 import os
-from pathlib import Path
 import re
 import shutil
+from pathlib import Path
 import subprocess
 import tempfile
 import unittest
@@ -26,7 +26,7 @@ def _reject_json_constant(_value):
     raise ValueError("invalid JSON constant")
 
 
-_ROUTING_MARKER = re.compile(r"(?i)(?<![A-Za-z0-9_-])(?:provider|configuration_aliases)(?![A-Za-z0-9_-])")
+_ROUTING_MARKER = re.compile(r"(?i)(?<![A-Za-z0-9_-])(?:providers?|configuration_aliases)(?![A-Za-z0-9_-])")
 
 
 def _has_routing_marker(value):
@@ -246,6 +246,12 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
                 encoding="utf-8",
             )
             assert_no_azapi_bypass(root)
+    def test_ambiguous_hcl_fails_closed(self):
+        for source in ("terraform { required_providers {", "locals { value = <<EOF\ntext\nEOF\n}"):
+            with self.subTest(source=source), tempfile.TemporaryDirectory() as folder:
+                Path(folder, "main.tf").write_text(source, encoding="utf-8")
+                with self.assertRaises(AssertionError):
+                    assert_no_azapi_bypass(Path(folder))
     def test_required_provider_declarations_pass(self):
         router_versions = """terraform {
   required_version = "~> 1.16.4"

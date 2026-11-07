@@ -92,16 +92,27 @@ Terraform helper is changed.
 The reviewed root source has one unaliased `azapi` provider, the local Router
 module declares the same provider requirement without a provider block or alias,
 and root module calls have no `providers` remapping. The exact-root source digest
-continues to reject any root configuration mutation. Descendant provider routing
-is checked conservatively: every Terraform HCL file is rejected if its text
-contains the case-insensitive token `provider` anywhere, including comments and
-strings, rather than attempting partial HCL parsing. `.tf.json` files are parsed
-with duplicate-key and malformed-input rejection; decoded keys and strings
-containing `provider` are rejected. This covers provider configurations, selectors,
-module remappings and aliases without relying on line-oriented regexes. Symlinked,
-unreadable, or invalidly encoded source entries fail closed. No HCL parser package
-is added; this check is intentionally stricter than Terraform syntax and may reject
-benign comments or strings.
+continues to reject any root configuration mutation. Descendant scanning rejects
+the standalone case-insensitive identifiers `provider`, `providers`, and
+`configuration_aliases` anywhere in HCL, including comments and strings. This
+allows ordinary `required_providers` declarations while conservatively rejecting
+provider configurations, selectors, remappings and aliases. Terraform JSON is
+parsed with duplicate-key and malformed-input rejection, then the same identifier
+check is applied recursively to every decoded key and string. HCL delimiter,
+string and comment structure is checked; unsupported heredocs and incomplete or
+mismatched structure fail closed. Traversal uses `os.scandir` without following
+symlinks, and symlinked entries, unreadable/invalid source, or directory scan
+errors fail with fixed diagnostics. This is a conservative lexical guard, not a
+full HCL parser or proof of every future Terraform syntax; no parser dependency is
+added.
+
+The committed Router `versions.tf` and benign HCL/JSON `required_providers`
+declarations are synthetic scanner test data and must pass. Adversarial routing,
+malformed/duplicate JSON, ambiguous HCL, and mocked Terraform integration-control
+flow have dedicated tests. The real closure integration is explicitly skipped by
+ordinary test discovery unless both `PUBLIC_OVERLAY_BUNDLE` and
+`OVERLAY_TERRAFORM` are supplied. Therefore ordinary discovery and mocked tests do
+not establish compatibility with the earlier captured closure.
 
 The earlier actual-root CI run initialized the exact root with Terraform 1.16.4 and
 captured a public module/provider closure, but it used the earlier partial-regex
