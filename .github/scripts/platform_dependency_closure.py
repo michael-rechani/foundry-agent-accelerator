@@ -187,7 +187,13 @@ def terraform(binary, root, home, args):
     process = subprocess.run([binary, f"-chdir={root}", *args], env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     if process.returncode:
-        raise ClosureError(f"Credential-free Terraform {args[0]} failed (exit {process.returncode}); raw output withheld.")
+        public_categories = ("Failed to download module", "Failed to query available provider packages",
+                             "Failed to install provider", "Module not installed", "Inconsistent dependency lock file",
+                             "Duplicate required providers configuration", "Invalid provider configuration",
+                             "Unsupported argument", "Invalid single-argument block definition")
+        output = (process.stdout + process.stderr).decode(errors="replace")
+        categories = ", ".join(category for category in public_categories if category in output)
+        raise ClosureError(f"Credential-free Terraform {args[0]} failed (exit {process.returncode}; {categories or 'unclassified initialization error'}); raw output withheld.")
     return process.stdout
 
 
