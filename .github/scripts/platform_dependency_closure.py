@@ -16,19 +16,6 @@ import tempfile
 
 VERSION = "1.16.4"
 SHA = "5e5d20db25519657bc9205e8436641f958066c48"
-OVERLAY = '''terraform {
-  required_providers {
-    modtm = {
-      source = "azure/modtm"
-      version = "~> 0.3"
-    }
-  }
-}
-provider "modtm" {
-  enabled = false
-}
-'''
-
 
 class ClosureError(Exception):
     pass
@@ -206,10 +193,6 @@ def capture(source, bundle, binary):
     root = bundle / "root"
     if (root / ".terraform").exists() or (root / ".terraform.lock.hcl").exists():
         raise ClosureError("Source includes unreviewed installation state.")
-    overlay = root / "closure-diagnostic.tf"
-    if overlay.exists():
-        raise ClosureError("Reserved overlay collision.")
-    overlay.write_text(OVERLAY)
     with tempfile.TemporaryDirectory() as directory:
         home = Path(directory)
         (home / "terraform.rc").write_text("disable_checkpoint = true\n")
