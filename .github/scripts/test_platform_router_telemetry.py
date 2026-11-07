@@ -69,6 +69,25 @@ def cli_config(home, mirror):
                                        + json.dumps(str(mirror)) + '\n }\n}\n')
 
 
+def configuration_blocks(content, kind):
+    value = content.get(kind, [])
+    if isinstance(value, list):
+        return value
+    if not isinstance(value, dict):
+        raise RuntimeError("Invalid public configuration block shape.")
+    if kind == "terraform":
+        return [value]
+    return [{key: item} for key, item in value.items()]
+
+
+def unique_json_pairs(items):
+    result = {}
+    for key, value in items:
+        if key in result:
+            raise RuntimeError("Duplicate public JSON configuration key.")
+        result[key] = value
+    return result
+
 def inspect_graph(bundle, binary):
     manifest = json.loads((bundle / "manifest.json").read_bytes())
     if manifest["source_sha"] != diagnostic.DIAGNOSTIC_SOURCE_SHA or manifest["terraform"] != "1.16.4":
@@ -78,23 +97,23 @@ def inspect_graph(bundle, binary):
     records = []
     for module in manifest["modules"]:
         folder = bundle / "root" / module["Dir"]
-        for path in sorted(folder.glob("*.tf")):
+        for path in sorted(list(folder.glob("*.tf")) + list(folder.glob("*.tf.json"))):
             with path.open() as stream:
-                content = hcl2.load(stream)
-            if list(folder.glob("*.tf.json")):
-                raise RuntimeError("Unexpected JSON module configuration requires parser review.")
-            for block in content.get("data", []):
+                content = json.load(stream, object_pairs_hook=unique_json_pairs) if path.name.endswith(".tf.json") else hcl2.load(stream)
+            if not isinstance(content, dict):
+                raise RuntimeError("Invalid public configuration root shape.")
+            for block in configuration_blocks(content, "data"):
                 for data_type, names in block.items():
                     if data_type.startswith("modtm_"):
                         for name, config in names.items():
                             records.append({"kind": "data", "module": module["Key"], "name": name,
                                             "file": path.name, "type": data_type,
                                             "provider": config.get("provider", "implicit-default")})
-            for block in content.get("provider", []):
+            for block in configuration_blocks(content, "provider"):
                 if "modtm" in block:
                     records.append({"kind": "provider", "module": module["Key"], "file": path.name,
                                     "configuration": block["modtm"]})
-            for block in content.get("resource", []):
+            for block in configuration_blocks(content, "resource"):
                 for resource_type, names in block.items():
                     if resource_type == "modtm_telemetry":
                         for name, config in names.items():
@@ -102,13 +121,13 @@ def inspect_graph(bundle, binary):
                                             "file": path.name, "provider": config.get("provider", "implicit-default"),
                                             "count": config.get("count"), "source": module["Source"],
                                             "version": module.get("Version", "local")})
-            for block in content.get("module", []):
+            for block in configuration_blocks(content, "module"):
                 for name, config in block.items():
                     if "providers" in config:
                         records.append({"kind": "module-mapping", "module": module["Key"], "name": name,
                                         "file": path.name, "providers": config["providers"]})
-            for block in content.get("terraform", []):
-                for requirements in block.get("required_providers", []):
+            for block in configuration_blocks(content, "terraform"):
+                for requirements in ([block["required_providers"]] if isinstance(block.get("required_providers"), dict) else block.get("required_providers", [])):
                     if "modtm" in requirements:
                         records.append({"kind": "requirement", "module": module["Key"], "file": path.name,
                                         "requirement": requirements["modtm"]})
