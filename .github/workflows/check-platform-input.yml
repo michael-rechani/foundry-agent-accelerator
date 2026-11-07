@@ -1,45 +1,29 @@
-name: Temporary synthetic ledger Ruff compatibility
+name: Check historical platform input candidate
+
 on:
   workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: terraform-state-access
+  cancel-in-progress: false
+
 jobs:
-  synthetic:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
+  check:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+    runs-on: [self-hosted, linux, lab-runner]
+    environment: terraform-state
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Run pinned repository Ruff after missing-module failure only
-        shell: bash
-        run: |
-          interpreter=''
-          for candidate in /opt/hostedtoolcache/Python/3.14.*/x64/bin/python3; do
-            if [ -x "$candidate" ]; then interpreter="$candidate"; break; fi
-          done
-          test -n "$interpreter"
-          "$interpreter" --version
-          env -i PATH="$PATH" LANG=C.UTF-8 "$interpreter" -c 'import os; assert os.geteuid() != 0'
-          files=(.github/scripts/extract_platform_dependencies.py .github/scripts/test_extract_platform_dependencies.py .github/scripts/derive_gitless_dependencies.py .github/scripts/test_derive_gitless_dependencies.py .github/scripts/test_ledger_cleanup_scaling.py)
-          set +e
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -m ruff check --config ruff.toml "${files[@]}" > "$RUNNER_TEMP/ruff-first.txt" 2>&1
-          status=$?
-          set -e
-          cat "$RUNNER_TEMP/ruff-first.txt"
-          if [ "$status" -eq 0 ]; then exit 0; fi
-          if ! grep -Eq '^.*: No module named ruff$' "$RUNNER_TEMP/ruff-first.txt"; then exit "$status"; fi
-          test "$(cat .github/requirements-validation.txt)" = 'ruff==0.17.3'
-          env -i PATH="$PATH" HOME="$HOME" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -m pip install --disable-pip-version-check --no-input --no-cache-dir --target "$RUNNER_TEMP/ruff-pinned" 'ruff==0.17.3'
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 PYTHONPATH="$RUNNER_TEMP/ruff-pinned" "$interpreter" -m ruff --version
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 PYTHONPATH="$RUNNER_TEMP/ruff-pinned" "$interpreter" -m ruff check --config ruff.toml "${files[@]}"
-      - name: Focused synthetic dependency and scaling tests
-        run: |
-          interpreter=''
-          for candidate in /opt/hostedtoolcache/Python/3.14.*/x64/bin/python3; do
-            if [ -x "$candidate" ]; then interpreter="$candidate"; break; fi
-          done
-          test -n "$interpreter"
-          if command -v terraform >/dev/null; then exit 1; fi
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -m unittest discover -s .github/scripts -p 'test_*dependencies.py' -v
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -m unittest discover -s .github/scripts -p test_ledger_cleanup_scaling.py -v
+      - name: Check candidate presence
+        env:
+          TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
+        run: python3 .github/scripts/check_platform_input.py

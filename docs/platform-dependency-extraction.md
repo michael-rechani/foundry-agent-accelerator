@@ -373,3 +373,37 @@ evidence documentation and workflow restoration follow it. Existing automatic
 workflow definitions are unchanged; no PR or merge was created. All four observed
 scaling runs were `workflow_dispatch`. #522 continues to track Ruff availability,
 actual artifact shape/resource feasibility, approved recovery and host isolation.
+
+### Completed repository Ruff compatibility follow-up
+
+The earlier missing-Ruff evidence remains historical, not a passing check. A later
+explicitly approved check on this same isolated branch first ran the chosen
+`python -m ruff check --config ruff.toml` command; it failed specifically with
+`No module named ruff`. Only then was repository-pinned `ruff==0.17.3` (from
+`.github/requirements-validation.txt`) installed into the hosted job's temporary
+isolated package directory. No repository dependency manifest, root config,
+local setup, privileged install or unrelated dependency was changed.
+
+Initial run `42419790732` found 55 B023 loop-closure binding diagnostics and one
+unused `shutil` import in the extractor/Gitless tests; no production helper or
+scaling test violations were reported. The two test files now explicitly bind
+loop fixture values in keyword-only defaults, and the unused import is removed.
+No mutation assertions, ownership checks, cleanup budget or production logic changed.
+
+Exact tested head `bb6ca72ea24b790562afcebe82a7660c6f3b5a3d` passed
+[run 42419852331](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42419852331)
+on preinstalled Python 3.14.10 using non-root, sanitized child environments:
+
+- `python -m ruff check --config ruff.toml .github/scripts/extract_platform_dependencies.py .github/scripts/test_extract_platform_dependencies.py .github/scripts/derive_gitless_dependencies.py .github/scripts/test_derive_gitless_dependencies.py .github/scripts/test_ledger_cleanup_scaling.py`: **passed**, Ruff 0.17.3, existing `py314` configuration unchanged.
+- `python -m unittest discover -s .github/scripts -p 'test_*dependencies.py' -v`: **39 passed**.
+- `python -m unittest discover -s .github/scripts -p test_ledger_cleanup_scaling.py -v`: **8 passed**.
+
+This later result closes only the focused Ruff compatibility gap for the five
+listed stack files, not repository-wide lint or lint on other offline branches.
+Production helper and scaling test bytes remain unchanged from the earlier tested
+scaling implementation. Final test bytes match this exact later tested head.
+The temporary manual workflow was again restored byte-for-byte to original blob
+`13fea116e0cd70aa8f5d8cabcb9b893743e23c95` afterward, with no later dispatch.
+All prior resource/descriptor/retained-recovery, same-UID race, host/credential
+and actual-artifact limitations remain. No real artifact/provider/Terraform,
+Azure, private runner, local project execution, sudo, Docker, PR or merge was used.
