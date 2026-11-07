@@ -42,6 +42,10 @@ class StateRoleError(StateError):
     pass
 
 
+class StateRoleScopeError(StateError):
+    pass
+
+
 class StateDiskError(StateError):
     pass
 
@@ -51,6 +55,7 @@ STATE_FAILURE_CATEGORIES = {
     StateInventoryError: "state_inventory_invalid",
     StateOutputsError: "state_outputs_invalid",
     StateRoleError: "state_role_invalid",
+    StateRoleScopeError: "state_role_scope_mismatch",
     StateDiskError: "state_disk_invalid",
 }
 
@@ -114,19 +119,19 @@ def guid(value, error_type):
     return value.lower()
 
 
-def target_instances(resources, resource_type, name, index=None):
+def target_instances(resources, resource_type, name, index=None, error_type=StateInventoryError):
     matches = [
         item for item in resources
         if item.get("mode") == "managed" and item.get("module") is None
         and item.get("type") == resource_type and item.get("name") == name
     ]
     if len(matches) != 1 or not isinstance(matches[0].get("instances"), list):
-        raise StateInventoryError("Required state resource is missing or ambiguous.")
+        raise error_type("Required state resource is missing or ambiguous.")
     instances = matches[0]["instances"]
     if (len(instances) != 1 or not isinstance(instances[0], dict)
             or instances[0].get("deposed") or instances[0].get("index_key") != index
             or not isinstance(instances[0].get("attributes"), dict)):
-        raise StateInventoryError("Required state resource is incomplete or ambiguous.")
+        raise error_type("Required state resource is incomplete or ambiguous.")
     return instances[0]["attributes"]
 
 
@@ -208,12 +213,16 @@ def compare_validated(inputs, state, subscription):
             or not isinstance(project_id, str)
             or not re.fullmatch(re.escape(account_id) + r"/projects/[^/]+", project_id, re.IGNORECASE)):
         raise StateOutputsError("Platform outputs are inconsistent.")
-    role = target_instances(resources, "azurerm_role_assignment", "deployer_foundry_user")
+    role = target_instances(resources, "azurerm_role_assignment", "deployer_foundry_user",
+                            error_type=StateRoleError)
     role_scope = role.get("scope")
     role_definition = role.get("role_definition_id")
     role_id = role.get("id")
-    if (not isinstance(role_scope, str) or role_scope.lower() != project_id.lower()
-            or not isinstance(role_id, str)
+    if not isinstance(role_scope, str):
+        raise StateRoleError("Platform deployer assignment is invalid.")
+    if role_scope.lower() != project_id.lower():
+        raise StateRoleScopeError("Platform deployer assignment scope differs.")
+    if (not isinstance(role_id, str)
             or not re.fullmatch(re.escape(role_scope) + r"/providers/Microsoft\.Authorization/roleAssignments/"
                                 + GUID, role_id, flags=re.IGNORECASE)
             or not isinstance(role_definition, str)
@@ -224,7 +233,7 @@ def compare_validated(inputs, state, subscription):
         raise StateRoleError("Platform deployer assignment is invalid.")
     if guid(role.get("principal_id"), StateRoleError) != principal:
         raise CandidateError("Platform deployer assignment mismatch.")
-    jumpbox = target_instances(resources, "azapi_resource", "jumpbox", index=0)
+    jumpbox = target_instances(resources, "azapi_resource", "jumpbox", index=0, error_type=StateDiskError)
     body = jumpbox.get("body")
     if isinstance(body, str):
         try:
