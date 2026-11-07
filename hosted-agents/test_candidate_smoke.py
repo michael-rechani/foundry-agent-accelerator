@@ -59,6 +59,34 @@ class CandidateSessionTests(unittest.TestCase):
                 self.client.agents.delete_session.assert_called_once()
                 self.smoke.assert_not_called()
 
+    def test_creating_session_is_rechecked_before_use(self):
+        self.client.agents.create_session.return_value.status = "creating"
+        self.client.agents.get_session.return_value = SimpleNamespace(
+            agent_session_id="session-1", status="active",
+            version_indicator=SimpleNamespace(type="version_ref", agent_version="2"))
+        with patch("deployment.time.sleep") as sleep:
+            self.run_candidate()
+        sleep.assert_called_once()
+        self.client.agents.get_session.assert_called_once_with(
+            agent_name="customer-review-coordinator", session_id="session-1")
+        self.client.agents.delete_session.assert_called_once()
+
+    def test_polled_binding_mismatch_and_timeout_cleanup(self):
+        original = self.client.agents.create_session.return_value
+        original.status = "creating"
+        self.client.agents.get_session.return_value = SimpleNamespace(
+            agent_session_id="session-1", status="active",
+            version_indicator=SimpleNamespace(type="version_ref", agent_version="3"))
+        with patch("deployment.time.sleep"):
+            with self.assertRaisesRegex(RuntimeError, "binding or status"):
+                self.run_candidate()
+        self.client.agents.delete_session.assert_called_once()
+        self.client.agents.delete_session.reset_mock()
+        with self.assertRaisesRegex(TimeoutError, "did not become ready"):
+            candidate_smoke_test(self.client, "customer-review-coordinator", "2", "hello", (),
+                                 max_polls=1)
+        self.client.agents.delete_session.assert_called_once()
+        self.smoke.assert_not_called()
     def test_missing_or_unsafe_id_fails_without_unsafe_deletion(self):
         for session_id in (None, "", "../other"):
             self.client.agents.create_session.return_value.agent_session_id = session_id
