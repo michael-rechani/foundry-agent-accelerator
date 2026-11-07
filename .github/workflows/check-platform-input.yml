@@ -1,31 +1,29 @@
-name: Offline enabled-state regression checks
+name: Check historical platform input candidate
+
 on:
   workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: terraform-state-access
+  cancel-in-progress: false
+
 jobs:
-  test:
-    if: github.ref == 'refs/heads/michael-rechani-candidate-enabled-state'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  check:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+    runs-on: [self-hosted, linux, lab-runner]
+    environment: terraform-state
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.14'
-      - name: Restore only missing pinned dependencies
-        run: |
-          python - <<'PY'
-          import importlib.util, subprocess, sys
-          for module, manifest in (("azure", "hosted-agents/review-coordinator-agent/requirements-deploy.txt"), ("ruff", ".github/requirements-validation.txt")):
-              if importlib.util.find_spec(module) is None:
-                  print("Missing dependency:", module, flush=True)
-                  subprocess.run([sys.executable, "-m", "pip", "install", "-r", manifest], check=True)
-          PY
-      - name: Run relevant suites
-        working-directory: hosted-agents
-        run: python -m unittest -v test_candidate_smoke test_deployment test_deployment_sdk
-      - name: Ruff
-        run: python -m ruff check hosted-agents/deployment.py hosted-agents/test_candidate_smoke.py hosted-agents/test_deployment.py hosted-agents/test_deployment_sdk.py
+      - name: Check candidate presence
+        env:
+          TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
+        run: python3 .github/scripts/check_platform_input.py
