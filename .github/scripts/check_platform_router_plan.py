@@ -18,7 +18,7 @@ from reconcile_runner_state import Blobs, GUID, Terraform, cleanup, object_json,
 PLATFORM_STATE = "dev.tfstate"
 SAVED_PLAN = "platform-router.tfplan"
 DEPLOYMENT = "module.model_router.azapi_resource.model_router[0]"
-PATCH = "module.model_router.azapi_resource_action.model_router_routing[0]"
+LEGACY_PATCH = "module.model_router.azapi_resource_action.model_router_routing[0]"
 READBACK = "module.model_router.data.azapi_resource.model_router_routing[0]"
 RELATED_CHANGES = {
     "azapi_resource.jumpbox[0]": "jumpbox",
@@ -216,17 +216,7 @@ def router_change_matches(address, entry, account):
             and not has_unknown(unknown.get("parent_id", False))
             and after.get("body") == expected
         )
-    patch = {"sku": expected["sku"], "properties": {
-        "model": expected["properties"]["model"], "routing": expected["properties"]["routing"],
-    }}
-    resource_id = after.get("resource_id")
-    return (
-        after.get("type") == "Microsoft.CognitiveServices/accounts/deployments@2025-12-01"
-        and after.get("method") == "PATCH" and after.get("body") == patch
-        and (resource_id is None and unknown.get("resource_id") is True
-             or isinstance(resource_id, str)
-             and resource_id.lower() == (account + "/deployments/model-router").lower())
-    )
+    return False
 
 
 def preview_capabilities(variables):
@@ -253,6 +243,115 @@ def preview_capabilities(variables):
         if tuple(model[key] for key in ("format", "name", "version")) in known:
             expected[deployment] = False
     return names, expected
+
+
+def require_router_readback(plan, deployment_action, account, checks):
+    resources = [
+        entry for entry in plan["resource_changes"]
+        if isinstance(entry, dict) and entry.get("address") == READBACK
+    ]
+    if len(resources) > 1:
+        raise CheckError("The Router readback appears more than once.")
+    if deployment_action == "create":
+        if len(resources) != 1 or resources[0].get("mode") != "data":
+            raise CheckError("Router creation requires exactly one deferred readback.")
+        change = resources[0]["change"]
+        after, unknown = change.get("after"), change.get("after_unknown")
+        if (change.get("actions") != ["read"] or not isinstance(after, dict)
+                or not isinstance(unknown, dict) or unknown.get("output") is not True
+                or after.get("output") is not None
+                or after.get("type") != "Microsoft.CognitiveServices/accounts/deployments@2025-12-01"
+                or after.get("response_export_values") != ["properties.routing"]
+                or has_unknown(unknown.get("type", False))
+                or has_unknown(unknown.get("response_export_values", False))
+                or not (
+                    after.get("resource_id") is None and unknown.get("resource_id") is True
+                    or isinstance(after.get("resource_id"), str)
+                    and after["resource_id"].lower() == (account + "/deployments/model-router").lower()
+                    and not has_unknown(unknown.get("resource_id", False))
+                )):
+            raise CheckError("Router creation has invalid or inconsistent deferred readback.")
+    else:
+        if resources and resources[0]["change"].get("actions") != ["no-op"]:
+            raise CheckError("A verified Router no-op must not defer its readback.")
+        if resources and has_unknown(resources[0]["change"].get("after_unknown", {})):
+            raise CheckError("A verified Router no-op requires known readback values.")
+
+        def find_readback(module):
+            if not isinstance(module, dict):
+                raise CheckError("Terraform returned invalid readback value evidence.")
+            entries = module.get("resources", [])
+            children = module.get("child_modules", [])
+            if (not isinstance(entries, list) or not isinstance(children, list)
+                    or any(not isinstance(entry, dict) for entry in entries)):
+                raise CheckError("Terraform returned invalid readback value evidence.")
+            found = [entry for entry in entries if entry.get("address") == READBACK]
+            for child in children:
+                found.extend(find_readback(child))
+            return found
+
+        sources = [plan.get("planned_values", {})]
+        prior = plan.get("prior_state", {})
+        if not isinstance(prior, dict):
+            raise CheckError("Terraform returned invalid readback value evidence.")
+        sources.append(prior.get("values", {}))
+        observed = [
+            {"mode": entry.get("mode"), "type": entry.get("type"), "values": entry["change"].get("after")}
+            for entry in resources
+        ]
+        for source in sources:
+            if not isinstance(source, dict):
+                raise CheckError("Terraform returned invalid readback value evidence.")
+            entries = find_readback(source.get("root_module", {}))
+            if len(entries) > 1:
+                raise CheckError("The Router readback values appear more than once.")
+            observed.extend(entries)
+        if not observed:
+            raise CheckError("A verified Router no-op requires known readback values.")
+        for entry in observed:
+            values = entry.get("values")
+            output = values.get("output") if isinstance(values, dict) else None
+            properties = output.get("properties") if isinstance(output, dict) else None
+            routing = properties.get("routing") if isinstance(properties, dict) else None
+            models = routing.get("models") if isinstance(routing, dict) else None
+            if (entry.get("mode") != "data" or entry.get("type") != "azapi_resource"
+                    or not isinstance(values, dict)
+                    or values.get("type") != "Microsoft.CognitiveServices/accounts/deployments@2025-12-01"
+                    or values.get("response_export_values") != ["properties.routing"]
+                    or not isinstance(values.get("resource_id"), str)
+                    or values["resource_id"].lower() != (account + "/deployments/model-router").lower()
+                    or not isinstance(routing, dict) or routing.get("mode") != "balanced"
+                    or not isinstance(models, list) or len(models) != len(ROUTER_MODELS)
+                    or any(not isinstance(model, dict) for model in models)
+                    or sorted(json.dumps(model, sort_keys=True) for model in models)
+                    != sorted(json.dumps(model, sort_keys=True) for model in ROUTER_MODELS)):
+                raise CheckError("Known Router readback does not match the reviewed deployment.")
+
+    matching = [
+        check for check in checks
+        if isinstance(check, dict) and isinstance(check.get("address"), dict)
+        and check["address"].get("to_display") in (
+            READBACK, "module.model_router.data.azapi_resource.model_router_routing",
+        )
+    ]
+    expected_status = "unknown" if deployment_action == "create" else "pass"
+    if len(matching) != 1:
+        raise CheckError("Exactly one Router readback postcondition result is required.")
+    check = matching[0]
+    address = check["address"]
+    instances = check.get("instances")
+    if (address != {
+            "kind": "resource", "mode": "data", "type": "azapi_resource",
+            "name": "model_router_routing", "module": "module.model_router",
+            "to_display": "module.model_router.data.azapi_resource.model_router_routing",
+        } or check.get("status") != expected_status
+            or not isinstance(instances, list) or len(instances) != 1
+            or not isinstance(instances[0], dict)
+            or instances[0].get("address") != {
+                "module": "module.model_router", "instance_key": 0, "to_display": READBACK,
+            } or type(instances[0]["address"].get("instance_key")) is not int
+            or instances[0].get("status") != expected_status or instances[0].get("problems")):
+        raise CheckError("Router readback postcondition evidence is missing or inconsistent.")
 
 
 def summarize_plan(plan, exit_code, values, account):
@@ -284,11 +383,13 @@ def summarize_plan(plan, exit_code, values, account):
         action, importing = change_action(entry)
         imports += importing
         mode = entry.get("mode")
-        if address in (DEPLOYMENT, PATCH):
+        if address == LEGACY_PATCH:
+            raise CheckError("Legacy Router PATCH state requires separately reviewed recovery.")
+        if address == DEPLOYMENT:
             if address in actions or mode != "managed":
                 raise CheckError("The Router resource appears more than once or with an invalid mode.")
             if action not in ("no-op", "create") or not router_change_matches(address, entry, account):
-                raise CheckError("The Router deployment or PATCH differs from the reviewed configuration.")
+                raise CheckError("The Router deployment differs from the reviewed PUT configuration.")
             actions[address] = action
         elif mode == "managed":
             other_managed += action != "no-op"
@@ -301,12 +402,14 @@ def summarize_plan(plan, exit_code, values, account):
                 raise CheckError("The Router readback has an unexpected action.")
         else:
             raise CheckError("Terraform returned an unsupported resource mode.")
-    if set(actions) != {DEPLOYMENT, PATCH} or actions[DEPLOYMENT] != actions[PATCH]:
-        raise CheckError("The Router deployment and verification PATCH must have matching actions.")
+    if set(actions) != {DEPLOYMENT}:
+        raise CheckError("The plan must contain exactly the reviewed Router PUT deployment.")
     drift_count = 0
     for entry in drift:
         if not isinstance(entry, dict) or entry.get("mode") != "managed":
             raise CheckError("Terraform returned an invalid platform drift entry.")
+        if entry.get("address") == LEGACY_PATCH:
+            raise CheckError("Legacy Router PATCH state requires separately reviewed recovery.")
         action, importing = change_action(entry)
         imports += importing
         drift_count += action != "no-op"
@@ -349,6 +452,7 @@ def summarize_plan(plan, exit_code, values, account):
                 or preview_output["before"] == preview_output["after"]
             ))):
         raise CheckError("The planned preview capability output does not match the reviewed model inputs.")
+    require_router_readback(plan, actions[DEPLOYMENT], account, checks)
     if actions[DEPLOYMENT] == "create":
         if (not isinstance(router_output, dict) or router_output.get("actions") not in (["create"], ["update"])
                 or not isinstance(model_names, dict) or model_names.get("actions") != ["update"]
@@ -395,7 +499,6 @@ def summarize_plan(plan, exit_code, values, account):
     return {
         "plan_exit": "changes" if exit_code == 2 else "no-changes",
         "router_deployment": actions[DEPLOYMENT],
-        "router_patch": actions[PATCH],
         "preview_capability_output": preview_output["actions"][0],
         "other_managed_changes": other_managed,
         "other_deferred_reads": other_reads,

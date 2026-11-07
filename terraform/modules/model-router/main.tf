@@ -33,27 +33,6 @@ resource "azapi_resource" "model_router" {
   list_unique_id_property   = { "properties.routing.models" = "format, name, version" }
 }
 
-# Some API/provider combinations have ignored routing on PUT. Reapply it by
-# PATCH, including after any deployment update, and verify it with a fresh GET.
-resource "azapi_resource_action" "model_router_routing" {
-  count = var.model_router_deployment == null ? 0 : 1
-
-  type        = "Microsoft.CognitiveServices/accounts/deployments@2025-12-01"
-  resource_id = azapi_resource.model_router[count.index].id
-  method      = "PATCH"
-  body = {
-    sku = local.model_router_body.sku
-    properties = {
-      model   = local.model_router_body.properties.model
-      routing = local.model_router_body.properties.routing
-    }
-  }
-
-  lifecycle {
-    replace_triggered_by = [azapi_resource.model_router[count.index]]
-  }
-}
-
 data "azapi_resource" "model_router_routing" {
   count = var.model_router_deployment == null ? 0 : 1
 
@@ -79,5 +58,5 @@ data "azapi_resource" "model_router_routing" {
     }
   }
 
-  depends_on = [azapi_resource_action.model_router_routing]
+  depends_on = [azapi_resource.model_router]
 }

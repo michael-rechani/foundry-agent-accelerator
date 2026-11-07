@@ -40,7 +40,6 @@ run "null_router_keeps_other_outputs" {
   assert {
     condition = (
       length(azapi_resource.model_router) == 0 &&
-      length(azapi_resource_action.model_router_routing) == 0 &&
       length(data.azapi_resource.model_router_routing) == 0 &&
       output.model_router_deployment_name == null &&
       output.model_deployment_names == ["gpt-4.1", "extra-model"]
@@ -73,13 +72,9 @@ run "enabled_request" {
       azapi_resource.model_router[0].body.properties.raiPolicyName == "Microsoft.DefaultV2" &&
       azapi_resource.model_router[0].body.properties.routing.mode == "balanced" &&
       length(azapi_resource.model_router[0].body.properties.routing.models) == 2 &&
-      azapi_resource.model_router[0].ignore_missing_property == false &&
-      azapi_resource_action.model_router_routing[0].method == "PATCH" &&
-      azapi_resource_action.model_router_routing[0].body.sku == azapi_resource.model_router[0].body.sku &&
-      azapi_resource_action.model_router_routing[0].body.properties.model == azapi_resource.model_router[0].body.properties.model &&
-      azapi_resource_action.model_router_routing[0].body.properties.routing == azapi_resource.model_router[0].body.properties.routing
+      azapi_resource.model_router[0].ignore_missing_property == false
     )
-    error_message = "The configured deployment must send the requested Router settings and PATCH the same settings."
+    error_message = "The configured deployment must send the requested Router settings in the documented PUT body."
   }
 }
 
@@ -117,10 +112,9 @@ run "standard_default_subset" {
   assert {
     condition = (
       [for model in azapi_resource.model_router[0].body.properties.routing.models : model.name] == ["gpt-4.1", "gpt-4.1-mini"] &&
-      azapi_resource_action.model_router_routing[0].body.properties.routing.mode == "balanced" &&
       output.model_router_deployment_name == "model-router"
     )
-    error_message = "The standard Router subset must be sent, patched, and verified before exposing its output."
+    error_message = "The standard Router subset must be sent and verified before exposing its output."
   }
 }
 
@@ -378,15 +372,15 @@ run "plan_routing_mode_update" {
 
   assert {
     condition = (
-      azapi_resource.model_router[0].body.properties.routing.mode == "cost" &&
-      azapi_resource_action.model_router_routing[0].body.properties.routing.mode == "cost"
+      azapi_resource.model_router[0].body.properties.routing.mode == "cost"
     )
-    error_message = "A routing update must plan both the deployment change and the PATCH."
+    error_message = "A routing update must plan the deployment's requested PUT body."
   }
 }
 
 run "update_routing_mode" {
   command = apply
+  state_key = "standard-default-subset"
 
   variables {
     additional_model_deployment_names = ["extra-model"]
@@ -420,10 +414,9 @@ run "update_routing_mode" {
   assert {
     condition = (
       azapi_resource.model_router[0].body.properties.routing.mode == "cost" &&
-      azapi_resource_action.model_router_routing[0].body.properties.routing.mode == "cost" &&
       output.model_router_deployment_name == "model-router"
     )
-    error_message = "A routing change must update both the deployment and PATCH and verify the resulting mode."
+    error_message = "A routing change must send the requested PUT body and verify the resulting mode."
   }
 }
 

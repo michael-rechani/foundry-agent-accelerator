@@ -627,10 +627,17 @@ ignoring order but rejecting duplicates or missing or extra models. A failed
 apply can leave a deployment using a different or unrestricted model set. Do
 not send requests to it until its settings are corrected and verified. The
 [documented custom-routing example](https://learn.microsoft.com/azure/foundry/openai/how-to/model-router#configure-custom-settings-with-the-rest-api)
-uses a preview PUT; this module's subsequent `2025-12-01` PATCH of routing
-properties has not been verified against the live service. Before approving an
-apply, review a private-runner recovery path for a partial create or failed
-PATCH; neither retrying nor deleting the deployment is automatically safe.
+uses a preview PUT. Microsoft's [2025-12-01 API definition](https://github.com/Azure/azure-rest-api-specs/blob/main/specification/cognitiveservices/resource-manager/Microsoft.CognitiveServices/CognitiveServices/Deployment.tsp)
+models update as tags and SKU only, not routing; the [official custom-routing
+example](https://learn.microsoft.com/azure/foundry/openai/how-to/model-router#configure-custom-settings-with-the-rest-api)
+sends routing in the deployment PUT. This module therefore sends routing only
+in that documented PUT and retains a strict fresh management-plane readback.
+This is a code-contract correction, not a verified live-service fix: [an
+unreproduced provider issue](https://github.com/Azure/terraform-provider-azapi/issues/1136)
+reports PUT routing silently ignored. If readback fails, the deployment may
+still exist with a different or unrestricted model set; do not use it until
+corrected and verified. Review a private-runner recovery path before any apply;
+neither retrying nor deleting a partial deployment is automatically safe.
 Azure notes that routing changes can take up to five minutes to take effect;
 management-plane readback alone does not verify inference behavior. Further
 guidance and live verification are tracked in the

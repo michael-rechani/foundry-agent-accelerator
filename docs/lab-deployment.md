@@ -680,15 +680,26 @@ state locks can change blob metadata and create retained versions. See
 [rollout issue #522](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522)
 and the paused platform decision in #485.
 
-The Router module's routing PATCH is not yet verified against the live service.
-A failed create, PATCH, or readback can leave a deployment present with an
-unverified model subset, and state may reflect only part of the operation.
-Do not route requests to it or blindly retry or delete it. Use an approved
-private-runner path to inspect the deployment and state, then separately review
-the necessary reconciliation or removal; no such recovery path is approved
-yet. For example, a no-change deployment with a pending PATCH is rejected by
-the forward diagnostic's matching-action guard and requires a separately
-reviewed recovery path, not a targeted apply or a weaker forward guard.
+The Router module sends routing only in the documented deployment PUT and
+retains strict fresh management-plane readback. Removing the unsupported
+routing PATCH is a code-contract correction, not a verified live-service fix.
+A failed PUT or readback can leave a deployment present with an unverified
+model subset, and state may reflect only part of the operation. Do not route
+requests to it or blindly retry or delete it. Use an approved private-runner
+path to inspect the deployment and state, then separately review the necessary
+reconciliation or removal; no such recovery path is approved yet.
+
+The forward platform diagnostic accepts only the exact reviewed PUT creation
+or a verified no-op. Creation requires a single deferred readback and matching
+postcondition/instance evidence; a no-op requires known matching readback values
+and a passing postcondition/instance. Missing or duplicate evidence is rejected.
+It rejects in-place Router updates, replacements, deletes,
+and every legacy PATCH state entry, including no-op or deletion of the removed
+resource. Removing the PATCH from configuration does not authorize its state
+removal. Partial creation, legacy PATCH state, and unverified readback require
+a separately reviewed recovery path, not a targeted apply, state surgery, or a
+weaker forward guard. Unrelated managed changes, drift, imports, and nonpassing
+checks remain blockers.
 
 Before rollout:
 

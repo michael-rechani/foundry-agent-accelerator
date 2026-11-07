@@ -48,13 +48,6 @@ def values():
 
 def plan():
     body = diagnostic.router_body()
-    patch_body = {
-        "sku": deepcopy(body["sku"]),
-        "properties": {
-            "model": deepcopy(body["properties"]["model"]),
-            "routing": deepcopy(body["properties"]["routing"]),
-        },
-    }
     variables = {key: {"value": value} for key, value in values().items() if key != "jumpbox_secret_required"}
     variables.update({
         "model_deployment": {"value": {
@@ -78,19 +71,15 @@ def plan():
                 },
             },
             {
-                "address": diagnostic.PATCH, "mode": "managed",
+                "address": diagnostic.READBACK, "mode": "data", "type": "azapi_resource",
                 "change": {
-                    "actions": ["create"], "before": None,
+                    "actions": ["read"], "before": None,
                     "after": {
                         "type": "Microsoft.CognitiveServices/accounts/deployments@2025-12-01",
-                        "method": "PATCH", "body": patch_body,
+                        "response_export_values": ["properties.routing"],
                     },
-                    "after_unknown": {"resource_id": True},
+                    "after_unknown": {"output": True, "resource_id": True},
                 },
-            },
-            {
-                "address": diagnostic.READBACK, "mode": "data",
-                "change": {"actions": ["read"], "before": None, "after": {}, "after_unknown": {"output": True}},
             },
             {
                 "address": "azapi_resource.jumpbox[0]", "mode": "managed",
@@ -110,8 +99,16 @@ def plan():
             "foundry_account_id": {"actions": ["no-op"]},
         },
         "checks": [{
-            "address": {"to_display": "module.model_router.data.azapi_resource.model_router_routing"},
+            "address": {
+                "kind": "resource", "mode": "data", "type": "azapi_resource",
+                "name": "model_router_routing", "module": "module.model_router",
+                "to_display": "module.model_router.data.azapi_resource.model_router_routing",
+            },
             "status": "unknown",
+            "instances": [{
+                "address": {"module": "module.model_router", "instance_key": 0, "to_display": diagnostic.READBACK},
+                "status": "unknown",
+            }],
         }],
     }
 
@@ -427,7 +424,8 @@ class DiagnosticRunTests(unittest.TestCase):
 class PlanTests(unittest.TestCase):
     def test_exact_router_create_and_deferred_readback_are_redacted(self):
         result = diagnostic.summarize_plan(plan(), 2, values(), ACCOUNT)
-        self.assertEqual((result["router_deployment"], result["router_patch"]), ("create", "create"))
+        self.assertEqual(result["router_deployment"], "create")
+        self.assertNotIn("router_patch", result)
         self.assertEqual(result["deferred_router_readback"], 1)
         self.assertEqual(result["other_nonpassing_checks"], 0)
         self.assertEqual(result["other_managed_changes"], 0)
@@ -438,13 +436,7 @@ class PlanTests(unittest.TestCase):
     def test_existing_router_requires_unchanged_known_outputs(self):
         value = plan()
         value["resource_changes"][0]["change"]["actions"] = ["no-op"]
-        value["resource_changes"][1]["change"].update(
-            actions=["no-op"],
-            after={**value["resource_changes"][1]["change"]["after"],
-                   "resource_id": ACCOUNT + "/deployments/model-router"},
-            after_unknown={},
-        )
-        value["resource_changes"][2]["change"]["actions"] = ["no-op"]
+        value["resource_changes"][1]["change"]["actions"] = ["no-op"]
         value["output_changes"]["model_router_deployment_name"] = {
             "actions": ["no-op"], "before": "model-router", "after": "model-router", "after_unknown": False,
         }
@@ -457,27 +449,83 @@ class PlanTests(unittest.TestCase):
             "actions": ["no-op"], "before": capabilities, "after": dict(capabilities), "after_unknown": False,
         }
         value["checks"][0]["status"] = "pass"
+        value["checks"][0]["instances"][0]["status"] = "pass"
+        value["resource_changes"].pop(1)
+        value["prior_state"] = {"values": {"root_module": {"child_modules": [{
+            "address": "module.model_router",
+            "resources": [{
+                "address": diagnostic.READBACK, "mode": "data", "type": "azapi_resource",
+                "values": {
+                    "type": "Microsoft.CognitiveServices/accounts/deployments@2025-12-01",
+                    "resource_id": ACCOUNT + "/deployments/model-router",
+                    "response_export_values": ["properties.routing"],
+                    "output": {"properties": {"routing": {
+                        "mode": "balanced", "models": deepcopy(diagnostic.ROUTER_MODELS),
+                    }}},
+                },
+            }],
+        }]}}}
         result = diagnostic.summarize_plan(value, 0, values(), ACCOUNT)
         self.assertEqual(result["router_deployment"], "no-op")
         for change in (
             lambda item: item["output_changes"]["model_router_deployment_name"].update(after_unknown=True),
             lambda item: item["output_changes"]["model_deployment_names"].update(after=["gpt-4.1"]),
             lambda item: item["output_changes"].pop("model_router_deployment_name"),
+            lambda item: item.pop("prior_state"),
+            lambda item: item.pop("checks"),
+            lambda item: item.update(checks=[]),
+            lambda item: item["checks"][0]["instances"][0].update(status="unknown"),
+            lambda item: item["prior_state"]["values"]["root_module"]["child_modules"][0]["resources"].append(
+                deepcopy(item["prior_state"]["values"]["root_module"]["child_modules"][0]["resources"][0])),
         ):
             item = deepcopy(value)
             change(item)
             with self.subTest(item=item), self.assertRaises(diagnostic.CheckError):
                 diagnostic.summarize_plan(item, 0, values(), ACCOUNT)
 
+    def test_missing_duplicate_or_unchecked_router_readback_is_rejected(self):
+        for mutate in (
+            lambda value: value["resource_changes"].pop(1),
+            lambda value: value["resource_changes"].append(deepcopy(value["resource_changes"][1])),
+            lambda value: value.pop("checks"),
+            lambda value: value.update(checks=[]),
+            lambda value: value["checks"][0].pop("instances"),
+            lambda value: value["checks"][0]["instances"][0].update(status="pass"),
+        ):
+            value = plan()
+            mutate(value)
+            with self.subTest(mutate=mutate), self.assertRaises(diagnostic.CheckError):
+                diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
+
     def test_partial_router_apply_requires_separate_recovery(self):
         value = plan()
         deployment = value["resource_changes"][0]["change"]
         deployment.update(actions=["no-op"], before=deepcopy(deployment["after"]))
-        patch_change = value["resource_changes"][1]["change"]
-        patch_change["after"]["resource_id"] = ACCOUNT + "/deployments/model-router"
-        patch_change["after_unknown"] = {}
-        with self.assertRaisesRegex(diagnostic.CheckError, "must have matching actions"):
+        with self.assertRaisesRegex(diagnostic.CheckError, "verified Router no-op"):
             diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
+
+    def test_legacy_patch_state_and_router_updates_require_separate_recovery(self):
+        for actions in (["no-op"], ["create"], ["update"], ["delete"], ["delete", "create"], ["forget"]):
+            value = plan()
+            value["resource_changes"].append({
+                "address": diagnostic.LEGACY_PATCH, "mode": "managed",
+                "change": {"actions": actions, "before": {}, "after": {}, "after_unknown": {}},
+            })
+            with self.subTest(actions=actions), self.assertRaisesRegex(
+                    diagnostic.CheckError, "separately reviewed recovery"):
+                diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
+        value = plan()
+        value["resource_drift"] = [{
+            "address": diagnostic.LEGACY_PATCH, "mode": "managed",
+            "change": {"actions": ["no-op"], "before": {}, "after": {}, "after_unknown": {}},
+        }]
+        with self.assertRaisesRegex(diagnostic.CheckError, "separately reviewed recovery"):
+            diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
+        for actions in (["update"], ["delete"], ["delete", "create"], ["create", "delete"], ["forget"]):
+            value = plan()
+            value["resource_changes"][0]["change"]["actions"] = actions
+            with self.subTest(actions=actions), self.assertRaises(diagnostic.CheckError):
+                diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
 
     def test_preview_output_tracks_known_model_versions_and_deployment_aliases(self):
         value = plan()
@@ -527,8 +575,9 @@ class PlanTests(unittest.TestCase):
             lambda item: item["resource_changes"][0]["change"]["after"].update(parent_id=ACCOUNT + "-other"),
             lambda item: item["resource_changes"][0]["change"]["after"]["body"]["properties"]["routing"].update(
                 mode="quality"),
-            lambda item: item["resource_changes"][1]["change"]["after"].update(method="DELETE"),
-            lambda item: item["resource_changes"][1]["change"]["after_unknown"].update(resource_id=False),
+            lambda item: item["resource_changes"][0]["change"]["after"].update(
+                type="Microsoft.CognitiveServices/accounts/deployments@2025-12-01"),
+            lambda item: item["resource_changes"][0]["change"]["after_unknown"].update(parent_id=True),
             lambda item: item["resource_changes"][0]["change"]["after_unknown"].update(body=True),
             lambda item: item["resource_changes"][0]["change"].update(actions=["delete", "create"]),
             lambda item: item["resource_changes"].append(deepcopy(item["resource_changes"][0])),
