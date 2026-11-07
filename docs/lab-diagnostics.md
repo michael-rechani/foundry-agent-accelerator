@@ -37,8 +37,22 @@ candidate at that instant; it does not rule out other locations. No live check
 is implied by adding this workflow.
 
 The separate **Compare historical platform input candidate** workflow is also
-manual, main-only and approval-gated. It reads only the candidate and platform
-state into memory, and checks their blob versions and lock metadata before and
+manual, main-only and approval-gated. Its workflow-owned isolated Python
+bootstrap fetches four fixed source files at the exact workflow commit over
+HTTPS without proxies or redirects, verifies their pinned hashes, and loads
+them in memory; it does not check out the persistent workspace. A context or
+source verification or loading failure stops the check with the fixed
+`source_verification` category. An exception while invoking the verified module
+stops it with the fixed `unexpected` category instead; neither path prints
+exception details or a traceback. CI checks
+the pins against the committed sources, so changes to those sources require
+updating the pins.
+
+This mitigates reuse of an existing checkout; it does not isolate a persistent
+host, its Python runtime, Docker, credentials, or other same-UID processes.
+The runner and its global configuration remain part of the trust boundary.
+The workflow reads only the candidate and platform state into memory, and
+checks their blob versions and lock metadata before and
 after comparison. It requires the candidate's explicit subscription and
 deployment principal to match the approved subscription and the persisted
 Foundry User assignment scoped to the state-recorded project and account. It
@@ -76,6 +90,28 @@ does not inspect the reference or access a secret. No run is implied by adding
 this workflow. A separate generic category indicates only whether a Router
 override key is absent or explicitly present, including null; it does not
 inspect the override or establish its Terraform-resolved value.
+
+After stable snapshots and a successful comparison, the workflow additionally
+reports `candidate_storage_inventory` and `candidate_apim_inventory` as
+`present`, `absent`, or `ambiguous`. These describe active, non-deposed
+`azurerm_storage_account` and `azurerm_api_management` managed instances in
+the whole recorded state, including child modules; they do not include other
+Terraform types that might represent the same Azure resources and never report
+counts or identities. Malformed, duplicate, deposed, or otherwise
+ambiguous resource or instance envelopes produce `ambiguous`, not `absent`.
+`candidate_pinned_secret_read` uses the same three categories for the
+candidate's optional jumpbox secret reference and its pinned-version shape;
+it does not fetch a secret. The categories are also reported when the only
+comparison blocker is secret-read review. Other comparison failures suppress
+them, and changed or locked snapshots take precedence over all results.
+An invalid internal result fails with a fixed category rather than reporting
+a successful comparison without its inventory.
+
+Inventory is a snapshot of recorded instances, not a prediction of resources or
+data actions a future plan may evaluate, proof of effective permissions, or
+evidence that a broader plan is safe. Provider refresh behavior, a separate
+plan identity and trust boundary, and the full dependency graph remain subject
+to review in #534. The paused disk-tier decision in #485 is unchanged.
 
 ### Agent session reuse
 

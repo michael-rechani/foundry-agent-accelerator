@@ -19,6 +19,11 @@ ROLE = f"/subscriptions/{SUB}/providers/Microsoft.Authorization/roleDefinitions/
 ACCOUNT = GROUP + "/providers/Microsoft.CognitiveServices/accounts/example"
 PROJECT = ACCOUNT + "/projects/example"
 DISK = GROUP + "/providers/Microsoft.Compute/disks/disk-fixture"
+AZURERM_PROVIDER = 'provider["registry.terraform.io/hashicorp/azurerm"]'
+AZAPI_PROVIDER = 'provider["registry.terraform.io/azure/azapi"]'
+ABSENT_INVENTORY = ("absent", "absent", "absent")
+ABSENT_OUTPUT = ("candidate_storage_inventory=absent\ncandidate_apim_inventory=absent\n"
+                 "candidate_pinned_secret_read=absent\n")
 
 
 def fixture():
@@ -36,15 +41,16 @@ def fixture():
         "outputs": {"foundry_account_id": {"value": ACCOUNT, "type": "string"},
                     "foundry_project_id": {"value": PROJECT, "type": "string"}},
         "resources": [
-            {"mode": "managed", "type": "azurerm_resource_group", "name": "this",
+            {"mode": "managed", "type": "azurerm_resource_group", "name": "this", "provider": AZURERM_PROVIDER,
              "instances": [{"attributes": {"id": GROUP}}]},
             {"mode": "managed", "type": "azurerm_role_assignment", "name": "deployer_foundry_user",
+             "provider": AZURERM_PROVIDER,
              "instances": [{"attributes": {
                  "principal_id": PRINCIPAL, "role_definition_id": ROLE,
                  "scope": PROJECT,
                  "id": PROJECT + "/providers/Microsoft.Authorization/roleAssignments/" + SUB,
              }}]},
-            {"mode": "managed", "type": "azapi_resource", "name": "jumpbox",
+            {"mode": "managed", "type": "azapi_resource", "name": "jumpbox", "provider": AZAPI_PROVIDER,
              "instances": [{"index_key": 0, "attributes": {"body": {"properties": {"storageProfile": {
                  "osDisk": {"name": "disk-fixture", "managedDisk": {"id": DISK, "storageAccountType": "Standard_LRS"}}
              }}}}}]},
@@ -245,6 +251,107 @@ class CompareTests(unittest.TestCase):
                 self.assertEqual((exc.input_mismatch, exc.pin_invalid, exc.secret_read, exc.state_invalid), expected)
 
 
+class InventoryTests(unittest.TestCase):
+    def test_inventory_output_rejects_non_allowlisted_values(self):
+        for categories in (("absent", "private-value", "present"),
+                           ("absent", "present"), ["absent", "present", "absent"], None):
+            output = io.StringIO()
+            probe.print_inventory(categories, file=output)
+            self.assertEqual(output.getvalue(), "")
+
+    def test_matched_output_rejects_malformed_categories(self):
+        for categories in (None, ("present", "private-value", "absent"),
+                           ("absent",), ["absent", "absent", "absent"],
+                           ("absent", [], "absent")):
+            out, err = io.StringIO(), io.StringIO()
+            with self.subTest(categories=categories), patch.object(probe, "check", return_value=("absent", categories)), \
+                    contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                self.assertEqual(probe.main(), 1)
+            self.assertEqual((out.getvalue(), err.getvalue()),
+                             ("", "candidate_platform_comparison_failed=inventory_result_invalid\n"))
+
+    def test_managed_instances_across_modules_and_data_excluded(self):
+        _, state = fixture()
+        self.assertEqual(probe.inventory(state), ("absent", "absent"))
+        for kind in ("azurerm_storage_account", "azurerm_api_management"):
+            state["resources"].append({
+                "module": 'module.example["fixture"].module.child',
+                "mode": "managed", "type": kind, "name": "example",
+                "provider": 'module.example.provider["registry.terraform.io/hashicorp/azurerm"].alternate',
+                "instances": [{"index_key": "first", "attributes": {"id": "private-value"}},
+                              {"index_key": "second", "attributes": {"id": "private-value"}}],
+            })
+        self.assertEqual(probe.inventory(state), ("present", "present"))
+        state["resources"][-1]["mode"] = "data"
+        state["resources"][-2]["instances"] = []
+        self.assertEqual(probe.inventory(state), ("absent", "absent"))
+
+    def test_entire_resource_and_instance_envelope_fails_closed(self):
+        _, original = fixture()
+        mutations = (
+            lambda s: s.update(version=True),
+            lambda s: s.update(resources=[]),
+            lambda s: s["resources"].append(None),
+            lambda s: s["resources"].append({}),
+            lambda s: s["resources"][0].update(mode="unknown"),
+            lambda s: s["resources"][0].update(type=None),
+            lambda s: s["resources"][0].update(name=""),
+            lambda s: s["resources"][0].update(module=17),
+            lambda s: s["resources"][0].update(module="not-a-module"),
+            lambda s: s["resources"][0].update(module="module."),
+            lambda s: s["resources"][0].update(module='module.example["unfinished]'),
+            lambda s: s["resources"][0].pop("provider"),
+            lambda s: s["resources"][0].update(provider=None),
+            lambda s: s["resources"][0].update(provider=""),
+            lambda s: s["resources"][0].update(provider="private-value"),
+            lambda s: s["resources"][0].update(provider='provider["registry.terraform.io/hashicorp"]'),
+            lambda s: s["resources"][0].update(provider='module.example[0].' + AZURERM_PROVIDER),
+            lambda s: s["resources"][0].update(instances=None),
+            lambda s: s["resources"][0].update(instances=[None]),
+            lambda s: s["resources"][0]["instances"][0].update(attributes=None),
+            lambda s: s["resources"][0]["instances"][0].update(schema_version=True),
+            lambda s: s["resources"][0]["instances"][0].update(sensitive_attributes=None),
+            lambda s: s["resources"][0]["instances"][0].update(dependencies=[None]),
+            lambda s: s["resources"][0]["instances"][0].update(deposed="private-value"),
+            lambda s: s["resources"][0]["instances"][0].update(deposed=None),
+            lambda s: s["resources"][0]["instances"][0].update(status="unknown"),
+            lambda s: s["resources"][0]["instances"][0].update(index_key=False),
+            lambda s: s["resources"][0]["instances"][0].update(index_key=0.0),
+            lambda s: s["resources"][0]["instances"][0].update(index_key=-1),
+            lambda s: s["resources"][0]["instances"][0].update(index_key=None),
+            lambda s: s["resources"][0]["instances"].append({"attributes": {}}),
+            lambda s: s["resources"][0].update(instances=[
+                {"index_key": 0, "attributes": {}}, {"index_key": 0, "attributes": {}}]),
+            lambda s: s["resources"][0].update(instances=[
+                {"index_key": 0, "attributes": {}}, {"index_key": "1", "attributes": {}}]),
+            lambda s: s["resources"].append(deepcopy(s["resources"][0])),
+        )
+        for mutate in mutations:
+            state = deepcopy(original)
+            mutate(state)
+            with self.subTest(case=mutations.index(mutate)):
+                self.assertEqual(probe.inventory(state), ("ambiguous", "ambiguous"))
+
+    def test_pinned_secret_read_is_fixed_and_fail_closed(self):
+        inputs, _ = fixture()
+        self.assertEqual(probe.pinned_secret_read(inputs), "absent")
+        secret = {"key_vault_id": GROUP + "/providers/Microsoft.KeyVault/vaults/fixture",
+                  "name": "fixture", "version": "a" * 32}
+        inputs["jumpbox_admin_secret"] = secret
+        self.assertEqual(probe.pinned_secret_read(inputs), "present")
+        inputs["enable_jumpbox"] = False
+        self.assertEqual(probe.pinned_secret_read(inputs), "absent")
+        inputs["enable_jumpbox"] = "true"
+        self.assertEqual(probe.pinned_secret_read(inputs), "ambiguous")
+        inputs["enable_jumpbox"] = True
+        for key in secret:
+            changed = deepcopy(inputs)
+            changed["jumpbox_admin_secret"][key] = ""
+            self.assertEqual(probe.pinned_secret_read(changed), "ambiguous")
+        inputs["jumpbox_admin_secret"] = ["private-value"]
+        self.assertEqual(probe.pinned_secret_read(inputs), "ambiguous")
+
+
 class SnapshotTests(unittest.TestCase):
     def setUp(self):
         self.inputs, self.state = fixture()
@@ -264,7 +371,7 @@ class SnapshotTests(unittest.TestCase):
 
     def test_exact_fixed_reads_only(self):
         result, calls = self.invoke(self.normal())
-        self.assertEqual(result, "absent")
+        self.assertEqual(result, ("absent", ABSENT_INVENTORY))
         self.assertEqual([call.args[0].removeprefix(self.blobs.base) for call in calls],
                          [probe.INPUT, probe.STATE, probe.STATE, probe.INPUT])
         self.assertTrue(all(call.kwargs == {"headers": self.blobs.headers} for call in calls))
@@ -294,16 +401,131 @@ class SnapshotTests(unittest.TestCase):
         def compare(*args):
             events.append("compare")
             return original(*args)
+        original_inventory = probe.inventory
+        def inventory(*args):
+            events.append("inventory")
+            return original_inventory(*args)
         out, err = io.StringIO(), io.StringIO()
         with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
                 patch.object(probe, "Blobs", return_value=self.blobs), \
                 patch.object(probe.backend, "send", side_effect=send), \
                 patch.object(probe, "compare", side_effect=compare), \
+                patch.object(probe, "inventory", side_effect=inventory), \
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             self.assertEqual(probe.main(), 1)
-        self.assertEqual(events, ["read", "read", "compare", "read", "read"])
+        self.assertEqual(events, ["read", "read", "inventory", "compare", "read", "read"])
         self.assertEqual((out.getvalue(), err.getvalue()),
                          ("", "candidate_platform_comparison_failed=snapshot_unstable\n"))
+
+    def test_inventory_and_secret_categories_are_redacted_and_snapshot_gated(self):
+        state = deepcopy(self.state)
+        state["resources"].extend([
+            {"mode": "managed", "module": 'module.example["private-value"]',
+             "type": kind, "name": "private-value", "provider": AZURERM_PROVIDER,
+             "instances": [{"index_key": "private-value", "attributes": {"id": "private-value"}}]}
+            for kind in ("azurerm_storage_account", "azurerm_api_management")
+        ])
+        inputs = deepcopy(self.inputs)
+        inputs["jumpbox_admin_secret"] = {
+            "key_vault_id": GROUP + "/providers/Microsoft.KeyVault/vaults/fixture",
+            "name": "private-value", "version": "a" * 32,
+        }
+        for unstable in (False, True):
+            results = [(encode(inputs), headers()), (encode(state), headers()),
+                       (encode(state), headers(lease="locked" if unstable else "unlocked")),
+                       (encode(inputs), headers())]
+            out, err = io.StringIO(), io.StringIO()
+            with self.subTest(unstable=unstable), \
+                    patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                    patch.object(probe, "Blobs", return_value=self.blobs), \
+                    patch.object(probe.backend, "send", side_effect=results), \
+                    contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                self.assertEqual(probe.main(), 1)
+            self.assertEqual(out.getvalue(), "")
+            if unstable:
+                self.assertEqual(err.getvalue(), "candidate_platform_comparison_failed=snapshot_unstable\n")
+            else:
+                self.assertEqual(err.getvalue(), "candidate_platform_comparison_failed=secret_read_review_required\n"
+                                 "candidate_router_override=absent\n"
+                                 "candidate_storage_inventory=present\ncandidate_apim_inventory=present\n"
+                                 "candidate_pinned_secret_read=present\n")
+
+    def test_ambiguous_inventory_is_reported_without_private_values(self):
+        state = deepcopy(self.state)
+        state["resources"].append({"private-field": "private-value"})
+        results = self.normal()
+        results[1] = results[2] = (encode(state), headers())
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                patch.object(probe, "Blobs", return_value=self.blobs), \
+                patch.object(probe.backend, "send", side_effect=results), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(probe.main(), 0)
+        self.assertEqual(err.getvalue(), "")
+        self.assertEqual(out.getvalue(), "candidate_platform_comparison=matched\n"
+                         "candidate_router_override=absent\ncandidate_storage_inventory=ambiguous\n"
+                         "candidate_apim_inventory=ambiguous\ncandidate_pinned_secret_read=absent\n")
+
+    def test_missing_provider_is_ambiguous_in_full_comparison(self):
+        state = deepcopy(self.state)
+        state["resources"][0].pop("provider")
+        results = self.normal()
+        results[1] = results[2] = (encode(state), headers())
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                patch.object(probe, "Blobs", return_value=self.blobs), \
+                patch.object(probe.backend, "send", side_effect=results), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(probe.main(), 0)
+        self.assertEqual(err.getvalue(), "")
+        self.assertEqual(out.getvalue(), "candidate_platform_comparison=matched\n"
+                         "candidate_router_override=absent\ncandidate_storage_inventory=ambiguous\n"
+                         "candidate_apim_inventory=ambiguous\ncandidate_pinned_secret_read=absent\n")
+
+    def test_invalid_result_never_preempts_unstable_snapshot(self):
+        for unstable in (False, True):
+            results = self.normal()
+            if unstable:
+                results[2] = (results[2][0], headers(etag='"changed"'))
+            out, err = io.StringIO(), io.StringIO()
+            with self.subTest(unstable=unstable), \
+                    patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                    patch.object(probe, "Blobs", return_value=self.blobs), \
+                    patch.object(probe.backend, "send", side_effect=results), \
+                    patch.object(probe, "inventory", return_value=("private-value", "absent")), \
+                    contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                self.assertEqual(probe.main(), 1)
+            self.assertEqual(out.getvalue(), "")
+            category = "snapshot_unstable" if unstable else "inventory_result_invalid"
+            self.assertEqual(err.getvalue(), f"candidate_platform_comparison_failed={category}\n")
+
+    def test_present_inventory_on_success_and_byte_change_precedence(self):
+        state = deepcopy(self.state)
+        state["resources"].append({
+            "mode": "managed", "type": "azurerm_storage_account", "name": "private-value",
+            "provider": AZURERM_PROVIDER,
+            "module": 'module.example["private-value"]',
+            "instances": [{"index_key": 0, "attributes": {"id": "private-value"}}],
+        })
+        for changed in (False, True):
+            results = self.normal()
+            results[1] = (encode(state), headers())
+            results[2] = (encode(state) + (b" " if changed else b""), headers())
+            out, err = io.StringIO(), io.StringIO()
+            with self.subTest(changed=changed), \
+                    patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                    patch.object(probe, "Blobs", return_value=self.blobs), \
+                    patch.object(probe.backend, "send", side_effect=results), \
+                    contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                self.assertEqual(probe.main(), 1 if changed else 0)
+            if changed:
+                self.assertEqual((out.getvalue(), err.getvalue()),
+                                 ("", "candidate_platform_comparison_failed=snapshot_unstable\n"))
+            else:
+                self.assertEqual(err.getvalue(), "")
+                self.assertEqual(out.getvalue(), "candidate_platform_comparison=matched\n"
+                                 "candidate_router_override=absent\ncandidate_storage_inventory=present\n"
+                                 "candidate_apim_inventory=absent\ncandidate_pinned_secret_read=absent\n")
 
     def test_lock_or_bad_metadata_fails_at_each_read(self):
         for index in range(4):
@@ -628,7 +850,7 @@ class SnapshotTests(unittest.TestCase):
                 else:
                     self.assertEqual(err.getvalue(), "")
                     self.assertEqual(out.getvalue(), "candidate_platform_comparison=matched\n"
-                                     "candidate_router_override=explicit\n")
+                                     "candidate_router_override=explicit\n" + ABSENT_OUTPUT)
 
     def test_redacted_errors_and_success(self):
         sensitive = "private-endpoint private-token private-header private-state"
@@ -649,10 +871,11 @@ class SnapshotTests(unittest.TestCase):
                     self.assertEqual(probe.main(), 1)
                 self.assertEqual((out.getvalue(), err.getvalue()),
                                  ("", f"candidate_platform_comparison_failed={category}\n"))
-        with patch.object(probe, "check", return_value="absent"), \
+        with patch.object(probe, "check", return_value=("absent", ABSENT_INVENTORY)), \
                 contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(probe.main(), 0)
-        self.assertEqual(out.getvalue(), "candidate_platform_comparison=matched\ncandidate_router_override=absent\n")
+        self.assertEqual(out.getvalue(), "candidate_platform_comparison=matched\ncandidate_router_override=absent\n"
+                         + ABSENT_OUTPUT)
 
     def test_unexpected_error_is_sanitized(self):
         code = """
@@ -696,7 +919,7 @@ with patch.object(check_lab_terraform_plan, "configuration",
         ]), patch.object(probe.backend, "json_response", side_effect=[
             {"value": "private-assertion"}, {"access_token": "private-access-token"},
         ]), patch.object(probe.backend, "send", side_effect=self.normal()) as send:
-            self.assertEqual(probe.check(environ), "absent")
+            self.assertEqual(probe.check(environ), ("absent", ABSENT_INVENTORY))
         self.assertEqual(len(send.call_args_list), 4)
         for call in send.call_args_list:
             self.assertEqual(set(call.kwargs), {"headers"})

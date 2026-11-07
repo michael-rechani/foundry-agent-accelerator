@@ -13,6 +13,13 @@ from reconcile_runner_state import Blobs, GUID
 
 INPUT = "dev.tfvars.json"
 STATE = "dev.tfstate"
+MODULE_ADDRESS = re.compile(r'module\.[\w-]+(?:\[(?:[0-9]+|"(?:[^"\\]|\\.)*")\])?'
+                            r'(?:\.module\.[\w-]+(?:\[(?:[0-9]+|"(?:[^"\\]|\\.)*")\])?)*')
+PROVIDER_ADDRESS = re.compile(
+    r'(?:module\.[A-Za-z_][A-Za-z0-9_-]*\.)*'
+    r'provider\["[a-z0-9][a-z0-9.-]*/[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*"\]'
+    r'(?:\.[A-Za-z_][A-Za-z0-9_-]*)?'
+)
 
 
 class CandidateError(backend.CheckError):
@@ -400,6 +407,83 @@ def jumpbox_attributes(resources):
     return attributes
 
 
+def inventory(state):
+    ambiguous = ("ambiguous", "ambiguous")
+    resources = state.get("resources")
+    if (type(state.get("version")) is not int or state["version"] != 4
+            or type(state.get("serial")) is not int or state["serial"] < 0
+            or not isinstance(state.get("lineage"), str) or not state["lineage"]
+            or not isinstance(resources, list) or not resources):
+        return ambiguous
+    seen = set()
+    present = set()
+    for resource in resources:
+        if not isinstance(resource, dict):
+            return ambiguous
+        mode, kind, name = resource.get("mode"), resource.get("type"), resource.get("name")
+        module = resource.get("module")
+        instances = resource.get("instances")
+        if (mode not in ("managed", "data") or not isinstance(kind, str) or not kind
+                or not isinstance(name, str) or not name
+                or ("module" in resource and (not isinstance(module, str) or not MODULE_ADDRESS.fullmatch(module)))
+                or not isinstance(resource.get("provider"), str)
+                or not PROVIDER_ADDRESS.fullmatch(resource["provider"])
+                or not isinstance(instances, list)):
+            return ambiguous
+        address = (module, mode, kind, name)
+        if address in seen:
+            return ambiguous
+        seen.add(address)
+        keys = set()
+        key_type = None
+        for instance in instances:
+            if (not isinstance(instance, dict) or "deposed" in instance
+                    or not isinstance(instance.get("attributes"), dict)
+                    or ("schema_version" in instance and
+                        (type(instance["schema_version"]) is not int or instance["schema_version"] < 0))
+                    or ("sensitive_attributes" in instance and not isinstance(instance["sensitive_attributes"], list))
+                    or ("dependencies" in instance and
+                        (not isinstance(instance["dependencies"], list)
+                         or any(not isinstance(value, str) or not value for value in instance["dependencies"])))
+                    or ("status" in instance and instance["status"] != "tainted")):
+                return ambiguous
+            key = instance.get("index_key")
+            if "index_key" in instance:
+                if not (type(key) is int and key >= 0 or isinstance(key, str)):
+                    return ambiguous
+                if key_type is not None and type(key) is not key_type:
+                    return ambiguous
+                key_type = type(key)
+            elif len(instances) != 1:
+                return ambiguous
+            if key in keys:
+                return ambiguous
+            keys.add(key)
+        if mode == "managed" and instances:
+            present.add(kind)
+    return tuple("present" if kind in present else "absent"
+                 for kind in ("azurerm_storage_account", "azurerm_api_management"))
+
+
+def pinned_secret_read(inputs):
+    enabled = inputs.get("enable_jumpbox", False)
+    if type(enabled) is not bool:
+        return "ambiguous"
+    secret = inputs.get("jumpbox_admin_secret")
+    if secret is None:
+        return "absent"
+    if not isinstance(secret, dict):
+        return "ambiguous"
+    vault, name, version = secret.get("key_vault_id"), secret.get("name"), secret.get("version")
+    if (not isinstance(vault, str)
+            or not re.fullmatch(r"/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft.KeyVault/vaults/[^/]+",
+                                vault, re.IGNORECASE)
+            or not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,127}", name)
+            or not isinstance(version, str) or not re.fullmatch(r"[a-fA-F0-9]{32}", version)):
+        return "ambiguous"
+    return "present" if enabled else "absent"
+
+
 def check(environ=os.environ):
     try:
         runtime = lab.configuration(environ)
@@ -410,9 +494,15 @@ def check(environ=os.environ):
     first_state = snapshot(blobs, STATE)
     comparison_failure = None
     override = None
+    categories = None
     try:
         inputs = strict_object(first_input[0])
         override = "explicit" if "model_router_deployment" in inputs else "absent"
+        try:
+            state = strict_object(first_state[0])
+        except (backend.CheckError, ValueError, UnicodeError):
+            state = {}
+        categories = (*inventory(state), pinned_secret_read(inputs))
         compare(first_input[0], first_state[0], runtime["AZURE_SUBSCRIPTION_ID"])
     except (CandidateError, StateError, PreconditionError) as exc:
         comparison_failure = exc
@@ -424,13 +514,17 @@ def check(environ=os.environ):
         raise SnapshotError("Protected blob changed during comparison.")
     if comparison_failure:
         comparison_failure.router_override = override
+        if (isinstance(comparison_failure, PreconditionError) and comparison_failure.secret_read
+                and not (comparison_failure.input_mismatch or comparison_failure.pin_invalid
+                         or comparison_failure.state_invalid)):
+            comparison_failure.inventory_categories = categories
         raise comparison_failure from None
-    return override
+    return override, categories
 
 
 def main():
     try:
-        override = check()
+        override, categories = check()
     except PreconditionError as exc:
         if exc.input_mismatch:
             print("candidate_platform_comparison_failed=input_mismatch_or_missing", file=sys.stderr)
@@ -441,6 +535,7 @@ def main():
         if exc.state_invalid:
             print_state_failure(exc.state_error, exc.disk_category)
         print_router_override(exc)
+        print_inventory(getattr(exc, "inventory_categories", None), file=sys.stderr)
         return 1
     except PinError as exc:
         print("candidate_platform_comparison_failed=identity_pin_missing_or_invalid", file=sys.stderr)
@@ -463,9 +558,42 @@ def main():
     except (backend.CheckError, error.URLError, OSError, ValueError, SystemExit):
         print("candidate_platform_comparison_failed=unexpected", file=sys.stderr)
         return 1
+    if not valid_inventory_categories(categories):
+        print("candidate_platform_comparison_failed=inventory_result_invalid", file=sys.stderr)
+        return 1
     print("candidate_platform_comparison=matched")
     print(f"candidate_router_override={override}")
+    print_inventory(categories, file=sys.stdout)
     return 0
+
+
+def valid_inventory_categories(categories):
+    return (isinstance(categories, tuple) and len(categories) == 3
+            and all(isinstance(category, str) and category in ("present", "absent", "ambiguous")
+                    for category in categories))
+
+
+def print_inventory(categories, *, file):
+    if not valid_inventory_categories(categories):
+        return
+    if categories[0] == "present":
+        print("candidate_storage_inventory=present", file=file)
+    elif categories[0] == "absent":
+        print("candidate_storage_inventory=absent", file=file)
+    else:
+        print("candidate_storage_inventory=ambiguous", file=file)
+    if categories[1] == "present":
+        print("candidate_apim_inventory=present", file=file)
+    elif categories[1] == "absent":
+        print("candidate_apim_inventory=absent", file=file)
+    else:
+        print("candidate_apim_inventory=ambiguous", file=file)
+    if categories[2] == "present":
+        print("candidate_pinned_secret_read=present", file=file)
+    elif categories[2] == "absent":
+        print("candidate_pinned_secret_read=absent", file=file)
+    else:
+        print("candidate_pinned_secret_read=ambiguous", file=file)
 
 
 def print_router_override(exc):
