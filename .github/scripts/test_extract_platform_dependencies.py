@@ -81,7 +81,7 @@ class ExtractionTests(unittest.TestCase):
         self.attempt(transport(BASE + [BASE[-1]]), True)
         self.attempt(transport(BASE + [("public-closure/root/unsafe", tarfile.REGTYPE, b"x", 0o4755)]), True)
         self.attempt(transport(BASE + [("public-closure/root/unsafe", tarfile.REGTYPE, b"x", 0o666)]), True)
-        self.attempt(transport(BASE, tarfile.PAX_FORMAT), True)
+        self.attempt(transport(BASE + [("public-closure/root/" + "a" * 110, tarfile.REGTYPE, b"x", 0o644)], tarfile.PAX_FORMAT), True)
 
     def test_digest_archive_and_parent_substitutions(self):
         archive = transport(BASE)
