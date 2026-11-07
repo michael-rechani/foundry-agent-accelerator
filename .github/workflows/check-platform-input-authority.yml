@@ -89,15 +89,20 @@ jobs:
                   exec(compiled[name], module.__dict__)
               return sys.modules[NAMES[-1]]
 
-          def run():
+          def load_verified_module():
               sha = verify_context(os.environ)
-              return load_sources(fetch_sources(sha)).main()
+              return load_sources(fetch_sources(sha))
 
           if __name__ == "__main__":
               try:
-                  status = run()
+                  module = load_verified_module()
               except BaseException:
                   print("candidate_platform_comparison_failed=source_verification", file=sys.stderr)
+                  raise SystemExit(1) from None
+              try:
+                  status = module.main()
+              except BaseException:
+                  print("candidate_platform_comparison_failed=unexpected", file=sys.stderr)
                   raise SystemExit(1) from None
               raise SystemExit(status)
           PY

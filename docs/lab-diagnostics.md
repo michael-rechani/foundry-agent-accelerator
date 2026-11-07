@@ -41,7 +41,10 @@ manual, main-only and approval-gated. Its workflow-owned isolated Python
 bootstrap fetches four fixed source files at the exact workflow commit over
 HTTPS without proxies or redirects, verifies their pinned hashes, and loads
 them in memory; it does not check out the persistent workspace. A context or
-source verification failure stops the check with a fixed category. CI checks
+source verification or loading failure stops the check with the fixed
+`source_verification` category. An exception while invoking the verified module
+stops it with the fixed `unexpected` category instead; neither path prints
+exception details or a traceback. CI checks
 the pins against the committed sources, so changes to those sources require
 updating the pins.
 

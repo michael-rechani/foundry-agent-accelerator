@@ -168,7 +168,7 @@ class BootstrapTests(unittest.TestCase):
                 self.ns["load_sources"](broken)
             self.assertTrue(all(name not in sys.modules for name in self.names))
 
-    def test_run_validates_context_before_fetch_and_load(self):
+    def test_load_validates_context_before_fetch_and_does_not_invoke_main(self):
         events = []
         class Module:
             def main(self):
@@ -183,13 +183,13 @@ class BootstrapTests(unittest.TestCase):
             events.append("load")
             return Module()
         with patch.dict(os.environ, CONTEXT), patch.dict(self.ns, {"fetch_sources": fetch, "load_sources": load}):
-            self.assertEqual(self.ns["run"](), 0)
-        self.assertEqual(events, ["fetch", "load", "main"])
+            self.assertIsInstance(self.ns["load_verified_module"](), Module)
+        self.assertEqual(events, ["fetch", "load"])
         events.clear()
         with patch.dict(os.environ, {**CONTEXT, "GITHUB_REF": "refs/heads/other"}), \
                 patch.dict(self.ns, {"fetch_sources": fetch, "load_sources": load}), \
                 self.assertRaises(ValueError):
-            self.ns["run"]()
+            self.ns["load_verified_module"]()
         self.assertEqual(events, [])
 
     def test_verified_sources_run_existing_comparison_with_mocked_io(self):
@@ -225,6 +225,42 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stdout, "")
         self.assertEqual(result.stderr, "candidate_platform_comparison_failed=source_verification\n")
+
+    def test_verified_source_loading_and_execution_failures_are_separately_redacted(self):
+        definitions, entrypoint = bootstrap_source().split('if __name__ == "__main__":', 1)
+        sensitive = "synthetic-secret private-token https://private.invalid/sensitive"
+        for phase in ("compile", "load", "main"):
+            for exception in ("RuntimeError", "SystemExit", "KeyboardInterrupt"):
+                if phase == "compile":
+                    failure_source = f"invalid syntax ! {sensitive}"
+                elif phase == "load":
+                    failure_source = f"raise {exception}({sensitive!r})"
+                else:
+                    failure_source = f"def main():\n    raise {exception}({sensitive!r})"
+                setup = (
+                    f"\nsources = {{name: b'' for name in NAMES}}\n"
+                    f"sources[NAMES[-1]] = {failure_source.encode()!r}\n"
+                    "SOURCES = {name: hashlib.sha256(body).hexdigest() for name, body in sources.items()}\n"
+                    "class Response:\n"
+                    "    status = 200\n"
+                    "    def __init__(self, url): self.url = url\n"
+                    "    def __enter__(self): return self\n"
+                    "    def __exit__(self, *args): pass\n"
+                    "    def geturl(self): return self.url\n"
+                    "    def read(self, size): return sources[self.url.rsplit('/', 1)[1][:-3]][:size]\n"
+                    "class Opener:\n"
+                    "    def open(self, req, *, timeout): return Response(req.full_url)\n"
+                    "request.build_opener = lambda *args: Opener()\n"
+                )
+                code = definitions + setup + 'if __name__ == "__main__":' + entrypoint
+                with self.subTest(phase=phase, exception=exception):
+                    result = subprocess.run([sys.executable, "-I", "-c", code],
+                                            env={**os.environ, **CONTEXT},
+                                            capture_output=True, text=True, check=False)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(result.stdout, "")
+                    category = "unexpected" if phase == "main" else "source_verification"
+                    self.assertEqual(result.stderr, f"candidate_platform_comparison_failed={category}\n")
 
 
 if __name__ == "__main__":
