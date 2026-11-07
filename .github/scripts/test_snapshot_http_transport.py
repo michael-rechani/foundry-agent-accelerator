@@ -228,7 +228,7 @@ class TransportTests(unittest.TestCase):
                 FixtureConnection.made = []
                 called = []
 
-                def diagnostic():
+                def diagnostic(fails=fails, called=called):
                     called.append(True)
                     FixtureConnection.close_failure = "fictional-close-token fictional-close-body"
                     if fails:
