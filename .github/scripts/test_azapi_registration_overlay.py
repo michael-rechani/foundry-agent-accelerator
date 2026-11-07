@@ -55,24 +55,61 @@ def assert_no_azapi_bypass(directory):
 
 
 class AzapiRegistrationOverlayTests(unittest.TestCase):
-    def test_descendant_provider_bypass_patterns_fail_closed(self):
+    def test_hcl_provider_routing_is_rejected_conservatively(self):
         cases = {
-            "provider block": 'provider "azapi" { alias = "other" }',
-            "resource selector": 'resource "azapi_resource" "x" {\n provider = azapi.other\n}',
-            "configuration alias": 'configuration_aliases = [azapi.other]',
-            "module remap": 'module "x" { source = "./x" providers = { azapi = azapi.other } }',
+            "provider configuration": 'provider "azapi" { alias = "bypass" }',
+            "same-line selector": 'data "azapi_client_config" "x" { provider = azapi.bypass }',
+            "comments and whitespace": 'resource "azapi_resource" "x" { # provider selector follows\n provider /* comment */ =\n azapi.bypass\n}',
+            "module remapping": 'module "x" { source = "./x" providers = { azapi = azapi.bypass } }',
+            "configuration aliases": 'configuration_aliases = [azapi.bypass]',
+            "comment mention": '# provider is deliberately rejected conservatively',
+            "string mention": 'locals { note = "provider routing is not parsed" }',
+            "nested source": 'resource "azapi_resource" "x" { provider = azapi.bypass }',
         }
         for name, source in cases.items():
             with self.subTest(name=name), tempfile.TemporaryDirectory() as folder:
-                Path(folder, "main.tf").write_text(source, encoding="utf-8")
+                root = Path(folder)
+                path = root / "main.tf"
+                if name == "nested source":
+                    path = root / "nested" / "main.tf"
+                    path.parent.mkdir()
+                path.write_text(source, encoding="utf-8")
+                with self.assertRaises(AssertionError):
+                    assert_no_azapi_bypass(root)
+
+    def test_tf_json_provider_routing_is_rejected(self):
+        cases = {
+            "provider configuration": '{"provider":{"azapi":[{"alias":"bypass"}]}}',
+            "resource selector": '{"resource":{"azapi_resource":{"x":{"provider":"azapi.bypass"}}}}',
+            "module remapping": '{"module":{"x":{"providers":{"azapi":"azapi.bypass"}}}}',
+            "configuration aliases": '{"terraform":{"required_providers":{"azapi":{"configuration_aliases":["azapi.bypass"]}}}}',
+            "escaped key": r'{"prov\u0069der":{"azapi":[{"alias":"bypass"}]}}',
+        }
+        for name, source in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as folder:
+                Path(folder, "main.tf.json").write_text(source, encoding="utf-8")
                 with self.assertRaises(AssertionError):
                     assert_no_azapi_bypass(Path(folder))
+
+    def test_malformed_and_duplicate_tf_json_fail_closed(self):
+        for source in ('{"resource":', '{"provider":{},"provider":{}}'):
+            with self.subTest(source=source), tempfile.TemporaryDirectory() as folder:
+                Path(folder, "main.tf.json").write_text(source, encoding="utf-8")
+                with self.assertRaises(AssertionError):
+                    assert_no_azapi_bypass(Path(folder))
+
+    def test_safe_hcl_and_tf_json_without_provider_routing_pass(self):
         with tempfile.TemporaryDirectory() as folder:
-            Path(folder, "main.tf").write_text(
+            root = Path(folder)
+            (root / "main.tf").write_text(
                 'resource "azapi_resource" "x" { type = "Example/type@2024-01-01" }',
                 encoding="utf-8",
             )
-            assert_no_azapi_bypass(Path(folder))
+            (root / "main.tf.json").write_text(
+                '{"resource":{"azapi_resource":{"x":{"type":"Example/type@2024-01-01"}}}}',
+                encoding="utf-8",
+            )
+            assert_no_azapi_bypass(root)
     def test_actual_reviewed_root_init_validate_and_descendant_provider_graph(self):
         terraform = shutil.which(os.environ.get("OVERLAY_TERRAFORM", "terraform"))
         self.assertTrue(terraform, "pinned Terraform executable required")
