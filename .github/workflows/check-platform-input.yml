@@ -1,22 +1,29 @@
-name: Offline candidate smoke tests
+name: Check historical platform input candidate
+
 on:
   workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: terraform-state-access
+  cancel-in-progress: false
+
 jobs:
-  test:
-    if: github.ref == 'refs/heads/michael-rechani-candidate-smoke-offline'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  check:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+    runs-on: [self-hosted, linux, lab-runner]
+    environment: terraform-state
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install pinned deployment SDK
-        run: python -m pip install -r hosted-agents/review-coordinator-agent/requirements-deploy.txt
-      - name: Run offline deployment tests
-        working-directory: hosted-agents
-        run: python -m unittest -v test_candidate_smoke test_deployment test_deployment_sdk
+      - name: Check candidate presence
+        env:
+          TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
+        run: python3 .github/scripts/check_platform_input.py
