@@ -11,8 +11,9 @@ repository's current runner, Actions, and branch-protection controls.
 
 The helper is intentionally data-only and accepts no file paths, refs, commands,
 PR numbers, or patch content as input. If separately activated from reviewed
-protected `main`, it checks the first run and owner actor ID, confirms that
-protected `main` is still the exact workflow source commit, confirms PR #523 is
+protected `main`, it checks the first run and owner actor ID, requires the
+GitHub `branches/main` response to report `protected` as boolean `true` and
+the exact workflow source commit, confirms PR #523 is
 open at the exact reviewed head
 `52fab5e08fb498720efcd53f0f389f424d671a46`, and verifies the exact source blob
 IDs for six hard-coded files:
@@ -36,8 +37,12 @@ the fresh `2025-12-01` management-plane GET, strict routing postconditions, and
 warnings about a potentially partial or unrestricted deployment. The readback
 explicitly depends on the deployment so pending updates defer the GET; that
 module dependency does not relax the forward diagnostic's update prohibition.
-It commits with GraphQL `createCommitOnBranch` and `expectedHeadOid`, so a branch movement
-between read and write fails rather than overwriting newer work.
+It commits with GraphQL `createCommitOnBranch` and `expectedHeadOid`, so a target
+PR branch head mismatch at mutation time fails rather than overwriting newer
+work. This compare-and-swap is atomic only for that target head, not for main,
+its protection state, or the PR's open/base status. Those preflight observations
+can change before the mutation; this proposal cannot promise rejection of every
+concurrent change.
 
 Microsoft's current TypeSpec models the `2025-12-01` PATCH as tags/SKU only;
 Microsoft's Model Router REST guidance and sample configure routing in a PUT.
@@ -71,10 +76,15 @@ configuration; no inference behavior is verified.
   its environment for the fixed GitHub API calls.
   Authenticated calls require the exact HTTPS GitHub API origin and reject
   all redirects; file additions are UTF-8 bytes encoded as RFC 4648 base64.
+- The `protected: true` branch flag is a necessary preflight observation,
+  not proof of required protection rules, effective bypass restrictions,
+  independent reviewers, or runner isolation. Those controls still require
+  separate verification before activation. The preflight and mutation are
+  separate API operations; no atomic main/protection-state guarantee is made.
 - The repository is public and uses a persistent self-hosted runner with private
   network access. The workflow's own `main` guard does not platform-enforce
   runner access restrictions for other workflows. The available API inspection
-  could verify that `main` is protected, but Actions permissions and runner
+  observed `protected: true` on `main`, but Actions permissions and runner
   access settings returned HTTP 403. Therefore runner-group scope, workflow
   approval policy, and bypass behavior remain unverified; this proposal does
   not claim PR/fork isolation for the repository runner. A future activation
@@ -89,8 +99,10 @@ configuration; no inference behavior is verified.
   further action. This workflow does not promise green CI.
 - The proposed workflow is one-shot. Failed/cancelled first runs consume its
   run-number authorization; it has no retry path. Any changed target SHA,
-  changed source blob, changed workflow source on `main`, or changed PR state
-  fails closed and requires a newly reviewed proposal.
+  changed source blob, changed workflow source on `main`, missing/false/malformed
+  protection flag, or changed PR state observed at preflight fails closed and
+  requires a newly reviewed proposal. Changes after preflight are subject to the
+  non-atomic limitations above.
 
 No runner start, dispatch, Azure/state access, workflow activation, PR #523
 write, merge, or security-setting change is authorized by this proposal.

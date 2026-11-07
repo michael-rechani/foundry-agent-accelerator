@@ -416,9 +416,15 @@ def _check_context(environ):
 
 
 def _check_main_and_target(token, workflow_sha):
-    main = _request(f"{API_ROOT}/repos/{REPOSITORY}/commits/main", token)
-    if not isinstance(main.get("sha"), str) or main["sha"] != workflow_sha:
-        raise BootstrapError("Protected main moved since this workflow was dispatched.")
+    main = _request(f"{API_ROOT}/repos/{REPOSITORY}/branches/main", token)
+    commit = main.get("commit")
+    if (
+        main.get("name") != "main"
+        or main.get("protected") is not True
+        or not isinstance(commit, dict)
+        or commit.get("sha") != workflow_sha
+    ):
+        raise BootstrapError("Main must report protected=true at the exact workflow source commit.")
 
     branch = urllib.parse.quote(TARGET_BRANCH, safe="")
     ref = _request(f"{API_ROOT}/repos/{REPOSITORY}/git/ref/heads/{branch}", token)

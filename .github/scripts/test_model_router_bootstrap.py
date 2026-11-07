@@ -408,6 +408,68 @@ class WorkflowContractTests(unittest.TestCase):
 
 
 class GuardAndCommitTests(unittest.TestCase):
+    def preflight_responses(self):
+        return [
+            {"name": "main", "protected": True, "commit": {"sha": "f" * 40}},
+            {"object": {"sha": bootstrap.TARGET_HEAD}},
+            {
+                "number": bootstrap.TARGET_PR, "state": "open",
+                "head": {"ref": bootstrap.TARGET_BRANCH, "sha": bootstrap.TARGET_HEAD},
+                "base": {"ref": "main"},
+            },
+        ]
+
+    def test_protected_main_and_fixed_target_preflight_pass(self):
+        with patch.object(bootstrap, "_request", side_effect=self.preflight_responses()) as request:
+            bootstrap._check_main_and_target("offline-token", "f" * 40)
+        self.assertEqual(request.call_count, 3)
+        self.assertEqual(
+            request.call_args_list[0].args[0],
+            f"{bootstrap.API_ROOT}/repos/{bootstrap.REPOSITORY}/branches/main",
+        )
+
+    def test_main_protection_flag_requires_exact_true_and_pinned_commit(self):
+        for alter in (
+            lambda m: m.update(protected=False),
+            lambda m: m.pop("protected"),
+            lambda m: m.update(protected="true"),
+            lambda m: m.update(protected=1),
+            lambda m: m.update(protected=None),
+            lambda m: m.update(protected={}),
+            lambda m: m["commit"].update(sha="e" * 40),
+            lambda m: m["commit"].pop("sha"),
+            lambda m: m.update(commit="malformed"),
+            lambda m: m.pop("commit"),
+            lambda m: m.update(name="other"),
+        ):
+            responses = self.preflight_responses()
+            alter(responses[0])
+            with self.subTest(alter=alter), patch.object(
+                bootstrap, "_request", side_effect=responses
+            ) as request, self.assertRaises(bootstrap.BootstrapError):
+                bootstrap._check_main_and_target("offline-token", "f" * 40)
+            self.assertEqual(request.call_count, 1)
+
+    def test_target_branch_and_pull_identity_still_fail_closed(self):
+        for index, alter in (
+            (1, lambda r: r.update(object=None)),
+            (1, lambda r: r["object"].update(sha="e" * 40)),
+            (2, lambda r: r.update(number=524)),
+            (2, lambda r: r.update(state="closed")),
+            (2, lambda r: r.update(head=None)),
+            (2, lambda r: r.update(base=None)),
+            (2, lambda r: r["head"].update(ref="other")),
+            (2, lambda r: r["head"].update(sha="e" * 40)),
+            (2, lambda r: r["base"].update(ref="other")),
+        ):
+            responses = self.preflight_responses()
+            alter(responses[index])
+            with self.subTest(index=index, alter=alter), patch.object(
+                bootstrap, "_request", side_effect=responses
+            ) as request, self.assertRaises(bootstrap.BootstrapError):
+                bootstrap._check_main_and_target("offline-token", "f" * 40)
+            self.assertEqual(request.call_count, index + 1)
+
     def test_authenticated_opener_rejects_redirects_without_sending_a_second_request(self):
         for destination in (
             "https://example.com/stolen",
