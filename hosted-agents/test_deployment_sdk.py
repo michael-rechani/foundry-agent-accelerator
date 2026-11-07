@@ -288,33 +288,18 @@ class DeploymentSDKTests(unittest.TestCase):
                 self.assertEqual(self.endpoint, self.original)
                 self.client.agents.delete_version.assert_not_called()
 
-    def test_restore_removes_only_the_responses_protocol_added_by_promotion(self):
+    def test_missing_original_responses_is_refused_without_mutations(self):
         for protocols in (ProtocolConfiguration(mcp=McpProtocolConfiguration()), None):
             with self.subTest(protocols=protocols):
                 route = self.route("1")
                 if protocols is None:
-                    self.endpoint = AgentEndpointConfig(
-                        version_selector=route.version_selector,
-                        authorization_schemes=route.authorization_schemes,
-                    )
+                    self.endpoint = AgentEndpointConfig(version_selector=route.version_selector)
                 else:
                     route.protocol_configuration = protocols
                     self.endpoint = route
-                self.original = deepcopy(self.endpoint)
-                self.client.agents.delete_version.reset_mock()
-                self.smoke.side_effect = RuntimeError("smoke failed")
-                with self.assertRaisesRegex(RuntimeError, "smoke failed"):
+                with self.assertRaisesRegex(RuntimeError, "Recovery route has no Responses"):
                     deploy(self.profile, self.args)
-                self.assertEqual(self.endpoint, self.original)
-                restore = self.client.agents.update_details.call_args.kwargs["agent_endpoint"].as_dict(
-                    exclude_readonly=True,
-                )
-                if protocols is None:
-                    self.assertIsNone(restore["protocol_configuration"])
-                else:
-                    self.assertIsNone(restore["protocol_configuration"]["responses"])
-                    self.assertEqual(restore["protocol_configuration"]["mcp"], {})
-                self.client.agents.delete_version.assert_not_called()
+                self.assert_no_agent_mutations()
 
     def test_existing_responses_configuration_is_preserved_during_recovery(self):
         self.endpoint.protocol_configuration.responses["extra_setting"] = "preserved"
