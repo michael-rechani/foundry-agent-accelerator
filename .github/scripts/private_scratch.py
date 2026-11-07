@@ -146,6 +146,15 @@ class PrivateScratch:
             raise ScratchError("A single safe file name is required.")
         if not isinstance(content, (bytes, bytearray, memoryview)):
             raise TypeError("Scratch file contents must be bytes-like.")
+        source = memoryview(content)
+        if not source.c_contiguous:
+            source.release()
+            raise TypeError("Scratch file contents must be contiguous.")
+        try:
+            view = source.cast("B")
+        except (TypeError, ValueError):
+            source.release()
+            raise TypeError("Scratch file contents cannot be viewed as bytes.") from None
         with self._lock:
             self._verify_link()
             if name in self._entries:
@@ -160,7 +169,6 @@ class PrivateScratch:
                 if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid():
                     raise ScratchError("The created scratch file is not owned by this identity.")
                 self._entries[name] = ("file", _inode(info), None)
-                view = memoryview(content)
                 while view:
                     written = os.write(fd, view)
                     if written <= 0:
@@ -169,6 +177,8 @@ class PrivateScratch:
                 os.fsync(fd)
             finally:
                 os.close(fd)
+                view.release()
+                source.release()
             return name
 
     def create_directory(self, name):
