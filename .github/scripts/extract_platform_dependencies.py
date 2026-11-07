@@ -280,19 +280,100 @@ def write_all(fd, chunk):
         chunk = chunk[written:]
 
 
-def extract_validated(stream, entries, root_fd):
+class OwnershipLedger:
+    """Held descriptors prevent inode reuse, not same-UID namespace races."""
+    def __init__(self, root_fd):
+        self.root_fd = os.dup(root_fd)
+        self.entries = {}
+        self.pending = set()
+
+    def begin(self, name):
+        if name in self.entries or name in self.pending or len(self.entries) >= MAX_ENTRIES:
+            raise ExtractionError("Creation ownership ledger is ambiguous.")
+        self.pending.add(name)
+
+    def bind(self, name, fd, directory):
+        held = os.dup(fd)
+        try:
+            info = os.fstat(held)
+            if (info.st_uid != os.geteuid() or (directory and not stat.S_ISDIR(info.st_mode))
+                    or (not directory and (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1))):
+                raise ExtractionError("Created entry identity could not be bound.")
+            parent = open_relative(self.root_fd, name.split("/")[:-1])
+            try:
+                current = os.stat(name.split("/")[-1], dir_fd=parent, follow_symlinks=False)
+                if (current.st_dev, current.st_ino, stat.S_IFMT(current.st_mode)) != (
+                        info.st_dev, info.st_ino, stat.S_IFMT(info.st_mode)):
+                    raise ExtractionError("Created entry path identity changed.")
+            finally:
+                os.close(parent)
+            self.entries[name] = held
+            self.pending.remove(name)
+        except BaseException:
+            os.close(held)
+            raise
+
+    def verify_entry(self, parent_fd, basename, name):
+        held = self.entries.get(name)
+        if held is None:
+            raise ExtractionError("Unknown staging entry; cleanup refused.")
+        current = os.stat(basename, dir_fd=parent_fd, follow_symlinks=False)
+        info = os.fstat(held)
+        if (current.st_uid != os.geteuid() or info.st_uid != os.geteuid()
+                or (current.st_dev, current.st_ino, stat.S_IFMT(current.st_mode)) != (
+                    info.st_dev, info.st_ino, stat.S_IFMT(info.st_mode))
+                or (stat.S_ISREG(info.st_mode) and (current.st_nlink != 1 or info.st_nlink != 1))
+                or not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode))):
+            raise ExtractionError("Replaced or linked staging entry; cleanup refused.")
+
+    def verify(self, root_fd):
+        if self.pending:
+            raise ExtractionError("Unbound creation; staging requires reviewed recovery.")
+        root, held_root = os.fstat(root_fd), os.fstat(self.root_fd)
+        if (root.st_dev, root.st_ino) != (held_root.st_dev, held_root.st_ino):
+            raise ExtractionError("Staging ledger root mismatch.")
+        seen = set()
+        def walk(fd, prefix):
+            with os.scandir(fd) as children:
+                for child in children:
+                    name = prefix + child.name
+                    if len(seen) >= MAX_ENTRIES or name not in self.entries:
+                        raise ExtractionError("Unknown staging inventory; cleanup refused.")
+                    self.verify_entry(fd, child.name, name)
+                    seen.add(name)
+                    entry_fd = self.entries[name]
+                    if stat.S_ISDIR(os.fstat(entry_fd).st_mode):
+                        walk(entry_fd, name + "/")
+        walk(root_fd, "")
+        if seen != set(self.entries):
+            raise ExtractionError("Missing staging inventory; cleanup refused.")
+
+    def close(self):
+        for fd in self.entries.values():
+            os.close(fd)
+        os.close(self.root_fd)
+
+
+def extract_validated(stream, entries, root_fd, ledger):
     directories = []
     for name, directory, mode, size, offset in entries:
         parts = name.split("/")
         parent_fd = open_relative(root_fd, parts[:-1])
         try:
+            ledger.begin(name)
             if directory:
                 os.mkdir(parts[-1], mode=0o700, dir_fd=parent_fd)
+                fd = os.open(parts[-1], FLAGS | os.O_DIRECTORY, dir_fd=parent_fd)
+                try:
+                    ledger.bind(name, fd, True)
+                finally:
+                    os.close(fd)
                 directories.append((parts, mode))
             else:
                 fd = os.open(parts[-1], os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
                              0o600, dir_fd=parent_fd)
                 try:
+                    ledger.bind(name, fd, False)
                     stream.seek(offset)
                     remaining = size
                     while remaining:
@@ -310,26 +391,35 @@ def extract_validated(stream, entries, root_fd):
     for parts, mode in reversed(directories):
         fd = open_relative(root_fd, parts)
         try:
+            ledger.verify_entry(ledger.entries["/".join(parts[:-1])] if parts[:-1] else root_fd,
+                                parts[-1], "/".join(parts))
             os.fchmod(fd, mode)
             os.fsync(fd)
         finally:
             os.close(fd)
 
 
-def cleanup_owned(root_fd):
-    # Descriptor-relative cleanup never traverses links; only this fresh owned staging tree.
-    for name in os.listdir(root_fd):
-        info = os.stat(name, dir_fd=root_fd, follow_symlinks=False)
-        if stat.S_ISDIR(info.st_mode):
-            fd = os.open(name, FLAGS | os.O_DIRECTORY, dir_fd=root_fd)
-            try:
-                cleanup_owned(fd)
-            finally:
-                os.close(fd)
-            os.rmdir(name, dir_fd=root_fd)
+def cleanup_owned(root_fd, ledger=None):
+    if not isinstance(ledger, OwnershipLedger):
+        raise ExtractionError("Entry ownership ledger required; cleanup refused.")
+    # Complete preflight occurs before any deletion. Delete only ledger paths.
+    ledger.verify(root_fd)
+    remaining = set(ledger.entries)
+    for name in sorted(remaining, key=lambda value: (value.count("/"), value), reverse=True):
+        parts = name.split("/")
+        parent_fd = root_fd if len(parts) == 1 else ledger.entries["/".join(parts[:-1])]
+        expected_children = {path.split("/")[-1] for path in remaining
+                             if path.split("/")[:-1] == parts[:-1]}
+        if set(os.listdir(parent_fd)) != expected_children:
+            raise ExtractionError("Staging inventory changed during cleanup; stopping.")
+        ledger.verify_entry(parent_fd, parts[-1], name)
+        if stat.S_ISDIR(os.fstat(ledger.entries[name]).st_mode):
+            if os.listdir(ledger.entries[name]):
+                raise ExtractionError("Nonempty owned directory; cleanup refused.")
+            os.rmdir(parts[-1], dir_fd=parent_fd)
         else:
-            os.unlink(name, dir_fd=root_fd)
-
+            os.unlink(parts[-1], dir_fd=parent_fd)
+        remaining.remove(name)
 
 def publish_exclusive(parent_fd, staging, destination):
     libc = ctypes.CDLL(None, use_errno=True)
@@ -354,6 +444,7 @@ def extract(archive, expected_sha256, parent, destination):
     except OSError:
         raise ExtractionError("Trusted parent descriptor access failed.") from None
     stage_fd = None
+    ledger = None
     staging = ".closure-extract-" + secrets.token_hex(16)
     created = False
     published = False
@@ -368,6 +459,7 @@ def extract(archive, expected_sha256, parent, destination):
         created = True
         stage_fd = os.open(staging, FLAGS | os.O_DIRECTORY, dir_fd=parent_fd)
         same_directory(parent_fd, staging, stage_fd)
+        ledger = OwnershipLedger(stage_fd)
         # O_TMPFILE anonymous spool files beneath the owned staging descriptor.
         with tempfile.TemporaryFile(dir=f"/proc/self/fd/{stage_fd}") as compressed, tempfile.TemporaryFile(dir=f"/proc/self/fd/{stage_fd}") as expanded:
             if snapshot_archive(archive, compressed) != expected_sha256:
@@ -375,8 +467,9 @@ def extract(archive, expected_sha256, parent, destination):
             length = decompress_verified(compressed, expanded)
             entries = validate_tar(expanded, length)
             same_directory(parent_fd, staging, stage_fd)
-            extract_validated(expanded, entries, stage_fd)
+            extract_validated(expanded, entries, stage_fd, ledger)
         same_directory(parent_fd, staging, stage_fd)
+        ledger.verify(stage_fd)
         os.fsync(stage_fd)
         os.fsync(parent_fd)
         publish_exclusive(parent_fd, staging, destination)
@@ -388,7 +481,7 @@ def extract(archive, expected_sha256, parent, destination):
         if created and not published and stage_fd is not None:
             try:
                 same_directory(parent_fd, staging, stage_fd)
-                cleanup_owned(stage_fd)
+                cleanup_owned(stage_fd, ledger)
                 same_directory(parent_fd, staging, stage_fd)
                 os.rmdir(staging, dir_fd=parent_fd)
             except (OSError, ExtractionError):
@@ -397,6 +490,8 @@ def extract(archive, expected_sha256, parent, destination):
             raise
         raise ExtractionError("Extraction filesystem/decoder failure; no successful handoff.") from None
     finally:
+        if ledger is not None:
+            ledger.close()
         if stage_fd is not None:
             os.close(stage_fd)
         os.close(parent_fd)
