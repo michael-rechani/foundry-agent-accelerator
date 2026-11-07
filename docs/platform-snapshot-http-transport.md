@@ -109,3 +109,28 @@ target or CA authority, least-privilege RBAC, private DNS/endpoint routing, host
 or same-UID isolation, non-atomic snapshot safety or production total-deadline
 supervision. No production integration, live workflow, PR, merge, rollout, plan
 or apply is introduced.
+
+The follow-up's exact tested head is
+`9e73d221850fe72a85b9cbcb0ce568bda349697d` on
+`michael-rechani-snapshot-http-cleanup-offline`.
+[Hosted run 42419021157](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42419021157)
+passed **38 focused tests** (19 unchanged guard, 15 transport, 4 real loopback TLS)
+on **Python 3.14.10**, plus **Ruff 0.17.3** on the transport and its two test files
+using the unchanged root `ruff.toml`. Ruff was missing in the selected runtime,
+so only the repository-pinned `ruff==0.17.3` dependency was installed.
+The discovery command was `python -m unittest discover -s .github/scripts
+-p 'test_snapshot*.py' -v`.
+
+The temporary branch-only hosted workflow pinned checkout and
+`actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0`,
+granted only `contents: read`, and did not persist checkout credentials.
+Test and lint commands ran with a cleared environment. Tests asserted non-root
+execution and absence of credential environment variables. No sudo, Docker,
+privileged ports, private runner, GitHub environment, id-token, secrets, artifacts,
+Azure requests or real credentials/data were used. Public runtime/dependency
+installation is not part of the loopback networking test. Potential hosted sudo
+availability remains a host-trust limitation, not a privilege-isolation claim.
+
+After successful verification, the workflow was restored to original blob
+`13fea116e0cd70aa8f5d8cabcb9b893743e23c95`; no workflow integration or later
+dispatch was added. Final transport and both test blobs match the tested head.
