@@ -687,16 +687,18 @@ class FailureStageTests(unittest.TestCase):
 
 class ProcessTests(unittest.TestCase):
     def test_combined_output_bound_accepts_exact_limit_and_refuses_excess(self):
-        script = "import os; os.write(1,b'x'*32); os.write(2,b'y'*32)"
-        with patch.object(probe, "MAX_CAPTURE_BYTES", 64):
-            result = probe.command([sys.executable, "-c", script], None, {"PATH": probe.SYSTEM_PATH})
-            self.assertEqual((result.stdout, result.stderr), ("x" * 32, "y" * 32))
-            for output in ("os.write(1,b'x'*65)", "os.write(2,b'y'*65)",
-                           "os.write(1,b'x'*32); os.write(2,b'y'*33)"):
-                with self.subTest(output=output):
-                    with self.assertRaisesRegex(probe.CheckError, "output_limit"):
-                        probe.command([sys.executable, "-c", "import os; " + output], None,
-                                      {"PATH": probe.SYSTEM_PATH})
+        self.assertEqual(probe.MAX_CAPTURE_BYTES, 1024 * 1024)
+        half = probe.MAX_CAPTURE_BYTES // 2
+        script = f"import os; os.write(1,b'x'*{half}); os.write(2,b'y'*{half})"
+        result = probe.command([sys.executable, "-c", script], None, {"PATH": probe.SYSTEM_PATH})
+        self.assertEqual((result.stdout, result.stderr), ("x" * half, "y" * half))
+        for output in (f"os.write(1,b'x'*{probe.MAX_CAPTURE_BYTES + 1})",
+                       f"os.write(2,b'y'*{probe.MAX_CAPTURE_BYTES + 1})",
+                       f"os.write(1,b'x'*{half}); os.write(2,b'y'*{half + 1})"):
+            with self.subTest(output=output):
+                with self.assertRaisesRegex(probe.CheckError, "output_limit"):
+                    probe.command([sys.executable, "-c", "import os; " + output], None,
+                                  {"PATH": probe.SYSTEM_PATH})
 
     def test_full_command_never_signals_numeric_group_after_reaping(self):
         process = MagicMock(pid=123, returncode=None)
