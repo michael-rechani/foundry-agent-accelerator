@@ -235,6 +235,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("az vm start", WORKFLOW)
         self.assertIn("needs: validate-source", WORKFLOW)
         self.assertIn("if: github.ref == 'refs/heads/main'", WORKFLOW)
+        deploy = WORKFLOW.split("\n  deploy:\n", 1)[1]
+        self.assertIn("    if: ${{ false }}", deploy)
         self.assertIn("runs-on: [self-hosted, linux, lab-runner]", WORKFLOW)
         self.assertIn("environment: lab-deploy", WORKFLOW)
 

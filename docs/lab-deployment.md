@@ -744,11 +744,42 @@ The draft **Deploy Lab image** workflow (`.github/workflows/deploy-lab.yml`)
 requires a manual dispatch from `main`, the exact reviewed main commit, a
 recorded current `registry/workbench@sha256:...` image, and confirmation that
 the staged rollout and recovery inventory have been reviewed. The checkbox
-does **not** prove that platform, Lab, hosted-agent routes, recovery, or billing
-approvals are ready. **Validate** must also succeed for the exact commit.
+is an operator acknowledgment, not an independent approval, and does **not**
+prove that platform, Lab, hosted-agent routes, recovery, or billing approvals
+are ready. **Validate** must also succeed for the exact commit.
 
-This is not yet a usable deployment path: both private runners were offline,
-and this workflow no longer starts their VM. An approved bootstrap mechanism
+The deployment job is disabled until an independent, fail-closed approval gate
+is designed and reviewed (#522). The current `lab-deploy` environment does not
+require a reviewer. Reusing the `terraform-state` environment solely for
+approval would need separate review and does not satisfy the proposed
+secret-free gate used by the runner-start design. Do not remove the disabled
+guard or dispatch a rollout as a substitute for that review.
+
+One unapproved candidate is a separate `lab-image-release-review` environment
+with no secrets and no Azure identity. A read-only preflight would verify its
+exact owner-only reviewer, explicit self-review setting, disabled administrator
+bypass, protected `main`, main-only branch policy, and empty secret inventory.
+It would record those settings with the run ID, first attempt, workflow, source
+SHA and immutable previous-image input, and stop if any evidence is unavailable.
+After the environment review, the
+credentialed job would recheck the snapshot and require exactly one approved
+review by that owner for only that environment, with a comment binding the run,
+SHA and input fingerprint before requesting Azure credentials. It must reject
+reruns, ambiguous approval history, changed settings and a moved `main`.
+GitHub's documented API response
+does not guarantee every required field, and the workflow token's access to
+environment-secret metadata has not been established. Missing proof must
+block the job, not trigger a PAT or a weaker fallback. Creating or configuring
+the proposed environment, and adopting this design, require separate review
+and approval. Concurrent administrator changes remain non-atomic.
+
+The proposed approval would bind the source and recorded previous image, not a
+pre-reviewed new image digest: the current workflow builds that image after
+approval. It must not be represented as approval of an already-built artifact.
+Once an update has started, recovery and readback must not depend on GitHub
+remaining available.
+
+This workflow also does not start the runner VM. An approved bootstrap mechanism
 must bring a private runner online first; a queued job cannot start itself.
 Neither the existing GitHub-hosted recording starter nor an ad-hoc local or
 jumpbox write is an approved substitute for this rollout. See #522.

@@ -71,7 +71,8 @@ jobs:
 
   deploy:
     needs: validate-source
-    if: github.ref == 'refs/heads/main'
+    # Disabled until the independent approval gate tracked in #522 is reviewed.
+    if: ${{ false }}
     timeout-minutes: 45
     runs-on: [self-hosted, linux, lab-runner]
     environment: lab-deploy
