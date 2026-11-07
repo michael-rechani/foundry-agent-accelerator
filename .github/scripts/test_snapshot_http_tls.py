@@ -208,7 +208,8 @@ class LoopbackTLSTests(unittest.TestCase):
         self.assertEqual(server.peers, ["127.0.0.1", "127.0.0.1"])
         self.assertEqual(len(server.requests), 2)
         for request, host, path in zip(
-                server.requests, server.names, ("/container/state.tfstate", "/container/input.json")):
+                server.requests, server.names, ("/container/state.tfstate", "/container/input.json"),
+                strict=True):
             self.assertTrue(request.startswith(f"GET {path} HTTP/1.1\r\n".encode("ascii")))
             self.assertIn(f"\r\nHost: {host}\r\n".encode("ascii"), request)
             self.assertIn(f"\r\nAuthorization: Bearer {TOKEN}\r\n".encode("ascii"), request)

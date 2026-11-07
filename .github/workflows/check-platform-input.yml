@@ -15,8 +15,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.14"
       - name: Run fictional tests without credentials
         run: |
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p test_snapshot_integrity_guard.py -v
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p test_snapshot_http_transport.py -v
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p test_snapshot_http_tls.py -v
+          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python --version
+          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python -m unittest discover -s .github/scripts -p 'test_snapshot*.py' -v
+      - name: Check affected files with repository Ruff configuration
+        run: |
+          availability=$(env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python -c 'import importlib.util; print("present" if importlib.util.find_spec("ruff") else "missing")')
+          if [ "$availability" = "missing" ]; then
+            env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python -m pip install --quiet --disable-pip-version-check ruff==0.17.3
+          elif [ "$availability" != "present" ]; then
+            exit 1
+          fi
+          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python -m ruff --version
+          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python -m ruff check --config ruff.toml .github/scripts/snapshot_http_transport.py .github/scripts/test_snapshot_http_transport.py .github/scripts/test_snapshot_http_tls.py

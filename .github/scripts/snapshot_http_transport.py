@@ -84,7 +84,7 @@ class SnapshotTransport:
                     names.append(name.lower())
                 if len(set(names)) != len(names):
                     return FAILURE
-                fields = dict(zip(names, (value for _, value in headers)))
+                fields = dict(zip(names, (value for _, value in headers), strict=True))
                 length = fields.get("content-length", "")
                 if (re.fullmatch(r"[1-9][0-9]{0,7}", length) is None
                         or int(length) > MAX_BODY or "transfer-encoding" in fields
