@@ -333,6 +333,7 @@ def candidate_smoke_test(
                 raise
             print("Warning: candidate session cleanup failed; manual inspection is required")
 
+
 def concrete_route(endpoint) -> bool:
     selector = getattr(endpoint, "version_selector", None)
     rules = getattr(selector, "version_selection_rules", None)
