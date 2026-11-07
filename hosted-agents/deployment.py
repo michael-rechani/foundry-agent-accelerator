@@ -8,6 +8,7 @@ import math
 import os
 import re
 import stat
+import sys
 import tempfile
 import time
 from copy import deepcopy
@@ -253,7 +254,7 @@ def verify_delegation(response, expected_tool: str, expected_agent: str | None =
 
 def smoke_test(
     client: AIProjectClient, agent_name: str, prompt: str, expected_tool: str | None = None,
-    expected_agent: str | None = None,
+    expected_agent: str | None = None, *, agent_session_id: str | None = None,
 ) -> None:
     if not prompt:
         print("Skipped hosted-agent smoke test")
@@ -265,7 +266,10 @@ def smoke_test(
     attempts = 2 if expected_tool == TOOL_NAME else 1
     for attempt in range(1, attempts + 1):
         with client.get_openai_client(agent_name=agent_name, timeout=180, max_retries=0) as openai_client:
-            response = openai_client.responses.create(input=prompt, store=False)
+            kwargs = {"input": prompt, "store": False}
+            if agent_session_id is not None:
+                kwargs["extra_body"] = {"agent_session_id": agent_session_id}
+            response = openai_client.responses.create(**kwargs)
 
         if response.status != "completed" or not response.output_text.strip():
             raise RuntimeError("Hosted-agent smoke test did not return a completed, nonempty response")
@@ -283,6 +287,37 @@ def smoke_test(
                 raise
     print(f"Smoke test passed: {expected_tool or agent_name}")
 
+
+def candidate_smoke_test(client, agent_name: str, version: str, prompt: str, checks) -> None:
+    from azure.ai.projects.models import VersionRefIndicator
+
+    if not isinstance(version, str) or not version or version.startswith("@"):
+        raise RuntimeError("The candidate version must be explicit")
+    if not prompt and not checks:
+        raise RuntimeError("An existing agent requires a candidate smoke check")
+    session = client.agents.create_session(
+        agent_name=agent_name, version_indicator=VersionRefIndicator(agent_version=version),
+    )
+    session_id = getattr(session, "agent_session_id", None)
+    if not isinstance(session_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", session_id):
+        raise RuntimeError("Candidate session has no safe ID; cleanup could not be confirmed")
+    try:
+        indicator = getattr(session, "version_indicator", None)
+        if (getattr(indicator, "type", None) != "version_ref"
+                or getattr(indicator, "agent_version", None) != version
+                or getattr(session, "status", None) not in ("active", "idle")):
+            raise RuntimeError("Candidate session binding or status was not confirmed")
+        smoke_test(client, agent_name, prompt, agent_session_id=session_id)
+        for check in checks:
+            smoke_test(client, agent_name, *check, agent_session_id=session_id)
+    finally:
+        primary_failure = sys.exc_info()[0] is not None
+        try:
+            client.agents.delete_session(agent_name=agent_name, session_id=session_id)
+        except BaseException:
+            if not primary_failure:
+                raise
+            print("Warning: candidate session cleanup failed; manual inspection is required")
 
 def concrete_route(endpoint) -> bool:
     selector = getattr(endpoint, "version_selector", None)
@@ -518,6 +553,11 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                     args.poll_seconds,
                     args.max_polls,
                 )
+                if original_endpoint is not None:
+                    candidate_smoke_test(
+                        client, args.agent_name, created.version, args.smoke_test_prompt,
+                        profile.delegation_checks,
+                    )
                 current_endpoint = client.agents.get(
                     agent_name=args.agent_name,
                 ).agent_endpoint
@@ -544,6 +584,11 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 ]
                 endpoint_config.version_selector = selector
                 endpoint_config.protocol_configuration = protocols
+                if original_endpoint is not None:
+                    verify_recovery_targets(client, args.agent_name, original_endpoint)
+                candidate = client.agents.get_version(agent_name=args.agent_name, agent_version=created.version)
+                if not active_release(candidate):
+                    raise RuntimeError("The candidate agent version is not active")
                 if client.agents.get(agent_name=args.agent_name).agent_endpoint != current_endpoint:
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
                 attempted_endpoint = deepcopy(endpoint_config)
