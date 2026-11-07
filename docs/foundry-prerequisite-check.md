@@ -139,6 +139,8 @@ writes fictional bytes after cleanup has been refused. No actual Foundry depende
 script, Azure/private runner, Terraform, credentials, or live workflow is exercised.
 All existing workflows are unchanged; this offline branch stays unmerged.
 
+The unresolved supervision boundary is tracked in [#522](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522#issuecomment-6713887281).
+
 **Blocker:** complete owned same-group termination and completion of pending writes
 cannot be certified here without an independently reviewed supervision boundary.
 Escaped descendants and hostile shared-host/same-UID races are separate unresolved
