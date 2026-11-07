@@ -413,7 +413,7 @@ class ExtractionTests(unittest.TestCase):
                     return real_bind(ledger, name, fd, directory)
                 with patch.object(extractor.os, 'open', open_failure), patch.object(extractor.OwnershipLedger, 'bind', bind_failure):
                     if kind == 'ledger-open':
-                        with patch.object(extractor, 'OwnershipLedger', side_effect=OSError('ledger allocation')):
+                        with patch.object(extractor.OwnershipLedger, '__init__', side_effect=OSError('ledger allocation')):
                             with self.assertRaises(extractor.ExtractionError):
                                 extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
                     else:
@@ -466,6 +466,24 @@ class ExtractionTests(unittest.TestCase):
             stage = next(parent.iterdir())
             self.assertEqual((stage / 'public-closure/root/unowned').read_bytes(), b'UNOWNED DATA')
             self.assertEqual((stage / 'public-closure/root/main.tf').read_bytes(), BASE[-1][2])
+
+    def test_spool_has_no_named_unlink_fallback(self):
+        real_open = os.open
+        def unsupported(path, flags, *args, **kwargs):
+            if hasattr(os, 'O_TMPFILE') and flags & os.O_TMPFILE == os.O_TMPFILE:
+                raise OSError('fictional filesystem lacks O_TMPFILE')
+            return real_open(path, flags, *args, **kwargs)
+        with patch.object(extractor.os, 'open', unsupported):
+            self.attempt(transport(BASE), True)
+        with tempfile.TemporaryDirectory() as folder:
+            fd = os.open(folder, extractor.FLAGS | os.O_DIRECTORY)
+            try:
+                with extractor.anonymous_spool(fd) as stream:
+                    self.assertEqual(os.fstat(stream.fileno()).st_nlink, 0)
+                    self.assertEqual(os.listdir(fd), [])
+                    stream.write(b'fictional')
+            finally:
+                os.close(fd)
 
 if __name__ == "__main__":
     if os.name != "posix":

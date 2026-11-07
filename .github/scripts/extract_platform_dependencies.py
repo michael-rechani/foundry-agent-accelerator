@@ -11,7 +11,6 @@ import re
 import secrets
 import stat
 import sys
-import tempfile
 import zlib
 
 MAX_COMPRESSED = 200_000_000
@@ -434,6 +433,19 @@ def publish_exclusive(parent_fd, staging, destination):
         raise OSError(code, "Exclusive extraction publication failed.")
 
 
+def anonymous_spool(root_fd):
+    if not hasattr(os, "O_TMPFILE"):
+        raise ExtractionError("Anonymous spool creation is unavailable.")
+    fd = os.open(".", os.O_RDWR | os.O_TMPFILE | os.O_CLOEXEC, 0o600, dir_fd=root_fd)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 0 or info.st_uid != os.geteuid():
+            raise ExtractionError("Anonymous spool identity is invalid.")
+        return os.fdopen(fd, "w+b")
+    except BaseException:
+        os.close(fd)
+        raise
+
 def extract(archive, expected_sha256, parent, destination):
     if not re.fullmatch(r"[0-9a-f]{64}", expected_sha256 or ""):
         raise ExtractionError("A separately supplied archive SHA256 is required.")
@@ -460,8 +472,8 @@ def extract(archive, expected_sha256, parent, destination):
         stage_fd = os.open(staging, FLAGS | os.O_DIRECTORY, dir_fd=parent_fd)
         same_directory(parent_fd, staging, stage_fd)
         ledger = OwnershipLedger(stage_fd)
-        # O_TMPFILE anonymous spool files beneath the owned staging descriptor.
-        with tempfile.TemporaryFile(dir=f"/proc/self/fd/{stage_fd}") as compressed, tempfile.TemporaryFile(dir=f"/proc/self/fd/{stage_fd}") as expanded:
+        # No named tempfile fallback may unlink a substituted path.
+        with anonymous_spool(stage_fd) as compressed, anonymous_spool(stage_fd) as expanded:
             if snapshot_archive(archive, compressed) != expected_sha256:
                 raise ExtractionError("Compressed archive differs from separately selected digest.")
             length = decompress_verified(compressed, expanded)
