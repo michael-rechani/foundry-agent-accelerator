@@ -14,12 +14,28 @@ jobs:
       - name: Discover available Python and Ruff without installing tools
         run: |
           python3 --version
-          if command -v python3.14 >/dev/null; then python3.14 --version; fi
+          for interpreter in /opt/hostedtoolcache/Python/3.14.*/x64/bin/python3; do
+            if [ -x "$interpreter" ]; then
+              "$interpreter" --version
+              break
+            fi
+          done
           if command -v ruff >/dev/null; then ruff --version; else echo 'Ruff unavailable; no install authorized'; fi
       - name: Measure synthetic inventory scaling without credentials
         run: env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p test_ledger_cleanup_scaling.py -v
       - name: Focused synthetic dependency regression tests
         run: env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p 'test_*dependencies.py' -v
+      - name: Repository target Python 3.14 synthetic tests if preinstalled
+        run: |
+          found=false
+          for interpreter in /opt/hostedtoolcache/Python/3.14.*/x64/bin/python3; do
+            if [ -x "$interpreter" ]; then
+              env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -m unittest discover -s .github/scripts -p 'test_*dependencies.py' -v
+              found=true
+              break
+            fi
+          done
+          if [ "$found" = false ]; then echo 'Python 3.14 unavailable without installing tools'; fi
       - name: Existing Ruff configuration if available
         run: |
           if command -v ruff >/dev/null; then

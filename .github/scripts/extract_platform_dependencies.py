@@ -403,22 +403,24 @@ def cleanup_owned(root_fd, ledger=None):
         raise ExtractionError("Entry ownership ledger required; cleanup refused.")
     # Complete preflight occurs before any deletion. Delete only ledger paths.
     ledger.verify(root_fd)
-    remaining = set(ledger.entries)
-    for name in sorted(remaining, key=lambda value: (value.count("/"), value), reverse=True):
-        parts = name.split("/")
-        parent_fd = root_fd if len(parts) == 1 else ledger.entries["/".join(parts[:-1])]
-        expected_children = {path.split("/")[-1] for path in remaining
-                             if path.split("/")[:-1] == parts[:-1]}
+    children = {}
+    for name in ledger.entries:
+        parent, _, basename = name.rpartition("/")
+        children.setdefault(parent, set()).add(basename)
+    for name in sorted(ledger.entries, key=lambda value: (value.count("/"), value), reverse=True):
+        parent, _, basename = name.rpartition("/")
+        parent_fd = root_fd if not parent else ledger.entries[parent]
+        expected_children = children[parent]
         if set(os.listdir(parent_fd)) != expected_children:
             raise ExtractionError("Staging inventory changed during cleanup; stopping.")
-        ledger.verify_entry(parent_fd, parts[-1], name)
+        ledger.verify_entry(parent_fd, basename, name)
         if stat.S_ISDIR(os.fstat(ledger.entries[name]).st_mode):
             if os.listdir(ledger.entries[name]):
                 raise ExtractionError("Nonempty owned directory; cleanup refused.")
-            os.rmdir(parts[-1], dir_fd=parent_fd)
+            os.rmdir(basename, dir_fd=parent_fd)
         else:
-            os.unlink(parts[-1], dir_fd=parent_fd)
-        remaining.remove(name)
+            os.unlink(basename, dir_fd=parent_fd)
+        expected_children.remove(basename)
 
 def publish_exclusive(parent_fd, staging, destination):
     libc = ctypes.CDLL(None, use_errno=True)

@@ -2,6 +2,8 @@
 import os
 from pathlib import Path
 import resource
+import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -59,6 +61,13 @@ class CleanupScalingTests(unittest.TestCase):
                     extractor.cleanup_owned(root_fd, ledger)
                 seconds = time.monotonic() - start
                 self.assertEqual(os.listdir(root_fd), [])
+                self.assertEqual(calls, count + fanout)
+                sizes = [((count - fanout) // fanout) + (index < (count - fanout) % fanout)
+                         for index in range(fanout)] if fanout else [count]
+                expected = sum(size * (size + 1) // 2 for size in sizes)
+                if fanout:
+                    expected += fanout * (fanout + 1) // 2
+                self.assertEqual(enumerated, expected)
                 print(f"synthetic inventory entries={count} directories={fanout} creation_seconds={create_seconds:.6f} cleanup_seconds={seconds:.6f} listing_calls={calls} enumerated_names={enumerated}", flush=True)
             finally:
                 ledger.close()
@@ -73,6 +82,80 @@ class CleanupScalingTests(unittest.TestCase):
     def test_maximum_flat_fictional_inventory(self):
         self.measure(20000, 0)
 
+
+    def test_late_unknown_high_sibling_data_is_not_swept(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            root = base / "stage"
+            root.mkdir()
+            outside = base / "outside"
+            outside.mkdir()
+            (outside / "preserve").write_bytes(b"unowned synthetic directory")
+            root_fd = os.open(root, extractor.FLAGS | os.O_DIRECTORY)
+            ledger = extractor.OwnershipLedger(root_fd)
+            try:
+                for index in range(1337):
+                    name = f"known{index:05d}"
+                    ledger.begin(name)
+                    fd = os.open(name, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600, dir_fd=root_fd)
+                    try:
+                        ledger.bind(name, fd, False)
+                    finally:
+                        os.close(fd)
+                unlink = os.unlink
+                deleted = []
+                def inject(name, *, dir_fd):
+                    unlink(name, dir_fd=dir_fd)
+                    deleted.append(name)
+                    (root / "unknown").write_bytes(b"unowned synthetic file")
+                    outside.rename(root / "unknown-directory")
+                with patch.object(extractor.os, "unlink", inject):
+                    with self.assertRaisesRegex(extractor.ExtractionError, "inventory changed"):
+                        extractor.cleanup_owned(root_fd, ledger)
+                self.assertEqual(len(deleted), 1)
+                self.assertEqual((root / "unknown").read_bytes(), b"unowned synthetic file")
+                self.assertEqual((root / "unknown-directory/preserve").read_bytes(), b"unowned synthetic directory")
+                self.assertEqual(len(list(root.glob("known*"))), 1336)
+            finally:
+                ledger.close()
+                os.close(root_fd)
+
+    def test_descriptor_exhaustion_retains_unbound_extraction_stage(self):
+        code = """
+import os
+from pathlib import Path
+import resource
+import tempfile
+import extract_platform_dependencies as extractor
+from test_extract_platform_dependencies import BASE, transport
+import hashlib
+soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+resource.setrlimit(resource.RLIMIT_NOFILE, (min(soft, 64), hard))
+with tempfile.TemporaryDirectory() as folder:
+    base = Path(folder)
+    parent = base / 'parent'
+    parent.mkdir(mode=0o700)
+    source = base / 'synthetic.gz'
+    archive = transport(BASE + [(f'public-closure/root/f{index}', b'0', b'fictional', 0o600) for index in range(160)])
+    source.write_bytes(archive)
+    try:
+        extractor.extract(source, hashlib.sha256(archive).hexdigest(), parent, 'accepted')
+    except extractor.ExtractionError as error:
+        assert 'cleanup' in str(error)
+    else:
+        raise AssertionError('Descriptor exhaustion must not publish')
+    assert not (parent / 'accepted').exists()
+    stages = list(parent.iterdir())
+    assert len(stages) == 1
+    assert list(stages[0].rglob('f*'))
+    assert source.read_bytes() == archive
+print('Synthetic reduced-descriptor extraction failed closed with retained staging')
+"""
+        result = subprocess.run([sys.executable, "-c", code], cwd=Path(__file__).parent,
+                                env={"PATH": os.environ["PATH"], "LANG": "C.UTF-8", "PYTHONNOUSERSITE": "1"},
+                                capture_output=True, text=True, check=False, timeout=20)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        print(result.stdout.strip(), flush=True)
 
 if __name__ == "__main__":
     unittest.main()
