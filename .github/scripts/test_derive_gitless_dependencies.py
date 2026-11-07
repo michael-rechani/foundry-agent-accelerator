@@ -527,6 +527,107 @@ class GitlessTests(unittest.TestCase):
                 self.assertEqual(closure.inventory(source), before)
                 self.assertEqual(sentinel.read_text(), 'unchanged')
 
+    def test_unowned_derivation_entries_survive_failure_without_deletion(self):
+        for kind in ('file', 'directory', 'replace-file', 'replace-directory', 'manifest', 'binding'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as folder:
+                base = Path(folder)
+                source = base / 'source'
+                source.mkdir()
+                digest = fixture(source)
+                before = closure.inventory(source)
+                parent = base / 'parent'
+                parent.mkdir(mode=0o700)
+                outside = base / 'outside'
+                outside.mkdir()
+                (outside / 'preserve').write_bytes(b'UNOWNED DATA')
+                original = derivation.verify_derived
+                target = None
+                def inject(wrapper, original_source, original_digest):
+                    nonlocal target
+                    original(wrapper, original_source, original_digest)
+                    if kind == 'file':
+                        target = wrapper / 'unowned'
+                        target.write_bytes(b'UNOWNED DATA')
+                    elif kind == 'directory':
+                        target = wrapper / 'unowned-directory'
+                        outside.rename(target)
+                    else:
+                        relative = {'replace-file': 'bundle/root/main.tf',
+                                    'replace-directory': 'bundle/root/.terraform/modules/child',
+                                    'manifest': 'bundle/manifest.json', 'binding': 'derivation.json'}[kind]
+                        target = wrapper / relative
+                        target.rename(base / 'displaced')
+                        if kind == 'replace-directory':
+                            outside.rename(target)
+                        else:
+                            target.write_bytes(b'UNOWNED DATA')
+                    raise OSError('fictional ordinary derivation failure')
+                with patch.object(derivation, 'verify_derived', inject), patch.object(derivation.os, 'unlink', wraps=os.unlink) as unlink, patch.object(derivation.os, 'rmdir', wraps=os.rmdir) as rmdir:
+                    with self.assertRaisesRegex(derivation.DerivationError, 'cleanup could not be verified'):
+                        derivation.derive(source, digest, parent, 'out')
+                    unlink.assert_not_called()
+                    rmdir.assert_not_called()
+                self.assertFalse((parent / 'out').exists())
+                self.assertEqual((target / 'preserve' if target.is_dir() else target).read_bytes(), b'UNOWNED DATA')
+                if kind.startswith('replace') or kind in ('manifest', 'binding'):
+                    self.assertTrue((base / 'displaced').exists())
+                self.assertEqual(closure.inventory(source), before)
+
+    def test_unbound_bundle_copy_and_json_creations_retain_staging(self):
+        for name in ('bundle', 'bundle/root', 'bundle/root/main.tf', 'bundle/manifest.json', 'derivation.json'):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as folder:
+                base = Path(folder)
+                source = base / 'source'
+                source.mkdir()
+                digest = fixture(source)
+                before = closure.inventory(source)
+                parent = base / 'parent'
+                parent.mkdir(mode=0o700)
+                real_bind = derivation.extraction.OwnershipLedger.bind
+                def failure(ledger, relative, fd, directory):
+                    if relative == name:
+                        raise OSError('fictional binding failure')
+                    return real_bind(ledger, relative, fd, directory)
+                with patch.object(derivation.extraction.OwnershipLedger, 'bind', failure):
+                    with self.assertRaisesRegex(derivation.DerivationError, 'cleanup could not be verified'):
+                        derivation.derive(source, digest, parent, 'out')
+                self.assertFalse((parent / 'out').exists())
+                stages = list(parent.iterdir())
+                self.assertEqual(len(stages), 1)
+                self.assertTrue((stages[0] / name).exists())
+                self.assertEqual(closure.inventory(source), before)
+
+    def test_derivation_passes_exact_populated_ledger_to_cleanup(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            source = base / 'source'
+            source.mkdir()
+            digest = fixture(source)
+            parent = base / 'parent'
+            parent.mkdir(mode=0o700)
+            original_verify = derivation.verify_derived
+            real_cleanup = derivation.extraction.cleanup_owned
+            observed = []
+            def fail(wrapper, original, original_digest):
+                original_verify(wrapper, original, original_digest)
+                raise OSError('fictional ordinary failure')
+            def cleanup(root_fd, ledger):
+                self.assertIsInstance(ledger, derivation.extraction.OwnershipLedger)
+                observed.append(set(ledger.entries))
+                self.assertTrue({'bundle', 'bundle/manifest.json', 'derivation.json'} <= set(ledger.entries))
+                self.assertFalse(ledger.pending)
+                return real_cleanup(root_fd, ledger)
+            with patch.object(derivation, 'verify_derived', fail), patch.object(derivation.extraction, 'cleanup_owned', cleanup):
+                with self.assertRaises(OSError):
+                    derivation.derive(source, digest, parent, 'out')
+            self.assertEqual(len(observed), 1)
+            self.assertEqual(list(parent.iterdir()), [])
+
+    def test_non_root_synthetic_derivation_without_credential_environment(self):
+        self.assertNotEqual(os.geteuid(), 0)
+        self.assertFalse(any(name.startswith(('AZURE_', 'ARM_', 'ACTIONS_ID_TOKEN_'))
+                             or name in ('GH_TOKEN', 'GITHUB_TOKEN') for name in os.environ))
+
 if __name__ == '__main__':
     if os.name != 'posix':
         raise SystemExit('Linux required')
