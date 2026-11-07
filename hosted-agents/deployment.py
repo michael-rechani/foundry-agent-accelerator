@@ -196,7 +196,9 @@ def wait_until_active(
         )
         if not version_identity_matches(details, agent_name, version):
             raise RuntimeError("The polled agent version identity was not confirmed")
-        status = details["status"]
+        status = details.get("status")
+        if not isinstance(status, str) or status not in ("creating", "active", "failed", "deleting", "deleted"):
+            raise RuntimeError("The agent version provisioning status was not confirmed")
         print(f"Version {version}: {status} ({attempt}/{max_polls})")
 
         if status == "active":
@@ -391,6 +393,7 @@ def candidate_model_matches(details, model: str) -> bool:
         and environment.get("FOUNDRY_MODEL_NAME") == model
     )
 
+
 def has_responses(endpoint) -> bool:
     protocols = getattr(endpoint, "protocol_configuration", None)
     return isinstance(getattr(protocols, "responses", None), Mapping)
@@ -434,7 +437,7 @@ def endpoint_snapshot(client, agent_name: str):
     verify_recovery_targets(client, agent_name, endpoint)
     if enabled_endpoint(client, agent_name) != endpoint:
         raise RuntimeError("The recovery route changed before version creation")
-    return deepcopy(endpoint)
+    return endpoint
 
 
 def routes_to_version(endpoint, version: str) -> bool:
