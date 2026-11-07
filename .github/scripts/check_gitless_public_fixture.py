@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -15,6 +16,15 @@ DIGEST = "f6cee223894fae61d3d9bb2cac17ae86df38c1c6ed72d390dd7498b9a1df70b0"
 source = Path(os.environ["GITLESS_ORIGINAL"])
 parent = Path(os.environ["GITLESS_PARENT"])
 binary = os.environ["GITLESS_TERRAFORM"]
+assert [name for index, name in socket.if_nameindex()] == ["lo"]
+assert not any(line.strip() for line in Path("/proc/net/route").read_text().splitlines()[1:])
+# Fail loudly if Terraform attempts the ordinary git executable at all.
+trap_bin = parent / "git-trap-bin"
+trap_bin.mkdir(mode=0o700)
+git_marker = parent / "unexpected-git-invocation"
+(trap_bin / "git").write_text('#!/bin/sh\nprintf invoked > ' + str(git_marker) + '\nexit 111\n')
+(trap_bin / "git").chmod(0o700)
+os.environ["PATH"] = str(trap_bin) + os.pathsep + os.environ["PATH"]
 original = closure.check(source, DIGEST)
 before = closure.inventory(source)
 wrapper, digest = derivation.derive(source, DIGEST, parent, "gitless")
@@ -69,7 +79,9 @@ for bundle in (source, sanitized):
         if bundle == sanitized:
             assert not any(path.name == ".git" for path in (root / ".terraform/modules").rglob("*"))
 assert semantic[0] == semantic[1], "Full provider schema/module graph/selection changed"
+assert not git_marker.exists(), "Unexpected Git invocation consulted metadata"
 assert closure.inventory(source) == before
 assert derivation.verify_derived(wrapper, source, DIGEST) == digest
 print("Complete provider schemas, module graph bytes and selections identical; both full-root validate passed; original unchanged.")
+print("No Git subprocess through PATH; isolated HOME and credential-free environments; no module-cache .git regenerated.")
 print("Schema SHA256:", hashlib.sha256(json.dumps(semantic[0][0], sort_keys=True).encode()).hexdigest())

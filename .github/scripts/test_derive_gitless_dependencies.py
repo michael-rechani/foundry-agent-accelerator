@@ -245,6 +245,67 @@ class GitlessTests(unittest.TestCase):
             with self.assertRaises(closure.ClosureError):
                 derivation.derive(source, duplicate_digest, parent, 'second')
 
+    def test_parent_rename_symlink_swap_preserves_outside_and_owned_cleanup(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            source = base / 'source'
+            source.mkdir()
+            digest = fixture(source)
+            parent = base / 'parent'
+            parent.mkdir(mode=0o700)
+            displaced = base / 'displaced-parent'
+            outside = base / 'outside'
+            outside.mkdir()
+            (outside / 'preserve').write_text('untouched')
+            original = derivation.copy_inventory
+            def swap(source_fd, output_fd, records):
+                original(source_fd, output_fd, records)
+                parent.rename(displaced)
+                parent.symlink_to(outside, target_is_directory=True)
+            with patch.object(derivation, 'copy_inventory', swap):
+                with self.assertRaises(OSError):
+                    derivation.derive(source, digest, parent, 'out')
+            self.assertEqual(list(displaced.iterdir()), [])
+            self.assertEqual([path.name for path in outside.iterdir()], ['preserve'])
+            self.assertEqual((outside / 'preserve').read_text(), 'untouched')
+
+    def test_file_mode_output_link_cleanup_error_and_late_collision(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            source = base / 'source'
+            source.mkdir()
+            digest = fixture(source)
+            before = closure.inventory(source)
+            parent = base / 'parent'
+            parent.mkdir(mode=0o700)
+            original_publish = derivation.extraction.publish_exclusive
+            def collision(parent_fd, stage, destination):
+                os.mkdir(destination, 0o700, dir_fd=parent_fd)
+                original_publish(parent_fd, stage, destination)
+            with patch.object(derivation.extraction, 'publish_exclusive', collision):
+                with self.assertRaises(OSError):
+                    derivation.derive(source, digest, parent, 'collision')
+            self.assertEqual(list((parent / 'collision').iterdir()), [])
+            self.assertEqual(closure.inventory(source), before)
+            with patch.object(derivation, 'copy_inventory', side_effect=OSError('fictional disk error')), patch.object(
+                    derivation.extraction, 'cleanup_owned', side_effect=OSError('fictional cleanup error')):
+                with self.assertRaisesRegex(derivation.DerivationError, 'cleanup could not be verified'):
+                    derivation.derive(source, digest, parent, 'failed')
+            self.assertFalse((parent / 'failed').exists())
+            wrapper, new_digest = derivation.derive(source, digest, parent, 'out')
+            target = wrapper / 'bundle/root/main.tf'
+            target.chmod(0o777)
+            with self.assertRaises(derivation.DerivationError):
+                derivation.verify_derived(wrapper, source, digest)
+            target.chmod(before['root/main.tf']['mode'])
+            binding = wrapper / 'derivation.json'
+            saved = base / 'saved-binding'
+            binding.rename(saved)
+            binding.symlink_to(saved)
+            with self.assertRaises(derivation.DerivationError):
+                derivation.verify_derived(wrapper, source, digest)
+            self.assertEqual(closure.inventory(source), before)
+
 if __name__ == '__main__':
     if os.name != 'posix':
         raise SystemExit('Linux required')
