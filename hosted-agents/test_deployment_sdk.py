@@ -46,6 +46,7 @@ class DeploymentSDKTests(unittest.TestCase):
         self.project = project
         self.enterContext(patch("azure.identity.DefaultAzureCredential"))
         self.smoke = self.enterContext(patch("deployment.smoke_test"))
+        self.candidate = self.enterContext(patch("deployment.candidate_smoke_test"))
         self.client = project.return_value.__enter__.return_value
         self.endpoint = self.route("1")
         self.original = deepcopy(self.endpoint)
