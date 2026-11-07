@@ -183,3 +183,18 @@ This is bounded malformed-input handling, not atomicity against an actor changin
 paths after verification. The existing same-UID/host/ancestor, credential isolation,
 provenance and immutable handoff caveats remain unchanged. No local dependency
 setup, project execution or live actions were performed for this follow-up.
+
+### Qualification also applies to earlier hosted evidence
+
+The coordinator's exact-run log inspection found the same privileged
+`sudo unshare --net ... runuser -u ...` setup in closure run **42409161870**,
+telemetry run **42411992512**, extractor run **42412707397**, and initial gitless
+run **42413688023**. In each, project code ran with the runner UID after privileged
+namespace creation; the overall setup was not wholly unprivileged/rootless.
+Passwordless sudo means a hostile provider is not constrained by that namespace
+merely because the observed UID is non-root. Their synthetic and semantic results
+remain observations, not proof of host, token or enforceable network isolation.
+Earlier descriptions of those checks as unprivileged must be read with this
+correction. Existing records report no protected data or private-runner use.
+This factual qualification changes no code, historical test results, prior branch,
+retention or rollout gate; no new execution or CI rerun was performed.
