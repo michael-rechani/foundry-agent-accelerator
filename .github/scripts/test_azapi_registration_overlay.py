@@ -3,7 +3,6 @@
 import json
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import tempfile
@@ -12,26 +11,47 @@ import unittest
 import check_platform_router_plan as diagnostic
 
 
-AZAPI_PROVIDER_BLOCK = re.compile(r'(?im)^\s*provider\s+"azapi"\s*\{')
-AZAPI_SELECTOR = re.compile(r'(?im)^\s*provider\s*=\s*azapi(?:\.|\s|$)')
-PROVIDERS_MAP = re.compile(r'(?is)\bproviders\s*=\s*\{([^}]*)\}')
-CONFIGURATION_ALIASES = re.compile(r'(?is)\bconfiguration_aliases\s*=\s*\[[^]]*\bazapi\b')
+def _unique_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key")
+        result[key] = value
+    return result
+
+
+def _contains_provider_reference(value):
+    if isinstance(value, dict):
+        return any(
+            "provider" in key.casefold() or _contains_provider_reference(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, list):
+        return any(_contains_provider_reference(item) for item in value)
+    return isinstance(value, str) and "provider" in value.casefold()
 
 
 def assert_no_azapi_bypass(directory):
-    for path in sorted(directory.iterdir()):
+    for path in sorted(directory.rglob("*")):
+        if path.is_symlink():
+            raise AssertionError("descendant module contains a symlinked source entry")
         if not path.is_file() or path.suffix not in (".tf", ".json"):
             continue
-        source = path.read_text(encoding="utf-8")
-        if AZAPI_PROVIDER_BLOCK.search(source):
-            raise AssertionError("descendant module has an explicit AzAPI provider configuration")
-        if AZAPI_SELECTOR.search(source):
-            raise AssertionError("descendant module selects a non-default AzAPI provider")
-        if CONFIGURATION_ALIASES.search(source):
-            raise AssertionError("descendant module declares an AzAPI configuration alias")
-        for match in PROVIDERS_MAP.finditer(source):
-            if re.search(r"\bazapi\b", match.group(1), re.IGNORECASE):
-                raise AssertionError("descendant module remaps an AzAPI provider")
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            raise AssertionError("descendant module source is unreadable or invalid") from None
+        if path.name.endswith(".tf.json") or path.suffix == ".json":
+            try:
+                document = json.loads(source, object_pairs_hook=_unique_json_object)
+            except (json.JSONDecodeError, ValueError):
+                raise AssertionError("descendant module JSON is malformed or ambiguous") from None
+            if not isinstance(document, dict):
+                raise AssertionError("descendant module JSON has an unexpected root shape")
+            if _contains_provider_reference(document):
+                raise AssertionError("descendant module JSON contains provider routing syntax")
+        elif "provider" in source.casefold():
+            raise AssertionError("descendant module HCL contains provider routing syntax")
 
 
 class AzapiRegistrationOverlayTests(unittest.TestCase):
