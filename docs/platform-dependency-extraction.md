@@ -1,4 +1,21 @@
 # Bounded dependency-archive extraction prototype
+## Hosted CI privilege and isolation qualification
+
+The cited hosted run 42412707397 used privileged setup:
+`sudo unshare --net`, followed by `runuser` to the runner UID for project code.
+The complete setup was **not wholly unprivileged or rootless**, even though the
+observed project-code UID was non-root. The hosted runner had access to sudo.
+Consequently its network namespace and sanitized child environment did not
+establish an enforceable adversarial host/network/token sandbox or independently
+prevent exfiltration by hostile provider code. Non-root UID and observed lack of
+external routes are not proof of those protections.
+
+The synthetic/runtime results below remain scoped observations only. They do not
+prove protected-private-runner behavior, host trust, credential/token isolation
+or an immutable safe handoff. Existing records report no protected data or
+private-runner execution in this hosted experiment. This reporting correction
+authorizes no new execution and changes no rollout gate or historical result.
+
 
 This Linux-only building block handles the **recorded public closure GNU/USTAR
 single-member gzip transport**, not arbitrary tar/ZIP input and not credentialed
