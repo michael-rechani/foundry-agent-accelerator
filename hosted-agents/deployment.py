@@ -310,40 +310,64 @@ def endpoint_snapshot(client, agent_name: str):
     return deepcopy(endpoint)
 
 
+def routes_to_version(endpoint, version: str) -> bool:
+    rules = getattr(getattr(endpoint, "version_selector", None), "version_selection_rules", None)
+    return (
+        getattr(getattr(endpoint, "protocol_configuration", None), "responses", None) is not None
+        and isinstance(rules, list)
+        and len(rules) == 1
+        and str(getattr(rules[0], "agent_version", "")) == str(version)
+        and type(getattr(rules[0], "traffic_percentage", None)) in (int, float)
+        and rules[0].traffic_percentage == 100
+    )
+
+
 def verify_route(client, agent_name: str, version: str) -> None:
     endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
-    rules = getattr(getattr(endpoint, "version_selector", None), "version_selection_rules", None)
-    if (
-        getattr(getattr(endpoint, "protocol_configuration", None), "responses", None) is None
-        or not isinstance(rules, list)
-        or len(rules) != 1
-        or str(rules[0].agent_version) != str(version)
-        or type(rules[0].traffic_percentage) not in (int, float)
-        or rules[0].traffic_percentage != 100
-    ):
+    if not routes_to_version(endpoint, version):
         raise RuntimeError("The promoted Responses route was not confirmed")
     details = client.agents.get_version(agent_name=agent_name, agent_version=version)
     if details["status"] != "active" or getattr(details, "draft", False):
         raise RuntimeError("The promoted agent version is not active")
 
 
+def recovery_endpoint(original_endpoint):
+    endpoint = deepcopy(original_endpoint)
+    protocols = getattr(endpoint, "protocol_configuration", None)
+    # Foundry uses merge-patch, so omitted protocol fields would survive the rollback.
+    if protocols is None:
+        endpoint["protocol_configuration"] = None
+    elif getattr(protocols, "responses", None) is None:
+        protocols["responses"] = None
+    return endpoint
+
+
 def cleanup_failed_version(
-    client, agent_name: str, version: str, original_endpoint, promotion_attempted: bool
+    client, agent_name: str, version: str, original_endpoint, attempted_endpoint
 ) -> None:
-    if promotion_attempted and original_endpoint is not None:
-        if not concrete_route(original_endpoint):
-            print(f"Warning: recovery route is not concrete; retained version {version}")
-            return
-        try:
-            client.agents.update_details(
-                agent_name=agent_name, agent_endpoint=original_endpoint
-            )
-        except Exception:
-            print(f"Warning: rollback failed; retained version {version}")
-            return
+    if attempted_endpoint is not None and (
+        not concrete_route(original_endpoint) or not routes_to_version(attempted_endpoint, version)
+    ):
+        print(f"Warning: recovery route is not confirmed; retained version {version}")
+        return
 
     try:
         endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+        if attempted_endpoint is not None and endpoint != original_endpoint:
+            if endpoint != attempted_endpoint:
+                print(f"Warning: route changed since promotion; retained version {version}")
+                return
+            try:
+                client.agents.update_details(
+                    agent_name=agent_name, agent_endpoint=recovery_endpoint(original_endpoint)
+                )
+            except Exception:
+                print(f"Warning: rollback failed; retained version {version}")
+                return
+            endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+            if endpoint != original_endpoint:
+                print(f"Warning: restored route was not confirmed; retained version {version}")
+                return
         selector = getattr(endpoint, "version_selector", None)
         rules = getattr(selector, "version_selection_rules", None)
         if not concrete_route(endpoint) or any(str(rule.agent_version) == str(version) for rule in rules):
@@ -457,7 +481,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
             print(f"Created {args.agent_name} version {created.version}")
             report_agent_identity(created)
 
-            promotion_attempted = False
+            attempted_endpoint = None
             try:
                 wait_until_active(
                     client,
@@ -474,22 +498,23 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 protocols = deepcopy(getattr(current_endpoint, "protocol_configuration", None))
                 if protocols is None:
                     protocols = ProtocolConfiguration()
-                protocols.responses = ResponsesProtocolConfiguration()
-                endpoint_config = AgentEndpointConfig(
-                    version_selector=VersionSelector(
-                        version_selection_rules=[
-                            FixedRatioVersionSelectionRule(
-                                agent_version=created.version,
-                                traffic_percentage=100,
-                            )
-                        ]
-                    ),
-                    protocol_configuration=protocols,
+                if getattr(protocols, "responses", None) is None:
+                    protocols.responses = ResponsesProtocolConfiguration()
+                endpoint_config = (
+                    deepcopy(current_endpoint) if current_endpoint is not None else AgentEndpointConfig()
                 )
-                authorization = getattr(current_endpoint, "authorization_schemes", None)
-                if authorization is not None:
-                    endpoint_config.authorization_schemes = deepcopy(authorization)
-                promotion_attempted = True
+                selector = getattr(endpoint_config, "version_selector", None)
+                if selector is None:
+                    selector = VersionSelector()
+                selector.version_selection_rules = [
+                    FixedRatioVersionSelectionRule(
+                        agent_version=created.version,
+                        traffic_percentage=100,
+                    )
+                ]
+                endpoint_config.version_selector = selector
+                endpoint_config.protocol_configuration = protocols
+                attempted_endpoint = deepcopy(endpoint_config)
                 client.agents.update_details(
                     agent_name=args.agent_name,
                     agent_endpoint=endpoint_config,
@@ -502,7 +527,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
             except (Exception, KeyboardInterrupt):
                 cleanup_failed_version(
                     client, args.agent_name, created.version,
-                    original_endpoint, promotion_attempted,
+                    original_endpoint, attempted_endpoint,
                 )
                 raise
 

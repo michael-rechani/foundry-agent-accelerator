@@ -4,6 +4,7 @@ import stat
 import tempfile
 import unittest
 from contextlib import redirect_stdout
+from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -309,44 +310,97 @@ class SpecialistPreflightTests(unittest.TestCase):
 class DeploymentRollbackTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = MagicMock()
-        self.original = SimpleNamespace(
+        self.original = self.route("1")
+        self.attempted = self.route("2")
+        self.client.agents.get.return_value.agent_endpoint = self.attempted
+        self.client.agents.update_details.side_effect = self.restore
+
+    def route(self, version):
+        return SimpleNamespace(
             version_selector=SimpleNamespace(
-                version_selection_rules=[SimpleNamespace(agent_version="1")]
-            )
+                version_selection_rules=[SimpleNamespace(agent_version=version, traffic_percentage=100)]
+            ),
+            protocol_configuration=SimpleNamespace(responses=SimpleNamespace()),
+            authorization_schemes=["original"],
         )
-        self.client.agents.get.return_value.agent_endpoint = self.original
+
+    def restore(self, **kwargs):
+        self.client.agents.get.return_value.agent_endpoint = kwargs["agent_endpoint"]
 
     def test_deletes_only_after_restoration_and_route_read(self) -> None:
-        cleanup_failed_version(self.client, "agent", "2", self.original, True)
+        cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.assertEqual(
             [call[0] for call in self.client.agents.mock_calls],
-            ["update_details", "get", "delete_version"],
+            ["get", "update_details", "get", "delete_version"],
         )
+        self.assertEqual(self.client.agents.get.return_value.agent_endpoint, self.original)
 
     def test_failed_restore_retains_candidate(self) -> None:
         self.client.agents.update_details.side_effect = RuntimeError("unavailable")
-        cleanup_failed_version(self.client, "agent", "2", self.original, True)
+        cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.client.agents.delete_version.assert_not_called()
 
     def test_stale_route_retains_candidate(self) -> None:
         self.original.version_selector.version_selection_rules[0].agent_version = "2"
-        cleanup_failed_version(self.client, "agent", "2", self.original, True)
+        cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.client.agents.delete_version.assert_not_called()
 
     def test_failed_route_read_retains_candidate(self) -> None:
         self.client.agents.get.side_effect = RuntimeError("unavailable")
-        cleanup_failed_version(self.client, "agent", "2", self.original, True)
+        cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
+        self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_not_called()
 
     def test_first_deployment_without_route_retains_candidate(self) -> None:
-        self.client.agents.get.return_value.agent_endpoint = None
-        cleanup_failed_version(self.client, "agent", "1", None, True)
+        self.client.agents.get.return_value.agent_endpoint = self.original
+        cleanup_failed_version(self.client, "agent", "2", None, self.attempted)
+        self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_not_called()
 
     def test_failed_build_preserves_existing_route(self) -> None:
-        cleanup_failed_version(self.client, "agent", "2", None, False)
+        self.client.agents.get.return_value.agent_endpoint = self.original
+        cleanup_failed_version(self.client, "agent", "2", self.original, None)
         self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_called_once()
+
+    def test_failed_promotion_that_left_original_route_does_not_restore_it(self):
+        self.client.agents.get.return_value.agent_endpoint = self.original
+        cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_called_once()
+
+    def test_changed_route_or_endpoint_configuration_is_not_overwritten(self):
+        changed_authorization = deepcopy(self.attempted)
+        changed_authorization.authorization_schemes = ["different"]
+        changed_protocol = deepcopy(self.attempted)
+        changed_protocol.protocol_configuration.responses = SimpleNamespace(extra=True)
+        for endpoint in (self.route("3"), self.route("@latest"), changed_authorization, changed_protocol):
+            with self.subTest(endpoint=endpoint):
+                self.client.reset_mock()
+                self.client.agents.get.return_value.agent_endpoint = endpoint
+                cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
+                self.client.agents.update_details.assert_not_called()
+                self.client.agents.delete_version.assert_not_called()
+
+    def test_restore_must_read_back_the_exact_original_endpoint(self):
+        for endpoint in (self.attempted, self.route("3")):
+            with self.subTest(endpoint=endpoint):
+                self.client.reset_mock()
+                self.client.agents.get.return_value.agent_endpoint = self.attempted
+                self.client.agents.update_details.side_effect = (
+                    lambda endpoint=endpoint, **kwargs: setattr(
+                        self.client.agents.get.return_value, "agent_endpoint", endpoint,
+                    )
+                )
+                cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
+                self.client.agents.update_details.assert_called_once()
+                self.client.agents.delete_version.assert_not_called()
+
+    def test_unexpected_attempted_route_never_authorizes_restoration(self):
+        cleanup_failed_version(self.client, "agent", "2", self.original, self.route("3"))
+        self.client.agents.get.assert_not_called()
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
 
     def test_symbolic_routes_never_authorize_candidate_deletion(self):
         for version in ("@latest", "@unknown", None, ""):
@@ -354,7 +408,8 @@ class DeploymentRollbackTests(unittest.TestCase):
                 self.original.version_selector.version_selection_rules[0].agent_version = version
                 self.client.agents.delete_version.reset_mock()
                 self.assertFalse(concrete_route(self.original))
-                cleanup_failed_version(self.client, "agent", "2", self.original, True)
+                cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
+                self.client.agents.update_details.assert_not_called()
                 self.client.agents.delete_version.assert_not_called()
 
 

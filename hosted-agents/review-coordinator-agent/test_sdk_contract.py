@@ -57,7 +57,10 @@ class SDKContractTests(unittest.TestCase):
             snapshot.return_value = original_endpoint
             with self.assertRaises(KeyboardInterrupt):
                 deploy(profile, args)
-            cleanup.assert_called_once_with(client, "coordinator", "2", original_endpoint, True)
+            cleanup.assert_called_once()
+            self.assertEqual(cleanup.call_args.args[:4], (client, "coordinator", "2", original_endpoint))
+            attempted = cleanup.call_args.args[4]
+            self.assertEqual(attempted.version_selector.version_selection_rules[0].agent_version, "2")
             definition = client.agents.create_version_from_code.call_args.kwargs["definition"]
             for key in (
                 "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT",

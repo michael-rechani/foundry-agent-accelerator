@@ -707,10 +707,13 @@ If recovery is needed:
    calls, verify the restored routes and specialist receipts through the private
    Lab, including the browser.
 
-The publisher attempts to restore its captured prior route when a promotion or
-smoke check fails, but that restoration can fail and doesn't automatically
-cover problems discovered later. Inspect the live route before retrying or
-deleting a version. Recovery doesn't reverse charges or requests already made.
+The publisher checks the current endpoint before attempting to restore its
+captured prior route after a failed promotion or smoke check. It retains the
+candidate if it observes another route or can't confirm the restored snapshot.
+This isn't an atomic lock, a substitute for serialized route edits, or a
+recovery path for problems discovered later. Inspect the live route before
+retrying or deleting a version. Recovery doesn't reverse charges or requests
+already made.
 
 ## Deploy a new image from GitHub Actions
 

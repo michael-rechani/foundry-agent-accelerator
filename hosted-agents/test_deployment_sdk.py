@@ -9,10 +9,13 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from deployment import KNOWLEDGE_CHECK_PROMPT, AgentProfile, create_package, deploy, smoke_test as real_smoke_test
+from deployment import (
+    KNOWLEDGE_CHECK_PROMPT, AgentProfile, create_package, deploy, recovery_endpoint, smoke_test as real_smoke_test,
+)
 
 try:
     import requests
+    from azure.ai.projects import AIProjectClient
     from azure.ai.projects.models import (
         AgentEndpointConfig, AgentIdentity, EntraAuthorizationScheme, FixedRatioVersionSelectionRule, McpProtocolConfiguration,
         ProtocolConfiguration, ResponsesProtocolConfiguration, VersionSelector,
@@ -78,9 +81,23 @@ class DeploymentSDKTests(unittest.TestCase):
             self.missing = False
         return SimpleNamespace(version="2", instance_identity=self.identity)
 
+    @staticmethod
+    def merge_patch(current, patch):
+        if not isinstance(patch, dict):
+            return deepcopy(patch)
+        result = deepcopy(current) if isinstance(current, dict) else {}
+        for key, value in patch.items():
+            if value is None:
+                result.pop(key, None)
+            else:
+                result[key] = DeploymentSDKTests.merge_patch(result.get(key), value)
+        return result
+
     def update(self, **kwargs):
         self.events.append("update")
-        self.endpoint = deepcopy(kwargs["agent_endpoint"])
+        current = self.endpoint.as_dict() if self.endpoint is not None else {}
+        patch = kwargs["agent_endpoint"].as_dict(exclude_readonly=True)
+        self.endpoint = AgentEndpointConfig(self.merge_patch(current, patch))
 
     def test_pins_archive_integrity_preserves_authorization_and_reads_final_route(self):
         deploy(self.profile, self.args)
@@ -110,6 +127,19 @@ class DeploymentSDKTests(unittest.TestCase):
         deploy(self.profile, self.args)
         self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
         self.assertEqual(len(self.endpoint.authorization_schemes), 1)
+
+    def test_first_deployment_can_create_a_missing_endpoint(self):
+        self.missing = True
+
+        def create_without_endpoint(**kwargs):
+            created = self.create(**kwargs)
+            self.endpoint = None
+            return created
+
+        self.client.agents.create_version_from_code.side_effect = create_without_endpoint
+        deploy(self.profile, self.args)
+        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
+        self.assertIsNotNone(self.endpoint.protocol_configuration.responses)
 
     def test_symbolic_existing_route_is_rejected_before_creating_version(self):
         self.endpoint = self.route("@latest")
@@ -142,6 +172,119 @@ class DeploymentSDKTests(unittest.TestCase):
                 self.client.agents.delete_version.assert_called_once_with(
                     agent_name=self.profile.name, agent_version="2", force=True,
                 )
+
+    def test_restore_removes_only_the_responses_protocol_added_by_promotion(self):
+        for protocols in (ProtocolConfiguration(mcp=McpProtocolConfiguration()), None):
+            with self.subTest(protocols=protocols):
+                route = self.route("1")
+                if protocols is None:
+                    self.endpoint = AgentEndpointConfig(
+                        version_selector=route.version_selector,
+                        authorization_schemes=route.authorization_schemes,
+                    )
+                else:
+                    route.protocol_configuration = protocols
+                    self.endpoint = route
+                self.original = deepcopy(self.endpoint)
+                self.client.agents.delete_version.reset_mock()
+                self.smoke.side_effect = RuntimeError("smoke failed")
+                with self.assertRaisesRegex(RuntimeError, "smoke failed"):
+                    deploy(self.profile, self.args)
+                self.assertEqual(self.endpoint, self.original)
+                restore = self.client.agents.update_details.call_args.kwargs["agent_endpoint"].as_dict(
+                    exclude_readonly=True,
+                )
+                if protocols is None:
+                    self.assertIsNone(restore["protocol_configuration"])
+                else:
+                    self.assertIsNone(restore["protocol_configuration"]["responses"])
+                    self.assertEqual(restore["protocol_configuration"]["mcp"], {})
+                self.client.agents.delete_version.assert_called_once()
+
+    def test_existing_responses_configuration_is_preserved_during_recovery(self):
+        self.endpoint.protocol_configuration.responses["extra_setting"] = "preserved"
+        self.endpoint.version_selector["extra_setting"] = "preserved"
+        self.original = deepcopy(self.endpoint)
+        self.smoke.side_effect = RuntimeError("smoke failed")
+        with self.assertRaisesRegex(RuntimeError, "smoke failed"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.endpoint, self.original)
+        self.client.agents.delete_version.assert_called_once()
+
+    def test_split_route_is_restored_exactly_after_smoke_failure(self):
+        self.endpoint.version_selector.version_selection_rules = [
+            FixedRatioVersionSelectionRule(agent_version="1", traffic_percentage=60),
+            FixedRatioVersionSelectionRule(agent_version="4", traffic_percentage=40),
+        ]
+        self.original = deepcopy(self.endpoint)
+        self.smoke.side_effect = RuntimeError("smoke failed")
+        with self.assertRaisesRegex(RuntimeError, "smoke failed"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.endpoint, self.original)
+        self.client.agents.delete_version.assert_called_once()
+
+    def test_server_populated_endpoint_fields_are_preserved_during_recovery(self):
+        state = self.endpoint.as_dict()
+        state["publish_approval_status"] = "approved"
+        self.endpoint = AgentEndpointConfig(state)
+        self.original = deepcopy(self.endpoint)
+        self.smoke.side_effect = RuntimeError("smoke failed")
+        with self.assertRaisesRegex(RuntimeError, "smoke failed"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.endpoint, self.original)
+        self.client.agents.delete_version.assert_called_once()
+
+    def test_promotion_timeout_after_server_update_restores_the_original_route(self):
+        def accepted_then_failed(**kwargs):
+            self.update(**kwargs)
+            if self.client.agents.update_details.call_count == 1:
+                raise RuntimeError("promotion response lost")
+
+        self.client.agents.update_details.side_effect = accepted_then_failed
+        with self.assertRaisesRegex(RuntimeError, "promotion response lost"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.endpoint, self.original)
+        self.assertEqual(self.client.agents.update_details.call_count, 2)
+        self.client.agents.delete_version.assert_called_once()
+        self.smoke.assert_not_called()
+
+    def test_attempted_route_is_snapshotted_before_the_sdk_call(self):
+        def accepted_then_mutated(**kwargs):
+            self.update(**kwargs)
+            if self.client.agents.update_details.call_count == 1:
+                kwargs["agent_endpoint"].authorization_schemes = []
+                raise RuntimeError("promotion response lost")
+
+        self.client.agents.update_details.side_effect = accepted_then_mutated
+        with self.assertRaisesRegex(RuntimeError, "promotion response lost"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.endpoint, self.original)
+        self.client.agents.delete_version.assert_called_once()
+
+    def test_failure_after_another_operator_changes_the_route_does_not_overwrite_it(self):
+        def change_route(*args):
+            self.endpoint = self.route("3")
+            raise RuntimeError("smoke failed")
+
+        self.smoke.side_effect = change_route
+        with self.assertRaisesRegex(RuntimeError, "smoke failed"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.endpoint, self.route("3"))
+        self.assertEqual(self.client.agents.update_details.call_count, 1)
+        self.client.agents.delete_version.assert_not_called()
+
+    def test_failure_after_endpoint_authorization_changes_does_not_overwrite_it(self):
+        def change_authorization(*args):
+            self.endpoint.authorization_schemes = []
+            raise RuntimeError("smoke failed")
+
+        self.smoke.side_effect = change_authorization
+        with self.assertRaisesRegex(RuntimeError, "smoke failed"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.endpoint.authorization_schemes, [])
+        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
+        self.assertEqual(self.client.agents.update_details.call_count, 1)
+        self.client.agents.delete_version.assert_not_called()
 
     def run_with_lookup_check(self, *responses):
         tool = "search_policy_guidance"
@@ -229,6 +372,9 @@ class DeploymentSDKTests(unittest.TestCase):
         self.smoke.side_effect = lambda *args: setattr(self, "endpoint", self.route("@latest"))
         with self.assertRaisesRegex(RuntimeError, "route was not confirmed"):
             deploy(self.profile, self.args)
+        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "@latest")
+        self.assertEqual(self.client.agents.update_details.call_count, 1)
+        self.client.agents.delete_version.assert_not_called()
 
     def test_reports_agent_identity_principal_for_role_assignments(self):
         self.identity = AgentIdentity(principal_id="11111111-2222-3333-4444-555555555555", client_id="client")
@@ -301,6 +447,43 @@ class DeploymentTimeoutTests(unittest.TestCase):
     def test_a_failed_foundry_connection_is_not_retried(self):
         attempts = self.deploy_against_failing_transport(requests.exceptions.ConnectionError)
         self.assertEqual(attempts, [(30, 60)])
+
+    def test_recovery_patch_serializes_protocol_removal_through_the_real_sdk(self):
+        selector = VersionSelector(version_selection_rules=[
+            FixedRatioVersionSelectionRule(agent_version="1", traffic_percentage=100),
+        ])
+        for protocols in (ProtocolConfiguration(mcp=McpProtocolConfiguration()), None):
+            with self.subTest(protocols=protocols):
+                original = AgentEndpointConfig(version_selector=selector)
+                if protocols is not None:
+                    original.protocol_configuration = protocols
+                requests_sent = []
+
+                def respond(adapter, request, requests_sent=requests_sent, **kwargs):
+                    requests_sent.append((request.method, request.headers["Content-Type"], json.loads(request.body)))
+                    response = requests.Response()
+                    response.status_code = 200
+                    response._content = b"{}"
+                    response.raw = io.BytesIO(b"{}")
+                    response.headers["Content-Type"] = "application/json"
+                    response.request = request
+                    return response
+
+                with patch.object(requests.adapters.HTTPAdapter, "send", respond):
+                    with AIProjectClient(
+                        endpoint="https://fictional.services.ai.azure.com/api/projects/demo",
+                        credential=self.Credential(), allow_preview=True, retry_total=0,
+                    ) as client:
+                        client.agents.update_details(agent_name="agent", agent_endpoint=recovery_endpoint(original))
+                self.assertEqual(len(requests_sent), 1)
+                self.assertEqual(requests_sent[0][0], "PATCH")
+                self.assertEqual(requests_sent[0][1], "application/merge-patch+json")
+                body = requests_sent[0][2]["agent_endpoint"]
+                if protocols is None:
+                    self.assertIsNone(body["protocol_configuration"])
+                else:
+                    self.assertIsNone(body["protocol_configuration"]["responses"])
+                    self.assertEqual(body["protocol_configuration"]["mcp"], {})
 
 
 if __name__ == "__main__":

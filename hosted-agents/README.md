@@ -253,14 +253,20 @@ Responses route. It reads the active version and exact 100% route back both
 before and after the sample-specific smoke checks. Clients can reach the
 candidate during those checks, so this isn't a pre-promotion canary.
 
-If provisioning or a smoke test fails, the deployer attempts to restore the
-previous route when promotion was attempted. It deletes the failed version only
-after a fresh route read confirms the candidate is no longer referenced. The
-candidate stays for manual inspection if restoration fails, the route is
-unknown or symbolic, or a first deployment has no previous route.
+If provisioning or a smoke test fails after promotion was attempted, the
+deployer reads the endpoint before restoring the captured route. It restores
+only when the endpoint still matches its attempted promotion; an endpoint
+already matching the captured route needs no update. If it observes any other
+route or endpoint configuration, it leaves it unchanged and retains the
+candidate. After restoration, it requires the full endpoint to match the
+captured snapshot before deleting the candidate. A failed, unconfirmed, unknown
+or symbolic route, or a first promotion without a previous route, also retains
+the candidate for inspection. Before deleting any failed version, it checks
+that a fresh route doesn't reference it.
 
-Serialize deployments of the same agent. The cleanup flow doesn't provide a
-distributed lock against concurrent promotions.
+Serialize all deployments and route edits for the same agent. The read and
+restore aren't an atomic conditional update, and the cleanup flow doesn't
+provide a distributed lock. Confirm that the restored version is still usable.
 
 The Foundry client allows 30 seconds to connect and 60 seconds for each response,
 with no automatic retries, so a stalled call fails in about 90 seconds instead
