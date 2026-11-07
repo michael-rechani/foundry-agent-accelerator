@@ -317,10 +317,13 @@ class SpecialistPreflightTests(unittest.TestCase):
 class RecoveryPreflightTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = MagicMock()
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get_version.return_value = {"status": "active"}
         self.rule = SimpleNamespace(agent_version="1", traffic_percentage=100)
         self.endpoint = SimpleNamespace(
             version_selector=SimpleNamespace(version_selection_rules=[self.rule]),
+            protocol_configuration=SimpleNamespace(responses=SimpleNamespace()),
         )
 
     def test_checks_only_positive_traffic_versions_once(self):
