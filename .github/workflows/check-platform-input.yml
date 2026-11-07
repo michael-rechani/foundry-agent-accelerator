@@ -69,7 +69,7 @@ jobs:
           for name, version in (("azapi", "2.12.0"), ("modtm", "0.4.0")):
               url = f"https://registry.terraform.io/v1/providers/azure/{name}/{version}/download/linux/amd64"
               azure_metadata.append(json.loads(fetch(url)))
-          keys = [item["ascii_armor"] for item in azure_metadata[0]["signing_keys"]["gpg_public_keys"]
+          keys = [item["ascii_armor"] for item in azure_metadata[0]["signing_keys"]["gpg_public_keys"]]
           if len(keys) != 1:
               raise RuntimeError("Unexpected Azure provider signing-key set.")
           normalized = "".join(keys[0].split())
