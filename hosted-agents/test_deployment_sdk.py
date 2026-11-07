@@ -140,15 +140,14 @@ class DeploymentSDKTests(unittest.TestCase):
                 self.assert_no_agent_mutations()
                 self.client.agents.enable.assert_not_called()
 
-    def test_pinned_sdk_operational_and_administrative_string_enums(self):
+    def test_pinned_sdk_operational_enum_and_raw_field_mapping(self):
         from azure.ai.projects.models import AgentDetails, AgentState
-        details = AgentDetails(state=AgentState("enabled"), configuration_state=AgentState("enabled"))
+
+        details = AgentDetails({"state": AgentState.ENABLED, "configuration_state": AgentState.ENABLED})
         self.assertIsInstance(details.state, str)
-        self.assertIsInstance(details.configuration_state, str)
         self.assertEqual(details.state, "enabled")
-        self.state, self.configuration_state = details.state, details.configuration_state
-        deploy(self.profile, self.args)
-        self.candidate.assert_called_once()
+        self.assertEqual(details.get("configuration_state"), "enabled")
+        self.assertFalse(hasattr(details, "configuration_state"))
 
     def test_state_flip_before_promotion_refuses_route_write(self):
         def check(*args, **kwargs):
@@ -587,6 +586,53 @@ class DeploymentTimeoutTests(unittest.TestCase):
         ):
             deploy(profile, args)
         return attempts
+
+    def test_real_sdk_deserializes_documented_administrative_wire_field(self):
+        from urllib.parse import parse_qs, urlsplit
+
+        from azure.ai.projects.models import AgentDetails
+
+        payloads = [
+            {"state": "enabled", "configuration_state": "enabled"},
+            {"state": "enabled", "configuration_state": "disabled"},
+            {"state": "enabled", "configuration_state": "unknown"},
+            {"state": "enabled", "configuration_state": None},
+            {"state": "enabled", "configuration_state": True},
+            {"state": "enabled", "configuration_state": {}},
+            {"state": "enabled"},
+        ]
+        sent = []
+        remaining = iter(payloads)
+
+        def respond(adapter, request, **kwargs):
+            sent.append((request.method, request.url))
+            response = requests.Response()
+            response.status_code = 200
+            response._content = json.dumps(next(remaining)).encode()
+            response.raw = io.BytesIO(response._content)
+            response.headers["Content-Type"] = "application/json"
+            response.request = request
+            return response
+
+        with patch.object(requests.adapters.HTTPAdapter, "send", respond):
+            with AIProjectClient(
+                endpoint="https://fictional.services.ai.azure.com/api/projects/demo",
+                credential=self.Credential(), allow_preview=True, retry_total=0,
+            ) as client:
+                for payload in payloads:
+                    with self.subTest(payload=payload):
+                        details = client.agents.get(agent_name="fictional-agent")
+                        self.assertIsInstance(details, AgentDetails)
+                        self.assertEqual(details.state, "enabled")
+                        self.assertEqual(
+                            details.get("configuration_state"), payload.get("configuration_state"),
+                        )
+                        self.assertEqual("configuration_state" in details, "configuration_state" in payload)
+                        self.assertFalse(hasattr(details, "configuration_state"))
+        self.assertEqual(len(sent), len(payloads))
+        for method, url in sent:
+            self.assertEqual(method, "GET")
+            self.assertEqual(parse_qs(urlsplit(url).query).get("api-version"), ["v1"])
 
     def test_a_stalled_foundry_call_fails_once_on_the_clients_own_deadline(self):
         attempts = self.deploy_against_failing_transport(requests.exceptions.ReadTimeout)
