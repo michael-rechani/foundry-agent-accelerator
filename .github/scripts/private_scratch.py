@@ -147,40 +147,41 @@ class PrivateScratch:
         if not isinstance(content, (bytes, bytearray, memoryview)):
             raise TypeError("Scratch file contents must be bytes-like.")
         source = memoryview(content)
-        if not source.c_contiguous:
-            source.release()
-            raise TypeError("Scratch file contents must be contiguous.")
         try:
-            view = source.cast("B")
-        except (TypeError, ValueError):
-            source.release()
-            raise TypeError("Scratch file contents cannot be viewed as bytes.") from None
-        with self._lock:
-            self._verify_link()
-            if name in self._entries:
-                raise ScratchError("The scratch entry is already owned.")
+            if not source.c_contiguous:
+                raise TypeError("Scratch file contents must be contiguous.")
             try:
-                fd = os.open(name, _CREATE_FLAGS, 0o600, dir_fd=self._fd)
-            except FileExistsError:
-                raise ScratchError("The scratch file name is already in use.") from None
+                view = source.cast("B")
+            except (TypeError, ValueError):
+                raise TypeError("Scratch file contents cannot be viewed as bytes.") from None
             try:
-                os.fchmod(fd, 0o600)
-                info = os.fstat(fd)
-                if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid():
-                    raise ScratchError("The created scratch file is not owned by this identity.")
-                self._entries[name] = ("file", _inode(info), None)
-                while view:
-                    written = os.write(fd, view)
-                    if written <= 0:
-                        raise ScratchError("A scratch file write did not make progress.")
-                    view = view[written:]
-                os.fsync(fd)
+                with self._lock:
+                    self._verify_link()
+                    if name in self._entries:
+                        raise ScratchError("The scratch entry is already owned.")
+                    try:
+                        fd = os.open(name, _CREATE_FLAGS, 0o600, dir_fd=self._fd)
+                    except FileExistsError:
+                        raise ScratchError("The scratch file name is already in use.") from None
+                    try:
+                        os.fchmod(fd, 0o600)
+                        info = os.fstat(fd)
+                        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid():
+                            raise ScratchError("The created scratch file is not owned by this identity.")
+                        self._entries[name] = ("file", _inode(info), None)
+                        while view:
+                            written = os.write(fd, view)
+                            if written <= 0:
+                                raise ScratchError("A scratch file write did not make progress.")
+                            view = view[written:]
+                        os.fsync(fd)
+                    finally:
+                        os.close(fd)
+                return name
             finally:
-                os.close(fd)
                 view.release()
-                source.release()
-            return name
-
+        finally:
+            source.release()
     def create_directory(self, name):
         if not isinstance(name, str) or not _NAME.fullmatch(name):
             raise ScratchError("A single safe directory name is required.")
