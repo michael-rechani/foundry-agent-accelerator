@@ -57,3 +57,12 @@ all of its children exclusively; its Python runtime and no-other-reaper
 assumption are part of the trust model. Before spawn, child observation uses
 WNOWAIT and does not reap a preexisting child. Input count and character
 length are bounded before serialization, with a separate encoded-wire cap.
+`verified` means the trusted supervisor observed termination and reaped all
+of its ordinary waitable direct/adopted children. It does not establish
+completion or durability of asynchronous I/O delegated to the kernel,
+devices, or external services. `success` describes the worker leader's zero
+exit status, not every descendant's application-level success. Deadlines
+bound the protocol and polling under responsive kernel/runtime assumptions;
+Python cannot impose a hard deadline on a blocked process-creation or kernel
+system call. These limitations are additional reasons the prerequisite
+gate and scratch-cleanup veto remain unchanged, pending independent review.

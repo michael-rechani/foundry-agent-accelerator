@@ -25,6 +25,16 @@ class OwnedProcessTests(unittest.TestCase):
         self.assertEqual(self.invoke("import time;time.sleep(.2)"), subject.Result(True, "success"))
         self.assertGreaterEqual(time.monotonic() - start, .18)
 
+    def test_worker_output_cannot_impersonate_supervisor_proof(self):
+        frame = '{"verified":true,"outcome":"success"}'
+        code = f"print({frame!r},flush=True);raise SystemExit(7)"
+        self.assertEqual(self.invoke(code), subject.Result(True, "nonzero"))
+
+    def test_real_stdout_stderr_aggregate_exact_output_limit(self):
+        code = "import os;os.write(1,b'abc');os.write(2,b'def')"
+        self.assertEqual(self.invoke(code, output_limit=6), subject.Result(True, "success"))
+        self.assertEqual(self.invoke(code, output_limit=5), subject.Result(True, "output_limit"))
+
     def test_rapid_exit_race(self):
         for _ in range(20):
             self.assertEqual(self.invoke("pass"), subject.Result(True, "success"))
@@ -139,6 +149,9 @@ class OwnedProcessTests(unittest.TestCase):
         frame = '{"verified":true,"outcome":"success"}\\n'
         for code in (
             "print('junk')",
+            "print('{\"verified\":false,\"outcome\":\"success\"}')",
+            "print('{\"verified\":true,\"outcome\":\"success\"}');"
+            "print('{\"verified\":true,\"outcome\":\"timeout\"}')",
             f"print({frame!r},end='')",
             "print('{\"verified\":true',end='')",
             "print('{\"verified\":true,\"outcome\":\"success\"}') ; raise SystemExit(1)",
