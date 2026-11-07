@@ -20,15 +20,19 @@ def _unique_json_object(pairs):
     return result
 
 
+def _reject_json_constant(_value):
+    raise ValueError("invalid JSON constant")
+
+
 def _contains_provider_reference(value):
     if isinstance(value, dict):
         return any(
-            "provider" in key.casefold() or _contains_provider_reference(item)
+            ("provider" in key.casefold() or "configuration_aliases" in key.casefold()) or _contains_provider_reference(item)
             for key, item in value.items()
         )
     if isinstance(value, list):
         return any(_contains_provider_reference(item) for item in value)
-    return isinstance(value, str) and "provider" in value.casefold()
+    return isinstance(value, str) and ("provider" in value.casefold() or "configuration_aliases" in value.casefold())
 
 
 def assert_no_azapi_bypass(directory):
@@ -55,7 +59,7 @@ def assert_no_azapi_bypass(directory):
                 raise AssertionError("descendant module JSON has an unexpected root shape")
             if _contains_provider_reference(document):
                 raise AssertionError("descendant module JSON contains provider routing syntax")
-        elif "provider" in source.casefold():
+        elif "provider" in source.casefold() or "configuration_aliases" in source.casefold():
             raise AssertionError("descendant module HCL contains provider routing syntax")
 
 
