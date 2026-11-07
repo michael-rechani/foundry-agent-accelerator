@@ -15,6 +15,7 @@ const (
 	NativeHCL   = "native-hcl"
 	MaxBytes    = 65536
 	MaxTokens   = 8192
+	MaxOperatorTokens = 256
 	MaxLexDepth = 32
 	MaxNodes    = 16384
 	MaxASTDepth = 128
@@ -79,7 +80,15 @@ func Analyze(format string, source []byte) Result {
 		return a.finish()
 	}
 	depth := 0
+	operatorTokens := 0
 	for _, token := range tokens {
+		if operatorToken(token.Type) {
+			operatorTokens++
+			if operatorTokens > MaxOperatorTokens {
+				a.refuse("bounds_refused")
+				return a.finish()
+			}
+		}
 		switch token.Type {
 		case hclsyntax.TokenOBrace, hclsyntax.TokenOBrack, hclsyntax.TokenOParen,
 			hclsyntax.TokenOQuote, hclsyntax.TokenTemplateInterp, hclsyntax.TokenTemplateControl:
@@ -110,6 +119,23 @@ func Analyze(format string, source []byte) Result {
 	hclsyntax.Walk(body, a)
 	return a.finish()
 }
+
+// This is an input budget for known structural operator tokens, not a general
+// AST-depth, parser-stack, or execution-time bound. Lexer-produced literal
+// string, heredoc and comment tokens are not counted as operators.
+func operatorToken(kind hclsyntax.TokenType) bool {
+	switch kind {
+	case hclsyntax.TokenPlus, hclsyntax.TokenMinus, hclsyntax.TokenStar,
+		hclsyntax.TokenSlash, hclsyntax.TokenPercent, hclsyntax.TokenEqualOp,
+		hclsyntax.TokenNotEqual, hclsyntax.TokenLessThan, hclsyntax.TokenLessThanEq,
+		hclsyntax.TokenGreaterThan, hclsyntax.TokenGreaterThanEq,
+		hclsyntax.TokenAnd, hclsyntax.TokenOr, hclsyntax.TokenBang, hclsyntax.TokenQuestion:
+		return true
+	default:
+		return false
+	}
+}
+
 
 func routingName(name string) bool {
 	switch name {

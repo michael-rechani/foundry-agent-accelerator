@@ -127,21 +127,94 @@ func TestLongOperatorChainWithinIndependentBounds(t *testing.T) {
 		t.Fatal("long chain did not exercise full deep-tree processing below the node-count threshold")
 	}
 	result := Analyze(NativeHCL, source)
-	if result.Outcome != "refused" || !reflect.DeepEqual(result.Categories,
-		[]string{"bounds_refused", "unsupported_expression"}) {
+	if result.Outcome != "refused" || !reflect.DeepEqual(result.Categories, []string{"bounds_refused"}) {
 		t.Fatalf("wrong exact long-chain categories: %+v", result)
 	}
-	if result.Nodes != evidence.nodes {
-		t.Fatal("walker processing was not the complete parser-built tree")
+	if result.Nodes != 0 || result.Objects != 0 || result.ObjectKeys != 0 {
+		t.Fatal("operator budget did not stop the analyzer before AST analysis")
 	}
-	t.Logf("largest_tested_chain terms=%d bytes=%d tokens=%d lexical_depth=%d ast_depth=%d visited_nodes=%d",
-		terms, len(source), tokens, lexicalDepth, evidence.maxDepth, evidence.nodes)
+	t.Logf("independent_parser_walk terms=%d bytes=%d tokens=%d lexical_depth=%d ast_depth=%d visited_nodes=%d analyzer_nodes=%d",
+		terms, len(source), tokens, lexicalDepth, evidence.maxDepth, evidence.nodes, result.Nodes)
 
 	overTokenBound := append(append([]byte{}, source...), '\n')
 	over := Analyze(NativeHCL, overTokenBound)
 	if over.Outcome != "refused" || !reflect.DeepEqual(over.Categories, []string{"bounds_refused"}) ||
 		over.Nodes != 0 || over.Objects != 0 || over.ObjectKeys != 0 {
 		t.Fatalf("over-token case did not stop before AST analysis: %+v", over)
+	}
+}
+
+func TestOperatorBudgetExactBoundary(t *testing.T) {
+	tests := []struct {
+		name        string
+		operators   int
+		categories  []string
+		earlyRefusal bool
+	}{
+		{"at budget", MaxOperatorTokens, []string{"bounds_refused", "unsupported_expression"}, false},
+		{"above budget", MaxOperatorTokens + 1, []string{"bounds_refused"}, true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			source := chainSource(test.operators + 1)
+			evidence, tokens, lexicalDepth := measureProcessing(t, source)
+			if len(source) > MaxBytes || tokens > MaxTokens || lexicalDepth > MaxLexDepth ||
+				evidence.binaryOps != test.operators {
+				t.Fatal("budget case did not exercise the intended parser shape")
+			}
+			result := Analyze(NativeHCL, source)
+			if result.Outcome != "refused" || !reflect.DeepEqual(result.Categories, test.categories) {
+				t.Fatalf("wrong exact budget refusal: %+v", result)
+			}
+			if test.earlyRefusal && (result.Nodes != 0 || result.Objects != 0 || result.ObjectKeys != 0) {
+				t.Fatal("above-budget input reached AST analysis")
+			}
+			if !test.earlyRefusal && result.Nodes != evidence.nodes {
+				t.Fatal("at-budget input did not complete AST analysis")
+			}
+			t.Logf("operator_budget operators=%d bytes=%d tokens=%d ast_depth=%d independent_nodes=%d analyzer_nodes=%d",
+				test.operators, len(source), tokens, evidence.maxDepth, evidence.nodes, result.Nodes)
+		})
+	}
+}
+
+func TestOperatorBudgetTokenKinds(t *testing.T) {
+	tests := []struct {
+		spelling string
+		kind     hclsyntax.TokenType
+	}{
+		{"+", hclsyntax.TokenPlus}, {"-", hclsyntax.TokenMinus},
+		{"*", hclsyntax.TokenStar}, {"/", hclsyntax.TokenSlash},
+		{"%", hclsyntax.TokenPercent}, {"==", hclsyntax.TokenEqualOp},
+		{"!=", hclsyntax.TokenNotEqual}, {"<", hclsyntax.TokenLessThan},
+		{"<=", hclsyntax.TokenLessThanEq}, {">", hclsyntax.TokenGreaterThan},
+		{">=", hclsyntax.TokenGreaterThanEq}, {"&&", hclsyntax.TokenAnd},
+		{"||", hclsyntax.TokenOr}, {"!", hclsyntax.TokenBang},
+		{"?", hclsyntax.TokenQuestion},
+	}
+	for _, test := range tests {
+		t.Run(test.spelling, func(t *testing.T) {
+			source := []byte("locals { value = 1 " +
+				strings.Repeat(test.spelling+" 1 ", MaxOperatorTokens+1) + "}")
+			tokens, diagnostics := hclsyntax.LexConfig(source, "synthetic.tf", hcl.InitialPos)
+			if len(diagnostics) != 0 || len(source) > MaxBytes || len(tokens) > MaxTokens {
+				t.Fatal("operator example did not lex within independent bounds")
+			}
+			count := 0
+			for _, token := range tokens {
+				if token.Type == test.kind {
+					count++
+				}
+			}
+			if count != MaxOperatorTokens+1 {
+				t.Fatal("operator example did not produce the expected lexer token kind")
+			}
+			result := Analyze(NativeHCL, source)
+			if result.Outcome != "refused" || !reflect.DeepEqual(result.Categories, []string{"bounds_refused"}) ||
+				result.Nodes != 0 {
+				t.Fatalf("operator kind did not trigger pre-parse budget: %+v", result)
+			}
+		})
 	}
 }
 
