@@ -52,6 +52,8 @@ class DeploymentSDKTests(unittest.TestCase):
         self.original = deepcopy(self.endpoint)
         self.events = []
         self.missing = False
+        self.state = "enabled"
+        self.configuration_state = "enabled"
         self.identity = None
         self.client.agents.get.side_effect = self.get
         self.client.agents.create_version_from_code.side_effect = self.create
@@ -73,7 +75,7 @@ class DeploymentSDKTests(unittest.TestCase):
         self.events.append("read")
         if self.missing:
             raise ResourceNotFoundError()
-        return SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=deepcopy(self.endpoint))
+        return SimpleNamespace(state=self.state, configuration_state=self.configuration_state, agent_endpoint=deepcopy(self.endpoint))
 
     def create(self, **kwargs):
         self.events.append("create")
@@ -81,6 +83,8 @@ class DeploymentSDKTests(unittest.TestCase):
         if self.missing:
             self.endpoint = self.route("@latest")
             self.missing = False
+        self.state = "enabled"
+        self.configuration_state = "enabled"
         return SimpleNamespace(version="2", instance_identity=self.identity)
 
     @staticmethod
@@ -123,6 +127,57 @@ class DeploymentSDKTests(unittest.TestCase):
         self.assertEqual(options, {
             "allow_preview": True, "retry_total": 0, "connection_timeout": 30, "read_timeout": 60,
         })
+
+    def test_parent_states_fail_closed_before_creation(self):
+        for state, configuration in (("disabled", "enabled"), ("enabled", "disabled"),
+                                      (None, "enabled"), ("enabled", None),
+                                      ("unknown", "enabled"), (True, "enabled"),
+                                      ("enabled", {})):
+            with self.subTest(state=state, configuration=configuration):
+                self.state, self.configuration_state = state, configuration
+                with self.assertRaisesRegex(RuntimeError, "explicitly enabled"):
+                    deploy(self.profile, self.args)
+                self.assert_no_agent_mutations()
+                self.client.agents.enable.assert_not_called()
+
+    def test_pinned_sdk_operational_and_administrative_string_enums(self):
+        from azure.ai.projects.models import AgentDetails, AgentState
+        details = AgentDetails(state=AgentState("enabled"), configuration_state=AgentState("enabled"))
+        self.assertIsInstance(details.state, str)
+        self.assertIsInstance(details.configuration_state, str)
+        self.assertEqual(details.state, "enabled")
+        self.state, self.configuration_state = details.state, details.configuration_state
+        deploy(self.profile, self.args)
+        self.candidate.assert_called_once()
+
+    def test_state_flip_before_promotion_refuses_route_write(self):
+        def check(*args, **kwargs):
+            self.state = "disabled"
+        self.candidate.side_effect = check
+        with self.assertRaisesRegex(RuntimeError, "explicitly enabled"):
+            deploy(self.profile, self.args)
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
+    def test_state_flip_after_promotion_refuses_rollback(self):
+        def smoke(*args, **kwargs):
+            self.state = "disabled"
+            raise RuntimeError("fictional smoke failed")
+        self.smoke.side_effect = smoke
+        with redirect_stdout(io.StringIO()) as output:
+            with self.assertRaisesRegex(RuntimeError, "fictional smoke failed"):
+                deploy(self.profile, self.args)
+        self.assertEqual(self.client.agents.update_details.call_count, 1)
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+        self.assertIn("retained version 2", output.getvalue())
+
+    def test_non_responses_recovery_refuses_creation(self):
+        self.endpoint.protocol_configuration = ProtocolConfiguration(mcp=McpProtocolConfiguration())
+        with self.assertRaisesRegex(RuntimeError, "Recovery route has no Responses"):
+            deploy(self.profile, self.args)
+        self.assert_no_agent_mutations()
 
     def assert_no_agent_mutations(self):
         for method in ("create_version_from_code", "create_version", "create_session", "update_details",
