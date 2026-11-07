@@ -2,6 +2,8 @@ import copy
 import contextlib
 import io
 import os
+import subprocess
+import warnings
 import unittest
 
 import snapshot_integrity_guard as guard
@@ -102,6 +104,7 @@ class Tests(unittest.TestCase):
                     if phase == 'error': raise RuntimeError('FICTIONAL_SECRET')
                     if phase == 'timeout': raise TimeoutError('FICTIONAL_SECRET')
                     if phase == 'cancel': raise KeyboardInterrupt('FICTIONAL_SECRET')
+                    return guard.DIAGNOSTIC_SUCCESS
                 with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                     outcome = guard.guarded_diagnostic(EXPECTED, read, diagnostic)
                 self.assertEqual(calls, ['platform_state', 'input'] * 2)
@@ -136,6 +139,7 @@ class Tests(unittest.TestCase):
         def diagnostic():
             change(pair, 'input', 'x-ms-lease-status', 'locked')
             change(pair, 'input', 'x-ms-lease-status', 'unlocked')
+            return guard.DIAGNOSTIC_SUCCESS
         self.assertEqual(guard.guarded_diagnostic(EXPECTED, lambda role: pair[role], diagnostic), guard.PASSED)
 
 
@@ -218,7 +222,97 @@ class Tests(unittest.TestCase):
         def diagnostic():
             pair['input']['body'] = b'transient'
             pair['input']['body'] = b'fictional'
+            return guard.DIAGNOSTIC_SUCCESS
         self.assertEqual(guard.guarded_diagnostic(EXPECTED, lambda role: pair[role], diagnostic), guard.PASSED)
+
+    def test_only_exact_synchronous_success_token_passes(self):
+        class EqualToAnything:
+            def __eq__(self, other):
+                raise AssertionError('must use identity, not equality')
+        values = (None, False, True, 0, 1, 2, '', 'success', object(), EqualToAnything(),
+                  subprocess.CompletedProcess(['fictional'], 1),
+                  subprocess.CompletedProcess(['fictional'], 0))
+        for value in (guard.DIAGNOSTIC_SUCCESS,) + values:
+            with self.subTest(value_type=type(value).__name__):
+                calls = []
+                def read(role):
+                    calls.append(role)
+                    return fixture()[role]
+                outcome = guard.guarded_diagnostic(EXPECTED, read, lambda: value)
+                self.assertEqual(outcome, guard.PASSED if value is guard.DIAGNOSTIC_SUCCESS else guard.FAILED)
+                self.assertEqual(calls, ['platform_state', 'input'] * 2)
+
+    def test_unsupervised_awaitables_fail_without_execution_or_disclosure(self):
+        touched = []
+        class FictionalAwaitable:
+            def __await__(self):
+                touched.append('executed')
+                yield
+                return guard.DIAGNOSTIC_SUCCESS
+        async def unexecuted():
+            touched.append('executed')
+            return guard.DIAGNOSTIC_SUCCESS
+        for factory in (FictionalAwaitable, unexecuted):
+            with self.subTest(factory=factory.__name__):
+                calls = []
+                def read(role):
+                    calls.append(role)
+                    return fixture()[role]
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with warnings.catch_warnings(record=True) as caught, contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                    warnings.simplefilter('always')
+                    result = guard.guarded_diagnostic(EXPECTED, read, factory)
+                self.assertEqual(result, guard.FAILED)
+                self.assertEqual(calls, ['platform_state', 'input'] * 2)
+                self.assertEqual(touched, [])
+                self.assertEqual(stdout.getvalue() + stderr.getvalue(), '')
+                self.assertFalse(any(issubclass(w.category, RuntimeWarning) for w in caught))
+
+    def test_callback_results_and_exceptions_never_override_unstable_snapshots(self):
+        class CustomAwaitable:
+            def __await__(self):
+                raise AssertionError('must not execute awaitable')
+                yield
+        for outcome in ('success', 'false', 'integer', 'awaitable', 'raise', 'cancel'):
+            for invalid in ('state-change', 'input-invalid', 'input-read-failure'):
+                with self.subTest(outcome=outcome, invalid=invalid):
+                    calls = []
+                    def read(role):
+                        calls.append(role)
+                        snap = fixture()
+                        if len(calls) > 2 and role == 'platform_state' and invalid == 'state-change':
+                            change(snap, role, 'ETag', '"different"')
+                        if len(calls) > 2 and role == 'input' and invalid == 'input-invalid':
+                            change(snap, role, 'x-ms-lease-status', 'locked')
+                        if len(calls) > 2 and role == 'input' and invalid == 'input-read-failure':
+                            raise TimeoutError('FICTIONAL_SECRET')
+                        return snap[role]
+                    def diagnostic():
+                        if outcome == 'raise': raise RuntimeError('FICTIONAL_SECRET')
+                        if outcome == 'cancel': raise KeyboardInterrupt('FICTIONAL_SECRET')
+                        return {'success': guard.DIAGNOSTIC_SUCCESS, 'false': False,
+                                'integer': 1, 'awaitable': CustomAwaitable()}[outcome]
+                    stdout, stderr = io.StringIO(), io.StringIO()
+                    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                        result = guard.guarded_diagnostic(EXPECTED, read, diagnostic)
+                    self.assertEqual(result, guard.UNVERIFIED)
+                    self.assertEqual(calls, ['platform_state', 'input'] * 2)
+                    self.assertEqual(stdout.getvalue() + stderr.getvalue(), '')
+
+    def test_invalid_baseline_cannot_be_overridden_by_success_token(self):
+        calls, invoked = [], []
+        def read(role):
+            calls.append(role)
+            snap = fixture()
+            if len(calls) <= 2 and role == 'input':
+                change(snap, role, 'x-ms-lease-status', 'locked')
+            return snap[role]
+        def diagnostic():
+            invoked.append(True)
+            return guard.DIAGNOSTIC_SUCCESS
+        self.assertEqual(guard.guarded_diagnostic(EXPECTED, read, diagnostic), guard.UNVERIFIED)
+        self.assertEqual(calls, ['platform_state', 'input'] * 2)
+        self.assertEqual(invoked, [])
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,5 +1,6 @@
 """Synthetic full-GET snapshot contract; no transport, authority or live integration."""
 import contextlib
+import inspect
 from datetime import datetime
 import re
 from urllib.parse import urlsplit
@@ -7,6 +8,7 @@ from urllib.parse import urlsplit
 UNVERIFIED = "Snapshot integrity unverified; no diagnostic outcome."
 FAILED = "Diagnostic failed after endpoint snapshot rechecks."
 PASSED = "Diagnostic completed with equal endpoint snapshots only."
+DIAGNOSTIC_SUCCESS = object()
 ROLES = ("platform_state", "input")
 REQUIRED = frozenset({"etag", "last-modified", "x-ms-creation-time", "content-length",
                       "x-ms-version", "x-ms-blob-type", "x-ms-lease-status", "x-ms-lease-state"})
@@ -115,6 +117,9 @@ def guarded_diagnostic(expected, read, diagnostic):
     Every boundary attempts both roles even when a read fails. The frozen baseline
     is captured immediately; callback data cannot rewrite it. Stream redirection
     is not a subprocess/security sandbox. This helper does not implement timeouts.
+
+    Only returning the exact DIAGNOSTIC_SUCCESS singleton signals success.
+    All other returns fail, including raw exit codes and unexecuted awaitables.
     """
     with contextlib.redirect_stdout(_Discard()), contextlib.redirect_stderr(_Discard()):
         try:
@@ -141,7 +146,10 @@ def guarded_diagnostic(expected, read, diagnostic):
         failed = False
         try:
             if valid:
-                diagnostic()
+                result = diagnostic()
+                failed = result is not DIAGNOSTIC_SUCCESS
+                if inspect.iscoroutine(result) and inspect.getcoroutinestate(result) == inspect.CORO_CREATED:
+                    result.close()
         except BaseException:
             failed = True
         finally:
