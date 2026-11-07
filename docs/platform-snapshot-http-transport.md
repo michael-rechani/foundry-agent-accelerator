@@ -57,3 +57,21 @@ reads and uses an opener with ambient proxy behavior; it does not implement this
 full record contract. It is not reused or modified. Fictional mock HTTP tests
 exercise transport mechanics only; they do not prove a real authenticated Azure
 endpoint, network isolation, private DNS or a host sandbox.
+
+## Synthetic hosted evidence
+
+The tested head was `e6c42c09b88d05ca1839fce5660b29c8383b9076` in the
+`michael-rechani-snapshot-http-offline` branch.
+[Hosted run 42418203573](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42418203573)
+passed the existing 19 guard tests and 11 fictional transport tests on a non-root
+GitHub-hosted runner. The temporary branch-only workflow had `contents: read`,
+pinned checkout with credentials not persisted, no GitHub environment, id-token,
+secrets, private runner, artifacts, Azure calls, Terraform, Docker or sudo.
+Tests ran with a cleared environment, except PATH, locale and Python isolation
+settings. Tests and their mocked errors, endpoints, headers and bodies were
+fictional. A hosted runner may have potential sudo access; this is not evidence
+of adversarial host or same-UID isolation.
+
+The temporary workflow is restored on the final branch to its original base
+blob; no live workflow integration is introduced. Transport and test blobs in
+the final branch are identical to the tested head.

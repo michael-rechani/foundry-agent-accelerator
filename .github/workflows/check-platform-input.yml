@@ -1,21 +1,29 @@
-name: Offline snapshot transport synthetic tests
+name: Check historical platform input candidate
 
 on:
-  push:
-    branches: [michael-rechani-snapshot-http-offline]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: terraform-state-access
+  cancel-in-progress: false
+
 jobs:
-  synthetic:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
+  check:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+    runs-on: [self-hosted, linux, lab-runner]
+    environment: terraform-state
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Run fictional tests without credentials
-        run: |
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p test_snapshot_integrity_guard.py -v
-          env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p test_snapshot_http_transport.py -v
+      - name: Check candidate presence
+        env:
+          TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
+        run: python3 .github/scripts/check_platform_input.py
