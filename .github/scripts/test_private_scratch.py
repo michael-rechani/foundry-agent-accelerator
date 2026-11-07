@@ -2,7 +2,6 @@ import os
 from array import array
 from pathlib import Path
 import stat
-import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from unittest import TestCase, main
