@@ -263,3 +263,13 @@ blob `13fea116e0cd70aa8f5d8cabcb9b893743e23c95`, with no later dispatch. Final h
 test and shared extractor blobs match the tested head. No temporary auto-trigger
 or artifact upload/retention extension remains. #522 retains the provenance,
 transport/input/state authority, trusted-host/identity, capacity and recovery gates.
+
+The subsequent separate [cleanup-scaling stack](platform-dependency-extraction.md)
+adds a fail-closed known enumeration-work budget to the same shared cleanup
+implementation, with full preflight/per-deletion checks unchanged. Both original
+branches remain as previously recorded. Its Python 3.12.3/3.14.10 synthetic tests
+verify budget refusal propagates through this exact Gitless caller without
+publication or deletion, preserving both JSON files, copied inventory and source.
+Large flat staging may deliberately be retained for reviewed recovery even if all
+entries are known. Real artifact shape/capacity and same-UID atomic cleanup remain
+unverified; Ruff was unavailable and not run, with no package installs authorized.

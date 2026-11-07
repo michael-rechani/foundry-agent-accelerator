@@ -1,46 +1,29 @@
-name: Temporary synthetic ledger scaling
+name: Check historical platform input candidate
+
 on:
   workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: terraform-state-access
+  cancel-in-progress: false
+
 jobs:
-  synthetic:
-    runs-on: ubuntu-24.04
+  check:
+    if: github.ref == 'refs/heads/main'
     timeout-minutes: 10
+    runs-on: [self-hosted, linux, lab-runner]
+    environment: terraform-state
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Discover available Python and Ruff without installing tools
-        run: |
-          python3 --version
-          for interpreter in /opt/hostedtoolcache/Python/3.14.*/x64/bin/python3; do
-            if [ -x "$interpreter" ]; then
-              "$interpreter" --version
-              break
-            fi
-          done
-          if command -v ruff >/dev/null; then ruff --version; else echo 'Ruff unavailable; no install authorized'; fi
-      - name: Measure synthetic inventory scaling without credentials
-        run: env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p test_ledger_cleanup_scaling.py -v
-      - name: Focused synthetic dependency regression tests
-        run: env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p 'test_*dependencies.py' -v
-      - name: Repository target Python 3.14 synthetic tests if preinstalled
-        run: |
-          found=false
-          for interpreter in /opt/hostedtoolcache/Python/3.14.*/x64/bin/python3; do
-            if [ -x "$interpreter" ]; then
-              env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -m unittest discover -s .github/scripts -p 'test_*dependencies.py' -v
-              env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -m unittest discover -s .github/scripts -p test_ledger_cleanup_scaling.py -v
-              found=true
-              break
-            fi
-          done
-          if [ "$found" = false ]; then echo 'Python 3.14 unavailable without installing tools'; fi
-      - name: Existing Ruff configuration if available
-        run: |
-          if command -v ruff >/dev/null; then
-            env -i PATH="$PATH" LANG=C.UTF-8 ruff check --config ruff.toml .github/scripts/extract_platform_dependencies.py .github/scripts/test_extract_platform_dependencies.py .github/scripts/derive_gitless_dependencies.py .github/scripts/test_derive_gitless_dependencies.py .github/scripts/test_ledger_cleanup_scaling.py
-          else
-            echo 'Ruff check not run; unavailable without package installation'
-          fi
+      - name: Check candidate presence
+        env:
+          TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
+        run: python3 .github/scripts/check_platform_input.py

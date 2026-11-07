@@ -280,3 +280,96 @@ cleanup on this branch. Its 39 synthetic tests verify the integration without
 weakening unknown-entry refusal. The original standalone Gitless branch remains
 unchanged and is not retroactively safe. No actual public closure, credentialed
 integration or atomic same-UID cleanup guarantee was established by these tests.
+
+## Isolated cleanup-scaling follow-up
+
+Branch `michael-rechani-ledger-scaling-offline` is stacked on the completed Gitless
+integration `6e11b767db8dd2b1f5d8d6b205c48e8e841dfbe0`; original extractor and
+Gitless branches are unchanged. Only this stack changes shared cleanup behavior.
+
+The original cleanup recomputed all remaining siblings from every ledger path
+before each deletion, in addition to listing the entire current parent directory.
+A fictional flat 20,000-entry tree enumerated **200,010,000 names** and took
+86.260408 seconds in baseline [run 42418464865](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42418464865)
+at `b5b52b27a356f179dd9e549d486f175fce970101` (Python 3.12.3). Indexing immediate
+known children once eliminated repeated global path splitting, but retained
+per-deletion full listings still took 73.552006 seconds on the same fictional
+shape in [run 42418684080](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42418684080).
+These separate hosted observations are not a controlled performance guarantee.
+
+The final change retains one full verified inventory preflight and the exact
+full current-parent equality check plus entry identity check before **every**
+deletion. Known immediate-child sets are indexed once and updated only after
+successful unlink/rmdir. It does not batch deletions or skip late checks.
+Automatic cleanup now additionally refuses before any deletion when the initial
+known namespace enumeration work, summed as `n * (n + 1) // 2` for each parent's
+immediate-child count, exceeds `MAX_CLEANUP_ENUMERATION = 2_000_000`.
+This is a conservative fixed work budget, not an increased extraction bound,
+wall-clock deadline or permission to delete unknown data. Full preflight still
+runs first, so unknown/replaced/unbound inventory is never accepted by the budget.
+Budget refusal leaves **all** staging intact for reviewed recovery. The extractor
+and stacked Gitless caller report their fixed cleanup failure; neither publishes
+or falls back to sweeping. Successful extraction/publication is not made dependent
+on this cleanup-only budget. Do not reshape original/derived manifests to evade it.
+
+Exact final tested head `3a4f297bf846f1adc4a2fabf9221633ecb2a9d26` passed
+[run 42419002119](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42419002119).
+Preinstalled Python **3.12.3 and 3.14.10** each ran these focused commands using
+`env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1` before the interpreter:
+
+- `python -m unittest discover -s .github/scripts -p 'test_*dependencies.py' -v`: **39 passed**, 19 Gitless and 20 extractor.
+- `python -m unittest discover -s .github/scripts -p test_ledger_cleanup_scaling.py -v`: **8 passed**.
+
+Python 3.14.10 aligns with repository `ruff.toml` target `py314`. Existing Ruff
+configuration was inspected and its focused `ruff check --config ruff.toml`
+command was included conditionally, but **Ruff was unavailable and not run**.
+No package installation or setup was performed; this missing check is recorded
+in #522 rather than presented as a passing lint result.
+
+Final Python 3.14.10 observations (creation time excluded):
+
+| Fictional entries | Shape | Initial enumerated-name work | Cleanup seconds | Outcome |
+|---|---|---|---|---|
+| 1,337 | 37 directories | 24,193 | 0.034177 | Cleaned verified known entries |
+| 1,337 | Flat siblings | 894,453 | 0.289240 | Cleaned verified known entries |
+| 20,000 | 100 directories | 1,995,050 | 1.026986 | Cleaned verified known entries |
+| 20,000 | Flat siblings | 200,010,000 | 0.125522 | Refused after preflight, all entries retained |
+
+Tests assert exact name-enumeration counts, no deletion on budget refusal and
+unchanged full known inventory; they check the equality/one-over work boundary
+using a reduced synthetic budget. A late injected unowned file and moved external
+directory in a 1,337-sibling tree survive after the first known deletion, with
+all other 1,336 known siblings retained. That case intentionally demonstrates
+partial known cleanup rather than promising atomic all-or-nothing rollback.
+A forced Gitless failure with the budget reduced to zero retains copied bytes,
+both JSON files and unchanged source. A child process lowering only its own
+`RLIMIT_NOFILE` to 64 forces ordinary descriptor exhaustion during fictional
+extraction, refuses publication/cleanup, preserves source and retains unbound
+staging. Hosted baseline descriptor soft/hard limits were 65,536, not a private
+runner capacity guarantee; no limits were raised or host privileges used.
+
+Known-child indexing is linear in ledger size, deletion order remains sorted,
+and each current-parent enumeration remains quadratic in sibling count within
+the accepted fixed work budget. The estimate bounds a stable known inventory,
+not malicious concurrent insertion, filesystem latency, or an adversarial timeout.
+Creation still holds one descriptor per entry plus traversal/spool overhead;
+`MAX_ENTRIES=20000` does not promise availability under lower OS limits. The real
+historical 1,337 manifest records are not necessarily tar members or flat siblings;
+no actual archive was fetched/extracted or provider/Terraform executed here.
+
+Same-UID creation/binding and check-to-unlink races, in-place edits, root/ancestor
+and trusted-parent assumptions remain. Neither held descriptors, these timings
+nor non-root hosted UID establish adversarial host/network/token isolation.
+Only synthetic standard-library CI ran, with sanitized child environment, no
+sudo, Docker, namespaces, Azure, private runner or protected data. No local project
+execution/setup occurred. This work does not authorize recovery sweeps or live use.
+
+The temporary workflow was manual-only, `contents:read`, pinned checkout with
+`persist-credentials:false`, no environments/secrets/id-token/artifacts/private
+runner. It was restored exactly to original blob
+`13fea116e0cd70aa8f5d8cabcb9b893743e23c95` after the final test, without a later
+dispatch. Final code/test blobs are identical to the tested head; only scoped
+evidence documentation and workflow restoration follow it. Existing automatic
+workflow definitions are unchanged; no PR or merge was created. All four observed
+scaling runs were `workflow_dispatch`. #522 continues to track Ruff availability,
+actual artifact shape/resource feasibility, approved recovery and host isolation.
