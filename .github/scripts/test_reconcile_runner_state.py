@@ -358,6 +358,38 @@ class ReconciliationTests(unittest.TestCase):
                                  "Terraform show failed (exit 1; AuthorizationFailed; unknown denial details withheld).")
                 self.assertNotIn("SecretCanary", str(caught.exception))
 
+    def test_all_shared_command_overrides_preserve_fixed_unknown_denial_failure(self):
+        from apply_lab_terraform import ApplyTerraform
+        from check_lab_terraform_plan import LabTerraform
+        from check_platform_router_plan import PlatformTerraform
+        from reconcile_lab_monitor_scope import CONSOLE_INPUT as MONITOR_INPUT, MonitorTerraform
+        from reconcile_lab_waf_allowlist import CONSOLE_INPUT as WAF_INPUT, WafTerraform
+        with tempfile.TemporaryDirectory() as folder:
+            scratch = Path(folder)
+            inputs = scratch / "inputs.tfvars"
+            cases = (
+                (LabTerraform, ("show", "-json", str(scratch / "lab.tfplan")), None),
+                (PlatformTerraform, ("show", "-json", str(scratch / "platform-router.tfplan")), None),
+                (MonitorTerraform, ("console", f"-var-file={inputs}"), MONITOR_INPUT),
+                (WafTerraform, ("console", f"-var-file={inputs}"), WAF_INPUT),
+                (ApplyTerraform, ("apply", "-input=false", "-lock=true", "-lock-timeout=5m",
+                                  str(scratch / "lab.tfplan")), None),
+            )
+            for kind, args, input_data in cases:
+                with self.subTest(caller=kind.__name__):
+                    cli = object.__new__(kind)
+                    cli.root, cli.env, cli.binary = Path("root"), {}, "terraform"
+                    cli.scratch, cli.inputs = scratch, inputs
+                    result = subprocess.CompletedProcess([], 1, b"", (
+                        "AuthorizationFailed: perform action 'Microsoft.Compute/SecretCanary/read' over scope "
+                        f"'{BASE}private/providers/Microsoft.Compute/virtualMachines/SecretCanary'"
+                    ).encode())
+                    with patch.object(reconcile.subprocess, "run", return_value=result):
+                        with self.assertRaises(reconcile.CheckError) as caught:
+                            cli.command(*args, input_data=input_data)
+                    self.assertIn(reconcile.UNKNOWN_AUTHORIZATION_DENIAL, str(caught.exception))
+                    self.assertNotIn("SecretCanary", str(caught.exception))
+                    self.assertLess(len(str(caught.exception)), 200)
     def test_saved_plan_tampering_prevents_apply(self):
         cli = object.__new__(reconcile.Terraform)
         with tempfile.TemporaryDirectory() as folder, patch.object(cli, "command") as command:

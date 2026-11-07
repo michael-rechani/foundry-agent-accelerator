@@ -19,6 +19,10 @@ jobs:
           done
           if [ -z "$interpreter" ]; then interpreter=python3; fi
           "$interpreter" --version
+          if command -v terraform >/dev/null; then
+            echo 'Terraform unexpectedly available; synthetic-only caller suite refused'
+            exit 1
+          fi
           env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -c 'import os; assert os.geteuid() != 0; assert not any(k.startswith(("AZURE_", "ARM_", "ACTIONS_ID_TOKEN_")) or k in ("GH_TOKEN", "GITHUB_TOKEN") for k in os.environ)'
           env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 "$interpreter" -m unittest discover -s .github/scripts -p test_reconcile_runner_state.py -v
           for fixture in test_check_lab_terraform_plan.py test_check_platform_router_plan.py test_check_lab_router_plan.py test_reconcile_lab_waf_allowlist.py test_reconcile_lab_monitor_scope.py test_apply_lab_terraform.py test_check_platform_input_authority.py; do
