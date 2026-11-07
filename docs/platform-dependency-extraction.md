@@ -273,3 +273,10 @@ This is scoped trigger evidence, not a claim that external dispatch is impossibl
 immutable handoff, state/input/identity and recovery gates. Ledger tracking is not
 permission for credentialed extraction or a proof safe cleanup can be established
 on a shared mutable host.
+
+A separate stacked [Gitless ledger integration](platform-dependency-gitless.md)
+now records all wrapper/copy/JSON creation paths and passes the shared ledger to
+cleanup on this branch. Its 39 synthetic tests verify the integration without
+weakening unknown-entry refusal. The original standalone Gitless branch remains
+unchanged and is not retroactively safe. No actual public closure, credentialed
+integration or atomic same-UID cleanup guarantee was established by these tests.

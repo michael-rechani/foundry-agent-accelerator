@@ -194,3 +194,9 @@ unknown-entry cleanup sweep and requires anonymous-only spools. Its 20 synthetic
 hosted tests are separate evidence; the historical real archive roundtrip does
 not verify the new ledger's capacity, hostile same-UID isolation or immutable
 handoff. No credentialed integration is authorized by this change.
+
+This branch also carries the separate [Gitless derivation](platform-dependency-gitless.md)
+stacked on the verified extractor creation ledger. Synthetic tests preserve exact
+manifest and module/provider inventory semantics while refusing unknown cleanup
+entries. Historical full-archive Terraform evidence is not new runtime/capacity
+validation of this integration; trusted-host and immutable-handoff gates remain.

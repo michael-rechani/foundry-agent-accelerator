@@ -198,3 +198,68 @@ Earlier descriptions of those checks as unprivileged must be read with this
 correction. Existing records report no protected data or private-runner use.
 This factual qualification changes no code, historical test results, prior branch,
 retention or rollout gate; no new execution or CI rerun was performed.
+
+## Stacked ownership-ledger integration: synthetic evidence only
+
+The new separate branch `michael-rechani-gitless-ledger-offline` is stacked on
+verified extractor-ledger final `ac683285341e2064143cda3d68ddd5fbe2cbac60`, preserving
+its documentation-only privilege corrections and anonymous-spool implementation.
+Gitless helper/test/source-evidence bytes were taken from independently verified
+`56f35e5617563a93615d9fdd8a4608fc13f2d2ff`, which differs from the requested
+`2dcb7d930cac8c72d1e3960b781518b288c02828` only by already reviewed evidence
+corrections. Both original branches remain unchanged.
+
+This integration passes a mandatory shared `OwnershipLedger` through every
+Gitless creation path: wrapper `bundle`, retained copied directories/files,
+regenerated `bundle/manifest.json` and `derivation.json`. Each path is pending
+before creation and bound to a held descriptor after no-follow identity checks.
+The same populated ledger verifies complete staging inventory before publication
+and is passed to `cleanup_owned`; there is no unchecked compatibility cleanup or
+fallback. Ordinary fully-known failure cleanup remains functional. Unknown,
+missing, replaced or linked entries or pending/unbound creations refuse cleanup,
+leaving staging for reviewed recovery. Directory/file mode and content copying,
+original manifest selection, omission rules, canonical manifests/binding,
+source SHA/module/provider graph and all inventory validators remain unchanged.
+
+Exact tested head `908e1b5c326332e30ac120a263722a42452943e6` passed
+[hosted run 42418283136](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42418283136):
+`env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p 'test_*dependencies.py' -v`
+**39 passed: 19 Gitless plus 20 extractor tests**. The complete existing synthetic
+Gitless suite still verifies deterministic exact omission, mode/byte preservation,
+selected original integrity, strict malformed input and fixed error handling.
+New tests force failure after injecting an unknown file, moving in an external
+directory, replacing copied file/directory or either JSON output; all unknown,
+replaced and displaced data survive, and no cleanup unlink/rmdir occurs. Tests
+also exercise unbound `bundle`, copied directory/file and both JSON creations,
+confirming retained staging; a fully recorded tree is cleaned through the exact
+shared ledger. The copied-file link substitution test now correctly expects
+preserved unknown links, rather than the old unsafe empty-tree cleanup assumption.
+Initial run `42418245324` failed a fixture assertion that guessed the first copied
+`main.tf` location; its actual injected link was preserved. The assertion was
+corrected to inspect the exact surviving link and the full suite passed above.
+
+No real public closure, providers, Terraform or Git execution was performed in
+this follow-up; historical actual-archive semantic evidence elsewhere in this
+document does not verify new ledger capacity on that archive. One held descriptor
+per created entry is bounded by the extractor entry limit and OS descriptor
+capacity; exhaustion fails closed. Real-closure resource feasibility remains
+unverified. Non-root standard-library hosted tests used sanitized environment,
+no sudo, Docker, namespace setup, Azure, private runner or protected data. This is
+not adversarial host/token isolation evidence merely because UID was non-root.
+No local project filesystem read/edit/execution or setup occurred.
+
+Creation-to-binding and check-to-unlink races remain: a ledger is not an atomic
+security boundary under hostile same-UID directory mutation, does not authenticate
+in-place edits or byte authorship, and cannot make unknown-data protection absolute
+after the last check. Directory opening follows mkdir; errors or uncertainty leave
+staging rather than guessing. Safe cleanup on a shared mutable host, immutable
+handoff and trusted-parent/host/credential isolation still require independent
+resolution. No live or credentialed integration, apply or recovery sweep is enabled.
+
+The temporary hosted-only workflow was `workflow_dispatch` with `contents:read`,
+pinned checkout `persist-credentials:false`, no secrets/environment/id-token or
+private runner. After this final test it was restored byte-for-byte to original
+blob `13fea116e0cd70aa8f5d8cabcb9b893743e23c95`, with no later dispatch. Final helper,
+test and shared extractor blobs match the tested head. No temporary auto-trigger
+or artifact upload/retention extension remains. #522 retains the provenance,
+transport/input/state authority, trusted-host/identity, capacity and recovery gates.
