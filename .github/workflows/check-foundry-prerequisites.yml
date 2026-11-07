@@ -1,0 +1,76 @@
+name: Check isolated private Foundry prerequisites
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-foundry-prerequisites
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    timeout-minutes: 10
+    runs-on: [self-hosted, lab-runner]
+    environment: terraform-state
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Reserve this run's exclusive source directory
+        id: source
+        run: |
+          set +x
+          set -euo pipefail
+          umask 077
+          source_dir="foundry-prerequisite-source-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          if ! mkdir -- "$source_dir" 2>/dev/null; then
+            echo "prerequisite_source_reservation_failed" >&2
+            exit 1
+          fi
+          reserved=false
+          trap 'if [[ "$reserved" != true ]]; then rm -rf -- "$source_dir" >/dev/null 2>&1; fi' EXIT
+          trap 'exit 1' INT TERM
+          if ! printf '%s\n' "${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}" 2>/dev/null > "$source_dir/.run-owned"; then
+            echo "prerequisite_source_reservation_failed" >&2
+            exit 1
+          fi
+          reserved=true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          clean: false
+          show-progress: false
+          path: foundry-prerequisite-source-${{ github.run_id }}-${{ github.run_attempt }}/checkout
+          sparse-checkout: .github/scripts/check_foundry_prerequisites.py
+          sparse-checkout-cone-mode: false
+      - name: Check the actual pinned skill with isolated tool state
+        run: |
+          set +x
+          python3 "foundry-prerequisite-source-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/checkout/.github/scripts/check_foundry_prerequisites.py"
+      - name: Remove only this run's scratch and source
+        if: always() && steps.source.outcome == 'success'
+        run: |
+          set +x
+          set -uo pipefail
+          source_dir="foundry-prerequisite-source-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          script="$source_dir/checkout/.github/scripts/check_foundry_prerequisites.py"
+          status=0
+          if [[ -f "$script" ]]; then
+            python3 "$script" --cleanup || status=1
+          fi
+          if [[ ! -L "$source_dir" && -d "$source_dir" && ! -L "$source_dir/.run-owned" ]] &&
+             [[ "$(cat "$source_dir/.run-owned" 2>/dev/null)" == "${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}" ]]; then
+            rm -rf -- "$source_dir" >/dev/null 2>&1 || status=1
+          else
+            status=1
+          fi
+          if [[ "$status" != 0 ]]; then
+            echo "prerequisite_cleanup_failed" >&2
+            exit 1
+          fi
