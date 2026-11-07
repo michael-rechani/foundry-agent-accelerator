@@ -104,6 +104,29 @@ class SmokeTransportTests(unittest.TestCase):
         create.assert_called_once_with(input="fictional", store=False,
                                        extra_body={"agent_session_id": "session-1"})
 
+    def test_real_openai_sdk_serializes_session_body_without_network(self):
+        import httpx
+        from openai import OpenAI
+
+        captured = []
+        def respond(request):
+            captured.append(json.loads(request.content))
+            return httpx.Response(200, json={
+                "id": "resp-test", "object": "response", "created_at": 1,
+                "status": "completed", "output": [{"id": "msg-test", "type": "message",
+                    "status": "completed", "role": "assistant", "content": [{
+                        "type": "output_text", "text": "fictional answer", "annotations": []
+                    }]}],
+            })
+        openai = OpenAI(api_key="fictional", base_url="https://fictional.invalid/v1",
+                        http_client=httpx.Client(transport=httpx.MockTransport(respond)))
+        client = Mock()
+        client.get_openai_client.return_value = openai
+        smoke_test(client, "agent", "fictional", agent_session_id="session-1")
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0]["agent_session_id"], "session-1")
+        self.assertFalse(captured[0]["store"])
+        self.assertEqual(captured[0]["input"], "fictional")
     def test_real_sdk_serializes_version_reference_and_session_delete(self):
         requests_sent = []
         def respond(adapter, request, **kwargs):
