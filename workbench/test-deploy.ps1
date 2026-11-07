@@ -278,8 +278,12 @@ try {
         if ($Arguments -contains '--validate-profile') {
             $script:validations++
             Assert-Equal 'python' $Command 'profile validation uses offline system Python before dependencies'
-            Assert-Equal 4 $Arguments.Count 'validation forwards only profile and offline flag'
+            Assert-Equal 6 $Arguments.Count 'validation forwards profile, expected digest and offline flag'
             Assert-Equal $script:profileFile $Arguments[2] 'validation keeps the literal profile path as one argument'
+            Assert-Equal '--profile-sha256' $Arguments[3] 'validation binds an expected digest'
+            if ($Arguments[4] -cne (Get-FileHash -LiteralPath $script:profileFile -Algorithm SHA256).Hash.ToLowerInvariant()) {
+                throw 'Fictional profile digest mismatch.'
+            }
             if ($script:validationError) { throw $script:validationError }
             if ($script:ambiguousTarget) { return @('Valid profile: customer-review-coordinator', 'Valid profile: other-coordinator') }
             $target = if ($script:changeTargetAt -and $script:validations -ge $script:changeTargetAt) { 'changed-coordinator' } else { $script:profileTarget }
@@ -365,6 +369,9 @@ try {
     $script:approvalLabels = [Collections.Generic.List[string]]::new()
     function Confirm-Apply([string]$Label) {
         $script:approvalLabels.Add($Label)
+        if ($script:changeProfileAfterApproval -and $Label -match 'customer-review-coordinator') {
+            Set-Content -LiteralPath $script:profileFile -Value '{"same-name":"changed bytes after approval"}'
+        }
         if ($script:declineCoordinator -and $Label -match 'customer-review-coordinator') { return $false }
         $script:approval
     }
@@ -374,9 +381,11 @@ try {
     Assert-Equal 3 $calls.Count 'profiled batch publishes all approved agents'
     Assert-Equal 'application-review-agent,case-review-agent,review-coordinator-agent' (($calls | ForEach-Object { Split-Path (Split-Path $_.Arguments[0]) -Leaf }) -join ',') 'specialists publish before coordinator'
     foreach ($call in $calls[0..1]) { Assert-Equal 1 $call.Arguments.Count 'specialists receive no coordinator profile arguments' }
-    Assert-Equal 3 $calls[2].Arguments.Count 'coordinator receives script and two profile arguments'
+    Assert-Equal 5 $calls[2].Arguments.Count 'coordinator receives script, profile and expected digest arguments'
     Assert-Equal '--profile' $calls[2].Arguments[1] 'coordinator receives the explicit profile flag'
     Assert-Equal $script:profileFile $calls[2].Arguments[2] 'spaces and shell metacharacters remain one literal argument'
+    Assert-Equal '--profile-sha256' $calls[2].Arguments[3] 'publication forwards the digest flag'
+    Assert-Equal (Get-FileHash -LiteralPath $script:profileFile -Algorithm SHA256).Hash.ToLowerInvariant() $calls[2].Arguments[4] 'publication uses the same digest as validated approval'
     Assert-Equal 'custom-router' $script:publishedModels[-1] 'profile forwarding preserves Router default'
     Assert-Equal 3 $script:approvalLabels.Count 'every publication still requires separate approval'
     if ($script:approvalLabels[-1] -notmatch 'publishing customer-review-coordinator from profile' -or $script:approvalLabels[-1] -notmatch [regex]::Escape($script:profileFile)) {
@@ -451,6 +460,13 @@ try {
         Assert-Equal $before $script:publicationCalls.Count 'observed target changes before or after approval stop coordinator publication'
     }
     $script:changeTargetAt = $null
+    $script:changeProfileAfterApproval = $true
+    try { Invoke-AgentsStage; throw 'changed profile bytes after approval accepted' } catch {
+        if ($_.Exception.Message -notmatch 'profile digest mismatch') { throw }
+    }
+    Assert-Equal $before $script:publicationCalls.Count 'changed bytes after approval stop before coordinator invocation'
+    $script:changeProfileAfterApproval = $false
+    Set-Content -LiteralPath $script:profileFile -Value ($fictionalProfile | ConvertTo-Json -Depth 5)
     $script:publicationError = $true
     try { Invoke-AgentsStage; throw 'publication failure ignored' } catch {
         if ($_.Exception.Message -notmatch 'Fictional publication failure') { throw }

@@ -1,10 +1,12 @@
 import copy
+import hashlib
 import importlib.util
 import json
 import os
 import runpy
 import subprocess
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 from pathlib import Path
@@ -44,6 +46,90 @@ class ProfileTests(unittest.TestCase):
 
     def test_valid_profile(self):
         self.assertEqual(validate_profile(self.profile), self.profile)
+
+    def test_digest_uses_matching_unicode_bytes_once(self):
+        path = Path(__file__).with_name("deploy.py")
+        spec = importlib.util.spec_from_file_location("byte_bound_profile_deployer", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        configuration = {**self.profile, "instructions": "Review fictional caf\u00e9 evidence \u2014 no decisions."}
+        content = json.dumps(configuration, ensure_ascii=False).encode("utf-8")
+        with patch.object(Path, "read_bytes", return_value=content) as read:
+            profile = module.profile_from_file(Path("fictional.json"), hashlib.sha256(content).hexdigest())
+        read.assert_called_once_with()
+        self.assertEqual(profile.instructions, configuration["instructions"])
+        self.assertEqual(profile.name, configuration["name"])
+
+    def test_digest_mismatch_or_missing_file_never_calls_publication(self):
+        directory = Path(__file__).resolve().parent
+        sys.path.insert(0, str(directory.parent))
+        import deployment
+        approved = json.dumps(self.profile).encode("utf-8")
+        digest = hashlib.sha256(approved).hexdigest()
+        edits = (
+            {**self.profile, "instructions": "Changed after approval, same target name."},
+            {**self.profile, "name": "different-coordinator"},
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            profile_path = Path(temporary) / "fictional profile.json"
+            for edit in edits:
+                # The operator approved the earlier bytes, not this later path content.
+                profile_path.write_bytes(json.dumps(edit).encode("utf-8"))
+                argv = [str(directory / "deploy.py"), "--profile", str(profile_path), "--profile-sha256", digest]
+                with self.subTest(edit=edit), patch.object(deployment, "run") as execute, patch.object(sys, "argv", argv):
+                    with self.assertRaisesRegex(ValueError, "SHA-256 does not match"):
+                        runpy.run_path(str(directory / "deploy.py"), run_name="__main__")
+                    execute.assert_not_called()
+            profile_path.unlink()
+            with patch.object(deployment, "run") as execute, patch.object(sys, "argv", argv):
+                with self.assertRaises(FileNotFoundError):
+                    runpy.run_path(str(directory / "deploy.py"), run_name="__main__")
+                execute.assert_not_called()
+
+    def test_matching_digest_reaches_publication_with_the_checked_profile(self):
+        directory = Path(__file__).resolve().parent
+        sys.path.insert(0, str(directory.parent))
+        import deployment
+        content = json.dumps(self.profile).encode("utf-8")
+        argv = [str(directory / "deploy.py"), "--profile", "fictional.json",
+                "--profile-sha256", hashlib.sha256(content).hexdigest()]
+        with patch.object(deployment, "run") as execute, patch.object(sys, "argv", argv), patch.object(Path, "read_bytes", return_value=content) as read:
+            with self.assertRaises(SystemExit) as exit_status:
+                runpy.run_path(str(directory / "deploy.py"), run_name="__main__")
+        self.assertEqual(exit_status.exception.code, 0)
+        read.assert_called_once_with()
+        self.assertEqual(execute.call_args.args[0].instructions, self.profile["instructions"])
+        self.assertEqual(execute.call_args.args[1], [])
+
+    def test_digest_validation_checks_bytes_without_publication(self):
+        directory = Path(__file__).resolve().parent
+        sys.path.insert(0, str(directory.parent))
+        import deployment
+        content = json.dumps(self.profile).encode("utf-8")
+        argv = [str(directory / "deploy.py"), "--profile", "fictional.json",
+                "--profile-sha256", hashlib.sha256(content).hexdigest(), "--validate-profile"]
+        with patch.object(deployment, "run") as execute, patch.object(sys, "argv", argv), patch.object(Path, "read_bytes", return_value=content) as read:
+            with self.assertRaises(SystemExit) as exit_status:
+                runpy.run_path(str(directory / "deploy.py"), run_name="__main__")
+        self.assertEqual(exit_status.exception.code, 0)
+        read.assert_called_once_with()
+        execute.assert_not_called()
+
+    def test_malformed_or_unscoped_digest_never_calls_publication(self):
+        directory = Path(__file__).resolve().parent
+        sys.path.insert(0, str(directory.parent))
+        import deployment
+        arguments = [
+            ["--profile", "fictional.json", "--profile-sha256", value]
+            for value in ("", "abc", "A" * 64, "g" * 64, "a" * 65)
+        ]
+        arguments.append(["--profile-sha256", "a" * 64])
+        for argument in arguments:
+            with self.subTest(argument=argument), patch.object(deployment, "run") as execute, patch.object(sys, "argv", [str(directory / "deploy.py"), *argument]):
+                with self.assertRaises(SystemExit) as exit_status:
+                    runpy.run_path(str(directory / "deploy.py"), run_name="__main__")
+                self.assertEqual(exit_status.exception.code, 2)
+                execute.assert_not_called()
 
     def test_example_matches_base_behavior_with_only_tool_names_changed(self):
         directory = Path(__file__).parent

@@ -450,10 +450,10 @@ function Invoke-VerifyStage {
     Invoke-PrivateCheck (Join-Path $PSScriptRoot 'workbench/test-private.ps1') $url (-not $IncludeAgentCall)
 }
 
-function Get-ValidatedCoordinatorTarget([string]$ProfilePath) {
+function Get-ValidatedCoordinatorTarget([string]$ProfilePath, [string]$ExpectedDigest) {
     $validation = @(Invoke-Native 'python' @(
         (Join-Path $PSScriptRoot 'hosted-agents/review-coordinator-agent/deploy.py'),
-        '--profile', $ProfilePath, '--validate-profile'
+        '--profile', $ProfilePath, '--profile-sha256', $ExpectedDigest, '--validate-profile'
     ))
     $targets = @($validation | Where-Object { "$_" -cmatch '^Valid profile: (.+)$' })
     if ($targets.Count -ne 1) { throw 'Coordinator validation did not report one unambiguous profile target.' }
@@ -465,6 +465,7 @@ function Get-ValidatedCoordinatorTarget([string]$ProfilePath) {
 function Invoke-AgentsStage {
     if (-not $Agent) { throw 'Name the agents to publish with -Agent, specialists before coordinators. Publishing is billable and changes routing.' }
     $profilePath = $null
+    $profileSha256 = $null
     $coordinatorTarget = $null
     if ($CoordinatorProfile) {
         if ($Stage -notcontains 'agents') { throw '-CoordinatorProfile requires -Stage agents.' }
@@ -485,11 +486,12 @@ function Invoke-AgentsStage {
             throw '-CoordinatorProfile must resolve to one filesystem file.'
         }
         $profilePath = $resolved[0].ProviderPath
-        $coordinatorTarget = Get-ValidatedCoordinatorTarget $profilePath
+        $profileSha256 = (Get-FileHash -LiteralPath $profilePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $coordinatorTarget = Get-ValidatedCoordinatorTarget $profilePath $profileSha256
         if ($Agent -ccontains $coordinatorTarget -and $coordinatorTarget -cne 'review-coordinator-agent') {
             throw 'The coordinator profile target conflicts with another agent in this batch.'
         }
-        Write-Host "Selected coordinator profile: $profilePath; publication target: $coordinatorTarget. Validation is offline, not publication approval."
+        Write-Host "Selected coordinator profile: $profilePath; publication target: $coordinatorTarget; SHA-256: $profileSha256. Validation is offline, not publication approval."
     }
     Initialize-PlatformRoot
     $endpoint = Get-Native $TerraformCommand @("-chdir=$platformDir", 'output', '-raw', 'foundry_project_endpoint')
@@ -517,13 +519,13 @@ function Invoke-AgentsStage {
         $arguments = @((Join-Path $sample 'deploy.py'))
         $publicationTarget = $name
         if ($profilePath -and $name -ceq 'review-coordinator-agent') {
-            $arguments += @('--profile', $profilePath)
-            if ((Get-ValidatedCoordinatorTarget $profilePath) -cne $coordinatorTarget) { throw 'Coordinator profile target changed after batch validation; stop and review the batch again.' }
-            $publicationTarget = "$coordinatorTarget from profile $profilePath"
+            $arguments += @('--profile', $profilePath, '--profile-sha256', $profileSha256)
+            if ((Get-ValidatedCoordinatorTarget $profilePath $profileSha256) -cne $coordinatorTarget) { throw 'Coordinator profile target changed after batch validation; stop and review the batch again.' }
+            $publicationTarget = "$coordinatorTarget from profile $profilePath (SHA-256 $profileSha256)"
         }
         if (-not (Confirm-Apply "publishing $publicationTarget (creates a billable version and changes routing)")) { throw "Publishing $publicationTarget was not approved." }
         if ($profilePath -and $name -ceq 'review-coordinator-agent') {
-            if ((Get-ValidatedCoordinatorTarget $profilePath) -cne $coordinatorTarget) { throw 'Coordinator profile target changed after approval; stop and review the batch again.' }
+            if ((Get-ValidatedCoordinatorTarget $profilePath $profileSha256) -cne $coordinatorTarget) { throw 'Coordinator profile target changed after approval; stop and review the batch again.' }
         }
         $env:FOUNDRY_PROJECT_ENDPOINT = $endpoint
         $env:FOUNDRY_MODEL_NAME = $model

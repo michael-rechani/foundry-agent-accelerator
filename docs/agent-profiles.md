@@ -280,24 +280,34 @@ A profiled batch requires exactly one `review-coordinator-agent`, last in the
 agent list, with no repeated or missing agent entries. Before platform
 initialization, dependency installation, or any publication, the stage resolves
 one existing profile file and invokes the coordinator's own offline
-`--validate-profile` using system Python. That validator owns profile rules and
+`--validate-profile` using system Python, with an explicit `--profile-sha256`
+digest computed from that file. That validator owns profile rules and
 continues to reject incompatible `FOUNDRY_HOSTED_AGENT_NAME` and CLI name
 overrides. Validation failure, ambiguous target output, a target conflicting with
 another selected agent, or an option outside the agents stage stops the batch.
 The selected target and file are displayed before the first publication.
 Specialists still precede the coordinator, and each publication still needs its
 own interactive approval; coordinator approval identifies the profile's actual
-target and file. Profile arguments go only to the coordinator. Router output
+target, file, and expected digest. Profile arguments go only to the coordinator. Router output
 preference, fixed-model fallback, explicit `-AgentModel` override, and cleanup of
 the project/model environment variables after publication remain unchanged.
 
-The profile is validated again before coordinator approval and after approval;
-an observed target-name change stops coordinator publication. These are
-point-in-time checks, **not source immutability or a filesystem lock**. The file,
-instructions, bindings, source code, or name-override environment can still
-change between checks and use, including changes made by another process with
-the same user identity. Specialists already published are not undone when a
-later check or approval fails. Specialist routing can also change independently
+The same expected digest is used for initial validation, validation before and
+after coordinator approval, and publication. In the publication Python process,
+`deploy.py` reads the profile bytes once, verifies the supplied SHA-256 before
+parsing, then builds and uses the profile from those same bytes. A changed or
+missing file fails before agent mutation, including edits that retain the same
+coordinator name. The check is not just a pre-launch hash followed by an
+unchecked reopen. Direct `deploy.py` callers can also opt in with
+`--profile-sha256` (64 lowercase hexadecimal characters, requiring `--profile`);
+omitting it retains existing path-based behavior.
+
+This is **not source immutability, a filesystem lock, or protection against a
+compromised same-user host**. Source code, arguments, the expected digest itself,
+and name-override environment can still be altered by a process with that user
+identity. The profile file can change after it is read, although those later
+edits do not change this process's checked profile bytes. Specialists already
+published are not undone when a later check or approval fails. Specialist routing can also change independently
 between validation and live checks; named bindings do not pin versions.
 Serialize profile/source and routing changes, review the staged artifacts and
 recovery inventory, and retain the existing live delegation and promotion

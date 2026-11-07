@@ -1,6 +1,8 @@
 import argparse
+import hashlib
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -11,8 +13,22 @@ from deployment import AgentProfile, run
 from configuration import DEFAULT_SPECIALISTS, validate_profile
 
 
-def profile_from_file(path: Path) -> AgentProfile:
-    configuration = validate_profile(json.loads(path.read_text(encoding="utf-8")))
+def profile_digest(value: str) -> str:
+    if not re.fullmatch(r"[0-9a-f]{64}", value):
+        raise argparse.ArgumentTypeError("profile SHA-256 must be 64 lowercase hexadecimal characters")
+    return value
+
+
+def profile_from_file(path: Path, expected_sha256: str | None = None) -> AgentProfile:
+    if expected_sha256 is None:
+        document = path.read_text(encoding="utf-8")
+    else:
+        profile_digest(expected_sha256)
+        content = path.read_bytes()
+        if hashlib.sha256(content).hexdigest() != expected_sha256:
+            raise ValueError("Coordinator profile SHA-256 does not match the approved content")
+        document = content.decode("utf-8")
+    configuration = validate_profile(json.loads(document))
     bindings = {item["tool"]: item["agent"] for item in configuration["specialists"]}
     return AgentProfile(
         source_directory=SOURCE_DIRECTORY,
@@ -68,12 +84,15 @@ def default_profile() -> AgentProfile:
 if __name__ == "__main__":
     profile_parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
     profile_parser.add_argument("--profile", type=Path)
+    profile_parser.add_argument("--profile-sha256", type=profile_digest)
     profile_parser.add_argument("--validate-profile", action="store_true")
     profile_args, remaining = profile_parser.parse_known_args()
     if profile_args.validate_profile and profile_args.profile is None:
         profile_parser.error("--validate-profile requires --profile")
+    if profile_args.profile_sha256 is not None and profile_args.profile is None:
+        profile_parser.error("--profile-sha256 requires --profile")
     if profile_args.profile is not None:
-        selected = profile_from_file(profile_args.profile)
+        selected = profile_from_file(profile_args.profile, profile_args.profile_sha256)
         if any(
             argument.split("=", 1)[0] in {"--instructions", "--agent-name"}
             for argument in remaining
@@ -96,6 +115,7 @@ if __name__ == "__main__":
         sys.exit(0)
     if "--help" in remaining or "-h" in remaining:
         print(
-            "Use --profile PATH to select a customer profile; add --validate-profile to check it without Azure.\n"
+            "Use --profile PATH to select a customer profile; add --validate-profile to check it without Azure. "
+            "Use --profile-sha256 DIGEST to require the approved profile bytes.\n"
         )
     run(default_profile())
