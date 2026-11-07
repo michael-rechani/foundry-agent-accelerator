@@ -1,0 +1,75 @@
+name: Temporary synthetic HCL prototype
+on:
+  push:
+    branches: [michael-rechani-hcl-syntax-prototype-20261107]
+permissions:
+  contents: read
+jobs:
+  synthetic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: "1.26.8"
+          cache: false
+      - name: Verify newly added isolated dependency manifest
+        working-directory: .github/offline-hcl-prototype
+        env:
+          GOENV: "off"
+          GOWORK: "off"
+          GOTOOLCHAIN: local
+          GOPROXY: https://proxy.golang.org
+          GOSUMDB: sum.golang.org
+          GOPRIVATE: ""
+          GONOPROXY: ""
+          GONOSUMDB: ""
+        run: |
+          test "$(id -u)" != 0
+          go version
+          if [ -n "$(git diff --name-only HEAD^ HEAD -- go.mod go.sum)" ]; then
+            # Dependency resolution is authorized by this commit's manifest change.
+            go mod tidy
+          else
+            probe="$(mktemp "$RUNNER_TEMP/hcl-probe.XXXXXX")"
+            trap 'rm -f -- "$probe"' EXIT
+            if GOPROXY=off go test -mod=readonly -run='^$' ./... >"$probe" 2>&1; then
+              cat "$probe"
+            elif grep -q 'module lookup disabled by GOPROXY=off' "$probe"; then
+              cat "$probe"
+              # This chosen validation command failed because public packages are missing.
+              go mod download
+            else
+              cat "$probe"
+              exit 1
+            fi
+          fi
+          go mod verify
+          git diff --exit-code -- go.mod go.sum
+      - name: Actual analyzer synthetic tests and vet
+        working-directory: .github/offline-hcl-prototype
+        env:
+          GOENV: "off"
+          GOWORK: "off"
+          GOTOOLCHAIN: local
+          GOPROXY: https://proxy.golang.org
+          GOSUMDB: sum.golang.org
+        run: |
+          go test -mod=readonly -count=1 -cover -v ./...
+          go vet -mod=readonly ./...
+      - name: Bounded fuzzing of synthetic native-HCL bytes
+        working-directory: .github/offline-hcl-prototype
+        env:
+          GOENV: "off"
+          GOWORK: "off"
+          GOTOOLCHAIN: local
+          GOPROXY: https://proxy.golang.org
+          GOSUMDB: sum.golang.org
+        run: go test -mod=readonly -run='^$' -fuzz='^FuzzAnalyze$' -fuzztime=10s -parallel=2
