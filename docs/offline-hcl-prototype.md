@@ -319,7 +319,19 @@ changes, and used exactly two additional synthetic-only hosted runs:
 | Run | Tested commit | Synthetic tests and vet | Fuzz results |
 | --- | --- | --- | --- |
 | [42424442927](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42424442927) | `d7e70a48775e4ec4d9e112a6668a1fcb9db04174` | Passed; 96.4% statement coverage | Four original `FuzzAnalyze` and four no-op-control invocations passed |
-| [42424684586](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42424684586) | `bf86acc3af5047406dbaff65133514a483ac63af` | Passed; 96.4% statement coverage | Three of each target passed with coordinator debug enabled |
+| [42424684586](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42424684586) | `bf86acc3af5047406dbaff65133514a483ac63af` | Passed; 96.4% statement coverage | Six actual Go `PASS`/`ok` pairs observed with coordinator debug; wrapper-status limitation below |
+
+Per-command log evidence distinguishes the Go results from the temporary
+wrapper's behavior. Run 42424442927 contains eight actual Go `PASS`/`ok` pairs;
+run 42424684586 contains six, with no observed Go failure lines. However, the
+second run piped `go test` into `awk` under GitHub's `/usr/bin/bash -e {0}`
+without `pipefail`. Its pipeline status therefore reflected `awk`, not the Go
+command, and the wrapper's success status alone could have masked a failed Go
+command. The reported per-command successes are supported by the actual Go log
+lines, not by wrapper success markers or the job conclusion alone. This is an
+identified harness limitation; it does not explain the original fuzz deadline.
+No additional CI was run to correct or validate the retired wrapper, and the
+temporary workflow remains absent.
 
 Each invocation used Go 1.26.8, a 10-second fuzz duration and two workers.
 The second run set `GODEBUG=fuzzdebug=1` and printed the last at most 30
