@@ -19,6 +19,9 @@ EXPECTED_FILES = {
     "terraform/modules/model-router/main.tf": "b4ed2b855ce7f75b7acb2cab81c2ccde66d324bc",
     "terraform/modules/model-router/tests/model-router.tftest.hcl": "09bdeaf53260e25aa5c029308692010ac06ee4eb",
     "terraform/README.md": "adbc5cd0ef8578770074b533c57437a34a2f1f4d",
+    ".github/scripts/check_platform_router_plan.py": "c53c9106b3852ddaae6a0611feb02d145b1f106d",
+    ".github/scripts/test_check_platform_router_plan.py": "828b84ad63116d80bef07c2eb9fb81d28ab984c3",
+    "docs/lab-deployment.md": "0094cb9587920b46e511e3174f98d61e3629688a",
 }
 API_ROOT = "https://api.github.com"
 
@@ -40,6 +43,198 @@ def _replace_once(text, old, new, description):
 
 def transform_file(path, text):
     """Return the exact fixed Router change; reject unexpected source shapes."""
+    if path == ".github/scripts/check_platform_router_plan.py":
+        replacements = (
+            (
+                'PATCH = "module.model_router.azapi_resource_action.model_router_routing[0]"',
+                'LEGACY_PATCH = "module.model_router.azapi_resource_action.model_router_routing[0]"',
+            ),
+            (
+                '''    patch = {"sku": expected["sku"], "properties": {
+        "model": expected["properties"]["model"], "routing": expected["properties"]["routing"],
+    }}
+    resource_id = after.get("resource_id")
+    return (
+        after.get("type") == "Microsoft.CognitiveServices/accounts/deployments@2025-12-01"
+        and after.get("method") == "PATCH" and after.get("body") == patch
+        and (resource_id is None and unknown.get("resource_id") is True
+             or isinstance(resource_id, str)
+             and resource_id.lower() == (account + "/deployments/model-router").lower())
+    )
+''',
+                "    return False\n",
+            ),
+            (
+                "        if address in (DEPLOYMENT, PATCH):\n",
+                '''        if address == LEGACY_PATCH:
+            raise CheckError("Legacy Router PATCH state requires separately reviewed recovery.")
+        if address == DEPLOYMENT:
+''',
+            ),
+            (
+                "The Router deployment or PATCH differs from the reviewed configuration.",
+                "The Router deployment differs from the reviewed PUT configuration.",
+            ),
+            (
+                '''    if set(actions) != {DEPLOYMENT, PATCH} or actions[DEPLOYMENT] != actions[PATCH]:
+        raise CheckError("The Router deployment and verification PATCH must have matching actions.")
+''',
+                '''    if set(actions) != {DEPLOYMENT}:
+        raise CheckError("The plan must contain exactly the reviewed Router PUT deployment.")
+''',
+            ),
+            (
+                '''    for entry in drift:
+        if not isinstance(entry, dict) or entry.get("mode") != "managed":
+            raise CheckError("Terraform returned an invalid platform drift entry.")
+''',
+                '''    for entry in drift:
+        if not isinstance(entry, dict) or entry.get("mode") != "managed":
+            raise CheckError("Terraform returned an invalid platform drift entry.")
+        if entry.get("address") == LEGACY_PATCH:
+            raise CheckError("Legacy Router PATCH state requires separately reviewed recovery.")
+''',
+            ),
+            ('        "router_patch": actions[PATCH],\n', ""),
+        )
+        for old, new in replacements:
+            text = _replace_once(text, old, new, "the fixed platform PUT-only guard")
+        return text
+
+    if path == ".github/scripts/test_check_platform_router_plan.py":
+        replacements = (
+            (
+                '''    patch_body = {
+        "sku": deepcopy(body["sku"]),
+        "properties": {
+            "model": deepcopy(body["properties"]["model"]),
+            "routing": deepcopy(body["properties"]["routing"]),
+        },
+    }
+''',
+                "",
+            ),
+            (
+                '''            {
+                "address": diagnostic.PATCH, "mode": "managed",
+                "change": {
+                    "actions": ["create"], "before": None,
+                    "after": {
+                        "type": "Microsoft.CognitiveServices/accounts/deployments@2025-12-01",
+                        "method": "PATCH", "body": patch_body,
+                    },
+                    "after_unknown": {"resource_id": True},
+                },
+            },
+''',
+                "",
+            ),
+            (
+                '        self.assertEqual((result["router_deployment"], result["router_patch"]), ("create", "create"))',
+                '''        self.assertEqual(result["router_deployment"], "create")
+        self.assertNotIn("router_patch", result)''',
+            ),
+            (
+                '''        value["resource_changes"][1]["change"].update(
+            actions=["no-op"],
+            after={**value["resource_changes"][1]["change"]["after"],
+                   "resource_id": ACCOUNT + "/deployments/model-router"},
+            after_unknown={},
+        )
+        value["resource_changes"][2]["change"]["actions"] = ["no-op"]
+''',
+                '        value["resource_changes"][1]["change"]["actions"] = ["no-op"]\n',
+            ),
+            (
+                '''    def test_partial_router_apply_requires_separate_recovery(self):
+        value = plan()
+        deployment = value["resource_changes"][0]["change"]
+        deployment.update(actions=["no-op"], before=deepcopy(deployment["after"]))
+        patch_change = value["resource_changes"][1]["change"]
+        patch_change["after"]["resource_id"] = ACCOUNT + "/deployments/model-router"
+        patch_change["after_unknown"] = {}
+        with self.assertRaisesRegex(diagnostic.CheckError, "must have matching actions"):
+            diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
+''',
+                '''    def test_partial_router_apply_requires_separate_recovery(self):
+        value = plan()
+        deployment = value["resource_changes"][0]["change"]
+        deployment.update(actions=["no-op"], before=deepcopy(deployment["after"]))
+        with self.assertRaisesRegex(diagnostic.CheckError, "existing Router outputs"):
+            diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
+
+    def test_legacy_patch_state_and_router_updates_require_separate_recovery(self):
+        for actions in (["no-op"], ["create"], ["update"], ["delete"], ["delete", "create"], ["forget"]):
+            value = plan()
+            value["resource_changes"].append({
+                "address": diagnostic.LEGACY_PATCH, "mode": "managed",
+                "change": {"actions": actions, "before": {}, "after": {}, "after_unknown": {}},
+            })
+            with self.subTest(actions=actions), self.assertRaisesRegex(
+                    diagnostic.CheckError, "separately reviewed recovery"):
+                diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
+        value = plan()
+        value["resource_drift"] = [{
+            "address": diagnostic.LEGACY_PATCH, "mode": "managed",
+            "change": {"actions": ["no-op"], "before": {}, "after": {}, "after_unknown": {}},
+        }]
+        with self.assertRaisesRegex(diagnostic.CheckError, "separately reviewed recovery"):
+            diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
+        for actions in (["update"], ["delete"], ["delete", "create"], ["create", "delete"], ["forget"]):
+            value = plan()
+            value["resource_changes"][0]["change"]["actions"] = actions
+            with self.subTest(actions=actions), self.assertRaises(diagnostic.CheckError):
+                diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
+''',
+            ),
+            (
+                '            lambda item: item["resource_changes"][1]["change"]["after"].update(method="DELETE"),',
+                '''            lambda item: item["resource_changes"][0]["change"]["after"].update(
+                type="Microsoft.CognitiveServices/accounts/deployments@2025-12-01"),''',
+            ),
+            (
+                '            lambda item: item["resource_changes"][1]["change"]["after_unknown"].update(resource_id=False),',
+                '            lambda item: item["resource_changes"][0]["change"]["after_unknown"].update(parent_id=True),',
+            ),
+        )
+        for old, new in replacements:
+            text = _replace_once(text, old, new, "the fixed platform PUT-only regression")
+        return text
+
+    if path == "docs/lab-deployment.md":
+        return _replace_once(
+            text,
+            '''The Router module's routing PATCH is not yet verified against the live service.
+A failed create, PATCH, or readback can leave a deployment present with an
+unverified model subset, and state may reflect only part of the operation.
+Do not route requests to it or blindly retry or delete it. Use an approved
+private-runner path to inspect the deployment and state, then separately review
+the necessary reconciliation or removal; no such recovery path is approved
+yet. For example, a no-change deployment with a pending PATCH is rejected by
+the forward diagnostic's matching-action guard and requires a separately
+reviewed recovery path, not a targeted apply or a weaker forward guard.
+''',
+            '''The Router module sends routing only in the documented deployment PUT and
+retains strict fresh management-plane readback. Removing the unsupported
+routing PATCH is a code-contract correction, not a verified live-service fix.
+A failed PUT or readback can leave a deployment present with an unverified
+model subset, and state may reflect only part of the operation. Do not route
+requests to it or blindly retry or delete it. Use an approved private-runner
+path to inspect the deployment and state, then separately review the necessary
+reconciliation or removal; no such recovery path is approved yet.
+
+The forward platform diagnostic accepts only the exact reviewed PUT creation
+or a verified no-op. It rejects in-place Router updates, replacements, deletes,
+and every legacy PATCH state entry, including no-op or deletion of the removed
+resource. Removing the PATCH from configuration does not authorize its state
+removal. Partial creation, legacy PATCH state, and unverified readback require
+a separately reviewed recovery path, not a targeted apply, state surgery, or a
+weaker forward guard. Unrelated managed changes, drift, imports, and nonpassing
+checks remain blockers.
+''',
+            "the PUT-only Router recovery documentation",
+        )
+
     if path == "terraform/modules/model-router/main.tf":
         text = _replace_once(
             text,

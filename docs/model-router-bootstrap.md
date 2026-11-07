@@ -15,12 +15,28 @@ protected `main`, it checks the first run and owner actor ID, confirms that
 protected `main` is still the exact workflow source commit, confirms PR #523 is
 open at the exact reviewed head
 `52fab5e08fb498720efcd53f0f389f424d671a46`, and verifies the exact source blob
-IDs for three hard-coded files. It removes the unsupported `2025-12-01` routing
-PATCH, adjusts only assertions that depended on that PATCH, and updates the
-related documentation. It preserves the `2025-10-01-preview` deployment PUT,
+IDs for six hard-coded files:
+
+- `terraform/modules/model-router/main.tf`
+- `terraform/modules/model-router/tests/model-router.tftest.hcl`
+- `.github/scripts/check_platform_router_plan.py`
+- `.github/scripts/test_check_platform_router_plan.py`
+- `terraform/README.md`
+- `docs/lab-deployment.md`
+
+It removes the unsupported `2025-12-01` routing PATCH, updates the directly
+coupled Terraform assertions and platform plan guard/tests, and corrects the
+API-contract and recovery documentation. The guard accepts only the exact
+reviewed PUT creation or a verified no-op. Every legacy PATCH state entry,
+including its deletion or no-op, still requires separately reviewed recovery;
+in-place Router updates, replacement, and deletion are not authorized.
+Unrelated managed changes, drift, imports, and nonpassing checks still block
+the forward diagnostic. It preserves the `2025-10-01-preview` deployment PUT,
 the fresh `2025-12-01` management-plane GET, strict routing postconditions, and
-warnings about a potentially partial or unrestricted deployment. It commits
-with GraphQL `createCommitOnBranch` and `expectedHeadOid`, so a branch movement
+warnings about a potentially partial or unrestricted deployment. The readback
+explicitly depends on the deployment so pending updates defer the GET; that
+module dependency does not relax the forward diagnostic's update prohibition.
+It commits with GraphQL `createCommitOnBranch` and `expectedHeadOid`, so a branch movement
 between read and write fails rather than overwriting newer work.
 
 Microsoft's current TypeSpec models the `2025-12-01` PATCH as tags/SKU only;
@@ -42,7 +58,7 @@ configuration; no inference behavior is verified.
   as authorization to activate or dispatch it.
 - The workflow is dispatch-only, restricted in code to the exact repository,
   owner actor ID, first run/attempt, protected `main`, fixed PR branch, exact
-  SHA, exact three source blobs, and one fixed transformation. There are no
+  SHA, exact six source blobs, and one fixed transformation. There are no
   user inputs, PR/fork triggers, Azure calls, OIDC permissions, environment
   secrets, or commands sourced from PR #523.
 - The proposed write permission is a repository-scoped `contents: write`
@@ -53,6 +69,8 @@ configuration; no inference behavior is verified.
   trusted workflow source; `persist-credentials: false` prevents saving it in
   the repository's Git configuration. The helper receives the token through
   its environment for the fixed GitHub API calls.
+  Authenticated calls require the exact HTTPS GitHub API origin and reject
+  all redirects; file additions are UTF-8 bytes encoded as RFC 4648 base64.
 - The repository is public and uses a persistent self-hosted runner with private
   network access. The workflow's own `main` guard does not platform-enforce
   runner access restrictions for other workflows. The available API inspection
@@ -85,3 +103,11 @@ scripts:
 ```sh
 python3 .github/scripts/test_model_router_bootstrap.py
 ```
+
+The offline suite reproduces the old two-resource guard's rejection of a
+PUT-only creation, then checks the corrected pure policy against synthetic
+creation, verified no-op, and adversarial plans. Its reviewed policy excerpt
+is a data fixture from the pinned source; the pinned runner module, its imports, state
+access, and diagnostic entry point are not executed. The excerpt includes the
+unchanged forward rejection gate, so merely reporting a disallowed change in
+the summary cannot make a test pass.

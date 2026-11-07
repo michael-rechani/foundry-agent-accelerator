@@ -1,16 +1,23 @@
 """Offline tests for the inert, fixed Model Router bootstrap proposal."""
 
+import ast
 import base64
+import builtins
+from copy import deepcopy
 from email.message import Message
 import importlib.util
 from io import BytesIO
+import json
 from pathlib import Path
 import re
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 import urllib.error
 import urllib.request
 import urllib.response
+
+from check_lab_terraform_plan import CheckError, change_action, has_unknown
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location(
@@ -18,6 +25,231 @@ SPEC = importlib.util.spec_from_file_location(
 )
 bootstrap = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(bootstrap)
+
+
+def platform_policy(*, transformed=True):
+    source = (ROOT / ".github/scripts/fixtures/model-router-bootstrap-platform-policy.txt").read_text()
+    if transformed:
+        source = bootstrap.transform_file(".github/scripts/check_platform_router_plan.py", source)
+    tree = ast.parse(source)
+    functions = {
+        "router_body", "router_change_matches", "preview_capabilities",
+        "summarize_plan", "enforce_forward_policy",
+    }
+    if {node.name for node in tree.body if isinstance(node, ast.FunctionDef)} != functions:
+        raise AssertionError("Only the reviewed pure policy fixture may execute.")
+    if any(isinstance(node, (ast.Import, ast.ImportFrom)) for node in ast.walk(tree)):
+        raise AssertionError("The policy fixture must not import runner or network code.")
+    namespace = {
+        "__builtins__": {
+            name: getattr(builtins, name)
+            for name in (
+                "all", "any", "bool", "dict", "int", "isinstance", "len", "list", "set", "sorted", "str", "tuple", "type",
+            )
+        },
+        "CheckError": CheckError, "change_action": change_action, "has_unknown": has_unknown,
+        "json": json, "re": re,
+    }
+    # Only this checked-in, reviewed pure-policy excerpt runs; no PR module imports or runner entry point.
+    exec(compile(tree, "<reviewed offline policy fixture>", "exec"), namespace)  # noqa: S102
+    return SimpleNamespace(**namespace)
+
+
+def synthetic_platform_plan(policy):
+    account = (
+        "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-fixture"
+        "/providers/Microsoft.CognitiveServices/accounts/foundry-fixture"
+    )
+    values = {
+        "subscription_id": "11111111-2222-3333-4444-555555555555",
+        "deployment_principal_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "model_router_deployment": deepcopy(policy.ROUTER_INPUT),
+    }
+    plan = {
+        "format_version": "1.0", "complete": True, "errored": False,
+        "variables": {
+            **{name: {"value": value} for name, value in values.items()},
+            "model_deployment": {"value": {
+                "deployment_name": "gpt-4.1", "format": "OpenAI", "name": "gpt-4.1", "version": "2025-04-14",
+            }},
+            "additional_model_deployments": {"value": {}},
+        },
+        "resource_changes": [
+            {
+                "address": policy.DEPLOYMENT, "mode": "managed",
+                "change": {
+                    "actions": ["create"], "before": None,
+                    "after": {
+                        "type": "Microsoft.CognitiveServices/accounts/deployments@2025-10-01-preview",
+                        "name": "model-router", "parent_id": account, "body": policy.router_body(),
+                    },
+                    "after_unknown": {},
+                },
+            },
+            {
+                "address": policy.READBACK, "mode": "data",
+                "change": {"actions": ["read"], "before": None, "after": {}, "after_unknown": {"output": True}},
+            },
+        ],
+        "output_changes": {
+            "model_router_deployment_name": {"actions": ["create"], "after_unknown": True},
+            "model_deployment_names": {
+                "actions": ["update"], "before": ["gpt-4.1"],
+                "after": ["gpt-4.1", None], "after_unknown": [False, True],
+            },
+            "model_preview_encrypted_reasoning": {
+                "actions": ["create"], "before": None,
+                "after": {"gpt-4.1": False, "model-router": False}, "after_unknown": False,
+            },
+        },
+        "checks": [{"address": {"to_display": policy.READBACK}, "status": "unknown"}],
+    }
+    return plan, values, account
+
+
+class PlatformPolicyTests(unittest.TestCase):
+    def setUp(self):
+        self.policy = platform_policy()
+
+    def approve(self, plan, exit_code=2):
+        _, values, account = synthetic_platform_plan(self.policy)
+        summary = self.policy.summarize_plan(plan, exit_code, values, account)
+        self.policy.enforce_forward_policy(summary)
+        return summary
+
+    def test_put_only_creation_reproduces_old_failure_and_passes_fixed_policy(self):
+        plan, values, account = synthetic_platform_plan(self.policy)
+        with self.assertRaisesRegex(CheckError, "must have matching actions"):
+            platform_policy(transformed=False).summarize_plan(plan, 2, values, account)
+        result = self.approve(plan)
+        self.assertEqual(result["router_deployment"], "create")
+        self.assertNotIn("router_patch", result)
+        self.assertEqual(result["deferred_router_readback"], 1)
+
+    def no_op_plan(self):
+        plan, _, _ = synthetic_platform_plan(self.policy)
+        deployment = plan["resource_changes"][0]["change"]
+        deployment.update(actions=["no-op"], before=deepcopy(deployment["after"]))
+        plan["resource_changes"][1]["change"]["actions"] = ["no-op"]
+        plan["output_changes"] = {
+            "model_router_deployment_name": {
+                "actions": ["no-op"], "before": "model-router", "after": "model-router", "after_unknown": False,
+            },
+            "model_deployment_names": {
+                "actions": ["no-op"], "before": ["gpt-4.1", "model-router"],
+                "after": ["gpt-4.1", "model-router"], "after_unknown": False,
+            },
+            "model_preview_encrypted_reasoning": {
+                "actions": ["no-op"], "before": {"gpt-4.1": False, "model-router": False},
+                "after": {"gpt-4.1": False, "model-router": False}, "after_unknown": False,
+            },
+        }
+        plan["checks"][0]["status"] = "pass"
+        return plan
+
+    def test_verified_known_no_op_is_accepted(self):
+        result = self.approve(self.no_op_plan(), 0)
+        self.assertEqual(result["router_deployment"], "no-op")
+        self.assertEqual(result["deferred_router_readback"], 0)
+
+    def test_legacy_patch_actions_never_authorize_state_removal_or_recovery(self):
+        for actions in (["no-op"], ["create"], ["update"], ["delete"], ["forget"], ["delete", "create"]):
+            plan, _, _ = synthetic_platform_plan(self.policy)
+            plan["resource_changes"].append({
+                "address": self.policy.LEGACY_PATCH, "mode": "managed",
+                "change": {"actions": actions, "before": {}, "after": {}, "after_unknown": {}},
+            })
+            with self.subTest(actions=actions), self.assertRaisesRegex(CheckError, "separately reviewed recovery"):
+                self.approve(plan)
+        plan, _, _ = synthetic_platform_plan(self.policy)
+        plan["resource_drift"] = [{
+            "address": self.policy.LEGACY_PATCH, "mode": "managed",
+            "change": {"actions": ["no-op"], "before": {}, "after": {}, "after_unknown": {}},
+        }]
+        with self.assertRaisesRegex(CheckError, "separately reviewed recovery"):
+            self.approve(plan)
+
+    def test_router_update_replacement_delete_forget_and_missing_resource_are_rejected(self):
+        for actions in (["update"], ["delete"], ["forget"], ["delete", "create"], ["create", "delete"]):
+            plan, _, _ = synthetic_platform_plan(self.policy)
+            plan["resource_changes"][0]["change"]["actions"] = actions
+            with self.subTest(actions=actions), self.assertRaises(CheckError):
+                self.approve(plan)
+        plan, _, _ = synthetic_platform_plan(self.policy)
+        plan["resource_changes"].pop(0)
+        with self.assertRaises(CheckError):
+            self.approve(plan)
+
+    def test_unsafe_put_body_identity_unknowns_duplicate_and_readback_actions_are_rejected(self):
+        for alter in (
+            lambda p: p["resource_changes"][0]["change"]["after"].update(parent_id="wrong-account"),
+            lambda p: p["resource_changes"][0]["change"]["after"].update(
+                type="Microsoft.CognitiveServices/accounts/deployments@2025-12-01"),
+            lambda p: p["resource_changes"][0]["change"]["after"]["body"]["properties"]["routing"].update(mode="cost"),
+            lambda p: p["resource_changes"][0]["change"]["after_unknown"].update(body=True),
+            lambda p: p["resource_changes"][0]["change"]["after_unknown"].update(parent_id=True),
+            lambda p: p["resource_changes"].append(deepcopy(p["resource_changes"][0])),
+            lambda p: p["resource_changes"][1]["change"].update(actions=["delete"]),
+        ):
+            plan, _, _ = synthetic_platform_plan(self.policy)
+            alter(plan)
+            with self.subTest(alter=alter), self.assertRaises(CheckError):
+                self.approve(plan)
+
+    def test_unrelated_managed_changes_drift_imports_outputs_reads_and_checks_still_block(self):
+        for alter in (
+            lambda p: p["resource_changes"].append({
+                "address": "azapi_resource.jumpbox[0]", "mode": "managed",
+                "change": {"actions": ["delete"], "before": {}, "after": None},
+            }),
+            lambda p: p.update(resource_drift=[{
+                "address": self.policy.DEPLOYMENT, "mode": "managed",
+                "change": {"actions": ["update"], "before": {}, "after": {}},
+            }]),
+            lambda p: p["resource_changes"][0]["change"].update(importing={"id": "fixture-import"}),
+            lambda p: p["output_changes"].update(unrelated={"actions": ["update"]}),
+            lambda p: p["resource_changes"].append({
+                "address": "data.unrelated", "mode": "data", "change": {"actions": ["read"], "after": {}},
+            }),
+            lambda p: p["checks"].append({"status": "unknown", "address": {"to_display": "unrelated"}}),
+            lambda p: p["checks"][0].update(status="fail"),
+            lambda p: p["checks"][0].update(status="error"),
+        ):
+            plan, _, _ = synthetic_platform_plan(self.policy)
+            alter(plan)
+            with self.subTest(alter=alter), self.assertRaises(CheckError):
+                self.approve(plan)
+
+    def test_no_op_unknown_readback_or_outputs_and_partial_create_are_rejected(self):
+        for alter in (
+            lambda p: p["checks"][0].update(status="unknown"),
+            lambda p: p["output_changes"]["model_router_deployment_name"].update(after_unknown=True),
+            lambda p: p["output_changes"]["model_deployment_names"].update(after=["gpt-4.1"]),
+        ):
+            plan = self.no_op_plan()
+            alter(plan)
+            with self.subTest(alter=alter), self.assertRaises(CheckError):
+                self.approve(plan, 0)
+        plan, _, _ = synthetic_platform_plan(self.policy)
+        plan["resource_changes"][0]["change"]["actions"] = ["no-op"]
+        with self.assertRaisesRegex(CheckError, "existing Router outputs"):
+            self.approve(plan)
+
+    def test_incomplete_errored_or_inconsistent_plans_are_rejected(self):
+        for alter in (
+            lambda p: p.update(complete=False),
+            lambda p: p.update(errored=True),
+            lambda p: p.update(deferred_changes=[{}]),
+            lambda p: p.update(action_invocations=[{}]),
+            lambda p: p["checks"].append(deepcopy(p["checks"][0])),
+        ):
+            plan, _, _ = synthetic_platform_plan(self.policy)
+            alter(plan)
+            with self.subTest(alter=alter), self.assertRaises(CheckError):
+                self.approve(plan)
+        plan, _, _ = synthetic_platform_plan(self.policy)
+        with self.assertRaises(CheckError):
+            self.approve(plan, 0)
 
 
 class TransformationTests(unittest.TestCase):
@@ -120,11 +352,31 @@ PATCH; neither retrying nor deleting the deployment is automatically safe.
         self.assertIn("neither retrying nor deleting a partial", result)
         self.assertIn("strict fresh management-plane readback", result)
 
+    def test_recovery_docs_do_not_authorize_legacy_state_deletion_or_router_updates(self):
+        source = """The Router module's routing PATCH is not yet verified against the live service.
+A failed create, PATCH, or readback can leave a deployment present with an
+unverified model subset, and state may reflect only part of the operation.
+Do not route requests to it or blindly retry or delete it. Use an approved
+private-runner path to inspect the deployment and state, then separately review
+the necessary reconciliation or removal; no such recovery path is approved
+yet. For example, a no-change deployment with a pending PATCH is rejected by
+the forward diagnostic's matching-action guard and requires a separately
+reviewed recovery path, not a targeted apply or a weaker forward guard.
+"""
+        result = bootstrap.transform_file("docs/lab-deployment.md", source)
+        for warning in (
+            "not a verified live-service fix", "rejects in-place Router updates",
+            "including no-op or deletion", "does not authorize its state",
+            "Unrelated managed changes, drift, imports, and nonpassing",
+        ):
+            self.assertIn(warning, result)
+
     def test_unrecognized_paths_and_source_shapes_fail_closed(self):
         with self.assertRaises(bootstrap.BootstrapError):
             bootstrap.transform_file("README.md", "data")
-        with self.assertRaises(bootstrap.BootstrapError):
-            bootstrap.transform_file("terraform/modules/model-router/main.tf", "unexpected")
+        for path in bootstrap.EXPECTED_FILES:
+            with self.subTest(path=path), self.assertRaises(bootstrap.BootstrapError):
+                bootstrap.transform_file(path, "unexpected")
 
 
 class WorkflowContractTests(unittest.TestCase):
@@ -285,6 +537,9 @@ class GuardAndCommitTests(unittest.TestCase):
             "terraform/modules/model-router/main.tf",
             "terraform/modules/model-router/tests/model-router.tftest.hcl",
             "terraform/README.md",
+            ".github/scripts/check_platform_router_plan.py",
+            ".github/scripts/test_check_platform_router_plan.py",
+            "docs/lab-deployment.md",
         })
 
 
