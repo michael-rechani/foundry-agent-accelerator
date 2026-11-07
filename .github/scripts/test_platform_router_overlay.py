@@ -196,6 +196,15 @@ class OverlayTests(unittest.TestCase):
                         category = next((value.decode() for value in categories if value in result.stderr + result.stdout), "unclassified")
                         headline = next((line.strip() for line in (result.stderr + result.stdout).decode(
                             errors="replace").splitlines() if line.strip().startswith("Error:")), "")
+                        if not headline:
+                            try:
+                                report = json.loads(result.stdout)
+                            except (ValueError, UnicodeError):
+                                report = {}
+                            diagnostics = report.get("diagnostics", []) if isinstance(report, dict) else []
+                            summaries = [item.get("summary") for item in diagnostics
+                                         if isinstance(item, dict) and isinstance(item.get("summary"), str)]
+                            headline = "; ".join(summaries[:3])
                         self.assertEqual(result.returncode, 0, "Public offline Terraform " + args[0]
                                          + " failed: " + category + ("; " + headline if headline else ""))
                     return result.stdout
