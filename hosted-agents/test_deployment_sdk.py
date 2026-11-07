@@ -10,8 +10,8 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from deployment import (
-    KNOWLEDGE_CHECK_PROMPT, AgentProfile, active_release, create_package, deploy, enabled_endpoint, recovery_endpoint,
-    smoke_test as real_smoke_test,
+    KNOWLEDGE_CHECK_PROMPT, AgentProfile, active_release, candidate_model_matches, create_package, deploy,
+    enabled_endpoint, recovery_endpoint, smoke_test as real_smoke_test,
 )
 
 try:
@@ -83,7 +83,12 @@ class DeploymentSDKTests(unittest.TestCase):
         })
 
     def read_version(self, *, agent_name, agent_version):
-        return AgentVersionDetails({"name": agent_name, "version": agent_version, "status": "active"})
+        model = "previous-model" if agent_version == "1" else self.args.model
+        return AgentVersionDetails({
+            "name": agent_name, "version": agent_version, "status": "active",
+            "definition": {"kind": "hosted", "cpu": "0.5", "memory": "1Gi",
+                           "environment_variables": {"FOUNDRY_MODEL_NAME": model}},
+        })
 
     def create(self, **kwargs):
         self.events.append("create")
@@ -430,7 +435,9 @@ class DeploymentSDKTests(unittest.TestCase):
                 status = "active" if reads["recovery"] == 1 else "failed"
             else:
                 status = "active"
-            return AgentVersionDetails({"name": kwargs["agent_name"], "version": agent_version, "status": status, "draft": False})
+            details = self.read_version(agent_name=kwargs["agent_name"], agent_version=agent_version)
+            details["status"], details["draft"] = status, False
+            return details
 
         self.client.agents.get_version.side_effect = read_version
         with self.assertRaisesRegex(RuntimeError, "not an active release"):
@@ -448,7 +455,7 @@ class DeploymentSDKTests(unittest.TestCase):
                 reads["recovery"] += 1
                 if reads["recovery"] == 2:
                     self.endpoint = self.route("3")
-            return AgentVersionDetails({"name": kwargs["agent_name"], "version": agent_version, "status": "active", "draft": False})
+            return self.read_version(agent_name=kwargs["agent_name"], agent_version=agent_version)
 
         self.client.agents.get_version.side_effect = read_version
         with self.assertRaisesRegex(RuntimeError, "changed during deployment"):
@@ -508,7 +515,9 @@ class DeploymentSDKTests(unittest.TestCase):
 
         def read_version(*, agent_version, **kwargs):
             status = "active" if agent_version != "1" or state["recovery_active"] else "failed"
-            return AgentVersionDetails({"name": kwargs["agent_name"], "version": agent_version, "status": status, "draft": False})
+            details = self.read_version(agent_name=kwargs["agent_name"], agent_version=agent_version)
+            details["status"], details["draft"] = status, False
+            return details
 
         def fail_smoke(*args):
             state["recovery_active"] = False
@@ -868,6 +877,39 @@ class DeploymentTimeoutTests(unittest.TestCase):
             self.assertEqual(method, "GET")
             self.assertIn("/agents/fictional-agent/versions/2", urlsplit(url).path)
             self.assertEqual(parse_qs(urlsplit(url).query).get("api-version"), ["v1"])
+
+    def test_real_sdk_deserializes_hosted_candidate_model_configuration(self):
+        from azure.ai.projects.models import HostedAgentDefinition
+
+        payload = {
+            "name": "fictional-agent", "version": "2", "status": "active", "draft": False,
+            "definition": {"kind": "hosted", "cpu": "0.5", "memory": "1Gi",
+                           "environment_variables": {"FOUNDRY_MODEL_NAME": "router-model"}},
+        }
+        sent = []
+
+        def respond(adapter, request, **kwargs):
+            sent.append((request.method, request.url))
+            response = requests.Response()
+            response.status_code = 200
+            response._content = json.dumps(payload).encode()
+            response.raw = io.BytesIO(response._content)
+            response.headers["Content-Type"] = "application/json"
+            response.request = request
+            return response
+
+        with patch.object(requests.adapters.HTTPAdapter, "send", respond):
+            with AIProjectClient(
+                endpoint="https://fictional.services.ai.azure.com/api/projects/demo",
+                credential=self.Credential(), allow_preview=True, retry_total=0,
+            ) as client:
+                details = client.agents.get_version(agent_name="fictional-agent", agent_version="2")
+                self.assertIsInstance(details.definition, HostedAgentDefinition)
+                self.assertEqual(details.definition.environment_variables["FOUNDRY_MODEL_NAME"], "router-model")
+                self.assertTrue(candidate_model_matches(details, "router-model"))
+                self.assertFalse(candidate_model_matches(details, "different-model"))
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(sent[0][0], "GET")
 
     def test_a_stalled_foundry_call_fails_once_on_the_clients_own_deadline(self):
         attempts = self.deploy_against_failing_transport(requests.exceptions.ReadTimeout)
