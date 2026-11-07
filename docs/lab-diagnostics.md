@@ -10,11 +10,31 @@ delivery or budget alerts, or see how the browser caches responses.
 
 - [Agent session reuse](#agent-session-reuse)
 - [Request and dependency diagnostics](#request-and-dependency-diagnostics)
+- [Historical platform-input candidate](#historical-platform-input-candidate)
 - [Terraform-managed alert delivery](#terraform-managed-alert-delivery)
 - [Budget alerts](#budget-alerts)
 - [Browser caching](#browser-caching)
 
 ## Diagnostics and caching
+
+### Historical platform-input candidate
+
+The manually dispatched **Check historical platform input candidate** workflow
+checks the historically documented `ai-foundry/dev.tfvars.json` candidate in
+the private state backend. This location comes from old issue comments and has
+not been verified live. The check runs only from protected `main`, on the
+private Lab runner, after `terraform-state` environment approval; it uses the
+existing masked Lab configuration and GitHub OIDC identity.
+
+The workflow makes one blob HEAD request and prints only
+`candidate_platform_input=present` or `candidate_platform_input=absent`.
+An unexpected or ambiguous response fails the check. It does not list blobs,
+read the candidate contents or state, invoke Terraform, acquire a lease, start a
+VM, or change Azure or GitHub configuration. A present result establishes only
+that this candidate existed at that instant, not that it is canonical, current,
+valid, or suitable for a plan. An absent result rules out only this exact
+candidate at that instant; it does not rule out other locations. No live check
+is implied by adding this workflow.
 
 ### Agent session reuse
 
