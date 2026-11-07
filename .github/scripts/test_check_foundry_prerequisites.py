@@ -944,7 +944,7 @@ class ProcessRetentionTests(unittest.TestCase):
                 if stage == "reap":
                     process.wait.side_effect = subprocess.TimeoutExpired("private-command", 5)
 
-                def check(root, _user_agent):
+                def check(root, _user_agent, temp=temp, receipt_name=receipt_name):
                     (root / "synthetic-owned-data").write_bytes(b"fictional")
                     record = json.loads((temp / receipt_name).read_text())
                     self.assertEqual(record["process_teardown"], "unverified")
@@ -1006,7 +1006,7 @@ class ProcessRetentionTests(unittest.TestCase):
                 selector = MagicMock()
                 selector.get_map.return_value = {}
 
-                def reap(**_kwargs):
+                def reap(process=process, **_kwargs):
                     process.returncode = 0
                     return 0
 
