@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import stat
@@ -50,6 +51,8 @@ def open_absolute_directory(path):
 def fd_inventory(root_fd, prefix=""):
     records = {}
     for name in sorted(os.listdir(root_fd)):
+        if len(records) > 20000 or len(prefix.split("/")) > 34:
+            raise DerivationError("Source inventory count/depth bound exceeded.")
         relative = prefix + name
         closure.safe_relative(relative)
         info = os.stat(name, dir_fd=root_fd, follow_symlinks=False)
@@ -69,8 +72,14 @@ def fd_inventory(root_fd, prefix=""):
                 current = os.fstat(fd)
                 if (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino) or current.st_nlink != 1:
                     raise DerivationError("Source file changed during inventory.")
+                if current.st_size > 150_000_000:
+                    raise DerivationError("Source file exceeds captured transport bound.")
                 digest = hashlib.sha256()
+                read = 0
                 while chunk := os.read(fd, 65536):
+                    read += len(chunk)
+                    if read > 150_000_000:
+                        raise DerivationError("Source file grew beyond captured transport bound.")
                     digest.update(chunk)
                 after = os.fstat(fd)
                 if (current.st_size, current.st_mtime_ns, current.st_ctime_ns) != (
@@ -89,18 +98,38 @@ def canonical_bytes(value):
 
 
 def selected_source(source, digest):
-    manifest = closure.check(source, digest)
+    if not re.fullmatch(r"[0-9a-f]{64}", digest or ""):
+        raise DerivationError("A separately supplied original manifest digest is required.")
     source_fd = open_absolute_directory(source)
     try:
+        fd = os.open("manifest.json", extraction.FLAGS, dir_fd=source_fd)
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 10_000_000:
+                raise DerivationError("Invalid source manifest descriptor.")
+            chunks = []
+            remaining = 10_000_001
+            while chunk := os.read(fd, min(65536, remaining)):
+                chunks.append(chunk)
+                remaining -= len(chunk)
+                if remaining <= 0:
+                    raise DerivationError("Original manifest byte bound exceeded.")
+            raw = b"".join(chunks)
+        finally:
+            os.close(fd)
+        if hashlib.sha256(raw).hexdigest() != digest:
+            raise DerivationError("Original manifest bytes do not match separately selected digest.")
+        manifest = json.loads(raw, object_pairs_hook=closure.pairs)
         expected = dict(manifest["files"])
-        expected["manifest.json"] = {"sha256": digest, "mode": stat.S_IMODE((source / "manifest.json").stat().st_mode)}
+        expected["manifest.json"] = {"sha256": digest, "mode": stat.S_IMODE(info.st_mode)}
         if fd_inventory(source_fd) != expected:
             raise DerivationError("Source descriptor inventory differs from selected original manifest.")
+        if closure.check(source, digest) != manifest:
+            raise DerivationError("Selected original manifest changed during verification.")
         return manifest, source_fd, expected
     except BaseException:
         os.close(source_fd)
         raise
-
 
 def select_omissions(manifest):
     files = manifest["files"]
@@ -215,8 +244,9 @@ def verify_derived(wrapper, original, original_digest):
 
 def derive(source, original_digest, parent, destination):
     source = Path(source)
-    parent = Path(parent)
-    if not destination or not __import__('re').fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", destination):
+    if source == Path(parent) or source in Path(parent).parents:
+        raise DerivationError("Output parent must not be inside the original closure.")
+    if not destination or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", destination):
         raise DerivationError("One bounded fresh destination name is required.")
     manifest, source_fd, original_inventory = selected_source(source, original_digest)
     parent_fd = stage_fd = bundle_fd = None
@@ -247,7 +277,7 @@ def derive(source, original_digest, parent, destination):
                    "original_manifest_sha256": original_digest, "derived_manifest_sha256": digest,
                    "source_sha": manifest["source_sha"], "removed_roots": roots, "omitted_inventory": omitted}
         write_json(stage_fd, "derivation.json", binding)
-        wrapper = parent / stage
+        wrapper = Path(parent) / stage
         verify_derived(wrapper, source, original_digest)
         if fd_inventory(source_fd) != original_inventory:
             raise DerivationError("Original descriptor source changed during derivation.")
@@ -258,7 +288,7 @@ def derive(source, original_digest, parent, destination):
         os.fsync(parent_fd)
         extraction.publish_exclusive(parent_fd, stage, destination)
         published = True
-        return parent / destination, digest
+        return Path(parent) / destination, digest
     except (OSError, closure.ClosureError, extraction.ExtractionError, DerivationError):
         if created and not published:
             if stage_fd is None:
@@ -281,7 +311,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("source", type=Path)
     parser.add_argument("--original-manifest-sha256", required=True)
-    parser.add_argument("--trusted-parent", type=Path, required=True)
+    parser.add_argument("--trusted-parent", required=True)
     parser.add_argument("--destination", required=True)
     args = parser.parse_args()
     try:
