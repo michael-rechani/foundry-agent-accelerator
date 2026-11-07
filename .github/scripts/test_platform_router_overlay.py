@@ -101,6 +101,26 @@ class OverlayTests(unittest.TestCase):
             with patch.object(Path, "open", mutation):
                 with self.assertRaisesRegex(diagnostic.CheckError, "changed during generation"):
                     diagnostic.write_backend(root)
+    def test_generation_rejects_reserved_inode_replacement(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.root(root)
+            target = root / diagnostic.DIAGNOSTIC_OVERLAY
+            real_lstat = Path.lstat
+            replaced = False
+            def replacement(path):
+                nonlocal replaced
+                if path == target and not replaced:
+                    replaced = True
+                    saved = root / "displaced-overlay"
+                    path.rename(saved)
+                    path.write_bytes(saved.read_bytes())
+                return real_lstat(path)
+            with patch.object(Path, "lstat", replacement):
+                with self.assertRaisesRegex(diagnostic.CheckError, "changed during generation"):
+                    diagnostic.write_backend(root)
+            self.assertTrue((root / "displaced-overlay").is_file())
+            self.assertTrue(target.is_file())
     @unittest.skipUnless(os.environ.get("PUBLIC_OVERLAY_BUNDLE"), "Public module/mirror fixture not selected.")
     def test_actual_root_module_graph_reinstall_validate_and_requirements(self):
         bundle = Path(os.environ["PUBLIC_OVERLAY_BUNDLE"])
