@@ -8,6 +8,20 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from uuid import UUID, uuid4
 
 
+APPLICATION_PROMPT = (
+    "Review this synthetic application. CRIT-1 requires a budget. APP-1 describes a twelve-week workshop "
+    "but supplies no budget. Cite APP-1 and identify missing evidence."
+)
+CASE_PROMPT = (
+    "Review this synthetic case. CASE-1 records intake on June 1, 2027; CASE-2 records intake "
+    "on June 3, 2027. Summarize the conflict and cite the source identifiers."
+)
+CUSTOMER_REVIEW_SPECIALISTS = (
+    ("inspect_application", "application-review-agent", APPLICATION_PROMPT),
+    ("inspect_case", "case-review-agent", CASE_PROMPT),
+)
+
+
 class CheckError(Exception):
     pass
 
@@ -64,7 +78,34 @@ class PrivateClient:
         return data
 
 
-def verify(client, *, check_storage=False, run_agent=False):
+def check_agent_response(client, agent, prompt, expected_tool=None):
+    result = client.call("POST", "/api/reviews", {"agent_id": agent["id"], "input": prompt})
+    require(result.get("status") == "completed" and isinstance(result.get("text"), str) and result["text"].strip(),
+            "Agent response is incomplete")
+    require(result.get("agent") == agent["agent"], "Response did not identify the configured agent")
+    bindings = agent.get("tools", {})
+    require(isinstance(bindings, dict), "Agent tool bindings are invalid")
+    if bindings or expected_tool:
+        receipts = result.get("receipts")
+        valid = isinstance(receipts, list) and len(receipts) == 1 and isinstance(receipts[0], dict)
+        if valid:
+            receipt = receipts[0]
+            tool, call_id = receipt.get("tool"), receipt.get("call_id")
+            valid = (
+                receipt.get("verified") is True
+                and isinstance(call_id, str) and bool(call_id.strip())
+                and isinstance(tool, str) and tool in bindings
+                and (expected_tool is None or tool == expected_tool)
+                and receipt.get("agent") == bindings[tool]
+                and isinstance(receipt.get("output"), str) and bool(receipt["output"].strip())
+            )
+        suffix = f" for {expected_tool}" if expected_tool else ""
+        require(valid, f"Expected one verified specialist receipt{suffix}, not just a nonempty model answer")
+    return result
+
+
+def verify(client, *, check_storage=False, run_agent=False, check_review_specialists=False):
+    require(not (run_agent and check_review_specialists), "Choose one agent verification mode")
     config = client.call("GET", "/api/config")
     require(config.get("mode") == "private" and config.get("history_enabled"), "Expected the private Cosmos-backed Lab")
     health = client.call("GET", "/api/health/dependencies")
@@ -73,27 +114,24 @@ def verify(client, *, check_storage=False, run_agent=False):
     agents = [item for item in config.get("agents", []) if item.get("id") == config.get("default_agent")]
     require(len(agents) == 1, "Default agent is not uniquely configured")
     agent = agents[0]
-    prompt = ("Review this synthetic application. CRIT-1 requires a budget. APP-1 describes a twelve-week workshop "
-              "but supplies no budget. Cite APP-1 and identify missing evidence.")
+    prompt = APPLICATION_PROMPT
     result = {"request_id": str(uuid4()), "status": "completed", "agent": agent["agent"],
               "text": "Synthetic storage verification only; no agent was invoked.", "receipts": [], "elapsed_ms": 0}
     checks = ["private_configuration", "cached_dependencies"]
-    if run_agent:
-        result = client.call("POST", "/api/reviews", {"agent_id": agent["id"], "input": prompt})
-        require(result.get("status") == "completed" and isinstance(result.get("text"), str) and result["text"].strip(),
-                "Agent response is incomplete")
-        require(result.get("agent") == agent["agent"], "Response did not identify the configured agent")
-        bindings, receipts = agent.get("tools", {}), result.get("receipts", [])
-        if bindings:
-            # Exactly one call: the fixed prompt asks for a single application review, and the coordinator
-            # instructions and deployment.verify_delegation both require one specialist unless both are requested.
-            require(len(receipts) == 1 and all(
-                receipt.get("verified") is True and receipt.get("call_id") and receipt.get("tool") in bindings
-                and receipt.get("agent") == bindings[receipt["tool"]]
-                and isinstance(receipt.get("output"), str) and receipt["output"].strip()
-                for receipt in receipts
-            ), "Expected one verified specialist receipt, not just a nonempty model answer")
-        checks.append("agent_and_specialist_receipt" if bindings else "agent_execution")
+    if check_review_specialists:
+        bindings = agent.get("tools")
+        require(
+            agent.get("id") == "customer-review" and agent.get("agent") == "customer-review-coordinator"
+            and isinstance(bindings, dict)
+            and all(bindings.get(tool) == target for tool, target, _ in CUSTOMER_REVIEW_SPECIALISTS),
+            "Default coordinator does not have the expected application and case specialist bindings",
+        )
+        for tool, _, prompt in CUSTOMER_REVIEW_SPECIALISTS:
+            result = check_agent_response(client, agent, prompt, expected_tool=tool)
+            checks.append(f"customer_review_{tool}_receipt")
+    elif run_agent:
+        result = check_agent_response(client, agent, prompt)
+        checks.append("agent_and_specialist_receipt" if agent.get("tools") else "agent_execution")
     if check_storage:
         body = {"agent_id": agent["id"], "turns": [{"question": prompt, "result": result}]}
         saved = client.call("POST", "/api/conversations", body)
@@ -126,11 +164,16 @@ def main(argv=None):
     target.add_argument("--base-url", help="Verified private HTTPS origin")
     target.add_argument("--loopback", action="store_true", help="Existing-container runtime check only; not an ingress test")
     parser.add_argument("--check-storage", action="store_true", help="Create, read, update, and delete one fictional conversation")
-    parser.add_argument("--run-agent", action="store_true", help="Make one explicitly approved, billable synthetic agent call")
+    agent_check = parser.add_mutually_exclusive_group()
+    agent_check.add_argument("--run-agent", action="store_true",
+                             help="Make one explicitly approved, billable synthetic agent call")
+    agent_check.add_argument("--check-review-specialists", action="store_true",
+                             help="Make up to two explicitly approved, billable coordinator requests to verify both specialists")
     arguments = parser.parse_args(argv)
     try:
         checks = verify(PrivateClient(arguments.base_url, arguments.loopback),
-                        check_storage=arguments.check_storage, run_agent=arguments.run_agent)
+                        check_storage=arguments.check_storage, run_agent=arguments.run_agent,
+                        check_review_specialists=arguments.check_review_specialists)
     except CheckError as problem:
         print(json.dumps({"status": "failed", "error": str(problem)}), file=sys.stderr)
         return 1

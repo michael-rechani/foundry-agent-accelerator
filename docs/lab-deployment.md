@@ -612,6 +612,24 @@ cached dependency checks:
 python workbench/verify_private.py --base-url '<verified-private-url>'
 ```
 
+For the default **Checklist and case helper**, an additional, explicitly
+approved check can exercise both specialist handoffs through the same private
+API used by the Lab:
+
+```powershell
+python workbench/verify_private.py --base-url '<verified-private-url>' --check-review-specialists
+```
+
+This sends up to two fictional, billable coordinator requests; each can also
+invoke a billable specialist, including when a request fails. It first requires
+the expected coordinator and both specialist bindings, then requires exactly
+one verified receipt for the expected specialist in each response. It stops on a
+failure without retrying and does not save a Lab conversation unless
+`--check-storage` is also supplied. In that case it saves and deletes the final
+case-review turn. Do not combine it with `--run-agent`, which is the separate
+single-request check. Receipt checks do not prove which model a hosted agent
+used, establish answer quality, or replace a browser-based private UI check.
+
 The verifier also supports `--loopback` inside the existing Lab container. This
 can check the runtime through approved container-console access without starting
 a virtual machine or changing ingress. Transfer only the reviewed helper through

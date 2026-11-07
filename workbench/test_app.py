@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from agent_creation import CreationSettings
 from app import FoundryGateway, Settings, cache_policy, create_app, execution_receipts, load_agents
 from log_capture import CapturedLabLogs
+from verify_private import APPLICATION_PROMPT, CASE_PROMPT, CheckError, verify
 
 
 class RateLimitError(Exception):
@@ -444,6 +445,43 @@ class WorkbenchTests(CapturedLabLogs, unittest.TestCase):
         self.assertFalse(execution_receipts(output + output, {"inspect": "specialist"})[0]["verified"])
         output[1]["call_id"] = "other"
         self.assertFalse(execution_receipts(output, {"inspect": "specialist"})[0]["verified"])
+
+    def test_private_verifier_checks_both_specialist_receipts_through_the_lab_api(self):
+        for correlated_case in (True, False):
+            with self.subTest(correlated_case=correlated_case):
+                requests = []
+
+                async def review(agent, prompt, thread=None, usage=None, *,
+                                 seen=requests, case_correlated=correlated_case):
+                    seen.append((agent["agent"], prompt))
+                    tool, target = (
+                        ("inspect_application", "application-review-agent") if prompt == APPLICATION_PROMPT
+                        else ("inspect_case", "case-review-agent")
+                    )
+                    result_id = "call-1" if tool == "inspect_application" or case_correlated else "different"
+                    return "completed", "Fictional finding", [
+                        {"type": "function_call", "name": tool, "call_id": "call-1"},
+                        {"type": "function_call_output", "call_id": result_id, "output": json.dumps(
+                            {"status": "succeeded", "agent": target, "output": "Fictional finding"})},
+                    ]
+
+                self.gateway.review.side_effect = review
+                with TestClient(create_app(self.settings, self.gateway, AsyncMock())) as lab:
+                    class ClientAdapter:
+                        def call(adapter, method, path, body=None, etag=None, expected=200):
+                            response = lab.request(method, path, json=body, headers=self.headers)
+                            self.assertEqual(response.status_code, expected, response.text)
+                            return response.json()
+
+                    if correlated_case:
+                        checks = verify(ClientAdapter(), check_review_specialists=True)
+                        self.assertIn("customer_review_inspect_application_receipt", checks)
+                        self.assertIn("customer_review_inspect_case_receipt", checks)
+                    else:
+                        with self.assertRaisesRegex(CheckError, "verified specialist receipt for inspect_case"):
+                            verify(ClientAdapter(), check_review_specialists=True)
+                self.assertEqual(requests, [("customer-review-coordinator", APPLICATION_PROMPT),
+                                            ("customer-review-coordinator", CASE_PROMPT)])
 
 
 class FoundryGatewayTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
