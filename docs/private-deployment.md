@@ -140,7 +140,14 @@ Record the currently routed versions before continuing. Don't redeploy healthy
 specialists merely to update the coordinator. If a specialist is missing, stop:
 this deployer cannot perform first publication without a confirmed recovery route.
 An inventory error other than not-found is a blocker, not permission to recreate.
-An existing agent must route to a named version before redeployment.
+An existing agent must route to named active, non-draft versions through a
+configured Responses endpoint before redeployment. Both parent operational
+`state` and administrative `configuration_state` must explicitly be `enabled`;
+missing, disabled, unknown or malformed states are refused. Microsoft's
+[AgentDetails schema](https://learn.microsoft.com/en-us/python/api/azure-ai-projects/azure.ai.projects.models.agentdetails?view=azure-python)
+distinguishes these states: administrative enablement alone does not establish
+operational enablement. A [disabled agent](https://learn.microsoft.com/en-us/azure/foundry/reference/rest/agents-disable-agent)
+rejects new requests even if its selector and version remain active.
 Reconcile `@latest`, unknown aliases, or an unrouted agent with an operator
 instead of letting a new version change a symbolic recovery target.
 
@@ -250,3 +257,11 @@ status alone doesn't prove response health. Retained versions may incur costs.
 - [Coordinator profiles](agent-profiles.md)
 - [Infrastructure outputs](../terraform/README.md#outputs)
 - [Credentials and protected state](credentials.md)
+
+The Responses deployer checks parent states during recovery and specialist
+preflight, immediately before promotion, and after promotion. Rollback rechecks
+states alongside route reads; disabled or unknown states require manual recovery,
+not automatic enablement or routing changes. These are usable-route prerequisites,
+not live health, model quality, fixed-model selection, session safety, or host
+isolation evidence. External writers can still change state between a read and
+PATCH; serialize operations and independently verify the resulting state.
