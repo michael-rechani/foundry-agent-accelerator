@@ -279,10 +279,19 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
 
     def test_unreadable_subtree_fails_explicitly(self):
         with tempfile.TemporaryDirectory() as folder:
-            with mock.patch("os.scandir", side_effect=PermissionError):
-                with self.assertRaisesRegex(AssertionError, "could not be inspected"):
-                    assert_no_azapi_bypass(Path(folder))
+            root = Path(folder)
+            nested = root / "unreadable"
+            nested.mkdir()
+            real_scandir = os.scandir
 
+            def fail_nested_scan(path):
+                if Path(path) == nested:
+                    raise PermissionError
+                return real_scandir(path)
+
+            with mock.patch("os.scandir", side_effect=fail_nested_scan):
+                with self.assertRaisesRegex(AssertionError, "could not be inspected"):
+                    assert_no_azapi_bypass(root)
     def test_mocked_integration_control_flow(self):
         providers = {
             "registry.terraform.io/azure/azapi": "2.12.0",
@@ -314,7 +323,7 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
                     }
                 }), encoding="utf-8")
 
-            def fake_run(command, **kwargs):
+            fail_validate = False`n`n            def fake_run(command, **kwargs):
                 root_path = Path(command[1].split("=", 1)[1])
                 arguments = command[2:]
                 if arguments[0] == "init":
@@ -332,12 +341,12 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
                     output = b'{"valid":true,"error_count":0}'
                 else:
                     raise AssertionError("unexpected mocked Terraform command")
-                return subprocess.CompletedProcess(command, 0, output, b"")
+                return subprocess.CompletedProcess(command, int(fail_validate and arguments[0] == "validate"), output, b"")
 
             with mock.patch.object(diagnostic, "write_backend", side_effect=write_overlay), \
                     mock.patch("subprocess.run", side_effect=fake_run) as run:
                 _run_bundle_integration(self, bundle, "mock-terraform")
-            self.assertEqual(run.call_count, 4)
+            self.assertEqual(run.call_count, 4)`n            fail_validate = True`n            with self.assertRaisesRegex(AssertionError, "captured public Terraform validate failed"):`n                _run_bundle_integration(self, bundle, "mock-terraform")
     @unittest.skipUnless(os.environ.get("PUBLIC_OVERLAY_BUNDLE") and os.environ.get("OVERLAY_TERRAFORM"), "requires credential-free public closure fixture")
     def test_actual_reviewed_root_init_validate_and_descendant_provider_graph(self):
         terraform = shutil.which(os.environ.get("OVERLAY_TERRAFORM", "terraform"))
