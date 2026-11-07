@@ -15,6 +15,11 @@ INPUT = "dev.tfvars.json"
 STATE = "dev.tfstate"
 MODULE_ADDRESS = re.compile(r'module\.[\w-]+(?:\[(?:[0-9]+|"(?:[^"\\]|\\.)*")\])?'
                             r'(?:\.module\.[\w-]+(?:\[(?:[0-9]+|"(?:[^"\\]|\\.)*")\])?)*')
+PROVIDER_ADDRESS = re.compile(
+    r'(?:module\.[A-Za-z_][A-Za-z0-9_-]*\.)*'
+    r'provider\["[a-z0-9][a-z0-9.-]*/[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*"\]'
+    r'(?:\.[A-Za-z_][A-Za-z0-9_-]*)?'
+)
 
 
 class CandidateError(backend.CheckError):
@@ -421,8 +426,8 @@ def inventory(state):
         if (mode not in ("managed", "data") or not isinstance(kind, str) or not kind
                 or not isinstance(name, str) or not name
                 or ("module" in resource and (not isinstance(module, str) or not MODULE_ADDRESS.fullmatch(module)))
-                or ("provider" in resource and
-                    (not isinstance(resource["provider"], str) or not resource["provider"]))
+                or not isinstance(resource.get("provider"), str)
+                or not PROVIDER_ADDRESS.fullmatch(resource["provider"])
                 or not isinstance(instances, list)):
             return ambiguous
         address = (module, mode, kind, name)
@@ -553,15 +558,23 @@ def main():
     except (backend.CheckError, error.URLError, OSError, ValueError, SystemExit):
         print("candidate_platform_comparison_failed=unexpected", file=sys.stderr)
         return 1
+    if not valid_inventory_categories(categories):
+        print("candidate_platform_comparison_failed=inventory_result_invalid", file=sys.stderr)
+        return 1
     print("candidate_platform_comparison=matched")
     print(f"candidate_router_override={override}")
     print_inventory(categories, file=sys.stdout)
     return 0
 
 
+def valid_inventory_categories(categories):
+    return (isinstance(categories, tuple) and len(categories) == 3
+            and all(isinstance(category, str) and category in ("present", "absent", "ambiguous")
+                    for category in categories))
+
+
 def print_inventory(categories, *, file):
-    if (not isinstance(categories, tuple) or len(categories) != 3
-            or any(category not in ("present", "absent", "ambiguous") for category in categories)):
+    if not valid_inventory_categories(categories):
         return
     if categories[0] == "present":
         print("candidate_storage_inventory=present", file=file)

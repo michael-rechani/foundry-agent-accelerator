@@ -19,6 +19,8 @@ ROLE = f"/subscriptions/{SUB}/providers/Microsoft.Authorization/roleDefinitions/
 ACCOUNT = GROUP + "/providers/Microsoft.CognitiveServices/accounts/example"
 PROJECT = ACCOUNT + "/projects/example"
 DISK = GROUP + "/providers/Microsoft.Compute/disks/disk-fixture"
+AZURERM_PROVIDER = 'provider["registry.terraform.io/hashicorp/azurerm"]'
+AZAPI_PROVIDER = 'provider["registry.terraform.io/azure/azapi"]'
 ABSENT_INVENTORY = ("absent", "absent", "absent")
 ABSENT_OUTPUT = ("candidate_storage_inventory=absent\ncandidate_apim_inventory=absent\n"
                  "candidate_pinned_secret_read=absent\n")
@@ -39,15 +41,16 @@ def fixture():
         "outputs": {"foundry_account_id": {"value": ACCOUNT, "type": "string"},
                     "foundry_project_id": {"value": PROJECT, "type": "string"}},
         "resources": [
-            {"mode": "managed", "type": "azurerm_resource_group", "name": "this",
+            {"mode": "managed", "type": "azurerm_resource_group", "name": "this", "provider": AZURERM_PROVIDER,
              "instances": [{"attributes": {"id": GROUP}}]},
             {"mode": "managed", "type": "azurerm_role_assignment", "name": "deployer_foundry_user",
+             "provider": AZURERM_PROVIDER,
              "instances": [{"attributes": {
                  "principal_id": PRINCIPAL, "role_definition_id": ROLE,
                  "scope": PROJECT,
                  "id": PROJECT + "/providers/Microsoft.Authorization/roleAssignments/" + SUB,
              }}]},
-            {"mode": "managed", "type": "azapi_resource", "name": "jumpbox",
+            {"mode": "managed", "type": "azapi_resource", "name": "jumpbox", "provider": AZAPI_PROVIDER,
              "instances": [{"index_key": 0, "attributes": {"body": {"properties": {"storageProfile": {
                  "osDisk": {"name": "disk-fixture", "managedDisk": {"id": DISK, "storageAccountType": "Standard_LRS"}}
              }}}}}]},
@@ -256,6 +259,17 @@ class InventoryTests(unittest.TestCase):
             probe.print_inventory(categories, file=output)
             self.assertEqual(output.getvalue(), "")
 
+    def test_matched_output_rejects_malformed_categories(self):
+        for categories in (None, ("present", "private-value", "absent"),
+                           ("absent",), ["absent", "absent", "absent"],
+                           ("absent", [], "absent")):
+            out, err = io.StringIO(), io.StringIO()
+            with self.subTest(categories=categories), patch.object(probe, "check", return_value=("absent", categories)), \
+                    contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                self.assertEqual(probe.main(), 1)
+            self.assertEqual((out.getvalue(), err.getvalue()),
+                             ("", "candidate_platform_comparison_failed=inventory_result_invalid\n"))
+
     def test_managed_instances_across_modules_and_data_excluded(self):
         _, state = fixture()
         self.assertEqual(probe.inventory(state), ("absent", "absent"))
@@ -263,6 +277,7 @@ class InventoryTests(unittest.TestCase):
             state["resources"].append({
                 "module": 'module.example["fixture"].module.child',
                 "mode": "managed", "type": kind, "name": "example",
+                "provider": 'module.example.provider["registry.terraform.io/hashicorp/azurerm"].alternate',
                 "instances": [{"index_key": "first", "attributes": {"id": "private-value"}},
                               {"index_key": "second", "attributes": {"id": "private-value"}}],
             })
@@ -285,7 +300,12 @@ class InventoryTests(unittest.TestCase):
             lambda s: s["resources"][0].update(module="not-a-module"),
             lambda s: s["resources"][0].update(module="module."),
             lambda s: s["resources"][0].update(module='module.example["unfinished]'),
+            lambda s: s["resources"][0].pop("provider"),
             lambda s: s["resources"][0].update(provider=None),
+            lambda s: s["resources"][0].update(provider=""),
+            lambda s: s["resources"][0].update(provider="private-value"),
+            lambda s: s["resources"][0].update(provider='provider["registry.terraform.io/hashicorp"]'),
+            lambda s: s["resources"][0].update(provider='module.example[0].' + AZURERM_PROVIDER),
             lambda s: s["resources"][0].update(instances=None),
             lambda s: s["resources"][0].update(instances=[None]),
             lambda s: s["resources"][0]["instances"][0].update(attributes=None),
@@ -401,7 +421,7 @@ class SnapshotTests(unittest.TestCase):
         state = deepcopy(self.state)
         state["resources"].extend([
             {"mode": "managed", "module": 'module.example["private-value"]',
-             "type": kind, "name": "private-value",
+             "type": kind, "name": "private-value", "provider": AZURERM_PROVIDER,
              "instances": [{"index_key": "private-value", "attributes": {"id": "private-value"}}]}
             for kind in ("azurerm_storage_account", "azurerm_api_management")
         ])
@@ -446,10 +466,44 @@ class SnapshotTests(unittest.TestCase):
                          "candidate_router_override=absent\ncandidate_storage_inventory=ambiguous\n"
                          "candidate_apim_inventory=ambiguous\ncandidate_pinned_secret_read=absent\n")
 
+    def test_missing_provider_is_ambiguous_in_full_comparison(self):
+        state = deepcopy(self.state)
+        state["resources"][0].pop("provider")
+        results = self.normal()
+        results[1] = results[2] = (encode(state), headers())
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                patch.object(probe, "Blobs", return_value=self.blobs), \
+                patch.object(probe.backend, "send", side_effect=results), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(probe.main(), 0)
+        self.assertEqual(err.getvalue(), "")
+        self.assertEqual(out.getvalue(), "candidate_platform_comparison=matched\n"
+                         "candidate_router_override=absent\ncandidate_storage_inventory=ambiguous\n"
+                         "candidate_apim_inventory=ambiguous\ncandidate_pinned_secret_read=absent\n")
+
+    def test_invalid_result_never_preempts_unstable_snapshot(self):
+        for unstable in (False, True):
+            results = self.normal()
+            if unstable:
+                results[2] = (results[2][0], headers(etag='"changed"'))
+            out, err = io.StringIO(), io.StringIO()
+            with self.subTest(unstable=unstable), \
+                    patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                    patch.object(probe, "Blobs", return_value=self.blobs), \
+                    patch.object(probe.backend, "send", side_effect=results), \
+                    patch.object(probe, "inventory", return_value=("private-value", "absent")), \
+                    contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                self.assertEqual(probe.main(), 1)
+            self.assertEqual(out.getvalue(), "")
+            category = "snapshot_unstable" if unstable else "inventory_result_invalid"
+            self.assertEqual(err.getvalue(), f"candidate_platform_comparison_failed={category}\n")
+
     def test_present_inventory_on_success_and_byte_change_precedence(self):
         state = deepcopy(self.state)
         state["resources"].append({
             "mode": "managed", "type": "azurerm_storage_account", "name": "private-value",
+            "provider": AZURERM_PROVIDER,
             "module": 'module.example["private-value"]',
             "instances": [{"index_key": 0, "attributes": {"id": "private-value"}}],
         })

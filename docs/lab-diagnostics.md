@@ -79,15 +79,19 @@ inspect the override or establish its Terraform-resolved value.
 
 After stable snapshots and a successful comparison, the workflow additionally
 reports `candidate_storage_inventory` and `candidate_apim_inventory` as
-`present`, `absent`, or `ambiguous`. These describe active, non-deposed managed
-instances in the whole recorded state, including child modules; they never
-report counts or identities. Malformed, duplicate, deposed, or otherwise
+`present`, `absent`, or `ambiguous`. These describe active, non-deposed
+`azurerm_storage_account` and `azurerm_api_management` managed instances in
+the whole recorded state, including child modules; they do not include other
+Terraform types that might represent the same Azure resources and never report
+counts or identities. Malformed, duplicate, deposed, or otherwise
 ambiguous resource or instance envelopes produce `ambiguous`, not `absent`.
 `candidate_pinned_secret_read` uses the same three categories for the
 candidate's optional jumpbox secret reference and its pinned-version shape;
 it does not fetch a secret. The categories are also reported when the only
 comparison blocker is secret-read review. Other comparison failures suppress
 them, and changed or locked snapshots take precedence over all results.
+An invalid internal result fails with a fixed category rather than reporting
+a successful comparison without its inventory.
 
 Inventory is a snapshot of recorded instances, not a prediction of resources or
 data actions a future plan may evaluate, proof of effective permissions, or
