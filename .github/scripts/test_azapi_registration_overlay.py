@@ -35,6 +35,24 @@ def assert_no_azapi_bypass(directory):
 
 
 class AzapiRegistrationOverlayTests(unittest.TestCase):
+    def test_descendant_provider_bypass_patterns_fail_closed(self):
+        cases = {
+            "provider block": 'provider "azapi" { alias = "other" }',
+            "resource selector": 'resource "azapi_resource" "x" { provider = azapi.other }',
+            "configuration alias": 'configuration_aliases = [azapi.other]',
+            "module remap": 'module "x" { source = "./x" providers = { azapi = azapi.other } }',
+        }
+        for name, source in cases.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as folder:
+                Path(folder, "main.tf").write_text(source, encoding="utf-8")
+                with self.assertRaises(AssertionError):
+                    assert_no_azapi_bypass(Path(folder))
+        with tempfile.TemporaryDirectory() as folder:
+            Path(folder, "main.tf").write_text(
+                'resource "azapi_resource" "x" { type = "Example/type@2024-01-01" }',
+                encoding="utf-8",
+            )
+            assert_no_azapi_bypass(Path(folder))
     def test_actual_reviewed_root_init_validate_and_descendant_provider_graph(self):
         terraform = shutil.which(os.environ.get("OVERLAY_TERRAFORM", "terraform"))
         self.assertTrue(terraform, "pinned Terraform executable required")

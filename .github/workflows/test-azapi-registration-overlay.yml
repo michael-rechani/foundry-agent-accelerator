@@ -46,10 +46,10 @@ jobs:
             --mount "type=bind,src=$RUNNER_TEMP/public-overlay-bundle,dst=/bundle,readonly" \
             --mount "type=bind,src=$terraform_bin,dst=/usr/local/bin/terraform,readonly" \
             --env HOME=/tmp/home --env PYTHONDONTWRITEBYTECODE=1 --env LANG=C.UTF-8 \
-            --env PUBLIC_OVERLAY_BUNDLE=/bundle --env OVERLAY_TERRAFORM=/usr/local/bin/terraform \
+            --env OVERLAY_TERRAFORM=/usr/local/bin/terraform \
             --entrypoint /bin/sh "$image" -ec '
               mkdir -p "$HOME"
               cd /repo
               python3 -m unittest discover -s .github/scripts -p test_platform_router_overlay.py -v
-              python3 .github/scripts/test_azapi_registration_overlay.py -v
+              PUBLIC_OVERLAY_BUNDLE=/bundle python3 .github/scripts/test_azapi_registration_overlay.py -v
             '
