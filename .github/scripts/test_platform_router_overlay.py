@@ -194,7 +194,10 @@ class OverlayTests(unittest.TestCase):
                         categories = (b"Backend initialization required", b"Duplicate required providers configuration",
                                       b"Invalid provider configuration", b"Missing required argument")
                         category = next((value.decode() for value in categories if value in result.stderr + result.stdout), "unclassified")
-                        self.assertEqual(result.returncode, 0, "Public offline Terraform " + args[0] + " failed: " + category)
+                        headline = next((line.strip() for line in (result.stderr + result.stdout).decode(
+                            errors="replace").splitlines() if line.strip().startswith("Error:")), "")
+                        self.assertEqual(result.returncode, 0, "Public offline Terraform " + args[0]
+                                         + " failed: " + category + ("; " + headline if headline else ""))
                     return result.stdout
                 if overlay == "legacy":
                     run(["init", "-backend=false", "-get=false", "-lockfile=readonly", "-input=false", "-no-color"], duplicate=True)
