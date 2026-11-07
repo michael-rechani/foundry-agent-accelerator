@@ -103,61 +103,49 @@ GitHub checkout action logs are separate from this sanitized helper output.
 Checks fail closed on unexpected official-script output, mismatched hashes,
 unsafe archives, unsupported platforms, or missing tools.
 
-## Offline process-identity correction (not execution approval)
+## Offline process-identity correction: launcher disabled
 
 [CPython 3.14 `subprocess.py`](https://github.com/python/cpython/blob/v3.14.0/Lib/subprocess.py)
-waits/reaps before a successful `communicate()` returns. The previous unconditional
-numeric `killpg` afterward could therefore signal a recycled PID/process-group ID.
-The Linux launcher now drains pipes with selectors, observes its private child via
-`waitid(P_PIDFD, WEXITED | WNOHANG | WNOWAIT)`, and keeps the leader unreaped until
-its group has been signaled. An exited leader remains a zombie that pins its PID.
-A pidfd-bound child check and matching leader/group check precede every group signal;
-`wait()` is performed only afterward, with no further numeric signaling. An exited
-leader's same-group descendants are stopped before their inherited pipes are drained.
-The command retains its 180-second bound; post-signal leader reaping is bounded.
+reaps before a successful `communicate()` returns. The earlier unconditional numeric
+`killpg` afterward could signal a recycled process group. The subsequent pidfd/`WNOWAIT`
+revision retained the leader during signaling, but **did not prove complete group
+termination**: SIGKILL delivery, pipe EOF, and waiting for just the leader cannot
+establish that a same-group descendant has finished all pending I/O. In particular,
+a descendant may close both pipes while remaining alive. Timeout/output-failure paths
+have the same gap; reaping the leader removes its numeric-PGID binding.
 
-Captured stdout and stderr share an aggregate 1 MiB raw-byte limit. The selector
-checks the limit before extending either buffer, fails with fixed `output_limit`,
-and performs the same identity-bound teardown; captured bytes are never logged.
+The prerequisite launcher is therefore **disabled before download/setup or process
+creation**. Both `check()` and `command()` refuse with `TeardownUnverified("cleanup")`.
+No numeric group is signaled and no leader is reaped by this disabled path. A safe
+complete-group supervisor is not implemented with the current allowed primitives;
+proc enumeration, pipe EOF, kill success, and leader wait are not substituted as proof.
+No namespace/cgroup/privilege escalation or unrelated process control is used.
 
-A distinct `TeardownUnverified` failure conservatively covers launcher/Popen errors,
-pidfd acquisition, lost ownership,
-group signaling and leader-reaping failures after launch. Before any check/command,
-`run()` persists an `unverified` process-teardown state in the run-owned receipt.
-On that failure it retains both root and receipt without invoking recursive cleanup
-or unlinking either. The independent `--cleanup` path refuses this receipt state,
-even if the root has gone missing, so the workflow retry cannot delete retained
-scratch still potentially in use. Successful command teardown keeps timeout,
-interruption and ordinary failures classified as before and permits normal cleanup;
-a `verified` receipt remains retryable if ordinary filesystem cleanup fails.
-Legacy two-field receipts, missing/unknown state, and invalid or partial receipt
-writes are refused rather than defaulting to safe cleanup. The unverified state
-is closed/flushed before entering the check and remains in force across every
-child launch; SIGKILL or a crash before promotion therefore cannot make a retained
-receipt cleanup-eligible under these trusted-launcher assumptions.
-This is not independent proof that escaped descendants have exited or hostile-host
-cleanup is safe; those blockers and the disabled execution boundary remain.
+`run()` persists and closes an `unverified` teardown receipt before entering `check()`.
+On refusal it retains root and receipt without `rmtree` or unlink. Separate `--cleanup`
+requires explicit verified state and rejects unverified, legacy/missing, unknown,
+null or partial records even if the root is absent. Crash-before-promotion remains
+conservative. Normal pre-command failures retain their original classification and
+legacy cleanup behavior; they are not evidence of successful process supervision.
+A receipt describing a completed group is never promoted by the disabled launcher.
+The previous selector output capture (including its 1 MiB bound) is removed rather
+than retained as a reachable unsafe execution path; no command output is captured.
 
-Missing Linux support, a non-default SIGCHLD handler/disposition, multiple Python
-threads, an already-reaped leader, lost child binding, or mismatched group refuses
-supervision/signaling. No numeric fallback is used on pidfd acquisition failure.
-Acquisition, signaling, or reaping errors are failures, never proof of teardown.
-They can leave owned processes and scratch requiring independent operator handling.
-The standalone launcher must exclusively reap its private child, use normal native
-SIGCHLD flags (no SA_NOCLDWAIT), and run trusted code; Python-level checks cannot
-prove native signal flags, other native waiters, or a compromised same-UID host.
-Pidfds alone do not reserve a numeric group after reaping. Children escaping their
-original group/session are not contained or certified stopped by this change.
+Evidence is synthetic only: mocked unproven outcomes through `run()` and separate
+cleanup, plus a bounded owned Python child that closes both pipes, stays alive, and
+writes fictional bytes after cleanup has been refused. No actual Foundry dependency
+script, Azure/private runner, Terraform, credentials, or live workflow is exercised.
+All existing workflows are unchanged; this offline branch stays unmerged.
 
-Evidence is limited to synthetic owned Python children and mocked PID-reuse/error
-cases in non-root hosted CI. No actual Foundry dependency/setup script, Terraform,
-Azure identity, or protected/private-runner execution is exercised. Existing
-shared-workspace, recursive-cleanup, same-UID/host-trust, and escaped-descendant
-blockers remain. This branch must remain unmerged, and this correction does not
-authorize enabling or running the prerequisite workflow or claim cleanup isolation.
+**Blocker:** complete owned same-group termination and completion of pending writes
+cannot be certified here without an independently reviewed supervision boundary.
+Escaped descendants and hostile shared-host/same-UID races are separate unresolved
+problems, as are shared-workspace and recursive-cleanup safety. This change neither
+solves them nor authorizes prerequisite workflow execution. Existing historical
+verified receipts do not retrospectively prove complete group teardown.
 
-Normal exits and handled interruption remove scratch in `finally`; command
-owned process groups are signaled before removal only while leader ownership is retained; this is not proof that every descendant has exited. An `always()` step retries cleanup
+Ordinary pre-command failures can remove scratch in `finally`; disabled-launcher
+refusal retains it. No command group cleanup is certified. An `always()` step retries cleanup
 using this run's exclusive receipt and ownership marker, then removes only this
 run's source directory. Invalid ownership fails closed, without deleting an
 unowned directory. No software can guarantee cleanup after runner loss or a hard

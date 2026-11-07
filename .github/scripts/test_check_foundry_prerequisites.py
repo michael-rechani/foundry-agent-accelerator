@@ -4,16 +4,18 @@ import hashlib
 import io
 import json
 import os
+import select
 import shutil
 import signal
 import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import textwrap
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from urllib import error, request
 
 import check_foundry_prerequisites as probe
@@ -686,296 +688,56 @@ class FailureStageTests(unittest.TestCase):
 
 
 class ProcessTests(unittest.TestCase):
-    def test_combined_output_bound_accepts_exact_limit_and_refuses_excess(self):
-        self.assertEqual(probe.MAX_CAPTURE_BYTES, 1024 * 1024)
-        half = probe.MAX_CAPTURE_BYTES // 2
-        script = f"import os; os.write(1,b'x'*{half}); os.write(2,b'y'*{half})"
-        result = probe.command([sys.executable, "-c", script], None, {"PATH": probe.SYSTEM_PATH})
-        self.assertEqual((result.stdout, result.stderr), ("x" * half, "y" * half))
-        for output in (f"os.write(1,b'x'*{probe.MAX_CAPTURE_BYTES + 1})",
-                       f"os.write(2,b'y'*{probe.MAX_CAPTURE_BYTES + 1})",
-                       f"os.write(1,b'x'*{half}); os.write(2,b'y'*{half + 1})"):
-            with self.subTest(output=output):
-                with self.assertRaisesRegex(probe.CheckError, "output_limit"):
-                    probe.command([sys.executable, "-c", "import os; " + output], None,
-                                  {"PATH": probe.SYSTEM_PATH})
-
-    def test_full_command_never_signals_numeric_group_after_reaping(self):
-        process = MagicMock(pid=123, returncode=None)
-        process.stdout.encoding = process.stderr.encoding = "utf-8"
-        process.stdout.errors = process.stderr.errors = "strict"
-        selector = MagicMock()
-        selector.get_map.return_value = {}
-        status = MagicMock(si_pid=123, si_code=os.CLD_EXITED)
-        events = []
-
-        def observe(*_args):
-            if "reaped" in events:
-                raise ChildProcessError("numeric PID is now reused")
-            return status
-
-        def signal_group(pid, sig):
-            self.assertNotIn("reaped", events)
-            self.assertEqual((pid, sig), (123, signal.SIGKILL))
-            events.append("signaled")
-
-        def reap(**kwargs):
-            self.assertEqual(events, ["signaled"])
-            self.assertEqual(kwargs, {"timeout": 5})
-            events.append("reaped")
-            process.returncode = 0
-            return 0
-
-        process.wait.side_effect = reap
-        with patch.object(probe.subprocess, "Popen", return_value=process), \
-                patch.object(probe.os, "pidfd_open", return_value=456), \
-                patch.object(probe.os, "close"), \
-                patch.object(probe.os, "set_blocking"), \
-                patch.object(probe.os, "getpgid", return_value=123), \
-                patch.object(probe.os, "waitid", side_effect=observe) as waitid, \
-                patch.object(probe.os, "killpg", side_effect=signal_group) as kill, \
-                patch.object(probe.selectors, "DefaultSelector") as factory:
-            factory.return_value.__enter__.return_value = selector
-            result = probe.command(["synthetic"], None, {})
-        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
-        self.assertEqual(events, ["signaled", "reaped"])
-        kill.assert_called_once()
-        for call in waitid.call_args_list:
-            self.assertEqual(call.args, (os.P_PIDFD, 456, os.WEXITED | os.WNOHANG | os.WNOWAIT))
-        process.communicate.assert_not_called()
-        process.poll.assert_not_called()
-        process.stdout.close.assert_called_once()
-        process.stderr.close.assert_called_once()
-
-    def test_full_command_lost_binding_refuses_signal_and_reaping(self):
-        process = MagicMock(pid=123, returncode=None)
-        with patch.object(probe.subprocess, "Popen", return_value=process), \
-                patch.object(probe.os, "pidfd_open", return_value=456), \
-                patch.object(probe.os, "close"), \
-                patch.object(probe.os, "set_blocking"), \
-                patch.object(probe.os, "waitid", side_effect=ChildProcessError("private-pid")), \
-                patch.object(probe.os, "killpg") as kill:
-            with self.assertRaises(probe.CheckError):
-                probe.command(["synthetic"], None, {})
-            kill.assert_not_called()
-            process.wait.assert_not_called()
-        process.stdout.close.assert_called_once()
-        process.stderr.close.assert_called_once()
-
-    def test_binding_loss_never_signals_reused_numeric_group(self):
-        process = MagicMock(pid=123, returncode=None)
-        for failure in (ChildProcessError("private-pid"), OSError("private-token")):
-            with self.subTest(failure=type(failure).__name__), \
-                    patch.object(probe.os, "waitid", side_effect=failure), \
-                    patch.object(probe.os, "killpg") as kill:
-                with self.assertRaises(probe.CheckError):
-                    probe._signal_owned_group(process, 456)
-                kill.assert_not_called()
-        process.returncode = 0
-        with patch.object(probe.os, "killpg") as kill:
-            with self.assertRaises(probe.CheckError):
-                probe._signal_owned_group(process, 456)
-            kill.assert_not_called()
-
-    def test_binding_lost_between_group_check_and_signal_is_refused(self):
-        process = MagicMock(pid=123, returncode=None)
-        with patch.object(probe.os, "waitid", side_effect=[None, ChildProcessError]), \
-                patch.object(probe.os, "getpgid", return_value=123), \
-                patch.object(probe.os, "killpg") as kill:
-            with self.assertRaises(probe.CheckError):
-                probe._signal_owned_group(process, 456)
-            kill.assert_not_called()
-
-    def test_missing_group_is_not_success_for_a_live_or_uninspectable_leader(self):
-        process = MagicMock(pid=123, returncode=None)
-        with patch.object(probe.os, "waitid", return_value=None), \
-                patch.object(probe.os, "getpgid", side_effect=ProcessLookupError), \
-                patch.object(probe.os, "killpg") as kill:
-            with self.assertRaises(probe.CheckError):
-                probe._signal_owned_group(process, 456)
-            kill.assert_not_called()
-        with patch.object(probe.os, "waitid", return_value=None), \
-                patch.object(probe.os, "getpgid", return_value=123), \
-                patch.object(probe.os, "killpg", side_effect=ProcessLookupError) as kill:
-            with self.assertRaises(probe.CheckError):
-                probe._signal_owned_group(process, 456)
-            kill.assert_called_once()
-        status = MagicMock(si_pid=123, si_code=os.CLD_EXITED)
-        with patch.object(probe.os, "waitid", return_value=status), \
-                patch.object(probe.os, "getpgid", return_value=123), \
-                patch.object(probe.os, "killpg", side_effect=ProcessLookupError) as kill:
-            probe._signal_owned_group(process, 456)
-            kill.assert_called_once()
-
-    def test_wrong_group_or_wait_status_is_refused(self):
-        process = MagicMock(pid=123, returncode=None)
-        with patch.object(probe.os, "waitid", return_value=None), \
-                patch.object(probe.os, "getpgid", return_value=789), \
-                patch.object(probe.os, "killpg") as kill:
-            with self.assertRaises(probe.CheckError):
-                probe._signal_owned_group(process, 456)
-            kill.assert_not_called()
-        status = MagicMock(si_pid=789, si_code=os.CLD_EXITED)
-        with patch.object(probe.os, "waitid", return_value=status), \
-                patch.object(probe.os, "killpg") as kill:
-            with self.assertRaises(probe.CheckError):
-                probe._signal_owned_group(process, 456)
-            kill.assert_not_called()
-
-    def test_unsupported_supervision_refuses_to_launch(self):
-        for disposition in (signal.SIG_IGN, lambda *_args: None):
-            with self.subTest(disposition=disposition), \
-                    patch.object(probe.signal, "getsignal", return_value=disposition), \
-                    patch.object(probe.subprocess, "Popen") as popen:
-                with self.assertRaises(probe.CheckError):
-                    probe.command(["synthetic"], None, {})
-                popen.assert_not_called()
-        with patch.object(probe.threading, "active_count", return_value=2), \
-                patch.object(probe.subprocess, "Popen") as popen:
-            with self.assertRaises(probe.CheckError):
-                probe.command(["synthetic"], None, {})
-            popen.assert_not_called()
-
-    def test_pidfd_acquisition_failure_never_uses_numeric_fallback(self):
+    def test_disabled_command_never_launches_signals_or_reaps(self):
         with patch.object(probe.subprocess, "Popen") as popen, \
-                patch.object(probe.os, "pidfd_open", side_effect=OSError("private-token")), \
-                patch.object(probe.os, "killpg") as kill:
+                patch.object(probe.os, "killpg", create=True) as kill, \
+                patch.object(probe.os, "waitid", create=True) as waitid:
             with self.assertRaises(probe.TeardownUnverified):
-                probe.command(["synthetic"], None, {})
+                probe.command(["synthetic"], Path("synthetic"), {})
+            popen.assert_not_called()
             kill.assert_not_called()
-            popen.return_value.wait.assert_not_called()
-            popen.return_value.stdout.close.assert_called_once()
-            popen.return_value.stderr.close.assert_called_once()
+            waitid.assert_not_called()
 
-    def test_normal_exit_captures_output_and_signals_only_unreaped_owned_leader(self):
-        real_killpg = os.killpg
-        observations = []
-
-        def checked_killpg(pid, sig):
-            status = os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
-            self.assertIsNotNone(status)
-            self.assertEqual(status.si_pid, pid)
-            self.assertEqual(os.getpgid(pid), pid)
-            observations.append(pid)
-            real_killpg(pid, sig)
-
-        with patch.object(probe.os, "killpg", side_effect=checked_killpg):
-            result = probe.command(
-                [sys.executable, "-c", "import sys; print('synthetic'); print('synthetic-error', file=sys.stderr); sys.exit(7)"],
-                None, {"PATH": probe.SYSTEM_PATH},
-            )
-        self.assertEqual((result.returncode, result.stdout, result.stderr),
-                         (7, "synthetic\n", "synthetic-error\n"))
-        self.assertEqual(len(observations), 1)
-
-    def test_exited_leader_descendant_with_inherited_pipes_is_stopped(self):
-        script = "import os,time; child=os.fork(); print('synthetic', flush=True) if child else time.sleep(60)"
-        result = probe.command([sys.executable, "-c", script], None, {"PATH": probe.SYSTEM_PATH})
-        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "synthetic\n", ""))
-
-    def test_timeout_interrupt_and_io_error_cleanup_before_reaping(self):
-        for failure in (subprocess.TimeoutExpired("synthetic", 180), KeyboardInterrupt(),
-                        probe.CheckError("interrupted"), OSError("private-token")):
-            with self.subTest(failure=type(failure).__name__), \
-                    patch.object(probe.selectors, "DefaultSelector", side_effect=failure), \
-                    patch.object(probe.os, "killpg", wraps=os.killpg) as kill:
-                with self.assertRaises(type(failure)):
-                    probe.command([sys.executable, "-c", "import time; time.sleep(60)"], None,
-                                  {"PATH": probe.SYSTEM_PATH})
-                kill.assert_called_once()
-
-    def test_timeout_deadline_is_enforced_with_owned_synthetic_process(self):
-        with patch.object(probe.time, "monotonic", side_effect=[0, 181]), \
-                patch.object(probe.os, "killpg", wraps=os.killpg) as kill:
-            with self.assertRaises(subprocess.TimeoutExpired) as raised:
-                probe.command([sys.executable, "-c", "import time; time.sleep(60)"], None,
-                              {"PATH": probe.SYSTEM_PATH})
-            self.assertEqual(raised.exception.timeout, 180)
-            self.assertIsNone(raised.exception.output)
-            kill.assert_called_once()
-
-    def test_signal_error_is_reported_without_ambiguous_retry_or_reap(self):
-        process = MagicMock(pid=123, returncode=None)
-        with patch.object(probe.os, "waitid", return_value=None), \
-                patch.object(probe.os, "getpgid", return_value=123), \
-                patch.object(probe.os, "killpg", side_effect=PermissionError("private-token")) as kill:
-            with self.assertRaises(PermissionError) as raised:
-                probe._signal_owned_group(process, 456)
-            kill.assert_called_once()
-            process.wait.assert_not_called()
-            with contextlib.redirect_stdout(out := io.StringIO()), \
-                    contextlib.redirect_stderr(err := io.StringIO()):
-                probe.report_failure(raised.exception)
-            self.assertEqual((out.getvalue(), err.getvalue()),
-                             ("failure_stage=unexpected_io\n", "foundry_prerequisites_check_failed\n"))
-
-    def test_unexpected_cli_exception_never_prints_traceback_or_private_details(self):
-        script = """
-import runpy
-import sys
-from unittest.mock import MagicMock, patch
-sys.argv = ["check_foundry_prerequisites.py"]
-with patch.dict("os.environ", {
-    "GITHUB_REF": "refs/heads/main",
-    "GITHUB_REF_PROTECTED": "true",
-    "GITHUB_EVENT_NAME": "workflow_dispatch",
-}, clear=True), patch("platform.system", side_effect=RuntimeError("private-token private-machine-path")):
-    runpy.run_path("check_foundry_prerequisites.py", run_name="__main__")
-"""
-        result = subprocess.run(
-            [sys.executable, "-c", script], cwd=Path(probe.__file__).parent,
-            stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=10, check=False,
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual((result.stdout, result.stderr), ("failure_stage=unexpected_io\n", "foundry_prerequisites_check_failed\n"))
+    def test_check_refuses_before_download_setup_or_command(self):
+        with patch.object(probe, "download") as download, \
+                patch.object(probe, "isolated_environment") as environment, \
+                patch.object(probe, "command") as command:
+            with self.assertRaises(probe.TeardownUnverified):
+                probe.check(Path("synthetic"), "synthetic")
+            download.assert_not_called()
+            environment.assert_not_called()
+            command.assert_not_called()
 
 
 class ProcessRetentionTests(unittest.TestCase):
-    def test_unverified_command_failures_retain_root_and_veto_separate_cleanup(self):
-        for stage in ("launch", "pidfd", "ownership", "signal", "reap"):
-            with self.subTest(stage=stage), tempfile.TemporaryDirectory() as folder:
+    def test_unproven_group_outcomes_never_promote_receipt_or_delete_root(self):
+        cases = ("signal delivered", "leader reaped", "both pipes EOF", "timeout",
+                 "output limit", "uninterruptible descendant", "ownership loss")
+        for outcome in cases:
+            with self.subTest(outcome=outcome), tempfile.TemporaryDirectory() as folder:
                 temp = Path(folder)
                 receipt_name = "foundry-prerequisites-12345-1.json"
-                process = MagicMock(pid=123, returncode=None)
-                status = MagicMock(si_pid=123, si_code=os.CLD_EXITED)
-                selector = MagicMock()
-                selector.get_map.return_value = {}
-                process.stdout.encoding = process.stderr.encoding = "utf-8"
-                process.stdout.errors = process.stderr.errors = "strict"
-                process.wait.return_value = 0
-                if stage == "reap":
-                    process.wait.side_effect = subprocess.TimeoutExpired("private-command", 5)
 
-                def check(root, _user_agent, temp=temp, receipt_name=receipt_name):
-                    (root / "synthetic-owned-data").write_bytes(b"fictional")
-                    record = json.loads((temp / receipt_name).read_text())
-                    self.assertEqual(record["process_teardown"], "unverified")
-                    return probe.command(["synthetic"], root, {})
+                def check(root, _user_agent, outcome=outcome, temp=temp, receipt_name=receipt_name):
+                    (root / "synthetic-data").write_bytes(b"fictional")
+                    self.assertEqual(json.loads((temp / receipt_name).read_text())["process_teardown"], "unverified")
+                    # These mocked observations cannot establish group termination.
+                    observed = {"signal_success": True, "leader_returncode": 0, "pipe_eof": True,
+                                "group_proof": False, "outcome": outcome}
+                    self.assertFalse(observed["group_proof"])
+                    raise probe.TeardownUnverified("cleanup")
 
                 with patch.object(probe, "context", return_value=(temp, receipt_name)), \
                         patch.object(probe, "invocation_user_agent", return_value="synthetic"), \
                         patch.object(probe, "check", side_effect=check), \
-                        patch.object(probe.subprocess, "Popen", return_value=process,
-                                     side_effect=OSError("private-token") if stage == "launch" else None), \
-                        patch.object(probe.os, "pidfd_open", side_effect=OSError("private-token") if stage == "pidfd" else None,
-                                     return_value=456), \
-                        patch.object(probe.os, "close"), \
-                        patch.object(probe.os, "set_blocking"), \
-                        patch.object(probe.os, "waitid", side_effect=ChildProcessError("private-token") if stage == "ownership" else None,
-                                     return_value=status), \
-                        patch.object(probe.os, "getpgid", return_value=123), \
-                        patch.object(probe.os, "killpg", side_effect=PermissionError("private-token") if stage == "signal" else None), \
-                        patch.object(probe.selectors, "DefaultSelector") as factory, \
                         patch.object(probe.shutil, "rmtree") as remove:
-                    factory.return_value.__enter__.return_value = selector
-                    with self.assertRaises(probe.TeardownUnverified) as raised:
+                    with self.assertRaises(probe.TeardownUnverified):
                         probe.run()
                     receipt = temp / receipt_name
                     before = receipt.read_bytes()
                     record = json.loads(before)
-                    root = temp / record["name"]
                     self.assertEqual(record["process_teardown"], "unverified")
-                    self.assertEqual((root / "synthetic-owned-data").read_bytes(), b"fictional")
+                    self.assertEqual((temp / record["name"] / "synthetic-data").read_bytes(), b"fictional")
                     with self.assertRaises(probe.CheckError):
                         probe.cleanup(temp, receipt_name)
                     with patch.object(sys, "argv", ["probe", "--cleanup"]), \
@@ -985,70 +747,104 @@ class ProcessRetentionTests(unittest.TestCase):
                     self.assertEqual((out.getvalue(), err.getvalue()),
                                      ("failure_stage=cleanup\n", "foundry_prerequisites_check_failed\n"))
                     self.assertEqual(receipt.read_bytes(), before)
-                    self.assertTrue(root.exists())
                     remove.assert_not_called()
-                    with contextlib.redirect_stdout(out := io.StringIO()), \
-                            contextlib.redirect_stderr(err := io.StringIO()):
-                        probe.report_failure(raised.exception)
-                    self.assertEqual((out.getvalue(), err.getvalue()),
-                                     ("failure_stage=cleanup\n", "foundry_prerequisites_check_failed\n"))
 
-    def test_verified_teardown_preserves_original_failure_classification_and_removes_scratch(self):
-        for failure, expected in ((None, None), (probe.CheckError("skill"), "skill_execution"),
-                                  (subprocess.TimeoutExpired("private-command", 180), "timeout"),
-                                  (probe.CheckError("interrupted"), "interruption"),
-                                  (KeyboardInterrupt(), "unexpected_io"),
-                                  (probe.CheckError("output_limit"), "output_limit")):
-            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as folder:
-                temp = Path(folder)
-                receipt_name = "foundry-prerequisites-12345-1.json"
-                process = MagicMock(pid=123, returncode=None)
-                process.stdout.encoding = process.stderr.encoding = "utf-8"
-                process.stdout.errors = process.stderr.errors = "strict"
-                status = MagicMock(si_pid=123, si_code=os.CLD_EXITED)
-                selector = MagicMock()
-                selector.get_map.return_value = {}
+    def test_real_disabled_check_retains_receipt_without_running_setup(self):
+        with tempfile.TemporaryDirectory() as folder:
+            temp = Path(folder)
+            receipt_name = "foundry-prerequisites-12345-1.json"
+            with patch.object(probe, "context", return_value=(temp, receipt_name)), \
+                    patch.object(probe, "invocation_user_agent", return_value="synthetic"), \
+                    patch.object(probe, "download") as download, \
+                    patch.object(probe.subprocess, "Popen") as popen, \
+                    patch.object(probe.shutil, "rmtree") as remove:
+                with self.assertRaises(probe.TeardownUnverified):
+                    probe.run()
+                record = json.loads((temp / receipt_name).read_text())
+                self.assertEqual(record["process_teardown"], "unverified")
+                self.assertTrue((temp / record["name"]).is_dir())
+                download.assert_not_called()
+                popen.assert_not_called()
+                remove.assert_not_called()
 
-                def reap(process=process, **_kwargs):
-                    process.returncode = 0
-                    return 0
+    def test_child_closing_both_pipes_can_still_write_and_cannot_authorize_cleanup(self):
+        child = None
+        pidfd = None
+        script = """
+import os,select,sys
+from pathlib import Path
+root = Path(sys.argv[1])
+os.close(1)
+os.close(2)
+(root / "child-ready").write_bytes(b"fictional")
+if select.select([0], [], [], 5)[0] and os.read(0, 1) == b"x":
+    (root / "pending-write").write_bytes(b"fictional-late-write")
+"""
+        with tempfile.TemporaryDirectory() as folder:
+            temp = Path(folder)
+            receipt_name = "foundry-prerequisites-12345-1.json"
 
-                process.wait.side_effect = reap
+            def check(root, _user_agent):
+                nonlocal child, pidfd
+                child = subprocess.Popen(
+                    [sys.executable, "-c", script, str(root)], env={"PATH": probe.SYSTEM_PATH},
+                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                )
+                pidfd = os.pidfd_open(child.pid)
+                deadline = time.monotonic() + 3
+                while not (root / "child-ready").exists():
+                    if time.monotonic() >= deadline:
+                        self.fail("synthetic child did not become ready")
+                    time.sleep(0.01)
+                for stream in (child.stdout, child.stderr):
+                    self.assertTrue(select.select([stream], [], [], 1)[0])
+                    self.assertEqual(stream.read(), b"")
+                self.assertIsNone(os.waitid(os.P_PIDFD, pidfd, os.WEXITED | os.WNOHANG | os.WNOWAIT))
+                raise probe.TeardownUnverified("cleanup")
 
-                def check(root, _user_agent):
-                    result = probe.command(["synthetic"], root, {})
-                    return "1.2.3" if result.returncode == 0 else "unexpected"
-
+            try:
                 with patch.object(probe, "context", return_value=(temp, receipt_name)), \
                         patch.object(probe, "invocation_user_agent", return_value="synthetic"), \
                         patch.object(probe, "check", side_effect=check), \
-                        patch.object(probe.subprocess, "Popen", return_value=process), \
-                        patch.object(probe.os, "pidfd_open", return_value=456), \
-                        patch.object(probe.os, "close"), \
-                        patch.object(probe.os, "set_blocking"), \
-                        patch.object(probe.os, "waitid", return_value=status), \
-                        patch.object(probe.os, "getpgid", return_value=123), \
-                        patch.object(probe.os, "killpg"), \
-                        patch.object(probe.selectors, "DefaultSelector", side_effect=failure) as factory:
-                    factory.return_value.__enter__.return_value = selector
-                    if failure is None:
-                        self.assertEqual(probe.run(), "1.2.3")
-                    else:
-                        with self.assertRaises(type(failure)) as raised:
-                            probe.run()
-                        self.assertEqual(probe.failure_stage(raised.exception), expected)
-                    process.wait.assert_called_once_with(timeout=5)
-                    self.assertEqual(list(temp.iterdir()), [])
+                        patch.object(probe.shutil, "rmtree") as remove, \
+                        patch.object(probe.os, "killpg", create=True) as kill:
+                    with self.assertRaises(probe.TeardownUnverified):
+                        probe.run()
+                    receipt = temp / receipt_name
+                    before = receipt.read_bytes()
+                    record = json.loads(before)
+                    root = temp / record["name"]
+                    self.assertEqual(record["process_teardown"], "unverified")
+                    with self.assertRaises(probe.CheckError):
+                        probe.cleanup(temp, receipt_name)
+                    remove.assert_not_called()
+                    kill.assert_not_called()
+                    child.stdin.write(b"x")
+                    child.stdin.flush()
+                    self.assertEqual(child.wait(timeout=5), 0)
+                    self.assertEqual((root / "pending-write").read_bytes(), b"fictional-late-write")
+                    self.assertEqual(receipt.read_bytes(), before)
+            finally:
+                if child is not None:
+                    child.stdin.close()
+                    try:
+                        child.wait(timeout=7)
+                    except subprocess.TimeoutExpired:
+                        # Only the test's bound synthetic child may be signaled.
+                        signal.pidfd_send_signal(pidfd, signal.SIGKILL)
+                        child.wait(timeout=5)
+                    child.stdout.close()
+                    child.stderr.close()
+                if pidfd is not None:
+                    os.close(pidfd)
 
     def test_abrupt_launcher_exit_before_child_launch_leaves_cleanup_veto(self):
         script = """
-import os
-import sys
+import os,sys
 from pathlib import Path
 from unittest.mock import patch
 import check_foundry_prerequisites as probe
-root = Path(sys.argv[1])
-with patch.object(probe, "context", return_value=(root, "foundry-prerequisites-12345-1.json")), \
+with patch.object(probe, "context", return_value=(Path(sys.argv[1]), "foundry-prerequisites-12345-1.json")), \
         patch.object(probe, "invocation_user_agent", return_value="synthetic"), \
         patch.object(probe, "check", side_effect=lambda *_args: os._exit(77)):
     probe.run()
@@ -1062,30 +858,28 @@ with patch.object(probe, "context", return_value=(root, "foundry-prerequisites-1
             self.assertEqual((result.returncode, result.stdout, result.stderr), (77, "", ""))
             temp = Path(folder)
             receipt_name = "foundry-prerequisites-12345-1.json"
-            receipt = temp / receipt_name
-            before = receipt.read_bytes()
-            record = json.loads(before)
-            self.assertEqual(record["process_teardown"], "unverified")
+            before = (temp / receipt_name).read_bytes()
+            self.assertEqual(json.loads(before)["process_teardown"], "unverified")
             with patch.object(probe.shutil, "rmtree") as remove:
                 with self.assertRaises(probe.CheckError):
                     probe.cleanup(temp, receipt_name)
                 remove.assert_not_called()
-            self.assertTrue((temp / record["name"] / ".run-owned").exists())
-            self.assertEqual(receipt.read_bytes(), before)
+            self.assertEqual((temp / receipt_name).read_bytes(), before)
 
-    def test_ordinary_cleanup_failure_keeps_verified_receipt_for_safe_retry(self):
-        with tempfile.TemporaryDirectory() as folder:
-            temp = Path(folder)
-            receipt_name = "foundry-prerequisites-12345-1.json"
-            with patch.object(probe, "context", return_value=(temp, receipt_name)), \
-                    patch.object(probe, "invocation_user_agent", return_value="synthetic"), \
-                    patch.object(probe, "check", return_value="1.2.3"), \
-                    patch.object(probe.shutil, "rmtree", side_effect=OSError("private-path")):
-                with self.assertRaises(probe.CheckError):
-                    probe.run()
-            self.assertEqual(json.loads((temp / receipt_name).read_text())["process_teardown"], "verified")
-            probe.cleanup(temp, receipt_name)
-            self.assertEqual(list(temp.iterdir()), [])
+    def test_no_command_failures_preserve_classification_and_normal_cleanup(self):
+        for failure, expected in ((probe.CheckError("skill"), "skill_execution"),
+                                  (subprocess.TimeoutExpired("synthetic", 180), "timeout"),
+                                  (probe.CheckError("interrupted"), "interruption"),
+                                  (probe.CheckError("output_limit"), "output_limit")):
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as folder:
+                temp = Path(folder)
+                with patch.object(probe, "context", return_value=(temp, "foundry-prerequisites-12345-1.json")), \
+                        patch.object(probe, "invocation_user_agent", return_value="synthetic"), \
+                        patch.object(probe, "check", side_effect=failure):
+                    with self.assertRaises(type(failure)) as raised:
+                        probe.run()
+                    self.assertEqual(probe.failure_stage(raised.exception), expected)
+                self.assertEqual(list(temp.iterdir()), [])
 
 class OfficialScriptFixtureTests(unittest.TestCase):
     def test_actual_hash_pinned_script_with_fake_commands_only(self):

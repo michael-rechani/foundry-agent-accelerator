@@ -1,12 +1,10 @@
 """Run the pinned Foundry dependency script without shared configuration or credentials."""
 
-import contextlib
 import hashlib
 import json
 import os
 import platform
 import re
-import selectors
 import shutil
 import signal
 import stat
@@ -14,8 +12,6 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import threading
-import time
 import uuid
 from pathlib import Path
 from urllib import error, parse, request
@@ -40,7 +36,6 @@ MISSING_AZD = (
 READY = "Dependencies are ready: azd and the microsoft.foundry extension are ready.\n"
 SYSTEM_PATH = "/usr/local/bin:/usr/bin:/bin"
 VERSION = r"[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*)?"
-MAX_CAPTURE_BYTES = 1024 * 1024
 FAILURE_STAGES = {
     "context": "context",
     "arguments": "context",
@@ -174,107 +169,13 @@ def isolated_environment(root, user_agent):
     return env
 
 
-def _require_process_supervision():
-    if (sys.platform != "linux" or not hasattr(os, "pidfd_open")
-            or not hasattr(os, "P_PIDFD") or not hasattr(os, "WNOWAIT")
-            or signal.getsignal(signal.SIGCHLD) != signal.SIG_DFL
-            or threading.active_count() != 1):
-        raise CheckError("cleanup")
+def _require_group_teardown_proof():
+    # Signal delivery, pipe EOF and leader wait do not certify descendant termination.
+    raise TeardownUnverified("cleanup")
 
-
-def _owned_child_status(process, pidfd):
-    if process.returncode is not None:
-        raise CheckError("cleanup")
-    try:
-        status = os.waitid(os.P_PIDFD, pidfd, os.WEXITED | os.WNOHANG | os.WNOWAIT)
-    except OSError:
-        raise CheckError("cleanup") from None
-    if status is not None and (status.si_pid != process.pid or status.si_code not in (
-            os.CLD_EXITED, os.CLD_KILLED, os.CLD_DUMPED)):
-        raise CheckError("cleanup")
-    return status
-
-
-def _signal_owned_group(process, pidfd):
-    _require_process_supervision()
-    _owned_child_status(process, pidfd)
-    try:
-        group = os.getpgid(process.pid)
-    except OSError:
-        raise CheckError("cleanup") from None
-    if group != process.pid:
-        raise CheckError("cleanup")
-    # WNOWAIT retains the owned leader (including its zombie) until after signaling.
-    _owned_child_status(process, pidfd)
-    try:
-        os.killpg(process.pid, signal.SIGKILL)
-    except ProcessLookupError:
-        # Absence is acceptable only for an exited, still-owned leader.
-        if _owned_child_status(process, pidfd) is None:
-            raise CheckError("cleanup") from None
 
 def command(args, cwd, env):
-    _require_process_supervision()
-    try:
-        process = subprocess.Popen(  # noqa: S603 -- pinned script or selected executable, fixed arguments and isolated environment.
-            args, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, start_new_session=True,
-        )
-    except BaseException:
-        # No returned handle means child creation/teardown cannot be certified here.
-        raise TeardownUnverified("cleanup") from None
-    teardown_verified = False
-    try:
-        with contextlib.ExitStack() as handles:
-            handles.callback(process.stdout.close)
-            handles.callback(process.stderr.close)
-            # Failure to acquire a binding must not fall back to numeric signaling.
-            pidfd = os.pidfd_open(process.pid)
-            handles.callback(os.close, pidfd)
-            output = {process.stdout: bytearray(), process.stderr: bytearray()}
-            captured = 0
-            group_stopped = False
-            deadline = time.monotonic() + 180
-            try:
-                with selectors.DefaultSelector() as selector:
-                    for stream in output:
-                        os.set_blocking(stream.fileno(), False)
-                        selector.register(stream, selectors.EVENT_READ)
-                    while True:
-                        if _owned_child_status(process, pidfd) is not None and not group_stopped:
-                            _signal_owned_group(process, pidfd)
-                            group_stopped = True
-                        if group_stopped and not selector.get_map():
-                            break
-                        remaining = deadline - time.monotonic()
-                        if remaining <= 0:
-                            raise subprocess.TimeoutExpired(args, 180)
-                        for key, _events in selector.select(min(remaining, 0.05)):
-                            chunk = os.read(key.fd, 32768)
-                            if chunk:
-                                if captured + len(chunk) > MAX_CAPTURE_BYTES:
-                                    raise CheckError("output_limit")
-                                output[key.fileobj].extend(chunk)
-                                captured += len(chunk)
-                            else:
-                                selector.unregister(key.fileobj)
-            finally:
-                if not group_stopped:
-                    _signal_owned_group(process, pidfd)
-                # This is the first reaping operation. Never signal the group afterward.
-                process.wait(timeout=5)
-                teardown_verified = True
-            stdout, stderr = (
-                bytes(output[stream]).decode(stream.encoding, stream.errors)
-                .replace("\r\n", "\n").replace("\r", "\n")
-                for stream in (process.stdout, process.stderr)
-            )
-        return subprocess.CompletedProcess(args, process.returncode, stdout, stderr)
-    except BaseException:
-        if not teardown_verified:
-            raise TeardownUnverified("cleanup") from None
-        raise
+    _require_group_teardown_proof()
 
 def install_azd(root):
     archive = root / "azd.tar.gz"
@@ -306,6 +207,7 @@ def install_azd(root):
 
 
 def check(root, user_agent):
+    _require_group_teardown_proof()
     env = isolated_environment(root, user_agent)
     (root / "bin").mkdir(mode=0o700)
     skill_root = root / "skill"
