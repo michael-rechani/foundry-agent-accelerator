@@ -1,29 +1,15 @@
-name: Check historical platform input candidate
-
+name: Temporary fictional extractor ownership tests
 on:
   workflow_dispatch:
-
 permissions:
   contents: read
-
-concurrency:
-  group: terraform-state-access
-  cancel-in-progress: false
-
 jobs:
-  check:
-    if: github.ref == 'refs/heads/main'
-    timeout-minutes: 10
-    runs-on: [self-hosted, linux, lab-runner]
-    environment: terraform-state
-    permissions:
-      contents: read
-      id-token: write
+  synthetic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Check candidate presence
-        env:
-          TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
-        run: python3 .github/scripts/check_platform_input.py
+      - name: Stdlib fictional archives and disposable trees only
+        run: env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p test_extract_platform_dependencies.py -v

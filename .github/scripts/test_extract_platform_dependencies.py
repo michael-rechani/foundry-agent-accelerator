@@ -232,7 +232,9 @@ class ExtractionTests(unittest.TestCase):
                 with self.assertRaises(extractor.ExtractionError):
                     extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
             self.assertEqual(outside.read_bytes(), b'preserve external bytes')
-            self.assertEqual(list(parent.iterdir()), [])
+            stages = list(parent.iterdir())
+            self.assertEqual(len(stages), 1)
+            self.assertTrue((stages[0] / 'public-closure/root/main.tf').is_symlink())
 
     def test_archive_changed_while_snapshotting_fails_before_decode(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -329,6 +331,141 @@ class ExtractionTests(unittest.TestCase):
                     extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, "out")
                 write.assert_not_called()
 
+
+    def test_synthetic_execution_non_root_without_credentials(self):
+        self.assertNotEqual(os.geteuid(), 0)
+        self.assertFalse(any(name.startswith(('AZURE_', 'ARM_', 'ACTIONS_ID_TOKEN_'))
+                             or name in ('GH_TOKEN', 'GITHUB_TOKEN') for name in os.environ))
+
+    def test_unknown_file_and_moved_external_directory_prevent_all_cleanup(self):
+        for kind in ('unknown-file', 'moved-directory', 'replace-file', 'replace-directory', 'hardlink'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as folder:
+                base = Path(folder)
+                parent = base / 'parent'
+                parent.mkdir(mode=0o700)
+                source = base / 'source.gz'
+                data = transport(BASE)
+                source.write_bytes(data)
+                outside = base / 'outside'
+                outside.mkdir()
+                (outside / 'preserve').write_bytes(b'UNOWNED DATA')
+                original = extractor.extract_validated
+                stage = None
+                def inject(stream, entries, root_fd, ledger):
+                    nonlocal stage
+                    original(stream, entries, root_fd, ledger)
+                    stage = next(parent.iterdir())
+                    if kind == 'unknown-file':
+                        (stage / 'unknown').write_bytes(b'UNOWNED DATA')
+                    elif kind == 'moved-directory':
+                        outside.rename(stage / 'unowned-directory')
+                    elif kind == 'replace-file':
+                        (stage / 'public-closure/root/main.tf').rename(base / 'displaced-file')
+                        (stage / 'public-closure/root/main.tf').write_bytes(b'UNOWNED DATA')
+                    elif kind == 'replace-directory':
+                        (stage / 'public-closure/root').rename(base / 'displaced-root')
+                        outside.rename(stage / 'public-closure/root')
+                    else:
+                        os.link(stage / 'public-closure/root/main.tf', outside / 'hardlinked')
+                    raise OSError('fictional ordinary extraction failure')
+                with patch.object(extractor, 'extract_validated', inject), patch.object(extractor.os, 'unlink', wraps=os.unlink) as unlink, patch.object(extractor.os, 'rmdir', wraps=os.rmdir) as rmdir:
+                    with self.assertRaisesRegex(extractor.ExtractionError, 'cleanup could not be verified'):
+                        extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
+                    unlink.assert_not_called()
+                    rmdir.assert_not_called()
+                self.assertFalse((parent / 'out').exists())
+                self.assertTrue(stage.exists())
+                if kind == 'unknown-file':
+                    self.assertEqual((stage / 'unknown').read_bytes(), b'UNOWNED DATA')
+                elif kind == 'moved-directory':
+                    self.assertEqual((stage / 'unowned-directory/preserve').read_bytes(), b'UNOWNED DATA')
+                elif kind == 'replace-file':
+                    self.assertEqual((stage / 'public-closure/root/main.tf').read_bytes(), b'UNOWNED DATA')
+                    self.assertEqual((base / 'displaced-file').read_bytes(), BASE[-1][2])
+                elif kind == 'replace-directory':
+                    self.assertEqual((stage / 'public-closure/root/preserve').read_bytes(), b'UNOWNED DATA')
+                    self.assertEqual((base / 'displaced-root/main.tf').read_bytes(), BASE[-1][2])
+                else:
+                    self.assertEqual((outside / 'hardlinked').read_bytes(), BASE[-1][2])
+                if kind not in ('replace-file', 'replace-directory'):
+                    self.assertEqual((stage / 'public-closure/root/main.tf').read_bytes(), BASE[-1][2])
+
+    def test_creation_succeeds_but_descriptor_binding_fails_retains_staging(self):
+        for kind in ('directory-open', 'file-bind', 'directory-bind', 'stage-open', 'ledger-open'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as folder:
+                base = Path(folder)
+                parent = base / 'parent'
+                parent.mkdir(mode=0o700)
+                source = base / 'source.gz'
+                data = transport(BASE)
+                source.write_bytes(data)
+                real_open = os.open
+                real_bind = extractor.OwnershipLedger.bind
+                def open_failure(path, flags, *args, **kwargs):
+                    if ((kind == 'directory-open' and path == 'root' and flags & os.O_DIRECTORY)
+                            or (kind == 'stage-open' and str(path).startswith('.closure-extract-'))):
+                        raise OSError('fictional descriptor failure')
+                    return real_open(path, flags, *args, **kwargs)
+                def bind_failure(ledger, name, fd, directory):
+                    if ((kind == 'file-bind' and not directory)
+                            or (kind == 'directory-bind' and name == 'public-closure/root')):
+                        raise OSError('fictional failed identity binding')
+                    return real_bind(ledger, name, fd, directory)
+                with patch.object(extractor.os, 'open', open_failure), patch.object(extractor.OwnershipLedger, 'bind', bind_failure):
+                    if kind == 'ledger-open':
+                        with patch.object(extractor, 'OwnershipLedger', side_effect=OSError('ledger allocation')):
+                            with self.assertRaises(extractor.ExtractionError):
+                                extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
+                    else:
+                        with self.assertRaises(extractor.ExtractionError):
+                            extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
+                self.assertFalse((parent / 'out').exists())
+                stages = list(parent.iterdir())
+                self.assertEqual(len(stages), 1)
+                if kind in ('directory-open', 'directory-bind'):
+                    self.assertTrue((stages[0] / 'public-closure/root').is_dir())
+                elif kind == 'file-bind':
+                    self.assertTrue((stages[0] / 'public-closure/root/main.tf').exists())
+
+    def test_unledgered_cleanup_is_refused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'unknown').write_bytes(b'UNOWNED DATA')
+            fd = os.open(root, extractor.FLAGS | os.O_DIRECTORY)
+            try:
+                with self.assertRaisesRegex(extractor.ExtractionError, 'ledger required'):
+                    extractor.cleanup_owned(fd)
+            finally:
+                os.close(fd)
+            self.assertEqual((root / 'unknown').read_bytes(), b'UNOWNED DATA')
+
+    def test_late_unknown_entry_after_preflight_stops_without_sweeping_it(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            parent = base / 'parent'
+            parent.mkdir(mode=0o700)
+            source = base / 'source.gz'
+            data = transport(BASE)
+            source.write_bytes(data)
+            original_extract = extractor.extract_validated
+            original_verify = extractor.OwnershipLedger.verify
+            injected = False
+            def fail(stream, entries, root_fd, ledger):
+                original_extract(stream, entries, root_fd, ledger)
+                raise OSError('fictional ordinary failure')
+            def late(ledger, root_fd):
+                nonlocal injected
+                original_verify(ledger, root_fd)
+                if not injected:
+                    injected = True
+                    stage = next(parent.iterdir())
+                    (stage / 'public-closure/root/unowned').write_bytes(b'UNOWNED DATA')
+            with patch.object(extractor, 'extract_validated', fail), patch.object(extractor.OwnershipLedger, 'verify', late):
+                with self.assertRaisesRegex(extractor.ExtractionError, 'cleanup could not be verified'):
+                    extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
+            stage = next(parent.iterdir())
+            self.assertEqual((stage / 'public-closure/root/unowned').read_bytes(), b'UNOWNED DATA')
+            self.assertEqual((stage / 'public-closure/root/main.tf').read_bytes(), BASE[-1][2])
 
 if __name__ == "__main__":
     if os.name != "posix":
