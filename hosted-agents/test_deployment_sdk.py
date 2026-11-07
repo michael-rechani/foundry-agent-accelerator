@@ -155,6 +155,127 @@ class DeploymentSDKTests(unittest.TestCase):
                 self.assert_no_agent_mutations()
                 self.client.agents.enable.assert_not_called()
 
+    def test_wrong_or_missing_coordinator_and_specialist_names_prevent_creation(self):
+        for target in ("coordinator", "specialist"):
+            for condition in ("wrong", "missing"):
+                with self.subTest(target=target, condition=condition):
+                    profile = self.profile
+                    target_name = self.args.agent_name
+                    if target == "specialist":
+                        target_name = "specialist"
+                        profile = AgentProfile(
+                            self.profile.source_directory, self.profile.name, self.profile.description,
+                            self.profile.instructions, self.profile.smoke_test_prompt,
+                            (("fictional prompt", "inspect", "specialist"),),
+                        )
+
+                    def bad_identity(*, agent_name, target_name=target_name, condition=condition):
+                        details = self.get(agent_name=agent_name)
+                        if agent_name == target_name:
+                            if condition == "missing":
+                                del details["name"]
+                            else:
+                                details["name"] = "different-agent"
+                        return details
+
+                    self.client.agents.get.side_effect = bad_identity
+                    with self.assertRaisesRegex(RuntimeError, "agent identity was not confirmed"):
+                        deploy(profile, self.args)
+                    self.assert_no_agent_mutations()
+                    self.client.agents.enable.assert_not_called()
+
+    def test_parent_identity_flip_after_candidate_check_prevents_promotion(self):
+        for target in ("coordinator", "specialist"):
+            with self.subTest(target=target):
+                self.endpoint = deepcopy(self.original)
+                self.client.agents.create_version_from_code.reset_mock()
+                self.candidate.reset_mock()
+                profile = self.profile
+                target_name = self.args.agent_name
+                if target == "specialist":
+                    target_name = "specialist"
+                    profile = AgentProfile(
+                        self.profile.source_directory, self.profile.name, self.profile.description,
+                        self.profile.instructions, self.profile.smoke_test_prompt,
+                        (("fictional prompt", "inspect", "specialist"),),
+                    )
+                state = {"wrong": False}
+
+                def changed(*, agent_name, target_name=target_name, state=state):
+                    details = self.get(agent_name=agent_name)
+                    if state["wrong"] and agent_name == target_name:
+                        details["name"] = "different-agent"
+                    return details
+
+                def checked(*args, state=state, **kwargs):
+                    state["wrong"] = True
+
+                self.client.agents.get.side_effect = changed
+                self.candidate.side_effect = checked
+                with self.assertRaisesRegex(RuntimeError, "agent identity was not confirmed"):
+                    deploy(profile, self.args)
+                self.client.agents.create_version_from_code.assert_called_once()
+                self.candidate.assert_called_once()
+                self.client.agents.update_details.assert_not_called()
+                self.client.agents.delete_version.assert_not_called()
+                self.client.agents.enable.assert_not_called()
+                self.assertEqual(self.endpoint, self.original)
+
+    def test_wrong_parent_identity_after_promotion_refuses_overwrite(self):
+        state = {"wrong": False}
+
+        def changed(*, agent_name):
+            details = self.get(agent_name=agent_name)
+            if state["wrong"]:
+                details["name"] = "different-agent"
+            return details
+
+        def update(**kwargs):
+            self.update(**kwargs)
+            state["wrong"] = True
+
+        self.client.agents.get.side_effect = changed
+        self.client.agents.update_details.side_effect = update
+        with redirect_stdout(io.StringIO()) as output:
+            with self.assertRaisesRegex(RuntimeError, "agent identity was not confirmed"):
+                deploy(self.profile, self.args)
+        self.assertEqual(self.client.agents.update_details.call_count, 1)
+        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
+        self.assertIn("manual recovery required", output.getvalue())
+        self.smoke.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
+    def test_parent_identity_flip_during_rollback_prevents_overwrite(self):
+        state = {"wrong": False}
+
+        def changed(*, agent_name):
+            details = self.get(agent_name=agent_name)
+            if state["wrong"]:
+                details["name"] = "different-agent"
+            return details
+
+        def failed_smoke(*args):
+            def recovery_read(*, agent_name, agent_version):
+                details = self.read_version(agent_name=agent_name, agent_version=agent_version)
+                if agent_version == "1":
+                    state["wrong"] = True
+                return details
+
+            self.client.agents.get_version.side_effect = recovery_read
+            raise RuntimeError("fictional smoke failed")
+
+        self.client.agents.get.side_effect = changed
+        self.smoke.side_effect = failed_smoke
+        with redirect_stdout(io.StringIO()) as output:
+            with self.assertRaisesRegex(RuntimeError, "fictional smoke failed"):
+                deploy(self.profile, self.args)
+        self.assertEqual(self.client.agents.update_details.call_count, 1)
+        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
+        self.assertIn("manual recovery required", output.getvalue())
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
     def test_route_or_state_change_during_recovery_snapshot_prevents_creation(self):
         for change in ("route", "state", "configuration_state"):
             with self.subTest(change=change):
@@ -467,7 +588,7 @@ class DeploymentSDKTests(unittest.TestCase):
     def test_pinned_sdk_operational_enum_and_raw_field_mapping(self):
         from azure.ai.projects.models import AgentDetails, AgentState
 
-        details = AgentDetails({"state": AgentState.ENABLED, "configuration_state": AgentState.ENABLED})
+        details = AgentDetails({"name": "case-review-agent", "state": AgentState.ENABLED, "configuration_state": AgentState.ENABLED})
         self.assertIsInstance(details.state, str)
         self.assertEqual(details.state, "enabled")
         self.assertEqual(details.get("configuration_state"), "enabled")
@@ -945,6 +1066,7 @@ class DeploymentTimeoutTests(unittest.TestCase):
             {"state": True, "configuration_state": "enabled"},
             {"configuration_state": "enabled"},
         ]
+        payloads = [{"name": "fictional-agent", **payload} for payload in payloads]
         sent = []
         remaining = iter(payloads)
 
@@ -978,6 +1100,54 @@ class DeploymentTimeoutTests(unittest.TestCase):
                             self.assertIsNone(enabled_endpoint(fictional, "fictional-agent"))
                         else:
                             with self.assertRaisesRegex(RuntimeError, "explicitly enabled"):
+                                enabled_endpoint(fictional, "fictional-agent")
+        self.assertEqual(len(sent), len(payloads))
+        for method, url in sent:
+            self.assertEqual(method, "GET")
+            self.assertEqual(parse_qs(urlsplit(url).query).get("api-version"), ["v1"])
+
+    def test_real_sdk_deserializes_and_checks_parent_agent_identity(self):
+        from urllib.parse import parse_qs, urlsplit
+
+        payloads = [
+            {"name": "fictional-agent", "state": "enabled", "configuration_state": "enabled"},
+            {"name": "different-agent", "state": "enabled", "configuration_state": "enabled"},
+            {"state": "enabled", "configuration_state": "enabled"},
+            {"name": None, "state": "enabled", "configuration_state": "enabled"},
+            {"name": True, "state": "enabled", "configuration_state": "enabled"},
+            {"name": 42, "state": "enabled", "configuration_state": "enabled"},
+            {"name": {}, "state": "enabled", "configuration_state": "enabled"},
+            {"name": [], "state": "enabled", "configuration_state": "enabled"},
+        ]
+        sent = []
+        remaining = iter(payloads)
+
+        def respond(adapter, request, **kwargs):
+            sent.append((request.method, request.url))
+            response = requests.Response()
+            response.status_code = 200
+            response._content = json.dumps(next(remaining)).encode()
+            response.raw = io.BytesIO(response._content)
+            response.headers["Content-Type"] = "application/json"
+            response.request = request
+            return response
+
+        with patch.object(requests.adapters.HTTPAdapter, "send", respond):
+            with AIProjectClient(
+                endpoint="https://fictional.services.ai.azure.com/api/projects/demo",
+                credential=self.Credential(), allow_preview=True, retry_total=0,
+            ) as client:
+                for index, payload in enumerate(payloads):
+                    with self.subTest(index=index):
+                        details = client.agents.get(agent_name="fictional-agent")
+                        self.assertIsInstance(details, AgentDetails)
+                        self.assertEqual("name" in details, "name" in payload)
+                        self.assertEqual(details.get("name"), payload.get("name"))
+                        fictional = SimpleNamespace(agents=SimpleNamespace(get=lambda details=details, **kwargs: details))
+                        if index == 0:
+                            self.assertIsNone(enabled_endpoint(fictional, "fictional-agent"))
+                        else:
+                            with self.assertRaisesRegex(RuntimeError, "agent identity was not confirmed"):
                                 enabled_endpoint(fictional, "fictional-agent")
         self.assertEqual(len(sent), len(payloads))
         for method, url in sent:
