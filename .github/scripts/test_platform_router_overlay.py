@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import patch
 
 import check_platform_router_plan as diagnostic
+import reconcile_runner_state as runner
 
 
 class OverlayTests(unittest.TestCase):
@@ -30,7 +31,10 @@ class OverlayTests(unittest.TestCase):
             self.assertEqual(value, {
                 "terraform": {"backend": {"azurerm": {}}, "required_providers": {
                     "modtm": {"source": "azure/modtm", "version": "~> 0.3"}}},
-                "provider": {"modtm": {"enabled": False}},
+                "provider": {
+                    "azapi": {"skip_provider_registration": True},
+                    "modtm": {"enabled": False},
+                },
             })
 
     def test_unreviewed_definitions_collisions_links_and_changes(self):
@@ -39,6 +43,9 @@ class OverlayTests(unittest.TestCase):
             "added.tf": 'terraform { required_providers { modtm = { source = "hashicorp/modtm" } } }',
             "telemetry.tf": 'provider "modtm" { enabled = true }',
             "alias.tf": 'provider "modtm" { alias = "extra" }',
+            "azapi-alias.tf": 'provider "azapi" { alias = "alternate" }',
+            "azapi-remap.tf": 'module "router" { source = "./modules/model-router" providers = { azapi = azapi.alternate } }',
+            "azapi-resource-alias.tf": 'resource "azapi_resource" "extra" { provider = azapi.alternate }',
             "override.tf": 'terraform { required_providers { azurerm = { version = "0.0.0" } } }',
             "unrelated_override.tf.json": '{}',
             "runner-diagnostic.tf": 'terraform { backend "azurerm" {} }',
@@ -121,6 +128,25 @@ class OverlayTests(unittest.TestCase):
                     diagnostic.write_backend(root)
             self.assertTrue((root / "displaced-overlay").is_file())
             self.assertTrue(target.is_file())
+    def test_azure_rm_registration_environment_remains_none_without_skip_conflict(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / "root"
+            scratch = Path(folder) / "scratch"
+            root.mkdir()
+            scratch.mkdir(mode=0o700)
+            environ = {
+                "AZURE_CLIENT_ID": "fictional-client",
+                "AZURE_TENANT_ID": "fictional-tenant",
+                "AZURE_SUBSCRIPTION_ID": "fictional-subscription",
+                "TF_STATE_ACCOUNT": "fictionalaccount",
+                "TF_STATE_CONTAINER": "fictional-container",
+                "ARM_SKIP_PROVIDER_REGISTRATION": "true",
+                "ARM_RESOURCE_PROVIDER_REGISTRATIONS": "register",
+            }
+            with patch.object(runner.Terraform, "command", return_value=b""):
+                terraform = runner.Terraform(root, scratch, environ, "fictional.tfstate", b"{}")
+            self.assertEqual(terraform.env["ARM_RESOURCE_PROVIDER_REGISTRATIONS"], "none")
+            self.assertNotIn("ARM_SKIP_PROVIDER_REGISTRATION", terraform.env)
     @unittest.skipUnless(os.environ.get("PUBLIC_OVERLAY_BUNDLE"), "Public module/mirror fixture not selected.")
     def test_actual_root_module_graph_reinstall_validate_and_requirements(self):
         bundle = Path(os.environ["PUBLIC_OVERLAY_BUNDLE"])

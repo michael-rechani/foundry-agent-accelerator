@@ -182,13 +182,17 @@ def write_backend(root):
     actual = diagnostic_root_files(root)
     if actual != DIAGNOSTIC_ROOT_FILES:
         raise CheckError("The platform root differs from the exact reviewed diagnostic configuration.")
-    # Override merging adds only modtm; the reviewed root has no backend or modtm provider.
+    # The reviewed root has one default AzAPI provider, no aliases, and no existing backend.
+    # Override merge adds its registration guard without replacing subscription_id.
     overlay = {
         "terraform": {
             "backend": {"azurerm": {}},
             "required_providers": {"modtm": {"source": "azure/modtm", "version": "~> 0.3"}},
         },
-        "provider": {"modtm": {"enabled": False}},
+        "provider": {
+            "azapi": {"skip_provider_registration": True},
+            "modtm": {"enabled": False},
+        },
     }
     encoded = json.dumps(overlay, indent=2) + "\n"
     try:
