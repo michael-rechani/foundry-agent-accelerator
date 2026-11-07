@@ -17,6 +17,7 @@ from unittest.mock import patch
 from urllib import error, request
 
 import check_foundry_prerequisites as probe
+REAL_WHICH = shutil.which
 
 
 # Official azure-skills fixture, MIT licensed; its exact content is hash-checked.
@@ -67,6 +68,7 @@ FAKE_GREP = b"""#!/bin/bash
 text=$(</dev/stdin)
 [[ "$text" == *'"id": "microsoft.foundry"'* ]]
 """
+UPSTREAM_AGENT = SKILL.split(b"export AZURE_DEV_USER_AGENT=", 1)[1].split(b"\n", 1)[0].decode("ascii")
 
 
 def archive_bytes(name="azd-linux-amd64", kind=tarfile.REGTYPE, duplicate=False, mode=0o775, extra=None, linkname=None):
@@ -95,7 +97,10 @@ class PrerequisiteTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.temp = Path(self.temporary.name)
+        self.temp = Path(self.temporary.name) / "runtime"
+        self.temp.mkdir()
+        self.event = Path(self.temporary.name) / "event.json"
+        self.event.write_text(json.dumps({"inputs": {"user_agent": UPSTREAM_AGENT}}))
         self.environment = {
             "GITHUB_REF": "refs/heads/main",
             "GITHUB_REF_PROTECTED": "true",
@@ -103,7 +108,7 @@ class PrerequisiteTests(unittest.TestCase):
             "GITHUB_RUN_ID": "12345",
             "GITHUB_RUN_ATTEMPT": "1",
             "RUNNER_TEMP": str(self.temp),
-            "AZURE_DEV_USER_AGENT": "fixture_invocation_agent",
+            "GITHUB_EVENT_PATH": str(self.event),
             "PATH": "untrusted-inherited-path",
             "HOME": "private-shared-home",
             "AZD_CONFIG_DIR": "private-shared-extension-state",
@@ -161,7 +166,7 @@ class PrerequisiteTests(unittest.TestCase):
         root = cwd.parent
         self.assertEqual(cwd, root / "skill")
         self.assertEqual((cwd / "scripts" / "check-and-setup-dependencies.sh").read_bytes(), SKILL)
-        self.assertEqual(env["AZURE_DEV_USER_AGENT"], "fixture_invocation_agent")
+        self.assertEqual(env["AZURE_DEV_USER_AGENT"], UPSTREAM_AGENT)
         self.assertEqual(env["AZURE_DEV_COLLECT_TELEMETRY"], "no")
         self.assertEqual(env["PATH"], f"{root / 'bin'}:{probe.SYSTEM_PATH}")
         self.assertEqual(set(env), {
@@ -246,7 +251,8 @@ class PrerequisiteTests(unittest.TestCase):
             "$(touch unowned)", "`touch unowned`", "agent;touch unowned",
             "agent=value", "/path/to/agent", "-agent", "\u00e9",
         ):
-            with self.subTest(value=value), patch.dict(os.environ, {"AZURE_DEV_USER_AGENT": value}):
+            self.event.write_text(json.dumps({"inputs": {"user_agent": value}}))
+            with self.subTest(value=value):
                 self.assert_failed(self.invoke(), "context")
                 self.assertEqual(list(self.temp.iterdir()), [])
         with patch.dict(os.environ, clear=True):
@@ -259,8 +265,8 @@ class PrerequisiteTests(unittest.TestCase):
         for index, value in enumerate(("caller-agent", "a", "A1_.-", "a" * 64)):
             root = self.temp / f"owned{index}"
             root.mkdir()
-            with patch.dict(os.environ, {"AZURE_DEV_USER_AGENT": value}):
-                env = probe.isolated_environment(root, probe.invocation_user_agent())
+            self.event.write_text(json.dumps({"inputs": {"user_agent": value}}))
+            env = probe.isolated_environment(root, probe.invocation_user_agent())
             self.assertEqual(env["AZURE_DEV_USER_AGENT"], value)
             self.assertEqual(set(env), {
                 "HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME",
@@ -274,6 +280,77 @@ class PrerequisiteTests(unittest.TestCase):
         workflow = (Path(__file__).parents[1] / "workflows" / "check-foundry-prerequisites.yml").read_text()
         self.assertNotIn("microsoft_foundry_skill", workflow)
         self.assertNotIn("${{ inputs.user_agent }}", "\n".join(WorkflowTests().blocks()))
+
+    def test_safe_but_wrong_value_fails_before_any_command(self):
+        self.event.write_text(json.dumps({"inputs": {"user_agent": "valid_but_wrong"}}))
+        self.assert_failed(self.invoke(), "context")
+        self.assertEqual(self.downloads, [probe.SKILL_URL])
+        self.executor.assert_not_called()
+        self.which.assert_not_called()
+        self.assertEqual(list(self.temp.iterdir()), [])
+
+    def test_event_input_is_validated_without_reading_or_forwarding_other_fields(self):
+        for payload in (
+            b"not-json", b"[]", b'{"inputs": null}', b'{"inputs": {}}',
+            b'{"inputs": {"user_agent": 1}}', b"x" * (1024 * 1024 + 1),
+        ):
+            self.event.write_bytes(payload)
+            self.assert_failed(self.invoke(), "context")
+        self.opener.open.assert_not_called()
+        self.executor.assert_not_called()
+
+    def test_upstream_declaration_must_be_single_strict_and_equal(self):
+        script = self.temp / "fixture-script"
+        for contents in (
+            b"", b"export AZURE_DEV_USER_AGENT=wrong\n",
+            b"export AZURE_DEV_USER_AGENT=$(command)\n",
+            b"export AZURE_DEV_USER_AGENT='quoted'\n",
+            SKILL + b"\nexport AZURE_DEV_USER_AGENT=other\n",
+            SKILL + b"\nexport AZURE_DEV_USER_AGENT=$(command)\n",
+        ):
+            script.write_bytes(contents)
+            with self.assertRaises(probe.CheckError):
+                probe.validate_upstream_user_agent(script, UPSTREAM_AGENT)
+        script.write_bytes(SKILL)
+        probe.validate_upstream_user_agent(script, UPSTREAM_AGENT)
+
+    def test_pinned_script_and_final_version_use_exact_runtime_agent_with_fake_tools(self):
+        bash = REAL_WHICH("bash", path=r"C:\Program Files\Git\bin" if os.name == "nt" else "/usr/bin:/bin")
+        self.assertIsNotNone(bash, "Use existing Bash only.")
+        calls = []
+
+        def shell_path(path):
+            path = Path(path)
+            if os.name == "nt":
+                return f"/{path.drive[0].lower()}/{path.relative_to(path.anchor).as_posix()}"
+            return str(path)
+
+        def execute(args, cwd, env):
+            calls.append(args)
+            root = cwd.parent
+            grep = root / "bin" / "grep"
+            grep.write_bytes(FAKE_GREP)
+            grep.chmod(0o700)
+            isolated = dict(env)
+            for key in (
+                "HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME",
+                "XDG_STATE_HOME", "XDG_RUNTIME_DIR", "AZD_CONFIG_DIR", "AZURE_CONFIG_DIR", "TMPDIR",
+            ):
+                isolated[key] = shell_path(env[key])
+            isolated["PATH"] = shell_path(root / "bin")
+            self.assertEqual(isolated["AZURE_DEV_USER_AGENT"], UPSTREAM_AGENT)
+            executable = args[1] if args[0] == "/bin/bash" else args[0]
+            return subprocess.run(
+                [bash, shell_path(executable)] + ([] if args[0] == "/bin/bash" else args[1:]),
+                cwd=cwd, env=isolated, stdin=subprocess.DEVNULL,
+                capture_output=True, text=True, timeout=10, check=False,
+            )
+
+        self.executor.side_effect = execute
+        self.assertEqual(self.invoke(), (0, "azd_version=1.37.3\nfoundry_prerequisites=ready\n", ""))
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(calls[-1][-1], "version")
+        self.assertEqual(list(self.temp.iterdir()), [])
 
     def test_skill_checksum_mismatch_never_executes_anything(self):
         with patch.object(probe, "SKILL_SHA256", "0" * 64):
@@ -732,7 +809,7 @@ class WorkflowTests(unittest.TestCase):
             self.assertNotIn(forbidden, workflow)
         self.assertEqual(workflow.count("contents: read"), 2)
         self.assertEqual(workflow.count("uses:"), 1)
-        self.assertIn("AZURE_DEV_USER_AGENT: ${{ inputs.user_agent }}", workflow)
+        self.assertNotIn("${{ inputs.user_agent }}", workflow)
         self.assertNotIn("default:", workflow)
         for expected in ("BASH_ENV: /dev/null", "ENV: /dev/null", "PATH: /usr/local/bin:/usr/bin:/bin"):
             self.assertIn(expected, workflow)
@@ -810,7 +887,7 @@ class WorkflowTests(unittest.TestCase):
         blocks = self.blocks()
         keys = (
             "PATH", "GITHUB_REF", "GITHUB_REF_PROTECTED", "GITHUB_EVENT_NAME",
-            "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "RUNNER_TEMP", "AZURE_DEV_USER_AGENT",
+            "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "RUNNER_TEMP", "GITHUB_EVENT_PATH",
         )
         for block in (blocks[1], blocks[2]):
             launch = block.split("/usr/bin/env -i \\\n", 1)[1].split("python3 -I", 1)[0]
@@ -837,7 +914,7 @@ fake_env() {
   shift
   [[ "$1" == RUNNER_TEMP=fixture-temp ]] || return 27
   shift
-  [[ "$1" == AZURE_DEV_USER_AGENT=fixture_invocation_agent ]] || return 32
+  [[ "$1" == GITHUB_EVENT_PATH=fixture-event ]] || return 32
   shift
   [[ "$1" == python3 && "$2" == -I ]] || return 28
   shift 2
@@ -871,7 +948,7 @@ fake_env() {
                 "GITHUB_EVENT_NAME": "workflow_dispatch",
                 "GITHUB_RUN_ID": "12345", "GITHUB_RUN_ATTEMPT": "1",
                 "RUNNER_TEMP": "fixture-temp",
-                "AZURE_DEV_USER_AGENT": "fixture_invocation_agent",
+                "GITHUB_EVENT_PATH": "fixture-event",
             }
             for index in (1, 2):
                 for failure_output in (

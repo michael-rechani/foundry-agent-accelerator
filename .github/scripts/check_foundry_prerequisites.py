@@ -109,10 +109,31 @@ def context():
 
 
 def invocation_user_agent():
-    value = os.environ.get("AZURE_DEV_USER_AGENT", "")
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", value):
+    event_path = Path(os.environ.get("GITHUB_EVENT_PATH", ""))
+    if not event_path.is_absolute():
+        raise CheckError("context")
+    try:
+        with event_path.open("rb") as event:
+            data = event.read(1024 * 1024 + 1)
+        if len(data) > 1024 * 1024:
+            raise CheckError("context")
+        payload = json.loads(data)
+        value = payload["inputs"]["user_agent"]
+    except (OSError, ValueError, KeyError, TypeError) as failure:
+        raise CheckError("context") from failure
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", value):
         raise CheckError("context")
     return value
+
+
+def validate_upstream_user_agent(script, user_agent):
+    content = script.read_bytes()
+    declarations = re.findall(
+        rb"^export AZURE_DEV_USER_AGENT=([A-Za-z0-9][A-Za-z0-9_.-]{0,63})$",
+        content, re.MULTILINE,
+    )
+    if content.count(b"AZURE_DEV_USER_AGENT") != 1 or len(declarations) != 1 or declarations[0].decode("ascii") != user_agent:
+        raise CheckError("context")
 
 
 def isolated_environment(root, user_agent):
@@ -198,6 +219,7 @@ def check(root, user_agent):
     scripts.mkdir(parents=True, mode=0o700)
     script = scripts / "check-and-setup-dependencies.sh"
     download(SKILL_URL, SKILL_SHA256, script, 64 * 1024)
+    validate_upstream_user_agent(script, user_agent)
     installed_azd = shutil.which("azd", path=SYSTEM_PATH)
     if installed_azd is not None:
         (root / "bin" / "azd").symlink_to(Path(installed_azd).resolve())
