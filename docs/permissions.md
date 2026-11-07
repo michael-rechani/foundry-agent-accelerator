@@ -527,3 +527,99 @@ before relying on the tables.
 - [The Lab](../workbench/README.md)
 - [Hosted agents](../hosted-agents/README.md)
 - [Agent monitoring](../terraform/monitoring/README.md)
+
+## Fixed runner authorization-denial summaries
+
+`reconcile_runner_state.authorization_failure_summary` classifies a **provider-
+reported** denial without emitting provider-controlled action, namespace, type,
+resource names, IDs, principal, scope or captured casing. Only an explicitly
+reviewed exact action/scope-type pair selects a canonical literal from
+`AUTHORIZATION_DENIAL_LITERALS`; regex-valid input alone never becomes output.
+The current list permits `read` for Compute virtual machines/disks, Insights
+scheduled query rules, Network interfaces/public IPs/NSGs/virtual networks/subnets/
+NAT gateways, and Authorization role assignments/definitions. Each operation must
+match its exact resource type and provider namespace. The old synthetic Compute
+network-interface/public-IP combinations were contradictory and are now withheld;
+the correct Microsoft.Network pairs retain concrete denial reasons. No wildcard,
+write/delete/action or previously unreviewed resource-type coverage is inferred.
+
+Scope validation requires one bounded subscription GUID prefix, optional resource
+group prefix, exactly one provider segment and complete type/name pairs. Only
+Authorization operations can use the subscription-only scope form; other reviewed
+pairs require resource-group scopes. Nested resource types such as virtual-network
+subnets are explicitly listed; extension-resource scopes with multiple providers
+are unknown rather than parsed heuristically. Identifier/name tokens are inspected
+only for bounded shape, never echoed or treated as authority. ASCII case variations
+select the same fixed canonical literal, not captured casing.
+
+Unknown, malformed, contradictory, incomplete or overlong denials return exactly
+`AuthorizationFailed; unknown denial details withheld`. A mixed message with even
+one invalid denial returns that category for the whole message, including invalid
+denials beyond the three-detail display cap. Messages over 65,536 characters,
+actions over 128, scopes over 2,048, more than 32 scope segments, unsafe/overlong
+segments, or more than 32 denial clauses are withheld rather than truncated into
+an apparently known result. All valid clauses are checked; at most three unique
+fixed details display, with the fixed additional-operations suffix. No result is
+a success status. `Terraform.command` continues to raise its bounded `CheckError`
+on an unsuccessful command; raw provider stdout/stderr is not included in that
+failure log. Exit-code semantics, credentials, permissions and execution guards
+are unchanged.
+
+The shared base command is used by runner reconciliation and guarded Lab/platform
+Terraform wrappers (`LabTerraform`, `PlatformTerraform`, `WafTerraform`,
+`MonitorTerraform`, and `ApplyTerraform`). Lab Router checks inherit the Lab
+wrapper. Source inspection found no alternate call to this summary, and all
+command overrides still delegate allowed invocations to the same base. Input-
+authority diagnostics import Blob/GUID helpers, not a separate denial formatter.
+Synthetic tests exercise failures through every distinct override, including the
+fixed apply invocation with subprocess mocked; **no actual apply/CLI is run**.
+
+This is a logging boundary, not evidence that a provider's denial claim is true,
+that permissions should change, or that untrusted provider code or a shared host
+is contained. Unknown denials require separately reviewed private evidence; do
+not dump provider output, expand an allowlist automatically, or grant broader
+roles merely to recover the redacted category. Existing approval/host/identity
+and live-verification gates remain tracked in #522.
+
+### Offline validation evidence
+
+Separate unmerged branch `michael-rechani-denial-literals-offline` started from
+protected main `446b078df12c9a08daec7bc5e9f0b5a57d8d7a5d`. Exact tested head
+`7b5a482c7e78f7260b11b42f738c8d5d71649d73` passed
+[run 42419576819](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42419576819)
+on preinstalled Python **3.14.10**, matching repository `ruff.toml` target `py314`.
+Each command used `env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1` followed by
+the selected interpreter. No dependency setup/install was performed.
+
+| Focused command | Result |
+|---|---|
+| `python -m unittest discover -s .github/scripts -p test_reconcile_runner_state.py -v` | 35 passed |
+| `python -m unittest discover -s .github/scripts -p test_check_lab_terraform_plan.py -v` | 33 passed, 2 skipped |
+| `python -m unittest discover -s .github/scripts -p test_check_platform_router_plan.py -v` | 20 passed, 2 skipped |
+| `python -m unittest discover -s .github/scripts -p test_check_lab_router_plan.py -v` | 11 passed |
+| `python -m unittest discover -s .github/scripts -p test_reconcile_lab_waf_allowlist.py -v` | 16 passed, 1 skipped |
+| `python -m unittest discover -s .github/scripts -p test_reconcile_lab_monitor_scope.py -v` | 18 passed, 2 skipped |
+| `python -m unittest discover -s .github/scripts -p test_apply_lab_terraform.py -v` | 23 passed |
+| `python -m unittest discover -s .github/scripts -p test_check_platform_input_authority.py -v` | 40 passed |
+| `ruff check --config ruff.toml .github/scripts/reconcile_runner_state.py .github/scripts/test_reconcile_runner_state.py` | Not run: Ruff unavailable; no package installation authorized |
+
+Total: **196 passed, 7 skipped** (203 discovered). Terraform-dependent cases were
+skipped; the workflow explicitly refused if real Terraform was available. All
+other provider/Blob/subprocess interactions in these fixtures are synthetic or
+mocked. New canaries cover injected action/type/namespace tokens, case, nested
+unknown types, mismatched operations, wildcards/write operations, control
+characters, malformed prefix/segments, invalid GUIDs, oversized inputs, duplicate
+known pairs, exact message-size boundary and unknown clauses past output cap.
+Known pairs return only independently specified canonical literals; failure
+messages remain bounded and do not contain canaries.
+
+The temporary manual workflow had `contents:read`, pinned checkout with
+`persist-credentials:false`, a non-root/no-credential child-environment assertion,
+no sudo, Docker, namespaces, environments, id-token, secrets or private runner.
+It was restored byte-for-byte to original blob
+`13fea116e0cd70aa8f5d8cabcb9b893743e23c95` after the final test, with no later
+dispatch. Final executable/test blobs equal the tested head; later changes are
+only these evidence docs and workflow restoration. No local project execution,
+Azure, protected data, real provider, PR, merge or live integration occurred.
+Non-root hosted tests do not independently establish adversarial host/token
+isolation. Ruff availability and independently approved deployment remain #522 gates.

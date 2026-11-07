@@ -113,6 +113,7 @@ changing configuration or credentials.
 | Symptom | Likely area | Where to look |
 | --- | --- | --- |
 | A Lab, APIM, jumpbox, or project identity gets 401, 403, or `AuthorizationFailed`. | Role assigned by this repository | [Assigned by this repository](permissions.md#assigned-by-this-repository) |
+| Runner reconciliation reports `AuthorizationFailed; unknown denial details withheld`. | Provider denial pair is not explicitly reviewed, contradictory, malformed or overlong; raw details stay private | [Fixed runner authorization-denial summaries](permissions.md#fixed-runner-authorization-denial-summaries). A listed operation is only a reported category, not live permission evidence; do not broaden roles or dump provider output. |
 | Created-agent publication fails with `operator_permissions_required`. | Lab identity's Foundry role | [Foundry User and Foundry Project Manager](permissions.md#foundry-user-and-foundry-project-manager), [agent creation troubleshooting](agent-creation.md#troubleshooting) |
 | Publishing a hosted agent fails with an authorization error. | Publisher's Foundry role | [Foundry User and Foundry Project Manager](permissions.md#foundry-user-and-foundry-project-manager), [Not assigned by this repository](permissions.md#not-assigned-by-this-repository) |
 | Terraform can't create role assignments, read state, or refresh the Container App. | Operator prerequisites | [Not assigned by this repository](permissions.md#not-assigned-by-this-repository) |
