@@ -365,6 +365,7 @@ def enabled_endpoint(client, agent_name: str):
             raise RuntimeError("Agent operational and administrative states must both be explicitly enabled")
     return getattr(details, "agent_endpoint", None)
 
+
 def verify_recovery_targets(client, agent_name: str, endpoint) -> None:
     if not concrete_route(endpoint):
         raise RuntimeError(
@@ -468,7 +469,7 @@ def cleanup_failed_version(
             return
         print(f"Retained failed version {version}; inspect its sessions before deliberate cleanup")
     except Exception:
-        print(f"Warning: recovery status or cleanup incomplete; retained version {version} if present")
+        print(f"Warning: recovery status or cleanup incomplete; retained version {version} if present; manual recovery required")
 
 
 def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name: str) -> None:
@@ -483,6 +484,8 @@ def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name:
         if getattr(protocols, "responses", None) is None or not rules:
             raise RuntimeError(f"Specialist {agent_name} has no routed Responses endpoint")
         validate_traffic_rules(rules, f"Specialist {agent_name}")
+        if not concrete_route(endpoint):
+            raise RuntimeError(f"Specialist {agent_name} requires concrete version traffic rules")
         versions = {str(rule.agent_version) for rule in rules if rule.traffic_percentage > 0 and rule.agent_version}
         if any(not rule.agent_version for rule in rules if rule.traffic_percentage > 0):
             raise RuntimeError(f"Specialist {agent_name} has an unversioned traffic rule")
@@ -593,6 +596,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
                 if original_endpoint is not None:
                     verify_recovery_targets(client, args.agent_name, original_endpoint)
+                verify_specialist_endpoints(client, profile, args.agent_name)
                 protocols = deepcopy(getattr(current_endpoint, "protocol_configuration", None))
                 if protocols is None:
                     protocols = ProtocolConfiguration()
