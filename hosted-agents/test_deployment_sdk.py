@@ -305,6 +305,104 @@ class DeploymentSDKTests(unittest.TestCase):
                 self.client.agents.delete_version.assert_not_called()
                 self.client.agents.enable.assert_not_called()
 
+    def test_candidate_model_mismatch_prevents_first_smoke_and_promotion(self):
+        for definition in (
+            None,
+            {"kind": "hosted", "environment_variables": {}},
+            {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "other"}},
+            {"kind": "prompt", "environment_variables": {"FOUNDRY_MODEL_NAME": self.args.model}},
+        ):
+            with self.subTest(definition=definition):
+                def wrong(*, agent_name, agent_version):
+                    if agent_version == "2":
+                        return {"name": agent_name, "version": agent_version, "status": "active",
+                                "definition": definition}
+                    return self.read_version(agent_name=agent_name, agent_version=agent_version)
+
+                self.client.agents.get_version.side_effect = wrong
+                with self.assertRaisesRegex(RuntimeError, "does not confirm the requested model"):
+                    deploy(self.profile, self.args)
+                self.assertEqual(self.endpoint, self.original)
+                self.candidate.assert_not_called()
+                self.smoke.assert_not_called()
+                self.client.agents.create_session.assert_not_called()
+                self.client.agents.update_details.assert_not_called()
+                self.client.agents.delete_version.assert_not_called()
+                self.client.agents.enable.assert_not_called()
+
+    def test_candidate_model_change_after_smoke_never_promotes(self):
+        def checked(*args, **kwargs):
+            def wrong(*, agent_name, agent_version):
+                details = self.read_version(agent_name=agent_name, agent_version=agent_version)
+                if agent_version == "2":
+                    details["definition"] = {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "other"}}
+                return details
+
+            self.client.agents.get_version.side_effect = wrong
+
+        self.candidate.side_effect = checked
+        with self.assertRaisesRegex(RuntimeError, "does not confirm the requested model"):
+            deploy(self.profile, self.args)
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
+    def test_candidate_model_change_after_promotion_uses_guarded_rollback(self):
+        def changed(**kwargs):
+            self.update(**kwargs)
+
+            def wrong(*, agent_name, agent_version):
+                details = self.read_version(agent_name=agent_name, agent_version=agent_version)
+                if agent_version == "2":
+                    details["definition"] = {"kind": "hosted", "environment_variables": {"FOUNDRY_MODEL_NAME": "other"}}
+                return details
+
+            self.client.agents.get_version.side_effect = wrong
+
+        self.client.agents.update_details.side_effect = changed
+        with self.assertRaisesRegex(RuntimeError, "promoted hosted definition does not confirm"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.endpoint, self.original)
+        self.assertEqual(self.client.agents.update_details.call_count, 2)
+        self.smoke.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
+    def test_prior_and_specialist_versions_need_not_use_candidate_model(self):
+        profile = AgentProfile(
+            self.profile.source_directory, self.profile.name, self.profile.description,
+            self.profile.instructions, self.profile.smoke_test_prompt,
+            (("fictional prompt", "inspect", "specialist"),),
+        )
+        previous = self.read_version(agent_name=self.args.agent_name, agent_version="1")
+        self.assertEqual(previous.definition.environment_variables["FOUNDRY_MODEL_NAME"], "previous-model")
+        deploy(profile, self.args)
+        self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "2")
+        self.assertEqual(self.smoke.call_count, 2)
+        self.client.agents.delete_version.assert_not_called()
+
+    def test_failed_provisioning_redacts_version_definition_and_metadata(self):
+        marker = "fictional-sensitive-content"
+
+        def failed(*, agent_name, agent_version):
+            details = self.read_version(agent_name=agent_name, agent_version=agent_version)
+            if agent_version == "2":
+                details["status"] = "failed"
+                details["metadata"] = {"fictional": marker}
+                details["definition"] = {"kind": "hosted", "environment_variables": {"PRIVATE": marker}}
+            return details
+
+        self.client.agents.get_version.side_effect = failed
+        with redirect_stdout(io.StringIO()) as output:
+            with self.assertRaises(RuntimeError) as caught:
+                deploy(self.profile, self.args)
+        self.assertEqual(str(caught.exception), "Agent version provisioning failed")
+        self.assertNotIn(marker, output.getvalue())
+        self.candidate.assert_not_called()
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
     def test_parent_states_fail_closed_before_creation(self):
         for state, configuration in (("disabled", "enabled"), ("enabled", "disabled"),
                                       (None, "enabled"), ("enabled", None),
