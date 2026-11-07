@@ -146,6 +146,14 @@ def selected_source(source, digest):
             raise DerivationError("Invalid selected manifest JSON.") from None
         if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), dict):
             raise DerivationError("Selected manifest requires an object inventory.")
+        for name, record in manifest["files"].items():
+            closure.safe_relative(name)
+            if (not isinstance(record, dict) or set(record) != {"sha256", "mode"}
+                    or type(record["mode"]) is not int or not 0 <= record["mode"] <= 0o7777
+                    or not isinstance(record["sha256"], str)
+                    or (record["sha256"] != "directory"
+                        and re.fullmatch(r"[0-9a-f]{64}", record["sha256"]) is None)):
+                raise DerivationError("Invalid selected inventory record.")
         expected = dict(manifest["files"])
         expected["manifest.json"] = {"sha256": digest, "mode": stat.S_IMODE(info.st_mode)}
         if fd_inventory(source_fd, expected=expected) != expected:

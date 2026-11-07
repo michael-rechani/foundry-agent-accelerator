@@ -413,6 +413,57 @@ class GitlessTests(unittest.TestCase):
                     derivation.derive(source, digest, parent, 'provider')
             self.assertEqual(list(parent.iterdir()), [])
 
+    def test_malformed_inventory_records_cli_rejects_before_staging(self):
+        cases = ('file-float', 'directory-float', 'true', 'false', 'negative', 'too-large',
+                 'null-mode', 'string-mode', 'null-record', 'list-record', 'missing-mode',
+                 'extra-field', 'null-hash', 'list-hash', 'invalid-hash')
+        script = Path(derivation.__file__).resolve()
+        for case in cases:
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as folder:
+                base = Path(folder)
+                source = base / 'source'
+                source.mkdir()
+                fixture(source)
+                path = source / 'manifest.json'
+                manifest = json.loads(path.read_bytes())
+                name = 'root' if case == 'directory-float' else 'root/main.tf'
+                record = manifest['files'][name]
+                if case in ('file-float', 'directory-float'):
+                    record['mode'] = float(record['mode'])
+                elif case == 'null-record':
+                    manifest['files'][name] = None
+                elif case == 'list-record':
+                    manifest['files'][name] = []
+                elif case == 'missing-mode':
+                    del record['mode']
+                elif case == 'extra-field':
+                    record['unexpected'] = 'PRIVATE_MARKER'
+                elif case.endswith('hash'):
+                    record['sha256'] = {'null-hash': None, 'list-hash': [], 'invalid-hash': 'PRIVATE_MARKER'}[case]
+                else:
+                    record['mode'] = {'true': True, 'false': False, 'negative': -1,
+                                      'too-large': 0o10000, 'null-mode': None, 'string-mode': '420'}[case]
+                path.write_text(json.dumps(manifest))
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                before = closure.inventory(source)
+                parent = base / 'parent'
+                parent.mkdir(mode=0o700)
+                sentinel = base / 'outside'
+                sentinel.write_text('unchanged')
+                with self.assertRaisesRegex(derivation.DerivationError, 'Invalid selected inventory record'):
+                    derivation.derive(source, digest, parent, 'direct')
+                result = subprocess.run(
+                    [sys.executable, str(script), str(source), '--original-manifest-sha256', digest,
+                     '--trusted-parent', str(parent), '--destination', 'cli'],
+                    cwd=base, env={'PATH': os.defpath, 'HOME': str(base), 'LANG': 'C.UTF-8'},
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, b'')
+                self.assertEqual(result.stderr, b'Metadata-free derivation stopped; no verified handoff.\n')
+                self.assertEqual(list(parent.iterdir()), [])
+                self.assertEqual(closure.inventory(source), before)
+                self.assertEqual(sentinel.read_text(), 'unchanged')
+
 if __name__ == '__main__':
     if os.name != 'posix':
         raise SystemExit('Linux required')
