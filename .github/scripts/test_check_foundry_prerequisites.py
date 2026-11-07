@@ -584,7 +584,34 @@ class CleanupTests(unittest.TestCase):
         self.unowned.write_bytes(b"preserve")
 
     def write_receipt(self, name, owner):
-        self.receipt.write_text(json.dumps({"name": name, "owner": owner}))
+        self.receipt.write_text(json.dumps({"name": name, "owner": owner, "process_teardown": "verified"}))
+
+    def test_missing_partial_or_unverified_state_never_allows_cleanup(self):
+        records = [
+            json.dumps({"name": self.name, "owner": self.owner}),
+            json.dumps({"name": self.name, "owner": self.owner, "process_teardown": "unverified"}),
+            json.dumps({"name": self.name, "owner": self.owner, "process_teardown": "unknown"}),
+            json.dumps({"name": self.name, "owner": self.owner, "process_teardown": None}),
+            '{"name":"' + self.name + '","owner":"' + self.owner + '","process_teardown":',
+        ]
+        for payload in records:
+            with self.subTest(payload=payload), patch.object(probe.shutil, "rmtree") as remove:
+                self.receipt.write_text(payload)
+                with self.assertRaises((probe.CheckError, ValueError)):
+                    probe.cleanup(self.temp, self.receipt_name)
+                self.assertEqual(self.receipt.read_text(), payload)
+                self.assertTrue(self.root.exists())
+                remove.assert_not_called()
+
+    def test_crash_veto_survives_missing_root_and_separate_cleanup(self):
+        payload = json.dumps({"name": "foundry-prerequisites-missing1", "owner": self.owner,
+                              "process_teardown": "unverified"})
+        self.receipt.write_text(payload)
+        with patch.object(probe.shutil, "rmtree") as remove:
+            with self.assertRaises(probe.CheckError):
+                probe.cleanup(self.temp, self.receipt_name)
+            self.assertEqual(self.receipt.read_text(), payload)
+            remove.assert_not_called()
 
     def test_retry_removes_only_registered_root_and_is_idempotent(self):
         probe.cleanup(self.temp, self.receipt_name)

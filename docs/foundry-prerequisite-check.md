@@ -129,8 +129,11 @@ even if the root has gone missing, so the workflow retry cannot delete retained
 scratch still potentially in use. Successful command teardown keeps timeout,
 interruption and ordinary failures classified as before and permits normal cleanup;
 a `verified` receipt remains retryable if ordinary filesystem cleanup fails.
-Legacy two-field receipts retain their pre-existing behavior; they do not provide
-this new crash/teardown evidence. Invalid or partial receipt writes fail closed.
+Legacy two-field receipts, missing/unknown state, and invalid or partial receipt
+writes are refused rather than defaulting to safe cleanup. The unverified state
+is closed/flushed before entering the check and remains in force across every
+child launch; SIGKILL or a crash before promotion therefore cannot make a retained
+receipt cleanup-eligible under these trusted-launcher assumptions.
 This is not independent proof that escaped descendants have exited or hostile-host
 cleanup is safe; those blockers and the disabled execution boundary remain.
 

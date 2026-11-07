@@ -341,8 +341,8 @@ def cleanup(temp, receipt_name):
     record = json.loads(receipt.read_text())
     if (
         not isinstance(record, dict)
-        or set(record) not in ({"name", "owner"}, {"name", "owner", "process_teardown"})
-        or record.get("process_teardown", "verified") != "verified"
+        or set(record) != {"name", "owner", "process_teardown"}
+        or record["process_teardown"] != "verified"
         or not isinstance(record["name"], str)
         or not re.fullmatch(r"foundry-prerequisites-[a-z0-9_]{8}", record["name"])
         or not isinstance(record["owner"], str)
