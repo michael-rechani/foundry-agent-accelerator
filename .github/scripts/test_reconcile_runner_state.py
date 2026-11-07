@@ -306,6 +306,8 @@ class ReconciliationTests(unittest.TestCase):
                  denial("Microsoft.Compute/disks/read"),
                  denial("Microsoft.Compute/virtualMachines/write"),
                  denial("Microsoft.Compute/*/read"),
+                 denial("Microsoft.Compute/" + "SecretCanary" * 20 + "/read"),
+                 denial(scope=f"/subscriptions/{SUBSCRIPTION}/providers/Microsoft.Compute/virtualMachines/SecretCanary"),
                  denial(scope=scope.replace("/subscriptions/", "subscriptions/")),
                  denial(scope=scope.replace(SUBSCRIPTION, "SecretCanary")),
                  denial(scope=scope.replace("/providers/", "//providers/")),
@@ -390,6 +392,24 @@ class ReconciliationTests(unittest.TestCase):
                     self.assertIn(reconcile.UNKNOWN_AUTHORIZATION_DENIAL, str(caught.exception))
                     self.assertNotIn("SecretCanary", str(caught.exception))
                     self.assertLess(len(str(caught.exception)), 200)
+    def test_entire_message_limit_and_unknown_after_display_cap_fail_closed(self):
+        message = (
+            "AuthorizationFailed: perform action 'Microsoft.Compute/virtualMachines/read' over scope "
+            f"'{BASE}private/providers/Microsoft.Compute/virtualMachines/SecretCanary'"
+        )
+        maximum = "x" * (65536 - len(message)) + message
+        self.assertEqual(reconcile.authorization_failure_summary(maximum),
+                         "AuthorizationFailed; Microsoft.Compute/virtualMachines/read on Microsoft.Compute/virtualMachines")
+        self.assertEqual(reconcile.authorization_failure_summary(maximum + "x"), reconcile.UNKNOWN_AUTHORIZATION_DENIAL)
+        known = []
+        for action, scope_type in list(reconcile.AUTHORIZATION_DENIAL_LITERALS)[:4]:
+            namespace, *types = scope_type.split("/")
+            tail = "/".join(part for kind in types for part in (kind, "SecretCanary"))
+            known.append(f"AuthorizationFailed: perform action '{action}' over scope "
+                         f"'{BASE}private/providers/{namespace}/{tail}'")
+        self.assertIn("additional denied operations omitted", reconcile.authorization_failure_summary("\n".join(known)))
+        known.append(message.replace("virtualMachines/read", "SecretCanary/read"))
+        self.assertEqual(reconcile.authorization_failure_summary("\n".join(known)), reconcile.UNKNOWN_AUTHORIZATION_DENIAL)
     def test_saved_plan_tampering_prevents_apply(self):
         cli = object.__new__(reconcile.Terraform)
         with tempfile.TemporaryDirectory() as folder, patch.object(cli, "command") as command:

@@ -294,6 +294,8 @@ def authorization_failure_summary(text):
                 or sum(part.lower() == "providers" for part in parts) != 1):
             return UNKNOWN_AUTHORIZATION_DENIAL
         namespace, tail = parts[provider_index + 1], parts[provider_index + 2:]
+        if provider_index == 2 and namespace.lower() != "microsoft.authorization":
+            return UNKNOWN_AUTHORIZATION_DENIAL
         if len(tail) % 2:
             return UNKNOWN_AUTHORIZATION_DENIAL
         scope_type = namespace + "/" + "/".join(tail[::2])
