@@ -177,3 +177,22 @@ After the successful test, the temporary workflow was restored to original blob
 `13fea116e0cd70aa8f5d8cabcb9b893743e23c95`; no dispatch occurred afterward. Code
 and test blobs in the final branch match that tested head. Existing transport,
 non-atomicity, process supervision, credential and host caveats remain unchanged.
+
+### Destination-binding follow-up evidence
+
+The stacked offline branch `michael-rechani-snapshot-binding-offline` starts at
+`04f3099be5b67489fd5efa2522ae2fb93388f0a8`. Its exact tested head
+`a583707b2b807fdb2adcadf007b1f749334879d4` passed
+[hosted run 42419939911](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42419939911):
+50 focused tests on Python 3.14.10 and root Ruff 0.17.3 on all five affected
+Python files. Invalid expected identities now invoke neither callback, replacing
+the old test that expected four reads. Validated boundaries still attempt both
+roles, skip invalid baselines and preserve instability precedence.
+
+The HTTP prototype's opt-in pre-read binding and fictional zero-connection tests
+are described in [the transport document](platform-snapshot-http-transport.md).
+The generic guard remains a post-read comparator, not destination authorization.
+The temporary hosted-only workflow was restored to original blob
+`13fea116e0cd70aa8f5d8cabcb9b893743e23c95`; final code/test blobs match the tested
+head. All trusted authority, DNS, isolation, supervision and non-atomicity limits
+remain; no production caller, PR, merge, plan, apply or rollout is introduced.

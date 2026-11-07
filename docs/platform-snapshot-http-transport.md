@@ -177,3 +177,24 @@ remain external assumptions. Malicious same-UID code, class/library modification
 mutable SSL contexts or concurrent mutation between a check and a network call
 are not isolated by Python's sealed tuple or this entry point. No real tokens,
 Azure requests, private runner, PR, merge or live integration are introduced.
+
+The exact binding-tested head is
+`a583707b2b807fdb2adcadf007b1f749334879d4` on
+`michael-rechani-snapshot-binding-offline`.
+[Hosted run 42419939911](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42419939911)
+passed **50 focused tests** (19 guard, 25 transport, 6 real loopback TLS) on
+**Python 3.14.10**, plus **Ruff 0.17.3** with the unchanged root configuration on
+all five affected Python files. The old invalid-expected test was replaced with
+zero-callback assertions; existing test-loop callbacks were explicitly bound
+to their fixtures for root Ruff compatibility without dropping tests or rules.
+
+The branch-only workflow used pinned checkout/setup-python, `contents: read`
+only, non-root hosted execution and scrubbed test/lint environments. Only missing
+repository-pinned Ruff was installed. No Azure, private runner, local project
+execution, sudo, Docker, GitHub environment, id-token, real credentials/state,
+artifacts, PR, merge or live integration was used.
+
+After successful verification, the workflow was restored to original blob
+`13fea116e0cd70aa8f5d8cabcb9b893743e23c95`. Final guard, transport and three test
+blobs match this tested head; documentation records the evidence without
+introducing a production caller.
