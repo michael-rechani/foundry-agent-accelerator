@@ -1,6 +1,7 @@
 import copy
 import contextlib
 import io
+import os
 import unittest
 
 import snapshot_integrity_guard as guard
@@ -173,6 +174,51 @@ class Tests(unittest.TestCase):
                 return fixture()[role]
             self.assertEqual(guard.guarded_diagnostic(expected, read, lambda: self.fail('must skip')), guard.UNVERIFIED)
             self.assertEqual(calls, ['platform_state', 'input'] * 2)
+
+    def test_execution_is_non_root_without_credential_environment(self):
+        self.assertNotEqual(os.geteuid(), 0)
+        self.assertFalse(any(name.startswith(('AZURE_', 'ARM_', 'ACTIONS_ID_TOKEN_'))
+                             or name in ('GH_TOKEN', 'GITHUB_TOKEN') for name in os.environ))
+
+    def test_optional_version_presence_and_bytes_are_exact(self):
+        before, after = fixture(), fixture()
+        change(before, 'input', 'x-ms-version-id', 'fictional-version-1')
+        change(after, 'input', 'x-ms-version-id', 'fictional-version-1')
+        self.assertEqual(guard.compare_snapshots(EXPECTED, before, after), guard.PASSED)
+        change(after, 'input', 'x-ms-version-id', 'fictional-version-2')
+        self.assertEqual(guard.compare_snapshots(EXPECTED, before, after), guard.UNVERIFIED)
+        after = fixture()
+        self.assertEqual(guard.compare_snapshots(EXPECTED, before, after), guard.UNVERIFIED)
+        change(after, 'input', 'x-ms-version-id', '')
+        self.assertEqual(guard.compare_snapshots(EXPECTED, before, after), guard.UNVERIFIED)
+
+    def test_bounds_and_invalid_dates_and_identity_fail_closed(self):
+        for mutation in ('many-headers', 'huge-value', 'bad-date', 'bad-weekday', 'missing-version',
+                         'list-pair', 'body-length', 'lease-breaking', 'weak-etag'):
+            before, after = fixture(), fixture()
+            snap = after['input']
+            if mutation == 'many-headers': snap['headers'] *= 129
+            elif mutation == 'huge-value': change(after, 'input', 'x-ms-meta-owner', 'X' * 8193)
+            elif mutation == 'bad-date': change(after, 'input', 'Last-Modified', 'Sat, 99 Nov 2026 00:00:00 GMT')
+            elif mutation == 'bad-weekday': change(after, 'input', 'Last-Modified', 'Sun, 07 Nov 2026 00:00:00 GMT')
+            elif mutation == 'missing-version': snap['headers'] = tuple(pair for pair in snap['headers'] if pair[0] != 'x-ms-version')
+            elif mutation == 'list-pair': snap['headers'] += (['x-ms-meta-other', 'value'],)
+            elif mutation == 'body-length': change(after, 'input', 'Content-Length', '09')
+            elif mutation == 'lease-breaking': change(after, 'input', 'x-ms-lease-state', 'breaking')
+            else: change(after, 'input', 'ETag', 'W/"weak"')
+            self.assertEqual(guard.compare_snapshots(EXPECTED, before, after), guard.UNVERIFIED)
+        for identity in ('https://user:FICTIONAL_SECRET@fictional.invalid/cache/blob',
+                         'http://fictional.invalid/cache/blob', 'https://fictional.invalid/cache/../blob',
+                         'https://fictional.invalid/cache/blob#secret', 'https://fictional.invalid/cache/%62lob'):
+            expected = dict(EXPECTED, input=identity)
+            self.assertEqual(guard.compare_snapshots(expected, fixture(), fixture()), guard.UNVERIFIED)
+
+    def test_identical_restored_bytes_and_all_headers_are_not_history(self):
+        pair = fixture()
+        def diagnostic():
+            pair['input']['body'] = b'transient'
+            pair['input']['body'] = b'fictional'
+        self.assertEqual(guard.guarded_diagnostic(EXPECTED, lambda role: pair[role], diagnostic), guard.PASSED)
 
 if __name__ == '__main__':
     unittest.main()

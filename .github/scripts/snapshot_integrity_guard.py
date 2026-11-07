@@ -1,5 +1,6 @@
 """Synthetic full-GET snapshot contract; no transport, authority or live integration."""
 import contextlib
+from datetime import datetime
 import re
 from urllib.parse import urlsplit
 
@@ -11,7 +12,7 @@ REQUIRED = frozenset({"etag", "last-modified", "x-ms-creation-time", "content-le
                       "x-ms-version", "x-ms-blob-type", "x-ms-lease-status", "x-ms-lease-state"})
 OPTIONAL = frozenset({"content-type", "content-md5", "content-encoding", "content-language",
                       "cache-control", "content-disposition", "x-ms-server-encrypted",
-                      "x-ms-encryption-key-sha256", "x-ms-encryption-scope", "x-ms-lease-duration"})
+                      "x-ms-encryption-key-sha256", "x-ms-encryption-scope", "x-ms-lease-duration", "x-ms-version-id"})
 VOLATILE = frozenset({"date", "server", "x-ms-request-id", "x-ms-client-request-id", "accept-ranges"})
 
 
@@ -74,10 +75,18 @@ def _snapshot(value, identity):
             or "x-ms-lease-duration" in headers
             or "x-ms-meta-terraformlockid" in headers):
         raise SnapshotError(UNVERIFIED)
+    if "x-ms-version-id" in headers and not headers["x-ms-version-id"]:
+        raise SnapshotError(UNVERIFIED)
     for name in ("last-modified", "x-ms-creation-time"):
         if re.fullmatch(r"(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), [0-9]{2} "
                         r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [0-9]{4} "
                         r"[0-9]{2}:[0-9]{2}:[0-9]{2} GMT", headers[name]) is None:
+            raise SnapshotError(UNVERIFIED)
+        try:
+            stamp = datetime.strptime(headers[name], "%a, %d %b %Y %H:%M:%S GMT")
+        except ValueError:
+            raise SnapshotError(UNVERIFIED) from None
+        if stamp.strftime("%a, %d %b %Y %H:%M:%S GMT") != headers[name]:
             raise SnapshotError(UNVERIFIED)
     return (identity, value["body"], tuple(sorted((name, content) for name, content in headers.items()
                                                if name not in VOLATILE)))

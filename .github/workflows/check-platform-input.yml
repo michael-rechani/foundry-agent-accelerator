@@ -12,4 +12,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Stdlib fictional snapshots only; no elevated setup or services
-        run: python3 -m unittest discover -s .github/scripts -p test_snapshot_integrity_guard.py -v
+        run: env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p test_snapshot_integrity_guard.py -v
