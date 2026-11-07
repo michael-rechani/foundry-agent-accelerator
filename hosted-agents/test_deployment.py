@@ -775,7 +775,7 @@ class RouteVerificationTests(unittest.TestCase):
                 client.agents.get.return_value.configuration_state = "enabled"
                 client.agents.get.return_value.agent_endpoint = endpoint
 
-                def read_version(*, agent_name, agent_version, change=change):
+                def read_version(*, agent_name, agent_version, change=change, rule=rule, client=client):
                     if change == "route":
                         rule.agent_version = "3"
                     else:
