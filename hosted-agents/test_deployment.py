@@ -380,11 +380,11 @@ class DeploymentRollbackTests(unittest.TestCase):
     def restore(self, **kwargs):
         self.client.agents.get.return_value.agent_endpoint = kwargs["agent_endpoint"]
 
-    def test_deletes_only_after_restoration_and_route_read(self) -> None:
+    def test_restores_route_without_deleting_candidate(self) -> None:
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.assertEqual(
             [call[0] for call in self.client.agents.mock_calls],
-            ["get", "get_version", "get", "update_details", "get", "get_version", "get", "delete_version"],
+            ["get", "get_version", "get", "update_details", "get", "get_version", "get"],
         )
         self.assertEqual(self.client.agents.get.return_value.agent_endpoint, self.original)
 
@@ -415,7 +415,7 @@ class DeploymentRollbackTests(unittest.TestCase):
         cleanup_failed_version(self.client, "agent", "2", self.original, None)
         self.client.agents.update_details.assert_not_called()
         self.client.agents.get_version.assert_called_once_with(agent_name="agent", agent_version="1")
-        self.client.agents.delete_version.assert_called_once()
+        self.client.agents.delete_version.assert_not_called()
 
     def test_failed_first_build_without_previous_route_retains_candidate(self):
         self.client.agents.get.return_value.agent_endpoint = self.original
@@ -433,7 +433,7 @@ class DeploymentRollbackTests(unittest.TestCase):
         self.client.agents.get.return_value.agent_endpoint = self.original
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.client.agents.update_details.assert_not_called()
-        self.client.agents.delete_version.assert_called_once()
+        self.client.agents.delete_version.assert_not_called()
 
     def test_changed_route_or_endpoint_configuration_is_not_overwritten(self):
         changed_authorization = deepcopy(self.attempted)
