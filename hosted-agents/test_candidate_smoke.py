@@ -1,6 +1,7 @@
 import importlib.util
 import io
 import json
+import sys
 import time
 import unittest
 from contextlib import redirect_stdout
@@ -136,7 +137,8 @@ class SmokeTransportTests(unittest.TestCase):
         source = Path(__file__).parent / "review-coordinator-agent" / "deploy.py"
         spec = importlib.util.spec_from_file_location("candidate_customer_deploy", source)
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        with patch.object(sys, "path", [str(source.parent), *sys.path]):
+            spec.loader.exec_module(module)
         profile = module.profile_from_file(source.parent / "profiles" / "evidence-review.example.json")
         self.assertEqual(profile.name, "customer-review-coordinator")
         self.assertEqual(profile.smoke_test_prompt, "")
