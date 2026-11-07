@@ -20,10 +20,84 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
       - name: Compare candidate with platform state
         env:
           TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
-        run: python3 .github/scripts/check_platform_input_authority.py
+          VERIFIED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          VERIFIED_WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          python3 -I - <<'PY'
+          import hashlib
+          import os
+          import re
+          import sys
+          import types
+          from urllib import request
+
+          SOURCES = {
+              "check_state_backend": "1154d8e6a5a3f3bb846619df9aab6d938cc6deb21873ff82a9712da28e6357d7",
+              "reconcile_runner_state": "32688f3d568c09fa4ecd8f9665aa128d067df9c95c0531bb7d848089fe0d429f",
+              "check_lab_terraform_plan": "bb544a737186f6355126e3cc9d4ddd0eb36b117cb265a99cc989e59a45517f53",
+              "check_platform_input_authority": "c277f441be45ce7805b59c774140e1f33a8e828c9d66fe633a2f7d2bba3ca39c",
+          }
+          NAMES = ("check_state_backend", "reconcile_runner_state", "check_lab_terraform_plan",
+                   "check_platform_input_authority")
+          LIMIT = 512 * 1024
+
+          class NoRedirect(request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          def verify_context(env):
+              sha = env.get("GITHUB_SHA", "")
+              if (env.get("GITHUB_REPOSITORY") != "michael-rechani/foundry-agent-accelerator"
+                      or env.get("GITHUB_EVENT_NAME") != "workflow_dispatch"
+                      or env.get("GITHUB_REF") != "refs/heads/main"
+                      or not re.fullmatch(r"[0-9a-f]{40}", sha)
+                      or env.get("VERIFIED_WORKFLOW_SHA") != sha
+                      or env.get("VERIFIED_WORKFLOW_REF") !=
+                      "michael-rechani/foundry-agent-accelerator/.github/workflows/"
+                      "check-platform-input-authority.yml@refs/heads/main"):
+                  raise ValueError("Invalid execution context")
+              return sha
+
+          def fetch_sources(sha):
+              if tuple(SOURCES) != NAMES:
+                  raise ValueError("Invalid source set")
+              opener = request.build_opener(request.ProxyHandler({}), NoRedirect())
+              verified = {}
+              for name in NAMES:
+                  url = ("https://raw.githubusercontent.com/michael-rechani/foundry-agent-accelerator/"
+                         + sha + "/.github/scripts/" + name + ".py")
+                  with opener.open(request.Request(url, method="GET"), timeout=30) as response:
+                      if response.status != 200 or response.geturl() != url:
+                          raise ValueError("Unexpected source response")
+                      body = response.read(LIMIT + 1)
+                  if len(body) > LIMIT or hashlib.sha256(body).hexdigest() != SOURCES[name]:
+                      raise ValueError("Source verification failed")
+                  verified[name] = body
+              return verified
+
+          def load_sources(sources):
+              if tuple(sources) != NAMES or any(name in sys.modules for name in NAMES):
+                  raise ValueError("Invalid module set")
+              compiled = {name: compile(sources[name], "<verified-source>", "exec") for name in NAMES}
+              for name in NAMES:
+                  module = types.ModuleType(name)
+                  module.__file__ = "/__verified_sources__/.github/scripts/" + name + ".py"
+                  sys.modules[name] = module
+                  exec(compiled[name], module.__dict__)
+              return sys.modules[NAMES[-1]]
+
+          def run():
+              sha = verify_context(os.environ)
+              return load_sources(fetch_sources(sha)).main()
+
+          if __name__ == "__main__":
+              try:
+                  status = run()
+              except BaseException:
+                  print("candidate_platform_comparison_failed=source_verification", file=sys.stderr)
+                  raise SystemExit(1) from None
+              raise SystemExit(status)
+          PY

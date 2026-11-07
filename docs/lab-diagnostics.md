@@ -37,8 +37,19 @@ candidate at that instant; it does not rule out other locations. No live check
 is implied by adding this workflow.
 
 The separate **Compare historical platform input candidate** workflow is also
-manual, main-only and approval-gated. It reads only the candidate and platform
-state into memory, and checks their blob versions and lock metadata before and
+manual, main-only and approval-gated. Its workflow-owned isolated Python
+bootstrap fetches four fixed source files at the exact workflow commit over
+HTTPS without proxies or redirects, verifies their pinned hashes, and loads
+them in memory; it does not check out the persistent workspace. A context or
+source verification failure stops the check with a fixed category. CI checks
+the pins against the committed sources, so changes to those sources require
+updating the pins.
+
+This mitigates reuse of an existing checkout; it does not isolate a persistent
+host, its Python runtime, Docker, credentials, or other same-UID processes.
+The runner and its global configuration remain part of the trust boundary.
+The workflow reads only the candidate and platform state into memory, and
+checks their blob versions and lock metadata before and
 after comparison. It requires the candidate's explicit subscription and
 deployment principal to match the approved subscription and the persisted
 Foundry User assignment scoped to the state-recorded project and account. It
