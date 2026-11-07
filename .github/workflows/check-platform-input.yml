@@ -90,9 +90,10 @@ jobs:
               status = gpg("--status-fd", "1", "--verify", str(signature_file), str(sums_file))
               print(f"Public GPG status for {product} {version}: {status.strip()}", flush=True)
               lines = [line.split() for line in status.splitlines() if line.startswith("[GNUPG:]")]
-              invalid = {"BADSIG", "ERRSIG", "EXPSIG", "EXPKEYSIG", "REVKEYSIG", "KEYEXPIRED", "SIGEXPIRED", "NO_PUBKEY"}
+              invalid = {"BADSIG", "ERRSIG", "EXPSIG", "EXPKEYSIG", "REVKEYSIG", "KEYREVOKED", "SIGEXPIRED", "NO_PUBKEY"}
               signatures = [parts for parts in lines if len(parts) > 2 and parts[1] == "VALIDSIG"]
-              if (any(len(parts) > 1 and parts[1] in invalid for parts in lines) or len(signatures) != 1
+              good = [parts for parts in lines if len(parts) > 2 and parts[1] == "GOODSIG"]
+              if (any(len(parts) > 1 and parts[1] in invalid for parts in lines) or len(signatures) != 1 or len(good) != 1
                       or expected_fingerprint not in (signatures[0][2], signatures[0][-1])):
                   raise RuntimeError("Release signature did not verify with the expected current key.")
               filename = f"{stem}_linux_amd64.zip"
