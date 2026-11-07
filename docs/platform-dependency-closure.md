@@ -126,3 +126,40 @@ that group cannot prevent them. Never remove Router while a consumer may use it,
 perform state surgery, hide #485 drift, or enable the disabled paths on the basis
 of this public closure observation. The user has authorized necessary work; these
 are technical evidence/isolation gates, not a pending generic approval request.
+
+## Actual hosted evidence
+
+[Run 42409161870](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42409161870)
+succeeded at implementation commit `dc5bd967324d38d693c049b6e75d8f275fc6b3fb`,
+capturing exact reviewed source `446b078df12c9a08daec7bc5e9f0b5a57d8d7a5d`.
+Synthetic mode passed nine tests with one intentionally unselected public fixture;
+public integration mode passed all ten tests, including four real-package/module
+mutation cases. Readonly reinstall/schema loading and tar archive roundtrip both
+passed in network-disabled namespaces. The manifest contains 1,337 artifact
+records, seven registry module instances plus local child modules, and all five
+installed external providers. Versions were resolved by that run, not assumed
+from an earlier observation.
+
+Observed registry modules: naming 0.4.4, AI Foundry 0.11.3, APIM 0.9.0, regions
+0.12.0, Key Vault 0.10.2, storage 0.6.9, Cosmos DB 0.10.0. Observed provider
+selections: AzureRM 4.81.0, AzAPI 2.12.0, modtm 0.4.0, time 0.14.2, random 3.9.1.
+These lists are evidence summaries, **not approved pins**; the complete graph,
+lockfile, inventory and archives reside in the generated observation.
+
+Generated manifest SHA256:
+`f6cee223894fae61d3d9bb2cac17ae86df38c1c6ed72d390dd7498b9a1df70b0`.
+Generated tar.gz SHA256:
+`7afd7b7630954d34b9a83876369058eec6500cef0ddb4deac8b2d37872fa0e55`.
+[Public observation artifact](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42409161870/artifacts/13588508507)
+is temporary (three-day retention), not a reviewed or permanent deployment input.
+
+The temporary hosted workflow has been restored to the original source blob
+`13fea116e0cd70aa8f5d8cabcb9b893743e23c95`. The restoration commit changes only
+workflow restoration and this evidence text; helper/test bytes match the tested
+commit. No private diagnostic was dispatched after restoration.
+
+Official Terraform references:
+[dependency lockfile limitations](https://developer.hashicorp.com/terraform/language/files/dependency-lock),
+[provider mirror](https://developer.hashicorp.com/terraform/cli/commands/providers/mirror),
+[filesystem mirror configuration](https://developer.hashicorp.com/terraform/cli/config/config-file#provider-installation),
+and [init options](https://developer.hashicorp.com/terraform/cli/commands/init).
