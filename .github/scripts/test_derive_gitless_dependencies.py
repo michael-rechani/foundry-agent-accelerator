@@ -1,6 +1,8 @@
 import hashlib
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 import tempfile
 import unittest
@@ -344,6 +346,71 @@ class GitlessTests(unittest.TestCase):
                 with self.assertRaisesRegex(derivation.DerivationError, 'grew beyond verified size'):
                     derivation.derive(source, digest, parent, 'out')
             self.assertLess(count, 4)
+            self.assertEqual(list(parent.iterdir()), [])
+
+    def test_malformed_selected_manifest_cli_is_fixed_and_never_publishes(self):
+        cases = {
+            'utf8': b'\xffPRIVATE_MARKER',
+            'syntax': b'{"files": PRIVATE_MARKER}',
+            'deep': b'{"files":' + b'[' * 10000 + b'0' + b']' * 10000 + b'}',
+            'null-root': b'null',
+            'list-root': b'[]',
+            'string-root': b'"PRIVATE_MARKER"',
+            'number-root': b'1',
+            'boolean-root': b'true',
+            'missing-files': b'{}',
+            'null-files': b'{"files":null}',
+            'list-files': b'{"files":[]}',
+            'pairs-files': b'{"files":[["PRIVATE_MARKER",{}]]}',
+            'string-files': b'{"files":"PRIVATE_MARKER"}',
+            'number-files': b'{"files":1}',
+            'boolean-files': b'{"files":false}',
+            'duplicate': b'{"files":{},"files":{}}',
+        }
+        script = Path(derivation.__file__).resolve()
+        for case, raw in cases.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as folder:
+                base = Path(folder)
+                source = base / 'source'
+                source.mkdir()
+                fixture(source)
+                (source / 'manifest.json').write_bytes(raw)
+                before = closure.inventory(source)
+                parent = base / 'parent'
+                parent.mkdir(mode=0o700)
+                sentinel = base / 'outside-sentinel'
+                sentinel.write_bytes(b'untouched')
+                digest = hashlib.sha256(raw).hexdigest()
+                with self.assertRaises((derivation.DerivationError, closure.ClosureError)):
+                    derivation.derive(source, digest, parent, 'direct')
+                result = subprocess.run(
+                    [sys.executable, str(script), str(source), '--original-manifest-sha256', digest,
+                     '--trusted-parent', str(parent), '--destination', 'cli'],
+                    cwd=base, env={'PATH': os.defpath, 'HOME': str(base), 'LANG': 'C.UTF-8'},
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, b'')
+                self.assertEqual(result.stderr, b'Metadata-free derivation stopped; no verified handoff.\n')
+                self.assertNotIn(b'Traceback', result.stderr)
+                self.assertNotIn(b'PRIVATE_MARKER', result.stderr)
+                self.assertEqual(list(parent.iterdir()), [])
+                self.assertEqual(closure.inventory(source), before)
+                self.assertEqual(sentinel.read_bytes(), b'untouched')
+
+    def test_hash_precedes_parse_and_closure_errors_remain_distinct(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            source = base / 'source'
+            source.mkdir()
+            digest = fixture(source)
+            parent = base / 'parent'
+            parent.mkdir(mode=0o700)
+            with patch.object(derivation.json, 'loads', side_effect=AssertionError('Must not parse')):
+                with self.assertRaisesRegex(derivation.DerivationError, 'separately selected digest'):
+                    derivation.derive(source, '0' * 64, parent, 'wrong')
+            with patch.object(closure, 'check', side_effect=closure.ClosureError('Provider selection rejected')):
+                with self.assertRaisesRegex(closure.ClosureError, 'Provider selection rejected'):
+                    derivation.derive(source, digest, parent, 'provider')
             self.assertEqual(list(parent.iterdir()), [])
 
 if __name__ == '__main__':

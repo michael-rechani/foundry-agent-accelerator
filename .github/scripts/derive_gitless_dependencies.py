@@ -140,7 +140,12 @@ def selected_source(source, digest):
             os.close(fd)
         if hashlib.sha256(raw).hexdigest() != digest:
             raise DerivationError("Original manifest bytes do not match separately selected digest.")
-        manifest = json.loads(raw, object_pairs_hook=closure.pairs)
+        try:
+            manifest = json.loads(raw, object_pairs_hook=closure.pairs)
+        except (json.JSONDecodeError, UnicodeDecodeError, RecursionError):
+            raise DerivationError("Invalid selected manifest JSON.") from None
+        if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), dict):
+            raise DerivationError("Selected manifest requires an object inventory.")
         expected = dict(manifest["files"])
         expected["manifest.json"] = {"sha256": digest, "mode": stat.S_IMODE(info.st_mode)}
         if fd_inventory(source_fd, expected=expected) != expected:
