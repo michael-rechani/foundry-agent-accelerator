@@ -35,7 +35,8 @@ def assert_no_azapi_bypass(directory):
     for path in sorted(directory.rglob("*")):
         if path.is_symlink():
             raise AssertionError("descendant module contains a symlinked source entry")
-        if not path.is_file() or path.suffix not in (".tf", ".json"):
+        is_tf_json = path.name.endswith(".tf.json")
+        if not path.is_file() or (path.suffix != ".tf" and not is_tf_json):
             continue
         try:
             source = path.read_text(encoding="utf-8")
@@ -43,7 +44,11 @@ def assert_no_azapi_bypass(directory):
             raise AssertionError("descendant module source is unreadable or invalid") from None
         if path.name.endswith(".tf.json") or path.suffix == ".json":
             try:
-                document = json.loads(source, object_pairs_hook=_unique_json_object)
+                document = json.loads(
+                    source,
+                    object_pairs_hook=_unique_json_object,
+                    parse_constant=lambda value: (_ for _ in ()).throw(ValueError("invalid JSON constant")),
+                )
             except (json.JSONDecodeError, ValueError):
                 raise AssertionError("descendant module JSON is malformed or ambiguous") from None
             if not isinstance(document, dict):
