@@ -94,54 +94,54 @@ provider "azapi" {}
 		!hasCategory(result, "provider_block") {
 		t.Fatalf("nested index or unrelated routing block not reported: %+v", result)
 	}
+}
 
-	func TestTraversalStepAllowlistFailsClosed(t *testing.T) {
-		root := hcl.TraverseRoot{Name: "var"}
-		attr := hcl.TraverseAttr{Name: "items"}
-		unknown := hcl.TraverseSplat{}
-		tests := []struct {
-			name     string
-			steps    hcl.Traversal
-			absolute bool
-			want     bool
-		}{
-			{"absolute root", hcl.Traversal{root}, true, true},
-			{"absolute root and attributes", hcl.Traversal{root, attr, attr}, true, true},
-			{"relative attributes", hcl.Traversal{attr, attr}, false, true},
-			{"empty absolute", nil, true, false},
-			{"empty relative", nil, false, false},
-			{"absolute lacks root", hcl.Traversal{attr}, true, false},
-			{"root in relative", hcl.Traversal{root}, false, false},
-			{"root after absolute root", hcl.Traversal{root, root}, true, false},
-			{"root after relative attribute", hcl.Traversal{attr, root}, false, false},
-			{"unknown absolute step", hcl.Traversal{root, unknown}, true, false},
-			{"unknown relative step", hcl.Traversal{attr, unknown}, false, false},
-			{"index absolute step", hcl.Traversal{root, hcl.TraverseIndex{}}, true, false},
-			{"index relative step", hcl.Traversal{hcl.TraverseIndex{}}, false, false},
-			{"nil absolute step", hcl.Traversal{root, nil}, true, false},
-			{"empty root name", hcl.Traversal{hcl.TraverseRoot{}}, true, false},
-			{"empty attr name", hcl.Traversal{root, hcl.TraverseAttr{}}, true, false},
-			{"pointer step not allowlisted", hcl.Traversal{root, &attr}, true, false},
-		}
-		for _, test := range tests {
-			t.Run(test.name, func(t *testing.T) {
-				if got := attributeOnlyTraversal(test.steps, test.absolute); got != test.want {
-					t.Fatalf("allowlist returned %t; want %t", got, test.want)
-				}
-				var node hclsyntax.Node
-				if test.absolute {
-					node = &hclsyntax.ScopeTraversalExpr{Traversal: test.steps}
-				} else {
-					node = &hclsyntax.RelativeTraversalExpr{Traversal: test.steps}
-				}
-				state := &analysis{categories: make(map[string]bool)}
-				state.Enter(node)
-				state.Exit(node)
-				result := state.finish()
-				if hasCategory(result, "unsupported_expression") == test.want {
-					t.Fatalf("AST visitor did not enforce allowlist: %+v", result)
-				}
-			})
-		}
+func TestTraversalStepAllowlistFailsClosed(t *testing.T) {
+	root := hcl.TraverseRoot{Name: "var"}
+	attr := hcl.TraverseAttr{Name: "items"}
+	unknown := hcl.TraverseSplat{}
+	tests := []struct {
+		name     string
+		steps    hcl.Traversal
+		absolute bool
+		want     bool
+	}{
+		{"absolute root", hcl.Traversal{root}, true, true},
+		{"absolute root and attributes", hcl.Traversal{root, attr, attr}, true, true},
+		{"relative attributes", hcl.Traversal{attr, attr}, false, true},
+		{"empty absolute", nil, true, false},
+		{"empty relative", nil, false, false},
+		{"absolute lacks root", hcl.Traversal{attr}, true, false},
+		{"root in relative", hcl.Traversal{root}, false, false},
+		{"root after absolute root", hcl.Traversal{root, root}, true, false},
+		{"root after relative attribute", hcl.Traversal{attr, root}, false, false},
+		{"unknown absolute step", hcl.Traversal{root, unknown}, true, false},
+		{"unknown relative step", hcl.Traversal{attr, unknown}, false, false},
+		{"index absolute step", hcl.Traversal{root, hcl.TraverseIndex{}}, true, false},
+		{"index relative step", hcl.Traversal{hcl.TraverseIndex{}}, false, false},
+		{"nil absolute step", hcl.Traversal{root, nil}, true, false},
+		{"empty root name", hcl.Traversal{hcl.TraverseRoot{}}, true, false},
+		{"empty attr name", hcl.Traversal{root, hcl.TraverseAttr{}}, true, false},
+		{"pointer step not allowlisted", hcl.Traversal{root, &attr}, true, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := attributeOnlyTraversal(test.steps, test.absolute); got != test.want {
+				t.Fatalf("allowlist returned %t; want %t", got, test.want)
+			}
+			var node hclsyntax.Node
+			if test.absolute {
+				node = &hclsyntax.ScopeTraversalExpr{Traversal: test.steps}
+			} else {
+				node = &hclsyntax.RelativeTraversalExpr{Traversal: test.steps}
+			}
+			state := &analysis{categories: make(map[string]bool)}
+			state.Enter(node)
+			state.Exit(node)
+			result := state.finish()
+			if hasCategory(result, "unsupported_expression") == test.want {
+				t.Fatalf("AST visitor did not enforce allowlist: %+v", result)
+			}
+		})
 	}
 }
