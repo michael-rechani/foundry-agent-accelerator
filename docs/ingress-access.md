@@ -505,6 +505,14 @@ and the canonical synthetic UUID when available, without logging record content;
 inspect that record before retrying. Records are shared, so do not delete a
 changed record simply because it originated in a verification run.
 
+The stale-update check requires HTTP `409` with a unique-key JSON object whose
+`error` is exactly `conversation_changed`. The final absence check requires HTTP
+`404` with `error` exactly `conversation_not_found`. Status alone, an empty object,
+or an unrelated API error does not confirm either assertion. Missing, duplicate,
+malformed, or non-object error bodies fail verification without follow-on
+mutations. These checks confirm the API's reported conflict and absence, not
+private-network provenance, live Router routing, or deployment readiness.
+
 Independently authorize, perform, and record the private-network boundary checks
 (including origin provenance, private DNS and routing, proxies, source subnets,
 and allowed and denied ingress) and rendered browser/UI checks from the intended

@@ -150,6 +150,43 @@ class StorageClient(FakeClient):
         return deepcopy(fault)
 
 
+class StorageHttpOpener:
+    def __init__(self, *, override_stage=None, override_status=None, override_payload=None):
+        self.fixture = StorageClient()
+        self.override_stage = override_stage
+        self.override_status = override_status
+        self.override_payload = override_payload
+        self.puts = 0
+        self.errors = []
+
+    def open(self, request, timeout):
+        method = request.get_method()
+        path = request.full_url.removeprefix("https://lab.example.invalid")
+        expected = 200
+        stage = None
+        if method == "PUT":
+            self.puts += 1
+            if self.puts == 2:
+                expected, stage = 409, "stale"
+        elif method == "GET" and self.fixture.deleted:
+            expected, stage = 404, "absence"
+        body = json.loads(request.data) if request.data else None
+        result = self.fixture.call(method, path, body, request.get_header("If-match"), expected)
+        if stage is not None:
+            code = "conversation_changed" if stage == "stale" else "conversation_not_found"
+            payload = json.dumps({"error": code, "request_id": "fictional-error-request"}).encode()
+            status = expected
+            if stage == self.override_stage:
+                status = self.override_status
+                payload = self.override_payload
+            error = HTTPError(request.full_url, status, "fictional API error", None, io.BytesIO(payload))
+            self.errors.append(error)
+            raise error
+        response = io.BytesIO(json.dumps(result).encode())
+        response.status = 200
+        return response
+
+
 class PrivateVerificationTests(unittest.TestCase):
     def test_default_checks_do_not_generate_or_write(self):
         client = FakeClient()
@@ -454,9 +491,12 @@ class PrivateVerificationTests(unittest.TestCase):
                                 raise TimeoutError(fixture.sensitive)
                             if name == "connection":
                                 raise URLError(fixture.sensitive)
+                            if stage == "stale":
+                                raise HTTPError(request.full_url, 409, "fictional conflict", None, io.BytesIO(payload))
                             response = io.BytesIO(payload)
                         elif expected == 409:
-                            raise HTTPError(request.full_url, 409, "fictional conflict", None, None)
+                            payload = b'{"error":"conversation_changed","request_id":"fictional-error-request"}'
+                            raise HTTPError(request.full_url, 409, "fictional conflict", None, io.BytesIO(payload))
                         else:
                             response = io.BytesIO(json.dumps(result).encode("utf-8"))
                         response.status = expected
@@ -472,7 +512,6 @@ class PrivateVerificationTests(unittest.TestCase):
                     expected_phase = ("usable conversation ID" if stage == "create" and name == "missing-version"
                                       else "create outcome is unconfirmed" if stage == "create"
                                       else "conditional update" if stage == "update"
-                                      else "cleanup version confirmation" if name == "missing-version"
                                       else "stale-update conflict")
                     self.assertIn(expected_phase, message)
                     if stage != "create":
@@ -480,10 +519,108 @@ class PrivateVerificationTests(unittest.TestCase):
                     self.assertNotIn(fixture.sensitive, error.getvalue())
                     self.assertNotIn("content-not-for-logs", error.getvalue())
                     self.assertFalse(fixture.deleted)
-                    expected_reads = 0 if stage == "create" else 2 if stage == "stale" and name == "missing-version" else 1
+                    expected_reads = 0 if stage == "create" else 1
                     self.assertEqual(fixture.read_count, expected_reads)
                     self.assertFalse(any(method == "DELETE" for method, _, _, _ in fixture.requests))
                     self.assertEqual(puts, 0 if stage == "create" else 1 if stage == "update" else 2)
+
+    def run_http_error_storage(self, opener):
+        output, error = io.StringIO(), io.StringIO()
+        with patch("verify_private.build_opener", return_value=opener), redirect_stdout(output), redirect_stderr(error):
+            code = main(["--base-url", "https://lab.example.invalid", "--check-storage"])
+        return code, output.getvalue(), error.getvalue()
+
+    def assert_unconfirmed_http_error(self, stage, status, payload):
+        opener = StorageHttpOpener(override_stage=stage, override_status=status, override_payload=payload)
+        code, output, error = self.run_http_error_storage(opener)
+        self.assertEqual(code, 1)
+        self.assertEqual(output, "")
+        report = json.loads(error)
+        self.assertEqual(report["status"], "failed")
+        self.assertIn("stale-update conflict confirmation" if stage == "stale" else "deletion absence verification",
+                      report["error"])
+        self.assertIn(opener.fixture.identifier, report["error"])
+        self.assertNotIn("content-not-for-logs", error)
+        self.assertNotIn("fictional-error-request", error)
+        self.assertNotIn(APPLICATION_PROMPT, error)
+        self.assertEqual(opener.puts, 2)
+        self.assertEqual(sum(method == "POST" for method, _, _, _ in opener.fixture.requests), 1)
+        deletes = [request for request in opener.fixture.requests if request[0] == "DELETE"]
+        self.assertEqual(len(deletes), 0 if stage == "stale" else 1)
+        self.assertTrue(all(request[2] == "two" for request in deletes))
+        self.assertEqual(opener.fixture.deleted, stage == "absence")
+        self.assertEqual(opener.fixture.requests[-1][0], "PUT" if stage == "stale" else "GET")
+        self.assertEqual(opener.fixture.requests[-1][3], 409 if stage == "stale" else 404)
+        return opener
+
+    def test_actual_http_errors_with_exact_api_codes_confirm_conflict_and_absence(self):
+        opener = StorageHttpOpener()
+        code, output, error = self.run_http_error_storage(opener)
+        self.assertEqual(code, 0)
+        self.assertEqual(error, "")
+        report = json.loads(output)
+        self.assertEqual(report["checks"][-2:], ["cosmos_create_read_update_conflict", "synthetic_record_deleted"])
+        self.assertFalse(report["ingress_verified"])
+        self.assertFalse(report["private_network_verified"])
+        self.assertFalse(report["rendered_ui_verified"])
+        self.assertEqual([error.code for error in opener.errors], [409, 404])
+        self.assertTrue(all(error.fp.closed for error in opener.errors))
+        self.assertNotIn("fictional-error-request", output)
+        self.assertNotIn(APPLICATION_PROMPT, output)
+
+    def test_actual_http_error_bodies_reject_missing_wrong_or_nonstring_codes(self):
+        for stage, status, correct, other in (("stale", 409, "conversation_changed", "conversation_not_found"),
+                                              ("absence", 404, "conversation_not_found", "conversation_changed")):
+            bodies = ({}, {"request_id": "content-not-for-logs"}, {"error": other},
+                      {"error": "request_not_allowed"}, {"error": True}, {"error": None},
+                      {"error": 409}, {"error": [correct]}, {"error": {"code": correct}},
+                      {"error": correct + " "}, {"error": correct.upper()})
+            for number, body in enumerate(bodies):
+                with self.subTest(stage=stage, case=number):
+                    self.assert_unconfirmed_http_error(stage, status, json.dumps(body).encode())
+
+    def test_actual_http_error_bodies_reject_empty_malformed_nonobject_and_duplicate_json(self):
+        for stage, status, correct in (("stale", 409, "conversation_changed"),
+                                       ("absence", 404, "conversation_not_found")):
+            payloads = (b"", b"not JSON content-not-for-logs", b"{", b"[]", b"null", b"true", b'"content-not-for-logs"',
+                        ('{"error":"content-not-for-logs","error":"' + correct + '"}').encode(),
+                        ('{"error":"' + correct + '","request_id":"one","request_id":"content-not-for-logs"}').encode(),
+                        ('{"error":"' + correct + '","extra":{"id":"one","id":"content-not-for-logs"}}').encode())
+            for number, payload in enumerate(payloads):
+                with self.subTest(stage=stage, case=number):
+                    opener = self.assert_unconfirmed_http_error(stage, status, payload)
+                    self.assertTrue(opener.errors[-1].fp.closed)
+
+    def test_actual_http_error_status_interference_is_rejected_even_with_matching_code(self):
+        for stage, expected, correct in (("stale", 409, "conversation_changed"),
+                                        ("absence", 404, "conversation_not_found")):
+            payload = json.dumps({"error": correct, "request_id": "content-not-for-logs"}).encode()
+            for status in (404 if expected == 409 else 409, 400, 403, 429, 500, 503):
+                with self.subTest(stage=stage, status=status):
+                    self.assert_unconfirmed_http_error(stage, status, payload)
+
+    def test_expected_codes_are_checked_even_when_opener_returns_an_error_response_normally(self):
+        path = "/api/conversations/" + StorageClient.identifier
+        for method, status in (("PUT", 409), ("GET", 404)):
+            with self.subTest(method=method):
+                response = io.BytesIO(b"{}")
+                response.status = status
+                with patch("verify_private.build_opener") as opener:
+                    opener.return_value.open.return_value = response
+                    client = PrivateClient("https://lab.example.invalid")
+                    with self.assertRaisesRegex(CheckError, "expected conversation error code"):
+                        client.call(method, path, etag="one" if method == "PUT" else None, expected=status)
+
+    def test_expected_conversation_errors_do_not_verify_unrelated_api_routes(self):
+        payload = b'{"error":"conversation_not_found","request_id":"content-not-for-logs"}'
+        with patch("verify_private.build_opener") as opener:
+            opener.return_value.open.side_effect = HTTPError("https://lab.example.invalid/api/config", 404,
+                                                             "fictional error", None, io.BytesIO(payload))
+            client = PrivateClient("https://lab.example.invalid")
+            with self.assertRaisesRegex(CheckError, "HTTP 404") as raised:
+                client.call("GET", "/api/config", expected=404)
+        self.assertNotIn("content-not-for-logs", str(raised.exception))
+        opener.return_value.open.assert_called_once()
 
     def test_primary_failure_is_preserved_without_a_cleanup_error_replacing_it(self):
         primary = CheckError(StorageClient.sensitive)
