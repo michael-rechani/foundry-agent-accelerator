@@ -249,6 +249,13 @@ class CompareTests(unittest.TestCase):
 
 
 class InventoryTests(unittest.TestCase):
+    def test_inventory_output_rejects_non_allowlisted_values(self):
+        for categories in (("absent", "private-value", "present"),
+                           ("absent", "present"), ["absent", "present", "absent"], None):
+            output = io.StringIO()
+            probe.print_inventory(categories, file=output)
+            self.assertEqual(output.getvalue(), "")
+
     def test_managed_instances_across_modules_and_data_excluded(self):
         _, state = fixture()
         self.assertEqual(probe.inventory(state), ("absent", "absent"))

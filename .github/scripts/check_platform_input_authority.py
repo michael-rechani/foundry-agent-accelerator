@@ -563,9 +563,24 @@ def print_inventory(categories, *, file):
     if (not isinstance(categories, tuple) or len(categories) != 3
             or any(category not in ("present", "absent", "ambiguous") for category in categories)):
         return
-    for label, category in zip(("candidate_storage_inventory", "candidate_apim_inventory",
-                                "candidate_pinned_secret_read"), categories, strict=True):
-        print(f"{label}={category}", file=file)
+    if categories[0] == "present":
+        print("candidate_storage_inventory=present", file=file)
+    elif categories[0] == "absent":
+        print("candidate_storage_inventory=absent", file=file)
+    else:
+        print("candidate_storage_inventory=ambiguous", file=file)
+    if categories[1] == "present":
+        print("candidate_apim_inventory=present", file=file)
+    elif categories[1] == "absent":
+        print("candidate_apim_inventory=absent", file=file)
+    else:
+        print("candidate_apim_inventory=ambiguous", file=file)
+    if categories[2] == "present":
+        print("candidate_pinned_secret_read=present", file=file)
+    elif categories[2] == "absent":
+        print("candidate_pinned_secret_read=absent", file=file)
+    else:
+        print("candidate_pinned_secret_read=ambiguous", file=file)
 
 
 def print_router_override(exc):
