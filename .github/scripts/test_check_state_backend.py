@@ -142,6 +142,147 @@ class BackendCheckTests(unittest.TestCase):
             with self.assertRaisesRegex(probe.CheckError, "^GET failed with HTTP 403.$"):
                 probe.send("https://example.test")
 
+    def test_oidc_assertion_is_classified_before_azure_token_exchange(self):
+        with patch.object(probe, "send", side_effect=probe.CheckError("GET failed with HTTP 403.")) as transport:
+            with self.assertRaisesRegex(probe.CheckError, "^GITHUB_OIDC_ASSERTION GET failed with HTTP 403\\.$"):
+                probe.azure_token(self.env)
+        self.assertEqual(transport.call_count, 1)
+
+
+class RequestStageTests(unittest.TestCase):
+    URL = "https://private-account.example/private-container/private-resource?secret-query"
+    PRIVATE = (
+        "private-account",
+        "private-container",
+        "private-resource",
+        "secret-query",
+        "private-token",
+        "private-body",
+        "private-header",
+        "private-state",
+        "private-input",
+    )
+
+    def test_fixed_stages_classify_http_failures_without_private_details(self):
+        expected = {
+            "GITHUB_OIDC_ASSERTION": ("GET",),
+            "LAB_STATE": ("GET", "HEAD"),
+            "LAB_INPUTS": ("GET", "HEAD"),
+            "PLATFORM_STATE": ("GET", "HEAD"),
+            "ARM_CURRENT_APP": ("GET",),
+            "ARM_CURRENT_REVISION": ("GET",),
+        }
+        self.assertEqual(probe.REQUEST_STAGES, expected)
+        for stage, methods in expected.items():
+            for method in methods:
+                with self.subTest(stage=stage, method=method):
+                    body = io.BytesIO(b"private-body private-state private-input")
+                    failure = probe.error.HTTPError(
+                        self.URL,
+                        403,
+                        "private-body",
+                        {"private-header": "private-token"},
+                        body,
+                    )
+                    with (
+                        patch.object(probe.request, "build_opener") as opener,
+                        contextlib.redirect_stdout(io.StringIO()) as output,
+                        contextlib.redirect_stderr(io.StringIO()) as errors,
+                    ):
+                        opener.return_value.open.side_effect = failure
+                        with self.assertRaises(probe.CheckError) as raised:
+                            probe.staged_send(
+                                self.URL, stage=stage, method=method, headers={"Authorization": "Bearer private-token"}
+                            )
+                    self.assertEqual(str(raised.exception), f"{stage} {method} failed with HTTP 403.")
+                    self.assertIsNone(raised.exception.__cause__)
+                    self.assertTrue(raised.exception.__suppress_context__)
+                    self.assertTrue(body.closed)
+                    self.assertEqual(output.getvalue() + errors.getvalue(), "")
+                    for private in self.PRIVATE:
+                        self.assertNotIn(private, str(raised.exception))
+
+    def test_unlabelled_or_unexpected_stage_and_method_refuse_before_transport(self):
+        for stage, method in (
+            (None, "GET"),
+            ("", "GET"),
+            ("private-token", "GET"),
+            (["LAB_STATE"], "GET"),
+            ("LAB_STATE", "PUT"),
+            ("LAB_STATE", "DELETE"),
+            ("ARM_CURRENT_APP", "POST"),
+            ("ARM_CURRENT_REVISION", "HEAD"),
+            ("GITHUB_OIDC_ASSERTION", "HEAD"),
+            ("LAB_STATE", "GET\nprivate-token"),
+            ("LAB_STATE", None),
+        ):
+            with self.subTest(stage=stage, method=method), patch.object(probe, "send") as transport:
+                with self.assertRaises(probe.CheckError) as raised:
+                    probe.staged_send(self.URL, stage=stage, method=method)
+                self.assertEqual(str(raised.exception), "Unreviewed or missing request stage/method; request refused.")
+                transport.assert_not_called()
+        with patch.object(probe, "send") as transport, self.assertRaises(probe.CheckError):
+            probe.staged_json_response(self.URL)
+        transport.assert_not_called()
+
+    def test_unexpected_transport_context_is_withheld_not_echoed_or_misclassified(self):
+        for message in (
+            "GET failed with HTTP 403. private-token",
+            "private-body AuthorizationFailed private-resource",
+            "GET failed with HTTP private-token.",
+            "GET failed with HTTP 999.",
+            "HEAD failed with HTTP 403.",
+        ):
+            with self.subTest(message=message), patch.object(probe, "send", side_effect=probe.CheckError(message)):
+                with self.assertRaises(probe.CheckError) as raised:
+                    probe.staged_send(self.URL, stage="LAB_STATE")
+                self.assertEqual(
+                    str(raised.exception),
+                    "LAB_STATE GET failed; private request diagnostics withheld.",
+                )
+
+    def test_unexpected_status_network_error_and_json_failures_are_sanitized(self):
+        with patch.object(probe, "send", side_effect=probe.CheckError("GET returned unexpected HTTP 204.")):
+            with self.assertRaisesRegex(probe.CheckError, "^ARM_CURRENT_APP GET returned unexpected HTTP 204\\.$"):
+                probe.staged_send(self.URL, stage="ARM_CURRENT_APP")
+        with patch.object(probe.request, "build_opener") as opener:
+            opener.return_value.open.side_effect = probe.error.URLError("private-token private-resource")
+            with self.assertRaisesRegex(
+                probe.CheckError,
+                "^PLATFORM_STATE HEAD could not reach its approved endpoint\\.$",
+            ):
+                probe.staged_send(self.URL, stage="PLATFORM_STATE", method="HEAD")
+        for body, expected in (
+            (b"private-body private-token", "invalid JSON"),
+            (b'["private-input"]', "a non-object response"),
+        ):
+            with patch.object(probe, "send", return_value=(body, {})):
+                with self.assertRaises(probe.CheckError) as raised:
+                    probe.staged_json_response(self.URL, stage="ARM_CURRENT_REVISION")
+                self.assertEqual(str(raised.exception), f"ARM_CURRENT_REVISION returned {expected}.")
+        with patch.object(probe, "send", return_value=(b'{"value":"private-token"}', {})):
+            self.assertEqual(
+                probe.staged_json_response(self.URL, stage="GITHUB_OIDC_ASSERTION"),
+                {"value": "private-token"},
+            )
+
+    def test_existing_expected_status_and_request_arguments_are_preserved(self):
+        failure = probe.error.HTTPError(self.URL, 404, "private-body", {"ETag": "private-header"}, None)
+        with patch.object(probe.request, "build_opener") as opener:
+            opener.return_value.open.side_effect = failure
+            body, headers = probe.staged_send(
+                self.URL,
+                stage="LAB_INPUTS",
+                expected=(200, 404),
+                headers={"Authorization": "Bearer private-token"},
+            )
+        self.assertEqual((body, headers), (b"", {"ETag": "private-header"}))
+        request = opener.return_value.open.call_args.args[0]
+        self.assertEqual(request.full_url, self.URL)
+        self.assertEqual(request.get_method(), "GET")
+        self.assertEqual(request.get_header("Authorization"), "Bearer private-token")
+        self.assertIsNone(request.data)
+
 
 if __name__ == "__main__":
     unittest.main()

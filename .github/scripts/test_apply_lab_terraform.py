@@ -326,6 +326,8 @@ class RunTests(unittest.TestCase):
 
             def full_plan(self):
                 events.append(("plan",))
+                if failure.get("plan_error"):
+                    raise diagnostic.CheckError("TERRAFORM_PLAN failed; private Terraform diagnostics withheld.")
                 value = plans.pop(0)
                 (self.scratch / "lab.tfplan").write_bytes(json.dumps(value).encode())
                 return value, 0 if value == plan() else 2
@@ -395,6 +397,12 @@ class RunTests(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(self.applied(events), [])
         self.assertIn("nothing to apply", output)
+
+    def test_check_failure_still_cleans_up_and_never_applies(self):
+        events, output, errors, error, _ = self.run_fixture("check", plan_error=True)
+        self.assertEqual(self.applied(events), [])
+        self.assertEqual(str(error), "TERRAFORM_PLAN failed; private Terraform diagnostics withheld.")
+        self.assertIn("Nothing was applied.", errors)
 
     def test_the_reviewed_changes_are_applied_once_then_verified_with_a_follow_up_plan(self):
         events, output, errors, error, sleeps = self.run_fixture()

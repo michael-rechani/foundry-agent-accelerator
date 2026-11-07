@@ -10,6 +10,7 @@ delivery or budget alerts, or see how the browser caches responses.
 
 - [Agent session reuse](#agent-session-reuse)
 - [Request and dependency diagnostics](#request-and-dependency-diagnostics)
+- [Protected Terraform check failure stages](#protected-terraform-check-failure-stages)
 - [Terraform-managed alert delivery](#terraform-managed-alert-delivery)
 - [Budget alerts](#budget-alerts)
 - [Browser caching](#browser-caching)
@@ -145,6 +146,55 @@ For failed checks with their step and timings:
 
 Only failed Foundry checks have `stage`, `token_ms`, and `read_ms`. Those columns
 are empty for Cosmos DB failures.
+
+### Protected Terraform check failure stages
+
+The protected `apply-lab-terraform.yml` workflow's `operation=check` remains
+plan-only. It uses the fixed main revision, protected `terraform-state`
+environment and its reviewer approval, private runner, existing concurrency
+gates, and the same no-apply guard. A failure does not authorize an apply,
+permission grant, secret change, or retry. No new command or workflow operation
+is exposed.
+
+Helper request errors identify only a fixed stage, method, and HTTP status,
+for example `LAB_STATE GET failed with HTTP 403.`:
+
+| Stage | Meaning |
+| --- | --- |
+| `GITHUB_OIDC_ASSERTION` | GitHub assertion GET before either storage or ARM token exchange. A 403 here is not a storage or ARM response. |
+| `LAB_STATE` | GET of the approved existing Lab state through the validated private backend. |
+| `LAB_INPUTS` | GET of the approved canonical Lab inputs through that same backend. |
+| `PLATFORM_STATE` | GET of the approved platform state, only when validated Lab inputs require it. |
+| `ARM_CURRENT_APP` | GET of the state-validated current Container App to select its single ready revision; not app secrets access. |
+| `ARM_CURRENT_REVISION` | GET of that ready revision to verify the immutable image; not app secrets access. |
+| `TERRAFORM_INIT` | Fixed backend initialization failed. |
+| `TERRAFORM_INPUT_CHECK` | Fixed Terraform console input-resolution check failed. |
+| `TERRAFORM_PLAN` | Fixed full-root, refreshed, locked plan failed. |
+| `TERRAFORM_PLAN_INSPECTION` | Fixed JSON inspection of the saved plan failed. |
+
+The blob stage allowlist also permits HEAD classification, but snapshots still
+use GET: this change adds no HEAD requests. Terraform stages withhold raw
+diagnostics and do not infer a service, action, or endpoint from provider text.
+GitHub OIDC failures can occur again before ARM reads. Azure token-exchange POST
+errors retain their generic transport message; they are not classified as OIDC
+assertion GET failures. No stage proves why access was denied.
+
+Missing or unreviewed stage/method context is refused before a staged request.
+Unexpected transport exception text is withheld rather than echoed or treated
+as an HTTP classification. These stage diagnostics never include URLs,
+host/account/container or resource identifiers, headers, tokens, bodies,
+state/input values, or secret values. JSON parsing errors identify only the
+approved stage.
+
+Plan-only is not a promise of zero backend side effects: the existing Terraform
+Azure backend acquires/releases its state lease and adds/removes lock metadata.
+Those operations can change the blob ETag and, with storage versioning enabled,
+create versions even without an apply. The existing concurrency check therefore
+compares Lab state bytes and metadata, tolerating only the ETag change; it still
+rejects a leased state or unresolved lock metadata. Inputs and platform state
+must match their full snapshots, including ETags. No backend operation or
+comparison rule changes here. Private scratch inputs, provider data, and the
+saved plan are removed by the existing cleanup.
 
 ### Terraform-managed alert delivery
 

@@ -14,6 +14,16 @@ class CheckError(RuntimeError):
     pass
 
 
+REQUEST_STAGES = {
+    "GITHUB_OIDC_ASSERTION": ("GET",),
+    "LAB_STATE": ("GET", "HEAD"),
+    "LAB_INPUTS": ("GET", "HEAD"),
+    "PLATFORM_STATE": ("GET", "HEAD"),
+    "ARM_CURRENT_APP": ("GET",),
+    "ARM_CURRENT_REVISION": ("GET",),
+}
+
+
 class NoRedirect(request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -44,15 +54,47 @@ def send(url, *, method="GET", headers=None, data=None, expected=(200,)):
         raise CheckError(f"{method} could not reach its approved endpoint.") from None
 
 
-def json_response(url, **kwargs):
-    body, _ = send(url, **kwargs)
+def staged_send(url, *, stage=None, method="GET", **kwargs):
+    if (
+        type(stage) is not str
+        or stage not in REQUEST_STAGES
+        or type(method) is not str
+        or method not in REQUEST_STAGES[stage]
+    ):
+        raise CheckError("Unreviewed or missing request stage/method; request refused.")
+    try:
+        return send(url, method=method, **kwargs)
+    except CheckError as exc:
+        # Only exact transport-generated messages qualify; never echo arbitrary exception text.
+        match = re.fullmatch(
+            re.escape(method) + r" (failed with|returned unexpected) HTTP ([1-5][0-9]{2})\.",
+            str(exc),
+        )
+        if match:
+            raise CheckError(f"{stage} {method} {match[1]} HTTP {match[2]}.") from None
+        if str(exc) == f"{method} could not reach its approved endpoint.":
+            raise CheckError(f"{stage} {method} could not reach its approved endpoint.") from None
+        raise CheckError(f"{stage} {method} failed; private request diagnostics withheld.") from None
+
+
+def _response_object(body, label):
     try:
         value = json.loads(body)
     except (ValueError, UnicodeError):
-        raise CheckError("An authentication endpoint returned invalid JSON.") from None
+        raise CheckError(f"{label} returned invalid JSON.") from None
     if not isinstance(value, dict):
-        raise CheckError("An authentication endpoint returned a non-object response.")
+        raise CheckError(f"{label} returned a non-object response.")
     return value
+
+
+def json_response(url, **kwargs):
+    body, _ = send(url, **kwargs)
+    return _response_object(body, "An authentication endpoint")
+
+
+def staged_json_response(url, *, stage=None, **kwargs):
+    body, _ = staged_send(url, stage=stage, **kwargs)
+    return _response_object(body, stage)
 
 
 def validate_backend(environ=os.environ):
@@ -105,8 +147,9 @@ def azure_token(environ=os.environ, scope="https://storage.azure.com/.default"):
     query = parse.parse_qsl(oidc_url.query, keep_blank_values=True)
     query = [(key, value) for key, value in query if key != "audience"]
     query.append(("audience", "api://AzureADTokenExchange"))
-    assertion = json_response(
+    assertion = staged_json_response(
         parse.urlunsplit(oidc_url._replace(query=parse.urlencode(query))),
+        stage="GITHUB_OIDC_ASSERTION",
         headers={"Authorization": f"Bearer {environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']}"},
     ).get("value")
     if not assertion:

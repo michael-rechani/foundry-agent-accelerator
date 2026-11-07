@@ -12,7 +12,13 @@ import sys
 import tarfile
 from urllib.parse import quote
 
-from check_state_backend import CheckError, azure_token, json_response, send, validate_backend
+from check_state_backend import (
+    CheckError,
+    azure_token,
+    staged_json_response as json_response,
+    staged_send as send,
+    validate_backend,
+)
 from reconcile_runner_state import (
     Blobs,
     GUID,
@@ -205,7 +211,8 @@ class LabBlobs:
     def snapshot(self, name):
         if name not in (LAB_STATE, LAB_INPUTS, PLATFORM_STATE):
             raise CheckError("Only the reviewed Lab and platform blobs may be read.")
-        body, headers = send(self.base + name, headers=self.headers)
+        stage = {LAB_STATE: "LAB_STATE", LAB_INPUTS: "LAB_INPUTS", PLATFORM_STATE: "PLATFORM_STATE"}[name]
+        body, headers = send(self.base + name, stage=stage, headers=self.headers)
         headers = {key.lower(): value for key, value in headers.items()}
         etag = headers.get("etag")
         if not isinstance(etag, str) or not etag:
@@ -341,7 +348,7 @@ def lab_state(raw, subscription):
 def current_image(environ, app):
     headers = {"Authorization": f"Bearer {azure_token(environ, scope='https://management.azure.com/.default')}"}
     base = "https://management.azure.com" + quote(app["app_id"], safe="/")
-    app_response = json_response(base + "?api-version=2024-03-01", headers=headers)
+    app_response = json_response(base + "?api-version=2024-03-01", stage="ARM_CURRENT_APP", headers=headers)
     properties = app_response.get("properties")
     config = properties.get("configuration") if isinstance(properties, dict) else None
     revision = properties.get("latestReadyRevisionName") if isinstance(properties, dict) else None
@@ -352,7 +359,9 @@ def current_image(environ, app):
         raise CheckError("The existing Lab does not have a verifiable single ready revision.")
     revision_id = app["app_id"] + "/revisions/" + revision
     response = json_response(
-        base + "/revisions/" + quote(revision, safe="") + "?api-version=2024-03-01", headers=headers,
+        base + "/revisions/" + quote(revision, safe="") + "?api-version=2024-03-01",
+        headers=headers,
+        stage="ARM_CURRENT_REVISION",
     )
     details = response.get("properties")
     template = details.get("template") if isinstance(details, dict) else None
@@ -440,7 +449,16 @@ class LabTerraform(Terraform):
         )
         if not permitted:
             raise CheckError("Only the fixed private init, input check, full plan and plan inspection are allowed.")
-        return super().command(*args, allowed=allowed, input_data=input_data)
+        try:
+            return super().command(*args, allowed=allowed, input_data=input_data)
+        except CheckError:
+            stage = {
+                "init": "TERRAFORM_INIT",
+                "console": "TERRAFORM_INPUT_CHECK",
+                "plan": "TERRAFORM_PLAN",
+                "show": "TERRAFORM_PLAN_INSPECTION",
+            }[args[0]]
+            raise CheckError(f"{stage} failed; private Terraform diagnostics withheld.") from None
 
     def inputs_resolved(self):
         raw = self.command("console", f"-var-file={self.inputs}", input_data=CONSOLE_INPUT)

@@ -176,6 +176,10 @@ class LabConfigurationTests(unittest.TestCase):
                 b"private", '"etag"', {"x-ms-meta-purpose": "fixture"},
             ))
             self.assertNotIn("method", request.call_args.kwargs)
+            self.assertEqual(request.call_args.kwargs["stage"], "LAB_STATE")
+            for name, stage in ((diagnostic.LAB_INPUTS, "LAB_INPUTS"), (diagnostic.PLATFORM_STATE, "PLATFORM_STATE")):
+                blobs.snapshot(name)
+                self.assertEqual(request.call_args.kwargs["stage"], stage)
         with patch.object(diagnostic, "send", return_value=(b"private", {})), self.assertRaises(diagnostic.CheckError):
             blobs.snapshot(diagnostic.LAB_STATE)
         for locked in (
@@ -268,6 +272,10 @@ class LabStateAndImageTests(unittest.TestCase):
             self.assertEqual(diagnostic.current_image(protected_config(), app), (REVISION, DIGEST))
         self.assertEqual(token.call_args.kwargs["scope"], "https://management.azure.com/.default")
         self.assertEqual(request.call_count, 2)
+        self.assertEqual(
+            [call.kwargs["stage"] for call in request.call_args_list],
+            ["ARM_CURRENT_APP", "ARM_CURRENT_REVISION"],
+        )
         for change in (
             lambda value: value["properties"].update(active=False),
             lambda value: value["properties"]["template"]["containers"][0].update(image="private:latest"),
@@ -417,6 +425,50 @@ class LabSourceAndTerraformTests(unittest.TestCase):
             self.assertEqual(terraform.inputs_resolved(), values())
         with patch.object(terraform, "command", return_value=b"not-private-json"), self.assertRaises(diagnostic.CheckError):
             terraform.inputs_resolved()
+
+    def test_fixed_terraform_failure_stages_withhold_unexpected_diagnostics(self):
+        terraform = object.__new__(diagnostic.LabTerraform)
+        terraform.scratch = Path("scratch")
+        terraform.inputs = terraform.scratch / "inputs.tfvars"
+        saved = terraform.scratch / "lab.tfplan"
+        var_file = f"-var-file={terraform.inputs}"
+        for args, allowed, input_data, stage in (
+            (
+                ("init", "-reconfigure", f"-backend-config={terraform.scratch / 'backend.hcl'}"),
+                (0,),
+                None,
+                "TERRAFORM_INIT",
+            ),
+            (("console", var_file), (0,), diagnostic.CONSOLE_INPUT, "TERRAFORM_INPUT_CHECK"),
+            (
+                (
+                    "plan",
+                    "-input=false",
+                    "-detailed-exitcode",
+                    "-refresh=true",
+                    "-lock=true",
+                    "-lock-timeout=5m",
+                    var_file,
+                    f"-out={saved}",
+                ),
+                (0, 2),
+                None,
+                "TERRAFORM_PLAN",
+            ),
+            (("show", "-json", str(saved)), (0,), None, "TERRAFORM_PLAN_INSPECTION"),
+        ):
+            with (
+                self.subTest(stage=stage),
+                patch.object(
+                    reconcile.Terraform,
+                    "command",
+                    side_effect=diagnostic.CheckError("403 AuthorizationFailed private-token private-resource"),
+                ),
+            ):
+                with self.assertRaises(diagnostic.CheckError) as raised:
+                    terraform.command(*args, allowed=allowed, input_data=input_data)
+                self.assertEqual(str(raised.exception), f"{stage} failed; private Terraform diagnostics withheld.")
+                self.assertTrue(raised.exception.__suppress_context__)
 
     @unittest.skipUnless(shutil.which("terraform"), "Terraform is not installed")
     def test_hcl_canonical_inputs_override_the_supplemental_digest(self):
