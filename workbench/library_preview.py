@@ -10,6 +10,7 @@ import re
 from agent_runtime.demo_tools import TEMPLATE_IDS, create_demo_tools
 from agent_runtime.main import demo_policy
 from agent_templates import TEMPLATES, is_available
+from library_rules import REPORTED_MODEL_NAME
 
 PREVIEW_ID = re.compile(r"library-([a-z0-9]+(?:-[a-z0-9]+)*)\Z")
 # Receipt binding for simulated lookups; it names no Foundry resource.
@@ -76,7 +77,7 @@ USAGE_FIELDS = ("input_tokens", "output_tokens", "total_tokens", "cached_tokens"
 
 
 def usage_record(response):
-    """Return one Responses API result's reported token counts; a count the service didn't report is None."""
+    """Keep the service's reported model and token counts for one Responses API call."""
     reported = getattr(response, "usage", None)
     if hasattr(reported, "model_dump"):
         reported = reported.model_dump()
@@ -85,7 +86,13 @@ def usage_record(response):
     counts = {key: reported.get(key) for key in ("input_tokens", "output_tokens", "total_tokens")}
     counts["cached_tokens"] = (reported.get("input_tokens_details") or {}).get("cached_tokens")
     counts["reasoning_tokens"] = (reported.get("output_tokens_details") or {}).get("reasoning_tokens")
-    return {key: value if type(value) is int and value >= 0 else None for key, value in counts.items()}
+    model = getattr(response, "model", None)
+    valid_model = isinstance(model, str) and REPORTED_MODEL_NAME.fullmatch(model) is not None
+    return {
+        **{key: value if type(value) is int and value >= 0 else None for key, value in counts.items()},
+        "reported_model": model if valid_model else None,
+        "model_status": "reported" if valid_model else "not_reported" if model is None else "invalid",
+    }
 
 
 def summarize_usage(records):
@@ -95,6 +102,20 @@ def summarize_usage(records):
     total = {key: sum(record[key] for record in records) if all(record[key] is not None for record in records) else None
              for key in USAGE_FIELDS}
     return total if any(value is not None for value in total.values()) else None
+
+
+def model_observation(deployment, records):
+    """Describe direct calls without inferring an unreported model or a bill."""
+    if not records:
+        return None
+    return {
+        "deployment": deployment,
+        "calls": [{
+            "reported_model": record["reported_model"],
+            "model_status": record["model_status"],
+            "usage": summarize_usage([record]),
+        } for record in records],
+    }
 
 
 def preview_agent(identifier, include_unfinished=True):

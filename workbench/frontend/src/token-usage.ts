@@ -38,7 +38,7 @@ export function usageLabel(usage: Usage | null | undefined) {
   if (usage === undefined) return null
   return usage?.total_tokens != null
     ? `${formatTokens(usage.total_tokens)} tokens`
-    : 'Tokens not reported'
+    : 'Token total not reported'
 }
 
 export function usageDetail(usage: Usage) {
@@ -93,6 +93,12 @@ export function estimateCost(
   rates: Rates,
 ) {
   return (totals.input * rates.input + totals.output * rates.output) / 1_000_000
+}
+
+export function formatEstimatedCost(cost: number) {
+  return cost > 0 && cost < 0.0001
+    ? '<0.0001'
+    : cost.toLocaleString('en-US', { maximumFractionDigits: 4 })
 }
 
 export function parseRates(value: unknown): Rates | null {

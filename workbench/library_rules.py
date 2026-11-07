@@ -11,6 +11,7 @@ import re
 
 CATEGORIES = frozenset({"grounded", "missing", "conflict", "injection", "decision-boundary"})
 DEPLOYMENT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
+REPORTED_MODEL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}")
 
 # The keys of each evidence file's rows, in the order the files already use. evaluations/library_runs.py
 # writes them and evaluations/scorecards.py reads them, so both import the one definition. A saved run

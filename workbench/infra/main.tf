@@ -113,11 +113,11 @@ variable "unfinished_agents_enabled" {
 }
 variable "agent_creation_model" {
   type        = string
-  default     = ""
-  description = "Default existing Foundry model deployment for newly created agents, used for any kind of work without its own entry in agent_creation_models. Not a browser setting."
+  default     = null
+  description = "Optional model override for newly created agents without an entry in agent_creation_models. Null uses the platform Model Router output when platform_state is configured, or assumes model-router. An empty string leaves the model unconfigured and requires agent_creation_enabled = false. Set a fixed model when Router is explicitly disabled and platform_state is unavailable."
   validation {
-    condition     = var.agent_creation_model == "" || can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", var.agent_creation_model))
-    error_message = "Use an existing model deployment name."
+    condition     = var.agent_creation_model == null ? true : var.agent_creation_model == "" || can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", var.agent_creation_model))
+    error_message = "Use an existing model deployment name, an empty string, or null."
   }
 }
 variable "agent_creation_models" {
@@ -130,6 +130,45 @@ variable "agent_creation_models" {
       contains(["reasoning", "extraction", "tool_calling"], profile) && can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", deployment))
     ])
     error_message = "Use only the reasoning, extraction, and tool_calling keys, each set to an existing model deployment name."
+  }
+}
+variable "preview_encrypted_reasoning" {
+  type        = map(bool)
+  default     = {}
+  nullable    = false
+  description = "Optional per-deployment override for requesting encrypted reasoning in stateless library previews. Values override known platform capabilities; configure custom models and Router subsets only after verifying their support."
+  validation {
+    condition = alltrue([
+      for deployment, enabled in var.preview_encrypted_reasoning :
+      can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", deployment)) && enabled != null
+    ])
+    error_message = "Key preview_encrypted_reasoning by valid deployment name and use true or false for each value."
+  }
+}
+variable "hosted_agent_encrypted_reasoning" {
+  type        = map(bool)
+  default     = {}
+  nullable    = false
+  description = "Explicit per-deployment opt-in for encrypted reasoning in newly published, tool-enabled hosted agents. Defaults to false for unlisted deployments; verify support for the deployment and its routed models before enabling it."
+  validation {
+    condition = alltrue([
+      for deployment, enabled in var.hosted_agent_encrypted_reasoning :
+      can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", deployment)) && enabled != null
+    ])
+    error_message = "Key hosted_agent_encrypted_reasoning by valid deployment name and use true or false for each value."
+  }
+}
+variable "prebuilt_agent_models" {
+  type        = map(string)
+  default     = {}
+  description = "Actual model deployment used by each named prebuilt Lab agent, for admission budgeting only. Set an entry only after that hosted agent's routed version has been republished and verified. Unlisted agents use their agents.json model."
+  validation {
+    condition = alltrue([
+      for agent, deployment in var.prebuilt_agent_models :
+      contains([for configured in jsondecode(file("${path.module}/../agents.json")) : configured.id], agent) &&
+      can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", deployment))
+    ])
+    error_message = "Key prebuilt_agent_models by configured Lab agent ID, with each value set to an existing model deployment name."
   }
 }
 variable "agent_creation_key_secret_id" {
@@ -160,7 +199,7 @@ variable "model_limits" {
     "gpt-4.1"      = { requests_per_minute = 50, tokens_per_minute = 50000 }
     "gpt-5.4-mini" = { requests_per_minute = 10, tokens_per_minute = 10000 }
   }
-  description = "The published requests-per-minute and tokens-per-minute limit of each model deployment the Lab's chat can reach, keyed by deployment name. The Lab answers busy (HTTP 429) before admitting a turn that would pass a deployment's limit, so people see its friendly message instead of the model's error. The defaults are the dev tenant's limits; replace them with your deployments' real limits, and leave some headroom. Deployments not listed here, and prebuilt agents, are limited only by the Lab's global caps. Use {} to turn this off. This sets no Foundry quota."
+  description = "The published requests-per-minute and tokens-per-minute limit of each fixed model deployment the Lab's chat can reach, keyed by deployment name. These per-deployment limits cannot account for Model Router's internal model selection; Router-backed calls are limited by the Lab's global caps unless a Router deployment limit is explicitly configured. The defaults are the dev tenant's limits; replace them with your deployments' real limits, and leave some headroom. Deployments not listed here are limited only by the Lab's global caps. Use {} to turn this off. This sets no Foundry quota."
   validation {
     condition = alltrue([
       for deployment, limit in var.model_limits :
@@ -198,6 +237,18 @@ locals {
   project_id = "/subscriptions/${var.subscription_id}/resourceGroups/${local.resource_group_name}/providers/Microsoft.CognitiveServices/accounts/${local.foundry_account_name}/projects/${local.foundry_project_name}"
   hostname   = "${var.name}.${azurerm_container_app_environment.this.default_domain}"
   tags       = { workload = "foundry-workbench", managed-by = "terraform" }
+  agent_creation_model = var.agent_creation_model != null ? var.agent_creation_model : coalesce(
+    try(local.platform_outputs.model_router_deployment_name, null),
+    try(local.platform_outputs.model_deployment_name, null),
+    "model-router",
+  )
+  platform_preview_encrypted_reasoning = try(local.platform_outputs.model_preview_encrypted_reasoning, {})
+  preview_encrypted_reasoning = merge(
+    { for deployment in try(keys(local.platform_preview_encrypted_reasoning), []) :
+      deployment => local.platform_preview_encrypted_reasoning[deployment]
+    },
+    var.preview_encrypted_reasoning,
+  )
 }
 
 resource "azurerm_subnet" "this" {
@@ -313,7 +364,35 @@ resource "azurerm_container_app" "this" {
     # a later apply can't roll the app back to an older digest.
     ignore_changes = [template[0].container[0].image]
     precondition {
-      condition     = !var.agent_creation_enabled || (var.agent_creation_model != "" && (var.private_presenter_mode || var.agent_creation_key_secret_id != null))
+      condition = (
+        var.agent_creation_model != null || var.platform_state == null ||
+        try(trimspace(local.platform_outputs.model_router_deployment_name) != "", false) ||
+        try(trimspace(local.platform_outputs.model_deployment_name) != "", false)
+      )
+      error_message = "The platform state has neither a Model Router nor a primary model deployment output. Refresh the platform outputs or set agent_creation_model explicitly."
+    }
+    precondition {
+      condition = (
+        var.agent_creation_model != null || var.platform_state == null ||
+        try(local.platform_outputs.model_router_deployment_name == null, true) ||
+        try(trimspace(local.platform_outputs.model_router_deployment_name) != "", false)
+      )
+      error_message = "The platform Model Router output is empty. Refresh the platform outputs or set agent_creation_model explicitly."
+    }
+    precondition {
+      condition     = local.agent_creation_model == "" || can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", local.agent_creation_model))
+      error_message = "The selected agent creation model must be a valid model deployment name."
+    }
+    precondition {
+      condition = can(keys(local.platform_preview_encrypted_reasoning)) && try(alltrue([
+        for deployment, enabled in local.platform_preview_encrypted_reasoning :
+        can(regex("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$", deployment)) &&
+        contains(["true", "false"], jsonencode(enabled))
+      ]), false)
+      error_message = "The platform preview encrypted-reasoning output must map valid deployment names to booleans."
+    }
+    precondition {
+      condition     = !var.agent_creation_enabled || (local.agent_creation_model != "" && (var.private_presenter_mode || var.agent_creation_key_secret_id != null))
       error_message = "Agent creation requires an existing model deployment and either an operator-key verifier secret or explicit private presenter mode."
     }
   }
@@ -377,7 +456,7 @@ resource "azurerm_container_app" "this" {
             WORKBENCH_DEFAULT_AGENT             = coalesce(var.default_agent, var.visible_agents[0])
             WORKBENCH_AGENT_CREATION_ENABLED    = tostring(var.agent_creation_enabled)
             WORKBENCH_PRIVATE_PRESENTER_MODE    = tostring(var.private_presenter_mode)
-            WORKBENCH_AGENT_CREATION_MODEL      = var.agent_creation_model
+            WORKBENCH_AGENT_CREATION_MODEL      = local.agent_creation_model
             WORKBENCH_UNFINISHED_AGENTS_ENABLED = tostring(var.unfinished_agents_enabled)
             WORKBENCH_ALLOWED_HOSTS             = local.hostname
             WORKBENCH_ORIGINS                   = join(",", compact(["https://${local.hostname}", local.front_door_endpoint_host == null ? "" : "https://${local.front_door_endpoint_host}"]))
@@ -387,6 +466,15 @@ resource "azurerm_container_app" "this" {
           },
           length(var.agent_creation_models) == 0 ? {} : {
             WORKBENCH_AGENT_CREATION_MODELS = jsonencode(var.agent_creation_models)
+          },
+          length(local.preview_encrypted_reasoning) == 0 ? {} : {
+            WORKBENCH_PREVIEW_ENCRYPTED_REASONING = jsonencode(local.preview_encrypted_reasoning)
+          },
+          length(var.hosted_agent_encrypted_reasoning) == 0 ? {} : {
+            WORKBENCH_HOSTED_ENCRYPTED_REASONING = jsonencode(var.hosted_agent_encrypted_reasoning)
+          },
+          length(var.prebuilt_agent_models) == 0 ? {} : {
+            WORKBENCH_PREBUILT_AGENT_MODELS = jsonencode(var.prebuilt_agent_models)
           },
           length(var.model_limits) == 0 ? {} : {
             WORKBENCH_MODEL_LIMITS = jsonencode(var.model_limits)

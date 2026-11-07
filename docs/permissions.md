@@ -194,13 +194,16 @@ On 2026-10-18, a setup script created the custom role
 **Lab runner starter** (read, instance view and start on one virtual machine)
 and assigned it to the Lab deploy identity on the runner VM only. It's now
 Terraform in [terraform/identity](../terraform/identity/README.md); import the
-live role and assignment before the first apply. It lets the
+live role and assignment before the first apply. The draft
 [Deploy Lab image](lab-deployment.md#deploy-a-new-image-from-github-actions)
-workflow start the runner, which deallocates itself when idle. The
+workflow no longer starts the runner; its approved bootstrap remains unresolved
+(#522). The
 [Record library answers](library-scorecards.md#record-an-agents-test-answers-again)
 workflow starts it the same way, through the deploy identity, after its reviewer
-approves; the recording identity has no VM permission. It can't stop,
-change, delete or run commands on the VM.
+approves; that separate workflow is not an approved rollout bootstrap. The
+recording identity has no VM permission. The runner-starter role can't stop,
+change, delete or run commands on the VM, but the deploy identity also has
+separate Lab deployment and registry-push roles.
 
 ### Adopt the Key Vault grant
 

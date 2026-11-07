@@ -111,6 +111,20 @@ class BundleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "refresh"):
             bundle.export_created(path)
 
+    def test_created_export_validates_and_preserves_saved_reasoning_setting(self):
+        record, path, _ = self.created_record()
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled):
+                path.write_text(json.dumps({**record, "include_encrypted_reasoning": enabled}))
+                self.path.write_bytes(bundle.export_created(path))
+                manifest, _, _ = bundle.read_bundle(self.path)
+                self.assertEqual(manifest["environment"][bundle.ENCRYPTED_REASONING], str(enabled).lower())
+        for invalid in ("true", 1, None, [], {}):
+            with self.subTest(invalid=invalid):
+                path.write_text(json.dumps({**record, "include_encrypted_reasoning": invalid}))
+                with self.assertRaisesRegex(ValueError, "boolean"):
+                    bundle.export_created(path)
+
     def test_created_export_can_use_a_matching_archived_source_directory(self):
         _, path, code = self.created_record()
         runtime = self.directory / "runtime"
@@ -140,6 +154,38 @@ class BundleTests(unittest.TestCase):
                 manifest, code, _ = bundle.read_bundle(self.path)
                 self.assertEqual(code, original)
                 self.assertEqual(set(manifest["files"]), {"main.py", "demo_tools.py", "requirements.txt"})
+
+    def test_legacy_runtime_cannot_claim_or_enable_new_reasoning_support(self):
+        record, path, _ = self.created_record()
+        runtime = self.directory / "old-runtime"
+        runtime.mkdir()
+        for name in ("main.py", "demo_tools.py", "requirements.txt"):
+            (runtime / name).write_text(f"# archived {name}\n", encoding="utf-8")
+        from agent_package import runtime_package
+        _, record["runtime_hash"] = runtime_package(runtime, legacy=True)
+        path.write_text(json.dumps(record))
+        self.path.write_bytes(bundle.export_created(path, runtime))
+        manifest, code, _ = bundle.read_bundle(self.path)
+        self.assertFalse(bundle.supports_encrypted_reasoning(bundle.zip_contents(code)))
+        output = io.StringIO()
+        with redirect_stdout(output):
+            bundle.main(["inspect", str(self.path)])
+        self.assertIsNone(json.loads(output.getvalue())["source_encrypted_reasoning"])
+        self.assertFalse(json.loads(output.getvalue())["runtime_supports_encrypted_reasoning"])
+
+        args = ["deploy", str(self.path), "--endpoint", "https://target.services.ai.azure.com/api/projects/demo",
+                "--model", "new-model", "--agent-name", "independent-demo"]
+        with patch.object(bundle, "deploy") as publish:
+            bundle.main(args)
+            self.assertNotIn(bundle.ENCRYPTED_REASONING, dict(publish.call_args.args[0].environment_variables))
+            publish.reset_mock()
+            for flag in ("--encrypted-reasoning", "--no-encrypted-reasoning"):
+                with self.subTest(flag=flag), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    bundle.main([*args, flag])
+                publish.assert_not_called()
+        path.write_text(json.dumps({**record, "include_encrypted_reasoning": True}))
+        with self.assertRaisesRegex(ValueError, "supported runtime"):
+            bundle.export_created(path, runtime)
 
     def test_missing_calculator_cannot_export_a_new_runtime(self):
         _, path, code = self.created_record()
@@ -296,6 +342,59 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(options.model, "new-model")
         self.assertEqual(profile.name, "independent-demo")
         self.assertEqual(dict(profile.environment_variables), {"DEMO_TEMPLATE_ID": "document-analyst"})
+
+    def test_created_bundle_requires_destination_choice_for_enabled_source_reasoning(self):
+        record, path, _ = self.created_record()
+        path.write_text(json.dumps({**record, "include_encrypted_reasoning": True}))
+        self.path.write_bytes(bundle.export_created(path))
+        output = io.StringIO()
+        with redirect_stdout(output):
+            bundle.main(["inspect", str(self.path)])
+        inspected = json.loads(output.getvalue())
+        self.assertIs(inspected["source_encrypted_reasoning"], True)
+        self.assertIs(inspected["runtime_supports_encrypted_reasoning"], True)
+        args = ["deploy", str(self.path), "--endpoint", "https://target.services.ai.azure.com/api/projects/demo",
+                "--model", "different-destination-model", "--agent-name", "independent-demo"]
+        with patch.object(bundle, "deploy") as publish:
+            with redirect_stderr(io.StringIO()) as errors, self.assertRaises(SystemExit):
+                bundle.main(args)
+            self.assertIn("Choose --encrypted-reasoning or --no-encrypted-reasoning", errors.getvalue())
+            publish.assert_not_called()
+            for flag, expected in (("--encrypted-reasoning", "true"), ("--no-encrypted-reasoning", "false")):
+                with self.subTest(flag=flag):
+                    bundle.main([*args, flag])
+                    self.assertEqual(dict(publish.call_args.args[0].environment_variables)[bundle.ENCRYPTED_REASONING],
+                                     expected)
+            with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                bundle.main([*args, "--encrypted-reasoning", "--no-encrypted-reasoning"])
+
+        path.write_text(json.dumps({**record, "include_encrypted_reasoning": False}))
+        self.path.write_bytes(bundle.export_created(path))
+        with patch.object(bundle, "deploy") as publish:
+            bundle.main(args)
+            self.assertEqual(dict(publish.call_args.args[0].environment_variables)[bundle.ENCRYPTED_REASONING],
+                             "false")
+            bundle.main([*args, "--encrypted-reasoning"])
+            self.assertEqual(dict(publish.call_args.args[0].environment_variables)[bundle.ENCRYPTED_REASONING],
+                             "true")
+
+    def test_invalid_reasoning_manifest_and_prebuilt_override_are_rejected(self):
+        record, path, _ = self.created_record()
+        path.write_text(json.dumps({**record, "include_encrypted_reasoning": True}))
+        original = bundle.export_created(path)
+        for invalid in ("TRUE", "", 1, True, None, []):
+            with self.subTest(invalid=invalid):
+                self.path.write_bytes(self.rewrite(original, manifest_changes={
+                    "environment": {"DEMO_TEMPLATE_ID": "document-analyst", bundle.ENCRYPTED_REASONING: invalid},
+                }))
+                with self.assertRaises(ValueError):
+                    bundle.read_bundle(self.path)
+        self.write_bundle()
+        args = ["deploy", str(self.path), "--endpoint", "https://target.services.ai.azure.com/api/projects/demo",
+                "--model", "destination-model", "--agent-name", "destination-case"]
+        with patch.object(bundle, "deploy") as publish, redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            bundle.main([*args, "--encrypted-reasoning"])
+        publish.assert_not_called()
 
 
 if __name__ == "__main__":

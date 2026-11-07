@@ -83,13 +83,13 @@ export function ChatAside({
               <dd>
                 {tokens.measured
                   ? `${formatTokens(tokens.input)} in · ${formatTokens(tokens.output)} out`
-                  : 'Not reported'}
+                  : 'Complete totals not reported'}
               </dd>
             </div>
           )}
           {!!tokens.measured && !!tokens.missing && (
             <div className="hood-only">
-              <dt>Not reported</dt>
+              <dt>Incomplete totals</dt>
               <dd>
                 {tokens.missing} {tokens.missing === 1 ? 'reply' : 'replies'}
               </dd>

@@ -1,12 +1,13 @@
 import asyncio
 import importlib.util
 import json
+import os
 import sys
 import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 try:
     import httpx2
@@ -24,6 +25,10 @@ else:
 @unittest.skipUnless(SDK_AVAILABLE, "Install requirements.txt to run the real SDK contract tests")
 class SDKContractTests(unittest.TestCase):
     def test_interrupted_smoke_test_attempts_cleanup_and_reraises(self):
+        from azure.ai.projects.models import (
+            AgentEndpointConfig, FixedRatioVersionSelectionRule,
+            ProtocolConfiguration, ResponsesProtocolConfiguration, VersionSelector,
+        )
         sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
         try:
             from deployment import AgentProfile, deploy
@@ -52,11 +57,21 @@ class SDKContractTests(unittest.TestCase):
               patch("deployment.cleanup_failed_version") as cleanup):
             client = project.return_value.__enter__.return_value
             client.agents.create_version_from_code.return_value.version = "2"
-            original_endpoint = client.agents.get.return_value.agent_endpoint
+            original_endpoint = AgentEndpointConfig(
+                version_selector=VersionSelector(version_selection_rules=[
+                    FixedRatioVersionSelectionRule(agent_version="1", traffic_percentage=100),
+                ]),
+                protocol_configuration=ProtocolConfiguration(responses=ResponsesProtocolConfiguration()),
+            )
+            client.agents.get.return_value.agent_endpoint = original_endpoint
+            client.agents.get_version.return_value = {"status": "active"}
             snapshot.return_value = original_endpoint
             with self.assertRaises(KeyboardInterrupt):
                 deploy(profile, args)
-            cleanup.assert_called_once_with(client, "coordinator", "2", original_endpoint, True)
+            cleanup.assert_called_once()
+            self.assertEqual(cleanup.call_args.args[:4], (client, "coordinator", "2", original_endpoint))
+            attempted = cleanup.call_args.args[4]
+            self.assertEqual(attempted.version_selector.version_selection_rules[0].agent_version, "2")
             definition = client.agents.create_version_from_code.call_args.kwargs["definition"]
             for key in (
                 "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT",
@@ -194,6 +209,119 @@ class SDKContractTests(unittest.TestCase):
             ],
         })
         verify_delegation(response, "review_case")
+
+    def test_router_coordinator_runs_each_configured_specialist_without_rewriting(self):
+        from openai.types.responses import ResponseFunctionToolCall
+
+        class Credential:
+            async def get_token(self, *scopes, **kwargs):
+                return AccessToken("test-only-token", int(time.time()) + 3600)
+
+        async def run_check():
+            path = Path(__file__).with_name("main.py")
+            spec = importlib.util.spec_from_file_location("router_coordinator_sdk_contract", path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            from hosted_runtime import agent_settings, build_agent
+            from review_output import passthrough_middleware
+
+            profile = json.loads((path.parent / "profiles" / "evidence-review.example.json").read_text(
+                encoding="utf-8"
+            ))
+            bindings = {item["tool"]: item["agent"] for item in profile["specialists"]}
+            environment = {
+                "FOUNDRY_PROJECT_ENDPOINT": "https://example.services.ai.azure.com/api/projects/test",
+                "FOUNDRY_MODEL_NAME": "model-router",
+                "AGENT_NAME": profile["name"],
+                "AGENT_INSTRUCTIONS": profile["instructions"],
+                "SPECIALIST_CONFIG": json.dumps(profile["specialists"]),
+            }
+            requests = []
+
+            def respond(request):
+                requests.append(request)
+                return httpx2.Response(200, json={
+                    "id": "specialist-response", "object": "response", "created_at": 0,
+                    "status": "completed", "model": "fixture", "output": [{
+                        "id": "specialist-message", "type": "message", "role": "assistant",
+                        "status": "completed", "content": [{
+                            "type": "output_text", "text": "Fictional specialist finding.", "annotations": []
+                        }],
+                    }],
+                })
+
+            original = AIProjectClient.get_openai_client
+
+            def get_client(project, **kwargs):
+                return original(project, http_client=httpx2.AsyncClient(
+                    transport=httpx2.MockTransport(respond)
+                ), **kwargs)
+
+            def raw_response(tool, call_id):
+                call = ResponseFunctionToolCall(
+                    type="function_call", id=f"fc-{call_id}", call_id=call_id,
+                    name=tool, arguments='{"request":"shortened model text"}', status="completed",
+                )
+                response = MagicMock(
+                    id=f"response-{call_id}", model="fixture", created_at=1000000000, metadata={},
+                    output_parsed=None, output=[call], usage=None, finish_reason=None,
+                    conversation=None, status="completed",
+                )
+                result = MagicMock(headers={})
+                result.parse.return_value = response
+                return result
+
+            examples = (
+                ("inspect_application", "application-review-agent",
+                 "Review application APP-1: the requested budget is missing.", "Checklist reviewer"),
+                ("inspect_case", "case-review-agent",
+                 "Review case CASE-1: intake dates June 1 and June 3 differ.", "Case notes summarizer"),
+            )
+            credential = Credential()
+            with patch.dict(os.environ, environment, clear=True):
+                settings = agent_settings("review-coordinator-agent", "unused")
+                async with module.SpecialistClients(settings.endpoint, credential) as clients:
+                    agent = build_agent(
+                        credential, settings, middleware=[passthrough_middleware(bindings)],
+                        tools=module.create_specialist_tools(clients),
+                    )
+                    try:
+                        target = agent.client.client.responses.with_raw_response
+                        with (patch.object(AIProjectClient, "get_openai_client", get_client),
+                              patch.object(target, "create", new_callable=AsyncMock) as create):
+                            for tool, specialist, prompt, label in examples:
+                                create.return_value = raw_response(tool, f"call-{tool}")
+                                response = await agent.run(prompt)
+                                self.assertEqual(response.text, f"Specialist: {label}\n\nFictional specialist finding.")
+                                calls = [content for message in response.messages for content in message.contents
+                                         if content.type == "function_call"]
+                                results = [content for message in response.messages for content in message.contents
+                                           if content.type == "function_result"]
+                                self.assertEqual(len(calls), 1)
+                                self.assertEqual(len(results), 1)
+                                self.assertEqual((calls[0].name, calls[0].call_id), (tool, f"call-{tool}"))
+                                self.assertEqual(results[0].call_id, calls[0].call_id)
+                                self.assertEqual(json.loads(results[0].result), {
+                                    "status": "succeeded", "agent": specialist, "output": "Fictional specialist finding.",
+                                })
+                                self.assertEqual(create.await_args.kwargs["model"], "model-router")
+                                self.assertIs(create.await_args.kwargs["store"], False)
+                                request = requests[-1]
+                                self.assertTrue(request.url.path.endswith(
+                                    f"/agents/{specialist}/endpoint/protocols/openai/responses"
+                                ))
+                                self.assertEqual(json.loads(request.content)["input"], prompt)
+                                self.assertIs(json.loads(request.content)["store"], False)
+                            self.assertEqual(create.await_count, 2)
+                            self.assertEqual(len(requests), 2)
+                    finally:
+                        await agent.client.close()
+
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        try:
+            asyncio.run(run_check())
+        finally:
+            sys.path.pop(0)
 
 
 if __name__ == "__main__":
