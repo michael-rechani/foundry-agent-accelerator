@@ -262,6 +262,22 @@ class SpecialistPreflightTests(unittest.TestCase):
         self.client.agents.get.return_value.agent_endpoint = self.endpoint
         self.client.agents.get_version.return_value = {"status": "active"}
 
+    def test_parent_states_and_symbolic_routes_refuse_specialists(self):
+        for field in ("state", "configuration_state"):
+            for value in (None, "disabled", "unknown", True, {}, 1):
+                with self.subTest(field=field, value=value):
+                    setattr(self.client.agents.get.return_value, field, value)
+                    with self.assertRaisesRegex(RuntimeError, "explicitly enabled"):
+                        verify_specialist_endpoints(self.client, self.profile, "coordinator")
+                    self.client.agents.get_version.assert_not_called()
+                    self.client.agents.enable.assert_not_called()
+                    self.client.agents.update_details.assert_not_called()
+                    setattr(self.client.agents.get.return_value, field, "enabled")
+        self.rule.agent_version = "@latest"
+        with self.assertRaisesRegex(RuntimeError, "concrete"):
+            verify_specialist_endpoints(self.client, self.profile, "coordinator")
+        self.client.agents.get_version.assert_not_called()
+
     def test_checks_each_dependency_once_without_mutations(self) -> None:
         verify_specialist_endpoints(self.client, self.profile, "coordinator")
         self.assertEqual([call[0] for call in self.client.agents.mock_calls], ["get", "get_version"])
@@ -395,7 +411,7 @@ class DeploymentRollbackTests(unittest.TestCase):
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.assertEqual(
             [call[0] for call in self.client.agents.mock_calls],
-            ["get", "get_version", "get", "update_details", "get", "get_version", "get"],
+            ["get", "get", "get_version", "get", "update_details", "get", "get", "get_version", "get"],
         )
         self.assertEqual(self.client.agents.get.return_value.agent_endpoint, self.original)
 
@@ -539,6 +555,7 @@ class DeploymentRollbackTests(unittest.TestCase):
 
     def test_route_changed_after_recovery_status_checks_prevents_candidate_deletion(self):
         self.client.agents.get.side_effect = [
+            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
             SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
             SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
             SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.original),
