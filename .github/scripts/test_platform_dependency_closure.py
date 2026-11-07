@@ -163,6 +163,35 @@ class ClosureTests(unittest.TestCase):
                             closure.terraform('terraform', root, root, args)
 
 
+    @unittest.skipUnless(os.environ.get('PUBLIC_CLOSURE_TEST_BUNDLE'), 'Public integration bundle not selected.')
+    def test_captured_provider_and_module_artifacts_fail_closed(self):
+        import shutil
+        bundle = Path(os.environ['PUBLIC_CLOSURE_TEST_BUNDLE'])
+        selected = hashlib.sha256((bundle / 'manifest.json').read_bytes()).hexdigest()
+        closure.check(bundle, selected)
+        for mutation in ('provider', 'module', 'missing-provider', 'extra-module'):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                copy = Path(directory) / 'copy'
+                shutil.copytree(bundle, copy)
+                manifest = json.loads((copy / 'manifest.json').read_bytes())
+                packages = sorted(name for name in manifest['files'] if name.startswith('mirror/') and name.endswith('.zip'))
+                modules = sorted(name for name in manifest['files']
+                                 if name.startswith('root/.terraform/modules/') and name.endswith('.tf'))
+                self.assertTrue(packages and modules)
+                if mutation == 'provider':
+                    with (copy / packages[0]).open('ab') as package:
+                        package.write(b'changed public package')
+                elif mutation == 'module':
+                    (copy / modules[0]).write_text('changed module')
+                elif mutation == 'missing-provider':
+                    (copy / packages[0]).unlink()
+                else:
+                    (copy / 'root/.terraform/modules/extra.tf').write_text('extra')
+                with patch.object(closure.subprocess, 'run') as run:
+                    with self.assertRaises(closure.ClosureError):
+                        closure.verify(copy, 'terraform', selected)
+                    run.assert_not_called()
+
 if __name__ == '__main__':
     if os.name != 'posix':
         raise SystemExit('Linux filesystem tests are mandatory.')

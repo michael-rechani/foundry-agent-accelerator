@@ -27,9 +27,20 @@ jobs:
       - name: Reinstall and load schemas from offline verified packages
         run: |
           sudo unshare --net -- /usr/sbin/runuser -u "$(id -un)" -- /usr/bin/python3 "$PWD/.github/scripts/platform_dependency_closure.py" verify "$RUNNER_TEMP/public-closure" --terraform "$(command -v terraform)" --manifest-sha256 "$(sha256sum "$RUNNER_TEMP/public-closure/manifest.json" | cut -d ' ' -f 1)"
+      - name: Reject altered captured packages and modules before execution
+        env:
+          PUBLIC_CLOSURE_TEST_BUNDLE: ${{ runner.temp }}/public-closure
+        run: python3 -m unittest discover -s .github/scripts -p test_platform_dependency_closure.py -v
+      - name: Preserve modes in transport and verify archive round trip
+        run: |
+          tar -czf "$RUNNER_TEMP/public-closure.tar.gz" -C "$RUNNER_TEMP" public-closure
+          mkdir "$RUNNER_TEMP/closure-transport-check"
+          tar -xzf "$RUNNER_TEMP/public-closure.tar.gz" -C "$RUNNER_TEMP/closure-transport-check"
+          sudo unshare --net -- /usr/sbin/runuser -u "$(id -un)" -- /usr/bin/python3 "$PWD/.github/scripts/platform_dependency_closure.py" verify "$RUNNER_TEMP/closure-transport-check/public-closure" --terraform "$(command -v terraform)" --manifest-sha256 "$(sha256sum "$RUNNER_TEMP/public-closure/manifest.json" | cut -d ' ' -f 1)"
+          sha256sum "$RUNNER_TEMP/public-closure.tar.gz"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: generated-public-closure-not-reviewed
-          path: ${{ runner.temp }}/public-closure
+          path: ${{ runner.temp }}/public-closure.tar.gz
           include-hidden-files: true
           retention-days: 3
