@@ -180,5 +180,34 @@ print('Synthetic reduced-descriptor extraction failed closed with retained stagi
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         print(result.stdout.strip(), flush=True)
 
+    def test_gitless_cleanup_budget_refusal_preserves_complete_stage(self):
+        import derive_gitless_dependencies as derivation
+        import platform_dependency_closure as closure
+        from test_derive_gitless_dependencies import fixture
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            source = base / "source"
+            source.mkdir()
+            digest = fixture(source)
+            before = closure.inventory(source)
+            parent = base / "parent"
+            parent.mkdir(mode=0o700)
+            verify = derivation.verify_derived
+            def fail(wrapper, original, original_digest):
+                verify(wrapper, original, original_digest)
+                raise OSError("fictional ordinary derivation failure")
+            with patch.object(extractor, "MAX_CLEANUP_ENUMERATION", 0), patch.object(derivation, "verify_derived", fail), patch.object(extractor.os, "unlink", wraps=os.unlink) as unlink, patch.object(extractor.os, "rmdir", wraps=os.rmdir) as rmdir:
+                with self.assertRaisesRegex(derivation.DerivationError, "cleanup could not be verified"):
+                    derivation.derive(source, digest, parent, "out")
+                unlink.assert_not_called()
+                rmdir.assert_not_called()
+            stages = list(parent.iterdir())
+            self.assertEqual(len(stages), 1)
+            self.assertFalse((parent / "out").exists())
+            self.assertTrue((stages[0] / "bundle/manifest.json").is_file())
+            self.assertTrue((stages[0] / "derivation.json").is_file())
+            self.assertTrue((stages[0] / "bundle/root/main.tf").is_file())
+            self.assertEqual(closure.inventory(source), before)
+
 if __name__ == "__main__":
     unittest.main()
