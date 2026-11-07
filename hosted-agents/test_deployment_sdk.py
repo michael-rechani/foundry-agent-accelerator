@@ -136,6 +136,170 @@ class DeploymentSDKTests(unittest.TestCase):
             "allow_preview": True, "retry_total": 0, "connection_timeout": 30, "read_timeout": 60,
         })
 
+    def test_missing_wire_state_fields_fail_closed_before_creation(self):
+        for field in ("state", "configuration_state"):
+            with self.subTest(field=field):
+                def missing(**kwargs):
+                    details = self.get(**kwargs)
+                    del details[field]
+                    return details
+
+                self.client.agents.get.side_effect = missing
+                with self.assertRaisesRegex(RuntimeError, "explicitly enabled"):
+                    deploy(self.profile, self.args)
+                self.assert_no_agent_mutations()
+                self.client.agents.enable.assert_not_called()
+
+    def test_route_or_state_change_during_recovery_snapshot_prevents_creation(self):
+        for change in ("route", "state", "configuration_state"):
+            with self.subTest(change=change):
+                self.endpoint = deepcopy(self.original)
+                self.state = self.configuration_state = "enabled"
+
+                def changed(*, agent_name, agent_version):
+                    details = self.read_version(agent_name=agent_name, agent_version=agent_version)
+                    if change == "route":
+                        self.endpoint = self.route("3")
+                    else:
+                        setattr(self, change, "disabled")
+                    return details
+
+                self.client.agents.get_version.side_effect = changed
+                expected = "recovery route changed" if change == "route" else "explicitly enabled"
+                with self.assertRaisesRegex(RuntimeError, expected):
+                    deploy(self.profile, self.args)
+                self.assert_no_agent_mutations()
+                self.client.agents.enable.assert_not_called()
+
+    def test_recovery_version_identity_mismatch_prevents_creation(self):
+        def wrong(*, agent_name, agent_version):
+            return AgentVersionDetails({"name": "other", "version": agent_version, "status": "active"})
+
+        self.client.agents.get_version.side_effect = wrong
+        with self.assertRaisesRegex(RuntimeError, "not an active release"):
+            deploy(self.profile, self.args)
+        self.assert_no_agent_mutations()
+        self.client.agents.enable.assert_not_called()
+
+    def test_polled_candidate_identity_mismatch_prevents_smoke_and_promotion(self):
+        def wrong(*, agent_name, agent_version):
+            if agent_version == "2":
+                return AgentVersionDetails({"name": agent_name, "version": "3", "status": "active"})
+            return self.read_version(agent_name=agent_name, agent_version=agent_version)
+
+        self.client.agents.get_version.side_effect = wrong
+        with self.assertRaisesRegex(RuntimeError, "version identity was not confirmed"):
+            deploy(self.profile, self.args)
+        self.client.agents.create_version_from_code.assert_called_once()
+        self.candidate.assert_not_called()
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
+    def test_candidate_identity_change_after_smoke_prevents_promotion(self):
+        def checked(*args, **kwargs):
+            def wrong(*, agent_name, agent_version):
+                name = "other" if agent_version == "2" else agent_name
+                return AgentVersionDetails({"name": name, "version": agent_version, "status": "active"})
+
+            self.client.agents.get_version.side_effect = wrong
+
+        self.candidate.side_effect = checked
+        with self.assertRaisesRegex(RuntimeError, "candidate agent version is not active"):
+            deploy(self.profile, self.args)
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
+    def test_promoted_identity_mismatch_uses_guarded_rollback(self):
+        def wrong_after_update(**kwargs):
+            self.update(**kwargs)
+
+            def wrong(*, agent_name, agent_version):
+                version = "3" if agent_version == "2" else agent_version
+                return AgentVersionDetails({"name": agent_name, "version": version, "status": "active"})
+
+            self.client.agents.get_version.side_effect = wrong
+
+        self.client.agents.update_details.side_effect = wrong_after_update
+        with self.assertRaisesRegex(RuntimeError, "promoted agent version is not active"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.endpoint, self.original)
+        self.assertEqual(self.client.agents.update_details.call_count, 2)
+        self.smoke.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
+    def test_recovery_identity_mismatch_after_promotion_does_not_restore(self):
+        def fail_smoke(*args):
+            def wrong(*, agent_name, agent_version):
+                name = "other" if agent_version == "1" else agent_name
+                return AgentVersionDetails({"name": name, "version": agent_version, "status": "active"})
+
+            self.client.agents.get_version.side_effect = wrong
+            raise RuntimeError("fictional smoke failed")
+
+        self.smoke.side_effect = fail_smoke
+        with redirect_stdout(io.StringIO()) as output:
+            with self.assertRaisesRegex(RuntimeError, "fictional smoke failed"):
+                deploy(self.profile, self.args)
+        self.assertEqual(self.client.agents.update_details.call_count, 1)
+        self.assertIn("manual recovery required", output.getvalue())
+        self.assertNotIn("other", output.getvalue())
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
+    def test_administrative_state_flip_before_promotion_never_updates_route(self):
+        self.candidate.side_effect = lambda *args, **kwargs: setattr(self, "configuration_state", "disabled")
+        with self.assertRaisesRegex(RuntimeError, "explicitly enabled"):
+            deploy(self.profile, self.args)
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
+    def test_specialist_state_flip_before_promotion_never_updates_route(self):
+        profile = AgentProfile(
+            self.profile.source_directory, self.profile.name, self.profile.description,
+            self.profile.instructions, self.profile.smoke_test_prompt,
+            (("fictional prompt", "inspect", "specialist"),),
+        )
+        state = {"configuration_state": "enabled"}
+
+        def get_with_specialist(**kwargs):
+            details = self.get(**kwargs)
+            if kwargs["agent_name"] == "specialist":
+                details["configuration_state"] = state["configuration_state"]
+            return details
+
+        self.client.agents.get.side_effect = get_with_specialist
+        self.candidate.side_effect = lambda *args, **kwargs: state.update(configuration_state="disabled")
+        with self.assertRaisesRegex(RuntimeError, "explicitly enabled"):
+            deploy(profile, self.args)
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
+    def test_administrative_state_flip_after_promotion_blocks_rollback(self):
+        for value in ("disabled", None, "unknown", True):
+            with self.subTest(value=value):
+                self.endpoint = deepcopy(self.original)
+                self.state = self.configuration_state = "enabled"
+                self.client.agents.update_details.reset_mock()
+
+                def smoke(*args):
+                    self.configuration_state = value
+                    raise RuntimeError("fictional smoke failed")
+
+                self.smoke.side_effect = smoke
+                with redirect_stdout(io.StringIO()) as output:
+                    with self.assertRaisesRegex(RuntimeError, "fictional smoke failed"):
+                        deploy(self.profile, self.args)
+                self.assertEqual(self.client.agents.update_details.call_count, 1)
+                self.assertIn("manual recovery required", output.getvalue())
+                self.assertIn("retained version 2", output.getvalue())
+                self.client.agents.delete_version.assert_not_called()
+                self.client.agents.enable.assert_not_called()
+
     def test_parent_states_fail_closed_before_creation(self):
         for state, configuration in (("disabled", "enabled"), ("enabled", "disabled"),
                                       (None, "enabled"), ("enabled", None),
