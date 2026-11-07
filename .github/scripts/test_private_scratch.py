@@ -201,6 +201,7 @@ class PrivateScratchTests(TestCase):
         self.assertIn("stalled.bin", scratch._entries)
         scratch.cleanup()
         self.assertFalse(directory.exists())
+
     def _assert_child_setup_failure(self, failure_kind):
         scratch = PrivateScratch.create(str(self.parent))
         opened = {}

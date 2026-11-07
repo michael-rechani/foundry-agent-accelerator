@@ -182,6 +182,7 @@ class PrivateScratch:
                 view.release()
         finally:
             source.release()
+
     def create_directory(self, name):
         if not isinstance(name, str) or not _NAME.fullmatch(name):
             raise ScratchError("A single safe directory name is required.")

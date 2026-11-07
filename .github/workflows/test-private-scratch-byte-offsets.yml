@@ -1,0 +1,16 @@
+name: Test private scratch byte offsets
+on:
+  push:
+    branches: [michael-rechani-scratch-byte-offsets]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run private scratch unit tests
+        run: python3 -m unittest discover -s .github/scripts -p test_private_scratch.py -v
