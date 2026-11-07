@@ -288,7 +288,9 @@ def smoke_test(
     print(f"Smoke test passed: {expected_tool or agent_name}")
 
 
-def candidate_smoke_test(client, agent_name: str, version: str, prompt: str, checks) -> None:
+def candidate_smoke_test(
+    client, agent_name: str, version: str, prompt: str, checks, *, poll_seconds: int = 1, max_polls: int = 60,
+) -> None:
     from azure.ai.projects.models import VersionRefIndicator
 
     if not isinstance(version, str) or not version or version.startswith("@"):
@@ -302,11 +304,23 @@ def candidate_smoke_test(client, agent_name: str, version: str, prompt: str, che
     if not isinstance(session_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", session_id):
         raise RuntimeError("Candidate session has no safe ID; cleanup could not be confirmed")
     try:
-        indicator = getattr(session, "version_indicator", None)
-        if (getattr(indicator, "type", None) != "version_ref"
-                or getattr(indicator, "agent_version", None) != version
-                or getattr(session, "status", None) not in ("active", "idle")):
-            raise RuntimeError("Candidate session binding or status was not confirmed")
+        for attempt in range(max_polls):
+            indicator = getattr(session, "version_indicator", None)
+            if (getattr(session, "agent_session_id", None) != session_id
+                    or getattr(indicator, "type", None) != "version_ref"
+                    or getattr(indicator, "agent_version", None) != version):
+                raise RuntimeError("Candidate session binding or status was not confirmed")
+            status = getattr(session, "status", None)
+            if status in ("active", "idle"):
+                break
+            if status not in ("creating", "updating"):
+                raise RuntimeError("Candidate session binding or status was not confirmed")
+            if attempt + 1 == max_polls:
+                raise TimeoutError("Candidate session did not become ready")
+            time.sleep(poll_seconds)
+            session = client.agents.get_session(agent_name=agent_name, session_id=session_id)
+        else:
+            raise RuntimeError("Candidate session polling limit is invalid")
         smoke_test(client, agent_name, prompt, agent_session_id=session_id)
         for check in checks:
             smoke_test(client, agent_name, *check, agent_session_id=session_id)
@@ -558,7 +572,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                     candidate_check_in_progress = True
                     candidate_smoke_test(
                         client, args.agent_name, created.version, args.smoke_test_prompt,
-                        profile.delegation_checks,
+                        profile.delegation_checks, poll_seconds=args.poll_seconds, max_polls=args.max_polls,
                     )
                     candidate_check_in_progress = False
                 current_endpoint = client.agents.get(
