@@ -1,4 +1,4 @@
-name: Temporary fictional promotion regression
+name: Temporary fictional promotion regression v2
 on:
   push:
     branches:
