@@ -103,8 +103,39 @@ GitHub checkout action logs are separate from this sanitized helper output.
 Checks fail closed on unexpected official-script output, mismatched hashes,
 unsafe archives, unsupported platforms, or missing tools.
 
+## Offline process-identity correction (not execution approval)
+
+[CPython 3.14 `subprocess.py`](https://github.com/python/cpython/blob/v3.14.0/Lib/subprocess.py)
+waits/reaps before a successful `communicate()` returns. The previous unconditional
+numeric `killpg` afterward could therefore signal a recycled PID/process-group ID.
+The Linux launcher now drains pipes with selectors, observes its private child via
+`waitid(P_PIDFD, WEXITED | WNOHANG | WNOWAIT)`, and keeps the leader unreaped until
+its group has been signaled. An exited leader remains a zombie that pins its PID.
+A pidfd-bound child check and matching leader/group check precede every group signal;
+`wait()` is performed only afterward, with no further numeric signaling. An exited
+leader's same-group descendants are stopped before their inherited pipes are drained.
+The command retains its 180-second bound; post-signal leader reaping is bounded.
+
+Missing Linux support, a non-default SIGCHLD handler/disposition, multiple Python
+threads, an already-reaped leader, lost child binding, or mismatched group refuses
+supervision/signaling. No numeric fallback is used on pidfd acquisition failure.
+Acquisition, signaling, or reaping errors are failures, never proof of teardown.
+They can leave owned processes and scratch requiring independent operator handling.
+The standalone launcher must exclusively reap its private child, use normal native
+SIGCHLD flags (no SA_NOCLDWAIT), and run trusted code; Python-level checks cannot
+prove native signal flags, other native waiters, or a compromised same-UID host.
+Pidfds alone do not reserve a numeric group after reaping. Children escaping their
+original group/session are not contained or certified stopped by this change.
+
+Evidence is limited to synthetic owned Python children and mocked PID-reuse/error
+cases in non-root hosted CI. No actual Foundry dependency/setup script, Terraform,
+Azure identity, or protected/private-runner execution is exercised. Existing
+shared-workspace, recursive-cleanup, same-UID/host-trust, and escaped-descendant
+blockers remain. This branch must remain unmerged, and this correction does not
+authorize enabling or running the prerequisite workflow or claim cleanup isolation.
+
 Normal exits and handled interruption remove scratch in `finally`; command
-process groups are stopped before removal. An `always()` step retries cleanup
+owned process groups are signaled before removal only while leader ownership is retained; this is not proof that every descendant has exited. An `always()` step retries cleanup
 using this run's exclusive receipt and ownership marker, then removes only this
 run's source directory. Invalid ownership fails closed, without deleting an
 unowned directory. No software can guarantee cleanup after runner loss or a hard

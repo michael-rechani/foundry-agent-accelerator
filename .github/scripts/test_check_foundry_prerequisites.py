@@ -13,7 +13,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from urllib import error, request
 
 import check_foundry_prerequisites as probe
@@ -659,37 +659,137 @@ class FailureStageTests(unittest.TestCase):
 
 
 class ProcessTests(unittest.TestCase):
-    def test_process_group_stops_before_return_or_failure(self):
-        with (
-            patch.object(probe.subprocess, "Popen") as popen,
-            patch.object(probe.os, "killpg", create=True) as kill,
-            patch.object(probe.signal, "SIGKILL", 9, create=True),
-        ):
-            process = popen.return_value
-            process.pid = 123
-            process.returncode = 0
-            process.communicate.return_value = ("private-output", "private-error")
-            result = probe.command(["fake-bash", "fake-script"], Path("isolated"), {"HOME": "isolated"})
-            self.assertEqual(result.returncode, 0)
-            self.assertEqual(popen.call_args.kwargs["env"], {"HOME": "isolated"})
-            self.assertEqual(popen.call_args.kwargs["stdin"], subprocess.DEVNULL)
-            self.assertTrue(popen.call_args.kwargs["start_new_session"])
-            kill.assert_called_once_with(123, signal.SIGKILL)
-            process.wait.assert_called_once()
-            for failure in (subprocess.TimeoutExpired("fake", 1), probe.CheckError("interrupted")):
-                process.reset_mock()
-                kill.reset_mock()
-                process.communicate.side_effect = failure
+    def test_binding_loss_never_signals_reused_numeric_group(self):
+        process = MagicMock(pid=123, returncode=None)
+        for failure in (ChildProcessError("private-pid"), OSError("private-token")):
+            with self.subTest(failure=type(failure).__name__), \
+                    patch.object(probe.os, "waitid", side_effect=failure), \
+                    patch.object(probe.os, "killpg") as kill:
+                with self.assertRaises(probe.CheckError):
+                    probe._signal_owned_group(process, 456)
+                kill.assert_not_called()
+        process.returncode = 0
+        with patch.object(probe.os, "killpg") as kill:
+            with self.assertRaises(probe.CheckError):
+                probe._signal_owned_group(process, 456)
+            kill.assert_not_called()
+
+    def test_binding_lost_between_group_check_and_signal_is_refused(self):
+        process = MagicMock(pid=123, returncode=None)
+        with patch.object(probe.os, "waitid", side_effect=[None, ChildProcessError]), \
+                patch.object(probe.os, "getpgid", return_value=123), \
+                patch.object(probe.os, "killpg") as kill:
+            with self.assertRaises(probe.CheckError):
+                probe._signal_owned_group(process, 456)
+            kill.assert_not_called()
+
+    def test_wrong_group_or_wait_status_is_refused(self):
+        process = MagicMock(pid=123, returncode=None)
+        with patch.object(probe.os, "waitid", return_value=None), \
+                patch.object(probe.os, "getpgid", return_value=789), \
+                patch.object(probe.os, "killpg") as kill:
+            with self.assertRaises(probe.CheckError):
+                probe._signal_owned_group(process, 456)
+            kill.assert_not_called()
+        status = MagicMock(si_pid=789, si_code=os.CLD_EXITED)
+        with patch.object(probe.os, "waitid", return_value=status), \
+                patch.object(probe.os, "killpg") as kill:
+            with self.assertRaises(probe.CheckError):
+                probe._signal_owned_group(process, 456)
+            kill.assert_not_called()
+
+    def test_unsupported_supervision_refuses_to_launch(self):
+        for disposition in (signal.SIG_IGN, lambda *_args: None):
+            with self.subTest(disposition=disposition), \
+                    patch.object(probe.signal, "getsignal", return_value=disposition), \
+                    patch.object(probe.subprocess, "Popen") as popen:
+                with self.assertRaises(probe.CheckError):
+                    probe.command(["synthetic"], None, {})
+                popen.assert_not_called()
+        with patch.object(probe.threading, "active_count", return_value=2), \
+                patch.object(probe.subprocess, "Popen") as popen:
+            with self.assertRaises(probe.CheckError):
+                probe.command(["synthetic"], None, {})
+            popen.assert_not_called()
+
+    def test_pidfd_acquisition_failure_never_uses_numeric_fallback(self):
+        with patch.object(probe.subprocess, "Popen") as popen, \
+                patch.object(probe.os, "pidfd_open", side_effect=OSError("private-token")), \
+                patch.object(probe.os, "killpg") as kill:
+            with self.assertRaises(OSError):
+                probe.command(["synthetic"], None, {})
+            kill.assert_not_called()
+            popen.return_value.wait.assert_not_called()
+            popen.return_value.stdout.close.assert_called_once()
+            popen.return_value.stderr.close.assert_called_once()
+
+    def test_normal_exit_captures_output_and_signals_only_unreaped_owned_leader(self):
+        real_killpg = os.killpg
+        observations = []
+
+        def checked_killpg(pid, sig):
+            status = os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            self.assertIsNotNone(status)
+            self.assertEqual(status.si_pid, pid)
+            self.assertEqual(os.getpgid(pid), pid)
+            observations.append(pid)
+            real_killpg(pid, sig)
+
+        with patch.object(probe.os, "killpg", side_effect=checked_killpg):
+            result = probe.command(
+                [sys.executable, "-c", "import sys; print('synthetic'); print('synthetic-error', file=sys.stderr); sys.exit(7)"],
+                None, {"PATH": probe.SYSTEM_PATH},
+            )
+        self.assertEqual((result.returncode, result.stdout, result.stderr),
+                         (7, "synthetic\n", "synthetic-error\n"))
+        self.assertEqual(len(observations), 1)
+
+    def test_exited_leader_descendant_with_inherited_pipes_is_stopped(self):
+        script = "import os,time; child=os.fork(); print('synthetic', flush=True) if child else time.sleep(60)"
+        result = probe.command([sys.executable, "-c", script], None, {"PATH": probe.SYSTEM_PATH})
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "synthetic\n", ""))
+
+    def test_timeout_interrupt_and_io_error_cleanup_before_reaping(self):
+        for failure in (subprocess.TimeoutExpired("synthetic", 180), KeyboardInterrupt(),
+                        probe.CheckError("interrupted"), OSError("private-token")):
+            with self.subTest(failure=type(failure).__name__), \
+                    patch.object(probe.selectors, "DefaultSelector", side_effect=failure), \
+                    patch.object(probe.os, "killpg", wraps=os.killpg) as kill:
                 with self.assertRaises(type(failure)):
-                    probe.command(["fake"], Path("isolated"), {})
-                kill.assert_called_once_with(123, signal.SIGKILL)
-                process.wait.assert_called_once()
+                    probe.command([sys.executable, "-c", "import time; time.sleep(60)"], None,
+                                  {"PATH": probe.SYSTEM_PATH})
+                kill.assert_called_once()
+
+    def test_timeout_deadline_is_enforced_with_owned_synthetic_process(self):
+        with patch.object(probe.time, "monotonic", side_effect=[0, 181]), \
+                patch.object(probe.os, "killpg", wraps=os.killpg) as kill:
+            with self.assertRaises(subprocess.TimeoutExpired) as raised:
+                probe.command([sys.executable, "-c", "import time; time.sleep(60)"], None,
+                              {"PATH": probe.SYSTEM_PATH})
+            self.assertEqual(raised.exception.timeout, 180)
+            self.assertIsNone(raised.exception.output)
+            kill.assert_called_once()
+
+    def test_signal_error_is_reported_without_ambiguous_retry_or_reap(self):
+        process = MagicMock(pid=123, returncode=None)
+        with patch.object(probe.os, "waitid", return_value=None), \
+                patch.object(probe.os, "getpgid", return_value=123), \
+                patch.object(probe.os, "killpg", side_effect=PermissionError("private-token")) as kill:
+            with self.assertRaises(PermissionError) as raised:
+                probe._signal_owned_group(process, 456)
+            kill.assert_called_once()
+            process.wait.assert_not_called()
+            with contextlib.redirect_stdout(out := io.StringIO()), \
+                    contextlib.redirect_stderr(err := io.StringIO()):
+                probe.report_failure(raised.exception)
+            self.assertEqual((out.getvalue(), err.getvalue()),
+                             ("failure_stage=unexpected_io\n", "foundry_prerequisites_check_failed\n"))
 
     def test_unexpected_cli_exception_never_prints_traceback_or_private_details(self):
         script = """
 import runpy
 import sys
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 sys.argv = ["check_foundry_prerequisites.py"]
 with patch.dict("os.environ", {
     "GITHUB_REF": "refs/heads/main",
