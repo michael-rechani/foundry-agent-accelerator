@@ -324,6 +324,7 @@ try {
     Assert-Equal 'explicit-fixed' $script:publishedModels[-1] 'explicit agent model overrides the Router'
     Assert-Equal 0 $script:modelOutputReads 'explicit agent model does not read all platform outputs'
 
+    Remove-Variable AgentModel
     $AgentModel = $null
     $Stage = @('agents')
     $script:agentOutputs = $routerOutputs
@@ -355,6 +356,7 @@ try {
     } finally { Remove-Item Env:FOUNDRY_HOSTED_AGENT_NAME }
     $null = & python $validator --profile $script:profileFile --validate-profile --agent-name incompatible-test-override 2>&1
     if ($LASTEXITCODE -eq 0) { throw 'The real validator accepted an incompatible CLI name override.' }
+    $global:LASTEXITCODE = 0
 
     $CoordinatorProfile = $script:profileFile
     $Agent = @('application-review-agent', 'case-review-agent', 'review-coordinator-agent')
@@ -456,6 +458,7 @@ try {
     Assert-Equal $false (Test-Path Env:FOUNDRY_PROJECT_ENDPOINT) 'failed profile publication clears project environment'
     Assert-Equal $false (Test-Path Env:FOUNDRY_MODEL_NAME) 'failed profile publication clears model environment'
     $script:publicationError = $false
+    Remove-Variable CoordinatorProfile
     $CoordinatorProfile = $null
     $before = $script:validations
     Invoke-AgentsStage
