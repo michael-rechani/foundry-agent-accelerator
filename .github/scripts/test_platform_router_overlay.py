@@ -88,6 +88,19 @@ class OverlayTests(unittest.TestCase):
                     diagnostic.write_backend(root)
             self.assertEqual(target.read_text(), "external concurrent file")
 
+    def test_generation_rejects_concurrent_root_mutation(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.root(root)
+            real_open = Path.open
+            def mutation(path, *args, **kwargs):
+                if path.name == diagnostic.DIAGNOSTIC_OVERLAY and args and args[0] == "x":
+                    with real_open(root / "versions.tf", "w") as stream:
+                        stream.write("changed during overlay generation")
+                return real_open(path, *args, **kwargs)
+            with patch.object(Path, "open", mutation):
+                with self.assertRaisesRegex(diagnostic.CheckError, "changed during generation"):
+                    diagnostic.write_backend(root)
     @unittest.skipUnless(os.environ.get("PUBLIC_OVERLAY_BUNDLE"), "Public module/mirror fixture not selected.")
     def test_actual_root_module_graph_reinstall_validate_and_requirements(self):
         bundle = Path(os.environ["PUBLIC_OVERLAY_BUNDLE"])
