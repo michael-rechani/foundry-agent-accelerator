@@ -1,4 +1,5 @@
 import os
+from array import array
 from pathlib import Path
 import stat
 import sys
@@ -152,6 +153,53 @@ class PrivateScratchTests(TestCase):
         self.assertFalse((self.parent / scratch.name).exists())
 
 
+    def test_partial_byte_writes_preserve_formatted_memoryview_bytes(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        values = array("I", range(1, 24))
+        source = memoryview(values)
+        expected = source.cast("B").tobytes()
+        real_write = os.write
+        writes = []
+
+        def short_write(fd, view):
+            chunk = memoryview(view).cast("B")[:3]
+            written = real_write(fd, chunk)
+            writes.append(written)
+            return written
+
+        try:
+            with patch("private_scratch.os.write", side_effect=short_write):
+                scratch.create_file("formatted.bin", source)
+        finally:
+            source.release()
+        self.assertGreater(len(writes), 1)
+        self.assertTrue(all(count == 3 for count in writes))
+        self.assertEqual((self.parent / scratch.name / "formatted.bin").read_bytes(), expected)
+        scratch.cleanup()
+
+    def test_non_contiguous_memoryview_is_rejected_before_file_creation(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        source = memoryview(bytearray(b"01234567"))[::2]
+        try:
+            with self.assertRaisesRegex(TypeError, "contiguous"):
+                scratch.create_file("rejected.bin", source)
+        finally:
+            source.release()
+        self.assertEqual(scratch._entries, {})
+        self.assertEqual(list((self.parent / scratch.name).iterdir()), [])
+        scratch.cleanup()
+
+    def test_zero_progress_write_fails_and_leaves_only_owned_entry(self):
+        scratch = PrivateScratch.create(str(self.parent))
+        with patch("private_scratch.os.write", return_value=0):
+            with self.assertRaisesRegex(ScratchError, "did not make progress"):
+                scratch.create_file("stalled.bin", b"fictional")
+        directory = self.parent / scratch.name
+        self.assertEqual([path.name for path in directory.iterdir()], ["stalled.bin"])
+        self.assertEqual((directory / "stalled.bin").read_bytes(), b"")
+        self.assertIn("stalled.bin", scratch._entries)
+        scratch.cleanup()
+        self.assertFalse(directory.exists())
     def _assert_child_setup_failure(self, failure_kind):
         scratch = PrivateScratch.create(str(self.parent))
         opened = {}
