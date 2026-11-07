@@ -133,6 +133,63 @@ def assert_no_azapi_bypass(directory):
                 raise AssertionError("descendant module HCL contains provider routing syntax")
             _validate_hcl_structure(source)
 
+def _run_bundle_integration(testcase, bundle, terraform):
+    manifest = json.loads((bundle / "manifest.json").read_bytes())
+    testcase.assertEqual(manifest["source_sha"], diagnostic.DIAGNOSTIC_SOURCE_SHA)
+    testcase.assertEqual(manifest["terraform"], "1.16.4")
+    testcase.assertEqual(manifest["providers"]["registry.terraform.io/azure/azapi"], "2.12.0")
+    testcase.assertEqual(manifest["providers"]["registry.terraform.io/hashicorp/azurerm"], "4.81.0")
+    with tempfile.TemporaryDirectory() as folder:
+        base = Path(folder)
+        root = base / "terraform"
+        shutil.copytree(bundle / "root", root)
+        diagnostic.write_backend(root)
+        overlay = json.loads((root / diagnostic.DIAGNOSTIC_OVERLAY).read_text(encoding="utf-8"))
+        testcase.assertEqual(overlay["provider"]["azapi"], {"skip_provider_registration": True})
+        testcase.assertEqual(overlay["provider"]["modtm"], {"enabled": False})
+        existing_provider = (root / "providers.tf").read_text(encoding="utf-8")
+        testcase.assertEqual(existing_provider.count('provider "azapi" {'), 1)
+        testcase.assertIn("subscription_id = var.subscription_id", existing_provider)
+        testcase.assertNotRegex(existing_provider, r"(?im)^\s*alias\s*=")
+        home = base / "home"
+        home.mkdir(mode=0o700)
+        cli_config = home / "terraform.rc"
+        mirror = (bundle / "mirror").resolve().as_posix()
+        cli_config.write_text(
+            "disable_checkpoint = true\nprovider_installation {\n  filesystem_mirror {\n"
+            + f"    path = {json.dumps(mirror)}\n  }}\n}}\n", encoding="utf-8",
+        )
+        env = {
+            "PATH": os.environ["PATH"], "HOME": str(home), "LANG": "C.UTF-8",
+            "TF_CLI_CONFIG_FILE": str(cli_config), "TF_IN_AUTOMATION": "true",
+            "TF_INPUT": "0", "CHECKPOINT_DISABLE": "1",
+        }
+        def run(args):
+            result = subprocess.run(
+                [terraform, f"-chdir={root}", *args], env=env,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+            )
+            testcase.assertEqual(result.returncode, 0, f"captured public Terraform {args[0]} failed")
+            return result.stdout
+        version = json.loads(run(["version", "-json"]))
+        testcase.assertEqual(version["terraform_version"], "1.16.4")
+        run(["init", "-backend=false", "-get=false", "-input=false", "-lockfile=readonly", "-no-color"])
+        selections = json.loads(run(["version", "-json"]))["provider_selections"]
+        testcase.assertEqual(selections, manifest["providers"])
+        modules_path = root / ".terraform" / "modules" / "modules.json"
+        manifest_modules = json.loads(modules_path.read_text(encoding="utf-8")).get("Modules")
+        testcase.assertIsInstance(manifest_modules, list)
+        descendants = [entry for entry in manifest_modules if isinstance(entry, dict) and entry.get("Key")]
+        testcase.assertTrue(descendants, "captured Terraform module closure must be present")
+        for entry in descendants:
+            module_root = (root / entry["Dir"]).resolve()
+            testcase.assertTrue(module_root.is_relative_to(root.resolve()))
+            testcase.assertTrue(module_root.is_dir())
+            assert_no_azapi_bypass(module_root)
+        validation = json.loads(run(["validate", "-json"]))
+        testcase.assertIs(validation.get("valid"), True)
+        testcase.assertEqual(validation.get("error_count"), 0)
+
 class AzapiRegistrationOverlayTests(unittest.TestCase):
     def test_hcl_provider_routing_is_rejected_conservatively(self):
         cases = {
@@ -220,89 +277,66 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
                 with self.assertRaisesRegex(AssertionError, "could not be inspected"):
                     assert_no_azapi_bypass(Path(folder))
 
-    def test_mocked_validation_result_control_flow(self):
-        completed = subprocess.CompletedProcess(
-            args=["terraform", "validate"], returncode=0,
-            stdout=b'{"valid":false,"error_count":1}', stderr=b"",
-        )
-        with mock.patch("subprocess.run", return_value=completed) as run:
-            result = subprocess.run(["terraform", "validate", "-json"], check=False)
-        self.assertEqual(run.call_count, 1)
-        self.assertEqual(result.returncode, 0)
-        validation = json.loads(result.stdout)
-        self.assertIs(validation.get("valid"), False)
-        self.assertEqual(validation.get("error_count"), 1)
+    def test_mocked_integration_control_flow(self):
+        providers = {
+            "registry.terraform.io/azure/azapi": "2.12.0",
+            "registry.terraform.io/hashicorp/azurerm": "4.81.0",
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            bundle = Path(folder)
+            root = bundle / "root"
+            module = root / "modules" / "model-router"
+            module.mkdir(parents=True)
+            (root / "providers.tf").write_text(
+                'provider "azapi" { subscription_id = var.subscription_id }', encoding="utf-8"
+            )
+            (module / "versions.tf").write_text(
+                'terraform { required_providers { azapi = { source = "Azure/azapi" } } }',
+                encoding="utf-8",
+            )
+            (bundle / "mirror").mkdir()
+            (bundle / "manifest.json").write_text(json.dumps({
+                "source_sha": diagnostic.DIAGNOSTIC_SOURCE_SHA,
+                "terraform": "1.16.4", "providers": providers,
+            }), encoding="utf-8")
+
+            def write_overlay(root_path):
+                (root_path / diagnostic.DIAGNOSTIC_OVERLAY).write_text(json.dumps({
+                    "provider": {
+                        "azapi": {"skip_provider_registration": True},
+                        "modtm": {"enabled": False},
+                    }
+                }), encoding="utf-8")
+
+            def fake_run(command, **kwargs):
+                root_path = Path(command[1].split("=", 1)[1])
+                arguments = command[2:]
+                if arguments[0] == "init":
+                    modules_path = root_path / ".terraform" / "modules"
+                    modules_path.mkdir(parents=True)
+                    (modules_path / "modules.json").write_text(json.dumps({
+                        "Modules": [{"Key": "model-router", "Dir": "modules/model-router"}]
+                    }), encoding="utf-8")
+                    output = b""
+                elif arguments[0] == "version":
+                    output = json.dumps({
+                        "terraform_version": "1.16.4", "provider_selections": providers,
+                    }).encode()
+                elif arguments[0] == "validate":
+                    output = b'{"valid":true,"error_count":0}'
+                else:
+                    raise AssertionError("unexpected mocked Terraform command")
+                return subprocess.CompletedProcess(command, 0, output, b"")
+
+            with mock.patch.object(diagnostic, "write_backend", side_effect=write_overlay), \
+                    mock.patch("subprocess.run", side_effect=fake_run) as run:
+                _run_bundle_integration(self, bundle, "mock-terraform")
+            self.assertEqual(run.call_count, 4)
     @unittest.skipUnless(os.environ.get("PUBLIC_OVERLAY_BUNDLE") and os.environ.get("OVERLAY_TERRAFORM"), "requires credential-free public closure fixture")
     def test_actual_reviewed_root_init_validate_and_descendant_provider_graph(self):
         terraform = shutil.which(os.environ.get("OVERLAY_TERRAFORM", "terraform"))
         self.assertTrue(terraform, "pinned Terraform executable required")
-        bundle = Path(os.environ["PUBLIC_OVERLAY_BUNDLE"])
-        manifest = json.loads((bundle / "manifest.json").read_bytes())
-        self.assertEqual(manifest["source_sha"], diagnostic.DIAGNOSTIC_SOURCE_SHA)
-        self.assertEqual(manifest["terraform"], "1.16.4")
-        self.assertEqual(manifest["providers"]["registry.terraform.io/azure/azapi"], "2.12.0")
-        self.assertEqual(manifest["providers"]["registry.terraform.io/hashicorp/azurerm"], "4.81.0")
-
-        with tempfile.TemporaryDirectory() as folder:
-            base = Path(folder)
-            root = base / "terraform"
-            shutil.copytree(bundle / "root", root)
-            diagnostic.write_backend(root)
-            overlay = json.loads((root / diagnostic.DIAGNOSTIC_OVERLAY).read_text(encoding="utf-8"))
-            self.assertEqual(overlay["provider"]["azapi"], {"skip_provider_registration": True})
-            self.assertEqual(overlay["provider"]["modtm"], {"enabled": False})
-            existing_provider = (root / "providers.tf").read_text(encoding="utf-8")
-            self.assertEqual(existing_provider.count('provider "azapi" {'), 1)
-            self.assertIn("subscription_id = var.subscription_id", existing_provider)
-            self.assertNotRegex(existing_provider, r"(?im)^\s*alias\s*=")
-
-            home = base / "home"
-            home.mkdir(mode=0o700)
-            cli_config = home / "terraform.rc"
-            mirror = (bundle / "mirror").resolve().as_posix()
-            cli_config.write_text(
-                "disable_checkpoint = true\nprovider_installation {\n  filesystem_mirror {\n"
-                + f"    path = {json.dumps(mirror)}\n  }}\n}}\n",
-                encoding="utf-8",
-            )
-            env = {
-                "PATH": os.environ["PATH"],
-                "HOME": str(home),
-                "LANG": "C.UTF-8",
-                "TF_CLI_CONFIG_FILE": str(cli_config),
-                "TF_IN_AUTOMATION": "true",
-                "TF_INPUT": "0",
-                "CHECKPOINT_DISABLE": "1",
-            }
-
-            def run(args):
-                result = subprocess.run(
-                    [terraform, f"-chdir={root}", *args], env=env,
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
-                )
-                self.assertEqual(result.returncode, 0, f"captured public Terraform {args[0]} failed")
-                return result.stdout
-
-            version = json.loads(run(["version", "-json"]))
-            self.assertEqual(version["terraform_version"], "1.16.4")
-            run(["init", "-backend=false", "-get=false", "-input=false", "-lockfile=readonly", "-no-color"])
-            selections = json.loads(run(["version", "-json"]))["provider_selections"]
-            self.assertEqual(selections, manifest["providers"])
-
-            modules_path = root / ".terraform" / "modules" / "modules.json"
-            manifest_modules = json.loads(modules_path.read_text(encoding="utf-8")).get("Modules")
-            self.assertIsInstance(manifest_modules, list)
-            descendants = [entry for entry in manifest_modules if isinstance(entry, dict) and entry.get("Key")]
-            self.assertTrue(descendants, "captured Terraform module closure must be present")
-            for entry in descendants:
-                module_root = (root / entry["Dir"]).resolve()
-                self.assertTrue(module_root.is_relative_to(root.resolve()))
-                self.assertTrue(module_root.is_dir())
-                assert_no_azapi_bypass(module_root)
-
-            validation = json.loads(run(["validate", "-json"]))
-            self.assertIs(validation.get("valid"), True)
-            self.assertEqual(validation.get("error_count"), 0)
+        _run_bundle_integration(self, Path(os.environ["PUBLIC_OVERLAY_BUNDLE"]), terraform)
 
 
 if __name__ == "__main__":
