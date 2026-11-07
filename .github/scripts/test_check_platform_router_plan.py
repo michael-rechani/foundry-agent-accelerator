@@ -237,6 +237,97 @@ class SourceAndTerraformTests(unittest.TestCase):
                         instance.command(*args)
                 self.assertEqual(command.call_count, 1)
 
+    def run_fixture(self, failure=None):
+        state = json.dumps(state_object()).encode()
+        private_inputs = b'{"value": "private-input-content"}'
+        calls = []
+
+        class FakeBlobs:
+            def __init__(self, environ):
+                self.counts = {}
+                self.asserted_name = environ["PLATFORM_INPUT_BLOB"]
+
+            def snapshot(self, name):
+                calls.append(("snapshot", name))
+                self.counts[name] = self.counts.get(name, 0) + 1
+                later = self.counts[name] > 1
+                if name == diagnostic.PLATFORM_STATE:
+                    if failure == "state" and later:
+                        return b"changed", "new-etag", {}
+                    return state, "new-etag" if later else "old-etag", {}
+                if name != self.asserted_name:
+                    raise AssertionError("Unexpected blob access")
+                if failure == "inputs" and later:
+                    return private_inputs, "new-etag", {}
+                return private_inputs, "input-etag", {}
+
+        class FakeTerraform:
+            def __init__(self, root, scratch, environ, inputs):
+                calls.append(("terraform-init",))
+                if inputs != private_inputs or not (root / diagnostic.DIAGNOSTIC_OVERLAY).is_file():
+                    raise AssertionError("The reviewed source and protected inputs are required")
+
+            def inputs_resolved(self):
+                calls.append(("console",))
+                result = values()
+                if failure == "principal":
+                    result["deployment_principal_id"] = SUBSCRIPTION
+                if failure == "secret":
+                    result["jumpbox_secret_required"] = True
+                return result
+
+            def full_plan(self):
+                calls.append(("plan",))
+                result = plan()
+                if failure == "drift":
+                    result["resource_changes"][-1]["change"]["actions"] = ["update"]
+                if failure == "plan":
+                    result["complete"] = False
+                return result, 2
+
+        def fake_stage(scratch, runtime, *, kind):
+            self.assertEqual(kind, "platform")
+            root = scratch / "staged"
+            (root / "modules" / "model-router").mkdir(parents=True)
+            reviewed_root(root)
+            if failure == "source":
+                (root / "model-router.tf").unlink()
+            (root / "modules" / "model-router" / "main.tf").write_text("", encoding="utf-8")
+            return root
+
+        with tempfile.TemporaryDirectory() as folder:
+            environ = environment(folder)
+            environ["TF_PLATFORM_INPUT_BLOB"] = INPUT_NAME
+            with (patch.object(lab, "validate_backend"),
+                  patch.object(diagnostic, "PlatformBlobs", FakeBlobs),
+                  patch.object(diagnostic, "PlatformTerraform", FakeTerraform),
+                  patch.object(diagnostic, "stage_sources", side_effect=fake_stage),
+                  contextlib.redirect_stdout(io.StringIO()) as output):
+                if failure:
+                    with self.assertRaises(diagnostic.CheckError):
+                        diagnostic.run(environ)
+                else:
+                    diagnostic.run(environ)
+            self.assertEqual(list(Path(folder).iterdir()), [])
+        for value in (ACCOUNT, PRINCIPAL, "private-input-content", INPUT_NAME, "private-lineage"):
+            self.assertNotIn(value, output.getvalue())
+        self.assertNotIn(("apply",), calls)
+        if failure in ("principal", "secret", "source"):
+            self.assertNotIn(("plan",), calls)
+        elif not failure:
+            self.assertIn(("plan",), calls)
+            self.assertIn('"router_deployment": "create"', output.getvalue())
+            self.assertIn("no infrastructure apply ran", output.getvalue())
+            self.assertEqual(
+                [item for item in calls if item[0] == "snapshot"],
+                [("snapshot", diagnostic.PLATFORM_STATE), ("snapshot", INPUT_NAME),
+                 ("snapshot", diagnostic.PLATFORM_STATE), ("snapshot", INPUT_NAME)],
+            )
+        elif failure != "drift":
+            self.assertEqual(output.getvalue(), "")
+        else:
+            self.assertIn('"known_unrelated_changes": [', output.getvalue())
+
     def test_full_diagnostic_is_redacted_plan_only_and_cleans_scratch(self):
         self.run_fixture()
 
