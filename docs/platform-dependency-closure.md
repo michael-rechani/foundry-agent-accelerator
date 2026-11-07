@@ -163,3 +163,10 @@ Official Terraform references:
 [provider mirror](https://developer.hashicorp.com/terraform/cli/commands/providers/mirror),
 [filesystem mirror configuration](https://developer.hashicorp.com/terraform/cli/config/config-file#provider-installation),
 and [init options](https://developer.hashicorp.com/terraform/cli/commands/init).
+
+A separate [bounded Linux extraction prototype](platform-dependency-extraction.md)
+now validates this recorded GNU tar.gz format and its exact selected digest before
+extraction; hostile synthetic and actual retained-archive tests passed. It remains
+unintegrated and does not establish provenance, trusted same-UID/host isolation or
+an immutable credentialed handoff. Its constraints are narrower than generic tar
+and it does not make retained `.git` metadata trusted.
