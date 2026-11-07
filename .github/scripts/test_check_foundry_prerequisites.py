@@ -659,6 +659,68 @@ class FailureStageTests(unittest.TestCase):
 
 
 class ProcessTests(unittest.TestCase):
+    def test_full_command_never_signals_numeric_group_after_reaping(self):
+        process = MagicMock(pid=123, returncode=None)
+        process.stdout.encoding = process.stderr.encoding = "utf-8"
+        process.stdout.errors = process.stderr.errors = "strict"
+        selector = MagicMock()
+        selector.get_map.return_value = {}
+        status = MagicMock(si_pid=123, si_code=os.CLD_EXITED)
+        events = []
+
+        def observe(*_args):
+            if "reaped" in events:
+                raise ChildProcessError("numeric PID is now reused")
+            return status
+
+        def signal_group(pid, sig):
+            self.assertNotIn("reaped", events)
+            self.assertEqual((pid, sig), (123, signal.SIGKILL))
+            events.append("signaled")
+
+        def reap(**kwargs):
+            self.assertEqual(events, ["signaled"])
+            self.assertEqual(kwargs, {"timeout": 5})
+            events.append("reaped")
+            process.returncode = 0
+            return 0
+
+        process.wait.side_effect = reap
+        with patch.object(probe.subprocess, "Popen", return_value=process), \
+                patch.object(probe.os, "pidfd_open", return_value=456), \
+                patch.object(probe.os, "close"), \
+                patch.object(probe.os, "set_blocking"), \
+                patch.object(probe.os, "getpgid", return_value=123), \
+                patch.object(probe.os, "waitid", side_effect=observe) as waitid, \
+                patch.object(probe.os, "killpg", side_effect=signal_group) as kill, \
+                patch.object(probe.selectors, "DefaultSelector") as factory:
+            factory.return_value.__enter__.return_value = selector
+            result = probe.command(["synthetic"], None, {})
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+        self.assertEqual(events, ["signaled", "reaped"])
+        kill.assert_called_once()
+        for call in waitid.call_args_list:
+            self.assertEqual(call.args, (os.P_PIDFD, 456, os.WEXITED | os.WNOHANG | os.WNOWAIT))
+        process.communicate.assert_not_called()
+        process.poll.assert_not_called()
+        process.stdout.close.assert_called_once()
+        process.stderr.close.assert_called_once()
+
+    def test_full_command_lost_binding_refuses_signal_and_reaping(self):
+        process = MagicMock(pid=123, returncode=None)
+        with patch.object(probe.subprocess, "Popen", return_value=process), \
+                patch.object(probe.os, "pidfd_open", return_value=456), \
+                patch.object(probe.os, "close"), \
+                patch.object(probe.os, "set_blocking"), \
+                patch.object(probe.os, "waitid", side_effect=ChildProcessError("private-pid")), \
+                patch.object(probe.os, "killpg") as kill:
+            with self.assertRaises(probe.CheckError):
+                probe.command(["synthetic"], None, {})
+            kill.assert_not_called()
+            process.wait.assert_not_called()
+        process.stdout.close.assert_called_once()
+        process.stderr.close.assert_called_once()
+
     def test_binding_loss_never_signals_reused_numeric_group(self):
         process = MagicMock(pid=123, returncode=None)
         for failure in (ChildProcessError("private-pid"), OSError("private-token")):
