@@ -84,7 +84,7 @@ func TestActualOperatorChainsAtASTDepthThreshold(t *testing.T) {
 	}{
 		{"just below", MaxASTDepth - 1, []string{"unsupported_expression"}},
 		{"exactly at", MaxASTDepth, []string{"unsupported_expression"}},
-		{"just above", MaxASTDepth + 1, []string{"bounds_refused"}},
+		{"just above", MaxASTDepth + 1, []string{"bounds_refused", "unsupported_expression"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -101,7 +101,7 @@ func TestActualOperatorChainsAtASTDepthThreshold(t *testing.T) {
 			if result.Outcome != "refused" || !reflect.DeepEqual(result.Categories, test.categories) {
 				t.Fatalf("wrong exact refusal categories: %+v", result)
 			}
-			if result.Nodes > evidence.nodes || evidence.nodes > MaxNodes || (test.depth <= MaxASTDepth && result.Nodes != evidence.nodes) || (test.depth > MaxASTDepth && result.Nodes != 0) {
+			if result.Nodes > evidence.nodes || evidence.nodes > MaxNodes || (test.depth <= MaxASTDepth && result.Nodes != evidence.nodes) || (test.depth > MaxASTDepth && result.Nodes >= evidence.nodes) {
 				t.Fatal("reported count does not match complete processing of this case")
 			}
 			t.Logf("terms=%d bytes=%d tokens=%d lexical_depth=%d ast_depth=%d visited_nodes=%d",
@@ -152,7 +152,7 @@ func TestOperatorBudgetExactBoundary(t *testing.T) {
 		categories   []string
 		earlyRefusal bool
 	}{
-		{"at budget", MaxOperatorTokens, []string{"bounds_refused"}, false},
+		{"at budget", MaxOperatorTokens, []string{"bounds_refused", "unsupported_expression"}, false},
 		{"above budget", MaxOperatorTokens + 1, []string{"bounds_refused"}, true},
 	}
 	for _, test := range tests {
@@ -170,7 +170,7 @@ func TestOperatorBudgetExactBoundary(t *testing.T) {
 			if test.earlyRefusal && (result.Nodes != 0 || result.Objects != 0 || result.ObjectKeys != 0) {
 				t.Fatal("above-budget input reached AST analysis")
 			}
-			if !test.earlyRefusal && result.Nodes != 0 {
+			if !test.earlyRefusal && (result.Nodes <= 0 || result.Nodes >= evidence.nodes) {
 				t.Fatal("at-budget input did not stop at the AST-depth limit")
 			}
 			t.Logf("operator_budget operators=%d bytes=%d tokens=%d ast_depth=%d independent_nodes=%d analyzer_nodes=%d",
@@ -279,7 +279,7 @@ func TestBoundedAnalyzerStopsAtNodeCountThreshold(t *testing.T) {
 	state := &analysis{categories: make(map[string]bool)}
 	state.walk(body)
 	result := state.finish()
-	if state.result.Nodes != MaxNodes || result.Nodes != 0 || state.categories["provider_block"] || result.Outcome != "refused" ||
+	if result.Nodes != MaxNodes || result.Outcome != "refused" ||
 		!reflect.DeepEqual(result.Categories, []string{"bounds_refused"}) {
 		t.Fatalf("node threshold failed to stop before the forbidden tail: %+v", result)
 	}

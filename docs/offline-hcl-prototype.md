@@ -59,8 +59,8 @@ evaluated values, but every traversal step must pass the explicit attribute-only
 allowlist described below. All other expression types are refused, including function
 calls, operators, indexing, splats, comprehensions, template controls, and all
 interpolation, including constant interpolation. Nested expressions/blocks and
-every object constructor are visited; a routing refusal does not end AST
-visitation early. Body duplicate attributes are rejected by the parser before
+every object constructor are visited unless the bounded walk is truncated.
+Routing refusals alone do not end visitation; node/depth/key limits do. Body duplicate attributes are rejected by the parser before
 analysis; duplicate object keys are rejected by the prototype.
 
 No expression `Value` method, evaluation context, external function, module
@@ -83,10 +83,12 @@ attributes are still refused.
 
 Inputs must be nonempty and at most 65536 bytes. The pinned lexer processes the
 input before the analyzer checks a maximum of 8192 tokens, lexical nesting of
-32, and 256 specified structural operator tokens. AST depth 128 and node count
-16384 are refusal/reporting thresholds only: `hclsyntax.Walk` does not prune
-after either is reached. See the measured cases and their limits below. None of
-these thresholds proves a hard parser/walker stack, memory, or time bound.
+32, and 256 specified structural operator tokens. The bounded post-parse revision
+limits processed walker nodes to 16384 and processed-node depth to 128, and
+separately limits eager object-key entries to 16384, using an exact internal
+stop signal. One rejecting Enter callback can occur at the excess depth/count.
+These are visitation limits, not general lexer/parser/helper stack, memory, or
+time bounds. See the revision and limitations below.
 
 ## Pinned dependency and evidence identities
 
@@ -114,10 +116,10 @@ exceptions. The successful run verified all downloaded modules and required
 
 | Tested file under `.github/offline-hcl-prototype` | Git blob |
 | --- | --- |
-| `analyzer.go` | `0da59505b3861caf08446952fb83f315d20653d1` |
+| `analyzer.go` | `c4df281c548e1caed82ddcf367371e9ae4c52c58` |
 | `analyzer_test.go` | `a2376fe15276c39a45dc705f54f7fb95cba698d0` |
 | `traversal_test.go` | `d8e5c764c70c1c0d2dd481b7936d8093c9638515` |
-| `ast_bounds_test.go` | `648d3c5a727980352c6d5253598f85815f863f7f` |
+| `ast_bounds_test.go` | `eda2fe2fce69d32c9b718164a02f8e1966de9967` |
 | `go.mod` | `55d5890a9bf5287923c1319d9363f72400c5d6a3` |
 | `go.sum` | `046687d7d66f447e1e737be3c1b6c147ab26e178` |
 
@@ -167,7 +169,7 @@ was configured.
 
 After validation, `.github/workflows/hcl-syntax-prototype.yml` was removed.
 The final documentation/removal head is recorded in the session handoff.
-Final source and manifest blobs match the later AST-bounds tested head below.
+For the original branch, source and manifest blobs matched its AST-bounds tested head. The new bounded branch identities are recorded in the final revision section.
 Existing workflows and all parent files other than the isolated prototype
 analyzer and this documentation remain byte-identical to the correction base.
 The conservative HCL/JSON scanner and runtime/protected gates are unchanged.
@@ -212,7 +214,11 @@ head is recorded in the session handoff. No captured artifact or real closure
 source was read.
 
 
-### AST refusal thresholds and operator budget
+### Historical AST refusal thresholds and operator budget
+
+The following measurements describe the earlier non-aborting prototype.
+The separate bounded post-parse revision at the end supersedes its analyzer
+visitation behavior; historical observations and failures remain recorded.
 
 The prior implementation's `MaxASTDepth=128` and `MaxNodes=16384` are
 **refusal/reporting thresholds, not hard walker resource bounds**.
@@ -370,3 +376,96 @@ runner or artifact access. The offline compile probe first failed for missing
 public packages; only then were modules downloaded and verified. The temporary
 workflow was removed after testing; existing workflows and runtime/protected
 gates remain unchanged. No PR or merge was made.
+
+## Bounded post-parse AST visitation revision
+
+This separate unmerged revision is based on exact synthetic-prototype head
+`00c2aa6d98cbc2ff91874ad0a3c300a961569ce9`. It is still disconnected from the
+conservative scanner and all runtime/protected gates. It does not inspect the
+real closure or authorize any protected operation.
+
+The analyzer now invokes upstream `hclsyntax.Walk` through a narrowly scoped
+internal stop handler. Before processing an Enter callback, it refuses if the
+current active walker depth is already 128 or 16384 nodes have already been
+processed. A unique, nonzero-sized private pointer is then panicked to unwind
+the complete walk immediately, before upstream can descend into that node's
+children or subsequent siblings. Recovery recognizes only that exact pointer
+identity; unrelated panics are re-panicked. No evaluation or artifact code is
+executed.
+
+The guarantee is specifically: at most 16384 nodes receive analyzer processing,
+and every processed node has active upstream walker depth at most 128. The
+next Enter callback/frame may be invoked by upstream at depth 129, but stops
+before counters, classification or child descent.
+This is not a bound on lexer/parser recursion, all Go stack frames, AST
+construction, allocations, total CPU/memory/time or host resources.
+
+The eager object-key loop separately processes at most 16384 object entries
+across the analysis, checking its budget before decoding each next key. It
+uses the same private stop signal on excess. This caps entry iterations, not
+the cost of an individual key. Key interpretation may recursively unwrap
+parentheses and inspect parser-produced literals; traversal-step allowlist
+loops and other visitor helper work are not independently bounded by the
+walker-depth limit. No claim of general bounded visitor computation is made.
+Finite input/operator limits and these visitation caps do not establish a
+security sandbox, Terraform/evaluator or module-graph bounds, source
+authenticity, or approval of any dependency closure.
+
+Within-bound, untruncated source decisions and counts retain the prior
+predicate. Every truncated result is refused and includes `bounds_refused`,
+with counts limited to the visited prefix. Additional prefix categories and
+counts can depend on upstream body-attribute map order; they cannot attest to
+an unvisited tail, and deterministic reporting is not guaranteed for truncated
+inputs. Original repeated-result fuzz coverage remains, but finite passing
+fuzzing does not disprove this order limitation. Internal walker state is
+single-use after truncation because unwinding skips Exit callbacks; the public
+Analyze call always creates fresh state.
+
+Deterministic tests exercise fabricated AST depth and node counts just below,
+exactly at and just above both limits. Within-bound literal/tuple walks remain
+accepted; over-bound walks refuse. A wide fabricated AST has a forbidden
+provider only after the node threshold, followed by an invalid tail that would
+panic if visited: neither tail is visited, and the result remains refused.
+Separate tests cover eager
+object-key boundaries and an over-budget forbidden key, and unexpected upstream
+panic propagation. Existing parser-backed operator, inert text,
+traversal-index, strict refusal and original fuzz tests remain.
+Fabricated ASTs demonstrate post-parse behavior, not that an admitted source
+can reach every tested shape under byte/token/lexical/operator limits.
+
+The earlier fuzz deadline remains unexplained. The historical debug-wrapper
+`pipefail` caveat and actual per-command Go success evidence are retained
+above. Successful finite tests/fuzzing do not resolve that deadline or prove
+reliability or a worst-case bound.
+
+New branch: `michael-rechani-hcl-bounded-walk-20261107`.
+Exactly two hosted runs were used:
+
+| Run | Tested head | Actual result |
+| --- | --- | --- |
+| [42426703029](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42426703029) | `c75ee7d06b7b2bd048a0ae95530562d1dc721ca4` | All synthetic tests and vet passed; 96.6% statement coverage; original 10-second, two-worker fuzz target passed with 109931 reported executions |
+| [42426843043](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42426843043) | `21d5f0696b385dab445410479ff582b9d504e56c` | Failed before analyzer tests: added canonical-result experiment's test had a missing brace (`expected '(', found TestBoundedWalkDepthTailNotVisited`); vet and fuzz did not run |
+
+The second, unvalidated canonical-output experiment was withdrawn after the
+two-run ceiling was reached. Final analyzer and test blobs were restored to
+the exact first-run passing versions, not to an untested repaired version.
+The map-order limitation above remains explicit. No additional run or rerun
+was made to hide the failure.
+
+| Final tested file under `.github/offline-hcl-prototype` | Git blob |
+| --- | --- |
+| `analyzer.go` | `c4df281c548e1caed82ddcf367371e9ae4c52c58` |
+| `ast_bounds_test.go` | `eda2fe2fce69d32c9b718164a02f8e1966de9967` |
+| `bounded_walk_test.go` | `ac6abd268b2b1cbee7bdb972f9bacecd460d6c27` |
+
+Original analyzer tests, traversal tests, fuzz stress tests and dependency
+manifests remain byte-identical to the exact base. The temporary workflow used
+pinned checkout/setup-go actions, triggering exact SHA, credential persistence
+disabled, non-root Ubuntu 24.04 and Go 1.26.8, with `contents: read` only.
+Dependencies were downloaded only after the offline compile probe reported
+missing modules, then verified without manifest changes. Both jobs used direct
+Go commands, not the retired piped debug wrapper. The temporary workflow was
+removed after testing; all original workflows remain unchanged. No secrets,
+GitHub Environment, OIDC, private runner, Terraform/provider, Azure/Foundry,
+real source/artifact, sudo, Docker or namespaces were used. No PR or merge was
+opened, and the original prototype branch remains at its base head.
