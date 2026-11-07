@@ -1,3 +1,4 @@
+import contextlib
 import http.client
 import io
 import os
@@ -37,11 +38,13 @@ class FixtureConnection:
     raw = b""
     made = []
     failure = None
+    close_failure = None
 
     def __init__(self, host, port, timeout, context):
         self.host, self.port, self.timeout, self.context = host, port, timeout, context
         self.calls = []
         self.closed = False
+        self.close_attempts = 0
         self.__class__.made.append(self)
 
     def request(self, method, path, headers):
@@ -55,7 +58,10 @@ class FixtureConnection:
         return response
 
     def close(self):
+        self.close_attempts += 1
         self.closed = True
+        if self.close_failure:
+            raise RuntimeError(self.close_failure)
 
 
 def wire(status=200, headers=HEADERS, body=b"data"):
@@ -73,6 +79,7 @@ class TransportTests(unittest.TestCase):
         FixtureConnection.raw = wire()
         FixtureConnection.made = []
         FixtureConnection.failure = None
+        FixtureConnection.close_failure = None
         self.real_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         self.context = mock.Mock(spec=ssl.SSLContext)
         self.context_patch = mock.patch.object(transport.ssl, "SSLContext", return_value=self.context)
@@ -194,6 +201,58 @@ class TransportTests(unittest.TestCase):
         self.assertTrue(FixtureConnection.made[-1].closed)
         self.context.load_verify_locations.side_effect = ValueError(FixtureConnection.failure)
         self.assertIsNone(transport.SnapshotTransport.create(TARGETS, TOKEN, "/fictional/ca.pem"))
+
+    def test_successful_response_failed_close_is_redacted_failure(self):
+        FixtureConnection.close_failure = "fictional-close-token fictional-close-body"
+        output, errors = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+            result = self.reader("input")
+        self.assertIsNone(result)
+        self.assertEqual(FixtureConnection.made[-1].close_attempts, 1)
+        self.assertEqual((output.getvalue(), errors.getvalue()), ("", ""))
+
+    def test_failed_request_failed_close_is_redacted_failure(self):
+        FixtureConnection.failure = "fictional-request-token fictional-request-body"
+        FixtureConnection.close_failure = "fictional-close-token fictional-close-body"
+        output, errors = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+            result = self.reader("input")
+        self.assertIsNone(result)
+        self.assertEqual(FixtureConnection.made[-1].close_attempts, 1)
+        self.assertEqual((output.getvalue(), errors.getvalue()), ("", ""))
+
+    def test_post_close_failure_precedes_diagnostic_outcome(self):
+        for fails in (False, True):
+            with self.subTest(fails=fails):
+                FixtureConnection.close_failure = None
+                FixtureConnection.made = []
+                called = []
+
+                def diagnostic():
+                    called.append(True)
+                    FixtureConnection.close_failure = "fictional-close-token fictional-close-body"
+                    if fails:
+                        raise RuntimeError("fictional-diagnostic-token fictional-diagnostic-body")
+                    return guard.DIAGNOSTIC_SUCCESS
+
+                output, errors = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+                    outcome = guard.guarded_diagnostic(TARGETS, self.reader, diagnostic)
+                self.assertEqual(outcome, guard.UNVERIFIED)
+                self.assertEqual(called, [True])
+                self.assertEqual([connection.host for connection in FixtureConnection.made],
+                                 ["state.example.invalid", "input.example.invalid"] * 2)
+                self.assertTrue(all(connection.close_attempts == 1
+                                    for connection in FixtureConnection.made))
+                self.assertEqual((output.getvalue(), errors.getvalue()), ("", ""))
+
+    def test_baseline_close_failure_skips_diagnostic_and_rechecks_both(self):
+        FixtureConnection.close_failure = "fictional-close-token fictional-close-body"
+        diagnostic = mock.Mock(return_value=guard.DIAGNOSTIC_SUCCESS)
+        self.assertEqual(guard.guarded_diagnostic(TARGETS, self.reader, diagnostic), guard.UNVERIFIED)
+        diagnostic.assert_not_called()
+        self.assertEqual([connection.host for connection in FixtureConnection.made],
+                         ["state.example.invalid", "input.example.invalid"] * 2)
 
     def test_unknown_profile_preserved_then_guard_rejects(self):
         FixtureConnection.raw = wire(headers=HEADERS + (("x-ms-access-tier", "Hot"),))

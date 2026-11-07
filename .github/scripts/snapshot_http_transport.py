@@ -1,4 +1,5 @@
 """Unintegrated full-GET snapshot transport; callers must establish authority."""
+import contextlib
 import http.client
 import os
 import re
@@ -49,56 +50,49 @@ class SnapshotTransport:
             return FAILURE
 
     def __call__(self, role):
-        connection = None
         try:
             if type(role) is not str or role not in ROLES:
                 return FAILURE
             identity = dict(self._targets)[role]
             target = urlsplit(identity)
-            connection = http.client.HTTPSConnection(
+            with contextlib.closing(http.client.HTTPSConnection(
                 target.netloc, port=443, timeout=TIMEOUT, context=self._context
-            )
-            connection.debuglevel = 0
-            connection.request(
-                "GET", target.path,
-                headers={
-                    "Authorization": "Bearer " + self._token,
-                    "x-ms-date": formatdate(usegmt=True),
-                    "x-ms-version": "2023-11-03",
-                    "Accept-Encoding": "identity",
-                    "Connection": "close",
-                },
-            )
-            response = connection.getresponse()
-            if response.status != 200 or response.headers.defects:
-                return FAILURE
-            headers = tuple(response.headers.raw_items())
-            if not 0 < len(headers) <= 128:
-                return FAILURE
-            names = []
-            for name, value in headers:
-                if (type(name) is not str or re.fullmatch(r"[A-Za-z0-9-]{1,128}", name) is None
-                        or type(value) is not str or len(value) > 8192
-                        or any(ord(char) < 32 or ord(char) > 126 for char in value)):
+            )) as connection:
+                connection.debuglevel = 0
+                connection.request(
+                    "GET", target.path,
+                    headers={
+                        "Authorization": "Bearer " + self._token,
+                        "x-ms-date": formatdate(usegmt=True),
+                        "x-ms-version": "2023-11-03",
+                        "Accept-Encoding": "identity",
+                        "Connection": "close",
+                    },
+                )
+                response = connection.getresponse()
+                if response.status != 200 or response.headers.defects:
                     return FAILURE
-                names.append(name.lower())
-            if len(set(names)) != len(names):
-                return FAILURE
-            fields = dict(zip(names, (value for _, value in headers)))
-            length = fields.get("content-length", "")
-            if (re.fullmatch(r"[1-9][0-9]{0,7}", length) is None
-                    or int(length) > MAX_BODY or "transfer-encoding" in fields
-                    or "content-range" in fields):
-                return FAILURE
-            body = response.read(int(length))
-            if type(body) is not bytes or len(body) != int(length):
-                return FAILURE
-            return {"identity": identity, "status": 200, "body": body, "headers": headers}
+                headers = tuple(response.headers.raw_items())
+                if not 0 < len(headers) <= 128:
+                    return FAILURE
+                names = []
+                for name, value in headers:
+                    if (type(name) is not str or re.fullmatch(r"[A-Za-z0-9-]{1,128}", name) is None
+                            or type(value) is not str or len(value) > 8192
+                            or any(ord(char) < 32 or ord(char) > 126 for char in value)):
+                        return FAILURE
+                    names.append(name.lower())
+                if len(set(names)) != len(names):
+                    return FAILURE
+                fields = dict(zip(names, (value for _, value in headers)))
+                length = fields.get("content-length", "")
+                if (re.fullmatch(r"[1-9][0-9]{0,7}", length) is None
+                        or int(length) > MAX_BODY or "transfer-encoding" in fields
+                        or "content-range" in fields):
+                    return FAILURE
+                body = response.read(int(length))
+                if type(body) is not bytes or len(body) != int(length):
+                    return FAILURE
+                return {"identity": identity, "status": 200, "body": body, "headers": headers}
         except BaseException:
             return FAILURE
-        finally:
-            if connection is not None:
-                try:
-                    connection.close()
-                except BaseException:
-                    pass

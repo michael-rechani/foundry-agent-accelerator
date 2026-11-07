@@ -29,7 +29,11 @@ HTTP parsing also imposes its own header-line and count limits.
 
 The callback returns exactly the guard's record shape or `None`, which the guard
 rejects. It suppresses exception details, does not log tokens or response data,
-and discards exceptions from connection cleanup. This is not a security sandbox:
+and converts connection cleanup failure to the same fixed failure, even after a
+valid response. Cleanup failure at a post-boundary remains snapshot instability,
+which takes precedence over any diagnostic success or failure. A failed close
+does not prove that the connection or worker has been terminated. This is not a
+security sandbox:
 the invoking process, same-UID peers, host administrators, installed runtime,
 mocked or instrumented libraries, CA file and environment all require separate
 trust. Secret-bearing objects remain in process memory. Network DNS, private
@@ -58,7 +62,7 @@ full record contract. It is not reused or modified. Fictional mock HTTP tests
 exercise transport mechanics only; they do not prove a real authenticated Azure
 endpoint, network isolation, private DNS or a host sandbox.
 
-## Synthetic hosted evidence
+## Original mock-only hosted evidence
 
 The tested head was `e6c42c09b88d05ca1839fce5660b29c8383b9076` in the
 `michael-rechani-snapshot-http-offline` branch.
@@ -72,6 +76,36 @@ settings. Tests and their mocked errors, endpoints, headers and bodies were
 fictional. A hosted runner may have potential sudo access; this is not evidence
 of adversarial host or same-UID isolation.
 
-The temporary workflow is restored on the final branch to its original base
-blob; no live workflow integration is introduced. Transport and test blobs in
-the final branch are identical to the tested head.
+In that original branch, the temporary workflow was restored to its original base
+blob, and transport and test blobs matched the tested head. This earlier evidence
+does not include the cleanup correction or the real loopback TLS tests below.
+
+## Offline cleanup and loopback TLS follow-up
+
+The follow-up uses a separate offline branch based on
+`cad1ed3cd5aa7e9d6cc3b0df566be128ec6a923a`. Connection closure now runs inside
+the exception-redacted boundary: a valid response with a failing close, and a
+failed request with a failing close, both produce `None`. Fictional secret
+canaries exercise both paths without returning exceptions or printing details.
+Additional guard tests preserve post-snapshot-instability precedence over either
+diagnostic outcome and skip the diagnostic after an invalid baseline.
+
+`test_snapshot_http_tls.py` generates fresh fictional CA, unrelated CA and server
+certificates with local OpenSSL in a temporary directory. The server binds only
+IPv4 loopback on an ephemeral unprivileged port. A test-only socket mapping sends
+the selected fictional hosts' port-443 connections to that listener while
+preserving the original hostname, SNI and Host header. Non-loopback TCP connects,
+`connect_ex` and DNS resolution are rejected by the test harness.
+The tests use real TLS, not a mocked SSL context: the selected CA and matching
+hostname succeed, wrong hostname fails before an HTTP request, and an unrelated
+selected CA fails even when the trusted CA is supplied via ambient default-CA
+environment variables. Ambient proxy settings do not redirect a successful read.
+The loopback worker has bounded socket waits and is joined before fixture exit;
+temporary keys and certificates are removed and never committed or uploaded.
+
+These tests exercise actual local certificate verification and the transport's
+read-only HTTP mechanics. They still do not establish real Azure authentication,
+target or CA authority, least-privilege RBAC, private DNS/endpoint routing, host
+or same-UID isolation, non-atomic snapshot safety or production total-deadline
+supervision. No production integration, live workflow, PR, merge, rollout, plan
+or apply is introduced.
