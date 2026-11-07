@@ -1,0 +1,27 @@
+name: Test AzAPI registration overlay
+
+on:
+  push:
+    branches: [michael-rechani-azapi-registration-guard]
+
+permissions:
+  contents: read
+
+jobs:
+  offline-overlay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: "1.16.4"
+          terraform_wrapper: false
+      - name: Run focused overlay regressions
+        run: python3 -m unittest discover -s .github/scripts -p test_platform_router_overlay.py -v
+      - name: Initialize and validate exact public root without a backend
+        env:
+          OVERLAY_TERRAFORM: terraform
+        run: python3 .github/scripts/test_azapi_registration_overlay.py -v
