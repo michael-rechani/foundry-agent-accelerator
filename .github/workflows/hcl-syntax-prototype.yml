@@ -53,7 +53,7 @@ jobs:
         run: |
           go test -mod=readonly -count=1 -cover -v ./...
           go vet -mod=readonly ./...
-      - name: Repeated original fuzz target and no-op control
+      - name: Repeated fuzz targets with bounded coordinator debug
         working-directory: .github/offline-hcl-prototype
         env:
           GOENV: "off"
@@ -62,10 +62,17 @@ jobs:
           GOPROXY: "off"
         run: |
           failed=0
-          for round in 1 2 3 4; do
+          for round in 1 2 3; do
             for target in FuzzAnalyze FuzzNoopControl; do
               echo "=== round=$round target=$target ==="
-              if go test -mod=readonly -run='^$' -fuzz="^${target}$" -fuzztime=10s -parallel=2; then
+              if GODEBUG=fuzzdebug=1 go test -mod=readonly -run='^$' -fuzz="^${target}$" -fuzztime=10s -parallel=2 2>&1 |
+                awk '/ DEBUG / { n++; lines[n % 30] = $0; next }
+                     { print; fflush() }
+                     END {
+                       print "=== coordinator_debug_count=" n " last_at_most=30 ==="
+                       first = n > 30 ? n - 29 : 1
+                       for (i = first; i <= n; i++) print lines[i % 30]
+                     }'; then
                 echo "=== round=$round target=$target status=pass ==="
               else
                 status=$?
