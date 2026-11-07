@@ -311,12 +311,22 @@ omitting it retains existing path-based behavior.
 On this opt-in byte-bound path, coordinator `name` and every specialist `agent`
 reference must meet the published [Foundry agent-name contract](https://learn.microsoft.com/en-us/azure/foundry/reference/rest/agents-create-agent-agents-create-agent-from-code):
 1-63 ASCII characters, alphanumeric at both ends, with only alphanumerics and
-hyphens inside. One-character and numeric-leading names are allowed. Underscores,
+hyphens inside. One-character names are allowed. Underscores,
 leading/trailing hyphens, 64-character names, and non-ASCII names fail offline
 before any batch approval or publication. Tool names such as
 `inspect_application` are a different namespace and keep their existing rules.
+API-valid names alone are not enough for specialist references. Their original
+registry must also pass the existing `configuration.validate_specialists`
+used by the coordinator's `configured_specialists()` runtime function. The
+supported intersection requires a letter first for specialist endpoints:
+numeric-leading specialists, including `7`, fail with an explicit offline error
+before any batch approval or publication. Numeric-leading coordinator names
+remain supported because the coordinator name is not constrained by that
+runtime specialist registry validator.
+
 The deployment check reuses shared profile schema and self-delegation validation
-with validation-only endpoint aliases; actual names and bindings are preserved.
+with validation-only endpoint aliases, and validates the original specialist
+registry with the real runtime validator; actual names and bindings are preserved.
 It does not change `configuration.py`'s shared runtime semantics or the legacy
 path-only deployment behavior.
 

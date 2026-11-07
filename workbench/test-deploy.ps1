@@ -382,7 +382,9 @@ try {
     }
     $script:useRealProfileValidation = $true
     foreach ($field in 'coordinator', 'specialist') {
-        foreach ($name in '_coordinator', 'agent_name', '-agent', 'agent-', ('a' * 64), "caf$([char]0x00e9)", '-') {
+        $invalidNames = @('_coordinator', 'agent_name', '-agent', 'agent-', ('a' * 64), "caf$([char]0x00e9)", '-')
+        if ($field -eq 'specialist') { $invalidNames += @('7', ('9' + ('a' * 62))) }
+        foreach ($name in $invalidNames) {
             $configuration = $fictionalProfile | ConvertTo-Json -Depth 5 | ConvertFrom-Json -AsHashtable
             if ($field -eq 'coordinator') { $configuration.name = $name } else { $configuration.specialists[0].agent = $name }
             Set-Content -LiteralPath $script:profileFile -Value ($configuration | ConvertTo-Json -Depth 5)

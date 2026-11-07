@@ -11,7 +11,7 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 
-from configuration import validate_profile
+from configuration import validate_profile, validate_specialists
 
 
 class ProfileTests(unittest.TestCase):
@@ -100,6 +100,8 @@ class ProfileTests(unittest.TestCase):
         read.assert_called_once_with()
         self.assertEqual(execute.call_args.args[0].instructions, self.profile["instructions"])
         self.assertEqual(execute.call_args.args[1], [])
+        registry = json.loads(dict(execute.call_args.args[0].environment_variables)["SPECIALIST_CONFIG"])
+        self.assertEqual(validate_specialists(registry), self.profile["specialists"])
 
     def test_digest_validation_checks_bytes_without_publication(self):
         directory = Path(__file__).resolve().parent
@@ -138,7 +140,8 @@ class ProfileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             profile_path = Path(temporary) / "fictional-names.json"
             for field in ("coordinator", "specialist"):
-                for name in ("A", "7", "A--Z", "9" + "a" * 62):
+                names = ("A", "7", "A--Z", "9" + "a" * 62) if field == "coordinator" else ("A", "A--Z", "A" + "9" * 62)
+                for name in names:
                     configuration = copy.deepcopy(self.profile)
                     configuration["specialists"][0]["tool"] = "inspect_application"
                     configuration["smoke_tests"][0]["tool"] = "inspect_application"
@@ -164,8 +167,39 @@ class ProfileTests(unittest.TestCase):
                                 self.assertEqual(profile.name, configuration["name"])
                                 self.assertEqual(profile.delegation_checks[0][1:], (
                                     "inspect_application", configuration["specialists"][0]["agent"]))
-                                self.assertEqual(json.loads(dict(profile.environment_variables)["SPECIALIST_CONFIG"]),
-                                                 configuration["specialists"])
+                                registry = json.loads(dict(profile.environment_variables)["SPECIALIST_CONFIG"])
+                                self.assertEqual(validate_specialists(registry), configuration["specialists"])
+
+    def test_byte_bound_numeric_specialists_fail_before_validation_or_publication(self):
+        directory = Path(__file__).resolve().parent
+        sys.path.insert(0, str(directory.parent))
+        import deployment
+        with tempfile.TemporaryDirectory() as temporary:
+            profile_path = Path(temporary) / "fictional-runtime-names.json"
+            for name in ("7", "9" + "a" * 62):
+                configuration = copy.deepcopy(self.profile)
+                configuration["specialists"][0]["agent"] = name
+                content = json.dumps(configuration).encode("utf-8")
+                profile_path.write_bytes(content)
+                for validate_only in (True, False):
+                    argv = [str(directory / "deploy.py"), "--profile", str(profile_path),
+                            "--profile-sha256", hashlib.sha256(content).hexdigest()]
+                    if validate_only:
+                        argv.append("--validate-profile")
+                    with self.subTest(name=name, validate_only=validate_only), patch.object(deployment, "run") as execute, patch.object(sys, "argv", argv):
+                        with self.assertRaisesRegex(ValueError, "numeric-leading specialist endpoint names"):
+                            runpy.run_path(str(directory / "deploy.py"), run_name="__main__")
+                        execute.assert_not_called()
+
+    def test_byte_bound_sample_registry_passes_exact_runtime_validation(self):
+        path = Path(__file__).with_name("deploy.py")
+        spec = importlib.util.spec_from_file_location("runtime_registry_profile", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        example = path.parent / "profiles" / "evidence-review.example.json"
+        selected = module.profile_from_file(example, hashlib.sha256(example.read_bytes()).hexdigest())
+        registry = json.loads(dict(selected.environment_variables)["SPECIALIST_CONFIG"])
+        self.assertEqual(validate_specialists(registry), json.loads(example.read_text(encoding="utf-8"))["specialists"])
 
     def test_byte_bound_invalid_endpoint_names_never_reach_publication(self):
         directory = Path(__file__).resolve().parent
@@ -216,8 +250,8 @@ class ProfileTests(unittest.TestCase):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         self_delegating = copy.deepcopy(self.profile)
-        self_delegating["name"] = "7"
-        self_delegating["specialists"][0]["agent"] = "7"
+        self_delegating["name"] = "A"
+        self_delegating["specialists"][0]["agent"] = "A"
         before = copy.deepcopy(self_delegating)
         with self.assertRaisesRegex(ValueError, "cannot delegate to itself"):
             module.validate_deployment_profile(self_delegating)
@@ -255,6 +289,7 @@ class ProfileTests(unittest.TestCase):
         example = json.loads((path.parent / "profiles" / "evidence-review.example.json").read_text(encoding="utf-8"))
         self.assertEqual(profile.instructions, example["instructions"])
         specialists = json.loads(dict(profile.environment_variables)["SPECIALIST_CONFIG"])
+        self.assertEqual(validate_specialists(specialists), specialists)
         self.assertEqual(len(specialists), 2)
         self.assertEqual({(check[1], check[2]) for check in profile.delegation_checks},
                          {(item["tool"], item["agent"]) for item in specialists})

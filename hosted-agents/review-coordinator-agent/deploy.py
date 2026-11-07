@@ -10,7 +10,7 @@ SOURCE_DIRECTORY = Path(__file__).resolve().parent
 sys.path.insert(0, str(SOURCE_DIRECTORY.parent))
 
 from deployment import AgentProfile, run
-from configuration import DEFAULT_SPECIALISTS, validate_profile
+from configuration import DEFAULT_SPECIALISTS, validate_profile, validate_specialists
 
 
 def profile_digest(value: str) -> str:
@@ -26,7 +26,7 @@ def deployment_endpoint_alias(value: object) -> str:
             "with hyphens only in the middle"
         )
     # Shared runtime validation needs a letter first; this validation-only prefix
-    # preserves endpoint equality and self-delegation checks, including numeric names.
+    # preserves endpoint equality and self-delegation checks for numeric coordinator names.
     return "a" + value
 
 
@@ -43,6 +43,12 @@ def validate_deployment_profile(value):
             for item in value["specialists"]
         ],
     }
+    if any(item["agent"][0].isdigit() for item in value["specialists"]):
+        raise ValueError(
+            "Byte-bound deployment does not support numeric-leading specialist endpoint names: "
+            "the existing coordinator runtime requires a letter first"
+        )
+    validate_specialists(value["specialists"])
     validate_profile(checked)
     return value
 
