@@ -623,3 +623,28 @@ only these evidence docs and workflow restoration. No local project execution,
 Azure, protected data, real provider, PR, merge or live integration occurred.
 Non-root hosted tests do not independently establish adversarial host/token
 isolation. Ruff availability and independently approved deployment remain #522 gates.
+
+### Completed focused Ruff check
+
+A later explicitly approved follow-up closes the missing-Ruff gap for the denial
+helper and test only. Exact tested head
+`01e214fca7c3f8e45c56138a4a56c32e6f474795` passed
+[run 42419999680](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42419999680)
+on non-root hosted Python 3.14.10. First the chosen focused
+`python -m ruff check --config ruff.toml .github/scripts/reconcile_runner_state.py .github/scripts/test_reconcile_runner_state.py`
+failed specifically `No module named ruff`; only then was repository-pinned
+`ruff==0.17.3` installed into the job's temporary isolated package directory.
+The exact focused check then **passed**, with existing root configuration and
+validation pin unchanged. No lint fixes were needed: helper and test bytes are
+identical to previous final `bde11fc2ef045feccaebc63cc6a69af79b3266b0`.
+`python -m unittest discover -s .github/scripts -p test_reconcile_runner_state.py -v`
+also **passed all 35 mocked tests**, using sanitized child environment and refusing
+real Terraform availability. This is not repository-wide lint evidence.
+
+The temporary manual workflow was restored exactly to original blob
+`13fea116e0cd70aa8f5d8cabcb9b893743e23c95` after that test, without subsequent
+dispatch. Only this scoped evidence addition remains versus the previous final;
+all executable/test blobs match the tested head. No local project execution,
+Azure/private runner/protected data, real Terraform/provider, sudo/Docker,
+privileged setup, PR or merge was performed. Logging, host/credential and
+independent live-approval limitations above remain unchanged; #522 tracks them.
