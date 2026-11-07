@@ -114,29 +114,37 @@ def _iter_source_files(directory):
             raise AssertionError("descendant module source tree could not be inspected") from None
 
 
+def assert_no_azapi_bypass_bytes(name, raw):
+    """Use the identical conservative parser on bounded, verified archive bytes."""
+    try:
+        source = raw.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+    except UnicodeError:
+        raise AssertionError("descendant module source is unreadable or invalid") from None
+    if name.endswith(".tf.json"):
+        try:
+            document = json.loads(
+                source,
+                object_pairs_hook=_unique_json_object,
+                parse_constant=_reject_json_constant,
+            )
+        except (json.JSONDecodeError, ValueError):
+            raise AssertionError("descendant module JSON is malformed or ambiguous") from None
+        if not isinstance(document, dict):
+            raise AssertionError("descendant module JSON has an unexpected root shape")
+        if _contains_provider_reference(document):
+            raise AssertionError("descendant module JSON contains provider routing syntax")
+    else:
+        if _has_routing_marker(source):
+            raise AssertionError("descendant module HCL contains provider routing syntax")
+        _validate_hcl_structure(source)
+
 def assert_no_azapi_bypass(directory):
     for path in sorted(_iter_source_files(directory)):
         try:
-            source = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeError):
+            raw = path.read_bytes()
+        except OSError:
             raise AssertionError("descendant module source is unreadable or invalid") from None
-        if path.name.endswith(".tf.json"):
-            try:
-                document = json.loads(
-                    source,
-                    object_pairs_hook=_unique_json_object,
-                    parse_constant=_reject_json_constant,
-                )
-            except (json.JSONDecodeError, ValueError):
-                raise AssertionError("descendant module JSON is malformed or ambiguous") from None
-            if not isinstance(document, dict):
-                raise AssertionError("descendant module JSON has an unexpected root shape")
-            if _contains_provider_reference(document):
-                raise AssertionError("descendant module JSON contains provider routing syntax")
-        else:
-            if _has_routing_marker(source):
-                raise AssertionError("descendant module HCL contains provider routing syntax")
-            _validate_hcl_structure(source)
+        assert_no_azapi_bypass_bytes(path.name, raw)
 
 def _run_bundle_integration(testcase, bundle, terraform):
     manifest = json.loads((bundle / "manifest.json").read_bytes())
