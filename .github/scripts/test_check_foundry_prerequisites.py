@@ -146,7 +146,7 @@ class PrerequisiteTests(unittest.TestCase):
             self.assertEqual(path, "/usr/bin:/bin")
             return "/bin/bash"
         self.assertEqual(name, "azd")
-        self.assertIn(path, (None, probe.SYSTEM_PATH))
+        self.assertEqual(path, probe.SYSTEM_PATH)
         return str(self.temp / "shared-azd") if self.installed else None
 
     def fake_command(self, args, cwd, env):
@@ -205,6 +205,29 @@ class PrerequisiteTests(unittest.TestCase):
         self.link.assert_called_once_with(shared.resolve())
         self.assertEqual(shared.read_bytes(), b"do-not-change")
         self.assertEqual(list(self.temp.iterdir()), [shared])
+
+    def test_untrusted_inherited_path_never_selects_an_existing_azd(self):
+        untrusted = self.temp / "untrusted-bin"
+        untrusted.mkdir()
+        executable = untrusted / "azd"
+        executable.write_bytes(b"untrusted-never-execute")
+
+        def lookup(name, path=None):
+            if name == "azd" and path is None:
+                return str(executable)
+            return self.fake_which(name, path)
+
+        with patch.dict(os.environ, {"PATH": str(untrusted)}):
+            self.which.side_effect = lookup
+            self.assertEqual(self.invoke()[0], 0)
+        self.assertEqual(self.downloads, [probe.SKILL_URL, probe.AZD_URL])
+        self.link.assert_not_called()
+        self.assertEqual(
+            [call.kwargs for call in self.which.call_args_list if call.args == ("azd",)],
+            [{"path": probe.SYSTEM_PATH}],
+        )
+        self.assertEqual(executable.read_bytes(), b"untrusted-never-execute")
+        self.assertEqual(list(self.temp.iterdir()), [untrusted])
 
     def test_skill_checksum_mismatch_never_executes_anything(self):
         with patch.object(probe, "SKILL_SHA256", "0" * 64):
@@ -567,7 +590,7 @@ class WorkflowTests(unittest.TestCase):
         workflow = self.workflow()
         for expected in (
             "workflow_dispatch:", "if: github.ref == 'refs/heads/main' && github.ref_protected",
-            "runs-on: [self-hosted, lab-runner]", "environment: terraform-state",
+            "runs-on: [self-hosted, linux, lab-runner]", "environment: terraform-state",
             "contents: read", "cancel-in-progress: false", "timeout-minutes: 10",
             "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
             "persist-credentials: false", "clean: false", "show-progress: false",
@@ -618,11 +641,33 @@ class WorkflowTests(unittest.TestCase):
                     capture_output=True, text=True, timeout=10, check=False,
                 )
 
+            for key in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"):
+                for invalid in ("", "0", "01", "-1", "../unowned", "1/../../unowned", "1\n2", "abc", None):
+                    for block in blocks:
+                        with self.subTest(key=key, invalid=invalid, block=blocks.index(block)):
+                            if invalid is None:
+                                env.pop(key, None)
+                            else:
+                                env[key] = invalid
+                            rejected = execute(block)
+                            self.assertEqual(
+                                (rejected.returncode, rejected.stdout, rejected.stderr),
+                                (1, "", "prerequisite_run_context_invalid\n"),
+                            )
+                            self.assertEqual(list(root.iterdir()), [unowned])
+                            self.assertEqual(unowned.read_bytes(), b"preserve")
+                env[key] = "12345" if key == "GITHUB_RUN_ID" else "1"
+
             reserved = execute(blocks[0])
             self.assertEqual((reserved.returncode, reserved.stdout, reserved.stderr), (0, "", ""))
             source = root / "foundry-prerequisite-source-12345-1"
             sentinel = source / "do-not-overwrite"
             sentinel.write_bytes(b"fixture")
+            env["GITHUB_RUN_ATTEMPT"] = "../unowned"
+            rejected = execute(blocks[2])
+            self.assertEqual((rejected.returncode, rejected.stdout, rejected.stderr), (1, "", "prerequisite_run_context_invalid\n"))
+            self.assertEqual(sentinel.read_bytes(), b"fixture")
+            env["GITHUB_RUN_ATTEMPT"] = "1"
             repeated = execute(blocks[0])
             self.assertEqual((repeated.returncode, repeated.stdout, repeated.stderr), (1, "", "prerequisite_source_reservation_failed\n"))
             self.assertEqual(sentinel.read_bytes(), b"fixture")

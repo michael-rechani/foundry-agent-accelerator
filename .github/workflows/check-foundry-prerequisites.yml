@@ -14,7 +14,7 @@ jobs:
   check:
     if: github.ref == 'refs/heads/main' && github.ref_protected
     timeout-minutes: 10
-    runs-on: [self-hosted, lab-runner]
+    runs-on: [self-hosted, linux, lab-runner]
     environment: terraform-state
     permissions:
       contents: read
@@ -28,6 +28,10 @@ jobs:
           set +x
           set -euo pipefail
           umask 077
+          if [[ ! "${GITHUB_RUN_ID:-}" =~ ^[1-9][0-9]*$ || ! "${GITHUB_RUN_ATTEMPT:-}" =~ ^[1-9][0-9]*$ ]]; then
+            echo "prerequisite_run_context_invalid" >&2
+            exit 1
+          fi
           source_dir="foundry-prerequisite-source-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           if ! mkdir -- "$source_dir" 2>/dev/null; then
             echo "prerequisite_source_reservation_failed" >&2
@@ -52,12 +56,20 @@ jobs:
       - name: Check the actual pinned skill with isolated tool state
         run: |
           set +x
+          if [[ ! "${GITHUB_RUN_ID:-}" =~ ^[1-9][0-9]*$ || ! "${GITHUB_RUN_ATTEMPT:-}" =~ ^[1-9][0-9]*$ ]]; then
+            echo "prerequisite_run_context_invalid" >&2
+            exit 1
+          fi
           python3 "foundry-prerequisite-source-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/checkout/.github/scripts/check_foundry_prerequisites.py"
       - name: Remove only this run's scratch and source
         if: always() && steps.source.outcome == 'success'
         run: |
           set +x
           set -uo pipefail
+          if [[ ! "${GITHUB_RUN_ID:-}" =~ ^[1-9][0-9]*$ || ! "${GITHUB_RUN_ATTEMPT:-}" =~ ^[1-9][0-9]*$ ]]; then
+            echo "prerequisite_run_context_invalid" >&2
+            exit 1
+          fi
           source_dir="foundry-prerequisite-source-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           script="$source_dir/checkout/.github/scripts/check_foundry_prerequisites.py"
           status=0

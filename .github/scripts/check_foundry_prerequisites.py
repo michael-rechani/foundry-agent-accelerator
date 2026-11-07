@@ -165,7 +165,7 @@ def check(root):
     scripts.mkdir(parents=True, mode=0o700)
     script = scripts / "check-and-setup-dependencies.sh"
     download(SKILL_URL, SKILL_SHA256, script, 64 * 1024)
-    installed_azd = shutil.which("azd") or shutil.which("azd", path=SYSTEM_PATH)
+    installed_azd = shutil.which("azd", path=SYSTEM_PATH)
     if installed_azd is not None:
         (root / "bin" / "azd").symlink_to(Path(installed_azd).resolve())
     bash = shutil.which("bash", path="/usr/bin:/bin")

@@ -12,7 +12,9 @@ it does not authorize dispatch, VM startup, Azure access, deployment, or merging
 It does not replace the Model Router rollout checks.
 
 The source checkout is exclusive to this run, does not persist credentials, and
-does not clean an existing checkout. The prerequisite helper creates a unique
+does not clean an existing checkout. Every shell step validates positive numeric
+run and attempt identifiers before constructing a run-owned path.
+The prerequisite helper creates a unique
 private temporary directory, with a separate HOME, every XDG directory,
 `AZD_CONFIG_DIR`, `AZURE_CONFIG_DIR`, and temporary-file directory. Subprocesses
 receive an explicit environment allowlist, not runner credentials, cloud
@@ -31,6 +33,8 @@ Only the script's exact missing-azd failure permits the fallback download of
 The verified archive contributes only its regular `azd` file. An existing azd
 executable is reused, with extension state still isolated. The official script
 is rerun after the fallback; it installs `microsoft.foundry` when absent.
+Existing azd selection searches only `/usr/local/bin:/usr/bin:/bin`, never the
+runner's inherited PATH.
 
 Public downloads use HTTPS without authentication or inherited proxies.
 The official extension installer also requires outbound access to its official
