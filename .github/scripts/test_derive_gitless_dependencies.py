@@ -464,6 +464,63 @@ class GitlessTests(unittest.TestCase):
                 self.assertEqual(closure.inventory(source), before)
                 self.assertEqual(sentinel.read_text(), 'unchanged')
 
+    def test_strict_format_and_module_graph_cli_shapes_fail_before_staging(self):
+        cases = ('format-true', 'format-float', 'manifest-null', 'manifest-dict', 'manifest-string',
+                 'manifest-item-null', 'disk-null', 'disk-number', 'disk-dict', 'disk-string',
+                 'disk-empty', 'disk-item-null', 'disk-record-wrong-type', 'disk-json', 'disk-utf8',
+                 'disk-deep')
+        script = Path(derivation.__file__).resolve()
+        for case in cases:
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as folder:
+                base = Path(folder)
+                source = base / 'source'
+                source.mkdir()
+                fixture(source)
+                path = source / 'manifest.json'
+                manifest = json.loads(path.read_bytes())
+                graph = source / 'root/.terraform/modules/modules.json'
+                if case.startswith('format-'):
+                    manifest['format'] = True if case == 'format-true' else 1.0
+                elif case.startswith('manifest-'):
+                    manifest['modules'] = {'manifest-null': None, 'manifest-dict': {},
+                                           'manifest-string': 'PRIVATE_MARKER', 'manifest-item-null': [None]}[case]
+                else:
+                    value = {'disk-null': None, 'disk-number': 1, 'disk-dict': {'unexpected': 'PRIVATE_MARKER'},
+                             'disk-string': 'PRIVATE_MARKER', 'disk-empty': [], 'disk-item-null': [None],
+                             'disk-record-wrong-type': [{'Key': '', 'Source': '', 'Dir': None}]}
+                    if case == 'disk-json':
+                        raw = b'{"Modules": PRIVATE_MARKER}'
+                    elif case == 'disk-utf8':
+                        raw = b'\xffPRIVATE_MARKER'
+                    elif case == 'disk-deep':
+                        raw = b'{"Modules":' + b'[' * 10000 + b'0' + b']' * 10000 + b'}'
+                    else:
+                        raw = json.dumps({'Modules': value[case]}).encode()
+                    graph.write_bytes(raw)
+                    inventory = closure.inventory(source)
+                    inventory.pop('manifest.json')
+                    manifest['files'] = inventory
+                path.write_text(json.dumps(manifest))
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                before = closure.inventory(source)
+                parent = base / 'parent'
+                parent.mkdir(mode=0o700)
+                sentinel = base / 'outside'
+                sentinel.write_text('unchanged')
+                with self.assertRaises(derivation.DerivationError):
+                    derivation.derive(source, digest, parent, 'direct')
+                result = subprocess.run(
+                    [sys.executable, str(script), str(source), '--original-manifest-sha256', digest,
+                     '--trusted-parent', str(parent), '--destination', 'cli'],
+                    cwd=base, env={'PATH': os.defpath, 'HOME': str(base), 'LANG': 'C.UTF-8'},
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, b'')
+                self.assertEqual(result.stderr, b'Metadata-free derivation stopped; no verified handoff.\n')
+                self.assertEqual(list(parent.iterdir()), [])
+                self.assertEqual(closure.inventory(source), before)
+                self.assertEqual(sentinel.read_text(), 'unchanged')
+
 if __name__ == '__main__':
     if os.name != 'posix':
         raise SystemExit('Linux required')

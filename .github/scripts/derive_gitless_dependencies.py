@@ -118,6 +118,56 @@ def canonical_bytes(value):
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
 
 
+def parse_selected_json(raw):
+    try:
+        return json.loads(raw, object_pairs_hook=closure.pairs)
+    except (json.JSONDecodeError, UnicodeDecodeError, RecursionError):
+        raise DerivationError("Invalid selected JSON.") from None
+
+
+def validate_module_list(modules):
+    if not isinstance(modules, list) or not modules:
+        raise DerivationError("Invalid selected module graph list.")
+    for item in modules:
+        if (not isinstance(item, dict) or not {"Key", "Source", "Dir"} <= set(item)
+                or set(item) - {"Key", "Source", "Dir", "Version"}
+                or not all(isinstance(value, str) for value in item.values())):
+            raise DerivationError("Invalid selected module graph record.")
+
+
+def selected_module_graph(source_fd, files):
+    name = "root/.terraform/modules/modules.json"
+    record = files.get(name)
+    if record is None or record["sha256"] == "directory":
+        raise DerivationError("Missing selected module graph file.")
+    parent = extraction.open_relative(source_fd, name.split("/")[:-1])
+    fd = None
+    try:
+        fd = os.open("modules.json", extraction.FLAGS, dir_fd=parent)
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 10_000_000:
+            raise DerivationError("Invalid selected module graph descriptor.")
+        chunks = []
+        total = 0
+        while chunk := os.read(fd, 65536):
+            total += len(chunk)
+            if total > 10_000_000:
+                raise DerivationError("Selected module graph byte bound exceeded.")
+            chunks.append(chunk)
+        raw = b"".join(chunks)
+        if hashlib.sha256(raw).hexdigest() != record["sha256"]:
+            raise DerivationError("Selected module graph bytes changed.")
+        graph = parse_selected_json(raw)
+        if not isinstance(graph, dict) or set(graph) != {"Modules"}:
+            raise DerivationError("Invalid selected module graph object.")
+        validate_module_list(graph["Modules"])
+        return graph["Modules"]
+    finally:
+        if fd is not None:
+            os.close(fd)
+        os.close(parent)
+
+
 def selected_source(source, digest):
     if not re.fullmatch(r"[0-9a-f]{64}", digest or ""):
         raise DerivationError("A separately supplied original manifest digest is required.")
@@ -140,12 +190,18 @@ def selected_source(source, digest):
             os.close(fd)
         if hashlib.sha256(raw).hexdigest() != digest:
             raise DerivationError("Original manifest bytes do not match separately selected digest.")
-        try:
-            manifest = json.loads(raw, object_pairs_hook=closure.pairs)
-        except (json.JSONDecodeError, UnicodeDecodeError, RecursionError):
-            raise DerivationError("Invalid selected manifest JSON.") from None
-        if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), dict):
-            raise DerivationError("Selected manifest requires an object inventory.")
+        manifest = parse_selected_json(raw)
+        if (not isinstance(manifest, dict) or set(manifest) != {
+                "format", "source_sha", "source_files", "terraform", "platform", "provenance",
+                "files", "modules", "providers"}
+                or type(manifest["format"]) is not int or manifest["format"] != 1
+                or not isinstance(manifest["files"], dict) or not manifest["files"]
+                or not isinstance(manifest["source_files"], dict)
+                or not isinstance(manifest["providers"], dict)
+                or not all(isinstance(manifest[key], str) for key in (
+                    "source_sha", "terraform", "platform", "provenance"))):
+            raise DerivationError("Invalid selected manifest structure.")
+        validate_module_list(manifest["modules"])
         for name, record in manifest["files"].items():
             closure.safe_relative(name)
             if (not isinstance(record, dict) or set(record) != {"sha256", "mode"}
@@ -158,6 +214,8 @@ def selected_source(source, digest):
         expected["manifest.json"] = {"sha256": digest, "mode": stat.S_IMODE(info.st_mode)}
         if fd_inventory(source_fd, expected=expected) != expected:
             raise DerivationError("Source descriptor inventory differs from selected original manifest.")
+        if selected_module_graph(source_fd, manifest["files"]) != manifest["modules"]:
+            raise DerivationError("Selected module graph differs from manifest.")
         if closure.check(source, digest) != manifest:
             raise DerivationError("Selected original manifest changed during verification.")
         return manifest, source_fd, expected
