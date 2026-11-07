@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import socket
 import subprocess
 import tempfile
 import threading
@@ -80,7 +81,15 @@ def inspect_graph(bundle, binary):
         for path in sorted(folder.glob("*.tf")):
             with path.open() as stream:
                 content = hcl2.load(stream)
-            for block in content.get("provider", []):
+            if list(folder.glob("*.tf.json")):
+                raise RuntimeError("Unexpected JSON module configuration requires parser review.")
+            for block in content.get("data", []):
+                for data_type, names in block.items():
+                    if data_type.startswith("modtm_"):
+                        for name, config in names.items():
+                            records.append({"kind": "data", "module": module["Key"], "name": name,
+                                            "file": path.name, "type": data_type,
+                                            "provider": config.get("provider", "implicit-default")})            for block in content.get("provider", []):
                 if "modtm" in block:
                     records.append({"kind": "provider", "module": module["Key"], "file": path.name,
                                     "configuration": block["modtm"]})
@@ -103,7 +112,7 @@ def inspect_graph(bundle, binary):
                         records.append({"kind": "requirement", "module": module["Key"], "file": path.name,
                                         "requirement": requirements["modtm"]})
     telemetry = [item for item in records if item["kind"] == "resource"]
-    if not telemetry or any(item["provider"] != "implicit-default" for item in telemetry):
+    if not telemetry or any(item["provider"] != "implicit-default" for item in records if item["kind"] in ("resource", "data")):
         raise RuntimeError("Unreviewed explicit telemetry provider wiring.")
     if any(item["kind"] == "provider" for item in records):
         raise RuntimeError("Module-local modtm provider configuration needs separate review.")
@@ -261,6 +270,38 @@ class TelemetryTests(unittest.TestCase):
                 self.assertNotIn("ARM_CLIENT_SECRET", run.call_args.kwargs["env"])
                 self.assertNotIn("ACTIONS_ID_TOKEN_REQUEST_TOKEN", run.call_args.kwargs["env"])
 
+    def test_loopback_only_network_and_real_process_failure(self):
+        self.assertEqual([name for index, name in socket.if_nameindex()], ["lo"])
+        route_lines = Path("/proc/net/route").read_text().splitlines()[1:]
+        self.assertFalse(any(line.split()[0] != "lo" for line in route_lines if line.strip()))
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder) / "root"
+            root.mkdir()
+            (root / "invalid.tf").write_text('terraform { this is invalid! }')
+            home = Path(folder) / "home"
+            cli_config(home, Path(os.environ["TELEMETRY_PUBLIC_BUNDLE"]) / "mirror")
+            with self.assertRaisesRegex(RuntimeError, "subprocess failed"):
+                checked_process(os.environ["TELEMETRY_TERRAFORM"], root, home,
+                                ["init", "-backend=false", "-input=false", "-no-color"],
+                                "http://127.0.0.1:1/telemetry")
+
+    def test_adversarial_actual_source_aliases_fail_before_terraform(self):
+        bundle = Path(os.environ["TELEMETRY_PUBLIC_BUNDLE"])
+        mutations = (
+            'provider "modtm" { alias = "escape" }',
+            'module "extra" { source = "./nowhere"\n providers = { modtm = modtm.escape }\n }',
+            'terraform { required_providers { modtm = { source = "azure/modtm"\n configuration_aliases = [modtm.escape]\n } } }',
+            'resource "modtm_telemetry" "extra" { provider = modtm.escape\n tags = {}\n }',
+        )
+        for mutation in mutations:
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as folder:
+                copy = Path(folder) / "copy"
+                shutil.copytree(bundle, copy)
+                (copy / "root" / "adversarial.tf").write_text(mutation)
+                with patch.object(subprocess, "run") as run:
+                    with self.assertRaises(RuntimeError):
+                        inspect_graph(copy, "terraform")
+                    run.assert_not_called()
     def test_actual_graph_and_projected_real_provider_read(self):
         bundle = Path(os.environ["TELEMETRY_PUBLIC_BUNDLE"])
         binary = os.environ["TELEMETRY_TERRAFORM"]
@@ -268,6 +309,11 @@ class TelemetryTests(unittest.TestCase):
         enabled = projected_read(bundle, binary, telemetry, True)
         disabled = projected_read(bundle, binary, telemetry, False)
         escape = projected_read(bundle, binary, telemetry, False, alias=True)
+        evidence = Path(os.environ["TELEMETRY_EVIDENCE"])
+        evidence.write_text(json.dumps({"scope": "actual-source-graph-and-telemetry-only-projection-not-full-root-runtime",
+                                        "source_sha": diagnostic.DIAGNOSTIC_SOURCE_SHA,
+                                        "wiring": records, "graph_sha256": hashlib.sha256(graph.encode()).hexdigest(),
+                                        "cases": [enabled, disabled, escape]}, indent=2) + "\n")
         for case in (enabled, escape):
             posts = [request for request in case["requests"] if request["method"] == "POST"]
             self.assertEqual(len(posts), len(telemetry))

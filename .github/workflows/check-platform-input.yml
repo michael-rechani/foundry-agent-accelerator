@@ -33,6 +33,7 @@ jobs:
         run: |
           sudo unshare --net -- sh -c 'ip link set lo up; exec /usr/sbin/runuser -u "$1" -- /usr/bin/env PATH="$2" TELEMETRY_PUBLIC_BUNDLE="$3" TELEMETRY_TERRAFORM="$4" TELEMETRY_EVIDENCE="$5" /usr/bin/python3 -m unittest discover -s .github/scripts -p test_platform_router_telemetry.py -v' sh "$(id -un)" "$PATH" "$RUNNER_TEMP/public-telemetry" "$(command -v terraform)" "$RUNNER_TEMP/projected-telemetry-evidence.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: ${{ always() }}
         with:
           name: public-projected-telemetry-not-full-root-runtime
           path: ${{ runner.temp }}/projected-telemetry-evidence.json
