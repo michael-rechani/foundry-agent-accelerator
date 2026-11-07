@@ -116,8 +116,8 @@ have the same gap; reaping the leader removes its numeric-PGID binding.
 
 The prerequisite launcher is therefore **disabled before download/setup or process
 creation**. Both `check()` and `command()` refuse with `TeardownUnverified("cleanup")`.
-No numeric group is signaled and no leader is reaped by this disabled path. A safe
-complete-group supervisor is not implemented with the current allowed primitives;
+No numeric group is signaled and no leader is reaped by this disabled path. The disconnected [owned-process prototype](owned-process-supervisor.md) provides only
+conditional synthetic evidence and is not integrated or approved for this launcher;
 proc enumeration, pipe EOF, kill success, and leader wait are not substituted as proof.
 No namespace/cgroup/privilege escalation or unrelated process control is used.
 
