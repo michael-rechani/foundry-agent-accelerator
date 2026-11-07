@@ -161,7 +161,8 @@ configured general smoke prompt and every mandatory profile delegation check
 before attempting promotion. An empty optional prompt does not skip profile
 checks; if neither exists, promotion fails. It deletes the candidate session;
 a session creation response lost or lacking a usable ID cannot be cleaned up
-by the deployer and needs operator inspection. Cleanup errors stop promotion.
+by the deployer and needs operator inspection. Cleanup errors stop promotion. A candidate
+whose pre-promotion check fails is retained for inspection rather than force-deleted.
 
 The deployer rechecks the previous route, its positive-traffic recovery versions,
 and candidate status immediately before promotion, then reads the exact route
