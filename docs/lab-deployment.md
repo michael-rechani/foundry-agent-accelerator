@@ -592,7 +592,18 @@ terraform -chdir=workbench/infra output -raw private_url
 ```
 
 Confirm the intended revision and immutable image are ready before using this
-URL. From authorized private-network access, run the sample-data runtime check:
+URL. For the runner-only rollout, retrieve this output through an authorized
+read-only state access path on the protected private runner; an approved runner
+bootstrap and an output-specific runner workflow are not yet established. Do
+not expose the full Terraform state or guess the URL. Open the resulting URL in
+a browser on the authorized private network and approved source subnet; see
+[Access](lab-pages-and-access.md#access). The documented default allows the
+management subnet; VPN or peering alone does not satisfy that restriction.
+The prior operator-presented path uses the optional jumpbox (#103), but its
+current availability and the live allowlist have not been verified here. Do
+not start it or change ingress as a fallback without specific approval. The Lab
+has shared data and no end-user sign-in, so use fictional examples. From
+approved access, run the sample-data runtime check:
 
 ```powershell
 ./workbench/test-private.ps1 -BaseUrl '<verified-private-url>'
@@ -719,31 +730,45 @@ Recovery doesn't reverse charges or requests already made.
 
 ## Deploy a new image from GitHub Actions
 
-The **Deploy Lab image** workflow (`.github/workflows/deploy-lab.yml`) ships the
-current `main` to a running Lab without a jumpbox. It runs on its own when an
-application change under `workbench/` merges to `main`; docs, tests, and Terraform
-changes alone don't start it. Before starting the private runner, it waits for the
-**Validate** workflow to succeed for the exact same `main` commit. A manual run
-from the Actions tab on `main` uses the same gate and cannot bypass validation.
-It:
+The draft **Deploy Lab image** workflow (`.github/workflows/deploy-lab.yml`)
+requires a manual dispatch from `main`, the exact reviewed main commit, a
+recorded current `registry/workbench@sha256:...` image, and confirmation that
+the staged rollout and recovery inventory have been reviewed. The checkbox
+does **not** prove that platform, Lab, hosted-agent routes, recovery, or billing
+approvals are ready. **Validate** must also succeed for the exact commit.
 
-1. Starts the runner VM if it is deallocated. This step runs on a GitHub-hosted
-   runner, and the deploy identity can only start that one VM.
-2. Builds the image on the repository's self-hosted runner (see
-   [`terraform/runner`](../terraform/runner/README.md)) and checks it as its
-   non-root user. The runner has Docker but
-   no Azure CLI, so the workflow runs the CLI from Microsoft's `azure-cli` image.
-3. Signs in to Azure with a short-lived GitHub token. No secret is stored.
-4. Pushes the image to the private registry through its private endpoint, which
-   the runner reaches over the peered VNet. Nothing is published to GitHub
-   Packages, and nothing in Azure is made public.
-5. Updates the Container App to the new digest, waits for the new revision to be
-   healthy, and restores the previous image if it isn't.
+This is not yet a usable deployment path: both private runners were offline,
+and this workflow no longer starts their VM. An approved bootstrap mechanism
+must bring a private runner online first; a queued job cannot start itself.
+Neither the existing GitHub-hosted recording starter nor an ad-hoc local or
+jumpbox write is an approved substitute for this rollout. See #522.
+
+When prerequisites are separately approved and the runner is online, the
+workflow checks the current main SHA and requires exactly one running, ready,
+active revision with the recorded immutable image from the configured registry.
+It repeats those checks before pushing the built image and before updating the
+Container App. The existing deploy identity builds and pushes on the private
+runner, then updates the app to the new digest. If the new revision fails to
+become ready, it requests restoration of the recorded prior image only while
+the app still identifies the attempted revision and image, and exactly one
+ready running revision has a known immutable image. It fails instead when those
+observations differ. After a restore, it checks that the recovery revision is
+the only active, running, ready revision with the prior immutable image. A
+failed or ambiguous check is reported as unverified. These checks do not prove
+application or agent response health.
+
+The image workflow and the existing Lab apply job share the `deploy-lab`
+concurrency group with cancellation disabled. Only cooperating GitHub jobs
+are serialized; external Azure writes and workflows using another group are
+not. The checks and writes aren't atomic, so a change can still occur after a
+check and before a push, update, or restoration. Review the live state and
+investigate before retrying. Other future rollout or recovery workflows must
+participate in the same coordination and add their own scoped guards.
 
 The runner deallocates itself after 30 idle minutes, so a deploy costs about
 $0.15 of compute ($0.192 an hour for `Standard_D4s_v5`).
 
-The run summary shows the new digest and the previous image to recover to.
+On success the run summary shows the new digest and the previous image.
 
 **The workflow owns the running image.** Terraform sets `image_digest` only when
 it first creates the Container App and ignores later image changes

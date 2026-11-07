@@ -268,16 +268,16 @@ only deallocates when none of them is busy.
 
 ## Start, stop, and updates
 
-- **Starting.** The VM deallocates when idle. The
-  [`deploy-lab.yml`](../../.github/workflows/deploy-lab.yml) and
-  [`record-library-answers.yml`](../../.github/workflows/record-library-answers.yml)
-  workflows start it for you, through the deploy identity, which may start this
-  one VM and nothing else. Recording starts it only after its reviewer has
-  approved. For anything else, start it before you need it:
-  `az vm start --resource-group <runner-resource-group> --name <runner-vm-name>`.
-  The runner service starts on boot. Queued jobs wait up to 24 hours for a runner.
-  There is no webhook-driven start, because it needs a public endpoint. Each
-  workflow starts the VM from its own GitHub-hosted job instead.
+- **Starting.** The VM deallocates when idle. The draft
+  [`deploy-lab.yml`](../../.github/workflows/deploy-lab.yml) no longer starts
+  it: a manual job targeting an offline runner cannot bootstrap itself. The
+  runner-only rollout needs a separately approved way to bring a runner online;
+  none is established yet (#522). Do not use a local or jumpbox Azure write,
+  or the GitHub-hosted starter in
+  [`record-library-answers.yml`](../../.github/workflows/record-library-answers.yml),
+  as a substitute without specific authorization. The runner service starts
+  on boot. Queued jobs wait up to 24 hours for a runner. There is no
+  webhook-driven start, because it needs a public endpoint.
 - **Idle shutdown.** A systemd timer checks every five minutes. After 30 idle
   minutes (`idle_shutdown_minutes`) it deallocates the VM through its managed
   identity. It never acts before the runner is registered, and it skips while a
@@ -296,8 +296,8 @@ only deallocates when none of them is busy.
   storage, or the Lab's VMs.
 - Jobs on this runner share one machine and disk. They don't get a clean
   environment on each run as GitHub-hosted runners do.
-- Only `validate.yml` uses the runner. `deploy-lab.yml` stays on GitHub-hosted
-  runners.
+- The deploy job and protected Terraform workflows use the private runner.
+  The image workflow's read-only validation gate uses a GitHub-hosted runner.
 
 ## Merge order
 
