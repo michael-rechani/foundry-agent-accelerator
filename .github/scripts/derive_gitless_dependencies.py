@@ -121,7 +121,7 @@ def canonical_bytes(value):
 def parse_selected_json(raw):
     try:
         return json.loads(raw, object_pairs_hook=closure.pairs)
-    except (json.JSONDecodeError, UnicodeDecodeError, RecursionError):
+    except (ValueError, UnicodeDecodeError, RecursionError):
         raise DerivationError("Invalid selected JSON.") from None
 
 
@@ -203,7 +203,9 @@ def selected_source(source, digest):
             raise DerivationError("Invalid selected manifest structure.")
         validate_module_list(manifest["modules"])
         for name, record in manifest["files"].items():
-            closure.safe_relative(name)
+            relative = closure.safe_relative(name)
+            if not relative.parts or relative.parts[0] not in ("root", "mirror"):
+                raise DerivationError("Invalid selected inventory path.")
             if (not isinstance(record, dict) or set(record) != {"sha256", "mode"}
                     or type(record["mode"]) is not int or not 0 <= record["mode"] <= 0o7777
                     or not isinstance(record["sha256"], str)

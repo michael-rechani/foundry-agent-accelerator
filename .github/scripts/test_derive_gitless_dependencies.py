@@ -353,6 +353,7 @@ class GitlessTests(unittest.TestCase):
             'utf8': b'\xffPRIVATE_MARKER',
             'syntax': b'{"files": PRIVATE_MARKER}',
             'deep': b'{"files":' + b'[' * 10000 + b'0' + b']' * 10000 + b'}',
+            'huge-integer': b'{"files":' + b'9' * 10000 + b'}',
             'null-root': b'null',
             'list-root': b'[]',
             'string-root': b'"PRIVATE_MARKER"',
