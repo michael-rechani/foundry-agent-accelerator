@@ -26,6 +26,8 @@ HCL scanners are untouched.
    `configuration_aliases`.
 5. Contained no `dynamic`, `provider_meta`, or other routing-named block, and no
    expression outside the explicitly supported AST subset.
+6. Stayed within the 256-token budget for the specified structural operator
+   kinds; the budget is checked after lexing and before parsing.
 
 Names are compared exactly, case-sensitively, without trimming literal strings.
 This is not Terraform schema validation. Ordinary native-HCL block types and
@@ -79,11 +81,12 @@ Refusal categories are `format_refused`, `bounds_refused`, `encoding_refused`,
 attribute; `provider_mapping` identifies a direct module mapping. Other matching
 attributes are still refused.
 
-Inputs must be nonempty and at most 65536 bytes. The pinned lexer is used before
-parsing to bound token count to 8192 and lexical nesting to 32. Defensive AST
-limits are 16384 nodes and depth 128; reported counts are capped. Tests measure
-exact byte/token/lexical-depth boundaries and over-bound refusals.
-These are resource bounds, not a sandbox or proof of parser safety.
+Inputs must be nonempty and at most 65536 bytes. The pinned lexer processes the
+input before the analyzer checks a maximum of 8192 tokens, lexical nesting of
+32, and 256 specified structural operator tokens. AST depth 128 and node count
+16384 are refusal/reporting thresholds only: `hclsyntax.Walk` does not prune
+after either is reached. See the measured cases and their limits below. None of
+these thresholds proves a hard parser/walker stack, memory, or time bound.
 
 ## Pinned dependency and evidence identities
 
@@ -111,9 +114,10 @@ exceptions. The successful run verified all downloaded modules and required
 
 | Tested file under `.github/offline-hcl-prototype` | Git blob |
 | --- | --- |
-| `analyzer.go` | `9a0a9989647130b5f200ebe2c3d339ecbcafcf59` |
+| `analyzer.go` | `0da59505b3861caf08446952fb83f315d20653d1` |
 | `analyzer_test.go` | `a2376fe15276c39a45dc705f54f7fb95cba698d0` |
 | `traversal_test.go` | `d8e5c764c70c1c0d2dd481b7936d8093c9638515` |
+| `ast_bounds_test.go` | `648d3c5a727980352c6d5253598f85815f863f7f` |
 | `go.mod` | `55d5890a9bf5287923c1319d9363f72400c5d6a3` |
 | `go.sum` | `046687d7d66f447e1e737be3c1b6c147ab26e178` |
 
@@ -163,7 +167,7 @@ was configured.
 
 After validation, `.github/workflows/hcl-syntax-prototype.yml` was removed.
 The final documentation/removal head is recorded in the session handoff.
-Final corrected source and manifest blobs match the correction tested head.
+Final source and manifest blobs match the later AST-bounds tested head below.
 Existing workflows and all parent files other than the isolated prototype
 analyzer and this documentation remain byte-identical to the correction base.
 The conservative HCL/JSON scanner and runtime/protected gates are unchanged.
@@ -206,6 +210,81 @@ were restored, and `go mod verify` passed. No dependency manifest changed.
 The temporary workflow was removed after CI; the final documentation/removal
 head is recorded in the session handoff. No captured artifact or real closure
 source was read.
+
+
+### AST refusal thresholds and operator budget
+
+The prior implementation's `MaxASTDepth=128` and `MaxNodes=16384` are
+**refusal/reporting thresholds, not hard walker resource bounds**.
+`hclsyntax.Walk` unconditionally visits children after `Enter`; the analyzer's
+`bounds_refused` category does not prune traversal or limit stack usage.
+The reported `Nodes` value saturates at 16384; it is not the number actually
+visited once that threshold is crossed.
+
+A targeted, narrower early guard now counts the pinned lexer's structural
+operator tokens across the whole file. More than 256 recognized tokens returns
+`bounds_refused` **after lexing and before parsing**. The counted token kinds
+are `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||`,
+`!`, and `?`; the budget is global, not per expression. This only adds a
+refusal path, never an acceptance path. Operator-looking bytes inside comments,
+plain strings and heredocs remain lexer text rather than structural tokens;
+synthetic tests cover long inert examples of all listed kinds and ordinary
+assignments/hyphenated identifiers.
+
+The guard limits this explicit set of lexer tokens reaching the parser. It is
+not a general bound on parser work, AST depth/node count, recursion, memory,
+execution time, or unrecognized constructs. The lexer itself has already
+processed the bounded byte input before token/operator checks run. Inputs at or
+below the operator budget can still exceed the AST refusal thresholds, and
+other inputs can produce different shapes. No hard stack/time bound or sandbox
+is established.
+
+Parser-backed synthetic measurements used HCL `v2.24.0` and the same
+`hclsyntax.Walk`:
+
+| Chain | Bytes | Tokens | Lexical depth | Measured AST depth | Full walker nodes | Analyzer outcome |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| 121 terms | 260 | 247 | 1 | 127 | 249 | `unsupported_expression` |
+| 122 terms | 262 | 249 | 1 | 128 | 251 | `unsupported_expression` |
+| 123 terms | 264 | 251 | 1 | 129 | 253 | `bounds_refused,unsupported_expression` |
+| 257 terms, 256 operators | 532 | 519 | 1 | 263 | 521 | Both categories; full walker |
+| 258 terms, 257 operators | 534 | 521 | 1 | 264 | 523 | `bounds_refused`; analyzer AST nodes 0 |
+| 4093 terms | 8205 | 8192 | 1 | 4099 | 8193 | `bounds_refused`; analyzer AST nodes 0 |
+
+For the last two rows the full walker was run separately **by the test** on
+the parser-generated synthetic AST to measure the shape; the guarded analyzer
+returned before parsing it. The 4093-term sample is the longest tested
+same-operator chain at the 8192-token input limit, not a maximum over all
+possible inputs. At the pre-guard baseline it was actually parsed and fully
+walked by the analyzer despite its depth refusal.
+
+A separate **fabricated AST**, not an AST parsed from an admitted source,
+contained 16455 visited nodes. The analyzer reported the capped count 16384
+and still visited a provider block at the end. This demonstrates that the node
+threshold does not prune; it does not prove a valid in-budget source can reach
+that node count.
+
+The baseline measurement head was
+`a4c4bc96bfb91fb7bdc26482af512358f1c258cf`,
+[run 42422911250](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42422911250).
+The operator guard first passed at
+`9d68f2c185fafc018a2a7356e7ccbdbb646f7f5e`,
+[run 42423073082](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42423073082).
+The strengthened final tested head was
+`263758b332b2f3cc9d5f516d2f92a20b524d2021`,
+[run 42423282526](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42423282526).
+Deterministic tests and `go vet` passed in both attempts, with 96.4% statement
+coverage. Fuzz attempt 1 failed with `context deadline exceeded` and reported
+no failing input; its cause is unknown. A same-head attempt 2 passed after
+166888 executions in a 10-second-configured, two-worker fuzz run. The retry
+does not explain the earlier failure or establish a hard time bound.
+
+The unchanged temporary workflow used non-root GitHub-hosted CI, pinned actions,
+and `contents: read` only. Its offline-first dependency probe failed for missing
+public packages before restoration; manifests did not change and module
+verification passed. After testing, the temporary workflow was removed and
+existing workflows, the conservative scanner, traversal-index guard, and
+runtime/protected gates were preserved.
 
 
 ## Uncovered meaning and protected boundaries
