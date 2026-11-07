@@ -21,7 +21,8 @@ PATH, `GITHUB_REF`, `GITHUB_REF_PROTECTED`, `GITHUB_EVENT_NAME`,
 `GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT`, and `RUNNER_TEMP`.
 Python startup cannot inherit PYTHONPATH, user site packages, credentials,
 loader settings, or shell hooks. Launcher errors are suppressed and replaced
-with fixed nonsecret diagnostics; no extra runtime variables are needed.
+with fixed nonsecret diagnostics. No extra runtime variables are passed;
+real-run compatibility has not yet been verified.
 The prerequisite helper creates a unique
 private temporary directory, with a separate HOME, every XDG directory,
 `AZD_CONFIG_DIR`, `AZURE_CONFIG_DIR`, and temporary-file directory. Subprocesses
