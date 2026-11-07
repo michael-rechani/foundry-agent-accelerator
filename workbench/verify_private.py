@@ -46,11 +46,19 @@ class PrivateClient:
             self.host = host
         else:
             origin = base_url or ""
-            parsed = urlsplit(origin)
-            require(parsed.scheme == "https" and parsed.hostname and not parsed.username and not parsed.password
+            origin_error = "Supply the exact HTTPS origin, not a path, query, fragment, or credentials"
+            require(not any(ord(character) <= 0x20 or 0x7F <= ord(character) <= 0x9F for character in origin),
+                    origin_error)
+            try:
+                parsed = urlsplit(origin)
+                hostname, port = parsed.hostname, parsed.port
+            except ValueError:
+                raise CheckError(origin_error) from None
+            require(parsed.scheme == "https" and hostname
+                    and parsed.username is None and parsed.password is None
+                    and (port is not None or not parsed.netloc.endswith(":"))
                     and parsed.path in {"", "/"} and not parsed.query and not parsed.fragment
-                    and "?" not in origin and "#" not in origin,
-                    "Supply the exact HTTPS origin, not a path, query, fragment, or credentials")
+                    and "?" not in origin and "#" not in origin, origin_error)
             self.base_url = origin.rstrip("/")
             self.origin, self.host = self.base_url, parsed.netloc
         self.opener = build_opener(NoRedirects)

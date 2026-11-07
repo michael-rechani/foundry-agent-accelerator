@@ -471,7 +471,10 @@ capabilities as **not implemented**, verify the private-demo boundary below, and
 don't describe the result as ready for public or confidential multi-user access.
 
 The `workbench/verify_private.py --base-url <HTTPS-origin>` command checks API
-responses from the supplied HTTPS origin. A successful report uses
+responses from the supplied HTTPS origin. Malformed authorities, invalid ports,
+userinfo, raw C0/C1 controls, and ASCII spaces are rejected before opening a
+connection, using a fixed error that does not echo the input or parser exception.
+A successful report uses
 `"path": "https_origin"` and `"https_origin_reached": true`; the supplied host
 might be localhost or publicly routed, so this is not proof of the intended Lab's
 provenance, private DNS or routes, proxy path, management-subnet access, or

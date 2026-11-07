@@ -232,7 +232,9 @@ class PrivateVerificationTests(unittest.TestCase):
         })
 
     def test_https_origins_report_api_evidence_not_private_ingress_or_ui(self):
-        for origin in ("https://localhost:8443", "https://lab.example.invalid", "https://lab.example.invalid/"):
+        for origin in ("https://localhost:8443", "https://lab.example.invalid", "https://lab.example.invalid/",
+                       "https://lab.example.invalid:8443", "https://[::1]", "https://[::1]:443",
+                       "https://[2001:db8::1]:65535/"):
             with self.subTest(origin=origin):
                 code, output, calls = self.run_mocked_api_checks(["--base-url", origin])
                 self.assertEqual(code, 0)
@@ -243,6 +245,8 @@ class PrivateVerificationTests(unittest.TestCase):
                                  [base + "/api/config", base + "/api/health/dependencies"])
                 self.assertEqual([request.get_method() for request in requests], ["GET", "GET"])
                 self.assertEqual([request.get_header("Origin") for request in requests], [base, base])
+                host = base[len("https://"):]
+                self.assertEqual([request.get_header("Host") for request in requests], [host, host])
 
     def test_loopback_reports_http_api_evidence_not_container_or_ingress(self):
         environment = {"WORKBENCH_MODE": "private", "WORKBENCH_ALLOWED_HOSTS": "lab.example.invalid"}
@@ -257,19 +261,44 @@ class PrivateVerificationTests(unittest.TestCase):
         self.assertEqual([request.get_header("Origin") for request in requests],
                          ["https://lab.example.invalid", "https://lab.example.invalid"])
 
+    def assert_invalid_origin(self, origin):
+        output, error = io.StringIO(), io.StringIO()
+        with patch("verify_private.build_opener", side_effect=AssertionError("Unexpected opener")) as opener, \
+                redirect_stdout(output), redirect_stderr(error):
+            code = main(["--base-url", origin])
+        self.assertEqual(code, 1)
+        self.assertEqual(output.getvalue(), "")
+        self.assertEqual(json.loads(error.getvalue()), {
+            "status": "failed",
+            "error": "Supply the exact HTTPS origin, not a path, query, fragment, or credentials",
+        })
+        opener.assert_not_called()
+
     def test_empty_query_and_fragment_delimiters_fail_before_opening_a_connection(self):
         for suffix in ("?", "/?", "#", "/#"):
             with self.subTest(suffix=suffix):
-                output, error = io.StringIO(), io.StringIO()
-                with patch("verify_private.build_opener", side_effect=AssertionError("Unexpected opener")) as opener, \
-                        redirect_stdout(output), redirect_stderr(error):
-                    code = main(["--base-url", "https://lab.example.invalid" + suffix])
-                self.assertEqual(code, 1)
-                self.assertEqual(output.getvalue(), "")
-                report = json.loads(error.getvalue())
-                self.assertEqual(report["status"], "failed")
-                self.assertIn("HTTPS origin", report["error"])
-                opener.assert_not_called()
+                self.assert_invalid_origin("https://lab.example.invalid" + suffix)
+
+    def test_malformed_authorities_and_userinfo_fail_with_fixed_json_before_opener(self):
+        origins = ("https://[broken", "https://[not-an-address]", "https://[127.0.0.1]",
+                   "https://lab.example.invalid:invalid", "https://lab.example.invalid:65536",
+                   "https://lab.example.invalid:-1", "https://lab.example.invalid:",
+                   "https://[::1]:invalid", "https://[::1]:65536", "https://[::1]:",
+                   "https://@lab.example.invalid", "https://:@lab.example.invalid",
+                   "https://user@lab.example.invalid", "https://user:@lab.example.invalid",
+                   "https://user:example@lab.example.invalid")
+        for number, origin in enumerate(origins):
+            with self.subTest(case=number):
+                self.assert_invalid_origin(origin)
+
+    def test_raw_controls_and_ascii_spaces_fail_with_fixed_json_before_opener(self):
+        base = "https://lab.example.invalid"
+        for number in (*range(0x21), *range(0x7F, 0xA0)):
+            character = chr(number)
+            origins = (character + base, base + character, "https://lab." + character + "example.invalid")
+            for position, origin in enumerate(origins):
+                with self.subTest(codepoint=hex(number), position=position):
+                    self.assert_invalid_origin(origin)
 
     def test_loopback_requires_private_mode_and_one_host_before_opening_a_connection(self):
         for environment in ({}, {"WORKBENCH_MODE": "private", "WORKBENCH_ALLOWED_HOSTS": "one,two"},
