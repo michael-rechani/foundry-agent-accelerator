@@ -55,7 +55,10 @@ def checked_process(binary, root, home, args, endpoint=None):
     except subprocess.TimeoutExpired:
         raise RuntimeError("Telemetry experiment subprocess timed out; output withheld.") from None
     if result.returncode:
-        raise RuntimeError("Telemetry experiment subprocess failed: " + args[0] + "; output withheld.")
+        categories = (b"Invalid provider configuration", b"Invalid provider configuration reference",
+                      b"Missing required provider configuration", b"Invalid character", b"Duplicate provider configuration")
+        category = next((value.decode() for value in categories if value in result.stdout + result.stderr), "unclassified")
+        raise RuntimeError("Telemetry experiment subprocess failed: " + args[0] + "; " + category + "; output withheld.")
     return result.stdout
 
 
@@ -125,9 +128,9 @@ def inspect_graph(bundle, binary):
         cli_config(home, bundle / "mirror")
         checked_process(binary, root, home, ["init", "-backend=false", "-get=false", "-lockfile=readonly", "-input=false", "-no-color"])
         graph = checked_process(binary, root, home, ["graph", "-type=plan"]).decode()
-    provider_nodes = sorted(set(re.findall(r'"([^"\n]*provider\[\\"registry\.terraform\.io/azure/modtm\\"\][^"\n]*)"', graph)))
+    provider_nodes = sorted(set(re.findall(r'provider\["registry\.terraform\.io/azure/modtm"\](?:\.[A-Za-z0-9_]+)?', graph.replace('\"', '"'))))
     references = [line.strip() for line in graph.splitlines() if "modtm_telemetry" in line and "provider" in line]
-    if not references or any('].' in node.replace(' (close)', '') for node in provider_nodes):
+    if len(references) != len(telemetry) or provider_nodes != ['provider["' + PROVIDER + '"]']:
         raise RuntimeError("Missing or aliased resolved telemetry graph edges.")
     print("PUBLIC ACTUAL-ROOT SOURCE WIRING:", json.dumps(records, sort_keys=True))
     print("PUBLIC ACTUAL-ROOT MODTM GRAPH:", json.dumps(references, sort_keys=True))
@@ -159,7 +162,17 @@ def projected_read(bundle, binary, telemetry, enabled, alias=False):
             root.mkdir()
             home = base / "home"
             cli_config(home, bundle / "mirror")
-            provider = {"modtm": {"enabled": enabled}}
+            if not enabled:
+                with tempfile.TemporaryDirectory() as reviewed:
+                    exact_root = Path(reviewed) / "root"
+                    shutil.copytree(bundle / "root", exact_root)
+                    diagnostic.write_backend(exact_root)
+                    tested_provider = json.loads((exact_root / diagnostic.DIAGNOSTIC_OVERLAY).read_bytes())["provider"]
+                if tested_provider != {"modtm": {"enabled": False}}:
+                    raise RuntimeError("Reviewed diagnostic telemetry configuration differs.")
+                provider = tested_provider
+            else:
+                provider = {"modtm": {"enabled": True}}
             if alias:
                 provider["modtm"] = [{"enabled": False}, {"alias": "escape", "enabled": True}]
             config = {"terraform": {"required_providers": {"modtm": {"source": "azure/modtm", "version": "= 0.4.0"}}},
@@ -186,7 +199,7 @@ def projected_read(bundle, binary, telemetry, enabled, alias=False):
                     # Explicit module remapping demonstrates a root default is NOT alias isolation.
                     first = key.split(".")[0] if key else None
                     if first:
-                        config["module"][first]["providers"] = {"modtm": "${modtm.escape}"}
+                        config["module"][first]["providers"] = {"modtm": "modtm.escape"}
                 address = "".join("module." + part + "." for part in key.split(".")) if key else ""
                 address += "modtm_telemetry." + item["name"] + "[0]"
                 expected_addresses.append(address)
