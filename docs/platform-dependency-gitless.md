@@ -80,11 +80,11 @@ omitted: `ai_foundry`, `ai_foundry.avm_utl_regions`, `ai_foundry.cosmosdb`,
 Every non-metadata module byte/mode and provider archive remained exact.
 
 Final hosted Ubuntu run:
-[42413688023](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42413688023),
-exact tested head `ad751b78ed4cb136b757548797f703a13c6a6e93`, **passed**:
+[42414617326](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42414617326),
+exact tested head `d04bfc3729ab7c71068a80b6fc6e4811f90de54e`, **passed**:
 
 - `python3 -m unittest discover -s .github/scripts -p test_extract_platform_dependencies.py -v`: **11 passed**.
-- `python3 -m unittest discover -s .github/scripts -p test_derive_gitless_dependencies.py -v`: **11 passed**.
+- `python3 -m unittest discover -s .github/scripts -p test_derive_gitless_dependencies.py -v`: **15 passed**.
 - Exact retained ZIP/tar/manifest selection and bounded extraction: **passed**.
 - Existing closure verification on original and derived bundles: **passed**.
 - On disposable copies of both actual roots: `init -backend=false -get=false -lockfile=readonly -input=false -no-color`, `providers schema -json`, `validate -json`: **passed**; complete parsed provider schemas, exact `modules.json` bytes and provider selections **identical**.
@@ -131,3 +131,45 @@ and immutable handoff; verify identity/backend/input/state authority and recover
 before any protected plan. This derivation does not authorize source refresh,
 module fetching, applying, removing Router or exposing resources. Future graph,
 platform or Terraform changes need separate selection and verification.
+
+## Malformed selected-input hardening
+
+The follow-up is limited to the gitless parser boundary and its tests; the shared
+closure checker, extractor and public semantic checker remain unchanged.
+SHA256 verification still precedes JSON parsing. Invalid UTF-8/JSON, excessive
+nesting and JSON integer conversion limits become fixed `DerivationError`s,
+without input-bearing exception chains. Duplicate keys remain `ClosureError`s.
+The manifest must have exactly the expected fields, string context fields,
+mapping inventories/providers and a nonempty module list. `format` must be an
+actual integer equal to 1, not JSON `true` or `1.0`.
+
+Each inventory entry must have precisely `sha256` and `mode`, an allowed root or
+mirror relative path, a directory marker or lowercase SHA256 string and an actual
+integer mode in 0..07777. Boolean and float modes are rejected even if Python
+numeric equality would otherwise match a real mode. This occurs before staging,
+so malformed modes never reach `fchmod` or require broadened cleanup.
+
+After exact source inventory verification, `modules.json` is read through
+no-follow descriptors with a 10 MB bound and its selected inventory digest checked
+before parsing. Its object must contain exactly `Modules`, a nonempty list of
+records with required `Key`, `Source`, `Dir`, optional `Version` and string values.
+The manifest list receives the same shape checks and must match the disk graph.
+The existing closure checker still enforces source/runtime, provider selections,
+module path semantics and graph equality; its valid errors are not masked.
+
+The latest hosted run above passed all 15 derivation tests plus 11 extractor tests.
+New tests exercised 48 SHA-selected malformed fixtures through both the direct
+helper and its actual CLI: invalid UTF-8/JSON, deep nesting/huge integers, missing
+or wrong object/inventory shapes, duplicate keys, file/directory float modes,
+boolean/out-of-range modes, malformed record/hash fields, non-integer format and
+manifest/disk module shapes. Every CLI case returned 1 with empty stdout and
+exact stderr `Metadata-free derivation stopped; no verified handoff.` followed
+by a newline, with no traceback, staging/publication, source mutation or outside
+sentinel change. Separate tests verify hash-before-parse and preservation of
+shared closure errors. Actual selected public closure comparison also passed
+again, yielding the same unapproved derived manifest and complete schema hashes.
+
+This is bounded malformed-input handling, not atomicity against an actor changing
+paths after verification. The existing same-UID/host/ancestor, credential isolation,
+provenance and immutable handoff caveats remain unchanged. No local dependency
+setup, project execution or live actions were performed for this follow-up.
