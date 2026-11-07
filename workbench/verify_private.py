@@ -89,19 +89,27 @@ class PrivateClient:
         # The constructor restricts base_url to HTTPS or the fixed loopback origin.
         request = Request(self.base_url + path, method=method, headers=headers,  # noqa: S310
                           data=json.dumps(body).encode() if body is not None else None)
+        expected_error = ({("PUT", 409): "conversation_changed", ("GET", 404): "conversation_not_found"}
+                          .get((method, expected)) if path.startswith("/api/conversations/") else None)
         try:
-            with self.opener.open(request, timeout=200 if path == "/api/reviews" else 45) as response:
+            try:
+                response = self.opener.open(request, timeout=200 if path == "/api/reviews" else 45)
+            except HTTPError as problem:
+                if problem.code != expected or expected_error is None:
+                    raise CheckError(f"{method} {path}: HTTP {problem.code}; no automatic retry performed") from problem
+                response = problem
+            with response:
                 require(response.status == expected, f"{method} {path}: unexpected HTTP status")
                 data = json.load(response, object_pairs_hook=unique_json_object)
-        except HTTPError as problem:
-            if problem.code == expected:
-                return {}
-            raise CheckError(f"{method} {path}: HTTP {problem.code}; no automatic retry performed") from problem
         except (URLError, TimeoutError) as problem:
             raise CheckError(f"{method} {path}: connection unavailable or timed out") from problem
         except (ValueError, UnicodeError) as problem:
             raise CheckError(f"{method} {path}: invalid JSON response") from problem
         require(isinstance(data, dict), f"{method} {path}: expected a JSON object")
+        if expected_error is not None:
+            require(isinstance(data.get("error"), str) and data["error"] == expected_error,
+                    f"{method} {path}: expected conversation error code was not confirmed")
+            return {}
         return data
 
 
