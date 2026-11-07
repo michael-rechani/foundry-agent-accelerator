@@ -54,7 +54,7 @@ jobs:
                   return result.stdout
               for cache_name, registry_name, version, repo_name, commit in modules:
                   uri = f"https://registry.terraform.io/v1/modules/Azure/{registry_name}/azurerm/{version}/download"
-                  request = urllib.request.Request(uri, method="HEAD")
+                  request = urllib.request.Request(uri)
                   with opener.open(request, timeout=30) as response:
                       source = response.headers.get("X-Terraform-Get")
                   expected_source = f"git::https://github.com/Azure/{repo_name}?ref={commit}"
