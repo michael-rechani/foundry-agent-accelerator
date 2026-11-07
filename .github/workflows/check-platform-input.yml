@@ -1,181 +1,29 @@
-name: Observe retained public closure
+name: Check historical platform input candidate
+
 on:
   workflow_dispatch:
+
 permissions:
-  actions: read
   contents: read
+
+concurrency:
+  group: terraform-state-access
+  cancel-in-progress: false
+
 jobs:
-  compare:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+  check:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+    runs-on: [self-hosted, linux, lab-runner]
+    environment: terraform-state
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - name: Download the retained artifact
-        shell: bash
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check candidate presence
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          gh api repos/michael-rechani/foundry-agent-accelerator/actions/artifacts/13588508507/zip > "$RUNNER_TEMP/closure.zip"
-          printf '%s  %s\n' a6620be72b125b4860cd13c7edb5644bd5e51ba89d65477e23ec533925a46838 "$RUNNER_TEMP/closure.zip" | sha256sum --check
-          python3 - <<'PY'
-          import hashlib
-          import os
-          from pathlib import Path
-          import zipfile
-
-          base = Path(os.environ["RUNNER_TEMP"])
-          with zipfile.ZipFile(base / "closure.zip") as archive:
-              files = [item for item in archive.infolist() if not item.is_dir()]
-              if len(files) != 1 or files[0].filename != "public-closure.tar.gz" or files[0].file_size > 200_000_000:
-                  raise RuntimeError("Unexpected retained-artifact contents.")
-              digest = hashlib.sha256()
-              with archive.open(files[0]) as source, (base / "closure.tar.gz").open("xb") as target:
-                  while chunk := source.read(1024 * 1024):
-                      digest.update(chunk)
-                      target.write(chunk)
-          if digest.hexdigest() != "7afd7b7630954d34b9a83876369058eec6500cef0ddb4deac8b2d37872fa0e55":
-              raise RuntimeError("Retained tarball digest differs from its capture run.")
-          print("Retained artifact and tarball match their capture-run digests.")
-          PY
-      - name: Compare retained module trees and provider packages
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import hashlib
-          import json
-          import os
-          from pathlib import Path, PurePosixPath
-          import subprocess
-          import tarfile
-          import tempfile
-          import urllib.request
-
-          modules = [
-              ("ai_foundry", "avm-ptn-aiml-ai-foundry", "0.11.3", "terraform-azurerm-avm-ptn-aiml-ai-foundry", "6879cada3e3ef47207c584d2c7fd94cb91f186c7"),
-              ("ai_foundry.avm_utl_regions", "avm-utl-regions", "0.12.0", "terraform-azurerm-avm-utl-regions", "e9d62409c6fcc5554b60dd79cd60f55b344ad2f0"),
-              ("ai_foundry.cosmosdb", "avm-res-documentdb-databaseaccount", "0.10.0", "terraform-azurerm-avm-res-documentdb-databaseaccount", "fd939385fa4a4309d436dcab0958bf7aa20a01af"),
-              ("ai_foundry.key_vault", "avm-res-keyvault-vault", "0.10.2", "terraform-azurerm-avm-res-keyvault-vault", "3735ca49887857467f3030ad72fd43705e1eb387"),
-              ("ai_foundry.storage_account", "avm-res-storage-storageaccount", "0.6.9", "terraform-azurerm-avm-res-storage-storageaccount", "83ceb978776db0da45a0166a92996d13654b8bd2"),
-              ("api_management", "avm-res-apimanagement-service", "0.9.0", "terraform-azurerm-avm-res-apimanagement-service", "1bb1067ee2e5ce085f84b099fac4159e57fba15f"),
-              ("naming", "naming", "0.4.4", "terraform-azurerm-naming", "2359079c7a07a447a7ce25958de3c203aeb7e0ab"),
-          ]
-          providers = [
-              ("azure", "azapi", "2.12.0", "71402acfa1ad35788a5d1669bdd59040434a45aea990d062dcc41f17163c8e1b"),
-              ("azure", "modtm", "0.4.0", "6968bbd28ccdeefa33a77393e1695a896b02e6eeab6ca3384a371675e86587f4"),
-              ("hashicorp", "azurerm", "4.81.0", "79a8d17fefe647040fcb9ee8821a4f09f395427c4fd49493489b9a93a9a1038e"),
-              ("hashicorp", "random", "3.9.1", "60b4f8a8ef18f52bf8e19215229dae408bee732825964092db7c989fd2de4097"),
-              ("hashicorp", "time", "0.14.2", "0aa1028d91041f4dceba193e3707dac57358d0063d97e20700e554758b67baca"),
-          ]
-          expected_packages = {}
-          provider_selections = {}
-          opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-          for namespace, name, version, checksum in providers:
-              uri = f"https://registry.terraform.io/v1/providers/{namespace}/{name}/{version}/download/linux/amd64"
-              with opener.open(uri, timeout=30) as response:
-                  document = json.load(response)
-              if document.get("shasum") != checksum:
-                  raise RuntimeError("Registry provider checksum differs from the earlier observation.")
-              path = f"public-closure/mirror/registry.terraform.io/{namespace}/{name}/terraform-provider-{name}_{version}_linux_amd64.zip"
-              expected_packages[path] = checksum
-              provider_selections[f"registry.terraform.io/{namespace}/{name}"] = version
-          expected = {}
-          with tempfile.TemporaryDirectory() as temporary:
-              env = {"PATH": os.environ["PATH"], "HOME": temporary, "GIT_CONFIG_NOSYSTEM": "1",
-                     "GIT_CONFIG_GLOBAL": os.devnull, "GIT_TERMINAL_PROMPT": "0", "LANG": "C.UTF-8"}
-              def git(*args, input_data=None):
-                  result = subprocess.run(["git", *args], input=input_data, env=env, stdout=subprocess.PIPE,
-                                          stderr=subprocess.PIPE, check=False, timeout=90)
-                  if result.returncode:
-                      raise RuntimeError("Public Git object retrieval failed; output withheld.")
-                  return result.stdout
-              for cache_name, registry_name, version, repo_name, commit in modules:
-                  uri = f"https://registry.terraform.io/v1/modules/Azure/{registry_name}/azurerm/{version}/download"
-                  with opener.open(uri, timeout=30) as response:
-                      source = response.headers.get("X-Terraform-Get")
-                  if source != f"git::https://github.com/Azure/{repo_name}?ref={commit}":
-                      raise RuntimeError("A module registry reference differs from the earlier observation.")
-                  database = Path(temporary) / cache_name
-                  git("init", "--quiet", str(database))
-                  git("-C", str(database), "fetch", "--quiet", "--depth=1", f"https://github.com/Azure/{repo_name}.git", commit)
-                  tree = git("-C", str(database), "ls-tree", "-r", "-z", "--full-tree", commit)
-                  entries = []
-                  for item in tree.split(b"\0"):
-                      if not item:
-                          continue
-                      meta, raw_name = item.split(b"\t", 1)
-                      mode, kind, oid = meta.decode("ascii").split()
-                      if kind != "blob" or mode not in ("100644", "100755"):
-                          raise RuntimeError("Unsupported public Git tree entry.")
-                      entries.append((raw_name.decode("utf-8"), mode, oid))
-                  batch = git("-C", str(database), "cat-file", "--batch", input_data="".join(oid + "\n" for _, _, oid in entries).encode())
-                  cursor = 0
-                  records = {}
-                  for name, mode, oid in entries:
-                      end = batch.index(b"\n", cursor)
-                      object_id, kind, size = batch[cursor:end].decode("ascii").split()
-                      size = int(size)
-                      start = end + 1
-                      if object_id != oid or kind != "blob" or size > 32_000_000 or batch[start + size:start + size + 1] != b"\n" or name in records:
-                          raise RuntimeError("Unexpected public Git blob response.")
-                      records[name] = (mode, hashlib.sha256(batch[start:start + size]).hexdigest())
-                      cursor = start + size + 1
-                  if cursor != len(batch) or not records:
-                      raise RuntimeError("Incomplete public Git tree response.")
-                  expected[cache_name] = records
-          actual = {name: {} for name in expected}
-          git_metadata = {name: 0 for name in expected}
-          found_packages = set()
-          manifest_seen = 0
-          def hash_stream(stream):
-              digest = hashlib.sha256()
-              while chunk := stream.read(1024 * 1024):
-                  digest.update(chunk)
-              return digest.hexdigest()
-          prefix = "public-closure/root/.terraform/modules/"
-          archive_path = Path(os.environ["RUNNER_TEMP"]) / "closure.tar.gz"
-          with tarfile.open(archive_path, mode="r|gz") as archive:
-              for item in archive:
-                  if item.name == "public-closure/manifest.json":
-                      if not item.isfile() or item.size > 10_000_000 or manifest_seen:
-                          raise RuntimeError("Unexpected retained manifest entry.")
-                      data = archive.extractfile(item).read()
-                      if hashlib.sha256(data).hexdigest() != "f6cee223894fae61d3d9bb2cac17ae86df38c1c6ed72d390dd7498b9a1df70b0":
-                          raise RuntimeError("Retained manifest digest differs from its capture run.")
-                      manifest = json.loads(data)
-                      if (manifest.get("source_sha") != "446b078df12c9a08daec7bc5e9f0b5a57d8d7a5d"
-                              or manifest.get("terraform") != "1.16.4" or manifest.get("platform") != "linux_amd64"
-                              or manifest.get("providers") != provider_selections):
-                          raise RuntimeError("Retained manifest describes a different closure.")
-                      manifest_seen += 1
-                  elif item.name in expected_packages:
-                      if not item.isfile() or item.name in found_packages:
-                          raise RuntimeError("Unexpected provider archive entry.")
-                      if hash_stream(archive.extractfile(item)) != expected_packages[item.name]:
-                          raise RuntimeError("Retained provider archive differs from registry metadata.")
-                      found_packages.add(item.name)
-                  elif item.name.startswith(prefix):
-                      cache_name, separator, relative = item.name[len(prefix):].partition("/")
-                      if cache_name not in expected or not separator or item.isdir():
-                          continue
-                      path = PurePosixPath(relative)
-                      if not item.isfile() or path.is_absolute() or ".." in path.parts or "\\" in relative:
-                          raise RuntimeError("Unexpected retained module entry.")
-                      if relative.startswith(".git/"):
-                          git_metadata[cache_name] += 1
-                          continue
-                      if relative in actual[cache_name]:
-                          raise RuntimeError("Duplicate retained module file.")
-                      mode = "100755" if item.mode & 0o111 else "100644"
-                      actual[cache_name][relative] = (mode, hash_stream(archive.extractfile(item)))
-          if manifest_seen != 1 or found_packages != set(expected_packages):
-              raise RuntimeError("Retained manifest or provider package is missing.")
-          for cache_name, records in expected.items():
-              missing = set(records) - set(actual[cache_name])
-              extra = set(actual[cache_name]) - set(records)
-              changed = {name for name in set(records) & set(actual[cache_name]) if records[name] != actual[cache_name][name]}
-              print(f"{cache_name}: tracked={len(records)} missing={len(missing)} extra={len(extra)} changed={len(changed)} git_metadata_files={git_metadata[cache_name]}")
-              if missing or extra or changed:
-                  raise RuntimeError("A retained module differs from its public Git tree.")
-          print("Five retained provider ZIPs match registry-reported SHA256 values.")
-          print("Public observations are not independently trusted pins or approval for credentialed use.")
-          PY
+          TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
+        run: python3 .github/scripts/check_platform_input.py
