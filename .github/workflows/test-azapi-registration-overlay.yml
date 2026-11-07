@@ -41,7 +41,7 @@ jobs:
           image=$(docker image inspect --format '{{index .RepoDigests 0}}' python:3.13-slim)
           terraform_bin=$(readlink -f "$(command -v terraform)")
           docker run --rm --network none --read-only --user "$(id -u):$(id -g)" \
-            --tmpfs /tmp:rw,nosuid,nodev,size=2g \
+            --tmpfs /tmp:rw,nosuid,nodev,exec,size=2g \
             --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/repo,readonly" \
             --mount "type=bind,src=$RUNNER_TEMP/public-overlay-bundle,dst=/bundle,readonly" \
             --mount "type=bind,src=$terraform_bin,dst=/usr/local/bin/terraform,readonly" \

@@ -100,19 +100,7 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
                     [terraform, f"-chdir={root}", *args], env=env,
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
                 )
-                if result.returncode:
-                    detail = ""
-                    if args[0] == "validate":
-                        try:
-                            report = json.loads(result.stdout)
-                            diagnostics = report.get("diagnostics", [])
-                            detail = "; ".join(
-                                (str(item.get("summary", "")) + ": " + str(item.get("detail", "")))[:1200]
-                                for item in diagnostics if isinstance(item, dict)
-                            )[:3200]
-                        except (json.JSONDecodeError, AttributeError):
-                            detail = "unclassified"
-                    self.fail(f"captured public Terraform {args[0]} failed: {detail or 'unclassified'}")
+                self.assertEqual(result.returncode, 0, f"captured public Terraform {args[0]} failed")
                 return result.stdout
 
             version = json.loads(run(["version", "-json"]))
