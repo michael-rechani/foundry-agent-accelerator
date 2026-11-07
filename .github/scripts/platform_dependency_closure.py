@@ -133,11 +133,16 @@ def check(bundle, expected_digest, expected_sha=SHA):
         raise ClosureError("Manifest differs from separately selected digest.")
     manifest = read_json(bundle / "manifest.json")
     if (not isinstance(manifest, dict) or set(manifest) != {
-            "format", "source_sha", "source_files", "terraform", "platform", "provenance", "files", "modules"}
+            "format", "source_sha", "source_files", "terraform", "platform", "provenance", "files", "modules", "providers"}
             or manifest["format"] != 1 or manifest["source_sha"] != expected_sha
             or manifest["terraform"] != VERSION or manifest["platform"] != "linux_amd64"
             or manifest["provenance"] != "generated-public-resolution-not-reviewed"):
         raise ClosureError("Closure context does not match reviewed source/runtime.")
+    providers = manifest["providers"]
+    if (not isinstance(providers, dict) or not providers
+            or not all(isinstance(name, str) and isinstance(version, str) and name and version
+                       for name, version in providers.items())):
+        raise ClosureError("Installed provider selections are missing or ambiguous.")
     files = manifest["files"]
     if not isinstance(files, dict) or not files:
         raise ClosureError("Missing artifact inventory.")
@@ -207,13 +212,14 @@ def capture(source, bundle, binary):
         if version["terraform_version"] != VERSION or version["platform"] != "linux_amd64":
             raise ClosureError("Exact Terraform 1.16.4 Linux amd64 is required.")
         terraform(binary, root, home, ["init", "-backend=false", "-input=false", "-no-color"])
+        providers = json.loads(terraform(binary, root, home, ["version", "-json"]))["provider_selections"]
         terraform(binary, root, home, ["providers", "mirror", "-platform=linux_amd64", str(bundle / "mirror")])
     # Installed provider symlinks are not transported. Reinstallation must verify lock checksums.
     shutil.rmtree(root / ".terraform" / "providers")
     modules = module_graph(root)
     manifest = {"format": 1, "source_sha": SHA, "terraform": VERSION, "platform": "linux_amd64",
                 "provenance": "generated-public-resolution-not-reviewed", "modules": modules, "source_files": original_files,
-                "files": inventory(bundle)}
+                "files": inventory(bundle), "providers": providers}
     (bundle / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     digest = hashlib.sha256((bundle / "manifest.json").read_bytes()).hexdigest()
     check(bundle, digest)
@@ -236,6 +242,9 @@ def verify(bundle, binary, digest):
         if version["terraform_version"] != VERSION or version["platform"] != "linux_amd64":
             raise ClosureError("Exact Terraform runtime mismatch.")
         terraform(binary, root, home, ["init", "-backend=false", "-get=false", "-lockfile=readonly", "-input=false", "-no-color"])
+        providers = json.loads(terraform(binary, root, home, ["version", "-json"]))["provider_selections"]
+        if providers != baseline["providers"]:
+            raise ClosureError("Installed provider selections differ from captured closure.")
         terraform(binary, root, home, ["providers", "schema", "-json"])
         if (root / ".terraform.lock.hcl").read_bytes() != (bundle / "root" / ".terraform.lock.hcl").read_bytes():
             raise ClosureError("Provider lock changed during verification.")
@@ -259,6 +268,6 @@ if __name__ == "__main__":
             capture(args.source, args.bundle, args.terraform)
         else:
             verify(args.bundle, args.terraform, args.manifest_sha256)
-        print("Public dependency byte closure verified; independent review and rollout gates remain required.")
+        print("Public dependency capture/check completed; independent review and rollout gates remain required.")
     except (ClosureError, OSError, KeyError) as error:
         raise SystemExit(f"Dependency closure stopped: {str(error) if isinstance(error, ClosureError) else type(error).__name__}") from None
