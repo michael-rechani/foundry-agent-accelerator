@@ -50,6 +50,25 @@ class StateDiskError(StateError):
     pass
 
 
+DISK_FAILURE_CATEGORIES = frozenset({
+    "disk_resource_missing", "disk_resource_multiple", "disk_instances_invalid",
+    "disk_instance_missing", "disk_instance_multiple", "disk_instance_invalid",
+    "disk_instance_deposed", "disk_instance_index_invalid", "disk_attributes_invalid",
+    "disk_body_missing", "disk_body_invalid", "disk_body_json_invalid",
+    "disk_parent_missing", "disk_parent_invalid", "disk_storage_missing", "disk_storage_invalid",
+    "disk_os_missing", "disk_os_invalid", "disk_managed_missing", "disk_managed_invalid",
+    "disk_id_missing", "disk_id_invalid", "disk_name_missing", "disk_name_invalid",
+})
+
+
+class StateDiskDetailError(StateDiskError):
+    def __init__(self, category):
+        if category not in DISK_FAILURE_CATEGORIES:
+            raise ValueError("Invalid diagnostic category.")
+        super().__init__("Disk representation is invalid.")
+        self.category = category
+
+
 STATE_FAILURE_CATEGORIES = {
     StateEnvelopeError: "state_envelope_invalid",
     StateInventoryError: "state_inventory_invalid",
@@ -70,13 +89,14 @@ class ReadError(backend.CheckError):
 
 class PreconditionError(backend.CheckError):
     def __init__(self, *, input_mismatch=False, pin_invalid=False, secret_read=False, state_invalid=False,
-                 state_error=None):
+                 state_error=None, disk_category=None):
         super().__init__("Candidate preconditions failed.")
         self.input_mismatch = input_mismatch
         self.pin_invalid = pin_invalid
         self.secret_read = secret_read
         self.state_invalid = state_invalid
         self.state_error = state_error
+        self.disk_category = disk_category
 
 
 def strict_object(raw):
@@ -159,7 +179,8 @@ def compare(input_bytes, state_bytes, subscription):
         raise
     except StateError as exc:
         if secret_read:
-            raise PreconditionError(secret_read=True, state_invalid=True, state_error=type(exc)) from None
+            raise PreconditionError(secret_read=True, state_invalid=True, state_error=type(exc),
+                                    disk_category=getattr(exc, "category", None)) from None
         raise
     if secret_read:
         raise PreconditionError(secret_read=True)
@@ -233,25 +254,73 @@ def compare_validated(inputs, state, subscription):
         raise StateRoleError("Platform deployer assignment is invalid.")
     if guid(role.get("principal_id"), StateRoleError) != principal:
         raise CandidateError("Platform deployer assignment mismatch.")
-    jumpbox = target_instances(resources, "azapi_resource", "jumpbox", index=0, error_type=StateDiskError)
+    jumpbox = jumpbox_attributes(resources)
     body = jumpbox.get("body")
+    if "body" not in jumpbox or body is None:
+        raise StateDiskDetailError("disk_body_missing")
     if isinstance(body, str):
         try:
             body = strict_object(body)
         except (backend.CheckError, ValueError, UnicodeError):
-            raise StateDiskError("Jumpbox body is invalid.") from None
+            raise StateDiskDetailError("disk_body_json_invalid") from None
     if not isinstance(body, dict):
-        raise StateDiskError("Jumpbox body is missing.")
-    properties = body.get("properties")
-    storage = properties.get("storageProfile") if isinstance(properties, dict) else None
-    os_disk = storage.get("osDisk") if isinstance(storage, dict) else None
-    managed_disk = os_disk.get("managedDisk") if isinstance(os_disk, dict) else None
-    state_disk_id = managed_disk.get("id") if isinstance(managed_disk, dict) else None
-    state_disk_name = os_disk.get("name") if isinstance(os_disk, dict) else None
-    if not isinstance(state_disk_id, str) or not isinstance(state_disk_name, str):
-        raise StateDiskError("Jumpbox disk identity is incomplete.")
+        raise StateDiskDetailError("disk_body_invalid")
+    properties = disk_object(body, "properties", "disk_parent_missing", "disk_parent_invalid")
+    storage = disk_object(properties, "storageProfile", "disk_storage_missing", "disk_storage_invalid")
+    os_disk = disk_object(storage, "osDisk", "disk_os_missing", "disk_os_invalid")
+    managed_disk = disk_object(os_disk, "managedDisk", "disk_managed_missing", "disk_managed_invalid")
+    state_disk_id = disk_string(managed_disk, "id", "disk_id_missing", "disk_id_invalid")
+    state_disk_name = disk_string(os_disk, "name", "disk_name_missing", "disk_name_invalid")
     if state_disk_id.lower() != disk_id.lower() or state_disk_name.lower() != disk_name.lower():
         raise CandidateError("Jumpbox disk identity mismatch.")
+
+
+def disk_object(parent, key, missing, invalid):
+    value = parent.get(key)
+    if value is None:
+        raise StateDiskDetailError(missing)
+    if not isinstance(value, dict):
+        raise StateDiskDetailError(invalid)
+    return value
+
+
+def disk_string(parent, key, missing, invalid):
+    value = parent.get(key)
+    if value is None:
+        raise StateDiskDetailError(missing)
+    if not isinstance(value, str):
+        raise StateDiskDetailError(invalid)
+    return value
+
+
+def jumpbox_attributes(resources):
+    matches = [
+        item for item in resources
+        if item.get("mode") == "managed" and item.get("module") is None
+        and item.get("type") == "azapi_resource" and item.get("name") == "jumpbox"
+    ]
+    if not matches:
+        raise StateDiskDetailError("disk_resource_missing")
+    if len(matches) != 1:
+        raise StateDiskDetailError("disk_resource_multiple")
+    instances = matches[0].get("instances")
+    if not isinstance(instances, list):
+        raise StateDiskDetailError("disk_instances_invalid")
+    if not instances:
+        raise StateDiskDetailError("disk_instance_missing")
+    if len(instances) != 1:
+        raise StateDiskDetailError("disk_instance_multiple")
+    instance = instances[0]
+    if not isinstance(instance, dict):
+        raise StateDiskDetailError("disk_instance_invalid")
+    if instance.get("deposed"):
+        raise StateDiskDetailError("disk_instance_deposed")
+    if instance.get("index_key") != 0:
+        raise StateDiskDetailError("disk_instance_index_invalid")
+    attributes = instance.get("attributes")
+    if not isinstance(attributes, dict):
+        raise StateDiskDetailError("disk_attributes_invalid")
+    return attributes
 
 
 def check(environ=os.environ):
@@ -293,7 +362,7 @@ def main():
         if exc.secret_read:
             print("candidate_platform_comparison_failed=secret_read_review_required", file=sys.stderr)
         if exc.state_invalid:
-            print_state_failure(exc.state_error)
+            print_state_failure(exc.state_error, exc.disk_category)
         print_router_override(exc)
         return 1
     except PinError as exc:
@@ -305,7 +374,7 @@ def main():
         print_router_override(exc)
         return 1
     except StateError as exc:
-        print_state_failure(type(exc))
+        print_state_failure(type(exc), getattr(exc, "category", None))
         print_router_override(exc)
         return 1
     except SnapshotError:
@@ -328,8 +397,11 @@ def print_router_override(exc):
         print(f"candidate_router_override={override}", file=sys.stderr)
 
 
-def print_state_failure(error_type):
-    category = STATE_FAILURE_CATEGORIES.get(error_type, "protected_state_invalid")
+def print_state_failure(error_type, disk_category=None):
+    if error_type is StateDiskDetailError and disk_category in DISK_FAILURE_CATEGORIES:
+        category = disk_category
+    else:
+        category = STATE_FAILURE_CATEGORIES.get(error_type, "protected_state_invalid")
     print(f"candidate_platform_comparison_failed={category}", file=sys.stderr)
 
 
