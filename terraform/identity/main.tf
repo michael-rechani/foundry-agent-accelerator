@@ -170,7 +170,7 @@ resource "azuread_application_federated_identity_credential" "deploy" {
   audiences      = ["api://AzureADTokenExchange"]
 }
 
-# Recording identity: calls the Foundry account's models and nothing else.
+# Recording identity: Foundry User at account scope includes key-listing and broad data actions.
 resource "azuread_application" "recording" {
   count = var.enable_library_recording ? 1 : 0
 

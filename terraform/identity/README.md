@@ -23,6 +23,13 @@ subscription, and let a smaller group run the other roots.
 | GitHub | The `lab-deploy` and `library-recording` environments, limited to `main`, and the variables the workflows read. |
 | Public resources | None. |
 
+The recording identity uses keyless GitHub OIDC, but its account-scoped
+[Foundry User](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles/ai-machine-learning#foundry-user)
+role also includes `Microsoft.CognitiveServices/accounts/listKeys/action` and
+broad Foundry data actions; it is not inference-only. Verify the recording
+workflow's project Responses API requirements and other consumers before
+replacing or narrowing that role.
+
 ## Deploy
 
 1. Sign in to Azure with `az login`, and set `GITHUB_TOKEN` for this shell only.
