@@ -485,6 +485,98 @@ class ExtractionTests(unittest.TestCase):
             finally:
                 os.close(fd)
 
+    def test_replacement_before_binding_preserves_unknown_inode(self):
+        for directory in (False, True):
+            with self.subTest(directory=directory), tempfile.TemporaryDirectory() as folder:
+                base = Path(folder)
+                parent = base / 'parent'
+                parent.mkdir(mode=0o700)
+                data = transport(BASE)
+                source = base / 'source.gz'
+                source.write_bytes(data)
+                original_bind = extractor.OwnershipLedger.bind
+                displaced = base / 'displaced'
+                replacement = None
+                def replace(ledger, name, fd, is_directory):
+                    nonlocal replacement
+                    target_name = 'public-closure/root' if directory else 'public-closure/root/main.tf'
+                    if name == target_name:
+                        stage = next(parent.iterdir())
+                        replacement = stage / name
+                        replacement.rename(displaced)
+                        if directory:
+                            replacement.mkdir()
+                            (replacement / 'unknown').write_bytes(b'UNOWNED DATA')
+                        else:
+                            replacement.write_bytes(b'UNOWNED DATA')
+                    return original_bind(ledger, name, fd, is_directory)
+                with patch.object(extractor.OwnershipLedger, 'bind', replace):
+                    with self.assertRaisesRegex(extractor.ExtractionError, 'cleanup could not be verified'):
+                        extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
+                self.assertTrue(displaced.exists())
+                self.assertEqual((replacement / 'unknown' if directory else replacement).read_bytes(), b'UNOWNED DATA')
+                self.assertFalse((parent / 'out').exists())
+
+    def test_successful_mkdir_then_failure_and_failed_ledger_dup_are_not_swept(self):
+        for kind in ('mkdir', 'dup'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as folder:
+                base = Path(folder)
+                parent = base / 'parent'
+                parent.mkdir(mode=0o700)
+                data = transport(BASE)
+                source = base / 'source.gz'
+                source.write_bytes(data)
+                real_mkdir = os.mkdir
+                real_bind = extractor.OwnershipLedger.bind
+                def mkdir(name, *args, **kwargs):
+                    real_mkdir(name, *args, **kwargs)
+                    if kind == 'mkdir' and name == 'root':
+                        raise OSError('fictional failure after directory creation')
+                def bind(ledger, name, fd, directory):
+                    if kind == 'dup' and not directory:
+                        with patch.object(extractor.os, 'dup', side_effect=OSError('fictional descriptor exhaustion')):
+                            return real_bind(ledger, name, fd, directory)
+                    return real_bind(ledger, name, fd, directory)
+                with patch.object(extractor.os, 'mkdir', mkdir), patch.object(extractor.OwnershipLedger, 'bind', bind):
+                    with self.assertRaisesRegex(extractor.ExtractionError, 'cleanup could not be verified'):
+                        extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
+                stage = next(parent.iterdir())
+                self.assertTrue((stage / 'public-closure/root').exists())
+                if kind == 'dup':
+                    self.assertTrue((stage / 'public-closure/root/main.tf').exists())
+                self.assertFalse((parent / 'out').exists())
+
+    def test_missing_known_entry_and_preflight_error_delete_nothing(self):
+        for kind in ('missing', 'verification'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as folder:
+                base = Path(folder)
+                parent = base / 'parent'
+                parent.mkdir(mode=0o700)
+                data = transport(BASE)
+                source = base / 'source.gz'
+                source.write_bytes(data)
+                original = extractor.extract_validated
+                def fail(stream, entries, root_fd, ledger):
+                    original(stream, entries, root_fd, ledger)
+                    if kind == 'missing':
+                        stage = next(parent.iterdir())
+                        (stage / 'public-closure/root/main.tf').rename(base / 'displaced')
+                    raise OSError('fictional ordinary failure')
+                original_verify = extractor.OwnershipLedger.verify
+                def verify(ledger, root_fd):
+                    if kind == 'verification':
+                        raise OSError('fictional verification failure')
+                    original_verify(ledger, root_fd)
+                with patch.object(extractor, 'extract_validated', fail), patch.object(extractor.OwnershipLedger, 'verify', verify), patch.object(extractor.os, 'unlink', wraps=os.unlink) as unlink, patch.object(extractor.os, 'rmdir', wraps=os.rmdir) as rmdir:
+                    with self.assertRaisesRegex(extractor.ExtractionError, 'cleanup could not be verified'):
+                        extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
+                    unlink.assert_not_called()
+                    rmdir.assert_not_called()
+                stage = next(parent.iterdir())
+                self.assertTrue((stage / 'public-closure/root').exists())
+                kept = base / 'displaced' if kind == 'missing' else stage / 'public-closure/root/main.tf'
+                self.assertEqual(kept.read_bytes(), BASE[-1][2])
+
 if __name__ == "__main__":
     if os.name != "posix":
         raise SystemExit("Linux required.")
