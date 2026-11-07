@@ -26,110 +26,12 @@ def _unverified():
 
 
 def supervise(argv, *, timeout=2.0, grace=2.0, output_limit=65536):
-    """Run a bounded command; never treat an unverified result as teardown proof."""
-    if (
-        sys.platform != "linux"
-        or not hasattr(os, "pidfd_open")
-        or not hasattr(signal, "pidfd_send_signal")
-        or not isinstance(argv, list)
-        or not argv
-        or len(argv) > 128
-        or any(not isinstance(arg, str) or len(arg) > _REQUEST_LIMIT or "\x00" in arg for arg in argv)
-        or not os.path.isabs(argv[0])
-        or not isinstance(timeout, (int, float))
-        or not isinstance(grace, (int, float))
-        or not 0 < timeout <= 30
-        or not 0 < grace <= 30
-        or type(output_limit) is not int
-        or not 0 <= output_limit <= 1048576
-    ):
-        return _unverified()
-    try:
-        request = json.dumps(
-            {"argv": argv, "timeout": timeout, "grace": grace, "output_limit": output_limit},
-            separators=(",", ":"),
-            allow_nan=False,
-        ).encode() + b"\n"
-    except (ValueError, UnicodeError, OverflowError):
-        return _unverified()
-    if len(request) > _REQUEST_LIMIT:
-        return _unverified()
-    deadline = time.monotonic() + timeout + grace + 2
-    try:
-        proc = subprocess.Popen(  # noqa: S603
-            [sys.executable, "-I", os.path.abspath(__file__), "--supervise"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            close_fds=True,
-        )
-    except (OSError, ValueError):
-        return _unverified()
-    data = bytearray()
-    valid = True
-    supervisor_fd = None
-    try:
-        supervisor_fd = os.pidfd_open(proc.pid, 0)
-        proc.stdin.write(request)
-        proc.stdin.close()
-        os.set_blocking(proc.stdout.fileno(), False)
-        with selectors.DefaultSelector() as selector:
-            selector.register(proc.stdout, selectors.EVENT_READ)
-            while True:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    valid = False
-                    break
-                events = selector.select(remaining)
-                if not events:
-                    valid = False
-                    break
-                chunk = os.read(proc.stdout.fileno(), _RESPONSE_LIMIT + 1)
-                if not chunk:
-                    break
-                data.extend(chunk)
-                if len(data) > _RESPONSE_LIMIT:
-                    valid = False
-                    break
-        if valid:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                valid = False
-            else:
-                try:
-                    valid = proc.wait(timeout=remaining) == 0
-                except subprocess.TimeoutExpired:
-                    valid = False
-    except (OSError, ValueError, AttributeError, KeyboardInterrupt):
-        valid = False
-    finally:
-        try:
-            proc.stdin.close()
-        except OSError:
-            valid = False
-        if not valid and supervisor_fd is not None:
-            try:
-                # A pidfd remains bound even if the supervisor has exited or been reaped.
-                signal.pidfd_send_signal(supervisor_fd, signal.SIGKILL)
-                proc.wait(timeout=0.2)
-            except (OSError, subprocess.TimeoutExpired):
-                valid = False
-        if supervisor_fd is not None:
-            try:
-                os.close(supervisor_fd)
-            except OSError:
-                valid = False
-        try:
-            proc.stdout.close()
-        except OSError:
-            valid = False
-    if not valid:
-        return _unverified()
-    # One exact terminal frame, with no trailing or duplicate bytes.
-    for outcome in _OUTCOMES:
-        expected = ('{"verified":true,"outcome":"' + outcome + '"}\n').encode()
-        if data == expected:
-            return Result(True, outcome)
+    """Refuse before launch: no atomic birth-bound ownership primitive exists.
+
+    Post-spawn pidfd_open can bind a reused PID under auto-reaping or external
+    waiters. Popen.wait can also report zero when the exit status was lost.
+    Neither is an ownership or termination proof for an arbitrary caller.
+    """
     return _unverified()
 
 
@@ -151,8 +53,13 @@ def _set_subreaper():
         raise OSError(ctypes.get_errno(), "prctl failed")
 
 
-def _supervisor(request):
-    """Return a terminal result only after group signaling and ECHILD."""
+def _experimental_supervisor(request):
+    """Dedicated-interpreter experiment, not an arbitrary-caller launch API.
+
+    Its post-spawn binding and retained numeric group require a trusted fresh
+    interpreter with default SIGCHLD, no SA_NOCLDWAIT and no external waiters.
+    These are test conditions, not guarantees that Python can establish.
+    """
     if (
         sys.platform != "linux"
         or not hasattr(os, "pidfd_open")
@@ -215,6 +122,7 @@ def _supervisor(request):
                 return None
             os.killpg(proc.pid, signal.SIGKILL)
             end = start + timeout + grace
+            leader_reaped = False
             no_children = False
             while time.monotonic() < end:
                 # Count bytes still queued when the leader exited, too.
@@ -226,14 +134,21 @@ def _supervisor(request):
                         count += len(chunk)
                         if count > limit and outcome not in ("timeout", "output_limit"):
                             outcome = "output_limit"
-                if not no_children:
+                if not leader_reaped:
+                    # Missing status (ECHILD) is a failure, never Python's zero.
+                    info = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG)
+                    if info is not None:
+                        if info.si_code not in (os.CLD_EXITED, os.CLD_KILLED, os.CLD_DUMPED):
+                            return None
+                        proc.returncode = (
+                            info.si_status if info.si_code == os.CLD_EXITED else -info.si_status
+                        )
+                        leader_reaped = True
+                if leader_reaped and not no_children:
                     try:
-                        pid, status = os.waitpid(-1, os.WNOHANG)
+                        os.waitpid(-1, os.WNOHANG)
                     except ChildProcessError:
                         no_children = True
-                    else:
-                        if pid == proc.pid:
-                            proc.returncode = os.waitstatus_to_exitcode(status)
                 if no_children and not selector.get_map():
                     return outcome
                 time.sleep(0.01)
@@ -266,7 +181,7 @@ def _main():
             or not 0 <= request["output_limit"] <= 1048576
         ):
             return 1
-        outcome = _supervisor(request)
+        outcome = _experimental_supervisor(request)
         if outcome not in _OUTCOMES:
             return 1
         sys.stdout.write('{"verified":true,"outcome":"' + outcome + '"}\n')
@@ -277,6 +192,6 @@ def _main():
 
 
 if __name__ == "__main__":
-    if sys.argv[1:] != ["--supervise"]:
+    if sys.argv[1:] != ["--experimental-supervise"]:
         sys.exit(1)
     sys.exit(_main())

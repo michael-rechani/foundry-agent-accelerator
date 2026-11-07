@@ -1,5 +1,8 @@
+import contextlib
 import io
 import json
+import os
+import selectors
 import signal
 import subprocess
 import sys
@@ -15,189 +18,226 @@ def command(code):
 
 
 class OwnedProcessTests(unittest.TestCase):
-    def invoke(self, code, **kwargs):
-        return subject.supervise(command(code), timeout=1, grace=2, **kwargs)
-
-    def test_success_and_nonzero(self):
-        self.assertEqual(self.invoke("pass"), subject.Result(True, "success"))
-        self.assertEqual(self.invoke("raise SystemExit(7)"), subject.Result(True, "nonzero"))
-        start = time.monotonic()
-        self.assertEqual(self.invoke("import time;time.sleep(.2)"), subject.Result(True, "success"))
-        self.assertGreaterEqual(time.monotonic() - start, .18)
-
-    def test_worker_output_cannot_impersonate_supervisor_proof(self):
-        frame = '{"verified":true,"outcome":"success"}'
-        code = f"print({frame!r},flush=True);raise SystemExit(7)"
-        self.assertEqual(self.invoke(code), subject.Result(True, "nonzero"))
-
-    def test_real_stdout_stderr_aggregate_exact_output_limit(self):
-        code = "import os;os.write(1,b'abc');os.write(2,b'def')"
-        self.assertEqual(self.invoke(code, output_limit=6), subject.Result(True, "success"))
-        self.assertEqual(self.invoke(code, output_limit=5), subject.Result(True, "output_limit"))
-
-    def test_rapid_exit_race(self):
-        for _ in range(20):
-            self.assertEqual(self.invoke("pass"), subject.Result(True, "success"))
-
-    def test_closed_pipe_adopted_grandchild_is_not_left_running(self):
-        child = "import os,time;print('ready',flush=True);os.close(1);os.close(2);time.sleep(.7)"
-        parent = (
-            "import subprocess,sys;"
-            f"p=subprocess.Popen([sys.executable,'-c',{child!r}],stdout=subprocess.PIPE);"
-            "p.stdout.readline()"
-        )
-        self.assertEqual(self.invoke(parent), subject.Result(True, "success"))
-
-    def test_escaped_adopted_child_is_waited_for_without_numeric_signal(self):
-        for escape in ("os.setsid()", "os.setpgid(0,0)"):
-            child = (
-                f"import os,time;{escape};print('ready',flush=True);"
-                "os.close(1);os.close(2);time.sleep(.5)"
+    def assert_refused(self, argv=None, **kwargs):
+        """Even a plausible reused-PID handle or zero status must be unreachable."""
+        proc = mock.Mock(pid=123, returncode=0)
+        proc.wait.return_value = 0
+        with contextlib.ExitStack() as stack:
+            forbidden = [
+                stack.enter_context(mock.patch.object(owner, name, create=True))
+                for owner, name in (
+                    (subject.subprocess, "Popen"),
+                    (subject.os, "pidfd_open"),
+                    (subject.signal, "pidfd_send_signal"),
+                    (subject.os, "kill"),
+                    (subject.os, "killpg"),
+                    (subject.os, "waitid"),
+                    (subject.os, "waitpid"),
+                    (subject, "_experimental_supervisor"),
+                    (subject, "_main"),
+                    (subject.json, "dumps"),
+                    (subject.selectors, "DefaultSelector"),
+                )
+            ]
+            forbidden[0].return_value = proc
+            forbidden[1].return_value = 7
+            self.assertEqual(
+                subject.supervise(command("pass") if argv is None else argv, **kwargs),
+                subject.Result(False, "unverified"),
             )
-            parent = (
-                "import subprocess,sys;"
-                f"p=subprocess.Popen([sys.executable,'-c',{child!r}],stdout=subprocess.PIPE);"
-                "p.stdout.readline()"
-            )
-            with self.subTest(escape=escape):
-                start = time.monotonic()
-                self.assertEqual(self.invoke(parent), subject.Result(True, "success"))
-                self.assertGreaterEqual(time.monotonic() - start, .4)
+            for operation in forbidden:
+                operation.assert_not_called()
+        proc.wait.assert_not_called()
+        proc.kill.assert_not_called()
+        proc.terminate.assert_not_called()
+        proc.stdin.write.assert_not_called()
 
-    def test_output_budget_and_timeout(self):
-        self.assertEqual(self.invoke("import os;os.write(1,b'x'*100000)", output_limit=64),
-                         subject.Result(True, "output_limit"))
-        result = subject.supervise(command("import time;time.sleep(.8)"), timeout=.15, grace=1)
-        self.assertEqual(result, subject.Result(True, "timeout"))
-
-    def test_unrelated_owned_sibling_untouched(self):
-        sibling = subprocess.Popen(command("import time;time.sleep(.8)"))  # noqa: S603
-        try:
-            self.assertEqual(self.invoke("pass"), subject.Result(True, "success"))
-            self.assertIsNone(sibling.poll())
-        finally:
-            sibling.wait(timeout=2)
-
-    def test_escaped_child_longer_than_grace_is_unverified(self):
-        child = (
-            "import os,time;os.setsid();print('ready',flush=True);"
-            "os.close(1);os.close(2);time.sleep(.9)"
-        )
-        parent = (
-            "import subprocess,sys;"
-            f"p=subprocess.Popen([sys.executable,'-c',{child!r}],stdout=subprocess.PIPE);"
-            "p.stdout.readline()"
-        )
-        self.assertEqual(subject.supervise(command(parent), timeout=.2, grace=.2),
-                         subject.Result(False, "unverified"))
-        time.sleep(1)
-
-    def fake_supervisor(self, code, timeout=.2, worker="pass"):
-        real = subprocess.Popen
-
-        def fake(_argv, **kwargs):
-            return real(command(code), **kwargs)
-
-        with mock.patch.object(subject.subprocess, "Popen", side_effect=fake):
-            return subject.supervise(command(worker), timeout=timeout, grace=.2)
-
-    def test_crash_before_and_after_spawn(self):
-        self.assertEqual(self.fake_supervisor("raise SystemExit(3)"), subject.Result(False, "unverified"))
-        code = (
-            "import subprocess,sys;"
-            "subprocess.Popen([sys.executable,'-c','import time;time.sleep(.4)'],"
-            "stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,"
-            "start_new_session=True);raise SystemExit(3)"
-        )
-        self.assertEqual(self.fake_supervisor(code), subject.Result(False, "unverified"))
-        time.sleep(.5)
-
-    def test_real_supervisor_crash_after_worker_spawn(self):
-        code = (
-            "import os,owned_process;"
-            "owned_process.os.pidfd_open=lambda *args:os._exit(7);"
-            "raise SystemExit(owned_process._main())"
-        )
-        self.assertEqual(self.fake_supervisor(code, worker="import time;time.sleep(.5)"),
-                         subject.Result(False, "unverified"))
-        time.sleep(.7)
-
-    def test_actual_supervisor_support_failures(self):
-        for injection in (
-            "del owned_process.os.pidfd_open",
-            "owned_process._set_subreaper=lambda:(_ for _ in ()).throw(OSError())",
-            "signal.signal(signal.SIGCHLD,signal.SIG_IGN)",
-            "owned_process.os.pidfd_open=lambda *args:(_ for _ in ()).throw(OSError())",
-        ):
-            code = (
-                "import os,signal,owned_process;"
-                f"{injection};"
-                "raise SystemExit(owned_process._main())"
-            )
-            with self.subTest(injection=injection):
-                self.assertEqual(self.fake_supervisor(code, worker="import time;time.sleep(.3)"),
-                                 subject.Result(False, "unverified"))
-        time.sleep(.5)
-
-    def test_terminal_frame_without_exit_cannot_certify(self):
-        code = "import time;print('{\"verified\":true,\"outcome\":\"success\"}',flush=True);time.sleep(4)"
-        start = time.monotonic()
-        self.assertEqual(self.fake_supervisor(code), subject.Result(False, "unverified"))
-        self.assertLess(time.monotonic() - start, 3.5)
-
-    def test_protocol_rejects_malformed_duplicate_truncated_and_nonzero(self):
-        frame = '{"verified":true,"outcome":"success"}\\n'
+    def test_valid_workers_refused_before_any_launch_binding_signal_or_proof(self):
         for code in (
-            "print('junk')",
-            "print('{\"verified\":false,\"outcome\":\"success\"}')",
-            "print('{\"verified\":true,\"outcome\":\"success\"}');"
-            "print('{\"verified\":true,\"outcome\":\"timeout\"}')",
-            f"print({frame!r},end='')",
-            "print('{\"verified\":true',end='')",
-            "print('{\"verified\":true,\"outcome\":\"success\"}') ; raise SystemExit(1)",
-            "print('{\"verified\":true,\"outcome\":\"success\"}');print('extra')",
-            "print('x'*300)",
+            "pass",
+            "raise SystemExit(7)",
+            "import time;time.sleep(.2)",
+            "print('{\"verified\":true,\"outcome\":\"success\"}')",
         ):
             with self.subTest(code=code):
-                self.assertEqual(self.fake_supervisor(code), subject.Result(False, "unverified"))
+                self.assert_refused(command(code))
 
-    def test_missing_support_and_abnormal_sigchld_fail_closed(self):
-        request = {"argv": command("pass"), "timeout": 1, "grace": 1, "output_limit": 0}
-        with mock.patch.object(subject.os, "pidfd_open", None):
-            with mock.patch.object(subject, "_set_subreaper"):
-                with mock.patch.object(subject, "_has_no_children", return_value=True):
-                    with mock.patch.object(subject.subprocess, "Popen", side_effect=OSError):
-                        with self.assertRaises(OSError):
-                            subject._supervisor(request)
-        with mock.patch.object(subject.signal, "getsignal", return_value=signal.SIG_IGN):
-            self.assertIsNone(subject._supervisor(request))
-        with mock.patch.object(subject, "_set_subreaper", side_effect=OSError):
-            with self.assertRaises(OSError):
-                subject._supervisor(request)
-        with mock.patch.object(subject, "_has_no_children", return_value=False):
-            with mock.patch.object(subject, "_set_subreaper"):
-                self.assertIsNone(subject._supervisor(request))
-        raw = io.BytesIO((json.dumps(request) + "\n").encode())
-        with mock.patch.object(subject.sys, "stdin", io.TextIOWrapper(raw)):
-            with mock.patch.object(subject, "_supervisor", side_effect=OSError):
-                self.assertEqual(subject._main(), 1)
+    def test_invalid_inputs_and_limits_are_also_side_effect_free(self):
+        for argv in ([], ["relative"], ["/bin/echo", "\x00"], object(),
+                     [sys.executable] * 129, [sys.executable, "x" * 4097]):
+            with self.subTest(argv_type=type(argv)):
+                self.assert_refused(argv)
+        for kwargs in ({"timeout": 0}, {"timeout": float("nan")}, {"grace": 0},
+                       {"output_limit": -1}, {"timeout": .001, "grace": .001}):
+            self.assert_refused(**kwargs)
 
-    def test_partial_spawn_failure_is_not_certified(self):
-        request = {"argv": command("pass"), "timeout": 1, "grace": 1, "output_limit": 0}
-        proc = mock.Mock(pid=123, stdout=io.BytesIO(), stderr=io.BytesIO())
-        with mock.patch.object(subject, "_set_subreaper"):
-            with mock.patch.object(subject, "_has_no_children", return_value=True):
-                with mock.patch.object(subject.subprocess, "Popen", return_value=proc):
-                    with mock.patch.object(subject.os, "pidfd_open", side_effect=OSError):
-                        with self.assertRaises(OSError):
-                            subject._supervisor(request)
-        self.assertTrue(proc.stdout.closed)
+    def test_auto_reaping_and_external_waiter_conditions_do_not_enable_launch(self):
+        for disposition in (signal.SIG_DFL, signal.SIG_IGN, mock.Mock()):
+            with mock.patch.object(subject.signal, "getsignal", return_value=disposition):
+                self.assert_refused()
+        with mock.patch.object(subject.sys, "platform", "unsupported"):
+            self.assert_refused()
 
-    def test_invalid_inputs_fail_closed(self):
-        for argv in ([], ["relative"], ["/bin/echo", "\x00"]):
-            self.assertEqual(subject.supervise(argv), subject.Result(False, "unverified"))
-        self.assertEqual(subject.supervise(command("pass"), timeout=0), subject.Result(False, "unverified"))
+    def test_historical_postspawn_binding_can_signal_reused_pid_on_interrupt(self):
+        # A model of the removed caller, with no real process or kernel operation.
+        events = []
+        proc = mock.Mock(pid=123)
+        spawn = mock.Mock(return_value=proc)
+        bind = mock.Mock(side_effect=lambda pid, flags: events.append(
+            ("bind-reused-unrelated", pid, flags)) or 7)
+        send = mock.Mock(side_effect=lambda fd, sig: events.append(("wrong-signal", fd, sig)))
+        reaper = mock.Mock(side_effect=lambda: events.append(("reap-original", proc.pid)))
+        launched = spawn()
+        reaper()  # The original child is gone; the numeric PID is now reused.
+        fd = bind(launched.pid, 0)
+        with self.assertRaises(KeyboardInterrupt):
+            try:
+                raise KeyboardInterrupt()
+            finally:
+                send(fd, signal.SIGKILL)
+        self.assertEqual(events, [("reap-original", 123), ("bind-reused-unrelated", 123, 0),
+                                  ("wrong-signal", 7, signal.SIGKILL)])
+        self.assert_refused()
 
+    def test_cpython_echild_zero_can_accept_exact_frame_after_abnormal_exit(self):
+        # No child is launched: exercise CPython 3.14's actual POSIX _try_wait.
+        proc = object.__new__(subprocess.Popen)
+        proc.pid = 123
+        proc.returncode = None
+        proc._child_created = False
+        with mock.patch.object(os, "waitpid", side_effect=ChildProcessError) as reap:
+            pid, status = proc._try_wait(0)
+        reap.assert_called_once_with(123, 0)
+        self.assertEqual((pid, status), (123, 0))
+        frame = b'{"verified":true,"outcome":"success"}\n'
+        # Historical exact-frame + Python-zero acceptance lost the real exit 7.
+        self.assertTrue(frame == b'{"verified":true,"outcome":"success"}\n' and status == 0)
+        self.assert_refused()
+
+    def test_timeout_interrupt_missing_status_and_external_waitid_are_unreachable(self):
+        for failure in (KeyboardInterrupt(), subprocess.TimeoutExpired("fictional", .1),
+                        ChildProcessError(), PermissionError()):
+            with (
+                mock.patch.object(subject.os, "waitid", side_effect=failure),
+                mock.patch.object(subject.signal, "pidfd_send_signal", side_effect=failure),
+            ):
+                self.assert_refused(timeout=.01, grace=.01)
+
+
+class ExperimentalInterpreterTests(unittest.TestCase):
+    def invoke(self, code, *, timeout=1, grace=2, output_limit=65536):
+        """Test-only launch, no outer signals/binding or Popen status-as-proof.
+
+        All real workers below are fictional and self-terminating. This fresh
+        test interpreter has default SIGCHLD and no installed/external waiters.
+        It does not establish a safe subprocess primitive for arbitrary callers.
+        """
+        request = {"argv": command(code), "timeout": timeout,
+                   "grace": grace, "output_limit": output_limit}
+        proc = subprocess.Popen(
+            [sys.executable, "-I", os.path.abspath(subject.__file__), "--experimental-supervise"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            close_fds=True,
+        )
+        data = bytearray()
+        info = None
+        deadline = time.monotonic() + 5
+        try:
+            proc.stdin.write((json.dumps(request) + "\n").encode())
+            proc.stdin.close()
+            os.set_blocking(proc.stdout.fileno(), False)
+            eof = False
+            with selectors.DefaultSelector() as selector:
+                selector.register(proc.stdout, selectors.EVENT_READ)
+                while time.monotonic() < deadline and (not eof or info is None):
+                    if info is None:
+                        # ECHILD propagates as a failing test, not a success status.
+                        info = os.waitid(os.P_PID, proc.pid, os.WEXITED | os.WNOHANG)
+                        if info is not None:
+                            self.assertIn(info.si_code, (os.CLD_EXITED, os.CLD_KILLED, os.CLD_DUMPED))
+                            proc.returncode = (
+                                info.si_status if info.si_code == os.CLD_EXITED else -info.si_status
+                            )
+                    for key, _ in selector.select(.01):
+                        chunk = os.read(key.fd, 257)
+                        if not chunk:
+                            selector.unregister(key.fileobj)
+                            eof = True
+                        else:
+                            data.extend(chunk)
+                            self.assertLessEqual(len(data), 256)
+                self.assertTrue(eof, "experimental protocol did not close within test bound")
+                self.assertIsNotNone(info, "explicit terminal status was not obtained")
+            if info.si_code != os.CLD_EXITED or info.si_status != 0:
+                self.assertEqual(data, b"")
+                return None
+            for outcome in subject._OUTCOMES:
+                if data == ('{"verified":true,"outcome":"' + outcome + '"}\n').encode():
+                    return outcome
+            self.fail("experimental interpreter returned an invalid terminal frame")
+        finally:
+            proc.stdin.close()
+            proc.stdout.close()
+
+    def test_ordinary_leader_status_and_rapid_exit(self):
+        self.assertEqual(self.invoke("pass"), "success")
+        self.assertEqual(self.invoke("raise SystemExit(7)"), "nonzero")
+        for _ in range(10):
+            self.assertEqual(self.invoke("pass"), "success")
+
+    def test_worker_frame_is_not_supervisor_status(self):
+        code = "print('{\"verified\":true,\"outcome\":\"success\"}',flush=True);raise SystemExit(7)"
+        self.assertEqual(self.invoke(code), "nonzero")
+
+    def test_aggregate_output_exact_limit_and_timeout(self):
+        code = "import os;os.write(1,b'abc');os.write(2,b'def')"
+        self.assertEqual(self.invoke(code, output_limit=6), "success")
+        self.assertEqual(self.invoke(code, output_limit=5), "output_limit")
+        self.assertEqual(self.invoke("import os;os.write(1,b'x'*100000)", output_limit=64),
+                         "output_limit")
+        self.assertEqual(self.invoke("import time;time.sleep(.8)", timeout=.15, grace=1),
+                         "timeout")
+
+    def test_ordinary_and_escaped_adopted_children(self):
+        for escape in ("pass", "os.setsid()", "os.setpgid(0,0)"):
+            child = (f"import os,time;{escape};print('ready',flush=True);"
+                     "os.close(1);os.close(2);time.sleep(.5)")
+            parent = ("import subprocess,sys;"
+                      f"p=subprocess.Popen([sys.executable,'-c',{child!r}],stdout=subprocess.PIPE);"
+                      "p.stdout.readline()")
+            with self.subTest(escape=escape):
+                start = time.monotonic()
+                self.assertEqual(self.invoke(parent), "success")
+                if escape != "pass":
+                    self.assertGreaterEqual(time.monotonic() - start, .4)
+
+    def test_escape_past_grace_does_not_certify(self):
+        child = ("import os,time;os.setsid();print('ready',flush=True);"
+                 "os.close(1);os.close(2);time.sleep(.9)")
+        parent = ("import subprocess,sys;"
+                  f"p=subprocess.Popen([sys.executable,'-c',{child!r}],stdout=subprocess.PIPE);"
+                  "p.stdout.readline()")
+        try:
+            self.assertIsNone(self.invoke(parent, timeout=.2, grace=.2))
+        finally:
+            time.sleep(1)  # Bounded escaped fictional child terminates on its own.
+
+    def test_test_harness_fails_echild_instead_of_using_popen_wait(self):
+        proc = mock.Mock(pid=123, stdin=io.BytesIO())
+        proc.stdout.fileno.return_value = 9
+        selector = mock.MagicMock()
+        selector.__enter__.return_value = selector
+        with (
+            mock.patch.object(subprocess, "Popen", return_value=proc),
+            mock.patch.object(os, "set_blocking"),
+            mock.patch.object(os, "waitid", side_effect=ChildProcessError),
+            mock.patch.object(selectors, "DefaultSelector", return_value=selector),
+        ):
+            with self.assertRaises(ChildProcessError):
+                self.invoke("pass")
+        proc.wait.assert_not_called()
+        proc.kill.assert_not_called()
+        proc.terminate.assert_not_called()
 
 
 class OwnershipFailureTests(unittest.TestCase):
@@ -205,8 +245,8 @@ class OwnershipFailureTests(unittest.TestCase):
         return {"argv": command("pass"), "timeout": 1, "grace": 1,
                 "output_limit": 0, **kwargs}
 
-    def flow(self, *, fail=None, chunks=(), limit=0):
-        """Mock only OS ownership operations; execute the real supervision loop."""
+    def flow(self, *, fail=None, chunks=(), limit=0, abnormal=False):
+        """Only mocked ownership/signals: no real unrelated process control."""
         events = []
         stdout = mock.Mock()
         stdout.fileno.return_value = 9
@@ -218,19 +258,16 @@ class OwnershipFailureTests(unittest.TestCase):
         queued = list(chunks)
 
         def select(_timeout):
-            if not queued:
-                return []
-            key = mock.Mock(fd=9)
-            return [(key, 1)]
+            return [(mock.Mock(fd=9), 1)] if queued else []
 
-        def read(_fd, _size):
-            return queued.pop(0)
-
-        def observe(*_args):
-            events.append("observe")
-            if fail == "waitid":
+        def observe(_kind, _fd, flags):
+            consuming = not flags & subject.os.WNOWAIT
+            events.append("consume" if consuming else "observe")
+            if (fail == "waitid" or
+                    fail == "external_waitid_race" and events.count("observe") == 2 or
+                    fail == "lost_terminal_status" and consuming):
                 raise ChildProcessError()
-            return mock.Mock(si_code=subject.os.CLD_EXITED, si_status=0)
+            return mock.Mock(si_code=subject.os.CLD_EXITED, si_status=7 if abnormal else 0)
 
         def group(_pid, _signal):
             events.append("signal")
@@ -241,8 +278,6 @@ class OwnershipFailureTests(unittest.TestCase):
             events.append("reap")
             if fail == "reap":
                 raise PermissionError()
-            if events.count("reap") == 1:
-                return 123, 0
             raise ChildProcessError()
 
         selector.select.side_effect = select
@@ -260,44 +295,44 @@ class OwnershipFailureTests(unittest.TestCase):
             mock.patch.object(subject.os, "waitid", side_effect=observe),
             mock.patch.object(subject.os, "waitpid", side_effect=reap),
             mock.patch.object(subject.os, "killpg", side_effect=group),
-            mock.patch.object(subject.os, "read", side_effect=read),
+            mock.patch.object(subject.os, "kill") as numeric_signal,
+            mock.patch.object(subject.signal, "pidfd_send_signal") as signal_fd,
+            mock.patch.object(subject.os, "read", side_effect=lambda _fd, _size: queued.pop(0)),
             mock.patch.object(subject.selectors, "DefaultSelector", return_value=selector),
         ):
-            if fail in ("waitid", "signal", "reap"):
+            if fail in ("waitid", "external_waitid_race", "lost_terminal_status", "signal", "reap"):
                 with self.assertRaises(OSError):
-                    subject._supervisor(self.request(output_limit=limit))
+                    subject._experimental_supervisor(self.request(output_limit=limit))
                 result = None
             else:
-                result = subject._supervisor(self.request(output_limit=limit))
+                result = subject._experimental_supervisor(self.request(output_limit=limit))
+            numeric_signal.assert_not_called()
+            signal_fd.assert_not_called()
+            proc.wait.assert_not_called()
         return result, events
 
-    def test_signal_precedes_every_reap_and_echild_is_required(self):
+    def test_retained_leader_signal_then_explicit_status_then_echild(self):
         result, events = self.flow()
         self.assertEqual(result, "success")
-        self.assertEqual(events, ["observe", "observe", "signal", "reap", "reap"])
+        self.assertEqual(events, ["observe", "observe", "signal", "consume", "reap"])
+        self.assertEqual(self.flow(abnormal=True)[0], "nonzero")
 
-    def test_ownership_and_signal_reap_errors_never_certify(self):
-        for failure in ("waitid", "pgid", "sid", "signal", "reap"):
+    def test_ownership_signal_reap_and_external_waitid_errors_never_certify(self):
+        for failure in ("waitid", "pgid", "sid", "signal", "reap",
+                        "external_waitid_race", "lost_terminal_status"):
             with self.subTest(failure=failure):
                 result, events = self.flow(fail=failure)
                 self.assertIsNone(result)
-                if failure in ("waitid", "pgid", "sid"):
+                if failure in ("waitid", "pgid", "sid", "external_waitid_race"):
                     self.assertNotIn("signal", events)
                     self.assertNotIn("reap", events)
-                elif failure == "signal":
+                if failure == "lost_terminal_status":
                     self.assertNotIn("reap", events)
-                else:
-                    self.assertLess(events.index("signal"), events.index("reap"))
-                    self.assertEqual(events.count("signal"), 1)
 
     def test_queued_output_exact_boundary_and_aggregate(self):
-        for chunks, limit, expected in (
-            ([b"abc", b"def", b""], 6, "success"),
-            ([b"abc", b"def", b""], 5, "output_limit"),
-        ):
-            with self.subTest(limit=limit):
-                result, _ = self.flow(chunks=chunks, limit=limit)
-                self.assertEqual(result, expected)
+        for chunks, limit, expected in (([b"abc", b"def", b""], 6, "success"),
+                                        ([b"abc", b"def", b""], 5, "output_limit")):
+            self.assertEqual(self.flow(chunks=chunks, limit=limit)[0], expected)
 
     def test_preexisting_children_are_observed_not_reaped(self):
         for observed in (None, mock.Mock(si_pid=99)):
@@ -314,48 +349,45 @@ class OwnershipFailureTests(unittest.TestCase):
             mock.patch.object(subject, "_has_no_children", return_value=False),
             mock.patch.object(subject.subprocess, "Popen") as spawn,
         ):
-            self.assertIsNone(subject._supervisor(self.request()))
+            self.assertIsNone(subject._experimental_supervisor(self.request()))
             spawn.assert_not_called()
 
-    def test_outer_interrupt_uses_bound_pidfd_not_numeric_signal(self):
-        stdout = mock.Mock()
-        stdout.fileno.return_value = 9
-        proc = mock.Mock(stdin=io.BytesIO(), stdout=stdout)
-        selector = mock.MagicMock()
-        selector.__enter__.return_value = selector
-        selector.select.side_effect = KeyboardInterrupt()
+    def test_support_binding_and_sigchld_failures(self):
+        with mock.patch.object(subject.signal, "getsignal", return_value=signal.SIG_IGN):
+            self.assertIsNone(subject._experimental_supervisor(self.request()))
+        with mock.patch.object(subject, "_set_subreaper", side_effect=OSError):
+            with self.assertRaises(OSError):
+                subject._experimental_supervisor(self.request())
+        proc = mock.Mock(pid=123, stdout=io.BytesIO(), stderr=io.BytesIO())
         with (
-            mock.patch.object(subject.subprocess, "Popen", return_value=proc),
-            mock.patch.object(subject.os, "pidfd_open", return_value=7),
-            mock.patch.object(subject.os, "set_blocking"),
-            mock.patch.object(subject.os, "close") as close,
-            mock.patch.object(subject.signal, "pidfd_send_signal") as signal_fd,
-            mock.patch.object(subject.selectors, "DefaultSelector", return_value=selector),
-        ):
-            self.assertEqual(subject.supervise(command("pass")), subject.Result(False, "unverified"))
-        signal_fd.assert_called_once_with(7, signal.SIGKILL)
-        close.assert_called_once_with(7)
-        proc.kill.assert_not_called()
-        proc.wait.assert_called_once_with(timeout=.2)
-
-    def test_outer_missing_binding_does_not_signal(self):
-        proc = mock.Mock(stdin=io.BytesIO(), stdout=io.BytesIO())
-        with (
+            mock.patch.object(subject, "_set_subreaper"),
+            mock.patch.object(subject, "_has_no_children", return_value=True),
             mock.patch.object(subject.subprocess, "Popen", return_value=proc),
             mock.patch.object(subject.os, "pidfd_open", side_effect=OSError),
-            mock.patch.object(subject.signal, "pidfd_send_signal") as signal_fd,
+            mock.patch.object(subject.os, "killpg") as group,
         ):
-            self.assertEqual(subject.supervise(command("pass")), subject.Result(False, "unverified"))
-        signal_fd.assert_not_called()
-        proc.kill.assert_not_called()
-        proc.wait.assert_not_called()
-        self.assertTrue(proc.stdin.closed)
+            with self.assertRaises(OSError):
+                subject._experimental_supervisor(self.request())
+        group.assert_not_called()
+        self.assertTrue(proc.stdout.closed)
+        self.assertTrue(proc.stderr.closed)
 
-    def test_input_allocation_bound_before_serialization(self):
-        with mock.patch.object(subject.json, "dumps") as serialize:
-            for argv in ([sys.executable] * 129, [sys.executable, "x" * 4097]):
-                self.assertEqual(subject.supervise(argv), subject.Result(False, "unverified"))
-            serialize.assert_not_called()
+    def test_experimental_main_emits_nothing_on_failure_or_interrupt(self):
+        for failure in (OSError(), ChildProcessError(), KeyboardInterrupt()):
+            raw = io.BytesIO((json.dumps(self.request()) + "\n").encode())
+            output = io.StringIO()
+            with (
+                mock.patch.object(subject.sys, "stdin", io.TextIOWrapper(raw)),
+                mock.patch.object(subject.sys, "stdout", output),
+                mock.patch.object(subject, "_experimental_supervisor", side_effect=failure),
+            ):
+                if isinstance(failure, KeyboardInterrupt):
+                    with self.assertRaises(KeyboardInterrupt):
+                        subject._main()
+                else:
+                    self.assertEqual(subject._main(), 1)
+                self.assertEqual(output.getvalue(), "")
+
 
 if __name__ == "__main__":
     unittest.main()
