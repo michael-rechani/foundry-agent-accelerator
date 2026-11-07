@@ -155,12 +155,29 @@ if ($LASTEXITCODE -ne 0) { throw 'Coordinator deployment or verification failed'
 ```
 
 The deployer checks the model and specialists and snapshots the previous endpoint
-before creating an immutable version. It checks that the previous route's
-positive-traffic versions are active, non-draft releases, then checks them again
-after activation and before promotion. It verifies the endpoint hasn't changed
-and promotes the candidate while preserving authorization. It reads the exact
-active route back before and after the general smoke test and both mandatory
-delegation checks. Clients may reach the candidate during testing.
+before creating a version. For an existing agent with a concrete recovery route,
+it opens a session bound to the exact active candidate version and runs the
+configured general smoke prompt and every mandatory profile delegation check
+before attempting promotion. An empty optional prompt does not skip profile
+checks; if neither exists, promotion fails. It deletes the candidate session;
+a session creation response lost or lacking a usable ID cannot be cleaned up
+by the deployer and needs operator inspection. Cleanup errors stop promotion.
+
+The deployer rechecks the previous route, its positive-traffic recovery versions,
+and candidate status immediately before promotion, then reads the exact route
+back before and after fresh default-route smoke and delegation checks. These
+reads and the PATCH are not atomic; another writer can still race the update.
+A pinned coordinator session does not pin specialist sessions: delegation receipts
+prove the invocation, not the stability of a symbolic downstream route or reused
+session. Verify specialist routes and session freshness separately.
+
+For first publication, creating the first version may activate an `@latest`
+default before the explicit route update. The code-upload API used here has no
+verified draft control, so there is no pre-promotion isolation guarantee for a
+new agent. Clients can also reach the candidate after promotion during its fresh
+default-route checks. These checks do not establish runner host isolation or
+safe temporary-directory cleanup under concurrent same-UID mutation; verify the
+private runner and its Python patch level separately before deployment.
 
 ## 6. Verify deployment and routing
 
