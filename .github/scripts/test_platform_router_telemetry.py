@@ -89,7 +89,8 @@ def inspect_graph(bundle, binary):
                         for name, config in names.items():
                             records.append({"kind": "data", "module": module["Key"], "name": name,
                                             "file": path.name, "type": data_type,
-                                            "provider": config.get("provider", "implicit-default")})            for block in content.get("provider", []):
+                                            "provider": config.get("provider", "implicit-default")})
+            for block in content.get("provider", []):
                 if "modtm" in block:
                     records.append({"kind": "provider", "module": module["Key"], "file": path.name,
                                     "configuration": block["modtm"]})
