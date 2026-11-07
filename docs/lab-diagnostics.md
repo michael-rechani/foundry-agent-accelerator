@@ -54,6 +54,10 @@ invoke Terraform. Failure output uses generic identity pin, input mismatch,
 protected state invalid, snapshot instability, read failure, secret-read review
 required or unexpected categories
 without revealing values. Multiple independent blockers may be reported.
+Protected state failures distinguish the envelope, resource inventory, account
+and project outputs, role representation, role scope mismatch, and disk
+representation, without printing their contents. An unclassified state failure
+remains generic.
 The secret-read category checks only whether the reference is non-null; it
 does not inspect the reference or access a secret. No run is implied by adding
 this workflow. A separate generic category indicates only whether a Router

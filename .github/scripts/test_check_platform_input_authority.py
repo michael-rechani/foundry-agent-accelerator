@@ -262,6 +262,105 @@ class SnapshotTests(unittest.TestCase):
                                  ("", f"candidate_platform_comparison_failed={category}\n"
                                   + ("candidate_router_override=absent\n" if category == "input_mismatch_or_missing" else "")))
 
+    def test_state_failure_categories_are_fixed_and_preserve_secret_blocker(self):
+        def malformed_envelope(state):
+            state["serial"] = True
+
+        def malformed_inventory(state):
+            state["resources"].append(deepcopy(state["resources"][0]))
+
+        def malformed_outputs(state):
+            state["outputs"]["foundry_project_id"]["value"] = "private-project"
+
+        def malformed_role(state):
+            state["resources"][1]["instances"][0]["attributes"]["principal_id"] = "private-identity"
+
+        def malformed_disk(state):
+            state["resources"][2]["instances"][0]["attributes"]["body"] = {"private-field": "private-value"}
+
+        for mutate, category in (
+            (malformed_envelope, "state_envelope_invalid"),
+            (malformed_inventory, "state_inventory_invalid"),
+            (malformed_outputs, "state_outputs_invalid"),
+            (malformed_role, "state_role_invalid"),
+            (malformed_disk, "state_disk_invalid"),
+        ):
+            for secret in (False, True):
+                with self.subTest(category=category, secret=secret):
+                    state = deepcopy(self.state)
+                    mutate(state)
+                    inputs = deepcopy(self.inputs)
+                    if secret:
+                        inputs["jumpbox_admin_secret"] = {"private-field": "private-value"}
+                    results = [
+                        (encode(inputs), headers()), (encode(state), headers()),
+                        (encode(state), headers()), (encode(inputs), headers()),
+                    ]
+                    out, err = io.StringIO(), io.StringIO()
+                    with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                            patch.object(probe, "Blobs", return_value=self.blobs), \
+                            patch.object(probe.backend, "send", side_effect=results), \
+                            contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                        self.assertEqual(probe.main(), 1)
+                    expected = ("candidate_platform_comparison_failed=secret_read_review_required\n" if secret else "")
+                    expected += f"candidate_platform_comparison_failed={category}\n"
+                    expected += "candidate_router_override=absent\n"
+                    self.assertEqual((out.getvalue(), err.getvalue()), ("", expected))
+
+    def test_resource_specific_categories_are_redacted(self):
+        for resource, mode, category in (
+            (0, "missing", "state_inventory_invalid"),
+            (0, "duplicate", "state_inventory_invalid"),
+            (1, "missing", "state_role_invalid"),
+            (1, "duplicate", "state_role_invalid"),
+            (1, "instance", "state_role_invalid"),
+            (1, "scope", "state_role_scope_mismatch"),
+            (1, "bad_scope", "state_role_invalid"),
+            (2, "missing", "state_disk_invalid"),
+            (2, "duplicate", "state_disk_invalid"),
+            (2, "instance", "state_disk_invalid"),
+        ):
+            with self.subTest(resource=resource, mode=mode):
+                state = deepcopy(self.state)
+                item = state["resources"][resource]
+                if mode == "missing":
+                    state["resources"].pop(resource)
+                elif mode == "duplicate":
+                    state["resources"].append(deepcopy(item))
+                elif mode == "instance":
+                    item["instances"] = []
+                elif mode == "scope":
+                    item["instances"][0]["attributes"]["scope"] = ACCOUNT + "/projects/private-project"
+                else:
+                    item["instances"][0]["attributes"]["scope"] = None
+                results = [(encode(self.inputs), headers()), (encode(state), headers()),
+                           (encode(state), headers()), (encode(self.inputs), headers())]
+                out, err = io.StringIO(), io.StringIO()
+                with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                        patch.object(probe, "Blobs", return_value=self.blobs), \
+                        patch.object(probe.backend, "send", side_effect=results), \
+                        contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    self.assertEqual(probe.main(), 1)
+                self.assertEqual((out.getvalue(), err.getvalue()),
+                                 ("", f"candidate_platform_comparison_failed={category}\n"
+                                  "candidate_router_override=absent\n"))
+
+    def test_unstable_snapshots_override_state_and_secret_categories(self):
+        state = deepcopy(self.state)
+        state["serial"] = True
+        inputs = deepcopy(self.inputs)
+        inputs["jumpbox_admin_secret"] = {"private-field": "private-value"}
+        results = [(encode(inputs), headers()), (encode(state), headers()),
+                   (encode(state), headers(etag='"changed"')), (encode(inputs), headers())]
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                patch.object(probe, "Blobs", return_value=self.blobs), \
+                patch.object(probe.backend, "send", side_effect=results), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(probe.main(), 1)
+        self.assertEqual((out.getvalue(), err.getvalue()),
+                         ("", "candidate_platform_comparison_failed=snapshot_unstable\n"))
+
     def test_independent_secret_and_input_categories_are_sanitized(self):
         candidate = deepcopy(self.inputs)
         candidate.pop("deployment_principal_id")
