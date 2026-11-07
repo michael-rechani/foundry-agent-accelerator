@@ -257,6 +257,7 @@ class SpecialistPreflightTests(unittest.TestCase):
             protocol_configuration=SimpleNamespace(responses={}),
             version_selector=SimpleNamespace(version_selection_rules=[self.rule]),
         )
+        self.client.agents.get.return_value.name = "specialist"
         self.client.agents.get.return_value.state = "enabled"
         self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.endpoint
@@ -377,6 +378,7 @@ class SpecialistPreflightTests(unittest.TestCase):
 class RecoveryPreflightTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = MagicMock()
+        self.client.agents.get.return_value.name = "agent"
         self.client.agents.get.return_value.state = "enabled"
         self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get_version.return_value = {"name": "agent", "version": "1", "status": "active"}
@@ -464,6 +466,7 @@ class DeploymentRollbackTests(unittest.TestCase):
         self.client.agents.get_version.return_value = {"name": "agent", "version": "1", "status": "active"}
         self.original = self.route("1")
         self.attempted = self.route("2")
+        self.client.agents.get.return_value.name = "agent"
         self.client.agents.get.return_value.state = "enabled"
         self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.attempted
@@ -645,8 +648,8 @@ class DeploymentRollbackTests(unittest.TestCase):
 
     def test_route_changed_while_checking_recovery_is_not_overwritten(self):
         self.client.agents.get.side_effect = [
-            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
-            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.route("3")),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.route("3")),
         ]
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.client.agents.update_details.assert_not_called()
@@ -654,11 +657,11 @@ class DeploymentRollbackTests(unittest.TestCase):
 
     def test_route_changed_after_recovery_status_checks_prevents_candidate_deletion(self):
         self.client.agents.get.side_effect = [
-            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
-            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
-            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
-            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.original),
-            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.original),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
         ]
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.client.agents.update_details.assert_called_once()
@@ -666,8 +669,8 @@ class DeploymentRollbackTests(unittest.TestCase):
 
     def test_route_changed_after_unpromoted_cleanup_check_prevents_candidate_deletion(self):
         self.client.agents.get.side_effect = [
-            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.original),
-            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.original),
+            SimpleNamespace(name="agent", state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
         ]
         cleanup_failed_version(self.client, "agent", "2", self.original, None)
         self.client.agents.update_details.assert_not_called()
@@ -729,6 +732,7 @@ class RouteVerificationTests(unittest.TestCase):
             version_selector=SimpleNamespace(version_selection_rules=[rule]),
             protocol_configuration=SimpleNamespace(responses={}),
         )
+        client.agents.get.return_value.name = "agent"
         client.agents.get.return_value.state = "enabled"
         client.agents.get.return_value.configuration_state = "enabled"
         client.agents.get_version.return_value = {
@@ -771,6 +775,7 @@ class RouteVerificationTests(unittest.TestCase):
                     version_selector=SimpleNamespace(version_selection_rules=[rule]),
                     protocol_configuration=SimpleNamespace(responses={}),
                 )
+                client.agents.get.return_value.name = "agent"
                 client.agents.get.return_value.state = "enabled"
                 client.agents.get.return_value.configuration_state = "enabled"
                 client.agents.get.return_value.agent_endpoint = endpoint
@@ -799,6 +804,7 @@ class RouteVerificationTests(unittest.TestCase):
             version_selector=SimpleNamespace(version_selection_rules=[rule]),
             protocol_configuration=SimpleNamespace(responses={}),
         )
+        client.agents.get.return_value.name = "agent"
         client.agents.get.return_value.state = "enabled"
         client.agents.get.return_value.configuration_state = "enabled"
         client.agents.get.return_value.agent_endpoint = endpoint
