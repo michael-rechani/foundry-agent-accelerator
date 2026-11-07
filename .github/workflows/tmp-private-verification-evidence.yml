@@ -1,0 +1,26 @@
+name: Temporary offline Markdown links
+
+on:
+  push:
+    branches:
+      - copilot/private-verification-evidence-20261107-c5fff5f0
+
+permissions:
+  contents: read
+
+jobs:
+  markdown-links:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Fetch repository for offline relative-link checks
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Confirm unprivileged execution
+        run: |
+          test "$(id -u)" -ne 0
+          id -u
+          python3 --version
+      - name: Check tracked Markdown links without external requests
+        run: python3 .github/scripts/check_markdown_links.py

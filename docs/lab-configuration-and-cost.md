@@ -49,7 +49,7 @@ map aligned with the deployed profile. It isn't a second runtime tool registry.
 | Configuration item | Limit or behavior |
 | --- | --- |
 | Optional `guidance` in `agents.json` | Contains `input`, `output`, `limits`, `delegation`, and `configuration`. Each value must be a nonempty string up to 1,200 trimmed characters. These are presentation text only. Older catalogs without guidance still load, with a message that the getting-started guide is unavailable. |
-| Optional `model` in `agents.json` and `prebuilt_agent_models` overrides | The model deployment name each agent's hosted runtime actually uses. Keep it aligned with the active version, including during a staged rollout. The Lab only uses it to pick the per-model budget ([Model limits](#model-limits)); it doesn't change the hosted agent, and the browser never sees it. |
+| Optional `model` in `agents.json` and `prebuilt_agent_models` overrides | Operator-supplied deployment label for the Lab's local admission budget ([Model limits](#model-limits)), not evidence of the model a hosted agent or reused session actually uses. Keep it aligned with the intended active version; changing it neither changes nor verifies the hosted runtime. The browser never sees the label. |
 | Optional `prompts` arrays | Accept up to six entries. Each entry has `label` up to 80 characters and `text` up to 4,000 characters. Starters use sample inputs, and selecting one never submits it. |
 | `visible_agents` | Controls direct access. Terraform validates IDs against `agents.json`, and the backend independently validates the deployed registry. |
 | `default_agent` | Must be visible. When omitted, the first `visible_agents` entry is selected. Locally, use `WORKBENCH_DEFAULT_AGENT`. |
@@ -120,7 +120,7 @@ the jump box.
 | --- | --- |
 | Container Apps runtime | One warm 0.5-vCPU/1-GiB replica for responsiveness. Uvicorn limits connection/task concurrency to 32. |
 | Agent and review execution | At most four concurrent requests and 20 requests/minute, including rejected input. Admission happens before the Lab reads bodies or calls dependencies. Agent execution keeps its 180-second deadline. |
-| Per-model chat budget | Before a chat turn or document-review run calls its model, the Lab checks that deployment's own limit. It answers 429 `busy` if the run would pass it. The Lab counts requests and estimated tokens over a sliding minute. Each deployment has its own count, so a busy `gpt-5.4` doesn't block `gpt-4.1`. A prebuilt agent joins in when `agents.json` declares its `model`. The limits come from the `model_limits` Terraform variable ([Model limits](#model-limits)). |
+| Per-deployment admission estimate | For a label listed in `model_limits`, the Lab keeps a process-local sliding-minute count of admitted requests and estimated tokens and can return 429 `busy`. A prebuilt-agent turn or document-review run is counted once for its configured label, not for each internal or specialist model call. Unknown or unlisted labels bypass this per-deployment gate; global caps still apply. An oversized request can run when its label is idle. These estimates are not Foundry quotas or spend limits ([Model limits](#model-limits)). |
 | History operations | Four concurrent requests and 60 requests/minute. History operations, including uploads and SDK retries, have a 35-second server deadline. Uploads also have a five-second deadline. The browser waits up to 45 seconds. |
 | Created-agent APIs | Four concurrent requests and 120 requests/minute. New publication and deletion run one at a time. |
 | Created-agent count | At most five nondeleted hosted agents by default, including unconfirmed or failed attempts. Each uses 0.5 CPU / 1 GiB and can incur hosted runtime/build costs as well as model charges. |
@@ -128,12 +128,12 @@ the jump box.
 
 ## Model limits
 
-Each model deployment has its own requests-per-minute and tokens-per-minute
-limit, and the tokens limit is usually the one that runs out first. The Lab's
-global cap of 20 chat turns a minute doesn't know which model a turn uses. It
-can say busy too late for a small deployment and too early for a large one. The
-per-model budget fixes that by checking the deployment the turn will use, before
-any model call.
+The Lab can apply an additional process-local admission estimate by configured
+model-deployment label. It counts admitted requests and estimated tokens in a
+sliding minute; it cannot see Foundry's actual counters. The global 20-turn
+per-minute cap does not distinguish models. The extra gate can reduce pressure
+on a listed label, but it does not guarantee that the corresponding Foundry
+quota will be respected, nor does it limit monetary spend.
 
 Set the limits with the `model_limits` Terraform variable, which the Lab reads from
 `WORKBENCH_MODEL_LIMITS`. The defaults are the dev tenant's published limits:
@@ -144,45 +144,72 @@ Set the limits with the `model_limits` Terraform variable, which the Lab reads f
 | `gpt-4.1` | 50 | 50,000 |
 | `gpt-5.4-mini` | 10 | 10,000 |
 
-Replace them with your deployments' real limits and leave some headroom. Use `{}` to
-turn the per-model budget off, so only the global caps apply. Terraform only passes
-the numbers along. It doesn't request or change any Foundry quota.
+The defaults do **not** include Model Router. An absent, unknown, or unlisted
+label has no per-deployment gate here; the global caps still apply. Replace the
+entries with reviewed limits for your deployment labels and leave headroom. Use
+`{}` to turn the extra gate off. Terraform only passes these numbers along; it
+doesn't request or change Foundry quota. An explicitly configured Router label
+can be counted as one label, but the Lab's gate cannot account for Router's
+internal choice of underlying models.
 
-How the Lab counts a model request:
+How the Lab counts admissions:
 
-- A request is admitted when the deployment has fewer requests than its limit in the last
-  minute and the estimated tokens of recent requests plus this one fit its tokens limit.
-  A refused request counts toward nothing, and the answer tells the browser to try again
-  after the oldest recent request leaves the minute.
-- The token estimate is per template. It's the largest tokens (input plus output) for
-  one case in that template's [scorecard](library-scorecards.md), plus an estimate of
-  the submitted prompt or conversation history (one token per three UTF-8 bytes).
-  A template without a scorecard uses the largest recorded estimate. Preview tool
-  loops admit each Responses API call separately, with the current accumulated
-  instructions, tools and conversation history.
-- A lone request that is bigger than the tokens limit still runs when the deployment
-  is idle, so one large answer is never blocked forever. If a preview needs another
-  model call after a lower requests-per-minute limit is reached, it returns `busy`
-  with a retry hint instead of making that call.
-- The deployment is the one the template's work type maps to (`agent_creation_models`)
-  for a library preview, the model saved with the record for a created agent, and the
-  optional `model` key on a prebuilt agent in `workbench/agents.json`, unless its
-  Lab agent ID has an entry in `prebuilt_agent_models`. For example,
-  `"model": "gpt-4.1"` charges that agent's chat turns and document-review runs to
-  `gpt-4.1`. The Lab doesn't send `model` to the browser, and it must be a deployment
-  name. A prebuilt agent with no `model` key has no known deployment here, so only the
-  global caps apply to it. Set an override only after verifying that agent's active
-  hosted version uses that deployment; it doesn't change the hosted version. The
-  server equivalent is the JSON object `WORKBENCH_PREBUILT_AGENT_MODELS`.
-- A document-review run is budgeted the same way when it starts or resumes. It uses the
-  largest token estimate of any template, because a review isn't tied to one. A run the
-  budget refuses answers `busy` before any model call and counts toward nothing.
-- The counts are in memory, like every other admission limit here.
+- For a listed label, the gate counts requests and estimated tokens in the last
+  minute. It normally refuses another admission when the request count is full
+  or the recent estimates plus this request exceed the configured token limit.
+  A refused request isn't counted and receives a retry hint. An oversized request
+  can still run when that label is idle, even when its estimate exceeds the
+  configured token limit.
+- The token estimate uses the largest input-plus-output count for a case in the
+  template's [scorecard](library-scorecards.md), plus an estimate of the
+  submitted input (one token per three UTF-8 bytes). A template without a
+  scorecard uses the largest recorded estimate. These are estimates, not actual
+  token or billed-usage measurements.
+- Direct library-preview tool loops admit each Responses API call separately,
+  using the accumulated instructions, tools, and conversation history. If a
+  later preview call is refused, the Lab returns `busy` without making that call.
+  A prebuilt-agent chat turn is admitted once before its outer Responses call;
+  its internal model and specialist calls aren't individually admitted by this
+  Lab gate. A document-review run is similarly admitted once when it starts or
+  resumes, using the largest recorded template estimate. An admission refusal
+  happens before that outer call and counts toward nothing in this gate.
+- For a library preview, the label is the model deployment mapped to the
+  template's work type (`agent_creation_models`). For a created agent it comes
+  from the saved model; for a prebuilt agent it comes from the optional `model`
+  in `workbench/agents.json` or an agent-ID entry in `prebuilt_agent_models`
+  (`WORKBENCH_PREBUILT_AGENT_MODELS` on the server). These labels select a
+  counter; in particular, the prebuilt mapping is manually supplied and does
+  not prove which deployment any hosted-agent session actually uses. The Lab
+  doesn't send the prebuilt label to the browser. Missing labels have only the
+  global caps.
+- Counters are in memory for one process. They exclude other processes,
+  replicas, clients, and Foundry-side activity, and reset with the process. A
+  busy label does not consume another label's local counter. Neither these
+  estimates nor the global caps are a hard Foundry quota or monetary spend
+  protection; use independently managed quota, monitoring, and cost controls.
+
+Changing a prebuilt-agent label doesn't switch its hosted version or move an
+existing session. For an intended Router default or fixed-model recovery, review
+and publish the appropriate runtime configuration separately, and verify the
+relevant new and reused sessions independently; older sessions may remain on
+older versions. Don't assume a configuration change has drained all sessions.
+Router can choose different underlying models, and neither its configured
+admission label nor a reported model name alone proves the actual served model.
 
 Browsers show the same friendly try-again message for a Lab `busy` as for a model's
-own. The Lab's `workbench_model_busy` log event records the deployment, template and
-wait, never the prompt. How many people can use the Lab at the same time hasn't been
-decided, so these limits aren't tuned to a head count. They protect each model's limit.
+own. The Lab's `workbench_model_busy` log event records the deployment label,
+template and wait, never the prompt. How many people can use the Lab at the same
+time hasn't been decided, so these limits aren't tuned to a head count.
+
+The UI's token and cost view summarizes completed replies in the current tab
+with complete reported token counts. A coordinator's counts may omit specialist
+calls; failed, stopped, or timed-out requests can still incur charges and aren't
+included. The optional estimate uses user-entered rates, applies the same rates
+across models even if Router selects different ones, and is not invoiced spend.
+Model details for direct previews are service-reported and may be aliases, not
+proof of the actual served model; reopened saved values aren't reverified. A
+successful reply or usage count is not a quality evaluation. Evaluate quality
+and reconcile actual cost independently; don't infer either from admission alone.
 
 These admission limits are process-local, so don't increase workers or replicas
 without distributed controls. Reused agent sessions are also process-local. With

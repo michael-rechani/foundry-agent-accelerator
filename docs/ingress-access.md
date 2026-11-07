@@ -121,11 +121,13 @@ optional resource is enabled. Customers don't use it themselves yet.**
   [Front Door draft limited to your own IP](#draft-front-door-limited-to-your-own-ip)
   ([#240](https://github.com/michael-rechani/foundry-agent-accelerator/issues/240)),
   which stays off unless you set both of its switches.
-- Chat is capped at 20 turns a minute across all users, and 4 at once, and each
-  model deployment also has its own requests and tokens budget (see
-  [Model limits](lab-configuration-and-cost.md#model-limits)). That's fine for one
-  presenter and tight for a group. How many people can use the Lab at once hasn't
-  been decided.
+- In one Lab process, chat is capped at 20 turns a minute across users and 4 at
+  once. A separate local request/token estimate applies only to configured
+  deployment labels; unlisted labels, including Model Router by default, have
+  no per-deployment gate. Prebuilt coordinator turns are counted once, not once
+  per internal or specialist call. These gates don't guarantee Foundry quota or
+  cap spending; see [Model limits](lab-configuration-and-cost.md#model-limits).
+  How many people can use the Lab at once hasn't been decided.
 - To let customers use it themselves, first add end-user sign-in (Microsoft Entra
   ID) and per-user ownership of saved records. Then choose Pattern A or B below.
 
