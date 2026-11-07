@@ -401,6 +401,9 @@ def has_responses(endpoint) -> bool:
 
 def enabled_endpoint(client, agent_name: str):
     details = client.agents.get(agent_name=agent_name)
+    name = details.get("name") if isinstance(details, Mapping) else getattr(details, "name", None)
+    if not isinstance(name, str) or name != agent_name:
+        raise RuntimeError("The agent identity was not confirmed")
     for field in ("state", "configuration_state"):
         # SDK 2.6.1 preserves the unmodeled configuration_state wire field in its mapping.
         value = details.get(field) if isinstance(details, Mapping) else getattr(details, field, None)
