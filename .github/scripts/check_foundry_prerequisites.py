@@ -158,10 +158,24 @@ def install_azd(root):
     archive = root / "azd.tar.gz"
     download(AZD_URL, AZD_SHA256, archive, 256 * 1024 * 1024)
     with tarfile.open(archive, "r:gz") as package:
-        members = [member for member in package.getmembers() if member.name == "azd"]
-        if len(members) != 1 or not members[0].isfile() or members[0].size > 256 * 1024 * 1024:
+        members = package.getmembers()
+        if (
+            len(members) != 2
+            or {member.name for member in members} != {"azd-linux-amd64", "NOTICE.txt"}
+            or any(
+                member.type != tarfile.REGTYPE
+                or member.linkname
+                or member.sparse is not None
+                or not 0 < member.size <= 256 * 1024 * 1024
+                or member.mode & 0o7000
+                for member in members
+            )
+        ):
             raise CheckError("archive")
-        binary = package.extractfile(members[0])
+        executable = next(member for member in members if member.name == "azd-linux-amd64")
+        if not executable.mode & 0o100:
+            raise CheckError("archive")
+        binary = package.extractfile(executable)
         if binary is None:
             raise CheckError("archive")
         with binary, (root / "bin" / "azd").open("xb") as output:

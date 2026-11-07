@@ -39,7 +39,16 @@ Only the script's exact missing-azd failure permits the fallback download of
 `Azure/azure-dev` release `azure-dev-cli_1.37.3`, asset
 `azd-linux-amd64.tar.gz`, SHA-256
 `8bf3e7e86f1d5a9bc1ae6f014c792697660cce04f6333a8091c6e08b7f8c7786`.
-The verified archive contributes only its regular `azd` file. An existing azd
+Metadata-only inspection of that hash-verified official release found exactly
+two regular members: `azd-linux-amd64` (mode 0775, 68,378,926 bytes) and
+`NOTICE.txt` (mode 0775, 2,867,806 bytes). The extractor requires that exact
+flat member-name set with no duplicates, links, sparse files, special permission
+bits, or unsafe alternatives. It copies only the regular, owner-executable
+`azd-linux-amd64` into the run-owned `bin/azd` with mode 0700; the notice is
+not extracted. No archive-provided paths are used as extraction destinations.
+This corrects the `archive` failure observed in run 42392877753, attempt 1;
+that run's cleanup succeeded. This fix has not been retried live.
+An existing azd
 executable is reused, with extension state still isolated. The official script
 is rerun after the fallback; it installs `microsoft.foundry` when absent.
 Existing azd selection searches only `/usr/local/bin:/usr/bin:/bin`, never the
