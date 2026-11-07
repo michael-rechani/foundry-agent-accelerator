@@ -33,8 +33,10 @@ class ExtractionError(Exception):
 def trusted_parent(path):
     if sys.platform != "linux":
         raise ExtractionError("Linux descriptor semantics are required.")
-    path = Path(path)
-    if not path.is_absolute() or any(part in (".", "..") for part in path.parts):
+    raw = os.fspath(path)
+    path = Path(raw)
+    if (not path.is_absolute() or raw != str(path) or raw.startswith("//")
+            or "\\" in raw or any(part in (".", "..") for part in path.parts)):
         raise ExtractionError("An explicit absolute trusted parent is required.")
     fd = os.open("/", FLAGS | os.O_DIRECTORY)
     try:
@@ -63,7 +65,7 @@ def snapshot_archive(path, spool):
     try:
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or not 0 < info.st_size <= MAX_COMPRESSED:
-            raise ExtractionError("Archive is not a bounded unlinked regular file.")
+            raise ExtractionError("Archive is not a bounded single-linked regular file.")
         digest = hashlib.sha256()
         count = 0
         while True:
@@ -184,8 +186,8 @@ def validate_tar(stream, length):
         if signature not in (b"ustar\x0000", b"ustar  \x00"):
             raise ExtractionError("Only USTAR/GNU tar headers are accepted.")
         mode = number(header[100:108], 0o7777)
-        uid = number(header[108:116], 2**31 - 1)
-        gid = number(header[116:124], 2**31 - 1)
+        number(header[108:116], 2**31 - 1)
+        number(header[116:124], 2**31 - 1)
         size = number(header[124:136], MAX_FILE)
         number(header[136:148], 2**40)
         for metadata_name in (field(header[265:297]), field(header[297:329])):
@@ -401,7 +403,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("archive", type=Path)
     parser.add_argument("--archive-sha256", required=True)
-    parser.add_argument("--trusted-parent", type=Path, required=True)
+    parser.add_argument("--trusted-parent", required=True)
     parser.add_argument("--destination", required=True)
     args = parser.parse_args()
     try:

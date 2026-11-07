@@ -177,6 +177,107 @@ class ExtractionTests(unittest.TestCase):
                     extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, "out")
             self.assertFalse((parent / "out").exists())
 
+    def test_metadata_sparse_long_header_and_footer_rejections(self):
+        for offset, value in ((345, b'x'), (329, b'0000001\0'), (108, b'\x80'),
+                              (265, b'unsafe\nuser'), (124, b'12\0xx'), (257, b'not-tar!')):
+            with self.subTest(offset=offset):
+                raw = bytearray(gzip.decompress(transport(BASE)))
+                raw[offset:offset + len(value)] = value
+                raw[148:156] = b'        '
+                checksum = sum(raw[:512])
+                raw[148:156] = f'{checksum:06o}\0 '.encode()
+                self.attempt(gzip.compress(raw), True)
+        long_name = 'public-closure/root/' + 'a' * 110
+        data = gzip.decompress(transport(BASE + [(long_name, tarfile.REGTYPE, b'x', 0o644)]))
+        raw = bytearray(data)
+        # Final long-name header starts after three 512-byte headers and one padded file.
+        long_offset = 4 * 512
+        raw[long_offset + 124:long_offset + 136] = b'00000020000\0'
+        raw[long_offset + 148:long_offset + 156] = b'        '
+        checksum = sum(raw[long_offset:long_offset + 512])
+        raw[long_offset + 148:long_offset + 156] = f'{checksum:06o}\0 '.encode()
+        self.attempt(gzip.compress(raw), True)
+        # Dangling long-name extension has no regular member; no partial file is exposed.
+        raw = bytearray(data)
+        raw[(long_offset + 1024):] = b'\0' * (len(raw) - long_offset - 1024)
+        self.attempt(gzip.compress(raw), True)
+        raw = bytearray(gzip.decompress(transport(BASE)))
+        raw[3 * 512 + len(BASE[-1][2])] = 1
+        self.attempt(gzip.compress(raw), True)
+
+    def test_write_path_substitution_never_follows_outside_link(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            parent = base / 'parent'
+            parent.mkdir(mode=0o700)
+            outside = base / 'outside'
+            outside.write_bytes(b'preserve external bytes')
+            source = base / 'source.gz'
+            data = transport(BASE)
+            source.write_bytes(data)
+            original_open = extractor.os.open
+            def substitution(path, flags, *args, **kwargs):
+                if path == 'main.tf' and flags & os.O_CREAT:
+                    os.symlink(str(outside), path, dir_fd=kwargs['dir_fd'])
+                return original_open(path, flags, *args, **kwargs)
+            with patch.object(extractor.os, 'open', substitution):
+                with self.assertRaises(extractor.ExtractionError):
+                    extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
+            self.assertEqual(outside.read_bytes(), b'preserve external bytes')
+            self.assertEqual(list(parent.iterdir()), [])
+
+    def test_archive_changed_while_snapshotting_fails_before_decode(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            parent = base / 'parent'
+            parent.mkdir(mode=0o700)
+            source = base / 'source.gz'
+            data = transport(BASE)
+            source.write_bytes(data)
+            original_read = os.read
+            changed = False
+            def mutation(fd, count):
+                nonlocal changed
+                chunk = original_read(fd, count)
+                if chunk and not changed:
+                    changed = True
+                    with source.open('ab') as stream:
+                        stream.write(b'late bytes')
+                return chunk
+            with patch.object(extractor.os, 'read', mutation), patch.object(extractor, 'decompress_verified') as decode:
+                with self.assertRaises(extractor.ExtractionError):
+                    extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
+                decode.assert_not_called()
+            self.assertEqual(list(parent.iterdir()), [])
+
+    def test_reserved_stage_collisions_and_parent_ambiguity(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            parent = base / 'parent'
+            parent.mkdir(mode=0o700)
+            source = base / 'source.gz'
+            data = transport(BASE)
+            source.write_bytes(data)
+            for suffix in ('//parent', '/parent/./', '/parent/../parent'):
+                with self.assertRaises(extractor.ExtractionError):
+                    extractor.extract(source, hashlib.sha256(data).hexdigest(), str(base) + suffix, 'out')
+            for kind in ('directory', 'symlink'):
+                reserved = parent / '.closure-extract-fixed'
+                if kind == 'directory':
+                    reserved.mkdir(mode=0o700)
+                    (reserved / 'external').write_text('preserved')
+                else:
+                    reserved.symlink_to(base / 'missing', target_is_directory=True)
+                with patch.object(extractor.secrets, 'token_hex', return_value='fixed'):
+                    with self.assertRaises(extractor.ExtractionError):
+                        extractor.extract(source, hashlib.sha256(data).hexdigest(), parent, 'out')
+                if kind == 'directory':
+                    self.assertEqual((reserved / 'external').read_text(), 'preserved')
+                    (reserved / 'external').unlink()
+                    reserved.rmdir()
+                else:
+                    self.assertTrue(reserved.is_symlink())
+                    reserved.unlink()
     def test_no_decompression_before_selected_digest_and_full_validation_before_write(self):
         with tempfile.TemporaryDirectory() as directory:
             parent = Path(directory)
