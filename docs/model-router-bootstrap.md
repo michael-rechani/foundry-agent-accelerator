@@ -90,16 +90,19 @@ configuration; no inference behavior is verified.
   separate API operations; no atomic main/protection-state guarantee is made.
 - The repository is public and uses a persistent self-hosted runner with private
   network access. The workflow's own `main` guard does not platform-enforce
-  runner access restrictions for other workflows. The available API inspection
-  observed `protected: true` on `main`, but Actions permissions and runner
-  access settings returned HTTP 403. Therefore runner-group scope, workflow
-  approval policy, and bypass behavior remain unverified; this proposal does
-  not claim PR/fork isolation for the repository runner. A future activation
+  runner access restrictions for other workflows. Earlier API inspection
+  observed `protected: true` on `main`, while Actions permissions and runner
+  access settings returned HTTP 403. Later read-only inspection provided partial
+  visibility into repository Actions and fork-approval policy metadata.
+  Fork-approval policy alone does not establish self-hosted runner isolation.
+  Runner/workflow isolation, effective policy coverage and exceptions, and
+  bypass behavior remain unverified; this proposal does not claim PR/fork
+  isolation for the repository runner. A future activation
   review must establish the actual platform policy and decide whether it
   sufficiently prevents untrusted PR workflows from targeting the runner.
   Repository-level Actions execution policies may be worth evaluating, but
-  their current state, coverage, exceptions, and impact on contributor CI are
-  unknown; no setting is changed here.
+  partial metadata visibility does not establish their effective coverage,
+  exceptions, or impact on contributor CI. No setting is changed here.
 - `GITHUB_TOKEN`-created commits may not start ordinary PR synchronization
   checks automatically. The owner may need to approve the generated PR checks,
   then verify the exact resulting commit and required CI status before any
