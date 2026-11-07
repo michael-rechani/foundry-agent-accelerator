@@ -1,0 +1,32 @@
+name: Temporary fictional SDK response check
+on:
+  push:
+    branches:
+      - michael-rechani-candidate-enabled-state
+    paths:
+      - .github/workflows/offline-sdk-response-check.yml
+permissions:
+  contents: read
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.14'
+      - name: Restore missing pinned SDK dependencies
+        run: |
+          if ! python -c 'from importlib.metadata import version; assert version("azure-ai-projects") == "2.6.1"; import azure.ai.projects, requests'; then
+            echo 'Required pinned SDK dependency is missing'
+            python -m pip install -r hosted-agents/review-coordinator-agent/requirements-deploy.txt
+          fi
+      - name: Check fictional SDK deserialization
+        working-directory: hosted-agents
+        run: >-
+          python -m unittest -v
+          test_deployment_sdk.DeploymentSDKTests.test_pinned_sdk_operational_enum_and_raw_field_mapping
+          test_deployment_sdk.DeploymentTimeoutTests.test_real_sdk_deserializes_documented_administrative_wire_field
