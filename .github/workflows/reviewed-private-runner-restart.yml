@@ -1,0 +1,99 @@
+name: Reviewed private runner restart
+
+# Inert until separately approved environment setup AND readable protection
+# evidence exist. See docs/reviewed-private-runner-restart.md.
+# The lab-deploy identity ALSO has Lab app-write and registry-push rights.
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_commit:
+        description: Exact reviewed protected-main commit (40 lowercase hex characters)
+        required: true
+        type: string
+      reviewed_vm_sha256:
+        description: SHA-256 of the lowercased existing VM ARM ID, UTF-8, no newline
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: reviewed-private-runner-restart
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      gate_id: ${{ steps.guard.outputs.gate_id }}
+      gate_configuration_sha256: ${{ steps.guard.outputs.gate_configuration_sha256 }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REVIEWED_COMMIT: ${{ inputs.reviewed_commit }}
+      REVIEWED_VM_SHA256: ${{ inputs.reviewed_vm_sha256 }}
+    steps:
+      - name: Verify the reviewed protected-main source before checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == "michael-rechani/foundry-agent-accelerator" ]]
+          [[ "$REVIEWED_COMMIT" =~ ^[0-9a-f]{40}$ && "$REVIEWED_COMMIT" == "$GITHUB_SHA" ]]
+          [[ "$REVIEWED_VM_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          current="$(gh api --hostname github.com --method GET \
+            "repos/$GITHUB_REPOSITORY/branches/main" \
+            --jq 'select(.protected == true) | .commit.sha')"
+          [[ "$current" == "$REVIEWED_COMMIT" ]] || { echo "::error::Reviewed protected main changed or could not be verified."; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify existing gate without referencing or creating an environment
+        id: guard
+        run: python3 .github/scripts/reviewed_private_runner_restart.py preflight
+
+  review:
+    needs: preflight
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    environment: private-runner-restart-review
+    permissions: {}
+    steps:
+      - name: Record that the dedicated review job completed
+        run: echo "Dedicated review gate completed; no Azure credentials requested."
+
+  start:
+    needs: [preflight, review]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: lab-deploy
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REVIEWED_COMMIT: ${{ inputs.reviewed_commit }}
+      REVIEWED_VM_SHA256: ${{ inputs.reviewed_vm_sha256 }}
+      EXPECTED_GATE_ID: ${{ needs.preflight.outputs.gate_id }}
+      EXPECTED_GATE_CONFIGURATION_SHA256: ${{ needs.preflight.outputs.gate_configuration_sha256 }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      LAB_RUNNER_RESOURCE_GROUP: ${{ vars.LAB_RUNNER_RESOURCE_GROUP }}
+      LAB_RUNNER_VM: ${{ vars.LAB_RUNNER_VM }}
+      AZURE_CORE_COLLECT_TELEMETRY: "false"
+      AZURE_EXTENSION_USE_DYNAMIC_INSTALL: "no"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Recheck exact approval and target before requesting OIDC; start only
+        run: python3 .github/scripts/reviewed_private_runner_restart.py start
