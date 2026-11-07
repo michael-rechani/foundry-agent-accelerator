@@ -117,8 +117,12 @@ Python's full executable path if the current process has a stale PATH.
 The `deploy.ps1 -Agent` path prefers a non-null Router output but otherwise
 falls back to the fixed model output; it also invokes the base coordinator
 without a profile. Neither behavior establishes the Lab customer target below.
-`WORKBENCH_PREBUILT_AGENT_MODELS` supplies the Lab's admission-budget mapping;
-it does not choose the agent's runtime model.
+The checked-in Lab registry [`workbench/agents.json`](../workbench/agents.json)
+currently labels `customer-review` as `gpt-4.1`; publishing a profile does not
+update that label. `WORKBENCH_PREBUILT_AGENT_MODELS` is a manually supplied
+per-agent RPM/estimated-TPM admission mapping, not runtime model selection,
+billing, or evidence of the served model. `ChatReviews` admits a prebuilt
+coordinator turn once and does not individually account for nested specialist calls.
 
 ## 4. Inventory before mutation
 
@@ -204,7 +208,9 @@ Before the first candidate smoke, immediately before promotion, and in the
 post-promotion route checks, the deployer requires the returned hosted candidate
 definition to report the exact requested `FOUNDRY_MODEL_NAME`. It also rechecks
 the previous route, its positive-traffic versions, candidate identity and active
-release status. This confirms service-reported configuration only: it doesn't
+release status. Parent state and route are reread before candidate smoke and
+after specialist and promoted-version reads; malformed Responses configurations
+are rejected. This confirms service-reported configuration only: it doesn't
 prove the effective served model, runtime integrity, or a fixed-model recovery.
 The application and case specialists can apply an optimizer candidate that
 overrides their runtime model; the coordinator does not use that override.
