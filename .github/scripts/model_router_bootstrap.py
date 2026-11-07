@@ -27,6 +27,11 @@ class BootstrapError(Exception):
     """A fixed precondition or GitHub API operation failed."""
 
 
+class _RejectRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def _replace_once(text, old, new, description):
     if text.count(old) != 1:
         raise BootstrapError(f"Expected exactly one occurrence of {description}.")
@@ -186,7 +191,8 @@ def _request(url, token, method="GET", body=None):
         },
     )
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:  # noqa: S310  # URL is restricted above.
+        opener = urllib.request.build_opener(_RejectRedirects())
+        with opener.open(request, timeout=20) as response:
             result = json.loads(response.read())
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
         raise BootstrapError("A required GitHub API request failed.") from error

@@ -1,11 +1,16 @@
 """Offline tests for the inert, fixed Model Router bootstrap proposal."""
 
 import base64
+from email.message import Message
 import importlib.util
+from io import BytesIO
 from pathlib import Path
 import re
 import unittest
 from unittest.mock import patch
+import urllib.error
+import urllib.request
+import urllib.response
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location(
@@ -151,6 +156,63 @@ class WorkflowContractTests(unittest.TestCase):
 
 
 class GuardAndCommitTests(unittest.TestCase):
+    def test_authenticated_opener_rejects_redirects_without_sending_a_second_request(self):
+        for destination in (
+            "https://example.com/stolen",
+            "http://api.github.com/downgraded",
+            "https://api.github.com/redirected",
+        ):
+            for status in (301, 302, 303, 307, 308):
+                for method in ("GET", "POST"):
+                    with self.subTest(destination=destination, status=status, method=method):
+                        requests = []
+
+                        def respond(request, requests=requests, destination=destination, status=status):
+                            requests.append(request)
+                            headers = Message()
+                            headers["Location"] = destination
+                            response = urllib.response.addinfourl(
+                                BytesIO(b""),
+                                headers,
+                                request.full_url,
+                                status,
+                            )
+                            response.msg = "Redirect"
+                            return response
+
+                        with patch.object(
+                            urllib.request.HTTPSHandler, "https_open", side_effect=respond
+                        ), patch.object(
+                            urllib.request.HTTPHandler, "http_open", side_effect=respond
+                        ), self.assertRaises(bootstrap.BootstrapError) as raised:
+                            bootstrap._request(
+                                "https://api.github.com/graphql",
+                                "offline-token",
+                                method=method,
+                                body={} if method == "POST" else None,
+                            )
+                        self.assertIsInstance(raised.exception.__cause__, urllib.error.HTTPError)
+                        self.assertEqual(raised.exception.__cause__.code, status)
+                        self.assertEqual(len(requests), 1)
+                        self.assertEqual(requests[0].full_url, "https://api.github.com/graphql")
+                        self.assertEqual(
+                            requests[0].get_header("Authorization"), "Bearer offline-token"
+                        )
+
+    def test_authenticated_opener_accepts_a_direct_json_response(self):
+        def respond(request):
+            response = urllib.response.addinfourl(
+                BytesIO(b'{"sha":"reviewed"}'), Message(), request.full_url, 200
+            )
+            response.msg = "OK"
+            return response
+
+        with patch.object(urllib.request.HTTPSHandler, "https_open", side_effect=respond):
+            self.assertEqual(
+                bootstrap._request("https://api.github.com/repos/example", "offline-token"),
+                {"sha": "reviewed"},
+            )
+
     def test_api_requests_reject_non_github_or_non_https_urls(self):
         for url in (
             "http://api.github.com/repos/example",
