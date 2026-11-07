@@ -101,7 +101,6 @@ class PrivateScratchTests(TestCase):
         scratch = PrivateScratch.create(str(self.parent))
         child = scratch.create_directory("owned-dir")
         child.create_file("owned.bin", b"fictional")
-        child.close_descriptors()
         root_path = self.parent / scratch.name
         moved = root_path / "moved-owned-dir"
         os.rename(root_path / "owned-dir", moved)
