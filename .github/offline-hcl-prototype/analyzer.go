@@ -116,7 +116,7 @@ func Analyze(format string, source []byte) Result {
 		a.refuse("unsupported_structure")
 		return a.finish()
 	}
-	hclsyntax.Walk(body, a)
+	a.walk(body)
 	return a.finish()
 }
 
@@ -185,9 +185,10 @@ func (a *analysis) checkObject(object *hclsyntax.ObjectConsExpr) {
 	}
 	seen := make(map[string]bool)
 	for _, item := range object.Items {
-		if a.result.ObjectKeys < MaxNodes {
-			a.result.ObjectKeys++
+		if a.result.ObjectKeys >= MaxNodes {
+			a.stopWalk()
 		}
+		a.result.ObjectKeys++
 		name, known := keyName(item.KeyExpr)
 		if !known {
 			a.refuse("computed_object_key")
@@ -232,16 +233,34 @@ func attributeOnlyTraversal(steps hcl.Traversal, absolute bool) bool {
 }
 
 
+// A unique, nonzero-sized private signal stops the upstream recursive walk.
+// Only this exact identity is recovered; all unexpected panics propagate.
+type walkStop struct{ marker byte }
+
+var boundedWalkStop = &walkStop{marker: 1}
+
+func (a *analysis) stopWalk() {
+	a.refuse("bounds_refused")
+	panic(boundedWalkStop)
+}
+
+func (a *analysis) walk(node hclsyntax.Node) {
+	defer func() {
+		if value := recover(); value != nil {
+			if stop, ok := value.(*walkStop); !ok || stop != boundedWalkStop {
+				panic(value)
+			}
+		}
+	}()
+	hclsyntax.Walk(node, a)
+}
+
 func (a *analysis) Enter(node hclsyntax.Node) hcl.Diagnostics {
+	if a.depth >= MaxASTDepth || a.result.Nodes >= MaxNodes {
+		a.stopWalk()
+	}
 	a.depth++
-	if a.result.Nodes < MaxNodes {
-		a.result.Nodes++
-	} else {
-		a.refuse("bounds_refused")
-	}
-	if a.depth > MaxASTDepth {
-		a.refuse("bounds_refused")
-	}
+	a.result.Nodes++
 	switch value := node.(type) {
 	case *hclsyntax.Block:
 		a.blocks = append(a.blocks, value.Type)

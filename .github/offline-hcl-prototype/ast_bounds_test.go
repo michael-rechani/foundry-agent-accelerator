@@ -101,7 +101,7 @@ func TestActualOperatorChainsAtASTDepthThreshold(t *testing.T) {
 			if result.Outcome != "refused" || !reflect.DeepEqual(result.Categories, test.categories) {
 				t.Fatalf("wrong exact refusal categories: %+v", result)
 			}
-			if result.Nodes != evidence.nodes || evidence.nodes > MaxNodes {
+			if result.Nodes > evidence.nodes || evidence.nodes > MaxNodes || (test.depth <= MaxASTDepth && result.Nodes != evidence.nodes) || (test.depth > MaxASTDepth && result.Nodes >= evidence.nodes) {
 				t.Fatal("reported count does not match complete processing of this case")
 			}
 			t.Logf("terms=%d bytes=%d tokens=%d lexical_depth=%d ast_depth=%d visited_nodes=%d",
@@ -170,8 +170,8 @@ func TestOperatorBudgetExactBoundary(t *testing.T) {
 			if test.earlyRefusal && (result.Nodes != 0 || result.Objects != 0 || result.ObjectKeys != 0) {
 				t.Fatal("above-budget input reached AST analysis")
 			}
-			if !test.earlyRefusal && result.Nodes != evidence.nodes {
-				t.Fatal("at-budget input did not complete AST analysis")
+			if !test.earlyRefusal && (result.Nodes <= 0 || result.Nodes >= evidence.nodes) {
+				t.Fatal("at-budget input did not stop at the AST-depth limit")
 			}
 			t.Logf("operator_budget operators=%d bytes=%d tokens=%d ast_depth=%d independent_nodes=%d analyzer_nodes=%d",
 				test.operators, len(source), tokens, evidence.maxDepth, evidence.nodes, result.Nodes)
@@ -259,7 +259,7 @@ func TestLongOperatorLookingTextRemainsInert(t *testing.T) {
 	}
 }
 
-func TestWalkerDoesNotPruneAtNodeCountThreshold(t *testing.T) {
+func TestBoundedAnalyzerStopsAtNodeCountThreshold(t *testing.T) {
 	// Fabricated AST: this is not a claim that an admitted source can produce
 	// this many nodes under the independent token limit.
 	body := &hclsyntax.Body{}
@@ -277,12 +277,12 @@ func TestWalkerDoesNotPruneAtNodeCountThreshold(t *testing.T) {
 		t.Fatal("fabricated AST did not exceed the refusal threshold")
 	}
 	state := &analysis{categories: make(map[string]bool)}
-	hclsyntax.Walk(body, state)
+	state.walk(body)
 	result := state.finish()
 	if result.Nodes != MaxNodes || result.Outcome != "refused" ||
-		!reflect.DeepEqual(result.Categories, []string{"bounds_refused", "provider_block"}) {
-		t.Fatalf("node threshold pruned or failed to cap reporting: %+v", result)
+		!reflect.DeepEqual(result.Categories, []string{"bounds_refused"}) {
+		t.Fatalf("node threshold failed to stop before the forbidden tail: %+v", result)
 	}
-	t.Logf("fabricated_ast_visited_nodes=%d reported_nodes=%d final_provider_visited=true",
+	t.Logf("fabricated_ast_visited_nodes=%d reported_nodes=%d final_provider_visited=false",
 		evidence.nodes, result.Nodes)
 }
