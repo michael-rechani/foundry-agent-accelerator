@@ -36,6 +36,20 @@ valid, or suitable for a plan. An absent result rules out only this exact
 candidate at that instant; it does not rule out other locations. No live check
 is implied by adding this workflow.
 
+The separate **Compare historical platform input candidate** workflow is also
+manual, main-only and approval-gated. It reads only the candidate and platform
+state into memory, and checks their blob versions and lock metadata before and
+after comparison. It requires the candidate's explicit subscription and
+deployment principal to match the approved subscription, platform resource
+group and persisted Foundry User assignment, and its enabled jumpbox's existing
+OS disk intent to specify `Premium_LRS`. A successful
+`candidate_platform_comparison=matched` is limited to these attributes and
+the observed snapshots; it does **not** establish current canonical authority,
+validate all inputs, or prove that infrastructure matches desired disk intent.
+Missing or ambiguous information, a mismatch, a lock or changing versions
+fails closed. It does not list blobs, write Azure resources, acquire leases, or
+invoke Terraform. No run is implied by adding this workflow.
+
 ### Agent session reuse
 
 The cache holds at most 512 idle chat/agent sessions per process. Its default
