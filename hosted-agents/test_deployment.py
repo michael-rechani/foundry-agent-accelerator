@@ -257,6 +257,8 @@ class SpecialistPreflightTests(unittest.TestCase):
             protocol_configuration=SimpleNamespace(responses=SimpleNamespace()),
             version_selector=SimpleNamespace(version_selection_rules=[self.rule]),
         )
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.endpoint
         self.client.agents.get_version.return_value = {"status": "active"}
 
@@ -272,6 +274,8 @@ class SpecialistPreflightTests(unittest.TestCase):
             version_selector=self.endpoint.version_selector,
         )):
             with self.subTest(endpoint=endpoint), self.assertRaisesRegex(RuntimeError, "Responses endpoint"):
+                self.client.agents.get.return_value.state = "enabled"
+                self.client.agents.get.return_value.configuration_state = "enabled"
                 self.client.agents.get.return_value.agent_endpoint = endpoint
                 verify_specialist_endpoints(self.client, self.profile, "coordinator")
 
@@ -365,6 +369,8 @@ class DeploymentRollbackTests(unittest.TestCase):
         self.client.agents.get_version.return_value = {"status": "active"}
         self.original = self.route("1")
         self.attempted = self.route("2")
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.attempted
         self.client.agents.update_details.side_effect = self.restore
 
@@ -378,6 +384,8 @@ class DeploymentRollbackTests(unittest.TestCase):
         )
 
     def restore(self, **kwargs):
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = kwargs["agent_endpoint"]
 
     def test_restores_route_without_deleting_candidate(self) -> None:
@@ -399,6 +407,8 @@ class DeploymentRollbackTests(unittest.TestCase):
         self.assertNotIn("Deleted", output.getvalue())
 
     def test_before_promotion_failure_reports_retention_without_deletion(self):
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.original
         with redirect_stdout(io.StringIO()) as output:
             cleanup_failed_version(self.client, "agent", "2", self.original, None)
@@ -423,12 +433,16 @@ class DeploymentRollbackTests(unittest.TestCase):
         self.client.agents.delete_version.assert_not_called()
 
     def test_first_deployment_without_route_retains_candidate(self) -> None:
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.original
         cleanup_failed_version(self.client, "agent", "2", None, self.attempted)
         self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_not_called()
 
     def test_failed_build_preserves_existing_route(self) -> None:
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.original
         cleanup_failed_version(self.client, "agent", "2", self.original, None)
         self.client.agents.update_details.assert_not_called()
@@ -436,18 +450,24 @@ class DeploymentRollbackTests(unittest.TestCase):
         self.client.agents.delete_version.assert_not_called()
 
     def test_failed_first_build_without_previous_route_retains_candidate(self):
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.original
         cleanup_failed_version(self.client, "agent", "2", None, None)
         self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_not_called()
 
     def test_changed_route_before_promotion_retains_candidate(self):
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.route("3")
         cleanup_failed_version(self.client, "agent", "2", self.original, None)
         self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_not_called()
 
     def test_failed_promotion_that_left_original_route_does_not_restore_it(self):
+        self.client.agents.get.return_value.state = "enabled"
+        self.client.agents.get.return_value.configuration_state = "enabled"
         self.client.agents.get.return_value.agent_endpoint = self.original
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.client.agents.update_details.assert_not_called()
@@ -461,6 +481,8 @@ class DeploymentRollbackTests(unittest.TestCase):
         for endpoint in (self.route("3"), self.route("@latest"), changed_authorization, changed_protocol):
             with self.subTest(endpoint=endpoint):
                 self.client.reset_mock()
+                self.client.agents.get.return_value.state = "enabled"
+                self.client.agents.get.return_value.configuration_state = "enabled"
                 self.client.agents.get.return_value.agent_endpoint = endpoint
                 cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
                 self.client.agents.update_details.assert_not_called()
@@ -470,6 +492,8 @@ class DeploymentRollbackTests(unittest.TestCase):
         for endpoint in (self.attempted, self.route("3")):
             with self.subTest(endpoint=endpoint):
                 self.client.reset_mock()
+                self.client.agents.get.return_value.state = "enabled"
+                self.client.agents.get.return_value.configuration_state = "enabled"
                 self.client.agents.get.return_value.agent_endpoint = self.attempted
                 self.client.agents.update_details.side_effect = (
                     lambda endpoint=endpoint, **kwargs: setattr(
@@ -490,6 +514,8 @@ class DeploymentRollbackTests(unittest.TestCase):
         for details in ({"status": "failed"}, {"status": "active", "draft": True}, {}):
             with self.subTest(details=details):
                 self.client.reset_mock()
+                self.client.agents.get.return_value.state = "enabled"
+                self.client.agents.get.return_value.configuration_state = "enabled"
                 self.client.agents.get.return_value.agent_endpoint = self.attempted
                 self.client.agents.get_version.return_value = details
                 output = io.StringIO()
@@ -501,8 +527,8 @@ class DeploymentRollbackTests(unittest.TestCase):
 
     def test_route_changed_while_checking_recovery_is_not_overwritten(self):
         self.client.agents.get.side_effect = [
-            SimpleNamespace(agent_endpoint=self.attempted),
-            SimpleNamespace(agent_endpoint=self.route("3")),
+            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.route("3")),
         ]
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.client.agents.update_details.assert_not_called()
@@ -510,10 +536,10 @@ class DeploymentRollbackTests(unittest.TestCase):
 
     def test_route_changed_after_recovery_status_checks_prevents_candidate_deletion(self):
         self.client.agents.get.side_effect = [
-            SimpleNamespace(agent_endpoint=self.attempted),
-            SimpleNamespace(agent_endpoint=self.attempted),
-            SimpleNamespace(agent_endpoint=self.original),
-            SimpleNamespace(agent_endpoint=self.attempted),
+            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
+            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.original),
+            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
         ]
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.client.agents.update_details.assert_called_once()
@@ -521,8 +547,8 @@ class DeploymentRollbackTests(unittest.TestCase):
 
     def test_route_changed_after_unpromoted_cleanup_check_prevents_candidate_deletion(self):
         self.client.agents.get.side_effect = [
-            SimpleNamespace(agent_endpoint=self.original),
-            SimpleNamespace(agent_endpoint=self.attempted),
+            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.original),
+            SimpleNamespace(state="enabled", configuration_state="enabled", agent_endpoint=self.attempted),
         ]
         cleanup_failed_version(self.client, "agent", "2", self.original, None)
         self.client.agents.update_details.assert_not_called()
@@ -564,6 +590,8 @@ class RouteVerificationTests(unittest.TestCase):
             version_selector=SimpleNamespace(version_selection_rules=[rule]),
             protocol_configuration=SimpleNamespace(responses=SimpleNamespace()),
         )
+        client.agents.get.return_value.state = "enabled"
+        client.agents.get.return_value.configuration_state = "enabled"
         client.agents.get.return_value.agent_endpoint = endpoint
         client.agents.get_version.return_value = {"status": "active"}
         verify_route(client, "agent", "2")
