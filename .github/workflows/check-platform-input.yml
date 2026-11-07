@@ -1,40 +1,29 @@
-name: Temporary public telemetry graph and Linux Read experiment
+name: Check historical platform input candidate
+
 on:
   workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: terraform-state-access
+  cancel-in-progress: false
+
 jobs:
-  telemetry:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
+  check:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+    runs-on: [self-hosted, linux, lab-runner]
+    environment: terraform-state
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
-        with:
-          terraform_version: "1.16.4"
-          terraform_wrapper: false
-      - name: Public source parser for hosted experiment only
-        run: python3 -m pip install --quiet python-hcl2==7.3.1
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: 446b078df12c9a08daec7bc5e9f0b5a57d8d7a5d
-          path: reviewed-source
-          persist-credentials: false
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: 0aca16abe9a2527a238b3702fcacefacb627ebf1
-          path: closure-helper
-          persist-credentials: false
-      - name: Capture fresh unapproved public fixture without backend
-        run: python3 closure-helper/.github/scripts/platform_dependency_closure.py capture "$RUNNER_TEMP/public-telemetry" --source reviewed-source/terraform
-      - name: Actual graph and fictional telemetry projection with loopback only
-        run: |
-          sudo unshare --net -- sh -c 'ip link set lo up; exec /usr/sbin/runuser -u "$1" -- /usr/bin/env PATH="$2" TELEMETRY_PUBLIC_BUNDLE="$3" TELEMETRY_TERRAFORM="$4" TELEMETRY_EVIDENCE="$5" /usr/bin/python3 -m unittest discover -s .github/scripts -p test_platform_router_telemetry.py -v' sh "$(id -un)" "$PATH" "$RUNNER_TEMP/public-telemetry" "$(command -v terraform)" "$RUNNER_TEMP/projected-telemetry-evidence.json"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: ${{ always() }}
-        with:
-          name: public-projected-telemetry-not-full-root-runtime
-          path: ${{ runner.temp }}/projected-telemetry-evidence.json
-          retention-days: 3
+      - name: Check candidate presence
+        env:
+          TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
+        run: python3 .github/scripts/check_platform_input.py
