@@ -116,6 +116,24 @@ A pidfd-bound child check and matching leader/group check precede every group si
 leader's same-group descendants are stopped before their inherited pipes are drained.
 The command retains its 180-second bound; post-signal leader reaping is bounded.
 
+Captured stdout and stderr share an aggregate 1 MiB raw-byte limit. The selector
+checks the limit before extending either buffer, fails with fixed `output_limit`,
+and performs the same identity-bound teardown; captured bytes are never logged.
+
+A distinct `TeardownUnverified` failure covers pidfd acquisition, lost ownership,
+group signaling and leader-reaping failures after launch. Before any check/command,
+`run()` persists an `unverified` process-teardown state in the run-owned receipt.
+On that failure it retains both root and receipt without invoking recursive cleanup
+or unlinking either. The independent `--cleanup` path refuses this receipt state,
+even if the root has gone missing, so the workflow retry cannot delete retained
+scratch still potentially in use. Successful command teardown keeps timeout,
+interruption and ordinary failures classified as before and permits normal cleanup;
+a `verified` receipt remains retryable if ordinary filesystem cleanup fails.
+Legacy two-field receipts retain their pre-existing behavior; they do not provide
+this new crash/teardown evidence. Invalid or partial receipt writes fail closed.
+This is not independent proof that escaped descendants have exited or hostile-host
+cleanup is safe; those blockers and the disabled execution boundary remain.
+
 Missing Linux support, a non-default SIGCHLD handler/disposition, multiple Python
 threads, an already-reaped leader, lost child binding, or mismatched group refuses
 supervision/signaling. No numeric fallback is used on pidfd acquisition failure.

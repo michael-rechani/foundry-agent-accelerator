@@ -40,6 +40,7 @@ MISSING_AZD = (
 READY = "Dependencies are ready: azd and the microsoft.foundry extension are ready.\n"
 SYSTEM_PATH = "/usr/local/bin:/usr/bin:/bin"
 VERSION = r"[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*)?"
+MAX_CAPTURE_BYTES = 1024 * 1024
 FAILURE_STAGES = {
     "context": "context",
     "arguments": "context",
@@ -50,12 +51,17 @@ FAILURE_STAGES = {
     "skill": "skill_execution",
     "version": "version",
     "cleanup": "cleanup",
+    "output_limit": "output_limit",
     "interrupted": "interruption",
 }
 
 
 class CheckError(Exception):
     """An operation failed; underlying output must never enter the Actions log."""
+
+
+class TeardownUnverified(CheckError):
+    """Child teardown was not verified; owned scratch must remain quarantined."""
 
 
 class PublicRedirect(request.HTTPRedirectHandler):
@@ -214,46 +220,57 @@ def command(args, cwd, env):
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True, start_new_session=True,
     )
-    with contextlib.ExitStack() as handles:
-        handles.callback(process.stdout.close)
-        handles.callback(process.stderr.close)
-        # Failure to acquire a binding must not fall back to numeric signaling.
-        pidfd = os.pidfd_open(process.pid)
-        handles.callback(os.close, pidfd)
-        output = {process.stdout: bytearray(), process.stderr: bytearray()}
-        group_stopped = False
-        deadline = time.monotonic() + 180
-        try:
-            with selectors.DefaultSelector() as selector:
-                for stream in output:
-                    os.set_blocking(stream.fileno(), False)
-                    selector.register(stream, selectors.EVENT_READ)
-                while True:
-                    if _owned_child_status(process, pidfd) is not None and not group_stopped:
-                        _signal_owned_group(process, pidfd)
-                        group_stopped = True
-                    if group_stopped and not selector.get_map():
-                        break
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        raise subprocess.TimeoutExpired(args, 180)
-                    for key, _events in selector.select(min(remaining, 0.05)):
-                        chunk = os.read(key.fd, 32768)
-                        if chunk:
-                            output[key.fileobj].extend(chunk)
-                        else:
-                            selector.unregister(key.fileobj)
-        finally:
-            if not group_stopped:
-                _signal_owned_group(process, pidfd)
-            # This is the first reaping operation. Never signal the group afterward.
-            process.wait(timeout=5)
-        stdout, stderr = (
-            bytes(output[stream]).decode(stream.encoding, stream.errors)
-            .replace("\r\n", "\n").replace("\r", "\n")
-            for stream in (process.stdout, process.stderr)
-        )
-    return subprocess.CompletedProcess(args, process.returncode, stdout, stderr)
+    teardown_verified = False
+    try:
+        with contextlib.ExitStack() as handles:
+            handles.callback(process.stdout.close)
+            handles.callback(process.stderr.close)
+            # Failure to acquire a binding must not fall back to numeric signaling.
+            pidfd = os.pidfd_open(process.pid)
+            handles.callback(os.close, pidfd)
+            output = {process.stdout: bytearray(), process.stderr: bytearray()}
+            captured = 0
+            group_stopped = False
+            deadline = time.monotonic() + 180
+            try:
+                with selectors.DefaultSelector() as selector:
+                    for stream in output:
+                        os.set_blocking(stream.fileno(), False)
+                        selector.register(stream, selectors.EVENT_READ)
+                    while True:
+                        if _owned_child_status(process, pidfd) is not None and not group_stopped:
+                            _signal_owned_group(process, pidfd)
+                            group_stopped = True
+                        if group_stopped and not selector.get_map():
+                            break
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            raise subprocess.TimeoutExpired(args, 180)
+                        for key, _events in selector.select(min(remaining, 0.05)):
+                            chunk = os.read(key.fd, 32768)
+                            if chunk:
+                                if captured + len(chunk) > MAX_CAPTURE_BYTES:
+                                    raise CheckError("output_limit")
+                                output[key.fileobj].extend(chunk)
+                                captured += len(chunk)
+                            else:
+                                selector.unregister(key.fileobj)
+            finally:
+                if not group_stopped:
+                    _signal_owned_group(process, pidfd)
+                # This is the first reaping operation. Never signal the group afterward.
+                process.wait(timeout=5)
+                teardown_verified = True
+            stdout, stderr = (
+                bytes(output[stream]).decode(stream.encoding, stream.errors)
+                .replace("\r\n", "\n").replace("\r", "\n")
+                for stream in (process.stdout, process.stderr)
+            )
+        return subprocess.CompletedProcess(args, process.returncode, stdout, stderr)
+    except BaseException:
+        if not teardown_verified:
+            raise TeardownUnverified("cleanup") from None
+        raise
 
 def install_azd(root):
     archive = root / "azd.tar.gz"
@@ -324,7 +341,8 @@ def cleanup(temp, receipt_name):
     record = json.loads(receipt.read_text())
     if (
         not isinstance(record, dict)
-        or set(record) != {"name", "owner"}
+        or set(record) not in ({"name", "owner"}, {"name", "owner", "process_teardown"})
+        or record.get("process_teardown", "verified") != "verified"
         or not isinstance(record["name"], str)
         or not re.fullmatch(r"foundry-prerequisites-[a-z0-9_]{8}", record["name"])
         or not isinstance(record["owner"], str)
@@ -351,25 +369,36 @@ def run():
     # Reserve the receipt exclusively: retries must not overwrite another invocation.
     registration = os.fdopen(os.open(receipt, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), "w")
     root = None
+    retain_scratch = False
+    record = None
     try:
         root = Path(tempfile.mkdtemp(prefix="foundry-prerequisites-", dir=temp))
         owner = uuid.uuid4().hex
         (root / ".run-owned").write_text(owner)
-        json.dump({"name": root.name, "owner": owner}, registration)
+        # Persist the veto before any command can launch; a later failure need not rewrite it.
+        record = {"name": root.name, "owner": owner, "process_teardown": "unverified"}
+        json.dump(record, registration)
         registration.close()
         version = check(root, user_agent)
+    except TeardownUnverified:
+        retain_scratch = True
+        raise
     finally:
         registration.close()
-        if root is not None:
-            try:
-                shutil.rmtree(root)
+        if not retain_scratch:
+            if root is not None:
+                try:
+                    if record is not None:
+                        record["process_teardown"] = "verified"
+                        with receipt.open("w") as output:
+                            json.dump(record, output)
+                    shutil.rmtree(root)
+                    receipt.unlink()
+                except OSError as failure:
+                    raise CheckError("cleanup") from failure
+            else:
                 receipt.unlink()
-            except OSError as failure:
-                raise CheckError("cleanup") from failure
-        else:
-            receipt.unlink()
     return version
-
 
 def interrupted(signum, frame):
     raise CheckError("interrupted")

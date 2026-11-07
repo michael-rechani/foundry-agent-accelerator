@@ -659,6 +659,18 @@ class FailureStageTests(unittest.TestCase):
 
 
 class ProcessTests(unittest.TestCase):
+    def test_combined_output_bound_accepts_exact_limit_and_refuses_excess(self):
+        script = "import os; os.write(1,b'x'*32); os.write(2,b'y'*32)"
+        with patch.object(probe, "MAX_CAPTURE_BYTES", 64):
+            result = probe.command([sys.executable, "-c", script], None, {"PATH": probe.SYSTEM_PATH})
+            self.assertEqual((result.stdout, result.stderr), ("x" * 32, "y" * 32))
+            for output in ("os.write(1,b'x'*65)", "os.write(2,b'y'*65)",
+                           "os.write(1,b'x'*32); os.write(2,b'y'*33)"):
+                with self.subTest(output=output):
+                    with self.assertRaisesRegex(probe.CheckError, "output_limit"):
+                        probe.command([sys.executable, "-c", "import os; " + output], None,
+                                      {"PATH": probe.SYSTEM_PATH})
+
     def test_full_command_never_signals_numeric_group_after_reaping(self):
         process = MagicMock(pid=123, returncode=None)
         process.stdout.encoding = process.stderr.encoding = "utf-8"
@@ -799,7 +811,7 @@ class ProcessTests(unittest.TestCase):
         with patch.object(probe.subprocess, "Popen") as popen, \
                 patch.object(probe.os, "pidfd_open", side_effect=OSError("private-token")), \
                 patch.object(probe.os, "killpg") as kill:
-            with self.assertRaises(OSError):
+            with self.assertRaises(probe.TeardownUnverified):
                 probe.command(["synthetic"], None, {})
             kill.assert_not_called()
             popen.return_value.wait.assert_not_called()
@@ -888,6 +900,129 @@ with patch.dict("os.environ", {
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual((result.stdout, result.stderr), ("failure_stage=unexpected_io\n", "foundry_prerequisites_check_failed\n"))
 
+
+class ProcessRetentionTests(unittest.TestCase):
+    def test_unverified_command_failures_retain_root_and_veto_separate_cleanup(self):
+        for stage in ("pidfd", "ownership", "signal", "reap"):
+            with self.subTest(stage=stage), tempfile.TemporaryDirectory() as folder:
+                temp = Path(folder)
+                receipt_name = "foundry-prerequisites-12345-1.json"
+                process = MagicMock(pid=123, returncode=None)
+                status = MagicMock(si_pid=123, si_code=os.CLD_EXITED)
+                selector = MagicMock()
+                selector.get_map.return_value = {}
+                process.stdout.encoding = process.stderr.encoding = "utf-8"
+                process.stdout.errors = process.stderr.errors = "strict"
+                process.wait.return_value = 0
+                if stage == "reap":
+                    process.wait.side_effect = subprocess.TimeoutExpired("private-command", 5)
+
+                def check(root, _user_agent):
+                    (root / "synthetic-owned-data").write_bytes(b"fictional")
+                    record = json.loads((temp / receipt_name).read_text())
+                    self.assertEqual(record["process_teardown"], "unverified")
+                    return probe.command(["synthetic"], root, {})
+
+                with patch.object(probe, "context", return_value=(temp, receipt_name)), \
+                        patch.object(probe, "invocation_user_agent", return_value="synthetic"), \
+                        patch.object(probe, "check", side_effect=check), \
+                        patch.object(probe.subprocess, "Popen", return_value=process), \
+                        patch.object(probe.os, "pidfd_open", side_effect=OSError("private-token") if stage == "pidfd" else None,
+                                     return_value=456), \
+                        patch.object(probe.os, "close"), \
+                        patch.object(probe.os, "set_blocking"), \
+                        patch.object(probe.os, "waitid", side_effect=ChildProcessError("private-token") if stage == "ownership" else None,
+                                     return_value=status), \
+                        patch.object(probe.os, "getpgid", return_value=123), \
+                        patch.object(probe.os, "killpg", side_effect=PermissionError("private-token") if stage == "signal" else None), \
+                        patch.object(probe.selectors, "DefaultSelector") as factory, \
+                        patch.object(probe.shutil, "rmtree") as remove:
+                    factory.return_value.__enter__.return_value = selector
+                    with self.assertRaises(probe.TeardownUnverified) as raised:
+                        probe.run()
+                    receipt = temp / receipt_name
+                    before = receipt.read_bytes()
+                    record = json.loads(before)
+                    root = temp / record["name"]
+                    self.assertEqual(record["process_teardown"], "unverified")
+                    self.assertEqual((root / "synthetic-owned-data").read_bytes(), b"fictional")
+                    with self.assertRaises(probe.CheckError):
+                        probe.cleanup(temp, receipt_name)
+                    with patch.object(sys, "argv", ["probe", "--cleanup"]), \
+                            contextlib.redirect_stdout(out := io.StringIO()), \
+                            contextlib.redirect_stderr(err := io.StringIO()):
+                        self.assertEqual(probe.main(), 1)
+                    self.assertEqual((out.getvalue(), err.getvalue()),
+                                     ("failure_stage=cleanup\n", "foundry_prerequisites_check_failed\n"))
+                    self.assertEqual(receipt.read_bytes(), before)
+                    self.assertTrue(root.exists())
+                    remove.assert_not_called()
+                    with contextlib.redirect_stdout(out := io.StringIO()), \
+                            contextlib.redirect_stderr(err := io.StringIO()):
+                        probe.report_failure(raised.exception)
+                    self.assertEqual((out.getvalue(), err.getvalue()),
+                                     ("failure_stage=cleanup\n", "foundry_prerequisites_check_failed\n"))
+
+    def test_verified_teardown_preserves_original_failure_classification_and_removes_scratch(self):
+        for failure, expected in ((None, None), (probe.CheckError("skill"), "skill_execution"),
+                                  (subprocess.TimeoutExpired("private-command", 180), "timeout"),
+                                  (probe.CheckError("interrupted"), "interruption"),
+                                  (KeyboardInterrupt(), "unexpected_io"),
+                                  (probe.CheckError("output_limit"), "output_limit")):
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as folder:
+                temp = Path(folder)
+                receipt_name = "foundry-prerequisites-12345-1.json"
+                process = MagicMock(pid=123, returncode=None)
+                process.stdout.encoding = process.stderr.encoding = "utf-8"
+                process.stdout.errors = process.stderr.errors = "strict"
+                status = MagicMock(si_pid=123, si_code=os.CLD_EXITED)
+                selector = MagicMock()
+                selector.get_map.return_value = {}
+
+                def reap(**_kwargs):
+                    process.returncode = 0
+                    return 0
+
+                process.wait.side_effect = reap
+
+                def check(root, _user_agent):
+                    result = probe.command(["synthetic"], root, {})
+                    return "1.2.3" if result.returncode == 0 else "unexpected"
+
+                with patch.object(probe, "context", return_value=(temp, receipt_name)), \
+                        patch.object(probe, "invocation_user_agent", return_value="synthetic"), \
+                        patch.object(probe, "check", side_effect=check), \
+                        patch.object(probe.subprocess, "Popen", return_value=process), \
+                        patch.object(probe.os, "pidfd_open", return_value=456), \
+                        patch.object(probe.os, "close"), \
+                        patch.object(probe.os, "set_blocking"), \
+                        patch.object(probe.os, "waitid", return_value=status), \
+                        patch.object(probe.os, "getpgid", return_value=123), \
+                        patch.object(probe.os, "killpg"), \
+                        patch.object(probe.selectors, "DefaultSelector", side_effect=failure) as factory:
+                    factory.return_value.__enter__.return_value = selector
+                    if failure is None:
+                        self.assertEqual(probe.run(), "1.2.3")
+                    else:
+                        with self.assertRaises(type(failure)) as raised:
+                            probe.run()
+                        self.assertEqual(probe.failure_stage(raised.exception), expected)
+                    process.wait.assert_called_once_with(timeout=5)
+                    self.assertEqual(list(temp.iterdir()), [])
+
+    def test_ordinary_cleanup_failure_keeps_verified_receipt_for_safe_retry(self):
+        with tempfile.TemporaryDirectory() as folder:
+            temp = Path(folder)
+            receipt_name = "foundry-prerequisites-12345-1.json"
+            with patch.object(probe, "context", return_value=(temp, receipt_name)), \
+                    patch.object(probe, "invocation_user_agent", return_value="synthetic"), \
+                    patch.object(probe, "check", return_value="1.2.3"), \
+                    patch.object(probe.shutil, "rmtree", side_effect=OSError("private-path")):
+                with self.assertRaises(probe.CheckError):
+                    probe.run()
+            self.assertEqual(json.loads((temp / receipt_name).read_text())["process_teardown"], "verified")
+            probe.cleanup(temp, receipt_name)
+            self.assertEqual(list(temp.iterdir()), [])
 
 class OfficialScriptFixtureTests(unittest.TestCase):
     def test_actual_hash_pinned_script_with_fake_commands_only(self):
