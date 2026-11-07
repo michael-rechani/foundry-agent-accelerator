@@ -494,6 +494,17 @@ or browser/UI acceptance. The default CLI only reads the configuration and
 cached dependency status; storage checks and potentially billable agent calls
 remain explicit opt-ins.
 
+Synthetic storage verification retains the create-confirmed record ID and ETag.
+Every update and delete is conditional; cleanup uses only the last version
+confirmed by this verifier's own create or update response, never a newly fetched
+ETag. If identity, version, transcript verification, or a write's outcome is
+uncertain, verification fails without further mutations and retains the record
+when present for manual investigation. An attempted deletion may already have
+completed if its confirmation is lost. Diagnostics identify the failing phase
+and the canonical synthetic UUID when available, without logging record content;
+inspect that record before retrying. Records are shared, so do not delete a
+changed record simply because it originated in a verification run.
+
 Independently authorize, perform, and record the private-network boundary checks
 (including origin provenance, private DNS and routing, proxies, source subnets,
 and allowed and denied ingress) and rendered browser/UI checks from the intended

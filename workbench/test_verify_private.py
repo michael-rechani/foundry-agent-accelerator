@@ -2,6 +2,7 @@ import io
 import json
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from copy import deepcopy
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 
@@ -41,14 +42,14 @@ class FakeClient:
                 raise CheckError("Unexpected missing record")
             return {}
         if method == "GET":
-            return {**self.body, "_etag": self.etag, **({} if self.persisted else {"turns": []})}
+            return {**self.body, "id": "11111111-1111-4111-8111-111111111111", "_etag": self.etag, **({} if self.persisted else {"turns": []})}
         if method == "PUT" and expected == 409:
             if not self.conflict:
                 raise CheckError("Stale update was accepted")
             return {}
         if method == "PUT":
             self.etag = "two"
-            return {"_etag": self.etag}
+            return {"id": "11111111-1111-4111-8111-111111111111", "_etag": self.etag}
         if method == "DELETE":
             self.deleted = True
             return {"deleted": True}
@@ -80,6 +81,70 @@ class CustomerReviewClient(FakeClient):
                 **self.overrides.get(number, {}),
             })
         return result
+
+
+class StorageClient(FakeClient):
+    identifier = "11111111-1111-4111-8111-111111111111"
+    sensitive = "Fictional content must not appear in diagnostics"
+
+    def __init__(self, *, faults=None, external_read=None, delete_race=False, accepted_stale=False):
+        super().__init__()
+        self.faults = faults or {}
+        self.external_read = external_read
+        self.delete_race = delete_race
+        self.accepted_stale = accepted_stale
+        self.requests = []
+        self.read_count = 0
+
+    def call(self, method, path, body=None, etag=None, expected=200):
+        if path in {"/api/config", "/api/health/dependencies"}:
+            return super().call(method, path, body, etag, expected)
+        self.calls.append((method, path))
+        self.requests.append((method, path, etag, expected))
+        if method == "POST":
+            stage = "create"
+            self.body = deepcopy(body)
+            response = {"id": self.identifier, "_etag": self.etag}
+        elif method == "GET" and expected == 404:
+            stage = "absence"
+            if not self.deleted:
+                raise CheckError(self.sensitive)
+            response = {}
+        elif method == "GET":
+            self.read_count += 1
+            stage = "initial" if self.read_count == 1 else "cleanup"
+            if self.external_read == stage:
+                self.etag = "external"
+            response = {**deepcopy(self.body), "id": self.identifier, "_etag": self.etag}
+        elif method == "PUT" and expected == 409:
+            stage = "stale"
+            if self.accepted_stale:
+                self.etag = "three"
+                raise CheckError(self.sensitive)
+            if etag == self.etag:
+                raise AssertionError("Conflict probe must use the stale created ETag")
+            response = {}
+        elif method == "PUT":
+            stage = "update"
+            if etag != self.etag:
+                raise CheckError(self.sensitive)
+            self.etag = "two"
+            response = {"id": self.identifier, "_etag": self.etag}
+        elif method == "DELETE":
+            stage = "delete"
+            if self.delete_race:
+                self.etag = "external"
+            if etag != self.etag:
+                raise CheckError(self.sensitive)
+            if stage not in self.faults:
+                self.deleted = True
+            response = {"deleted": True}
+        else:
+            raise AssertionError("Unexpected fictional storage request")
+        fault = self.faults.get(stage, response)
+        if isinstance(fault, CheckError):
+            raise fault
+        return deepcopy(fault)
 
 
 class PrivateVerificationTests(unittest.TestCase):
@@ -198,12 +263,173 @@ class PrivateVerificationTests(unittest.TestCase):
         self.assertFalse(report["model_quality_verified"])
         self.assertNotIn("Fictional finding", output.getvalue())
 
-    def test_storage_failure_still_deletes_only_the_created_record(self):
+    def test_storage_failure_retains_the_created_record_without_retry(self):
         for client in (FakeClient(conflict=False), FakeClient(persisted=False)):
             with self.assertRaises(CheckError):
                 verify(client, check_storage=True)
-            self.assertTrue(client.deleted)
+            self.assertFalse(client.deleted)
+            self.assertNotIn(("DELETE", "/api/conversations/11111111-1111-4111-8111-111111111111"), client.calls)
             self.assertEqual(sum(method == "POST" for method, _ in client.calls), 1)
+
+    def assert_storage_failure(self, client, phase, *, identified=True, delete_attempts=0):
+        output, error = io.StringIO(), io.StringIO()
+        with patch("verify_private.PrivateClient", return_value=client), redirect_stdout(output), redirect_stderr(error):
+            code = main(["--base-url", "https://lab.example.invalid", "--check-storage"])
+        self.assertEqual(code, 1)
+        self.assertEqual(output.getvalue(), "")
+        report = json.loads(error.getvalue())
+        self.assertEqual(report["status"], "failed")
+        self.assertIn(phase, report["error"])
+        if identified:
+            self.assertIn(client.identifier, report["error"])
+        self.assertNotIn(client.sensitive, error.getvalue())
+        self.assertNotIn(APPLICATION_PROMPT, error.getvalue())
+        self.assertNotIn("Synthetic storage verification only", error.getvalue())
+        self.assertIn("retry", report["error"])
+        self.assertFalse(client.deleted)
+        mutations = [request for request in client.requests if request[0] in {"PUT", "DELETE"}]
+        self.assertTrue(all(request[2] in {"one", "two"} for request in mutations))
+        self.assertTrue(all(request[1] == "/api/conversations/" + client.identifier for request in mutations))
+        self.assertEqual(sum(request[0] == "DELETE" for request in mutations), delete_attempts)
+        self.assertEqual(sum(request[0] == "POST" for request in client.requests), 1)
+        return report["error"]
+
+    def test_storage_happy_path_uses_only_confirmed_owned_versions(self):
+        client = StorageClient()
+        self.assertEqual(verify(client, check_storage=True)[-2:],
+                         ["cosmos_create_read_update_conflict", "synthetic_record_deleted"])
+        path = "/api/conversations/" + client.identifier
+        self.assertEqual(client.requests, [
+            ("POST", "/api/conversations", None, 200), ("GET", path, None, 200),
+            ("PUT", path, "one", 200), ("PUT", path, "one", 409),
+            ("GET", path, None, 200), ("DELETE", path, "two", 200), ("GET", path, None, 404),
+        ])
+        self.assertTrue(client.deleted)
+
+    def test_storage_invalid_version_fields_never_enable_an_unowned_mutation(self):
+        invalid = (None, "", " ", 1, True, [], {}, "*", "one,two", "one\n", "\tone")
+        phases = {"create": "create version confirmation", "initial": "initial record verification",
+                  "update": "conditional update confirmation", "cleanup": "cleanup version confirmation"}
+        for stage, phase in phases.items():
+            for number, etag in enumerate(invalid):
+                with self.subTest(stage=stage, case=number):
+                    client = StorageClient(faults={stage: {"id": StorageClient.identifier, "_etag": etag}})
+                    self.assert_storage_failure(client, phase)
+                    self.assertEqual(sum(request[0] == "PUT" for request in client.requests),
+                                     0 if stage in {"create", "initial"} else 1 if stage == "update" else 2)
+            with self.subTest(stage=stage, case="missing"):
+                self.assert_storage_failure(StorageClient(faults={stage: {"id": StorageClient.identifier}}), phase)
+
+    def test_storage_unidentifiable_create_response_retains_records_without_mutation(self):
+        for number, response in enumerate(({}, {"id": None}, {"id": 1}, {"id": []},
+                                           {"id": "not-a-uuid"}, {"id": "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"}, [])):
+            with self.subTest(case=number):
+                client = StorageClient(faults={"create": response})
+                self.assert_storage_failure(client, "usable conversation ID", identified=False)
+                self.assertEqual(len(client.requests), 1)
+        client = StorageClient(faults={"create": CheckError(StorageClient.sensitive)})
+        self.assert_storage_failure(client, "create outcome is unconfirmed", identified=False)
+        self.assertEqual(len(client.requests), 1)
+
+    def test_storage_wrong_or_missing_record_identity_never_enables_cleanup(self):
+        other = "22222222-2222-4222-8222-222222222222"
+        for stage, phase in (("initial", "initial record verification"),
+                             ("update", "conditional update confirmation"),
+                             ("cleanup", "cleanup version confirmation")):
+            for number, response in enumerate(({"id": other, "_etag": "two"}, {"_etag": "two"},
+                                               {"id": [StorageClient.identifier, other], "_etag": "two"}, [])):
+                with self.subTest(stage=stage, case=number):
+                    self.assert_storage_failure(StorageClient(faults={stage: response}), phase)
+        self.assert_storage_failure(StorageClient(faults={"create": {"id": other, "_etag": "one"}}),
+                                    "initial record verification", identified=False)
+
+    def test_external_versions_before_update_or_cleanup_are_never_adopted(self):
+        for stage, phase in (("initial", "initial record verification"), ("cleanup", "cleanup version confirmation")):
+            with self.subTest(stage=stage):
+                client = StorageClient(external_read=stage)
+                self.assert_storage_failure(client, phase)
+                self.assertEqual(client.etag, "external")
+                self.assertEqual(sum(request[0] == "PUT" for request in client.requests), 0 if stage == "initial" else 2)
+
+    def test_cleanup_read_delete_race_conflicts_without_retry_or_new_etag(self):
+        client = StorageClient(delete_race=True)
+        message = self.assert_storage_failure(client, "conditional deletion confirmation", delete_attempts=1)
+        self.assertEqual(client.requests[-1][2], "two")
+        self.assertEqual(client.etag, "external")
+        self.assertIn("deletion may already have completed", message)
+
+    def test_possible_update_or_stale_commit_retains_records_without_delete(self):
+        for stage, phase in (("update", "conditional update confirmation"), ("stale", "stale-update conflict confirmation")):
+            for number, failure in enumerate((CheckError(StorageClient.sensitive), [], {"id": StorageClient.identifier},
+                                              {"id": StorageClient.identifier, "_etag": "one"})):
+                with self.subTest(stage=stage, case=number):
+                    client = StorageClient(faults={stage: failure})
+                    self.assert_storage_failure(client, phase)
+                    self.assertEqual(client.etag, "two")
+                    self.assertEqual(client.read_count, 1)
+        client = StorageClient(accepted_stale=True)
+        self.assert_storage_failure(client, "stale-update conflict confirmation")
+        self.assertEqual(client.etag, "three")
+
+    def test_failed_initial_transcript_verification_retains_record(self):
+        valid_result = {"request_id": "wrong", "agent": "coordinator", "text": StorageClient.sensitive}
+        for number, turns in enumerate((None, [], [None], [{}], [{"result": []}],
+                                         [{"question": APPLICATION_PROMPT, "result": valid_result}], [{}, {}])):
+            with self.subTest(case=number):
+                response = {"id": StorageClient.identifier, "_etag": "one", "agent_id": "review", "turns": turns}
+                client = StorageClient(faults={"initial": response})
+                self.assert_storage_failure(client, "initial record verification")
+                self.assertEqual(sum(request[0] == "PUT" for request in client.requests), 0)
+
+    def test_read_failures_and_unconfirmed_deletion_do_not_trigger_fallback_mutations(self):
+        for stage, phase, deletes in (("initial", "initial record verification", 0),
+                                     ("cleanup", "cleanup version confirmation", 0),
+                                     ("delete", "conditional deletion confirmation", 1)):
+            with self.subTest(stage=stage):
+                self.assert_storage_failure(StorageClient(faults={stage: CheckError(StorageClient.sensitive)}),
+                                            phase, delete_attempts=deletes)
+        for response in ({}, {"deleted": False}, {"deleted": 1}, []):
+            self.assert_storage_failure(StorageClient(faults={"delete": response}),
+                                        "conditional deletion confirmation", delete_attempts=1)
+
+    def test_post_delete_failure_reports_uncertainty_without_retry(self):
+        client = StorageClient(faults={"absence": CheckError(StorageClient.sensitive)})
+        with self.assertRaisesRegex(CheckError, "deletion absence verification.*deletion may already have completed"):
+            verify(client, check_storage=True)
+        self.assertTrue(client.deleted)
+        self.assertEqual(sum(request[0] == "DELETE" for request in client.requests), 1)
+
+    def test_private_client_rejects_invalid_mutation_etags_before_request(self):
+        with patch("verify_private.build_opener") as opener:
+            client = PrivateClient("https://lab.example.invalid")
+            for method in ("PUT", "DELETE"):
+                for etag in (None, "", " ", 1, True, {}, [], "*", "one,two", "one\n"):
+                    with self.subTest(method=method, etag=etag), self.assertRaisesRegex(CheckError, "Conditional mutation"):
+                        client.call(method, "/api/conversations/" + StorageClient.identifier, etag=etag)
+            opener.return_value.open.assert_not_called()
+
+    def test_private_client_sends_if_match_for_every_update_and_delete(self):
+        with patch("verify_private.build_opener") as opener:
+            client = PrivateClient("https://lab.example.invalid")
+            for method in ("PUT", "DELETE"):
+                response = io.BytesIO(b"{}")
+                response.status = 200
+                opener.return_value.open.return_value = response
+                client.call(method, "/api/conversations/" + StorageClient.identifier, etag='"owned-version"')
+                request = opener.return_value.open.call_args.args[0]
+                self.assertEqual(request.get_header("If-match"), '"owned-version"')
+                self.assertEqual(request.get_method(), method)
+
+    def test_duplicate_json_identifiers_are_rejected_without_logging_content(self):
+        response = io.BytesIO(b'{"id":"11111111-1111-4111-8111-111111111111","id":"content-not-for-logs"}')
+        response.status = 200
+        with patch("verify_private.build_opener") as opener:
+            opener.return_value.open.return_value = response
+            client = PrivateClient("https://lab.example.invalid")
+            with self.assertRaisesRegex(CheckError, "invalid JSON response") as raised:
+                client.call("POST", "/api/conversations", {})
+        self.assertNotIn("content-not-for-logs", str(raised.exception))
+        opener.return_value.open.assert_called_once()
 
     def run_mocked_api_checks(self, arguments):
         fixture = FakeClient()
