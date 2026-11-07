@@ -10,18 +10,41 @@ permissions:
 jobs:
   offline-overlay:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: michael-rechani/foundry-agent-accelerator
+          ref: dc5bd967324d38d693c049b6e75d8f275fc6b3fb
+          path: closure-tool
           persist-credentials: false
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: "1.16.4"
           terraform_wrapper: false
-      - name: Run focused overlay regressions
-        run: python3 -m unittest discover -s .github/scripts -p test_platform_router_overlay.py -v
-      - name: Initialize and validate exact public root without a backend
+      - name: Capture the public module and provider closure
+        run: >-
+          python3 closure-tool/.github/scripts/platform_dependency_closure.py
+          capture "$RUNNER_TEMP/public-overlay-bundle"
+          --source "$GITHUB_WORKSPACE/terraform" --terraform terraform
+      - name: Run focused overlay regressions against captured closure
         env:
+          PUBLIC_OVERLAY_BUNDLE: ${{ runner.temp }}/public-overlay-bundle
           OVERLAY_TERRAFORM: terraform
-        run: python3 .github/scripts/test_azapi_registration_overlay.py -v
+        run: >-
+          unshare -n -- env PUBLIC_OVERLAY_BUNDLE="$PUBLIC_OVERLAY_BUNDLE"
+          OVERLAY_TERRAFORM="$OVERLAY_TERRAFORM"
+          python3 -m unittest discover -s .github/scripts
+          -p test_platform_router_overlay.py -v
+      - name: Validate provider inheritance on captured dependency closure
+        env:
+          PUBLIC_OVERLAY_BUNDLE: ${{ runner.temp }}/public-overlay-bundle
+          OVERLAY_TERRAFORM: terraform
+        run: >-
+          unshare -n -- env PUBLIC_OVERLAY_BUNDLE="$PUBLIC_OVERLAY_BUNDLE"
+          OVERLAY_TERRAFORM="$OVERLAY_TERRAFORM"
+          python3 .github/scripts/test_azapi_registration_overlay.py -v

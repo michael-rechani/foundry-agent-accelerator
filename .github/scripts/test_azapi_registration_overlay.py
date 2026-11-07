@@ -38,11 +38,17 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
     def test_actual_reviewed_root_init_validate_and_descendant_provider_graph(self):
         terraform = shutil.which(os.environ.get("OVERLAY_TERRAFORM", "terraform"))
         self.assertTrue(terraform, "pinned Terraform executable required")
-        source_root = Path(__file__).resolve().parents[2] / "terraform"
+        bundle = Path(os.environ["PUBLIC_OVERLAY_BUNDLE"])
+        manifest = json.loads((bundle / "manifest.json").read_bytes())
+        self.assertEqual(manifest["source_sha"], diagnostic.DIAGNOSTIC_SOURCE_SHA)
+        self.assertEqual(manifest["terraform"], "1.16.4")
+        self.assertEqual(manifest["providers"]["registry.terraform.io/azure/azapi"], "2.12.0")
+        self.assertEqual(manifest["providers"]["registry.terraform.io/hashicorp/azurerm"], "4.81.0")
+
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder)
             root = base / "terraform"
-            shutil.copytree(source_root, root)
+            shutil.copytree(bundle / "root", root)
             diagnostic.write_backend(root)
             overlay = json.loads((root / diagnostic.DIAGNOSTIC_OVERLAY).read_text(encoding="utf-8"))
             self.assertEqual(overlay["provider"]["azapi"], {"skip_provider_registration": True})
@@ -55,7 +61,12 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
             home = base / "home"
             home.mkdir(mode=0o700)
             cli_config = home / "terraform.rc"
-            cli_config.write_text("disable_checkpoint = true\n", encoding="utf-8")
+            mirror = (bundle / "mirror").resolve().as_posix()
+            cli_config.write_text(
+                "disable_checkpoint = true\nprovider_installation {\n  filesystem_mirror {\n"
+                + f"    path = {json.dumps(mirror)}\n  }}\n}}\n",
+                encoding="utf-8",
+            )
             env = {
                 "PATH": os.environ["PATH"],
                 "HOME": str(home),
@@ -71,22 +82,20 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
                     [terraform, f"-chdir={root}", *args], env=env,
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
                 )
-                self.assertEqual(result.returncode, 0, f"public Terraform {args[0]} failed")
+                self.assertEqual(result.returncode, 0, f"captured public Terraform {args[0]} failed")
                 return result.stdout
 
             version = json.loads(run(["version", "-json"]))
             self.assertEqual(version["terraform_version"], "1.16.4")
-            run(["init", "-backend=false", "-input=false", "-lockfile=readonly", "-no-color"])
+            run(["init", "-backend=false", "-get=false", "-input=false", "-lockfile=readonly", "-no-color"])
             selections = json.loads(run(["version", "-json"]))["provider_selections"]
-            self.assertEqual(selections["registry.terraform.io/azure/azapi"], "2.12.0")
-            self.assertEqual(selections["registry.terraform.io/hashicorp/azurerm"], "4.81.0")
+            self.assertEqual(selections, manifest["providers"])
 
             modules_path = root / ".terraform" / "modules" / "modules.json"
-            manifest = json.loads(modules_path.read_text(encoding="utf-8"))
-            modules = manifest.get("Modules")
-            self.assertIsInstance(modules, list)
-            descendants = [entry for entry in modules if isinstance(entry, dict) and entry.get("Key")]
-            self.assertTrue(descendants, "Terraform module closure must be present")
+            manifest_modules = json.loads(modules_path.read_text(encoding="utf-8")).get("Modules")
+            self.assertIsInstance(manifest_modules, list)
+            descendants = [entry for entry in manifest_modules if isinstance(entry, dict) and entry.get("Key")]
+            self.assertTrue(descendants, "captured Terraform module closure must be present")
             for entry in descendants:
                 module_root = (root / entry["Dir"]).resolve()
                 self.assertTrue(module_root.is_relative_to(root.resolve()))
