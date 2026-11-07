@@ -25,7 +25,7 @@ jobs:
       - name: Resolve public dependencies without a backend or credentials
         run: python3 .github/scripts/platform_dependency_closure.py capture "$RUNNER_TEMP/public-closure" --source reviewed-source/terraform
       - name: Reinstall and load schemas from offline verified packages
-        run: python3 .github/scripts/platform_dependency_closure.py verify "$RUNNER_TEMP/public-closure"
+        run: python3 .github/scripts/platform_dependency_closure.py verify "$RUNNER_TEMP/public-closure" --manifest-sha256 "$(sha256sum "$RUNNER_TEMP/public-closure/manifest.json" | cut -d ' ' -f 1)"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: generated-public-closure-not-reviewed

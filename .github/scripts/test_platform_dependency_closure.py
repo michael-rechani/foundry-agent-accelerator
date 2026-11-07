@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -22,7 +23,8 @@ class ClosureTests(unittest.TestCase):
         (root / 'mirror' / 'provider.zip').write_bytes(b'synthetic package')
         manifest = {'format': 1, 'source_sha': closure.SHA, 'terraform': closure.VERSION,
                     'platform': 'linux_amd64', 'provenance': 'generated-public-resolution-not-reviewed',
-                    'files': closure.inventory(root), 'modules': graph['Modules']}
+                    'files': closure.inventory(root), 'modules': graph['Modules'],
+                    'source_files': {'main.tf': closure.inventory(root)['root/main.tf']}}
         (root / 'manifest.json').write_text(json.dumps(manifest))
         return manifest
 
@@ -30,7 +32,7 @@ class ClosureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.fixture(root)
-            closure.check(root)
+            closure.check(root, hashlib.sha256((root / "manifest.json").read_bytes()).hexdigest())
 
     def test_missing_extra_changed_and_nested_artifacts(self):
         for mutation in ('missing', 'extra', 'changed', 'nested', 'mode', 'lock'):
@@ -49,7 +51,7 @@ class ClosureTests(unittest.TestCase):
                     target = root / 'root' / 'main.tf' if mutation == 'changed' else root / 'root' / '.terraform/modules/child/main.tf'
                     target.write_text('tampered')
                 with self.assertRaises(closure.ClosureError):
-                    closure.check(root)
+                    closure.check(root, hashlib.sha256((root / "manifest.json").read_bytes()).hexdigest())
 
     def test_escaping_graph_and_symlinks(self):
         for mutation in ('escape', 'link', 'duplicate'):
@@ -67,7 +69,7 @@ class ClosureTests(unittest.TestCase):
                 else:
                     (root / 'manifest.json').write_text('{"format":1,"format":1}')
                 with self.assertRaises(closure.ClosureError):
-                    closure.check(root)
+                    closure.check(root, hashlib.sha256((root / "manifest.json").read_bytes()).hexdigest())
 
     def test_version_revision_and_unreviewed_provenance_fail_closed(self):
         for key, value in (('terraform', '1.17.0'), ('source_sha', '0' * 40), ('platform', 'windows_amd64'),
@@ -78,8 +80,19 @@ class ClosureTests(unittest.TestCase):
                 manifest[key] = value
                 (root / 'manifest.json').write_text(json.dumps(manifest))
                 with self.assertRaises(closure.ClosureError):
-                    closure.check(root)
+                    closure.check(root, hashlib.sha256((root / "manifest.json").read_bytes()).hexdigest())
 
+    def test_manifest_digest_cannot_be_self_replaced(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = self.fixture(root)
+            selected = hashlib.sha256((root / 'manifest.json').read_bytes()).hexdigest()
+            manifest['files']['mirror/provider.zip']['sha256'] = '0' * 64
+            (root / 'manifest.json').write_text(json.dumps(manifest))
+            with self.assertRaises(closure.ClosureError):
+                closure.check(root, selected)
+            with self.assertRaises(closure.ClosureError):
+                closure.check(root, None)
     def test_no_credentials_and_exact_command_allowlist(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

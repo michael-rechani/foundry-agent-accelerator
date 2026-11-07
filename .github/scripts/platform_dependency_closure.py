@@ -105,10 +105,41 @@ def module_graph(root):
     return value["Modules"]
 
 
-def check(bundle, expected_sha=SHA):
+def source_inventory(source):
+    """Check the complete source files against Git objects at the required SHA."""
+    with tempfile.TemporaryDirectory() as directory:
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": directory,
+               "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
+        process = subprocess.run(["git", "-C", str(source), "ls-tree", "-r", "--full-tree", SHA, "--", "terraform"],
+                                 env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if process.returncode:
+        raise ClosureError("Reviewed Git source objects unavailable.")
+    expected = {}
+    for line in process.stdout.decode().splitlines():
+        metadata, name = line.split("\t", 1)
+        mode, kind, digest = metadata.split()
+        if kind != "blob" or mode not in ("100644", "100755") or not name.startswith("terraform/"):
+            raise ClosureError("Unsupported reviewed source entry.")
+        relative = name[len("terraform/"):]
+        safe_relative(relative)
+        file = source / relative
+        if file.is_symlink() or not file.is_file():
+            raise ClosureError("Missing or redirected reviewed source.")
+        raw = file.read_bytes()
+        if hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest() != digest:
+            raise ClosureError("Source bytes differ from reviewed Git objects.")
+        expected[relative] = {"sha256": hashlib.sha256(raw).hexdigest(), "mode": int(mode, 8) & 0o777}
+    if not expected or inventory(source) != expected:
+        raise ClosureError("Source contains missing, extra or changed files.")
+    return expected
+
+def check(bundle, expected_digest, expected_sha=SHA):
+    if (not re.fullmatch(r"[0-9a-f]{64}", expected_digest or "")
+            or hashlib.sha256((bundle / "manifest.json").read_bytes()).hexdigest() != expected_digest):
+        raise ClosureError("Manifest differs from separately selected digest.")
     manifest = read_json(bundle / "manifest.json")
     if (not isinstance(manifest, dict) or set(manifest) != {
-            "format", "source_sha", "terraform", "platform", "provenance", "files", "modules"}
+            "format", "source_sha", "source_files", "terraform", "platform", "provenance", "files", "modules"}
             or manifest["format"] != 1 or manifest["source_sha"] != expected_sha
             or manifest["terraform"] != VERSION or manifest["platform"] != "linux_amd64"
             or manifest["provenance"] != "generated-public-resolution-not-reviewed"):
@@ -120,6 +151,13 @@ def check(bundle, expected_sha=SHA):
         path = safe_relative(name)
         if path.parts[0] not in ("root", "mirror") or not isinstance(record, dict) or set(record) != {"sha256", "mode"}:
             raise ClosureError("Unsupported artifact record.")
+    source_files = manifest["source_files"]
+    if not isinstance(source_files, dict) or not source_files:
+        raise ClosureError("Source provenance is missing.")
+    for name, record in source_files.items():
+        safe_relative(name)
+        if files.get("root/" + name) != record:
+            raise ClosureError("Reviewed source bytes do not match bundle.")
     actual = inventory(bundle)
     actual.pop("manifest.json", None)
     if actual != files:
@@ -156,7 +194,7 @@ def terraform(binary, root, home, args):
 def capture(source, bundle, binary):
     if bundle.exists():
         raise ClosureError("Bundle collision.")
-    inventory(source)
+    original_files = source_inventory(source)
     bundle.mkdir(mode=0o700)
     shutil.copytree(source, bundle / "root")
     root = bundle / "root"
@@ -178,14 +216,16 @@ def capture(source, bundle, binary):
     shutil.rmtree(root / ".terraform" / "providers")
     modules = module_graph(root)
     manifest = {"format": 1, "source_sha": SHA, "terraform": VERSION, "platform": "linux_amd64",
-                "provenance": "generated-public-resolution-not-reviewed", "modules": modules,
+                "provenance": "generated-public-resolution-not-reviewed", "modules": modules, "source_files": original_files,
                 "files": inventory(bundle)}
     (bundle / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    check(bundle)
+    digest = hashlib.sha256((bundle / "manifest.json").read_bytes()).hexdigest()
+    check(bundle, digest)
+    print("Generated manifest SHA256: " + digest)
 
 
-def verify(bundle, binary):
-    baseline = check(bundle)
+def verify(bundle, binary, digest):
+    baseline = check(bundle, digest)
     with tempfile.TemporaryDirectory() as directory:
         working = Path(directory)
         root = working / "root"
@@ -205,7 +245,7 @@ def verify(bundle, binary):
             raise ClosureError("Provider lock changed during verification.")
         if module_graph(root) != baseline["modules"]:
             raise ClosureError("Module graph changed during verification.")
-    check(bundle)
+    check(bundle, digest)
 
 
 if __name__ == "__main__":
@@ -213,6 +253,7 @@ if __name__ == "__main__":
     parser.add_argument("operation", choices=("capture", "verify"))
     parser.add_argument("bundle", type=Path)
     parser.add_argument("--source", type=Path)
+    parser.add_argument("--manifest-sha256")
     parser.add_argument("--terraform", default="terraform")
     args = parser.parse_args()
     try:
@@ -221,7 +262,7 @@ if __name__ == "__main__":
                 raise ClosureError("Source is required.")
             capture(args.source, args.bundle, args.terraform)
         else:
-            verify(args.bundle, args.terraform)
+            verify(args.bundle, args.terraform, args.manifest_sha256)
         print("Public dependency byte closure verified; independent review and rollout gates remain required.")
     except (ClosureError, OSError, KeyError) as error:
         raise SystemExit(f"Dependency closure stopped: {str(error) if isinstance(error, ClosureError) else type(error).__name__}") from None
