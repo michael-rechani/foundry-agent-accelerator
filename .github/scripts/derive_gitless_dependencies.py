@@ -48,13 +48,15 @@ def open_absolute_directory(path):
         raise
 
 
-def fd_inventory(root_fd, prefix=""):
+def fd_inventory(root_fd, prefix="", expected=None):
     records = {}
     for name in sorted(os.listdir(root_fd)):
         if len(records) > 20000 or len(prefix.split("/")) > 34:
             raise DerivationError("Source inventory count/depth bound exceeded.")
         relative = prefix + name
         closure.safe_relative(relative)
+        if expected is not None and relative not in expected:
+            raise DerivationError("Unexpected source/output descriptor inventory entry.")
         info = os.stat(name, dir_fd=root_fd, follow_symlinks=False)
         if stat.S_ISDIR(info.st_mode):
             fd = os.open(name, extraction.FLAGS | os.O_DIRECTORY, dir_fd=root_fd)
@@ -63,7 +65,7 @@ def fd_inventory(root_fd, prefix=""):
                 if (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino):
                     raise DerivationError("Source directory changed during inventory.")
                 records[relative] = {"sha256": "directory", "mode": stat.S_IMODE(current.st_mode)}
-                records.update(fd_inventory(fd, relative + "/"))
+                records.update(fd_inventory(fd, relative + "/", expected))
             finally:
                 os.close(fd)
         elif stat.S_ISREG(info.st_mode) and info.st_nlink == 1:
@@ -90,6 +92,8 @@ def fd_inventory(root_fd, prefix=""):
                 os.close(fd)
         else:
             raise DerivationError("Links, hardlinks and special metadata/files are forbidden.")
+    if len(records) > 20000:
+        raise DerivationError("Inventory total entry bound exceeded.")
     return records
 
 
@@ -122,7 +126,7 @@ def selected_source(source, digest):
         manifest = json.loads(raw, object_pairs_hook=closure.pairs)
         expected = dict(manifest["files"])
         expected["manifest.json"] = {"sha256": digest, "mode": stat.S_IMODE(info.st_mode)}
-        if fd_inventory(source_fd) != expected:
+        if fd_inventory(source_fd, expected=expected) != expected:
             raise DerivationError("Source descriptor inventory differs from selected original manifest.")
         if closure.check(source, digest) != manifest:
             raise DerivationError("Selected original manifest changed during verification.")
@@ -139,6 +143,8 @@ def select_omissions(manifest):
     for name, record in files.items():
         component = metadata_component(name)
         if component is None:
+            if ".git" in name.split("/"):
+                raise DerivationError("Git metadata outside installed module caches requires review.")
             continue
         if files.get(component, {}).get("sha256") != "directory":
             raise DerivationError("Unknown .git file/worktree pointer is not omitted.")
@@ -218,25 +224,27 @@ def verify_derived(wrapper, original, original_digest):
     derived = dict(manifest, files=expected_files)
     derived_digest = hashlib.sha256(canonical_bytes(derived)).hexdigest()
     bundle = wrapper / "bundle"
-    checked = closure.check(bundle, derived_digest)
-    binding = closure.read_json(wrapper / "derivation.json")
+
     expected_binding = {
         "format": 1, "kind": "generated-gitless-observation-not-approved",
         "original_manifest_sha256": original_digest, "derived_manifest_sha256": derived_digest,
         "source_sha": manifest["source_sha"], "removed_roots": roots, "omitted_inventory": omitted,
     }
-    if binding != expected_binding or checked != derived:
-        raise DerivationError("Derived manifest/binding differs from selected original transformation.")
+
     expected = {"bundle": {"sha256": "directory", "mode": 0o700},
                 "bundle/manifest.json": {"sha256": derived_digest, "mode": 0o600},
                 "derivation.json": {"sha256": hashlib.sha256(canonical_bytes(expected_binding)).hexdigest(), "mode": 0o600}}
     expected.update({"bundle/" + name: record for name, record in expected_files.items()})
     fd = open_absolute_directory(wrapper)
     try:
-        if fd_inventory(fd) != expected:
+        if fd_inventory(fd, expected=expected) != expected:
             raise DerivationError("Missing, extra, changed or linked derived wrapper files.")
     finally:
         os.close(fd)
+    checked = closure.check(bundle, derived_digest)
+    binding = closure.read_json(wrapper / "derivation.json")
+    if binding != expected_binding or checked != derived:
+        raise DerivationError("Derived manifest/binding differs from selected original transformation.")
     if any(metadata_component(name) for name in checked["files"]):
         raise DerivationError("Module-cache Git metadata remains.")
     return derived_digest
@@ -279,7 +287,7 @@ def derive(source, original_digest, parent, destination):
         write_json(stage_fd, "derivation.json", binding)
         wrapper = Path(parent) / stage
         verify_derived(wrapper, source, original_digest)
-        if fd_inventory(source_fd) != original_inventory:
+        if fd_inventory(source_fd, expected=original_inventory) != original_inventory:
             raise DerivationError("Original descriptor source changed during derivation.")
         closure.check(source, original_digest)
         extraction.same_directory(parent_fd, stage, stage_fd)
