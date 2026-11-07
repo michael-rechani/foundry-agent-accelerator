@@ -38,7 +38,9 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
     def test_descendant_provider_bypass_patterns_fail_closed(self):
         cases = {
             "provider block": 'provider "azapi" { alias = "other" }',
-            "resource selector": 'resource "azapi_resource" "x" { provider = azapi.other }',
+            "resource selector": 'resource "azapi_resource" "x" {
+ provider = azapi.other
+}',
             "configuration alias": 'configuration_aliases = [azapi.other]',
             "module remap": 'module "x" { source = "./x" providers = { azapi = azapi.other } }',
         }
@@ -100,7 +102,19 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
                     [terraform, f"-chdir={root}", *args], env=env,
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
                 )
-                self.assertEqual(result.returncode, 0, f"captured public Terraform {args[0]} failed")
+                if result.returncode:
+                    detail = ""
+                    if args[0] == "validate":
+                        try:
+                            report = json.loads(result.stdout)
+                            diagnostics = report.get("diagnostics", [])
+                            detail = "; ".join(
+                                str(item.get("summary", ""))[:160]
+                                for item in diagnostics if isinstance(item, dict)
+                            )[:480]
+                        except (json.JSONDecodeError, AttributeError):
+                            detail = "unclassified"
+                    self.fail(f"captured public Terraform {args[0]} failed: {detail or 'unclassified'}")
                 return result.stdout
 
             version = json.loads(run(["version", "-json"]))
