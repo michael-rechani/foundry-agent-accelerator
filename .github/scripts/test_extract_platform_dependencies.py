@@ -3,7 +3,6 @@ import hashlib
 import io
 import os
 from pathlib import Path
-import shutil
 import tarfile
 import tempfile
 import unittest
@@ -351,7 +350,7 @@ class ExtractionTests(unittest.TestCase):
                 (outside / 'preserve').write_bytes(b'UNOWNED DATA')
                 original = extractor.extract_validated
                 stage = None
-                def inject(stream, entries, root_fd, ledger):
+                def inject(stream, entries, root_fd, ledger, *, original=original, parent=parent, kind=kind, outside=outside, base=base):
                     nonlocal stage
                     original(stream, entries, root_fd, ledger)
                     stage = next(parent.iterdir())
@@ -401,12 +400,12 @@ class ExtractionTests(unittest.TestCase):
                 source.write_bytes(data)
                 real_open = os.open
                 real_bind = extractor.OwnershipLedger.bind
-                def open_failure(path, flags, *args, **kwargs):
+                def open_failure(path, flags, *args, kind=kind, real_open=real_open, **kwargs):
                     if ((kind == 'directory-open' and path == 'root' and flags & os.O_DIRECTORY)
                             or (kind == 'stage-open' and str(path).startswith('.closure-extract-'))):
                         raise OSError('fictional descriptor failure')
                     return real_open(path, flags, *args, **kwargs)
-                def bind_failure(ledger, name, fd, directory):
+                def bind_failure(ledger, name, fd, directory, *, kind=kind, real_bind=real_bind):
                     if ((kind == 'file-bind' and not directory)
                             or (kind == 'directory-bind' and name == 'public-closure/root')):
                         raise OSError('fictional failed identity binding')
@@ -497,7 +496,7 @@ class ExtractionTests(unittest.TestCase):
                 original_bind = extractor.OwnershipLedger.bind
                 displaced = base / 'displaced'
                 replacement = None
-                def replace(ledger, name, fd, is_directory):
+                def replace(ledger, name, fd, is_directory, *, directory=directory, parent=parent, displaced=displaced, original_bind=original_bind):
                     nonlocal replacement
                     target_name = 'public-closure/root' if directory else 'public-closure/root/main.tf'
                     if name == target_name:
@@ -528,11 +527,11 @@ class ExtractionTests(unittest.TestCase):
                 source.write_bytes(data)
                 real_mkdir = os.mkdir
                 real_bind = extractor.OwnershipLedger.bind
-                def mkdir(name, *args, **kwargs):
+                def mkdir(name, *args, kind=kind, real_mkdir=real_mkdir, **kwargs):
                     real_mkdir(name, *args, **kwargs)
                     if kind == 'mkdir' and name == 'root':
                         raise OSError('fictional failure after directory creation')
-                def bind(ledger, name, fd, directory):
+                def bind(ledger, name, fd, directory, *, kind=kind, real_bind=real_bind):
                     if kind == 'dup' and not directory:
                         with patch.object(extractor.os, 'dup', side_effect=OSError('fictional descriptor exhaustion')):
                             return real_bind(ledger, name, fd, directory)
@@ -556,14 +555,14 @@ class ExtractionTests(unittest.TestCase):
                 source = base / 'source.gz'
                 source.write_bytes(data)
                 original = extractor.extract_validated
-                def fail(stream, entries, root_fd, ledger):
+                def fail(stream, entries, root_fd, ledger, *, original=original, kind=kind, parent=parent, base=base):
                     original(stream, entries, root_fd, ledger)
                     if kind == 'missing':
                         stage = next(parent.iterdir())
                         (stage / 'public-closure/root/main.tf').rename(base / 'displaced')
                     raise OSError('fictional ordinary failure')
                 original_verify = extractor.OwnershipLedger.verify
-                def verify(ledger, root_fd):
+                def verify(ledger, root_fd, *, kind=kind, original_verify=original_verify):
                     if kind == 'verification':
                         raise OSError('fictional verification failure')
                     original_verify(ledger, root_fd)

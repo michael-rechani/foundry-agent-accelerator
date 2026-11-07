@@ -114,7 +114,7 @@ class GitlessTests(unittest.TestCase):
                 parent = base / 'parent'
                 parent.mkdir(mode=0o700)
                 real_copy = derivation.copy_inventory
-                def mutation(source_fd, output_fd, records, ledger):
+                def mutation(source_fd, output_fd, records, ledger, *, real_copy=real_copy, case=case, source=source):
                     real_copy(source_fd, output_fd, records, ledger)
                     if case == 'source':
                         (source / 'root/main.tf').write_text('changed during copy')
@@ -212,13 +212,13 @@ class GitlessTests(unittest.TestCase):
                 outside.mkdir()
                 (outside / 'main.tf').write_text('do not change')
                 real_copy = derivation.copy_inventory
-                def substitution(source_fd, output_fd, records, ledger):
+                def substitution(source_fd, output_fd, records, ledger, *, case=case, source=source, outside=outside, real_copy=real_copy):
                     if case == 'source':
                         (source / 'root/.terraform/modules/child').rename(source / 'root/.terraform/modules/displaced')
                         (source / 'root/.terraform/modules/child').symlink_to(outside, target_is_directory=True)
                     real_copy(source_fd, output_fd, records, ledger)
                 real_open = derivation.os.open
-                def output_link(name, flags, *args, **kwargs):
+                def output_link(name, flags, *args, case=case, outside=outside, real_open=real_open, **kwargs):
                     if case == 'output' and name == 'main.tf' and flags & os.O_CREAT:
                         os.symlink(str(outside / 'main.tf'), name, dir_fd=kwargs['dir_fd'])
                     return real_open(name, flags, *args, **kwargs)
@@ -544,7 +544,7 @@ class GitlessTests(unittest.TestCase):
                 (outside / 'preserve').write_bytes(b'UNOWNED DATA')
                 original = derivation.verify_derived
                 target = None
-                def inject(wrapper, original_source, original_digest):
+                def inject(wrapper, original_source, original_digest, *, original=original, kind=kind, outside=outside, base=base):
                     nonlocal target
                     original(wrapper, original_source, original_digest)
                     if kind == 'file':
@@ -586,7 +586,7 @@ class GitlessTests(unittest.TestCase):
                 parent = base / 'parent'
                 parent.mkdir(mode=0o700)
                 real_bind = derivation.extraction.OwnershipLedger.bind
-                def failure(ledger, relative, fd, directory):
+                def failure(ledger, relative, fd, directory, *, name=name, real_bind=real_bind):
                     if relative == name:
                         raise OSError('fictional binding failure')
                     return real_bind(ledger, relative, fd, directory)
