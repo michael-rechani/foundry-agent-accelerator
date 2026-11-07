@@ -24,7 +24,8 @@ class ClosureTests(unittest.TestCase):
         manifest = {'format': 1, 'source_sha': closure.SHA, 'terraform': closure.VERSION,
                     'platform': 'linux_amd64', 'provenance': 'generated-public-resolution-not-reviewed',
                     'files': closure.inventory(root), 'modules': graph['Modules'],
-                    'source_files': {'main.tf': closure.inventory(root)['root/main.tf']}}
+                    'source_files': {'main.tf': closure.inventory(root)['root/main.tf']},
+                    'providers': {'registry.terraform.io/example/provider': '1.0.0'}}
         (root / 'manifest.json').write_text(json.dumps(manifest))
         return manifest
 
@@ -97,6 +98,7 @@ class ClosureTests(unittest.TestCase):
                 closure.check(root, selected)
             with self.assertRaises(closure.ClosureError):
                 closure.check(root, None)
+
     def test_git_source_missing_changed_extra_and_mode(self):
         for mutation in ('none', 'missing', 'changed', 'extra', 'mode'):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
@@ -130,7 +132,8 @@ class ClosureTests(unittest.TestCase):
             selected = hashlib.sha256((root / 'manifest.json').read_bytes()).hexdigest()
             def simulated(binary, working, home, args):
                 if args == ['version', '-json']:
-                    return json.dumps({'terraform_version': closure.VERSION, 'platform': 'linux_amd64'}).encode()
+                    return json.dumps({'terraform_version': closure.VERSION, 'platform': 'linux_amd64',
+                                       'provider_selections': {'registry.terraform.io/example/provider': '1.0.0'}}).encode()
                 if args == ['providers', 'schema', '-json']:
                     (root / 'mirror' / 'provider.zip').write_bytes(b'swap during verification')
                 return b'{}'
