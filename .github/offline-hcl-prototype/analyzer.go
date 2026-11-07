@@ -35,6 +35,7 @@ type analysis struct {
 	categories map[string]bool
 	depth      int
 	blocks     []string
+	truncated  bool
 }
 
 func (a *analysis) refuse(category string) {
@@ -42,6 +43,10 @@ func (a *analysis) refuse(category string) {
 }
 
 func (a *analysis) finish() Result {
+	if a.truncated {
+		// Prefix counts and categories can depend on HCL body map order.
+		return Result{Outcome: "refused", Categories: []string{"bounds_refused"}}
+	}
 	a.result.Outcome = "accepted_predicate"
 	if len(a.categories) != 0 {
 		a.result.Outcome = "refused"
@@ -240,6 +245,7 @@ type walkStop struct{ marker byte }
 var boundedWalkStop = &walkStop{marker: 1}
 
 func (a *analysis) stopWalk() {
+	a.truncated = true
 	a.refuse("bounds_refused")
 	panic(boundedWalkStop)
 }

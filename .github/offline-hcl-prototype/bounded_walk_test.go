@@ -2,6 +2,7 @@ package hclprototype
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -25,7 +26,7 @@ func TestBoundedWalkDepthBoundary(t *testing.T) {
 			if result.Outcome != "accepted_predicate" || len(result.Categories) != 0 || result.Nodes != depth || state.depth != 0 {
 				t.Fatalf("within-depth decision changed: %+v", result)
 			}
-		} else if result.Outcome != "refused" || !reflect.DeepEqual(result.Categories, []string{"bounds_refused"}) || result.Nodes != MaxASTDepth {
+		} else if result.Outcome != "refused" || !reflect.DeepEqual(result.Categories, []string{"bounds_refused"}) || state.result.Nodes != MaxASTDepth || result.Nodes != 0 {
 			t.Fatalf("depth overflow did not stop before excess processing: %+v", result)
 		}
 	}
@@ -44,7 +45,7 @@ func TestBoundedWalkNodeBoundary(t *testing.T) {
 			if result.Outcome != "accepted_predicate" || len(result.Categories) != 0 || result.Nodes != nodes || state.depth != 0 {
 				t.Fatalf("within-node decision changed: %+v", result)
 			}
-		} else if result.Outcome != "refused" || !reflect.DeepEqual(result.Categories, []string{"bounds_refused"}) || result.Nodes != MaxNodes {
+		} else if result.Outcome != "refused" || !reflect.DeepEqual(result.Categories, []string{"bounds_refused"}) || state.result.Nodes != MaxNodes || result.Nodes != 0 {
 			t.Fatalf("node overflow did not stop before excess processing: %+v", result)
 		}
 	}
@@ -59,7 +60,7 @@ func TestBoundedWalkDoesNotVisitWideTail(t *testing.T) {
 	state := boundedState()
 	state.walk(body)
 	result := state.finish()
-	if result.Outcome != "refused" || result.Nodes != MaxNodes || !reflect.DeepEqual(result.Categories, []string{"bounds_refused"}) {
+	if result.Outcome != "refused" || state.result.Nodes != MaxNodes || result.Nodes != 0 || state.categories["provider_block"] || !reflect.DeepEqual(result.Categories, []string{"bounds_refused"}) {
 		t.Fatalf("wide tail visited or truncation accepted: %+v", result)
 	}
 	// The last tail is deliberately invalid: visiting it would panic. Its
@@ -98,11 +99,33 @@ func TestBoundedObjectKeyIteration(t *testing.T) {
 		if want > MaxNodes {
 			want = MaxNodes
 		}
-		if result.ObjectKeys != want || !hasCategory(result, "duplicate_object_key") {
+		if state.result.ObjectKeys != want || (keys <= MaxNodes && !hasCategory(result, "duplicate_object_key")) {
 			t.Fatalf("key-loop boundary changed: %+v", result)
 		}
-		if keys > MaxNodes && (result.Outcome != "refused" || !hasCategory(result, "bounds_refused") || hasCategory(result, "routing_object_key")) {
+		if keys > MaxNodes && (result.Outcome != "refused" || !reflect.DeepEqual(result.Categories, []string{"bounds_refused"}) || state.categories["routing_object_key"]) {
 			t.Fatalf("key tail visited or truncation accepted: %+v", result)
+		}
+
+		func TestBoundedWalkDepthTailNotVisited(t *testing.T) {
+			var root hclsyntax.Expression
+			for i := 0; i < MaxASTDepth; i++ {
+				root = &hclsyntax.ParenthesesExpr{Expression: root}
+			}
+			state := boundedState()
+			state.walk(root)
+			if state.result.Nodes != MaxASTDepth || state.finish().Outcome != "refused" {
+				t.Fatal("depth tail was visited or truncated walk accepted")
+			}
+		}
+
+		func TestTruncatedSourceResultIndependentOfMapOrder(t *testing.T) {
+			source := []byte("locals {\n deep = " + strings.Repeat("1+", 122) + "1\n ordinary = { name = \"inert\" }\n alias = \"forbidden\"\n}\n")
+			want := Result{Outcome: "refused", Categories: []string{"bounds_refused"}}
+			for i := 0; i < 100; i++ {
+				if result := Analyze(NativeHCL, source); !reflect.DeepEqual(result, want) {
+					t.Fatalf("truncated result depends on visited prefix: %+v", result)
+				}
+			}
 		}
 	}
 }
