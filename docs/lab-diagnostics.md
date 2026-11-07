@@ -40,15 +40,24 @@ The separate **Compare historical platform input candidate** workflow is also
 manual, main-only and approval-gated. It reads only the candidate and platform
 state into memory, and checks their blob versions and lock metadata before and
 after comparison. It requires the candidate's explicit subscription and
-deployment principal to match the approved subscription, platform resource
-group and persisted Foundry User assignment, and its enabled jumpbox's existing
-OS disk intent to specify `Premium_LRS`. A successful
+deployment principal to match the approved subscription and the persisted
+Foundry User assignment scoped to the state-recorded project and account. It
+requires the candidate's enabled jumpbox OS disk identity to match the
+state-recorded jumpbox disk and the candidate's disk intent to specify
+`Premium_LRS`; the state disk tier is not compared. A successful
 `candidate_platform_comparison=matched` is limited to these attributes and
 the observed snapshots; it does **not** establish current canonical authority,
 validate all inputs, or prove that infrastructure matches desired disk intent.
 Missing or ambiguous information, a mismatch, a lock or changing versions
 fails closed. It does not list blobs, write Azure resources, acquire leases, or
-invoke Terraform. No run is implied by adding this workflow.
+invoke Terraform. Failure output uses generic input mismatch, protected state
+invalid, read failure, secret-read review required or unexpected categories
+without revealing values. Multiple independent blockers may be reported.
+The secret-read category checks only whether the reference is non-null; it
+does not inspect the reference or access a secret. No run is implied by adding
+this workflow. A separate generic category indicates only whether a Router
+override key is absent or explicitly present, including null; it does not
+inspect the override or establish its Terraform-resolved value.
 
 ### Agent session reuse
 

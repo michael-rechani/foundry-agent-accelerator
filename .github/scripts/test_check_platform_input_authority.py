@@ -16,6 +16,9 @@ SUB = "11111111-2222-3333-4444-555555555555"
 PRINCIPAL = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 GROUP = f"/subscriptions/{SUB}/resourceGroups/rg-fixture"
 ROLE = f"/subscriptions/{SUB}/providers/Microsoft.Authorization/roleDefinitions/53ca6127-db72-4b80-b1b0-d745d6d5456d"
+ACCOUNT = GROUP + "/providers/Microsoft.CognitiveServices/accounts/example"
+PROJECT = ACCOUNT + "/projects/example"
+DISK = GROUP + "/providers/Microsoft.Compute/disks/disk-fixture"
 
 
 def fixture():
@@ -24,22 +27,27 @@ def fixture():
         "deployment_principal_id": PRINCIPAL,
         "enable_jumpbox": True,
         "jumpbox_existing_os_disk": {
-            "id": GROUP + "/providers/Microsoft.Compute/disks/disk-fixture",
+            "id": DISK,
             "name": "disk-fixture", "storage_account_type": "Premium_LRS",
         },
     }
     state = {
         "version": 4, "serial": 2, "lineage": "synthetic",
+        "outputs": {"foundry_account_id": {"value": ACCOUNT, "type": "string"},
+                    "foundry_project_id": {"value": PROJECT, "type": "string"}},
         "resources": [
             {"mode": "managed", "type": "azurerm_resource_group", "name": "this",
              "instances": [{"attributes": {"id": GROUP}}]},
             {"mode": "managed", "type": "azurerm_role_assignment", "name": "deployer_foundry_user",
              "instances": [{"attributes": {
                  "principal_id": PRINCIPAL, "role_definition_id": ROLE,
-                 "scope": GROUP + "/providers/Microsoft.CognitiveServices/accounts/example/projects/example",
-                 "id": (GROUP + "/providers/Microsoft.CognitiveServices/accounts/example/projects/example"
-                        + "/providers/Microsoft.Authorization/roleAssignments/" + SUB),
+                 "scope": PROJECT,
+                 "id": PROJECT + "/providers/Microsoft.Authorization/roleAssignments/" + SUB,
              }}]},
+            {"mode": "managed", "type": "azapi_resource", "name": "jumpbox",
+             "instances": [{"index_key": 0, "attributes": {"body": {"properties": {"storageProfile": {
+                 "osDisk": {"name": "disk-fixture", "managedDisk": {"id": DISK, "storageAccountType": "Standard_LRS"}}
+             }}}}}]},
         ],
     }
     return inputs, state
@@ -93,6 +101,14 @@ class CompareTests(unittest.TestCase):
             lambda s: s["resources"][1]["instances"][0]["attributes"].update(id="other"),
             lambda s: s["resources"][1]["instances"][0].update(deposed="old"),
             lambda s: s["resources"].append(deepcopy(s["resources"][1])),
+            lambda s: s["outputs"]["foundry_project_id"].update(value=ACCOUNT + "/projects/another"),
+            lambda s: s["outputs"]["foundry_account_id"].update(value=ACCOUNT + "another"),
+            lambda s: s["outputs"].pop("foundry_project_id"),
+            lambda s: s["outputs"]["foundry_project_id"].update(type="number"),
+            lambda s: s["resources"][2]["instances"][0]["attributes"]["body"]["properties"]["storageProfile"]["osDisk"].update(name="other"),
+            lambda s: s["resources"][2]["instances"][0]["attributes"]["body"]["properties"]["storageProfile"]["osDisk"]["managedDisk"].update(id=DISK + "other"),
+            lambda s: s["resources"][2]["instances"][0]["attributes"]["body"]["properties"]["storageProfile"]["osDisk"]["managedDisk"].pop("id"),
+            lambda s: s["resources"][2]["instances"][0].update(index_key=1),
         ):
             changed = deepcopy(state)
             mutate(changed)
@@ -104,10 +120,41 @@ class CompareTests(unittest.TestCase):
     def test_malformed_and_duplicate_json_fail(self):
         inputs, state = fixture()
         for raw in (b"{", b'{"a":1,"a":2}', b'{"a":NaN}', b"[]"):
-            with self.subTest(raw=raw), self.assertRaises((ValueError, probe.backend.CheckError)):
+            with self.subTest(raw=raw), self.assertRaises(probe.CandidateError):
                 probe.compare(raw, encode(state), SUB)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(probe.StateError):
             probe.compare(encode(inputs), b'{"resources":[{"a":1,"a":2}]}', SUB)
+
+    def test_string_jumpbox_body_and_tier_are_not_compared(self):
+        inputs, state = fixture()
+        attrs = state["resources"][2]["instances"][0]["attributes"]
+        attrs["body"] = json.dumps(attrs["body"])
+        probe.compare(encode(inputs), encode(state), SUB)
+
+    def test_other_project_role_even_with_matching_assignment_id_is_rejected(self):
+        inputs, state = fixture()
+        role = state["resources"][1]["instances"][0]["attributes"]
+        role["scope"] = ACCOUNT + "/projects/another"
+        role["id"] = role["scope"] + "/providers/Microsoft.Authorization/roleAssignments/" + SUB
+        with self.assertRaises(probe.StateError):
+            probe.compare(encode(inputs), encode(state), SUB)
+
+    def test_secret_precondition_independent_of_missing_pin_or_invalid_state(self):
+        inputs, state = fixture()
+        inputs["jumpbox_admin_secret"] = {"private-field": "private-value"}
+        for missing_pin, invalid_state, expected in (
+            (False, False, (False, True, False)),
+            (True, False, (True, True, False)),
+            (False, True, (False, True, True)),
+        ):
+            with self.subTest(missing_pin=missing_pin, invalid_state=invalid_state):
+                candidate = deepcopy(inputs)
+                if missing_pin:
+                    candidate.pop("deployment_principal_id")
+                with self.assertRaises(probe.PreconditionError) as caught:
+                    probe.compare(encode(candidate), b"{" if invalid_state else encode(state), SUB)
+                exc = caught.exception
+                self.assertEqual((exc.input_mismatch, exc.secret_read, exc.state_invalid), expected)
 
 
 class SnapshotTests(unittest.TestCase):
@@ -129,7 +176,7 @@ class SnapshotTests(unittest.TestCase):
 
     def test_exact_fixed_reads_only(self):
         result, calls = self.invoke(self.normal())
-        self.assertEqual(result, "candidate_platform_comparison=matched")
+        self.assertEqual(result, "absent")
         self.assertEqual([call.args[0].removeprefix(self.blobs.base) for call in calls],
                          [probe.INPUT, probe.STATE, probe.STATE, probe.INPUT])
         self.assertTrue(all(call.kwargs == {"headers": self.blobs.headers} for call in calls))
@@ -165,20 +212,94 @@ class SnapshotTests(unittest.TestCase):
             with self.subTest(index=index), self.assertRaises(probe.backend.CheckError):
                 self.invoke(results)
 
+    def test_failure_categories_follow_actual_error_sources(self):
+        cases = []
+        results = self.normal()
+        results[0] = (encode({}), headers())
+        results[3] = results[0]
+        cases.append((results, "input_mismatch_or_missing"))
+        results = self.normal()
+        results[1] = (results[1][0], headers(lease="locked"))
+        cases.append((results, "protected_state_invalid"))
+        results = self.normal()
+        results[0] = probe.backend.CheckError("private-url private-token")
+        cases.append((results, "read_failure"))
+        for results, category in cases:
+            with self.subTest(category=category):
+                out, err = io.StringIO(), io.StringIO()
+                with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                        patch.object(probe, "Blobs", return_value=self.blobs), \
+                        patch.object(probe.backend, "send", side_effect=results), \
+                        contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    self.assertEqual(probe.main(), 1)
+                self.assertEqual((out.getvalue(), err.getvalue()),
+                                 ("", f"candidate_platform_comparison_failed={category}\n"
+                                  + ("candidate_router_override=absent\n" if category == "input_mismatch_or_missing" else "")))
+
+    def test_independent_secret_and_input_categories_are_sanitized(self):
+        candidate = deepcopy(self.inputs)
+        candidate.pop("deployment_principal_id")
+        candidate["jumpbox_admin_secret"] = {"private-field": "private-value"}
+        results = self.normal()
+        results[0] = (encode(candidate), headers())
+        results[3] = results[0]
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                patch.object(probe, "Blobs", return_value=self.blobs), \
+                patch.object(probe.backend, "send", side_effect=results), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(probe.main(), 1)
+        self.assertEqual(out.getvalue(), "")
+        self.assertEqual(err.getvalue(), "candidate_platform_comparison_failed=input_mismatch_or_missing\n"
+                         "candidate_platform_comparison_failed=secret_read_review_required\n"
+                         "candidate_router_override=absent\n")
+
+    def test_router_override_presence_only_including_null_and_on_failure(self):
+        for value in (None, {"private-field": "private-value"}, "private-value"):
+            for fail in (False, True):
+                inputs = deepcopy(self.inputs)
+                inputs["model_router_deployment"] = value
+                if fail:
+                    inputs.pop("deployment_principal_id")
+                results = self.normal()
+                results[0] = results[3] = (encode(inputs), headers())
+                out, err = io.StringIO(), io.StringIO()
+                with self.subTest(value=value, fail=fail), \
+                        patch.object(probe.lab, "configuration", return_value={"AZURE_SUBSCRIPTION_ID": SUB}), \
+                        patch.object(probe, "Blobs", return_value=self.blobs), \
+                        patch.object(probe.backend, "send", side_effect=results), \
+                        contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    self.assertEqual(probe.main(), 1 if fail else 0)
+                if fail:
+                    self.assertEqual(err.getvalue(), "candidate_platform_comparison_failed=input_mismatch_or_missing\n"
+                                     "candidate_router_override=explicit\n")
+                    self.assertEqual(out.getvalue(), "")
+                else:
+                    self.assertEqual(err.getvalue(), "")
+                    self.assertEqual(out.getvalue(), "candidate_platform_comparison=matched\n"
+                                     "candidate_router_override=explicit\n")
+
     def test_redacted_errors_and_success(self):
         sensitive = "private-endpoint private-token private-header private-state"
-        for result in (probe.backend.CheckError(sensitive), URLError(sensitive),
-                       OSError(sensitive), ValueError(sensitive), SystemExit(sensitive)):
+        for result, category in (
+            (probe.CandidateError(sensitive), "input_mismatch_or_missing"),
+            (probe.StateError(sensitive), "protected_state_invalid"),
+            (probe.ReadError(sensitive), "read_failure"),
+            (probe.backend.CheckError(sensitive), "unexpected"),
+            (URLError(sensitive), "unexpected"), (OSError(sensitive), "unexpected"),
+            (ValueError(sensitive), "unexpected"), (SystemExit(sensitive), "unexpected"),
+        ):
             with self.subTest(kind=type(result)):
                 out, err = io.StringIO(), io.StringIO()
                 with patch.object(probe, "check", side_effect=result), \
                         contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
                     self.assertEqual(probe.main(), 1)
-                self.assertEqual((out.getvalue(), err.getvalue()), ("", "candidate_platform_comparison_failed\n"))
-        with patch.object(probe, "check", return_value="candidate_platform_comparison=matched"), \
+                self.assertEqual((out.getvalue(), err.getvalue()),
+                                 ("", f"candidate_platform_comparison_failed={category}\n"))
+        with patch.object(probe, "check", return_value="absent"), \
                 contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(probe.main(), 0)
-        self.assertEqual(out.getvalue(), "candidate_platform_comparison=matched\n")
+        self.assertEqual(out.getvalue(), "candidate_platform_comparison=matched\ncandidate_router_override=absent\n")
 
     def test_unexpected_error_is_sanitized(self):
         code = """
@@ -193,7 +314,7 @@ with patch.object(check_lab_terraform_plan, "configuration",
                                 capture_output=True, text=True, check=False)
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
-        self.assertEqual(result.stderr, "candidate_platform_comparison_failed\n")
+        self.assertEqual(result.stderr, "candidate_platform_comparison_failed=unexpected\n")
 
     def test_workflow_contract(self):
         workflow = (Path(__file__).parents[1] / "workflows" / "check-platform-input-authority.yml").read_text()
@@ -222,7 +343,7 @@ with patch.object(check_lab_terraform_plan, "configuration",
         ]), patch.object(probe.backend, "json_response", side_effect=[
             {"value": "private-assertion"}, {"access_token": "private-access-token"},
         ]), patch.object(probe.backend, "send", side_effect=self.normal()) as send:
-            self.assertEqual(probe.check(environ), "candidate_platform_comparison=matched")
+            self.assertEqual(probe.check(environ), "absent")
         self.assertEqual(len(send.call_args_list), 4)
         for call in send.call_args_list:
             self.assertEqual(set(call.kwargs), {"headers"})
