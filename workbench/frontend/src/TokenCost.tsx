@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowDownToLine, ArrowUpFromLine, Coins } from 'lucide-react'
 import {
   estimateCost,
+  formatEstimatedCost,
   formatTokens,
   loadRates,
   parseRates,
@@ -86,9 +87,7 @@ export function TokenCost({
               ? 'Add your rates'
               : totals.measured === 0
                 ? 'No complete usage'
-                : estimateCost(totals, rates).toLocaleString('en-US', {
-                    maximumFractionDigits: 4,
-                  })}
+                : formatEstimatedCost(estimateCost(totals, rates))}
           </strong>
         </div>
       </div>

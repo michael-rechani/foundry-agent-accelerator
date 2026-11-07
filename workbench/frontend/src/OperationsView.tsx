@@ -8,6 +8,7 @@ import {
 import type { Measurement } from './performance-stats'
 import {
   estimateCost,
+  formatEstimatedCost,
   formatTokens,
   loadRates,
   totalUsage,
@@ -202,12 +203,9 @@ export function OperationsView({
           </strong>
           <small>
             {rates && totals.measured > 0
-              ? `Estimated at your rates for all models: ${estimateCost(
-                  totals,
-                  rates,
-                ).toLocaleString('en-US', {
-                  maximumFractionDigits: 4,
-                })}`
+              ? `Estimated at your rates for all models: ${formatEstimatedCost(
+                  estimateCost(totals, rates),
+                )}`
               : rates
                 ? 'No complete token totals to estimate'
                 : 'Add your prices on the Performance page to see an estimate'}

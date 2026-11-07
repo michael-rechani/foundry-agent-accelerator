@@ -217,6 +217,44 @@ test('Performance says when an Azure budget alerts on Lab spend', async ({
   await expect(status).not.toContainText('aren’t set up')
 })
 
+test('small positive cost estimates never appear as zero', async ({ page }) => {
+  await openWorkspace(page, {
+    usage: {
+      input_tokens: 10,
+      output_tokens: 10,
+      total_tokens: 20,
+      cached_tokens: 0,
+      reasoning_tokens: 0,
+    },
+  })
+  await page.evaluate(() => localStorage.removeItem('foundry-lab-token-rates'))
+  await page
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Hello')
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect(page.locator('.assistant-heading')).toContainText('20 tokens')
+  const nav = workspaceNav(page)
+  await nav.getByRole('button', { name: 'Performance', exact: true }).click()
+  const cost = page.getByRole('region', { name: 'Token usage and cost' })
+  await cost.getByLabel('Input rate per 1M tokens').fill('0.4')
+  await cost.getByLabel('Output rate per 1M tokens').fill('1.6')
+  await cost.getByRole('button', { name: 'Use rates' }).click()
+  await expect(cost.locator('.metric-strip > div').nth(2)).toContainText(
+    '<0.0001',
+  )
+  await openOverview(page)
+  await expect(page.locator('.metric-strip-4 > div').last()).toContainText(
+    'Estimated at your rates for all models: <0.0001',
+  )
+  await nav.getByRole('button', { name: 'Performance', exact: true }).click()
+  await cost.getByLabel('Input rate per 1M tokens').fill('0')
+  await cost.getByLabel('Output rate per 1M tokens').fill('0')
+  await cost.getByRole('button', { name: 'Use rates' }).click()
+  await expect(cost.locator('.metric-strip > div').nth(2)).toHaveText(
+    /Estimated cost\s*0$/,
+  )
+})
+
 test('replies without reported tokens say so instead of showing zero', async ({
   page,
 }, testInfo) => {

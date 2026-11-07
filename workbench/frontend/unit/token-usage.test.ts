@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   estimateCost,
+  formatEstimatedCost,
   parseRates,
   parseUsage,
   totalUsage,
@@ -86,5 +87,16 @@ describe('token usage', () => {
       { input: NaN, output: 1 },
     ])
       assert.equal(parseRates(bad), null)
+  })
+
+  it('distinguishes a small positive estimate from zero', () => {
+    const small = estimateCost(
+      { input: 10, output: 10 },
+      { input: 0.4, output: 1.6 },
+    )
+    assert.equal(formatEstimatedCost(small), '<0.0001')
+    assert.equal(formatEstimatedCost(0), '0')
+    assert.equal(formatEstimatedCost(0.0001), '0.0001')
+    assert.equal(formatEstimatedCost(1234.5), '1,234.5')
   })
 })
