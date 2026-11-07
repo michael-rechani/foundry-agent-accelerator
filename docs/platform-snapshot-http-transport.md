@@ -198,3 +198,48 @@ After successful verification, the workflow was restored to original blob
 `13fea116e0cd70aa8f5d8cabcb9b893743e23c95`. Final guard, transport and three test
 blobs match this tested head; documentation records the evidence without
 introducing a production caller.
+
+## Disconnected literal-peer prototype
+
+`PeerSnapshotTransport` is a separate opt-in prototype based on binding head
+`09b9b59ec9e071c56182dedc76865b9aa99b32e4`. Its constructor additionally requires
+a role-to-peer dictionary, with exact tuple values `(canonical_literal_ip, 443)`.
+The public contract remains HTTPS port 443 only, not arbitrary remote ports.
+IPv4 and canonical IPv6 are accepted, but scoped IDs, IPv4-mapped IPv6, alternate
+spellings, unspecified and multicast destinations are rejected. Both roles may
+share a peer; their HTTPS blob identities must remain distinct.
+
+Only `reader.guarded_diagnostic(independent_expected_targets,
+independent_expected_peers, diagnostic)` enables reads. Direct calls return
+fixed failure without network activity. The entry point compares both complete
+maps with sealed configuration before network activity; each subsequent boundary
+checks the frozen map objects have not been replaced. Both-role rechecks,
+Content-Length/body/header restrictions and instability precedence are reused
+without a weaker response parser.
+
+The connector uses a raw family-specific socket and connects directly to the
+literal address, without DNS lookup, proxy inheritance or redirect following.
+It verifies `getpeername()` address and port before TLS, performs certificate and
+hostname verification using the explicitly configured CA and the original HTTPS
+hostname for SNI, and verifies the encrypted socket's peer again. These checks
+finish before constructing the request's Authorization header. HTTP Host remains
+the original hostname, not the IP. Mismatch, TLS failure or cleanup failure
+returns the same redacted failure; redirects remain invalid snapshots. No token
+acquisition, challenge handling, writes, leases or list operations are added.
+
+IPv4 real-TLS tests use only loopback. A clearly test-only connector translates
+logical port 443 to an ephemeral unprivileged listener and checks that actual
+peer; no production arbitrary-port option is exposed and port-443 routing itself
+is not demonstrated by this harness. IPv6 literal/socket-tuple mechanics are
+mock-tested; actual IPv6 routing is not established. All original tests remain.
+
+No IP is deemed private or authorized because it parses or matches a socket.
+Address, CA, destination and network-route authority require independent trusted
+evidence. Matching a peer and TLS identity is not proof of the real private path,
+Azure authorization, actual Blob response profile, private DNS correctness,
+input authority, credential isolation or same-UID/host trust. Socket waits are
+not an independent total deadline; worker termination/reaping still require
+separate supervision. Concurrent external configuration/library/context mutation
+and hostile same-process code are not isolated here. Snapshots remain sequential
+and non-atomic. No rollout, Azure/Foundry, provider/Terraform, protected workflow,
+identity/role change, private runner, PR, merge or live integration is introduced.

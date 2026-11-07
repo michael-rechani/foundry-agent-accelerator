@@ -75,9 +75,7 @@ class SnapshotTransport:
                 return FAILURE
             identity = dict(self._targets)[role]
             target = urlsplit(identity)
-            with contextlib.closing(http.client.HTTPSConnection(
-                target.netloc, port=443, timeout=TIMEOUT, context=self._context
-            )) as connection:
+            with contextlib.closing(self._connection(role)) as connection:
                 connection.debuglevel = 0
                 connection.request(
                     "GET", target.path,
@@ -116,3 +114,9 @@ class SnapshotTransport:
                 return {"identity": identity, "status": 200, "body": body, "headers": headers}
         except BaseException:
             return FAILURE
+
+    def _connection(self, role):
+        target = urlsplit(dict(self._targets)[role])
+        return http.client.HTTPSConnection(
+            target.netloc, port=443, timeout=TIMEOUT, context=self._context
+        )
