@@ -524,6 +524,10 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
             verify_specialist_endpoints(client, profile, args.agent_name)
             client.deployments.get(name=args.model)
             original_endpoint = endpoint_snapshot(client, args.agent_name)
+            if original_endpoint is None:
+                raise RuntimeError(
+                    "First publication is unsupported: a confirmed existing concrete recovery route is required"
+                )
             created = client.agents.create_version_from_code(
                 agent_name=args.agent_name,
                 description=profile.description,
