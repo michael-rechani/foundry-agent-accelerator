@@ -187,3 +187,10 @@ extraction; hostile synthetic and actual retained-archive tests passed. It remai
 unintegrated and does not establish provenance, trusted same-UID/host isolation or
 an immutable credentialed handoff. Its constraints are narrower than generic tar
 and it does not make retained `.git` metadata trusted.
+
+The extraction ledger follow-up documented in
+[bounded extraction](platform-dependency-extraction.md) replaces the original
+unknown-entry cleanup sweep and requires anonymous-only spools. Its 20 synthetic
+hosted tests are separate evidence; the historical real archive roundtrip does
+not verify the new ledger's capacity, hostile same-UID isolation or immutable
+handoff. No credentialed integration is authorized by this change.

@@ -114,18 +114,53 @@ post-rename filesystem operation whose failure is represented as successful
 completion. Process termination can leave unpublished owned staging; no automatic
 recovery scanner or broad deletion is implemented.
 
-On ordinary filesystem/parser errors, cleanup is restricted to the verified owned
-staging descriptor and uses no-follow directory opens and unlink/rmdir relative to
-that descriptor. It never follows links outside the tree or touches a colliding
-external destination. If ownership or cleanup cannot be verified, it stops with an
-explicit cleanup-failure message and leaves the unpublished path for separately
-reviewed recovery; it does not guess which external files are safe to delete.
-All injected cleanup/substitution fixtures run only beneath disposable hosted test
-parents, never real user/runner workspaces.
+The original extractor's recursive `cleanup_owned` sweep was unsafe for unknown
+content inserted into an otherwise owned staging tree: root ownership alone did
+not prove per-entry ownership. The separate ledger follow-up on this branch
+replaces that sweep; historical tests below did not cover this defect.
+
+Each extraction-created file/directory is recorded before creation as pending,
+then bound to a held descriptor, device/inode/type and UID after exclusive creation
+and no-follow path verification. Regular files must remain single-linked. Held
+descriptors prevent inode reuse while the ledger is alive; they do not make
+creation-to-binding observations atomic. Directory creation necessarily precedes
+opening its descriptor. A failure to bind, a creation collision or any ambiguity
+leaves the reservation for reviewed recovery instead of guessing ownership.
+The ledger consumes one descriptor per entry plus temporary working descriptors;
+OS descriptor exhaustion fails closed, and large real-closure capacity has not
+been reverified in this synthetic-only follow-up.
+
+Before any cleanup deletion, the full staging inventory must match the ledger.
+Unknown, missing, replaced, linked, special or unverifiable entries cause refusal
+without sweeping them. Cleanup enumerates only recorded paths, deepest first,
+using held directory descriptors. Immediate entry identity and expected-child
+checks precede each unlink/rmdir; a late unexpected child stops further cleanup.
+No-ledger callers now receive explicit refusal, not legacy recursive behavior.
+No compatibility fallback or live/credentialed integration was added. The separate
+Gitless derivation still has its older cleanup API and must not simply be wired to
+this changed extractor without its own creation-ledger adaptation and tests.
+
+Spools now require descriptor-relative Linux `O_TMPFILE`, verified regular,
+UID-owned and link-count zero. There is no named `TemporaryFile` fallback which
+could unlink a substituted name. If anonymous creation is unsupported, extraction
+fails rather than attempting that fallback. Anonymous spools disappear on descriptor
+close; they never enter the directory ledger or require path deletion.
+
+Uncertain cleanup returns a fixed failure and leaves staging for separate reviewed
+recovery. There is no automatic recovery sweep. Tests operate only in disposable
+hosted temp trees; unknown/external sentinels are preserved. Remaining known entries
+can be partly removed if an error or mutation appears after deletion has begun.
+All-or-nothing deletion or crash cleanup is not claimed.
 
 The descriptor checks narrow ordinary substitution hazards, but a malicious same-
 UID process or compromised persistent host can still race directory moves, modify
-spool/data/files, impersonate ownership or rewrite successful output. Root can bypass
+spool/data/files, impersonate ownership or rewrite successful output.
+A same-UID actor can substitute an entry after its identity check but before unlink,
+or before the first binding observation; held descriptors do not make path deletion
+conditional on inode identity. In-place edits to a recorded inode are not new
+entries and this identity ledger does not prove authorship of their bytes. Thus
+unknown-content preservation is a tested fail-closed boundary at observed checks,
+not an atomic security guarantee against concurrent hostile mutation. Root can bypass
 these checks. Trusted parent and host/identity isolation remain real prerequisites;
 this prototype must not be described as solving the independent scratch workstream.
 
@@ -187,3 +222,54 @@ these are evidence/isolation gates, not generic pending approval. Preserve
 `terraform-state-access` serialization and independent external/runtime/publication
 race limits; do not hide #485 drift or remove Router while consumers may use it.
 Residual gates are tracked on #522. All guarded rollout/apply paths stay disabled.
+
+## Creation-ledger follow-up evidence
+
+New unmerged branch `michael-rechani-extractor-ledger-offline` starts from
+`69b4524d63c19edc64a14e4bc317e8ce78c860c2`: this preserves the later documentation-only
+privilege corrections while retaining exact extractor code from
+`0ea5d605f2fb8fceb3558de4961602b05c8fc35d` (original code blob
+`3ecde72e6c8b17c4b2db4e5e388b6df2b54494b6`). Prior branches remain unchanged.
+
+[Hosted synthetic run 42417947534](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42417947534)
+passed at exact tested head `fbea0b7ecc18dc9f13f410dd1b5cf03dfe9deb67`:
+`env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p test_extract_platform_dependencies.py -v`
+**20 tests passed**. Original archive digest/bounds/format/permission/collision
+checks remain covered. New cases force failure after inserting an unowned file,
+renaming an external directory into staging, replacing a known file/directory,
+linking a known file, or removing a recorded entry. Full preflight refuses cleanup
+and preserves unknown/replaced/displaced data. Creation/open/binding/descriptor
+exhaustion failures, replacement before binding, failed verification and a late
+unknown entry after preflight also preserve data at the tested check points.
+Without a ledger cleanup refuses; unsupported anonymous spool creation fails
+without a named-tempfile fallback.
+
+The initial test run `42417770333` failed, exposing two named tempfile spool unlink
+calls and an incorrect test class mock. Anonymous-only spool creation and the test
+mock were corrected; run `42417822039` then passed 17 tests, and the final run above
+passed all 20. No failure evidence was hidden. This follow-up did not download,
+extract or execute the actual public closure, real Terraform/providers or protected
+data. Historical actual-artifact evidence above applies only to the old extractor,
+not the new ledger/spool behavior or its resource capacity.
+
+Only ordinary non-root hosted Python/std-library synthetic tests ran, with no sudo,
+Docker, namespace setup, package installation, Azure, private runner or credentials
+in the test environment. Tests explicitly assert non-root UID and absence of
+Azure/ARM/GitHub-token environment variables. The hosted runner's potential sudo
+access remains a host-isolation caveat; these checks are not an adversarial sandbox.
+No local project reads/edits/execution/setup, live diagnostic, PR or merge occurred.
+
+The temporary branch-only workflow was manual `workflow_dispatch`, Ubuntu hosted,
+`contents:read` only, pinned checkout `persist-credentials:false`, no environment,
+secrets references, id-token or private runner. It was restored byte-for-byte to
+original `check-platform-input.yml` blob `13fea116e0cd70aa8f5d8cabcb9b893743e23c95`;
+no dispatch followed restoration. Final code/tests match the final successful
+tested head. No new automatic workflow remains. Inspected `Validate` and `Scorecard`
+push triggers target main (Validate also targets PRs); no PR was opened and all
+observed runs on this branch were the explicit synthetic manual test runs.
+This is scoped trigger evidence, not a claim that external dispatch is impossible.
+
+#522 retains the independent provenance/runtime, trusted-parent/same-UID/host,
+immutable handoff, state/input/identity and recovery gates. Ledger tracking is not
+permission for credentialed extraction or a proof safe cleanup can be established
+on a shared mutable host.
