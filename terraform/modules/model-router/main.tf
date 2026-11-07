@@ -65,6 +65,7 @@ data "azapi_resource" "model_router_routing" {
     postcondition {
       condition = try(
         self.output.properties.routing.mode == var.model_router_deployment.routing_mode &&
+        length(self.output.properties.routing.models) == length(var.model_router_deployment.models) &&
         toset([
           for model in self.output.properties.routing.models :
           jsonencode([model.format, model.name, model.version])

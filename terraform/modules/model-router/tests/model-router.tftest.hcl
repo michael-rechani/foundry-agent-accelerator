@@ -487,6 +487,40 @@ run "reject_unexpected_model" {
   expect_failures = [data.azapi_resource.model_router_routing]
 }
 
+run "reject_duplicate_readback_model" {
+  command   = apply
+  state_key = "duplicate-readback-model"
+
+  variables {
+    model_router_deployment = {
+      models = [
+        { format = "OpenAI", name = "gpt-4.1", version = "2025-04-14" },
+        { format = "OpenAI", name = "gpt-5-mini", version = "2025-08-07" },
+      ]
+    }
+  }
+
+  override_data {
+    target = data.azapi_resource.model_router_routing[0]
+    values = {
+      output = {
+        properties = {
+          routing = {
+            mode = "balanced"
+            models = [
+              { format = "OpenAI", name = "gpt-4.1", version = "2025-04-14" },
+              { format = "OpenAI", name = "gpt-5-mini", version = "2025-08-07" },
+              { format = "OpenAI", name = "gpt-4.1", version = "2025-04-14" },
+            ]
+          }
+        }
+      }
+    }
+  }
+
+  expect_failures = [data.azapi_resource.model_router_routing]
+}
+
 run "reject_unverified_mode" {
   command   = apply
   state_key = "unverified-mode"

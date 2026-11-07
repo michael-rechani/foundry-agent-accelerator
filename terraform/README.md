@@ -622,9 +622,10 @@ underlying model internally, so fixed-model limits cannot account for that
 choice; Router requests are subject to the Lab's global caps unless you
 configure an explicit limit for the Router deployment.
 
-Terraform checks the returned management-plane routing mode and subset, but a
-failed apply can leave a deployment using a different or unrestricted model
-set. Do not send requests to it until its settings are corrected and verified.
+Terraform checks the returned management-plane routing mode and model list,
+ignoring order but rejecting duplicates or missing or extra models. A failed
+apply can leave a deployment using a different or unrestricted model set. Do
+not send requests to it until its settings are corrected and verified.
 Azure notes that routing changes can take up to five minutes to take effect;
 management-plane readback alone does not verify inference behavior. Further
 guidance and live verification are tracked in the
