@@ -304,3 +304,57 @@ were used. The hosted runner is not a security sandbox and this work establishes
 no host/token/process/filesystem/network isolation. It grants no authority for
 diagnostic, plan, apply, deployment, a further artifact inspection or private
 execution. Existing least-privilege boundaries remain unchanged.
+
+### Synthetic fuzz-deadline investigation
+
+The original [run 42423282526](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42423282526), attempt 1,
+still stands: its fuzz command failed with `context deadline exceeded`, after
+90303 reported executions, without a reported reproducer. Its cause is unknown;
+the passing attempt 2 did not establish reliability.
+
+The investigation started from exact head
+`0b45cc851bd3b8f2391b7d148dc0e1f3d5366c5f`, made no analyzer or dependency
+changes, and used exactly two additional synthetic-only hosted runs:
+
+| Run | Tested commit | Synthetic tests and vet | Fuzz results |
+| --- | --- | --- | --- |
+| [42424442927](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42424442927) | `d7e70a48775e4ec4d9e112a6668a1fcb9db04174` | Passed; 96.4% statement coverage | Four original `FuzzAnalyze` and four no-op-control invocations passed |
+| [42424684586](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42424684586) | `bf86acc3af5047406dbaff65133514a483ac63af` | Passed; 96.4% statement coverage | Three of each target passed with coordinator debug enabled |
+
+Each invocation used Go 1.26.8, a 10-second fuzz duration and two workers.
+The second run set `GODEBUG=fuzzdebug=1` and printed the last at most 30
+coordinator debug lines per invocation, plus the total debug-line count; debug
+instrumentation can change timing. The fuzz cache was reused within each run,
+so rounds are not independent. The no-op control uses the same fuzz machinery,
+but does not perform equivalent analyzer or parser work.
+
+In the first run, all analyzer rounds passed, but rounds 2-4 reported no new
+executions between the 3-second and 11-second progress lines. The second run's
+analyzer rounds also had intervals reporting zero new executions. These are
+progress reports, not proof that no processing occurred. The no-op control
+continued to report progress but its rate varied markedly. Bounded debug output
+included coverage-minimization queue events and coordinator stop events, but
+did not identify the in-flight inputs, worker stacks, or a cause for the
+original failure. Neither timeouts nor a failing input reproduced; no claim
+about the original cause, a Go defect, analyzer reliability, or a time bound
+follows.
+
+The new parser-backed cases exercise decimal mantissas up to the exact
+65536-byte input limit, a large decimal exponent, a long normalized Unicode
+string, a 4000-attribute traversal and a 1200-key object. They call the actual
+analyzer twice and require deterministic accepted results. Parsing of long
+numeric literals is a plausible workload to examine because HCL passes them
+through cty to Go's `math/big`; there is no evidence that such a literal was
+in the original failed run. Across these cases in the second run, the largest
+observed individual analyzer call was about 13.42 ms for the 65536-byte number;
+these measurements are samples on one hosted runner, not worst-case bounds.
+
+The added `fuzz_deadline_stress_test.go` has Git blob
+`cc61fd336d8ce3e0f81a7b159eb8b0ace1945a3d`; the analyzer, original fuzz tests,
+traversal tests, AST-bounds tests and module blobs remain as listed above. Both
+runs used non-root GitHub-hosted Ubuntu with pinned actions, `contents: read`
+only, no persisted checkout credentials, secrets, Environment, OIDC, private
+runner or artifact access. The offline compile probe first failed for missing
+public packages; only then were modules downloaded and verified. The temporary
+workflow was removed after testing; existing workflows and runtime/protected
+gates remain unchanged. No PR or merge was made.
