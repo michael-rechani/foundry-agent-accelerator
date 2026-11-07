@@ -87,6 +87,22 @@ class CandidateSessionTests(unittest.TestCase):
                                  max_polls=1)
         self.client.agents.delete_session.assert_called_once()
         self.smoke.assert_not_called()
+    def test_ambiguous_create_failure_does_not_guess_session_to_delete(self):
+        self.client.agents.create_session.side_effect = RuntimeError("create response lost")
+        with self.assertRaisesRegex(RuntimeError, "create response lost"):
+            self.run_candidate()
+        self.client.agents.delete_session.assert_not_called()
+        self.smoke.assert_not_called()
+
+    def test_session_poll_error_still_attempts_cleanup(self):
+        self.client.agents.create_session.return_value.status = "creating"
+        self.client.agents.get_session.side_effect = RuntimeError("session read failed")
+        with patch("deployment.time.sleep"):
+            with self.assertRaisesRegex(RuntimeError, "session read failed"):
+                self.run_candidate()
+        self.client.agents.delete_session.assert_called_once_with(
+            agent_name="customer-review-coordinator", session_id="session-1")
+        self.smoke.assert_not_called()
     def test_missing_or_unsafe_id_fails_without_unsafe_deletion(self):
         for session_id in (None, "", "../other"):
             self.client.agents.create_session.return_value.agent_session_id = session_id
