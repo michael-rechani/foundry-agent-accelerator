@@ -46,6 +46,121 @@ def transform_file(path, text):
     if path == ".github/scripts/check_platform_router_plan.py":
         replacements = (
             (
+                "\ndef summarize_plan(plan, exit_code, values, account):\n",
+                '''
+def require_router_readback(plan, deployment_action, account, checks):
+    resources = [
+        entry for entry in plan["resource_changes"]
+        if isinstance(entry, dict) and entry.get("address") == READBACK
+    ]
+    if len(resources) > 1:
+        raise CheckError("The Router readback appears more than once.")
+    if deployment_action == "create":
+        if len(resources) != 1 or resources[0].get("mode") != "data":
+            raise CheckError("Router creation requires exactly one deferred readback.")
+        change = resources[0]["change"]
+        after, unknown = change.get("after"), change.get("after_unknown")
+        if (change.get("actions") != ["read"] or not isinstance(after, dict)
+                or not isinstance(unknown, dict) or unknown.get("output") is not True
+                or after.get("output") is not None
+                or after.get("type") != "Microsoft.CognitiveServices/accounts/deployments@2025-12-01"
+                or after.get("response_export_values") != ["properties.routing"]
+                or has_unknown(unknown.get("type", False))
+                or has_unknown(unknown.get("response_export_values", False))
+                or not (
+                    after.get("resource_id") is None and unknown.get("resource_id") is True
+                    or isinstance(after.get("resource_id"), str)
+                    and after["resource_id"].lower() == (account + "/deployments/model-router").lower()
+                    and not has_unknown(unknown.get("resource_id", False))
+                )):
+            raise CheckError("Router creation has invalid or inconsistent deferred readback.")
+    else:
+        if resources and resources[0]["change"].get("actions") != ["no-op"]:
+            raise CheckError("A verified Router no-op must not defer its readback.")
+        if resources and has_unknown(resources[0]["change"].get("after_unknown", {})):
+            raise CheckError("A verified Router no-op requires known readback values.")
+
+        def find_readback(module):
+            if not isinstance(module, dict):
+                raise CheckError("Terraform returned invalid readback value evidence.")
+            entries = module.get("resources", [])
+            children = module.get("child_modules", [])
+            if (not isinstance(entries, list) or not isinstance(children, list)
+                    or any(not isinstance(entry, dict) for entry in entries)):
+                raise CheckError("Terraform returned invalid readback value evidence.")
+            found = [entry for entry in entries if entry.get("address") == READBACK]
+            for child in children:
+                found.extend(find_readback(child))
+            return found
+
+        sources = [plan.get("planned_values", {})]
+        prior = plan.get("prior_state", {})
+        if not isinstance(prior, dict):
+            raise CheckError("Terraform returned invalid readback value evidence.")
+        sources.append(prior.get("values", {}))
+        observed = [
+            {"mode": entry.get("mode"), "type": entry.get("type"), "values": entry["change"].get("after")}
+            for entry in resources
+        ]
+        for source in sources:
+            if not isinstance(source, dict):
+                raise CheckError("Terraform returned invalid readback value evidence.")
+            entries = find_readback(source.get("root_module", {}))
+            if len(entries) > 1:
+                raise CheckError("The Router readback values appear more than once.")
+            observed.extend(entries)
+        if not observed:
+            raise CheckError("A verified Router no-op requires known readback values.")
+        for entry in observed:
+            values = entry.get("values")
+            output = values.get("output") if isinstance(values, dict) else None
+            properties = output.get("properties") if isinstance(output, dict) else None
+            routing = properties.get("routing") if isinstance(properties, dict) else None
+            models = routing.get("models") if isinstance(routing, dict) else None
+            if (entry.get("mode") != "data" or entry.get("type") != "azapi_resource"
+                    or not isinstance(values, dict)
+                    or values.get("type") != "Microsoft.CognitiveServices/accounts/deployments@2025-12-01"
+                    or values.get("response_export_values") != ["properties.routing"]
+                    or not isinstance(values.get("resource_id"), str)
+                    or values["resource_id"].lower() != (account + "/deployments/model-router").lower()
+                    or not isinstance(routing, dict) or routing.get("mode") != "balanced"
+                    or not isinstance(models, list) or len(models) != len(ROUTER_MODELS)
+                    or any(not isinstance(model, dict) for model in models)
+                    or sorted(json.dumps(model, sort_keys=True) for model in models)
+                    != sorted(json.dumps(model, sort_keys=True) for model in ROUTER_MODELS)):
+                raise CheckError("Known Router readback does not match the reviewed deployment.")
+
+    matching = [
+        check for check in checks
+        if isinstance(check, dict) and isinstance(check.get("address"), dict)
+        and check["address"].get("to_display") in (
+            READBACK, "module.model_router.data.azapi_resource.model_router_routing",
+        )
+    ]
+    expected_status = "unknown" if deployment_action == "create" else "pass"
+    if len(matching) != 1:
+        raise CheckError("Exactly one Router readback postcondition result is required.")
+    check = matching[0]
+    address = check["address"]
+    instances = check.get("instances")
+    if (address != {
+            "kind": "resource", "mode": "data", "type": "azapi_resource",
+            "name": "model_router_routing", "module": "module.model_router",
+            "to_display": "module.model_router.data.azapi_resource.model_router_routing",
+        } or check.get("status") != expected_status
+            or not isinstance(instances, list) or len(instances) != 1
+            or not isinstance(instances[0], dict)
+            or instances[0].get("address") != {
+                "module": "module.model_router", "instance_key": 0, "to_display": READBACK,
+            } or type(instances[0]["address"].get("instance_key")) is not int
+            or instances[0].get("status") != expected_status or instances[0].get("problems")):
+        raise CheckError("Router readback postcondition evidence is missing or inconsistent.")
+
+
+def summarize_plan(plan, exit_code, values, account):
+''',
+            ),
+            (
                 'PATCH = "module.model_router.azapi_resource_action.model_router_routing[0]"',
                 'LEGACY_PATCH = "module.model_router.azapi_resource_action.model_router_routing[0]"',
             ),
@@ -95,7 +210,13 @@ def transform_file(path, text):
             raise CheckError("Legacy Router PATCH state requires separately reviewed recovery.")
 ''',
             ),
-            ('        "router_patch": actions[PATCH],\n', ""),
+            (            '        "router_patch": actions[PATCH],\n', ""),
+            (
+            '    if actions[DEPLOYMENT] == "create":\n',
+            '''    require_router_readback(plan, actions[DEPLOYMENT], account, checks)
+    if actions[DEPLOYMENT] == "create":
+''',
+            ),
         )
         for old, new in replacements:
             text = _replace_once(text, old, new, "the fixed platform PUT-only guard")
@@ -160,7 +281,7 @@ def transform_file(path, text):
         value = plan()
         deployment = value["resource_changes"][0]["change"]
         deployment.update(actions=["no-op"], before=deepcopy(deployment["after"]))
-        with self.assertRaisesRegex(diagnostic.CheckError, "existing Router outputs"):
+        with self.assertRaisesRegex(diagnostic.CheckError, "verified Router no-op"):
             diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
 
     def test_legacy_patch_state_and_router_updates_require_separate_recovery(self):
@@ -196,6 +317,97 @@ def transform_file(path, text):
                 '            lambda item: item["resource_changes"][1]["change"]["after_unknown"].update(resource_id=False),',
                 '            lambda item: item["resource_changes"][0]["change"]["after_unknown"].update(parent_id=True),',
             ),
+            (
+                '''                "address": diagnostic.READBACK, "mode": "data",
+                "change": {"actions": ["read"], "before": None, "after": {}, "after_unknown": {"output": True}},
+''',
+                '''                "address": diagnostic.READBACK, "mode": "data", "type": "azapi_resource",
+                "change": {
+                    "actions": ["read"], "before": None,
+                    "after": {
+                        "type": "Microsoft.CognitiveServices/accounts/deployments@2025-12-01",
+                        "response_export_values": ["properties.routing"],
+                    },
+                    "after_unknown": {"output": True, "resource_id": True},
+                },
+''',
+            ),
+            (
+                '''            "address": {"to_display": "module.model_router.data.azapi_resource.model_router_routing"},
+            "status": "unknown",
+''',
+                '''            "address": {
+                "kind": "resource", "mode": "data", "type": "azapi_resource",
+                "name": "model_router_routing", "module": "module.model_router",
+                "to_display": "module.model_router.data.azapi_resource.model_router_routing",
+            },
+            "status": "unknown",
+            "instances": [{
+                "address": {"module": "module.model_router", "instance_key": 0, "to_display": diagnostic.READBACK},
+                "status": "unknown",
+            }],
+''',
+            ),
+            (
+                '        value["checks"][0]["status"] = "pass"\n',
+                '''        value["checks"][0]["status"] = "pass"
+        value["checks"][0]["instances"][0]["status"] = "pass"
+        value["resource_changes"].pop(1)
+        value["prior_state"] = {"values": {"root_module": {"child_modules": [{
+            "address": "module.model_router",
+            "resources": [{
+                "address": diagnostic.READBACK, "mode": "data", "type": "azapi_resource",
+                "values": {
+                    "type": "Microsoft.CognitiveServices/accounts/deployments@2025-12-01",
+                    "resource_id": ACCOUNT + "/deployments/model-router",
+                    "response_export_values": ["properties.routing"],
+                    "output": {"properties": {"routing": {
+                        "mode": "balanced", "models": deepcopy(diagnostic.ROUTER_MODELS),
+                    }}},
+                },
+            }],
+        }]}}}
+''',
+            ),
+            (
+                '    def test_partial_router_apply_requires_separate_recovery(self):\n',
+                '''    def test_missing_duplicate_or_unchecked_router_readback_is_rejected(self):
+        for mutate in (
+            lambda value: value["resource_changes"].pop(1),
+            lambda value: value["resource_changes"].append(deepcopy(value["resource_changes"][1])),
+            lambda value: value.pop("checks"),
+            lambda value: value.update(checks=[]),
+            lambda value: value["checks"][0].pop("instances"),
+            lambda value: value["checks"][0]["instances"][0].update(status="pass"),
+        ):
+            value = plan()
+            mutate(value)
+            with self.subTest(mutate=mutate), self.assertRaises(diagnostic.CheckError):
+                diagnostic.summarize_plan(value, 2, values(), ACCOUNT)
+
+    def test_partial_router_apply_requires_separate_recovery(self):
+''',
+            ),
+            (
+                '''        for change in (
+            lambda item: item["output_changes"]["model_router_deployment_name"].update(after_unknown=True),
+            lambda item: item["output_changes"]["model_deployment_names"].update(after=["gpt-4.1"]),
+            lambda item: item["output_changes"].pop("model_router_deployment_name"),
+        ):
+''',
+                '''        for change in (
+            lambda item: item["output_changes"]["model_router_deployment_name"].update(after_unknown=True),
+            lambda item: item["output_changes"]["model_deployment_names"].update(after=["gpt-4.1"]),
+            lambda item: item["output_changes"].pop("model_router_deployment_name"),
+            lambda item: item.pop("prior_state"),
+            lambda item: item.pop("checks"),
+            lambda item: item.update(checks=[]),
+            lambda item: item["checks"][0]["instances"][0].update(status="unknown"),
+            lambda item: item["prior_state"]["values"]["root_module"]["child_modules"][0]["resources"].append(
+                deepcopy(item["prior_state"]["values"]["root_module"]["child_modules"][0]["resources"][0])),
+        ):
+''',
+            ),
         )
         for old, new in replacements:
             text = _replace_once(text, old, new, "the fixed platform PUT-only regression")
@@ -224,7 +436,10 @@ path to inspect the deployment and state, then separately review the necessary
 reconciliation or removal; no such recovery path is approved yet.
 
 The forward platform diagnostic accepts only the exact reviewed PUT creation
-or a verified no-op. It rejects in-place Router updates, replacements, deletes,
+or a verified no-op. Creation requires a single deferred readback and matching
+postcondition/instance evidence; a no-op requires known matching readback values
+and a passing postcondition/instance. Missing or duplicate evidence is rejected.
+It rejects in-place Router updates, replacements, deletes,
 and every legacy PATCH state entry, including no-op or deletion of the removed
 resource. Removing the PATCH from configuration does not authorize its state
 removal. Partial creation, legacy PATCH state, and unverified readback require

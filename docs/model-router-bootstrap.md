@@ -32,7 +32,14 @@ reviewed PUT creation or a verified no-op. Every legacy PATCH state entry,
 including its deletion or no-op, still requires separately reviewed recovery;
 in-place Router updates, replacement, and deletion are not authorized.
 Unrelated managed changes, drift, imports, and nonpassing checks still block
-the forward diagnostic. It preserves the `2025-10-01-preview` deployment PUT,
+the forward diagnostic. Creation must include exactly one deferred Router data
+read and one matching aggregate/instance postcondition result with `unknown`
+status. A no-op must have known readback values for the exact resource and
+requested routing, plus one matching passing postcondition and instance.
+Terraform may omit a no-op data source from `resource_changes`; the guard uses
+its known planned or refreshed prior values instead. Missing/duplicate
+readback values, missing checks, or inconsistent statuses fail closed.
+It preserves the `2025-10-01-preview` deployment PUT,
 the fresh `2025-12-01` management-plane GET, strict routing postconditions, and
 warnings about a potentially partial or unrestricted deployment. The readback
 explicitly depends on the deployment so pending updates defer the GET; that
@@ -123,3 +130,13 @@ is a data fixture from the pinned source; the pinned runner module, its imports,
 access, and diagnostic entry point are not executed. The excerpt includes the
 unchanged forward rejection gate, so merely reporting a disallowed change in
 the summary cannot make a test pass.
+
+Terraform 1.16.4 mock JSON was inspected for creation and an existing no-op:
+creation includes the deferred AzAPI data change, while the no-op omits that
+data change and the applied mock exposes its known values. The test renderer
+does not emit `checks`. Aggregate/instance postcondition serialization was
+therefore checked separately with a local-only built-in `terraform_data`
+creation/no-op and against Terraform 1.16.4's JSON serializer, including data
+resource address fields. This is offline format evidence, not a live AzAPI
+read or proof that a postcondition can never be bypassed. The full saved
+private platform plan has not been inspected or run.

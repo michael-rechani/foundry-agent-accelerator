@@ -36,6 +36,8 @@ def platform_policy(*, transformed=True):
         "router_body", "router_change_matches", "preview_capabilities",
         "summarize_plan", "enforce_forward_policy",
     }
+    if transformed:
+        functions.add("require_router_readback")
     if {node.name for node in tree.body if isinstance(node, ast.FunctionDef)} != functions:
         raise AssertionError("Only the reviewed pure policy fixture may execute.")
     if any(isinstance(node, (ast.Import, ast.ImportFrom)) for node in ast.walk(tree)):
@@ -87,8 +89,15 @@ def synthetic_platform_plan(policy):
                 },
             },
             {
-                "address": policy.READBACK, "mode": "data",
-                "change": {"actions": ["read"], "before": None, "after": {}, "after_unknown": {"output": True}},
+                "address": policy.READBACK, "mode": "data", "type": "azapi_resource",
+                "change": {
+                    "actions": ["read"], "before": None,
+                    "after": {
+                        "type": "Microsoft.CognitiveServices/accounts/deployments@2025-12-01",
+                        "response_export_values": ["properties.routing"],
+                    },
+                    "after_unknown": {"output": True, "resource_id": True},
+                },
             },
         ],
         "output_changes": {
@@ -102,7 +111,18 @@ def synthetic_platform_plan(policy):
                 "after": {"gpt-4.1": False, "model-router": False}, "after_unknown": False,
             },
         },
-        "checks": [{"address": {"to_display": policy.READBACK}, "status": "unknown"}],
+        "checks": [{
+            "address": {
+                "kind": "resource", "mode": "data", "type": "azapi_resource",
+                "name": "model_router_routing", "module": "module.model_router",
+                "to_display": "module.model_router.data.azapi_resource.model_router_routing",
+            },
+            "status": "unknown",
+            "instances": [{
+                "address": {"module": "module.model_router", "instance_key": 0, "to_display": policy.READBACK},
+                "status": "unknown",
+            }],
+        }],
     }
     return plan, values, account
 
@@ -130,7 +150,22 @@ class PlatformPolicyTests(unittest.TestCase):
         plan, _, _ = synthetic_platform_plan(self.policy)
         deployment = plan["resource_changes"][0]["change"]
         deployment.update(actions=["no-op"], before=deepcopy(deployment["after"]))
-        plan["resource_changes"][1]["change"]["actions"] = ["no-op"]
+        plan["resource_changes"].pop(1)
+        _, _, account = synthetic_platform_plan(self.policy)
+        plan["prior_state"] = {"values": {"root_module": {"child_modules": [{
+            "address": "module.model_router",
+            "resources": [{
+                "address": self.policy.READBACK, "mode": "data", "type": "azapi_resource",
+                "values": {
+                    "type": "Microsoft.CognitiveServices/accounts/deployments@2025-12-01",
+                    "resource_id": account + "/deployments/model-router",
+                    "response_export_values": ["properties.routing"],
+                    "output": {"properties": {"routing": {
+                        "mode": "balanced", "models": deepcopy(self.policy.ROUTER_MODELS),
+                    }}},
+                },
+            }],
+        }]}}}
         plan["output_changes"] = {
             "model_router_deployment_name": {
                 "actions": ["no-op"], "before": "model-router", "after": "model-router", "after_unknown": False,
@@ -145,6 +180,7 @@ class PlatformPolicyTests(unittest.TestCase):
             },
         }
         plan["checks"][0]["status"] = "pass"
+        plan["checks"][0]["instances"][0]["status"] = "pass"
         return plan
 
     def test_verified_known_no_op_is_accepted(self):
@@ -232,8 +268,64 @@ class PlatformPolicyTests(unittest.TestCase):
                 self.approve(plan, 0)
         plan, _, _ = synthetic_platform_plan(self.policy)
         plan["resource_changes"][0]["change"]["actions"] = ["no-op"]
-        with self.assertRaisesRegex(CheckError, "existing Router outputs"):
+        with self.assertRaises(CheckError):
             self.approve(plan)
+
+    def test_create_missing_duplicate_or_unchecked_readback_is_rejected(self):
+        for alter in (
+            lambda p: p["resource_changes"].pop(1),
+            lambda p: p["resource_changes"].append(deepcopy(p["resource_changes"][1])),
+            lambda p: p.pop("checks"),
+            lambda p: p.update(checks=[]),
+            lambda p: p["checks"][0].pop("instances"),
+            lambda p: p["checks"][0]["instances"].clear(),
+            lambda p: p["checks"][0]["instances"].append(deepcopy(p["checks"][0]["instances"][0])),
+            lambda p: p["checks"][0]["instances"][0].update(status="pass"),
+            lambda p: p["checks"][0]["address"].update(mode="managed"),
+            lambda p: p["resource_changes"][1]["change"]["after"].update(resource_id="wrong"),
+            lambda p: p["resource_changes"][1]["change"]["after"].update(output={"properties": {}}),
+            lambda p: p["resource_changes"][1]["change"]["after_unknown"].update(output=False),
+        ):
+            plan, _, _ = synthetic_platform_plan(self.policy)
+            alter(plan)
+            with self.subTest(alter=alter), self.assertRaises(CheckError):
+                self.approve(plan)
+
+    def test_no_op_requires_unique_known_values_and_matching_passing_postcondition(self):
+        for alter in (
+            lambda p: p.pop("prior_state"),
+            lambda p: p["prior_state"]["values"]["root_module"]["child_modules"][0]["resources"].clear(),
+            lambda p: p["prior_state"]["values"]["root_module"]["child_modules"][0]["resources"].append(
+                deepcopy(p["prior_state"]["values"]["root_module"]["child_modules"][0]["resources"][0])),
+            lambda p: p.pop("checks"),
+            lambda p: p.update(checks=[]),
+            lambda p: p["checks"][0].pop("instances"),
+            lambda p: p["checks"][0]["instances"][0].update(status="unknown"),
+            lambda p: p["checks"][0]["instances"][0]["address"].update(instance_key=1),
+            lambda p: p["prior_state"]["values"]["root_module"]["child_modules"][0]["resources"][0]["values"][
+                "output"]["properties"]["routing"].update(mode="cost"),
+        ):
+            plan = self.no_op_plan()
+            alter(plan)
+            with self.subTest(alter=alter), self.assertRaises(CheckError):
+                self.approve(plan, 0)
+
+    def test_no_op_allows_known_planned_values_and_rejects_inconsistent_no_op_change(self):
+        plan = self.no_op_plan()
+        plan["planned_values"] = plan.pop("prior_state")["values"]
+        self.assertEqual(self.approve(plan, 0)["router_deployment"], "no-op")
+        resource = plan["planned_values"]["root_module"]["child_modules"][0]["resources"][0]
+        plan["resource_changes"].append({
+            "address": self.policy.READBACK, "mode": "data", "type": "azapi_resource",
+            "change": {
+                "actions": ["no-op"], "before": deepcopy(resource["values"]),
+                "after": deepcopy(resource["values"]), "after_unknown": {},
+            },
+        })
+        self.assertEqual(self.approve(plan, 0)["router_deployment"], "no-op")
+        plan["resource_changes"][-1]["change"]["after"]["resource_id"] = "different"
+        with self.assertRaises(CheckError):
+            self.approve(plan, 0)
 
     def test_incomplete_errored_or_inconsistent_plans_are_rejected(self):
         for alter in (
