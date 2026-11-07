@@ -1,0 +1,250 @@
+"""Reviewed pure-policy excerpt from #523 at 52fab5e08fb498720efcd53f0f389f424d671a46.
+
+Source blob: c53c9106b3852ddaae6a0611feb02d145b1f106d.
+This fixture is data, not an executable runner diagnostic.
+"""
+
+DEPLOYMENT = "module.model_router.azapi_resource.model_router[0]"
+PATCH = "module.model_router.azapi_resource_action.model_router_routing[0]"
+READBACK = "module.model_router.data.azapi_resource.model_router_routing[0]"
+RELATED_CHANGES = {
+    "azapi_resource.jumpbox[0]": "jumpbox",
+    "azurerm_role_assignment.jumpbox_foundry_project_manager[0]": "jumpbox_role",
+    "azurerm_private_endpoint.terraform_state[0]": "backend_endpoint",
+}
+ROUTER_MODELS = [
+    {"format": "OpenAI", "name": "gpt-4.1", "version": "2025-04-14"},
+    {"format": "OpenAI", "name": "gpt-4.1-mini", "version": "2025-04-14"},
+]
+ROUTER_INPUT = {
+    "deployment_name": "model-router",
+    "sku_name": "GlobalStandard",
+    "capacity": 10,
+    "routing_mode": "balanced",
+    "models": ROUTER_MODELS,
+}
+
+
+def router_body():
+    return {
+        "sku": {"name": "GlobalStandard", "capacity": 10},
+        "properties": {
+            "model": {"format": "OpenAI", "name": "model-router", "version": "2025-11-18"},
+            "raiPolicyName": "Microsoft.DefaultV2",
+            "versionUpgradeOption": "OnceNewDefaultVersionAvailable",
+            "routing": {"mode": "balanced", "models": ROUTER_MODELS},
+        },
+    }
+
+
+def router_change_matches(address, entry, account):
+    change = entry["change"]
+    after, unknown = change.get("after"), change.get("after_unknown", {})
+    if not isinstance(after, dict) or not isinstance(unknown, dict) or has_unknown(unknown.get("body", False)):
+        return False
+    expected = router_body()
+    if address == DEPLOYMENT:
+        return (
+            after.get("type") == "Microsoft.CognitiveServices/accounts/deployments@2025-10-01-preview"
+            and after.get("name") == "model-router"
+            and isinstance(after.get("parent_id"), str)
+            and after["parent_id"].lower() == account.lower()
+            and not has_unknown(unknown.get("parent_id", False))
+            and after.get("body") == expected
+        )
+    patch = {"sku": expected["sku"], "properties": {
+        "model": expected["properties"]["model"], "routing": expected["properties"]["routing"],
+    }}
+    resource_id = after.get("resource_id")
+    return (
+        after.get("type") == "Microsoft.CognitiveServices/accounts/deployments@2025-12-01"
+        and after.get("method") == "PATCH" and after.get("body") == patch
+        and (resource_id is None and unknown.get("resource_id") is True
+             or isinstance(resource_id, str)
+             and resource_id.lower() == (account + "/deployments/model-router").lower())
+    )
+
+
+def preview_capabilities(variables):
+    primary_input = variables.get("model_deployment")
+    additional_input = variables.get("additional_model_deployments")
+    primary = primary_input.get("value") if isinstance(primary_input, dict) else None
+    additional = additional_input.get("value") if isinstance(additional_input, dict) else None
+    if (not isinstance(primary, dict) or not isinstance(additional, dict)
+            or any(not isinstance(name, str) for name in additional)):
+        raise CheckError("The plan must identify its fixed model inputs.")
+    primary_name = primary.get("deployment_name")
+    names = [primary_name, *sorted(additional)]
+    if (any(not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", name)
+            for name in names)
+            or len(set(names)) != len(names) or "model-router" in names):
+        raise CheckError("The plan must identify unique fixed model deployment names.")
+    models = {primary_name: primary, **additional}
+    known = {(item["format"], item["name"], item["version"]) for item in ROUTER_MODELS}
+    expected = {"model-router": False}
+    for deployment, model in models.items():
+        if (not isinstance(model, dict)
+                or any(not isinstance(model.get(key), str) or not model[key] for key in ("format", "name", "version"))):
+            raise CheckError("The plan must identify fixed model formats, names and versions.")
+        if tuple(model[key] for key in ("format", "name", "version")) in known:
+            expected[deployment] = False
+    return names, expected
+
+
+def summarize_plan(plan, exit_code, values, account):
+    if (plan.get("errored") is not False or plan.get("complete") is not True
+            or plan.get("deferred_changes") or plan.get("action_invocations")
+            or not isinstance(plan.get("format_version"), str)
+            or not re.fullmatch(r"1\.[0-9]+", plan["format_version"])):
+        raise CheckError("Terraform must produce a complete, error-free full plan.")
+    variables = plan.get("variables")
+    if not isinstance(variables, dict) or any(
+        not isinstance(variables.get(name), dict) or variables[name].get("value") != values[name]
+        for name in ("subscription_id", "deployment_principal_id", "model_router_deployment")
+    ):
+        raise CheckError("The plan did not use the checked protected platform inputs.")
+    changes, drift, outputs, checks = (
+        plan.get("resource_changes"), plan.get("resource_drift", []),
+        plan.get("output_changes", {}), plan.get("checks", []),
+    )
+    if (not isinstance(changes, list) or not isinstance(drift, list)
+            or not isinstance(outputs, dict) or not isinstance(checks, list)):
+        raise CheckError("Terraform returned an incomplete platform plan.")
+    actions = {}
+    other_managed = other_reads = imports = 0
+    related = set()
+    for entry in changes:
+        if not isinstance(entry, dict) or not isinstance(entry.get("address"), str):
+            raise CheckError("Terraform returned an invalid resource change.")
+        address = entry["address"]
+        action, importing = change_action(entry)
+        imports += importing
+        mode = entry.get("mode")
+        if address in (DEPLOYMENT, PATCH):
+            if address in actions or mode != "managed":
+                raise CheckError("The Router resource appears more than once or with an invalid mode.")
+            if action not in ("no-op", "create") or not router_change_matches(address, entry, account):
+                raise CheckError("The Router deployment or PATCH differs from the reviewed configuration.")
+            actions[address] = action
+        elif mode == "managed":
+            other_managed += action != "no-op"
+            if action != "no-op" and address in RELATED_CHANGES:
+                related.add(RELATED_CHANGES[address])
+        elif mode == "data":
+            if address != READBACK:
+                other_reads += action != "no-op"
+            elif action not in ("read", "no-op"):
+                raise CheckError("The Router readback has an unexpected action.")
+        else:
+            raise CheckError("Terraform returned an unsupported resource mode.")
+    if set(actions) != {DEPLOYMENT, PATCH} or actions[DEPLOYMENT] != actions[PATCH]:
+        raise CheckError("The Router deployment and verification PATCH must have matching actions.")
+    drift_count = 0
+    for entry in drift:
+        if not isinstance(entry, dict) or entry.get("mode") != "managed":
+            raise CheckError("Terraform returned an invalid platform drift entry.")
+        action, importing = change_action(entry)
+        imports += importing
+        drift_count += action != "no-op"
+        if action != "no-op" and entry.get("address") in RELATED_CHANGES:
+            related.add(RELATED_CHANGES[entry["address"]])
+    other_outputs = 0
+    for name, change in outputs.items():
+        if not isinstance(change, dict) or change.get("actions") not in (
+            ["no-op"], ["create"], ["update"], ["delete"],
+        ):
+            raise CheckError("Terraform returned an invalid platform output change.")
+        if name not in ("model_router_deployment_name", "model_deployment_names", "model_preview_encrypted_reasoning"):
+            other_outputs += change["actions"] != ["no-op"]
+        elif change["actions"] == ["delete"]:
+            raise CheckError("The Router plan must not remove model outputs.")
+    router_output = outputs.get("model_router_deployment_name")
+    model_names = outputs.get("model_deployment_names")
+    preview_output = outputs.get("model_preview_encrypted_reasoning")
+    fixed_names, expected_preview = preview_capabilities(variables)
+
+    def valid_preview_map(value):
+        return isinstance(value, dict) and all(
+            isinstance(name, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", name)
+            and type(enabled) is bool for name, enabled in value.items()
+        )
+
+    if (not isinstance(preview_output, dict)
+            or preview_output.get("actions") not in (["create"], ["update"], ["no-op"])
+            or preview_output.get("after_unknown") is not False
+            or not valid_preview_map(preview_output.get("after"))
+            or set(preview_output["after"]) != set(expected_preview)
+            or any(value is not False for value in preview_output["after"].values())
+            or (preview_output["actions"] == ["create"] and preview_output.get("before") is not None)
+            or (preview_output["actions"] == ["no-op"] and (
+                not valid_preview_map(preview_output.get("before"))
+                or preview_output["before"] != preview_output["after"]
+            ))
+            or (preview_output["actions"] == ["update"] and (
+                not valid_preview_map(preview_output.get("before"))
+                or preview_output["before"] == preview_output["after"]
+            ))):
+        raise CheckError("The planned preview capability output does not match the reviewed model inputs.")
+    if actions[DEPLOYMENT] == "create":
+        if (not isinstance(router_output, dict) or router_output.get("actions") not in (["create"], ["update"])
+                or not isinstance(model_names, dict) or model_names.get("actions") != ["update"]
+                or not (
+                    router_output.get("after") == "model-router" and router_output.get("after_unknown") is False
+                    or router_output.get("after") is None and router_output.get("after_unknown") is True
+                )):
+            raise CheckError("The Router plan must expose its name without removing existing model outputs.")
+        before, after = model_names.get("before"), model_names.get("after")
+        unknown = model_names.get("after_unknown")
+        if (before != fixed_names or not isinstance(after, list) or len(after) != len(before) + 1
+                or after[:-1] != before or not isinstance(unknown, list) or len(unknown) != len(after)
+                or any(unknown[:-1]) or not (
+                    after[-1] == "model-router" and unknown[-1] is False
+                    or after[-1] is None and unknown[-1] is True
+                )):
+            raise CheckError("The Router plan must preserve existing deployment names and append Router.")
+    elif (not isinstance(router_output, dict) or router_output.get("actions") != ["no-op"]
+            or router_output.get("after") != "model-router" or router_output.get("after_unknown") is not False
+            or not isinstance(model_names, dict) or model_names.get("actions") != ["no-op"]
+            or model_names.get("after") != [*fixed_names, "model-router"]
+            or model_names.get("before") != model_names["after"] or model_names.get("after_unknown") is not False):
+        raise CheckError("The existing Router outputs are missing, changed or unknown.")
+    if any(not isinstance(check, dict) or check.get("status") not in ("pass", "fail", "unknown", "error")
+           for check in checks):
+        raise CheckError("Terraform returned invalid platform check results.")
+    deferred_router = 0
+    nonpassing = 0
+    for check in checks:
+        address = check.get("address")
+        name = address.get("to_display") if isinstance(address, dict) else None
+        if (check["status"] == "unknown" and actions[DEPLOYMENT] == "create"
+                and name in (READBACK, "module.model_router.data.azapi_resource.model_router_routing")):
+            deferred_router += 1
+        elif check["status"] != "pass":
+            nonpassing += 1
+    if deferred_router > 1:
+        raise CheckError("Terraform returned duplicate deferred Router readback checks.")
+    if exit_code not in (0, 2) or exit_code == 0 and (
+        any(action != "no-op" for action in actions.values()) or other_managed or imports or other_outputs
+        or preview_output["actions"] != ["no-op"]
+    ):
+        raise CheckError("Terraform's plan exit status does not match the platform changes.")
+    return {
+        "plan_exit": "changes" if exit_code == 2 else "no-changes",
+        "router_deployment": actions[DEPLOYMENT],
+        "router_patch": actions[PATCH],
+        "preview_capability_output": preview_output["actions"][0],
+        "other_managed_changes": other_managed,
+        "other_deferred_reads": other_reads,
+        "other_output_changes": other_outputs,
+        "imports": imports,
+        "refreshed_drift": drift_count,
+        "known_unrelated_changes": sorted(related),
+        "deferred_router_readback": deferred_router,
+        "other_nonpassing_checks": nonpassing,
+    }
+
+
+def enforce_forward_policy(summary):
+    if (summary["other_managed_changes"] or summary["other_deferred_reads"] or summary["other_output_changes"]
+            or summary["imports"] or summary["refreshed_drift"] or summary["other_nonpassing_checks"]):
+        raise CheckError("The platform plan includes unrelated changes, drift or unverified checks; review is required.")
