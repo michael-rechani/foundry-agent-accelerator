@@ -1,55 +1,29 @@
-name: Offline Python 3.14 candidate validation
+name: Check historical platform input candidate
+
 on:
   workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: terraform-state-access
+  cancel-in-progress: false
+
 jobs:
-  test:
-    if: github.ref == 'refs/heads/michael-rechani-candidate-existing-only'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  check:
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+    runs-on: [self-hosted, linux, lab-runner]
+    environment: terraform-state
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.14'
-      - name: Attempt SDK imports before restoring missing pinned dependencies
-        shell: bash
-        run: |
-          set +e
-          python - <<'PY'
-          try:
-              from azure.ai.projects import AIProjectClient
-              from azure.ai.projects.models import VersionRefIndicator
-              import openai
-          except ModuleNotFoundError as error:
-              print(f"Missing dependency: {error.name}")
-              raise SystemExit(3) from None
-          PY
-          status=$?
-          set -e
-          if [ "$status" = 3 ]; then
-            python -m pip install -r hosted-agents/review-coordinator-agent/requirements-deploy.txt
-          elif [ "$status" != 0 ]; then
-            exit "$status"
-          fi
-      - name: Run exact guard and SDK tests
-        working-directory: hosted-agents
-        run: python -m unittest -v test_candidate_smoke test_deployment test_deployment_sdk
-      - name: Attempt Ruff before restoring missing pinned validation dependency
-        shell: bash
-        run: |
-          set +e
-          python -m ruff check hosted-agents/deployment.py hosted-agents/test_candidate_smoke.py hosted-agents/test_deployment_sdk.py
-          status=$?
-          set -e
-          if [ "$status" != 0 ]; then
-            if python -c 'import importlib.util; raise SystemExit(0 if importlib.util.find_spec("ruff") is None else 1)'; then
-              python -m pip install -r .github/requirements-validation.txt
-              python -m ruff check hosted-agents/deployment.py hosted-agents/test_candidate_smoke.py hosted-agents/test_deployment_sdk.py
-            else
-              exit "$status"
-            fi
-          fi
+      - name: Check candidate presence
+        env:
+          TF_LAB_PLAN_CONFIG: ${{ secrets.TF_LAB_PLAN_CONFIG }}
+        run: python3 .github/scripts/check_platform_input.py
