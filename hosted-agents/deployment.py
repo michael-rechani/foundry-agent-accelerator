@@ -11,6 +11,7 @@ import stat
 import sys
 import tempfile
 import time
+from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -186,11 +187,15 @@ def wait_until_active(
     poll_seconds: int,
     max_polls: int,
 ) -> None:
+    if not concrete_version(version):
+        raise RuntimeError("The candidate version must be explicit")
     for attempt in range(1, max_polls + 1):
         details = client.agents.get_version(
             agent_name=agent_name,
             agent_version=version,
         )
+        if not version_identity_matches(details, agent_name, version):
+            raise RuntimeError("The polled agent version identity was not confirmed")
         status = details["status"]
         print(f"Version {version}: {status} ({attempt}/{max_polls})")
 
@@ -293,7 +298,7 @@ def candidate_smoke_test(
 ) -> None:
     from azure.ai.projects.models import VersionRefIndicator
 
-    if not isinstance(version, str) or not version or version.startswith("@"):
+    if not concrete_version(version):
         raise RuntimeError("The candidate version must be explicit")
     if not prompt and not checks:
         raise RuntimeError("An existing agent requires a candidate smoke check")
@@ -334,14 +339,15 @@ def candidate_smoke_test(
             print("Warning: candidate session cleanup failed; manual inspection is required")
 
 
+def concrete_version(version) -> bool:
+    return isinstance(version, str) and bool(version) and version == version.strip() and not version.startswith("@")
+
+
 def concrete_route(endpoint) -> bool:
     selector = getattr(endpoint, "version_selector", None)
     rules = getattr(selector, "version_selection_rules", None)
     return isinstance(rules, list) and bool(rules) and all(
-        isinstance(getattr(rule, "agent_version", None), str)
-        and rule.agent_version
-        and not rule.agent_version.startswith("@")
-        for rule in rules
+        concrete_version(getattr(rule, "agent_version", None)) for rule in rules
     )
 
 
@@ -353,14 +359,30 @@ def validate_traffic_rules(rules, description: str) -> None:
         raise RuntimeError(f"{description} traffic must total 100 percent")
 
 
-def active_release(details) -> bool:
-    return details.get("status") == "active" and details.get("draft", False) is False
+def version_identity_matches(details, agent_name: str, version: str) -> bool:
+    return (
+        isinstance(details, Mapping)
+        and concrete_version(version)
+        and isinstance(details.get("name"), str)
+        and details.get("name") == agent_name
+        and isinstance(details.get("version"), str)
+        and details.get("version") == version
+    )
+
+
+def active_release(details, agent_name: str, version: str) -> bool:
+    return (
+        version_identity_matches(details, agent_name, version)
+        and details.get("status") == "active"
+        and details.get("draft", False) is False
+    )
 
 
 def enabled_endpoint(client, agent_name: str):
     details = client.agents.get(agent_name=agent_name)
     for field in ("state", "configuration_state"):
-        value = getattr(details, field, None)
+        # SDK 2.6.1 preserves the unmodeled configuration_state wire field in its mapping.
+        value = details.get(field) if isinstance(details, Mapping) else getattr(details, field, None)
         if not isinstance(value, str) or value != "enabled":
             raise RuntimeError("Agent operational and administrative states must both be explicitly enabled")
     return getattr(details, "agent_endpoint", None)
@@ -380,7 +402,7 @@ def verify_recovery_targets(client, agent_name: str, endpoint) -> None:
     versions = {rule.agent_version for rule in rules if rule.traffic_percentage > 0}
     for version in sorted(versions):
         details = client.agents.get_version(agent_name=agent_name, agent_version=version)
-        if not active_release(details):
+        if not active_release(details, agent_name, version):
             raise RuntimeError(f"Recovery version {version} is not an active release")
 
 
@@ -392,6 +414,8 @@ def endpoint_snapshot(client, agent_name: str):
     except ResourceNotFoundError:
         return None
     verify_recovery_targets(client, agent_name, endpoint)
+    if enabled_endpoint(client, agent_name) != endpoint:
+        raise RuntimeError("The recovery route changed before version creation")
     return deepcopy(endpoint)
 
 
@@ -401,7 +425,8 @@ def routes_to_version(endpoint, version: str) -> bool:
         getattr(getattr(endpoint, "protocol_configuration", None), "responses", None) is not None
         and isinstance(rules, list)
         and len(rules) == 1
-        and str(getattr(rules[0], "agent_version", "")) == str(version)
+        and concrete_version(version)
+        and getattr(rules[0], "agent_version", None) == version
         and type(getattr(rules[0], "traffic_percentage", None)) in (int, float)
         and rules[0].traffic_percentage == 100
     )
@@ -412,7 +437,7 @@ def verify_route(client, agent_name: str, version: str) -> None:
     if not routes_to_version(endpoint, version):
         raise RuntimeError("The promoted Responses route was not confirmed")
     details = client.agents.get_version(agent_name=agent_name, agent_version=version)
-    if not active_release(details):
+    if not active_release(details, agent_name, version):
         raise RuntimeError("The promoted agent version is not active")
 
 
@@ -433,39 +458,39 @@ def cleanup_failed_version(
     if not concrete_route(original_endpoint) or (
         attempted_endpoint is not None and not routes_to_version(attempted_endpoint, version)
     ):
-        print(f"Warning: recovery route is not confirmed; retained version {version}")
+        print(f"Warning: recovery route is not confirmed; retained version {version}; manual recovery required")
         return
 
     try:
         endpoint = enabled_endpoint(client, agent_name)
         if endpoint != original_endpoint and (attempted_endpoint is None or endpoint != attempted_endpoint):
-            print(f"Warning: route changed during deployment; retained version {version}")
+            print(f"Warning: route changed during deployment; retained version {version}; manual recovery required")
             return
         verify_recovery_targets(client, agent_name, original_endpoint)
         if endpoint != original_endpoint:
             if enabled_endpoint(client, agent_name) != endpoint:
-                print(f"Warning: route changed during recovery; retained version {version}")
+                print(f"Warning: route changed during recovery; retained version {version}; manual recovery required")
                 return
             try:
                 client.agents.update_details(
                     agent_name=agent_name, agent_endpoint=recovery_endpoint(original_endpoint)
                 )
             except Exception:
-                print(f"Warning: rollback failed; retained version {version}")
+                print(f"Warning: rollback failed; retained version {version}; manual recovery required")
                 return
             endpoint = enabled_endpoint(client, agent_name)
             if endpoint != original_endpoint:
-                print(f"Warning: restored route was not confirmed; retained version {version}")
+                print(f"Warning: restored route was not confirmed; retained version {version}; manual recovery required")
                 return
             verify_recovery_targets(client, agent_name, endpoint)
         endpoint = enabled_endpoint(client, agent_name)
         if endpoint != original_endpoint:
-            print(f"Warning: route changed during cleanup; retained version {version}")
+            print(f"Warning: route changed during cleanup; retained version {version}; manual recovery required")
             return
         selector = getattr(endpoint, "version_selector", None)
         rules = getattr(selector, "version_selection_rules", None)
         if not concrete_route(endpoint) or any(str(rule.agent_version) == str(version) for rule in rules):
-            print(f"Warning: route not confirmed safe; retained version {version}")
+            print(f"Warning: route not confirmed safe; retained version {version}; manual recovery required")
             return
         print(f"Retained failed version {version}; inspect its sessions before deliberate cleanup")
     except Exception:
@@ -486,12 +511,10 @@ def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name:
         validate_traffic_rules(rules, f"Specialist {agent_name}")
         if not concrete_route(endpoint):
             raise RuntimeError(f"Specialist {agent_name} requires concrete version traffic rules")
-        versions = {str(rule.agent_version) for rule in rules if rule.traffic_percentage > 0 and rule.agent_version}
-        if any(not rule.agent_version for rule in rules if rule.traffic_percentage > 0):
-            raise RuntimeError(f"Specialist {agent_name} has an unversioned traffic rule")
+        versions = {rule.agent_version for rule in rules if rule.traffic_percentage > 0}
         for version in sorted(versions):
             details = client.agents.get_version(agent_name=agent_name, agent_version=version)
-            if not active_release(details):
+            if not active_release(details, agent_name, version):
                 raise RuntimeError(f"Specialist {agent_name} version {version} is not active")
         print(f"Specialist preflight passed: {agent_name}")
 
@@ -619,7 +642,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 if original_endpoint is not None:
                     verify_recovery_targets(client, args.agent_name, original_endpoint)
                 candidate = client.agents.get_version(agent_name=args.agent_name, agent_version=created.version)
-                if not active_release(candidate):
+                if not active_release(candidate, args.agent_name, created.version):
                     raise RuntimeError("The candidate agent version is not active")
                 if enabled_endpoint(client, args.agent_name) != current_endpoint:
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
