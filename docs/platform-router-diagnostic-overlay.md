@@ -78,6 +78,33 @@ unchanged ordinary root-file bytes and no backend state file. Modtm resolves to
 `registry.terraform.io/azure/modtm` (not `hashicorp/modtm`) with its added root
 constraint. The actual overlay and baseline pass full-root validate.
 
+## AzAPI registration guard follow-up
+
+AzAPI 2.12.0 defaults `skip_provider_registration` to false and configures its ARM
+client to perform resource-provider registration unless disabled. The offline
+diagnostic overlay now disables that behavior only for the existing default AzAPI
+configuration. It does **not** set `ARM_SKIP_PROVIDER_REGISTRATION`; the existing
+Terraform subprocess helper removes inherited `ARM_*` variables and then sets only
+AzureRM's `ARM_RESOURCE_PROVIDER_REGISTRATIONS=none`, avoiding AzureRM 4.81's
+rejection of the conflicting legacy skip variable. No AzureRM setting or shared
+Terraform helper is changed.
+
+The reviewed root source has one unaliased `azapi` provider, the local Router
+module declares the same provider requirement without a provider block or alias,
+and root module calls have no `providers` remapping. The exact-root source digest
+continues to reject any root configuration mutation. The hosted actual-root test
+initializes the exact root with Terraform 1.16.4 and the public module/provider
+closure, then rejects AzAPI provider blocks, provider aliases, explicit resource
+provider selectors, and `providers` remappings in every loaded descendant module.
+Any future alias/remapping or dependency source that introduces an independent
+AzAPI configuration therefore fails this test rather than being assumed covered by
+the root default override. Dependency versions and hashes are still reviewed inputs;
+this is not an immutable guarantee against future changes to the module graph.
+
+This test is credential-free, backend-disabled and uses only Terraform init,
+provider/module source inspection, and validate on a disposable copy of the exact
+public root. It does not contact Azure, refresh state, produce a plan, or prove the
+provider's live ARM request behavior. No protected workflow is enabled or dispatched.
 ## Still unresolved
 
 Successful init/validate does not prove provider/runtime provenance, authenticated
@@ -87,14 +114,14 @@ or safe recovery. The disabled rollout/apply paths must remain disabled until th
 independent technical gates are met. The user has authorized necessary work; these
 are not a pending generic approval request.
 
-Default-provider JSON configuration and network-disabled init/schema/validate
-prove neither runtime refresh telemetry behavior nor coverage of every child
-provider alias. No telemetry resource Read/plan was invoked; the network namespace
-prevents outbound telemetry in these test executions, but is not a proof that all
-real diagnostic provider instances have telemetry disabled. Existing version-specific
-loopback evidence is separate, not extended here. No AVM `enable_telemetry` input
-is changed to hide desired resources or drift. The module/provider closure,
-alias/runtime behavior and credentialed diagnostic execution need their own review.
+The new backend-disabled hosted integration test inspects every descendant module
+in Terraform's downloaded module manifest and rejects explicit AzAPI provider
+blocks, aliases, selectors, configuration aliases, and remappings. This covers the
+observed dependency closure at test time, not future dependency changes. It does not
+exercise runtime refresh, plan or provider registration requests. No telemetry
+resource Read/plan was invoked; no AVM `enable_telemetry` input is changed to hide
+desired resources or drift. Authenticated diagnostic execution still needs its own
+review.
 
 Do not enable or dispatch protected diagnostics on the strength of this regression.
 Any future protected plan/apply must retain `terraform-state-access` serialization;
