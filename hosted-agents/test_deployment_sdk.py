@@ -144,7 +144,7 @@ class DeploymentSDKTests(unittest.TestCase):
     def test_missing_wire_state_fields_fail_closed_before_creation(self):
         for field in ("state", "configuration_state"):
             with self.subTest(field=field):
-                def missing(**kwargs):
+                def missing(field=field, **kwargs):
                     details = self.get(**kwargs)
                     del details[field]
                     return details
@@ -161,7 +161,7 @@ class DeploymentSDKTests(unittest.TestCase):
                 self.endpoint = deepcopy(self.original)
                 self.state = self.configuration_state = "enabled"
 
-                def changed(*, agent_name, agent_version):
+                def changed(*, agent_name, agent_version, change=change):
                     details = self.read_version(agent_name=agent_name, agent_version=agent_version)
                     if change == "route":
                         self.endpoint = self.route("3")
@@ -200,6 +200,34 @@ class DeploymentSDKTests(unittest.TestCase):
         self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_not_called()
         self.client.agents.enable.assert_not_called()
+
+    def test_state_or_route_flip_before_candidate_smoke_never_invokes_candidate(self):
+        for change in ("state", "configuration_state", "route"):
+            with self.subTest(change=change):
+                self.endpoint = deepcopy(self.original)
+                self.state = self.configuration_state = "enabled"
+                self.client.agents.create_version_from_code.reset_mock()
+                self.candidate.reset_mock()
+
+                def changed(*, agent_name, agent_version, change=change):
+                    details = self.read_version(agent_name=agent_name, agent_version=agent_version)
+                    if agent_version == "2":
+                        if change == "route":
+                            self.endpoint = self.route("3")
+                        else:
+                            setattr(self, change, "disabled")
+                    return details
+
+                self.client.agents.get_version.side_effect = changed
+                expected = "changed during deployment" if change == "route" else "explicitly enabled"
+                with self.assertRaisesRegex(RuntimeError, expected):
+                    deploy(self.profile, self.args)
+                self.client.agents.create_version_from_code.assert_called_once()
+                self.candidate.assert_not_called()
+                self.client.agents.create_session.assert_not_called()
+                self.client.agents.update_details.assert_not_called()
+                self.client.agents.delete_version.assert_not_called()
+                self.client.agents.enable.assert_not_called()
 
     def test_candidate_identity_change_after_smoke_prevents_promotion(self):
         def checked(*args, **kwargs):
@@ -291,7 +319,7 @@ class DeploymentSDKTests(unittest.TestCase):
                 self.state = self.configuration_state = "enabled"
                 self.client.agents.update_details.reset_mock()
 
-                def smoke(*args):
+                def smoke(*args, value=value):
                     self.configuration_state = value
                     raise RuntimeError("fictional smoke failed")
 
@@ -313,7 +341,7 @@ class DeploymentSDKTests(unittest.TestCase):
             {"kind": "prompt", "environment_variables": {"FOUNDRY_MODEL_NAME": self.args.model}},
         ):
             with self.subTest(definition=definition):
-                def wrong(*, agent_name, agent_version):
+                def wrong(*, agent_name, agent_version, definition=definition):
                     if agent_version == "2":
                         return {"name": agent_name, "version": agent_version, "status": "active",
                                 "definition": definition}
@@ -753,6 +781,7 @@ class DeploymentSDKTests(unittest.TestCase):
         self.client.agents.create_version_from_code.side_effect = creating
         with self.assertRaisesRegex(RuntimeError, "changed during deployment"):
             deploy(self.profile, self.args)
+        self.candidate.assert_not_called()
         self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_not_called()
         self.assertEqual(self.endpoint.version_selector.version_selection_rules[0].agent_version, "3")
@@ -923,7 +952,7 @@ class DeploymentTimeoutTests(unittest.TestCase):
                         )
                         self.assertEqual("configuration_state" in details, "configuration_state" in payload)
                         self.assertFalse(hasattr(details, "configuration_state"))
-                        fictional = SimpleNamespace(agents=SimpleNamespace(get=lambda **kwargs: details))
+                        fictional = SimpleNamespace(agents=SimpleNamespace(get=lambda details=details, **kwargs: details))
                         if payload.get("state") == payload.get("configuration_state") == "enabled":
                             self.assertIsNone(enabled_endpoint(fictional, "fictional-agent"))
                         else:
