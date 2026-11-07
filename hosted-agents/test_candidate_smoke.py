@@ -192,7 +192,9 @@ class SmokeTransportTests(unittest.TestCase):
                                  credential=Credential(), allow_preview=True, retry_total=0) as client:
                 session = client.agents.create_session(agent_name="agent",
                     version_indicator=VersionRefIndicator(agent_version="2"))
+                self.assertEqual(session.version_indicator.type, "version_ref")
                 self.assertEqual(session.version_indicator.agent_version, "2")
+                self.assertEqual(session.status, "active")
                 client.agents.delete_session(agent_name="agent", session_id=session.agent_session_id)
         self.assertEqual(requests_sent[0][0], "POST")
         self.assertEqual(json.loads(requests_sent[0][2])["version_indicator"],
