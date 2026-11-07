@@ -52,11 +52,13 @@ The regression suite uses Linux synthetic collision/race fixtures and the comple
 public module/provider graph captured from that exact reviewed root through the
 preserved closure helper. This is an **untrusted public test observation**, not
 approved pins. It needs public downloads during credential-free capture only.
-All test Terraform subprocesses receive a narrow environment with no Azure/OIDC
+Actual-root test Terraform subprocesses receive a narrow environment with no Azure/OIDC
 credentials and execute as the hosted user inside a network namespace without
 external interfaces. Fixed commands are version inspection, backend-disabled
 readonly init with `-get=false`, providers inspection/schema, and validate.
-No plan, apply, refresh, import, state operation, protected backend initialization,
+The preserved existing console test also runs solely on synthetic HCL in a
+network-disabled namespace, exercising its secret-preflight expression without
+a vault or provider. No plan, apply, refresh, import, state operation, protected backend initialization,
 Azure access or fictional/real state refresh occurs.
 
 Tests reproduce the old duplicate-block initialization failure, then initialize
@@ -106,3 +108,33 @@ restored byte-for-byte before handoff, and never dispatched after restoration.
 No local project reads/edits/checkouts/execution, Azure/protected-data access,
 permissions/environment changes, private workflow dispatch, merge or PR creation
 is part of this work.
+
+## Verified hosted evidence and restoration
+
+[Ubuntu run 42410219006](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42410219006)
+succeeded at tested implementation head
+`7b7f427c40c42d98b28915025771f95c5c718b2d`, on exact reviewed source
+`446b078df12c9a08daec7bc5e9f0b5a57d8d7a5d`, Terraform **1.16.4/linux_amd64**.
+The 21 existing diagnostic tests passed, including the preserved synthetic console
+preflight test. Added overlay tests passed five synthetic tests with one deliberately
+unselected integration fixture, then all six tests in public actual-root mode.
+The old minimal provider-cache test was replaced, not retained as a skipped proxy
+for real-root coverage. Command results:
+
+- `python3 -m unittest discover -s .github/scripts -p test_check_platform_router_plan.py -v`: **passed (21)**, in a network-disabled hosted namespace.
+- `python3 -m unittest discover -s .github/scripts -p test_platform_router_overlay.py -v`: **passed (five + one unselected fixture)** in synthetic mode.
+- The same overlay test command with `PUBLIC_OVERLAY_BUNDLE` and `OVERLAY_TERRAFORM` in a network-disabled namespace: **passed (six)**, including actual full-root/module init/validate, backend-free requirement/schema inspection, old duplicate-block failure, and generation/collision races.
+
+The public fixture was freshly generated through preserved closure implementation
+`0aca16abe9a2527a238b3702fcacefacb627ebf1`, not downloaded as trusted pins or used to
+run a credentialed diagnostic. Actual-root tests verified observed modtm 0.4.0,
+AzAPI 2.12.0, AzureRM 4.81.0 and identical complete provider selections/lock bytes.
+These remain observed test versions only. No protected data or resource refresh was
+involved; outbound network was unavailable to fixture Terraform execution.
+
+The final restoration commit changes only this evidence text and restores
+`check-platform-input.yml` to original blob
+`13fea116e0cd70aa8f5d8cabcb9b893743e23c95`. Final diagnostic/test bytes are identical
+to the successful tested head. No workflow was dispatched after restoration.
+No PR was opened or merge performed. Root Terraform configuration, recording
+workflow, prohibited Lab files, previous closure branch and local work are unchanged.
