@@ -429,7 +429,7 @@ class PrivateVerificationTests(unittest.TestCase):
         cases = (("timeout", None), ("connection", None), ("invalid-json", b"not JSON"),
                  ("invalid-object", b"[]"), ("missing-version", b"{}"),
                  ("duplicate-id", b'{"id":"11111111-1111-4111-8111-111111111111","id":"content-not-for-logs"}'))
-        for stage in ("update", "stale"):
+        for stage in ("create", "update", "stale"):
             for name, payload in cases:
                 with self.subTest(stage=stage, failure=name):
                     fixture = StorageClient()
@@ -440,7 +440,7 @@ class PrivateVerificationTests(unittest.TestCase):
                         method = request.get_method()
                         path = request.full_url.removeprefix("https://lab.example.invalid")
                         expected = 200
-                        current_stage = None
+                        current_stage = "create" if method == "POST" else None
                         if method == "PUT":
                             puts += 1
                             current_stage = "update" if puts == 1 else "stale"
@@ -469,14 +469,30 @@ class PrivateVerificationTests(unittest.TestCase):
                     self.assertEqual(code, 1)
                     self.assertEqual(output.getvalue(), "")
                     message = json.loads(error.getvalue())["error"]
-                    self.assertIn("conditional update" if stage == "update" else "stale-update conflict", message)
-                    self.assertIn(fixture.identifier, message)
+                    expected_phase = ("create outcome is unconfirmed" if stage == "create"
+                                      else "conditional update" if stage == "update"
+                                      else "cleanup version confirmation" if name == "missing-version"
+                                      else "stale-update conflict")
+                    self.assertIn(expected_phase, message)
+                    if stage != "create":
+                        self.assertIn(fixture.identifier, message)
                     self.assertNotIn(fixture.sensitive, error.getvalue())
                     self.assertNotIn("content-not-for-logs", error.getvalue())
                     self.assertFalse(fixture.deleted)
-                    self.assertEqual(fixture.read_count, 1)
+                    expected_reads = 0 if stage == "create" else 2 if stage == "stale" and name == "missing-version" else 1
+                    self.assertEqual(fixture.read_count, expected_reads)
                     self.assertFalse(any(method == "DELETE" for method, _, _, _ in fixture.requests))
-                    self.assertEqual(puts, 1 if stage == "update" else 2)
+                    self.assertEqual(puts, 0 if stage == "create" else 1 if stage == "update" else 2)
+
+    def test_primary_failure_is_preserved_without_a_cleanup_error_replacing_it(self):
+        primary = CheckError(StorageClient.sensitive)
+        client = StorageClient(faults={"initial": primary})
+        with self.assertRaises(CheckError) as raised:
+            verify(client, check_storage=True)
+        self.assertIs(raised.exception.__cause__, primary)
+        self.assertIn("initial record verification", str(raised.exception))
+        self.assertNotIn(client.sensitive, str(raised.exception))
+        self.assertFalse(any(method in {"PUT", "DELETE"} for method, _, _, _ in client.requests))
 
     def test_http_accepted_stale_update_retains_record_without_cleanup(self):
         fixture = StorageClient()
