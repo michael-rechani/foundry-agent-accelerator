@@ -357,12 +357,23 @@ def active_release(details) -> bool:
     return details.get("status") == "active" and details.get("draft", False) is False
 
 
+def enabled_endpoint(client, agent_name: str):
+    details = client.agents.get(agent_name=agent_name)
+    for field in ("state", "configuration_state"):
+        value = getattr(details, field, None)
+        if not isinstance(value, str) or value != "enabled":
+            raise RuntimeError("Agent operational and administrative states must both be explicitly enabled")
+    return getattr(details, "agent_endpoint", None)
+
 def verify_recovery_targets(client, agent_name: str, endpoint) -> None:
     if not concrete_route(endpoint):
         raise RuntimeError(
             "Pin the existing agent route to explicit versions before redeploying; "
             "an unrouted or symbolic route such as @latest is not a safe recovery target"
         )
+    if getattr(getattr(endpoint, "protocol_configuration", None), "responses", None) is None:
+        raise RuntimeError("Recovery route has no Responses endpoint")
+    enabled_endpoint(client, agent_name)
     rules = endpoint.version_selector.version_selection_rules
     validate_traffic_rules(rules, "Recovery route")
     versions = {rule.agent_version for rule in rules if rule.traffic_percentage > 0}
@@ -376,7 +387,7 @@ def endpoint_snapshot(client, agent_name: str):
     from azure.core.exceptions import ResourceNotFoundError
 
     try:
-        endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+        endpoint = enabled_endpoint(client, agent_name)
     except ResourceNotFoundError:
         return None
     verify_recovery_targets(client, agent_name, endpoint)
@@ -396,7 +407,7 @@ def routes_to_version(endpoint, version: str) -> bool:
 
 
 def verify_route(client, agent_name: str, version: str) -> None:
-    endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+    endpoint = enabled_endpoint(client, agent_name)
     if not routes_to_version(endpoint, version):
         raise RuntimeError("The promoted Responses route was not confirmed")
     details = client.agents.get_version(agent_name=agent_name, agent_version=version)
@@ -425,13 +436,13 @@ def cleanup_failed_version(
         return
 
     try:
-        endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+        endpoint = enabled_endpoint(client, agent_name)
         if endpoint != original_endpoint and (attempted_endpoint is None or endpoint != attempted_endpoint):
             print(f"Warning: route changed during deployment; retained version {version}")
             return
         verify_recovery_targets(client, agent_name, original_endpoint)
         if endpoint != original_endpoint:
-            if client.agents.get(agent_name=agent_name).agent_endpoint != endpoint:
+            if enabled_endpoint(client, agent_name) != endpoint:
                 print(f"Warning: route changed during recovery; retained version {version}")
                 return
             try:
@@ -441,12 +452,12 @@ def cleanup_failed_version(
             except Exception:
                 print(f"Warning: rollback failed; retained version {version}")
                 return
-            endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+            endpoint = enabled_endpoint(client, agent_name)
             if endpoint != original_endpoint:
                 print(f"Warning: restored route was not confirmed; retained version {version}")
                 return
             verify_recovery_targets(client, agent_name, endpoint)
-        endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+        endpoint = enabled_endpoint(client, agent_name)
         if endpoint != original_endpoint:
             print(f"Warning: route changed during cleanup; retained version {version}")
             return
@@ -465,7 +476,7 @@ def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name:
     for agent_name in agent_names:
         if agent_name == coordinator_name:
             raise ValueError("A coordinator cannot delegate to its own endpoint")
-        endpoint = client.agents.get(agent_name=agent_name).agent_endpoint
+        endpoint = enabled_endpoint(client, agent_name)
         protocols = getattr(endpoint, "protocol_configuration", None)
         selector = getattr(endpoint, "version_selector", None)
         rules = getattr(selector, "version_selection_rules", None)
@@ -577,9 +588,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                         profile.delegation_checks, poll_seconds=args.poll_seconds, max_polls=args.max_polls,
                     )
                     candidate_check_in_progress = False
-                current_endpoint = client.agents.get(
-                    agent_name=args.agent_name,
-                ).agent_endpoint
+                current_endpoint = enabled_endpoint(client, args.agent_name)
                 if original_endpoint is not None and current_endpoint != original_endpoint:
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
                 if original_endpoint is not None:
@@ -608,7 +617,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 candidate = client.agents.get_version(agent_name=args.agent_name, agent_version=created.version)
                 if not active_release(candidate):
                     raise RuntimeError("The candidate agent version is not active")
-                if client.agents.get(agent_name=args.agent_name).agent_endpoint != current_endpoint:
+                if enabled_endpoint(client, args.agent_name) != current_endpoint:
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
                 attempted_endpoint = deepcopy(endpoint_config)
                 client.agents.update_details(
