@@ -38,9 +38,7 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
     def test_descendant_provider_bypass_patterns_fail_closed(self):
         cases = {
             "provider block": 'provider "azapi" { alias = "other" }',
-            "resource selector": 'resource "azapi_resource" "x" {
- provider = azapi.other
-}',
+            "resource selector": 'resource "azapi_resource" "x" {\n provider = azapi.other\n}',
             "configuration alias": 'configuration_aliases = [azapi.other]',
             "module remap": 'module "x" { source = "./x" providers = { azapi = azapi.other } }',
         }
