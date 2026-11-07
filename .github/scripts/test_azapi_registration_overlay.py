@@ -4,6 +4,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -97,14 +98,18 @@ def _iter_source_files(directory):
         try:
             with os.scandir(current) as entries:
                 for entry in entries:
-                    if entry.is_symlink():
+                    info = entry.stat(follow_symlinks=False)
+                    mode = info.st_mode
+                    if stat.S_ISLNK(mode):
                         raise AssertionError("descendant module contains a symlinked source entry")
-                    if entry.is_dir(follow_symlinks=False):
+                    if stat.S_ISDIR(mode):
                         pending.append(Path(entry.path))
-                    elif entry.is_file(follow_symlinks=False):
+                    elif stat.S_ISREG(mode):
                         path = Path(entry.path)
                         if path.suffix == ".tf" or path.name.endswith(".tf.json"):
                             yield path
+                    else:
+                        raise AssertionError("descendant module contains a special source entry")
         except OSError:
             raise AssertionError("descendant module source tree could not be inspected") from None
 
@@ -277,6 +282,39 @@ class AzapiRegistrationOverlayTests(unittest.TestCase):
             (root / "benign.tf.json").write_text(benign_json, encoding="utf-8")
             assert_no_azapi_bypass(root)
 
+    def test_fifo_configuration_entries_are_rejected(self):
+        for name in ("main.tf", "variables.tf.json"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                os.mkfifo(root / name)
+                with self.assertRaisesRegex(AssertionError, "special source entry"):
+                    assert_no_azapi_bypass(root)
+
+    def test_mocked_socket_and_device_entries_are_rejected(self):
+        for mode in (stat.S_IFSOCK, stat.S_IFCHR, stat.S_IFBLK):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as folder:
+                entry = mock.Mock()
+                entry.path = str(Path(folder) / "main.tf")
+                entry.stat.return_value.st_mode = mode
+                scanner = mock.MagicMock()
+                scanner.__enter__.return_value = [entry]
+                with mock.patch("os.scandir", return_value=scanner):
+                    with self.assertRaisesRegex(AssertionError, "special source entry"):
+                        assert_no_azapi_bypass(Path(folder))
+                entry.stat.assert_called_once_with(follow_symlinks=False)
+
+    def test_vanished_or_uninspectable_entries_fail_explicitly(self):
+        for error in (FileNotFoundError, PermissionError):
+            with self.subTest(error=error.__name__), tempfile.TemporaryDirectory() as folder:
+                entry = mock.Mock()
+                entry.path = str(Path(folder) / "main.tf")
+                entry.stat.side_effect = error
+                scanner = mock.MagicMock()
+                scanner.__enter__.return_value = [entry]
+                with mock.patch("os.scandir", return_value=scanner):
+                    with self.assertRaisesRegex(AssertionError, "could not be inspected"):
+                        assert_no_azapi_bypass(Path(folder))
+                entry.stat.assert_called_once_with(follow_symlinks=False)
     def test_unreadable_subtree_fails_explicitly(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
