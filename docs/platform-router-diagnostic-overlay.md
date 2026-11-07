@@ -159,9 +159,26 @@ AzAPI 2.12.0, AzureRM 4.81.0 and identical complete provider selections/lock byt
 These remain observed test versions only. No protected data or resource refresh was
 involved; outbound network was unavailable to fixture Terraform execution.
 
-The final restoration commit changes only this evidence text and restores
-`check-platform-input.yml` to original blob
-`13fea116e0cd70aa8f5d8cabcb9b893743e23c95`. Final diagnostic/test bytes are identical
-to the successful tested head. No workflow was dispatched after restoration.
-No PR was opened or merge performed. Root Terraform configuration, recording
-workflow, prohibited Lab files, previous closure branch and local work are unchanged.
+The branch's `check-platform-input.yml` remains at original blob
+`13fea116e0cd70aa8f5d8cabcb9b893743e23c95`. No workflow was dispatched after its
+restoration. No PR was opened or merge performed. Root Terraform configuration,
+recording workflow, prohibited Lab files, previous closure branch and local work are
+unchanged.
+
+## AzAPI guard exact-head follow-up
+
+[Ubuntu run 42414297667](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42414297667)
+passed on exact branch head
+`656defe3dc99538ef3d0b5e2e1ffc3540355bd51`. It ran seven focused overlay tests in
+synthetic mode (the bundle-dependent integration case is skipped there), then two
+integration tests against the captured public root and dependency closure. The
+integration path used Terraform 1.16.4 `init -backend=false` and `validate`, with
+Terraform fixture execution inside a network-disabled container; the temporary
+filesystem explicitly permits execution of the downloaded provider binaries.
+
+This confirms configuration merge and validation, not runtime provider registration
+behavior. The separate tests reject explicit descendant AzAPI provider blocks,
+provider selectors, configuration aliases, and module remappings. A new alias or
+provider-routing pattern not covered by the scanner, or a later dependency change,
+requires renewed review. No positive-control runtime request test or Azure call was
+performed.
