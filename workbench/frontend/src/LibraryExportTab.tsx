@@ -215,6 +215,13 @@ export function LibraryExportTab({
 python hosted-agents/bundle.py inspect ${template.id}.agent-bundle.zip
 python hosted-agents/bundle.py deploy ${template.id}.agent-bundle.zip --endpoint <your-project-endpoint> --model <your-deployment> --agent-name <your-agent-name>`}
         </pre>
+        <p className="library-muted hood-only">
+          If inspection shows that the source used encrypted reasoning, add{' '}
+          <code>--no-encrypted-reasoning</code> to disable it, or add{' '}
+          <code>--encrypted-reasoning</code> only after verifying the
+          destination model supports it. Older bundled runtimes cannot use
+          either option.
+        </p>
         <p className="library-muted">
           There is no one-click cross-environment deployment. Deploying creates
           a billable hosted version in your project; your team runs it with its

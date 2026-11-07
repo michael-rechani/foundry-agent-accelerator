@@ -168,7 +168,7 @@ From a private backend-connected administrative environment, read:
 
 ```powershell
 terraform -chdir=terraform output -raw foundry_project_endpoint
-terraform -chdir=terraform output -raw model_deployment_name
+terraform -chdir=terraform output -raw model_router_deployment_name
 ```
 
 Set these non-secret output values in the deployment session. The deployment
@@ -176,8 +176,15 @@ runner doesn't need a copy of Terraform state:
 
 ```powershell
 $env:FOUNDRY_PROJECT_ENDPOINT = '<verified-project-endpoint>'
-$env:FOUNDRY_MODEL_NAME = '<verified-model-deployment-name>'
+$env:FOUNDRY_MODEL_NAME = '<verified-model-router-deployment-name>'
 ```
+
+The platform deploys Model Router by default; use `model_deployment_name`
+instead only when deliberately publishing against the fixed primary model.
+After a prebuilt agent's new hosted version is active and verified, update its
+`prebuilt_agent_models` entry in the Lab's reviewed Terraform inputs to match
+the actual deployment. That setting affects Lab budget accounting only; it
+doesn't publish or switch an agent.
 
 ### 3. Prepare the selected sample
 
@@ -235,9 +242,11 @@ portable regular-file permissions. Review agents also include the shared
 deploying source rather than a portable bundle.
 
 Before upload, the deployer checks the model and specialists and snapshots the
-existing route. Existing routes must use specific versions. A symbolic
-`@latest` route or an unrouted existing agent needs operator reconciliation
-before another version is created.
+existing route. Existing routes must use specific versions, have valid traffic
+percentages totaling 100, and send traffic only to active, non-draft versions.
+A symbolic `@latest` route or an unrouted existing agent needs operator
+reconciliation before another version is created. The recovery versions are
+checked again before promotion.
 
 It then uploads an immutable hosted-agent version with a source hash and waits
 for activation. Next it checks that the previous endpoint hasn't changed,
@@ -246,14 +255,23 @@ Responses route. It reads the active version and exact 100% route back both
 before and after the sample-specific smoke checks. Clients can reach the
 candidate during those checks, so this isn't a pre-promotion canary.
 
-If provisioning or a smoke test fails, the deployer attempts to restore the
-previous route when promotion was attempted. It deletes the failed version only
-after a fresh route read confirms the candidate is no longer referenced. The
-candidate stays for manual inspection if restoration fails, the route is
-unknown or symbolic, or a first deployment has no previous route.
+If provisioning or a smoke test fails after promotion was attempted, the
+deployer reads the endpoint before restoring the captured route. It restores
+only when the endpoint still matches its attempted promotion; an endpoint
+already matching the captured route needs no update. If it observes any other
+route or endpoint configuration, it leaves it unchanged and retains the
+candidate. After restoration, it requires the full endpoint to match the
+captured snapshot before deleting the candidate. It checks the recovery
+versions' status before and after restoring. If the first check fails, it
+doesn't overwrite the current endpoint; if either check fails, it retains the
+candidate. An unconfirmed, unknown or symbolic route, or a first deployment
+without a previous route, also retains the candidate for inspection. Before
+deleting any failed version, it checks that a fresh route doesn't reference it.
 
-Serialize deployments of the same agent. The cleanup flow doesn't provide a
-distributed lock against concurrent promotions.
+Serialize all deployments and route edits for the same agent. The read and
+restore aren't an atomic conditional update, and the cleanup flow doesn't
+provide a distributed lock. An active status doesn't prove that a version can
+serve a healthy response; verify that separately.
 
 The Foundry client allows 30 seconds to connect and 60 seconds for each response,
 with no automatic retries, so a stalled call fails in about 90 seconds instead
@@ -352,12 +370,16 @@ python hosted-agents\bundle.py inspect agent-exports\created.agent-bundle.zip
 ```
 
 The record must be ready. The CLI takes its instructions, template ID, model,
-and runtime name. It doesn't export project IDs, operator keys, events, chat
+runtime name, and (when present) its saved encrypted-reasoning setting. It
+doesn't export project IDs, operator keys, events, chat
 records, or resource ownership metadata. It requires the shared runtime ZIP
 hash to match the saved hash. If the Lab runtime changed since publication,
 use `--runtime-directory <original-agent_runtime-folder>` from the matching
 source revision. A mismatched or missing hash is an error, not permission to
 substitute today's code.
+`inspect` shows the saved source setting and whether the archived runtime
+declares support for it. Old records and runtimes remain exportable; the CLI
+does not claim that an older runtime supports a setting it cannot honor.
 
 ### Deploy into a prepared destination
 
@@ -386,6 +408,16 @@ Lab-managed resource. They keep the Lab's no-hidden-model-smoke-call behavior,
 so an active runtime and confirmed routing don't prove answer quality. After
 deployment, test their fictional prompts yourself. Adding an independent agent
 to a destination Lab catalog is a separate operator change.
+
+For a Lab-created bundle whose source setting was `true`, choose explicitly
+between `--no-encrypted-reasoning` and `--encrypted-reasoning` when deploying:
+the source project's capability does not establish support in the destination,
+even if deployment names match. Other Lab-created bundles default to off. Use
+`--encrypted-reasoning` only after verifying the destination model and all
+possible Router submodels support it. The CLI rejects it for an older runtime
+without the capability marker, and rejects `--no-encrypted-reasoning` there as
+well because an older runtime cannot honor that override. Neither option
+applies to prebuilt bundles.
 
 ### Transfer boundaries
 

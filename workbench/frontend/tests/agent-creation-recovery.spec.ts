@@ -274,5 +274,12 @@ test('created-record validation rejects mismatched identities and accepts cleare
   expect(
     parseCreatedAgent({ ...record, model_profile: undefined }).model_profile,
   ).toBeUndefined()
+  expect(
+    parseCreatedAgent({ ...record, include_encrypted_reasoning: true })
+      .include_encrypted_reasoning,
+  ).toBe(true)
+  expect(() =>
+    parseCreatedAgent({ ...record, include_encrypted_reasoning: 'true' }),
+  ).toThrow()
   expect(() => parseCreatedAgent({ ...record, instructions: '' })).toThrow()
 })

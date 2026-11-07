@@ -24,7 +24,9 @@ from agent_bundle import AgentBundles
 from agent_creation import CREATED_ID, AgentCreations, CreationSettings
 from agent_scorecards import SCORECARDS
 from library_rules import DEPLOYMENT_NAME
-from library_preview import PREVIEW_AGENT, PREVIEW_ID, preview_agent, run_preview, summarize_usage, usage_record
+from library_preview import (
+    PREVIEW_AGENT, PREVIEW_ID, model_observation, preview_agent, run_preview, summarize_usage, usage_record,
+)
 from model_budget import ModelBudgetWait, ModelBudgets, estimate_input_tokens, measured_answer_tokens, validate_model_limits
 from request_guard import MAX_REQUEST_BYTES, RateGate, RequestRejected, api_error, read_json_body, record_request_failure, request_allowed
 from tool_receipts import execution_receipts
@@ -74,6 +76,7 @@ class Settings:
     budget_alerts: bool = False
     foundry_project_id: str = ""
     model_limits: dict = field(default_factory=dict)
+    prebuilt_agent_models: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_env(cls):
@@ -95,13 +98,18 @@ class Settings:
             model_limits = json.loads(os.getenv("WORKBENCH_MODEL_LIMITS") or "{}")
         except json.JSONDecodeError as problem:
             raise ValueError("WORKBENCH_MODEL_LIMITS must be a JSON object") from problem
+        try:
+            prebuilt_agent_models = json.loads(os.getenv("WORKBENCH_PREBUILT_AGENT_MODELS") or "{}")
+        except json.JSONDecodeError as problem:
+            raise ValueError("WORKBENCH_PREBUILT_AGENT_MODELS must be a JSON object") from problem
         return cls(mode, endpoint, hosts, origins, Path(os.getenv("WORKBENCH_AGENTS_FILE", ROOT / "agents.json")),
                visible_agents=visible_agents, default_agent=os.getenv("WORKBENCH_DEFAULT_AGENT") or None,
                title=os.getenv("WORKBENCH_TITLE", "Foundry Agent Lab"), creation=CreationSettings.from_env(),
                session_reuse_seconds=float(os.getenv("WORKBENCH_SESSION_REUSE_SECONDS", "600")),
                library_preview=library_preview == "true", unfinished_agents=unfinished_agents == "true",
                budget_alerts=budget_alerts == "true",
-               foundry_project_id=os.getenv("WORKBENCH_FOUNDRY_PROJECT_ID", ""), model_limits=model_limits)
+               foundry_project_id=os.getenv("WORKBENCH_FOUNDRY_PROJECT_ID", ""), model_limits=model_limits,
+               prebuilt_agent_models=prebuilt_agent_models)
 
     def validate(self):
         if not isinstance(self.title, str) or not self.title.strip() or len(self.title) > 80 or any(ord(char) < 32 for char in self.title):
@@ -121,6 +129,11 @@ class Settings:
         if type(self.budget_alerts) is not bool:
             raise ValueError("Budget alert status must be a boolean")
         validate_model_limits(self.model_limits)
+        if not isinstance(self.prebuilt_agent_models, dict) or any(
+                not isinstance(agent_id, str) or not NAME.fullmatch(agent_id)
+                or not isinstance(model, str) or not DEPLOYMENT_NAME.fullmatch(model)
+                for agent_id, model in self.prebuilt_agent_models.items()):
+            raise ValueError("WORKBENCH_PREBUILT_AGENT_MODELS must map agent IDs to model deployment names")
         if not isinstance(self.foundry_project_id, str):
             raise ValueError("Foundry project ID must be a string")
         if self.foundry_project_id:
@@ -214,7 +227,7 @@ def validate_agent(agent):
             raise ValueError("Invalid starter prompt")
 
 
-def load_agents(path):
+def load_agents(path, model_overrides=None):
     agents = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(agents, list) or not 1 <= len(agents) <= 16:
         raise ValueError("Configure between one and sixteen agents")
@@ -224,6 +237,10 @@ def load_agents(path):
         if agent["id"] in identifiers:
             raise ValueError("Duplicate agent identifier")
         identifiers.add(agent["id"])
+        if model_overrides is not None and agent["id"] in model_overrides:
+            agent["model"] = model_overrides[agent["id"]]
+    if model_overrides is not None and set(model_overrides) - identifiers:
+        raise ValueError("WORKBENCH_PREBUILT_AGENT_MODELS must name configured agents")
     return agents
 
 
@@ -325,7 +342,8 @@ class FoundryGateway:
         )
         status, text, output = await run_preview(
             client, template_id=agent["template_id"], model=self.settings.creation.model_for(agent["model_profile"]),
-            prompt=prompt, reasoning=agent["model_profile"] != "tool_calling", usage=usage,
+            prompt=prompt, reasoning=self.settings.creation.preview_includes_encrypted_reasoning(agent["model_profile"]),
+            usage=usage,
             admit_model_call=admit_model_call, instructions=instructions,
         )
         LOGGER.info(json.dumps({"event": "workbench_library_preview", "template_id": agent["template_id"],
@@ -477,10 +495,12 @@ class ChatReviews:
             receipts = execution_receipts(output, agent["tools"])
             if len(receipts) > 32 or any(len(receipt["output"] or "") > 100000 for receipt in receipts):
                 return self.error(request, 502, "response_too_large")
-            return JSONResponse({"request_id": request_id, "status": status, "agent": agent["agent"],
-                                 "text": text, "receipts": receipts, "elapsed_ms": round((time.monotonic() - started) * 1000),
-                                 "usage": summarize_usage(usage)},
-                                headers={"X-Correlation-ID": request_id})
+            result = {"request_id": request_id, "status": status, "agent": agent["agent"],
+                      "text": text, "receipts": receipts, "elapsed_ms": round((time.monotonic() - started) * 1000),
+                      "usage": summarize_usage(usage)}
+            if agent.get("preview") and usage:
+                result["model_observation"] = model_observation(self.deployment_for(agent), usage)
+            return JSONResponse(result, headers={"X-Correlation-ID": request_id})
         except ModelBudgetWait as problem:
             return self.busy(request, problem.retry_after)
         except TimeoutError as problem:
@@ -539,7 +559,7 @@ class DependencyMonitor:
 def create_app(settings=None, gateway=None, history_store=None, publisher=None):
     settings = settings or Settings.from_env()
     settings.validate()
-    agents = load_agents(settings.agents_path)
+    agents = load_agents(settings.agents_path, settings.prebuilt_agent_models)
     known_agents = {agent["id"] for agent in agents}
     if not settings.visible_agents or not set(settings.visible_agents) <= known_agents:
         raise ValueError("WORKBENCH_VISIBLE_AGENTS must name configured agents")

@@ -5,7 +5,7 @@ import unittest
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from zipfile import ZipFile
 
 from azure.ai.projects.models import (
@@ -15,6 +15,7 @@ from azure.ai.projects.models import (
 from azure.core.exceptions import ResourceNotFoundError
 
 from agent_publisher import FoundryPublisher, PublicationError, ownership, runtime_package, service_error_code
+from agent_runtime.main import build_agent
 from log_capture import CapturedLabLogs
 
 
@@ -124,6 +125,8 @@ class PublisherTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(definition.code_configuration.entry_point, ["python", "main.py"])
         self.assertEqual(definition.code_configuration.dependency_resolution, "remote_build")
         self.assertEqual(definition.environment_variables["AGENT_STORE_RESPONSES"], "false")
+        self.assertEqual(definition.environment_variables["AGENT_INCLUDE_ENCRYPTED_REASONING"], "false")
+        self.assertNotIn("workbench_encrypted_reasoning", submitted["metadata"])
         for key in (
             "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT",
             "ENABLE_SENSITIVE_DATA",
@@ -147,6 +150,44 @@ class PublisherTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.events[0][0], "uploading")
         self.assertEqual(self.document["status"], "ready")
         self.assertTrue(self.publisher.route_matches(self.agents.endpoint, "1"))
+
+    async def test_saved_reasoning_setting_reaches_hosted_sdk_and_owned_metadata(self):
+        self.document.update(template_id="workflow-coordinator", include_encrypted_reasoning=True)
+        self.agents.version.metadata = ownership(self.document)
+        await self.publisher.create(self.document, self.progress)
+        submitted = self.agents.created[0]
+        variables = submitted["definition"].environment_variables
+        self.assertEqual(variables["AGENT_INCLUDE_ENCRYPTED_REASONING"], "true")
+        self.assertEqual(submitted["metadata"]["workbench_encrypted_reasoning"], "true")
+
+        credential = MagicMock()
+        agent = build_agent(credential, variables)
+        response = MagicMock(id="response_1", model="fixture", created_at=1000000000, metadata={},
+                             output_parsed=None, output=[], usage=None, finish_reason=None,
+                             conversation=None, status="completed")
+        raw_response = MagicMock(headers={})
+        raw_response.parse.return_value = response
+        try:
+            target = agent.client.client.responses.with_raw_response
+            with patch.object(target, "create", new_callable=AsyncMock, return_value=raw_response) as create:
+                await agent.run("Review the sample request.")
+                request = create.await_args.kwargs
+                self.assertEqual(request["model"], "configured-model")
+                self.assertIs(request["store"], False)
+                self.assertTrue(request["tools"])
+                self.assertEqual(request["include"], ["reasoning.encrypted_content"])
+        finally:
+            await agent.client.close()
+        credential.get_token.assert_not_called()
+
+    async def test_invalid_saved_reasoning_never_begins_publication(self):
+        for value in ("true", 1, None, [], {}):
+            with self.subTest(value=value):
+                self.document["include_encrypted_reasoning"] = value
+                await self.assert_code("invalid_runtime_settings", self.publisher.create)
+        self.assertEqual(self.deployments.reads, [])
+        self.assertEqual(self.agents.created, [])
+        self.assertEqual(self.events, [])
 
     async def test_packaging_is_deterministic_and_does_not_include_other_workspace_files(self):
         first, digest = runtime_package()
@@ -215,6 +256,24 @@ class PublisherTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.document["runtime_hash"] = "old-code"
         await self.assert_code("runtime_changed", self.publisher.create)
         self.assertEqual(self.agents.created, [])
+
+    async def test_started_legacy_publication_reconciles_after_runtime_changes(self):
+        self.document.update(runtime_hash="old-code", publication_started=True)
+        self.agents.version.metadata = ownership(self.document)
+        self.agents.exists = True
+        await self.publisher.resume(self.document, self.progress)
+        self.assertEqual(self.agents.created, [])
+        self.assertEqual(self.document["status"], "ready")
+
+    async def test_resume_rejects_changed_saved_reasoning_metadata(self):
+        self.document.update(include_encrypted_reasoning=True, publication_started=True)
+        self.agents.exists = True
+        self.agents.version.metadata = {**ownership(self.document), "workbench_encrypted_reasoning": "false"}
+        await self.assert_code("resource_changed", self.publisher.resume)
+        await self.assert_code("resource_changed", self.publisher.delete)
+        self.assertEqual(self.agents.created, [])
+        self.assertEqual(self.agents.promotions, [])
+        self.assertEqual(self.agents.deleted, [])
 
     async def test_publication_started_is_persisted_before_external_mutation(self):
         async def fail_to_save(stage, **changes):

@@ -2,14 +2,14 @@ import json
 import unittest
 from dataclasses import replace
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
 from agent_creation import CreationSettings
 from agent_runtime.main import DEMO_POLICY, demo_policy
 from agent_templates import TASK_MARKER
-from app import Settings, create_app
+from app import FoundryGateway, Settings, create_app
 from draft_cases import CASE_WRITER_INSTRUCTIONS
 from draft_revision import REVISER_INSTRUCTIONS
 from log_capture import CapturedLabLogs
@@ -119,6 +119,39 @@ class DesignLoopTests(CapturedLabLogs, unittest.TestCase):
         self.assertTrue(body["receipts"][0]["verified"])
         self.gateway.preview.return_value = ("completed", "REQ-101 is missing an owner.", [])
         self.assertFalse(self.run_case(template_id="workflow-coordinator", case=case).json()["passed"])
+
+    def test_draft_case_runs_use_the_selected_router_preview_capability(self):
+        tool_call = {
+            "type": "function_call", "call_id": "one", "name": "lookup_purchase_order",
+            "arguments": json.dumps({"po_number": "PO-DEMO-2210"}),
+        }
+        first = SimpleNamespace(status="completed", output_text="", model_dump=lambda **_: {"output": [tool_call]})
+        second = SimpleNamespace(status="completed", output_text="PO-DEMO-2210", model_dump=lambda **_: {"output": []})
+        openai_client, project = MagicMock(), MagicMock()
+        openai_client.responses.create = AsyncMock(side_effect=[first, second])
+        project.get_openai_client.return_value = openai_client
+        settings = replace(
+            self.settings,
+            creation=CreationSettings(False, "model-router", preview_encrypted_reasoning={"model-router": False}),
+        )
+        gateway = FoundryGateway(settings)
+        client = TestClient(create_app(settings, gateway))
+        case = {**CASE, "input": "Sample request: check PO-DEMO-2210",
+                "checks": {"expected_tools": ["lookup_purchase_order"]}}
+        with patch.object(gateway, "_review_project", return_value=project):
+            response = self.post("/api/agent-test-runs", {
+                "instructions": INSTRUCTIONS, "template_id": "supplier-invoice-reviewer",
+                "case": case, "confirm_cost": True,
+            }, client=client)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertTrue(response.json()["passed"])
+        self.assertTrue(response.json()["receipts"][0]["verified"])
+        calls = openai_client.responses.create.await_args_list
+        self.assertEqual(len(calls), 2)
+        for request in calls:
+            self.assertEqual(request.kwargs["model"], "model-router")
+            self.assertNotIn("include", request.kwargs)
+            self.assertFalse(request.kwargs["store"])
 
     def test_a_case_the_client_edited_is_checked_again(self):
         bad = {**CASE, "checks": {"must_not_match": ["(a+)+$"]}}

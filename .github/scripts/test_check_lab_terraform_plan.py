@@ -705,6 +705,20 @@ class LabPlanReportTests(unittest.TestCase):
         self.assertEqual(len(secret), 1)
         self.assertEqual(names | set(secret), diagnostic.CONTAINER_ENVIRONMENT_KEYS)
 
+    def test_prebuilt_model_changes_are_identified_without_values(self):
+        key = "WORKBENCH_PREBUILT_AGENT_MODELS"
+        change = {
+            "before": self.container_environment([{"name": key, "value": '{"private-agent":"private-old"}'}]),
+            "after": self.container_environment([{"name": key, "value": '{"private-agent":"private-new"}'}]),
+        }
+        result = diagnostic.compare_container_environment(change)
+        self.assertEqual(result["changed"], {key: "changed"})
+        self.assertEqual(result["changed_attributes"], {key: {"value": "set->set"}})
+        self.assertFalse(result["other_entries_changed"])
+        rendered = json.dumps(result)
+        for private in ("private-agent", "private-old", "private-new"):
+            self.assertNotIn(private, rendered)
+
     def test_container_environment_rejects_unknown_duplicate_and_unexpected_shapes(self):
         before = self.container_environment([
             {"name": "WORKBENCH_MODE", "value": "private"},

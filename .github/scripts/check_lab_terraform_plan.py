@@ -154,9 +154,12 @@ CONTAINER_ENVIRONMENT_KEYS = frozenset({
     "WORKBENCH_CREATION_KEY_SHA256",
     "WORKBENCH_DEFAULT_AGENT",
     "WORKBENCH_FOUNDRY_PROJECT_ID",
+    "WORKBENCH_HOSTED_ENCRYPTED_REASONING",
     "WORKBENCH_MODE",
     "WORKBENCH_MODEL_LIMITS",
     "WORKBENCH_ORIGINS",
+    "WORKBENCH_PREBUILT_AGENT_MODELS",
+    "WORKBENCH_PREVIEW_ENCRYPTED_REASONING",
     "WORKBENCH_PRIVATE_PRESENTER_MODE",
     "WORKBENCH_TITLE",
     "WORKBENCH_UNFINISHED_AGENTS_ENABLED",
@@ -225,14 +228,20 @@ def snapshot_unchanged(name, before, after):
     return before == after
 
 
-def stage_sources(scratch, environ):
+def stage_sources(scratch, environ, kind="lab"):
+    if kind == "lab":
+        paths = ("workbench/infra", "workbench/agents.json")
+    elif kind == "platform":
+        paths = ("terraform",)
+    else:
+        raise CheckError("Only the reviewed Lab or platform Terraform source may be staged.")
     git = shutil.which("git")
     if not git:
         raise CheckError("Git is missing from the private runner.")
     result = subprocess.run(  # noqa: S603 -- fixed local Git archive operation and reviewed paths.
         [
             git, "-C", str(ROOT), "archive", "--format=tar", environ["GITHUB_SHA"], "--",
-            "workbench/infra", "workbench/agents.json",
+            *paths,
         ],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
         env={
@@ -241,19 +250,22 @@ def stage_sources(scratch, environ):
         },
     )
     if result.returncode:
-        raise CheckError("The checked-in Lab source could not be staged.")
+        raise CheckError("The checked-in Terraform source could not be staged.")
     destination = scratch / "source"
     destination.mkdir(mode=0o700)
     try:
         with tarfile.open(fileobj=io.BytesIO(result.stdout), mode="r:") as archive:
             for entry in archive:
                 path = PurePosixPath(entry.name)
+                allowed = (
+                    path == PurePosixPath("workbench")
+                    or path == PurePosixPath("workbench/agents.json")
+                    or path.parts[:2] == ("workbench", "infra")
+                ) if kind == "lab" else path.parts[:1] == ("terraform",)
                 if (path.is_absolute() or ".." in path.parts or not path.parts
                         or any("\\" in part or ":" in part for part in path.parts)
-                        or not (path == PurePosixPath("workbench")
-                                or path == PurePosixPath("workbench/agents.json")
-                                or path.parts[:2] == ("workbench", "infra"))):
-                    raise CheckError("The checked-in Lab source archive contains an unexpected path.")
+                        or not allowed):
+                    raise CheckError("The checked-in Terraform source archive contains an unexpected path.")
                 target = destination.joinpath(*path.parts)
                 if entry.isdir():
                     target.mkdir(parents=True, exist_ok=True)
@@ -265,16 +277,17 @@ def stage_sources(scratch, environ):
                     target.parent.mkdir(parents=True, exist_ok=True)
                     source = archive.extractfile(entry)
                     if source is None:
-                        raise CheckError("A checked-in Lab source file is unavailable.")
+                        raise CheckError("A checked-in Terraform source file is unavailable.")
                     with source, target.open("xb") as output:
                         shutil.copyfileobj(source, output)
                 else:
-                    raise CheckError("The checked-in Lab source archive contains an unsupported entry.")
+                    raise CheckError("The checked-in Terraform source archive contains an unsupported entry.")
     except tarfile.TarError:
-        raise CheckError("The checked-in Lab source archive is invalid.") from None
-    root = destination / "workbench" / "infra"
-    if not (root / "main.tf").is_file() or not (destination / "workbench" / "agents.json").is_file():
-        raise CheckError("The checked-in Lab Terraform root or its agent catalogue is missing.")
+        raise CheckError("The checked-in Terraform source archive is invalid.") from None
+    root = destination / "workbench" / "infra" if kind == "lab" else destination / "terraform"
+    if (not (root / "main.tf").is_file()
+            or kind == "lab" and not (destination / "workbench" / "agents.json").is_file()):
+        raise CheckError("The checked-in Terraform root or its required catalogue is missing.")
     return root
 
 
@@ -659,35 +672,36 @@ def compare_alert_query(change):
     return "different"
 
 
+def container_environment(resource):
+    if not isinstance(resource, dict):
+        return None
+    templates = resource.get("template")
+    if not isinstance(templates, list) or len(templates) != 1 or not isinstance(templates[0], dict):
+        return None
+    containers = templates[0].get("container")
+    if not isinstance(containers, list) or len(containers) != 1 or not isinstance(containers[0], dict):
+        return None
+    if containers[0].get("name") != "workbench":
+        return None
+    entries = containers[0].get("env")
+    if not isinstance(entries, list):
+        return None
+    result = {}
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get("name"), str) or not entry["name"]:
+            return None
+        name = entry["name"]
+        if name in result:
+            return None
+        result[name] = {key: value for key, value in entry.items() if key != "name"}
+    return result
+
+
 def compare_container_environment(change):
     if has_unknown(change.get("after_unknown", False)):
         return {"status": "unknown"}
 
-    def environment(resource):
-        if not isinstance(resource, dict):
-            return None
-        templates = resource.get("template")
-        if not isinstance(templates, list) or len(templates) != 1 or not isinstance(templates[0], dict):
-            return None
-        containers = templates[0].get("container")
-        if not isinstance(containers, list) or len(containers) != 1 or not isinstance(containers[0], dict):
-            return None
-        if containers[0].get("name") != "workbench":
-            return None
-        entries = containers[0].get("env")
-        if not isinstance(entries, list):
-            return None
-        result = {}
-        for entry in entries:
-            if not isinstance(entry, dict) or not isinstance(entry.get("name"), str) or not entry["name"]:
-                return None
-            name = entry["name"]
-            if name in result:
-                return None
-            result[name] = {key: value for key, value in entry.items() if key != "name"}
-        return result
-
-    before, after = environment(change.get("before")), environment(change.get("after"))
+    before, after = container_environment(change.get("before")), container_environment(change.get("after"))
     if before is None or after is None:
         return {"status": "unavailable"}
     def kind(entry, attribute):

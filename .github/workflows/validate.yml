@@ -227,6 +227,14 @@ jobs:
         run: terraform -chdir=terraform init -backend=false
       - name: Validate configuration
         run: terraform -chdir=terraform validate
+      - name: Test model deployment configuration without Azure
+        run: |
+          terraform -chdir=terraform/modules/model-router init -backend=false
+          terraform -chdir=terraform/modules/model-router validate
+          terraform -chdir=terraform/modules/model-router test
+          terraform -chdir=terraform/modules/model-preview-capabilities init -backend=false
+          terraform -chdir=terraform/modules/model-preview-capabilities validate
+          terraform -chdir=terraform/modules/model-preview-capabilities test
       - name: Validate private state backend without Azure
         run: |
           terraform -chdir=terraform/bootstrap init -backend=false
@@ -271,9 +279,10 @@ jobs:
         run: ./scripts/terraform/test-identity-validation.ps1
       - name: Validate isolated workbench infrastructure
         run: |
-          terraform -chdir=workbench/infra fmt -check
+          terraform -chdir=workbench/infra fmt -check -recursive
           terraform -chdir=workbench/infra init -backend=false
           terraform -chdir=workbench/infra validate
+          terraform -chdir=workbench/infra test
       - name: Test Lab monitoring configuration without Azure
         run: python -m unittest discover -s .github/scripts -p 'test_lab_monitoring_*.py' -v
       - name: Validate the knowledge search add-on module without Azure

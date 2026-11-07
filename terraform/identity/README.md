@@ -47,9 +47,18 @@ subscription, and let a smaller group run the other roots.
    Remove-Item identity.tfplan
    ```
 
-1. Run the **Deploy Lab image** workflow from the Actions tab to confirm it signs
-   in. If sign-in fails with "No matching federated identity record", copy the
-   subject from the error into `deploy_federated_subject` and apply again.
+1. Do not dispatch **Deploy Lab image** merely to test sign-in: it can push and
+   deploy an image. Follow the separately approved
+   [staged rollout](../../docs/lab-deployment.md#deploy-a-new-image-from-github-actions)
+   and establish an approved private-runner bootstrap first. Inspect the live
+   federated credential and environment branch restriction before a rollout;
+   an environment-based OIDC subject does not itself encode the branch.
+
+The runner-starter role is scoped to one VM, but the **same deploy identity**
+also has Lab deployment and registry-push roles. It is not a start-only
+identity. A hosted bootstrap exception or a distinct start-only identity would
+need separate approval and a live effective-permission review; neither is
+authorized by this configuration.
 
 `recording_reviewer_user_ids` takes numeric GitHub user IDs. Read yours with
 `gh api user --jq .id`. Library recording is billable when it runs, so the plan

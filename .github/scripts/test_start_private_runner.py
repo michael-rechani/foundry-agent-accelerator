@@ -83,14 +83,10 @@ class WorkflowContractTests(unittest.TestCase):
             self.assertNotIn(forbidden, SMOKE)
         self.assertEqual(SMOKE.count('"$RUNNER_NAME"'), 2)
 
-    def test_merge_does_not_match_image_deployment_push_paths(self):
+    def test_image_deployment_is_manual_only(self):
         deploy = (ROOT / ".github" / "workflows" / "deploy-lab.yml").read_text(encoding="utf-8")
-        push = deploy.split("  push:\n", 1)[1].split("  workflow_dispatch:", 1)[0]
-        positive_paths = re.findall(r"^\s+- '([^!][^']*)'$", push, re.MULTILINE)
-        self.assertEqual(positive_paths, ["workbench/**"])
-        for name in (".github/workflows/start-private-runner.yml",
-                     ".github/scripts/test_start_private_runner.py"):
-            self.assertFalse(name.startswith("workbench/"))
+        trigger = deploy.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertEqual(re.findall(r"^  ([a-z_]+):", trigger, re.MULTILINE), ["workflow_dispatch"])
 
 
 @unittest.skipUnless(BASH, "Bash is required for mocked shell execution")

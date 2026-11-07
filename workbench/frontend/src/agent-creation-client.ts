@@ -48,6 +48,7 @@ export type CreatedAgent = {
   version: string | null
   model?: string
   model_profile?: ModelProfile | null
+  include_encrypted_reasoning?: boolean
   status:
     'creating' | 'ready' | 'failed' | 'interrupted' | 'deleting' | 'deleted'
   stage: string
@@ -99,6 +100,8 @@ const messages: Record<string, string> = {
     'The hosted version did not become active. An operator should inspect the version in Foundry.',
   runtime_changed:
     'The runtime bundle changed before this setup was published. Retire the unused record and prepare a new setup.',
+  invalid_runtime_settings:
+    'The saved runtime settings are invalid. Ask an operator to inspect the record before trying again.',
   resource_changed:
     'The Foundry resource no longer matches this saved operation. Automatic changes were stopped; ask an operator to inspect it.',
   deletion_unconfirmed:
@@ -232,6 +235,10 @@ export function parseCreatedAgent(value: unknown): CreatedAgent {
       ['create', 'resume', 'delete'].includes(String(value.operation))
     ) ||
     !(value.model === undefined || typeof value.model === 'string') ||
+    !(
+      value.include_encrypted_reasoning === undefined ||
+      typeof value.include_encrypted_reasoning === 'boolean'
+    ) ||
     !(
       value.model_profile === undefined ||
       value.model_profile === null ||

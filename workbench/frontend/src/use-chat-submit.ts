@@ -10,6 +10,7 @@ import {
 } from './chat-failure'
 import { chatLimits, requestPayload } from './chat-helpers'
 import { errorBody, requestJson } from './request'
+import { readModelObservation } from './model-observation'
 import { parseUsage } from './token-usage'
 import type { Agent, Config } from './workspace-config'
 
@@ -137,9 +138,27 @@ export function useChatSubmit({
         throw new Error(failure.message)
       }
       const usage = parseUsage(data.usage)
-      const result = { ...data, ...('usage' in data ? { usage } : {}) }
+      const observed = readModelObservation(
+        data.model_observation,
+        selected.startsWith('library-'),
+      )
+      const result = {
+        ...data,
+        ...('usage' in data ? { usage } : {}),
+        ...('model_observation' in data
+          ? { model_observation: observed.observation }
+          : {}),
+      }
       setTurns((previous) => {
-        if (!retrying) return [...previous, { question, result }]
+        if (!retrying)
+          return [
+            ...previous,
+            {
+              question,
+              result,
+              modelObservationInvalid: observed.invalid || undefined,
+            },
+          ]
         const last = previous[previous.length - 1]
         if (!last) return previous
         return [
@@ -147,6 +166,7 @@ export function useChatSubmit({
           {
             question,
             result,
+            modelObservationInvalid: observed.invalid || undefined,
             earlier: [...(last.earlier ?? []), last.result],
           },
         ]

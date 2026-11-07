@@ -25,6 +25,25 @@
   overflow-wrap: anywhere;
   margin: 10px 0;
 }
+.model-observation {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.model-observation h4,
+.model-observation p {
+  margin: 6px 0;
+}
+.model-observation h4 {
+  color: var(--text);
+}
+.model-observation ol {
+  padding-left: 20px;
+}
+.model-observation li + li {
+  margin-top: 8px;
+}
 .receipt {
   border-left: 2px solid var(--line-strong);
   padding: 5px 0 5px 13px;

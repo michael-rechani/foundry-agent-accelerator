@@ -1,4 +1,5 @@
 import type { Usage } from './token-usage'
+import type { ModelObservation } from './model-observation'
 
 export type Receipt = {
   tool: string
@@ -16,6 +17,8 @@ export type Result = {
   elapsed_ms: number
   // Absent on replies saved before token reporting; null when the service reported none.
   usage?: Usage | null
+  // Only direct library previews report individual model calls.
+  model_observation?: ModelObservation | null
 }
 
 // A tester's verdict on one answer. It is saved to shared history with the
@@ -26,6 +29,7 @@ export type Turn = {
   question: string
   result: Result
   stored?: boolean
+  modelObservationInvalid?: boolean
   rating?: Rating
   // Earlier answers to this same question, oldest first, kept after "Try
   // again". Like a rating, they live only in this tab and the exported file.

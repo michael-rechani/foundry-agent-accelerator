@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from agent_creation import CreationSettings
 from app import FoundryGateway, Settings, cache_policy, create_app, execution_receipts, load_agents
 from log_capture import CapturedLabLogs
+from verify_private import APPLICATION_PROMPT, CASE_PROMPT, CheckError, verify
 
 
 class RateLimitError(Exception):
@@ -49,13 +50,15 @@ class WorkbenchTests(CapturedLabLogs, unittest.TestCase):
 
         async def review(agent, prompt, thread=None, usage=None):
             usage.append({"input_tokens": 40, "output_tokens": 10, "total_tokens": 50,
-                          "cached_tokens": None, "reasoning_tokens": 0})
+                          "cached_tokens": None, "reasoning_tokens": 0,
+                          "reported_model": "gpt-4.1", "model_status": "reported"})
             return "completed", "Finding APP-1", []
 
         self.gateway.review.side_effect = review
         response = self.client.post("/api/reviews", json=self.body, headers=self.headers)
         self.assertEqual(response.json()["usage"], {"input_tokens": 40, "output_tokens": 10, "total_tokens": 50,
                                                     "cached_tokens": None, "reasoning_tokens": 0})
+        self.assertNotIn("model_observation", response.json())
 
     def test_large_responses_are_compressed_and_keep_their_headers(self):
         accept = {**self.headers, "Accept-Encoding": "gzip"}
@@ -443,6 +446,43 @@ class WorkbenchTests(CapturedLabLogs, unittest.TestCase):
         output[1]["call_id"] = "other"
         self.assertFalse(execution_receipts(output, {"inspect": "specialist"})[0]["verified"])
 
+    def test_private_verifier_checks_both_specialist_receipts_through_the_lab_api(self):
+        for correlated_case in (True, False):
+            with self.subTest(correlated_case=correlated_case):
+                requests = []
+
+                async def review(agent, prompt, thread=None, usage=None, *,
+                                 seen=requests, case_correlated=correlated_case):
+                    seen.append((agent["agent"], prompt))
+                    tool, target = (
+                        ("inspect_application", "application-review-agent") if prompt == APPLICATION_PROMPT
+                        else ("inspect_case", "case-review-agent")
+                    )
+                    result_id = "call-1" if tool == "inspect_application" or case_correlated else "different"
+                    return "completed", "Fictional finding", [
+                        {"type": "function_call", "name": tool, "call_id": "call-1"},
+                        {"type": "function_call_output", "call_id": result_id, "output": json.dumps(
+                            {"status": "succeeded", "agent": target, "output": "Fictional finding"})},
+                    ]
+
+                self.gateway.review.side_effect = review
+                with TestClient(create_app(self.settings, self.gateway, AsyncMock())) as lab:
+                    class ClientAdapter:
+                        def call(adapter, method, path, body=None, etag=None, expected=200):
+                            response = lab.request(method, path, json=body, headers=self.headers)
+                            self.assertEqual(response.status_code, expected, response.text)
+                            return response.json()
+
+                    if correlated_case:
+                        checks = verify(ClientAdapter(), check_review_specialists=True)
+                        self.assertIn("customer_review_inspect_application_receipt", checks)
+                        self.assertIn("customer_review_inspect_case_receipt", checks)
+                    else:
+                        with self.assertRaisesRegex(CheckError, "verified specialist receipt for inspect_case"):
+                            verify(ClientAdapter(), check_review_specialists=True)
+                self.assertEqual(requests, [("customer-review-coordinator", APPLICATION_PROMPT),
+                                            ("customer-review-coordinator", CASE_PROMPT)])
+
 
 class FoundryGatewayTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
     async def test_reviews_reuse_one_credential_project_and_connection_pool(self):
@@ -743,6 +783,84 @@ class LibraryPreviewTests(CapturedLabLogs, unittest.TestCase):
         self.assertEqual((agent["template_id"], agent["preview"]), ("document-analyst", True))
         self.gateway.review.assert_not_called()
 
+    def test_preview_api_uses_router_and_profile_override_with_separate_budgets(self):
+        response = SimpleNamespace(status="completed", output_text="Preview", model_dump=lambda **_: {"output": []})
+        openai_client, project = MagicMock(), MagicMock()
+        openai_client.responses.create = AsyncMock(return_value=response)
+        project.get_openai_client.return_value = openai_client
+        limits = {name: {"requests_per_minute": 1, "tokens_per_minute": 100000}
+                  for name in ("model-router", "reason-model")}
+        settings = replace(self.settings, model_limits=limits,
+                           creation=CreationSettings(False, "model-router", models={"reasoning": "reason-model"}))
+        gateway = FoundryGateway(settings)
+        client = TestClient(create_app(settings, gateway))
+        with patch.object(gateway, "_review_project", return_value=project):
+            for agent in ("library-document-intake", "library-document-analyst"):
+                body = {"agent_id": agent, "input": "Summarize"}
+                self.assertEqual(client.post("/api/reviews", json=body, headers=self.headers).status_code, 200)
+                blocked = client.post("/api/reviews", json=body, headers=self.headers)
+                self.assertEqual((blocked.status_code, blocked.json()["error"]), (429, "busy"))
+        calls = openai_client.responses.create.await_args_list
+        self.assertEqual([call.kwargs["model"] for call in calls], ["model-router", "reason-model"])
+        self.assertTrue(all(call.kwargs["store"] is False for call in calls))
+
+    def test_preview_api_uses_selected_deployment_capability_through_the_tool_loop(self):
+        call = {
+            "type": "function_call", "call_id": "lookup-1", "name": "lookup_purchase_order",
+            "arguments": json.dumps({"po_number": "PO-DEMO-2210"}),
+        }
+        cases = (
+            ("model-router", False),
+            ("fixed-alias", False),
+            ("reason-model", True),
+            ("unknown-router", True),
+        )
+        for deployment, include in cases:
+            with self.subTest(deployment=deployment):
+                first = SimpleNamespace(status="completed", output_text="", model="gpt-4.1",
+                                        usage={"input_tokens": 10, "output_tokens": 2, "total_tokens": 12},
+                                        model_dump=lambda **_: {"output": [call]})
+                second = SimpleNamespace(status="completed", output_text="Preview", model="gpt-4.1-mini",
+                                         usage={"input_tokens": 20, "output_tokens": 3, "total_tokens": 23},
+                                         model_dump=lambda **_: {"output": []})
+                openai_client, project = MagicMock(), MagicMock()
+                openai_client.responses.create = AsyncMock(side_effect=[first, second])
+                project.get_openai_client.return_value = openai_client
+                creation = CreationSettings(
+                    False, "model-router", models={"reasoning": deployment},
+                    preview_encrypted_reasoning={"model-router": False, "fixed-alias": False, "reason-model": True},
+                )
+                settings = replace(self.settings, creation=creation)
+                gateway = FoundryGateway(settings)
+                client = TestClient(create_app(settings, gateway))
+                with patch.object(gateway, "_review_project", return_value=project):
+                    response = client.post(
+                        "/api/reviews",
+                        json={"agent_id": "library-supplier-invoice-reviewer", "input": "Check PO-DEMO-2210"},
+                        headers=self.headers,
+                    )
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertTrue(response.json()["receipts"][0]["verified"])
+                self.assertEqual(response.json()["model_observation"], {
+                    "deployment": deployment,
+                    "calls": [
+                        {"reported_model": "gpt-4.1", "model_status": "reported",
+                         "usage": {"input_tokens": 10, "output_tokens": 2, "total_tokens": 12,
+                                   "cached_tokens": None, "reasoning_tokens": None}},
+                        {"reported_model": "gpt-4.1-mini", "model_status": "reported",
+                         "usage": {"input_tokens": 20, "output_tokens": 3, "total_tokens": 23,
+                                   "cached_tokens": None, "reasoning_tokens": None}},
+                    ],
+                })
+                calls = openai_client.responses.create.await_args_list
+                self.assertEqual(len(calls), 2)
+                for request in calls:
+                    self.assertEqual(request.kwargs["model"], deployment)
+                    self.assertFalse(request.kwargs["store"])
+                    self.assertTrue(request.kwargs["tools"])
+                    self.assertEqual(request.kwargs.get("include"), ["reasoning.encrypted_content"] if include else None)
+                self.assertTrue(any(item.get("type") == "function_call_output" for item in calls[1].kwargs["input"]))
+
     def test_agent_designer_chat_uses_the_preview_path(self):
         response = self.client.post("/api/reviews", json={"agent_id": "library-agent-designer", "input": "Good morning"},
                                     headers=self.headers)
@@ -933,6 +1051,21 @@ class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
             self.fail("the prebuilt agent passed its one-request model budget")
         self.assertEqual(self.gateway.review.await_count, 1)
 
+    def test_prebuilt_model_overrides_apply_per_agent(self):
+        limits = {**self.LIMITS, **{name: {"requests_per_minute": 1, "tokens_per_minute": 100000}
+                                   for name in ("platform-router", "gpt-4.1")}}
+        settings = replace(self.settings, model_limits=limits,
+                           visible_agents=("customer-review", "application-review"),
+                           prebuilt_agent_models={"customer-review": "platform-router"})
+        client = TestClient(create_app(settings, self.gateway))
+        self.assertEqual(self.chat("customer-review", client).status_code, 200)
+        response = self.chat("customer-review", client)
+        self.assertEqual((response.status_code, response.json()["error"]), (429, "busy"))
+        self.assertEqual(self.chat("application-review", client).status_code, 200)
+        response = self.chat("application-review", client)
+        self.assertEqual((response.status_code, response.json()["error"]), (429, "busy"))
+        self.assertEqual(self.gateway.review.await_count, 2)
+
     def declaring_client(self, directory, models):
         """A client whose prebuilt agents declare a model deployment in agents.json (#232)."""
         agents = json.loads((Path(__file__).parent / "agents.json").read_text(encoding="utf-8"))
@@ -974,6 +1107,21 @@ class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
             path.write_text(json.dumps([{**agent, "model": "gpt-4.1"}]), encoding="utf-8")
             self.assertEqual(load_agents(path)[0]["model"], "gpt-4.1")
 
+    def test_prebuilt_model_override_preserves_other_agent_deployments(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "agents.json"
+            agents = json.loads((Path(__file__).parent / "agents.json").read_text(encoding="utf-8"))
+            path.write_text(json.dumps(agents), encoding="utf-8")
+            loaded = load_agents(path, {"customer-review": "model-router"})
+        self.assertEqual(next(agent for agent in loaded if agent["id"] == "customer-review")["model"], "model-router")
+        self.assertTrue(all(agent["model"] == "gpt-4.1" for agent in loaded if agent["id"] != "customer-review"))
+
+    def test_invalid_prebuilt_model_overrides_stop_startup(self):
+        for overrides in ([], {"bad id": "model-router"}, {"customer-review": 7},
+                          {"customer-review": "not a deployment"}, {"missing": "model-router"}):
+            with self.subTest(overrides=overrides), self.assertRaisesRegex(ValueError, "WORKBENCH_PREBUILT_AGENT_MODELS"):
+                create_app(replace(self.settings, prebuilt_agent_models=overrides), self.gateway)
+
     def test_no_limits_leaves_only_the_global_caps(self):
         client = TestClient(create_app(replace(self.settings, model_limits={}), self.gateway))
         for _ in range(8):
@@ -999,6 +1147,11 @@ class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
         with patch.dict("os.environ", {"WORKBENCH_MODEL_LIMITS": "{not json"}):
             with self.assertRaisesRegex(ValueError, "WORKBENCH_MODEL_LIMITS must be a JSON object"):
                 Settings.from_env()
+        with patch.dict("os.environ", {"WORKBENCH_PREBUILT_AGENT_MODELS": '{"customer-review":"model-router"}'}):
+            self.assertEqual(Settings.from_env().prebuilt_agent_models, {"customer-review": "model-router"})
+        with patch.dict("os.environ", {"WORKBENCH_PREBUILT_AGENT_MODELS": "{not json"}):
+            with self.assertRaisesRegex(ValueError, "WORKBENCH_PREBUILT_AGENT_MODELS must be a JSON object"):
+                Settings.from_env()
 
     def test_invalid_limits_stop_the_lab_from_starting_with_a_clear_message(self):
         good = {"requests_per_minute": 10, "tokens_per_minute": 1000}
@@ -1011,7 +1164,7 @@ class ModelLimitTests(CapturedLabLogs, unittest.TestCase):
 
 
 class LibraryPreviewGatewayTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
-    async def test_preview_calls_the_profile_model_directly(self):
+    async def test_preview_uses_profile_override_or_default_router(self):
         response = SimpleNamespace(status="completed", output_text="Preview", model_dump=lambda **_: {"output": []})
         openai_client = MagicMock()
         openai_client.responses.create = AsyncMock(return_value=response)
@@ -1024,16 +1177,18 @@ class LibraryPreviewGatewayTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCa
         }
         settings = Settings("private", "https://example.services.ai.azure.com/api/projects/test",
                             ("testserver",), ("https://testserver",),
-                            creation=CreationSettings(False, "test-model", models={"reasoning": "reason-model"}))
+                            creation=CreationSettings(False, "model-router", models={"reasoning": "reason-model"}))
         gateway = FoundryGateway(settings)
         agent = {"template_id": "document-analyst", "model_profile": "reasoning"}
         with patch.dict(sys.modules, modules):
             self.assertEqual(await gateway.preview(agent, "Summarize"), ("completed", "Preview", []))
+            agent["model_profile"] = "extraction"
+            self.assertEqual(await gateway.preview(agent, "Summarize"), ("completed", "Preview", []))
         self.assertEqual(project.get_openai_client.call_args.kwargs,
                          {"timeout": settings.timeout, "max_retries": 0, "http_client": pool})
-        options = openai_client.responses.create.await_args.kwargs
-        self.assertEqual(options["model"], "reason-model")
-        self.assertFalse(options["store"])
+        calls = openai_client.responses.create.await_args_list
+        self.assertEqual([call.kwargs["model"] for call in calls], ["reason-model", "model-router"])
+        self.assertTrue(all(call.kwargs["store"] is False for call in calls))
         openai_client.close.assert_not_called()
         await gateway.close()
 

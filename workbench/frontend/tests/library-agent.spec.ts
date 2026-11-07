@@ -46,6 +46,13 @@ test('details state limits, human decisions and never claim a recorded answer', 
   await expect(panel.locator('.library-command')).toContainText(
     `bundle.py export-created --record ${support.id}-record.json`,
   )
+  await expect(panel).toContainText('--no-encrypted-reasoning')
+  await expect(panel).toContainText('only after verifying the destination')
+  const reasoningNote = panel.getByText(/If inspection shows that the source/)
+  await expect(reasoningNote).toBeVisible()
+  await page.getByRole('switch', { name: /Under the hood/ }).uncheck()
+  await expect(reasoningNote).toBeHidden()
+  await page.getByRole('switch', { name: /Under the hood/ }).check()
   await expect(
     panel.getByRole('button', { name: 'Create this agent to get the package' }),
   ).toBeEnabled()

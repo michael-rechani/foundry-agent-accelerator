@@ -1,5 +1,6 @@
 """Offline tests for the separately authorized one-time runner starter."""
 
+import re
 import unittest
 from pathlib import Path
 
@@ -100,8 +101,8 @@ class WorkflowContractTests(NewWorkflow, original.WorkflowContractTests):
 
     def test_new_path_cannot_trigger_deployment(self):
         deploy = (Path(__file__).resolve().parents[2] / ".github/workflows/deploy-lab.yml").read_text()
-        push = deploy.split("  push:\n", 1)[1].split("  workflow_dispatch:", 1)[0]
-        self.assertNotIn(".github/", push)
+        trigger = deploy.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertEqual(re.findall(r"^  ([a-z_]+):", trigger, re.MULTILINE), ["workflow_dispatch"])
 
 
 class ShellTests(NewWorkflow, original.ShellTests):
