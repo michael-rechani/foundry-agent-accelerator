@@ -69,6 +69,24 @@ returning any diagnostic outcome. Missing/invalid/changed post-snapshots take
 precedence over diagnostic failures. Callback result and exception details are
 never returned; diagnostic failure with equal endpoints is separately fixed.
 
+The synchronous callback must explicitly return the exact singleton object
+`DIAGNOSTIC_SUCCESS` to indicate its own completed, successfully interpreted work.
+The guard checks object identity, never truthiness or equality. `None`, booleans,
+numeric values including 0, 1 and 2, arbitrary objects, subprocess result objects,
+exceptions, cancellation and all awaitables result in `FAILED` when endpoints are
+stable; invalid or changed snapshots still take precedence as `UNVERIFIED`.
+A caller must explicitly and correctly interpret any process result before choosing
+the token. In particular Terraform exit code 2 is not interpreted here as success
+or failure; it is not an implicit authorization to return the token.
+
+A newly created native coroutine is closed without being awaited to prevent a
+late unawaited-coroutine warning; custom awaitables, already-suspended coroutines
+and futures are not run, awaited, cancelled or otherwise managed. Rejecting a
+returned awaitable does not prevent independent work already scheduled elsewhere;
+that remains outside this synchronous helper and needs explicit supervision. The
+token likewise cannot prove a callback did not spawn untracked work, so callers
+must establish that separately. No production diagnostic integration is implied.
+
 Python stdout/stderr are discarded inside the synchronous single-thread guard.
 This is deliberate narrow exception/output redaction, not a subprocess logging
 sandbox or generic exception policy. Subprocesses/native writes, concurrent
@@ -89,7 +107,7 @@ remain blocked; this prototype must not be connected to the live diagnostic.
 
 ## Actual hosted evidence and restoration
 
-Actual branch: `michael-rechani-snapshot-integrity-offline`.
+Original prototype branch: `michael-rechani-snapshot-integrity-offline`.
 Exact tested head: `38ef667ca4b40d10d70ee0f5123df4175bc37b35`.
 [Hosted run 42415398011](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42415398011)
 passed `env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p test_snapshot_integrity_guard.py -v`:
@@ -119,3 +137,29 @@ this assignment. There is no claimed completed live/protected diagnostic.
 protected execution identity/host trust, state/input semantics and recovery.
 This document records a useful tested synthetic boundary, not a production
 snapshot-integrity guarantee.
+
+### Outcome-token follow-up evidence
+
+The separate branch `michael-rechani-snapshot-outcome-offline` starts at original
+prototype head `25c8885beafd122f63e9a6c30bd9ddef6df0d561`. Exact tested head
+`1917d1d6343a9913200eaf7e9438b3689b105d21` passed
+[hosted run 42417504710](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42417504710):
+`env -i PATH="$PATH" LANG=C.UTF-8 PYTHONNOUSERSITE=1 python3 -m unittest discover -s .github/scripts -p test_snapshot_integrity_guard.py -v`
+**19 tests passed**. Synthetic fixtures cover exact explicit success; false/true,
+raw integers 0/1/2, arbitrary objects, exception/cancellation and fake subprocess
+results; created and suspended coroutines, custom awaitables and unresolved future;
+invalid baseline; and error/return precedence over invalid, locked, changed or
+unreadable post-snapshots. Both endpoints are rechecked on catchable paths, and
+captured Python output remains fixed/redacted. The prior 14-test run above describes
+the original prototype only, not this outcome-token change.
+
+The temporary hosted-only test workflow had `contents:read` only, a pinned checkout
+with `persist-credentials:false`, no environment, secrets, id-token, self-hosted
+runner, sudo, Docker, real Terraform/providers or privileged namespace setup.
+Tests asserted non-root UID and no Azure/ARM/GitHub token environment variables.
+This does not prove adversarial host or token isolation, and potential hosted sudo
+availability remains a caveat. No protected data or private runner was used.
+After the successful test, the temporary workflow was restored to original blob
+`13fea116e0cd70aa8f5d8cabcb9b893743e23c95`; no dispatch occurred afterward. Code
+and test blobs in the final branch match that tested head. Existing transport,
+non-atomicity, process supervision, credential and host caveats remain unchanged.
