@@ -1148,6 +1148,57 @@ class DeploymentTimeoutTests(unittest.TestCase):
             deploy(profile, args)
         return attempts
 
+    def test_real_sdk_get_preserves_raw_rule_discriminator_and_percentage_and_patch_wire(self):
+        valid = {"type": "FixedRatio", "agent_version": "1", "traffic_percentage": 100}
+        payloads = [valid, *[rules[0] for rules in invalid_wire_rules() if len(rules) == 1]]
+        sent = []
+        remaining = iter(payloads)
+
+        def respond(adapter, request, **kwargs):
+            sent.append(request.method)
+            response = requests.Response()
+            response.status_code = 200
+            response.headers["Content-Type"] = "application/json"
+            response.request = request
+            if request.method == "GET":
+                body = {
+                    "name": "fictional-agent", "state": "enabled", "configuration_state": "enabled",
+                    "agent_endpoint": {
+                        "version_selector": {"version_selection_rules": [next(remaining)]},
+                        "protocol_configuration": {"responses": {}},
+                    },
+                }
+            else:
+                body = {}
+                sent.append(json.loads(request.body))
+            response._content = json.dumps(body).encode()
+            response.raw = io.BytesIO(response._content)
+            return response
+
+        with patch.object(requests.adapters.HTTPAdapter, "send", respond):
+            with AIProjectClient(
+                endpoint="https://fictional.services.ai.azure.com/api/projects/demo",
+                credential=self.Credential(), allow_preview=True, retry_total=0,
+            ) as client:
+                for index, wire_rule in enumerate(payloads):
+                    with self.subTest(wire_rule=wire_rule):
+                        details = client.agents.get(agent_name="fictional-agent")
+                        rule = details.agent_endpoint.version_selector.version_selection_rules[0]
+                        self.assertEqual(dict(rule), wire_rule)
+                        self.assertEqual(single_fixed_ratio([rule]), index == 0)
+                        if wire_rule.get("traffic_percentage") == "100":
+                            self.assertEqual(rule.traffic_percentage, 100)
+                endpoint = AgentEndpointConfig(
+                    version_selector=VersionSelector(version_selection_rules=[
+                        FixedRatioVersionSelectionRule(agent_version="1", traffic_percentage=100),
+                    ]),
+                    protocol_configuration=ProtocolConfiguration(responses=ResponsesProtocolConfiguration()),
+                )
+                client.agents.update_details(agent_name="fictional-agent", agent_endpoint=endpoint)
+        self.assertEqual(sent[:-2], ["GET"] * len(payloads))
+        self.assertEqual(sent[-2], "PATCH")
+        self.assertEqual(sent[-1]["agent_endpoint"]["version_selector"]["version_selection_rules"], [valid])
+        self.assertEqual(sent[-1]["agent_endpoint"]["protocol_configuration"]["responses"], {})
     def test_real_sdk_deserializes_documented_administrative_wire_field(self):
         from urllib.parse import parse_qs, urlsplit
 
