@@ -6,7 +6,6 @@ import io
 import json
 import os
 import resource
-import signal
 import stat
 import subprocess
 import sys
