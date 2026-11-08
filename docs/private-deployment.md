@@ -154,7 +154,7 @@ Record the currently routed versions before continuing. Don't redeploy healthy
 specialists merely to update the coordinator. If a specialist is missing, stop:
 this deployer cannot perform first publication without a confirmed recovery route.
 An inventory error other than not-found is a blocker, not permission to recreate.
-An existing agent must route to named active, non-draft versions through a
+An existing agent must route to a named active, non-draft version through a
 configured Responses endpoint before redeployment. Both parent operational
 `state` and administrative `configuration_state` must explicitly be `enabled`;
 missing, disabled, unknown or malformed states are refused. Microsoft's
@@ -172,6 +172,16 @@ version reads must also return the exact requested agent name and version.
 Reconcile `@latest`, unknown aliases, missing Responses support, or an unrouted
 agent with an operator instead of letting a new version change a symbolic or
 unusable recovery target.
+
+Microsoft's [hosted-agent routing documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/manage-hosted-agent#configure-agent-endpoint-routing)
+says traffic splitting is not supported: recovery and required specialist routes
+must each have exactly one `FixedRatio` rule with an integer `traffic_percentage`
+of 100 and a concrete release version. Missing, malformed, unsupported, split,
+or extra zero-traffic rules are refused rather than normalized. The SDK's raw
+rule mapping is checked because typed attributes can coerce malformed wire values.
+A `draft-` version identifier is rejected even when its draft flag is absent or
+false. Prior endpoint protocol, authorization, and other fields are preserved;
+the guard does not establish that the real service will accept a rollback.
 
 These checks identify only a usable Responses-route candidate, not live response
 health, model quality, or a verified fixed-model recovery. An active prior route
@@ -228,6 +238,14 @@ Specialist or prior recovery models aren't required to match the candidate.
 The route and state reads and PATCH aren't atomic; an external writer can still
 change them between checks. A pinned coordinator session does not pin specialist
 sessions: delegation receipts prove an invocation, not downstream session freshness.
+
+A pinned default route is not version-level access control or candidate isolation.
+Microsoft says [agent invocation permissions are not version-specific](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/configure-agent#select-the-active-agent-version):
+a caller with invoke access can select another available version, including by
+using `x-agent-version-override` on Responses. Existing authorized consumers can
+therefore invoke an unpromoted candidate before its smoke test or a retained failed
+version after rollback. An access-aware release and deliberate cleanup decision
+remain unresolved; retaining a version does not make it inaccessible.
 
 [Hosted sessions](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/manage-hosted-sessions)
 bind to the version resolved when each session is created, so a route update
