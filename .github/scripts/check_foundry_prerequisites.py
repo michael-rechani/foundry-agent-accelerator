@@ -1,15 +1,19 @@
 """Run the pinned Foundry dependency script without shared configuration or credentials."""
 
 import hashlib
+import selectors
+import time
 import json
 import os
 import platform
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tarfile
+import tempfile
 from pathlib import Path
 from urllib import error, parse, request
 
@@ -44,6 +48,7 @@ FAILURE_STAGES = {
     "version": "version",
     "cleanup": "cleanup",
     "supervision": "supervision_unverified",
+    "retention": "retention_prerequisite",
     "interrupted": "interruption",
 }
 
@@ -158,13 +163,61 @@ def isolated_environment(root, user_agent):
         "AZURE_DEV_USER_AGENT": user_agent,
         "AZURE_DEV_COLLECT_TELEMETRY": "no",
         "AZD_NO_PROMPT": "true",
+        "RUNNER_TRACKING_ID": os.environ.get("RUNNER_TRACKING_ID", ""),
     })
     return env
 
 
+_PROCESS_STARTED = False
+_CAPTURE_LIMIT = 1024 * 1024
+
+
 def command(args, cwd, env):
-    # No safe direct-child/descendant teardown has been established.
-    raise CheckError("supervision")
+    global _PROCESS_STARTED
+    if not all(hasattr(os, name) for name in ("pidfd_open", "P_PIDFD", "waitid", "WEXITED", "WNOHANG")):
+        raise CheckError("supervision")
+    process = subprocess.Popen(  # noqa: S603 -- pinned inputs and private environment.
+        args, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True,
+    )
+    _PROCESS_STARTED = True
+    fd = None
+    streams = {process.stdout: bytearray(), process.stderr: bytearray()}
+    deadline = time.monotonic() + 180
+    status = None
+    try:
+        # Fresh single-threaded launcher assumes default SIGCHLD and no external reaper.
+        fd = os.pidfd_open(process.pid, 0)
+        with selectors.DefaultSelector() as selector:
+            for stream in streams:
+                os.set_blocking(stream.fileno(), False)
+                selector.register(stream, selectors.EVENT_READ)
+            while selector.get_map() or status is None:
+                if time.monotonic() >= deadline:
+                    raise subprocess.TimeoutExpired("prerequisite", 180)
+                if status is None:
+                    info = os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG)
+                    if info is not None:
+                        if info.si_code not in (os.CLD_EXITED, os.CLD_KILLED, os.CLD_DUMPED):
+                            raise CheckError("supervision")
+                        status = info.si_status if info.si_code == os.CLD_EXITED else -info.si_status
+                        process.returncode = status
+                for key, _ in selector.select(min(.05, max(0, deadline - time.monotonic()))):
+                    data = os.read(key.fd, 8192)
+                    if not data:
+                        selector.unregister(key.fileobj)
+                    else:
+                        streams[key.fileobj].extend(data)
+                        if sum(map(len, streams.values())) > _CAPTURE_LIMIT:
+                            raise CheckError("supervision")
+        return subprocess.CompletedProcess(args, status, streams[process.stdout].decode(),
+                                           streams[process.stderr].decode())
+    finally:
+        if fd is not None:
+            os.close(fd)
+        for stream in streams:
+            stream.close()
+
 
 def install_azd(root):
     archive = root / "azd.tar.gz"
@@ -196,17 +249,60 @@ def install_azd(root):
 
 
 def check(root, user_agent):
-    raise CheckError("supervision")
+    env = isolated_environment(root, user_agent)
+    (root / "bin").mkdir(mode=0o700)
+    skill_root = root / "skill"
+    scripts = skill_root / "scripts"
+    scripts.mkdir(parents=True, mode=0o700)
+    script = scripts / "check-and-setup-dependencies.sh"
+    download(SKILL_URL, SKILL_SHA256, script, 64 * 1024)
+    validate_upstream_user_agent(script, user_agent)
+    install_azd(root)
+    bash = shutil.which("bash", path="/usr/bin:/bin")
+    if bash is None:
+        raise CheckError("bash")
+    result = command([bash, str(script)], skill_root, env)
+    if result.returncode != 0 or not result.stdout.endswith(READY):
+        raise CheckError("skill")
+    version = command([str(root / "bin" / "azd"), "version"], skill_root, env)
+    match = re.fullmatch(rf"azd version ({VERSION})(?: \([^\r\n]*\))?\n?", version.stdout)
+    if version.returncode != 0 or not match:
+        raise CheckError("version")
+    return match.group(1)
 
 
 def cleanup(temp, receipt_name):
-    # Old receipts cannot prove that descendants and pending writes are gone.
     raise CheckError("cleanup")
 
 
+def retained_root():
+    parent = Path("/var/tmp")
+    meta = parent.lstat()
+    if (not stat.S_ISDIR(meta.st_mode) or meta.st_uid != 0
+            or meta.st_mode & 0o7777 != 0o1777 or parent.resolve() != parent):
+        raise CheckError("retention")
+    for key in ("RUNNER_TEMP", "GITHUB_WORKSPACE"):
+        value = Path(os.environ.get(key, ""))
+        if not value.is_absolute() or not value.is_dir():
+            raise CheckError("retention")
+        managed = value.resolve()
+        if parent == managed or parent in managed.parents or managed in parent.parents:
+            raise CheckError("retention")
+    root = Path(tempfile.mkdtemp(prefix="foundry-prerequisites-", dir=parent))
+    if root.parent != parent or root.stat().st_mode & 0o777 != 0o700:
+        raise CheckError("retention")
+    return root
+
+
 def run():
-    # Refuse before creating scratch, downloading, or invoking any process.
-    raise CheckError("supervision")
+    context()
+    user_agent = invocation_user_agent()
+    tracking = os.environ.get("RUNNER_TRACKING_ID", "")
+    if tracking and not re.fullmatch(r"github_[0-9a-fA-F-]{36}", tracking):
+        raise CheckError("context")
+    root = retained_root()
+    return check(root, user_agent)
+
 
 def interrupted(signum, frame):
     raise CheckError("interrupted")
@@ -226,6 +322,7 @@ def failure_stage(failure):
 
 def report_failure(failure):
     print(f"failure_stage={failure_stage(failure)}")
+    print("owned_process_may_be_running=true" if _PROCESS_STARTED else "owned_process_may_be_running=false")
     print("foundry_prerequisites_check_failed", file=sys.stderr)
 
 
@@ -244,7 +341,7 @@ def main():
         elif not sys.argv[1:]:
             version = run()
             print(f"azd_version={version}")
-            print("foundry_prerequisites=ready")
+            print("foundry_prerequisites=ready_retained_state_only")
         else:
             raise CheckError("arguments")
         return 0
