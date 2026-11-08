@@ -6,6 +6,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -90,6 +91,37 @@ class PracticalTests(unittest.TestCase):
             self.assertEqual(calls[1][0], [str(root / "bin" / "azd"), "version"])
             self.assertEqual(calls[0][2]["AZURE_CONFIG_DIR"], str(root / "azure-config"))
             self.assertNotIn("ACTIONS_ID_TOKEN_REQUEST_TOKEN", calls[0][2])
+
+    def test_pipe_closing_grandchild_can_survive_synchronous_success(self):
+        with tempfile.TemporaryDirectory() as root:
+            marker = str(Path(root) / "late-fictional-write")
+            child = ("import os,time,pathlib;os.close(1);os.close(2);"
+                     f"time.sleep(.3);pathlib.Path({marker!r}).write_text('finished')")
+            parent = ("import subprocess,sys;"
+                      f"subprocess.Popen([sys.executable,'-c',{child!r}])")
+            with mock.patch.object(subject.os, "kill") as kill, \
+                 mock.patch.object(subject.os, "killpg") as group:
+                result = subject.command([sys.executable, "-c", parent], root, {})
+                self.assertEqual(result.returncode, 0)
+                kill.assert_not_called()
+                group.assert_not_called()
+            time.sleep(.6)
+            self.assertEqual(Path(marker).read_text(), "finished")
+
+    def test_run_preserves_owned_directory_and_scopes_result(self):
+        with tempfile.TemporaryDirectory() as parent:
+            root = Path(parent) / "owned"
+            root.mkdir()
+            marker = root / "fictional"
+            marker.write_text("retain")
+            with mock.patch.object(subject, "context"), \
+                 mock.patch.object(subject, "invocation_user_agent", return_value="fixture"), \
+                 mock.patch.object(subject, "retained_root", return_value=root), \
+                 mock.patch.object(subject, "check", return_value="1.37.3"), \
+                 mock.patch.object(subject.shutil, "rmtree") as remove:
+                self.assertEqual(subject.run(), "1.37.3")
+                remove.assert_not_called()
+            self.assertEqual(marker.read_text(), "retain")
 
     def test_retention_rejects_bad_managed_roots_before_mkdtemp(self):
         meta = mock.Mock(st_mode=stat.S_IFDIR | 0o1777, st_uid=0)

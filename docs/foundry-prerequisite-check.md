@@ -19,7 +19,7 @@ deployment.
 
 Before creating scratch the launcher requires `/var/tmp` itself to be a
 root-owned, non-symlink sticky directory with mode 1777, outside resolved
-`RUNNER_TEMP` and `GITHUB_WORKSPACE`. If unavailable it reports
+`RUNNER_TEMP`, `GITHUB_WORKSPACE`, and `RUNNER_WORKSPACE` when supplied. If unavailable it reports
 `retention_prerequisite`; configure and review an appropriate location before
 any future invocation. It exclusively creates a random mode-0700 directory;
 neither success nor failure removes it. OS retention policies or runner/host
@@ -36,3 +36,7 @@ This is an offline proposal only; it requires review and integration before any
 separately approved protected dispatch. No Azure credentials or secrets are
 passed. The shared-host, external-service, asynchronous-I/O and path-ownership
 limitations remain tracked in [#522](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522).
+
+Historical prerequisite tests that asserted recursive cleanup or the prior
+launcher are explicitly skipped pending replacement; focused synthetic tests
+exercise the revised synchronous scope without executing the actual skill.

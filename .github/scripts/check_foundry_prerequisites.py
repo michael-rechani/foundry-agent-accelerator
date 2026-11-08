@@ -281,8 +281,11 @@ def retained_root():
     if (not stat.S_ISDIR(meta.st_mode) or meta.st_uid != 0
             or meta.st_mode & 0o7777 != 0o1777 or parent.resolve() != parent):
         raise CheckError("retention")
-    for key in ("RUNNER_TEMP", "GITHUB_WORKSPACE"):
-        value = Path(os.environ.get(key, ""))
+    for key in ("RUNNER_TEMP", "GITHUB_WORKSPACE", "RUNNER_WORKSPACE"):
+        raw = os.environ.get(key, "")
+        if key == "RUNNER_WORKSPACE" and not raw:
+            continue
+        value = Path(raw)
         if not value.is_absolute() or not value.is_dir():
             raise CheckError("retention")
         managed = value.resolve()
