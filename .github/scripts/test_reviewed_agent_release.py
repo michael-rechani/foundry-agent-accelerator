@@ -483,10 +483,44 @@ class ReviewedReleaseTests(unittest.TestCase):
             release.GitHub("fictional-owner/fictional-repository", "")
         from urllib.error import HTTPError
         opener = MagicMock()
-        opener.open.side_effect = HTTPError("https://api.github.com", 403, "private response", {}, None)
+        failure = HTTPError("https://api.github.com", 403, "private response", {}, io.BytesIO(b"private body"))
+        opener.open.side_effect = failure
         with patch.object(release, "build_opener", return_value=opener):
-            with self.assertRaisesRegex(release.ReleaseError, "HTTP 403"):
+            with self.assertRaisesRegex(release.ReleaseError, "HTTP 403") as raised:
                 release.GitHub("fictional-owner/fictional-repository", "fictional-read-only-token").get("")
+        self.assertTrue(failure.fp.closed)
+        self.assertNotIn("private", str(raised.exception))
+
+    def test_metadata_request_passes_read_only_token_and_closes_response(self):
+        response = io.BytesIO(b'{"fictional":true}')
+        opener = MagicMock()
+        opener.open.return_value = response
+        token = "fictional-read-only-token"
+        with patch.object(release, "build_opener", return_value=opener):
+            result = release.GitHub("fictional-owner/fictional-repository", token).get("/fictional")
+        self.assertEqual(result, {"fictional": True})
+        self.assertTrue(response.closed)
+        self.assertEqual(opener.open.call_args.args[0].get_header("Authorization"), f"Bearer {token}")
+        self.assertEqual(opener.open.call_args.kwargs["timeout"], 30)
+
+    def test_metadata_error_close_failure_is_sanitized(self):
+        from urllib.error import HTTPError
+
+        class CloseFailure(io.BytesIO):
+            def close(self):
+                if not self.closed:
+                    super().close()
+                    raise OSError("private close failure")
+
+        failure = HTTPError("https://api.github.com", 403, "private response", {},
+                            CloseFailure(b"private body"))
+        opener = MagicMock()
+        opener.open.side_effect = failure
+        with patch.object(release, "build_opener", return_value=opener):
+            with self.assertRaisesRegex(release.ReleaseError, "response could not be closed") as raised:
+                release.GitHub("fictional-owner/fictional-repository", "fictional-read-only-token").get("")
+        self.assertNotIn("private", str(raised.exception))
+        opener.open.assert_called_once()
 
     def test_workflow_keeps_sequential_gates_and_no_oidc_or_approval_bypass(self):
         workflow = (ROOT / release.WORKFLOW).read_text()

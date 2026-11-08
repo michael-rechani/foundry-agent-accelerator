@@ -100,6 +100,10 @@ class GitHub:
             with build_opener(NoRedirect()).open(request, timeout=30) as response:
                 return document(response.read().decode("utf-8"))
         except HTTPError as error:
+            try:
+                error.close()
+            except OSError:
+                raise ReleaseError("GitHub metadata error response could not be closed") from None
             raise ReleaseError(f"GitHub metadata request failed with HTTP {error.code}") from None
         except (URLError, UnicodeError) as error:
             raise ReleaseError("GitHub metadata could not be verified") from error
