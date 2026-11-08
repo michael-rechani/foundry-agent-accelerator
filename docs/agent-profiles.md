@@ -299,6 +299,13 @@ and after approval, then passed as arguments to every agent. Each publication
 process uses that specific SDK credential class and client ID without a
 `DefaultAzureCredential` fallback. A changed or missing selection stops the
 remaining batch; already-published agents are not undone.
+This only excludes `DefaultAzureCredential`'s developer/environment-credential
+fallback; it does not prove which token flow or endpoint the selected SDK class
+uses. The pinned SDK's `ManagedIdentityCredential` can itself select workload
+identity when `AZURE_AUTHORITY_HOST`, `AZURE_TENANT_ID`, and
+`AZURE_FEDERATED_TOKEN_FILE` are set. Hosted-identity endpoint variables and
+`AZURE_POD_IDENTITY_AUTHORITY_HOST` can also affect its source. For workload
+identity, authority and token-file trust remain separate unresolved checks.
 The selected target and file are displayed before the first publication.
 Specialists still precede the coordinator, and each publication still needs its
 own interactive approval; coordinator approval identifies the profile's actual

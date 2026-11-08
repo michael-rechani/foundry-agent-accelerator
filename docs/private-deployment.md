@@ -132,6 +132,14 @@ role assignment, or trustworthy host. A workload identity may be a different
 kind of principal. Direct CLI publication without both explicit credential
 arguments, and unprofiled batches, still use `DefaultAzureCredential` and may
 choose environment or cached developer credentials.
+The guard excludes `DefaultAzureCredential`'s developer/environment-credential
+fallback, not all source selection within a chosen class. In the pinned SDK,
+`ManagedIdentityCredential` may internally select workload identity when
+`AZURE_AUTHORITY_HOST`, `AZURE_TENANT_ID`, and `AZURE_FEDERATED_TOKEN_FILE`
+are set; `IDENTITY_ENDPOINT`, `MSI_ENDPOINT`, and
+`AZURE_POD_IDENTITY_AUTHORITY_HOST` can affect identity source or endpoint.
+The class name does not prove a token flow or trustworthy endpoint. Workload
+identity authority and token-file handling also require separate verification.
 
 This wrapper also calls Azure CLI while initializing platform state and configures
 the Terraform backend with `use_cli = true`. The selected Python credential does
