@@ -1,0 +1,103 @@
+name: Observe hosted agent dependency resolution
+
+on:
+  push:
+    branches:
+      - copilot/runtime-dependency-observation-20261108
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.14"
+      - name: Resolve and replay public wheel hashes without installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -u)" -ne 0
+          python -m venv "$RUNNER_TEMP/resolve-env"
+          python="$RUNNER_TEMP/resolve-env/bin/python"
+          output="$RUNNER_TEMP/dependency-observation"
+          mkdir "$output"
+          "$python" -m pip --version
+          for group in publisher specialists coordinator; do
+            case "$group" in
+              publisher) input=hosted-agents/application-review-agent/requirements-deploy.txt ;;
+              specialists) input=hosted-agents/application-review-agent/requirements.txt ;;
+              coordinator) input=hosted-agents/review-coordinator-agent/requirements.txt ;;
+            esac
+            report="$output/$group.report.json"
+            lock="$output/$group.lock.txt"
+            /usr/bin/env -i "PATH=$RUNNER_TEMP/resolve-env/bin:/usr/bin:/bin" \
+              "HOME=$RUNNER_TEMP" "LANG=C" "PIP_CONFIG_FILE=/dev/null" \
+              "PIP_DISABLE_PIP_VERSION_CHECK=1" \
+              "$python" -m pip install --quiet --no-input --no-cache-dir \
+              --index-url https://pypi.org/simple --only-binary=:all: \
+              --dry-run --ignore-installed --report "$report" -r "$input"
+            /usr/bin/env -i "PATH=$RUNNER_TEMP/resolve-env/bin:/usr/bin:/bin" \
+              "HOME=$RUNNER_TEMP" "LANG=C" "$python" - "$report" "$lock" <<'PY'
+          import json
+          import re
+          import sys
+          from pathlib import Path
+          from urllib.parse import urlsplit
+
+          report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          requirements = {}
+          for item in report["install"]:
+              metadata = item["metadata"]
+              name = re.sub(r"[-_.]+", "-", metadata["name"]).lower()
+              version = metadata["version"]
+              info = item["download_info"]
+              url = urlsplit(info["url"])
+              digest = info["archive_info"]["hashes"]["sha256"]
+              if (
+                  not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name)
+                  or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.!+_-]*", version)
+                  or not re.fullmatch(r"[0-9a-f]{64}", digest)
+                  or url.scheme != "https"
+                  or url.hostname != "files.pythonhosted.org"
+                  or url.username is not None
+                  or url.password is not None
+                  or url.port not in (None, 443)
+                  or url.query
+                  or url.fragment
+                  or not url.path.endswith(".whl")
+                  or name in requirements
+              ):
+                  raise SystemExit("Unsupported package resolution")
+              requirements[name] = f"{name}=={version} --hash=sha256:{digest}\n"
+          if not requirements:
+              raise SystemExit("Empty package resolution")
+          Path(sys.argv[2]).write_text(
+              "--only-binary=:all:\n" + "".join(requirements[name] for name in sorted(requirements)),
+              encoding="utf-8",
+          )
+          print(f"Observed {len(requirements)} wheel-only requirements")
+          PY
+            /usr/bin/env -i "PATH=$RUNNER_TEMP/resolve-env/bin:/usr/bin:/bin" \
+              "HOME=$RUNNER_TEMP" "LANG=C" "PIP_CONFIG_FILE=/dev/null" \
+              "PIP_DISABLE_PIP_VERSION_CHECK=1" \
+              "$python" -m pip install --quiet --no-input --no-cache-dir \
+              --index-url https://pypi.org/simple --only-binary=:all: \
+              --dry-run --ignore-installed --require-hashes -r "$lock"
+            printf '%s input: ' "$group"
+            sha256sum "$input"
+            printf '%s lock: ' "$group"
+            sha256sum "$lock"
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-observation
+          path: ${{ runner.temp }}/dependency-observation/*.lock.txt
+          retention-days: 1
+          if-no-files-found: error
