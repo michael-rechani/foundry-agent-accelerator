@@ -1,0 +1,80 @@
+name: Temporary combined profile promotion checks
+on:
+  push:
+    branches: [copilot/profile-promotion-integration-20261107]
+    paths:
+      - hosted-agents/**
+      - deploy.ps1
+      - workbench/test-deploy.ps1
+      - .github/workflows/combined-profile-promotion-offline-20261107.yml
+permissions:
+  contents: read
+jobs:
+  synthetic:
+    if: github.repository == 'michael-rechani/foundry-agent-accelerator' && github.ref == 'refs/heads/copilot/profile-promotion-integration-20261107'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Check pinned dependencies before installing missing packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/profile-promotion-venv"
+          source "$RUNNER_TEMP/profile-promotion-venv/bin/activate"
+          for manifest in hosted-agents/review-coordinator-agent/requirements-deploy.txt .github/requirements-validation.txt; do
+            if python - "$manifest" <<'PY'
+          import importlib.metadata
+          import pathlib
+          import sys
+          missing = []
+          for line in pathlib.Path(sys.argv[1]).read_text().splitlines():
+              if not line.strip() or line.lstrip().startswith("#"):
+                  continue
+              name, expected = line.strip().split("==")
+              try:
+                  actual = importlib.metadata.version(name)
+              except importlib.metadata.PackageNotFoundError:
+                  missing.append(line.strip())
+              else:
+                  if actual != expected:
+                      print(f"Pinned version mismatch for {name}: {actual} != {expected}", file=sys.stderr)
+                      sys.exit(2)
+          print(f"{sys.argv[1]}: missing pinned packages: {missing}")
+          sys.exit(1 if missing else 0)
+          PY
+            then
+              echo "Pinned dependencies already present for $manifest"
+            else
+              status=$?
+              if [ "$status" -ne 1 ]; then exit "$status"; fi
+              python -m pip install --disable-pip-version-check --quiet -r "$manifest"
+            fi
+          done
+          python - <<'PY'
+          import importlib.metadata
+          for name, version in (
+              ("azure-ai-projects", "2.6.1"), ("azure-identity", "1.27.0"),
+              ("openai", "3.41.0"), ("ruff", "0.17.3"),
+          ):
+              assert importlib.metadata.version(name) == version, name
+              print(f"Verified {name}=={version}")
+          PY
+      - name: Check only relevant Python files with pinned Ruff
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/profile-promotion-venv/bin/activate"
+          python -m ruff check hosted-agents/deployment.py hosted-agents/test_candidate_smoke.py hosted-agents/test_deployment.py hosted-agents/test_deployment_sdk.py hosted-agents/test_profile_promotion_integration.py hosted-agents/test_publication_credentials.py hosted-agents/review-coordinator-agent/deploy.py hosted-agents/review-coordinator-agent/test_profiles.py
+      - name: Run PowerShell helpers and focused synthetic Python suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/profile-promotion-venv/bin/activate"
+          pwsh -File workbench/test-deploy.ps1
+          (cd hosted-agents/review-coordinator-agent && python -m unittest -v test_profiles)
+          (cd hosted-agents && python -m unittest -v test_candidate_smoke test_deployment test_deployment_sdk test_profile_promotion_integration test_publication_credentials)

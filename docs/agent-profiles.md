@@ -246,7 +246,7 @@ From the staged `hosted-agents` directory, use the runbook's `$python`
 executable:
 
 ```powershell
-& $python review-coordinator-agent/deploy.py --profile review-coordinator-agent/profiles/evidence-review.example.json --profile-sha256 $profileSha256
+& $python review-coordinator-agent/deploy.py --profile review-coordinator-agent/profiles/evidence-review.example.json --profile-sha256 $profileSha256 --credential-mode $env:AZURE_TOKEN_CREDENTIALS --credential-client-id $env:AZURE_CLIENT_ID
 if ($LASTEXITCODE -ne 0) { throw 'Profile deployment or specialist verification failed' }
 ```
 
@@ -291,6 +291,14 @@ digest computed from that file. That validator owns profile rules and
 continues to reject incompatible `FOUNDRY_HOSTED_AGENT_NAME` and CLI name
 overrides. Validation failure, ambiguous target output, a target conflicting with
 another selected agent, or an option outside the agents stage stops the batch.
+Before platform initialization, a profiled batch also requires
+`AZURE_TOKEN_CREDENTIALS` to be exactly `ManagedIdentityCredential` or
+`WorkloadIdentityCredential` and `AZURE_CLIENT_ID` to be a canonical explicit
+user-assigned client ID. The selection is checked again for each publication
+and after approval, then passed as arguments to every agent. Each publication
+process uses that specific SDK credential class and client ID without a
+`DefaultAzureCredential` fallback. A changed or missing selection stops the
+remaining batch; already-published agents are not undone.
 The selected target and file are displayed before the first publication.
 Specialists still precede the coordinator, and each publication still needs its
 own interactive approval; coordinator approval identifies the profile's actual
@@ -341,6 +349,22 @@ Serialize profile/source and routing changes, review the staged artifacts and
 recovery inventory, and retain the existing live delegation and promotion
 gates. This offline wiring does not demonstrate readiness for private execution,
 grant privileges, publish an agent, or remove any existing deployment blocker.
+
+Selecting a credential class and client ID does not verify that it is the
+authorized user-assigned managed identity, the correct workload federation,
+effective role assignments, or a trustworthy host. Workload identity can
+represent a different principal type. Additionally, `deploy.ps1` initializes
+platform state using Azure CLI and Terraform backend `use_cli = true`; the
+Python credential selection does not select, verify, or isolate those CLI,
+backend, or provider identities. Their authority and separation remain an
+unresolved live-publication blocker. `Get-StateAccount` uses `az storage
+account list` and picks the first result; the documented narrow state role
+does not establish storage-account list/read access, and a first result is
+not proof of the intended account. No role change or lookup resolution is
+included here. Direct CLI invocations that omit
+`--credential-mode` and `--credential-client-id`, and unprofiled batches,
+retain `DefaultAzureCredential` behavior and may use environment or cached
+developer credentials. Do not treat either path as managed-identity enforcement.
 
 ## Swap lifecycle
 

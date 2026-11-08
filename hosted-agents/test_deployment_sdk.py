@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from deployment import (
     KNOWLEDGE_CHECK_PROMPT, AgentProfile, active_release, candidate_model_matches, create_package, deploy,
-    enabled_endpoint, recovery_endpoint, smoke_test as real_smoke_test,
+    enabled_endpoint, recovery_endpoint, single_fixed_ratio, smoke_test as real_smoke_test,
 )
 
 try:
@@ -29,6 +29,22 @@ except ImportError:
 else:
     SDK_AVAILABLE = True
 
+def invalid_wire_rules(version="1"):
+    valid = {"type": "FixedRatio", "agent_version": version, "traffic_percentage": 100}
+    return [
+        [],
+        [{"agent_version": version, "traffic_percentage": 100}],
+        [{**valid, "type": "Unsupported"}],
+        [{**valid, "type": None}],
+        [{**valid, "type": True}],
+        [{"type": "FixedRatio", "agent_version": version}],
+        [{**valid, "traffic_percentage": None}],
+        [{**valid, "traffic_percentage": True}],
+        [{**valid, "traffic_percentage": "100"}],
+        [{**valid, "traffic_percentage": 100.0}],
+        [{**valid, "traffic_percentage": 50}, {**valid, "agent_version": "3", "traffic_percentage": 50}],
+        [valid, {**valid, "agent_version": "3", "traffic_percentage": 0}],
+    ]
 
 @unittest.skipUnless(SDK_AVAILABLE, "Install requirements-deploy.txt for the real deployment SDK models")
 class DeploymentSDKTests(unittest.TestCase):
@@ -766,17 +782,139 @@ class DeploymentSDKTests(unittest.TestCase):
         self.assertEqual(self.endpoint, self.original)
         self.client.agents.delete_version.assert_not_called()
 
-    def test_split_route_is_restored_exactly_after_smoke_failure(self):
-        self.endpoint.version_selector.version_selection_rules = [
-            FixedRatioVersionSelectionRule(agent_version="1", traffic_percentage=60),
-            FixedRatioVersionSelectionRule(agent_version="4", traffic_percentage=40),
-        ]
-        self.original = deepcopy(self.endpoint)
-        self.smoke.side_effect = RuntimeError("smoke failed")
-        with self.assertRaisesRegex(RuntimeError, "smoke failed"):
+    def test_split_or_malformed_routes_refuse_before_creation_for_coordinator_and_specialist(self):
+        for target in ("coordinator", "specialist"):
+            profile = self.profile
+            name = self.args.agent_name
+            if target == "specialist":
+                name = "specialist"
+                profile = AgentProfile(
+                    self.profile.source_directory, self.profile.name, self.profile.description,
+                    self.profile.instructions, self.profile.smoke_test_prompt,
+                    (("fictional prompt", "inspect", "specialist"),),
+                )
+            for rules in invalid_wire_rules():
+                with self.subTest(target=target, rules=rules):
+                    def get_with_rules(*, agent_name, name=name, rules=rules):
+                        details = self.get(agent_name=agent_name)
+                        if agent_name == name:
+                            details["agent_endpoint"]["version_selector"]["version_selection_rules"] = deepcopy(rules)
+                        return details
+
+                    self.client.agents.get.side_effect = get_with_rules
+                    with self.assertRaises(RuntimeError):
+                        deploy(profile, self.args)
+                    self.assert_no_agent_mutations()
+                    self.client.agents.enable.assert_not_called()
+
+    def test_unsupported_route_appearing_before_promotion_never_writes(self):
+        for target in ("coordinator", "specialist"):
+            with self.subTest(target=target):
+                self.client.agents.create_version_from_code.reset_mock()
+                self.candidate.reset_mock()
+                name = self.args.agent_name if target == "coordinator" else "specialist"
+                profile = self.profile
+                if target == "specialist":
+                    profile = AgentProfile(
+                        self.profile.source_directory, self.profile.name, self.profile.description,
+                        self.profile.instructions, self.profile.smoke_test_prompt,
+                        (("fictional prompt", "inspect", "specialist"),),
+                    )
+                changed = {"value": False}
+
+                def get_changed(*, agent_name, name=name, changed=changed):
+                    details = self.get(agent_name=agent_name)
+                    if changed["value"] and agent_name == name:
+                        details["agent_endpoint"]["version_selector"]["version_selection_rules"][0]["type"] = "Other"
+                    return details
+
+                self.client.agents.get.side_effect = get_changed
+                self.candidate.side_effect = lambda *args, changed=changed, **kwargs: changed.update(value=True)
+                with self.assertRaises(RuntimeError):
+                    deploy(profile, self.args)
+                self.candidate.assert_called_once()
+                self.client.agents.update_details.assert_not_called()
+                self.client.agents.delete_version.assert_not_called()
+                self.client.agents.enable.assert_not_called()
+
+    def test_equal_looking_float_route_changes_refuse_creation_promotion_and_rollback(self):
+        def make_invalid():
+            state = self.endpoint.as_dict()
+            state["version_selector"]["version_selection_rules"][0]["traffic_percentage"] = 100.0
+            self.endpoint = AgentEndpointConfig(state)
+
+        def changed_during_snapshot(*, agent_name, agent_version):
+            result = self.read_version(agent_name=agent_name, agent_version=agent_version)
+            make_invalid()
+            return result
+
+        self.client.agents.get_version.side_effect = changed_during_snapshot
+        with self.assertRaisesRegex(RuntimeError, "recovery route changed"):
             deploy(self.profile, self.args)
-        self.assertEqual(self.endpoint, self.original)
+        self.assert_no_agent_mutations()
+
+        self.endpoint = deepcopy(self.original)
+        self.client.agents.get_version.side_effect = self.read_version
+        self.candidate.side_effect = lambda *args, **kwargs: make_invalid()
+        with self.assertRaisesRegex(RuntimeError, "changed during deployment"):
+            deploy(self.profile, self.args)
+        self.client.agents.update_details.assert_not_called()
         self.client.agents.delete_version.assert_not_called()
+
+        self.endpoint = deepcopy(self.original)
+        self.candidate.side_effect = None
+        self.client.agents.update_details.reset_mock()
+
+        def changed_during_smoke(*args):
+            make_invalid()
+            raise RuntimeError("fictional smoke failure")
+
+        self.smoke.side_effect = changed_during_smoke
+        output = io.StringIO()
+        with redirect_stdout(output), self.assertRaisesRegex(RuntimeError, "fictional smoke failure"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.client.agents.update_details.call_count, 1)
+        self.assertIn("manual recovery required", output.getvalue())
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+
+    def test_unsupported_promoted_route_is_not_overwritten_during_recovery(self):
+        def promoted_with_wrong_discriminator(**kwargs):
+            self.update(**kwargs)
+            if self.client.agents.update_details.call_count == 1:
+                state = self.endpoint.as_dict()
+                state["version_selector"]["version_selection_rules"][0]["type"] = "Other"
+                self.endpoint = AgentEndpointConfig(state)
+
+        self.client.agents.update_details.side_effect = promoted_with_wrong_discriminator
+        output = io.StringIO()
+        with redirect_stdout(output), self.assertRaisesRegex(RuntimeError, "route was not confirmed"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.client.agents.update_details.call_count, 1)
+        self.assertIn("manual recovery required", output.getvalue())
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
+        self.smoke.assert_not_called()
+
+    def test_draft_form_recovery_and_candidate_ids_are_not_releases(self):
+        draft = "draft-1719600000000"
+        self.endpoint = self.route(draft)
+        with self.assertRaisesRegex(RuntimeError, "not an active release"):
+            deploy(self.profile, self.args)
+        self.assert_no_agent_mutations()
+        self.endpoint = deepcopy(self.original)
+
+        def create_draft(**kwargs):
+            self.create(**kwargs)
+            return SimpleNamespace(version=draft, instance_identity=None)
+
+        self.client.agents.create_version_from_code.side_effect = create_draft
+        with self.assertRaisesRegex(RuntimeError, "not an active release"):
+            deploy(self.profile, self.args)
+        self.candidate.assert_not_called()
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
 
     def test_recovery_version_lost_after_promotion_leaves_candidate_untouched(self):
         state = {"recovery_active": True}
@@ -957,7 +1095,10 @@ class DeploymentSDKTests(unittest.TestCase):
         output = io.StringIO()
         with redirect_stdout(output):
             deploy(self.profile, self.args)
-        self.assertIn("No agent instance identity was reported", output.getvalue())
+        self.assertIn("runtime identity is unconfirmed", output.getvalue())
+        self.assertIn("downstream permissions must be independently verified", output.getvalue())
+        self.assertNotIn("legacy", output.getvalue())
+        self.assertNotIn("shared project identity", output.getvalue())
         self.assertNotIn("principal ID:", output.getvalue())
 
     def test_portable_archive_is_uploaded_without_repackaging_local_source(self):
@@ -1047,6 +1188,58 @@ class DeploymentTimeoutTests(unittest.TestCase):
         ):
             deploy(profile, args)
         return attempts
+
+    def test_real_sdk_get_preserves_raw_rule_discriminator_and_percentage_and_patch_wire(self):
+        valid = {"type": "FixedRatio", "agent_version": "1", "traffic_percentage": 100}
+        payloads = [valid, *[rules[0] for rules in invalid_wire_rules() if len(rules) == 1]]
+        sent = []
+        remaining = iter(payloads)
+
+        def respond(adapter, request, **kwargs):
+            sent.append(request.method)
+            response = requests.Response()
+            response.status_code = 200
+            response.headers["Content-Type"] = "application/json"
+            response.request = request
+            if request.method == "GET":
+                body = {
+                    "name": "fictional-agent", "state": "enabled", "configuration_state": "enabled",
+                    "agent_endpoint": {
+                        "version_selector": {"version_selection_rules": [next(remaining)]},
+                        "protocol_configuration": {"responses": {}},
+                    },
+                }
+            else:
+                body = {}
+                sent.append(json.loads(request.body))
+            response._content = json.dumps(body).encode()
+            response.raw = io.BytesIO(response._content)
+            return response
+
+        with patch.object(requests.adapters.HTTPAdapter, "send", respond):
+            with AIProjectClient(
+                endpoint="https://fictional.services.ai.azure.com/api/projects/demo",
+                credential=self.Credential(), allow_preview=True, retry_total=0,
+            ) as client:
+                for index, wire_rule in enumerate(payloads):
+                    with self.subTest(wire_rule=wire_rule):
+                        details = client.agents.get(agent_name="fictional-agent")
+                        rule = details.agent_endpoint.version_selector.version_selection_rules[0]
+                        self.assertEqual(dict(rule), wire_rule)
+                        self.assertEqual(single_fixed_ratio([rule]), index == 0)
+                        if wire_rule.get("traffic_percentage") == "100":
+                            self.assertEqual(rule.traffic_percentage, 100)
+                endpoint = AgentEndpointConfig(
+                    version_selector=VersionSelector(version_selection_rules=[
+                        FixedRatioVersionSelectionRule(agent_version="1", traffic_percentage=100),
+                    ]),
+                    protocol_configuration=ProtocolConfiguration(responses=ResponsesProtocolConfiguration()),
+                )
+                client.agents.update_details(agent_name="fictional-agent", agent_endpoint=endpoint)
+        self.assertEqual(sent[:-2], ["GET"] * len(payloads))
+        self.assertEqual(sent[-2], "PATCH")
+        self.assertEqual(sent[-1]["agent_endpoint"]["version_selector"]["version_selection_rules"], [valid])
+        self.assertEqual(sent[-1]["agent_endpoint"]["protocol_configuration"]["responses"], {})
 
     def test_real_sdk_deserializes_documented_administrative_wire_field(self):
         from urllib.parse import parse_qs, urlsplit

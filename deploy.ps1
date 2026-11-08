@@ -190,13 +190,17 @@ function Get-StateAccount {
 }
 
 function Initialize-Backend([string]$Directory, [string]$Key) {
+    $local = Join-Path $Directory 'terraform.tfstate'
+    if ($CoordinatorProfile -and (Test-Path -LiteralPath $local) -and
+        (Get-Content -LiteralPath $local -Raw) -match '"resources"\s*:\s*\[\s*\{') {
+        throw 'A profiled batch cannot implicitly migrate local Terraform state. Resolve migration separately before continuing.'
+    }
     $account = Get-StateAccount
     if (-not (Test-PrivateHost "$account.blob.core.windows.net")) {
         throw "This host can't reach the state account $account privately. Run from a host on a network peered to the state VNet (terraform/bootstrap/README.md)."
     }
     Write-NewFile (Join-Path $Directory 'backend.hcl') (New-BackendHcl $account $Key)
     $arguments = @("-chdir=$Directory", 'init', '-backend-config=backend.hcl')
-    $local = Join-Path $Directory 'terraform.tfstate'
     if ((Test-Path -LiteralPath $local) -and (Get-Content -LiteralPath $local -Raw) -match '"resources"\s*:\s*\[\s*\{') {
         Write-Host 'Local state found. Terraform asks before copying it into the private backend; answer yes.'
         $arguments += '-migrate-state'
@@ -462,20 +466,42 @@ function Get-ValidatedCoordinatorTarget([string]$ProfilePath, [string]$ExpectedD
     $target
 }
 
+function Get-ProfileCredentialSelection {
+    $mode = [Environment]::GetEnvironmentVariable('AZURE_TOKEN_CREDENTIALS', 'Process')
+    $client = [Environment]::GetEnvironmentVariable('AZURE_CLIENT_ID', 'Process')
+    if ($mode -cnotin @('ManagedIdentityCredential', 'WorkloadIdentityCredential')) {
+        throw 'A profiled batch requires AZURE_TOKEN_CREDENTIALS to select exactly ManagedIdentityCredential or WorkloadIdentityCredential.'
+    }
+    if ($client -cnotmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
+        throw 'A profiled batch requires an explicit canonical AZURE_CLIENT_ID.'
+    }
+    [pscustomobject]@{ Mode = $mode; ClientId = $client }
+}
+
+function Assert-ProfileCredentialSelection($Expected) {
+    $current = Get-ProfileCredentialSelection
+    if ($current.Mode -cne $Expected.Mode -or $current.ClientId -cne $Expected.ClientId) {
+        throw 'The profiled batch credential selection changed; stop and review the batch again.'
+    }
+}
+
 function Invoke-AgentsStage {
     if (-not $Agent) { throw 'Name the agents to publish with -Agent, specialists before coordinators. Publishing is billable and changes routing.' }
     $profilePath = $null
     $profileSha256 = $null
     $coordinatorTarget = $null
+    $credentialSelection = $null
     if ($CoordinatorProfile) {
         if ($Stage -notcontains 'agents') { throw '-CoordinatorProfile requires -Stage agents.' }
         if ([string]::IsNullOrWhiteSpace($CoordinatorProfile)) { throw '-CoordinatorProfile must name one file.' }
+        $credentialSelection = Get-ProfileCredentialSelection
         $coordinators = @($Agent | Where-Object { $_ -ceq 'review-coordinator-agent' })
         if ($coordinators.Count -ne 1 -or $Agent[-1] -cne 'review-coordinator-agent') {
             throw '-CoordinatorProfile requires exactly one review-coordinator-agent, last in -Agent (specialists before coordinator).'
         }
         if (@($Agent | Select-Object -Unique).Count -ne $Agent.Count) { throw 'A profiled batch must not repeat agent names.' }
         foreach ($name in $Agent) {
+            if ($profilePath) { Assert-ProfileCredentialSelection $credentialSelection }
             if ($name -cnotmatch '^[a-z0-9-]+$' -or -not (Test-Path -LiteralPath (Join-Path $PSScriptRoot "hosted-agents/$name/deploy.py") -PathType Leaf)) {
                 throw "No deployable agent named $name under hosted-agents."
             }
@@ -517,6 +543,9 @@ function Invoke-AgentsStage {
         $python = Join-Path $venv $(if ($IsWindows) { 'Scripts/python.exe' } else { 'bin/python' })
         Invoke-Native $python @('-m', 'pip', 'install', '--quiet', '-r', (Join-Path $sample 'requirements-deploy.txt'))
         $arguments = @((Join-Path $sample 'deploy.py'))
+        if ($profilePath) {
+            $arguments += @('--credential-mode', $credentialSelection.Mode, '--credential-client-id', $credentialSelection.ClientId)
+        }
         $publicationTarget = $name
         if ($profilePath -and $name -ceq 'review-coordinator-agent') {
             $arguments += @('--profile', $profilePath, '--profile-sha256', $profileSha256)
@@ -527,6 +556,7 @@ function Invoke-AgentsStage {
         if ($profilePath -and $name -ceq 'review-coordinator-agent') {
             if ((Get-ValidatedCoordinatorTarget $profilePath $profileSha256) -cne $coordinatorTarget) { throw 'Coordinator profile target changed after approval; stop and review the batch again.' }
         }
+        if ($profilePath) { Assert-ProfileCredentialSelection $credentialSelection }
         $env:FOUNDRY_PROJECT_ENDPOINT = $endpoint
         $env:FOUNDRY_MODEL_NAME = $model
         try { Invoke-Native $python $arguments } finally {
@@ -539,6 +569,7 @@ function Invoke-AgentsStage {
 if ($MyInvocation.InvocationName -eq '.') { return }
 if (-not $Subscription) { throw '-Subscription is required.' }
 if ($CoordinatorProfile -and $Stage -notcontains 'agents') { throw '-CoordinatorProfile requires -Stage agents.' }
+if ($CoordinatorProfile) { $null = Get-ProfileCredentialSelection }
 
 $selected = Get-StageOrder $Stage
 foreach ($name in $selected) {

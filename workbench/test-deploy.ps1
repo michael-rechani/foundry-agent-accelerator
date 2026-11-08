@@ -85,7 +85,21 @@ foreach ($optIn in 'runner', 'identity', 'agents') {
 
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('deploy-test-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temporary | Out-Null
+$savedCredentialMode = [Environment]::GetEnvironmentVariable('AZURE_TOKEN_CREDENTIALS', 'Process')
+$savedClientId = [Environment]::GetEnvironmentVariable('AZURE_CLIENT_ID', 'Process')
 try {
+    $stateDir = Join-Path $temporary 'fictional-state'
+    New-Item -ItemType Directory -Path $stateDir | Out-Null
+    Set-Content -LiteralPath (Join-Path $stateDir 'terraform.tfstate') -Value '{"resources":[{"type":"fictional"}]}'
+    $savedGetStateAccount = ${function:Get-StateAccount}
+    function Get-StateAccount { throw 'Unexpected state account access' }
+    $CoordinatorProfile = 'fictional-profile.json'
+    try { Initialize-Backend $stateDir 'fictional'; throw 'implicit migration accepted' } catch {
+        if ($_.Exception.Message -notmatch 'cannot implicitly migrate') { throw }
+    }
+    Set-Item Function:Get-StateAccount -Value $savedGetStateAccount
+    Remove-Variable CoordinatorProfile
+    $CoordinatorProfile = $null
     # The stub keeps test-private.ps1's real parameter block, so a renamed or retyped parameter fails here.
     $checkAst = [Management.Automation.Language.Parser]::ParseFile((Resolve-Path (Join-Path $PSScriptRoot 'test-private.ps1')), [ref]$null, [ref]$null)
     $stub = Join-Path $temporary 'stub-check.ps1'
@@ -262,7 +276,7 @@ try {
     $IncludeAgentCall = [switch]$false
 
     # Publication uses only test doubles; no process, Azure, or Terraform is invoked.
-    function Initialize-PlatformRoot { }
+    function Initialize-PlatformRoot { $script:agentPlatformInitializations++ }
     function Get-Native([string]$Command, [string[]]$Arguments) {
         switch (($Arguments | Select-Object -Skip 1) -join ',') {
             'output,-raw,foundry_project_endpoint' { return 'https://foundry-test.services.ai.azure.com/api/projects/project-test' }
@@ -298,6 +312,7 @@ try {
             $script:publishedModels.Add($env:FOUNDRY_MODEL_NAME)
             $script:publicationCalls.Add([pscustomobject]@{ Command = $Command; Arguments = @($Arguments); Endpoint = $env:FOUNDRY_PROJECT_ENDPOINT })
             if ($script:publicationError) { throw 'Fictional publication failure.' }
+            if ($script:changeClientAfterPublication) { $env:AZURE_CLIENT_ID = 'abcdefab-1234-1234-1234-123456789abc' }
         }
     }
     $Agent = @('basic-responses-agent')
@@ -369,17 +384,43 @@ try {
 
     $CoordinatorProfile = $script:profileFile
     $Agent = @('application-review-agent', 'case-review-agent', 'review-coordinator-agent')
+    $script:fictionalClientId = '12345678-1234-1234-1234-123456789abc'
+    $env:AZURE_TOKEN_CREDENTIALS = 'ManagedIdentityCredential'
+    $env:AZURE_CLIENT_ID = $script:fictionalClientId
     $script:profileTarget = 'customer-review-coordinator'
     $script:validations = 0
     $script:approvalLabels = [Collections.Generic.List[string]]::new()
     function Confirm-Apply([string]$Label) {
         $script:approvalLabels.Add($Label)
+        if ($script:changeCredentialAfterApproval) { $env:AZURE_TOKEN_CREDENTIALS = 'WorkloadIdentityCredential' }
         if ($script:changeProfileAfterApproval -and $Label -match 'customer-review-coordinator') {
             Set-Content -LiteralPath $script:profileFile -Value '{"same-name":"changed bytes after approval"}'
         }
         if ($script:declineCoordinator -and $Label -match 'customer-review-coordinator') { return $false }
         $script:approval
     }
+    foreach ($case in @(
+        @{ Mode = $null; Client = $script:fictionalClientId },
+        @{ Mode = 'dev'; Client = $script:fictionalClientId },
+        @{ Mode = 'EnvironmentCredential'; Client = $script:fictionalClientId },
+        @{ Mode = 'ManagedIdentityCredential,WorkloadIdentityCredential'; Client = $script:fictionalClientId },
+        @{ Mode = 'managedidentitycredential'; Client = $script:fictionalClientId },
+        @{ Mode = 'ManagedIdentityCredential'; Client = $null },
+        @{ Mode = 'WorkloadIdentityCredential'; Client = 'not-a-guid' },
+        @{ Mode = 'ManagedIdentityCredential'; Client = " $($script:fictionalClientId)" })) {
+        [Environment]::SetEnvironmentVariable('AZURE_TOKEN_CREDENTIALS', $case.Mode, 'Process')
+        [Environment]::SetEnvironmentVariable('AZURE_CLIENT_ID', $case.Client, 'Process')
+        $before = $script:publicationCalls.Count; $asked = $script:approvalLabels.Count
+        $initialized = $script:agentPlatformInitializations
+        try { Invoke-AgentsStage; throw 'invalid credential selection accepted' } catch {
+            if ($_.Exception.Message -notmatch 'AZURE_TOKEN_CREDENTIALS|AZURE_CLIENT_ID') { throw }
+        }
+        Assert-Equal $initialized $script:agentPlatformInitializations 'invalid credential fails before platform initialization'
+        Assert-Equal $before $script:publicationCalls.Count 'invalid credential fails before any publication'
+        Assert-Equal $asked $script:approvalLabels.Count 'invalid credential fails before any approval'
+    }
+    $env:AZURE_TOKEN_CREDENTIALS = 'ManagedIdentityCredential'
+    $env:AZURE_CLIENT_ID = $script:fictionalClientId
     $script:useRealProfileValidation = $true
     foreach ($field in 'coordinator', 'specialist') {
         $invalidNames = @('_coordinator', 'agent_name', '-agent', 'agent-', ('a' * 64), "caf$([char]0x00e9)", '-')
@@ -404,12 +445,18 @@ try {
     $calls = @($script:publicationCalls | Select-Object -Skip $before)
     Assert-Equal 3 $calls.Count 'profiled batch publishes all approved agents'
     Assert-Equal 'application-review-agent,case-review-agent,review-coordinator-agent' (($calls | ForEach-Object { Split-Path (Split-Path $_.Arguments[0]) -Leaf }) -join ',') 'specialists publish before coordinator'
-    foreach ($call in $calls[0..1]) { Assert-Equal 1 $call.Arguments.Count 'specialists receive no coordinator profile arguments' }
-    Assert-Equal 5 $calls[2].Arguments.Count 'coordinator receives script, profile and expected digest arguments'
-    Assert-Equal '--profile' $calls[2].Arguments[1] 'coordinator receives the explicit profile flag'
-    Assert-Equal $script:profileFile $calls[2].Arguments[2] 'spaces and shell metacharacters remain one literal argument'
-    Assert-Equal '--profile-sha256' $calls[2].Arguments[3] 'publication forwards the digest flag'
-    Assert-Equal (Get-FileHash -LiteralPath $script:profileFile -Algorithm SHA256).Hash.ToLowerInvariant() $calls[2].Arguments[4] 'publication uses the same digest as validated approval'
+    foreach ($call in $calls) {
+        Assert-Equal '--credential-mode' $call.Arguments[1] 'every agent receives explicit credential mode'
+        Assert-Equal 'ManagedIdentityCredential' $call.Arguments[2] 'every agent receives the same selected class'
+        Assert-Equal '--credential-client-id' $call.Arguments[3] 'every agent receives explicit client ID flag'
+        Assert-Equal $script:fictionalClientId $call.Arguments[4] 'every agent receives same client ID'
+    }
+    foreach ($call in $calls[0..1]) { Assert-Equal 5 $call.Arguments.Count 'specialists receive no coordinator profile arguments' }
+    Assert-Equal 9 $calls[2].Arguments.Count 'coordinator receives explicit credential and profile arguments'
+    Assert-Equal '--profile' $calls[2].Arguments[5] 'coordinator receives the explicit profile flag'
+    Assert-Equal $script:profileFile $calls[2].Arguments[6] 'spaces and shell metacharacters remain one literal argument'
+    Assert-Equal '--profile-sha256' $calls[2].Arguments[7] 'publication forwards the digest flag'
+    Assert-Equal (Get-FileHash -LiteralPath $script:profileFile -Algorithm SHA256).Hash.ToLowerInvariant() $calls[2].Arguments[8] 'publication uses the same digest as validated approval'
     Assert-Equal 'custom-router' $script:publishedModels[-1] 'profile forwarding preserves Router default'
     Assert-Equal 3 $script:approvalLabels.Count 'every publication still requires separate approval'
     if ($script:approvalLabels[-1] -notmatch 'publishing customer-review-coordinator from profile' -or $script:approvalLabels[-1] -notmatch [regex]::Escape($script:profileFile)) {
@@ -421,13 +468,37 @@ try {
     $CoordinatorProfile = [IO.Path]::GetRelativePath((Split-Path $script), $script:profileFile)
     $script:agentOutputs = $fixedOutputs
     Invoke-AgentsStage
-    Assert-Equal $script:profileFile $script:publicationCalls[-1].Arguments[2] 'repository-relative profile resolves to the same literal file'
+    Assert-Equal $script:profileFile $script:publicationCalls[-1].Arguments[6] 'repository-relative profile resolves to the same literal file'
     Assert-Equal 'gpt-4.1' $script:publishedModels[-1] 'profile forwarding preserves fixed-model recovery'
     $AgentModel = 'explicit-fixed'; $script:modelOutputReads = 0
     Invoke-AgentsStage
     Assert-Equal 'explicit-fixed' $script:publishedModels[-1] 'explicit model override still wins for a profile'
     Assert-Equal 0 $script:modelOutputReads 'profile with explicit model does not read model outputs'
     $AgentModel = $null; $script:agentOutputs = $routerOutputs
+    $env:AZURE_TOKEN_CREDENTIALS = 'WorkloadIdentityCredential'
+    $before = $script:publicationCalls.Count
+    Invoke-AgentsStage
+    foreach ($call in @($script:publicationCalls | Select-Object -Skip $before)) {
+        Assert-Equal 'WorkloadIdentityCredential' $call.Arguments[2] 'workload selection reaches every agent in the batch'
+        Assert-Equal $script:fictionalClientId $call.Arguments[4] 'workload selection retains explicit ID'
+    }
+    $env:AZURE_TOKEN_CREDENTIALS = 'ManagedIdentityCredential'
+    $script:changeCredentialAfterApproval = $true
+    $before = $script:publicationCalls.Count
+    try { Invoke-AgentsStage; throw 'changed credential selection accepted' } catch {
+        if ($_.Exception.Message -notmatch 'credential selection changed') { throw }
+    }
+    Assert-Equal $before $script:publicationCalls.Count 'changed selection after approval cannot publish'
+    $script:changeCredentialAfterApproval = $false
+    $env:AZURE_TOKEN_CREDENTIALS = 'ManagedIdentityCredential'
+    $script:changeClientAfterPublication = $true
+    $before = $script:publicationCalls.Count
+    try { Invoke-AgentsStage; throw 'changed client after first publication accepted' } catch {
+        if ($_.Exception.Message -notmatch 'credential selection changed') { throw }
+    }
+    Assert-Equal ($before + 1) $script:publicationCalls.Count 'changed client stops before the next agent'
+    $script:changeClientAfterPublication = $false
+    $env:AZURE_CLIENT_ID = $script:fictionalClientId
 
     foreach ($case in @(
             @{ Profile = (Join-Path $temporary 'missing.json'); Agents = $Agent; Stages = @('agents'); Error = 'does not exist|Cannot find path' },
@@ -512,6 +583,8 @@ try {
     Write-NewFile $file 'overwritten' | Out-Null
     if ((Get-Content -LiteralPath $file -Raw) -match 'overwritten') { throw 'An existing input file was overwritten.' }
 } finally {
+    [Environment]::SetEnvironmentVariable('AZURE_TOKEN_CREDENTIALS', $savedCredentialMode, 'Process')
+    [Environment]::SetEnvironmentVariable('AZURE_CLIENT_ID', $savedClientId, 'Process')
     Remove-Item -LiteralPath $temporary -Recurse -Force
 }
 

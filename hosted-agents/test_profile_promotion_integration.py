@@ -19,6 +19,7 @@ import test_deployment_sdk as sdk_fixture
 class CustomerProfilePromotionIntegrationTests(unittest.TestCase):
     ROUTER_LABEL = "fictional-router-label"
     SESSION_ID = "fictional-customer-profile-session"
+    CLIENT_ID = "12345678-1234-1234-1234-123456789abc"
 
     def setUp(self):
         self.assertTrue(sdk_fixture.SDK_AVAILABLE, "Synthetic integration requires requirements-deploy.txt")
@@ -28,6 +29,12 @@ class CustomerProfilePromotionIntegrationTests(unittest.TestCase):
             methodName="test_pins_archive_integrity_preserves_authorization_and_reads_final_route")
         self.addCleanup(self.fixture.doCleanups)
         self.fixture.setUp()
+        self.default_credential = self.enterContext(patch("azure.identity.DefaultAzureCredential"))
+        self.credential_environment = self.enterContext(patch.dict("os.environ", {
+            "AZURE_TOKEN_CREDENTIALS": "ManagedIdentityCredential", "AZURE_CLIENT_ID": self.CLIENT_ID,
+        }))
+        self.managed_credential = self.enterContext(patch("azure.identity.ManagedIdentityCredential"))
+        self.workload_credential = self.enterContext(patch("azure.identity.WorkloadIdentityCredential"))
         # Restore decision logic patched by the reusable SDK fixture; only external clients stay mocked.
         self.enterContext(patch("deployment.smoke_test", new=real_smoke))
         self.enterContext(patch("deployment.candidate_smoke_test", new=real_candidate_smoke))
@@ -113,12 +120,13 @@ class CustomerProfilePromotionIntegrationTests(unittest.TestCase):
             })},
         ])
 
-    def run_profile(self, path=None):
+    def run_profile(self, path=None, mode="ManagedIdentityCredential"):
         path = self.example if path is None else path
         digest = self.digest if path == self.example else hashlib.sha256(path.read_bytes()).hexdigest()
         argv = [
             str(self.source), "--profile", str(path), "--profile-sha256", digest,
             "--endpoint", self.fixture.args.endpoint, "--model", self.ROUTER_LABEL,
+            "--credential-mode", mode, "--credential-client-id", self.CLIENT_ID,
             "--poll-seconds", "1", "--max-polls", "1",
         ]
         with patch.object(sys, "argv", argv):
@@ -165,6 +173,22 @@ class CustomerProfilePromotionIntegrationTests(unittest.TestCase):
         self.assertEqual(self.fixture.endpoint.version_selector.version_selection_rules[0].traffic_percentage, 100)
         self.client.agents.delete_version.assert_not_called()
         self.client.agents.enable.assert_not_called()
+        self.managed_credential.assert_called_once_with(client_id=self.CLIENT_ID)
+        self.workload_credential.assert_not_called()
+        self.default_credential.assert_not_called()
+
+    def test_workload_flow_uses_only_selected_class_during_actual_deployment(self):
+        import os
+        os.environ["AZURE_TOKEN_CREDENTIALS"] = "WorkloadIdentityCredential"
+        with redirect_stdout(io.StringIO()), self.assertRaises(SystemExit) as result:
+            self.run_profile(mode="WorkloadIdentityCredential")
+        self.assertEqual(result.exception.code, 0)
+        self.workload_credential.assert_called_once_with(client_id=self.CLIENT_ID)
+        self.managed_credential.assert_not_called()
+        self.default_credential.assert_not_called()
+        self.assertTrue(deployment.routes_to_version(self.fixture.endpoint, self.created.version))
+        self.assertEqual(self.client.agents.create_version_from_code.call_args.kwargs[
+            "definition"].environment_variables["FOUNDRY_MODEL_NAME"], self.ROUTER_LABEL)
 
     def test_disabled_specialist_stops_before_version_creation_or_route_update(self):
         self.specialist_states["case-review-agent"] = "disabled"
