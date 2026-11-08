@@ -7,12 +7,9 @@ import platform
 import re
 import shutil
 import signal
-import stat
 import subprocess
 import sys
 import tarfile
-import tempfile
-import uuid
 from pathlib import Path
 from urllib import error, parse, request
 
@@ -46,6 +43,7 @@ FAILURE_STAGES = {
     "skill": "skill_execution",
     "version": "version",
     "cleanup": "cleanup",
+    "supervision": "supervision_unverified",
     "interrupted": "interruption",
 }
 
@@ -165,22 +163,8 @@ def isolated_environment(root, user_agent):
 
 
 def command(args, cwd, env):
-    process = subprocess.Popen(  # noqa: S603 -- pinned script or selected azd executable, fixed arguments and isolated environment.
-        args, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        text=True, start_new_session=True,
-    )
-    try:
-        stdout, stderr = process.communicate(timeout=180)
-        return subprocess.CompletedProcess(args, process.returncode, stdout, stderr)
-    finally:
-        # Kill descendants as well, before deleting any state they might still use.
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        process.wait()
-
+    # No safe direct-child/descendant teardown has been established.
+    raise CheckError("supervision")
 
 def install_azd(root):
     archive = root / "azd.tar.gz"
@@ -212,91 +196,17 @@ def install_azd(root):
 
 
 def check(root, user_agent):
-    env = isolated_environment(root, user_agent)
-    (root / "bin").mkdir(mode=0o700)
-    skill_root = root / "skill"
-    scripts = skill_root / "scripts"
-    scripts.mkdir(parents=True, mode=0o700)
-    script = scripts / "check-and-setup-dependencies.sh"
-    download(SKILL_URL, SKILL_SHA256, script, 64 * 1024)
-    validate_upstream_user_agent(script, user_agent)
-    installed_azd = shutil.which("azd", path=SYSTEM_PATH)
-    if installed_azd is not None:
-        (root / "bin" / "azd").symlink_to(Path(installed_azd).resolve())
-    bash = shutil.which("bash", path="/usr/bin:/bin")
-    if bash is None:
-        raise CheckError("bash")
-    result = command([bash, str(script)], skill_root, env)
-    if result.returncode != 0:
-        if installed_azd is not None or result.returncode != 1 or result.stdout or result.stderr != MISSING_AZD:
-            raise CheckError("skill")
-        install_azd(root)
-        result = command([bash, str(script)], skill_root, env)
-    if result.returncode != 0 or not result.stdout.endswith(READY):
-        raise CheckError("skill")
-    version = command([str(root / "bin" / "azd"), "version"], skill_root, env)
-    match = re.fullmatch(rf"azd version ({VERSION})(?: \([^\r\n]*\))?\n?", version.stdout)
-    if version.returncode != 0 or not match:
-        raise CheckError("version")
-    # Only the numeric version is published, never the commit or extension command output.
-    return match.group(1)
+    raise CheckError("supervision")
 
 
 def cleanup(temp, receipt_name):
-    receipt = temp / receipt_name
-    if not receipt.exists() and not receipt.is_symlink():
-        return
-    if not stat.S_ISREG(receipt.lstat().st_mode):
-        raise CheckError("cleanup")
-    record = json.loads(receipt.read_text())
-    if (
-        not isinstance(record, dict)
-        or set(record) != {"name", "owner"}
-        or not isinstance(record["name"], str)
-        or not re.fullmatch(r"foundry-prerequisites-[a-z0-9_]{8}", record["name"])
-        or not isinstance(record["owner"], str)
-        or not re.fullmatch(r"[0-9a-f]{32}", record["owner"])
-    ):
-        raise CheckError("cleanup")
-    root = temp / record["name"]
-    if root.exists() or root.is_symlink():
-        marker = root / ".run-owned"
-        if (
-            not stat.S_ISDIR(root.lstat().st_mode)
-            or not stat.S_ISREG(marker.lstat().st_mode)
-            or marker.read_text() != record["owner"]
-        ):
-            raise CheckError("cleanup")
-        shutil.rmtree(root)
-    receipt.unlink()
+    # Old receipts cannot prove that descendants and pending writes are gone.
+    raise CheckError("cleanup")
 
 
 def run():
-    temp, receipt_name = context()
-    user_agent = invocation_user_agent()
-    receipt = temp / receipt_name
-    # Reserve the receipt exclusively: retries must not overwrite another invocation.
-    registration = os.fdopen(os.open(receipt, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), "w")
-    root = None
-    try:
-        root = Path(tempfile.mkdtemp(prefix="foundry-prerequisites-", dir=temp))
-        owner = uuid.uuid4().hex
-        (root / ".run-owned").write_text(owner)
-        json.dump({"name": root.name, "owner": owner}, registration)
-        registration.close()
-        version = check(root, user_agent)
-    finally:
-        registration.close()
-        if root is not None:
-            try:
-                shutil.rmtree(root)
-                receipt.unlink()
-            except OSError as failure:
-                raise CheckError("cleanup") from failure
-        else:
-            receipt.unlink()
-    return version
-
+    # Refuse before creating scratch, downloading, or invoking any process.
+    raise CheckError("supervision")
 
 def interrupted(signum, frame):
     raise CheckError("interrupted")

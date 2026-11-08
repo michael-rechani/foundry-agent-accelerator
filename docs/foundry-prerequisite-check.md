@@ -1,122 +1,49 @@
-# Isolated Foundry prerequisite check
+# Protected Foundry prerequisite check: execution blocked
 
-`Check isolated private Foundry prerequisites` is a manually dispatched,
-protected-main-only setup check on the existing Linux x86_64 `lab-runner`.
-It uses the existing `terraform-state` environment approval gate and
-`contents: read`; it requests no OIDC permission and references no protected
-inputs, variables, or secrets. The environment must retain its required-reviewer
-protection. This change does not create or change that protection.
+The main-only, manual protected workflow retains the `terraform-state` reviewer
+environment, `contents: read`, the shared `lab-runner`, and its concurrency
+group. It now emits only a fixed `supervision_unverified` failure: it performs
+no checkout, scratch reservation, cleanup, download, or prerequisite launch.
+The launcher likewise refuses before setup or process creation. Its `--cleanup`
+path refuses rather than trusting old receipts or deleting retained directories.
+Do not dispatch it; this unmerged change is not an approved runner operation.
 
-The workflow must be integrated into main before an approved dispatch. Preparing
-it does not authorize dispatch, VM startup, Azure access, deployment, or merging.
-It does not replace the Model Router rollout checks.
+The intended future check must execute the pinned public Linux skill dependency
+script (SHA-256 `bb54d233fe8d0164b083a58dec25d1dc3de2c0d7057fc661c866c27b95c935dd`)
+with isolated run-specific tool state, no Azure authentication, tokens, or
+secrets, and without altering persistent shared-host configuration. It is not
+implemented safely yet. The user chose the existing shared private runner;
+both runner services share one Docker-privileged VM and account. This is not an
+isolation boundary, and no unrelated process or service may be stopped or
+signaled.
 
-The source checkout is exclusive to this run, does not persist credentials, and
-does not clean an existing checkout. Every shell step validates positive numeric
-run and attempt identifiers before constructing a run-owned path.
-Job-level PATH is fixed to `/usr/local/bin:/usr/bin:/bin`, and `BASH_ENV` and
-`ENV` point to `/dev/null` before Bash starts. Both Python launches use
-`/usr/bin/env -i` and `python3 -I`. Their complete environment allowlist is
-PATH, `GITHUB_REF`, `GITHUB_REF_PROTECTED`, `GITHUB_EVENT_NAME`,
-`GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT`, `RUNNER_TEMP`, and `GITHUB_EVENT_PATH`.
-The helper reads only the required, non-secret `user_agent` dispatch field
-from the run event file (limited to 1 MiB). The raw input is not placed in
-job or step environment mappings or interpolated into shell source.
-There is no committed
-default. Supply the invocation-only value specified by the Foundry azd guidance;
-do not use repository/environment variables, secrets, or azd project config to
-persist it. Input is accepted only as a 1-64 character ASCII token starting
-with an alphanumeric character and containing alphanumerics, underscores,
-periods, or hyphens. Invalid or absent values fail with the fixed `context`
-category before scratch creation, downloads, or commands. After downloading and
-hash-verifying the official script, the helper requires exactly one strict
-user-agent export declaration and an exact input match before any command or
-azd invocation, including the final direct version command. A safe but wrong
-token fails with `context` and cleanup. No other event fields enter subprocesses.
-The helper does not print the input, and no raw evaluated job environment
-exposes it in step headers. It remains non-secret dispatch metadata visible
-to people with access to the workflow event; this is not a secrecy guarantee.
-Python startup cannot inherit PYTHONPATH, user site packages, credentials,
-loader settings, or shell hooks. Launcher errors are suppressed and replaced
-with fixed nonsecret diagnostics. No other runtime variables are passed;
-real-run compatibility has not yet been verified.
-The prerequisite helper creates a unique
-private temporary directory, with a separate HOME, every XDG directory,
-`AZD_CONFIG_DIR`, `AZURE_CONFIG_DIR`, and temporary-file directory. Subprocesses
-receive an explicit environment allowlist, not runner credentials, cloud
-configuration, shell startup hooks, or proxy settings. Telemetry is disabled.
-No shared home, service, or global installation is changed.
+The previous `communicate()`-then-`killpg` sequence could signal a reused
+process group after reaping its leader. Neither pipe EOF, delivery of SIGKILL,
+nor leader exit establishes that all descendants are finished or pending writes
+have completed. The old recursive source/scratch deletion also could remove
+unknown or replaced entries. Those execution and deletion paths have been
+removed from the protected workflow and launcher rather than substituted with
+an unproven cleanup. Existing receipts and scratch are retained, including
+legacy or ambiguous states. Investigate any retained material only under a
+separately reviewed ownership-safe process; this change does not authorize
+manual deletion.
 
-The helper downloads and verifies the actual official dependency script from
-`microsoft/azure-skills` commit
-`299b16bf063bdf37c783e08bcae27ca57fface38` before invoking it from the isolated
-skill root. Its SHA-256 is
-`bb54d233fe8d0164b083a58dec25d1dc3de2c0d7057fc661c866c27b95c935dd`.
-Only the script's exact missing-azd failure permits the fallback download of
-`Azure/azure-dev` release `azure-dev-cli_1.37.3`, asset
-`azd-linux-amd64.tar.gz`, SHA-256
-`8bf3e7e86f1d5a9bc1ae6f014c792697660cce04f6333a8091c6e08b7f8c7786`.
-Metadata-only inspection of that hash-verified official release found exactly
-two regular members: `azd-linux-amd64` (mode 0775, 68,378,926 bytes) and
-`NOTICE.txt` (mode 0775, 2,867,806 bytes). The extractor requires that exact
-flat member-name set with no duplicates, links, sparse files, special permission
-bits, or unsafe alternatives. It copies only the regular, owner-executable
-`azd-linux-amd64` into the run-owned `bin/azd` with mode 0700; the notice is
-not extracted. No archive-provided paths are used as extraction destinations.
-This corrects the `archive` failure observed in run 42392877753, attempt 1;
-that run's cleanup succeeded. The archive correction subsequently succeeded
-in run 42393796257 with azd 1.37.3 and cleanup.
-An existing azd
-executable is reused, with extension state still isolated. The official script
-is rerun after the fallback; it installs `microsoft.foundry` when absent.
-Existing azd selection searches only `/usr/local/bin:/usr/bin:/bin`, never the
-runner's inherited PATH.
+The user and repository must independently review a future birth-bound
+supervisor, trustworthy exit status, descendant/async-I/O guarantees, and
+scratch lifecycle before replacing the hard gate. Existing work and open
+criteria are tracked in [#522](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522#issuecomment-6714309800).
+Host/same-UID trust, escaped descendants, external service delegation, blocked
+kernel calls, and path-based cleanup remain unresolved.
 
-Public downloads use HTTPS without authentication or inherited proxies.
-The official extension installer also requires outbound access to its official
-registry and release assets. This is not an offline runtime check and does not
-create publicly reachable resources. The extension release is selected by the
-official script, not separately pinned by this helper.
+The pinned dependency script recognizes the `microsoft.foundry` meta-package
+from an ID match in `azd extension list --installed`; it does not authenticate
+component versions, executables, or hashes. Microsoft documents
+[seven independently versioned core extensions](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/install-cli-foundry-extensions).
+Its ready message is not independent authenticated-closure evidence and does
+not imply any runner is missing components. A future successful check with
+disposable tool state would not establish later persistent tool availability.
 
-The official pinned dependency script itself sets its prescribed user agent
-before its extension commands. Its unchanged, hash-verified source (also used
-as an offline test fixture) is upstream behavior, not project configuration.
-The helper's other azd invocation receives the caller-supplied token only after
-exact comparison with that declaration. The upstream script sets the same
-validated value; the product does not embed a default or expected literal.
-Removing that
-upstream assignment would invalidate the requirement to execute the exact
-official script. This invocation-input follow-up has not run on the private runner.
-
-Only a sanitized azd version and readiness are printed on success. Failures
-print the fixed `foundry_prerequisites_check_failed` marker and an allowlisted
-`failure_stage`: `context`, `download`, `checksum`, `archive`, `missing_bash`,
-`skill_execution`, `version`, `cleanup`, `timeout`, `interruption`, or
-`unexpected_io`. Unrecognized exceptions map to `unexpected_io`, without
-exception text. The launcher accepts only these exact categories or exact
-success output; empty, malformed, or unrecognized launcher output maps to
-`launcher`. Source reservation and path validation use fixed failure markers;
-source ownership failures report `cleanup`. Cleanup's outer failure marker
-is `prerequisite_cleanup_failed`.
-Child output, exceptions, URLs, paths, commits, and identifiers are suppressed. Standard
-GitHub checkout action logs are separate from this sanitized helper output.
-Checks fail closed on unexpected official-script output, mismatched hashes,
-unsafe archives, unsupported platforms, or missing tools.
-
-Normal exits and handled interruption remove scratch in `finally`; command
-process groups are stopped before removal. An `always()` step retries cleanup
-using this run's exclusive receipt and ownership marker, then removes only this
-run's source directory. Invalid ownership fails closed, without deleting an
-unowned directory. No software can guarantee cleanup after runner loss or a hard
-kill that also prevents the `always()` step; such a run must not be reported as
-success. Dependencies are intentionally removed, so this verifies setup without
-making them available to a later job.
-
-Run the deterministic offline tests with:
-
-```text
-python -m unittest discover -s .github/scripts -p test_check_foundry_prerequisites.py -v
-```
-
-Tests use fake downloads, archives, commands, and configuration. They never
-install tools or extensions and never access Azure or the network.
+Focused hosted tests use fictional inputs and mocks only; they do not execute
+the actual skill script, Azure, azd, or the protected workflow. Historical tests
+whose expected behavior required execution or automatic deletion are explicitly
+skipped until a safe design replaces this gate.
