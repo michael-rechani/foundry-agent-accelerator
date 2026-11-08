@@ -1,0 +1,139 @@
+name: Reviewed profiled agent publication
+
+# Preparation is runnable only after existing protected environments and a
+# read-only metadata token have been established. Live publication remains
+# disabled in reviewed_agent_release.py; this workflow does not start a runner.
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_source_sha:
+        description: Exact reviewed protected-main source commit
+        required: true
+        type: string
+      reviewed_model_sha256:
+        description: SHA-256 of the canonical JSON string of the exact reviewed model label
+        required: true
+        type: string
+      model_choice:
+        description: Router rollout or separately reviewed fixed-model recovery
+        required: true
+        default: router
+        type: choice
+        options: [router, fixed_recovery]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: profiled-agent-publication
+  cancel-in-progress: false
+
+env:
+  REVIEWED_SOURCE_SHA: ${{ inputs.reviewed_source_sha }}
+  RELEASE_WORKFLOW_SHA: ${{ github.workflow_sha }}
+  REVIEWED_MODEL_SHA256: ${{ inputs.reviewed_model_sha256 }}
+  RELEASE_MODEL_CHOICE: ${{ inputs.model_choice }}
+  AGENT_RELEASE_REVIEW_TOKEN: ${{ secrets.AGENT_RELEASE_REVIEW_TOKEN }}
+
+jobs:
+  preflight:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      policy: ${{ steps.check.outputs.policy }}
+      prepare_environment: ${{ steps.check.outputs.prepare_environment }}
+      application_environment: ${{ steps.check.outputs.application_environment }}
+      case_environment: ${{ steps.check.outputs.case_environment }}
+      coordinator_environment: ${{ steps.check.outputs.coordinator_environment }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: check
+        name: Verify existing environments and input-secret metadata before referencing them
+        run: python3 .github/scripts/reviewed_agent_release.py preflight
+
+  prepare:
+    name: prepare
+    needs: preflight
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.prepare_environment != ''
+    runs-on: [self-hosted, linux, lab-runner]
+    timeout-minutes: 5
+    environment:
+      name: ${{ needs.preflight.outputs.prepare_environment }}
+    env:
+      RELEASE_ENVIRONMENT_POLICY: ${{ needs.preflight.outputs.policy }}
+      AGENT_RELEASE_INPUTS: ${{ secrets.AGENT_RELEASE_INPUTS }}
+    outputs:
+      manifest_digest: ${{ steps.prepare.outputs.manifest_digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: prepare
+        name: Read protected inputs and publish digest comments before publication approvals
+        run: python3 .github/scripts/reviewed_agent_release.py prepare
+
+  publish-application:
+    name: publish-application
+    needs: [preflight, prepare]
+    if: needs.prepare.result == 'success' && needs.preflight.outputs.application_environment != ''
+    runs-on: [self-hosted, linux, lab-runner]
+    timeout-minutes: 45
+    environment:
+      name: ${{ needs.preflight.outputs.application_environment }}
+    env:
+      RELEASE_ENVIRONMENT_POLICY: ${{ needs.preflight.outputs.policy }}
+      RELEASE_MANIFEST_DIGEST: ${{ needs.prepare.outputs.manifest_digest }}
+      AGENT_RELEASE_INPUTS: ${{ secrets.AGENT_RELEASE_INPUTS }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Revalidate the application review and fail closed while live prerequisites remain unset
+        run: python3 .github/scripts/reviewed_agent_release.py publish --step application
+
+  publish-case:
+    name: publish-case
+    needs: [preflight, prepare, publish-application]
+    if: needs.publish-application.result == 'success' && needs.preflight.outputs.case_environment != ''
+    runs-on: [self-hosted, linux, lab-runner]
+    timeout-minutes: 45
+    environment:
+      name: ${{ needs.preflight.outputs.case_environment }}
+    env:
+      RELEASE_ENVIRONMENT_POLICY: ${{ needs.preflight.outputs.policy }}
+      RELEASE_MANIFEST_DIGEST: ${{ needs.prepare.outputs.manifest_digest }}
+      AGENT_RELEASE_INPUTS: ${{ secrets.AGENT_RELEASE_INPUTS }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Revalidate the case review and fail closed while live prerequisites remain unset
+        run: python3 .github/scripts/reviewed_agent_release.py publish --step case
+
+  publish-coordinator:
+    name: publish-coordinator
+    needs: [preflight, prepare, publish-application, publish-case]
+    if: needs.publish-application.result == 'success' && needs.publish-case.result == 'success' && needs.preflight.outputs.coordinator_environment != ''
+    runs-on: [self-hosted, linux, lab-runner]
+    timeout-minutes: 45
+    environment:
+      name: ${{ needs.preflight.outputs.coordinator_environment }}
+    env:
+      RELEASE_ENVIRONMENT_POLICY: ${{ needs.preflight.outputs.policy }}
+      RELEASE_MANIFEST_DIGEST: ${{ needs.prepare.outputs.manifest_digest }}
+      AGENT_RELEASE_INPUTS: ${{ secrets.AGENT_RELEASE_INPUTS }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Revalidate the coordinator review and fail closed while live prerequisites remain unset
+        run: python3 .github/scripts/reviewed_agent_release.py publish --step coordinator

@@ -1,0 +1,26 @@
+name: Offline reviewed agent release protocol
+
+on:
+  push:
+    branches: [copilot/protected-agent-release-20261107]
+    paths: [.github/workflows/offline-agent-release-check.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Verify fictional review protocol and preserved publication helpers
+        shell: bash
+        run: |
+          python --version
+          python -m unittest discover -s .github/scripts -p test_reviewed_agent_release.py -v
+          python -m unittest discover -s hosted-agents -p test_deployment.py -v
+          python -m unittest discover -s hosted-agents/review-coordinator-agent -p test_profiles.py -v
+          pwsh -NoLogo -NoProfile -File workbench/test-deploy.ps1

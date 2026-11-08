@@ -11,7 +11,7 @@ import stat
 import sys
 import tempfile
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -531,7 +531,8 @@ def recovery_endpoint(original_endpoint):
 
 
 def cleanup_failed_version(
-    client, agent_name: str, version: str, original_endpoint, attempted_endpoint
+    client, agent_name: str, version: str, original_endpoint, attempted_endpoint,
+    *, before_mutation: Callable[[], None] | None = None,
 ) -> None:
     if not concrete_route(original_endpoint) or (
         attempted_endpoint is not None and not routes_to_version(attempted_endpoint, version)
@@ -552,6 +553,12 @@ def cleanup_failed_version(
                 print(f"Warning: route changed during recovery; retained version {version}; manual recovery required")
                 return
             try:
+                if before_mutation is not None:
+                    before_mutation()
+                    if not route_unchanged(enabled_endpoint(client, agent_name), endpoint):
+                        print(f"Warning: route changed during recovery review; retained version {version}; manual recovery required")
+                        return
+                    verify_recovery_targets(client, agent_name, original_endpoint)
                 client.agents.update_details(
                     agent_name=agent_name, agent_endpoint=recovery_endpoint(original_endpoint)
                 )
@@ -611,7 +618,10 @@ def report_agent_identity(created) -> None:
         )
 
 
-def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
+def deploy(
+    profile: AgentProfile, args: argparse.Namespace,
+    *, before_mutation: Callable[[], None] | None = None,
+) -> None:
     from azure.ai.projects import AIProjectClient
     from azure.ai.projects.models import (
         AgentEndpointConfig,
@@ -647,6 +657,12 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 raise RuntimeError(
                     "First publication is unsupported: a confirmed existing concrete recovery route is required"
                 )
+            if before_mutation is not None:
+                before_mutation()
+                verify_specialist_endpoints(client, profile, args.agent_name)
+                verify_recovery_targets(client, args.agent_name, original_endpoint)
+                if not route_unchanged(enabled_endpoint(client, args.agent_name), original_endpoint):
+                    raise RuntimeError("The agent route changed during publication review; refusing creation")
             created = client.agents.create_version_from_code(
                 agent_name=args.agent_name,
                 description=profile.description,
@@ -740,6 +756,12 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 if not route_unchanged(enabled_endpoint(client, args.agent_name), current_endpoint):
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
                 attempted_endpoint = deepcopy(endpoint_config)
+                if before_mutation is not None:
+                    before_mutation()
+                    verify_specialist_endpoints(client, profile, args.agent_name)
+                    verify_recovery_targets(client, args.agent_name, original_endpoint)
+                    if not route_unchanged(enabled_endpoint(client, args.agent_name), current_endpoint):
+                        raise RuntimeError("The agent route changed during promotion review; refusing promotion")
                 client.agents.update_details(
                     agent_name=args.agent_name,
                     agent_endpoint=endpoint_config,
@@ -756,6 +778,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                     cleanup_failed_version(
                         client, args.agent_name, created.version,
                         original_endpoint, attempted_endpoint,
+                        **({"before_mutation": before_mutation} if before_mutation is not None else {}),
                     )
                 raise
 

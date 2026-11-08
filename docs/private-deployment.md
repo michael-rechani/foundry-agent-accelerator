@@ -164,6 +164,104 @@ introduced. These command/path guards do not prevent same-UID namespace races,
 establish backend authority, or make Terraform's remaining environment, workspace,
 source closure, or host trustworthy. They do not make live execution safe.
 
+## Protected profiled publication preparation
+
+[`publish-profiled-agents.yml`](../.github/workflows/publish-profiled-agents.yml)
+and [`reviewed_agent_release.py`](../.github/scripts/reviewed_agent_release.py)
+implement a separate Actions review protocol. **Live publication is disabled in
+code.** This unmerged preparation neither creates environments nor authorizes
+publication, billable candidate checks, role changes, federation, or runner startup.
+Existing interactive `deploy.ps1` approval and its single-agents-stage restriction
+remain unchanged.
+
+A protected-main manual dispatch first inventories four already-existing
+environments: `agent-release-preparation`, `agent-release-application`,
+`agent-release-case`, and `agent-release-coordinator`. Before referencing them it
+requires distinct environment IDs, the repository owner's required-reviewer rule,
+an explicit nested `prevent_self_review` boolean, `can_admins_bypass: false`, a
+protected-branches policy, and an `AGENT_RELEASE_INPUTS` secret in each environment.
+Missing metadata, HTTP permission errors, or missing fields stop the workflow.
+The read-only `AGENT_RELEASE_REVIEW_TOKEN` repository secret is also required;
+its GitHub API access must be limited to reading repository contents, Actions/run
+history and environment/secret-name metadata. No approval, environment-write,
+administration-write or Azure permission is needed. No such token or environment
+is configured by this change.
+
+The preparation job uses its own protected environment to obtain the actual
+release inputs before publication reviews. It reads no Terraform/provider/state
+inputs and never selects a storage account or backend. `AGENT_RELEASE_INPUTS` is
+a JSON object with exactly these fields:
+
+| Field | Meaning |
+|---|---|
+| `release_id` | Explicit UUID identifying this release input record |
+| `endpoint` | Explicit project endpoint, reviewed privately |
+| `model`, `model_choice` | Exact reviewed deployment label; choice is `router` or separately reviewed `fixed_recovery` |
+| `credential_mode` | Exactly `ManagedIdentityCredential` or `WorkloadIdentityCredential` |
+| `client_id`, `tenant_id` | Explicit privately reviewed identity UUIDs |
+| `profile_path`, `profile_sha256` | Explicit repository-relative coordinator profile and approved byte digest |
+| `targets` | Ordered application, case, then `customer-review-coordinator` names |
+| `cpu`, `memory`, `runtime` | This bounded path uses `"0.5"`, `"1Gi"`, and `"python_3_14"` |
+
+The dispatch also specifies the source SHA and SHA-256 of the canonical JSON
+string of the reviewed model label. They must match the protected-main workflow
+and actual input model exactly. There is no Router-output or fixed-model fallback.
+`router` identifies the reviewed choice, not proof of service-side routing;
+verify the actual Router deployment privately. Fixed recovery needs a new
+manifest and new reviews. This release excludes optional knowledge retrieval and
+coordinator name overrides rather than silently adding unreviewed configuration.
+
+Preparation reuses the real SHA-bound profile validator and deterministic
+package builder. The canonical manifest binds the run, source, all actual inputs,
+environment policies/IDs, ordered targets, packaged bytes, instructions,
+`SPECIALIST_CONFIG` and delegation checks. Its digest and safe field hashes are
+shown in the preparation summary, never project/tenant/client identifiers,
+private inputs, profile text or credentials. Reviewers need their privately
+reviewed input record; printing a hash is not proof they inspected every value.
+For each subsequent job the owner must approve only that job's environment with
+this exact comment, copied from the already-completed preparation summary:
+
+```text
+publish <application|case|coordinator> run <run-id> source <source-sha> manifest <manifest-sha256>
+```
+
+Publication jobs are sequential, one agent per job. The verifier requires attempt
+1, a unique actual approved review with the expected environment ID, owner's user
+ID and exact comment, plus successful preparation and preceding publication jobs
+from attempt-specific GitHub job history. Missing, duplicate, stale, rejected or
+multi-environment reviews stop execution. Owner self-approval is meaningful and
+allowed when the environment permits it; **it is not independent review**.
+Current main, policy/IDs, input values, profile bytes and packages are recomputed
+after approval and immediately before each version-create, promotion and recovery
+route mutation. Recreated environments or detected policy/input changes stop the
+remaining work. A revoked review may prevent rollback; the failed candidate is
+retained for separately authorized private recovery.
+
+The wrapper passes only the selected profile, explicit endpoint/model and
+credential class/client ID into the real publisher, preserving its specialist,
+first-publication, concrete recovery-route, candidate/model and promotion checks.
+Generic publisher output is kept in memory rather than exposing resource
+identities in public logs; a failed protected publication reports a sanitized
+failure and requires private version/route inspection. No unattended flag or
+redirected `apply` input was added.
+
+GitHub administrators and the runner remain trusted. Current before/after policy
+checks cannot attest an immutable historical policy or close same-UID/concurrent
+change races; deleted environments can race GitHub's implicit creation behavior.
+Detected missing, recreated or unprotected environments are rejected; a policy
+change after the last check is not atomically excluded.
+The exact live workflow has not been exercised. Role/FIC/effective RBAC, actual
+SDK credential source, trusted host/source closure, preinstalled SDK provenance
+and remote-build egress/transitive dependency closure remain blockers. Enabling
+publication needs separately reviewed code/workflow activation; no runtime input
+can enable it, and this workflow grants no OIDC permission.
+
+`workbench/agents.json` still names fixed models; `prebuilt_agent_models` is
+budget/admission metadata, not the hosted model. Align it separately only after
+each actual routed version is privately verified. Neither publication nor that
+mapping establishes model routing for retained versions/sessions. Invoke-authorized
+callers can still select available versions with `x-agent-version-override`.
+
 ## 4. Inventory before mutation
 
 Run this Python snippet on the private runner using its deployment environment.
