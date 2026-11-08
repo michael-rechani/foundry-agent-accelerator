@@ -139,6 +139,7 @@ try {
     Assert-Equal $false ($script:backendCalls[0] -contains '-migrate-state') 'profiled command never requests migration even when state appears after observation'
     Assert-Equal $true ($script:backendCalls[0] -contains '-input=false') 'profiled command remains noninteractive'
     $script:stateAppearsAtInvocation = $false
+    Remove-Variable CoordinatorProfile
     $CoordinatorProfile = $null
     Initialize-Backend $stateDir 'fictional'
     Assert-Equal $true ($script:backendCalls[1] -contains '-migrate-state') 'unprofiled local-state migration behavior remains unchanged'
