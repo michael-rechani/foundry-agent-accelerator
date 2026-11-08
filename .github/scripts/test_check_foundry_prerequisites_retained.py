@@ -1,14 +1,17 @@
 import ast
 import contextlib
+import fcntl
 import hashlib
 import io
 import os
+import resource
 import signal
 import stat
 import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -232,6 +235,16 @@ class RetainedPrerequisiteTests(unittest.TestCase):
             with self.assertRaisesRegex(helper.CheckError, "version"):
                 retained.check(self.root, fixtures.UPSTREAM_AGENT, "")
 
+    def test_failed_skill_does_not_run_postcheck(self):
+        self.fake_downloads()
+        with patch.object(
+            retained, "command", side_effect=helper.CheckError("skill")
+        ) as command:
+            with self.assertRaisesRegex(helper.CheckError, "skill"):
+                retained.check(self.root, fixtures.UPSTREAM_AGENT, "")
+        self.assertEqual(command.call_count, 1)
+        self.assertTrue((self.root / "azd.tar.gz").exists())
+
     def test_command_waits_for_real_exit_and_never_uses_signals(self):
         with patch.object(os, "kill", side_effect=AssertionError("unexpected signal")), patch.object(
             os, "killpg", side_effect=AssertionError("unexpected group signal")
@@ -244,6 +257,31 @@ class RetainedPrerequisiteTests(unittest.TestCase):
                 timeout=5,
             )
         self.assertEqual(result, b"fictional output\n")
+
+    def test_child_uses_owned_cwd_and_does_not_inherit_extra_descriptors(self):
+        source = os.open(self.root, os.O_RDONLY)
+        inherited = fcntl.fcntl(source, fcntl.F_DUPFD, 100)
+        os.set_inheritable(inherited, True)
+        old_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+        try:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (64, old_limit[1]))
+            code = (
+                "import os,sys;"
+                f"assert not os.path.exists('/proc/self/fd/{inherited}');"
+                "sys.stdout.write(os.getcwd())"
+            )
+            result = retained.command(
+                [sys.executable, "-c", code],
+                self.root,
+                {"PATH": "/usr/bin:/bin"},
+                "skill",
+                timeout=5,
+            )
+        finally:
+            resource.setrlimit(resource.RLIMIT_NOFILE, old_limit)
+            os.close(inherited)
+            os.close(source)
+        self.assertEqual(result.decode(), str(self.root))
 
     def test_timeout_keeps_unrelated_process_untouched(self):
         sentinel = subprocess.Popen(
@@ -265,6 +303,45 @@ class RetainedPrerequisiteTests(unittest.TestCase):
         self.assertIsNone(sentinel.poll())
         stdout, stderr = sentinel.communicate(timeout=5)
         self.assertEqual((sentinel.returncode, stdout, stderr), (0, b"natural exit\n", b""))
+
+    def test_closed_output_is_not_child_exit(self):
+        with self.assertRaisesRegex(helper.CheckError, "timeout"):
+            retained.command(
+                [
+                    sys.executable,
+                    "-c",
+                    "import os,time; os.close(1); os.close(2); time.sleep(0.5)",
+                ],
+                self.root,
+                {"PATH": "/usr/bin:/bin"},
+                "skill",
+                timeout=0.1,
+            )
+
+    def test_late_descendant_write_is_retained_after_synchronous_success(self):
+        marker = self.root / "late-write"
+        child = (
+            "import os,time;"
+            "os.close(1);os.close(2);time.sleep(0.25);"
+            f"open({str(marker)!r},'w').write('retained')"
+        )
+        parent = (
+            "import subprocess,sys;"
+            f"subprocess.Popen([sys.executable,'-c',{child!r}],close_fds=True);"
+            "print('synchronous result')"
+        )
+        result = retained.command(
+            [sys.executable, "-c", parent],
+            self.root,
+            {"PATH": "/usr/bin:/bin"},
+            "skill",
+            timeout=5,
+        )
+        self.assertEqual(result, b"synchronous result\n")
+        deadline = time.monotonic() + 2
+        while not marker.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        self.assertEqual(marker.read_text(), "retained")
 
     def test_output_limit_and_nonzero_exit_fail_closed(self):
         env = {"PATH": "/usr/bin:/bin"}
@@ -289,7 +366,7 @@ class RetainedPrerequisiteTests(unittest.TestCase):
     def test_missing_pidfd_support_stops_before_process_creation(self):
         with patch.object(
             retained, "check_pidfd_support", side_effect=helper.CheckError("runtime")
-        ), patch.object(retained.subprocess, "Popen") as spawn:
+        ), patch.object(retained.os, "posix_spawn") as spawn:
             with self.assertRaisesRegex(helper.CheckError, "runtime"):
                 retained.command(["unused"], self.root, {}, "skill")
             spawn.assert_not_called()
@@ -356,7 +433,7 @@ class RetainedPrerequisiteTests(unittest.TestCase):
         ), patch.object(
             retained, "check_pidfd_support"
         ), patch.object(
-            retained.subprocess, "Popen", side_effect=partial_spawn
+            retained.os, "posix_spawn", side_effect=partial_spawn
         ), patch.object(
             sys, "argv", ["check"]
         ), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):

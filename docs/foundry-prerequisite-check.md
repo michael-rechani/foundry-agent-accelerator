@@ -47,9 +47,9 @@ Docker-privileged account, and the process may still be able to reach host
 services, including Azure instance metadata.
 
 The launcher preserves a well-formed `RUNNER_TRACKING_ID` when present. It
-uses bounded output, a deadline, and a Linux pidfd to observe and reap the
-direct child, without application-level signals or recursive cleanup. A
-successful result is only `ready_retained_state_only`: the pinned synchronous
+requires Linux procfs, uses bounded output, a deadline, and a Linux pidfd to
+observe and reap the direct child, without application-level signals or
+recursive cleanup. A successful result is only `ready_retained_state_only`: the pinned synchronous
 script and version postcheck completed against that retained state. It does
 not prove all descendants exited, extension provenance, persistent tool
 availability, or readiness for deployment.

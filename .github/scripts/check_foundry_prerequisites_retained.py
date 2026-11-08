@@ -7,7 +7,6 @@ import re
 import selectors
 import signal
 import stat
-import subprocess
 import sys
 import tarfile
 import time
@@ -24,6 +23,19 @@ TRACKING_ID = re.compile(
 OUTPUT_LIMIT = 128 * 1024
 COMMAND_TIMEOUT = 180
 _PROCESS_ATTEMPTED = False
+EXEC_WRAPPER = """
+import errno, os, sys
+for name in os.listdir("/proc/self/fd"):
+    fd = int(name)
+    if fd > 2:
+        try:
+            os.close(fd)
+        except OSError as failure:
+            if failure.errno != errno.EBADF:
+                raise
+os.chdir(sys.argv[1])
+os.execve(sys.argv[2], sys.argv[2:], os.environ)
+"""
 STAGES = {
     "context",
     "storage",
@@ -129,6 +141,7 @@ def check_pidfd_support():
         not hasattr(os, "pidfd_open")
         or not hasattr(os, "P_PIDFD")
         or not hasattr(os, "WNOWAIT")
+        or not hasattr(os, "posix_spawn")
         or signal.getsignal(signal.SIGCHLD) != signal.SIG_DFL
     ):
         fail("runtime")
@@ -142,25 +155,31 @@ def check_pidfd_support():
 def command(args, cwd, env, stage, timeout=COMMAND_TIMEOUT, limit=OUTPUT_LIMIT):
     global _PROCESS_ATTEMPTED
     check_pidfd_support()
-    _PROCESS_ATTEMPTED = True
-    process = subprocess.Popen(  # noqa: S603 -- arguments are fixed trusted paths.
-        args,
-        cwd=cwd,
-        env=env,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        close_fds=True,
-    )
+    read_fd, write_fd = os.pipe2(os.O_CLOEXEC)
     pidfd = None
     try:
-        pidfd = os.pidfd_open(process.pid, 0)
+        if read_fd <= 2 or write_fd <= 2:
+            fail("runtime")
+        # Set the working directory and close inherited descriptors before exec.
+        wrapper = ["/usr/bin/python3", "-I", "-c", EXEC_WRAPPER, os.fspath(cwd), *args]
+        actions = [
+            (os.POSIX_SPAWN_OPEN, 0, "/dev/null", os.O_RDONLY, 0),
+            (os.POSIX_SPAWN_DUP2, write_fd, 1),
+            (os.POSIX_SPAWN_DUP2, write_fd, 2),
+            (os.POSIX_SPAWN_CLOSE, read_fd),
+            (os.POSIX_SPAWN_CLOSE, write_fd),
+        ]
+        _PROCESS_ATTEMPTED = True
+        pid = os.posix_spawn("/usr/bin/python3", wrapper, env, file_actions=actions)
+        os.close(write_fd)
+        write_fd = None
+        pidfd = os.pidfd_open(pid, 0)
         output = bytearray()
         observed = None
         ended = False
         deadline = time.monotonic() + timeout
         with selectors.DefaultSelector() as selector:
-            selector.register(process.stdout, selectors.EVENT_READ, "output")
+            selector.register(read_fd, selectors.EVENT_READ, "output")
             selector.register(pidfd, selectors.EVENT_READ, "process")
             while not ended or observed is None:
                 remaining = deadline - time.monotonic()
@@ -184,23 +203,20 @@ def command(args, cwd, env, stage, timeout=COMMAND_TIMEOUT, limit=OUTPUT_LIMIT):
                         )
                         if observed is not None:
                             selector.unregister(pidfd)
-        if observed.si_pid != process.pid:
+        if observed.si_pid != pid:
             fail("runtime")
         reaped = os.waitid(os.P_PIDFD, pidfd, os.WEXITED | os.WNOHANG)
-        if reaped is None or reaped.si_pid != process.pid:
+        if reaped is None or reaped.si_pid != pid:
             fail("runtime")
-        if reaped.si_code == os.CLD_EXITED:
-            process.returncode = reaped.si_status
-        else:
-            process.returncode = -reaped.si_status
-        if process.returncode != 0:
+        if reaped.si_code != os.CLD_EXITED or reaped.si_status != 0:
             fail(stage)
         return bytes(output)
     finally:
         if pidfd is not None:
             os.close(pidfd)
-        if process.stdout is not None:
-            process.stdout.close()
+        if write_fd is not None:
+            os.close(write_fd)
+        os.close(read_fd)
 
 
 def check(root, user_agent, tracking):
