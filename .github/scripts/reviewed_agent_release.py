@@ -229,7 +229,14 @@ def module(path, name):
     if spec is None or spec.loader is None:
         raise ReleaseError("Release profile module is unavailable")
     loaded = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(loaded)
+    previous_path = sys.path[:]
+    sys.path.insert(0, str(path.parent))
+    try:
+        spec.loader.exec_module(loaded)
+    except ImportError:
+        raise ReleaseError("Release profile dependencies are unavailable") from None
+    finally:
+        sys.path[:] = previous_path
     return loaded
 
 

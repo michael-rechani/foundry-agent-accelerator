@@ -1,4 +1,5 @@
 name: Offline reviewed agent release protocol
+# Second bounded check after correcting sibling-module import context.
 
 on:
   push:
