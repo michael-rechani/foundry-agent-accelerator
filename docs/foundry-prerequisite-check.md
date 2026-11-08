@@ -1,128 +1,77 @@
-# Protected Foundry prerequisite check: execution blocked
+# Protected Foundry prerequisite checks
 
-The main-only, manual protected workflow retains the `terraform-state` reviewer
-environment, `contents: read`, the shared `lab-runner`, and its concurrency
-group. It now emits only a fixed `supervision_unverified` failure: it performs
-no checkout, scratch reservation, cleanup, download, or prerequisite launch.
-The launcher likewise refuses before setup or process creation. Its `--cleanup`
-path refuses rather than trusting old receipts or deleting retained directories.
-Do not dispatch it; this unmerged change is not an approved runner operation.
+The original main-branch prerequisite launcher uses process-group signaling
+and recursive cleanup and must not be dispatched as-is. On this unmerged
+branch, its workflow and launcher fail closed. The separate
+`check-foundry-prerequisites-retained.yml` workflow is a proposed replacement,
+not evidence that any private check has run. It must not be dispatched until
+the change is reviewed, merged, and the existing `terraform-state` reviewer
+and protected-main policy are independently confirmed.
 
-The intended future check must execute the pinned public Linux skill dependency
-script (SHA-256 `bb54d233fe8d0164b083a58dec25d1dc3de2c0d7057fc661c866c27b95c935dd`)
-with isolated run-specific tool state, no Azure authentication, tokens, or
-secrets, and without altering persistent shared-host configuration. It is not
-implemented safely yet. The user chose the existing shared private runner;
-both runner services share one Docker-privileged VM and account. This is not an
-isolation boundary, and no unrelated process or service may be stopped or
-signaled.
+The replacement is manual, main-only, and limited to the shared Linux
+`lab-runner`. It keeps the existing environment and concurrency group, asks
+for `contents: read`, does not request OIDC, and has no checkout or post-action.
+Its bootstrap fetches only the two scripts at the exact workflow commit,
+verifies their SHA-256 digests, and runs them in an explicitly constructed
+environment. It reads the non-secret `user_agent` dispatch input without
+printing the event. The expected value must match the pinned skill script's
+`AZURE_DEV_USER_AGENT` declaration.
 
-The previous `communicate()`-then-`killpg` sequence could signal a reused
-process group after reaping its leader. Neither pipe EOF, delivery of SIGKILL,
-nor leader exit establishes that all descendants are finished or pending writes
-have completed. The old recursive source/scratch deletion also could remove
-unknown or replaced entries. Those execution and deletion paths have been
-removed from the protected workflow and launcher rather than substituted with
-an unproven cleanup. Existing receipts and scratch are retained, including
-legacy or ambiguous states. Investigate any retained material only under a
-separately reviewed ownership-safe process; this change does not authorize
-manual deletion.
+The intended check verifies and runs the public pinned Linux dependency script
+(SHA-256 `bb54d233fe8d0164b083a58dec25d1dc3de2c0d7057fc661c866c27b95c935dd`)
+and the pinned azd 1.37.3 archive. Both downloads are size-bounded and
+hash-verified; the archive parser accepts only the expected regular-file
+layout. The skill lists installed extensions, installs `microsoft.foundry` if
+absent, and then the launcher checks `azd version`. The extension list checks
+an ID, not authenticated extension versions or a complete dependency closure.
+Tool installation can use additional disk and network resources beyond the
+bounded archive.
 
-Existing work and open criteria are tracked in
-[#522](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522#issuecomment-6714309800).
-Host/same-UID trust, escaped descendants, external service delegation, blocked
-kernel calls, and path-based cleanup remain unresolved. The revised practical
-target below does not claim to solve them.
+## Retained state and process limits
 
-The pinned dependency script recognizes the `microsoft.foundry` meta-package
-from an ID match in `azd extension list --installed`; it does not authenticate
-component versions, executables, or hashes. Microsoft documents
-[seven independently versioned core extensions](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/install-cli-foundry-extensions).
-Its ready message is not independent authenticated-closure evidence and does
-not imply any runner is missing components. A future successful check with
-disposable tool state would not establish later persistent tool availability.
+The check reserves `.foundry-prerequisites-<run-id>-<attempt>` in the effective
+user's password-database home. The home must be user-owned, non-symlinked and
+not group- or world-writable. The unique directory must be owner-only and
+outside both the resolved workspace and the runner work directory containing
+`RUNNER_TEMP`; unknown layouts, root execution, pre-existing names, and
+identity mismatches fail closed. Files are retained on success and failure.
+There is no automatic deletion, reuse, or credentialed deployment from this
+state. Retained files may consume significant disk and require a separately
+reviewed recovery or cleanup process.
 
-Focused hosted tests use fictional inputs and mocks only; they do not execute
-the actual skill script, Azure, azd, or the protected workflow. Historical tests
-whose expected behavior required execution or automatic deletion are explicitly
-skipped until a safe design replaces this gate.
+The child environment uses fresh `HOME`, XDG, Azure CLI, azd, and temporary
+directories within the retained state. It does not forward credentials,
+tokens, OIDC request variables, proxies, or inherited shell configuration.
+That is not host isolation: both private runner registrations share one
+Docker-privileged account, and the process may still be able to reach host
+services, including Azure instance metadata.
 
-## Historical natural-exit-only follow-up
+The launcher preserves a well-formed `RUNNER_TRACKING_ID` when present. It
+uses bounded output, a deadline, and a Linux pidfd to observe and reap the
+direct child, without application-level signals or recursive cleanup. A
+successful result is only `ready_retained_state_only`: the pinned synchronous
+script and version postcheck completed against that retained state. It does
+not prove all descendants exited, extension provenance, persistent tool
+availability, or readiness for deployment.
 
-Keeping every run-owned source and scratch entry for later human review removes
-the need to prove that pending kernel writes have completed before deletion.
-It does not by itself make the protected check safe to enable. The accepted
-shared-account/VM trust assumption is not protection against a hostile host,
-same-UID interference, or adversarial process escape. No external process or
-service may be signaled, and no run-owned material may be recursively removed.
+Handled failures report a fixed category and
+`owned_process_may_be_running`. The value becomes conservatively true before
+process creation is attempted, including when creation is interrupted. A
+forced termination can prevent any final log; a missing result is not
+readiness. The runner's normal cancellation and tracked-process cleanup remain
+trusted for its own job and may signal those processes. The launcher does not
+disable or evade that behavior.
 
-The public Actions runner source at commit
+Public Actions runner source at
 [`5ba50443372004d4d67620909426c5d28a0066af`](https://github.com/actions/runner/tree/5ba50443372004d4d67620909426c5d28a0066af)
-provides concrete reasons that clearing a child environment is insufficient:
+shows [orphan tracking cleanup](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Worker/JobExtension.cs#L891-L930),
+[step cancellation](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Sdk/ProcessInvoker.cs#L443-L465),
+and [runner-temp cleanup](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Worker/TempDirectoryManager.cs#L27-L55).
+These are source observations, not proof of the installed private runner's
+version or configuration. The user accepted the shared runner boundary, not
+authorization to signal unrelated processes or delete unrelated files.
 
-- The job's orphan cleanup defaults on and can terminate processes carrying
-  `RUNNER_TRACKING_ID` ([job setup](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Worker/JobExtension.cs#L588-L599),
-  [job cleanup](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Worker/JobExtension.cs#L891-L930),
-  [constant](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Common/Constants.cs)).
-  `env -i` can remove this marker from a correctly launched supervisor and its
-  descendants, but does not establish how all checkout/action subprocesses or
-  every interruption path behave.
-- Cancellation independently sends signals to the step process by numeric PID,
-  escalating to process termination when it does not exit
-  ([cancellation](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Sdk/ProcessInvoker.cs#L443-L465),
-  [Unix signal and termination](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Sdk/ProcessInvoker.cs#L828-L862)).
-  An `exec env -i` supervisor is still the runner's step process. Environment
-  scrubbing does not change this cancellation path or guarantee it can emit a
-  final result after forced termination.
-- Runner initialization and job cleanup delete the contents of runner temp
-  ([source](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Worker/TempDirectoryManager.cs#L27-L55));
-  workspace cleanup may also delete directories according to job settings
-  ([source](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Worker/PipelineDirectoryManager.cs#L65-L101)).
-  Therefore merely disabling application cleanup or setting checkout
-  `clean: false` is not proof that retained source and scratch survive the
-  runner lifecycle.
-
-These are observations of public source, not verification of the private
-runner's installed version or configuration; no private runner was accessed.
-The current workflow never launches the proposed supervisor. The earlier
-requirement to prove stronger runner and descendant isolation is superseded by
-the revised practical target below; these public-source observations remain
-relevant to the limits of that target. Missing or ambiguous terminal status must
-never become readiness. A forcibly terminated process cannot guarantee a final
-log line, and no durable cancellation report is claimed.
-
-The previously proposed subreaper and descendant-teardown proof belonged to a
-stronger isolation target. It is not required by the revised practical target
-below and must not be presented as a guarantee of it. Actual execution of the
-pinned skill, Azure, azd, credentials, and the protected workflow remains
-unapproved.
-
-## Revised practical target: not yet implemented
-
-The proposed check trusts the normal Actions runner lifecycle for its own
-tracked processes. This is an operational assumption, not isolation from a
-hostile host or shared runner account. The application must never signal a
-process or process group or recursively delete state. It must leave the
-run-specific tool state in place on success and failure. Normal Actions
-cancellation and orphan handling may still act on runner-tracked processes;
-the check must not disable or evade that framework tracking. An owned process
-may survive a timeout, interruption, or other failure, and a forcibly stopped
-step cannot guarantee a final report.
-
-The protected workflow must remain main-only, manually triggered, and gated by
-its existing environment, with no checkout. Before launch, it must establish a
-unique owner-only state location outside both `RUNNER_TEMP` and the workspace,
-or fail with an actionable prerequisite. It must not reuse retained state for a
-credentialed deployment or modify shared configuration. Its clean environment
-must exclude Azure credentials and secrets, and preserve a correctly formatted
-`RUNNER_TRACKING_ID` when present. There is no promise that retained files or
-tools will remain available indefinitely.
-
-A successful result would attest only to the synchronous pinned skill script
-and its postcheck against that retained state. It would not prove escaped
-children have exited, authenticate the extension closure, or establish persistent
-availability. Timeout, interruption, excessive output, missing or ambiguous
-status, or any error must fail closed rather than report readiness. Synthetic
-hosted tests must exercise these cases and the exact no-checkout workflow before
-the hard gate can be removed. This branch does not implement or verify that
-launcher; the protected workflow and launcher still refuse execution.
+Synthetic hosted tests use fictional downloads and tools; they do not execute
+the real skill, azd, Azure, credentials, or the private workflow. Tracked
+limitations and prior safety evidence are in
+[#522](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522).

@@ -1,0 +1,106 @@
+name: Check retained private Foundry prerequisites
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_agent:
+        description: Non-secret invocation-only user agent from the Foundry azd guidance
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-foundry-prerequisites
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main' && github.ref_protected
+    timeout-minutes: 10
+    runs-on: [self-hosted, linux, lab-runner]
+    environment: terraform-state
+    permissions:
+      contents: read
+    env:
+      PATH: /usr/local/bin:/usr/bin:/bin
+      BASH_ENV: /dev/null
+      ENV: /dev/null
+      CHECK_WORKFLOW_SHA: ${{ github.workflow_sha }}
+      CHECK_WORKFLOW_REF: ${{ github.workflow_ref }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Run retained prerequisite check
+        run: |
+          exec /usr/bin/env -i \
+            "PATH=/usr/bin:/bin" \
+            "GITHUB_REF=${GITHUB_REF:-}" \
+            "GITHUB_REF_PROTECTED=${GITHUB_REF_PROTECTED:-}" \
+            "GITHUB_EVENT_NAME=${GITHUB_EVENT_NAME:-}" \
+            "GITHUB_EVENT_PATH=${GITHUB_EVENT_PATH:-}" \
+            "GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-}" \
+            "GITHUB_SHA=${GITHUB_SHA:-}" \
+            "GITHUB_RUN_ID=${GITHUB_RUN_ID:-}" \
+            "GITHUB_RUN_ATTEMPT=${GITHUB_RUN_ATTEMPT:-}" \
+            "GITHUB_WORKSPACE=${GITHUB_WORKSPACE:-}" \
+            "RUNNER_ENVIRONMENT=${RUNNER_ENVIRONMENT:-}" \
+            "RUNNER_TEMP=${RUNNER_TEMP:-}" \
+            "RUNNER_TRACKING_ID=${RUNNER_TRACKING_ID:-}" \
+            "CHECK_WORKFLOW_SHA=${CHECK_WORKFLOW_SHA:-}" \
+            "CHECK_WORKFLOW_REF=${CHECK_WORKFLOW_REF:-}" \
+            /usr/bin/python3 -I - <<'PY'
+          import hashlib
+          import os
+          import re
+          import sys
+          import types
+          from urllib import error, request
+
+          SOURCES = (
+              ("check_foundry_prerequisites", "053e8c77a3b718dc27e96c97adb832f7b3ad525bf74bc927d59962fff9355df1"),
+              ("check_foundry_prerequisites_retained", "ec1508f386a51f9544574dd5f3fa0ce70a5d129f192a4cd5c840ff5f7dd54159"),
+          )
+
+          class NoRedirect(request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  raise ValueError("redirect")
+
+          try:
+              repo = os.environ.get("GITHUB_REPOSITORY", "")
+              sha = os.environ.get("GITHUB_SHA", "")
+              if (
+                  repo != "michael-rechani/foundry-agent-accelerator"
+                  or not re.fullmatch(r"[0-9a-f]{40}", sha)
+                  or os.environ.get("GITHUB_REF") != "refs/heads/main"
+                  or os.environ.get("GITHUB_REF_PROTECTED") != "true"
+                  or os.environ.get("GITHUB_EVENT_NAME") != "workflow_dispatch"
+                  or os.environ.get("CHECK_WORKFLOW_SHA") != sha
+                  or os.environ.get("CHECK_WORKFLOW_REF")
+                  != f"{repo}/.github/workflows/check-foundry-prerequisites-retained.yml@refs/heads/main"
+              ):
+                  raise ValueError("context")
+              opener = request.build_opener(request.ProxyHandler({}), NoRedirect())
+              for name, digest in SOURCES:
+                  url = f"https://raw.githubusercontent.com/{repo}/{sha}/.github/scripts/{name}.py"
+                  with opener.open(url, timeout=30) as response:
+                      content = response.read(256 * 1024 + 1)
+                      if response.status != 200 or len(content) > 256 * 1024:
+                          raise ValueError("source")
+                  if hashlib.sha256(content).hexdigest() != digest:
+                      raise ValueError("checksum")
+                  module = types.ModuleType(name)
+                  module.__file__ = f"<verified-{name}>"
+                  sys.modules[name] = module
+                  exec(compile(content, module.__file__, "exec"), module.__dict__)
+          except (ValueError, OSError, error.URLError, SyntaxError, ImportError):
+              print("failure_stage=bootstrap")
+              print("owned_process_may_be_running=false")
+              print("foundry_prerequisites_check_failed", file=sys.stderr)
+              raise SystemExit(1)
+          launcher = sys.modules["check_foundry_prerequisites_retained"]
+          sys.excepthook = lambda _kind, failure, _traceback: launcher.report_failure(failure)
+          raise SystemExit(launcher.main())
+          PY
