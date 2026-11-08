@@ -58,8 +58,10 @@ not prove all descendants exited, extension provenance, persistent tool
 availability, or readiness for deployment.
 
 Handled failures report a fixed category and
-`owned_process_may_be_running`. The value becomes conservatively true before
-process creation is attempted, including when creation is interrupted. A
+`owned_process_may_be_running`. Unexpected source verification and loading
+failures report `bootstrap`; unclassified launcher failures report
+`unexpected_io`. The process flag becomes conservatively true before process
+creation is attempted, including when creation is interrupted. A
 forced termination can prevent any final log; a missing result is not
 readiness. The runner's normal cancellation and tracked-process cleanup remain
 trusted for its own job and may signal those processes. The launcher does not
