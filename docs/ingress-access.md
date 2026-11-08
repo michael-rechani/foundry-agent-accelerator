@@ -470,6 +470,55 @@ deployments. For a private demonstration without sign-in, record those
 capabilities as **not implemented**, verify the private-demo boundary below, and
 don't describe the result as ready for public or confidential multi-user access.
 
+The `workbench/verify_private.py --base-url <HTTPS-origin>` command checks API
+responses from the supplied HTTPS origin. Malformed authorities, invalid ports,
+userinfo, raw C0/C1 controls, and ASCII spaces are rejected before opening a
+connection, using a fixed error that does not echo the input or parser exception.
+A successful report uses
+`"path": "https_origin"` and `"https_origin_reached": true`; the supplied host
+might be localhost or publicly routed, so this is not proof of the intended Lab's
+provenance, private DNS or routes, proxy path, management-subnet access, or
+private ingress. `--loopback` instead reports `"path": "loopback_http"` and
+`"https_origin_reached": false`: it checks the fixed HTTP loopback endpoint and
+required environment variables, not whether the process is in a container or
+whether that container is isolated. In both modes `"ingress_verified"`,
+`"private_network_verified"`, `"rendered_ui_verified"`,
+`"container_isolation_verified"`, and `"model_quality_verified"` remain false
+because the CLI does not establish those properties. It does not establish the
+actual served model or cost either.
+
+This reporting contract intentionally replaces the earlier `private_https` and
+`container_loopback` path values and no longer sets `ingress_verified` to true
+for HTTPS. Consumers must not interpret `"status": "passed"` as private-network
+or browser/UI acceptance. The default CLI only reads the configuration and
+cached dependency status; storage checks and potentially billable agent calls
+remain explicit opt-ins.
+
+Synthetic storage verification retains the create-confirmed record ID and ETag.
+Every update and delete is conditional; cleanup uses only the last version
+confirmed by this verifier's own create or update response, never a newly fetched
+ETag. If identity, version, transcript verification, or a write's outcome is
+uncertain, verification fails without further mutations and retains the record
+when present for manual investigation. An attempted deletion may already have
+completed if its confirmation is lost. Diagnostics identify the failing phase
+and the canonical synthetic UUID when available, without logging record content;
+inspect that record before retrying. Records are shared, so do not delete a
+changed record simply because it originated in a verification run.
+
+The stale-update check requires HTTP `409` with a unique-key JSON object whose
+`error` is exactly `conversation_changed`. The final absence check requires HTTP
+`404` with `error` exactly `conversation_not_found`. Status alone, an empty object,
+or an unrelated API error does not confirm either assertion. Missing, duplicate,
+malformed, or non-object error bodies fail verification without follow-on
+mutations. These checks confirm the API's reported conflict and absence, not
+private-network provenance, live Router routing, or deployment readiness.
+
+Independently authorize, perform, and record the private-network boundary checks
+(including origin provenance, private DNS and routing, proxies, source subnets,
+and allowed and denied ingress) and rendered browser/UI checks from the intended
+management network and other appropriate locations. The API result does not
+substitute for the acceptance checks below.
+
 | Check | Required result |
 | --- | --- |
 | DNS and TLS | Browser reaches the intended listener. The gateway resolves and reaches its private origin. Certificates validate on both hops. |

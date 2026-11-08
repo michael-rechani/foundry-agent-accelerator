@@ -31,6 +31,21 @@ def require(condition, message):
         raise CheckError(message)
 
 
+def valid_etag(value):
+    return (isinstance(value, str) and bool(value.strip()) and value == value.strip()
+            and value != "*" and "," not in value
+            and not any(ord(character) < 0x20 or 0x7F <= ord(character) <= 0x9F for character in value))
+
+
+def unique_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate JSON field")
+        result[key] = value
+    return result
+
+
 class NoRedirects(HTTPRedirectHandler):
     def redirect_request(self, request, file, code, message, headers, new_url):
         raise CheckError("Unexpected redirect; use the verified Lab origin")
@@ -41,19 +56,31 @@ class PrivateClient:
         if loopback:
             host = os.getenv("WORKBENCH_ALLOWED_HOSTS", "")
             require(os.getenv("WORKBENCH_MODE") == "private" and host and "," not in host,
-                    "Loopback verification must run inside the configured private Lab container")
+                    "Loopback verification requires private mode and one allowed host in the environment")
             self.base_url, self.origin = "http://127.0.0.1:8080", f"https://{host}"
             self.host = host
         else:
-            parsed = urlsplit(base_url or "")
-            require(parsed.scheme == "https" and parsed.hostname and not parsed.username and not parsed.password
-                    and parsed.path in {"", "/"} and not parsed.query and not parsed.fragment,
-                    "Supply the exact private HTTPS origin, not a path or credentials")
-            self.base_url = base_url.rstrip("/")
+            origin = base_url or ""
+            origin_error = "Supply the exact HTTPS origin, not a path, query, fragment, or credentials"
+            require(not any(ord(character) <= 0x20 or 0x7F <= ord(character) <= 0x9F for character in origin),
+                    origin_error)
+            try:
+                parsed = urlsplit(origin)
+                hostname, port = parsed.hostname, parsed.port
+            except ValueError:
+                raise CheckError(origin_error) from None
+            require(parsed.scheme == "https" and hostname
+                    and parsed.username is None and parsed.password is None
+                    and (port is not None or not parsed.netloc.endswith(":"))
+                    and parsed.path in {"", "/"} and not parsed.query and not parsed.fragment
+                    and "?" not in origin and "#" not in origin, origin_error)
+            self.base_url = origin.rstrip("/")
             self.origin, self.host = self.base_url, parsed.netloc
         self.opener = build_opener(NoRedirects)
 
     def call(self, method, path, body=None, etag=None, expected=200):
+        if method in {"PUT", "DELETE"}:
+            require(valid_etag(etag), "Conditional mutation requires a valid nonempty version ETag")
         headers = {"X-Workbench-Request": "1", "Origin": self.origin, "Host": self.host}
         if etag:
             headers["If-Match"] = etag
@@ -62,19 +89,27 @@ class PrivateClient:
         # The constructor restricts base_url to HTTPS or the fixed loopback origin.
         request = Request(self.base_url + path, method=method, headers=headers,  # noqa: S310
                           data=json.dumps(body).encode() if body is not None else None)
+        expected_error = ({("PUT", 409): "conversation_changed", ("GET", 404): "conversation_not_found"}
+                          .get((method, expected)) if path.startswith("/api/conversations/") else None)
         try:
-            with self.opener.open(request, timeout=200 if path == "/api/reviews" else 45) as response:
+            try:
+                response = self.opener.open(request, timeout=200 if path == "/api/reviews" else 45)
+            except HTTPError as problem:
+                if problem.code != expected or expected_error is None:
+                    raise CheckError(f"{method} {path}: HTTP {problem.code}; no automatic retry performed") from problem
+                response = problem
+            with response:
                 require(response.status == expected, f"{method} {path}: unexpected HTTP status")
-                data = json.load(response)
-        except HTTPError as problem:
-            if problem.code == expected:
-                return {}
-            raise CheckError(f"{method} {path}: HTTP {problem.code}; no automatic retry performed") from problem
+                data = json.load(response, object_pairs_hook=unique_json_object)
         except (URLError, TimeoutError) as problem:
-            raise CheckError(f"{method} {path}: private connection unavailable or timed out") from problem
+            raise CheckError(f"{method} {path}: connection unavailable or timed out") from problem
         except (ValueError, UnicodeError) as problem:
             raise CheckError(f"{method} {path}: invalid JSON response") from problem
         require(isinstance(data, dict), f"{method} {path}: expected a JSON object")
+        if expected_error is not None:
+            require(isinstance(data.get("error"), str) and data["error"] == expected_error,
+                    f"{method} {path}: expected conversation error code was not confirmed")
+            return {}
         return data
 
 
@@ -102,6 +137,68 @@ def check_agent_response(client, agent, prompt, expected_tool=None):
         suffix = f" for {expected_tool}" if expected_tool else ""
         require(valid, f"Expected one verified specialist receipt{suffix}, not just a nonempty model answer")
     return result
+
+
+def verify_storage(client, body):
+    try:
+        saved = client.call("POST", "/api/conversations", body)
+    except CheckError as problem:
+        raise CheckError("Storage create outcome is unconfirmed; inspect synthetic records before retrying; "
+                         "no cleanup or automatic retry performed") from problem
+    try:
+        identifier = saved["id"]
+        require(isinstance(identifier, str) and str(UUID(identifier)) == identifier,
+                "Storage create did not identify a canonical synthetic conversation")
+    except (CheckError, KeyError, ValueError, TypeError) as problem:
+        raise CheckError("Storage create did not return a usable conversation ID; inspect synthetic records "
+                         "before retrying; no cleanup or automatic retry performed") from problem
+
+    phase = "create version confirmation"
+    try:
+        owned_etag = saved.get("_etag")
+        require(valid_etag(owned_etag), "Create did not confirm the synthetic version")
+        phase = "initial record verification"
+        read = client.call("GET", "/api/conversations/" + identifier)
+        require(isinstance(read, dict) and read.get("id") == identifier
+                and valid_etag(read.get("_etag")) and read["_etag"] == owned_etag,
+                "Initial record identity or version was not confirmed")
+        turns = read.get("turns")
+        require(isinstance(turns, list) and len(turns) == 1 and isinstance(turns[0], dict)
+                and isinstance(turns[0].get("result"), dict), "Saved transcript structure did not match")
+        expected_turn = body["turns"][0]
+        require(read.get("agent_id") == body["agent_id"]
+                and turns[0].get("question") == expected_turn["question"]
+                and all(field in expected_turn["result"] and turns[0]["result"].get(field) == expected_turn["result"][field]
+                        for field in ("request_id", "agent", "text")), "Saved transcript did not match")
+        path = "/api/conversations/" + identifier
+        created_etag = owned_etag
+        phase = "conditional update confirmation"
+        updated = client.call("PUT", path, body, etag=owned_etag)
+        require(isinstance(updated, dict) and updated.get("id") == identifier
+                and valid_etag(updated.get("_etag")) and updated["_etag"] != owned_etag,
+                "Conditional update did not confirm the same record and a new version")
+        owned_etag = updated["_etag"]
+        phase = "stale-update conflict confirmation"
+        conflict = client.call("PUT", path, body, etag=created_etag, expected=409)
+        require(conflict == {}, "Stale update did not confirm the expected conflict")
+        phase = "cleanup version confirmation"
+        current = client.call("GET", path)
+        require(isinstance(current, dict) and current.get("id") == identifier
+                and valid_etag(current.get("_etag")) and current["_etag"] == owned_etag,
+                "Cleanup record identity or owned version was not confirmed")
+        phase = "conditional deletion confirmation"
+        deleted = client.call("DELETE", path, etag=owned_etag)
+        require(isinstance(deleted, dict) and deleted.get("deleted") is True,
+                "Conditional deletion was not confirmed")
+        phase = "deletion absence verification"
+        require(client.call("GET", path, expected=404) == {}, "Deleted record absence was not confirmed")
+    except CheckError as problem:
+        deletion_started = phase in {"conditional deletion confirmation", "deletion absence verification"}
+        disposition = "deletion may already have completed" if deletion_started else "record retained when present"
+        raise CheckError(f"Storage {phase} failed; synthetic conversation {identifier}: {disposition}; "
+                         "ownership or mutation outcome is unconfirmed; inspect before retrying; "
+                         "no further mutations or automatic retry performed") from problem
+    return ["cosmos_create_read_update_conflict", "synthetic_record_deleted"]
 
 
 def verify(client, *, check_storage=False, run_agent=False, check_review_specialists=False):
@@ -134,35 +231,16 @@ def verify(client, *, check_storage=False, run_agent=False, check_review_special
         checks.append("agent_and_specialist_receipt" if agent.get("tools") else "agent_execution")
     if check_storage:
         body = {"agent_id": agent["id"], "turns": [{"question": prompt, "result": result}]}
-        saved = client.call("POST", "/api/conversations", body)
-        try:
-            identifier = str(UUID(saved["id"]))
-            require(identifier == saved["id"], "Storage returned an invalid conversation identifier")
-        except (KeyError, ValueError, TypeError) as problem:
-            raise CheckError("Storage did not return a usable conversation ID; inspect before retrying") from problem
-        path = "/api/conversations/" + identifier
-        try:
-            read = client.call("GET", path)
-            require(read.get("turns") and read["turns"][0]["result"]["text"] == result["text"], "Saved transcript did not match")
-            updated = client.call("PUT", path, body, etag=read.get("_etag"))
-            require(updated.get("_etag") and updated["_etag"] != read.get("_etag"), "Conditional update did not advance its ETag")
-            client.call("PUT", path, body, etag=read["_etag"], expected=409)
-            checks.append("cosmos_create_read_update_conflict")
-        finally:
-            current = client.call("GET", path)
-            require(current.get("_etag"), f"Cleanup needs the current ETag for synthetic conversation {identifier}")
-            deleted = client.call("DELETE", path, etag=current["_etag"])
-            require(deleted.get("deleted") is True, f"Cleanup was not confirmed for synthetic conversation {identifier}")
-            client.call("GET", path, expected=404)
-        checks.append("synthetic_record_deleted")
+        checks.extend(verify_storage(client, body))
     return checks
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Verify the existing Lab without deploying resources or logging review content.")
+    parser = argparse.ArgumentParser(description="Check Lab API responses without deploying resources or logging review content.")
     target = parser.add_mutually_exclusive_group(required=True)
-    target.add_argument("--base-url", help="Verified private HTTPS origin")
-    target.add_argument("--loopback", action="store_true", help="Existing-container runtime check only; not an ingress test")
+    target.add_argument("--base-url", help="HTTPS origin; API success does not verify private ingress")
+    target.add_argument("--loopback", action="store_true",
+                        help="Check fixed loopback HTTP; this does not verify ingress or container isolation")
     parser.add_argument("--check-storage", action="store_true", help="Create, read, update, and delete one fictional conversation")
     agent_check = parser.add_mutually_exclusive_group()
     agent_check.add_argument("--run-agent", action="store_true",
@@ -177,8 +255,10 @@ def main(argv=None):
     except CheckError as problem:
         print(json.dumps({"status": "failed", "error": str(problem)}), file=sys.stderr)
         return 1
-    print(json.dumps({"status": "passed", "path": "container_loopback" if arguments.loopback else "private_https",
-                      "checks": checks, "ingress_verified": not arguments.loopback,
+    print(json.dumps({"status": "passed", "path": "loopback_http" if arguments.loopback else "https_origin",
+                      "checks": checks, "https_origin_reached": not arguments.loopback,
+                      "ingress_verified": False, "private_network_verified": False,
+                      "rendered_ui_verified": False, "container_isolation_verified": False,
                       "model_quality_verified": False}))
     return 0
 
