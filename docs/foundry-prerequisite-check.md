@@ -47,3 +47,60 @@ Focused hosted tests use fictional inputs and mocks only; they do not execute
 the actual skill script, Azure, azd, or the protected workflow. Historical tests
 whose expected behavior required execution or automatic deletion are explicitly
 skipped until a safe design replaces this gate.
+
+## Natural-exit-only follow-up: runner lifecycle remains a blocker
+
+Keeping every run-owned source and scratch entry for later human review removes
+the need to prove that pending kernel writes have completed before deletion.
+It does not by itself make the protected check safe to enable. The accepted
+shared-account/VM trust assumption is not protection against a hostile host,
+same-UID interference, or adversarial process escape. No external process or
+service may be signaled, and no run-owned material may be recursively removed.
+
+The public Actions runner source at commit
+[`5ba50443372004d4d67620909426c5d28a0066af`](https://github.com/actions/runner/tree/5ba50443372004d4d67620909426c5d28a0066af)
+provides concrete reasons that clearing a child environment is insufficient:
+
+- The job's orphan cleanup defaults on and can terminate processes carrying
+  `RUNNER_TRACKING_ID` ([job setup](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Worker/JobExtension.cs#L588-L599),
+  [job cleanup](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Worker/JobExtension.cs#L891-L930),
+  [constant](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Common/Constants.cs)).
+  `env -i` can remove this marker from a correctly launched supervisor and its
+  descendants, but does not establish how all checkout/action subprocesses or
+  every interruption path behave.
+- Cancellation independently sends signals to the step process by numeric PID,
+  escalating to process termination when it does not exit
+  ([cancellation](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Sdk/ProcessInvoker.cs#L443-L465),
+  [Unix signal and termination](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Sdk/ProcessInvoker.cs#L828-L862)).
+  An `exec env -i` supervisor is still the runner's step process. Environment
+  scrubbing does not change this cancellation path or guarantee it can emit a
+  final result after forced termination.
+- Runner initialization and job cleanup delete the contents of runner temp
+  ([source](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Worker/TempDirectoryManager.cs#L27-L55));
+  workspace cleanup may also delete directories according to job settings
+  ([source](https://github.com/actions/runner/blob/5ba50443372004d4d67620909426c5d28a0066af/src/Runner.Worker/PipelineDirectoryManager.cs#L65-L101)).
+  Therefore merely disabling application cleanup or setting checkout
+  `clean: false` is not proof that retained source and scratch survive the
+  runner lifecycle.
+
+These are observations of public source, not verification of the private
+runner's installed version or configuration; no private runner was accessed.
+The current workflow never launches the proposed supervisor, so it remains
+fail-closed rather than relying on these unverified assumptions. Before enabling
+it, a separately reviewed design must demonstrate a run-specific retention
+location unaffected by runner cleanup and a runner lifecycle that does not
+signal unrelated or escaped owned processes, including cancellation and action
+post-steps. It must also account for an abrupt supervisor death: a missing or
+ambiguous terminal result must be treated as a fixed failure with
+`owned_process_may_be_running=true`, never as readiness, and retained material
+must never be reused by a credentialed deployment. A process killed before it
+can report cannot itself guarantee the requested final log line; an independent,
+non-destructive reporting mechanism would need to be established.
+
+A future supervisor additionally needs a fresh, trusted, single-threaded
+subreaper, default waitable SIGCHLD behavior, no competing reapers or ambient
+children, birth-bound root status, and explicit reaping of adopted children to
+`ECHILD`. Pipe EOF and a root exit alone are not sufficient. Output must be
+bounded and failures must never trigger signaling or deletion. Actual execution
+of the pinned skill, Azure, azd, credentials, and the protected workflow remains
+unapproved; synthetic tests alone cannot establish those runner guarantees.
