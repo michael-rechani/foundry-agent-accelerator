@@ -634,6 +634,8 @@ class ProcessTests(unittest.TestCase):
             patch.object(probe.subprocess, "Popen") as popen,
             patch.object(probe.os, "killpg", create=True) as group,
             patch.object(probe.os, "kill") as numeric,
+            patch.object(probe.os, "waitpid", create=True) as wait,
+            patch.object(probe.os, "waitid", create=True) as waitid,
             patch.object(probe, "isolated_environment") as environment,
             patch.object(probe, "download") as download,
         ):
@@ -646,6 +648,8 @@ class ProcessTests(unittest.TestCase):
             popen.assert_not_called()
             group.assert_not_called()
             numeric.assert_not_called()
+            wait.assert_not_called()
+            waitid.assert_not_called()
             environment.assert_not_called()
             download.assert_not_called()
 
@@ -756,6 +760,12 @@ class WorkflowTests(unittest.TestCase):
                           "id-token:", "secrets.", "killpg", "sudo", "docker"):
             self.assertNotIn(forbidden, workflow)
         self.assertEqual(workflow.count("      - name:"), 1)
+        bash = REAL_WHICH("bash")
+        self.assertIsNotNone(bash, "Offline syntax validation requires existing Bash.")
+        script = workflow.split("        run: |\n", 1)[1]
+        result = subprocess.run([bash, "-n"], input=script, text=True,
+                                capture_output=True, timeout=5, check=False)
+        self.assertEqual(result.returncode, 0, "Protected refusal shell is invalid")
 
 
 if __name__ == "__main__":
