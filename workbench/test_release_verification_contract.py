@@ -73,7 +73,7 @@ class ReleaseVerificationContractTests(unittest.TestCase):
         descriptors = self.manifest["profiles"]
         self.assertEqual([item["stage"] for item in descriptors], list(release.STEPS))
         self.assertEqual([item["target"] for item in descriptors], list(release.TARGETS))
-        for descriptor, profile in zip(descriptors, self.profiles):
+        for descriptor, profile in zip(descriptors, self.profiles, strict=True):
             self.assertEqual(
                 descriptor["archive_sha256"],
                 hashlib.sha256(profile.code_archive).hexdigest(),
