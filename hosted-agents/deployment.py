@@ -415,6 +415,11 @@ def has_responses(endpoint) -> bool:
     return isinstance(getattr(protocols, "responses", None), Mapping)
 
 
+def route_unchanged(endpoint, expected) -> bool:
+    rules = getattr(getattr(endpoint, "version_selector", None), "version_selection_rules", None)
+    return has_responses(endpoint) and concrete_route(endpoint) and single_fixed_ratio(rules) and endpoint == expected
+
+
 def enabled_endpoint(client, agent_name: str):
     details = client.agents.get(agent_name=agent_name)
     name = details.get("name") if isinstance(details, Mapping) else getattr(details, "name", None)
@@ -454,7 +459,7 @@ def endpoint_snapshot(client, agent_name: str):
     except ResourceNotFoundError:
         return None
     verify_recovery_targets(client, agent_name, endpoint)
-    if enabled_endpoint(client, agent_name) != endpoint:
+    if not route_unchanged(enabled_endpoint(client, agent_name), endpoint):
         raise RuntimeError("The recovery route changed before version creation")
     return endpoint
 
@@ -478,7 +483,7 @@ def verify_route(client, agent_name: str, version: str, model: str) -> None:
         raise RuntimeError("The promoted agent version is not active")
     if not candidate_model_matches(details, model):
         raise RuntimeError("The promoted hosted definition does not confirm the requested model")
-    if enabled_endpoint(client, agent_name) != endpoint:
+    if not route_unchanged(enabled_endpoint(client, agent_name), endpoint):
         raise RuntimeError("The promoted Responses route changed during verification")
 
 
@@ -504,12 +509,12 @@ def cleanup_failed_version(
 
     try:
         endpoint = deepcopy(enabled_endpoint(client, agent_name))
-        if endpoint != original_endpoint and (attempted_endpoint is None or endpoint != attempted_endpoint):
+        if not route_unchanged(endpoint, original_endpoint) and (attempted_endpoint is None or not route_unchanged(endpoint, attempted_endpoint)):
             print(f"Warning: route changed during deployment; retained version {version}; manual recovery required")
             return
         verify_recovery_targets(client, agent_name, original_endpoint)
-        if endpoint != original_endpoint:
-            if enabled_endpoint(client, agent_name) != endpoint:
+        if not route_unchanged(endpoint, original_endpoint):
+            if not route_unchanged(enabled_endpoint(client, agent_name), endpoint):
                 print(f"Warning: route changed during recovery; retained version {version}; manual recovery required")
                 return
             try:
@@ -520,12 +525,12 @@ def cleanup_failed_version(
                 print(f"Warning: rollback failed; retained version {version}; manual recovery required")
                 return
             endpoint = enabled_endpoint(client, agent_name)
-            if endpoint != original_endpoint:
+            if not route_unchanged(endpoint, original_endpoint):
                 print(f"Warning: restored route was not confirmed; retained version {version}; manual recovery required")
                 return
             verify_recovery_targets(client, agent_name, endpoint)
         endpoint = enabled_endpoint(client, agent_name)
-        if endpoint != original_endpoint:
+        if not route_unchanged(endpoint, original_endpoint):
             print(f"Warning: route changed during cleanup; retained version {version}; manual recovery required")
             return
         selector = getattr(endpoint, "version_selector", None)
@@ -556,7 +561,7 @@ def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name:
             details = client.agents.get_version(agent_name=agent_name, agent_version=version)
             if not active_release(details, agent_name, version):
                 raise RuntimeError(f"Specialist {agent_name} version {version} is not active")
-        if enabled_endpoint(client, agent_name) != endpoint:
+        if not route_unchanged(enabled_endpoint(client, agent_name), endpoint):
             raise RuntimeError(f"Specialist {agent_name} route changed during preflight")
         print(f"Specialist preflight passed: {agent_name}")
 
@@ -654,7 +659,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                 if not candidate_model_matches(candidate, args.model):
                     raise RuntimeError("The candidate hosted definition does not confirm the requested model")
                 if original_endpoint is not None:
-                    if enabled_endpoint(client, args.agent_name) != original_endpoint:
+                    if not route_unchanged(enabled_endpoint(client, args.agent_name), original_endpoint):
                         raise RuntimeError("The agent route changed during deployment; refusing candidate smoke")
                     candidate_check_in_progress = True
                     candidate_smoke_test(
@@ -663,7 +668,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                     )
                     candidate_check_in_progress = False
                 current_endpoint = deepcopy(enabled_endpoint(client, args.agent_name))
-                if original_endpoint is not None and current_endpoint != original_endpoint:
+                if original_endpoint is not None and not route_unchanged(current_endpoint, original_endpoint):
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
                 if original_endpoint is not None:
                     verify_recovery_targets(client, args.agent_name, original_endpoint)
@@ -694,7 +699,7 @@ def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
                     raise RuntimeError("The candidate agent version is not active")
                 if not candidate_model_matches(candidate, args.model):
                     raise RuntimeError("The candidate hosted definition does not confirm the requested model")
-                if enabled_endpoint(client, args.agent_name) != current_endpoint:
+                if not route_unchanged(enabled_endpoint(client, args.agent_name), current_endpoint):
                     raise RuntimeError("The agent route changed during deployment; refusing promotion")
                 attempted_endpoint = deepcopy(endpoint_config)
                 client.agents.update_details(
