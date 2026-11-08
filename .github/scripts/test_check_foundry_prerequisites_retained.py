@@ -271,8 +271,8 @@ class RetainedPrerequisiteTests(unittest.TestCase):
                 root = self.base / f"archive-{index}"
                 (root / "bin").mkdir(parents=True)
 
-                def download(_url, _digest, destination, _limit):
-                    destination.write_bytes(archive)
+                def download(_url, _digest, destination, _limit, data=archive):
+                    destination.write_bytes(data)
 
                 with patch.object(helper, "download", side_effect=download):
                     with self.assertRaisesRegex(helper.CheckError, "archive"):
@@ -621,11 +621,11 @@ class RetainedWorkflowTests(unittest.TestCase):
                 with self.subTest(tampered=tampered):
                     out, err = io.StringIO(), io.StringIO()
 
-                    def fake_open(url, timeout):
+                    def fake_open(url, timeout, *, is_tampered=tampered):
                         self.assertEqual(timeout, 30)
                         name = url.rsplit("/", 1)[-1]
                         content = sources[name]
-                        if tampered and name == "check_foundry_prerequisites_retained.py":
+                        if is_tampered and name == "check_foundry_prerequisites_retained.py":
                             content += b"# changed\n"
                         response = io.BytesIO(content)
                         response.status = 200
