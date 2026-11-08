@@ -96,6 +96,13 @@ class PrivateClient:
                 response = self.opener.open(request, timeout=200 if path == "/api/reviews" else 45)
             except HTTPError as problem:
                 if problem.code != expected or expected_error is None:
+                    try:
+                        problem.close()
+                    except OSError:
+                        raise CheckError(
+                            f"{method} {path}: HTTP {problem.code}; response could not be closed; "
+                            "no automatic retry performed"
+                        ) from None
                     raise CheckError(f"{method} {path}: HTTP {problem.code}; no automatic retry performed") from problem
                 response = problem
             with response:

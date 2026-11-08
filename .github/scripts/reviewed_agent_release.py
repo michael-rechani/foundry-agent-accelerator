@@ -228,7 +228,7 @@ def checkout(root, source):
     commands = (
         (["rev-parse", "HEAD"], source),
         (["status", "--porcelain", "--untracked-files=all"], ""),
-        (["status", "--porcelain", "--untracked-files=all", "--ignored=matching", "--", *package_paths], ""),
+        (["ls-files", "--others", "--ignored", "--exclude-standard", "--", *package_paths], ""),
     )
     git_environment = {
         "PATH": "/usr/bin:/bin",

@@ -551,6 +551,7 @@ class PrivateVerificationTests(unittest.TestCase):
         self.assertEqual(opener.fixture.deleted, stage == "absence")
         self.assertEqual(opener.fixture.requests[-1][0], "PUT" if stage == "stale" else "GET")
         self.assertEqual(opener.fixture.requests[-1][3], 409 if stage == "stale" else 404)
+        self.assertTrue(all(error.fp.closed for error in opener.errors))
         return opener
 
     def test_actual_http_errors_with_exact_api_codes_confirm_conflict_and_absence(self):
@@ -809,7 +810,8 @@ class PrivateVerificationTests(unittest.TestCase):
 
     def test_api_errors_fail_without_retry_or_success_report(self):
         failures = ((URLError("synthetic outage"), "connection unavailable or timed out"),
-                    (HTTPError("https://lab.example.invalid/api/config", 503, "unavailable", None, None), "HTTP 503"))
+                    (HTTPError("https://lab.example.invalid/api/config", 503, "unavailable",
+                               None, io.BytesIO(b"private error content")), "HTTP 503"))
         for failure, expected in failures:
             with self.subTest(failure=type(failure).__name__):
                 output, error = io.StringIO(), io.StringIO()
@@ -822,6 +824,26 @@ class PrivateVerificationTests(unittest.TestCase):
                 self.assertEqual(report["status"], "failed")
                 self.assertIn(expected, report["error"])
                 opener.return_value.open.assert_called_once()
+                if isinstance(failure, HTTPError):
+                    self.assertTrue(failure.fp.closed)
+                    self.assertNotIn("private error content", error.getvalue())
+
+    def test_unexpected_http_error_close_failure_is_sanitized_without_retry(self):
+        class CloseFailure(io.BytesIO):
+            def close(self):
+                if not self.closed:
+                    super().close()
+                    raise OSError("private close failure")
+
+        failure = HTTPError("https://lab.example.invalid/api/config", 503, "unavailable",
+                            None, CloseFailure(b"private error content"))
+        with patch("verify_private.build_opener") as opener:
+            opener.return_value.open.side_effect = failure
+            client = PrivateClient("https://lab.example.invalid")
+            with self.assertRaisesRegex(CheckError, "response could not be closed") as raised:
+                client.call("GET", "/api/config")
+            self.assertNotIn("private close failure", str(raised.exception))
+            opener.return_value.open.assert_called_once()
 
     def test_invalid_api_json_fails_without_retry_or_success_report(self):
         response = io.BytesIO(b"not JSON")
