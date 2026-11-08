@@ -472,7 +472,7 @@ class PrivateVerificationTests(unittest.TestCase):
                     fixture = StorageClient()
                     puts = 0
 
-                    def respond(request, timeout):
+                    def respond(request, timeout, *, fixture=fixture, stage=stage, name=name, payload=payload):
                         nonlocal puts
                         method = request.get_method()
                         path = request.full_url.removeprefix("https://lab.example.invalid")

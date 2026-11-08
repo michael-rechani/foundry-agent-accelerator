@@ -33,6 +33,9 @@ ENVIRONMENTS = {
 }
 STEPS = ("application", "case", "coordinator")
 TARGETS = ("application-review-agent", "case-review-agent", "customer-review-coordinator")
+PACKAGE_DIRECTORIES = ("application-review-agent", "case-review-agent", "review-coordinator-agent")
+PACKAGE_FILES = ("main.py", "requirements.txt", "instructions.md", "configuration.py")
+PACKAGE_SHARED_FILES = ("review_output.py", "hosted_runtime.py")
 JOBS = {"prepare": "prepare", **{step: f"publish-{step}" for step in STEPS}}
 SHA = re.compile(r"[0-9a-f]{40}")
 DIGEST = re.compile(r"[0-9a-f]{64}")
@@ -218,8 +221,31 @@ def inputs(environ):
 
 
 def checkout(root, source):
-    for arguments, expected in ((["rev-parse", "HEAD"], source), (["status", "--porcelain", "--untracked-files=no"], "")):
-        result = subprocess.run(["git", "-C", str(root), *arguments], capture_output=True, text=True, check=False)
+    package_paths = [
+        f"hosted-agents/{directory}/{filename}"
+        for directory in PACKAGE_DIRECTORIES for filename in PACKAGE_FILES
+    ] + [f"hosted-agents/{filename}" for filename in PACKAGE_SHARED_FILES]
+    commands = (
+        (["rev-parse", "HEAD"], source),
+        (["status", "--porcelain", "--untracked-files=all"], ""),
+        (["status", "--porcelain", "--untracked-files=all", "--ignored=matching", "--", *package_paths], ""),
+    )
+    git_environment = {
+        "PATH": "/usr/bin:/bin",
+        "LC_ALL": "C",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_OPTIONAL_LOCKS": "0",
+    }
+    for arguments, expected in commands:
+        try:
+            result = subprocess.run(  # noqa: S603 - fixed Git commands use an absolute executable and no shell.
+                ["/usr/bin/git", "-c", "core.fsmonitor=false", "-C", str(root), *arguments],
+                capture_output=True, text=True, check=False, env=git_environment, timeout=15,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise ReleaseError("Release checkout could not be verified") from error
         if result.returncode != 0 or result.stdout.strip() != expected:
             raise ReleaseError("Release checkout does not match the reviewed clean source")
 
@@ -247,6 +273,10 @@ def release_plan(root, ctx, values, policy):
     sys.path.insert(0, str(source))
     import deployment
 
+    if (*deployment.SOURCE_FILES, *deployment.OPTIONAL_SOURCE_FILES) != PACKAGE_FILES or (
+        deployment.SHARED_FILES != PACKAGE_SHARED_FILES
+    ):
+        raise ReleaseError("Release package source list changed and requires review")
     relative = Path(values["profile_path"])
     profile_path = (root / relative).resolve()
     if relative.is_absolute() or profile_path == root or root not in profile_path.parents:
@@ -259,6 +289,10 @@ def release_plan(root, ctx, values, policy):
     profiles = (application, case, coordinator)
     if tuple(profile.name for profile in profiles) != TARGETS:
         raise ReleaseError("Release profile targets do not match the reviewed publication order")
+    if tuple(profile.source_directory for profile in profiles) != tuple(
+        source / directory for directory in PACKAGE_DIRECTORIES
+    ):
+        raise ReleaseError("Release profile source directories changed and require review")
     packed = []
     descriptors = []
     with tempfile.TemporaryDirectory(prefix="agent-release-review-") as temporary:
@@ -367,7 +401,7 @@ def main(argv=None, environ=None, *, api=None, root=None):
                 destination.write(f"Reviewed choice: `{values['model_choice']}`; exact model label is hash-bound, with no fallback.\n\n")
                 for key in ("endpoint", "model", "credential_mode", "client_id", "tenant_id", "release_id"):
                     destination.write(f"- {key} SHA-256: `{digest(values[key])}`\n")
-                for step, target in zip(STEPS, TARGETS):
+                for step, target in zip(STEPS, TARGETS, strict=True):
                     destination.write(f"\n{target}: approve only its environment, with exact comment:\n\n`{approval_comment(step, ctx, reviewed_digest)}`\n")
                 destination.write("\nOwner self-review is permitted if configured; this is not independent review. Live publication remains disabled.\n")
             return 0

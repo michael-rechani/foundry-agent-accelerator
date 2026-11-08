@@ -211,6 +211,13 @@ verify the actual Router deployment privately. Fixed recovery needs a new
 manifest and new reviews. This release excludes optional knowledge retrieval and
 coordinator name overrides rather than silently adding unreviewed configuration.
 
+The release checkout check uses `/usr/bin/git` on Linux with a restricted
+environment and no filesystem-monitor hook. It refuses tracked changes,
+nonignored untracked files, and ignored files at the allowed package-source paths; the
+package file list and source directories must match the reviewed release guard.
+These checks do not create an atomic snapshot or establish trust against another
+process with the same host identity. A runner without that Git path fails closed.
+
 Preparation reuses the real SHA-bound profile validator and deterministic
 package builder. The canonical manifest binds the run, source, all actual inputs,
 environment policies/IDs, ordered targets, packaged bytes, instructions,

@@ -30,7 +30,7 @@ class Metadata:
             "/actions/runs/91/approvals": [],
             "/actions/runs/91/attempts/1/jobs?per_page=100": {"total_count": 4, "jobs": []},
         }
-        for index, (step, name) in enumerate(release.ENVIRONMENTS.items(), 1):
+        for index, (_step, name) in enumerate(release.ENVIRONMENTS.items(), 1):
             self.data[f"/environments/{name}"] = {
                 "id": index, "name": name, "can_admins_bypass": False,
                 "deployment_branch_policy": {"protected_branches": True, "custom_branch_policies": False},
@@ -240,15 +240,18 @@ class ReviewedReleaseTests(unittest.TestCase):
         self.assertEqual([], self.api.calls)
 
     def test_checkout_verifies_actual_head_and_tracked_changes(self):
-        for head, status, accepted in (
-            ("a" * 40, "", True),
-            ("b" * 40, "", False),
-            ("a" * 40, " M hosted-agents/deployment.py", False),
+        for head, status, ignored, accepted in (
+            ("a" * 40, "", "", True),
+            ("b" * 40, "", "", False),
+            ("a" * 40, " M hosted-agents/deployment.py", "", False),
+            ("a" * 40, "?? untracked.py", "", False),
+            ("a" * 40, "", "!! hosted-agents/application-review-agent/configuration.py", False),
         ):
-            with self.subTest(head=head, status=status), patch.object(release.subprocess, "run") as run:
+            with self.subTest(head=head, status=status, ignored=ignored), patch.object(release.subprocess, "run") as run:
                 run.side_effect = [
                     types.SimpleNamespace(returncode=0, stdout=head),
                     types.SimpleNamespace(returncode=0, stdout=status),
+                    types.SimpleNamespace(returncode=0, stdout=ignored),
                 ]
                 # The normal fixture suppresses checkout; exercise its original
                 # function with only the external git subprocess mocked here.
@@ -258,6 +261,81 @@ class ReviewedReleaseTests(unittest.TestCase):
                 else:
                     with self.assertRaises(release.ReleaseError):
                         function(ROOT, "a" * 40)
+                for call in run.call_args_list:
+                    self.assertEqual(call.args[0][:5], ["/usr/bin/git", "-c", "core.fsmonitor=false", "-C", str(ROOT)])
+                    self.assertEqual(call.kwargs["timeout"], 15)
+                    self.assertEqual(call.kwargs["env"]["GIT_CONFIG_GLOBAL"], "/dev/null")
+                    self.assertNotIn("GIT_DIR", call.kwargs["env"])
+                    self.assertNotIn("GITHUB_TOKEN", call.kwargs["env"])
+
+    def test_checkout_timeout_is_reported_without_traceback_details(self):
+        failure = release.subprocess.TimeoutExpired("fictional-sensitive-command", 15)
+        with patch.object(release.subprocess, "run", side_effect=failure):
+            with self.assertRaisesRegex(release.ReleaseError, "Release checkout could not be verified"):
+                self.real_checkout(ROOT, "a" * 40)
+
+    def test_release_refuses_packaging_contract_drift(self):
+        context = release.context(self.environ)
+        with patch.object(deployment, "OPTIONAL_SOURCE_FILES", ("instructions.md", "configuration.py", "extra.py")):
+            with self.assertRaisesRegex(release.ReleaseError, "package source list changed"):
+                release.release_plan(ROOT, context, self.values, {})
+        with patch.object(release, "PACKAGE_DIRECTORIES", ("other", *release.PACKAGE_DIRECTORIES[1:])):
+            with self.assertRaisesRegex(release.ReleaseError, "source directories changed"):
+                release.release_plan(ROOT, context, self.values, {})
+
+    def test_checkout_uses_real_git_and_rejects_ignored_packaged_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {
+                "PATH": "/usr/bin:/bin", "LC_ALL": "C",
+                "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null",
+            }
+
+            def git(*args):
+                return release.subprocess.run(
+                    ["/usr/bin/git", "-C", str(root), *args], env=environment,
+                    capture_output=True, text=True, check=True, timeout=15,
+                )
+
+            git("init", "-q")
+            (root / ".gitignore").write_text(
+                "hosted-agents/application-review-agent/configuration.py\n"
+                "hosted-agents/case-review-agent/\n__pycache__/\n", encoding="utf-8",
+            )
+            (root / "tracked.txt").write_text("fictional source\n", encoding="utf-8")
+            git("add", ".gitignore", "tracked.txt")
+            git(
+                "-c", "user.name=Fictional Test", "-c", "user.email=fictional@example.invalid",
+                "-c", "commit.gpgsign=false", "commit", "-qm", "fictional source",
+            )
+            source = git("rev-parse", "HEAD").stdout.strip()
+            poisoned = {
+                "GIT_DIR": str(root / "not-a-repository"),
+                "GIT_WORK_TREE": str(root / "wrong-worktree"),
+                "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "core.fsmonitor",
+                "GIT_CONFIG_VALUE_0": "/bin/false", "GITHUB_TOKEN": "fictional-token",
+            }
+            with patch.dict(os.environ, poisoned):
+                self.real_checkout(root, source)
+                ignored = root / "hosted-agents" / "application-review-agent" / "configuration.py"
+                ignored.parent.mkdir(parents=True)
+                ignored.write_text("fictional ignored package input\n", encoding="utf-8")
+                with self.assertRaisesRegex(release.ReleaseError, "reviewed clean source"):
+                    self.real_checkout(root, source)
+                ignored.unlink()
+                ignored_directory_file = root / "hosted-agents" / "case-review-agent" / "requirements.txt"
+                ignored_directory_file.parent.mkdir(parents=True)
+                ignored_directory_file.write_text("fictional ignored package input\n", encoding="utf-8")
+                with self.assertRaisesRegex(release.ReleaseError, "reviewed clean source"):
+                    self.real_checkout(root, source)
+                ignored_directory_file.unlink()
+                cache = root / "hosted-agents" / "application-review-agent" / "__pycache__" / "fictional.pyc"
+                cache.parent.mkdir(parents=True)
+                cache.write_bytes(b"fictional cache")
+                self.real_checkout(root, source)
+                (root / "untracked.txt").write_text("fictional\n", encoding="utf-8")
+                with self.assertRaisesRegex(release.ReleaseError, "reviewed clean source"):
+                    self.real_checkout(root, source)
 
     def test_live_remains_disabled_even_for_exact_owner_self_review(self):
         ctx = self.prepare()
@@ -334,7 +412,7 @@ class ReviewedReleaseTests(unittest.TestCase):
 
     def test_actual_publisher_rechecks_each_mutation_and_preserves_router_promotion(self):
         ctx = self.prepare()
-        for step, target in zip(release.STEPS, release.TARGETS):
+        for step, target in zip(release.STEPS, release.TARGETS, strict=True):
             self.approve(step, ctx)
             mutations = []
             modules, client, credential = external_sdk(self.values["model"], mutations)
