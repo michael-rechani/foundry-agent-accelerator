@@ -1,0 +1,72 @@
+name: Verify observed dependency wheel bytes
+
+on:
+  push:
+    branches:
+      - copilot/runtime-dependency-observation-20261108
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.14"
+      - name: Download and independently hash observed wheels
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(id -u)" -ne 0
+          python -m venv "$RUNNER_TEMP/verify-env"
+          python="$RUNNER_TEMP/verify-env/bin/python"
+          for group in publisher specialists coordinator; do
+            lock=".github/observed-dependencies/$group.lock.txt"
+            wheels="$RUNNER_TEMP/$group-wheels"
+            mkdir "$wheels"
+            /usr/bin/env -i "PATH=$RUNNER_TEMP/verify-env/bin:/usr/bin:/bin" \
+              "HOME=$RUNNER_TEMP" "LANG=C" "PIP_CONFIG_FILE=/dev/null" \
+              "PIP_DISABLE_PIP_VERSION_CHECK=1" \
+              "$python" -m pip download --quiet --no-input --no-cache-dir \
+              --index-url https://pypi.org/simple --only-binary=:all: \
+              --require-hashes --no-deps -r "$lock" --dest "$wheels"
+            /usr/bin/env -i "PATH=$RUNNER_TEMP/verify-env/bin:/usr/bin:/bin" \
+              "HOME=$RUNNER_TEMP" "LANG=C" "$python" - "$lock" "$wheels" <<'PY'
+          import collections
+          import hashlib
+          import re
+          import sys
+          from pathlib import Path
+
+          lines = Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
+          if not lines or lines[0] != "--only-binary=:all:":
+              raise SystemExit("Invalid observed lock")
+          expected = collections.Counter()
+          for line in lines[1:]:
+              match = re.fullmatch(
+                  r"[a-z0-9]+(?:-[a-z0-9]+)*==[A-Za-z0-9][A-Za-z0-9.!+_-]* "
+                  r"--hash=sha256:([0-9a-f]{64})",
+                  line,
+              )
+              if match is None:
+                  raise SystemExit("Invalid observed requirement")
+              expected[match.group(1)] += 1
+          actual = collections.Counter()
+          for wheel in Path(sys.argv[2]).iterdir():
+              if wheel.is_symlink() or not wheel.is_file() or wheel.suffix != ".whl":
+                  raise SystemExit("Unexpected download entry")
+              with wheel.open("rb") as source:
+                  actual[hashlib.file_digest(source, "sha256").hexdigest()] += 1
+          if not expected or actual != expected:
+              raise SystemExit("Observed wheel hashes do not match")
+          print(f"Verified {sum(actual.values())} downloaded wheel hashes")
+          PY
+            printf '%s lock: ' "$group"
+            sha256sum "$lock"
+          done
