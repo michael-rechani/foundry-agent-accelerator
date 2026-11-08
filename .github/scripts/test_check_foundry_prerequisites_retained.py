@@ -137,17 +137,40 @@ class RetainedPrerequisiteTests(unittest.TestCase):
                 self.reserve(run_id=value)
         self.assertEqual(list(self.home.iterdir()), [])
 
-    def test_tracking_marker_is_preserved_only_when_well_formed(self):
+    def test_tracking_marker_is_required_and_preserved_only_when_well_formed(self):
         with patch.dict(os.environ, {"RUNNER_TRACKING_ID": TRACKING}, clear=True):
             self.assertEqual(retained.tracking_id(), TRACKING)
         with patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(retained.tracking_id(), "")
-        for value in ("github_bad", "private-token", TRACKING + "\n", "a" * 300):
+            with self.assertRaisesRegex(helper.CheckError, "tracking"):
+                retained.tracking_id()
+        for value in ("", "github_bad", "private-token", TRACKING + "\n", "a" * 300):
             with self.subTest(value=value), patch.dict(
                 os.environ, {"RUNNER_TRACKING_ID": value}, clear=True
             ):
                 with self.assertRaisesRegex(helper.CheckError, "tracking"):
                     retained.tracking_id()
+
+    def test_missing_tracking_marker_refuses_before_state_download_or_spawn(self):
+        with patch.dict(os.environ, {}, clear=True), patch.object(
+            retained, "context", return_value=(self.temp, self.workspace)
+        ), patch.object(
+            helper, "invocation_user_agent", return_value=fixtures.UPSTREAM_AGENT
+        ), patch.object(
+            retained, "reserve_state"
+        ) as reserve, patch.object(
+            helper, "download"
+        ) as download, patch.object(
+            retained, "check_pidfd_support"
+        ) as pidfd:
+            with self.assertRaisesRegex(helper.CheckError, "tracking"):
+                retained.run()
+            reserve.assert_not_called()
+            download.assert_not_called()
+            pidfd.assert_not_called()
+        with patch.object(helper, "isolated_environment") as environment:
+            with self.assertRaisesRegex(helper.CheckError, "tracking"):
+                retained.check(self.root, fixtures.UPSTREAM_AGENT, "")
+            environment.assert_not_called()
 
     def test_main_context_requires_exact_protected_workflow_and_runner(self):
         repo = "michael-rechani/foundry-agent-accelerator"
@@ -232,7 +255,7 @@ class RetainedPrerequisiteTests(unittest.TestCase):
     def test_wrong_user_agent_stops_before_tool_install(self):
         opener = self.fake_downloads()
         with self.assertRaisesRegex(helper.CheckError, "context"):
-            retained.check(self.root, "wrong-agent", "")
+            retained.check(self.root, "wrong-agent", TRACKING)
         self.assertEqual(opener.open.call_count, 1)
         self.assertFalse((self.root / "bin" / "azd").exists())
         self.assertTrue((self.root / "skill" / "scripts" / "check-and-setup-dependencies.sh").exists())
@@ -244,7 +267,7 @@ class RetainedPrerequisiteTests(unittest.TestCase):
         opener.open.return_value = response
         opener.open.side_effect = None
         with self.assertRaisesRegex(helper.CheckError, "checksum"):
-            retained.check(self.root, fixtures.UPSTREAM_AGENT, "")
+            retained.check(self.root, fixtures.UPSTREAM_AGENT, TRACKING)
         self.assertFalse((self.root / "bin" / "azd").exists())
         self.assertTrue((self.root / "skill" / "scripts" / "check-and-setup-dependencies.sh").exists())
 
@@ -254,7 +277,7 @@ class RetainedPrerequisiteTests(unittest.TestCase):
             retained, "command"
         ) as command:
             with self.assertRaisesRegex(helper.CheckError, "checksum"):
-                retained.check(self.root, fixtures.UPSTREAM_AGENT, "")
+                retained.check(self.root, fixtures.UPSTREAM_AGENT, TRACKING)
         command.assert_not_called()
         self.assertFalse((self.root / "bin" / "azd").exists())
         self.assertTrue((self.root / "azd.tar.gz").exists())
@@ -286,7 +309,7 @@ class RetainedPrerequisiteTests(unittest.TestCase):
             retained, "command", side_effect=[helper.READY.encode(), b"private version data"]
         ):
             with self.assertRaisesRegex(helper.CheckError, "version"):
-                retained.check(self.root, fixtures.UPSTREAM_AGENT, "")
+                retained.check(self.root, fixtures.UPSTREAM_AGENT, TRACKING)
 
     def test_failed_skill_does_not_run_postcheck(self):
         self.fake_downloads()
@@ -294,7 +317,7 @@ class RetainedPrerequisiteTests(unittest.TestCase):
             retained, "command", side_effect=helper.CheckError("skill")
         ) as command:
             with self.assertRaisesRegex(helper.CheckError, "skill"):
-                retained.check(self.root, fixtures.UPSTREAM_AGENT, "")
+                retained.check(self.root, fixtures.UPSTREAM_AGENT, TRACKING)
         self.assertEqual(command.call_count, 1)
         self.assertTrue((self.root / "azd.tar.gz").exists())
 
@@ -509,7 +532,7 @@ class RetainedPrerequisiteTests(unittest.TestCase):
         self.assertEqual(err.getvalue(), "foundry_prerequisites_check_failed\n")
 
     def test_run_retains_state_and_never_uses_old_cleanup(self):
-        env = {"GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1"}
+        env = {"GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1", "RUNNER_TRACKING_ID": TRACKING}
         user = type("User", (), {"pw_dir": str(self.home)})()
 
         def fake_check(root, _agent, _tracking):

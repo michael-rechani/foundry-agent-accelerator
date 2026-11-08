@@ -46,8 +46,11 @@ That is not host isolation: both private runner registrations share one
 Docker-privileged account, and the process may still be able to reach host
 services, including Azure instance metadata.
 
-The launcher preserves a well-formed `RUNNER_TRACKING_ID` when present. It
-requires Linux procfs, uses bounded output, a deadline, and a Linux pidfd to
+The launcher requires a well-formed `RUNNER_TRACKING_ID` and passes it to child
+processes. If it is absent or invalid, the check stops before reserving state,
+downloading, or spawning. A marker alone does not prove that the installed
+runner's orphan cleanup is enabled or that all descendants retain it. The
+launcher requires Linux procfs, uses bounded output, a deadline, and a Linux pidfd to
 observe and reap the direct child, without application-level signals or
 recursive cleanup. A successful result is only `ready_retained_state_only`: the pinned synchronous
 script and version postcheck completed against that retained state. It does

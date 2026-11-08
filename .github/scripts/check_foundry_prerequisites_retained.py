@@ -82,7 +82,7 @@ def context():
 
 def tracking_id():
     value = os.environ.get("RUNNER_TRACKING_ID", "")
-    if value and not TRACKING_ID.fullmatch(value):
+    if not TRACKING_ID.fullmatch(value):
         fail("tracking")
     return value
 
@@ -220,9 +220,10 @@ def command(args, cwd, env, stage, timeout=COMMAND_TIMEOUT, limit=OUTPUT_LIMIT):
 
 
 def check(root, user_agent, tracking):
+    if not TRACKING_ID.fullmatch(tracking):
+        fail("tracking")
     env = helper.isolated_environment(root, user_agent)
-    if tracking:
-        env["RUNNER_TRACKING_ID"] = tracking
+    env["RUNNER_TRACKING_ID"] = tracking
     (root / "bin").mkdir(mode=0o700)
     skill_root = root / "skill"
     scripts = skill_root / "scripts"

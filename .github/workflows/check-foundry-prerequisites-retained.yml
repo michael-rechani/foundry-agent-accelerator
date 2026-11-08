@@ -61,7 +61,7 @@ jobs:
 
           SOURCES = (
               ("check_foundry_prerequisites", "053e8c77a3b718dc27e96c97adb832f7b3ad525bf74bc927d59962fff9355df1"),
-              ("check_foundry_prerequisites_retained", "b44a69f4d3abce45911cd782421d365964bc61354b7556d4f3b9e325b5fce191"),
+              ("check_foundry_prerequisites_retained", "b17be69594ea9f669506d8e7ce9344da9950a89b0cb7dcfbabb6958446094e6b"),
           )
 
           class NoRedirect(request.HTTPRedirectHandler):
