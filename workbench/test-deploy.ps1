@@ -1,5 +1,7 @@
 #Requires -Version 7.0
 # Checks deploy.ps1's helpers and stage ordering. It never contacts Azure or runs Terraform.
+param([switch]$PowerShellOnly)
+
 $ErrorActionPreference = 'Stop'
 $script = Join-Path $PSScriptRoot '../deploy.ps1'
 $subscription = '11111111-2222-3333-4444-555555555555'
@@ -17,6 +19,9 @@ try { & { . $script -Subscription $subscription -AgentModel 'invalid model' }; t
 }
 try { & { . $script -Subscription $subscription -CoordinatorProfile '' }; throw 'empty coordinator profile accepted' } catch {
     if ($_.Exception.Message -notmatch 'CoordinatorProfile') { throw }
+}
+try { & { . $script -Subscription $subscription -CoordinatorProfile 'fictional-profile.json' -LocalState }; throw 'profile with LocalState accepted at entry' } catch {
+    if ($_.Exception.Message -notmatch 'cannot be combined with -LocalState') { throw }
 }
 
 Assert-Equal 'preflight,platform,verify' ((Get-StageOrder @('verify', 'platform', 'preflight')) -join ',') 'stages run in the fixed order'
@@ -87,17 +92,70 @@ $temporary = Join-Path ([IO.Path]::GetTempPath()) ('deploy-test-' + [guid]::NewG
 New-Item -ItemType Directory -Path $temporary | Out-Null
 $savedCredentialMode = [Environment]::GetEnvironmentVariable('AZURE_TOKEN_CREDENTIALS', 'Process')
 $savedClientId = [Environment]::GetEnvironmentVariable('AZURE_CLIENT_ID', 'Process')
+$savedTerraformArguments = @{}
+foreach ($key in 'TF_CLI_ARGS', 'TF_CLI_ARGS_init', 'TF_CLI_ARGS_plan', 'TF_CLI_ARGS_fictional') {
+    $savedTerraformArguments[$key] = [Environment]::GetEnvironmentVariable($key, 'Process')
+}
 try {
     $stateDir = Join-Path $temporary 'fictional-state'
     New-Item -ItemType Directory -Path $stateDir | Out-Null
-    Set-Content -LiteralPath (Join-Path $stateDir 'terraform.tfstate') -Value '{"resources":[{"type":"fictional"}]}'
     $savedGetStateAccount = ${function:Get-StateAccount}
+    $savedTestPrivateHost = ${function:Test-PrivateHost}
+    $savedInvokeNative = ${function:Invoke-Native}
     function Get-StateAccount { throw 'Unexpected state account access' }
     $CoordinatorProfile = 'fictional-profile.json'
-    try { Initialize-Backend $stateDir 'fictional'; throw 'implicit migration accepted' } catch {
-        if ($_.Exception.Message -notmatch 'cannot implicitly migrate') { throw }
+    $fictionalStates = @('', '{"resources":[]}', '{"outputs":{"fictional":{"value":"test"}},"resources":[]}', '{malformed', '{"resources":[{"type":"fictional"}]}')
+    foreach ($state in $fictionalStates) {
+        Set-Content -LiteralPath (Join-Path $stateDir 'terraform.tfstate') -Value $state -NoNewline
+        try { Initialize-Backend $stateDir 'fictional'; throw 'implicit migration accepted' } catch {
+            if ($_.Exception.Message -notmatch 'cannot implicitly migrate') { throw }
+        }
     }
+    $script:backendCalls = [Collections.Generic.List[object]]::new()
+    function Test-PrivateHost { $true }
+    function Invoke-Native([string]$Command, [string[]]$Arguments) {
+        $script:backendCalls.Add(@($Arguments))
+        if ($script:stateAppearsAtInvocation) {
+            Set-Content -LiteralPath (Join-Path $stateDir 'terraform.tfstate') -Value '{"resources":[{"type":"fictional"}]}'
+        }
+    }
+    function Get-StateAccount {
+        Set-Content -LiteralPath (Join-Path $stateDir 'terraform.tfstate') -Value $script:lateState -NoNewline
+        'stfictional'
+    }
+    foreach ($state in $fictionalStates) {
+        Remove-Item -LiteralPath (Join-Path $stateDir 'terraform.tfstate')
+        $script:lateState = $state
+        try { Initialize-Backend $stateDir 'fictional'; throw 'late implicit migration accepted' } catch {
+            if ($_.Exception.Message -notmatch 'cannot implicitly migrate') { throw }
+        }
+        Assert-Equal 0 $script:backendCalls.Count 'any state file appearing during account lookup prevents Terraform invocation'
+    }
+    Remove-Item -LiteralPath (Join-Path $stateDir 'terraform.tfstate')
+    function Get-StateAccount { 'stfictional' }
+    $script:stateAppearsAtInvocation = $true
+    Initialize-Backend $stateDir 'fictional'
+    Assert-Equal 1 $script:backendCalls.Count 'late state appearance exercises the constructed profiled command'
+    Assert-Equal $false ($script:backendCalls[0] -contains '-migrate-state') 'profiled command never requests migration even when state appears after observation'
+    Assert-Equal $true ($script:backendCalls[0] -contains '-input=false') 'profiled command remains noninteractive'
+    $script:stateAppearsAtInvocation = $false
+    $CoordinatorProfile = $null
+    Initialize-Backend $stateDir 'fictional'
+    Assert-Equal $true ($script:backendCalls[1] -contains '-migrate-state') 'unprofiled local-state migration behavior remains unchanged'
+    $CoordinatorProfile = 'fictional-profile.json'
+    Remove-Item -LiteralPath (Join-Path $stateDir 'terraform.tfstate')
+    function Get-StateAccount {
+        $env:TF_CLI_ARGS_init = '-force-copy'
+        'stfictional'
+    }
+    $before = $script:backendCalls.Count
+    try { Initialize-Backend $stateDir 'fictional'; throw 'late injected Terraform arguments accepted' } catch {
+        if ($_.Exception.Message -notmatch 'TF_CLI_ARGS') { throw }
+    } finally { Remove-Item Env:TF_CLI_ARGS_init }
+    Assert-Equal $before $script:backendCalls.Count 'injection during account lookup fails before backend init invocation'
     Set-Item Function:Get-StateAccount -Value $savedGetStateAccount
+    Set-Item Function:Test-PrivateHost -Value $savedTestPrivateHost
+    Set-Item Function:Invoke-Native -Value $savedInvokeNative
     Remove-Variable CoordinatorProfile
     $CoordinatorProfile = $null
     # The stub keeps test-private.ps1's real parameter block, so a renamed or retyped parameter fails here.
@@ -299,11 +357,13 @@ try {
                 throw 'Fictional profile digest mismatch.'
             }
             if ($script:useRealProfileValidation) {
+                if ($PowerShellOnly) { throw 'PowerShell-only tests must not execute Python.' }
                 $output = & $Command @Arguments 2>&1
                 if ($LASTEXITCODE -ne 0) { throw "Real offline profile validation failed with exit code $LASTEXITCODE." }
                 return $output
             }
             if ($script:validationError) { throw $script:validationError }
+            if ($script:changeCredentialDuringValidation) { $env:AZURE_TOKEN_CREDENTIALS = 'WorkloadIdentityCredential' }
             if ($script:ambiguousTarget) { return @('Valid profile: customer-review-coordinator', 'Valid profile: other-coordinator') }
             $target = if ($script:changeTargetAt -and $script:validations -ge $script:changeTargetAt) { 'changed-coordinator' } else { $script:profileTarget }
             return @("Valid profile: $target", '  inspect_application -> application-review-agent', '  inspect_case -> case-review-agent')
@@ -313,6 +373,10 @@ try {
             $script:publicationCalls.Add([pscustomobject]@{ Command = $Command; Arguments = @($Arguments); Endpoint = $env:FOUNDRY_PROJECT_ENDPOINT })
             if ($script:publicationError) { throw 'Fictional publication failure.' }
             if ($script:changeClientAfterPublication) { $env:AZURE_CLIENT_ID = 'abcdefab-1234-1234-1234-123456789abc' }
+        } elseif ($Arguments[0] -eq '-m' -and $Arguments[1] -eq 'venv') {
+            $script:venvCalls++
+        } elseif ($Arguments[0] -eq '-m' -and $Arguments[1] -eq 'pip') {
+            $script:pipCalls++
         }
     }
     $Agent = @('basic-responses-agent')
@@ -321,6 +385,7 @@ try {
     $script:failModelOutput = $false
     $script:publishedModels = [Collections.Generic.List[string]]::new()
     $script:publicationCalls = [Collections.Generic.List[object]]::new()
+    $script:venvCalls = 0; $script:pipCalls = 0
     $script:agentOutputs = $routerOutputs
     $stageOutput = (Invoke-AgentsStage 6>&1 | Out-String)
     if ($stageOutput -match 'private-sensitive-value') { throw 'Agent publication logged a sensitive Terraform output.' }
@@ -366,21 +431,23 @@ try {
     Set-Content -LiteralPath $script:profileFile -Value ($fictionalProfile | ConvertTo-Json -Depth 5)
     # Exercise the coordinator's real standard-library-only validator, never its publication path.
     $validator = Join-Path (Split-Path $script) 'hosted-agents/review-coordinator-agent/deploy.py'
-    $actualValidation = & python $validator --profile $script:profileFile --validate-profile
-    Assert-Equal 0 $LASTEXITCODE 'fictional profile passes the real offline validator without SDK dependencies'
-    Assert-Equal 'Valid profile: customer-review-coordinator' $actualValidation[0] 'real validator identifies the actual profile target'
-    $badProfileFile = Join-Path $temporary 'invalid-profile.json'
-    Set-Content -LiteralPath $badProfileFile -Value '{}'
-    $null = & python $validator --profile $badProfileFile --validate-profile 2>&1
-    if ($LASTEXITCODE -eq 0) { throw 'The real validator accepted an invalid profile.' }
-    $env:FOUNDRY_HOSTED_AGENT_NAME = 'incompatible-test-override'
-    try {
-        $null = & python $validator --profile $script:profileFile --validate-profile 2>&1
-        if ($LASTEXITCODE -eq 0) { throw 'The real validator accepted an incompatible environment name override.' }
-    } finally { Remove-Item Env:FOUNDRY_HOSTED_AGENT_NAME }
-    $null = & python $validator --profile $script:profileFile --validate-profile --agent-name incompatible-test-override 2>&1
-    if ($LASTEXITCODE -eq 0) { throw 'The real validator accepted an incompatible CLI name override.' }
-    $global:LASTEXITCODE = 0
+    if (-not $PowerShellOnly) {
+        $actualValidation = & python $validator --profile $script:profileFile --validate-profile
+        Assert-Equal 0 $LASTEXITCODE 'fictional profile passes the real offline validator without SDK dependencies'
+        Assert-Equal 'Valid profile: customer-review-coordinator' $actualValidation[0] 'real validator identifies the actual profile target'
+        $badProfileFile = Join-Path $temporary 'invalid-profile.json'
+        Set-Content -LiteralPath $badProfileFile -Value '{}'
+        $null = & python $validator --profile $badProfileFile --validate-profile 2>&1
+        if ($LASTEXITCODE -eq 0) { throw 'The real validator accepted an invalid profile.' }
+        $env:FOUNDRY_HOSTED_AGENT_NAME = 'incompatible-test-override'
+        try {
+            $null = & python $validator --profile $script:profileFile --validate-profile 2>&1
+            if ($LASTEXITCODE -eq 0) { throw 'The real validator accepted an incompatible environment name override.' }
+        } finally { Remove-Item Env:FOUNDRY_HOSTED_AGENT_NAME }
+        $null = & python $validator --profile $script:profileFile --validate-profile --agent-name incompatible-test-override 2>&1
+        if ($LASTEXITCODE -eq 0) { throw 'The real validator accepted an incompatible CLI name override.' }
+        $global:LASTEXITCODE = 0
+    }
 
     $CoordinatorProfile = $script:profileFile
     $Agent = @('application-review-agent', 'case-review-agent', 'review-coordinator-agent')
@@ -390,6 +457,27 @@ try {
     $script:profileTarget = 'customer-review-coordinator'
     $script:validations = 0
     $script:approvalLabels = [Collections.Generic.List[string]]::new()
+    foreach ($key in $savedTerraformArguments.Keys) {
+        [Environment]::SetEnvironmentVariable($key, '-force-copy', 'Process')
+        $before = $script:publicationCalls.Count; $asked = $script:approvalLabels.Count
+        $initialized = $script:agentPlatformInitializations
+        try { Invoke-AgentsStage; throw 'injected Terraform arguments accepted' } catch {
+            if ($_.Exception.Message -notmatch 'TF_CLI_ARGS') { throw }
+        } finally { [Environment]::SetEnvironmentVariable($key, $null, 'Process') }
+        Assert-Equal $initialized $script:agentPlatformInitializations 'Terraform argument injection fails before platform initialization'
+        Assert-Equal $before $script:publicationCalls.Count 'Terraform argument injection fails before publication'
+        Assert-Equal $asked $script:approvalLabels.Count 'Terraform argument injection fails before approval'
+    }
+    $LocalState = [switch]$true
+    $before = $script:publicationCalls.Count; $asked = $script:approvalLabels.Count
+    $initialized = $script:agentPlatformInitializations
+    try { Invoke-AgentsStage; throw 'profile with local state accepted' } catch {
+        if ($_.Exception.Message -notmatch 'cannot be combined with -LocalState') { throw }
+    }
+    Assert-Equal $initialized $script:agentPlatformInitializations 'profile with LocalState fails before platform initialization'
+    Assert-Equal $before $script:publicationCalls.Count 'profile with LocalState fails before publication'
+    Assert-Equal $asked $script:approvalLabels.Count 'profile with LocalState fails before approval'
+    $LocalState = [switch]$false
     function Confirm-Apply([string]$Label) {
         $script:approvalLabels.Add($Label)
         if ($script:changeCredentialAfterApproval) { $env:AZURE_TOKEN_CREDENTIALS = 'WorkloadIdentityCredential' }
@@ -421,8 +509,22 @@ try {
     }
     $env:AZURE_TOKEN_CREDENTIALS = 'ManagedIdentityCredential'
     $env:AZURE_CLIENT_ID = $script:fictionalClientId
-    $script:useRealProfileValidation = $true
-    foreach ($field in 'coordinator', 'specialist') {
+    $script:changeCredentialDuringValidation = $true
+    $before = $script:publicationCalls.Count; $asked = $script:approvalLabels.Count
+    $initialized = $script:agentPlatformInitializations
+    $venvs = $script:venvCalls; $pips = $script:pipCalls
+    try { Invoke-AgentsStage; throw 'changed credential during validation accepted' } catch {
+        if ($_.Exception.Message -notmatch 'credential selection changed') { throw }
+    }
+    Assert-Equal $initialized $script:agentPlatformInitializations 'credential change during validation prevents platform initialization'
+    Assert-Equal $before $script:publicationCalls.Count 'credential change during validation prevents publication'
+    Assert-Equal $asked $script:approvalLabels.Count 'credential change during validation prevents approval'
+    Assert-Equal $venvs $script:venvCalls 'credential change during validation prevents venv work'
+    Assert-Equal $pips $script:pipCalls 'credential change during validation prevents pip work'
+    $script:changeCredentialDuringValidation = $false
+    $env:AZURE_TOKEN_CREDENTIALS = 'ManagedIdentityCredential'
+    $script:useRealProfileValidation = -not $PowerShellOnly
+    foreach ($field in $(if (-not $PowerShellOnly) { @('coordinator', 'specialist') })) {
         $invalidNames = @('_coordinator', 'agent_name', '-agent', 'agent-', ('a' * 64), "caf$([char]0x00e9)", '-')
         if ($field -eq 'specialist') { $invalidNames += @('7', ('9' + ('a' * 62))) }
         foreach ($name in $invalidNames) {
@@ -493,10 +595,14 @@ try {
     $env:AZURE_TOKEN_CREDENTIALS = 'ManagedIdentityCredential'
     $script:changeClientAfterPublication = $true
     $before = $script:publicationCalls.Count
+    $asked = $script:approvalLabels.Count; $venvs = $script:venvCalls; $pips = $script:pipCalls
     try { Invoke-AgentsStage; throw 'changed client after first publication accepted' } catch {
         if ($_.Exception.Message -notmatch 'credential selection changed') { throw }
     }
     Assert-Equal ($before + 1) $script:publicationCalls.Count 'changed client stops before the next agent'
+    Assert-Equal ($asked + 1) $script:approvalLabels.Count 'changed client stops before the next approval'
+    Assert-Equal ($venvs + 1) $script:venvCalls 'changed client stops before the next venv work'
+    Assert-Equal ($pips + 1) $script:pipCalls 'changed client stops before the next pip work'
     $script:changeClientAfterPublication = $false
     $env:AZURE_CLIENT_ID = $script:fictionalClientId
 
@@ -575,6 +681,10 @@ try {
     Invoke-AgentsStage
     Assert-Equal 1 $script:publicationCalls[-1].Arguments.Count 'omitting the profile preserves base coordinator invocation'
     Assert-Equal $before $script:validations 'omitting the profile never silently validates or selects the example'
+    $env:TF_CLI_ARGS_init = '-force-copy'
+    $before = $script:publicationCalls.Count
+    try { Invoke-AgentsStage } finally { Remove-Item Env:TF_CLI_ARGS_init }
+    Assert-Equal ($before + 1) $script:publicationCalls.Count 'unprofiled publication behavior is unchanged by Terraform argument guard'
 
     $file = Join-Path $temporary 'x.tfvars'
     Set-Content -LiteralPath $file -Value "registry_name = `"abc123`"`n# image = `"no`""
@@ -585,7 +695,11 @@ try {
 } finally {
     [Environment]::SetEnvironmentVariable('AZURE_TOKEN_CREDENTIALS', $savedCredentialMode, 'Process')
     [Environment]::SetEnvironmentVariable('AZURE_CLIENT_ID', $savedClientId, 'Process')
+    foreach ($key in $savedTerraformArguments.Keys) {
+        [Environment]::SetEnvironmentVariable($key, $savedTerraformArguments[$key], 'Process')
+    }
     Remove-Item -LiteralPath $temporary -Recurse -Force
 }
 
+if ($PowerShellOnly) { Write-Host 'PowerShell-only: real Python validation omitted; external publication and setup calls were mocked.' }
 Write-Host 'deploy.ps1 helper checks passed.'

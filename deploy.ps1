@@ -54,6 +54,7 @@ param(
     [string]$TerraformCommand = 'terraform'
 )
 $ErrorActionPreference = 'Stop'
+if ($CoordinatorProfile -and $LocalState) { throw '-CoordinatorProfile requires the private backend and cannot be combined with -LocalState.' }
 $script:PlanOnlyStopped = $false
 $stageOrder = @('preflight', 'bootstrap', 'platform', 'runner', 'lab-foundation', 'image', 'lab', 'identity', 'verify', 'agents')
 $bootstrapDir = Join-Path $PSScriptRoot 'terraform/bootstrap'
@@ -189,11 +190,19 @@ function Get-StateAccount {
     $name
 }
 
+function Assert-ProfileTerraformArguments {
+    foreach ($variable in [Environment]::GetEnvironmentVariables('Process').GetEnumerator()) {
+        if ($variable.Key -match '^TF_CLI_ARGS(?:_|$)' -and -not [string]::IsNullOrEmpty([string]$variable.Value)) {
+            throw 'A profiled batch requires TF_CLI_ARGS and all TF_CLI_ARGS_* variables to be empty.'
+        }
+    }
+}
+
 function Initialize-Backend([string]$Directory, [string]$Key) {
+    if ($CoordinatorProfile) { Assert-ProfileTerraformArguments }
     $local = Join-Path $Directory 'terraform.tfstate'
-    if ($CoordinatorProfile -and (Test-Path -LiteralPath $local) -and
-        (Get-Content -LiteralPath $local -Raw) -match '"resources"\s*:\s*\[\s*\{') {
-        throw 'A profiled batch cannot implicitly migrate local Terraform state. Resolve migration separately before continuing.'
+    if ($CoordinatorProfile -and (Test-Path -LiteralPath $local)) {
+        throw 'A profiled batch cannot implicitly migrate any local Terraform state file. Resolve migration separately before continuing.'
     }
     $account = Get-StateAccount
     if (-not (Test-PrivateHost "$account.blob.core.windows.net")) {
@@ -201,16 +210,26 @@ function Initialize-Backend([string]$Directory, [string]$Key) {
     }
     Write-NewFile (Join-Path $Directory 'backend.hcl') (New-BackendHcl $account $Key)
     $arguments = @("-chdir=$Directory", 'init', '-backend-config=backend.hcl')
-    if ((Test-Path -LiteralPath $local) -and (Get-Content -LiteralPath $local -Raw) -match '"resources"\s*:\s*\[\s*\{') {
+    if ($CoordinatorProfile) {
+        if (Test-Path -LiteralPath $local) {
+            throw 'A profiled batch cannot implicitly migrate any local Terraform state file. Resolve migration separately before continuing.'
+        }
+        $arguments += '-input=false'
+    } elseif ((Test-Path -LiteralPath $local) -and (Get-Content -LiteralPath $local -Raw) -match '"resources"\s*:\s*\[\s*\{') {
         Write-Host 'Local state found. Terraform asks before copying it into the private backend; answer yes.'
         $arguments += '-migrate-state'
     } else {
         $arguments += '-input=false'
     }
+    if ($CoordinatorProfile) { Assert-ProfileTerraformArguments }
     Invoke-Native $TerraformCommand $arguments
 }
 
 function Initialize-PlatformRoot {
+    if ($CoordinatorProfile) {
+        if ($LocalState) { throw '-CoordinatorProfile requires the private backend and cannot be combined with -LocalState.' }
+        Assert-ProfileTerraformArguments
+    }
     if ($LocalState) {
         if (Test-Path -LiteralPath (Join-Path $platformDir 'backend.tf')) { throw '-LocalState conflicts with terraform/backend.tf. Remove one.' }
         Invoke-Native $TerraformCommand @("-chdir=$platformDir", 'init', '-input=false')
@@ -492,6 +511,7 @@ function Invoke-AgentsStage {
     $coordinatorTarget = $null
     $credentialSelection = $null
     if ($CoordinatorProfile) {
+        if ($LocalState) { throw '-CoordinatorProfile requires the private backend and cannot be combined with -LocalState.' }
         if ($Stage -notcontains 'agents') { throw '-CoordinatorProfile requires -Stage agents.' }
         if ([string]::IsNullOrWhiteSpace($CoordinatorProfile)) { throw '-CoordinatorProfile must name one file.' }
         $credentialSelection = Get-ProfileCredentialSelection
@@ -501,7 +521,6 @@ function Invoke-AgentsStage {
         }
         if (@($Agent | Select-Object -Unique).Count -ne $Agent.Count) { throw 'A profiled batch must not repeat agent names.' }
         foreach ($name in $Agent) {
-            if ($profilePath) { Assert-ProfileCredentialSelection $credentialSelection }
             if ($name -cnotmatch '^[a-z0-9-]+$' -or -not (Test-Path -LiteralPath (Join-Path $PSScriptRoot "hosted-agents/$name/deploy.py") -PathType Leaf)) {
                 throw "No deployable agent named $name under hosted-agents."
             }
@@ -518,6 +537,10 @@ function Invoke-AgentsStage {
             throw 'The coordinator profile target conflicts with another agent in this batch.'
         }
         Write-Host "Selected coordinator profile: $profilePath; publication target: $coordinatorTarget; SHA-256: $profileSha256. Validation is offline, not publication approval."
+    }
+    if ($profilePath) {
+        Assert-ProfileCredentialSelection $credentialSelection
+        Assert-ProfileTerraformArguments
     }
     Initialize-PlatformRoot
     $endpoint = Get-Native $TerraformCommand @("-chdir=$platformDir", 'output', '-raw', 'foundry_project_endpoint')
@@ -536,6 +559,7 @@ function Invoke-AgentsStage {
         }
     }
     foreach ($name in $Agent) {
+        if ($profilePath) { Assert-ProfileCredentialSelection $credentialSelection }
         $sample = Join-Path $PSScriptRoot "hosted-agents/$name"
         if ($name -notmatch '^[a-z0-9-]+$' -or -not (Test-Path -LiteralPath (Join-Path $sample 'deploy.py'))) { throw "No deployable agent named $name under hosted-agents." }
         $venv = Join-Path $sample '.venv'

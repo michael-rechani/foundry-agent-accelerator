@@ -153,9 +153,16 @@ unknown. Do not assume that management lookup succeeds with the state identity
 or that the first returned account is authoritative. This offline change does
 not broaden roles or resolve that lookup.
 `Initialize-Backend` ordinarily offers `-migrate-state` when local state contains
-resources. A profiled invocation now refuses that implicit migration before the
-account lookup; any migration requires a separate reviewed process. This guard
-does not solve backend authorization or make live execution safe.
+resources. A profiled invocation rejects `-LocalState` and refuses the presence of
+any local `terraform.tfstate`, without reading its contents, both before the
+account lookup and at the later command-construction decision. Its init command
+never includes `-migrate-state`; any migration requires a separate reviewed
+process. The profiled path also rejects nonempty `TF_CLI_ARGS` or any
+`TF_CLI_ARGS_*` before platform initialization and rechecks immediately before
+backend init, without logging their values. No `-reconfigure` workaround is
+introduced. These command/path guards do not prevent same-UID namespace races,
+establish backend authority, or make Terraform's remaining environment, workspace,
+source closure, or host trustworthy. They do not make live execution safe.
 
 ## 4. Inventory before mutation
 
