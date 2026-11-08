@@ -517,6 +517,7 @@ class DeploymentRollbackTests(unittest.TestCase):
                     self.client.agents.update_details.assert_not_called()
                     self.client.agents.delete_version.assert_not_called()
                     self.client.agents.enable.assert_not_called()
+
     def test_restores_route_without_deleting_candidate(self) -> None:
         cleanup_failed_version(self.client, "agent", "2", self.original, self.attempted)
         self.assertEqual(
@@ -786,6 +787,7 @@ class RouteVerificationTests(unittest.TestCase):
         client.agents.update_details.assert_not_called()
         client.agents.delete_version.assert_not_called()
         client.agents.enable.assert_not_called()
+
     def test_refuses_unsafe_parent_states_and_version_identity(self):
         client = MagicMock()
         rule = SimpleNamespace(type="FixedRatio", agent_version="2", traffic_percentage=100)
