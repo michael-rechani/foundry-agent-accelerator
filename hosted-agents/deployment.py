@@ -345,20 +345,35 @@ def concrete_version(version) -> bool:
     return isinstance(version, str) and bool(version) and version == version.strip() and not version.startswith("@")
 
 
+def rule_field(rule, name: str):
+    return rule.get(name) if isinstance(rule, Mapping) else getattr(rule, name, None)
+
+
+def single_fixed_ratio(rules) -> bool:
+    if not isinstance(rules, list) or len(rules) != 1:
+        return False
+    rule = rules[0]
+    discriminator = rule_field(rule, "type")
+    percentage = rule_field(rule, "traffic_percentage")
+    return (
+        isinstance(discriminator, str)
+        and discriminator == "FixedRatio"
+        and type(percentage) is int
+        and percentage == 100
+    )
+
+
 def concrete_route(endpoint) -> bool:
     selector = getattr(endpoint, "version_selector", None)
     rules = getattr(selector, "version_selection_rules", None)
     return isinstance(rules, list) and bool(rules) and all(
-        concrete_version(getattr(rule, "agent_version", None)) for rule in rules
+        concrete_version(rule_field(rule, "agent_version")) for rule in rules
     )
 
 
 def validate_traffic_rules(rules, description: str) -> None:
-    percentages = [getattr(rule, "traffic_percentage", None) for rule in rules]
-    if any(type(value) not in (int, float) or not 0 <= value <= 100 for value in percentages):
-        raise RuntimeError(f"{description} has unsupported traffic rules")
-    if not math.isclose(sum(percentages), 100):
-        raise RuntimeError(f"{description} traffic must total 100 percent")
+    if not single_fixed_ratio(rules):
+        raise RuntimeError(f"{description} requires exactly one FixedRatio rule at 100 percent")
 
 
 def version_identity_matches(details, agent_name: str, version: str) -> bool:
@@ -375,6 +390,7 @@ def version_identity_matches(details, agent_name: str, version: str) -> bool:
 def active_release(details, agent_name: str, version: str) -> bool:
     return (
         version_identity_matches(details, agent_name, version)
+        and not version.startswith("draft-")
         and details.get("status") == "active"
         and details.get("draft", False) is False
     )
@@ -423,7 +439,7 @@ def verify_recovery_targets(client, agent_name: str, endpoint) -> None:
     enabled_endpoint(client, agent_name)
     rules = endpoint.version_selector.version_selection_rules
     validate_traffic_rules(rules, "Recovery route")
-    versions = {rule.agent_version for rule in rules if rule.traffic_percentage > 0}
+    versions = {rule_field(rule, "agent_version") for rule in rules}
     for version in sorted(versions):
         details = client.agents.get_version(agent_name=agent_name, agent_version=version)
         if not active_release(details, agent_name, version):
@@ -447,12 +463,9 @@ def routes_to_version(endpoint, version: str) -> bool:
     rules = getattr(getattr(endpoint, "version_selector", None), "version_selection_rules", None)
     return (
         has_responses(endpoint)
-        and isinstance(rules, list)
-        and len(rules) == 1
+        and single_fixed_ratio(rules)
         and concrete_version(version)
-        and getattr(rules[0], "agent_version", None) == version
-        and type(getattr(rules[0], "traffic_percentage", None)) in (int, float)
-        and rules[0].traffic_percentage == 100
+        and rule_field(rules[0], "agent_version") == version
     )
 
 
@@ -517,7 +530,7 @@ def cleanup_failed_version(
             return
         selector = getattr(endpoint, "version_selector", None)
         rules = getattr(selector, "version_selection_rules", None)
-        if not concrete_route(endpoint) or any(str(rule.agent_version) == str(version) for rule in rules):
+        if not concrete_route(endpoint) or any(rule_field(rule, "agent_version") == version for rule in rules):
             print(f"Warning: route not confirmed safe; retained version {version}; manual recovery required")
             return
         print(f"Retained failed version {version}; inspect its sessions before deliberate cleanup")
@@ -538,7 +551,7 @@ def verify_specialist_endpoints(client, profile: AgentProfile, coordinator_name:
         validate_traffic_rules(rules, f"Specialist {agent_name}")
         if not concrete_route(endpoint):
             raise RuntimeError(f"Specialist {agent_name} requires concrete version traffic rules")
-        versions = {rule.agent_version for rule in rules if rule.traffic_percentage > 0}
+        versions = {rule_field(rule, "agent_version") for rule in rules}
         for version in sorted(versions):
             details = client.agents.get_version(agent_name=agent_name, agent_version=version)
             if not active_release(details, agent_name, version):
