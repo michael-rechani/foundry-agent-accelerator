@@ -829,13 +829,54 @@ class DeploymentSDKTests(unittest.TestCase):
                     return details
 
                 self.client.agents.get.side_effect = get_changed
-                self.candidate.side_effect = lambda *args, **kwargs: changed.update(value=True)
+                self.candidate.side_effect = lambda *args, changed=changed, **kwargs: changed.update(value=True)
                 with self.assertRaises(RuntimeError):
                     deploy(profile, self.args)
                 self.candidate.assert_called_once()
                 self.client.agents.update_details.assert_not_called()
                 self.client.agents.delete_version.assert_not_called()
                 self.client.agents.enable.assert_not_called()
+
+    def test_equal_looking_float_route_changes_refuse_creation_promotion_and_rollback(self):
+        def make_invalid():
+            state = self.endpoint.as_dict()
+            state["version_selector"]["version_selection_rules"][0]["traffic_percentage"] = 100.0
+            self.endpoint = AgentEndpointConfig(state)
+
+        def changed_during_snapshot(*, agent_name, agent_version):
+            result = self.read_version(agent_name=agent_name, agent_version=agent_version)
+            make_invalid()
+            return result
+
+        self.client.agents.get_version.side_effect = changed_during_snapshot
+        with self.assertRaisesRegex(RuntimeError, "recovery route changed"):
+            deploy(self.profile, self.args)
+        self.assert_no_agent_mutations()
+
+        self.endpoint = deepcopy(self.original)
+        self.client.agents.get_version.side_effect = self.read_version
+        self.candidate.side_effect = lambda *args, **kwargs: make_invalid()
+        with self.assertRaisesRegex(RuntimeError, "changed during deployment"):
+            deploy(self.profile, self.args)
+        self.client.agents.update_details.assert_not_called()
+        self.client.agents.delete_version.assert_not_called()
+
+        self.endpoint = deepcopy(self.original)
+        self.candidate.side_effect = None
+        self.client.agents.update_details.reset_mock()
+
+        def changed_during_smoke(*args):
+            make_invalid()
+            raise RuntimeError("fictional smoke failure")
+
+        self.smoke.side_effect = changed_during_smoke
+        output = io.StringIO()
+        with redirect_stdout(output), self.assertRaisesRegex(RuntimeError, "fictional smoke failure"):
+            deploy(self.profile, self.args)
+        self.assertEqual(self.client.agents.update_details.call_count, 1)
+        self.assertIn("manual recovery required", output.getvalue())
+        self.client.agents.delete_version.assert_not_called()
+        self.client.agents.enable.assert_not_called()
 
     def test_unsupported_promoted_route_is_not_overwritten_during_recovery(self):
         def promoted_with_wrong_discriminator(**kwargs):
@@ -1199,6 +1240,7 @@ class DeploymentTimeoutTests(unittest.TestCase):
         self.assertEqual(sent[-2], "PATCH")
         self.assertEqual(sent[-1]["agent_endpoint"]["version_selector"]["version_selection_rules"], [valid])
         self.assertEqual(sent[-1]["agent_endpoint"]["protocol_configuration"]["responses"], {})
+
     def test_real_sdk_deserializes_documented_administrative_wire_field(self):
         from urllib.parse import parse_qs, urlsplit
 
