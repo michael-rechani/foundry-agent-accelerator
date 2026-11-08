@@ -346,6 +346,7 @@ def concrete_version(version) -> bool:
 
 
 def rule_field(rule, name: str):
+    # Typed SDK attributes can coerce malformed wire values; inspect the raw mapping.
     return rule.get(name) if isinstance(rule, Mapping) else getattr(rule, name, None)
 
 
@@ -509,7 +510,9 @@ def cleanup_failed_version(
 
     try:
         endpoint = deepcopy(enabled_endpoint(client, agent_name))
-        if not route_unchanged(endpoint, original_endpoint) and (attempted_endpoint is None or not route_unchanged(endpoint, attempted_endpoint)):
+        if not route_unchanged(endpoint, original_endpoint) and (
+            attempted_endpoint is None or not route_unchanged(endpoint, attempted_endpoint)
+        ):
             print(f"Warning: route changed during deployment; retained version {version}; manual recovery required")
             return
         verify_recovery_targets(client, agent_name, original_endpoint)
@@ -571,7 +574,10 @@ def report_agent_identity(created) -> None:
     if principal:
         print(f"Agent identity principal ID: {principal}")
     else:
-        print("No agent instance identity was reported; runtime identity is unconfirmed and downstream permissions must be independently verified")
+        print(
+            "No agent instance identity was reported; runtime identity is unconfirmed and "
+            "downstream permissions must be independently verified"
+        )
 
 
 def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
