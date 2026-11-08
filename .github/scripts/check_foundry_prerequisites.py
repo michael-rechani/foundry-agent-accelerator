@@ -66,10 +66,11 @@ class PublicRedirect(request.HTTPRedirectHandler):
         except ValueError:
             allowed = False
         if not allowed:
-            try:
-                fp.close()
-            except OSError:
-                raise CheckError("download") from None
+            if fp is not None:
+                try:
+                    fp.close()
+                except OSError:
+                    raise CheckError("download") from None
             raise CheckError("download")
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 

@@ -208,6 +208,9 @@ class RetainedPrerequisiteTests(unittest.TestCase):
                         handler.redirect_request(None, body, 302, "redirect", {}, location)
                     self.assertTrue(body.closed)
                     self.assertNotIn("private", str(raised.exception))
+            with self.subTest(location=location, body="missing"):
+                with self.assertRaisesRegex(helper.CheckError, "download"):
+                    handler.redirect_request(None, None, 302, "redirect", {}, location)
 
     def test_main_context_requires_exact_protected_workflow_and_runner(self):
         repo = "michael-rechani/foundry-agent-accelerator"
@@ -748,6 +751,10 @@ class RetainedWorkflowTests(unittest.TestCase):
                         None, redirect_body, 302, "private", {}, "https://example.invalid",
                     )
                 self.assertTrue(redirect_body.closed)
+                with self.assertRaisesRegex(ValueError, "redirect"):
+                    scope["NoRedirect"]().redirect_request(
+                        None, None, 302, "private", {}, "https://example.invalid",
+                    )
 
 
 if __name__ == "__main__":

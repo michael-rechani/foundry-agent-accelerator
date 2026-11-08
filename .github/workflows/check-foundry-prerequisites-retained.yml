@@ -60,16 +60,17 @@ jobs:
           from urllib import error, request
 
           SOURCES = (
-              ("check_foundry_prerequisites", "3cbda7e5a94a75ceaaa7d25ca699f470b16593a9b92b27b3b27824c7044ae56e"),
+              ("check_foundry_prerequisites", "865de1dd060781db7c713a3cdf8aafa7454bd0869bbe8f4374bd7801fed9c927"),
               ("check_foundry_prerequisites_retained", "b17be69594ea9f669506d8e7ce9344da9950a89b0cb7dcfbabb6958446094e6b"),
           )
 
           class NoRedirect(request.HTTPRedirectHandler):
               def redirect_request(self, req, fp, code, msg, headers, newurl):
-                  try:
-                      fp.close()
-                  except OSError:
-                      raise ValueError("redirect") from None
+                  if fp is not None:
+                      try:
+                          fp.close()
+                      except OSError:
+                          raise ValueError("redirect") from None
                   raise ValueError("redirect")
 
           def bootstrap_failure():
