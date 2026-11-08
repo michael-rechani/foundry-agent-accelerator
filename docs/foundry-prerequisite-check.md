@@ -97,10 +97,38 @@ must never be reused by a credentialed deployment. A process killed before it
 can report cannot itself guarantee the requested final log line; an independent,
 non-destructive reporting mechanism would need to be established.
 
-A future supervisor additionally needs a fresh, trusted, single-threaded
-subreaper, default waitable SIGCHLD behavior, no competing reapers or ambient
-children, birth-bound root status, and explicit reaping of adopted children to
-`ECHILD`. Pipe EOF and a root exit alone are not sufficient. Output must be
-bounded and failures must never trigger signaling or deletion. Actual execution
-of the pinned skill, Azure, azd, credentials, and the protected workflow remains
-unapproved; synthetic tests alone cannot establish those runner guarantees.
+The previously proposed subreaper and descendant-teardown proof belonged to a
+stronger isolation target. It is not required by the revised practical target
+below and must not be presented as a guarantee of it. Actual execution of the
+pinned skill, Azure, azd, credentials, and the protected workflow remains
+unapproved.
+
+## Revised practical target: not yet implemented
+
+The proposed check trusts the normal Actions runner lifecycle for its own
+tracked processes. This is an operational assumption, not isolation from a
+hostile host or shared runner account. The application must never signal a
+process or process group or recursively delete state. It must leave the
+run-specific tool state in place on success and failure. Normal Actions
+cancellation and orphan handling may still act on runner-tracked processes;
+the check must not disable or evade that framework tracking. An owned process
+may survive a timeout, interruption, or other failure, and a forcibly stopped
+step cannot guarantee a final report.
+
+The protected workflow must remain main-only, manually triggered, and gated by
+its existing environment, with no checkout. Before launch, it must establish a
+unique owner-only state location outside both `RUNNER_TEMP` and the workspace,
+or fail with an actionable prerequisite. It must not reuse retained state for a
+credentialed deployment or modify shared configuration. Its clean environment
+must exclude Azure credentials and secrets, and preserve a correctly formatted
+`RUNNER_TRACKING_ID` when present. There is no promise that retained files or
+tools will remain available indefinitely.
+
+A successful result would attest only to the synchronous pinned skill script
+and its postcheck against that retained state. It would not prove escaped
+children have exited, authenticate the extension closure, or establish persistent
+availability. Timeout, interruption, excessive output, missing or ambiguous
+status, or any error must fail closed rather than report readiness. Synthetic
+hosted tests must exercise these cases and the exact no-checkout workflow before
+the hard gate can be removed. This branch does not implement or verify that
+launcher; the protected workflow and launcher still refuse execution.
