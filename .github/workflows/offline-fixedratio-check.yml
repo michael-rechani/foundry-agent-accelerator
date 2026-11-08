@@ -1,4 +1,4 @@
-name: Offline fixed-ratio SDK probe
+name: Offline fixed-ratio safety checks
 on:
   push:
     branches: [michael-rechani-candidate-fixedratio-guard]
@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 jobs:
-  sdk-probe:
+  synthetic-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -18,50 +18,26 @@ jobs:
       - name: Check existing SDK dependencies
         run: |
           python -c 'import azure.ai.projects, azure.identity, requests, openai; from importlib.metadata import version; assert version("azure-ai-projects") == "2.6.1" and version("azure-identity") == "1.27.0" and version("openai") == "3.41.0"' || python -m pip install -r hosted-agents/review-coordinator-agent/requirements-deploy.txt
-      - name: Inspect fictional SDK GET and PATCH wire models
+          python -c 'import azure.ai.projects, azure.identity, requests, openai; from importlib.metadata import version; assert version("azure-ai-projects") == "2.6.1" and version("azure-identity") == "1.27.0" and version("openai") == "3.41.0"'
+      - name: Check existing Ruff dependency
         run: |
+          python -m ruff --version || python -m pip install -r .github/requirements-validation.txt
+          python -c 'from importlib.metadata import version; assert version("ruff") == "0.17.3"'
+      - name: Run fictional tests and repository Ruff checks
+        run: |
+          set +e
+          cd hosted-agents
           python - <<'PY'
-          import io, json, time
-          from unittest.mock import patch
-          import requests
-          from azure.ai.projects import AIProjectClient
-          from azure.ai.projects.models import AgentEndpointConfig, FixedRatioVersionSelectionRule, VersionSelector
-          from azure.core.credentials import AccessToken
-          class Credential:
-              def get_token(self, *args, **kwargs):
-                  return AccessToken('fictional', int(time.time()) + 3600)
-          incoming = [
-              {'type':'FixedRatio','agent_version':'1','traffic_percentage':100},
-              {'type':'Unsupported','agent_version':'1','traffic_percentage':100},
-              {'agent_version':'1','traffic_percentage':100},
-              {'type':None,'agent_version':'1','traffic_percentage':100},
-              {'type':True,'agent_version':'1','traffic_percentage':100},
-              {'type':'FixedRatio','agent_version':'1'},
-              {'type':'FixedRatio','agent_version':'1','traffic_percentage':'100'},
-          ]
-          calls=[]
-          def respond(adapter, request, **kwargs):
-              calls.append(request.method)
-              response=requests.Response(); response.status_code=200; response.headers['Content-Type']='application/json'; response.request=request
-              if request.method=='GET':
-                  rule=incoming[len(calls)-1]
-                  body={'name':'fictional-agent','state':'enabled','agent_endpoint':{'version_selector':{'version_selection_rules':[rule]},'protocol_configuration':{'responses':{}}}}
-              else:
-                  print('PATCH_WIRE', request.body)
-                  body={}
-              response._content=json.dumps(body).encode(); response.raw=io.BytesIO(response._content)
-              return response
-          with patch.object(requests.adapters.HTTPAdapter,'send',respond):
-              with AIProjectClient(endpoint='https://fictional.services.ai.azure.com/api/projects/demo', credential=Credential(), retry_total=0) as client:
-                  for wire in incoming:
-                      try:
-                          model=client.agents.get(agent_name='fictional-agent')
-                          rule=model.agent_endpoint.version_selector.version_selection_rules[0]
-                          print('GET_WIRE',json.dumps(wire),'MODEL',type(rule).__name__,'MAPPING',json.dumps(dict(rule),default=str),'TYPE_ATTR',repr(getattr(rule,'type',None)),'PERCENT_ATTR',repr(getattr(rule,'traffic_percentage',None)))
-                      except Exception as exc:
-                          print('GET_ERROR',json.dumps(wire),type(exc).__name__,str(exc))
-                  endpoint=AgentEndpointConfig(version_selector=VersionSelector(version_selection_rules=[FixedRatioVersionSelectionRule(agent_version='1',traffic_percentage=100)]))
-                  assert endpoint.as_dict()['version_selector']['version_selection_rules'][0] == {'type':'FixedRatio','agent_version':'1','traffic_percentage':100}
-                  client.agents.update_details(agent_name='fictional-agent',agent_endpoint=endpoint)
-          assert calls == ['GET']*len(incoming)+['PATCH']
+          import sys, unittest
+          names = ['test_candidate_smoke', 'test_deployment', 'test_deployment_sdk']
+          suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          if result.skipped:
+              print('Unexpected skipped tests:', result.skipped)
+          sys.exit(not result.wasSuccessful() or bool(result.skipped))
           PY
+          test_status=$?
+          cd ..
+          python -m ruff check hosted-agents/deployment.py hosted-agents/test_candidate_smoke.py hosted-agents/test_deployment.py hosted-agents/test_deployment_sdk.py
+          ruff_status=$?
+          if [ "$test_status" -ne 0 ] || [ "$ruff_status" -ne 0 ]; then exit 1; fi
