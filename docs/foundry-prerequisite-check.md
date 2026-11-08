@@ -28,12 +28,11 @@ legacy or ambiguous states. Investigate any retained material only under a
 separately reviewed ownership-safe process; this change does not authorize
 manual deletion.
 
-The user and repository must independently review a future birth-bound
-supervisor, trustworthy exit status, descendant/async-I/O guarantees, and
-scratch lifecycle before replacing the hard gate. Existing work and open
-criteria are tracked in [#522](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522#issuecomment-6714309800).
+Existing work and open criteria are tracked in
+[#522](https://github.com/michael-rechani/foundry-agent-accelerator/issues/522#issuecomment-6714309800).
 Host/same-UID trust, escaped descendants, external service delegation, blocked
-kernel calls, and path-based cleanup remain unresolved.
+kernel calls, and path-based cleanup remain unresolved. The revised practical
+target below does not claim to solve them.
 
 The pinned dependency script recognizes the `microsoft.foundry` meta-package
 from an ID match in `azd extension list --installed`; it does not authenticate
@@ -48,7 +47,7 @@ the actual skill script, Azure, azd, or the protected workflow. Historical tests
 whose expected behavior required execution or automatic deletion are explicitly
 skipped until a safe design replaces this gate.
 
-## Natural-exit-only follow-up: runner lifecycle remains a blocker
+## Historical natural-exit-only follow-up
 
 Keeping every run-owned source and scratch entry for later human review removes
 the need to prove that pending kernel writes have completed before deletion.
@@ -85,17 +84,12 @@ provides concrete reasons that clearing a child environment is insufficient:
 
 These are observations of public source, not verification of the private
 runner's installed version or configuration; no private runner was accessed.
-The current workflow never launches the proposed supervisor, so it remains
-fail-closed rather than relying on these unverified assumptions. Before enabling
-it, a separately reviewed design must demonstrate a run-specific retention
-location unaffected by runner cleanup and a runner lifecycle that does not
-signal unrelated or escaped owned processes, including cancellation and action
-post-steps. It must also account for an abrupt supervisor death: a missing or
-ambiguous terminal result must be treated as a fixed failure with
-`owned_process_may_be_running=true`, never as readiness, and retained material
-must never be reused by a credentialed deployment. A process killed before it
-can report cannot itself guarantee the requested final log line; an independent,
-non-destructive reporting mechanism would need to be established.
+The current workflow never launches the proposed supervisor. The earlier
+requirement to prove stronger runner and descendant isolation is superseded by
+the revised practical target below; these public-source observations remain
+relevant to the limits of that target. Missing or ambiguous terminal status must
+never become readiness. A forcibly terminated process cannot guarantee a final
+log line, and no durable cancellation report is claimed.
 
 The previously proposed subreaper and descendant-teardown proof belonged to a
 stronger isolation target. It is not required by the revised practical target
