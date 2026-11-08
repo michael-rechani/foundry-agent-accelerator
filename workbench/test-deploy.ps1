@@ -20,11 +20,42 @@ try { & { . $script -Subscription $subscription -AgentModel 'invalid model' }; t
 try { & { . $script -Subscription $subscription -CoordinatorProfile '' }; throw 'empty coordinator profile accepted' } catch {
     if ($_.Exception.Message -notmatch 'CoordinatorProfile') { throw }
 }
-try { & { . $script -Subscription $subscription -CoordinatorProfile 'fictional-profile.json' -LocalState }; throw 'profile with LocalState accepted at entry' } catch {
+try { & { . $script -Subscription $subscription -Stage agents -CoordinatorProfile 'fictional-profile.json' -LocalState }; throw 'profile with LocalState accepted at entry' } catch {
     if ($_.Exception.Message -notmatch 'cannot be combined with -LocalState') { throw }
 }
 
+$script:earlyActivity = [Collections.Generic.List[string]]::new()
+foreach ($stages in @(@('bootstrap', 'agents'), @('platform', 'agents'), @('preflight', 'agents'), @('agents', 'agents'), @('verify'))) {
+    foreach ($dotSource in $false, $true) {
+        try {
+            & {
+                function az { $script:earlyActivity.Add('az') }
+                function terraform { $script:earlyActivity.Add('terraform') }
+                function python { $script:earlyActivity.Add('python') }
+                function Test-Preflight { $script:earlyActivity.Add('preflight') }
+                function Invoke-BootstrapStage { $script:earlyActivity.Add('bootstrap') }
+                function Invoke-PlatformStage { $script:earlyActivity.Add('platform') }
+                function Invoke-AgentsStage { $script:earlyActivity.Add('agents') }
+                function Get-StateAccount { $script:earlyActivity.Add('account') }
+                function Confirm-Apply { $script:earlyActivity.Add('approval') }
+                if ($dotSource) {
+                    . $script -Subscription $subscription -Stage $stages -CoordinatorProfile 'missing-fictional-profile.json'
+                } else {
+                    & $script -Subscription $subscription -Stage $stages -CoordinatorProfile 'missing-fictional-profile.json'
+                }
+            }
+            throw 'profiled mixed-stage entry accepted'
+        } catch {
+            if ($_.Exception.Message -notmatch 'requires -Stage agents alone') { throw }
+        }
+        Assert-Equal 0 $script:earlyActivity.Count 'profiled multi-stage entry rejects before any stage, native command, account lookup or approval'
+    }
+}
+$loaded = & { . $script -Subscription $subscription -Stage AgEnTs -CoordinatorProfile 'fictional-profile.json'; 'loaded' }
+Assert-Equal 'loaded' $loaded 'mixed-case single agents stage is accepted when dot-sourcing'
+
 Assert-Equal 'preflight,platform,verify' ((Get-StageOrder @('verify', 'platform', 'preflight')) -join ',') 'stages run in the fixed order'
+Assert-Equal 'preflight,bootstrap,platform,agents' ((Get-StageOrder @('agents', 'platform', 'bootstrap', 'preflight')) -join ',') 'unprofiled multi-stage ordering remains unchanged'
 Assert-Equal 'platform,runner,lab,identity,verify' ((Get-StageOrder @('identity', 'verify', 'lab', 'runner', 'platform')) -join ',') 'runner follows platform and identity follows lab'
 Assert-Equal 'agents' ((Get-StageOrder @('agents')) -join ',') 'agents can run alone'
 Assert-Equal '' ((Get-StageOrder @()) -join ',') 'no stages selected'
@@ -544,6 +575,7 @@ try {
     $script:useRealProfileValidation = $false
     Set-Content -LiteralPath $script:profileFile -Value ($fictionalProfile | ConvertTo-Json -Depth 5)
     $before = $script:publicationCalls.Count
+    $Stage = @('AgEnTs')
     $stageOutput = (Invoke-AgentsStage 6>&1 | Out-String)
     $calls = @($script:publicationCalls | Select-Object -Skip $before)
     Assert-Equal 3 $calls.Count 'profiled batch publishes all approved agents'
@@ -566,6 +598,7 @@ try {
         throw 'Coordinator approval did not identify the actual profile target and file.'
     }
     if ($stageOutput -notmatch 'publication target: customer-review-coordinator') { throw 'Batch preflight did not identify the selected target.' }
+    $Stage = @('agents')
     Assert-Equal $false (Test-Path Env:FOUNDRY_PROJECT_ENDPOINT) 'successful profile publication clears project environment'
     Assert-Equal $false (Test-Path Env:FOUNDRY_MODEL_NAME) 'successful profile publication clears model environment'
     $CoordinatorProfile = [IO.Path]::GetRelativePath((Split-Path $script), $script:profileFile)
@@ -618,6 +651,9 @@ try {
             @{ Profile = $script:profileFile; Agents = @('application-review-agent', 'application-review-agent', 'review-coordinator-agent'); Stages = @('agents'); Error = 'must not repeat' },
             @{ Profile = $script:profileFile; Agents = @('nonexistent-agent', 'review-coordinator-agent'); Stages = @('agents'); Error = 'No deployable agent' },
             @{ Profile = $script:profileFile; Agents = $Agent; Stages = @('verify'); Error = 'requires -Stage agents' },
+            @{ Profile = $script:profileFile; Agents = $Agent; Stages = @('bootstrap', 'agents'); Error = 'requires -Stage agents alone' },
+            @{ Profile = $script:profileFile; Agents = $Agent; Stages = @('platform', 'agents'); Error = 'requires -Stage agents alone' },
+            @{ Profile = $script:profileFile; Agents = $Agent; Stages = @('preflight', 'agents'); Error = 'requires -Stage agents alone' },
             @{ Profile = $script:profileFile; Agents = $Agent; Stages = @('agents'); ValidationError = 'Fictional invalid profile.'; Error = 'invalid profile' },
             @{ Profile = $script:profileFile; Agents = $Agent; Stages = @('agents'); ValidationError = 'Unset FOUNDRY_HOSTED_AGENT_NAME when using a profile'; Error = 'Unset FOUNDRY_HOSTED_AGENT_NAME' },
             @{ Profile = $script:profileFile; Agents = $Agent; Stages = @('agents'); Ambiguous = $true; Error = 'unambiguous profile target' },
@@ -626,11 +662,19 @@ try {
         $script:validationError = $case.ValidationError; $script:ambiguousTarget = $case.Ambiguous
         $script:profileTarget = if ($case.Target) { $case.Target } else { 'customer-review-coordinator' }
         $before = $script:publicationCalls.Count; $approvalsBefore = $script:approvalLabels.Count
+        $initialized = $script:agentPlatformInitializations; $validationsBefore = $script:validations
+        $venvs = $script:venvCalls; $pips = $script:pipCalls
         try { Invoke-AgentsStage; throw 'invalid profile batch accepted' } catch {
             if ($_.Exception.Message -notmatch $case.Error) { throw }
         }
         Assert-Equal $before $script:publicationCalls.Count 'profile preflight rejection occurs before any batch publication'
         Assert-Equal $approvalsBefore $script:approvalLabels.Count 'profile preflight rejection occurs before publication approvals'
+        if ($case.Stages.Count -ne 1 -or $case.Stages[0] -ne 'agents') {
+            Assert-Equal $initialized $script:agentPlatformInitializations 'changed stage selection stops before platform initialization'
+            Assert-Equal $validationsBefore $script:validations 'changed stage selection stops before profile validation'
+            Assert-Equal $venvs $script:venvCalls 'changed stage selection stops before venv work'
+            Assert-Equal $pips $script:pipCalls 'changed stage selection stops before pip work'
+        }
     }
     $script:validationError = $null; $script:ambiguousTarget = $false; $script:profileTarget = 'customer-review-coordinator'
     $CoordinatorProfile = $script:profileFile; $Stage = @('agents')

@@ -54,6 +54,12 @@ param(
     [string]$TerraformCommand = 'terraform'
 )
 $ErrorActionPreference = 'Stop'
+function Assert-ProfileStageSelection {
+    if (@($Stage).Count -ne 1 -or $Stage[0] -ne 'agents') {
+        throw '-CoordinatorProfile requires -Stage agents alone. Run other stages as separate reviewed invocations.'
+    }
+}
+if ($CoordinatorProfile) { Assert-ProfileStageSelection }
 if ($CoordinatorProfile -and $LocalState) { throw '-CoordinatorProfile requires the private backend and cannot be combined with -LocalState.' }
 $script:PlanOnlyStopped = $false
 $stageOrder = @('preflight', 'bootstrap', 'platform', 'runner', 'lab-foundation', 'image', 'lab', 'identity', 'verify', 'agents')
@@ -505,6 +511,7 @@ function Assert-ProfileCredentialSelection($Expected) {
 }
 
 function Invoke-AgentsStage {
+    if ($CoordinatorProfile) { Assert-ProfileStageSelection }
     if (-not $Agent) { throw 'Name the agents to publish with -Agent, specialists before coordinators. Publishing is billable and changes routing.' }
     $profilePath = $null
     $profileSha256 = $null
@@ -512,7 +519,6 @@ function Invoke-AgentsStage {
     $credentialSelection = $null
     if ($CoordinatorProfile) {
         if ($LocalState) { throw '-CoordinatorProfile requires the private backend and cannot be combined with -LocalState.' }
-        if ($Stage -notcontains 'agents') { throw '-CoordinatorProfile requires -Stage agents.' }
         if ([string]::IsNullOrWhiteSpace($CoordinatorProfile)) { throw '-CoordinatorProfile must name one file.' }
         $credentialSelection = Get-ProfileCredentialSelection
         $coordinators = @($Agent | Where-Object { $_ -ceq 'review-coordinator-agent' })
@@ -592,7 +598,6 @@ function Invoke-AgentsStage {
 # Dot-sourcing loads only the functions, so tests can call them.
 if ($MyInvocation.InvocationName -eq '.') { return }
 if (-not $Subscription) { throw '-Subscription is required.' }
-if ($CoordinatorProfile -and $Stage -notcontains 'agents') { throw '-CoordinatorProfile requires -Stage agents.' }
 if ($CoordinatorProfile) { $null = Get-ProfileCredentialSelection }
 
 $selected = Get-StageOrder $Stage

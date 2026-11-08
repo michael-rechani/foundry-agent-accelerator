@@ -268,6 +268,8 @@ control (RBAC) automatically.
 The existing `deploy.ps1 -Stage agents` entry point also accepts an explicit
 `-CoordinatorProfile` file. This is an invocation example, **not authorization
 to run it**; private execution and publication/promotion remain separately gated:
+With `-CoordinatorProfile`, `agents` must be the only selected stage. Run any
+infrastructure or other stages in separate, independently reviewed invocations.
 
 ```powershell
 ./deploy.ps1 -Subscription <reviewed-subscription-id> -Stage agents `
