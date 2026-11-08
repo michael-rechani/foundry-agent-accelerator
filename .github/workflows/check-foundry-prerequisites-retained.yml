@@ -52,10 +52,18 @@ jobs:
             "CHECK_WORKFLOW_SHA=${CHECK_WORKFLOW_SHA:-}" \
             "CHECK_WORKFLOW_REF=${CHECK_WORKFLOW_REF:-}" \
             /usr/bin/python3 -I - <<'PY'
+          import sys
+
+          def report_bootstrap_failure(_kind=None, _failure=None, _traceback=None):
+              print("failure_stage=bootstrap")
+              print("owned_process_may_be_running=false")
+              print("foundry_prerequisites_check_failed", file=sys.stderr)
+
+          sys.excepthook = report_bootstrap_failure
+
           import hashlib
           import os
           import re
-          import sys
           import types
           from urllib import error, request
 
@@ -74,9 +82,7 @@ jobs:
                   raise ValueError("redirect")
 
           def bootstrap_failure():
-              print("failure_stage=bootstrap")
-              print("owned_process_may_be_running=false")
-              print("foundry_prerequisites_check_failed", file=sys.stderr)
+              report_bootstrap_failure()
               raise SystemExit(1)
 
           try:
@@ -114,7 +120,14 @@ jobs:
               bootstrap_failure()
           except (ValueError, OSError, error.URLError, SyntaxError, ImportError):
               bootstrap_failure()
+          except (KeyboardInterrupt, SystemExit):
+              bootstrap_failure()
           launcher = sys.modules["check_foundry_prerequisites_retained"]
           sys.excepthook = lambda _kind, failure, _traceback: launcher.report_failure(failure)
-          raise SystemExit(launcher.main())
+          try:
+              status = launcher.main()
+          except (KeyboardInterrupt, SystemExit) as failure:
+              launcher.report_failure(failure)
+              raise SystemExit(1) from None
+          raise SystemExit(status)
           PY

@@ -1,4 +1,5 @@
 import ast
+import base64
 import contextlib
 import fcntl
 import hashlib
@@ -605,6 +606,60 @@ class RetainedWorkflowTests(unittest.TestCase):
         inline = shell.split("<<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
         return workflow, shell, inline
 
+    @staticmethod
+    def run_faulted_bootstrap(inline, sources, phase, kind):
+        repo = "michael-rechani/foundry-agent-accelerator"
+        sha = "a" * 40
+        env = {
+            "GITHUB_REPOSITORY": repo,
+            "GITHUB_SHA": sha,
+            "CHECK_WORKFLOW_SHA": sha,
+            "CHECK_WORKFLOW_REF": (
+                f"{repo}/.github/workflows/check-foundry-prerequisites-retained.yml"
+                "@refs/heads/main"
+            ),
+            "GITHUB_REF": "refs/heads/main",
+            "GITHUB_REF_PROTECTED": "true",
+            "GITHUB_EVENT_NAME": "workflow_dispatch",
+            "LANG": "C",
+        }
+        fixture = textwrap.dedent("""
+            import base64
+            import io
+            import json
+            import sys
+            from urllib import request
+
+            inline, encoded, phase, kind = sys.argv[1:]
+            sources = json.loads(encoded)
+            exception = {
+                "RuntimeError": RuntimeError,
+                "SystemExit": SystemExit,
+                "KeyboardInterrupt": KeyboardInterrupt,
+            }[kind]
+
+            class Opener:
+                def open(self, url, timeout):
+                    if phase == "bootstrap":
+                        raise exception("sensitive fixture exception")
+                    content = base64.b64decode(sources[url.rsplit("/", 1)[-1]], validate=True)
+                    response = io.BytesIO(content)
+                    response.status = 200
+                    return response
+
+            request.build_opener = lambda *_args, **_kwargs: Opener()
+            sys.argv = ["bootstrap"]
+            exec(compile(inline, "<workflow-bootstrap>", "exec"), {})
+        """)
+        encoded = json.dumps({
+            name: base64.b64encode(content).decode("ascii")
+            for name, content in sources.items()
+        })
+        return subprocess.run(
+            [sys.executable, "-I", "-c", fixture, inline, encoded, phase, kind],
+            env=env, capture_output=True, text=True, timeout=10,
+        )
+
     def test_manual_protected_no_checkout_bootstrap_and_matching_digests(self):
         github = Path(__file__).parents[1]
         workflow, shell, inline = self.bootstrap(github)
@@ -715,6 +770,7 @@ class RetainedWorkflowTests(unittest.TestCase):
     def test_bootstrap_http_failure_and_redirect_close_responses(self):
         github = Path(__file__).parents[1]
         _, _, inline = self.bootstrap(github)
+        self.addCleanup(setattr, sys, "excepthook", sys.excepthook)
         sha = "a" * 40
         repo = "michael-rechani/foundry-agent-accelerator"
         env = {
@@ -755,6 +811,83 @@ class RetainedWorkflowTests(unittest.TestCase):
                     scope["NoRedirect"]().redirect_request(
                         None, None, 302, "private", {}, "https://example.invalid",
                     )
+
+    def test_unexpected_bootstrap_failures_are_sanitized(self):
+        github = Path(__file__).parents[1]
+        _, _, inline = self.bootstrap(github)
+        helper_source = (github / "scripts" / "check_foundry_prerequisites.py").read_bytes()
+        helper_digest = hashlib.sha256(helper_source).hexdigest()
+        self.assertEqual(inline.count(helper_digest), 1)
+        for kind in ("RuntimeError", "SystemExit", "KeyboardInterrupt"):
+            with self.subTest(kind=kind):
+                result = self.run_faulted_bootstrap(inline, {}, "bootstrap", kind)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(
+                    result.stdout, "failure_stage=bootstrap\nowned_process_may_be_running=false\n",
+                )
+                self.assertEqual(result.stderr, "foundry_prerequisites_check_failed\n")
+                injected = f"raise {kind}('sensitive fixture exception')\n".encode("ascii")
+                fault_inline = inline.replace(helper_digest, hashlib.sha256(injected).hexdigest(), 1)
+                result = self.run_faulted_bootstrap(
+                    fault_inline, {"check_foundry_prerequisites.py": injected}, "loader", kind,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(
+                    result.stdout, "failure_stage=bootstrap\nowned_process_may_be_running=false\n",
+                )
+                self.assertEqual(result.stderr, "foundry_prerequisites_check_failed\n")
+
+    def test_unexpected_launcher_failures_preserve_process_uncertainty(self):
+        github = Path(__file__).parents[1]
+        _, _, inline = self.bootstrap(github)
+        helper_source = (github / "scripts" / "check_foundry_prerequisites.py").read_bytes()
+        launcher_source = (github / "scripts" / "check_foundry_prerequisites_retained.py").read_bytes()
+        launcher_digest = hashlib.sha256(launcher_source).hexdigest()
+        self.assertEqual(inline.count(launcher_digest), 1)
+        for kind in ("RuntimeError", "SystemExit", "KeyboardInterrupt"):
+            for attempted in (False, True):
+                with self.subTest(kind=kind, attempted=attempted):
+                    injected = launcher_source + (
+                        "\ndef run():\n"
+                        "    global _PROCESS_ATTEMPTED\n"
+                        f"    _PROCESS_ATTEMPTED = {attempted}\n"
+                        f"    raise {kind}('sensitive fixture exception')\n"
+                    ).encode("ascii")
+                    fault_inline = inline.replace(launcher_digest, hashlib.sha256(injected).hexdigest(), 1)
+                    result = self.run_faulted_bootstrap(
+                        fault_inline,
+                        {
+                            "check_foundry_prerequisites.py": helper_source,
+                            "check_foundry_prerequisites_retained.py": injected,
+                        },
+                        "launcher", kind,
+                    )
+                    self.assertEqual(result.returncode, 1)
+                    expected = str(attempted).lower()
+                    self.assertEqual(
+                        result.stdout,
+                        f"failure_stage=unexpected_io\nowned_process_may_be_running={expected}\n",
+                    )
+                    self.assertEqual(result.stderr, "foundry_prerequisites_check_failed\n")
+
+    def test_bootstrap_preserves_launcher_success_status(self):
+        github = Path(__file__).parents[1]
+        _, _, inline = self.bootstrap(github)
+        helper_source = (github / "scripts" / "check_foundry_prerequisites.py").read_bytes()
+        launcher_source = (github / "scripts" / "check_foundry_prerequisites_retained.py").read_bytes()
+        launcher_digest = hashlib.sha256(launcher_source).hexdigest()
+        self.assertEqual(inline.count(launcher_digest), 1)
+        injected = launcher_source + b"\ndef main():\n    return 0\n"
+        fault_inline = inline.replace(launcher_digest, hashlib.sha256(injected).hexdigest(), 1)
+        result = self.run_faulted_bootstrap(
+            fault_inline,
+            {
+                "check_foundry_prerequisites.py": helper_source,
+                "check_foundry_prerequisites_retained.py": injected,
+            },
+            "launcher", "RuntimeError",
+        )
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
 
 
 if __name__ == "__main__":
