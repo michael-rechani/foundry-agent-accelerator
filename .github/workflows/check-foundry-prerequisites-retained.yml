@@ -60,13 +60,23 @@ jobs:
           from urllib import error, request
 
           SOURCES = (
-              ("check_foundry_prerequisites", "053e8c77a3b718dc27e96c97adb832f7b3ad525bf74bc927d59962fff9355df1"),
+              ("check_foundry_prerequisites", "3cbda7e5a94a75ceaaa7d25ca699f470b16593a9b92b27b3b27824c7044ae56e"),
               ("check_foundry_prerequisites_retained", "b17be69594ea9f669506d8e7ce9344da9950a89b0cb7dcfbabb6958446094e6b"),
           )
 
           class NoRedirect(request.HTTPRedirectHandler):
               def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  try:
+                      fp.close()
+                  except OSError:
+                      raise ValueError("redirect") from None
                   raise ValueError("redirect")
+
+          def bootstrap_failure():
+              print("failure_stage=bootstrap")
+              print("owned_process_may_be_running=false")
+              print("foundry_prerequisites_check_failed", file=sys.stderr)
+              raise SystemExit(1)
 
           try:
               repo = os.environ.get("GITHUB_REPOSITORY", "")
@@ -95,11 +105,14 @@ jobs:
                   module.__file__ = f"<verified-{name}>"
                   sys.modules[name] = module
                   exec(compile(content, module.__file__, "exec"), module.__dict__)
+          except error.HTTPError as failure:
+              try:
+                  failure.close()
+              except OSError:
+                  bootstrap_failure()
+              bootstrap_failure()
           except (ValueError, OSError, error.URLError, SyntaxError, ImportError):
-              print("failure_stage=bootstrap")
-              print("owned_process_may_be_running=false")
-              print("foundry_prerequisites_check_failed", file=sys.stderr)
-              raise SystemExit(1)
+              bootstrap_failure()
           launcher = sys.modules["check_foundry_prerequisites_retained"]
           sys.excepthook = lambda _kind, failure, _traceback: launcher.report_failure(failure)
           raise SystemExit(launcher.main())

@@ -54,14 +54,22 @@ class CheckError(Exception):
 
 class PublicRedirect(request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        target = parse.urlsplit(newurl)
-        if (
-            target.scheme != "https"
-            or target.hostname not in {"github.com", "release-assets.githubusercontent.com"}
-            or target.username is not None
-            or target.password is not None
-            or target.port not in (None, 443)
-        ):
+        try:
+            target = parse.urlsplit(newurl)
+            allowed = (
+                target.scheme == "https"
+                and target.hostname in {"github.com", "release-assets.githubusercontent.com"}
+                and target.username is None
+                and target.password is None
+                and target.port in (None, 443)
+            )
+        except ValueError:
+            allowed = False
+        if not allowed:
+            try:
+                fp.close()
+            except OSError:
+                raise CheckError("download") from None
             raise CheckError("download")
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
@@ -74,7 +82,15 @@ def download(url, expected_hash, destination, limit):
     req = request.Request(url, headers={"User-Agent": "foundry-prerequisite-check"})  # noqa: S310 -- fixed HTTPS URLs; redirect hosts restricted.
     digest = hashlib.sha256()
     size = 0
-    with opener.open(req, timeout=60) as response, destination.open("xb") as output:
+    try:
+        response = opener.open(req, timeout=60)
+    except error.HTTPError as failure:
+        try:
+            failure.close()
+        except OSError:
+            raise CheckError("download") from None
+        raise CheckError("download") from None
+    with response, destination.open("xb") as output:
         if response.status != 200:
             raise CheckError("download")
         while chunk := response.read(1024 * 1024):

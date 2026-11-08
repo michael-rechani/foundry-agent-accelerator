@@ -16,7 +16,7 @@ import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from urllib import request
+from urllib import error, request
 
 import check_foundry_prerequisites as helper
 import check_foundry_prerequisites_retained as retained
@@ -24,6 +24,13 @@ import test_check_foundry_prerequisites as fixtures
 
 
 TRACKING = "github_12345678-1234-1234-1234-123456789abc"
+
+
+class FailingCloseBytesIO(io.BytesIO):
+    def close(self):
+        if not self.closed:
+            super().close()
+            raise OSError("private close failure")
 
 
 class RetainedPrerequisiteTests(unittest.TestCase):
@@ -171,6 +178,36 @@ class RetainedPrerequisiteTests(unittest.TestCase):
             with self.assertRaisesRegex(helper.CheckError, "tracking"):
                 retained.check(self.root, fixtures.UPSTREAM_AGENT, "")
             environment.assert_not_called()
+
+    def test_download_http_errors_close_response_before_sanitized_failure(self):
+        for body_type in (io.BytesIO, FailingCloseBytesIO):
+            with self.subTest(body=body_type.__name__):
+                body = body_type(b"private response content")
+                failure = error.HTTPError(helper.SKILL_URL, 403, "private response", {}, body)
+                destination = self.root / "not-created"
+                with patch.object(helper.request, "build_opener") as opener:
+                    opener.return_value.open.side_effect = failure
+                    with self.assertRaisesRegex(helper.CheckError, "download") as raised:
+                        helper.download(helper.SKILL_URL, helper.SKILL_SHA256, destination, 1024)
+                self.assertTrue(body.closed)
+                self.assertFalse(destination.exists())
+                self.assertNotIn("private", str(raised.exception))
+
+    def test_rejected_redirects_close_response_without_exposing_location(self):
+        handler = helper.PublicRedirect()
+        for location in (
+            "http://github.com/private-location",
+            "https://example.invalid/private-location",
+            "https://github.com:invalid/private-location",
+            "https://[invalid/private-location",
+        ):
+            for body_type in (io.BytesIO, FailingCloseBytesIO):
+                with self.subTest(location=location, body=body_type.__name__):
+                    body = body_type(b"private response content")
+                    with self.assertRaisesRegex(helper.CheckError, "download") as raised:
+                        handler.redirect_request(None, body, 302, "redirect", {}, location)
+                    self.assertTrue(body.closed)
+                    self.assertNotIn("private", str(raised.exception))
 
     def test_main_context_requires_exact_protected_workflow_and_runner(self):
         repo = "michael-rechani/foundry-agent-accelerator"
@@ -671,6 +708,46 @@ class RetainedWorkflowTests(unittest.TestCase):
                         f"failure_stage={expected}\nowned_process_may_be_running=false\n",
                     )
                     self.assertEqual(err.getvalue(), "foundry_prerequisites_check_failed\n")
+
+    def test_bootstrap_http_failure_and_redirect_close_responses(self):
+        github = Path(__file__).parents[1]
+        _, _, inline = self.bootstrap(github)
+        sha = "a" * 40
+        repo = "michael-rechani/foundry-agent-accelerator"
+        env = {
+            "GITHUB_REPOSITORY": repo,
+            "GITHUB_SHA": sha,
+            "CHECK_WORKFLOW_SHA": sha,
+            "CHECK_WORKFLOW_REF": (
+                f"{repo}/.github/workflows/check-foundry-prerequisites-retained.yml"
+                "@refs/heads/main"
+            ),
+            "GITHUB_REF": "refs/heads/main",
+            "GITHUB_REF_PROTECTED": "true",
+            "GITHUB_EVENT_NAME": "workflow_dispatch",
+        }
+        for body_type in (io.BytesIO, FailingCloseBytesIO):
+            with self.subTest(body=body_type.__name__):
+                body = body_type(b"private response content")
+                failure = error.HTTPError("https://example.invalid/private-url", 403, "private response", {}, body)
+                output, stderr, scope = io.StringIO(), io.StringIO(), {}
+                with patch.dict(os.environ, env, clear=True), patch.object(
+                    request, "build_opener"
+                ) as opener, contextlib.redirect_stdout(output), contextlib.redirect_stderr(stderr):
+                    opener.return_value.open.side_effect = failure
+                    with self.assertRaises(SystemExit) as exit_code:
+                        exec(compile(inline, "<workflow-bootstrap>", "exec"), scope)
+                self.assertEqual(exit_code.exception.code, 1)
+                self.assertTrue(body.closed)
+                self.assertEqual(output.getvalue(), "failure_stage=bootstrap\nowned_process_may_be_running=false\n")
+                self.assertEqual(stderr.getvalue(), "foundry_prerequisites_check_failed\n")
+
+                redirect_body = body_type(b"private redirect content")
+                with self.assertRaisesRegex(ValueError, "redirect"):
+                    scope["NoRedirect"]().redirect_request(
+                        None, redirect_body, 302, "private", {}, "https://example.invalid",
+                    )
+                self.assertTrue(redirect_body.closed)
 
 
 if __name__ == "__main__":
