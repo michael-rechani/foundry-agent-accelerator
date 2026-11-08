@@ -3,12 +3,14 @@ import contextlib
 import fcntl
 import hashlib
 import io
+import json
 import os
 import resource
 import signal
 import stat
 import subprocess
 import sys
+import tarfile
 import tempfile
 import textwrap
 import time
@@ -178,6 +180,26 @@ class RetainedPrerequisiteTests(unittest.TestCase):
                     with self.assertRaisesRegex(helper.CheckError, "context"):
                         retained.context()
 
+    def test_bad_dispatch_input_fails_before_state_or_download(self):
+        event = self.base / "event.json"
+        env = {
+            "GITHUB_EVENT_PATH": str(event),
+            "GITHUB_RUN_ID": "123",
+            "GITHUB_RUN_ATTEMPT": "1",
+        }
+        with patch.dict(os.environ, env, clear=True), patch.object(
+            retained, "context", return_value=(self.temp, self.workspace)
+        ), patch.object(retained, "reserve_state") as reserve, patch.object(
+            helper, "download"
+        ) as download:
+            for value in ("", "bad;command", "bad\nvalue", "x" * 65, None):
+                with self.subTest(value=value):
+                    event.write_text(json.dumps({"inputs": {"user_agent": value}}))
+                    with self.assertRaisesRegex(helper.CheckError, "context"):
+                        retained.run()
+            reserve.assert_not_called()
+            download.assert_not_called()
+
     def test_exact_pinned_skill_with_fictional_downloads_and_tools(self):
         opener = self.fake_downloads()
         inherited = {
@@ -226,6 +248,38 @@ class RetainedPrerequisiteTests(unittest.TestCase):
             retained.check(self.root, fixtures.UPSTREAM_AGENT, "")
         self.assertFalse((self.root / "bin" / "azd").exists())
         self.assertTrue((self.root / "skill" / "scripts" / "check-and-setup-dependencies.sh").exists())
+
+    def test_azd_checksum_failure_never_extracts_or_executes(self):
+        self.fake_downloads()
+        with patch.object(helper, "AZD_SHA256", "0" * 64), patch.object(
+            retained, "command"
+        ) as command:
+            with self.assertRaisesRegex(helper.CheckError, "checksum"):
+                retained.check(self.root, fixtures.UPSTREAM_AGENT, "")
+        command.assert_not_called()
+        self.assertFalse((self.root / "bin" / "azd").exists())
+        self.assertTrue((self.root / "azd.tar.gz").exists())
+
+    def test_unsafe_azd_archives_never_extract(self):
+        cases = (
+            fixtures.archive_bytes(name="../escape"),
+            fixtures.archive_bytes(kind=tarfile.SYMTYPE),
+            fixtures.archive_bytes(duplicate=True),
+            fixtures.archive_bytes(mode=0o4755),
+        )
+        for index, archive in enumerate(cases):
+            with self.subTest(index=index):
+                root = self.base / f"archive-{index}"
+                (root / "bin").mkdir(parents=True)
+
+                def download(_url, _digest, destination, _limit):
+                    destination.write_bytes(archive)
+
+                with patch.object(helper, "download", side_effect=download):
+                    with self.assertRaisesRegex(helper.CheckError, "archive"):
+                        helper.install_azd(root)
+                self.assertFalse((root / "bin" / "azd").exists())
+                self.assertTrue((root / "azd.tar.gz").exists())
 
     def test_invalid_version_and_failed_skill_never_report_success(self):
         self.fake_downloads()
@@ -417,6 +471,17 @@ class RetainedPrerequisiteTests(unittest.TestCase):
             "failure_stage=unexpected_io\nowned_process_may_be_running=false\n",
         )
         self.assertEqual(err.getvalue(), "foundry_prerequisites_check_failed\n")
+
+    def test_success_reports_retained_state_only(self):
+        out = io.StringIO()
+        with patch.object(retained, "run", return_value="1.37.3"), patch.object(
+            sys, "argv", ["check"]
+        ), contextlib.redirect_stdout(out):
+            self.assertEqual(retained.main(), 0)
+        self.assertEqual(
+            out.getvalue(),
+            "azd_version=1.37.3\nfoundry_prerequisites=ready_retained_state_only\n",
+        )
 
     def test_interruption_during_spawn_reports_possible_running_process(self):
         out, err = io.StringIO(), io.StringIO()
