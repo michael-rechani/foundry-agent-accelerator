@@ -566,7 +566,7 @@ def report_agent_identity(created) -> None:
     if principal:
         print(f"Agent identity principal ID: {principal}")
     else:
-        print("No agent instance identity was reported; a legacy agent uses the shared project identity")
+        print("No agent instance identity was reported; runtime identity is unconfirmed and downstream permissions must be independently verified")
 
 
 def deploy(profile: AgentProfile, args: argparse.Namespace) -> None:
