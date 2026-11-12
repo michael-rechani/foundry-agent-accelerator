@@ -2,6 +2,7 @@ import type { View } from './ChatSidebar'
 import { reviewIdFromHash } from './review-client.ts'
 
 export const viewHashes: Record<View, string> = {
+  projects: '#projects',
   library: '#library',
   explore: '#demos',
   addons: '#addons',
@@ -37,6 +38,7 @@ export const libraryViews: View[] = [
 
 // Breadcrumb trail for the top bar: section, then page.
 export const crumbs: Record<View, [string, string]> = {
+  projects: ['Start here', 'Projects'],
   library: ['Agent library', 'Browse'],
   catalog: ['Agent library', 'My agents'],
   created: ['Agent library', 'My agents › Made in this Lab'],

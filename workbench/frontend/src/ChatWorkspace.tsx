@@ -46,6 +46,9 @@ import {
 import { useConversation } from './use-conversation'
 import { useDependencyHealth } from './use-dependency-health'
 import { useLibraryPreviews } from './use-library-previews'
+import { ProjectWorkspace } from './ProjectWorkspace'
+import { useProjectBriefs } from './use-project-briefs'
+import { projectDesignerPrompt, type ProjectBrief } from './project-brief'
 
 // A change that would clear the chat on screen, held until the person agrees.
 type PendingChange = {
@@ -92,6 +95,11 @@ export default function ChatWorkspace() {
   const [continuing, setContinuing] = useState(false)
   const [changing, setChanging] = useState<PendingChange | null>(null)
   const [presenting, setPresenting] = useState(false)
+  const projects = useProjectBriefs()
+  const [chatProjectId, setChatProjectId] = useState<string | null>(null)
+  const chatProject = projects.projects.find(
+    (item) => item.id === chatProjectId,
+  )
   const [hood, setHood] = useState(loadUnderTheHood)
   const [libraryDetail, setLibraryDetail] = useState('')
   const [requestedTemplate, setRequestedTemplate] = useState<{
@@ -239,10 +247,15 @@ export default function ChatWorkspace() {
     })
   }
 
-  function newChat(agentId = selected, focusEditor = false) {
+  function newChat(
+    agentId = selected,
+    focusEditor = false,
+    projectId: string | null = null,
+  ) {
     if (busy || historyBusy) return
     const start = () => {
       resetConversation(agentId)
+      setChatProjectId(projectId)
       // The sidebar button can be pressed from any view, so land in the box.
       if (focusEditor) setTimeout(() => editor.current?.focus(), 0)
     }
@@ -258,6 +271,7 @@ export default function ChatWorkspace() {
   }
 
   function resetConversation(agentId: string, initialDraft = '') {
+    setChatProjectId(null)
     conversation.reset(agentId, initialDraft)
     setNotice('')
     setView('chat')
@@ -347,11 +361,29 @@ export default function ChatWorkspace() {
 
   function openSaved(item: SavedChat) {
     if (busy || historyBusy) return
+    confirmClear('Open this conversation?', 'Open conversation', '', () => {
+      setChatProjectId(null)
+      void openChat(item)
+    })
+  }
+
+  function openProjectChat(project: ProjectBrief, designing: boolean) {
+    if (busy || historyBusy) return
+    const target = designing
+      ? designer
+      : availableAgents.find((item) => item.id === project.agentId)
+    if (!target) return
     confirmClear(
-      'Open this conversation?',
-      'Open conversation',
-      '',
-      () => void openChat(item),
+      'Open a new project conversation?',
+      'Open project conversation',
+      'The project text will be loaded as an unsent message. Review it before sending.',
+      () => {
+        resetConversation(
+          target.id,
+          designing ? projectDesignerPrompt(project) : project.demoPrompt,
+        )
+        setChatProjectId(project.id)
+      },
     )
   }
 
@@ -448,6 +480,51 @@ export default function ChatWorkspace() {
           <ChatConfigStatus error={configError} onRetry={retryConfig} />
         )}
 
+        {config && (
+          <ProjectWorkspace
+            state={projects}
+            active={view === 'projects'}
+            agents={availableAgents}
+            busy={busy || historyBusy}
+            designerAvailable={!!designer}
+            currentWork={
+              chatProjectId === projects.selectedId
+                ? {
+                    turns: turns.length,
+                    specName: designing
+                      ? turns
+                          .flatMap((turn) => {
+                            const spec = parseAgentSpec(turn.result.text).spec
+                            return spec ? [spec.name] : []
+                          })
+                          .at(-1)
+                      : undefined,
+                  }
+                : undefined
+            }
+            onDesign={(project) => openProjectChat(project, true)}
+            onDemonstrate={(project) => openProjectChat(project, false)}
+            onChat={() => setView('chat')}
+            onLibrary={() => setView('library')}
+            onAddOns={() => setView('addons')}
+          />
+        )}
+        {view === 'chat' && chatProject && !presenting && (
+          <div className="project-chat-link">
+            <span>
+              Project: <strong>{chatProject.name}</strong> · brief saved in this
+              browser only
+            </span>
+            <button
+              onClick={() => {
+                projects.select(chatProject.id)
+                setView('projects')
+              }}
+            >
+              Back to project
+            </button>
+          </div>
+        )}
         {config && libraryViews.includes(view) && (
           <LibraryTabs
             view={view}
@@ -501,7 +578,7 @@ export default function ChatWorkspace() {
             requestedTemplate={requestedTemplate}
             chatBusy={busy || historyBusy}
             onView={setView}
-            onUse={(item) => newChat(item.id)}
+            onUse={(item) => newChat(item.id, false, chatProjectId)}
           />
         )}
         {view === 'addons' && <AddOns onNotice={setNotice} />}
@@ -528,6 +605,7 @@ export default function ChatWorkspace() {
             />
           )
         ) : view === 'reviews' ||
+          view === 'projects' ||
           view === 'addons' ||
           view === 'library' ||
           view === 'create' ||
@@ -662,7 +740,7 @@ export default function ChatWorkspace() {
               ? {
                   capability: config.agent_creation,
                   onCreated: createdAgents.update,
-                  onChat: (item) => newChat(item.id),
+                  onChat: (item) => newChat(item.id, false, chatProjectId),
                   onOpenMade: () => setView('created'),
                 }
               : undefined

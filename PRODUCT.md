@@ -26,7 +26,9 @@ production-ready business application.
 ## Operating Context
 
 The private Azure deployment supports model calls and shared saved records.
-Local preview supports exploration without model execution or persistence.
+Local preview supports exploration without model execution or server
+persistence. Project briefs can be explicitly saved in browser-local storage;
+they are not synchronized, backed up, or isolated by sign-in.
 
 An operator presents the Lab over an approved access path: the private jump box
 or an explicitly approved, client-address-restricted Front Door endpoint with a
@@ -41,6 +43,9 @@ network access alone does not provide customer isolation.
 - Create agents from built-in templates only after the operator and cost
   confirmations. Preparing a setup isn't publication.
 - Chat with configured agents, and review supplied documents against criteria.
+- Keep a browser-local project brief and use it to enter the existing designer,
+  draft-test and agent-demonstration flows. Briefs do not store conversations,
+  tests or agent runtimes; a project is not a security or ownership boundary.
 - Keep fictional inputs, expected findings, and actual model responses distinct.
 - Never imply customer-system connectivity. Template lookups are simulated
   and read-only. People make business, clinical, payment, and eligibility decisions.

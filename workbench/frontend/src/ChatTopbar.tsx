@@ -174,7 +174,10 @@ export function ChatTopbar({
           </button>
         )}
         {config?.mode !== 'private' && !(clean && config) && (
-          <span className="environment-badge" title="No model calls or saving">
+          <span
+            className="environment-badge"
+            title="No model calls or server saving"
+          >
             <span className="status-dot" />
             {config ? 'Local preview' : 'Connecting'}
           </span>

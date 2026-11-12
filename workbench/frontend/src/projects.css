@@ -1,0 +1,162 @@
+.project-workspace {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 28px 32px;
+  background: var(--surface);
+  scrollbar-gutter: stable;
+}
+.project-workspace[hidden] {
+  display: none;
+}
+.project-heading,
+.project-toolbar,
+.project-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.project-heading {
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.project-heading h1 {
+  font-size: 26px;
+  margin-bottom: 8px;
+}
+.project-workspace p {
+  max-width: 72ch;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+.project-boundary {
+  padding: 14px 18px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+.project-workspace p.project-boundary {
+  max-width: none;
+  color: var(--accent-strong);
+}
+.project-toolbar {
+  margin-bottom: 24px;
+}
+.project-toolbar label {
+  font-weight: 600;
+}
+.project-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 40px;
+  max-width: 1280px;
+}
+.project-workspace h2 {
+  font-size: 20px;
+  margin: 0 0 10px;
+}
+.project-workspace h3 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.project-brief form {
+  display: grid;
+  gap: 18px;
+  margin: 20px 0 16px;
+}
+.project-field {
+  display: grid;
+  gap: 7px;
+}
+.project-brief label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.project-workspace input,
+.project-workspace textarea,
+.project-workspace select {
+  min-width: 0;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--field-line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 400;
+}
+.project-workspace textarea {
+  resize: vertical;
+  line-height: 1.6;
+}
+.project-workspace textarea:focus-visible,
+.project-workspace select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.project-toolbar select {
+  width: min(360px, 100%);
+}
+.project-actions {
+  font-size: 12px;
+  color: var(--muted);
+}
+.project-journey ol {
+  list-style: decimal;
+  padding-left: 24px;
+  margin: 24px 0;
+}
+.project-journey li {
+  padding-left: 6px;
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.project-journey li::marker {
+  font-weight: 600;
+  color: var(--accent);
+}
+.project-journey li button {
+  margin-top: 12px;
+}
+.project-workspace .project-note {
+  color: var(--muted);
+  margin-top: 12px;
+  font-size: 12px;
+}
+.project-session {
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+.project-capabilities .project-actions {
+  margin-top: 12px;
+}
+.project-chat-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 24px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 13px;
+}
+.project-chat-link span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.project-chat-link button {
+  flex-shrink: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+}
+@media (max-width: 1180px) {
+  .project-columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
+  }
+}

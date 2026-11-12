@@ -17,6 +17,7 @@ Cosmos DB storage.
 | Area | What to know |
 | --- | --- |
 | Start here | The Lab opens on **Chat**, clean, as a plain conversation with the **Agent designer**, or with a ready agent or library preview you choose. |
+| Projects | Save a fictional project brief in this browser, load it into the designer, return to its spec and draft tests, then choose an available agent and load a demonstration prompt into Chat. Loading never sends a message or creates an agent. |
 | Agent library | Browse agent definitions by sector or industry (one list), task, readiness, and tool mode. A plain-word job finder at the top sends and saves nothing. By default only featured agents show. Compare a sample example with expected behavior. Create, test, and export. |
 | Guided demos | Three sample customer stories with expected findings and human decisions. Loading a sample never automatically sends, saves, or publishes anything. |
 | Add-ons | A preview of optional tools and skills an agent could connect to later, such as knowledge search or a calculator. It shows what each would do, what it would cost, and what it needs. The page turns nothing on. Knowledge search also runs as a small sample pilot in Checklist and case helper. |
@@ -26,6 +27,57 @@ Cosmos DB storage.
 | Data boundary | Use sample data only. The Lab doesn't connect to customer systems or perform business writes. |
 | Access model | The current private Lab has no end-user Microsoft Entra ID sign-in or per-user authorization. |
 | Chat limits | Four chat turns at once and 20 a minute across all users, plus a per-model-deployment requests and tokens budget (`WORKBENCH_MODEL_LIMITS`, set by the `model_limits` Terraform variable) that answers busy before the model's own limit does. See [Model limits](../docs/lab-configuration-and-cost.md#model-limits). |
+
+## Project journey
+
+Open **Projects** (`/#projects`) and enter a name, goal, context and boundaries,
+decisions, and deliverable/evidence notes. **Save brief in this browser** is
+explicit: editing does not save or send anything. Up to 20 briefs are stored in
+this origin's `localStorage`, without sign-in, synchronization or backup. Anyone
+using the same browser profile can read them; clearing browser data loses them.
+Use fictional data only, not secrets or customer records. Export the saved brief
+as JSON to keep a copy; this slice has no import. Local deletion removes only
+the selected brief, never shared chats or agents. Failed saves keep edits on the
+page and show an error; unreadable storage is not silently overwritten.
+
+**Load brief in designer** opens a new conversation with the brief as an
+unsent, editable message. Existing unsaved-chat confirmation still applies.
+Sending is the normal model call in a connected Lab. The resulting spec card
+owns **Test this draft first**, case/results downloads, accepted instruction
+revisions, and template publication. All existing model-cost confirmations and
+operator checks remain. **Back to project** and **Return to current work**
+preserve the current conversation and spec-card state while navigating within
+the page; leaving a running draft test aborts its browser request, but a sent
+model call may still finish and incur cost. The project displays only actual
+completed chat turns and a received spec's name, not a test-pass or deployment
+claim. This session link and chat/test state do not survive reload or a new chat.
+Using a newly created agent from the project's spec/creation flow keeps the
+project return link, but starts a fresh chat; explicitly select that agent in
+the brief and save if you want to keep its demonstration reference.
+
+For a demonstration, select an available prebuilt or ready created agent and
+save a fictional sample prompt. **Open demonstration chat** loads that prompt
+without sending it. Send it when ready, inspect the answer, then use Chat's
+**Presenter view**. An agent selection is only a reference: it does not apply
+the project brief as instructions. A removed or unavailable agent cannot be
+launched. The library and add-ons remain discoverable from the project.
+
+Project storage contains only the explicitly entered brief, selected agent ID,
+and update time. It does not copy chats, test results, operator keys or agents.
+Export chat, spec and test reports from their existing controls and record
+reviewed findings in the brief yourself. Shared-history saves and created agents
+still use existing server storage and are visible to everyone with Lab access;
+the browser-local project is **not an authorization boundary**. Local preview
+can save briefs and browse capabilities, but cannot execute the designer,
+draft tests or publication.
+
+There is no custom-system or Fabric connection in this slice. A spec listing a
+tool does not configure it. No-template publication remains tracked in
+[#506](https://github.com/michael-rechani/foundry-agent-accelerator/issues/506);
+end-user identity and ownership remain tracked in
+[#278](https://github.com/michael-rechani/foundry-agent-accelerator/issues/278).
+The local-first journey is tracked in
+[#540](https://github.com/michael-rechani/foundry-agent-accelerator/issues/540).
 
 ## Local development
 
