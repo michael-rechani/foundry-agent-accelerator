@@ -40,6 +40,18 @@ as JSON to keep a copy; this slice has no import. Local deletion removes only
 the selected brief, never shared chats or agents. Failed saves keep edits on the
 page and show an error; unreadable storage is not silently overwritten.
 
+Saves and deletes use the browser's Web Locks API and compare the latest stored
+list with the version this page loaded. A stale tab cannot replace newer saved
+projects: the write is rejected and its unsaved text stays on the page. Copy any
+edits you need, then choose **Reload saved projects**; cancelling its discard
+confirmation keeps the draft intact. Project switching, including **Back to
+project** from Chat, uses the same unsaved-edit confirmation. A busy lock can be
+retried; browsers without Web Locks cannot save/delete local projects and show
+an error instead of using an unsafe fallback. This coordinates cooperating Lab
+tabs on the same origin, not other app versions, browser-data clearing or
+arbitrary scripts that write the storage key without the lock. It is not
+cross-device synchronization or a transactional server store.
+
 **Load brief in designer** opens a new conversation with the brief as an
 unsent, editable message. Existing unsaved-chat confirmation still applies.
 Sending is the normal model call in a connected Lab. The resulting spec card

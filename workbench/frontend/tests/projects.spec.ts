@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Dialog, type Page } from '@playwright/test'
 import { PROJECT_STORAGE_KEY } from '../src/project-brief'
 import {
   openCreation,
@@ -43,7 +43,7 @@ async function saveBrief(page: Page) {
     .fill('Sample notice: the office opens at 09:00.')
   await page.getByRole('button', { name: 'Save brief in this browser' }).click()
   await expect(
-    page.getByText('Loaded from this browser.', { exact: true }),
+    page.getByText('Saved in this browser.', { exact: true }),
   ).toBeVisible()
 }
 
@@ -53,6 +53,196 @@ async function localData(page: Page) {
     PROJECT_STORAGE_KEY,
   )
 }
+
+for (const action of ['save', 'delete'] as const) {
+  test(`a stale tab cannot ${action} over newer projects and keeps unsaved input`, async ({
+    page,
+    context,
+  }) => {
+    await openCreation(page, { hash: '#projects', preview: true })
+    await saveBrief(page)
+    const stale = await context.newPage()
+    await openCreation(stale, { hash: '#projects', preview: true })
+    await expect(stale.getByLabel('Project name (required)')).toHaveValue(
+      'Notice project',
+    )
+    await page
+      .getByLabel('Goal (required)', { exact: true })
+      .fill('Newer saved goal from the first tab')
+    await page
+      .getByRole('button', { name: 'Save brief in this browser' })
+      .click()
+    await page.getByRole('button', { name: 'New project', exact: true }).click()
+    await page.getByLabel('Project name (required)').fill('Newer project')
+    await page
+      .getByLabel('Goal (required)', { exact: true })
+      .fill('Keep this second project')
+    await page
+      .getByRole('button', { name: 'Save brief in this browser' })
+      .click()
+    await expect(
+      page.getByText('Saved in this browser.', { exact: true }),
+    ).toBeVisible()
+    const newest = await localData(page)
+    await stale
+      .getByLabel('Goal (required)', { exact: true })
+      .fill('Unsaved goal in the stale tab')
+    if (action === 'save') {
+      await stale
+        .getByRole('button', { name: 'Save brief in this browser' })
+        .click()
+    } else {
+      stale.once('dialog', (dialog) => dialog.accept())
+      await stale.getByRole('button', { name: 'Delete local brief' }).click()
+    }
+    await expect(stale.getByRole('alert')).toContainText(
+      'changed in another tab',
+    )
+    expect(await localData(page)).toEqual(newest)
+    await expect(
+      stale.getByLabel('Goal (required)', { exact: true }),
+    ).toHaveValue('Unsaved goal in the stale tab')
+    stale.once('dialog', (dialog) => dialog.dismiss())
+    await stale.getByRole('button', { name: 'Reload saved projects' }).click()
+    await expect(
+      stale.getByLabel('Goal (required)', { exact: true }),
+    ).toHaveValue('Unsaved goal in the stale tab')
+    stale.once('dialog', (dialog) => dialog.accept())
+    await stale.getByRole('button', { name: 'Reload saved projects' }).click()
+    await expect(
+      stale.getByLabel('Goal (required)', { exact: true }),
+    ).toHaveValue('Newer saved goal from the first tab')
+    await expect(
+      stale.getByLabel('Project', { exact: true }).getByRole('option'),
+    ).toHaveCount(3)
+    await stale.close()
+  })
+}
+
+test('a project save fails closed without browser locking support and preserves edits', async ({
+  page,
+}) => {
+  await openCreation(page, { hash: '#projects', preview: true })
+  await saveBrief(page)
+  const stored = await localData(page)
+  await page
+    .getByLabel('Goal (required)', { exact: true })
+    .fill('Preserve this unsaved goal')
+  await page.evaluate(() =>
+    Object.defineProperty(navigator, 'locks', { value: undefined }),
+  )
+  await page.getByRole('button', { name: 'Save brief in this browser' }).click()
+  await expect(page.getByRole('alert')).toContainText(
+    'cannot safely save local projects across tabs',
+  )
+  await expect(page.getByLabel('Goal (required)', { exact: true })).toHaveValue(
+    'Preserve this unsaved goal',
+  )
+  expect(await localData(page)).toEqual(stored)
+})
+
+test('a busy project lock blocks writes without losing edits and allows an explicit retry', async ({
+  page,
+  context,
+}) => {
+  await openCreation(page, { hash: '#projects', preview: true })
+  await saveBrief(page)
+  const stored = await localData(page)
+  const holder = await context.newPage()
+  await openCreation(holder, { hash: '#projects', preview: true })
+  await holder.evaluate((key) => {
+    const scope = window as Window & {
+      releaseProjectLock?: () => void
+      projectLockHeld?: boolean
+    }
+    void navigator.locks.request(key, async () => {
+      scope.projectLockHeld = true
+      await new Promise<void>((resolve) => {
+        scope.releaseProjectLock = resolve
+      })
+    })
+  }, PROJECT_STORAGE_KEY)
+  await expect
+    .poll(() =>
+      holder.evaluate(
+        () =>
+          (window as Window & { projectLockHeld?: boolean }).projectLockHeld,
+      ),
+    )
+    .toBe(true)
+  await page
+    .getByLabel('Goal (required)', { exact: true })
+    .fill('Retry this unsaved goal')
+  await page.getByRole('button', { name: 'Save brief in this browser' }).click()
+  await expect(page.getByRole('alert')).toContainText(
+    'Another tab is saving projects',
+  )
+  expect(await localData(page)).toEqual(stored)
+  await expect(page.getByLabel('Goal (required)', { exact: true })).toHaveValue(
+    'Retry this unsaved goal',
+  )
+  await holder.evaluate(() =>
+    (
+      window as Window & { releaseProjectLock?: () => void }
+    ).releaseProjectLock?.(),
+  )
+  await page.getByRole('button', { name: 'Save brief in this browser' }).click()
+  await expect(
+    page.getByText('Saved in this browser.', { exact: true }),
+  ).toBeVisible()
+  expect((await localData(page)).projects[0].goal).toBe(
+    'Retry this unsaved goal',
+  )
+  await holder.close()
+})
+
+test('Back to project confirms before discarding another project draft, with cancel preserving it', async ({
+  page,
+}) => {
+  await openCreation(page, { hash: '#projects', designerAnswer })
+  await saveBrief(page)
+  await page.getByRole('button', { name: 'Load brief in designer' }).click()
+  await page.getByRole('button', { name: 'Back to project' }).click()
+  await page.getByRole('button', { name: 'New project', exact: true }).click()
+  await page.getByLabel('Project name (required)').fill('Unsaved project B')
+  await page
+    .getByLabel('Goal (required)', { exact: true })
+    .fill('Keep this unfinished second brief')
+  await workspaceNav(page)
+    .getByRole('button', { name: 'Chat', exact: true })
+    .click()
+  const prompts: string[] = []
+  const cancel = async (dialog: Dialog) => {
+    prompts.push(dialog.message())
+    await dialog.dismiss()
+  }
+  page.on('dialog', cancel)
+  await page.getByRole('button', { name: 'Back to project' }).click()
+  expect(prompts).toHaveLength(1)
+  await expect(
+    page.getByRole('textbox', { name: 'Message', exact: true }),
+  ).toBeVisible()
+  await workspaceNav(page)
+    .getByRole('button', { name: 'Projects', exact: true })
+    .click()
+  await expect(page.getByLabel('Project name (required)')).toHaveValue(
+    'Unsaved project B',
+  )
+  await expect(page.getByLabel('Goal (required)', { exact: true })).toHaveValue(
+    'Keep this unfinished second brief',
+  )
+  await workspaceNav(page)
+    .getByRole('button', { name: 'Chat', exact: true })
+    .click()
+  page.removeListener('dialog', cancel)
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Back to project' }).click()
+  await expect(page.getByLabel('Project name (required)')).toHaveValue(
+    'Notice project',
+  )
+  await page.getByRole('button', { name: 'New project', exact: true }).click()
+  await expect(page.getByLabel('Project name (required)')).toHaveValue('')
+})
 
 test('unrelated project goals use the same blank brief and designer flow without scenario defaults', async ({
   page,
@@ -271,6 +461,7 @@ test('briefs survive reload, exports contain only saved notes, and deletion leav
     .selectOption({ label: 'Notice project' })
   page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Delete local brief' }).click()
+  await expect(page.getByLabel('Project name (required)')).toHaveValue('')
   expect((await localData(page)).projects).toEqual([])
   expect(state.deletes).toBe(0)
   expect(state.chat).toEqual([])

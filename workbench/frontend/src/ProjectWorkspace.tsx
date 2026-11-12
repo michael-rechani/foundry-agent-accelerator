@@ -1,7 +1,6 @@
-import { useState } from 'react'
 import { ArrowRight, Download, FolderOpen, Plus } from 'lucide-react'
 import type { Agent } from './workspace-config'
-import { emptyProject, projectFields, type ProjectBrief } from './project-brief'
+import { projectFields, type ProjectBrief } from './project-brief'
 import type { ProjectBriefs } from './use-project-briefs'
 import { useUnsavedWarning } from './use-chat-effects'
 import { saveFile } from './save-file'
@@ -56,23 +55,32 @@ export function ProjectWorkspace({
           {state.error}
         </p>
       )}
+      {state.conflict && (
+        <button
+          className="creation-secondary"
+          disabled={state.writing}
+          onClick={() => state.reload()}
+        >
+          Reload saved projects
+        </button>
+      )}
       {state.readBlocked ? (
         <button
           className="creation-secondary"
+          disabled={state.writing}
           onClick={() => {
             if (
               window.confirm(
                 'Forget all project briefs stored in this browser? This cannot be undone. It does not delete any shared chats or agents.',
               )
             )
-              state.forget()
+              void state.forget()
           }}
         >
           Forget local projects
         </button>
       ) : (
         <ProjectEditor
-          key={state.selectedId || 'new'}
           state={state}
           agents={agents}
           busy={busy}
@@ -102,26 +110,12 @@ function ProjectEditor({
   onAddOns,
 }: Omit<Parameters<typeof ProjectWorkspace>[0], 'active'>) {
   const project = state.selected
-  const [text, setText] = useState(() => ({ ...emptyProject, ...project }))
-  const [saved, setSaved] = useState(false)
-  const dirty = Object.keys(emptyProject).some(
-    (field) =>
-      text[field as keyof typeof emptyProject] !==
-      (project ?? emptyProject)[field as keyof typeof emptyProject],
-  )
+  const { text, dirty, saved } = state
   useUnsavedWarning(dirty)
-  const ready = !!project && !dirty
+  const ready = !!project && !dirty && !state.writing
   const selectedAgent = agents.find((agent) => agent.id === text.agentId)
   function choose(id: string) {
-    if (
-      dirty &&
-      !window.confirm(
-        'Discard unsaved project edits? The last saved brief is kept.',
-      )
-    )
-      return
     state.select(id)
-    setSaved(false)
   }
   return (
     <>
@@ -130,6 +124,7 @@ function ProjectEditor({
         <select
           id="project-picker"
           value={state.selectedId}
+          disabled={state.writing}
           onChange={(event) => choose(event.target.value)}
         >
           <option value="">New project brief</option>
@@ -142,7 +137,7 @@ function ProjectEditor({
         <button
           className="creation-secondary"
           onClick={() => choose('')}
-          disabled={!project}
+          disabled={!project || state.writing}
         >
           <Plus size={16} aria-hidden="true" />
           New project
@@ -163,7 +158,7 @@ function ProjectEditor({
           <form
             onSubmit={(event) => {
               event.preventDefault()
-              setSaved(state.save(text))
+              void state.save()
             }}
           >
             {Object.entries(projectFields).map(([field, { label, limit }]) => {
@@ -178,11 +173,11 @@ function ProjectEditor({
                     <input
                       id={`project-${field}`}
                       required
+                      disabled={state.writing}
                       maxLength={limit}
                       value={text[key]}
                       onChange={(event) => {
-                        setText({ ...text, [key]: event.target.value })
-                        setSaved(false)
+                        state.edit(key, event.target.value)
                       }}
                     />
                   ) : (
@@ -190,11 +185,11 @@ function ProjectEditor({
                       id={`project-${field}`}
                       rows={key === 'goal' ? 3 : 2}
                       required={key === 'goal'}
+                      disabled={state.writing}
                       maxLength={limit}
                       value={text[key]}
                       onChange={(event) => {
-                        setText({ ...text, [key]: event.target.value })
-                        setSaved(false)
+                        state.edit(key, event.target.value)
                       }}
                     />
                   )}
@@ -206,9 +201,9 @@ function ProjectEditor({
               <select
                 id="project-agent"
                 value={text.agentId}
+                disabled={state.writing}
                 onChange={(event) => {
-                  setText({ ...text, agentId: event.target.value })
-                  setSaved(false)
+                  state.edit('agentId', event.target.value)
                 }}
               >
                 <option value="">Choose an available agent</option>
@@ -228,18 +223,25 @@ function ProjectEditor({
               <button
                 className="creation-primary"
                 type="submit"
-                disabled={!dirty || !text.name.trim() || !text.goal.trim()}
+                disabled={
+                  state.writing ||
+                  !dirty ||
+                  !text.name.trim() ||
+                  !text.goal.trim()
+                }
               >
                 Save brief in this browser
               </button>
               <span role="status">
-                {dirty
-                  ? 'Unsaved edits'
-                  : saved
-                    ? 'Saved in this browser.'
-                    : project
-                      ? 'Loaded from this browser.'
-                      : 'Nothing saved yet.'}
+                {state.writing
+                  ? 'Saving local projects...'
+                  : dirty
+                    ? 'Unsaved edits'
+                    : saved
+                      ? 'Saved in this browser.'
+                      : project
+                        ? 'Loaded from this browser.'
+                        : 'Nothing saved yet.'}
               </span>
             </div>
           </form>
@@ -247,7 +249,7 @@ function ProjectEditor({
             <div className="project-actions">
               <button
                 className="creation-secondary"
-                disabled={dirty}
+                disabled={dirty || state.writing}
                 onClick={() =>
                   saveFile(
                     `${project.name.replace(/[^a-zA-Z0-9-]/g, '-').slice(0, 60) || 'project'}.project-brief.json`,
@@ -270,13 +272,14 @@ function ProjectEditor({
               </button>
               <button
                 className="creation-secondary"
+                disabled={state.writing}
                 onClick={() => {
                   if (
                     window.confirm(
                       `Delete the local brief "${project.name}"${dirty ? ' and unsaved edits' : ''}? Shared chats and agents will not be deleted.`,
                     )
                   )
-                    state.remove()
+                    void state.remove()
                 }}
               >
                 Delete local brief

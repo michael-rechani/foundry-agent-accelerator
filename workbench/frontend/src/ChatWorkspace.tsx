@@ -516,9 +516,9 @@ export default function ChatWorkspace() {
               browser only
             </span>
             <button
+              disabled={projects.writing}
               onClick={() => {
-                projects.select(chatProject.id)
-                setView('projects')
+                if (projects.select(chatProject.id)) setView('projects')
               }}
             >
               Back to project
