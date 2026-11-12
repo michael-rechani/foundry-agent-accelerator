@@ -54,6 +54,53 @@ async function localData(page: Page) {
   )
 }
 
+test('unrelated project goals use the same blank brief and designer flow without scenario defaults', async ({
+  page,
+}) => {
+  const state = await openCreation(page, {
+    hash: '#projects',
+    designerAnswer: 'Describe the task and its boundaries.',
+  })
+  const projects = [
+    {
+      name: 'Release notes helper',
+      goal: 'Draft release notes from fictional change descriptions.',
+    },
+    {
+      name: 'Cafe menu assistant',
+      goal: 'Explain a fictional cafe menu and ask about dietary preferences.',
+    },
+  ]
+  for (const project of projects) {
+    await expect(page.getByLabel('Project name (required)')).toHaveValue('')
+    await expect(
+      page.getByLabel('Goal (required)', { exact: true }),
+    ).toHaveValue('')
+    await expect(page.getByLabel('Context and boundaries')).toHaveValue('')
+    await page.getByLabel('Project name (required)').fill(project.name)
+    await page.getByLabel('Goal (required)', { exact: true }).fill(project.goal)
+    await page
+      .getByRole('button', { name: 'Save brief in this browser' })
+      .click()
+    await page.getByRole('button', { name: 'Load brief in designer' }).click()
+    const message = page.getByRole('textbox', { name: 'Message', exact: true })
+    await expect(message).toHaveValue(new RegExp(`Project: ${project.name}`))
+    expect(await message.inputValue()).toContain(`Goal:\n${project.goal}`)
+    await page.getByRole('button', { name: 'Back to project' }).click()
+    await page.getByRole('button', { name: 'New project', exact: true }).click()
+  }
+  const stored = await localData(page)
+  expect(
+    stored.projects.map(({ name, goal }: { name: string; goal: string }) => ({
+      name,
+      goal,
+    })),
+  ).toEqual(projects)
+  expect(state.chat).toEqual([])
+  expect(state.drafts).toEqual([])
+  expect(state.posts).toEqual([])
+})
+
 test('a project goes from brief to designer, consent-gated draft evidence and a ready-agent demonstration', async ({
   page,
 }) => {

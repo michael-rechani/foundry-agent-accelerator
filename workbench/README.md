@@ -71,8 +71,11 @@ the browser-local project is **not an authorization boundary**. Local preview
 can save briefs and browse capabilities, but cannot execute the designer,
 draft tests or publication.
 
-There is no custom-system or Fabric connection in this slice. A spec listing a
-tool does not configure it. No-template publication remains tracked in
+The brief starts blank and supports any project goal; it does not select a
+scenario, customer platform or integration. Actual execution still depends on
+the Lab's available templates and agents. There are no new external-system
+connections in this slice, and a spec listing a tool does not configure it.
+No-template publication remains tracked in
 [#506](https://github.com/michael-rechani/foundry-agent-accelerator/issues/506);
 end-user identity and ownership remain tracked in
 [#278](https://github.com/michael-rechani/foundry-agent-accelerator/issues/278).
