@@ -795,8 +795,8 @@ references, checkout, third-party actions, or OIDC permission. It would still
 pass only a deliberately scoped `GITHUB_TOKEN` to the fixed reader. Owner
 acceptance and that workflow review have not been granted.
 
-The reader binds the in-progress deploy job to its run/check-run ID, first
-attempt, manual main ref, exact source SHA, configured independent reviewer,
+The reader binds the unique in-progress deploy job to its run, first attempt,
+manual main ref, exact source SHA, configured independent reviewer,
 review comment, and immutable recovery image. It rejects HTTP errors,
 pagination, truncation, malformed payloads, and missing policy fields. The
 approval-history API provides no approval timestamp or attempt field; the

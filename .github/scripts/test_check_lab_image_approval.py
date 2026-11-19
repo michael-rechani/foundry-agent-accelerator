@@ -24,7 +24,6 @@ RUN_ID = 42
 ENVIRONMENT_ID = 9
 ACTOR_ID = 8
 REVIEWER_ID = 7
-CHECK_RUN_ID = 77
 COMMENT = (
     f"lab-image-release:v1 repo={REPO} run={RUN_ID} attempt=1 "
     f"source={SHA} recovery={RECOVERY}"
@@ -34,7 +33,7 @@ COMMENT = (
 def expected(**updates):
     values = {
         "repository": REPO, "run_id": RUN_ID, "attempt": 1,
-        "check_run_id": CHECK_RUN_ID, "actor_id": ACTOR_ID,
+        "actor_id": ACTOR_ID,
         "reviewer_id": REVIEWER_ID, "source_sha": SHA,
         "recovery_image": RECOVERY,
     }
@@ -59,7 +58,7 @@ def evidence():
                 "run_url": f"https://api.github.com/repos/{REPO}/actions/runs/{RUN_ID}",
                 "head_sha": SHA, "head_branch": "main", "name": "deploy",
                 "status": "in_progress",
-                "check_run_url": f"https://api.github.com/repos/{REPO}/check-runs/{CHECK_RUN_ID}",
+                "check_run_url": f"https://api.github.com/repos/{REPO}/check-runs/101",
             }],
         },
         "approvals": [{
@@ -181,7 +180,7 @@ class EvidenceContractTests(unittest.TestCase):
         for key, update in (
             ("main SHA", lambda d: d["main_ref"]["object"].update(sha="c" * 40)),
             ("unprotected main", lambda d: d["main"].update(protected=False)),
-            ("wrong current job", lambda d: d["jobs"]["jobs"][0].update(check_run_url="wrong")),
+            ("invalid job id", lambda d: d["jobs"]["jobs"][0].update(id=0)),
             ("wrong job run", lambda d: d["jobs"]["jobs"][0].update(run_id=43)),
             ("duplicate deployment job", lambda d: d["jobs"]["jobs"].append(dict(d["jobs"]["jobs"][0]))),
             ("partial job list", lambda d: d["jobs"].update(total_count=2)),

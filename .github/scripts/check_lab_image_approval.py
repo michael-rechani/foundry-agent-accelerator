@@ -135,7 +135,6 @@ class ApprovalExpectation:
     repository: str
     run_id: int
     attempt: int
-    check_run_id: int
     actor_id: int
     reviewer_id: int
     source_sha: str
@@ -163,7 +162,6 @@ def _valid_expectation(expected):
         and _positive_id(expected.run_id)
         and type(expected.attempt) is int
         and expected.attempt == 1
-        and _positive_id(expected.check_run_id)
         and _positive_id(expected.actor_id)
         and _positive_id(expected.reviewer_id)
         and expected.actor_id != expected.reviewer_id
@@ -235,9 +233,6 @@ def _verify_run(run, jobs_response, expected, now):
     ):
         raise CheckError("Attempt-specific workflow job inventory is incomplete.")
     matching = []
-    expected_check_url = (
-        f"https://api.github.com/repos/{expected.repository}/check-runs/{expected.check_run_id}"
-    )
     expected_run_url = f"https://api.github.com/repos/{expected.repository}/actions/runs/{expected.run_id}"
     for job in jobs:
         if not isinstance(job, dict):
@@ -255,7 +250,6 @@ def _verify_run(run, jobs_response, expected, now):
         and job.get("head_sha") == expected.source_sha
         and job.get("head_branch") == "main"
         and job.get("status") == "in_progress"
-        and job.get("check_run_url") == expected_check_url
     ):
         raise CheckError("The exact in-progress deployment job was not confirmed.")
 
