@@ -326,7 +326,7 @@ az() {
       fi ;;
     *"containerapp show"*"latestReadyRevisionName"*)
       phase="$(cat "$MOCK_PHASE")"
-      if [[ "$phase" == attempted && ( "$SCENARIO" == forward-success || "$SCENARIO" == bad-readback ) ]]; then
+      if [[ "$phase" == attempted && "$SCENARIO" =~ ^(forward-success|settling|bad-readback|readback-recovery)$ ]]; then
         echo lab--attempted
       elif [[ "$phase" == restored && "$SCENARIO" != failed-restore ]]; then
         echo lab--restored
@@ -345,13 +345,20 @@ az() {
   esac
 }
 bash() {
-  if [[ "$*" == *"--recovery"* && "$SCENARIO" == ambiguous ]]; then
-    echo AMBIGUOUS >&2
-    return 1
+  if [[ "$*" == *"--recovery"* ]]; then
+    echo VERIFY_RECOVERY >&2
+    if [[ "$SCENARIO" == ambiguous || "$SCENARIO" == bad-readback ]]; then
+      echo AMBIGUOUS >&2
+      return 1
+    fi
   fi
   if [[ "$*" == *"--deployed"* ]]; then
     echo VERIFY_DEPLOYED >&2
-    if [[ "$SCENARIO" == bad-readback ]]; then return 1; fi
+    if [[ "$SCENARIO" == bad-readback || "$SCENARIO" == readback-recovery ]]; then return 1; fi
+    if [[ "$SCENARIO" == settling && ! -f "$MOCK_PHASE-settling" ]]; then
+      touch "$MOCK_PHASE-settling"
+      return 1
+    fi
   fi
   echo GUARD >&2
 }
@@ -403,9 +410,25 @@ seq() { printf '%s\n' 1 2; }
         self.assertIn("VERIFY_DEPLOYED", success.stderr)
         wrong = self.run_rollout("bad-readback")
         self.assertNotEqual(wrong.returncode, 0)
-        self.assertIn("VERIFY_DEPLOYED", wrong.stderr)
-        self.assertIn("deployed revision or image could not be verified", wrong.stdout)
+        self.assertEqual(wrong.stderr.count("VERIFY_DEPLOYED"), 2)
+        self.assertIn("recovery is ambiguous", wrong.stdout)
+        self.assertGreater(wrong.stderr.index("VERIFY_RECOVERY"), wrong.stderr.rindex("VERIFY_DEPLOYED"))
         self.assertNotIn("RESTORE", wrong.stderr)
+
+    def test_ready_revision_can_settle_without_restoration(self):
+        result = self.run_rollout("settling")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr.count("VERIFY_DEPLOYED"), 2)
+        self.assertNotIn("VERIFY_RECOVERY", result.stderr)
+        self.assertNotIn("RESTORE", result.stderr)
+
+    def test_persistent_deployed_readback_failure_restores_only_after_recovery_guard(self):
+        result = self.run_rollout("readback-recovery")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stderr.count("VERIFY_DEPLOYED"), 2)
+        self.assertLess(result.stderr.rindex("VERIFY_DEPLOYED"), result.stderr.index("VERIFY_RECOVERY"))
+        self.assertLess(result.stderr.index("VERIFY_RECOVERY"), result.stderr.index("RESTORE"))
+        self.assertIn("prior image is running again", result.stdout)
 
 
 if __name__ == "__main__":
