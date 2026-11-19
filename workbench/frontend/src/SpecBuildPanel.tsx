@@ -11,6 +11,17 @@ import {
 } from './agent-creation-client'
 import { specGoal, type AgentSpec } from './agent-spec'
 import { OperatorKeyField } from './OperatorKeyField'
+import {
+  clearPromptReceipt,
+  promptFingerprint,
+  promptOnlyId,
+  readPromptReceipt,
+  recoveryUnavailable,
+  samePromptReceipt,
+  savePromptReceipt,
+  withPromptReceiptLock,
+  type PromptReceipt,
+} from './prompt-creation-recovery'
 import { PromptAgentTry } from './PromptAgentTry'
 import type { SpecTests } from './SpecTestPanel'
 import type { Agent, CreationCapability } from './workspace-config'
@@ -35,20 +46,22 @@ function problemText(problem: unknown) {
     : 'The request did not finish. Remote work may continue; check the same request before trying again.'
 }
 
-const promptOnlyId = 'prompt-only'
-
-function readRecord(
+async function readRecord(
   value: unknown,
   id: string,
-  payload?: CreatePayload | null,
+  receipt: PromptReceipt | null,
 ) {
   const record = parseCreatedAgent(value)
   if (
     record.id !== id ||
-    (payload?.template_id === promptOnlyId &&
+    (receipt &&
       (record.template_id !== promptOnlyId ||
         (record.status !== 'deleted' &&
-          record.instructions !== payload.instructions))) ||
+          (await promptFingerprint(
+            receipt.id,
+            record.name,
+            record.instructions,
+          )) !== receipt.fingerprint))) ||
     (record.template_id === promptOnlyId &&
       record.status === 'ready' &&
       (!record.version || Object.keys(record.agent?.tools ?? {}).length))
@@ -84,7 +97,9 @@ export function SpecBuildPanel({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [pending, setPending] = useState<CreatePayload | null>(null)
-  const expected = useRef<CreatePayload | null>(null)
+  const [receipt, setReceipt] = useState<PromptReceipt | null>(null)
+  const [storageBlocked, setStorageBlocked] = useState(false)
+  const [notSaved, setNotSaved] = useState(false)
   const [record, setRecord] = useState<CreatedAgent | null>(null)
   const [pollPaused, setPollPaused] = useState(false)
   const [task, setTask] = useState(spec.instructions)
@@ -107,10 +122,10 @@ export function SpecBuildPanel({
     let timer: number | undefined
     async function poll() {
       try {
-        const next = readRecord(
+        const next = await readRecord(
           await creationRequest(`agents/${id}`, {}, abort.signal),
           id,
-          expected.current,
+          receipt,
         )
         if (abort.signal.aborted) return
         setRecord(next)
@@ -129,7 +144,21 @@ export function SpecBuildPanel({
       abort.abort()
       window.clearTimeout(timer)
     }
-  }, [recordId, running, pollPaused, onCreated])
+  }, [recordId, running, pollPaused, onCreated, receipt])
+
+  function openReview() {
+    if (promptOnly) {
+      try {
+        setReceipt(readPromptReceipt())
+        setStorageBlocked(!navigator.locks)
+        setError(navigator.locks ? '' : recoveryUnavailable)
+      } catch {
+        setStorageBlocked(true)
+        setError(recoveryUnavailable)
+      }
+    }
+    setOpen(true)
+  }
 
   async function create() {
     if (
@@ -138,7 +167,7 @@ export function SpecBuildPanel({
       disabled ||
       trying ||
       !consent ||
-      (promptOnly && !validTask)
+      (promptOnly && (!validTask || storageBlocked || (receipt && !notSaved)))
     )
       return
     const key = capability.requires_operator_key
@@ -162,15 +191,49 @@ export function SpecBuildPanel({
     setError('')
     try {
       let payload = pending
-      if (!payload && promptOnly) {
+      let submittedReceipt: PromptReceipt | null = null
+      if (promptOnly) {
+        const id = receipt?.id ?? crypto.randomUUID()
+        const fingerprint = await promptFingerprint(id, spec.name, task)
+        try {
+          submittedReceipt = await withPromptReceiptLock(() => {
+            const current = readPromptReceipt()
+            if (!samePromptReceipt(current, receipt)) {
+              if (!current) throw new Error(recoveryUnavailable)
+              setReceipt(current)
+              setPending(null)
+              setNotSaved(false)
+              setConsent(false)
+              setError(
+                'Another creation request is already in this browser. Check its status first.',
+              )
+              return null
+            }
+            if (current && fingerprint !== current.fingerprint) {
+              setError(
+                'Enter the original agent name and exact task instructions to retry this request. Nothing was sent.',
+              )
+              return null
+            }
+            const next = current ?? { id, fingerprint }
+            savePromptReceipt(next)
+            return next
+          })
+          if (!submittedReceipt) return
+        } catch {
+          setStorageBlocked(true)
+          setError(recoveryUnavailable)
+          return
+        }
+        setReceipt(submittedReceipt)
+        setNotSaved(false)
         payload = {
-          idempotency_key: crypto.randomUUID(),
+          idempotency_key: id,
           template_id: promptOnlyId,
           name: spec.name,
           instructions: task,
           confirm_cost: true,
         }
-        expected.current = payload
         setPending(payload)
       } else if (!payload) {
         const draft = parseDraft(
@@ -196,14 +259,14 @@ export function SpecBuildPanel({
         }
         setPending(payload)
       }
-      const created = readRecord(
+      const created = await readRecord(
         await creationRequest('agents', {
           method: 'POST',
           headers: key ? { 'X-Workbench-Creation-Key': key } : {},
           body: JSON.stringify(payload),
         }),
         `created-${payload.idempotency_key}`,
-        payload,
+        submittedReceipt,
       )
       if (keyField.current) keyField.current.value = ''
       setRecord(created)
@@ -212,6 +275,7 @@ export function SpecBuildPanel({
       onCreated(created)
     } catch (problem) {
       if (
+        !promptOnly &&
         problem instanceof CreationError &&
         [400, 403, 413].includes(problem.status)
       )
@@ -224,23 +288,37 @@ export function SpecBuildPanel({
   }
 
   async function refresh() {
-    if (submitting.current || busy || (!pending && !record)) return
+    if (submitting.current || busy || (!pending && !record && !receipt)) return
     submitting.current = true
     setBusy(true)
     setError('')
+    setNotSaved(false)
     try {
-      const id = record?.id ?? `created-${pending?.idempotency_key}`
-      const next = readRecord(
+      const id =
+        record?.id ?? `created-${receipt?.id ?? pending?.idempotency_key}`
+      const next = await readRecord(
         await creationRequest(`agents/${id}`),
         id,
-        expected.current,
+        receipt,
       )
       setRecord(next)
       setPending(null)
       setPollPaused(false)
       onCreated(next)
     } catch (problem) {
-      setError(problemText(problem))
+      if (
+        receipt &&
+        !record &&
+        problem instanceof CreationError &&
+        problem.status === 404
+      ) {
+        setNotSaved(true)
+        setError(
+          'No saved agent was found yet. The earlier request may still arrive. Only the same request can be retried.',
+        )
+      } else {
+        setError(problemText(problem))
+      }
     } finally {
       submitting.current = false
       setBusy(false)
@@ -257,10 +335,10 @@ export function SpecBuildPanel({
     setBusy(true)
     setError('')
     try {
-      const current = readRecord(
+      const current = await readRecord(
         await creationRequest(`agents/${record.id}`),
         record.id,
-        expected.current,
+        receipt,
       )
       setRecord(current)
       onCreated(current)
@@ -268,6 +346,36 @@ export function SpecBuildPanel({
         build.onChat(current.agent)
     } catch (problem) {
       setError(problemText(problem))
+    } finally {
+      submitting.current = false
+      setBusy(false)
+    }
+  }
+
+  async function finishRecovery() {
+    if (
+      submitting.current ||
+      !receipt ||
+      !record ||
+      !['ready', 'deleted'].includes(record.status)
+    )
+      return
+    submitting.current = true
+    setBusy(true)
+    try {
+      await withPromptReceiptLock(() => clearPromptReceipt(receipt))
+      setReceipt(null)
+      setRecord(null)
+      setConsent(false)
+      setPending(null)
+      setNotSaved(false)
+      setTask(spec.instructions)
+      setError('')
+      setOpen(false)
+    } catch {
+      setError(
+        'The creation receipt could not be cleared. No new request was sent.',
+      )
     } finally {
       submitting.current = false
       setBusy(false)
@@ -285,6 +393,8 @@ export function SpecBuildPanel({
             <>
               <strong>{record.name}</strong> is ready in Foundry.
             </>
+          ) : record.status === 'deleted' ? (
+            'This saved agent was deleted.'
           ) : running ? (
             <>
               <LoaderCircle size={16} className="spin" aria-hidden="true" />{' '}
@@ -326,6 +436,16 @@ export function SpecBuildPanel({
               Check its status
             </button>
           )}
+          {receipt && (ready || record.status === 'deleted') && (
+            <button
+              type="button"
+              className="inline-link"
+              disabled={busy}
+              onClick={() => void finishRecovery()}
+            >
+              Finish tracking this request
+            </button>
+          )}
         </div>
         {promptOnly &&
           (record.status === 'interrupted' || record.status === 'failed') && (
@@ -356,7 +476,7 @@ export function SpecBuildPanel({
           type="button"
           className="library-secondary"
           disabled={disabled}
-          onClick={() => setOpen(true)}
+          onClick={openReview}
         >
           <Plus size={16} aria-hidden="true" />{' '}
           {promptOnly ? 'Review prompt-only agent' : 'Create this agent here'}
@@ -406,6 +526,18 @@ export function SpecBuildPanel({
             Publishing creates a real agent in the shared Foundry project. It is
             not private to you.
           </p>
+          <p>
+            This browser keeps one creation receipt across tabs and refreshes: a
+            request ID and a fingerprint of the setup, not the instructions or
+            operator key.
+          </p>
+          {receipt && !pending && (
+            <p>
+              This browser has an earlier request. Check its status before
+              creating. If no record is found, reopen the original spec and
+              enter the exact submitted instructions to retry it.
+            </p>
+          )}
         </>
       ) : (
         <p>
@@ -449,12 +581,13 @@ export function SpecBuildPanel({
           model charges.
         </span>
       </label>
-      {pending && (
+      {(pending || receipt) && (
         <p className="agent-spec-note">
           This request may already be saved. Retry the same request or check its
           status; do not start another. Request ID:{' '}
-          <code>{pending.idempotency_key}</code>
-          {instructions !== null &&
+          <code>{receipt?.id ?? pending?.idempotency_key}</code>
+          {pending &&
+            instructions !== null &&
             pending.instructions !== instructions &&
             ' The saved request keeps the instructions it was sent with, not the ones you accepted since.'}
         </p>
@@ -469,7 +602,12 @@ export function SpecBuildPanel({
           type="button"
           className="library-secondary spec-build-confirm"
           disabled={
-            busy || disabled || trying || !consent || (promptOnly && !validTask)
+            busy ||
+            disabled ||
+            trying ||
+            !consent ||
+            (promptOnly &&
+              (!validTask || storageBlocked || (receipt !== null && !notSaved)))
           }
           onClick={() => void create()}
         >
@@ -478,9 +616,11 @@ export function SpecBuildPanel({
           ) : (
             <Plus size={16} aria-hidden="true" />
           )}
-          {pending ? 'Retry same creation request' : 'Create in Foundry'}
+          {pending || receipt
+            ? 'Retry same creation request'
+            : 'Create in Foundry'}
         </button>
-        {pending && (
+        {(pending || receipt) && (
           <button
             type="button"
             className="library-secondary"

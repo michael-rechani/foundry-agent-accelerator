@@ -377,6 +377,8 @@ export async function openCreation(
     }
     if (path.startsWith('/api/agents/')) {
       if (!state.record) return respond({ error: 'agent_not_found' }, 404)
+      if (path.split('/')[3] !== state.record.id)
+        return respond({ error: 'agent_not_found' }, 404)
       if (method === 'DELETE' || path.endsWith('/resume')) {
         expect(request.headers()['x-workbench-creation-key']).toBe(
           options.presenter ? undefined : operatorKey,

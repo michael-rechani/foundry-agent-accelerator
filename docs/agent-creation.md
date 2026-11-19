@@ -37,7 +37,24 @@ response, not a hosted agent or a readiness check.
 
 Publishing uses the existing operator/access and cost gates and creates a shared
 Lab agent, not a private agent namespace. If a submission is uncertain, check
-or retry the same request in the spec card. If publication has a saved record
+or retry the same request in the spec card. The browser keeps one prompt-only
+creation receipt per Lab origin in local storage: the request ID and
+a fingerprint of the original name and instructions, not the name, instructions,
+sample message, or operator key. After refreshing, reopen any no-template spec
+and check the earlier request's status. If no record is found, the result is
+still uncertain. Only a retry with the original spec name and exact submitted
+instructions can reuse that ID; the Lab does not automatically retry or issue a
+new ID. The receipt is reserved across tabs using Web Locks. If storage or the
+lock is unavailable, no new prompt-only request is sent.
+
+After confirming a ready or deleted record, **Finish tracking this request**
+removes the receipt and allows another creation. There is only one receipt and
+it does not expire while an outcome could still be uncertain. It survives tab
+and browser restarts until cleared, but does not coordinate separate browser
+profiles or devices. If you clear browser data while the result is unknown,
+check **Made in this Lab** before starting another request.
+
+If publication has a saved record
 but did not finish, open **Made in this Lab** and resume that record rather
 than starting another. **Chat with it** is available only for the same verified
 ready agent. Use fictional inputs only; this is a supervised demo path.
@@ -148,7 +165,7 @@ to resume explicitly. Publication can continue while you browse, and an
 unconfirmed creation keeps its original request ID for **Retry same creation
 request** or a status check, not a new publication.
 
-This state is memory-only: reloading or closing the tab loses it, and saving
+Template spec-card state is memory-only: reloading or closing the tab loses it, and saving
 the conversation does not save the test panels. Download the results before
 reloading. Starting a new chat, switching agents, or opening another saved
 conversation asks before clearing spec-card work, even if the conversation

@@ -286,3 +286,183 @@ test('a no-template spec tries and publishes the exact reviewed text, then chats
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect.poll(() => state.chat.at(-1)?.agent_id).toBe(state.record!.id)
 })
+
+const noTemplateAnswer = designerAnswer.replace(
+  JSON.stringify(spec),
+  JSON.stringify({ ...spec, closest_template: null }),
+)
+
+async function openPromptReview(page: Page) {
+  const card = await askDesigner(page)
+  await card.getByRole('button', { name: 'Review prompt-only agent' }).click()
+  return card.getByRole('group', { name: 'Create this agent' })
+}
+
+for (const persisted of [true, false]) {
+  test(`prompt-only reload recovers an ambiguous submission (${persisted ? 'saved' : 'no record yet'})`, async ({
+    page,
+  }) => {
+    const state = await openCreation(page, {
+      hash: '#chat',
+      designerAnswer: noTemplateAnswer,
+    })
+    let panel = await openPromptReview(page)
+    const original = 'List only the missing dates in the fictional notice.'
+    await panel.getByLabel('Task instructions').fill(original)
+    await panel.getByLabel('Operator key', { exact: true }).fill(operatorKey)
+    await panel.getByLabel(/I confirm creating a shared Foundry agent/).check()
+    state.loseResponse = true
+    state.persistLostResponse = persisted
+    await panel.getByRole('button', { name: 'Create in Foundry' }).click()
+    await expect(panel.getByRole('alert')).toBeVisible()
+    expect(state.posts).toHaveLength(1)
+    const request = state.posts[0]
+    const receipt = await page.evaluate(() =>
+      localStorage.getItem('foundry-lab.prompt-creation.v1'),
+    )
+    expect(JSON.parse(receipt!)).toEqual({
+      id: request.idempotency_key,
+      fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
+    })
+    expect(receipt).not.toContain(original)
+    expect(receipt).not.toContain(spec.name)
+    const storage = await page.evaluate(() =>
+      JSON.stringify([localStorage, sessionStorage]),
+    )
+    expect(storage).not.toContain(operatorKey)
+
+    await page.reload()
+    panel = await openPromptReview(page)
+    const retry = panel.getByRole('button', {
+      name: 'Retry same creation request',
+    })
+    await expect(retry).toBeDisabled()
+    await expect(panel.getByLabel('Operator key', { exact: true })).toHaveValue(
+      '',
+    )
+    await expect(panel).toContainText(request.idempotency_key)
+
+    if (!persisted) {
+      state.record = null
+      await panel.getByRole('button', { name: 'Check creation status' }).click()
+      await expect(panel.getByRole('alert')).toContainText(
+        'No saved agent was found yet',
+      )
+      await expect(retry).toBeDisabled()
+      await panel.getByLabel('Operator key', { exact: true }).fill(operatorKey)
+      await panel
+        .getByLabel(/I confirm creating a shared Foundry agent/)
+        .check()
+      await retry.click()
+      await expect(panel.getByRole('alert')).toContainText(
+        'exact task instructions',
+      )
+      expect(state.posts).toHaveLength(1)
+      await panel.getByLabel('Task instructions').fill(original)
+      await panel
+        .getByLabel(/I confirm creating a shared Foundry agent/)
+        .check()
+      await retry.click()
+      await expect(panel).toContainText('Publishing to Foundry')
+      expect(state.posts).toEqual([request, request])
+    } else {
+      await panel.getByRole('button', { name: 'Check creation status' }).click()
+    }
+
+    await expect(panel).toContainText('is ready in Foundry')
+    expect(state.record?.id).toBe('created-' + request.idempotency_key)
+    expect(state.posts).toHaveLength(persisted ? 1 : 2)
+    await panel
+      .getByRole('button', { name: 'Finish tracking this request' })
+      .click()
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          localStorage.getItem('foundry-lab.prompt-creation.v1'),
+        ),
+      )
+      .toBeNull()
+  })
+}
+
+for (const method of ['getItem', 'setItem'] as const) {
+  test(`prompt-only creation sends nothing if browser storage cannot ${method === 'getItem' ? 'read' : 'write'} its receipt`, async ({
+    page,
+  }) => {
+    await page.addInitScript((name) => {
+      const original = Storage.prototype[name]
+      Object.defineProperty(Storage.prototype, name, {
+        value: function (this: Storage, key: string, value: string) {
+          if (key === 'foundry-lab.prompt-creation.v1')
+            throw new DOMException('Storage blocked', 'SecurityError')
+          return Reflect.apply(original, this, [key, value])
+        },
+      })
+    }, method)
+    const state = await openCreation(page, {
+      hash: '#chat',
+      designerAnswer: noTemplateAnswer,
+    })
+    const panel = await openPromptReview(page)
+    const create = panel.getByRole('button', { name: 'Create in Foundry' })
+    await panel.getByLabel('Operator key', { exact: true }).fill(operatorKey)
+    await panel.getByLabel(/I confirm creating a shared Foundry agent/).check()
+    if (method === 'setItem') await create.click()
+    await expect(panel.getByRole('alert')).toContainText(
+      'No new request was sent',
+    )
+    await expect(create).toBeDisabled()
+    expect(state.posts).toHaveLength(0)
+  })
+}
+
+test('an acknowledged publication survives reload and blocks a stale spec in another tab', async ({
+  page,
+  context,
+}) => {
+  const state = await openCreation(page, {
+    hash: '#chat',
+    designerAnswer: noTemplateAnswer,
+  })
+  const other = await context.newPage()
+  const otherState = await openCreation(other, {
+    hash: '#chat',
+    designerAnswer: noTemplateAnswer.replace(
+      spec.instructions,
+      'Use only dates from the example notice.',
+    ),
+  })
+  const stalePanel = await openPromptReview(other)
+  await stalePanel.getByLabel('Operator key', { exact: true }).fill(operatorKey)
+  await stalePanel
+    .getByLabel(/I confirm creating a shared Foundry agent/)
+    .check()
+
+  const panel = await openPromptReview(page)
+  await panel.getByLabel('Operator key', { exact: true }).fill(operatorKey)
+  await panel.getByLabel(/I confirm creating a shared Foundry agent/).check()
+  state.hold = true
+  await panel.getByRole('button', { name: 'Create in Foundry' }).click()
+  await expect(panel).toContainText('Publishing to Foundry')
+  const id = state.posts[0].idempotency_key
+
+  await stalePanel.getByRole('button', { name: 'Create in Foundry' }).click()
+  await expect(stalePanel.getByRole('alert')).toContainText(
+    'Check its status first',
+  )
+  await expect(stalePanel).toContainText(id)
+  expect(otherState.posts).toHaveLength(0)
+  await other.close()
+
+  await page.reload()
+  const reopened = await openPromptReview(page)
+  await reopened.getByRole('button', { name: 'Check creation status' }).click()
+  await expect(reopened).toContainText('Publishing to Foundry')
+  await expect(
+    reopened.getByRole('button', { name: 'Finish tracking this request' }),
+  ).toHaveCount(0)
+  expect(state.posts).toHaveLength(1)
+  state.hold = false
+  await expect(reopened).toContainText('is ready in Foundry')
+  expect(state.record?.id).toBe('created-' + id)
+})
