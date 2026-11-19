@@ -850,9 +850,13 @@ approval. It must not be represented as approval of an already-built artifact.
 Once an update has started, recovery and readback must not depend on GitHub
 remaining available.
 
-The Lab image workflow does not start the runner VM. A new
-`start-private-runner-once-20261119.yml` candidate on the safeguards branch
-prepares one owner-authorized wake; it has **not** been dispatched. This is a
+The Lab image workflow does not start the runner VM.
+`start-private-runner-once-20261119.yml` consumed its first run and attempt
+([44592035773](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/44592035773)).
+Its queue check rejected the executing job's `queued` API state before OIDC
+authentication. Do not rerun it. The distinct
+`start-private-runner-once-20261119-reissued.yml` prepares a new owner-authorized
+one-shot wake; it has **not** been dispatched. This is a
 single-operator authorization by the repository owner, not independent review.
 The candidate retains the existing `lab-deploy` environment's main-only
 branch policy and pins the owner actor; it does not claim the environment has
@@ -864,8 +868,10 @@ The candidate checks that the dispatch SHA is the current protected `main`
 commit and that this exact SHA has a successful `Validate` push run. It pins
 the configured VM through the separately provided reviewed fingerprint, then
 reads queued, in-progress, waiting, and pending workflow runs and their job
-labels. It fails closed on incomplete API data or any other active `lab-runner`
-job, and repeats the queue check immediately before a start. The check is a
+labels. Only the uniquely bound current start job may be reported as `queued`
+or `in_progress`; its smoke job must still be `queued`. It fails closed on
+incomplete API data or any other active `lab-runner` job, and repeats the queue
+check immediately before a start. The check is a
 point-in-time snapshot, not an atomic reservation: a new workflow can be
 queued after the last read. Existing workflows must retain their own protected
 ref and environment gates. The workflow never cancels or stops another job,
@@ -873,10 +879,10 @@ and issues only one VM start call for `stopped` or `deallocated`; `running` or
 `starting` is observed, and any other state or failed start ends the one-shot
 attempt without retry.
 
-The candidate uses its job token only for read-only Actions inventory and
-branch reads. That token capability has not been live-probed; an authorization
-failure or inventory larger than one API page rejects before Azure
-authentication. The candidate does not inspect or print token contents.
+The candidate uses its GitHub job token only for read-only Actions inventory
+and branch reads. An authorization failure or inventory larger than one API
+page rejects before Azure authentication. The candidate does not inspect or
+print token contents.
 
 The existing starter workflow paths have each consumed run number 1, attempt
 1. The new filename supplies a separate run-number namespace, guarded to its
