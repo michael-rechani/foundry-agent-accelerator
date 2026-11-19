@@ -2,6 +2,7 @@ import {
   Activity,
   BookOpen,
   FileCheck2,
+  FolderOpen,
   History,
   Layers3,
   MessageSquare,
@@ -13,6 +14,7 @@ import { FoundryLink } from './FoundryLink'
 import { libraryViews } from './navigation'
 
 export type View =
+  | 'projects'
   | 'library'
   | 'explore'
   | 'addons'
@@ -39,6 +41,7 @@ type Item = {
 }
 
 const sectionOf: Record<View, Section> = {
+  projects: 'start',
   chat: 'start',
   reviews: 'start',
   history: 'start',
@@ -94,6 +97,7 @@ export function ChatSidebar({
       id: 'start',
       label: 'Start here',
       items: [
+        { view: 'projects', label: 'Projects', icon: FolderOpen },
         { view: 'chat', label: 'Chat', icon: MessageSquare },
         // Reviews are reached only from /#reviews or a saved-review link.
         ...(view === 'reviews'
