@@ -231,12 +231,26 @@ class ReleaseGuardTests(unittest.TestCase):
 class WorkflowTests(unittest.TestCase):
     def test_manual_main_only_and_no_hosted_vm_start(self):
         self.assertIn("  workflow_dispatch:", WORKFLOW)
-        self.assertNotRegex(WORKFLOW, r"(?m)^\s+(push|schedule):")
+        trigger = WORKFLOW.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertEqual(re.findall(r"(?m)^  ([a-z_]+):", trigger), ["workflow_dispatch"])
         self.assertNotIn("az vm start", WORKFLOW)
         self.assertIn("needs: validate-source", WORKFLOW)
         self.assertIn("if: github.ref == 'refs/heads/main'", WORKFLOW)
         deploy = WORKFLOW.split("\n  deploy:\n", 1)[1]
-        self.assertRegex(deploy, r"(?m)^    if: \$\{\{ false \}\}$")
+        condition = deploy.split("\n    timeout-minutes:", 1)[0]
+        self.assertNotIn("${{ false }}", condition)
+        for required in (
+            "needs.validate-source.result == 'success'",
+            "github.repository == 'michael-rechani/foundry-agent-accelerator'",
+            "github.repository_owner == 'michael-rechani'",
+            "github.actor_id == '97264614'",
+            "github.workflow_ref == 'michael-rechani/foundry-agent-accelerator/"
+            ".github/workflows/deploy-lab.yml@refs/heads/main'",
+            "github.ref == 'refs/heads/main'",
+            "github.event_name == 'workflow_dispatch'",
+        ):
+            self.assertIn(required, condition)
+        self.assertIn("Owner-authorized single-operator release; not an independent review.", deploy)
         self.assertIn("runs-on: [self-hosted, linux, lab-runner]", WORKFLOW)
         self.assertIn("environment: lab-deploy", WORKFLOW)
 
