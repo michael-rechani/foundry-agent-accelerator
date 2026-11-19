@@ -804,7 +804,7 @@ reader uses a run-age bound, not an asserted review time, and cannot enforce
 durable single-use. A repeat call within the same attempt succeeds on identical
 evidence. The code is not wired or authorized for deployment.
 The mocked-only tests passed on a GitHub-hosted runner in
-[run 44577843294](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/44577843294);
+[run 44578137181](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/44578137181);
 they did not call GitHub APIs or access credentials.
 
 For a separate token capability check, `.github/probes/lab-approval-read-probe.yml`
