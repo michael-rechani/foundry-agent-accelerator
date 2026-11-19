@@ -784,24 +784,33 @@ block the job, not trigger a PAT or a weaker fallback. Creating or configuring
 the proposed environment, and adopting this design, require separate review
 and approval. Concurrent administrator changes remain non-atomic.
 
-The synthetic contract in `.github/scripts/test_lab_image_approval_contract.py`
-exercises exact approval binding and fail-closed policy checks for this
-candidate without making API calls. It is not wired into deployment and does
-not prove that a workflow token can acquire authenticated, current evidence.
-Run it only in an authorized, nonprivileged hosted test job. The Actions review
-history does not include an attempt or a timestamp, so the contract rejects
-reruns and bounds the age of the **run**, not the individual review. It does
-not supply a one-time consumption record within a run. Timestamps on
-environment entries describe the environment, not when it was approved.
+`.github/scripts/check_lab_image_approval.py` is an isolated authenticated
+evidence reader, not wired to deployment. Its strict default requires an
+explicit, complete empty environment-secret inventory. The opt-in
+`no-secret-references` mode requires the exact owner-acceptance marker, skips
+the inventory request, and reports the inventory as **not checked**; it does
+not assert the environment has no secrets. That mode still requires a separate
+owner-accepted review that the exact protected approval job has no `secrets.*`
+references, checkout, third-party actions, or OIDC permission. It would still
+pass only a deliberately scoped `GITHUB_TOKEN` to the fixed reader. Owner
+acceptance and that workflow review have not been granted.
+
+The reader binds the in-progress deploy job to its run/check-run ID, first
+attempt, manual main ref, exact source SHA, configured independent reviewer,
+review comment, and immutable recovery image. It rejects HTTP errors,
+pagination, truncation, malformed payloads, and missing policy fields. The
+approval-history API provides no approval timestamp or attempt field; the
+reader uses a run-age bound, not an asserted review time, and cannot enforce
+durable single-use. A repeat call within the same attempt succeeds on identical
+evidence. The code is not wired or authorized for deployment.
 
 For a separate token capability check, `.github/probes/lab-approval-read-probe.yml`
-is a disabled template outside the Actions workflow directory. It requires a
-separately approved change and dispatch. The candidate uses the job's token
-to read policy and secret inventory metadata for `copilot` without binding a
-job to that environment. It reports only HTTP statuses and response shape or
-completeness. The candidate `deployments: read` scope is unproven for listing
-environment secrets; even a successful probe would only demonstrate access
-to that target, not production review or authorization to use Azure.
+is a disabled template outside the Actions workflow directory. A temporary
+hosted probe using only `contents: read` and `deployments: read` read the inert
+`copilot` environment metadata (HTTP 200), but the secret inventory returned
+HTTP 403. The temporary trigger was removed. This is why the strict reader
+fails closed with the current candidate permissions. No live token probe of a
+production review environment or Azure operation occurred.
 
 The proposed approval would bind the source and recorded previous image, not a
 pre-reviewed new image digest: the current workflow builds that image after
