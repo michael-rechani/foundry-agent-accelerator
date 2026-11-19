@@ -1,0 +1,50 @@
+name: Prepare the reviewed Model Router correction (INERT)
+
+# Proposal only. The job below is deliberately and unconditionally disabled.
+# Do not remove the false condition without a separate review and authorization.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-router-bootstrap-once
+  cancel-in-progress: false
+
+jobs:
+  apply-fixed-data-patch:
+    if: ${{ false }}
+    timeout-minutes: 5
+    runs-on: [self-hosted, linux, lab-runner]
+    permissions:
+      contents: write
+    steps:
+      - name: Require the first owner dispatch from the current protected main
+        env:
+          WORKFLOW_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_ACTOR_ID: ${{ github.actor_id }}
+          WORKFLOW_REF: ${{ github.ref }}
+          WORKFLOW_EVENT: ${{ github.event_name }}
+          WORKFLOW_RUN_NUMBER: ${{ github.run_number }}
+          WORKFLOW_RUN_ATTEMPT: ${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$WORKFLOW_REPOSITORY" == "michael-rechani/foundry-agent-accelerator" ]]
+          [[ "$WORKFLOW_ACTOR_ID" == "97264614" ]]
+          [[ "$WORKFLOW_REF" == "refs/heads/main" ]]
+          [[ "$WORKFLOW_EVENT" == "workflow_dispatch" ]]
+          [[ "$WORKFLOW_RUN_NUMBER" == "1" && "$WORKFLOW_RUN_ATTEMPT" == "1" ]]
+
+      - name: Check out only the workflow's protected-main source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Apply the fixed transformation with compare-and-swap
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/model_router_bootstrap.py
