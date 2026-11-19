@@ -767,22 +767,82 @@ secret-free gate used by the runner-start design. Do not remove the disabled
 guard or dispatch a rollout as a substitute for that review.
 
 One unapproved candidate is a separate `lab-image-release-review` environment
-with no secrets and no Azure identity. A read-only preflight would verify its
-exact owner-only reviewer, explicit self-review setting, disabled administrator
-bypass, protected `main`, main-only branch policy, and empty secret inventory.
-It would record those settings with the run ID, first attempt, workflow, source
-SHA and immutable previous-image input, and stop if any evidence is unavailable.
-After the environment review, the
-credentialed job would recheck the snapshot and require exactly one approved
-review by that owner for only that environment, with a comment binding the run,
-SHA and input fingerprint before requesting Azure credentials. It must reject
-reruns, ambiguous approval history, changed settings and a moved `main`.
-GitHub's documented API response
-does not guarantee every required field, and the workflow token's access to
-environment-secret metadata has not been established. Missing proof must
-block the job, not trigger a PAT or a weaker fallback. Creating or configuring
-the proposed environment, and adopting this design, require separate review
-and approval. Concurrent administrator changes remain non-atomic.
+with no secrets and no Azure identity. A read-only approval job would run on a
+GitHub-hosted runner behind that environment's independent reviewer gate. It
+would have no `secrets.*` references, checkout, third-party actions, or OIDC
+permission. To deliver the fixed reader without checkout, a tiny inline
+standard-library bootstrap in the protected workflow would fetch
+`.github/scripts/check_lab_image_approval.py` and its helper from the GitHub
+Contents API at the exact `github.sha`; it must validate each returned path,
+file type, encoding, and response before executing those files. That requires
+`contents: read`. The fetched reader gets only the explicitly scoped
+`GITHUB_TOKEN` and checks the in-progress `approval` job and recorded approval.
+No mutation or Azure credential acquisition occurs in this job.
+
+The private-runner `deploy` job would `need` the successful approval job, then
+validate the evidence again as the in-progress `deploy` job before obtaining
+Azure credentials or mutating the app. Both jobs must pass their trusted
+`github.*` context directly to the verifier, use job IDs that match the API job
+names (`approval` and `deploy`), and reject a context/job mismatch. The deploy
+job remains the only mutating job; recovery after it starts must not depend on
+GitHub being available.
+
+The candidate still requires separate review and approval before any
+environment or workflow change. Current job-token access to Actions run/job/
+approval evidence and all required environment policy endpoints is unproven.
+The existing token probe established HTTP 403 for environment-secret inventory,
+so strict mode cannot pass with those candidate permissions. The no-reference
+alternative requires separately verifiable owner acceptance and a review of
+the exact secret-free job; its in-code marker is not approval. Missing proof
+must block, never fall back to a PAT or weaker check. Concurrent administrator
+changes remain non-atomic.
+
+`.github/scripts/check_lab_image_approval.py` is an isolated authenticated
+evidence reader, not wired to deployment. Its strict default requires an
+explicit, complete empty environment-secret inventory. The opt-in `no-secret-references` mode skips the inventory request and reports
+it as **not checked**; it does not assert the environment has no secrets. Its
+marker is only a caller assertion, not authenticated evidence or authorization
+that an owner accepted the changed invariant. Any operational integration
+requires separately verifiable owner acceptance and a review that the exact
+protected approval job has no `secrets.*` references, checkout, third-party
+actions, or OIDC permission. It would still pass only a deliberately scoped
+`GITHUB_TOKEN` to the fixed reader. Neither acceptance nor that workflow
+review has been granted.
+
+The reader binds API evidence to the current in-progress `approval` or `deploy`
+job, run, first attempt, exact source SHA, configured independent reviewer,
+review comment, and immutable recovery image. The workflow-run API's `path` is
+only the file path (for example, `.github/workflows/deploy-lab.yml`); it does
+not include the dispatch ref, as observed in run `42327760090`.
+`head_branch: main` is not proof of `github.ref == refs/heads/main`, and API
+enumeration of an in-progress job does not prove which job is calling the reader.
+`CallerContext` requires the caller to provide `github.repository`,
+`github.ref`, `github.workflow_ref`, `github.sha`, `github.run_id`,
+`github.run_attempt`, `github.event_name`, and `github.job`, and checks these
+against the expected repository, main ref, exact workflow path and SHA,
+first-attempt run, `workflow_dispatch`, and current job. A future workflow
+must populate this object directly from GitHub's trusted Actions context, not
+dispatch inputs or API-derived values. This context validation does not make
+the non-wired reader a deployment gate.
+
+The reader requires the deployment branch policy's actual `{id, name, type}`
+shape with `type: branch`; a tag policy named `main` is rejected. It rejects
+malformed reviewer entries, HTTP errors, pagination, truncation, malformed
+payloads, and missing policy fields. The approval-history API provides no approval
+timestamp or attempt field; the reader uses a run-age bound, not an asserted
+review time, and cannot enforce durable single-use. A repeat call within the
+same attempt succeeds on identical evidence.
+The mocked-only tests passed on a GitHub-hosted runner in
+[run 44580227324](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/44580227324);
+they did not call GitHub APIs or access credentials.
+
+For a separate token capability check, `.github/probes/lab-approval-read-probe.yml`
+is a disabled template outside the Actions workflow directory. A temporary
+hosted probe using only `contents: read` and `deployments: read` read the inert
+`copilot` environment metadata (HTTP 200), but the secret inventory returned
+HTTP 403. The temporary trigger was removed. This is why the strict reader
+fails closed with the current candidate permissions. No live token probe of a
+production review environment or Azure operation occurred.
 
 The proposed approval would bind the source and recorded previous image, not a
 pre-reviewed new image digest: the current workflow builds that image after
@@ -790,10 +850,47 @@ approval. It must not be represented as approval of an already-built artifact.
 Once an update has started, recovery and readback must not depend on GitHub
 remaining available.
 
-This workflow also does not start the runner VM. An approved bootstrap mechanism
-must bring a private runner online first; a queued job cannot start itself.
-Neither the existing GitHub-hosted recording starter nor an ad-hoc local or
-jumpbox write is an approved substitute for this rollout. See #522.
+The Lab image workflow does not start the runner VM. A new
+`start-private-runner-once-20261119.yml` candidate on the safeguards branch
+prepares one owner-authorized wake; it has **not** been dispatched. This is a
+single-operator authorization by the repository owner, not independent review.
+The candidate retains the existing `lab-deploy` environment's main-only
+branch policy and pins the owner actor; it does not claim the environment has
+a reviewer. Its existing Azure identity is broader than VM start: it also has
+Lab image deployment and registry-push permissions. No new identity or
+environment was created.
+
+The candidate checks that the dispatch SHA is the current protected `main`
+commit and that this exact SHA has a successful `Validate` push run. It pins
+the configured VM through the separately provided reviewed fingerprint, then
+reads queued, in-progress, waiting, and pending workflow runs and their job
+labels. It fails closed on incomplete API data or any other active `lab-runner`
+job, and repeats the queue check immediately before a start. The check is a
+point-in-time snapshot, not an atomic reservation: a new workflow can be
+queued after the last read. Existing workflows must retain their own protected
+ref and environment gates. The workflow never cancels or stops another job,
+and issues only one VM start call for `stopped` or `deallocated`; `running` or
+`starting` is observed, and any other state or failed start ends the one-shot
+attempt without retry.
+
+The candidate uses its job token only for read-only Actions inventory and
+branch reads. That token capability has not been live-probed; an authorization
+failure or inventory larger than one API page rejects before Azure
+authentication. The candidate does not inspect or print token contents.
+
+The existing starter workflow paths have each consumed run number 1, attempt
+1. The new filename supplies a separate run-number namespace, guarded to its
+own first run/attempt only. A failed or cancelled run consumes it; a new
+authorization requires a separately reviewed workflow version. Before any
+future dispatch, review and merge the candidate, verify `Validate` succeeded
+for that exact main commit, confirm the dispatcher's owner identity, and use
+the prefilled reviewed fingerprint only if the protected environment's VM
+variables still identify that same resource. Also verify the `lab-deploy`
+OIDC configuration remains valid and main-only, and inspect the active
+`lab-runner` queue immediately before dispatch; the workflow repeats the queue
+check before any start. The two runner registrations were offline at the last
+observation, which must be rechecked. Starting incurs compute cost. No
+dispatch, VM start, or Lab deployment was performed for this candidate.
 
 When prerequisites are separately approved and the runner is online, the
 workflow checks the current main SHA and requires exactly one running, ready,

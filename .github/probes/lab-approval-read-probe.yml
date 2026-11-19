@@ -1,0 +1,25 @@
+# Review candidate for #522. This file is outside .github/workflows and the
+# job is disabled. A future approved activation and manual dispatch are required.
+name: Lab approval API read capability (candidate)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: read
+
+jobs:
+  probe:
+    if: ${{ false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check only read capability for the inert target
+        env:
+          PROBE_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/probe_lab_approval_reads.py
