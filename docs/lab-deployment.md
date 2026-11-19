@@ -833,7 +833,7 @@ timestamp or attempt field; the reader uses a run-age bound, not an asserted
 review time, and cannot enforce durable single-use. A repeat call within the
 same attempt succeeds on identical evidence.
 The mocked-only tests passed on a GitHub-hosted runner in
-[run 44579005080](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/44579005080);
+[run 44580227324](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/44580227324);
 they did not call GitHub APIs or access credentials.
 
 For a separate token capability check, `.github/probes/lab-approval-read-probe.yml`
