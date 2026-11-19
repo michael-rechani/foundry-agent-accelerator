@@ -8,7 +8,7 @@ import test_start_private_runner_once_20261107 as prior
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = (ROOT / ".github" / "workflows" /
-            "start-private-runner-once-20261119.yml").read_text(encoding="utf-8")
+            "start-private-runner-once-20261119-reissued.yml").read_text(encoding="utf-8")
 START, SMOKE = WORKFLOW.split("\n  smoke:\n")
 SCRIPT = "\n".join(line[10:] for line in START.split("        run: |\n", 1)[1].splitlines())
 GATE = (
@@ -16,7 +16,7 @@ GATE = (
     "github.actor_id == '97264614' && "
     "github.repository == 'michael-rechani/foundry-agent-accelerator' && "
     "github.workflow_ref == 'michael-rechani/foundry-agent-accelerator/"
-    ".github/workflows/start-private-runner-once-20261119.yml@refs/heads/main' && "
+    ".github/workflows/start-private-runner-once-20261119-reissued.yml@refs/heads/main' && "
     "github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && "
     "inputs.reviewed_main_sha == github.sha && "
     "github.run_number == 1 && github.run_attempt == 1"
@@ -47,7 +47,7 @@ class SharedWorkflowSetup:
         prior.CONTEXT = prior.CONTEXT | {
             "GITHUB_WORKFLOW_REF": (
                 "michael-rechani/foundry-agent-accelerator/"
-                ".github/workflows/start-private-runner-once-20261119.yml@refs/heads/main"
+                ".github/workflows/start-private-runner-once-20261119-reissued.yml@refs/heads/main"
             ),
         }
 
@@ -72,7 +72,7 @@ class WorkflowContractTests(SharedWorkflowSetup, prior.WorkflowContractTests):
         self.assertIn("cancel-in-progress: false", WORKFLOW)
 
     def test_owner_authorized_one_shot_is_new_and_not_independent_review(self):
-        self.assertIn("name: Start private runner once 20261119", WORKFLOW)
+        self.assertEqual(WORKFLOW.splitlines()[0], "name: Start private runner once 20261119 (reissued)")
         self.assertIn("This is one owner-authorized wake, not independent review.", WORKFLOW)
         self.assertIn(
             "default: 40b50a1431fa35321ab3ab61c23f5ca381f0952a013720db7dbd03ee038f9ca8",

@@ -167,6 +167,24 @@ class QueueContractTests(unittest.TestCase):
                 mutation(self.state["jobs"][RUN_ID])
                 self.check()
 
+    def test_current_job_may_still_be_reported_as_queued(self):
+        self.state["jobs"][RUN_ID][0]["status"] = "queued"
+        self.check()
+
+    def test_other_current_job_states_fail_closed(self):
+        for status in ("completed", "waiting", "pending", "unknown", None):
+            with self.subTest(status=status), self.assertRaises(CheckError):
+                self.state["jobs"][RUN_ID][0]["status"] = status
+                self.check()
+
+    def test_consumed_workflow_path_is_rejected(self):
+        old_path = ".github/workflows/start-private-runner-once-20261119.yml"
+        with self.assertRaisesRegex(CheckError, "context"):
+            self.check(context(workflow_ref=f"{REPOSITORY}/{old_path}@refs/heads/main"))
+        self.state["runs"]["in_progress"][0]["path"] = old_path
+        with self.assertRaisesRegex(CheckError, "current workflow run"):
+            self.check()
+
     def test_exact_main_validate_success_is_required(self):
         for field, value in (("conclusion", "failure"), ("head_sha", "c" * 40),
                              ("event", "pull_request"), ("path", ".github/workflows/other.yml")):

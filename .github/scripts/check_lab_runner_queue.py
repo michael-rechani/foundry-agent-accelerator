@@ -12,7 +12,7 @@ from check_lab_image_approval import GitHubReader
 from check_state_backend import CheckError
 
 REPOSITORY = "michael-rechani/foundry-agent-accelerator"
-WORKFLOW_PATH = ".github/workflows/start-private-runner-once-20261119.yml"
+WORKFLOW_PATH = ".github/workflows/start-private-runner-once-20261119-reissued.yml"
 ACTIVE_RUN_STATUSES = ("queued", "in_progress", "waiting", "pending")
 JOB_STATUSES = {"queued", "in_progress", "waiting", "pending", "completed"}
 RUN_ID = re.compile(r"[1-9][0-9]*")
@@ -113,10 +113,10 @@ def _verify_job_inventory(payload: object, context: StartContext, run_id: int) -
     if run_id == int(context.run_id) and context.job == "start-runner":
         if (
             len(current_jobs) != 1
-            or current_jobs[0].get("status") != "in_progress"
+            or current_jobs[0]["status"] not in ("queued", "in_progress")
             or len(smoke_jobs) != 1
         ):
-            raise CheckError("The current runner-start job is not uniquely in progress.")
+            raise CheckError("Expected one queued or in-progress runner-start job and one queued smoke job.")
 
 
 def _verify_current_run(run: dict, context: StartContext) -> None:
