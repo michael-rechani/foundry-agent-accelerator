@@ -20,4 +20,7 @@ jobs:
       - name: Read capability only for inert copilot target
         env:
           PROBE_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/probe_lab_approval_reads.py
+        run: >-
+          python3 -c
+          'import os; from probe_lab_approval_reads import run_probe;
+          raise SystemExit(run_probe(os.environ["PROBE_TOKEN"]))'
