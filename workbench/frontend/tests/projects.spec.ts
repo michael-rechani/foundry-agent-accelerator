@@ -431,6 +431,9 @@ test('a project spec can create and chat with its agent without bypassing consen
     .getByLabel('Agent for demonstration')
     .selectOption(state.record!.id)
   await page.getByRole('button', { name: 'Save brief in this browser' }).click()
+  await expect(
+    page.getByText('Saved in this browser.', { exact: true }),
+  ).toBeVisible()
   const saved = (await localData(page)).projects[0]
   expect(saved.agentId).toBe(state.record!.id)
   expect(JSON.stringify(saved)).not.toContain(operatorKey)
