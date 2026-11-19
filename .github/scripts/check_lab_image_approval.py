@@ -25,8 +25,8 @@ MAX_RESPONSE_BYTES = 256 * 1024
 SHA = re.compile(r"[0-9a-f]{40}")
 IMAGE = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]*/workbench@sha256:[0-9a-f]{64}")
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
-SECRET_MODES = {"require-empty", "no-secret-references"}
-NO_SECRET_REFERENCE_ACKNOWLEDGEMENT = "ACKNOWLEDGE_UNVERIFIED_SECRET_INVENTORY"
+INVENTORY_MODES = {"require-empty", "no-secret-references"}
+NO_REFERENCE_MARKER = "ACKNOWLEDGE_UNVERIFIED_SECRET_INVENTORY"
 
 
 def _object_without_duplicate_keys(pairs):
@@ -364,8 +364,8 @@ def _verify_secrets(secrets):
 
 
 def verify_evidence(
-    evidence, expected, caller_context, *, now=None, secret_mode="require-empty",
-    no_secret_reference_acknowledgement=None,
+    evidence, expected, caller_context, *, now=None, inventory_mode="require-empty",
+    no_reference_marker=None,
 ):
     """Verify API evidence; this does not authenticate the calling job/ref.
 
@@ -377,11 +377,11 @@ def verify_evidence(
     if not _valid_expectation(expected):
         raise CheckError("Approval evidence expectations are invalid.")
     _verify_caller_context(caller_context, expected)
-    if secret_mode not in SECRET_MODES:
+    if inventory_mode not in INVENTORY_MODES:
         raise CheckError("Secret inventory mode is invalid.")
     if (
-        secret_mode == "no-secret-references"
-        and no_secret_reference_acknowledgement != NO_SECRET_REFERENCE_ACKNOWLEDGEMENT
+        inventory_mode == "no-secret-references"
+        and no_reference_marker != NO_REFERENCE_MARKER
     ):
         raise CheckError("No-secret-reference mode requires a caller acknowledgment; this is not owner approval.")
     if not isinstance(evidence, dict):
@@ -411,7 +411,7 @@ def verify_evidence(
     )
     _verify_reviews(evidence.get("approvals"), environment_id, expected)
 
-    if secret_mode == "require-empty":
+    if inventory_mode == "require-empty":
         _verify_secrets(evidence.get("secrets"))
         inventory_state = "verified-empty"
     else:
@@ -430,18 +430,18 @@ def verify_evidence(
     }
 
 
-def read_evidence(token, expected, caller_context, *, secret_mode="require-empty",
-                  no_secret_reference_acknowledgement=None,
+def read_evidence(token, expected, caller_context, *, inventory_mode="require-empty",
+                  no_reference_marker=None,
                   connection_factory=http.client.HTTPSConnection, now=None):
     """Fetch read-only API evidence; no caller job/ref context is inferred."""
     if not _valid_expectation(expected):
         raise CheckError("Approval evidence expectations are invalid.")
     _verify_caller_context(caller_context, expected)
-    if secret_mode not in SECRET_MODES:
+    if inventory_mode not in INVENTORY_MODES:
         raise CheckError("Secret inventory mode is invalid.")
     if (
-        secret_mode == "no-secret-references"
-        and no_secret_reference_acknowledgement != NO_SECRET_REFERENCE_ACKNOWLEDGEMENT
+        inventory_mode == "no-secret-references"
+        and no_reference_marker != NO_REFERENCE_MARKER
     ):
         raise CheckError("No-secret-reference mode requires a caller acknowledgment; this is not owner approval.")
     repository = "/".join(quote(part, safe="") for part in expected.repository.split("/"))
@@ -464,12 +464,12 @@ def read_evidence(token, expected, caller_context, *, secret_mode="require-empty
         "main": reader.get_json(f"{root}/branches/main", kind="protected main branch"),
         "main_ref": reader.get_json(f"{root}/git/ref/heads/main", kind="main ref"),
     }
-    if secret_mode == "require-empty":
+    if inventory_mode == "require-empty":
         evidence["secrets"] = reader.get_json(
             f"{root}/environments/{environment}/secrets?per_page=1",
             kind="environment secret inventory",
         )
     return verify_evidence(
-        evidence, expected, caller_context, now=now, secret_mode=secret_mode,
-        no_secret_reference_acknowledgement=no_secret_reference_acknowledgement,
+        evidence, expected, caller_context, now=now, inventory_mode=inventory_mode,
+        no_reference_marker=no_reference_marker,
     )

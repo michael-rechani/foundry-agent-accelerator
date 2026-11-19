@@ -12,7 +12,7 @@ from check_lab_image_approval import (
     ApprovalExpectation,
     CallerContext,
     GitHubReader,
-    NO_SECRET_REFERENCE_ACKNOWLEDGEMENT,
+    NO_REFERENCE_MARKER,
     read_evidence,
     verify_evidence,
 )
@@ -193,12 +193,12 @@ class EvidenceContractTests(unittest.TestCase):
         with self.assertRaisesRegex(CheckError, "caller acknowledgment"):
             verify_evidence(
                 data, expected(), caller_context(), now=NOW,
-                secret_mode="no-secret-references",
+                inventory_mode="no-secret-references",
             )
         result = verify_evidence(
             data, expected(), caller_context(), now=NOW,
-            secret_mode="no-secret-references",
-            no_secret_reference_acknowledgement=NO_SECRET_REFERENCE_ACKNOWLEDGEMENT,
+            inventory_mode="no-secret-references",
+            no_reference_marker=NO_REFERENCE_MARKER,
         )
         self.assertEqual(result["secret_inventory"], "not-checked-no-reference-model-caller-asserted")
         self.assertNotEqual(result["secret_inventory"], "verified-empty")
@@ -206,8 +206,8 @@ class EvidenceContractTests(unittest.TestCase):
         with self.assertRaisesRegex(CheckError, "must not imply"):
             verify_evidence(
                 data, expected(), caller_context(), now=NOW,
-                secret_mode="no-secret-references",
-                no_secret_reference_acknowledgement=NO_SECRET_REFERENCE_ACKNOWLEDGEMENT,
+                inventory_mode="no-secret-references",
+                no_reference_marker=NO_REFERENCE_MARKER,
             )
 
     def test_missing_or_nonempty_secret_inventory_rejects_strict_mode(self):
@@ -424,8 +424,8 @@ class ReaderTransportTests(unittest.TestCase):
         with patch.object(approval_reader, "GitHubReader", FakeReader):
             result = read_evidence(
                 "synthetic-token", expected(), caller_context(),
-                secret_mode="no-secret-references",
-                no_secret_reference_acknowledgement=NO_SECRET_REFERENCE_ACKNOWLEDGEMENT,
+                inventory_mode="no-secret-references",
+                no_reference_marker=NO_REFERENCE_MARKER,
                 now=NOW,
             )
         self.assertEqual(result["secret_inventory"],

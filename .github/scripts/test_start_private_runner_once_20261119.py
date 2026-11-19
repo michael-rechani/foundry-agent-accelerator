@@ -1,6 +1,5 @@
 """Offline contract tests for the owner-authorized one-shot runner wake."""
 
-import re
 import unittest
 from pathlib import Path
 from unittest import mock
