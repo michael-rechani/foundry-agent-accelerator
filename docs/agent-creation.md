@@ -44,7 +44,7 @@ creation receipt per Lab origin in local storage: the request ID and
 a fingerprint of the original name and instructions, not the name, instructions,
 sample message, or operator key. After refreshing, reopen any no-template spec
 and check the earlier request's status. If no record is found, the result is
-still uncertain. Only a retry with the original spec name and exact submitted
+still uncertain. Only a retry with the exact submitted agent name and
 instructions can reuse that ID; the Lab does not automatically retry or issue a
 new ID. The receipt is reserved across tabs using Web Locks. If storage or the
 lock is unavailable, no new prompt-only request is sent.
