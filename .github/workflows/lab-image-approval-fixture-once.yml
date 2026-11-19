@@ -1,0 +1,20 @@
+name: Lab image approval fixture
+
+on:
+  push:
+    branches: [michael-rechani-lab-image-release-safeguards]
+
+permissions:
+  contents: read
+
+jobs:
+  fixture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Run only the synthetic approval contract
+        run: python3 .github/scripts/test_lab_image_approval_contract.py -v
