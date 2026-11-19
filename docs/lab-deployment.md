@@ -784,6 +784,16 @@ block the job, not trigger a PAT or a weaker fallback. Creating or configuring
 the proposed environment, and adopting this design, require separate review
 and approval. Concurrent administrator changes remain non-atomic.
 
+The synthetic contract in `.github/scripts/test_lab_image_approval_contract.py`
+exercises exact approval binding and fail-closed policy checks for this
+candidate without making API calls. It is not wired into deployment and does
+not prove that a workflow token can acquire authenticated, current evidence.
+Run it only in an authorized, nonprivileged hosted test job. The Actions review
+history does not include an attempt or a timestamp, so the contract rejects
+reruns and bounds the age of the **run**, not the individual review. It does
+not supply a one-time consumption record within a run. Timestamps on
+environment entries describe the environment, not when it was approved.
+
 The proposed approval would bind the source and recorded previous image, not a
 pre-reviewed new image digest: the current workflow builds that image after
 approval. It must not be represented as approval of an already-built artifact.
