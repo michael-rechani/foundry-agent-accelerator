@@ -152,7 +152,15 @@ export function recordFor(
     confirm_cost: true,
   },
 ): CreatedAgent {
-  const template = templates.find((item) => item.id === payload.template_id)!
+  const template =
+    payload.template_id === 'prompt-only'
+      ? {
+          ...templates[0],
+          id: 'prompt-only',
+          label: 'Prompt-only',
+          tools: [],
+        }
+      : templates.find((item) => item.id === payload.template_id)!
   const id = 'created-' + payload.idempotency_key
   const runtime = 'lab-demo-' + payload.idempotency_key.replaceAll('-', '')
   return {
@@ -369,6 +377,8 @@ export async function openCreation(
     }
     if (path.startsWith('/api/agents/')) {
       if (!state.record) return respond({ error: 'agent_not_found' }, 404)
+      if (path.split('/')[3] !== state.record.id)
+        return respond({ error: 'agent_not_found' }, 404)
       if (method === 'DELETE' || path.endsWith('/resume')) {
         expect(request.headers()['x-workbench-creation-key']).toBe(
           options.presenter ? undefined : operatorKey,

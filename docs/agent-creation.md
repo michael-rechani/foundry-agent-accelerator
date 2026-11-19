@@ -27,12 +27,46 @@ then try it in Chat.**
 
 You can also start from **Chat**. When the Agent designer's spec card points to a template, **Create this agent here** runs the same steps (template assembly, configured access gate, cost confirmation, publish) inside the card, then offers **Chat with it**. The access gate normally requires the operator key; explicitly enabled private presenter mode does not.
 
+When no template matches and creation is enabled, choose **Review prompt-only
+agent**. Review the display name and edit the exact task instructions. The Lab
+checks the name and instructions before saving a receipt or sending a request.
+It applies its fixed
+sample-data policy and does not attach tools, knowledge sources, document
+retrieval, or external integrations, even if the spec lists them. When library
+previews are enabled, **Try these instructions** sends one fictional sample
+message to the model after a separate cost confirmation. This is a draft
+response, not a hosted agent or a readiness check.
+
+Publishing uses the existing operator/access and cost gates and creates a shared
+Lab agent, not a private agent namespace. If a submission is uncertain, check
+or retry the same request in the spec card. The browser keeps one prompt-only
+creation receipt per Lab origin in local storage: the request ID and
+a fingerprint of the original name and instructions, not the name, instructions,
+sample message, or operator key. After refreshing, reopen any no-template spec
+and check the earlier request's status. If no record is found, the result is
+still uncertain. Only a retry with the exact submitted agent name and
+instructions can reuse that ID; the Lab does not automatically retry or issue a
+new ID. The receipt is reserved across tabs using Web Locks. If storage or the
+lock is unavailable, no new prompt-only request is sent.
+
+After confirming a ready or deleted record, **Finish tracking this request**
+removes the receipt and allows another creation. There is only one receipt and
+it does not expire while an outcome could still be uncertain. It survives tab
+and browser restarts until cleared, but does not coordinate separate browser
+profiles or devices. If you clear browser data while the result is unknown,
+check **Made in this Lab** before starting another request.
+
+If publication has a saved record
+but did not finish, open **Made in this Lab** and resume that record rather
+than starting another. **Chat with it** is available only for the same verified
+ready agent. Use fictional inputs only; this is a supervised demo path.
+
 **Download agent spec** is a draft handoff, not an uploaded or tested agent.
 The file uses a model placeholder and has no configured tools. Any lookup needs
 or document sources listed on the card are notes only; configure them separately
 in Foundry, then test the agent before relying on it.
 
-**Download ready-to-deploy agent** is the other way out of the spec card. It
+**Download ready-to-deploy agent** is a separate handoff out of the spec card. It
 works for any spec, including one with no matching template. The Lab builds a
 `.agent-bundle.zip` itself (`POST /api/agent-bundles`, no model call, no cost,
 nothing sent to Foundry). The agent follows the spec's instructions like a plain
@@ -133,7 +167,7 @@ to resume explicitly. Publication can continue while you browse, and an
 unconfirmed creation keeps its original request ID for **Retry same creation
 request** or a status check, not a new publication.
 
-This state is memory-only: reloading or closing the tab loses it, and saving
+Template spec-card state is memory-only: reloading or closing the tab loses it, and saving
 the conversation does not save the test panels. Download the results before
 reloading. Starting a new chat, switching agents, or opening another saved
 conversation asks before clearing spec-card work, even if the conversation

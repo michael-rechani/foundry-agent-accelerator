@@ -148,6 +148,41 @@ class AgentCreationTests(CapturedLabLogs, unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("setup_hash", record)
         self.assertNotIn("project", record)
 
+    async def test_prompt_only_creation_keeps_exact_instructions_and_recovers_same_id(self):
+        self.body.update(template_id="prompt-only", instructions="\n Summarize the fictional notice.\n")
+        denied = await self.client.post("/api/agents", json=self.body)
+        self.assertEqual(denied.status_code, 403)
+        for invalid in ({"confirm_cost": False}, {"instructions": " " * 12}, {"tools": []}):
+            with self.subTest(invalid=invalid):
+                self.assertEqual((await self.create(**invalid)).status_code, 400)
+        self.assertEqual(self.publisher.calls, [])
+        self.assertEqual(self.store.rows, {})
+
+        self.publisher.error = PublicationError("publication_unconfirmed")
+        self.assertEqual((await self.create()).status_code, 202)
+        await asyncio.wait_for(self.publisher.done.wait(), 1)
+        identifier = "created-" + self.body["idempotency_key"]
+        path = "/api/agents/" + identifier
+        interrupted = (await self.client.get(path)).json()
+        self.assertEqual(interrupted["status"], "interrupted")
+        self.assertIsNone(interrupted["agent"])
+        self.assertEqual(interrupted["instructions"], self.body["instructions"])
+        self.assertEqual((await self.create()).json()["id"], identifier)
+        self.assertEqual((await self.create(instructions="Do something entirely different.")).status_code, 409)
+        self.assertEqual([operation for operation, _ in self.publisher.calls], ["create"])
+
+        self.publisher.error = None
+        self.publisher.done.clear()
+        resumed = await self.client.post(path + "/resume", headers={**self.operator, "If-Match": interrupted["_etag"]})
+        self.assertEqual(resumed.status_code, 202)
+        await asyncio.wait_for(self.publisher.done.wait(), 1)
+        ready = (await self.client.get(path)).json()
+        self.assertEqual(ready["status"], "ready")
+        self.assertEqual(ready["agent"]["id"], identifier)
+        self.assertEqual(ready["agent"]["tools"], {})
+        self.assertEqual(ready["instructions"], self.body["instructions"])
+        self.assertEqual([operation for operation, _ in self.publisher.calls], ["create", "resume"])
+
     async def test_hosted_reasoning_setting_is_snapshotted_across_retries_and_resume(self):
         settings = replace(self.settings, creation=replace(
             self.settings.creation, models={"tool_calling": "reason-model"},

@@ -19,6 +19,7 @@ from pydantic import Field, ValidationError, field_validator
 from agent_publisher import (
     FoundryPublisher, PublicationError, encrypted_reasoning_requested, resource_name, runtime_package,
 )
+from agent_runtime.demo_tools import PROMPT_ONLY_ID
 from agent_scorecards import SCORECARDS
 from agent_templates import (
     MODEL_PROFILES, TEMPLATES, TemplateRequiredError, catalog_facets, is_available, is_listed, list_templates,
@@ -32,6 +33,17 @@ from request_guard import MAX_SETUP_BYTES, RateGate, RequestRejected, api_error,
 LOGGER = logging.getLogger("uvicorn.error")
 UUID_PATTERN = r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}"
 CREATED_ID = re.compile(r"created-" + UUID_PATTERN + r"\Z")
+PROMPT_ONLY_PROFILE = "extraction"
+PROMPT_ONLY_SETUP = {
+    "id": PROMPT_ONLY_ID, "label": "Prompt-only",
+    "description": "Works from the instructions and sample text you send. No tools or external sources.",
+    "input": "Fictional, non-sensitive text",
+    "output": "A response based on your instructions and the text you sent",
+    "limits": "Cannot retrieve documents, use tools, or take external actions.",
+    "delegation": "A person verifies the response and makes decisions.",
+    "sample_input": "Tell me what sample input you need for this task.",
+    "tools": [],
+}
 
 
 def timestamp():
@@ -157,12 +169,12 @@ class CreateInput(StrictModel):
     def task_instructions(cls, value):
         if len(value.strip()) < 10 or "\x00" in value:
             raise ValueError("Describe the agent's task")
-        return value.strip()
+        return value
 
     @field_validator("template_id")
     @classmethod
     def known_template(cls, value):
-        if not is_listed(value):
+        if value != PROMPT_ONLY_ID and not is_listed(value):
             raise ValueError("Unknown agent template")
         return value
 
@@ -286,6 +298,16 @@ class AgentCreations:
 
     def catalog_agent(self, document):
         template = document["template"]
+        configuration = (
+            "This agent uses the saved setup under Made in this Lab, published as a named Foundry hosted version. "
+            "Task instructions were chosen before creation; tools and runtime code come from the reviewed "
+            "Lab template. A chat message does not edit the deployed setup."
+        )
+        if document["template_id"] == PROMPT_ONLY_ID:
+            configuration = (
+                "This shared Foundry agent uses the task instructions reviewed before creation. "
+                "It has no tools or external sources. A chat message does not edit the deployed setup."
+            )
         return {
             "id": document["id"], "label": document["name"], "category": "Made in this Lab",
             "description": template["description"], "agent": document["runtime_name"],
@@ -294,11 +316,7 @@ class AgentCreations:
             "guidance": {
                 "input": template["input"], "output": template["output"],
                 "limits": template["limits"], "delegation": template["delegation"],
-                "configuration": (
-                    "This agent uses the saved setup under Made in this Lab, published as a named Foundry hosted version. "
-                    "Task instructions were chosen before creation; tools and runtime code come from the reviewed "
-                    "Lab template. A chat message does not edit the deployed setup."
-                ),
+                "configuration": configuration,
             },
         }
 
@@ -431,7 +449,9 @@ class AgentCreations:
 
     async def create(self, request, data):
         identifier = "created-" + data.idempotency_key
-        setup = {"template_id": data.template_id, "name": data.name, "instructions": data.instructions}
+        prompt_only = data.template_id == PROMPT_ONLY_ID
+        setup = {"template_id": data.template_id, "name": data.name,
+                 "instructions": data.instructions if prompt_only else data.instructions.strip()}
         digest = hashlib.sha256(json.dumps(setup, sort_keys=True).encode("utf-8")).hexdigest()
         try:
             existing = await self.storage(self.store.get(identifier))
@@ -442,15 +462,16 @@ class AgentCreations:
             if not self.owned(existing) or existing["setup_hash"] != digest:
                 return self.error(request, 409, "agent_changed")
             return JSONResponse(self.public(existing))
-        if not is_available(data.template_id, self.settings.unfinished_agents):
+        if not prompt_only and not is_available(data.template_id, self.settings.unfinished_agents):
             return self.error(request, 400, "invalid_setup")
         if self.operation_slot.locked():
             return self.error(request, 429, "agents_busy")
         if len(await self.records()) >= self.config.max_agents:
             return self.error(request, 409, "agent_limit_reached")
         _, bundle_hash = runtime_package()
-        profile = model_profile(TEMPLATES[data.template_id]["model_profile"])
-        template = {key: deepcopy(TEMPLATES[data.template_id][key]) for key in (
+        source = PROMPT_ONLY_SETUP if prompt_only else TEMPLATES[data.template_id]
+        profile = model_profile(PROMPT_ONLY_PROFILE if prompt_only else source["model_profile"])
+        template = {key: deepcopy(source[key]) for key in (
             "id", "label", "description", "input", "output", "limits", "delegation", "sample_input", "tools",
         )}
         now = timestamp()

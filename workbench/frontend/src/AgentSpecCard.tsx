@@ -82,9 +82,10 @@ export function AgentSpecCard({
       <SpecBundleDownload spec={spec} />
       {!spec.closest_template && (
         <p className="agent-spec-note">
-          No built-in template matches this idea, so the Lab can&apos;t create
-          it here. Download the draft and set it up in your Foundry project, or
-          download the ready-to-deploy agent and deploy it there.
+          No built-in template matches this idea.{' '}
+          {build
+            ? 'The in-Lab option is prompt-only; it does not add any of the listed lookups or sources.'
+            : 'In-Lab creation is not available here. You can still download the draft or a ready-to-deploy agent for your own Foundry project.'}
         </p>
       )}
       <p className="agent-spec-note">

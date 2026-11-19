@@ -40,8 +40,8 @@ network access alone does not provide customer isolation.
 
 ## Capabilities and Constraints
 
-- Create agents from built-in templates only after the operator and cost
-  confirmations. Preparing a setup isn't publication.
+- Create agents from built-in templates or reviewed prompt-only specs only after
+  the operator and cost confirmations. Preparing or trying a setup isn't publication.
 - Chat with configured agents, and review supplied documents against criteria.
 - Keep a browser-local project brief and use it to enter the existing designer,
   draft-test and agent-demonstration flows. Briefs do not store conversations,

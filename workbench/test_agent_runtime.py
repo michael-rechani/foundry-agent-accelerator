@@ -156,6 +156,7 @@ class RuntimeTests(unittest.TestCase):
 
         credential = MagicMock()
         for template, flag, expected in (
+            ("prompt-only", "true", {"store": False}),
             ("document-analyst", "true", {"store": False}),
             ("workflow-coordinator", "false", {"store": False}),
             ("workflow-coordinator", "true", {"store": False, "include": ["reasoning.encrypted_content"]}),
@@ -163,6 +164,16 @@ class RuntimeTests(unittest.TestCase):
             with self.subTest(template=template, flag=flag), patch("agent_framework.Agent", wraps=Agent) as constructor:
                 build_agent(credential, {**environment(template), "AGENT_INCLUDE_ENCRYPTED_REASONING": flag})
                 self.assertEqual(constructor.call_args.kwargs["default_options"], expected)
+
+    def test_prompt_only_runtime_uses_exact_reviewed_text_without_tools(self):
+        reviewed = "\n Summarize only the fictional notice.\n"
+        credential = MagicMock()
+        with patch("agent_framework.Agent") as constructor:
+            build_agent(credential, {**environment("prompt-only"), "AGENT_INSTRUCTIONS": reviewed})
+        options = constructor.call_args.kwargs
+        self.assertEqual(options["tools"], [])
+        self.assertEqual(options["instructions"], demo_policy("prompt-only") + reviewed)
+        credential.get_token.assert_not_called()
 
     def test_real_sdk_hosted_requests_respect_encrypted_reasoning_opt_in(self):
         from agent_framework import Message

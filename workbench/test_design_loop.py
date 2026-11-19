@@ -52,6 +52,24 @@ class DesignLoopTests(CapturedLabLogs, unittest.TestCase):
         return self.post("/api/agent-test-revisions", {"instructions": INSTRUCTIONS, "template_id": "document-analyst",
                                                        "failed": [FAILED], "confirm_cost": True, **changes})
 
+    def test_prompt_try_requires_explicit_consent_and_no_tool_or_template_fields(self):
+        body = {"instructions": f"\n{INSTRUCTIONS}\n", "prompt": CASE["input"], "confirm_cost": True}
+        for invalid in ({"confirm_cost": False}, {"confirm_cost": 1}, {"instructions": " " * 12},
+                        {"prompt": " "}, {"tools": []}, {"template_id": "workflow-coordinator"}):
+            with self.subTest(invalid=invalid):
+                result = self.post("/api/prompt-agent-tries", {**body, **invalid})
+                self.assertEqual(result.status_code, 400)
+        self.gateway.preview.assert_not_called()
+        self.gateway.preview.return_value = ("completed", "Fictional answer.", [])
+        result = self.post("/api/prompt-agent-tries", body)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()["text"], "Fictional answer.")
+        self.gateway.preview.assert_awaited_once()
+        agent, prompt = self.gateway.preview.call_args.args
+        self.assertEqual((agent["template_id"], agent["tools"], prompt), ("prompt-only", {}, body["prompt"]))
+        self.assertEqual(self.gateway.preview.call_args.kwargs["instructions"],
+                         demo_policy("prompt-only") + body["instructions"])
+
     def test_cases_are_drafted_by_the_designer_without_tools(self):
         response = self.draft()
         self.assertEqual(response.status_code, 200)

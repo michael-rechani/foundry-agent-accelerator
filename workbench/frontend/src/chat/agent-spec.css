@@ -80,6 +80,41 @@
 .agent-spec .spec-bundle .spec-build-error {
   margin-top: 10px;
 }
+.spec-prompt-field {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  font-weight: 600;
+}
+.spec-prompt-field textarea,
+.spec-prompt-field input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+  font-weight: 400;
+}
+.spec-prompt-field textarea {
+  resize: vertical;
+}
+.spec-prompt-try {
+  margin: 12px 0;
+  padding: 10px 0;
+  border-block: 1px solid var(--line);
+}
+.spec-prompt-try summary {
+  cursor: pointer;
+}
+.spec-prompt-answer {
+  margin-top: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .spec-test h5 + h5,
 .spec-test ol + .agent-spec-actions {
   margin-top: 4px;
