@@ -786,23 +786,38 @@ and approval. Concurrent administrator changes remain non-atomic.
 
 `.github/scripts/check_lab_image_approval.py` is an isolated authenticated
 evidence reader, not wired to deployment. Its strict default requires an
-explicit, complete empty environment-secret inventory. The opt-in
-`no-secret-references` mode requires the exact owner-acceptance marker, skips
-the inventory request, and reports the inventory as **not checked**; it does
-not assert the environment has no secrets. That mode still requires a separate
-owner-accepted review that the exact protected approval job has no `secrets.*`
-references, checkout, third-party actions, or OIDC permission. It would still
-pass only a deliberately scoped `GITHUB_TOKEN` to the fixed reader. Owner
-acceptance and that workflow review have not been granted.
+explicit, complete empty environment-secret inventory. The opt-in `no-secret-references` mode skips the inventory request and reports
+it as **not checked**; it does not assert the environment has no secrets. Its
+marker is only a caller assertion, not authenticated evidence or authorization
+that an owner accepted the changed invariant. Any operational integration
+requires separately verifiable owner acceptance and a review that the exact
+protected approval job has no `secrets.*` references, checkout, third-party
+actions, or OIDC permission. It would still pass only a deliberately scoped
+`GITHUB_TOKEN` to the fixed reader. Neither acceptance nor that workflow
+review has been granted.
 
-The reader binds the unique in-progress deploy job to its run, first attempt,
-manual main ref, exact source SHA, configured independent reviewer,
-review comment, and immutable recovery image. It rejects HTTP errors,
-pagination, truncation, malformed payloads, and missing policy fields. The
-approval-history API provides no approval timestamp or attempt field; the
-reader uses a run-age bound, not an asserted review time, and cannot enforce
-durable single-use. A repeat call within the same attempt succeeds on identical
-evidence. The code is not wired or authorized for deployment.
+The reader binds API evidence to the unique in-progress deploy job, run, first
+attempt, exact source SHA, configured independent reviewer, review comment,
+and immutable recovery image. The workflow-run API's `path` is only the file
+path (for example, `.github/workflows/deploy-lab.yml`); it does not include
+the dispatch ref. `head_branch: main` is not proof of
+`github.ref == refs/heads/main`, and finding a unique in-progress `deploy` job
+does not prove the verifier itself is running in that job. A future caller
+must obtain trusted GitHub Actions context from the executing job and verify
+`github.repository`, `github.ref`, `github.workflow_ref`, `github.sha`,
+`github.run_id`, `github.run_attempt`, `github.event_name`, and `github.job`
+against the expected repository, `refs/heads/main`, exact workflow path and
+SHA, same first-attempt run, `workflow_dispatch`, and job id `deploy` before
+acting. The verifier does not currently accept or validate that caller
+context; it is not a deployment gate.
+
+The reader requires the deployment branch policy's actual `{id, name, type}`
+shape with `type: branch`; a tag policy named `main` is rejected. It rejects
+malformed reviewer entries, HTTP errors, pagination, truncation, malformed
+payloads, and missing policy fields. The approval-history API provides no approval
+timestamp or attempt field; the reader uses a run-age bound, not an asserted
+review time, and cannot enforce durable single-use. A repeat call within the
+same attempt succeeds on identical evidence.
 The mocked-only tests passed on a GitHub-hosted runner in
 [run 44578137181](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/44578137181);
 they did not call GitHub APIs or access credentials.

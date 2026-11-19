@@ -2,8 +2,10 @@
 
 This module never performs a deployment. The strict mode requires an explicit,
 complete empty environment-secret inventory. An opt-in no-reference mode is
-disabled by default and requires separate owner acceptance; it reports the
-inventory as unverified. Neither mode provides durable single-use semantics.
+disabled by default and reports the inventory as unverified. Neither mode
+provides durable single-use semantics. It validates API evidence only; a
+future caller must separately validate its trusted GitHub Actions job and ref
+context before any mutation.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ SHA = re.compile(r"[0-9a-f]{40}")
 IMAGE = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]*/workbench@sha256:[0-9a-f]{64}")
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 SECRET_MODES = {"require-empty", "no-secret-references"}
-NO_SECRET_REFERENCE_ACCEPTANCE = "OWNER_ACCEPTS_NO_SECRET_REFERENCE_MODEL"
+NO_SECRET_REFERENCE_ACKNOWLEDGEMENT = "ACKNOWLEDGE_UNVERIFIED_SECRET_INVENTORY"
 
 
 def _object_without_duplicate_keys(pairs):
@@ -201,16 +203,8 @@ def _verify_run(run, jobs_response, expected, now):
         and type(_nested(run, "actor", "id")) is int
     ):
         raise CheckError("Workflow run identity, first attempt, actor, or source was not confirmed.")
-    raw_path = run.get("path")
-    if not isinstance(raw_path, str):
-        raise CheckError("Workflow path is missing.")
-    path, separator, ref = raw_path.partition("@")
-    if (
-        path != expected.workflow_path
-        or not separator
-        or ref not in {"main", "refs/heads/main"}
-    ):
-        raise CheckError("Workflow file or dispatch ref was not confirmed.")
+    if run.get("path") != expected.workflow_path:
+        raise CheckError("Workflow file path was not confirmed.")
     created = run.get("created_at")
     if not isinstance(created, str):
         raise CheckError("Workflow run creation time is missing.")
@@ -269,7 +263,9 @@ def _verify_policy(environment, branch_policy, expected):
         }
         and isinstance(rules, list)
         and len(rules) == 2
-        and {rule.get("type") for rule in rules if isinstance(rule, dict)}
+        and len([rule for rule in rules if isinstance(rule, dict)]) == len(rules)
+        and all(isinstance(rule.get("type"), str) for rule in rules)
+        and {rule.get("type") for rule in rules}
         == {"branch_policy", "required_reviewers"}
         and type(branch_policy.get("total_count")) is int
         and branch_policy.get("total_count") == 1
@@ -278,6 +274,7 @@ def _verify_policy(environment, branch_policy, expected):
         and isinstance(branch_rules[0], dict)
         and _positive_id(branch_rules[0].get("id"))
         and branch_rules[0].get("name") == "main"
+        and branch_rules[0].get("type") == "branch"
     ):
         raise CheckError("Main-only environment policy or disabled administrator bypass was not confirmed.")
     reviewer_rules = [rule for rule in rules if rule.get("type") == "required_reviewers"]
@@ -289,8 +286,8 @@ def _verify_policy(environment, branch_policy, expected):
         and len(reviewers) == 1
         and isinstance(reviewers[0], dict)
         and reviewers[0].get("type") == "User"
-        and reviewers[0].get("reviewer", {}).get("id") == expected.reviewer_id
-        and type(reviewers[0].get("reviewer", {}).get("id")) is int
+        and _nested(reviewers[0], "reviewer", "id") == expected.reviewer_id
+        and type(_nested(reviewers[0], "reviewer", "id")) is int
         and expected.reviewer_id != expected.actor_id
     ):
         raise CheckError("The independent configured reviewer was not confirmed.")
@@ -329,19 +326,24 @@ def _verify_secrets(secrets):
 
 def verify_evidence(
     evidence, expected, *, now=None, secret_mode="require-empty",
-    owner_acceptance=None,
+    no_secret_reference_acknowledgement=None,
 ):
-    """Verify exact API payloads; omit ``secrets`` only with explicit opt-in.
+    """Verify API evidence; this does not authenticate the calling job/ref.
 
-    The no-secret-reference mode does not imply the environment inventory is
-    empty. It is an owner-accepted alternate assumption, not the default gate.
+    No-secret-reference mode does not imply an empty inventory. Its marker is
+    a caller assertion, not authenticated owner acceptance. A future caller
+    must separately verify owner acceptance and its trusted Actions context;
+    API job enumeration is not proof of caller identity.
     """
     if not _valid_expectation(expected):
         raise CheckError("Approval evidence expectations are invalid.")
     if secret_mode not in SECRET_MODES:
         raise CheckError("Secret inventory mode is invalid.")
-    if secret_mode == "no-secret-references" and owner_acceptance != NO_SECRET_REFERENCE_ACCEPTANCE:
-        raise CheckError("No-secret-reference mode requires explicit owner acceptance.")
+    if (
+        secret_mode == "no-secret-references"
+        and no_secret_reference_acknowledgement != NO_SECRET_REFERENCE_ACKNOWLEDGEMENT
+    ):
+        raise CheckError("No-secret-reference mode requires a caller acknowledgment; this is not owner approval.")
     if not isinstance(evidence, dict):
         raise CheckError("GitHub approval evidence is incomplete.")
     now = datetime.now(timezone.utc) if now is None else now
@@ -372,7 +374,7 @@ def verify_evidence(
     else:
         if "secrets" in evidence:
             raise CheckError("No-secret-reference mode must not imply a secret inventory result.")
-        inventory_state = "not-checked-owner-accepted-no-reference-model"
+        inventory_state = "not-checked-no-reference-model-caller-asserted"
     return {
         "run_id": expected.run_id,
         "attempt": 1,
@@ -384,15 +386,19 @@ def verify_evidence(
     }
 
 
-def read_evidence(token, expected, *, secret_mode="require-empty", owner_acceptance=None,
+def read_evidence(token, expected, *, secret_mode="require-empty",
+                  no_secret_reference_acknowledgement=None,
                   connection_factory=http.client.HTTPSConnection, now=None):
-    """Fetch read-only current evidence. Every missing or partial response fails."""
+    """Fetch read-only API evidence; no caller job/ref context is inferred."""
     if not _valid_expectation(expected):
         raise CheckError("Approval evidence expectations are invalid.")
     if secret_mode not in SECRET_MODES:
         raise CheckError("Secret inventory mode is invalid.")
-    if secret_mode == "no-secret-references" and owner_acceptance != NO_SECRET_REFERENCE_ACCEPTANCE:
-        raise CheckError("No-secret-reference mode requires explicit owner acceptance.")
+    if (
+        secret_mode == "no-secret-references"
+        and no_secret_reference_acknowledgement != NO_SECRET_REFERENCE_ACKNOWLEDGEMENT
+    ):
+        raise CheckError("No-secret-reference mode requires a caller acknowledgment; this is not owner approval.")
     repository = "/".join(quote(part, safe="") for part in expected.repository.split("/"))
     environment = quote(expected.environment, safe="")
     root = f"/repos/{repository}"
@@ -420,5 +426,5 @@ def read_evidence(token, expected, *, secret_mode="require-empty", owner_accepta
         )
     return verify_evidence(
         evidence, expected, now=now, secret_mode=secret_mode,
-        owner_acceptance=owner_acceptance,
+        no_secret_reference_acknowledgement=no_secret_reference_acknowledgement,
     )

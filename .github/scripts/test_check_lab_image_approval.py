@@ -11,7 +11,7 @@ from check_state_backend import CheckError
 from check_lab_image_approval import (
     ApprovalExpectation,
     GitHubReader,
-    NO_SECRET_REFERENCE_ACCEPTANCE,
+    NO_SECRET_REFERENCE_ACKNOWLEDGEMENT,
     read_evidence,
     verify_evidence,
 )
@@ -46,7 +46,7 @@ def evidence():
         "run": {
             "id": RUN_ID, "run_attempt": 1, "event": "workflow_dispatch",
             "status": "in_progress", "head_branch": "main", "head_sha": SHA,
-            "path": ".github/workflows/deploy-lab.yml@main",
+            "path": ".github/workflows/deploy-lab.yml",
             "created_at": "2026-01-01T00:00:00Z",
             "repository": {"full_name": REPO}, "head_repository": {"full_name": REPO},
             "actor": {"id": ACTOR_ID},
@@ -80,7 +80,7 @@ def evidence():
         },
         "branch_policy": {
             "total_count": 1,
-            "branch_policies": [{"id": 99, "name": "main"}],
+            "branch_policies": [{"id": 99, "name": "main", "type": "branch"}],
         },
         "main": {"name": "main", "protected": True, "commit": {"sha": SHA}},
         "main_ref": {"ref": "refs/heads/main", "object": {"sha": SHA}},
@@ -105,11 +105,28 @@ def length_headers(payload):
 
 
 class EvidenceContractTests(unittest.TestCase):
+    def test_actual_workflow_run_path_has_no_ref_suffix(self):
+        data = evidence()
+        self.assertEqual(data["run"]["path"], ".github/workflows/deploy-lab.yml")
+        result = verify_evidence(data, expected(), now=NOW)
+        self.assertEqual(result["source_sha"], SHA)
+
     def test_exact_current_response_shapes_pass_in_strict_mode(self):
         result = verify_evidence(evidence(), expected(), now=NOW)
         self.assertEqual(result["secret_inventory"], "verified-empty")
         self.assertFalse(result["review_timestamp_verified"])
         self.assertFalse(result["durable_single_use_enforced"])
+
+    def test_branch_policy_api_shape_requires_branch_type(self):
+        data = evidence()
+        self.assertEqual(
+            data["branch_policy"]["branch_policies"][0],
+            {"id": 99, "name": "main", "type": "branch"},
+        )
+        verify_evidence(data, expected(), now=NOW)
+        data["branch_policy"]["branch_policies"][0]["type"] = "tag"
+        with self.assertRaises(CheckError):
+            verify_evidence(data, expected(), now=NOW)
 
     def test_review_is_run_bound_but_attempt_and_timestamp_are_not_claimed(self):
         data = evidence()
@@ -125,19 +142,19 @@ class EvidenceContractTests(unittest.TestCase):
     def test_no_secret_reference_mode_is_disabled_by_default_and_never_claims_empty(self):
         data = evidence()
         del data["secrets"]
-        with self.assertRaisesRegex(CheckError, "owner acceptance"):
+        with self.assertRaisesRegex(CheckError, "caller acknowledgment"):
             verify_evidence(data, expected(), now=NOW, secret_mode="no-secret-references")
         result = verify_evidence(
             data, expected(), now=NOW, secret_mode="no-secret-references",
-            owner_acceptance=NO_SECRET_REFERENCE_ACCEPTANCE,
+            no_secret_reference_acknowledgement=NO_SECRET_REFERENCE_ACKNOWLEDGEMENT,
         )
-        self.assertEqual(result["secret_inventory"], "not-checked-owner-accepted-no-reference-model")
+        self.assertEqual(result["secret_inventory"], "not-checked-no-reference-model-caller-asserted")
         self.assertNotEqual(result["secret_inventory"], "verified-empty")
         data["secrets"] = {"total_count": 0, "secrets": []}
         with self.assertRaisesRegex(CheckError, "must not imply"):
             verify_evidence(
                 data, expected(), now=NOW, secret_mode="no-secret-references",
-                owner_acceptance=NO_SECRET_REFERENCE_ACCEPTANCE,
+                no_secret_reference_acknowledgement=NO_SECRET_REFERENCE_ACKNOWLEDGEMENT,
             )
 
     def test_missing_or_nonempty_secret_inventory_rejects_strict_mode(self):
@@ -160,8 +177,8 @@ class EvidenceContractTests(unittest.TestCase):
             lambda d: d["run"].update(event="push"),
             lambda d: d["run"].update(head_branch="feature"),
             lambda d: d["run"].update(repository={"full_name": "other/repo"}),
-            lambda d: d["run"].update(path=".github/workflows/other.yml@main"),
-            lambda d: d["run"].update(path=".github/workflows/deploy-lab.yml"),
+            lambda d: d["run"].update(path=".github/workflows/other.yml"),
+            lambda d: d["run"].update(path=".github/workflows/deploy-lab.yml@refs/heads/main"),
             lambda d: d["run"].update(created_at="not-a-time"),
         )
         for mutate in mutations:
@@ -215,10 +232,14 @@ class EvidenceContractTests(unittest.TestCase):
                 prevent_self_review=False)),
             ("wrong reviewer", lambda d: d["environment"]["protection_rules"][1]["reviewers"][0][
                 "reviewer"].update(id=ACTOR_ID)),
+            ("null reviewer", lambda d: d["environment"]["protection_rules"][1]["reviewers"][0].update(
+                reviewer=None)),
             ("extra reviewer", lambda d: d["environment"]["protection_rules"][1]["reviewers"].append(
                 {"type": "User", "reviewer": {"id": 6}})),
             ("wildcard branch", lambda d: d["branch_policy"]["branch_policies"].append(
                 {"id": 100, "name": "*"})),
+            ("tag policy named main", lambda d: d["branch_policy"]["branch_policies"][0].update(
+                type="tag")),
             ("missing branch count", lambda d: d["branch_policy"].update(total_count=2)),
             ("non-main-only", lambda d: d["environment"]["deployment_branch_policy"].update(
                 custom_branch_policies=False)),
@@ -308,10 +329,11 @@ class ReaderTransportTests(unittest.TestCase):
         with patch.object(approval_reader, "GitHubReader", FakeReader):
             result = read_evidence(
                 "synthetic-token", expected(), secret_mode="no-secret-references",
-                owner_acceptance=NO_SECRET_REFERENCE_ACCEPTANCE, now=NOW,
+                no_secret_reference_acknowledgement=NO_SECRET_REFERENCE_ACKNOWLEDGEMENT,
+                now=NOW,
             )
         self.assertEqual(result["secret_inventory"],
-                         "not-checked-owner-accepted-no-reference-model")
+                         "not-checked-no-reference-model-caller-asserted")
         self.assertFalse(any(path.endswith("/secrets?per_page=1") for path in paths))
         self.assertEqual(len(paths), 7)
 
