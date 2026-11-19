@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest import mock
 
 import test_start_private_runner_once_20261107 as prior
-import test_start_private_runner as base
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = (ROOT / ".github" / "workflows" /
@@ -45,9 +44,10 @@ class SharedWorkflowSetup:
             prior.WORKFLOW, prior.START, prior.SMOKE, prior.SCRIPT,
             prior.GATE, prior.MOCKS,
         )
+        cls.previous_context = prior.CONTEXT
         prior.WORKFLOW, prior.START, prior.SMOKE = WORKFLOW, START, SMOKE
         prior.SCRIPT, prior.GATE, prior.MOCKS = SCRIPT, GATE, MOCKS
-        prior.CONTEXT = base.CONTEXT | {
+        prior.CONTEXT = prior.CONTEXT | {
             "GITHUB_WORKFLOW_REF": (
                 "michael-rechani/foundry-agent-accelerator/"
                 ".github/workflows/start-private-runner-once-20261119.yml@refs/heads/main"
@@ -58,6 +58,7 @@ class SharedWorkflowSetup:
     def tearDownClass(cls):
         (prior.WORKFLOW, prior.START, prior.SMOKE, prior.SCRIPT,
          prior.GATE, prior.MOCKS) = cls.previous
+        prior.CONTEXT = cls.previous_context
         super().tearDownClass()
 
 
