@@ -767,22 +767,35 @@ secret-free gate used by the runner-start design. Do not remove the disabled
 guard or dispatch a rollout as a substitute for that review.
 
 One unapproved candidate is a separate `lab-image-release-review` environment
-with no secrets and no Azure identity. A read-only preflight would verify its
-exact owner-only reviewer, explicit self-review setting, disabled administrator
-bypass, protected `main`, main-only branch policy, and empty secret inventory.
-It would record those settings with the run ID, first attempt, workflow, source
-SHA and immutable previous-image input, and stop if any evidence is unavailable.
-After the environment review, the
-credentialed job would recheck the snapshot and require exactly one approved
-review by that owner for only that environment, with a comment binding the run,
-SHA and input fingerprint before requesting Azure credentials. It must reject
-reruns, ambiguous approval history, changed settings and a moved `main`.
-GitHub's documented API response
-does not guarantee every required field, and the workflow token's access to
-environment-secret metadata has not been established. Missing proof must
-block the job, not trigger a PAT or a weaker fallback. Creating or configuring
-the proposed environment, and adopting this design, require separate review
-and approval. Concurrent administrator changes remain non-atomic.
+with no secrets and no Azure identity. A read-only approval job would run on a
+GitHub-hosted runner behind that environment's independent reviewer gate. It
+would have no `secrets.*` references, checkout, third-party actions, or OIDC
+permission. To deliver the fixed reader without checkout, a tiny inline
+standard-library bootstrap in the protected workflow would fetch
+`.github/scripts/check_lab_image_approval.py` and its helper from the GitHub
+Contents API at the exact `github.sha`; it must validate each returned path,
+file type, encoding, and response before executing those files. That requires
+`contents: read`. The fetched reader gets only the explicitly scoped
+`GITHUB_TOKEN` and checks the in-progress `approval` job and recorded approval.
+No mutation or Azure credential acquisition occurs in this job.
+
+The private-runner `deploy` job would `need` the successful approval job, then
+validate the evidence again as the in-progress `deploy` job before obtaining
+Azure credentials or mutating the app. Both jobs must pass their trusted
+`github.*` context directly to the verifier, use job IDs that match the API job
+names (`approval` and `deploy`), and reject a context/job mismatch. The deploy
+job remains the only mutating job; recovery after it starts must not depend on
+GitHub being available.
+
+The candidate still requires separate review and approval before any
+environment or workflow change. Current job-token access to Actions run/job/
+approval evidence and all required environment policy endpoints is unproven.
+The existing token probe established HTTP 403 for environment-secret inventory,
+so strict mode cannot pass with those candidate permissions. The no-reference
+alternative requires separately verifiable owner acceptance and a review of
+the exact secret-free job; its in-code marker is not approval. Missing proof
+must block, never fall back to a PAT or weaker check. Concurrent administrator
+changes remain non-atomic.
 
 `.github/scripts/check_lab_image_approval.py` is an isolated authenticated
 evidence reader, not wired to deployment. Its strict default requires an
@@ -796,20 +809,21 @@ actions, or OIDC permission. It would still pass only a deliberately scoped
 `GITHUB_TOKEN` to the fixed reader. Neither acceptance nor that workflow
 review has been granted.
 
-The reader binds API evidence to the unique in-progress deploy job, run, first
-attempt, exact source SHA, configured independent reviewer, review comment,
-and immutable recovery image. The workflow-run API's `path` is only the file
-path (for example, `.github/workflows/deploy-lab.yml`); it does not include
-the dispatch ref, as observed in run `42327760090`. `head_branch: main` is not proof of
-`github.ref == refs/heads/main`, and finding a unique in-progress `deploy` job
-does not prove the verifier itself is running in that job. A future caller
-must obtain trusted GitHub Actions context from the executing job and verify
-`github.repository`, `github.ref`, `github.workflow_ref`, `github.sha`,
-`github.run_id`, `github.run_attempt`, `github.event_name`, and `github.job`
-against the expected repository, `refs/heads/main`, exact workflow path and
-SHA, same first-attempt run, `workflow_dispatch`, and job id `deploy` before
-acting. The verifier does not currently accept or validate that caller
-context; it is not a deployment gate.
+The reader binds API evidence to the current in-progress `approval` or `deploy`
+job, run, first attempt, exact source SHA, configured independent reviewer,
+review comment, and immutable recovery image. The workflow-run API's `path` is
+only the file path (for example, `.github/workflows/deploy-lab.yml`); it does
+not include the dispatch ref, as observed in run `42327760090`.
+`head_branch: main` is not proof of `github.ref == refs/heads/main`, and API
+enumeration of an in-progress job does not prove which job is calling the reader.
+`CallerContext` requires the caller to provide `github.repository`,
+`github.ref`, `github.workflow_ref`, `github.sha`, `github.run_id`,
+`github.run_attempt`, `github.event_name`, and `github.job`, and checks these
+against the expected repository, main ref, exact workflow path and SHA,
+first-attempt run, `workflow_dispatch`, and current job. A future workflow
+must populate this object directly from GitHub's trusted Actions context, not
+dispatch inputs or API-derived values. This context validation does not make
+the non-wired reader a deployment gate.
 
 The reader requires the deployment branch policy's actual `{id, name, type}`
 shape with `type: branch`; a tag policy named `main` is rejected. It rejects

@@ -146,6 +146,18 @@ class ApprovalExpectation:
     max_run_age: timedelta = timedelta(minutes=30)
 
 
+@dataclass(frozen=True)
+class CallerContext:
+    repository: str
+    ref: str
+    workflow_ref: str
+    sha: str
+    run_id: str
+    run_attempt: str
+    event_name: str
+    job: str
+
+
 def _nested(mapping, *keys):
     value = mapping
     for key in keys:
@@ -185,7 +197,27 @@ def _review_comment(expected):
     )
 
 
-def _verify_run(run, jobs_response, expected, now):
+def _verify_caller_context(context, expected):
+    expected_workflow_ref = (
+        f"{expected.repository}/{expected.workflow_path}@refs/heads/main"
+    )
+    if not isinstance(context, CallerContext) or not (
+        all(isinstance(value, str) for value in (
+            context.repository, context.ref, context.workflow_ref, context.sha,
+            context.run_id, context.run_attempt, context.event_name, context.job,
+        )) and context.repository == expected.repository
+        and context.ref == "refs/heads/main"
+        and context.workflow_ref == expected_workflow_ref
+        and context.sha == expected.source_sha
+        and context.run_id == str(expected.run_id)
+        and context.run_attempt == "1"
+        and context.event_name == "workflow_dispatch"
+        and context.job in {"approval", "deploy"}
+    ):
+        raise CheckError("Trusted GitHub Actions caller context was not confirmed.")
+
+
+def _verify_run(run, jobs_response, expected, caller_context, now):
     if not isinstance(run, dict):
         raise CheckError("Workflow run evidence is missing.")
     if not (
@@ -231,10 +263,10 @@ def _verify_run(run, jobs_response, expected, now):
     for job in jobs:
         if not isinstance(job, dict):
             raise CheckError("Workflow job inventory contains an invalid entry.")
-        if job.get("name") == "deploy":
+        if job.get("name") == caller_context.job:
             matching.append(job)
     if len(matching) != 1:
-        raise CheckError("The exact deployment job was not uniquely identified.")
+        raise CheckError("The current caller job was not uniquely identified.")
     job = matching[0]
     if not (
         _positive_id(job.get("id"))
@@ -245,7 +277,7 @@ def _verify_run(run, jobs_response, expected, now):
         and job.get("head_branch") == "main"
         and job.get("status") == "in_progress"
     ):
-        raise CheckError("The exact in-progress deployment job was not confirmed.")
+        raise CheckError("The current in-progress caller job was not confirmed.")
 
 
 def _verify_policy(environment, branch_policy, expected):
@@ -325,7 +357,7 @@ def _verify_secrets(secrets):
 
 
 def verify_evidence(
-    evidence, expected, *, now=None, secret_mode="require-empty",
+    evidence, expected, caller_context, *, now=None, secret_mode="require-empty",
     no_secret_reference_acknowledgement=None,
 ):
     """Verify API evidence; this does not authenticate the calling job/ref.
@@ -337,6 +369,7 @@ def verify_evidence(
     """
     if not _valid_expectation(expected):
         raise CheckError("Approval evidence expectations are invalid.")
+    _verify_caller_context(caller_context, expected)
     if secret_mode not in SECRET_MODES:
         raise CheckError("Secret inventory mode is invalid.")
     if (
@@ -350,7 +383,10 @@ def verify_evidence(
     if not isinstance(now, datetime) or now.tzinfo is None:
         raise CheckError("Current time evidence is invalid.")
 
-    _verify_run(evidence.get("run"), evidence.get("jobs"), expected, now.astimezone(timezone.utc))
+    _verify_run(
+        evidence.get("run"), evidence.get("jobs"), expected, caller_context,
+        now.astimezone(timezone.utc),
+    )
     main = evidence.get("main")
     ref = evidence.get("main_ref")
     if not (
@@ -380,18 +416,20 @@ def verify_evidence(
         "attempt": 1,
         "source_sha": expected.source_sha,
         "recovery_image": expected.recovery_image,
+        "caller_job": caller_context.job,
         "secret_inventory": inventory_state,
         "review_timestamp_verified": False,
         "durable_single_use_enforced": False,
     }
 
 
-def read_evidence(token, expected, *, secret_mode="require-empty",
+def read_evidence(token, expected, caller_context, *, secret_mode="require-empty",
                   no_secret_reference_acknowledgement=None,
                   connection_factory=http.client.HTTPSConnection, now=None):
     """Fetch read-only API evidence; no caller job/ref context is inferred."""
     if not _valid_expectation(expected):
         raise CheckError("Approval evidence expectations are invalid.")
+    _verify_caller_context(caller_context, expected)
     if secret_mode not in SECRET_MODES:
         raise CheckError("Secret inventory mode is invalid.")
     if (
@@ -425,6 +463,6 @@ def read_evidence(token, expected, *, secret_mode="require-empty",
             kind="environment secret inventory",
         )
     return verify_evidence(
-        evidence, expected, now=now, secret_mode=secret_mode,
+        evidence, expected, caller_context, now=now, secret_mode=secret_mode,
         no_secret_reference_acknowledgement=no_secret_reference_acknowledgement,
     )

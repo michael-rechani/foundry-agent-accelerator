@@ -10,6 +10,7 @@ import check_lab_image_approval as approval_reader
 from check_state_backend import CheckError
 from check_lab_image_approval import (
     ApprovalExpectation,
+    CallerContext,
     GitHubReader,
     NO_SECRET_REFERENCE_ACKNOWLEDGEMENT,
     read_evidence,
@@ -39,6 +40,21 @@ def expected(**updates):
     }
     values.update(updates)
     return ApprovalExpectation(**values)
+
+
+def caller_context(**updates):
+    values = {
+        "repository": REPO,
+        "ref": "refs/heads/main",
+        "workflow_ref": f"{REPO}/.github/workflows/deploy-lab.yml@refs/heads/main",
+        "sha": SHA,
+        "run_id": str(RUN_ID),
+        "run_attempt": "1",
+        "event_name": "workflow_dispatch",
+        "job": "deploy",
+    }
+    values.update(updates)
+    return CallerContext(**values)
 
 
 def evidence():
@@ -108,11 +124,11 @@ class EvidenceContractTests(unittest.TestCase):
     def test_actual_workflow_run_path_has_no_ref_suffix(self):
         data = evidence()
         self.assertEqual(data["run"]["path"], ".github/workflows/deploy-lab.yml")
-        result = verify_evidence(data, expected(), now=NOW)
+        result = verify_evidence(data, expected(), caller_context(), now=NOW)
         self.assertEqual(result["source_sha"], SHA)
 
     def test_exact_current_response_shapes_pass_in_strict_mode(self):
-        result = verify_evidence(evidence(), expected(), now=NOW)
+        result = verify_evidence(evidence(), expected(), caller_context(), now=NOW)
         self.assertEqual(result["secret_inventory"], "verified-empty")
         self.assertFalse(result["review_timestamp_verified"])
         self.assertFalse(result["durable_single_use_enforced"])
@@ -123,29 +139,65 @@ class EvidenceContractTests(unittest.TestCase):
             data["branch_policy"]["branch_policies"][0],
             {"id": 99, "name": "main", "type": "branch"},
         )
-        verify_evidence(data, expected(), now=NOW)
+        verify_evidence(data, expected(), caller_context(), now=NOW)
         data["branch_policy"]["branch_policies"][0]["type"] = "tag"
         with self.assertRaises(CheckError):
-            verify_evidence(data, expected(), now=NOW)
+            verify_evidence(data, expected(), caller_context(), now=NOW)
+
+    def test_caller_context_binds_trusted_ref_workflow_run_and_current_job(self):
+        mismatches = (
+            {"repository": "other/repo"},
+            {"ref": "main"},
+            {"workflow_ref": f"{REPO}/.github/workflows/other.yml@refs/heads/main"},
+            {"sha": "c" * 40},
+            {"run_id": "43"},
+            {"run_attempt": "2"},
+            {"event_name": "push"},
+            {"job": "build"},
+            {"job": ["deploy"]},
+        )
+        for values in mismatches:
+            with self.subTest(values=values), self.assertRaises(CheckError):
+                verify_evidence(
+                    evidence(), expected(), caller_context(**values), now=NOW,
+                )
+
+    def test_approval_and_deploy_callers_must_match_their_current_api_job(self):
+        for job_name in ("approval", "deploy"):
+            with self.subTest(job=job_name):
+                data = evidence()
+                data["jobs"]["jobs"][0]["name"] = job_name
+                result = verify_evidence(
+                    data, expected(), caller_context(job=job_name), now=NOW,
+                )
+                self.assertEqual(result["caller_job"], job_name)
+        with self.assertRaises(CheckError):
+            verify_evidence(
+                evidence(), expected(), caller_context(job="approval"), now=NOW,
+            )
 
     def test_review_is_run_bound_but_attempt_and_timestamp_are_not_claimed(self):
         data = evidence()
-        result1 = verify_evidence(data, expected(), now=NOW)
-        result2 = verify_evidence(data, expected(), now=NOW)
+        result1 = verify_evidence(data, expected(), caller_context(), now=NOW)
+        result2 = verify_evidence(data, expected(), caller_context(), now=NOW)
         self.assertEqual(result1, result2)
         self.assertNotIn("reviewed_at", result1)
         self.assertFalse(result1["durable_single_use_enforced"])
         data["run"]["run_attempt"] = 2
         with self.assertRaises(CheckError):
-            verify_evidence(data, expected(attempt=2), now=NOW)
+            verify_evidence(data, expected(attempt=2), caller_context(), now=NOW)
 
     def test_no_secret_reference_mode_is_disabled_by_default_and_never_claims_empty(self):
         data = evidence()
         del data["secrets"]
         with self.assertRaisesRegex(CheckError, "caller acknowledgment"):
-            verify_evidence(data, expected(), now=NOW, secret_mode="no-secret-references")
+            verify_evidence(
+                data, expected(), caller_context(), now=NOW,
+                secret_mode="no-secret-references",
+            )
         result = verify_evidence(
-            data, expected(), now=NOW, secret_mode="no-secret-references",
+            data, expected(), caller_context(), now=NOW,
+            secret_mode="no-secret-references",
             no_secret_reference_acknowledgement=NO_SECRET_REFERENCE_ACKNOWLEDGEMENT,
         )
         self.assertEqual(result["secret_inventory"], "not-checked-no-reference-model-caller-asserted")
@@ -153,7 +205,8 @@ class EvidenceContractTests(unittest.TestCase):
         data["secrets"] = {"total_count": 0, "secrets": []}
         with self.assertRaisesRegex(CheckError, "must not imply"):
             verify_evidence(
-                data, expected(), now=NOW, secret_mode="no-secret-references",
+                data, expected(), caller_context(), now=NOW,
+                secret_mode="no-secret-references",
                 no_secret_reference_acknowledgement=NO_SECRET_REFERENCE_ACKNOWLEDGEMENT,
             )
 
@@ -166,7 +219,7 @@ class EvidenceContractTests(unittest.TestCase):
                     del data["secrets"]
                 else:
                     data["secrets"] = value
-                verify_evidence(data, expected(), now=NOW)
+                verify_evidence(data, expected(), caller_context(), now=NOW)
 
     def test_run_source_actor_attempt_age_and_identity_are_bound(self):
         mutations = (
@@ -185,13 +238,21 @@ class EvidenceContractTests(unittest.TestCase):
             with self.subTest(mutation=mutate), self.assertRaises(CheckError):
                 data = evidence()
                 mutate(data)
-                verify_evidence(data, expected(), now=NOW)
+                verify_evidence(data, expected(), caller_context(), now=NOW)
         with self.assertRaisesRegex(CheckError, "stale"):
-            verify_evidence(evidence(), expected(), now=NOW + timedelta(minutes=31))
+            verify_evidence(
+                evidence(), expected(), caller_context(),
+                now=NOW + timedelta(minutes=31),
+            )
         with self.assertRaisesRegex(CheckError, "stale"):
-            verify_evidence(evidence(), expected(), now=NOW + timedelta(minutes=1))
+            verify_evidence(
+                evidence(), expected(), caller_context(),
+                now=NOW + timedelta(minutes=1),
+            )
         with self.assertRaises(CheckError):
-            verify_evidence(evidence(), expected(run_id=43), now=NOW)
+            verify_evidence(
+                evidence(), expected(run_id=43), caller_context(), now=NOW,
+            )
 
     def test_current_main_and_attempt_job_are_bound(self):
         for key, update in (
@@ -206,7 +267,7 @@ class EvidenceContractTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(CheckError):
                 data = evidence()
                 update(data)
-                verify_evidence(data, expected(), now=NOW)
+                verify_evidence(data, expected(), caller_context(), now=NOW)
 
     def test_review_identity_environment_and_recovery_are_bound(self):
         for key, update in (
@@ -221,7 +282,7 @@ class EvidenceContractTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(CheckError):
                 data = evidence()
                 update(data)
-                verify_evidence(data, expected(), now=NOW)
+                verify_evidence(data, expected(), caller_context(), now=NOW)
 
     def test_policy_requires_single_reviewer_no_bypass_main_only_and_self_review_block(self):
         cases = (
@@ -248,7 +309,7 @@ class EvidenceContractTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(CheckError):
                 data = evidence()
                 mutate(data)
-                verify_evidence(data, expected(), now=NOW)
+                verify_evidence(data, expected(), caller_context(), now=NOW)
 
 
 class ReaderTransportTests(unittest.TestCase):
@@ -312,7 +373,9 @@ class ReaderTransportTests(unittest.TestCase):
                 return _payload_for_kind(kind)
 
         with patch.object(approval_reader, "GitHubReader", FakeReader):
-            strict_result = read_evidence("synthetic-token", expected(), now=NOW)
+            strict_result = read_evidence(
+                "synthetic-token", expected(), caller_context(), now=NOW,
+            )
         self.assertEqual(strict_result["secret_inventory"], "verified-empty")
         self.assertEqual(paths, [
             f"/repos/{REPO}/actions/runs/{RUN_ID}",
@@ -328,7 +391,8 @@ class ReaderTransportTests(unittest.TestCase):
         paths.clear()
         with patch.object(approval_reader, "GitHubReader", FakeReader):
             result = read_evidence(
-                "synthetic-token", expected(), secret_mode="no-secret-references",
+                "synthetic-token", expected(), caller_context(),
+                secret_mode="no-secret-references",
                 no_secret_reference_acknowledgement=NO_SECRET_REFERENCE_ACKNOWLEDGEMENT,
                 now=NOW,
             )
