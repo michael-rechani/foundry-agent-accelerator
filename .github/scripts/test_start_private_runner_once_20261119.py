@@ -29,7 +29,7 @@ git() { [[ "$*" == "rev-parse HEAD" ]] || return 99; printf '%s\n' "$GITHUB_SHA"
 python3() {
   printf 'queue-check\n' >> "$CALL_LOG"
   QUEUE_COUNT=$(( ${QUEUE_COUNT:-0} + 1 ))
-  [[ "$FAIL_AT" != queue && "$QUEUE_FAIL_AT" != "$QUEUE_COUNT" ]] || return 1
+  [[ "$FAIL_AT" != queue && "${QUEUE_FAIL_AT:-}" != "$QUEUE_COUNT" ]] || return 1
 }
 '''
 
