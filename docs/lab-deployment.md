@@ -884,9 +884,12 @@ workflow checks the current main SHA and requires exactly one running, ready,
 active revision with the recorded immutable image from the configured registry.
 It repeats those checks before pushing the built image and before updating the
 Container App. The existing deploy identity builds and pushes on the private
-runner, then updates the app to the new digest. If the new revision fails to
-become ready, it requests restoration of the recorded prior image only while
-the app still identifies the attempted revision and image, and exactly one
+runner, then updates the app to the new digest. Once the new revision reports
+ready and running, the workflow keeps polling within the same bounded window
+until it verifies the revision is the sole active revision with the pushed
+digest. If verification never succeeds, it requests restoration of the
+recorded prior image only while the app still identifies the attempted
+revision and image, and exactly one
 ready running revision has a known immutable image. It fails instead when those
 observations differ. After a restore, it checks that the recovery revision is
 the only active, running, ready revision with the prior immutable image. A

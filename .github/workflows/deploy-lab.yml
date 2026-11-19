@@ -171,13 +171,12 @@ jobs:
             if [ "$attempted" = "$ready_revision" ]; then
               running="$(az containerapp revision show --name "$LAB_CONTAINER_APP" --resource-group "$AZURE_RESOURCE_GROUP" --revision "$latest" --query 'properties.runningState' --output tsv)"
               if [[ "$running" == Running || "$running" == RunningAtMaxScale ]]; then
-                if ! ATTEMPTED_REVISION="$attempted" ATTEMPTED_IMAGE="$new_image" \
+                if ATTEMPTED_REVISION="$attempted" ATTEMPTED_IMAGE="$new_image" \
                   bash .github/scripts/check_lab_live_image.sh --deployed; then
-                  echo "::error::The deployed revision or image could not be verified. Inspect the app."
-                  exit 1
+                  ready=true
+                  break
                 fi
-                ready=true
-                break
+                echo "Deployed revision or image not yet verified; waiting for revision settlement."
               fi
             fi
             sleep 10
