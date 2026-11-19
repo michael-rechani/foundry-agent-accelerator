@@ -794,6 +794,15 @@ reruns and bounds the age of the **run**, not the individual review. It does
 not supply a one-time consumption record within a run. Timestamps on
 environment entries describe the environment, not when it was approved.
 
+For a separate token capability check, `.github/probes/lab-approval-read-probe.yml`
+is a disabled template outside the Actions workflow directory. It requires a
+separately approved change and dispatch. The candidate uses the job's token
+to read policy and secret inventory metadata for `copilot` without binding a
+job to that environment. It reports only HTTP statuses and response shape or
+completeness. The candidate `deployments: read` scope is unproven for listing
+environment secrets; even a successful probe would only demonstrate access
+to that target, not production review or authorization to use Azure.
+
 The proposed approval would bind the source and recorded previous image, not a
 pre-reviewed new image digest: the current workflow builds that image after
 approval. It must not be represented as approval of an already-built artifact.
