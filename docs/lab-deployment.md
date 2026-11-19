@@ -795,6 +795,55 @@ must bring a private runner online first; a queued job cannot start itself.
 Neither the existing GitHub-hosted recording starter nor an ad-hoc local or
 jumpbox write is an approved substitute for this rollout. See #522.
 
+#### Private runner wake-up: offline candidate only
+
+Both standalone starters consumed run 1, attempt 1:
+[original run](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42327760090)
+and [November 7 run](https://github.com/michael-rechani/foundry-agent-accelerator/actions/runs/42380535493).
+Leave those workflows unchanged; do not dispatch or rerun them. The
+[offline checks](../.github/scripts/check_runner_restart_candidate.py) have no
+workflow, CLI, credentials, or live job to enable. They compare supplied
+observations; passing them neither authenticates the evidence nor grants approval.
+
+- A live candidate must enforce the exact repository, dispatch actor, distinct
+  reviewed workflow, protected `main`, and first run and attempt. Require a
+  fresh authenticated `main` response matching both the reviewed commit and the
+  executing workflow SHA before credentials, and recheck before mutation. A
+  `protected` response does not prove independent review, and a branch check
+  cannot make concurrent GitHub or Azure changes atomic.
+- Privately review the exact existing VM's full ARM ID and Azure `vmId`. Bind
+  each with SHA-256 of its lowercase UTF-8 bytes with no newline. Verify the
+  configured ARM target before requesting credentials and the actual ARM ID and
+  `vmId` before any start. The `vmId` catches a different VM at the same ARM path.
+  Never publish raw IDs or credentials in inputs, logs, or review evidence.
+- Start only if the existing VM is stopped or deallocated; otherwise observe a
+  running or starting VM, and fail closed for absent, multiple, or unexpected
+  power states. Do not reboot, stop, deallocate, kill processes, re-register
+  runners, disable idle controls, or cancel or opportunistically run unrelated
+  jobs. Starting the VM can release already queued work: check the full
+  eligible queue and active operations first without modifying them, and stop
+  if they cannot be accounted for. VM running is not proof that either or both
+  GitHub runner registrations are online. Verify each expected registration
+  separately and do not conflate wake-up authorization with release approval.
+
+`lab-deploy` is main-only but has no required reviewer, and its principal has
+broader Lab and registry privileges. An actor allowlist, reviewed SHA,
+`workflow_dispatch` checkbox, or old approval does not replace independent
+review. Before enabling anything, obtain separate approval for an admin-backed
+design that blocks credential issuance until a distinct reviewer approves the
+exact run and target, with no self-review or bypass; prefer an identity limited
+to reading and starting that one VM. Verify that the repository supports the
+chosen protection and the job can prove the approval fail-closed. No such setup
+is supplied here; see #543.
+
+After those prerequisites are independently verified, get fresh authorization
+for one **start-only** operation on the privately verified VM, naming the
+reviewed main SHA, workflow, both fingerprints, first run and attempt, and
+compute cost window under the existing idle/backstop policies. Bind the
+independent approval to that exact run and inputs before authentication. A
+failed, cancelled, or ambiguous attempt is not permission to retry; the Lab UI
+release is a separate operation.
+
 When prerequisites are separately approved and the runner is online, the
 workflow checks the current main SHA and requires exactly one running, ready,
 active revision with the recorded immutable image from the configured registry.
