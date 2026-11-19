@@ -850,10 +850,47 @@ approval. It must not be represented as approval of an already-built artifact.
 Once an update has started, recovery and readback must not depend on GitHub
 remaining available.
 
-This workflow also does not start the runner VM. An approved bootstrap mechanism
-must bring a private runner online first; a queued job cannot start itself.
-Neither the existing GitHub-hosted recording starter nor an ad-hoc local or
-jumpbox write is an approved substitute for this rollout. See #522.
+The Lab image workflow does not start the runner VM. A new
+`start-private-runner-once-20261119.yml` candidate on the safeguards branch
+prepares one owner-authorized wake; it has **not** been dispatched. This is a
+single-operator authorization by the repository owner, not independent review.
+The candidate retains the existing `lab-deploy` environment's main-only
+branch policy and pins the owner actor; it does not claim the environment has
+a reviewer. Its existing Azure identity is broader than VM start: it also has
+Lab image deployment and registry-push permissions. No new identity or
+environment was created.
+
+The candidate checks that the dispatch SHA is the current protected `main`
+commit and that this exact SHA has a successful `Validate` push run. It pins
+the configured VM through the separately provided reviewed fingerprint, then
+reads queued, in-progress, waiting, and pending workflow runs and their job
+labels. It fails closed on incomplete API data or any other active `lab-runner`
+job, and repeats the queue check immediately before a start. The check is a
+point-in-time snapshot, not an atomic reservation: a new workflow can be
+queued after the last read. Existing workflows must retain their own protected
+ref and environment gates. The workflow never cancels or stops another job,
+and issues only one VM start call for `stopped` or `deallocated`; `running` or
+`starting` is observed, and any other state or failed start ends the one-shot
+attempt without retry.
+
+The candidate uses its job token only for read-only Actions inventory and
+branch reads. That token capability has not been live-probed; an authorization
+failure or inventory larger than one API page rejects before Azure
+authentication. The candidate does not inspect or print token contents.
+
+The existing starter workflow paths have each consumed run number 1, attempt
+1. The new filename supplies a separate run-number namespace, guarded to its
+own first run/attempt only. A failed or cancelled run consumes it; a new
+authorization requires a separately reviewed workflow version. Before any
+future dispatch, review and merge the candidate, verify `Validate` succeeded
+for that exact main commit, confirm the dispatcher's owner identity, and use
+the prefilled reviewed fingerprint only if the protected environment's VM
+variables still identify that same resource. Also verify the `lab-deploy`
+OIDC configuration remains valid and main-only, and inspect the active
+`lab-runner` queue immediately before dispatch; the workflow repeats the queue
+check before any start. The two runner registrations were offline at the last
+observation, which must be rechecked. Starting incurs compute cost. No
+dispatch, VM start, or Lab deployment was performed for this candidate.
 
 When prerequisites are separately approved and the runner is online, the
 workflow checks the current main SHA and requires exactly one running, ready,

@@ -56,7 +56,14 @@ def _path(value):
     if (
         target.scheme or target.netloc or target.fragment or "\\" in target.path
         or any(part in (".", "..") for part in target.path.split("/"))
-        or target.query not in ("", "per_page=1", "per_page=100")
+        or (
+            target.query not in ("", "per_page=1", "per_page=100")
+            and not re.fullmatch(
+                r"status=(queued|in_progress|waiting|pending)&per_page=100"
+                r"|head_sha=[0-9a-f]{40}&branch=main&event=push&per_page=100",
+                target.query,
+            )
+        )
     ):
         raise CheckError("GitHub API path is invalid.")
     return value

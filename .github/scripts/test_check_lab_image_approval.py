@@ -352,6 +352,38 @@ class ReaderTransportTests(unittest.TestCase):
                 with self.assertRaises(CheckError):
                     reader.get_json("/repos/example/lab/environments/copilot", kind="environment")
 
+    def test_reader_accepts_only_runner_queue_and_exact_validate_filters(self):
+        paths = (
+            "/repos/example/lab/actions/runs?status=queued&per_page=100",
+            "/repos/example/lab/actions/workflows/validate.yml/runs?"
+            f"head_sha={'a' * 40}&branch=main&event=push&per_page=100",
+        )
+        for path in paths:
+            with self.subTest(path=path):
+                payload = b'{"total_count":0,"workflow_runs":[]}'
+                response = api_response(
+                    {}, headers=length_headers(payload), raw=payload,
+                )
+                reader, _ = self._reader(response)
+                self.assertEqual(
+                    reader.get_json(path, kind="workflow runs"),
+                    {"total_count": 0, "workflow_runs": []},
+                )
+
+    def test_reader_rejects_unapproved_runner_inventory_filters(self):
+        for path in (
+            "/repos/example/lab/actions/runs?status=completed&per_page=100",
+            "/repos/example/lab/actions/runs?status=queued",
+            "/repos/example/lab/actions/workflows/validate.yml/runs?"
+            f"head_sha={'A' * 40}&branch=main&event=push&per_page=100",
+            "/repos/example/lab/actions/workflows/other.yml/runs?"
+            f"head_sha={'a' * 40}&branch=main&event=push&per_page=100",
+        ):
+            with self.subTest(path=path):
+                reader, _ = self._reader(api_response({}))
+                with self.assertRaises(CheckError):
+                    reader.get_json(path, kind="workflow runs")
+
     def test_connection_failure_is_redacted_and_fails_closed(self):
         reader = GitHubReader(
             "synthetic-token",
