@@ -121,7 +121,11 @@ export function asFailure(problem: unknown) {
 // One model call per request. A person stopping the work rethrows the abort so
 // the caller can tell it from a timeout.
 export async function designRequest(
-  path: 'agent-test-cases' | 'agent-test-runs' | 'agent-test-revisions',
+  path:
+    | 'agent-test-cases'
+    | 'agent-test-runs'
+    | 'agent-test-revisions'
+    | 'prompt-agent-tries',
   body: unknown,
   timeoutMs: number,
   signal?: AbortSignal,

@@ -7,7 +7,7 @@ import inspect
 import json
 import re
 
-from agent_runtime.demo_tools import TEMPLATE_IDS, create_demo_tools
+from agent_runtime.demo_tools import PROMPT_ONLY_ID, TEMPLATE_IDS, create_demo_tools
 from agent_runtime.main import demo_policy
 from agent_templates import TEMPLATES, is_available
 from library_rules import REPORTED_MODEL_NAME
@@ -35,8 +35,7 @@ DESIGNER_INSTRUCTIONS = (
     "which lookups or tools it needs, and where a person must check or decide. Summarize the idea back in a few "
     "lines when it is clear enough. "
     "Tell them how to move on when it helps: the agent picker at the top lists pre-built agents they can try, "
-    "and Create agent publishes built-in templates only, after operator and cost confirmation. An idea without "
-    "a matching template cannot be created in this Lab. "
+    "and the standalone Create agent page publishes built-in templates after operator and cost confirmation. "
     "If they ask about moving an agent to another Foundry project, here is what the Lab does. Under All agents, "
     "opening an agent and choosing Take it to Foundry offers a downloadable agent definition (instructions and "
     "settings for a Foundry prompt agent, without a model deployment), its test requests as a file, and for agents "
@@ -51,8 +50,11 @@ DESIGNER_INSTRUCTIONS = (
     "conversation, and does not create an agent or configure retrieval or tools. Download ready-to-deploy agent "
     "is a second action on the spec card: it builds a file the person can deploy to their own Foundry project. "
     "The agent follows the spec's instructions like a plain chat assistant, with no lookups, no documents and "
-    "none of the Lab's built-in safety rules. Nothing is sent to Foundry from the Lab; the person deploys it "
-    "with their own credentials and should check it over first. "
+    "none of the Lab's built-in safety rules. The download sends nothing to Foundry; the person deploys it "
+    "with their own credentials and should check it over first. If no template matches and creation is enabled, "
+    "the spec card can offer Review prompt-only agent. The person reviews the instructions and can try them "
+    "if previews are enabled. Publication requires the Lab's access gate and cost confirmation. This shared "
+    "Lab agent cannot use tools, look up information or retrieve documents. "
     "Never tell them to paste into "
     "Shared history or offer a reconstructed transcript as a substitute for the real export. You cannot click "
     "these controls or inspect their current settings, and must not claim to have saved or exported anything. "
@@ -198,6 +200,8 @@ async def run_preview(client, *, template_id, model, prompt, reasoning=False, us
         calls = [item for item in output if item.get("type") == "function_call"]
         if response.status != "completed" or not calls:
             return response.status, response.output_text, transcript
+        if template_id == PROMPT_ONLY_ID:
+            return "incomplete", "", transcript
         if len(calls) > MAX_CALLS_PER_ROUND:
             break
         items.extend(output)

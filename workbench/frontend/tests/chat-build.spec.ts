@@ -208,3 +208,81 @@ test('publication state survives a follow-up chat message', async ({
   state.hold = false
   await expect(firstPanel).toContainText('is ready in Foundry')
 })
+
+test('a no-template spec tries and publishes the exact reviewed text, then chats only with its ready agent', async ({
+  page,
+}) => {
+  const promptSpec = { ...spec, closest_template: null, tools_needed: ['CRM'] }
+  const state = await openCreation(page, {
+    hash: '#chat',
+    designerAnswer: designerAnswer.replace(
+      JSON.stringify(spec),
+      JSON.stringify(promptSpec),
+    ),
+  })
+  const tries: unknown[] = []
+  await page.route('**/api/prompt-agent-tries', async (route) => {
+    tries.push(route.request().postDataJSON())
+    await route.fulfill({ json: { text: 'Mock draft response.' } })
+  })
+  const card = await askDesigner(page)
+  await expect(
+    card.getByRole('button', { name: 'Download ready-to-deploy agent' }),
+  ).toBeVisible()
+  await card.getByRole('button', { name: 'Review prompt-only agent' }).click()
+  const panel = card.getByRole('group', { name: 'Create this agent' })
+  const instructions = panel.getByLabel('Task instructions')
+  await expect(instructions).toHaveValue(spec.instructions)
+  const create = panel.getByRole('button', { name: 'Create in Foundry' })
+  await instructions.fill('short')
+  await expect(create).toBeDisabled()
+  const reviewed =
+    '\nUse the fictional notice and list only the missing dates.\n'
+  await instructions.fill(reviewed)
+  await panel
+    .getByText('Try these instructions (optional)', { exact: true })
+    .click()
+  const sample = 'Fictional notice: a date is missing.'
+  await panel.getByLabel('Sample message').fill(sample)
+  const run = panel.getByRole('button', { name: 'Run one try' })
+  await expect(run).toBeDisabled()
+  await panel.getByLabel('I confirm this try can incur model charges.').check()
+  await run.click()
+  await expect(panel.getByText('Mock draft response.')).toBeVisible()
+  expect(tries).toEqual([
+    { instructions: reviewed, prompt: sample, confirm_cost: true },
+  ])
+  expect(state.posts).toHaveLength(0)
+  await expect(create).toBeDisabled()
+
+  await panel.getByLabel(/I confirm creating a shared Foundry agent/).check()
+  await create.click()
+  await expect(panel.getByRole('alert')).toContainText('operator key')
+  expect(state.posts).toHaveLength(0)
+  await panel.getByLabel('Operator key', { exact: true }).fill(operatorKey)
+  state.loseResponse = true
+  state.persistLostResponse = true
+  state.hold = true
+  await create.dblclick()
+  await expect(panel.getByRole('alert')).toBeVisible()
+  await expect(panel.getByRole('button', { name: /Chat with it/ })).toHaveCount(
+    0,
+  )
+  await panel.getByRole('button', { name: 'Check creation status' }).click()
+  await expect(panel).toContainText('Publishing to Foundry')
+  expect(state.drafts).toEqual([])
+  expect(state.posts).toHaveLength(1)
+  expect(state.posts[0]).toMatchObject({
+    instructions: reviewed,
+    confirm_cost: true,
+    template_id: 'prompt-only',
+  })
+  state.hold = false
+  await panel.getByRole('button', { name: /Chat with it/ }).click()
+  await page
+    .getByRole('button', { name: /Switch agent|Start new chat/ })
+    .click()
+  await page.getByRole('textbox', { name: 'Message', exact: true }).fill(sample)
+  await page.getByRole('button', { name: 'Send message' }).click()
+  await expect.poll(() => state.chat.at(-1)?.agent_id).toBe(state.record!.id)
+})

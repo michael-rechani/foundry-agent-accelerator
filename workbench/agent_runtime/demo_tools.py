@@ -9,6 +9,8 @@ else:
     from bill_math import calculate_bill_values
 
 
+PROMPT_ONLY_ID = "prompt-only"
+
 TEMPLATE_IDS = frozenset({
     "document-analyst", "criteria-checker", "document-intake", "casework-assistant", "workflow-coordinator",
     "medical-bill-reviewer", "insurance-preapproval-helper", "benefits-renewal-helper", "supplier-invoice-reviewer",
@@ -260,10 +262,12 @@ def _date_difference(start_date, end_date):
 
 
 def create_demo_tools(template_id, agent_name):
-    if template_id not in TEMPLATE_IDS:
+    if template_id not in TEMPLATE_IDS and template_id != PROMPT_ONLY_ID:
         raise ValueError("Unsupported demo template")
     if not isinstance(agent_name, str) or not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", agent_name):
         raise ValueError("Invalid hosted agent name")
+    if template_id == PROMPT_ONLY_ID:
+        return []
 
     def receipt(record, calculation=False):
         description = (

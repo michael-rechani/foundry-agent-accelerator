@@ -14,6 +14,8 @@ from typing import Literal
 from fastapi import APIRouter, Request
 from pydantic import Field, ValidationError, field_validator
 
+from agent_creation import PROMPT_ONLY_PROFILE
+from agent_runtime.demo_tools import PROMPT_ONLY_ID
 from agent_runtime.main import demo_policy
 from agent_templates import TEMPLATES
 from case_scoring import score
@@ -45,6 +47,33 @@ class Instructions(StrictModel):
 
 class CaseDraftInput(Instructions):
     pass
+
+
+class PromptTryInput(StrictModel):
+    instructions: str = Field(min_length=10, max_length=6000)
+    prompt: str = Field(min_length=1, max_length=2000)
+    confirm_cost: Literal[True]
+
+    @field_validator("instructions")
+    @classmethod
+    def valid_instructions(cls, value):
+        if len(value.strip()) < 10 or "\x00" in value:
+            raise ValueError("Describe the agent's task")
+        return value
+
+    @field_validator("prompt")
+    @classmethod
+    def sample_text(cls, value):
+        if not value.strip() or "\x00" in value:
+            raise ValueError("Enter sample text")
+        return value
+
+    @field_validator("confirm_cost", mode="before")
+    @classmethod
+    def explicit_confirmation(cls, value):
+        if value is not True:
+            raise ValueError("Explicit cost confirmation is required")
+        return value
 
 
 class RunInput(Instructions):
@@ -80,6 +109,7 @@ class DesignLoop:
         self.router.add_api_route("/api/agent-test-cases", self.draft_cases, methods=["POST"])
         self.router.add_api_route("/api/agent-test-runs", self.run_case, methods=["POST"])
         self.router.add_api_route("/api/agent-test-revisions", self.revise, methods=["POST"])
+        self.router.add_api_route("/api/prompt-agent-tries", self.prompt_try, methods=["POST"])
 
     @staticmethod
     def error(request, status, code, retry_after=None, **extra):
@@ -105,6 +135,17 @@ class DesignLoop:
     def template_agent(self, template_id):
         """The preview binding for a finished library template, or None."""
         return preview_agent(f"library-{template_id}", self.settings.unfinished_agents)
+
+    async def prompt_try(self, request: Request):
+        return await self.admitted(request, self.try_prompt, PromptTryInput)
+
+    async def try_prompt(self, request, data):
+        agent = {"template_id": PROMPT_ONLY_ID, "model_profile": PROMPT_ONLY_PROFILE, "tools": {}}
+        result, rejection = await self.ask(request, agent, data.prompt, demo_policy(PROMPT_ONLY_ID) + data.instructions)
+        if rejection is not None:
+            return rejection
+        text, _, usage, elapsed = result
+        return {"text": text, "elapsed_ms": elapsed, "usage": summarize_usage(usage)}
 
     async def ask(self, request, agent, prompt, instructions):
         """Return ((text, output, usage, elapsed_ms), None) or (None, an error response) for one admitted model run."""

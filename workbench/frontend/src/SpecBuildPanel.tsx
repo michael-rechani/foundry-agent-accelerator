@@ -11,6 +11,8 @@ import {
 } from './agent-creation-client'
 import { specGoal, type AgentSpec } from './agent-spec'
 import { OperatorKeyField } from './OperatorKeyField'
+import { PromptAgentTry } from './PromptAgentTry'
+import type { SpecTests } from './SpecTestPanel'
 import type { Agent, CreationCapability } from './workspace-config'
 
 // What the chat needs to let a person finish an agent without leaving it.
@@ -33,25 +35,47 @@ function problemText(problem: unknown) {
     : 'The request did not finish. Remote work may continue; check the same request before trying again.'
 }
 
-// A spec can become a real, billable agent from the chat, but only through the
-// same steps as Create agent: a reviewed template, the configured access gate and an
-// explicit cost confirmation. The setup is the template's reviewed
-// instructions plus the spec as the task, so it never publishes free text.
+const promptOnlyId = 'prompt-only'
+
+function readRecord(
+  value: unknown,
+  id: string,
+  payload?: CreatePayload | null,
+) {
+  const record = parseCreatedAgent(value)
+  if (
+    record.id !== id ||
+    (payload?.template_id === promptOnlyId &&
+      (record.template_id !== promptOnlyId ||
+        (record.status !== 'deleted' &&
+          record.instructions !== payload.instructions))) ||
+    (record.template_id === promptOnlyId &&
+      record.status === 'ready' &&
+      (!record.version || Object.keys(record.agent?.tools ?? {}).length))
+  )
+    throw new Error(
+      'The saved response does not match this creation request. No ready agent can be confirmed.',
+    )
+  return record
+}
+
 export function SpecBuildPanel({
   spec,
   templateId,
   templateLabel,
   build,
   instructions = null,
+  promptTry,
   disabled = false,
 }: {
   spec: AgentSpec
-  templateId: string
-  templateLabel: string
+  templateId?: string
+  templateLabel?: string
   build: SpecBuild
   // Task instructions the person accepted while testing this draft. They
   // replace the prepared ones so what was tested is what gets published.
   instructions?: string | null
+  promptTry?: SpecTests
   disabled?: boolean
 }) {
   const { capability, onCreated } = build
@@ -60,21 +84,33 @@ export function SpecBuildPanel({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [pending, setPending] = useState<CreatePayload | null>(null)
+  const expected = useRef<CreatePayload | null>(null)
   const [record, setRecord] = useState<CreatedAgent | null>(null)
   const [pollPaused, setPollPaused] = useState(false)
+  const [task, setTask] = useState(spec.instructions)
+  const [trying, setTrying] = useState(false)
+  const submitting = useRef(false)
   const keyField = useRef<HTMLInputElement>(null)
+  const promptOnly = !templateId
+  const validTask =
+    [...task.trim()].length >= 10 &&
+    [...task].length <= 6000 &&
+    !task.includes('\0')
   const minutes = Math.ceil(capability.publication_timeout_seconds / 60)
   const running = record?.status === 'creating'
   const recordId = record?.id
 
   useEffect(() => {
     if (!recordId || !running || pollPaused) return
+    const id = recordId
     const abort = new AbortController()
     let timer: number | undefined
     async function poll() {
       try {
-        const next = parseCreatedAgent(
-          await creationRequest(`agents/${recordId}`, {}, abort.signal),
+        const next = readRecord(
+          await creationRequest(`agents/${id}`, {}, abort.signal),
+          id,
+          expected.current,
         )
         if (abort.signal.aborted) return
         setRecord(next)
@@ -96,7 +132,15 @@ export function SpecBuildPanel({
   }, [recordId, running, pollPaused, onCreated])
 
   async function create() {
-    if (busy || disabled || !consent) return
+    if (
+      submitting.current ||
+      busy ||
+      disabled ||
+      trying ||
+      !consent ||
+      (promptOnly && !validTask)
+    )
+      return
     const key = capability.requires_operator_key
       ? (keyField.current?.value ?? '')
       : ''
@@ -113,11 +157,22 @@ export function SpecBuildPanel({
       )
       return
     }
+    submitting.current = true
     setBusy(true)
     setError('')
     try {
       let payload = pending
-      if (!payload) {
+      if (!payload && promptOnly) {
+        payload = {
+          idempotency_key: crypto.randomUUID(),
+          template_id: promptOnlyId,
+          name: spec.name,
+          instructions: task,
+          confirm_cost: true,
+        }
+        expected.current = payload
+        setPending(payload)
+      } else if (!payload) {
         const draft = parseDraft(
           await creationRequest('agent-drafts', {
             method: 'POST',
@@ -141,12 +196,14 @@ export function SpecBuildPanel({
         }
         setPending(payload)
       }
-      const created = parseCreatedAgent(
+      const created = readRecord(
         await creationRequest('agents', {
           method: 'POST',
           headers: key ? { 'X-Workbench-Creation-Key': key } : {},
           body: JSON.stringify(payload),
         }),
+        `created-${payload.idempotency_key}`,
+        payload,
       )
       if (keyField.current) keyField.current.value = ''
       setRecord(created)
@@ -161,19 +218,22 @@ export function SpecBuildPanel({
         setPending(null)
       setError(problemText(problem))
     } finally {
+      submitting.current = false
       setBusy(false)
     }
   }
 
   async function refresh() {
-    if (busy || (!pending && !record)) return
+    if (submitting.current || busy || (!pending && !record)) return
+    submitting.current = true
     setBusy(true)
     setError('')
     try {
-      const next = parseCreatedAgent(
-        await creationRequest(
-          `agents/${record?.id ?? `created-${pending?.idempotency_key}`}`,
-        ),
+      const id = record?.id ?? `created-${pending?.idempotency_key}`
+      const next = readRecord(
+        await creationRequest(`agents/${id}`),
+        id,
+        expected.current,
       )
       setRecord(next)
       setPending(null)
@@ -182,6 +242,34 @@ export function SpecBuildPanel({
     } catch (problem) {
       setError(problemText(problem))
     } finally {
+      submitting.current = false
+      setBusy(false)
+    }
+  }
+
+  async function chat() {
+    if (!record?.agent || submitting.current) return
+    if (!promptOnly) {
+      build.onChat(record.agent)
+      return
+    }
+    submitting.current = true
+    setBusy(true)
+    setError('')
+    try {
+      const current = readRecord(
+        await creationRequest(`agents/${record.id}`),
+        record.id,
+        expected.current,
+      )
+      setRecord(current)
+      onCreated(current)
+      if (current.status === 'ready' && current.agent)
+        build.onChat(current.agent)
+    } catch (problem) {
+      setError(problemText(problem))
+    } finally {
+      submitting.current = false
       setBusy(false)
     }
   }
@@ -189,7 +277,7 @@ export function SpecBuildPanel({
   if (!capability.enabled) return null
 
   if (record) {
-    const ready = record.status === 'ready' && record.agent
+    const ready = record.status === 'ready' ? record.agent : null
     return (
       <div className="spec-build" role="group" aria-label="Create this agent">
         <p className="spec-build-status" role="status">
@@ -211,11 +299,12 @@ export function SpecBuildPanel({
           )}
         </p>
         <div className="agent-spec-actions">
-          {ready && record.agent && (
+          {ready && (
             <button
               type="button"
               className="library-secondary"
-              onClick={() => build.onChat(record.agent as Agent)}
+              disabled={busy}
+              onClick={() => void chat()}
             >
               Chat with it <ArrowRight size={16} aria-hidden="true" />
             </button>
@@ -227,7 +316,7 @@ export function SpecBuildPanel({
           >
             See it in Made in this Lab
           </button>
-          {!ready && !running && (
+          {!ready && (!running || (promptOnly && pollPaused)) && (
             <button
               type="button"
               className="library-secondary"
@@ -238,6 +327,13 @@ export function SpecBuildPanel({
             </button>
           )}
         </div>
+        {promptOnly &&
+          (record.status === 'interrupted' || record.status === 'failed') && (
+            <p>
+              To reconcile the existing request, open Made in this Lab and
+              resume this saved agent. Do not create another one.
+            </p>
+          )}
         {ready && (
           <p className="agent-spec-note">
             It keeps costing money until an operator deletes it. Download the
@@ -262,7 +358,8 @@ export function SpecBuildPanel({
           disabled={disabled}
           onClick={() => setOpen(true)}
         >
-          <Plus size={16} aria-hidden="true" /> Create this agent here
+          <Plus size={16} aria-hidden="true" />{' '}
+          {promptOnly ? 'Review prompt-only agent' : 'Create this agent here'}
         </button>
       </div>
     )
@@ -270,11 +367,53 @@ export function SpecBuildPanel({
   return (
     <div className="spec-build" role="group" aria-label="Create this agent">
       <h5>Create {spec.name} in Foundry</h5>
-      <p>
-        This publishes a real agent in the shared Foundry project from the{' '}
-        <strong>{templateLabel}</strong> template, with your spec as its task.
-        Nothing is created until you confirm below.
-      </p>
+      {promptOnly ? (
+        <>
+          <p>
+            Review the exact task instructions. The Lab adds only its fixed
+            sample-data policy. This agent has no tools, lookups, or external
+            sources. Use fictional inputs only.
+          </p>
+          <label className="spec-prompt-field">
+            Task instructions
+            <textarea
+              rows={6}
+              value={task}
+              readOnly={busy || trying || !!pending}
+              onChange={(event) => {
+                setTask(event.target.value)
+                setConsent(false)
+              }}
+            />
+          </label>
+          {!validTask && (
+            <p>
+              Enter 10 to 6,000 characters of task instructions without null
+              characters.
+            </p>
+          )}
+          {promptTry && !pending && (
+            <PromptAgentTry
+              key={task}
+              instructions={task}
+              timeoutMs={promptTry.timeoutMs}
+              active={promptTry.active}
+              disabled={!validTask || busy || disabled}
+              onRunning={setTrying}
+            />
+          )}
+          <p>
+            Publishing creates a real agent in the shared Foundry project. It is
+            not private to you.
+          </p>
+        </>
+      ) : (
+        <p>
+          This publishes a real agent in the shared Foundry project from the{' '}
+          <strong>{templateLabel}</strong> template, with your spec as its task.
+          Nothing is created until you confirm below.
+        </p>
+      )}
       <ul>
         <li>
           Publishing takes up to {minutes} minute{minutes === 1 ? '' : 's'}. The
@@ -295,14 +434,14 @@ export function SpecBuildPanel({
       </ul>
       <OperatorKeyField
         inputRef={keyField}
-        disabled={busy || disabled}
+        disabled={busy || disabled || trying}
         required={capability.requires_operator_key}
       />
       <label className="creation-consent">
         <input
           type="checkbox"
           checked={consent}
-          disabled={busy || disabled}
+          disabled={busy || disabled || trying}
           onChange={(event) => setConsent(event.target.checked)}
         />
         <span>
@@ -329,7 +468,9 @@ export function SpecBuildPanel({
         <button
           type="button"
           className="library-secondary spec-build-confirm"
-          disabled={busy || disabled || !consent}
+          disabled={
+            busy || disabled || trying || !consent || (promptOnly && !validTask)
+          }
           onClick={() => void create()}
         >
           {busy ? (
@@ -352,10 +493,11 @@ export function SpecBuildPanel({
         <button
           type="button"
           className="inline-link"
-          disabled={busy || !!pending}
+          disabled={busy || trying || !!pending}
           onClick={() => {
             setOpen(false)
             setError('')
+            if (promptOnly) setConsent(false)
           }}
         >
           Cancel

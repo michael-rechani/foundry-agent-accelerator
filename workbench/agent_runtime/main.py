@@ -4,9 +4,9 @@ import re
 from urllib.parse import urlparse
 
 if __package__:
-    from .demo_tools import TEMPLATE_IDS, create_demo_tools
+    from .demo_tools import PROMPT_ONLY_ID, TEMPLATE_IDS, create_demo_tools
 else:
-    from demo_tools import TEMPLATE_IDS, create_demo_tools
+    from demo_tools import PROMPT_ONLY_ID, TEMPLATE_IDS, create_demo_tools
 
 
 # Portable bundles use this marker to identify runtimes that honor the setting.
@@ -29,6 +29,11 @@ DEMO_POLICY = (
 
 
 def demo_policy(template_id):
+    if template_id == PROMPT_ONLY_ID:
+        return DEMO_POLICY.replace(
+            "Use only supplied text and, when available, the fixed local sample-lookup tools.",
+            "Use only supplied text. You have no tools or external sources.",
+        )
     if template_id in {"medical-bill-reviewer", "benefits-renewal-helper"}:
         policy = DEMO_POLICY.replace(
             "the fixed local sample-lookup tools.",
@@ -63,7 +68,7 @@ def read_configuration(environment=None):
     required = ("FOUNDRY_PROJECT_ENDPOINT", "FOUNDRY_MODEL_NAME", "AGENT_NAME", "AGENT_INSTRUCTIONS", "DEMO_TEMPLATE_ID")
     if any(not isinstance(environment.get(key), str) or not environment[key].strip() for key in required):
         raise ValueError("Project, model, agent name, task instructions and template ID are required")
-    if environment["DEMO_TEMPLATE_ID"] not in TEMPLATE_IDS:
+    if environment["DEMO_TEMPLATE_ID"] not in TEMPLATE_IDS and environment["DEMO_TEMPLATE_ID"] != PROMPT_ONLY_ID:
         raise ValueError("Unsupported demo template")
     parsed = urlparse(environment["FOUNDRY_PROJECT_ENDPOINT"])
     if (parsed.scheme != "https" or not (parsed.hostname or "").endswith(".services.ai.azure.com")

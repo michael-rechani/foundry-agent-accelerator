@@ -126,7 +126,11 @@ and makes no model call. **Download agent spec** downloads only the proposed
 agent definition, not the conversation. It is a draft with a model placeholder
 and an empty tools list; any listed lookup needs and document sources are
 descriptive only and must be configured separately in Foundry. Review and test
-the result there before relying on it. **Download ready-to-deploy agent** builds
+the result there before relying on it. For a spec without a matching template,
+**Review prompt-only agent** may be available in the Lab. It uses separate
+cost confirmations for an optional try and for [publishing in the shared
+Lab](agent-creation.md#what-a-participant-can-do), and attaches no tools or
+sources. **Download ready-to-deploy agent** instead builds
 a file you can deploy to your own Foundry project, even when the spec matches no
 template. The Lab builds it itself, so it makes no model call and costs
 nothing, and nothing is sent to Foundry. The agent follows the spec's

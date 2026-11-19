@@ -152,7 +152,15 @@ export function recordFor(
     confirm_cost: true,
   },
 ): CreatedAgent {
-  const template = templates.find((item) => item.id === payload.template_id)!
+  const template =
+    payload.template_id === 'prompt-only'
+      ? {
+          ...templates[0],
+          id: 'prompt-only',
+          label: 'Prompt-only',
+          tools: [],
+        }
+      : templates.find((item) => item.id === payload.template_id)!
   const id = 'created-' + payload.idempotency_key
   const runtime = 'lab-demo-' + payload.idempotency_key.replaceAll('-', '')
   return {
