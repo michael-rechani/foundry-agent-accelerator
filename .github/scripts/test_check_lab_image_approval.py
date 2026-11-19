@@ -16,7 +16,7 @@ from check_lab_image_approval import (
     verify_evidence,
 )
 
-NOW = datetime(2026, 1, 1, 0, 30, tzinfo=timezone.utc)
+NOW = datetime(2026, 1, 1, 0, 29, tzinfo=timezone.utc)
 SHA = "a" * 40
 RECOVERY = "registry.invalid/workbench@sha256:" + "b" * 64
 REPO = "example/lab"
@@ -172,6 +172,8 @@ class EvidenceContractTests(unittest.TestCase):
                 verify_evidence(data, expected(), now=NOW)
         with self.assertRaisesRegex(CheckError, "stale"):
             verify_evidence(evidence(), expected(), now=NOW + timedelta(minutes=31))
+        with self.assertRaisesRegex(CheckError, "stale"):
+            verify_evidence(evidence(), expected(), now=NOW + timedelta(minutes=1))
         with self.assertRaises(CheckError):
             verify_evidence(evidence(), expected(run_id=43), now=NOW)
 
